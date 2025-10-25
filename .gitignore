@@ -1,0 +1,36 @@
+# Claude Code .gitignore
+
+# Credentials and secrets
+.credentials.json
+*.key
+*.pem
+
+# Local settings (user-specific)
+settings.local.json
+
+# Temporary files
+*.tmp
+*.log
+
+# Session data
+todos/
+shell-snapshots/
+debug/
+
+# Plugin data (may contain tokens)
+plugins/*/config.json
+statsig/
+
+# History
+history.jsonl
+
+# Node modules (if any)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backups
+*.backup
+*.bak
