@@ -12,13 +12,14 @@ settings.local.json
 *.tmp
 *.log
 
-# Session data
+# Session data (may contain sensitive tokens)
 todos/
 shell-snapshots/
 debug/
+projects/
 
 # Plugin data (may contain tokens)
-plugins/*/config.json
+plugins/
 statsig/
 
 # History

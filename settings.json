@@ -105,6 +105,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/session_start.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/ensure-git-repo.sh"
           }
         ]
       }
@@ -177,6 +181,17 @@
           {
             "type": "command",
             "command": "echo '✅ Dependencies installed. Run tests to verify.'"
+          }
+        ]
+      }
+    ],
+
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/auto-commit.sh"
           }
         ]
       }
