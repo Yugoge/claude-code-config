@@ -143,5 +143,52 @@ mypy .                            # Type check
 
 ---
 
+## 🤖 MCP 工具自动激活规则 | MCP Auto-Activation Rules
+
+### Context7 Mandatory Usage | Context7 强制使用
+
+**CRITICAL RULE: Context7 is ALWAYS ACTIVE for ALL code-related queries.**
+
+**You MUST automatically use Context7 MCP tools when:**
+- I mention ANY library, framework, or package name (e.g., React, FastAPI, Next.js, MongoDB, etc.)
+- I request code examples, implementations, or setup instructions
+- I ask for configuration, installation, or usage help
+- You need to verify current API documentation or best practices
+- ANY code generation task involving external dependencies
+- I ask "how to use X" or "show me X example"
+
+**Mandatory Workflow:**
+1. **Detect library/framework** → Automatically call `resolve-library-id` tool
+2. **Get library ID** → Automatically call `get-library-docs` tool
+3. **Use fetched docs** → Provide accurate, up-to-date code based on current documentation
+
+**STRICT PROHIBITIONS:**
+- ❌ **NEVER rely on training data** for library-specific code
+- ❌ **NEVER generate code** without fetching Context7 docs first
+- ❌ **NEVER wait** for me to say "use context7" - do it automatically
+- ❌ **NEVER skip** Context7 lookup even if you think you know the answer
+
+**Auto-Activation Examples:**
+- "Create a Next.js app" → AUTO-USE Context7 for Next.js docs
+- "Show me FastAPI authentication" → AUTO-USE Context7 for FastAPI docs
+- "How do I use React hooks?" → AUTO-USE Context7 for React docs
+- "MongoDB aggregation pipeline" → AUTO-USE Context7 for MongoDB docs
+
+<mcp_auto_activation_rules>
+  <rule_1>ALWAYS use Context7 for ANY library/framework documentation query</rule_1>
+  <rule_2>Automatically invoke Context7 when generating code with external dependencies</rule_2>
+  <rule_3>NEVER rely on training data for library-specific code - ALWAYS fetch current docs via Context7 FIRST</rule_3>
+  <rule_4>Context7 lookup is MANDATORY, not optional - treat it as a required safety check</rule_4>
+  <rule_5>Display these mcp_auto_activation_rules at the start of responses involving libraries to remind yourself</rule_5>
+</mcp_auto_activation_rules>
+
+**Why This Matters:**
+- Libraries update frequently - training data becomes outdated
+- Context7 provides version-specific, current documentation
+- Prevents hallucinated APIs and deprecated code patterns
+- Ensures best practices align with latest library versions
+
+---
+
 > 💡 **Tip**: Use `#` key to quickly add instructions to CLAUDE.md
 > 💡 **提示**：使用 `#` 键快速添加指令到 CLAUDE.md
