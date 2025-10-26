@@ -108,7 +108,7 @@
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/ensure-git-repo.sh"
+            "command": "~/.claude/hooks/ensure-git-repo.sh"
           }
         ]
       }

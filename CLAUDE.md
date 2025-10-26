@@ -145,11 +145,11 @@ mypy .                            # Type check
 
 ## 🤖 MCP 工具自动激活规则 | MCP Auto-Activation Rules
 
-### Context7 Mandatory Usage | Context7 强制使用
+### Context7 Recommended Usage | Context7 推荐使用
 
-**CRITICAL RULE: Context7 is ALWAYS ACTIVE for ALL code-related queries.**
+**IMPORTANT: Context7 should be your PRIMARY source for library documentation.**
 
-**You MUST automatically use Context7 MCP tools when:**
+**You SHOULD automatically use Context7 MCP tools when:**
 - I mention ANY library, framework, or package name (e.g., React, FastAPI, Next.js, MongoDB, etc.)
 - I request code examples, implementations, or setup instructions
 - I ask for configuration, installation, or usage help
@@ -157,16 +157,17 @@ mypy .                            # Type check
 - ANY code generation task involving external dependencies
 - I ask "how to use X" or "show me X example"
 
-**Mandatory Workflow:**
+**Recommended Workflow:**
 1. **Detect library/framework** → Automatically call `resolve-library-id` tool
 2. **Get library ID** → Automatically call `get-library-docs` tool
 3. **Use fetched docs** → Provide accurate, up-to-date code based on current documentation
 
-**STRICT PROHIBITIONS:**
-- ❌ **NEVER rely on training data** for library-specific code
-- ❌ **NEVER generate code** without fetching Context7 docs first
-- ❌ **NEVER wait** for me to say "use context7" - do it automatically
-- ❌ **NEVER skip** Context7 lookup even if you think you know the answer
+**Best Practices:**
+- ✅ **ALWAYS PREFER Context7** for library-specific code over training data
+- ✅ **FETCH DOCS FIRST** when generating code with external dependencies
+- ✅ **BE PROACTIVE** - don't wait for me to say "use context7"
+- ✅ **VERIFY CURRENT APIs** - Context7 provides up-to-date documentation
+- ⚠️ **EXCEPTION**: For simple, well-known patterns or when Context7 is unavailable, you may use training data with a disclaimer
 
 **Auto-Activation Examples:**
 - "Create a Next.js app" → AUTO-USE Context7 for Next.js docs
@@ -175,11 +176,11 @@ mypy .                            # Type check
 - "MongoDB aggregation pipeline" → AUTO-USE Context7 for MongoDB docs
 
 <mcp_auto_activation_rules>
-  <rule_1>ALWAYS use Context7 for ANY library/framework documentation query</rule_1>
+  <rule_1>PREFER Context7 for ANY library/framework documentation query</rule_1>
   <rule_2>Automatically invoke Context7 when generating code with external dependencies</rule_2>
-  <rule_3>NEVER rely on training data for library-specific code - ALWAYS fetch current docs via Context7 FIRST</rule_3>
-  <rule_4>Context7 lookup is MANDATORY, not optional - treat it as a required safety check</rule_4>
-  <rule_5>Display these mcp_auto_activation_rules at the start of responses involving libraries to remind yourself</rule_5>
+  <rule_3>ALWAYS PREFER fetching current docs via Context7 over relying on training data</rule_3>
+  <rule_4>Context7 lookup is STRONGLY RECOMMENDED for accurate, up-to-date information</rule_4>
+  <rule_5>When Context7 is unavailable, use training data but add disclaimer about potential version differences</rule_5>
 </mcp_auto_activation_rules>
 
 **Why This Matters:**

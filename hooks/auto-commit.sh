@@ -15,6 +15,12 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# 可配置的 Co-Authorship
+# 设置环境变量 CLAUDE_CO_AUTHOR 来自定义
+# 留空则不添加 co-author
+CO_AUTHOR=${CLAUDE_CO_AUTHOR:-"Co-Authored-By: Claude <noreply@anthropic.com>
+Co-Authored-By: Happy <yesreply@happy.engineering>"}
+
 # 检查是否为 git 仓库
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
   echo -e "${YELLOW}⚠️  Not a git repository. Skipping commit.${NC}"
@@ -48,8 +54,7 @@ $([ $FILE_COUNT -gt 10 ] && echo "... and $((FILE_COUNT - 10)) more")
 🤖 Generated with [Claude Code](https://claude.ai/code)
 via [Happy](https://happy.engineering)
 
-Co-Authored-By: Claude <noreply@anthropic.com>
-Co-Authored-By: Happy <yesreply@happy.engineering>"
+${CO_AUTHOR}"
 
 # 添加所有更改
 git add -A

@@ -16,6 +16,10 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# 可配置的 Co-Authorship
+CO_AUTHOR=${CLAUDE_CO_AUTHOR:-"Co-Authored-By: Claude <noreply@anthropic.com>
+Co-Authored-By: Happy <yesreply@happy.engineering>"}
+
 # 检查是否已经是 git 仓库
 if git rev-parse --git-dir > /dev/null 2>&1; then
   echo -e "${GREEN}✅ Git repository already exists.${NC}"
@@ -79,8 +83,7 @@ git commit -m "Initial commit
 🤖 Generated with [Claude Code](https://claude.ai/code)
 via [Happy](https://happy.engineering)
 
-Co-Authored-By: Claude <noreply@anthropic.com>
-Co-Authored-By: Happy <yesreply@happy.engineering>" > /dev/null 2>&1
+${CO_AUTHOR}" > /dev/null 2>&1
 
 echo -e "${GREEN}✅ Git repository initialized with initial commit${NC}"
 

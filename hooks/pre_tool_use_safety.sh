@@ -39,10 +39,16 @@ if [[ "$1" == *"package.json"* ]]; then
     echo ""
 fi
 
-# Example: For .env file modifications (should be denied in settings)
-if [[ "$1" == *".env"* ]]; then
+# Example: For .env file modifications (BLOCK instead of warn)
+if [[ "$1" == *".env"* ]] || [[ "$1" == *"credentials"* ]] || [[ "$1" == *"secret"* ]]; then
     echo ""
-    echo "🔒 WARNING: Attempting to modify .env file"
-    echo "🔒 Secrets should NEVER be committed to Git"
+    echo "🔒 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🔒 BLOCKED: Attempting to modify sensitive file"
+    echo "🔒 File: $1"
+    echo "🔒 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🔒 This file contains secrets and should NEVER be edited by AI"
+    echo "🔒 Please modify this file manually"
+    echo "🔒 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
+    exit 2  # Exit code 2 blocks the operation
 fi
