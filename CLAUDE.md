@@ -190,5 +190,272 @@ mypy .                            # Type check
 
 ---
 
+## 🌐 Advanced Web Search & Deep Navigation | 高级网络搜索与深度导航
+
+### Deep Search Methodology | 深度搜索方法论
+
+**CRITICAL RULE: When user requests finding official documents, guides, or deep website information, automatically use the Deep Search Strategy.**
+
+**触发条件 | Trigger Conditions:**
+- "找到官方文档" / "Find official documentation"
+- "深度搜索网站" / "Deep search the website"
+- "站内查找" / "Search within site"
+- "下载 PDF/表单" / "Download PDF/forms"
+- Any research task requiring 5+ sources
+
+**可用命令 | Available Commands:**
+- `/deep-search <domain> <goal>` - Site-specific deep exploration
+- `/research-deep <topic>` - Multi-source research (15-20 searches)
+- `/search-tree <question>` - MCTS-inspired path exploration
+- `/reflect-search <goal>` - Iterative search with reflection
+- `/site-navigate <url> <task>` - Intelligent site navigation
+
+### Strategy Selection | 策略选择
+
+**Simple queries (1-3 searches)**:
+- Use WebSearch directly
+- Example: "What is the capital of France?"
+
+**Complex queries (5-10 searches)**:
+- Use `/research-deep`
+- Example: "AI chip market trends 2025"
+
+**Site-specific searches**:
+- Use `/deep-search <domain> <goal>`
+- Example: Finding Korean visa application guide on hikorea.go.kr
+
+**Multi-path problems**:
+- Use `/search-tree`
+- Example: "How to start an AI company?"
+
+**Verification needed**:
+- Use `/reflect-search`
+- Example: Finding specific regulatory requirements
+
+### Execution Patterns | 执行模式
+
+**Pattern 1: Parallel Breadth-First**
+```
+Phase 1: 3-5 parallel WebSearch (broad topics)
+Phase 2: Extract key URLs from all results
+Phase 3: 5-10 parallel WebFetch (deep content)
+Phase 4: Synthesize with Claude
+```
+
+**Pattern 2: Iterative Depth-First**
+```
+Loop (max 10 iterations):
+  1. Search current topic
+  2. Analyze results
+  3. Extract next sub-topic
+  4. If goal achieved: break
+  5. Else: search sub-topic
+```
+
+**Pattern 3: Tree Exploration (MCTS-inspired)**
+```
+1. Generate 3-5 possible search paths
+2. Evaluate each path (score 0-10)
+3. Explore top 2 paths in parallel
+4. Recurse on most promising branch
+5. Max depth: 3 levels
+```
+
+### WebFetch Prompt Templates | 提示模板
+
+**Template A: Navigation Extraction**
+```
+Extract all navigation menu items and links from this page.
+For each item provide: Menu > Submenu > URL > Description
+Focus on links related to: [GOAL]
+Format as structured list or JSON.
+```
+
+**Template B: Document Discovery**
+```
+Scan this page for downloadable documents, guides, PDFs, or forms.
+Extract: Title | Type | Download URL | Description | Updated Date
+Prioritize official/authoritative sources.
+Return as table or JSON array.
+```
+
+**Template C: Deep Content Analysis**
+```
+Analyze this [document/page] and extract:
+1. Main sections and purposes
+2. Key requirements or procedures
+3. Important dates or deadlines
+4. Contact information
+5. Referenced sub-documents or related links
+Organize by relevance to: [GOAL]
+```
+
+### Failure Recovery Strategies | 失败恢复策略
+
+**Level 1: Alternative Domains**
+```
+If WebFetch blocked on domain.com:
+→ Try subdomain (e.g., api.domain.com, www.domain.com)
+→ Try related domains (e.g., visa.go.kr if hikorea.go.kr fails)
+```
+
+**Level 2: Search Mirrors**
+```
+WebSearch: "site:domain.com mirror"
+WebSearch: "[organization] official alternative site"
+```
+
+**Level 3: Third-Party Sources**
+```
+WebSearch: "[topic] official PDF embassy consulate"
+WebSearch: "[topic] .gov OR .edu official guide"
+```
+
+**Level 4: MCP Browser Tools**
+```
+If Playwright MCP installed:
+→ Use browser automation to bypass restrictions
+→ Handle JavaScript-rendered content
+```
+
+**Level 5: Task Agent**
+```
+Launch general-purpose agent with creative problem-solving:
+"Find alternative ways to access [goal] from [domain]"
+```
+
+### Performance Optimization | 性能优化
+
+**Critical Rules:**
+- ✅ **Always parallel** when searches are independent
+- ✅ **Cache results** - avoid re-fetching same URL
+- ✅ **Timeout control** - max 30s per WebFetch
+- ✅ **Progress tracking** - use TodoWrite for multi-phase searches
+- ✅ **Smart retries** - exponential backoff for failures
+
+**Example Parallel Execution:**
+```
+BAD (sequential - 30 seconds total):
+  result1 = WebFetch(url1)  # 10s
+  result2 = WebFetch(url2)  # 10s
+  result3 = WebFetch(url3)  # 10s
+
+GOOD (parallel - 10 seconds total):
+  [result1, result2, result3] = parallel(
+    WebFetch(url1),
+    WebFetch(url2),
+    WebFetch(url3)
+  )
+```
+
+### Integration with MCP Tools | MCP 工具集成
+
+**Preference Order:**
+1. **Static HTML pages**: Use WebFetch (fastest)
+2. **Dynamic JavaScript**: Use Playwright MCP
+3. **Anti-bot protection**: Use Browser MCP (logged-in session)
+4. **Complex navigation**: Use custom deep-research MCP
+
+**Auto-Detection:**
+```
+If WebFetch returns "<script>...</script>" heavy content:
+  → Automatically retry with Playwright MCP
+
+If response contains "403 Forbidden" or "Cloudflare":
+  → Automatically use Browser MCP or search alternatives
+```
+
+---
+
+## 💬 Interactive & Conversational Search | 交互式搜索
+
+### Conversational Search Pattern | 对话式搜索模式
+
+**5-Step Framework:**
+
+**Step 1: Intent Clarification | 意图澄清**
+```
+User says: "帮我找韩国签证信息"
+
+Claude responds:
+"我理解您需要韩国签证信息。为了提供最准确的帮助,请告诉我:
+1. 签证类型(旅游/商务/学生/工作)
+2. 您的国籍
+3. 具体需要的信息(申请流程/材料清单/费用/处理时间)
+
+或者我可以先进行广泛搜索,找到所有类型的签证信息概览?"
+
+Use <options> to offer choices.
+```
+
+**Step 2: Strategy Proposal | 策略提议**
+```
+Based on clarified intent, propose search strategy with <options>
+```
+
+**Step 3: Progressive Execution | 渐进执行**
+```
+Execute in phases, reporting progress every 2-3 steps
+Use TodoWrite to track progress
+```
+
+**Step 4: Interactive Refinement | 交互优化**
+```
+After initial findings, ask if user wants to:
+A) Continue deeper
+B) Summarize current findings
+C) Search specific aspect
+```
+
+**Step 5: Synthesis & Follow-up | 综合与跟进**
+```
+Deliver final report with follow-up options using <options>
+```
+
+### Reflection-Driven Search | 反思驱动搜索
+
+**After each search iteration, reflect:**
+```
+Self-reflection questions:
+1. Did this search bring me closer to the goal? Score: [1-10]
+2. What critical info is still missing? - [List gaps]
+3. Should I pivot strategy or go deeper? Decision: [PIVOT / DEEPEN / DONE]
+4. Are there alternative paths worth exploring? Alternatives: [List if any]
+```
+
+**Auto-adjustment based on reflection:**
+```
+If score < 5 for 2 consecutive searches:
+  → Pivot to alternative strategy
+  → Ask user for clarification
+
+If score ≥ 8:
+  → Continue current path
+
+If score = 10:
+  → Goal achieved, synthesize results
+```
+
+### Quality Assurance | 质量保证
+
+**Verification Checklist:**
+- [ ] Are sources official/authoritative?
+- [ ] Are URLs from the correct domain?
+- [ ] Is information up-to-date (check dates)?
+- [ ] Do findings actually answer the goal?
+- [ ] Are there conflicting sources to reconcile?
+
+**Citation Standards:**
+```
+Every claim should include:
+- Source title
+- URL (verified accessible)
+- Publication/update date
+- Excerpt or quote
+- Confidence level (High/Medium/Low)
+```
+
+---
+
 > 💡 **Tip**: Use `#` key to quickly add instructions to CLAUDE.md
 > 💡 **提示**：使用 `#` 键快速添加指令到 CLAUDE.md
