@@ -58,6 +58,48 @@
 
 ---
 
+### `/checkpoint`
+**Best for**: Quick save of current progress with immediate push
+
+**What it does**:
+- Detects all uncommitted changes (modified + untracked)
+- Stages all files automatically
+- Creates timestamped checkpoint commit
+- Immediately pushes to remote
+- Provides clear success/failure feedback
+
+**Example**:
+```
+/checkpoint
+```
+
+**When to use**:
+- Before taking a break
+- After completing a significant change
+- When you want to ensure everything is backed up
+- As a safety measure during long sessions
+
+**Features**:
+- Zero-loss guarantee: All changes are saved
+- Timestamped commits for easy tracking
+- Automatic remote backup
+- Clear status reporting
+
+**Configuration**:
+```bash
+# Custom message prefix
+export GIT_CHECKPOINT_MESSAGE="feature: my-feature"
+
+# Then run
+bash ~/.claude/hooks/checkpoint.sh
+```
+
+**Related**:
+- See `/root/.claude/docs/auto-sync-analysis.md` for automatic checkpoint strategies
+- See `/root/.claude/docs/lock-file-handling.md` for lock file handling
+
+---
+
 ## 🔍 Deep Search Commands
 
 ## 🚀 Available Commands
