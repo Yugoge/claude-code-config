@@ -126,7 +126,52 @@ if [ "$STAGED_COUNT" = "0" ]; then
     exit 0
   fi
 else
-  # Step 7: Create commit with staged changes
+  # Step 7: Check for git lock file before committing
+  LOCK_FILE=".git/index.lock"
+  if [ -f "$LOCK_FILE" ]; then
+    echo -e "${YELLOW}⚠️  Warning: Git lock file detected${NC}"
+    echo ""
+    echo "A lock file exists at: $LOCK_FILE"
+    echo "This usually means:"
+    echo "  • Another git process is running"
+    echo "  • A previous git process crashed"
+    echo ""
+
+    # Check if any git process is running
+    GIT_PROCESSES=$(ps aux | grep -i '[g]it' | grep -v grep || true)
+    if [ -n "$GIT_PROCESSES" ]; then
+      echo -e "${RED}Active git processes found:${NC}"
+      echo "$GIT_PROCESSES"
+      echo ""
+      echo "Please wait for other git operations to complete."
+      exit 1
+    else
+      echo "No active git processes detected."
+      echo "The lock file appears to be stale (from a crashed process)."
+      echo ""
+      echo -e "${CYAN}Remove the lock file and continue? (y/n)${NC}"
+      read -r RESPONSE
+
+      if [ "$RESPONSE" = "y" ] || [ "$RESPONSE" = "Y" ] || [ "$RESPONSE" = "yes" ]; then
+        rm -f "$LOCK_FILE"
+        if [ $? -eq 0 ]; then
+          echo -e "${GREEN}✅ Lock file removed${NC}"
+          echo ""
+        else
+          echo -e "${RED}❌ Failed to remove lock file${NC}"
+          echo "You may need to remove it manually:"
+          echo "  rm $LOCK_FILE"
+          exit 1
+        fi
+      else
+        echo "Operation cancelled."
+        echo "To remove manually: rm $LOCK_FILE"
+        exit 0
+      fi
+    fi
+  fi
+
+  # Step 8: Create commit with staged changes
   echo "📝 Creating commit..."
 
   # Generate commit message
@@ -150,7 +195,7 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
   echo ""
 fi
 
-# Step 8: Push to remote
+# Step 9: Push to remote
 echo "🌐 Pushing to remote..."
 echo ""
 
@@ -168,7 +213,7 @@ else
   PUSH_STATUS=$?
 fi
 
-# Step 9: Handle push result
+# Step 10: Handle push result
 if [ $PUSH_STATUS -ne 0 ]; then
   echo ""
   echo -e "${RED}❌ Push failed${NC}"
@@ -185,7 +230,7 @@ if [ $PUSH_STATUS -ne 0 ]; then
   exit 1
 fi
 
-# Step 10: Success summary
+# Step 11: Success summary
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo -e "${GREEN}✅ Successfully pushed to origin/$BRANCH${NC}"

@@ -52,11 +52,75 @@ fi
 
 echo "Pulling from origin/$BRANCH with rebase..."
 
-# Step 4: Pull with rebase
+# Step 4: Check for git lock file before pulling
+LOCK_FILE=".git/index.lock"
+if [ -f "$LOCK_FILE" ]; then
+  echo ""
+  echo -e "${YELLOW}⚠️  Warning: Git lock file detected${NC}"
+  echo ""
+  echo "A lock file exists at: $LOCK_FILE"
+  echo "This usually means:"
+  echo "  • Another git process is running"
+  echo "  • A previous git process crashed"
+  echo ""
+
+  # Check if any git process is running
+  GIT_PROCESSES=$(ps aux | grep -i '[g]it' | grep -v grep || true)
+  if [ -n "$GIT_PROCESSES" ]; then
+    echo -e "${RED}Active git processes found:${NC}"
+    echo "$GIT_PROCESSES"
+    echo ""
+    echo "Please wait for other git operations to complete."
+
+    if [ "$STASHED" = "1" ]; then
+      echo ""
+      echo "Restoring stashed changes before exit..."
+      git stash pop
+    fi
+    exit 1
+  else
+    echo "No active git processes detected."
+    echo "The lock file appears to be stale (from a crashed process)."
+    echo ""
+    echo -e "${CYAN}Remove the lock file and continue? (y/n)${NC}"
+    read -r RESPONSE
+
+    if [ "$RESPONSE" = "y" ] || [ "$RESPONSE" = "Y" ] || [ "$RESPONSE" = "yes" ]; then
+      rm -f "$LOCK_FILE"
+      if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✅ Lock file removed${NC}"
+        echo ""
+      else
+        echo -e "${RED}❌ Failed to remove lock file${NC}"
+        echo "You may need to remove it manually:"
+        echo "  rm $LOCK_FILE"
+
+        if [ "$STASHED" = "1" ]; then
+          echo ""
+          echo "Restoring stashed changes before exit..."
+          git stash pop
+        fi
+        exit 1
+      fi
+    else
+      echo "Operation cancelled."
+      echo "To remove manually: rm $LOCK_FILE"
+
+      if [ "$STASHED" = "1" ]; then
+        echo ""
+        echo "Restoring stashed changes before exit..."
+        git stash pop
+      fi
+      exit 0
+    fi
+  fi
+fi
+
+# Step 5: Pull with rebase
 git pull --rebase origin "$BRANCH"
 PULL_STATUS=$?
 
-# Step 5: Check for conflicts
+# Step 6: Check for conflicts
 if [ $PULL_STATUS -ne 0 ]; then
   echo ""
   echo -e "${RED}⚠️  Conflicts detected during rebase!${NC}"
@@ -90,7 +154,7 @@ fi
 echo -e "${GREEN}✅ Pull completed successfully${NC}"
 echo ""
 
-# Step 6: Pop stash if created
+# Step 7: Pop stash if created
 if [ "$STASHED" = "1" ]; then
   echo "📦 Restoring stashed changes..."
   git stash pop
@@ -114,7 +178,7 @@ if [ "$STASHED" = "1" ]; then
   echo ""
 fi
 
-# Step 7: Show summary
+# Step 8: Show summary
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo -e "${GREEN}✅ Pull complete!${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
