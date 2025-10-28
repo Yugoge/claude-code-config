@@ -19,7 +19,7 @@ readonly NC='\033[0m' # No Color
 
 # Configuration
 WATCH_PATH="${1:-.}"
-DEBOUNCE_DELAY=${FSWATCH_DEBOUNCE:-5}        # 防抖延迟（秒）
+DEBOUNCE_DELAY=${FSWATCH_DEBOUNCE:-12}       # 防抖延迟（秒，确保不超过 GitHub 6次/分钟限制）
 AUTO_PULL_INTERVAL=${FSWATCH_PULL_INTERVAL:-300}  # 自动 pull 间隔（秒，默认5分钟）
 MAX_RETRIES=${FSWATCH_MAX_RETRIES:-3}        # 最大重试次数
 LOG_FILE="${HOME}/.claude/logs/git-fswatch.log"
