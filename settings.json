@@ -12,7 +12,10 @@
     "GIT_AUTO_STAGE_ALL": "0",
     "GIT_BLOCK_ON_UNTRACKED": "0",
     "GIT_WARN_UNTRACKED": "1",
-    "GIT_PUSH_AUTO_STAGE": "1"
+    "GIT_PUSH_AUTO_STAGE": "1",
+    "GIT_AUTO_PUSH": "1",
+    "GIT_CHECKPOINT_THRESHOLD": "10",
+    "GIT_CHECKPOINT_SILENT": "0"
   },
   "permissions": {
     "allow": [
@@ -155,11 +158,11 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "echo '✅ File modified successfully'"
+            "command": "~/.claude/hooks/smart-checkpoint.sh"
           }
         ]
       },
