@@ -1,0 +1,397 @@
+# Personal Knowledge System
+
+An AI-powered personal knowledge management and spaced repetition learning system built on Claude Code.
+
+## Features
+
+- **Multi-format Support**: PDF, EPUB, PowerPoint, Word, Excel, Markdown
+- **Socratic Learning**: Interactive dialogue-based teaching (not passive reading)
+- **RemNote-style Knowledge Base**: Hierarchical concepts with bidirectional links
+- **Spaced Repetition**: SM-2 algorithm for optimal review scheduling
+- **Dual Taxonomy**: UNESCO ISCED + Dewey Decimal classification
+- **Progress Tracking**: Fine-grained tracking at page/chapter/concept level
+- **Git-Friendly**: Everything stored as Markdown for version control
+- **Universal Q&A**: Ask any question with automatic web research
+- **Conversation Archival**: Preserve all learning dialogues as structured knowledge
+
+## Quick Start
+
+### 1. Initialize System
+
+```bash
+cd /root/knowledge-system
+/kb-init
+```
+
+### 2. Add Learning Materials
+
+Place your materials in the appropriate domain folder:
+
+```
+learning-materials/
+├── finance/
+│   └── options-trading.pdf
+├── programming/
+│   └── algorithms-textbook.pdf
+└── language/
+    └── spanish-grammar.epub
+```
+
+### 3. Start Learning
+
+```bash
+/learn learning-materials/finance/options-trading.pdf
+```
+
+The AI tutor will:
+- Present passages from the material
+- Ask Socratic questions to test understanding
+- Extract concepts as knowledge Rems
+- Track your progress automatically
+
+### 4. Review Regularly
+
+```bash
+/review
+```
+
+The review system will:
+- Present concepts due for review (based on SM-2)
+- Test recall through dialogue
+- Adjust review schedule based on performance
+
+### 5. Track Progress
+
+```bash
+/progress                    # Overall progress
+/progress finance            # Domain-specific
+/progress learning-materials/finance/options-trading.pdf  # Material-specific
+```
+
+## System Architecture
+
+```
+knowledge-system/
+├── .claude/                    # Claude Code configuration
+│   ├── commands/               # Slash commands (/learn, /review, etc.)
+│   ├── agents/                 # Specialized AI tutors
+│   │   ├── book-tutor/
+│   │   ├── language-tutor/
+│   │   ├── finance-tutor/
+│   │   ├── programming-tutor/
+│   │   ├── review-master/
+│   │   └── knowledge-indexer/
+│   ├── hooks/
+│   └── CLAUDE.md
+├── learning-materials/         # Original materials + progress tracking
+│   ├── .index.json
+│   ├── finance/
+│   ├── programming/
+│   └── language/
+├── knowledge-base/             # Extracted knowledge (Rem-style)
+│   ├── .taxonomy.json
+│   ├── _index/
+│   │   ├── backlinks.json      # Bidirectional link index
+│   │   ├── by-isced.md
+│   │   ├── by-dewey.md
+│   │   └── by-tag.md
+│   ├── finance/
+│   ├── programming/
+│   └── language/
+├── .review/                    # Review system data
+│   ├── schedule.json           # SM-2 scheduling
+│   └── history.json            # Learning history
+├── chats/                      # Conversation archives
+│   └── index.json              # conversations map + metadata
+├── scripts/                    # Utility scripts
+│   ├── sm2-algorithm.py
+│   ├── parse-ppt.py
+│   ├── parse-epub.py
+│   ├── rebuild-backlinks.py
+│   └── rebuild-indexes.py
+└── README.md
+```
+
+## Key Concepts
+
+### Rem-style Knowledge Points
+
+Each concept is stored as a Markdown file with:
+
+- **Hierarchical structure**: Parent → Child relationships
+- **Bidirectional links**: `[[concept-a]]` ↔ `[[concept-b]]`
+- **Tags**: Domain, difficulty, topic tags
+- **Metadata**: Creation date, review history, SM-2 data
+- **Dual taxonomy**: UNESCO ISCED + Dewey Decimal codes
+
+Example:
+```markdown
+---
+id: call-option-intrinsic-value
+title: Call Option Intrinsic Value
+tags: [finance, options, derivatives]
+isced: ["34"]
+dewey: ["300"]
+---
+
+# Call Option Intrinsic Value
+
+## Related Concepts
+- [[option-valuation]] - Parent concept
+- [[put-option-intrinsic-value]] - Mirror concept
+- [[time-value]] - Complementary concept
+
+[...]
+```
+
+### Learning Flow
+
+1. **Chunked Processing**: Large materials are processed in manageable chunks to respect Claude Code's context limits
+2. **Incremental Progress**: Progress tracked at multiple granularities (page, chapter, concept)
+3. **Table of Contents First**: Structure extracted first for "big picture" view
+4. **Learn-as-you-go**: Concepts added incrementally during learning sessions
+
+### Review System (SM-2)
+
+- **Quality Scale**: 0-5 (0 = complete failure, 5 = perfect recall)
+- **Adaptive Intervals**: Algorithm adjusts based on performance
+  - First review: 1 day
+  - Second review: 6 days
+  - Subsequent: Interval × Easiness Factor
+- **Failed Reviews**: Reset to 1-day interval
+- **Conversation-based**: Not flashcards - test through dialogue
+
+### Taxonomy System
+
+**UNESCO ISCED** (Education classification):
+```
+34 - Business and Administration (Finance)
+48 - Computing (Programming)
+22 - Humanities (Language)
+[...]
+```
+
+**Dewey Decimal** (Library classification):
+```
+000 - Computer Science
+300 - Social Sciences
+400 - Language
+[...]
+```
+
+## Commands Reference
+
+### `/learn <file-path>`
+Start interactive learning session with a material
+
+### `/review [domain|concept-id]`
+- `/review` - Review all concepts due today
+- `/review finance` - Review all finance concepts
+- `/review [[concept-id]]` - Review specific concept
+
+### `/progress [domain|file-path]`
+- `/progress` - Overall progress dashboard
+- `/progress finance` - Domain-specific progress
+- `/progress learning-materials/...` - Material-specific progress
+
+### `/ask <question>`
+Ask any question with automatic web research and knowledge integration
+
+### `/archive-conversation [topic-name]`
+Archive current conversation as structured knowledge with extracted concepts
+
+### `/kb-init`
+Initialize or repair knowledge system (also normalizes indexes)
+
+## Hooks & Indexes (new)
+
+- Project hooks in `.claude/settings.json` provide safety (PreToolUse) and automation (PostToolUse triggers rebuilds)
+- `chats/index.json` uses a conversations map with metadata aggregates
+- Rebuild utilities:
+  - `python scripts/rebuild-backlinks.py`
+  - `python scripts/rebuild-indexes.py`
+
+## 🆕 New: Universal Q&A System
+
+### Ask Anything
+```bash
+/ask "Explain quantum computing"
+```
+The **analyst** agent will:
+- 🔍 Search the web automatically
+- 📚 Check your existing knowledge base
+- 💻 Execute code if needed
+- 📖 Cite all sources
+
+### Archive Conversations
+After `/ask`:
+```
+Archive this conversation?
+  1. Yes - Extract & save
+  2. No - Discard
+  3. Later - Manual
+```
+
+Or manually:
+```bash
+/archive-conversation topic-name
+```
+
+### Complete Backup
+All conversations saved to `chats/`:
+- 📅 Organized by month
+- 🔗 Linked to concepts
+- 🔍 Fully indexed
+
+## Agents
+
+### book-tutor
+Expert in Socratic teaching for books, papers, reports. Asks probing questions, builds understanding through dialogue.
+
+### language-tutor
+Specialized in language learning pedagogy. Uses spaced repetition, contextual examples, conversation practice.
+
+### finance-tutor
+Finance domain expert. Teaches concepts, calculations, applications. Uses real-world scenarios.
+
+### programming-tutor
+Programming domain expert. Teaches algorithms, data structures, best practices. Uses code examples and debugging.
+
+### review-master
+Conducts spaced repetition review sessions. Tests recall through conversation, updates SM-2 schedule.
+
+### knowledge-indexer
+Maintains knowledge graph structure. Updates bidirectional links, applies taxonomy, generates indexes.
+
+### analyst
+Universal AI assistant with full tool access. Handles any question with automatic web research, code execution, and knowledge base integration.
+
+### conversation-archiver
+Converts dialogues into structured knowledge. Extracts concepts, creates Rems with bidirectional links, and archives conversations to chats/.
+
+## File Formats
+
+### Supported Learning Materials
+- **PDF**: Native support via Claude Code Read tool
+- **EPUB**: Parsed via `scripts/parse-epub.py`
+- **PowerPoint**: Parsed via `scripts/parse-ppt.py`
+- **Word/Excel**: Native support via Claude Code Read tool
+- **Markdown**: Native support
+
+### Progress Files
+Each material gets a `.progress.md` file tracking:
+- Current position (page/chapter)
+- Table of contents with completion checkmarks
+- Learned concepts (list of [[concept-ids]])
+- Learning journal (session notes, takeaways, questions)
+
+### Knowledge Rems
+Stored in `knowledge-base/[domain]/concepts/[concept-id].md` with:
+- Frontmatter (metadata, tags, taxonomy)
+- Definition and explanation
+- Examples and applications
+- Related concepts (bidirectional links)
+- Review metadata (SM-2 data)
+
+## Best Practices
+
+### Learning
+- **Daily consistency**: 30-60 minutes daily beats irregular long sessions
+- **Active engagement**: Answer questions thoughtfully, don't rush
+- **Make connections**: Link new concepts to existing knowledge
+- **Review regularly**: Follow SM-2 schedule for optimal retention
+
+### Organization
+- **One domain per material**: Place files in appropriate domain folder
+- **Descriptive filenames**: Use clear, searchable names
+- **Tag generously**: Tags help discover related concepts
+- **Link proactively**: Create [[links]] during learning for better recall
+
+### Review
+- **Be honest**: Quality ratings must be accurate for SM-2 to work
+- **Don't cram**: Spaced repetition is more effective than massing
+- **Apply knowledge**: Think about real-world applications
+- **Note weak spots**: Concepts with low quality scores need extra attention
+
+## Git Workflow
+
+### Initial Setup
+```bash
+cd /root/knowledge-system
+git remote add origin <your-github-repo>
+git push -u origin main
+```
+
+### Regular Commits
+```bash
+# After learning sessions
+git add .
+git commit -m "Learning session: [material] - learned [N] concepts"
+git push
+
+# After review sessions
+git add .review/
+git commit -m "Review session: [N] concepts reviewed"
+git push
+```
+
+### Sync Across Devices
+```bash
+git pull   # Before starting work
+git push   # After sessions
+```
+
+## Troubleshooting
+
+### "Context limit exceeded"
+- Materials are chunked automatically
+- Progress files track position
+- Continue with `/learn` command to resume
+
+### "Broken links detected"
+- Run knowledge-indexer to repair
+- Check `knowledge-base/_index/backlinks.json`
+
+### "No concepts due for review"
+- Check `.review/schedule.json`
+- View next review date with `/progress`
+
+### "Agent not found"
+- Verify agents exist in `.claude/agents/`
+- Run `/kb-init` to repair
+
+## Advanced Features
+
+### Custom Agents
+Create domain-specific tutors in `.claude/agents/[name]/instructions.md`
+
+### Hook Integration
+Add `.claude/hooks/user-prompt-submit.sh` for review reminders
+
+### Bulk Import
+Use scripts to batch-import materials from external sources
+
+### Export
+Generate study guides, summaries, or flashcards from knowledge base
+
+## Contributing
+
+This is a personal knowledge system template. Customize to your needs:
+
+1. Add new domains to taxonomy
+2. Create specialized agents for your fields
+3. Modify progress tracking granularity
+4. Adjust SM-2 parameters for your learning style
+
+## License
+
+MIT License - Use freely for personal learning
+
+## Credits
+
+Built with Claude Code by Anthropic
+Inspired by SuperMemo, RemNote, and Zettelkasten methodology
+
+---
+
+Happy learning! 🎓

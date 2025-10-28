@@ -1,0 +1,679 @@
+---
+**⚠️ DEPRECATED DOCUMENT - PHASE 2**
+
+**Original Name**: `docs/PRD.md`
+**Date Deprecated**: 2025-10-26
+**Reason**: Phase 2 completed and superseded by Phase 3
+**Current Active**: [../phase-3-prd.md](../phase-3-prd.md)
+**System Overview**: [../README.md](../README.md)
+
+*This document preserves Phase 2 requirements for historical reference. For current development, see Phase 3 documentation.*
+
+---
+
+# Product Requirements Document (PRD)
+# 个人知识库学习管理与复习系统
+
+**Version**: 2.0 (DEPRECATED)
+**Date**: 2025-10-26
+**Status**: ✅ Complete - Production Ready Baseline (Phase 2)
+**Owner**: User + Claude Code
+
+---
+
+## 📋 Executive Summary
+
+This is an AI-powered personal knowledge management and spaced repetition learning system built entirely within Claude Code. It combines Socratic dialogue-based learning, RemNote-style knowledge organization, SM-2 spaced repetition, and universal Q&A capabilities to replace both traditional learning tools and Claude.ai web interface.
+
+---
+
+## 🎯 Core Requirements (From Original Discussion)
+
+### 1. Multi-format Learning Material Support
+
+**Requirement**: Support diverse learning material formats for comprehensive knowledge acquisition.
+
+**Supported Formats**:
+- PDF (Claude Code native Read tool)
+- EPUB (custom parser: `scripts/parse-epub.py`)
+- PowerPoint (.pptx - custom parser: `scripts/parse-ppt.py`)
+- Word (.docx - Claude Code native)
+- Excel (.xlsx - Claude Code native)
+- Markdown (.md - Claude Code native)
+
+**Technical Constraints**:
+- Claude Code context limit (~200k tokens)
+- Solution: Semantic chunking + incremental learning
+- Never load entire large files at once
+
+---
+
+### 2. Interactive Socratic Learning
+
+**Requirement**: Learning through dialogue, not passive reading.
+
+**Implementation**:
+- **book-tutor agent**: Presents passages → asks probing questions → evaluates responses → extracts concepts
+- **One question at a time**: Build understanding incrementally
+- **Adaptive difficulty**: Adjust based on learner's responses
+- **NOT flashcards**: Conversational teaching style
+
+**Use Case**: `/learn learning-materials/finance/options-trading.pdf`
+
+---
+
+### 3. RemNote-style Knowledge Base
+
+**Requirement**: Hierarchical knowledge organization with bidirectional linking.
+
+**Features**:
+- **Hierarchical nesting**: Parent → Child concept relationships
+- **Bidirectional links**: `[[concept-a]]` ↔ `[[concept-b]]` automatically maintained
+- **Tags**: Domain, difficulty, topic tags
+- **Link explanations**: Each link includes "why related" context
+- **Automatic maintenance**: `knowledge-indexer` agent handles link synchronization
+
+**Data Structure**:
+```markdown
+---
+id: concept-id
+title: Concept Title
+tags: [tag1, tag2]
+---
+
+# Concept Title
+
+## 🔗 Related Concepts
+- [[parent-concept]] - This is a parent because...
+- [[sibling-concept]] - Related because...
+```
+
+---
+
+### 4. Fine-grained Progress Tracking
+
+**Requirement**: Track learning progress at multiple granularities to handle context limits.
+
+**Tracking Levels**:
+1. **Page level**: "Page 67 of 200"
+2. **Chapter level**: "Chapter 3, Section 3.2"
+3. **Concept level**: List of `[[concept-ids]]` learned
+
+**Progress File** (`.progress.md`):
+```markdown
+---
+current_position: "Page 67, Chapter 3"
+progress_percentage: 45
+---
+
+## Learned Concepts
+- [[concept-1]]
+- [[concept-2]]
+
+## Learning Journal
+### Session 1 (2025-10-25)
+Pages: 1-30
+Concepts: 5
+Key takeaways: ...
+```
+
+**Strategy**:
+- Extract Table of Contents first (structure without content)
+- Learn chunk-by-chunk (30-60 min sessions)
+- Incrementally add concepts as learned
+
+---
+
+### 5. SM-2 Spaced Repetition Review
+
+**Requirement**: Scientifically-optimized review scheduling for long-term retention.
+
+**Algorithm**: SuperMemo SM-2
+
+**Quality Scale** (0-5):
+- 0: Complete failure
+- 1: Recognized after seeing answer
+- 2: Incorrect but close
+- 3: Correct with difficulty
+- **4**: Correct with slight hesitation
+- **5**: Perfect recall
+
+**Interval Calculation**:
+```
+First review: 1 day
+Second review: 6 days
+Subsequent: previous_interval × easiness_factor
+
+If quality < 3: Reset to 1 day
+```
+
+**Review Mode**: Conversational dialogue (NOT flashcards)
+
+**Trigger**: Hybrid
+- Automatic: Scheduled based on SM-2
+- Manual: `/review [domain]` any time
+
+---
+
+### 6. Dual Classification Taxonomy
+
+**Requirement**: Organize knowledge using international standards.
+
+**Classification Systems**:
+
+**UNESCO ISCED** (Education):
+```
+34 - Business and Administration (Finance)
+48 - Computing (Programming)
+22 - Humanities (Language)
+46 - Mathematics and Statistics
+...
+```
+
+**Dewey Decimal** (Library):
+```
+000 - Computer Science
+300 - Social Sciences
+400 - Language
+600 - Technology
+...
+```
+
+**Application**: Every concept automatically tagged with both codes
+
+---
+
+### 7. Git Synchronization
+
+**Requirement**: Cloud backup and multi-device access.
+
+**Implementation**:
+- **GitHub private repository**: `https://github.com/Yugoge/knowledge-system`
+- **Direct tracking**: Large files tracked without LFS (system doesn't have LFS)
+- **Note**: Files >100MB may hit GitHub limits (future: install Git LFS)
+- **What's tracked**:
+  - All `.md` files (Rems, progress, docs)
+  - All `.json` files (indexes, schedules)
+  - Scripts (`.py`)
+  - **Large files**: PDF, EPUB, PPT (if <100MB each)
+
+---
+
+## 🆕 New Requirements (Phase 2 - This Implementation)
+
+### 8. Universal Q&A System (analyst agent)
+
+**Requirement**: Replace Claude.ai web interface with Claude Code-based universal AI assistant.
+
+**User Story**:
+> "I currently use Claude.ai web to ask questions and learn. Now I want to use Claude Code exclusively for all learning, including Q&A."
+
+**Implementation**:
+
+**analyst agent** (`/.claude/agents/analyst.md`):
+- **Full tool access**: WebSearch, WebFetch, Read, Write, Edit, Bash, Glob, Grep, Task, Context7, SlashCommand
+- **Automatic research**: WebSearch for every question
+- **Knowledge integration**: Read existing `knowledge-base/` to avoid duplication
+- **Code execution**: Run examples to verify correctness
+- **Multi-turn dialogue**: Support deep exploration
+
+**Command**: `/ask <question>`
+
+**Workflow**:
+```
+User: /ask "Explain quantum entanglement"
+    ↓
+analyst agent:
+  1. WebSearch "quantum entanglement latest 2025"
+  2. WebFetch top 3 sources
+  3. Read knowledge-base/ for related concepts
+  4. Synthesize answer with citations
+  5. Suggest follow-ups
+    ↓
+User: [Follow-up question]
+    ↓
+[Multi-turn conversation continues]
+    ↓
+End: "Archive this conversation?"
+```
+
+**Success Criteria**:
+- ✅ All questions get researched answers
+- ✅ Sources cited with URLs
+- ✅ Integrates with existing knowledge
+- ✅ Supports unlimited follow-ups
+
+---
+
+### 9. Conversation Archival System
+
+**Requirement**: Convert conversations into structured knowledge + preserve original dialogue.
+
+**User Story**:
+> "After asking Claude a question, I want to extract the concepts I learned and save the conversation for future reference."
+
+**Implementation**:
+
+**conversation-archiver agent** (`/.claude/agents/conversation-archiver.md`):
+- **Analyze dialogue**: Extract main concepts (3-7 typically)
+- **Generate Rem previews**: Show what will be created
+- **User confirmation**: Preview → Confirm → Create
+- **Create artifacts**:
+  1. Rem markdown files in `knowledge-base/`
+  2. Update `backlinks.json`
+  3. Save conversation to `chats/YYYY-MM/`
+  4. Update `chats/index.json`
+
+**Command**: `/archive-conversation [topic-name]`
+
+**Workflow**:
+```
+User: /archive-conversation python-3-13
+
+conversation-archiver:
+  1. Analyze recent /ask conversation
+  2. Extract concepts (e.g., "Python 3.13 JIT", "Free-threaded mode")
+  3. Generate preview:
+
+     📝 Extracted 3 concepts:
+     1. Python 3.13 JIT Compiler
+        File: knowledge-base/programming/concepts/python-3-13-jit.md
+        Links: [[python-performance]], [[jit-compilation]]
+        Tags: #python, #performance
+
+     Proceed? (Yes/Edit/Review/Cancel)
+
+  4. If Yes: Create all files
+  5. Save conversation to chats/2025-10/python-3-13-discussion.md
+```
+
+**Decision Point**: **Hybrid Trigger**
+- **After /ask**: Always prompt "Archive this conversation?"
+- **Manual**: Run `/archive-conversation` any time
+
+---
+
+### 10. Complete Conversation Backup
+
+**Requirement**: Preserve all Claude Code conversations (not just /ask sessions).
+
+**Scope**: ALL Claude Code dialogues
+
+**Storage**: `chats/` directory
+
+**Organization**:
+```
+chats/
+├── index.json          # Search index
+├── README.md           # Usage guide
+├── 2025-10/
+│   ├── 2025-10-26-python-3-13-discussion.md
+│   ├── 2025-10-26-options-learning-session.md
+│   └── 2025-10-27-spanish-grammar-qa.md
+├── 2025-11/
+└── _templates/
+    └── conversation-template.md
+```
+
+**Conversation File Format**:
+```markdown
+---
+id: 2025-10-26-topic-slug
+date: 2025-10-26 14:30:00
+topic: Main Topic
+domain: finance|programming|language|general
+agent: analyst|book-tutor|review-master
+turns: 12
+concepts_extracted: 3
+concepts:
+  - concept-id-1
+  - concept-id-2
+tags: [tag1, tag2]
+---
+
+# Conversation: [Topic]
+
+## Metadata
+- **Date**: 2025-10-26 14:30
+- **Duration**: 25 minutes
+- **Agent**: analyst
+- **Domain**: programming
+
+## Dialogue
+
+### Turn 1
+**User**: [Message]
+
+**Claude**: [Response]
+
+[... all turns ...]
+
+---
+
+## Summary
+[Key takeaways]
+
+## Concepts Extracted
+- [[python-3-13-jit]] - Python 3.13 JIT Compiler
+- [[python-free-threaded]] - Free-threaded Mode
+
+## Follow-up Questions
+[Unresolved questions]
+```
+
+**Integration**:
+- Linked to extracted Rems
+- Indexed in `chats/index.json`
+- Searchable by date, domain, agent, topic
+
+---
+
+## 📊 Technical Architecture
+
+### System Components
+
+```
+knowledge-system/
+├── .claude/
+│   ├── commands/           # Slash commands
+│   │   ├── learn.md        # /learn - Interactive learning
+│   │   ├── review.md       # /review - Spaced repetition
+│   │   ├── progress.md     # /progress - View progress
+│   │   ├── ask.md          # /ask - Universal Q&A
+│   │   ├── archive-conversation.md  # Archive dialogues
+│   │   └── kb-init.md      # System initialization
+│   ├── agents/             # Specialized AI tutors
+│   │   ├── book-tutor/
+│   │   ├── review-master/
+│   │   ├── knowledge-indexer/
+│   │   ├── analyst/        # ⭐ NEW: Universal Q&A
+│   │   └── conversation-archiver/  # ⭐ NEW: Dialogue archival
+│   ├── hooks/
+│   └── CLAUDE.md
+├── learning-materials/     # Original files + progress
+├── knowledge-base/         # Extracted Rems
+├── chats/                  # ⭐ NEW: Conversation backups
+├── .review/                # SM-2 scheduling data
+├── scripts/                # Utility scripts
+└── [docs...]
+```
+
+### Data Flow
+
+**Learning Flow**:
+```
+Material → Chunking → book-tutor (Socratic dialogue) →
+Concept extraction → Rem creation → knowledge-indexer (link sync) →
+Progress update → SM-2 scheduling
+```
+
+**Q&A Flow**:
+```
+Question → analyst (WebSearch + analysis) →
+Multi-turn dialogue → Archival prompt →
+conversation-archiver (extract concepts) →
+Preview → User confirms → Create Rems + save conversation
+```
+
+**Review Flow**:
+```
+SM-2 schedule → Due concepts → review-master (dialogue test) →
+Quality rating (0-5) → Update schedule → Next review date
+```
+
+---
+
+## 🔧 Configuration Standards
+
+### Agent Configuration (YAML Frontmatter)
+
+Required fields:
+- `name`: unique-agent-name
+- `description`: When to invoke this agent
+
+Optional fields:
+- `tools`: Comma-separated tool list
+- `model`: sonnet|opus|haiku|inherit
+
+Example:
+```yaml
+---
+name: analyst
+description: Universal AI assistant for research and analysis
+tools: Read, Write, Edit, Bash, WebSearch, WebFetch, Glob, Grep, Task
+model: inherit
+---
+
+System prompt with detailed instructions...
+```
+
+### Command Configuration (Markdown with Frontmatter)
+
+Optional frontmatter:
+- `description`: Brief explanation
+- `argument-hint`: Expected arguments
+- `allowed-tools`: Tool restrictions
+- `model`: Override model
+- `disable-model-invocation`: Prevent auto-execution
+
+Argument handling:
+- `$ARGUMENTS`: All arguments
+- `$1`, `$2`: Individual arguments
+
+Example:
+```yaml
+---
+description: Ask any question with automatic research
+argument-hint: <question>
+allowed-tools: Task, Read
+model: inherit
+---
+
+Implementation instructions...
+```
+
+---
+
+## ✅ Implementation Status
+
+### ✅ Completed (Phase 1)
+
+- [x] Directory structure
+- [x] Data schemas (JSON, Markdown templates)
+- [x] File parsers (PPT, EPUB)
+- [x] SM-2 algorithm (`scripts/sm2-algorithm.py`)
+- [x] book-tutor agent
+- [x] review-master agent
+- [x] knowledge-indexer agent
+- [x] /learn command
+- [x] /review command
+- [x] /progress command
+- [x] /kb-init command
+- [x] Documentation (README, GETTING_STARTED, ARCHITECTURE)
+- [x] Git initialization
+- [x] Example Rem (call-option-intrinsic-value)
+
+### ✅ Completed (Phase 2)
+
+- [x] GitHub private repository created
+- [x] Python virtual environment configured
+- [x] Git configuration (no LFS, direct tracking)
+- [x] PRD.md (this document)
+- [x] analyst agent
+- [x] conversation-archiver agent
+- [x] /ask command
+- [x] /archive-conversation command
+- [x] chats/ backup system
+- [x] Updated documentation
+- [x] Git commits and push
+
+### ⏳ Future Enhancements
+
+- [ ] language-tutor agent (specialized for language learning)
+- [ ] finance-tutor agent (financial calculations and analysis)
+- [ ] programming-tutor agent (code examples and debugging)
+- [ ] Git LFS installation (if >100MB files needed)
+- [ ] Knowledge graph visualization
+- [ ] Learning analytics dashboard
+- [ ] Mobile sync (Obsidian mobile + Git)
+- [ ] Export to Anki/PDF/other formats
+
+---
+
+## 📈 Success Metrics
+
+### Learning Effectiveness
+- **Concept retention**: >80% quality score after 30 days
+- **Learning velocity**: 5-10 concepts per hour of study
+- **Review adherence**: >90% of scheduled reviews completed
+
+### System Usage
+- **Primary learning tool**: >80% of learning happens in system vs external sources
+- **Claude.ai web replacement**: 100% of Q&A moved to /ask command
+- **Conversation archival rate**: >50% of /ask sessions archived
+
+### Knowledge Base Growth
+- **Concepts**: Target 1000 concepts in 6 months
+- **Bidirectional links**: Average 3+ links per concept
+- **Conversation archive**: All valuable dialogues preserved
+
+---
+
+## 🔐 Security & Privacy
+
+- **Private repository**: All data in GitHub private repo
+- **Local-first**: No external services (except GitHub)
+- **No API keys in code**: Use environment variables
+- **Sensitive data**: Add to `.gitignore` if needed
+- **Git encryption**: Optional Git-crypt for extra security
+
+---
+
+## 🎯 User Stories
+
+### Story 1: Learning from a Book
+> **As a learner**, I want to interactively learn from a PDF book so that I deeply understand the material through dialogue rather than passive reading.
+
+**Acceptance Criteria**:
+- Upload PDF to `learning-materials/domain/`
+- Run `/learn` to start Socratic dialogue
+- Answer questions, receive feedback
+- Concepts automatically extracted as Rems
+- Progress tracked at page/chapter/concept level
+
+---
+
+### Story 2: Asking Questions
+> **As a learner**, I want to ask any question and receive comprehensive, researched answers so that I don't need to use Claude.ai web interface.
+
+**Acceptance Criteria**:
+- Run `/ask <question>`
+- Receive answer with web sources cited
+- Support multi-turn follow-up questions
+- Offered archival at conversation end
+- Knowledge integrated into existing knowledge base
+
+---
+
+### Story 3: Regular Review
+> **As a learner**, I want to review concepts at optimal intervals so that I retain knowledge long-term.
+
+**Acceptance Criteria**:
+- SM-2 algorithm schedules reviews automatically
+- `/review` presents due concepts
+- Conversational testing (not flashcards)
+- Quality rating determines next review date
+- Weak concepts reviewed more frequently
+
+---
+
+### Story 4: Conversation Archival
+> **As a learner**, I want to convert valuable conversations into structured knowledge so that I can reference and build upon them later.
+
+**Acceptance Criteria**:
+- Run `/archive-conversation` after any dialogue
+- See preview of extracted concepts
+- Confirm or edit before creation
+- Rems created with bidirectional links
+- Original conversation saved to `chats/`
+
+---
+
+### Story 5: Multi-device Access
+> **As a learner**, I want to access my knowledge system from anywhere so that I can learn on any device.
+
+**Acceptance Criteria**:
+- Push to GitHub after sessions
+- Pull on other devices to sync
+- All progress and knowledge preserved
+- Learning materials synced (<100MB each)
+
+---
+
+## 🛠️ Development Guidelines
+
+### Code Style
+- Python: PEP 8, type hints, f-strings
+- Markdown: Clear headings, code blocks, frontmatter
+- JSON: Pretty-printed, 2-space indent
+
+### Documentation
+- CLAUDE.md: <100 lines, use "IMPORTANT" for emphasis
+- Agent instructions: Detailed, step-by-step
+- Command docs: Include examples and success criteria
+- README: User-facing, non-technical
+
+### Testing Strategy
+- Manual testing for each agent
+- Verify data integrity (backlinks, indexes)
+- Test with sample materials (small PDFs)
+- Validate SM-2 calculations
+
+### Git Workflow
+- Commit often (feature-by-feature)
+- Descriptive commit messages
+- Include co-author credits (Claude + Happy)
+- Push after completing phases
+
+---
+
+## 📞 Support & Feedback
+
+**Issues**: GitHub Issues for bug reports and feature requests
+**Documentation**: See README.md, GETTING_STARTED.md, SYSTEM_ARCHITECTURE.md
+**Configuration**: See `.claude/CLAUDE.md` for system behavior
+
+---
+
+## 📜 Changelog
+
+### Version 2.0 (2025-10-26) - Phase 2
+- Added analyst agent (universal Q&A)
+- Added conversation-archiver agent
+- Added /ask and /archive-conversation commands
+- Added complete conversation backup system
+- Created PRD document
+
+### Version 1.0 (2025-10-26) - Initial Release
+- Core learning system with book-tutor
+- SM-2 spaced repetition
+- RemNote-style knowledge base
+- Progress tracking
+- Multi-format support (PDF, EPUB, PPT, Word, Excel, MD)
+
+---
+
+## 🎓 Conclusion
+
+This system transforms Claude Code into a comprehensive learning platform that combines:
+- **Socratic teaching** for deep understanding
+- **Spaced repetition** for long-term retention
+- **Universal Q&A** for instant research
+- **Knowledge structuring** for organized thought
+- **Conversation preservation** for reference
+
+**Goal**: Enable lifelong learning through AI-powered dialogue, structured knowledge, and scientifically-optimized review.
+
+---
+
+*This is a living document. Update as the system evolves.*

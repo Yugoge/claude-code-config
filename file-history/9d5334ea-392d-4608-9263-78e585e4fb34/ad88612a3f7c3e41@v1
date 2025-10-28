@@ -1,0 +1,453 @@
+# Getting Started with Your Personal Knowledge System
+
+Welcome! This guide will walk you through your first learning session.
+
+## Step 1: System Check
+
+First, let's verify everything is set up:
+
+```bash
+cd /root/knowledge-system
+git status
+```
+
+You should see a clean working directory with an initial commit.
+
+Also verify configuration and indexes:
+
+```
+cat .claude/settings.json              # hooks and safeguards
+cat knowledge-base/.taxonomy.json      # taxonomy mappings
+cat chats/index.json                   # conversations map + metadata
+```
+
+## Step 2: Add Your First Learning Material
+
+Let's say you want to learn about finance. Create the finance directory and add a material:
+
+```bash
+# Create domain directories
+mkdir -p learning-materials/finance
+mkdir -p learning-materials/programming
+mkdir -p learning-materials/language
+
+# Add your learning material
+# Example: Copy a PDF to the finance folder
+# cp ~/Downloads/options-trading.pdf learning-materials/finance/
+```
+
+**Supported formats**:
+- PDF (native Claude Code support)
+- EPUB (via parse-epub.py script)
+- PowerPoint (.pptx, via parse-ppt.py script)
+- Word (.docx, native support)
+- Excel (.xlsx, native support)
+- Markdown (.md, native support)
+
+## Step 3: Start Your First Learning Session
+
+Once you've added a material, start learning:
+
+```bash
+/learn learning-materials/finance/options-trading.pdf
+```
+
+**What happens:**
+1. The system detects it's a new material
+2. Creates a `.progress.md` file to track your progress
+3. Extracts the table of contents (if available)
+4. Launches the appropriate tutor agent (book-tutor for general materials)
+5. Starts an interactive Socratic dialogue
+
+## Step 4: Engage in Socratic Learning
+
+The AI tutor will:
+
+1. **Present a passage** from your material
+2. **Ask probing questions** about the content
+3. **Evaluate your responses** and guide understanding
+4. **Extract concepts** as knowledge Rems
+5. **Update progress** automatically
+
+**Example dialogue:**
+
+```
+📚 Starting: "Options Trading Fundamentals"
+📖 Chapter 1: Introduction to Options
+
+The text states:
+
+"An option is a contract that gives the buyer the right, but not the
+obligation, to buy or sell an underlying asset at a specified price
+before or on a specified date."
+
+🤔 Let me ask you: What do you think is the significance of the phrase
+"right but not obligation"? How does that differ from a regular purchase?
+
+> [You respond with your understanding]
+
+Great thinking! Let's explore further...
+
+[Dialogue continues with deeper questions]
+
+✅ Concept captured: [[option-right-vs-obligation]]
+
+Shall we continue to the next section?
+```
+
+## Step 5: Review Your Learned Concepts
+
+After your learning session, concepts are automatically scheduled for review using the SM-2 spaced repetition algorithm.
+
+Check what's due for review:
+
+```bash
+/progress
+```
+
+This shows:
+- Materials in progress
+- Concepts learned
+- Upcoming review schedule
+
+## Step 6: Review When Due
+
+When concepts are due for review:
+
+```bash
+/review
+```
+
+**What happens:**
+1. System loads concepts due today
+2. Tests recall through conversation (not flashcards!)
+3. Assesses quality (0-5 scale)
+4. Updates SM-2 schedule automatically
+
+**Example review:**
+
+```
+📅 Review Session - 2025-10-26
+
+You have 5 concepts due for review today.
+Estimated time: 10 minutes
+
+Ready to begin? (yes/no)
+> yes
+
+Let's review: Option Right vs Obligation
+
+[Don't peek at your notes!]
+
+Question: Can you explain why options provide a "right but not
+obligation" and what that means practically?
+
+> [You respond]
+
+[AI evaluates, asks follow-up questions]
+
+✅ Excellent recall! Next review: 2025-11-02 (7 days)
+```
+
+## Understanding the Learning Flow
+
+### How Materials Are Processed
+
+```
+Large Material (e.g., 300-page book)
+         ↓
+    Chunking Strategy
+    (semantic boundaries)
+         ↓
+  Learn in Sessions
+  (30-60 min chunks)
+         ↓
+   Extract Concepts
+   (3-5 per session)
+         ↓
+    Update Progress
+    (track position)
+         ↓
+  Schedule Reviews
+    (SM-2 algorithm)
+```
+
+### Why Chunking?
+
+Claude Code has a context limit. Instead of loading entire 300-page books:
+
+1. **Table of Contents First**: Get structure without full content
+2. **Learn Section-by-Section**: Load only current section
+3. **Progress Tracking**: `.progress.md` tracks where you are
+4. **Incremental Knowledge Building**: Add concepts as you learn them
+
+### The Progress File
+
+Each material gets a `.progress.md` file:
+
+```markdown
+---
+material_id: options-trading
+title: Options Trading Fundamentals
+status: in-progress
+progress_percentage: 45
+---
+
+## Current Position
+Page 67 of 200, Chapter 3: Option Valuation
+
+## Learned Concepts
+- [[option-basics]]
+- [[call-vs-put]]
+- [[strike-price]]
+- [[intrinsic-value]]
+
+## Learning Journal
+### Session 1 (2025-10-25)
+Pages: 1-30
+Concepts: option-basics, call-vs-put
+Key insight: Options as insurance contracts
+```
+
+## Understanding Knowledge Rems
+
+Concepts are stored as **Rems** (RemNote-style knowledge points):
+
+```markdown
+---
+id: call-option-intrinsic-value
+title: Call Option Intrinsic Value
+tags: [finance, options, derivatives]
+isced: ["34"]  # Business and Administration
+dewey: ["300"] # Social Sciences
+---
+
+# Call Option Intrinsic Value
+
+## 📝 Definition
+The intrinsic value is max(S - K, 0) where...
+
+## 🔗 Related Concepts
+- [[option-valuation]] - Parent concept
+- [[put-option-intrinsic-value]] - Mirror concept
+- [[time-value]] - Complementary concept
+
+[... full explanation ...]
+```
+
+### Bidirectional Links
+
+When you create `[[concept-a]]` → `[[concept-b]]`:
+- The link is automatically added to `concept-b` as a backlink
+- Both concepts become connected in the knowledge graph
+- Helps with recall during reviews
+
+## Daily Workflow
+
+### Morning Routine
+
+```bash
+# Check what's due for review
+/progress
+
+# Do reviews (15-20 min)
+/review
+```
+
+### Learning Session
+
+```bash
+# Continue learning (30-60 min)
+/learn learning-materials/finance/options-trading.pdf
+
+# Check progress
+/progress finance
+```
+
+### Evening Sync
+
+```bash
+# Commit progress to Git
+git add .
+git commit -m "Learning session: [material] - [N] concepts learned"
+git push
+```
+
+If indexes look stale, rebuild them:
+
+```bash
+python scripts/rebuild-backlinks.py
+python scripts/rebuild-indexes.py
+```
+
+## Tips for Effective Learning
+
+### 1. Consistency Over Intensity
+- 30 minutes daily > 3 hours once a week
+- Build a learning streak
+- Use `/progress` to track your streak
+
+### 2. Engage Actively
+- Don't just read the tutor's questions
+- Think deeply before responding
+- Ask follow-up questions when confused
+
+### 3. Make Connections
+- Link new concepts to existing knowledge
+- Use `[[wiki-links]]` generously
+- Review the knowledge graph periodically
+
+### 4. Trust the SM-2 Algorithm
+- Review when prompted (not too early, not too late)
+- Be honest with quality ratings (0-5)
+- Failed reviews reset to 1 day (that's normal!)
+
+### 5. Organize Materials
+- One domain per material
+- Use descriptive filenames
+- Tag concepts appropriately
+
+## Common Scenarios
+
+### Scenario 1: Starting a New Domain
+
+```bash
+# Create domain folder
+mkdir learning-materials/language
+
+# Add material
+cp ~/spanish-grammar.epub learning-materials/language/
+
+# Start learning
+/learn learning-materials/language/spanish-grammar.epub
+```
+
+### Scenario 2: Reviewing a Specific Domain
+
+```bash
+# Review only finance concepts (ignore schedule)
+/review finance
+
+# Useful before exams or interviews
+```
+
+### Scenario 3: Checking Material Progress
+
+```bash
+# See progress on specific material
+/progress learning-materials/finance/options-trading.pdf
+
+# Shows:
+# - Current position (page/chapter)
+# - Completion percentage
+# - Concepts learned from this material
+# - Learning journal entries
+```
+
+### Scenario 4: Resuming After Break
+
+```bash
+# Check overall status
+/progress
+
+# See what needs attention:
+# - Materials in progress
+# - Overdue reviews
+# - Recommendations
+
+# Resume learning
+/learn learning-materials/finance/options-trading.pdf
+# (Automatically resumes from last position)
+```
+
+### Scenario 5: Universal Q&A
+
+```bash
+# Ask any question - automatic web research
+/ask "What are the key differences between call and put options?"
+
+# The analyst agent will:
+# 1. Search the web for current information
+# 2. Check your knowledge base for related concepts
+# 3. Execute code examples if helpful
+# 4. Cite all sources
+
+# After the conversation, you'll be prompted:
+# "Archive this conversation? (yes/no/later)"
+```
+
+### Scenario 6: Archiving Learning Conversations
+
+```bash
+# Manual archival
+/archive-conversation options-trading-qa
+
+# The conversation-archiver agent will:
+# 1. Extract key concepts from the dialogue
+# 2. Show you a preview of extracted concepts
+# 3. Ask for confirmation
+# 4. Create Rems with bidirectional links
+# 5. Save conversation to chats/YYYY-MM/
+# 6. Update index for searchability
+
+# All conversations are backed up with:
+# - Full dialogue history
+# - Extracted concepts list
+# - Metadata (date, participants, topic)
+# - Links to created knowledge Rems
+```
+
+## Troubleshooting
+
+### "Context limit exceeded"
+
+**Solution**: This is handled automatically through chunking. If you see this, the session may have gone too long. Simply run `/learn` again to continue.
+
+### "No concepts due for review"
+
+**Solution**: Check `/progress` to see next review date. In the meantime, continue learning new material or do manual domain reviews.
+
+### "Agent not found"
+
+**Solution**: Agents might not be properly installed. Run `/kb-init` to verify and repair the system.
+
+### "Material not found"
+
+**Solution**: Ensure the file path is correct and starts with `learning-materials/`. Use absolute paths from the knowledge-system directory.
+
+## Next Steps
+
+Now that you understand the basics:
+
+1. **Add more materials** to different domains
+2. **Establish a daily routine** (learn + review)
+3. **Explore the knowledge graph** (check bidirectional links)
+4. **Customize agents** for your specific needs
+5. **Set up GitHub sync** for backup and multi-device access
+
+## Getting Help
+
+- **System configuration**: Read `.claude/CLAUDE.md`
+- **Agent behavior**: Check `.claude/agents/*/instructions.md`
+- **Command details**: Read `.claude/commands/*.md`
+- **Data structures**: Examine the JSON and template files
+
+## Philosophy
+
+This system is built on three principles:
+
+1. **Active Learning**: Socratic dialogue, not passive reading
+2. **Spaced Repetition**: Review at optimal intervals for retention
+3. **Connected Knowledge**: Build a graph, not isolated facts
+
+The goal is not to memorize facts, but to build deep, interconnected understanding that lasts.
+
+---
+
+Ready to start your learning journey? Run your first command:
+
+```bash
+/learn learning-materials/[your-domain]/[your-file]
+```
+
+Happy learning! 🎓

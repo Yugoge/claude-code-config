@@ -1,19 +1,18 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+
   "model": "claude-sonnet-4-5-20250929",
   "includeCoAuthoredBy": true,
+
   "env": {
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
     "DISABLE_TELEMETRY": "1",
     "DISABLE_ERROR_REPORTING": "0",
     "MAX_MCP_OUTPUT_TOKENS": "40000",
     "EDITOR": "nano",
-    "LANG": "en_US.UTF-8",
-    "GIT_AUTO_STAGE_ALL": "0",
-    "GIT_BLOCK_ON_UNTRACKED": "0",
-    "GIT_WARN_UNTRACKED": "1",
-    "GIT_PUSH_AUTO_STAGE": "1"
+    "LANG": "en_US.UTF-8"
   },
+
   "permissions": {
     "allow": [
       "Bash(gh auth:*)",
@@ -98,6 +97,7 @@
       "Edit(**/go.mod)"
     ]
   },
+
   "hooks": {
     "SessionStart": [
       {
@@ -108,11 +108,12 @@
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/ensure-git-repo.sh"
+            "command": "bash ~/.claude/hooks/ensure-git-repo.sh"
           }
         ]
       }
     ],
+
     "UserPromptSubmit": [
       {
         "matcher": ".*",
@@ -124,6 +125,7 @@
         ]
       }
     ],
+
     "PreToolUse": [
       {
         "matcher": "Bash\\(rm -rf.*\\)|Bash\\(rm -r.*\\)",
@@ -153,6 +155,7 @@
         ]
       }
     ],
+
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
@@ -169,10 +172,6 @@
           {
             "type": "command",
             "command": "git log -1 --oneline && echo '✅ Commit created successfully'"
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/post-commit-warn.sh"
           }
         ]
       },
@@ -186,6 +185,7 @@
         ]
       }
     ],
+
     "Stop": [
       {
         "hooks": [
@@ -196,6 +196,7 @@
         ]
       }
     ],
+
     "SessionEnd": [
       {
         "hooks": [
@@ -207,6 +208,6 @@
       }
     ]
   },
-  "cleanupPeriodDays": 30,
-  "alwaysThinkingEnabled": true
+
+  "cleanupPeriodDays": 30
 }

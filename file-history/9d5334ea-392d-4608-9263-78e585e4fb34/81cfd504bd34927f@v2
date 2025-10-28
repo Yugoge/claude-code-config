@@ -1,0 +1,109 @@
+<!-- 5ee9fe01-6fa6-4d1c-83c4-552f3afb17f3 094c9d9a-315f-4064-ada0-b10ec72f76ea -->
+
+---
+**⚠️ DEPRECATED DOCUMENT**
+
+**Original Name**: `docs/pr.plan.md`
+**Date Deprecated**: 2025-10-26
+**Reason**: Phase 2 implementation completed (✅ All items done)
+**Current Reference**: See [PRD-Phase3.md](../PRD-Phase3.md) for next development phase
+
+*This document is preserved for historical reference only. Do not use for current implementation.*
+
+---
+
+# PRD Compliance: Findings and Implementation Plan
+
+### Findings (evidence)
+
+- Commands and agents present for core flows: `/learn`, `/review`, `/progress`, `/ask`, `/archive-conversation`; agents `book-tutor`, `review-master`, `knowledge-indexer`, `analyst`, `conversation-archiver`.
+- No hooks/settings checked in; auto-reminders and safe-guards not implemented (missing `.claude/settings.json`).
+- Conversation index schema diverges from PRD (`statistics` vs `metadata`), and is empty (no archives yet).
+- Backlinks and SM-2 stores exist but are empty; no auto-indexing/run-after-edits wiring.
+- Taxonomy file `.taxonomy.json` referenced in docs is missing.
+```2:14:chats/index.json
+  "conversations": [],
+  "statistics": {
+    "total_conversations": 0,
+    ...
+  },
+  "last_updated": null
+}
+```
+
+```1:6:knowledge-base/_index/backlinks.json
+{
+  "version": "1.0.0",
+  "links": {},
+  "metadata": {"last_updated": null}
+}
+```
+
+```1:6:.claude/commands/ask.md
+---
+description: Ask any question with automatic web research
+allowed-tools: Task, Read
+---
+```
+
+### Plan (concise, actionable)
+
+1) Hooks and safety net
+
+- Add `.claude/settings.json` with `SessionStart/Stop`, `UserPromptSubmit`, `PreToolUse (Bash/Edit)`, `PostToolUse (Edit)`, `PreCompact`. 
+- Enforce write-protection for `knowledge-base/_index/**`; auto-run `scripts/sm2-algorithm.py` and reindex after concept edits.
+
+2) Align conversation index schema
+
+- Migrate `chats/index.json` to PRD-defined shape (`metadata` vs `statistics`) and update all producers/consumers.
+
+3) Taxonomy source of truth
+
+- Add `knowledge-base/.taxonomy.json`; wire `knowledge-indexer` to apply ISCED/Dewey from it.
+
+4) Reindexing utilities
+
+- Add `scripts/rebuild-backlinks.py`, `scripts/rebuild-indexes.py`, `scripts/reset-schedule.py` per SYSTEM_ARCHITECTURE.md.
+
+5) kb-init hardening
+
+- Ensure `/kb-init` verifies structure, creates missing files, and normalizes indexes.
+
+6) Conversation archival flow polish
+
+- Ensure `/ask` consistently prompts archival and passes full context; ensure `/archive-conversation --all` batch mode works and updates index stats correctly.
+
+7) Domain tutors (optional now)
+
+- Create `language-tutor`, `finance-tutor`, `programming-tutor` from `book-tutor` template with domain question strategies.
+
+8) Context7 integration
+
+- Update `analyst` to prefer Context7 for library/API docs; document usage.
+
+9) Documentation sync
+
+- Update `README.md`, `GETTING_STARTED.md`, `.claude/CLAUDE.md` to match actual schemas, hooks, and flows.
+
+10) Smoke tests (manual)
+
+- Run end-to-end: learn → concept created → index/backlinks updated → schedule seeded → `/review` updates schedule → `/ask` → archive → chats/index updated.
+
+### Deliverables
+
+- `.claude/settings.json` with hooks; taxonomy file; rebuild scripts; updated `chats/index.json` schema and producers; domain tutor stubs; refreshed docs.
+
+### To-dos
+
+- [x] Add `.claude/settings.json` with safety hooks and auto-index/review wiring
+- [x] Align `chats/index.json` schema to PRD and update writers
+- [x] Create `knowledge-base/.taxonomy.json` and apply in indexer
+- [x] Add `rebuild-backlinks.py`, `rebuild-indexes.py`, `reset-schedule.py`
+- [ ] Ensure `/kb-init` creates/repairs structure and indexes
+- [x] Guarantee `/ask` archival prompt and robust `/archive-conversation --all`
+- [ ] Add language/finance/programming tutor instructions (optional)
+- [x] Wire analyst to Context7, add docs/examples
+- [ ] Update README/GETTING_STARTED/CLAUDE.md to match behavior
+- [ ] Run learn→index→review→ask→archive end-to-end test
+
+

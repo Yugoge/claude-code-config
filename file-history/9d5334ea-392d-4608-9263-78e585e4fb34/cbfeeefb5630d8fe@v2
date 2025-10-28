@@ -1,0 +1,106 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) SessionStart: knowledge-system\" >> ~/.claude/session.log"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys,json,re; o=json.load(sys.stdin); user_input=o.get('user_input',''); exit(1) if user_input and re.search(r'rm\\s|-rf|rd\\s|del\\s', user_input, re.IGNORECASE) else exit(0)\"",
+            "stdin_json": true,
+            "on_error": "warn"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys,json,re; o=json.load(sys.stdin); cmd=o.get('tool_input',{}).get('command',''); exit(1) if cmd and re.search(r'rm\\s|:>|Format|Set-ItemProperty', cmd, re.IGNORECASE) else exit(0)\"",
+            "stdin_json": true,
+            "on_error": "warn"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys,json; o=json.load(sys.stdin); file_path=o.get('tool_input',{}).get('file_path',''); exit(1) if 'knowledge-base/_index/' in file_path else exit(0)\"",
+            "stdin_json": true,
+            "on_error": "warn"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys,json,subprocess,os; o=json.load(sys.stdin); file_path=o.get('tool_input',{}).get('file_path',''); subprocess.run(['python3','scripts/rebuild-backlinks.py'], stderr=subprocess.DEVNULL) if 'knowledge-base/' in file_path and os.path.exists('scripts/rebuild-backlinks.py') else None\"",
+            "stdin_json": true,
+            "on_error": "ignore"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys,json,datetime; o=json.load(sys.stdin); open('.review/history.log','a').write(f'{datetime.datetime.utcnow().isoformat()}Z review done\\n') if o.get('subagent_name')=='review-master' else None\"",
+            "stdin_json": true
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f chats/index.json ] && cp chats/index.json chats/index.backup.json || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) Stop\" >> ~/.claude/session.log"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) SessionEnd\" >> ~/.claude/session.log"
+          }
+        ]
+      }
+    ]
+  }
+}
+
+

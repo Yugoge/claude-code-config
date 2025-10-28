@@ -1,0 +1,104 @@
+# Deprecated Documentation
+
+**Phase**: Phase 2 - Production Baseline (Completed)
+**Date Deprecated**: 2025-10-26
+**Superseded By**: Phase 3 (active development)
+
+This folder contains historical documentation from Phase 2 that is no longer active but preserved for reference and understanding project evolution.
+
+---
+
+## 📋 Naming Convention
+
+**Standard Format**: `YYYY-MM-DD-phase-N-document-type.md`
+
+**Examples**:
+- `2025-10-26-phase-2-prd.md`
+- `2025-10-26-phase-2-architecture.md`
+- `2025-10-26-phase-2-implementation-plan.md`
+
+---
+
+## 📚 Phase 2 Documentation (All Deprecated)
+
+### 2025-10-26-phase-2-prd.md
+- **Original Name**: `PRD.md`
+- **Date Deprecated**: 2025-10-26
+- **Reason**: Phase 2 completed; superseded by [phase-3-prd.md](../phase-3-prd.md)
+- **Status**: ✅ Production-ready baseline
+- **Content**: Full Phase 2 requirements (Socratic learning, SM-2 SRS, RemNote-style knowledge base, universal Q&A, conversation archival)
+- **Important Notes**: Core system principles and features extracted to [../README.md](../README.md)
+
+### 2025-10-26-phase-2-architecture.md
+- **Original Name**: `SYSTEM_ARCHITECTURE.md`
+- **Date Deprecated**: 2025-10-26
+- **Reason**: Phase 2 completed; superseded by [phase-3-architecture.md](../phase-3-architecture.md)
+- **Status**: ✅ Production-ready baseline
+- **Content**: Technical architecture (commands, agents, data layers, SM-2 algorithm, file parsers)
+- **Important Notes**: Architecture principles extracted to [../README.md](../README.md)
+
+### 2025-10-26-phase-2-getting-started.md
+- **Original Name**: `GETTING_STARTED.md`
+- **Date Deprecated**: 2025-10-26
+- **Reason**: Phase 2 completed; user workflow integrated into [../README.md](../README.md)
+- **Status**: ✅ Complete
+- **Content**: User guide for Phase 2 (setup, first learning session, daily workflow)
+- **Important Notes**: User workflow and getting started steps extracted to [../README.md](../README.md)
+
+### 2025-10-26-phase-2-implementation-plan.md
+- **Original Name**: `pr.plan.md`
+- **Date Deprecated**: 2025-10-26
+- **Reason**: Phase 2 implementation completed
+- **Status**: ✅ All checklist items completed
+- **Content**: Implementation checklist (hooks, taxonomy, rebuild scripts, analyst agent, conversation-archiver)
+
+---
+
+## ✅ Active Documentation (Phase 3)
+
+**Current development phase documentation is in parent folder:**
+
+- **[../README.md](../README.md)** - System overview with Phase 2 important notes
+- **[../phase-3-prd.md](../phase-3-prd.md)** - Current: Product requirements (10 priorities)
+- **[../phase-3-architecture.md](../phase-3-architecture.md)** - Current: Technical architecture
+
+---
+
+## 📖 Why Phase 2 Docs Are Here
+
+Phase 2 documentation has been moved to `deprecated/` because:
+
+1. **Phase 2 is complete and production-ready** (baseline established)
+2. **Phase 3 is now the active development focus**
+3. **Important Phase 2 content extracted to [../README.md](../README.md)**:
+   - System overview and core principles
+   - Architecture design patterns
+   - User workflow and getting started guide
+   - Directory structure
+   - Troubleshooting
+
+4. **Phase 2 docs remain available for**:
+   - Historical reference
+   - Understanding system evolution
+   - Detailed Phase 2 implementation notes
+
+---
+
+## 🔍 Archive vs. Deprecated
+
+- **deprecated/** (this folder): Completed phase documentation superseded by newer versions
+- **archive/** (future): Historical snapshots at specific milestones (e.g., release versions)
+
+---
+
+## ⚠️ Usage Notice
+
+**These documents are read-only historical references.**
+
+- **For current implementation**: See [../README.md](../README.md) and Phase 3 docs
+- **For Phase 2 details**: These docs remain accurate for the Phase 2 system state
+- **For understanding evolution**: Compare Phase 2 (deprecated/) vs Phase 3 (active) to see progression
+
+---
+
+*Documents in this folder preserve the Phase 2 system state for historical reference and should not be used for current (Phase 3) implementation guidance.*

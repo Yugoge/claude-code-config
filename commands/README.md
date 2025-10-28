@@ -1,4 +1,64 @@
-# Deep Search Commands - Quick Reference
+# Claude Code Commands - Quick Reference
+
+## 📦 Git Workflow Commands
+
+### `/pull`
+**Best for**: Safely pulling changes from remote repository
+
+**What it does**:
+- Automatically stashes uncommitted changes
+- Pulls with rebase to maintain clean history
+- Detects and guides through merge conflicts
+- Restores stashed changes after pull
+- Provides clear status reporting
+
+**Example**:
+```
+/pull
+```
+
+**Features**:
+- Safe stash management (never loses work)
+- Conflict detection and resolution guidance
+- Handles detached HEAD gracefully
+- Works with uncommitted changes
+
+---
+
+### `/push`
+**Best for**: Pushing changes with untracked file detection
+
+**What it does**:
+- Checks for untracked and modified files
+- Optionally prompts to auto-stage all files
+- Creates commit with proper attribution
+- Pushes to remote with upstream tracking
+- Handles push failures with clear guidance
+
+**Example**:
+```
+/push
+```
+
+**Features**:
+- Comprehensive status summary
+- Auto-staging option (configurable)
+- Respects .gitignore rules
+- Sets upstream tracking for new branches
+- Clear error messages with solutions
+
+**Configuration**:
+```json
+{
+  "env": {
+    "GIT_PUSH_AUTO_STAGE": "1"  // Prompt to stage all files
+  }
+}
+```
+
+---
+
+## 🔍 Deep Search Commands
 
 ## 🚀 Available Commands
 

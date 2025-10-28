@@ -1,0 +1,1865 @@
+# Knowledge System - Phase 3 Architecture
+# Next-Generation Intelligence Layer
+
+**Version**: 3.0
+**Date**: 2025-10-26
+**Status**: 🚧 Planning - Ready for Implementation
+**Related Documents**:
+- [PRD Phase 3](./PRD-Phase3.md) - Requirements
+- [System Architecture](./SYSTEM_ARCHITECTURE.md) - Phase 2 baseline
+- [PRD Phase 2](./PRD.md) - Current production system
+
+---
+
+## 📋 Executive Summary
+
+This architecture document defines the technical design for Phase 3 enhancements to the Knowledge System. Phase 3 transforms the system from a production-ready learning platform into a next-generation intelligent ecosystem by integrating:
+
+- **FSRS Algorithm** (ML-optimized spaced repetition)
+- **Claude MCP Memory** (persistent cross-session intelligence)
+- **Knowledge Graph Visualization** (interactive D3.js/React)
+- **Adaptive Difficulty Engine** (flow state optimization)
+- **Learning Analytics Dashboard** (data-driven insights)
+- **Multi-Platform Ecosystem** (mobile sync, export formats)
+
+**Architectural Approach**: Incremental enhancement of existing file-based, agent-driven architecture while adding computational intelligence and visualization layers.
+
+---
+
+## 🎯 Existing Project Analysis
+
+### Current System State
+
+**Primary Purpose**: AI-powered personal knowledge management and spaced repetition learning system built entirely within Claude Code
+
+**Current Architecture Style**:
+- **Pattern**: Layered architecture with agent-based AI orchestration
+- **Communication**: Commands → Agents (via Task tool) → Data (file I/O)
+- **Storage**: File-based (Markdown + JSON)
+- **Deployment**: Local-first with Git sync
+
+**Technology Stack** (Phase 2 Baseline):
+```
+┌─────────────────────────────────────────┐
+│         User Interface Layer            │
+│   (Claude Code CLI + commands)          │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│         Commands Layer                  │
+│  /learn /review /progress /ask          │
+│  /archive-conversation /kb-init         │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│         Agents Layer                    │
+│  book-tutor, review-master,             │
+│  knowledge-indexer, analyst,            │
+│  conversation-archiver                  │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│         Data Layer                      │
+│  Markdown (Rems), JSON (indexes),       │
+│  Python scripts (SM-2, parsers)         │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│         Storage Layer                   │
+│  Git (version control + sync)           │
+└─────────────────────────────────────────┘
+```
+
+**Current Tech Stack**:
+| Category | Technology | Version | Usage |
+|----------|-----------|---------|-------|
+| Language | Python | 3.12 | Scripts, algorithms |
+| AI Framework | Claude Code | Latest | Agent orchestration |
+| Data Format | Markdown | - | Knowledge representation |
+| Data Format | JSON | - | Indexes, schedules |
+| Version Control | Git | Latest | Sync, backup |
+| SRS Algorithm | SM-2 | Classic | Spaced repetition |
+| File Parsing | python-pptx | 0.6.21+ | PowerPoint parsing |
+| File Parsing | BeautifulSoup4 | 4.12.0+ | EPUB parsing |
+
+**Deployment Method**:
+- Local development environment
+- Python virtual environment (`.venv`)
+- Git repository (private GitHub)
+- No external services (local-first privacy)
+
+### Identified Constraints
+
+**Technical Constraints**:
+1. **Context Limits**: Claude Code ~200k tokens → requires chunking strategies
+2. **File I/O Performance**: All data in files → limited query performance
+3. **Git File Size**: Large files (>100MB) problematic without LFS
+4. **Agent Isolation**: Stateless agents → need persistent memory layer
+5. **No Database**: File-based only → complex queries require iteration
+
+**Architectural Constraints**:
+1. **Local-First**: No external services allowed (privacy requirement)
+2. **Markdown Compatibility**: Must maintain Obsidian compatibility
+3. **Agent Pattern**: All features must work within agent architecture
+4. **Git Sync**: All changes must be Git-trackable
+
+**Integration Constraints**:
+1. **Backward Compatibility**: Phase 3 must not break Phase 2 features
+2. **Data Migration**: Existing SM-2 schedules must migrate to FSRS
+3. **File Format Stability**: Existing Rems must remain valid
+
+---
+
+## 🚀 Phase 3 Enhancement Scope
+
+### Enhancement Overview
+
+**Enhancement Type**: Major feature additions + infrastructure improvements
+**Scope**: 10 strategic priorities across 4 tiers
+**Integration Impact**: High (affects all layers: commands, agents, data, storage)
+
+### Integration Strategy
+
+**Code Integration Approach**:
+- **Additive**: New agents/commands alongside existing ones
+- **Wrapper Pattern**: New features wrap existing functionality (e.g., FSRS wraps SM-2)
+- **Feature Flags**: Dual-mode support during migration (SM-2 ↔ FSRS toggle)
+- **Incremental Rollout**: Phase 3a → 3b → 4 → 5 (4 phases over 4 months)
+
+**Database Integration**:
+- **No Database Migration**: Maintain file-based storage
+- **Enhanced Indexes**: Add computed indexes for performance
+- **Memory Layer**: Claude MCP for cross-session state (not persistent DB)
+
+**API Integration**:
+- **Internal**: New commands expose new features
+- **External** (Phase 5): Optional REST API for third-party tools
+- **MCP Protocol**: Integrate Claude MCP memory server
+
+**UI Integration**:
+- **CLI Commands**: Primary interface (no GUI)
+- **HTML Artifacts**: Visualization (graphs, dashboards) as standalone HTML
+- **Mobile**: Obsidian mobile app compatibility
+
+### Compatibility Requirements
+
+**Existing API Compatibility**:
+- All Phase 2 commands remain functional
+- New commands optional (don't break existing workflows)
+- Agent interfaces backward-compatible
+
+**Database Schema Compatibility**:
+- Existing JSON schemas preserved
+- New fields added (non-breaking)
+- Migration scripts for schema updates
+
+**UI/UX Consistency**:
+- Command naming conventions maintained
+- Output formats consistent
+- Error handling patterns preserved
+
+**Performance Impact**:
+- No degradation to existing features
+- New features isolated (opt-in performance cost)
+- Background processing for heavy computation (FSRS optimization, graph generation)
+
+---
+
+## 🛠️ Tech Stack Evolution
+
+### Existing Technology Stack (Maintained)
+
+| Category | Current Technology | Version | Usage in Phase 3 | Notes |
+|----------|-------------------|---------|------------------|-------|
+| **Language** | Python | 3.12 | Core scripts, FSRS, analytics | Maintained |
+| **AI Framework** | Claude Code | Latest | Agent orchestration + MCP | Enhanced |
+| **Data Format** | Markdown | - | Knowledge (Rems) | Maintained |
+| **Data Format** | JSON | - | Indexes, schedules | Extended |
+| **Version Control** | Git | Latest | Sync, backup | Add LFS |
+| **SRS Algorithm** | SM-2 | Classic | Fallback algorithm | Supplement with FSRS |
+| **File Parsing** | python-pptx | 0.6.21+ | PowerPoint | Maintained |
+| **File Parsing** | BeautifulSoup4 | 4.12.0+ | EPUB | Maintained |
+
+### New Technology Additions
+
+| Technology | Version | Purpose | Rationale | Integration Method |
+|-----------|---------|---------|-----------|-------------------|
+| **FSRS Algorithm** | Latest (Jarrett Ye) | ML-optimized SRS | 30-50% more efficient than SM-2 | Python module in `scripts/` |
+| **numpy** | >=1.24.0 | FSRS optimization (ML) | Required for gradient descent | pip install |
+| **scipy** | >=1.11.0 | FSRS parameter fitting | Statistical optimization | pip install |
+| **pandas** | >=2.0.0 | Analytics data processing | Dashboard metrics | pip install |
+| **D3.js** | 7.x | Knowledge graph viz | Industry standard for graphs | CDN in HTML artifact |
+| **React** | 18.x | Interactive dashboards | Via /artifact-react | Bundled in artifacts |
+| **Chart.js** | 4.x | Analytics charts | Lightweight, responsive | CDN in HTML artifact |
+| **Git LFS** | Latest | Large file storage | PDF/EPUB >10MB | Git extension |
+| **Claude MCP** | Latest | Persistent memory | Cross-session intelligence | Claude Code built-in |
+| **genanki** | >=0.13.0 | Anki deck export | Interoperability | pip install |
+| **FastAPI** | >=0.104.0 | REST API (optional) | Third-party integrations | pip install (optional) |
+
+**Installation**:
+```bash
+# Update requirements.txt
+cat >> requirements.txt <<EOF
+numpy>=1.24.0
+scipy>=1.11.0
+pandas>=2.0.0
+genanki>=0.13.0
+fastapi>=0.104.0  # optional
+EOF
+
+# Install
+pip install -r requirements.txt
+
+# Git LFS
+git lfs install
+git lfs track "*.pdf" "*.epub" "*.pptx"
+```
+
+---
+
+## 📊 Data Models and Schema Changes
+
+### Phase 2 Baseline Schemas (Unchanged)
+
+**Material Index** (`learning-materials/.index.json`):
+```json
+{
+  "version": "1.0.0",
+  "materials": {
+    "material-id": {
+      "title": "string",
+      "file_path": "string",
+      "type": "pdf|epub|pptx|...",
+      "domain": "string",
+      "status": "not-started|in-progress|completed",
+      "progress_percentage": 0-100,
+      "learned_concepts": ["concept-id", ...]
+    }
+  }
+}
+```
+
+**Backlinks Index** (`knowledge-base/_index/backlinks.json`):
+```json
+{
+  "version": "1.0.0",
+  "links": {
+    "concept-a": {
+      "links_to": ["concept-b"],
+      "linked_from": ["concept-x"]
+    }
+  },
+  "metadata": {
+    "last_updated": "YYYY-MM-DD",
+    "total_concepts": 0,
+    "total_links": 0
+  }
+}
+```
+
+### New Data Models (Phase 3)
+
+#### 1. Taxonomy Mapping
+
+**File**: `knowledge-base/.taxonomy.json`
+
+**Purpose**: Map domains to ISCED and Dewey classification codes
+
+```json
+{
+  "version": "1.0.0",
+  "isced_mappings": {
+    "finance": ["34"],
+    "programming": ["48", "06"],
+    "language": ["22", "23"],
+    "science": ["44", "45", "46"],
+    "general": ["00"]
+  },
+  "dewey_mappings": {
+    "finance": ["300", "330"],
+    "programming": ["000", "005"],
+    "language": ["400"],
+    "science": ["500", "600"],
+    "general": ["000"]
+  }
+}
+```
+
+**Integration with Existing**: Auto-applied by `knowledge-indexer` agent when creating new Rems
+
+#### 2. FSRS Schedule
+
+**File**: `.review/fsrs-schedule.json`
+
+**Purpose**: ML-optimized spaced repetition scheduling
+
+```json
+{
+  "version": "2.0.0",
+  "algorithm": "FSRS-4.5",
+  "concepts": {
+    "concept-id": {
+      "title": "string",
+      "domain": "string",
+
+      // FSRS-specific fields (new)
+      "difficulty": 5.0,        // Initial: 5.0, Range: 1-10
+      "stability": 1.0,         // Days concept remains stable
+      "retrievability": 0.9,    // Current memory strength (0-1)
+
+      // Common fields (compatible with SM-2)
+      "interval": 1,
+      "repetitions": 0,
+      "next_review_date": "YYYY-MM-DD",
+      "last_review_date": "YYYY-MM-DD",
+      "review_history": [
+        {
+          "date": "YYYY-MM-DD",
+          "rating": 1-4,         // FSRS uses 1-4 (Again/Hard/Good/Easy)
+          "state": "new|learning|review|relearning",
+          "elapsed_days": 0,
+          "scheduled_days": 0,
+          "stability": 1.0,
+          "difficulty": 5.0
+        }
+      ],
+      "total_reviews": 0,
+
+      // Legacy SM-2 fields (for migration/fallback)
+      "sm2_easiness_factor": 2.5,
+      "sm2_interval": 1
+    }
+  },
+  "parameters": {
+    "model_version": "FSRS-4.5",
+    "weights": [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61],
+    "desired_retention": 0.9,
+    "optimization_enabled": true,
+    "optimization_threshold": 30  // reviews before personalization
+  }
+}
+```
+
+**Migration Strategy**:
+```python
+# Dual-mode support during transition
+if user_preference == "fsrs":
+    schedule = load_fsrs_schedule()
+else:
+    schedule = load_sm2_schedule()  # fallback
+```
+
+#### 3. Adaptive Difficulty Profile
+
+**File**: `.review/adaptive-profile.json`
+
+**Purpose**: Track learner performance for difficulty adjustment
+
+```json
+{
+  "version": "1.0.0",
+  "user_id": "default",
+  "domains": {
+    "finance": {
+      "difficulty_level": 1.0,        // 0.0-2.0 (target: 1.0)
+      "avg_response_time": 45.0,      // seconds
+      "correction_rate": 0.15,        // corrections/question
+      "consecutive_correct": 5,       // current streak
+      "flow_state_percentage": 0.65,  // time in optimal range
+      "session_history": [
+        {
+          "date": "YYYY-MM-DD",
+          "concepts_learned": 5,
+          "avg_difficulty": 1.1,
+          "flow_state": 0.70
+        }
+      ]
+    }
+  },
+  "learning_preferences": {
+    "preferred_chunk_size": 5,        // concepts per session
+    "preferred_question_depth": 2,    // 1-4 (easy-expert)
+    "break_frequency": 30             // minutes
+  }
+}
+```
+
+**Integration**: Updated by tutor agents during learning sessions
+
+#### 4. Analytics Metrics
+
+**File**: `.review/analytics.json`
+
+**Purpose**: Pre-computed metrics for dashboard
+
+```json
+{
+  "version": "1.0.0",
+  "last_updated": "YYYY-MM-DD HH:MM:SS",
+  "overview": {
+    "total_concepts": 150,
+    "total_reviews": 450,
+    "current_streak_days": 7,
+    "longest_streak_days": 14,
+    "total_learning_hours": 25.5
+  },
+  "by_domain": {
+    "finance": {
+      "concepts": 50,
+      "mastery_percentage": 0.75,
+      "avg_quality": 4.2,
+      "retention_30d": 0.85,
+      "learning_velocity": 6.5  // concepts/hour
+    }
+  },
+  "retention_curves": {
+    "finance": [
+      {"days": 1, "retention": 0.95},
+      {"days": 7, "retention": 0.85},
+      {"days": 30, "retention": 0.75}
+    ]
+  },
+  "predictions": {
+    "finance_mastery_date": "2025-12-15",
+    "weekly_review_time": 2.5  // hours
+  }
+}
+```
+
+**Update Frequency**: Regenerated daily by background task
+
+#### 5. MCP Memory Index
+
+**File**: `.claude-memory/index.json`
+
+**Purpose**: Track Claude MCP memory entries
+
+```json
+{
+  "version": "1.0.0",
+  "memories": [
+    {
+      "id": "mem-001",
+      "type": "preference|concept|context|struggle",
+      "content": "User prefers visual examples",
+      "created": "YYYY-MM-DD",
+      "last_accessed": "YYYY-MM-DD",
+      "access_count": 5,
+      "importance": 0.8,  // 0-1, auto-weighted by frequency
+      "related_concepts": ["visual-learning"],
+      "domains": ["general"]
+    }
+  ],
+  "statistics": {
+    "total_memories": 50,
+    "preferences_count": 10,
+    "concepts_count": 30
+  }
+}
+```
+
+**Integration**: Synced with Claude MCP memory server
+
+#### 6. Knowledge Graph Cache
+
+**File**: `knowledge-base/_index/graph-cache.json`
+
+**Purpose**: Pre-computed graph data for visualization
+
+```json
+{
+  "version": "1.0.0",
+  "last_updated": "YYYY-MM-DD",
+  "nodes": [
+    {
+      "id": "concept-id",
+      "label": "Concept Title",
+      "domain": "finance",
+      "tags": ["options", "derivatives"],
+      "mastery": 0.85,
+      "review_count": 10,
+      "size": 10  // for visualization scaling
+    }
+  ],
+  "edges": [
+    {
+      "source": "concept-a",
+      "target": "concept-b",
+      "type": "parent|sibling|child",
+      "strength": 1.0
+    }
+  ],
+  "clusters": [
+    {
+      "id": 1,
+      "label": "Options Trading",
+      "concepts": ["concept-a", "concept-b"],
+      "color": "#ff6b6b"
+    }
+  ],
+  "statistics": {
+    "total_nodes": 150,
+    "total_edges": 300,
+    "avg_connections": 2.0,
+    "orphans": 5
+  }
+}
+```
+
+**Update Frequency**: Regenerated when backlinks change
+
+### Schema Integration Strategy
+
+**Database Changes Required**:
+- **New Files**: 6 new JSON schemas (taxonomy, FSRS, adaptive profile, analytics, MCP index, graph cache)
+- **Modified Files**: None (existing schemas unchanged)
+- **New Indexes**: Graph cache, analytics pre-computation
+
+**Migration Strategy**:
+1. **Phase 3a**: Create new files with defaults
+2. **Phase 3b**: Migrate SM-2 → FSRS (preserve SM-2 as fallback)
+3. **Phase 4**: Populate analytics from historical data
+4. **Phase 5**: Export ecosystem reads all schemas
+
+**Backward Compatibility**:
+- All new fields optional (existing code unaffected)
+- Version fields track schema evolution
+- Migration scripts handle upgrades
+
+---
+
+## 🏗️ Component Architecture
+
+### Overview: Layered Enhancement Strategy
+
+Phase 3 adds three new layers to the existing architecture:
+
+```
+┌──────────────────────────────────────────────────┐
+│          Visualization Layer (NEW)               │
+│   Knowledge Graph, Analytics Dashboard          │
+│   (D3.js/React HTML artifacts)                   │
+└──────────────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────┐
+│          Intelligence Layer (NEW)                │
+│   FSRS Algorithm, Adaptive Difficulty,           │
+│   MCP Memory, Analytics Engine                   │
+└──────────────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────┐
+│          Commands Layer (Enhanced)               │
+│   Existing + /stats, /visualize, /export         │
+└──────────────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────┐
+│          Agents Layer (Enhanced)                 │
+│   Existing + domain tutors, telemetry            │
+└──────────────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────┐
+│          Data Layer (Enhanced)                   │
+│   Existing + FSRS, analytics, graph cache        │
+└──────────────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────┐
+│          Storage Layer (Enhanced)                │
+│   Git + Git LFS                                  │
+└──────────────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────┐
+│          Memory Layer (NEW)                      │
+│   Claude MCP Memory Server                       │
+└──────────────────────────────────────────────────┘
+```
+
+### New Components (Phase 3)
+
+#### Component 1: FSRS Engine
+
+**Responsibility**: ML-optimized spaced repetition scheduling
+
+**File**: `scripts/fsrs-algorithm.py`
+
+**Key Interfaces**:
+- `calculate_next_review(difficulty, stability, rating) → next_interval`
+- `optimize_parameters(review_history) → optimized_weights`
+- `migrate_from_sm2(sm2_schedule) → fsrs_schedule`
+
+**Dependencies**:
+- **Existing**: `.review/schedule.json` (SM-2 data for migration)
+- **New**: `.review/fsrs-schedule.json` (FSRS data)
+- **Libraries**: numpy, scipy (ML optimization)
+
+**Integration Points**:
+- **review-master agent**: Calls FSRS engine for scheduling
+- **Migration script**: Converts SM-2 → FSRS one-time
+- **Fallback**: SM-2 remains available if FSRS fails
+
+**Technology Stack**:
+```python
+# Core FSRS algorithm (Python)
+class FSRSScheduler:
+    def __init__(self, weights=DEFAULT_WEIGHTS):
+        self.weights = weights
+
+    def calculate_interval(self, difficulty, stability, rating):
+        # FSRS-4.5 formula
+        new_stability = self._update_stability(stability, rating, difficulty)
+        interval = new_stability * (1 / DESIRED_RETENTION - 1)
+        return round(interval)
+
+    def optimize_parameters(self, history):
+        # Gradient descent using scipy
+        from scipy.optimize import minimize
+        # ... ML optimization
+```
+
+---
+
+#### Component 2: MCP Memory Manager
+
+**Responsibility**: Persistent cross-session memory via Claude MCP
+
+**File**: `.claude/agents/memory-manager.py` (wrapper script)
+
+**Key Interfaces**:
+- `save_memory(type, content, importance) → memory_id`
+- `query_memory(query, filters) → relevant_memories`
+- `update_memory(memory_id, content) → success`
+- `delete_memory(memory_id) → success`
+
+**Dependencies**:
+- **External**: Claude MCP memory server
+- **Existing**: `knowledge-base/` (concepts for memory seeding)
+- **New**: `.claude-memory/index.json` (local cache)
+
+**Integration Points**:
+- **analyst agent**: Queries memory before answering
+- **book-tutor**: Saves learning preferences
+- **conversation-archiver**: Links conversations to memory
+
+**Technology Stack**:
+```python
+# MCP Memory wrapper
+class MCPMemoryManager:
+    def __init__(self):
+        self.mcp_client = ClaudeMCPClient()
+        self.local_cache = load_json('.claude-memory/index.json')
+
+    def save_memory(self, memory_type, content, importance):
+        # Save to MCP server
+        memory_id = self.mcp_client.create(content, metadata={
+            'type': memory_type,
+            'importance': importance
+        })
+
+        # Update local cache
+        self.local_cache['memories'].append({...})
+
+        return memory_id
+
+    def query_memory(self, query, filters=None):
+        # Semantic search via MCP
+        results = self.mcp_client.search(query, filters)
+        return results
+```
+
+---
+
+#### Component 3: Adaptive Difficulty Engine
+
+**Responsibility**: Real-time difficulty adjustment for flow state optimization
+
+**File**: `scripts/adaptive-difficulty.py`
+
+**Key Interfaces**:
+- `record_telemetry(response_time, corrections, self_rating) → None`
+- `get_current_difficulty(domain) → difficulty_score (0.0-2.0)`
+- `adjust_question_level(current_level) → new_level (1-4)`
+- `calculate_flow_state() → percentage (0-100%)`
+
+**Dependencies**:
+- **Existing**: Tutor agents (book-tutor, domain tutors)
+- **New**: `.review/adaptive-profile.json`
+
+**Integration Points**:
+- **All tutors**: Call `record_telemetry()` after each question
+- **All tutors**: Call `get_current_difficulty()` to select question depth
+- **Analytics**: Flow state metrics feed into dashboard
+
+**Technology Stack**:
+```python
+# Adaptive difficulty calculation
+class AdaptiveDifficultyEngine:
+    def __init__(self, domain):
+        self.profile = load_json('.review/adaptive-profile.json')
+        self.domain = domain
+
+    def record_telemetry(self, response_time, corrections, self_rating):
+        # Update running averages
+        self.profile['domains'][self.domain]['avg_response_time'] = ...
+
+    def get_current_difficulty(self):
+        # Calculate difficulty score (target: 1.0)
+        score = (
+            (avg_response_time / target_time) * 0.3 +
+            (correction_rate / max_rate) * 0.4 +
+            (1 - consecutive_correct / target_streak) * 0.3
+        )
+        return score
+
+    def adjust_question_level(self, current_level):
+        difficulty = self.get_current_difficulty()
+
+        if difficulty < 0.8:  # Too easy
+            return min(current_level + 1, 4)
+        elif difficulty > 1.2:  # Too hard
+            return max(current_level - 1, 1)
+        else:  # Flow state!
+            return current_level
+```
+
+---
+
+#### Component 4: Analytics Engine
+
+**Responsibility**: Pre-compute learning metrics for dashboard
+
+**File**: `scripts/analytics-engine.py`
+
+**Key Interfaces**:
+- `compute_overview() → overview_stats`
+- `compute_domain_metrics(domain) → domain_stats`
+- `compute_retention_curves() → curve_data`
+- `predict_mastery_dates() → predictions`
+- `generate_dashboard_data() → json`
+
+**Dependencies**:
+- **Existing**: `.review/schedule.json`, `.review/history.json`, `learning-materials/.index.json`
+- **New**: `.review/analytics.json`, `.review/adaptive-profile.json`
+- **Libraries**: pandas (data processing)
+
+**Integration Points**:
+- **Background task**: Runs daily to update analytics
+- **/stats command**: Reads analytics JSON
+- **Dashboard artifact**: Visualizes analytics data
+
+**Technology Stack**:
+```python
+# Analytics computation
+import pandas as pd
+
+class AnalyticsEngine:
+    def __init__(self):
+        self.schedule = load_json('.review/fsrs-schedule.json')
+        self.history = load_json('.review/history.json')
+        self.materials = load_json('learning-materials/.index.json')
+
+    def compute_retention_curves(self):
+        # Use pandas for data aggregation
+        df = pd.DataFrame(self.history['reviews'])
+
+        # Group by domain and days since review
+        retention = df.groupby(['domain', 'days_since']).agg({
+            'quality': 'mean'
+        })
+
+        return retention.to_dict()
+
+    def predict_mastery_dates(self):
+        # Simple linear regression on learning velocity
+        for domain in self.schedule['concepts'].keys():
+            velocity = self._calculate_velocity(domain)
+            remaining_concepts = self._count_remaining(domain)
+            days_to_mastery = remaining_concepts / velocity
+
+        return predictions
+```
+
+---
+
+#### Component 5: Knowledge Graph Visualizer
+
+**Responsibility**: Interactive D3.js graph visualization
+
+**File**: HTML artifact (generated via `/visualize` command)
+
+**Key Interfaces**:
+- User interactions: click, drag, zoom, filter
+- Data source: `knowledge-base/_index/graph-cache.json`
+
+**Dependencies**:
+- **Existing**: `backlinks.json` (graph structure)
+- **New**: `graph-cache.json` (pre-computed visualization data)
+- **Libraries**: D3.js (CDN), React (via /artifact-react)
+
+**Integration Points**:
+- **/visualize command**: Generates HTML artifact
+- **graph-cache updater**: Regenerates cache when backlinks change
+
+**Technology Stack**:
+```javascript
+// D3.js force-directed graph
+import * as d3 from 'd3';
+
+function KnowledgeGraphVisualization({ graphData }) {
+  const [nodes, setNodes] = React.useState(graphData.nodes);
+  const [edges, setEdges] = React.useState(graphData.edges);
+
+  React.useEffect(() => {
+    const svg = d3.select('#graph-canvas');
+
+    // Force simulation
+    const simulation = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(edges).id(d => d.id))
+      .force('charge', d3.forceManyBody().strength(-100))
+      .force('center', d3.forceCenter(width/2, height/2));
+
+    // Render nodes and edges
+    // ... D3 rendering code
+  }, [nodes, edges]);
+
+  return (
+    <div>
+      <svg id="graph-canvas" width={800} height={600}></svg>
+      <FilterPanel onFilter={handleFilter} />
+    </div>
+  );
+}
+```
+
+---
+
+#### Component 6: Domain-Specific Tutors
+
+**Responsibility**: Specialized questioning for specific domains
+
+**Files**:
+- `.claude/agents/language-tutor/instructions.md`
+- `.claude/agents/finance-tutor/instructions.md`
+- `.claude/agents/programming-tutor/instructions.md`
+
+**Key Interfaces** (same as book-tutor):
+- Launch via `/learn <material>` (auto-detected by domain)
+- Socratic dialogue with domain-specific strategies
+- Concept extraction with domain metadata
+
+**Dependencies**:
+- **Template**: book-tutor agent (clone and customize)
+- **Existing**: All tutor infrastructure (commands, data layer)
+
+**Integration Points**:
+- **/learn command**: Routes to appropriate tutor based on domain
+- **Adaptive difficulty**: Domain tutors call difficulty engine
+- **Taxonomy**: Auto-tags concepts with domain codes
+
+**Technology Stack**: Claude Code agent architecture (markdown instructions)
+
+---
+
+#### Component 7: Export Engine
+
+**Responsibility**: Convert knowledge to external formats
+
+**File**: `scripts/export-engine.py`
+
+**Key Interfaces**:
+- `export_to_anki(domain, output_path) → .apkg file`
+- `export_to_pdf(domain, output_path) → .pdf file`
+- `export_to_remnote(domain, output_path) → .json file`
+- `export_to_json(domain, output_path) → .json file`
+
+**Dependencies**:
+- **Existing**: All concept Rems, backlinks
+- **New**: Export templates (LaTeX for PDF, Anki format specs)
+- **Libraries**: genanki (Anki), pandoc (PDF)
+
+**Integration Points**:
+- **/export command**: User-facing interface
+- **Migration guides**: Documentation for import/export workflows
+
+**Technology Stack**:
+```python
+# Anki export using genanki
+import genanki
+
+class ExportEngine:
+    def export_to_anki(self, domain, output_path):
+        # Create Anki deck
+        deck = genanki.Deck(
+            deck_id=2059400110,
+            name=f'Knowledge System - {domain}'
+        )
+
+        # Add cards from concepts
+        concepts = load_concepts_by_domain(domain)
+        for concept in concepts:
+            note = genanki.Note(
+                model=BASIC_MODEL,
+                fields=[concept['title'], concept['definition']]
+            )
+            deck.add_note(note)
+
+        # Write .apkg file
+        genanki.Package(deck).write_to_file(output_path)
+```
+
+---
+
+### Component Interaction Diagram
+
+```mermaid
+graph TB
+    User[User] -->|Commands| CLI[CLI Commands Layer]
+
+    CLI -->|/learn| LearnCmd[/learn Command]
+    CLI -->|/review| ReviewCmd[/review Command]
+    CLI -->|/stats| StatsCmd[/stats Command]
+    CLI -->|/visualize| VizCmd[/visualize Command]
+    CLI -->|/export| ExportCmd[/export Command]
+
+    LearnCmd -->|Launch| DomainTutor[Domain Tutors]
+    ReviewCmd -->|Launch| ReviewMaster[review-master]
+    StatsCmd -->|Read| Analytics[Analytics Engine]
+    VizCmd -->|Generate| GraphViz[Graph Visualizer]
+    ExportCmd -->|Execute| ExportEngine[Export Engine]
+
+    DomainTutor -->|Record telemetry| AdaptiveDiff[Adaptive Difficulty]
+    DomainTutor -->|Query| MCPMemory[MCP Memory]
+    DomainTutor -->|Save concepts| DataLayer[Data Layer]
+
+    ReviewMaster -->|Schedule| FSRS[FSRS Engine]
+    ReviewMaster -->|Fallback| SM2[SM-2 Engine]
+
+    AdaptiveDiff -->|Write| Profile[adaptive-profile.json]
+    FSRS -->|Write| FSRSSchedule[fsrs-schedule.json]
+    Analytics -->|Aggregate| AnalyticsJSON[analytics.json]
+    GraphViz -->|Read| GraphCache[graph-cache.json]
+
+    DataLayer -->|Update| Backlinks[backlinks.json]
+    Backlinks -->|Trigger rebuild| GraphCache
+
+    MCPMemory <-->|Sync| MCPServer[Claude MCP Server]
+
+    ExportEngine -->|Read all| DataLayer
+    ExportEngine -->|Generate| ExportFiles[.apkg/.pdf/.json]
+
+    DataLayer -->|Git commit| Git[Git + LFS]
+
+    style DomainTutor fill:#4CAF50
+    style FSRS fill:#2196F3
+    style MCPMemory fill:#9C27B0
+    style GraphViz fill:#FF9800
+    style AdaptiveDiff fill:#F44336
+    style Analytics fill:#00BCD4
+    style ExportEngine fill:#795548
+```
+
+---
+
+## 🌐 API Design and Integration
+
+### Internal API (Commands)
+
+Phase 3 adds the following new commands:
+
+#### New Commands
+
+| Command | Purpose | Agent/Script | Example |
+|---------|---------|--------------|---------|
+| `/stats [domain]` | Learning analytics | Analytics engine | `/stats finance` |
+| `/visualize [domain]` | Knowledge graph | Graph visualizer | `/visualize` |
+| `/export-anki <domain>` | Anki export | Export engine | `/export-anki finance` |
+| `/export-pdf <domain>` | PDF study guide | Export engine | `/export-pdf programming` |
+| `/memory-status` | MCP memory status | Memory manager | `/memory-status` |
+| `/memory-forget <topic>` | Delete memory | Memory manager | `/memory-forget options` |
+| `/switch-algorithm <fsrs\|sm2>` | Toggle SRS algo | Review command | `/switch-algorithm fsrs` |
+
+#### Enhanced Existing Commands
+
+| Command | Phase 2 Behavior | Phase 3 Enhancement |
+|---------|------------------|---------------------|
+| `/learn` | Generic book-tutor | Routes to domain-specific tutor |
+| `/review` | SM-2 only | FSRS-first with SM-2 fallback |
+| `/progress` | Basic stats | Links to full analytics dashboard |
+| `/ask` | No memory | Queries MCP memory first |
+| `/kb-init` | Basic setup | Includes hooks, taxonomy, FSRS migration |
+
+### API Integration Strategy
+
+**Authentication**: N/A (local-only, no auth required)
+
+**Versioning**: Commands support `--version` flag (e.g., `/review --algorithm sm2`)
+
+### External API Integration (Phase 5 - Optional)
+
+#### Context7 API (for library docs)
+
+**Purpose**: Fetch up-to-date library documentation for programming concepts
+
+**Integration**:
+```python
+# In programming-tutor agent
+from mcp import context7
+
+def get_library_docs(library_name, topic):
+    library_id = context7.resolve_library_id(library_name)
+    docs = context7.get_library_docs(library_id, topic=topic)
+    return docs
+```
+
+**Example Usage**:
+```
+User learning React hooks →
+programming-tutor queries Context7 for latest React hooks docs →
+Uses current docs (not training data) for examples
+```
+
+#### Claude MCP Memory API
+
+**Purpose**: Persistent memory across sessions
+
+**Base URL**: Internal (Claude Code built-in)
+
+**Authentication**: Automatic (Claude Code session)
+
+**Key Endpoints Used**:
+- `CREATE /memory` - Save new memory
+- `READ /memory/search` - Semantic search
+- `UPDATE /memory/{id}` - Update existing
+- `DELETE /memory/{id}` - Remove memory
+
+**Integration Method**:
+```python
+# MCP Memory wrapper
+class MCPMemoryClient:
+    def __init__(self):
+        self.client = get_claude_mcp_client()
+
+    def save(self, content, metadata):
+        return self.client.memory.create(
+            content=content,
+            metadata=metadata
+        )
+
+    def search(self, query, filters=None):
+        return self.client.memory.search(
+            query=query,
+            filters=filters or {}
+        )
+```
+
+**Error Handling**: Fallback to local cache if MCP unavailable
+
+---
+
+## 📂 Source Tree Integration
+
+### Existing Project Structure (Relevant Parts)
+
+```
+knowledge-system/
+├── .claude/
+│   ├── commands/
+│   │   ├── learn.md
+│   │   ├── review.md
+│   │   ├── progress.md
+│   │   ├── ask.md
+│   │   └── archive-conversation.md
+│   ├── agents/
+│   │   ├── book-tutor/
+│   │   ├── review-master/
+│   │   ├── knowledge-indexer/
+│   │   ├── analyst/
+│   │   └── conversation-archiver/
+│   ├── hooks/
+│   └── CLAUDE.md
+├── knowledge-base/
+│   ├── _index/
+│   │   ├── backlinks.json
+│   │   ├── by-domain.md
+│   │   └── by-tag.md
+│   ├── _templates/
+│   └── [domain]/concepts/*.md
+├── learning-materials/
+│   ├── .index.json
+│   └── [domain]/
+├── .review/
+│   ├── schedule.json  (SM-2)
+│   └── history.json
+├── scripts/
+│   ├── sm2-algorithm.py
+│   ├── parse-ppt.py
+│   └── parse-epub.py
+├── chats/
+│   ├── index.json
+│   └── YYYY-MM/
+└── docs/
+    ├── PRD.md
+    ├── SYSTEM_ARCHITECTURE.md
+    └── GETTING_STARTED.md
+```
+
+### New File Organization (Phase 3 Additions)
+
+```
+knowledge-system/
+├── .claude/
+│   ├── commands/
+│   │   ├── stats.md                    # NEW: Analytics command
+│   │   ├── visualize.md                # NEW: Graph visualization
+│   │   ├── export-anki.md              # NEW: Anki export
+│   │   ├── export-pdf.md               # NEW: PDF export
+│   │   ├── memory-status.md            # NEW: MCP memory management
+│   │   └── switch-algorithm.md         # NEW: Toggle FSRS/SM-2
+│   ├── agents/
+│   │   ├── language-tutor/             # NEW: Language specialist
+│   │   │   └── instructions.md
+│   │   ├── finance-tutor/              # NEW: Finance specialist
+│   │   │   └── instructions.md
+│   │   ├── programming-tutor/          # NEW: Programming specialist
+│   │   │   └── instructions.md
+│   │   └── memory-manager/             # NEW: MCP memory wrapper
+│   │       └── instructions.md
+│   ├── settings.json                   # NEW: Hooks configuration
+│   └── CLAUDE.md                       # UPDATED: Add Phase 3 instructions
+│
+├── knowledge-base/
+│   ├── .taxonomy.json                  # NEW: ISCED + Dewey mappings
+│   ├── _index/
+│   │   ├── backlinks.json              # EXISTING
+│   │   ├── graph-cache.json            # NEW: Visualization data
+│   │   ├── by-domain.md
+│   │   └── by-tag.md
+│   └── ...
+│
+├── .review/
+│   ├── schedule.json                   # EXISTING: SM-2 (fallback)
+│   ├── fsrs-schedule.json              # NEW: FSRS scheduling
+│   ├── history.json                    # EXISTING
+│   ├── analytics.json                  # NEW: Pre-computed metrics
+│   └── adaptive-profile.json           # NEW: Difficulty tracking
+│
+├── .claude-memory/                     # NEW: MCP memory cache
+│   └── index.json
+│
+├── scripts/
+│   ├── sm2-algorithm.py                # EXISTING
+│   ├── fsrs-algorithm.py               # NEW: FSRS implementation
+│   ├── adaptive-difficulty.py          # NEW: Flow state engine
+│   ├── analytics-engine.py             # NEW: Metrics computation
+│   ├── graph-cache-builder.py          # NEW: Visualization data
+│   ├── export-engine.py                # NEW: Multi-format export
+│   ├── rebuild-backlinks.py            # NEW: Index repair
+│   ├── rebuild-indexes.py              # NEW: Index regeneration
+│   ├── reset-schedule.py               # NEW: Schedule reset
+│   ├── migrate-sm2-to-fsrs.py          # NEW: One-time migration
+│   ├── parse-ppt.py                    # EXISTING
+│   └── parse-epub.py                   # EXISTING
+│
+├── artifacts/                          # NEW: Generated visualizations
+│   ├── knowledge-graph.html            # D3.js graph
+│   ├── analytics-dashboard.html        # Chart.js dashboard
+│   └── exports/                        # Export outputs
+│       ├── finance.apkg                # Anki deck
+│       └── programming.pdf             # PDF study guide
+│
+├── docs/
+│   ├── PRD.md                          # EXISTING (Phase 2)
+│   ├── PRD-Phase3.md                   # NEW
+│   ├── SYSTEM_ARCHITECTURE.md          # EXISTING
+│   ├── ARCHITECTURE-Phase3.md          # NEW (this document)
+│   ├── GETTING_STARTED.md              # EXISTING
+│   └── deprecated/                     # NEW
+│       └── 2025-10-26-phase2-implementation-plan.md
+│
+└── requirements.txt                    # UPDATED: Add numpy, scipy, pandas, genanki
+```
+
+### Integration Guidelines
+
+**File Naming**:
+- Commands: `<action>.md` (lowercase, hyphenated)
+- Agents: `<role>-tutor/` or `<role>-manager/`
+- Scripts: `<purpose>-<noun>.py` (hyphenated)
+- Data files: `<type>-<variant>.json` (e.g., `fsrs-schedule.json`)
+
+**Folder Organization**:
+- New agents in `.claude/agents/<name>/`
+- New commands in `.claude/commands/<name>.md`
+- New scripts in `scripts/`
+- New data files in appropriate layer (`.review/`, `knowledge-base/_index/`)
+
+**Import/Export Patterns**:
+```python
+# Consistent import pattern for scripts
+from pathlib import Path
+import json
+
+# Project root
+PROJECT_ROOT = Path(__file__).parent.parent
+
+# Load JSON helper
+def load_json(relative_path):
+    with open(PROJECT_ROOT / relative_path) as f:
+        return json.load(f)
+
+# Save JSON helper
+def save_json(relative_path, data):
+    with open(PROJECT_ROOT / relative_path, 'w') as f:
+        json.dump(data, f, indent=2)
+```
+
+---
+
+## 🚀 Infrastructure and Deployment
+
+### Existing Infrastructure
+
+**Current Deployment**:
+- Local development environment
+- No server/hosting (fully local)
+- User manages system via Claude Code CLI
+
+**Infrastructure Tools**:
+- Python virtual environment (`.venv`)
+- Git for version control
+- Manual `pip install` for dependencies
+
+**Environments**:
+- Single environment (local development)
+- No staging/production separation
+
+### Enhancement Deployment Strategy
+
+**Deployment Approach**: Phased incremental rollout
+
+**Phase 3a (Weeks 1-2): Foundation**
+```bash
+# 1. Update dependencies
+pip install -r requirements.txt
+
+# 2. Initialize new schemas
+python scripts/init-phase3-schemas.py
+
+# 3. Configure hooks
+cp .claude/settings.json.example .claude/settings.json
+
+# 4. Verify setup
+/kb-init --verify-phase3
+```
+
+**Phase 3b (Weeks 3-6): Intelligence Layer**
+```bash
+# 1. Migrate SM-2 to FSRS
+python scripts/migrate-sm2-to-fsrs.py --backup
+
+# 2. Initialize MCP memory
+/memory-status --init
+
+# 3. Test FSRS scheduling
+/review --algorithm fsrs --dry-run
+```
+
+**Phase 4 (Weeks 7-12): Visualization**
+```bash
+# 1. Build graph cache
+python scripts/graph-cache-builder.py
+
+# 2. Generate initial analytics
+python scripts/analytics-engine.py --full-rebuild
+
+# 3. Test visualizations
+/visualize --test
+/stats --test
+```
+
+**Phase 5 (Month 4+): Ecosystem**
+```bash
+# 1. Install Git LFS
+git lfs install
+git lfs track "*.pdf" "*.epub" "*.pptx"
+
+# 2. Test exports
+/export-anki finance --output artifacts/exports/
+/export-pdf programming --output artifacts/exports/
+
+# 3. (Optional) Start REST API
+python scripts/api-server.py --port 8000
+```
+
+**Infrastructure Changes**:
+- **Git LFS**: Required for large files (PDF/EPUB >10MB)
+- **Background tasks**: Optional cron job for daily analytics rebuild
+- **MCP server**: Claude Code built-in (no manual setup)
+
+**Pipeline Integration**:
+- No CI/CD (local development)
+- Git pre-commit hooks for validation (via `.claude/settings.json`)
+
+### Rollback Strategy
+
+**Rollback Method**:
+```bash
+# Revert to Phase 2
+git checkout phase-2-baseline
+pip install -r requirements-phase2.txt
+
+# Or: Use SM-2 fallback
+/switch-algorithm sm2
+```
+
+**Risk Mitigation**:
+- All Phase 3 features optional (can disable individually)
+- SM-2 remains available as fallback
+- Backup before migration (`migrate-sm2-to-fsrs.py --backup`)
+- Git history preserves all states
+
+**Monitoring**:
+- `/kb-init --health-check`: Verify system integrity
+- `python scripts/verify-schemas.py`: Check data consistency
+- Analytics dashboard shows review effectiveness
+
+---
+
+## 🎨 Coding Standards
+
+### Existing Standards Compliance
+
+**Code Style**:
+- **Python**: PEP 8 (verified via existing scripts)
+- **Indentation**: 4 spaces (Python), 2 spaces (JSON)
+- **Line length**: 100 characters max
+- **Naming**: `snake_case` for Python, `kebab-case` for files
+
+**Linting Rules**:
+- No formal linter configured (add in Phase 3)
+- Manual code review standards
+
+**Testing Patterns**:
+- Manual testing (no automated test suite yet)
+- Validation via health checks
+
+**Documentation Style**:
+- Docstrings for public functions
+- Inline comments for complex logic
+- Markdown for all user-facing docs
+
+### Enhancement-Specific Standards
+
+**FSRS Algorithm Code**:
+- Document all ML formulas with citations
+- Type hints required for all functions
+- Unit tests for core calculations
+
+**Agent Instructions**:
+- Follow existing agent template structure
+- Clear section headers (## Purpose, ## Workflow, ## Output)
+- Examples required for complex features
+
+**Visualization Code**:
+- React components must be functional (no classes)
+- D3.js code must handle resize gracefully
+- Accessibility: ARIA labels for interactive elements
+
+**Data Validation**:
+- All JSON writes must validate against schema
+- Version fields required in all JSON files
+- Migration scripts must preserve existing data
+
+### Critical Integration Rules
+
+**Existing API Compatibility**:
+- All Phase 2 commands must work unchanged
+- New command flags must be optional (defaults preserve old behavior)
+- Agent interfaces backward-compatible
+
+**Database Integration**:
+- Never delete existing JSON fields (add only)
+- Version bumps for schema changes
+- Migration scripts for data upgrades
+
+**Error Handling**:
+- Graceful degradation (FSRS fails → use SM-2)
+- User-friendly error messages
+- Logging to `.ai/debug-log.md` for troubleshooting
+
+**Logging Consistency**:
+- All agents log to same format
+- Timestamps in ISO 8601
+- Structured logging (JSON) for analytics events
+
+---
+
+## 🧪 Testing Strategy
+
+### Integration with Existing Tests
+
+**Existing Test Framework**: Manual testing only (no automated suite)
+
+**Test Organization**: N/A (add in Phase 3)
+
+**Coverage Requirements**: None currently (recommend 70%+ for Phase 3)
+
+### New Testing Requirements
+
+#### Unit Tests for New Components
+
+**Framework**: `pytest`
+
+**Location**: `tests/` (new directory)
+
+```
+tests/
+├── test_fsrs_algorithm.py
+├── test_adaptive_difficulty.py
+├── test_analytics_engine.py
+├── test_export_engine.py
+└── test_graph_cache_builder.py
+```
+
+**Coverage Target**: 70% for new Python code
+
+**Integration with Existing**:
+- Test scripts callable standalone (no dependencies on full system)
+- Mock file I/O for unit tests
+
+**Example Test**:
+```python
+# tests/test_fsrs_algorithm.py
+import pytest
+from scripts.fsrs_algorithm import FSRSScheduler
+
+def test_calculate_interval_new_card():
+    scheduler = FSRSScheduler()
+    difficulty = 5.0
+    stability = 1.0
+    rating = 3  # Good
+
+    interval = scheduler.calculate_interval(difficulty, stability, rating)
+
+    assert interval >= 1
+    assert interval <= 10  # Reasonable for new card
+
+def test_optimize_parameters():
+    scheduler = FSRSScheduler()
+    history = [
+        {'rating': 3, 'interval': 1, 'difficulty': 5.0},
+        {'rating': 4, 'interval': 6, 'difficulty': 4.5}
+    ]
+
+    optimized = scheduler.optimize_parameters(history)
+
+    assert len(optimized) == 17  # FSRS-4.5 has 17 parameters
+```
+
+**Run Tests**:
+```bash
+# Install pytest
+pip install pytest pytest-cov
+
+# Run all tests
+pytest tests/ -v
+
+# With coverage
+pytest tests/ --cov=scripts --cov-report=html
+```
+
+#### Integration Tests
+
+**Scope**:
+- End-to-end command flows (e.g., `/learn` → concept creation → FSRS scheduling)
+- Agent integration (e.g., domain tutor → adaptive difficulty → telemetry)
+- Data consistency (e.g., backlinks update → graph cache rebuild)
+
+**Existing System Verification**:
+```python
+# tests/test_integration.py
+def test_learn_command_creates_concept():
+    # Run /learn command
+    result = run_command('/learn learning-materials/test.pdf')
+
+    # Verify concept created
+    assert Path('knowledge-base/test-domain/concepts/test-concept.md').exists()
+
+    # Verify FSRS schedule entry
+    schedule = load_json('.review/fsrs-schedule.json')
+    assert 'test-concept' in schedule['concepts']
+
+def test_backlinks_trigger_graph_cache_rebuild():
+    # Modify backlinks
+    backlinks = load_json('knowledge-base/_index/backlinks.json')
+    backlinks['links']['concept-a'] = {'links_to': ['concept-b']}
+    save_json('knowledge-base/_index/backlinks.json', backlinks)
+
+    # Trigger rebuild (via hook)
+    run_hook('PostToolUse', 'Edit', 'backlinks.json')
+
+    # Verify graph cache updated
+    cache = load_json('knowledge-base/_index/graph-cache.json')
+    assert len(cache['edges']) > 0
+```
+
+**New Feature Testing**:
+```python
+def test_fsrs_vs_sm2_scheduling():
+    # Same concept, two algorithms
+    concept_id = 'test-concept-001'
+    rating = 3  # Good
+
+    # SM-2 interval
+    sm2_interval = calculate_sm2_interval(concept_id, rating)
+
+    # FSRS interval
+    fsrs_interval = calculate_fsrs_interval(concept_id, rating)
+
+    # FSRS should be more efficient (longer intervals for same rating)
+    assert fsrs_interval >= sm2_interval
+```
+
+#### Regression Testing
+
+**Existing Feature Verification**:
+- All Phase 2 commands must pass regression suite
+- Data formats must remain compatible
+
+**Automated Regression Suite**:
+```bash
+# tests/regression/test_phase2_compatibility.py
+def test_all_phase2_commands_work():
+    commands = ['/learn', '/review', '/progress', '/ask', '/archive-conversation']
+    for cmd in commands:
+        result = run_command(f'{cmd} --help')
+        assert result.returncode == 0
+
+def test_sm2_algorithm_still_works():
+    # Ensure SM-2 fallback functional
+    result = run_command('/review --algorithm sm2')
+    assert result.returncode == 0
+```
+
+**Manual Testing Requirements**:
+- Visual verification of knowledge graph
+- Analytics dashboard UX testing
+- Export format validation (Anki import, PDF readability)
+
+---
+
+## 🔒 Security Integration
+
+### Existing Security Measures
+
+**Authentication**: N/A (local-only system)
+
+**Authorization**: File system permissions only
+
+**Data Protection**:
+- Local file storage (no cloud exposure)
+- Git private repository (GitHub auth)
+- No secrets in code
+
+**Security Tools**:
+- Git (encrypted in transit to GitHub)
+- Python virtual environment (dependency isolation)
+
+### Enhancement Security Requirements
+
+**New Security Measures**:
+
+1. **Input Validation** (FSRS, analytics):
+```python
+# Validate user inputs
+def validate_rating(rating):
+    if not 1 <= rating <= 4:
+        raise ValueError("Rating must be 1-4")
+    return rating
+
+def sanitize_file_path(path):
+    # Prevent directory traversal
+    safe_path = Path(path).resolve()
+    if not str(safe_path).startswith(str(PROJECT_ROOT)):
+        raise SecurityError("Path outside project")
+    return safe_path
+```
+
+2. **MCP Memory Isolation**:
+- Memory scoped to project (no cross-project leakage)
+- User controls memory deletion
+- No PII stored without explicit user consent
+
+3. **Export Safety**:
+- No external API calls without user consent
+- Anki/PDF exports contain only user data (no system internals)
+- File permissions preserved on exports
+
+**Integration Points**:
+- All new commands validate inputs before execution
+- File operations use `sanitize_file_path()` helper
+- MCP memory queries filtered by project scope
+
+**Compliance Requirements**: None (personal use system)
+
+### Security Testing
+
+**Existing Security Tests**: None
+
+**New Security Test Requirements**:
+```python
+# tests/test_security.py
+def test_prevent_directory_traversal():
+    with pytest.raises(SecurityError):
+        load_concept('../../../etc/passwd')
+
+def test_fsrs_rating_validation():
+    with pytest.raises(ValueError):
+        scheduler.calculate_interval(5.0, 1.0, rating=99)
+
+def test_mcp_memory_isolation():
+    # Ensure memory queries scoped to current project
+    results = memory_manager.query_memory('test')
+    for result in results:
+        assert result['project_id'] == CURRENT_PROJECT_ID
+```
+
+**Penetration Testing**: N/A (local system, no network exposure)
+
+---
+
+## ✅ Architecture Validation Checklist
+
+### Brownfield Integration Checklist
+
+- [x] **Existing architecture analyzed** (file-based, agent-driven confirmed)
+- [x] **Technology stack compatibility verified** (Python 3.12, Claude Code)
+- [x] **All Phase 2 commands preserved** (no breaking changes)
+- [x] **Data migration strategy defined** (SM-2 → FSRS with fallback)
+- [x] **Backward compatibility ensured** (optional features, version fields)
+- [x] **File organization maintains conventions** (commands/, agents/, scripts/)
+- [x] **Integration points clearly defined** (hooks, agents, data layer)
+- [x] **Rollback strategy documented** (SM-2 fallback, Git history)
+
+### Phase 3 Completeness Checklist
+
+- [x] **All 10 priorities architecturally addressed**:
+  - [x] Priority 1: Foundation (hooks, taxonomy, rebuild scripts)
+  - [x] Priority 2: Domain tutors (3 new agents)
+  - [x] Priority 3: MCP memory (integration design)
+  - [x] Priority 4: FSRS algorithm (Python implementation)
+  - [x] Priority 5: Knowledge graph (D3.js/React)
+  - [x] Priority 6: Adaptive difficulty (telemetry engine)
+  - [x] Priority 7: Analytics (pandas-based)
+  - [x] Priority 8: Context memory (Claude MCP)
+  - [x] Priority 9: Mobile sync (Git LFS)
+  - [x] Priority 10: Export ecosystem (genanki, pandoc)
+
+- [x] **Component interactions diagrammed** (Mermaid graph)
+- [x] **Data schemas defined** (6 new JSON schemas)
+- [x] **Technology dependencies listed** (10 new packages)
+- [x] **Testing strategy established** (pytest, 70% coverage target)
+- [x] **Security considerations addressed** (input validation, memory isolation)
+
+### Technical Debt & Risks
+
+**Known Technical Debt**:
+1. **No automated testing** (currently manual) → Add pytest in Phase 3a
+2. **File I/O performance** (all data in files) → Mitigated by caching (analytics.json, graph-cache.json)
+3. **Context limits** (200k tokens) → Existing chunking strategies sufficient
+
+**Architectural Risks**:
+1. **FSRS complexity** (ML algorithm) → Mitigation: Default parameters + gradual optimization
+2. **MCP dependency** (external service) → Mitigation: Local cache fallback
+3. **Graph visualization scale** (1000+ concepts) → Mitigation: Lazy loading, WebGL rendering
+
+**Migration Risks**:
+1. **SM-2 → FSRS data loss** → Mitigation: Backup before migration, preserve SM-2 data
+2. **Hook conflicts** (settings.json) → Mitigation: Validation on init, clear error messages
+
+---
+
+## 🎯 Next Steps
+
+### Implementation Roadmap
+
+**Phase 3a: Foundation** (Weeks 1-2)
+```bash
+# Week 1: Infrastructure
+- Implement `.claude/settings.json` with hooks
+- Create `knowledge-base/.taxonomy.json`
+- Build rebuild scripts (backlinks, indexes, schedule reset)
+- Harden `/kb-init` with health checks
+
+# Week 2: Domain Tutors
+- Clone book-tutor template 3x
+- Customize for language, finance, programming
+- Test domain routing in /learn command
+```
+
+**Phase 3b: Intelligence** (Weeks 3-6)
+```bash
+# Week 3-4: FSRS Algorithm
+- Implement scripts/fsrs-algorithm.py
+- Create migration script (SM-2 → FSRS)
+- Update review-master agent for FSRS
+- Add /switch-algorithm command
+
+# Week 5-6: MCP Memory
+- Integrate Claude MCP memory server
+- Create memory-manager wrapper
+- Update analyst agent with memory queries
+- Implement /memory-status, /memory-forget
+```
+
+**Phase 4: Experience** (Weeks 7-12)
+```bash
+# Week 7-8: Knowledge Graph
+- Build graph-cache-builder.py
+- Create D3.js React artifact
+- Implement /visualize command
+- Add filtering, zoom, search features
+
+# Week 9-10: Adaptive Difficulty
+- Implement adaptive-difficulty.py
+- Add telemetry to all tutors
+- Test flow state optimization
+
+# Week 11-12: Analytics Dashboard
+- Build analytics-engine.py
+- Create Chart.js React artifact
+- Implement /stats command
+- Add predictions (mastery dates, retention curves)
+```
+
+**Phase 5: Ecosystem** (Month 4+)
+```bash
+# Month 4: Exports
+- Implement export-engine.py
+- Add Anki export (genanki)
+- Add PDF export (LaTeX/pandoc)
+- Create migration guides
+
+# Month 4+: Mobile & API
+- Install Git LFS
+- Test Obsidian mobile compatibility
+- (Optional) Build FastAPI REST server
+```
+
+### Developer Handoff
+
+**Starting Implementation**:
+
+1. **Read these documents first**:
+   - This architecture document (ARCHITECTURE-Phase3.md)
+   - [PRD-Phase3.md](./PRD-Phase3.md) for requirements
+   - [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) for Phase 2 baseline
+
+2. **Environment Setup**:
+```bash
+# Clone repository
+git clone https://github.com/Yugoge/knowledge-system.git
+cd knowledge-system
+
+# Create virtual environment
+python3.12 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Initialize Phase 3 schemas
+python scripts/init-phase3-schemas.py
+
+# Verify setup
+/kb-init --verify-phase3
+```
+
+3. **Implementation Sequence** (to minimize risk):
+   - **Week 1**: Foundation (hooks, taxonomy) → Low risk, high value
+   - **Week 2**: Domain tutors → Build on existing pattern
+   - **Week 3-4**: FSRS → Complex, but isolated (fallback to SM-2)
+   - **Week 5+**: Other features → Independent, can be developed in parallel
+
+4. **Testing Protocol**:
+   - Run `pytest tests/` after each feature
+   - Manual test all commands with `--dry-run` flag
+   - Verify no regression: `/learn`, `/review`, `/progress` still work
+
+5. **Integration Checkpoints**:
+   - After each priority complete: Git commit
+   - After each tier (1-4) complete: Full regression test
+   - Before Phase 3b: Backup production data
+
+6. **Key Technical Decisions** (from architecture analysis):
+   - **File-based storage maintained** (no database migration)
+   - **Agent pattern continued** (all features as agents/commands)
+   - **FSRS replaces SM-2** (but SM-2 kept as fallback)
+   - **MCP memory for state** (not persistent database)
+   - **HTML artifacts for visualization** (D3.js/React, no server)
+
+7. **Existing System Compatibility** (verified):
+   - All Phase 2 commands preserved
+   - Data formats backward-compatible (version fields added)
+   - Agent interfaces unchanged (new agents added, old ones untouched)
+   - Git sync workflow maintained (added LFS for large files)
+
+**Questions or Issues?**
+- Refer to architecture diagrams (component interaction, data flow)
+- Check existing code patterns in `scripts/` and `.claude/agents/`
+- Validate assumptions with health checks: `/kb-init --verify-phase3`
+
+---
+
+## 📚 Appendix
+
+### Technology Reference Links
+
+**FSRS Algorithm**:
+- [FSRS GitHub Repository](https://github.com/open-spaced-repetition/fsrs4anki)
+- [FSRS Research Paper](https://github.com/open-spaced-repetition/fsrs4anki/wiki/spaced-repetition-algorithm:-a-three%E2%80%90day-journey-from-novice-to-expert)
+- [Anki FSRS Integration](https://docs.ankiweb.net/deck-options.html#fsrs)
+
+**Claude MCP**:
+- [MCP Documentation](https://www.anthropic.com/news/model-context-protocol)
+- [MCP Memory Server](https://github.com/modelcontextprotocol/servers)
+
+**Knowledge Graphs**:
+- [D3.js Force Directed Graphs](https://d3-graph-gallery.com/network.html)
+- [RemNote Knowledge Graph](https://help.remnote.com/en/articles/8771354-knowledge-graph)
+- [Obsidian Graph View](https://help.obsidian.md/Plugins/Graph+view)
+
+**Export Formats**:
+- [genanki (Anki Python)](https://github.com/kerrickstaley/genanki)
+- [Pandoc (Universal Document Converter)](https://pandoc.org/)
+
+### Glossary
+
+| Term | Definition |
+|------|------------|
+| **FSRS** | Free Spaced Repetition Scheduler - ML-optimized SRS algorithm (successor to SM-2) |
+| **SM-2** | SuperMemo 2 algorithm - Classic spaced repetition algorithm (1987) |
+| **MCP** | Model Context Protocol - Claude's persistent memory system |
+| **Rem** | RemNote-style knowledge unit (hierarchical concept with bidirectional links) |
+| **Agent** | Specialized AI tutor in Claude Code (e.g., book-tutor, review-master) |
+| **ZPD** | Zone of Proximal Development - Optimal difficulty range for learning |
+| **Flow State** | Psychological state of optimal engagement (0.8-1.2 difficulty) |
+| **Backlinks** | Bidirectional links between concepts (A→B implies B→A) |
+| **Taxonomy** | Classification system (ISCED for education, Dewey for libraries) |
+
+### Version History
+
+| Version | Date | Changes | Author |
+|---------|------|---------|--------|
+| 1.0 | 2025-10-26 | Initial Phase 3 architecture | Winston (Architect AI) |
+
+---
+
+**Document Status**: ✅ Complete - Ready for Implementation
+**Approval Required**: User confirmation to proceed with Phase 3a
+**Related Documents**:
+- [PRD-Phase3.md](./PRD-Phase3.md) - Requirements specification
+- [PRD.md](./PRD.md) - Phase 2 baseline
+- [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) - Current architecture
+
+---
+
+*This is a living document. Update as Phase 3 implementation progresses.*

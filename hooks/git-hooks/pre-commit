@@ -1,0 +1,25 @@
+#!/bin/bash
+# pre-commit - Git pre-commit hook template
+# Installed by Claude Code git tracking solution
+# Location: .git/hooks/pre-commit
+#
+# This hook checks for untracked files before allowing commits
+# and can optionally auto-stage, warn, or block commits.
+#
+# Configuration is done via environment variables in ~/.claude/settings.json:
+#   GIT_AUTO_STAGE_ALL - Auto-stage all files before commit (default: 0)
+#   GIT_BLOCK_ON_UNTRACKED - Block commits if untracked files exist (default: 0)
+#   GIT_WARN_UNTRACKED - Show warnings about untracked files (default: 1)
+#
+# To bypass this hook: git commit --no-verify
+
+# Source the checking script from Claude Code hooks directory
+if [ -f "$HOME/.claude/hooks/pre-commit-check.sh" ]; then
+  "$HOME/.claude/hooks/pre-commit-check.sh"
+  exit $?
+else
+  # If the check script is missing, allow commit but warn
+  echo "⚠️  Warning: pre-commit-check.sh not found"
+  echo "Expected location: $HOME/.claude/hooks/pre-commit-check.sh"
+  exit 0
+fi

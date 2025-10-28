@@ -1,0 +1,484 @@
+# Knowledge System Documentation
+
+**Current Development Phase**: Phase 3 - Next-Generation Intelligence
+**Status**: 🚧 Planning & Implementation
+**Last Updated**: 2025-10-26
+
+---
+
+## 📋 Quick Navigation
+
+### Active Documentation (Phase 3)
+- **[phase-3-prd.md](./phase-3-prd.md)** - Product Requirements (10 strategic priorities)
+- **[phase-3-architecture.md](./phase-3-architecture.md)** - Technical Architecture (component design)
+
+### Historical Documentation
+- **[deprecated/](./deprecated/)** - Phase 2 baseline and previous implementations
+
+---
+
+## 🎯 System Overview
+
+**Knowledge System** is an AI-powered personal knowledge management and spaced repetition learning platform built entirely within Claude Code. It combines:
+
+- **Socratic Dialogue-Based Learning** (not passive flashcards)
+- **Spaced Repetition** (SM-2 → FSRS in Phase 3)
+- **RemNote-Style Knowledge Organization** (hierarchical + bidirectional linking)
+- **Universal Q&A with Memory** (Claude MCP integration)
+- **Conversation Archival** (knowledge extraction from dialogues)
+
+---
+
+## 🏗️ System Architecture Principles
+
+### Core Design Principles (from Phase 2)
+
+**1. File-Based Architecture**
+- All data stored as Markdown (knowledge) and JSON (indexes, schedules)
+- No database required (local-first, privacy-focused)
+- Git-based version control and synchronization
+- Obsidian-compatible format
+
+**2. Agent-Driven Orchestration**
+- Specialized AI agents for different contexts:
+  - `book-tutor` - General learning materials
+  - `review-master` - Spaced repetition conductor
+  - `knowledge-indexer` - Knowledge graph maintenance
+  - `analyst` - Universal Q&A with web research
+  - `conversation-archiver` - Dialogue to knowledge converter
+- Commands layer routes user requests to appropriate agents
+- Isolated execution context (via Claude Code Task tool)
+
+**3. Layered System Design**
+```
+Commands Layer      → User-facing entry points (/learn, /review, /ask, etc.)
+Agents Layer        → Specialized AI tutors and managers
+Data Layer          → Markdown Rems + JSON indexes
+Storage Layer       → Git version control
+```
+
+**4. Context Management**
+- Claude Code has ~200k token limit
+- Solution: Semantic chunking + incremental learning
+- Never load entire large files at once
+- Progress tracking at page/chapter/concept level
+
+**5. Knowledge Representation**
+```markdown
+---
+id: concept-id
+title: Concept Title
+tags: [tag1, tag2]
+domain: finance|programming|language|science
+---
+
+# Concept Title
+
+## 📝 Definition
+[Core concept explanation]
+
+## 🔗 Related Concepts
+- [[parent-concept]] - Relationship explanation
+- [[sibling-concept]] - Relationship explanation
+
+## 💡 Explanation
+[Detailed explanation]
+
+## 📊 Examples
+[Concrete examples]
+```
+
+---
+
+## 📚 Core Features (Phase 2 Baseline)
+
+### 1. Multi-Format Learning Material Support
+- **PDF** - Claude Code native support
+- **EPUB** - Custom parser (`scripts/parse-epub.py`)
+- **PowerPoint (.pptx)** - Custom parser (`scripts/parse-ppt.py`)
+- **Word (.docx)** - Claude Code native
+- **Excel (.xlsx)** - Claude Code native
+- **Markdown (.md)** - Claude Code native
+
+### 2. Interactive Socratic Learning
+- Learning through dialogue, not passive reading
+- `book-tutor` agent presents passages → asks probing questions → evaluates responses
+- One question at a time for deep understanding
+- Adaptive difficulty based on learner performance
+
+### 3. RemNote-Style Knowledge Base
+- **Hierarchical nesting**: Parent → Child relationships
+- **Bidirectional links**: `[[concept-a]]` ↔ `[[concept-b]]` auto-maintained
+- **Tags**: Domain, difficulty, topic classification
+- **Link explanations**: Each link includes "why related" context
+- **Automatic maintenance**: `knowledge-indexer` synchronizes links
+
+### 4. Fine-Grained Progress Tracking
+**Three levels**:
+1. **Page level**: "Page 67 of 200"
+2. **Chapter level**: "Chapter 3, Section 3.2"
+3. **Concept level**: List of `[[concept-ids]]` learned
+
+**Progress file** (`.progress.md`):
+- Current position in material
+- Learned concepts tracker
+- Learning journal (session notes)
+- Progress percentage
+
+### 5. SM-2 Spaced Repetition (Phase 2)
+**Algorithm**: SuperMemo SM-2 (classic)
+
+**Quality Scale** (0-5):
+- 0: Complete failure
+- 3: Correct with difficulty
+- 5: Perfect recall
+
+**Review Modes**:
+- Automatic (scheduled by algorithm)
+- Manual (`/review [domain]` any time)
+
+**Phase 3 Enhancement**: Migrating to FSRS (30-50% more efficient)
+
+### 6. Dual Classification Taxonomy
+**UNESCO ISCED** (Education):
+- 34 - Business and Administration (Finance)
+- 48 - Computing (Programming)
+- 22 - Humanities (Language)
+
+**Dewey Decimal** (Library):
+- 000 - Computer Science
+- 300 - Social Sciences
+- 400 - Language
+- 600 - Technology
+
+### 7. Universal Q&A System
+**analyst agent** features:
+- Automatic web research for every question
+- Knowledge base integration (checks existing concepts)
+- Code execution when helpful
+- Source citation with URLs
+- Replaces Claude.ai web interface
+
+### 8. Conversation Archival
+**conversation-archiver agent**:
+- Extracts concepts from dialogues
+- Preview + confirmation workflow
+- Creates Rems with bidirectional links
+- Archives full conversations to `chats/YYYY-MM/`
+- Updates searchable index
+
+---
+
+## 📂 Directory Structure
+
+```
+knowledge-system/
+├── .claude/                        # Claude Code configuration
+│   ├── commands/                   # User-facing commands
+│   │   ├── learn.md                # /learn - Interactive learning
+│   │   ├── review.md               # /review - Spaced repetition
+│   │   ├── progress.md             # /progress - View progress
+│   │   ├── ask.md                  # /ask - Universal Q&A
+│   │   └── archive-conversation.md # Archive dialogues
+│   ├── agents/                     # Specialized AI tutors
+│   │   ├── book-tutor/
+│   │   ├── review-master/
+│   │   ├── knowledge-indexer/
+│   │   ├── analyst/
+│   │   └── conversation-archiver/
+│   ├── settings.json               # Hooks & safeguards (Phase 3)
+│   └── CLAUDE.md                   # System behavior config
+│
+├── learning-materials/             # Original files + progress
+│   ├── .index.json                 # Material metadata
+│   ├── [domain]/                   # finance, programming, language, etc.
+│   │   ├── material.pdf            # Original learning material
+│   │   └── material.progress.md   # Progress tracking
+│   └── _templates/
+│
+├── knowledge-base/                 # Extracted knowledge (Rems)
+│   ├── .taxonomy.json              # ISCED + Dewey mappings (Phase 3)
+│   ├── _index/                     # Indexes
+│   │   ├── backlinks.json          # Bidirectional links
+│   │   ├── graph-cache.json        # Visualization data (Phase 3)
+│   │   ├── by-domain.md            # Domain index
+│   │   └── by-tag.md               # Tag index
+│   ├── _templates/
+│   │   └── rem-template.md
+│   └── [domain]/
+│       └── concepts/
+│           └── concept-id.md       # Knowledge Rems
+│
+├── .review/                        # SM-2/FSRS scheduling data
+│   ├── schedule.json               # SM-2 schedule (Phase 2)
+│   ├── fsrs-schedule.json          # FSRS schedule (Phase 3)
+│   ├── history.json                # Review history
+│   ├── analytics.json              # Pre-computed metrics (Phase 3)
+│   └── adaptive-profile.json       # Difficulty tracking (Phase 3)
+│
+├── chats/                          # Conversation archives
+│   ├── index.json                  # Searchable conversation index
+│   ├── _templates/
+│   └── YYYY-MM/                    # Monthly organization
+│
+├── scripts/                        # Utility scripts
+│   ├── sm2-algorithm.py            # SM-2 calculator
+│   ├── fsrs-algorithm.py           # FSRS calculator (Phase 3)
+│   ├── parse-ppt.py                # PowerPoint parser
+│   ├── parse-epub.py               # EPUB parser
+│   ├── rebuild-backlinks.py        # Index repair
+│   └── rebuild-indexes.py          # Index regeneration
+│
+└── docs/                           # Documentation (this folder)
+    ├── README.md                   # This file
+    ├── phase-3-prd.md              # Current: Product requirements
+    ├── phase-3-architecture.md     # Current: Technical architecture
+    └── deprecated/                 # Historical documentation
+        ├── README.md
+        ├── 2025-10-26-phase-2-prd.md
+        ├── 2025-10-26-phase-2-architecture.md
+        ├── 2025-10-26-phase-2-getting-started.md
+        └── 2025-10-26-phase-2-implementation-plan.md
+```
+
+---
+
+## 🚀 Phase 3 Enhancements (In Progress)
+
+### Strategic Priorities
+
+**TIER 1: Foundation & Quick Wins** (Weeks 1-2)
+1. Complete infrastructure (hooks, taxonomy, rebuild scripts)
+2. Domain-specific tutors (language, finance, programming)
+
+**TIER 2: Competitive Differentiation** (Weeks 3-6)
+3. Claude MCP memory integration (persistent intelligence)
+4. FSRS algorithm migration (30-50% more efficient than SM-2)
+5. Knowledge graph visualization (D3.js interactive)
+
+**TIER 3: Enhanced Learning** (Weeks 7-12)
+6. Adaptive difficulty engine (flow state optimization)
+7. Learning analytics dashboard (data-driven insights)
+8. Conversation context memory (cumulative understanding)
+
+**TIER 4: Ecosystem** (Month 4+)
+9. Multi-platform sync (mobile via Obsidian + Git LFS)
+10. Export ecosystem (Anki, PDF, RemNote)
+
+**See [phase-3-prd.md](./phase-3-prd.md) for full details.**
+
+---
+
+## 🛠️ Key Technologies
+
+### Current Stack (Phase 2)
+- **Language**: Python 3.12
+- **AI Framework**: Claude Code (agent orchestration)
+- **Data Storage**: Markdown (knowledge) + JSON (indexes)
+- **Version Control**: Git
+- **SRS Algorithm**: SM-2 (SuperMemo 2)
+- **File Parsing**: python-pptx, BeautifulSoup4
+
+### Phase 3 Additions
+- **FSRS Algorithm**: ML-optimized spaced repetition
+- **numpy + scipy**: ML parameter optimization
+- **pandas**: Analytics data processing
+- **D3.js**: Knowledge graph visualization
+- **React**: Interactive dashboards (via /artifact-react)
+- **Chart.js**: Analytics charts
+- **Git LFS**: Large file storage (PDF/EPUB >10MB)
+- **Claude MCP**: Persistent memory server
+- **genanki**: Anki deck export
+- **FastAPI**: REST API (optional)
+
+---
+
+## 📖 User Workflow
+
+### Daily Learning Routine
+
+**Morning Review** (15-20 min):
+```bash
+/progress              # Check what's due
+/review                # Do scheduled reviews
+```
+
+**Learning Session** (30-60 min):
+```bash
+/learn learning-materials/finance/options-trading.pdf
+# → Socratic dialogue with book-tutor
+# → Concepts automatically extracted as Rems
+# → Progress tracked at page/chapter/concept level
+```
+
+**Q&A Session** (as needed):
+```bash
+/ask "What are the key differences between call and put options?"
+# → analyst agent performs web research
+# → Checks knowledge base for related concepts
+# → Provides answer with citations
+# → Prompts for conversation archival
+```
+
+**Archive Conversation**:
+```bash
+/archive-conversation options-trading-qa
+# → conversation-archiver extracts concepts
+# → Shows preview, requests confirmation
+# → Creates Rems with bidirectional links
+# → Saves conversation to chats/
+```
+
+**Evening Sync**:
+```bash
+git add .
+git commit -m "Learning session: options-trading - 5 concepts"
+git push
+```
+
+---
+
+## 🎯 Design Philosophy
+
+### Core Principles
+
+**1. Active Learning Over Passive Reading**
+- Socratic dialogue forces engagement
+- One question at a time builds understanding
+- Immediate feedback and iteration
+
+**2. Spaced Repetition for Long-Term Retention**
+- Review at optimal intervals (SM-2 → FSRS)
+- Scientifically-validated for memory retention
+- Adaptive difficulty maintains flow state
+
+**3. Connected Knowledge Over Isolated Facts**
+- Bidirectional links create knowledge graph
+- Hierarchical organization (parent-child relationships)
+- Concept relationships explicitly documented
+
+**4. Local-First Privacy**
+- All data on your machine
+- No external services (except GitHub sync)
+- Git-encrypted if private repository
+- Full control and ownership
+
+**5. AI-Powered Personalization**
+- Agents adapt to your learning style
+- Difficulty adjusts based on performance
+- Memory persists across sessions (MCP)
+- Analytics provide data-driven insights
+
+---
+
+## 🆘 Getting Started
+
+### System Initialization
+
+```bash
+# 1. Clone repository
+git clone https://github.com/Yugoge/knowledge-system.git
+cd knowledge-system
+
+# 2. Set up Python environment
+python3.12 -m venv .venv
+source .venv/bin/activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Initialize system
+/kb-init
+
+# 5. Add your first learning material
+mkdir -p learning-materials/finance
+cp ~/Downloads/your-book.pdf learning-materials/finance/
+
+# 6. Start learning
+/learn learning-materials/finance/your-book.pdf
+```
+
+### First Learning Session
+
+The `book-tutor` agent will:
+1. Extract table of contents (if available)
+2. Load first chunk (30-60 min of content)
+3. Present passage and ask Socratic questions
+4. Evaluate your responses and guide understanding
+5. Extract 3-5 concepts as Rems
+6. Update progress automatically
+
+After session:
+```bash
+/progress                    # View what you've learned
+/review                      # Review concepts (if due)
+git add . && git commit && git push  # Sync to GitHub
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**"Context limit exceeded"**
+- Solution: Automatic chunking handles this. If occurs, restart `/learn` to continue.
+
+**"No concepts due for review"**
+- Solution: Check `/progress` for next review date. Continue learning new material.
+
+**"Agent not found"**
+- Solution: Run `/kb-init` to verify and repair system.
+
+**Index corruption**
+- Solution: Run rebuild scripts:
+  ```bash
+  python scripts/rebuild-backlinks.py
+  python scripts/rebuild-indexes.py
+  ```
+
+---
+
+## 📞 Support & Contribution
+
+**Documentation**:
+- This README (overview)
+- [phase-3-prd.md](./phase-3-prd.md) (requirements)
+- [phase-3-architecture.md](./phase-3-architecture.md) (technical design)
+- [deprecated/](./deprecated/) (historical Phase 2 docs)
+
+**Configuration**:
+- `.claude/CLAUDE.md` - System behavior
+- `.claude/settings.json` - Hooks and safeguards
+
+**Issues & Feedback**:
+- GitHub Issues for bug reports
+- Feature requests via PRD updates
+
+---
+
+## 📜 Version History
+
+| Phase | Date | Status | Key Features |
+|-------|------|--------|--------------|
+| **Phase 1** | 2025-10-25 | ✅ Complete | Core learning (SM-2, Socratic, Rems) |
+| **Phase 2** | 2025-10-26 | ✅ Complete | Q&A (analyst), archival (conversation-archiver) |
+| **Phase 3** | 2025-10-26 | 🚧 Planning | Intelligence (FSRS, MCP, graphs, analytics) |
+
+---
+
+## 🎓 Philosophy Summary
+
+This system is built on three principles:
+
+1. **Active Learning**: Socratic dialogue, not passive reading
+2. **Spaced Repetition**: Review at optimal intervals for retention
+3. **Connected Knowledge**: Build a graph, not isolated facts
+
+**Goal**: Enable lifelong learning through AI-powered dialogue, structured knowledge, and scientifically-optimized review.
+
+---
+
+*For detailed Phase 2 implementation notes, see [deprecated/2025-10-26-phase-2-prd.md](./deprecated/2025-10-26-phase-2-prd.md)*
+
+*For Phase 3 strategic priorities and technical architecture, see [phase-3-prd.md](./phase-3-prd.md) and [phase-3-architecture.md](./phase-3-architecture.md)*

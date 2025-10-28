@@ -1,0 +1,896 @@
+---
+**⚠️ DEPRECATED DOCUMENT - PHASE 2**
+
+**Original Name**: `docs/SYSTEM_ARCHITECTURE.md`
+**Date Deprecated**: 2025-10-26
+**Reason**: Phase 2 completed and superseded by Phase 3
+**Current Active**: [../phase-3-architecture.md](../phase-3-architecture.md)
+**System Overview**: [../README.md](../README.md)
+
+*This document preserves Phase 2 architecture for historical reference. For current development, see Phase 3 documentation.*
+
+---
+
+# System Architecture Documentation (Phase 2 - DEPRECATED)
+
+Comprehensive technical documentation for the Personal Knowledge Learning System - Phase 2 baseline.
+
+## Overview
+
+This system implements an AI-powered, dialogue-based learning and spaced repetition platform built entirely within Claude Code. It uses Markdown for storage, Git for version control, and specialized AI agents for personalized tutoring.
+
+## Core Components
+
+### 1. Commands Layer
+
+Location: `.claude/commands/`
+
+**Purpose**: User-facing entry points for system interaction
+
+#### `/learn`
+- **Function**: Orchestrates learning sessions
+- **Flow**:
+  1. Validates file path and type
+  2. Loads or creates progress file
+  3. Determines material domain
+  4. Launches appropriate tutor agent
+  5. Passes chunked content to agent
+  6. Updates progress post-session
+- **Context Management**: Only loads current chunk to respect token limits
+
+#### `/review`
+- **Function**: Conducts spaced repetition review sessions
+- **Flow**:
+  1. Loads SM-2 schedule from `.review/schedule.json`
+  2. Filters concepts due for review
+  3. Launches review-master agent
+  4. Collects quality ratings
+  5. Updates SM-2 data and next review dates
+- **Modes**: Automatic (scheduled), domain-specific, concept-specific
+
+#### `/progress`
+- **Function**: Displays learning analytics and status
+- **Flow**:
+  1. Aggregates data from multiple sources
+  2. Calculates statistics and trends
+  3. Generates recommendations
+  4. Displays formatted report
+- **Data Sources**: `.index.json`, `.progress.md` files, `schedule.json`, `history.json`
+
+#### `/kb-init`
+- **Function**: System initialization and health check
+- **Flow**:
+  1. Verifies directory structure
+  2. Creates missing files from defaults
+  3. Installs Python dependencies
+  4. Initializes Git repository
+  5. Runs health checks
+  6. Provides getting-started guide
+
+#### `/ask`
+- **Function**: Universal Q&A with automatic web research
+- **Flow**:
+  1. Launches analyst agent with question
+  2. Agent performs web search automatically
+  3. Agent checks knowledge base for related concepts
+  4. Agent executes code if needed
+  5. Agent provides answer with citations
+  6. Prompts for conversation archival
+- **Features**: Full tool access, knowledge integration, source citation
+
+#### `/archive-conversation`
+- **Function**: Convert dialogues to structured knowledge
+- **Flow**:
+  1. Launches conversation-archiver agent
+  2. Agent extracts concepts from dialogue
+  3. Agent shows preview and requests confirmation
+  4. Agent creates Rems with bidirectional links
+  5. Agent saves conversation to chats/YYYY-MM/
+  6. Agent updates index.json for searchability
+- **Modes**: Auto-prompt after /ask, manual archival
+
+### 2. Agents Layer
+
+Location: `.claude/agents/`
+
+**Purpose**: Specialized AI tutors for different learning contexts
+
+#### Agent Architecture
+
+Each agent consists of:
+- `instructions.md`: System prompt defining behavior
+- Isolated execution context (via Task tool)
+- Specific tools access (Read, Write, Edit, Bash)
+
+#### book-tutor
+
+**Specialization**: General books, reports, academic papers
+
+**Key Features**:
+- Socratic questioning methodology
+- Contextual passage presentation
+- Progressive difficulty adjustment
+- Concept extraction and Rem creation
+- Progress tracking updates
+
+**Workflow**:
+```
+Read progress file → Load current chunk → Present passage →
+Ask questions → Evaluate responses → Extract concepts →
+Create Rems → Update progress
+```
+
+#### review-master
+
+**Specialization**: Spaced repetition review conductor
+
+**Key Features**:
+- SM-2 algorithm integration
+- Quality assessment (0-5 scale)
+- Adaptive questioning based on performance
+- Schedule updates
+- Session logging
+
+**Workflow**:
+```
+Load schedule → Filter due concepts → For each concept:
+  Test recall → Probe understanding → Assess quality →
+  Calculate next interval → Update schedule
+→ Generate summary
+```
+
+#### knowledge-indexer
+
+**Specialization**: Knowledge graph maintenance
+
+**Key Features**:
+- Bidirectional link synchronization
+- Taxonomy application (ISCED + Dewey)
+- Index generation (by domain, tag, taxonomy)
+- Orphan detection
+- Link integrity checks
+
+**Workflow**:
+```
+Detect new/edited concept → Extract [[links]] →
+Update backlinks.json → Apply taxonomy codes →
+Regenerate indexes → Verify integrity
+```
+
+#### analyst
+
+**Specialization**: Universal AI assistant for any question
+
+**Key Features**:
+- Full tool access (WebSearch, Bash, Context7, etc.)
+- Automatic web research for every question
+- Knowledge base integration
+- Code execution when helpful
+- Source citation
+- Replaces Claude.ai web interface
+
+**Workflow**:
+```
+Receive question → Search web → Check knowledge base →
+Execute code if needed → Synthesize answer → Cite sources →
+Prompt for archival
+```
+
+#### conversation-archiver
+
+**Specialization**: Dialogue to knowledge converter
+
+**Key Features**:
+- Extract concepts from conversations
+- Preview + confirmation workflow
+- Create Rems with bidirectional links
+- Archive full conversations to chats/
+- Update searchable index
+- Preserve all metadata
+
+**Workflow**:
+```
+Load conversation → Extract concepts → Show preview →
+Request confirmation → Create Rems → Link concepts →
+Save to chats/YYYY-MM/ → Update index.json
+```
+
+#### Domain-Specific Tutors
+
+**language-tutor**: Language learning pedagogy (not yet implemented)
+**finance-tutor**: Finance domain expertise (not yet implemented)
+**programming-tutor**: Programming pedagogy (not yet implemented)
+
+*Note*: These can be implemented following the book-tutor template with domain-specific questioning strategies.
+
+### 3. Data Layer
+
+#### File System Structure
+
+```
+knowledge-system/
+├── learning-materials/          # Input layer
+│   ├── .index.json             # Material metadata
+│   ├── [domain]/
+│   │   ├── [file].[ext]        # Original material
+│   │   └── [file].progress.md  # Progress tracking
+│   └── _templates/
+│       └── progress-template.md
+│
+├── knowledge-base/              # Knowledge layer
+│   ├── .taxonomy.json          # Classification mappings
+│   ├── _index/                 # Indexes
+│   │   ├── backlinks.json      # Bidirectional links
+│   │   ├── by-isced.md
+│   │   ├── by-dewey.md
+│   │   └── by-tag.md
+│   ├── _templates/
+│   │   └── rem-template.md
+│   └── [domain]/
+│       └── concepts/
+│           └── [concept-id].md  # Knowledge Rems
+│
+├── .review/                     # Review layer
+│   ├── schedule.json           # SM-2 scheduling data
+│   └── history.json            # Learning history log
+│
+├── chats/                       # Conversation archive layer
+│   ├── index.json              # Searchable conversation index
+│   ├── _templates/
+│   │   └── conversation-template.md
+│   └── YYYY-MM/                # Monthly organization
+│       ├── conversation-id.md  # Archived dialogues
+│       └── index.json          # Monthly index
+│
+└── scripts/                     # Utilities layer
+    ├── sm2-algorithm.py
+    ├── parse-ppt.py
+    └── parse-epub.py
+```
+
+#### Data Schemas
+
+**Material Index** (`.index.json`):
+```json
+{
+  "version": "1.0.0",
+  "materials": {
+    "material-id": {
+      "title": "string",
+      "file_path": "string",
+      "type": "pdf|epub|pptx|...",
+      "domain": "string",
+      "status": "not-started|in-progress|completed",
+      "progress_percentage": 0-100,
+      "added": "YYYY-MM-DD",
+      "started": "YYYY-MM-DD",
+      "completed": "YYYY-MM-DD|null",
+      "learned_concepts": ["concept-id", ...]
+    }
+  }
+}
+```
+
+**Progress File** (`.progress.md`):
+```markdown
+---
+material_id: string
+title: string
+type: pdf|epub|...
+domain: string
+status: not-started|in-progress|completed
+progress_percentage: 0-100
+---
+
+# Progress: [Title]
+
+## Material Information
+[Metadata]
+
+## Table of Contents
+[Structured TOC with checkmarks]
+
+## Current Position
+[Page/chapter/section]
+
+## Learned Concepts
+[List of [[concept-ids]]]
+
+## Learning Journal
+[Session-by-session notes]
+```
+
+**Review Schedule** (`.review/schedule.json`):
+```json
+{
+  "version": "1.0.0",
+  "algorithm": "SM-2",
+  "concepts": {
+    "concept-id": {
+      "title": "string",
+      "domain": "string",
+      "easiness_factor": 2.5,
+      "interval": 1,
+      "repetitions": 0,
+      "next_review_date": "YYYY-MM-DD",
+      "last_review_date": "YYYY-MM-DD|null",
+      "review_history": [
+        {"date": "YYYY-MM-DD", "quality": 0-5, "interval": N}
+      ],
+      "total_reviews": N,
+      "average_quality": 0.0-5.0
+    }
+  },
+  "sm2_defaults": {
+    "initial_easiness_factor": 2.5,
+    "initial_interval": 1,
+    "initial_repetitions": 0,
+    "min_easiness_factor": 1.3,
+    "passing_grade": 3
+  }
+}
+```
+
+**Backlinks Index** (`backlinks.json`):
+```json
+{
+  "version": "1.0.0",
+  "links": {
+    "concept-a": {
+      "links_to": ["concept-b", "concept-c"],
+      "linked_from": ["concept-x", "concept-y"]
+    }
+  },
+  "metadata": {
+    "last_updated": "YYYY-MM-DD",
+    "total_concepts": N,
+    "total_links": N
+  }
+}
+```
+
+**Knowledge Rem** (`[concept-id].md`):
+```markdown
+---
+id: unique-slug
+title: Concept Title
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+tags: [tag1, tag2, tag3]
+domain: string
+isced: ["code"]
+dewey: ["code"]
+status: learning|mastered|needs-review
+source_material: path/to/source
+source_location: "Page X, Chapter Y"
+---
+
+# Concept Title
+
+## 📝 Definition
+[...]
+
+## 🔗 Related Concepts
+### Parent Concepts
+- [[parent]] - Relationship
+
+### Related Concepts
+- [[sibling]] - Relationship
+
+### Child Concepts
+- [[child]] - Relationship
+
+## 💡 Explanation
+[...]
+
+## 📊 Examples
+[...]
+
+## 🧠 Learning Notes
+[...]
+
+## 🔄 Review Metadata
+- First learned: YYYY-MM-DD
+- Last reviewed: YYYY-MM-DD
+- Next review: YYYY-MM-DD
+- Easiness factor: 2.5
+- Review count: N
+```
+
+**Conversation Archive** (`chats/YYYY-MM/[conversation-id].md`):
+```markdown
+---
+id: unique-conversation-id
+title: Conversation Title
+date: YYYY-MM-DD
+time: HH:MM:SS
+participants: [Human, Claude]
+topic: string
+command: /ask | /learn | etc.
+archived_by: auto | manual
+---
+
+# Conversation: [Title]
+
+## Metadata
+- **Date**: YYYY-MM-DD HH:MM:SS
+- **Topic**: [Topic]
+- **Command**: [/ask | /learn | etc.]
+- **Duration**: [Duration]
+
+## Extracted Concepts
+[List of [[concept-ids]] created from this conversation]
+
+## Full Dialogue
+
+### Turn 1: Human
+[Message content]
+
+### Turn 2: Claude
+[Response content]
+
+[...]
+
+## Summary
+[Auto-generated summary of key points]
+```
+
+**Conversation Index** (`chats/index.json`):
+```json
+{
+  "version": "1.0.0",
+  "conversations": {
+    "conversation-id": {
+      "title": "string",
+      "date": "YYYY-MM-DD",
+      "topic": "string",
+      "command": "/ask | /learn | etc.",
+      "extracted_concepts": ["concept-id", ...],
+      "tags": ["tag1", "tag2"],
+      "word_count": N,
+      "turn_count": N
+    }
+  },
+  "metadata": {
+    "last_updated": "YYYY-MM-DD",
+    "total_conversations": N,
+    "total_concepts_extracted": N
+  }
+}
+```
+
+### 4. Algorithms Layer
+
+#### SM-2 Spaced Repetition
+
+**Location**: `scripts/sm2-algorithm.py`
+
+**Algorithm**:
+```python
+def sm2(quality, easiness_factor, interval, repetitions):
+    if quality < 3:  # Failed
+        repetitions = 0
+        interval = 1
+    else:  # Passed
+        if repetitions == 0:
+            interval = 1
+        elif repetitions == 1:
+            interval = 6
+        else:
+            interval = round(interval * easiness_factor)
+        repetitions += 1
+
+    # Update EF
+    easiness_factor += (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+    if easiness_factor < 1.3:
+        easiness_factor = 1.3
+
+    return easiness_factor, interval, repetitions
+```
+
+**Quality Scale**:
+- 0: Complete blackout
+- 1: Incorrect, but recognized when shown
+- 2: Incorrect, but close
+- 3: Correct with difficulty
+- 4: Correct with hesitation
+- 5: Perfect recall
+
+**Interval Progression**:
+- First review: 1 day
+- Second review: 6 days
+- Third+ review: previous_interval × EF
+
+#### Context-Aware Chunking
+
+**Strategy**: Semantic chunking respecting natural boundaries
+
+**Implementation**:
+```python
+def chunk_material(content, current_position, chunk_size=5000):
+    """
+    Extract a chunk starting from current_position.
+
+    Respects:
+    - Chapter boundaries
+    - Section boundaries
+    - Paragraph boundaries
+
+    Target: ~5000 characters (30-60 min of learning)
+    """
+    # Find current section
+    sections = extract_sections(content)
+    current_section = find_section_at_position(sections, current_position)
+
+    # Extract from current position to end of section
+    # or until chunk_size reached (whichever comes first)
+    chunk = content[current_position:current_position + chunk_size]
+
+    # Adjust to paragraph boundary
+    last_paragraph = chunk.rfind('\n\n')
+    if last_paragraph > chunk_size * 0.8:  # If we're at least 80% through
+        chunk = chunk[:last_paragraph]
+
+    return chunk, current_position + len(chunk)
+```
+
+**Why Semantic Chunking?**
+- Preserves context and meaning
+- Avoids mid-sentence cuts
+- Respects natural learning boundaries
+- Better for Socratic questioning
+
+#### Bidirectional Link Synchronization
+
+**Algorithm**:
+```python
+def sync_bidirectional_links(concept_id, new_links, backlinks):
+    """
+    Maintain bidirectional link consistency.
+
+    When concept-a links to concept-b:
+    1. Add concept-b to concept-a's links_to
+    2. Add concept-a to concept-b's linked_from
+    3. Update both markdown files
+    4. Update backlinks.json
+    """
+    old_links = backlinks[concept_id]['links_to']
+
+    # Detect changes
+    added = set(new_links) - set(old_links)
+    removed = set(old_links) - set(new_links)
+
+    # Update forward links (concept_id → targets)
+    backlinks[concept_id]['links_to'] = new_links
+
+    # Update backward links (targets → concept_id)
+    for target_id in added:
+        if target_id not in backlinks:
+            backlinks[target_id] = {'links_to': [], 'linked_from': []}
+        backlinks[target_id]['linked_from'].append(concept_id)
+
+        # Update target's markdown
+        add_backlink_to_markdown(target_id, concept_id)
+
+    for target_id in removed:
+        backlinks[target_id]['linked_from'].remove(concept_id)
+        remove_backlink_from_markdown(target_id, concept_id)
+
+    # Persist
+    save_json('backlinks.json', backlinks)
+```
+
+### 5. Utilities Layer
+
+#### File Parsers
+
+**PPT Parser** (`parse-ppt.py`):
+- Uses `python-pptx` library
+- Extracts text from slides, notes
+- Outputs Markdown or JSON
+- Command: `python scripts/parse-ppt.py file.pptx`
+
+**EPUB Parser** (`parse-epub.py`):
+- Uses `zipfile` and `xml.etree`
+- Parses OPF manifest and spine
+- Extracts chapters in reading order
+- Converts HTML to plain text
+- Command: `python scripts/parse-epub.py file.epub`
+
+**PDF/Word/Excel**:
+- Native Claude Code Read tool support
+- No additional parsing needed
+
+#### SM-2 Calculator
+
+**Standalone Script** (`sm2-algorithm.py`):
+- Command-line interface for SM-2 calculations
+- Can be imported as Python module
+- Includes test suite
+- Usage: `python scripts/sm2-algorithm.py --quality 4 --ef 2.5 ...`
+
+## Data Flow
+
+### Learning Session Flow
+
+```
+User: /learn material.pdf
+    ↓
+learn command validates and parses arguments
+    ↓
+Checks if .progress.md exists
+    ↓
+If new: Extract TOC, create progress file
+If existing: Load current position
+    ↓
+Determine chunk boundaries (semantic)
+    ↓
+Launch book-tutor agent with chunk
+    ↓
+Agent conducts Socratic dialogue
+    ↓
+Agent extracts 3-5 concepts as Rems
+    ↓
+Agent creates/updates concept markdown files
+    ↓
+knowledge-indexer updates backlinks.json
+    ↓
+Agent updates .progress.md (new position, concepts)
+    ↓
+Agent updates .index.json (metadata)
+    ↓
+Session complete, return to user
+```
+
+### Review Session Flow
+
+```
+User: /review
+    ↓
+review command loads schedule.json
+    ↓
+Filters concepts where next_review_date <= today
+    ↓
+Sorts by urgency (most overdue first)
+    ↓
+Launch review-master agent with concept list
+    ↓
+For each concept:
+  Agent loads concept markdown
+  Agent conducts dialogue-based recall test
+  Agent assesses quality (0-5)
+  Agent calculates SM-2 next interval
+  Agent updates schedule.json
+  Agent logs to history.json
+    ↓
+Agent generates session summary
+    ↓
+Return summary to user
+```
+
+### Concept Creation Flow
+
+```
+book-tutor extracts concept during learning
+    ↓
+Creates markdown file from rem-template.md
+    ↓
+Fills in:
+  - Metadata (id, title, tags, domain)
+  - Definition (from dialogue)
+  - Related concepts ([[links]])
+  - Examples (from discussion)
+  - Learning notes (learner's thoughts)
+    ↓
+Saves to knowledge-base/[domain]/concepts/[id].md
+    ↓
+Triggers knowledge-indexer
+    ↓
+Indexer:
+  - Extracts [[links]]
+  - Updates backlinks.json
+  - Adds backlinks to linked concepts
+  - Applies taxonomy codes
+  - Updates domain index
+  - Updates tag index
+    ↓
+Triggers review scheduler
+    ↓
+Scheduler:
+  - Creates initial SM-2 entry in schedule.json
+  - Sets next_review_date = today + 1 day
+  - Initializes EF = 2.5, interval = 1, reps = 0
+    ↓
+Concept ready for learning and future review
+```
+
+## Integration Points
+
+### Claude Code Tool Usage
+
+**Read Tool**:
+- Load progress files
+- Load concept Rems
+- Load JSON configs
+- Read original materials (PDF/Word/Excel)
+
+**Write Tool**:
+- Create new concept Rems
+- Create new progress files
+- Initialize JSON files
+
+**Edit Tool**:
+- Update progress files (append sessions)
+- Update concept Rems (add backlinks)
+- Update JSON files (schedule, index, backlinks)
+
+**Bash Tool**:
+- Run file parsers (PPT, EPUB)
+- Run SM-2 algorithm script
+- Git operations
+- Python dependency installation
+
+**Task Tool** (Agent Launcher):
+- Launch specialized agents
+- Pass context and instructions
+- Await completion
+- Process agent output
+
+### Git Integration
+
+**Tracked**:
+- All `.md` files (Rems, progress, docs)
+- All `.json` files (indexes, schedules, configs)
+- Scripts (`.py`)
+- Configuration (`.claude/`)
+
+**Ignored** (`.gitignore`):
+- Large binary materials (PDF, EPUB, etc.)
+- Python cache (`__pycache__/`)
+- OS files (`.DS_Store`, etc.)
+
+**Workflow**:
+```bash
+# After learning session
+git add .
+git commit -m "Learning: [material] - [N] concepts"
+git push
+
+# After review session
+git add .review/
+git commit -m "Review: [N] concepts reviewed"
+git push
+```
+
+## Performance Considerations
+
+### Context Limits
+
+**Problem**: Claude Code has token limits (~200k)
+
+**Solutions**:
+1. **Chunking**: Never load entire large files
+2. **Incremental Progress**: Build knowledge gradually
+3. **Reference by ID**: Use `[[concept-id]]` not full text
+4. **TOC First**: Structure before content
+5. **Session Limits**: 30-60 min chunks (3-5 concepts max)
+
+### File System Performance
+
+**Indexes**: Pre-computed indexes (`by-domain.md`, `by-tag.md`) for fast access
+
+**Caching**: `.index.json` caches material metadata
+
+**Lazy Loading**: Load concepts only when needed, not all at once
+
+### Agent Efficiency
+
+**Specialized Agents**: Domain-specific tutors avoid unnecessary logic
+
+**Focused Instructions**: Clear, specific agent prompts reduce token usage
+
+**Tool Restrictions**: Agents only have access to tools they need
+
+## Extensibility
+
+### Adding New Domains
+
+1. Add domain to `.taxonomy.json` mappings
+2. Create `knowledge-base/[domain]/concepts/` directory
+3. (Optional) Create specialized tutor agent
+
+### Adding New Agents
+
+1. Create `.claude/agents/[agent-name]/instructions.md`
+2. Define agent behavior and tools
+3. Reference agent in relevant commands
+
+### Adding New Commands
+
+1. Create `.claude/commands/[command-name].md`
+2. Define command logic and workflow
+3. Reference agents and tools as needed
+
+### Custom Taxonomies
+
+Edit `.taxonomy.json` to add:
+- New classification systems
+- Custom domain mappings
+- Additional metadata fields
+
+## Security and Privacy
+
+### Data Storage
+
+- **Local-first**: All data stored on your machine
+- **Git-backed**: Encrypted if using private repo
+- **No external services**: Completely self-contained
+
+### Sensitive Content
+
+- Add patterns to `.gitignore` if needed
+- Use Git-crypt for additional encryption
+- Keep learning materials out of public repos
+
+## Troubleshooting
+
+### Debug Mode
+
+Set environment variable:
+```bash
+export KB_DEBUG=1
+```
+
+Enables verbose logging in agents and commands.
+
+### Health Checks
+
+Run `/kb-init` to verify:
+- Directory structure
+- File integrity
+- Agent availability
+- Script functionality
+- JSON validity
+
+### Manual Repairs
+
+**Rebuild indexes**:
+```bash
+# Regenerate backlinks
+python scripts/rebuild-backlinks.py
+
+# Regenerate domain indexes
+python scripts/rebuild-indexes.py
+```
+
+**Reset SM-2 schedule** (nuclear option):
+```bash
+cp .review/schedule.json .review/schedule.backup.json
+python scripts/reset-schedule.py
+```
+
+## Future Enhancements
+
+Potential additions:
+
+1. **Visualization**: Knowledge graph visualization (D3.js export)
+2. **Analytics**: Learning velocity, retention curves
+3. **Export**: Anki deck export, PDF study guides
+4. **Collaboration**: Shared knowledge bases
+5. **Mobile**: Sync to mobile apps
+6. **Voice**: Audio-based learning sessions
+7. **Advanced Agents**: More specialized domain tutors
+
+## Conclusion
+
+This architecture balances:
+- **Simplicity**: Markdown + Git + AI
+- **Power**: Sophisticated learning algorithms
+- **Flexibility**: Extensible design
+- **Privacy**: Local-first approach
+
+The system grows with you, adapting to your learning style and knowledge domains.
+
+---
+
+For implementation details, see individual component documentation in `.claude/`.

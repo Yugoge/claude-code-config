@@ -1,0 +1,43 @@
+# Deprecated Documentation
+
+This folder contains historical documentation that is no longer active but preserved for reference.
+
+## Purpose
+
+Documents are moved here when they:
+- Are superseded by newer versions
+- Were temporary implementation plans (now completed)
+- Contain outdated information that should not be confused with current docs
+- Have historical value for understanding project evolution
+
+## Naming Convention
+
+Format: `YYYY-MM-DD-descriptive-name.md`
+
+Example: `2025-10-26-phase2-implementation-plan.md`
+
+## Current Deprecated Documents
+
+### 2025-10-26-phase2-implementation-plan.md
+- **Original Name**: `pr.plan.md`
+- **Date Deprecated**: 2025-10-26
+- **Reason**: Phase 2 implementation completed; superseded by [PRD-Phase3.md](../PRD-Phase3.md)
+- **Status**: ✅ All items completed
+- **Historical Context**: Implementation checklist for Phase 2 features (analyst agent, conversation-archiver, hooks setup, taxonomy, rebuild scripts)
+
+## Active Documentation
+
+For current documentation, see:
+- [PRD.md](../PRD.md) - Phase 2 baseline (production-ready)
+- [PRD-Phase3.md](../PRD-Phase3.md) - Next development phase
+- [SYSTEM_ARCHITECTURE.md](../SYSTEM_ARCHITECTURE.md) - Technical architecture
+- [GETTING_STARTED.md](../GETTING_STARTED.md) - User guide
+
+## Archive vs. Deprecated
+
+- **deprecated/**: Outdated docs superseded by newer versions
+- **archive/**: Historical snapshots of documentation at specific points in time
+
+---
+
+*Documents in this folder are read-only for historical reference. Do not use them for current implementation guidance.*

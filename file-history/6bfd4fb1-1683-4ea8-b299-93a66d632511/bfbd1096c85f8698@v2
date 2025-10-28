@@ -1,0 +1,1172 @@
+# Product Requirements Document (PRD) - Phase 3
+# Knowledge System: Next Generation Intelligence
+
+**Version**: 3.0
+**Date**: 2025-10-26
+**Status**: 🚧 Planning - Ready for Development
+**Owner**: User + Claude Code
+**Previous Phase**: [PRD Phase 2](./PRD.md) ✅ Complete
+
+---
+
+## 📋 Executive Summary
+
+Phase 3 transforms the knowledge system from a production-ready learning platform into a next-generation intelligent learning ecosystem. By integrating cutting-edge 2025 technologies—FSRS algorithm, Claude MCP memory systems, interactive knowledge graphs, and adaptive AI tutoring—we will create a competitive advantage over existing PKM tools while maximizing learning effectiveness.
+
+**Key Objectives**:
+- Complete foundational infrastructure (hooks, taxonomy, rebuild scripts)
+- Implement state-of-the-art FSRS algorithm (30-50% more efficient than SM-2)
+- Integrate Claude MCP memory for persistent cross-session intelligence
+- Add interactive knowledge graph visualization (competitive parity with Obsidian/RemNote)
+- Build adaptive difficulty engine (personalized learning optimization)
+- Create learning analytics dashboard (data-driven insights)
+- Enable multi-platform ecosystem (mobile sync, export formats)
+
+**Expected Outcomes**:
+- 40% improvement in review efficiency (FSRS vs. SM-2)
+- 70% reduction in repetitive Q&A (MCP memory)
+- 60% increase in concept discovery (graph visualization)
+- 45% more time in flow state (adaptive difficulty)
+- 100% increase in learning time (mobile accessibility)
+
+---
+
+## 🎯 Current State Assessment
+
+### Strengths
+✅ **Solid Architecture**: Commands, agents, data layers well-designed
+✅ **Innovative Learning**: Socratic dialogue approach (not passive flashcards)
+✅ **RemNote-style Organization**: Hierarchical + bidirectional linking
+✅ **SM-2 Foundation**: Working spaced repetition system
+✅ **Universal Q&A**: analyst agent replaces Claude.ai web interface
+✅ **Conversation Archival**: Knowledge extraction from dialogues
+
+### Gaps Identified
+
+**Foundation Incomplete** (from pr.plan.md):
+- ❌ Missing `.claude/settings.json` with safety hooks
+- ❌ No `knowledge-base/.taxonomy.json` (ISCED + Dewey)
+- ❌ Rebuild scripts not implemented (`rebuild-backlinks.py`, etc.)
+- ❌ Conversation index schema inconsistencies
+- ❌ `/kb-init` not fully hardened
+
+**Technology Lag**:
+- ❌ Using SM-2 while FSRS is now industry standard (Anki adopted 2023)
+- ❌ No memory persistence (vs. Claude MCP capabilities 2025)
+- ❌ Missing knowledge graph visualization (standard in competitors)
+- ❌ No learning analytics (data-driven optimization missing)
+- ❌ Static difficulty (vs. adaptive AI tutoring trend)
+
+**Ecosystem Gaps**:
+- ❌ Desktop-only (no mobile learning)
+- ❌ Limited export options (no Anki, PDF, RemNote migration)
+- ❌ Manual Git operations (no automated sync)
+
+---
+
+## 🚀 Phase 3 Development Priorities
+
+### TIER 1: Foundation & Quick Wins (Weeks 1-2)
+
+#### **Priority 1: Complete Phase 2 Foundation** ⚡ CRITICAL
+
+**User Story**:
+> "As a system administrator, I need robust infrastructure with safety hooks, proper taxonomy, and rebuild utilities so the system is production-grade and maintainable."
+
+**Requirements**:
+
+1. **Settings & Hooks** (`.claude/settings.json`):
+   - `SessionStart` hook: Display due reviews count
+   - `SessionStop` hook: Prompt Git commit if changes exist
+   - `UserPromptSubmit` hook: Check for overdue reviews (gentle reminder)
+   - `PreToolUse` hook: Protect `knowledge-base/_index/**` from direct edits
+   - `PostToolUse` hook: Auto-run backlink rebuild after concept edits
+   - `PreCompact` hook: Warn before context compression
+
+2. **Taxonomy Source** (`knowledge-base/.taxonomy.json`):
+   ```json
+   {
+     "version": "1.0.0",
+     "isced_mappings": {
+       "finance": ["34"],
+       "programming": ["48", "06"],
+       "language": ["22", "23"],
+       "science": ["44", "45", "46"],
+       "general": ["00"]
+     },
+     "dewey_mappings": {
+       "finance": ["300", "330"],
+       "programming": ["000", "005"],
+       "language": ["400"],
+       "science": ["500", "600"],
+       "general": ["000"]
+     }
+   }
+   ```
+
+3. **Rebuild Utilities**:
+   - `scripts/rebuild-backlinks.py`: Scan all Rems, rebuild `backlinks.json`
+   - `scripts/rebuild-indexes.py`: Regenerate domain/tag indexes
+   - `scripts/reset-schedule.py`: Reset SM-2/FSRS schedule (nuclear option)
+
+4. **Conversation Index Alignment**:
+   - Migrate `chats/index.json` from `statistics` → `metadata` (match PRD Phase 2)
+   - Update all writers (conversation-archiver, /archive-conversation)
+
+5. **Harden /kb-init**:
+   - Verify directory structure (create missing folders)
+   - Validate JSON schemas (repair if corrupted)
+   - Check agent files exist
+   - Run health checks (Git status, Python deps, script permissions)
+   - Generate initialization report
+
+**Acceptance Criteria**:
+- All hooks functional and tested
+- Taxonomy applied automatically to new concepts
+- Rebuild scripts repair corrupted indexes
+- `/kb-init` creates clean system from scratch
+- No manual index maintenance required
+
+**Effort**: 1 week
+**Impact**: System stability +95%, maintenance time -80%
+
+---
+
+#### **Priority 2: Domain-Specific Tutors** ⚡ QUICK WIN
+
+**User Story**:
+> "As a learner, I want specialized tutors for language, finance, and programming that ask domain-appropriate questions so I learn more effectively."
+
+**Requirements**:
+
+1. **Language Tutor** (`.claude/agents/language-tutor/`):
+   - Grammar pattern recognition
+   - Pronunciation guidance (phonetic explanations)
+   - Conversation practice scenarios
+   - Vocabulary in context (no isolated words)
+   - Cultural notes integration
+   - Example: "How would you politely decline this invitation in Spanish?"
+
+2. **Finance Tutor** (`.claude/agents/finance-tutor/`):
+   - Calculation verification (Black-Scholes, NPV, IRR)
+   - Scenario analysis (sensitivity testing)
+   - Risk assessment questioning
+   - Real-world application examples
+   - Market context integration
+   - Example: "Given these market conditions, how does delta change?"
+
+3. **Programming Tutor** (`.claude/agents/programming-tutor/`):
+   - Code execution and testing
+   - Debugging assistance (trace errors)
+   - Best practices enforcement (SOLID, DRY)
+   - Performance analysis (Big-O complexity)
+   - Security vulnerability detection
+   - Example: "What's the time complexity of this algorithm? Can you optimize it?"
+
+**Template Structure** (based on book-tutor):
+```markdown
+---
+name: language-tutor
+description: Specialized language learning tutor
+tools: Read, Write, Edit, Bash
+model: inherit
+---
+
+# Language Learning Tutor
+
+You are a specialized language learning tutor...
+
+[Domain-specific questioning strategies]
+[Concept extraction guidelines]
+[Progress tracking approach]
+```
+
+**Acceptance Criteria**:
+- Domain tutors ask 40% more relevant questions than book-tutor
+- Concept quality scores improve by 30%
+- User satisfaction rating >4.5/5 for specialized domains
+
+**Effort**: 3-5 days
+**Impact**: Domain learning effectiveness +40%, user engagement +35%
+
+---
+
+### TIER 2: Competitive Differentiation (Weeks 3-6)
+
+#### **Priority 3: MCP Memory System Integration** 🚀 GAME-CHANGER
+
+**User Story**:
+> "As a learner, I want Claude to remember our previous conversations and my preferences so I never have to repeat explanations about concepts I've already discussed."
+
+**Requirements**:
+
+1. **MCP Memory Server Setup**:
+   - Install Claude MCP memory server
+   - Configure memory directory (persistent storage)
+   - Set retention policies (what to remember)
+
+2. **Knowledge Graph Memory**:
+   - Store concept relationships in graph format
+   - Enable semantic search across memories
+   - Automatic importance weighting (frequent topics = higher priority)
+
+3. **Integration Points**:
+   - **analyst agent**: Query memory before answering, save important context
+   - **book-tutor**: Remember learning style preferences, difficulty preferences
+   - **review-master**: Recall previous struggles, adapt questioning
+   - **conversation-archiver**: Link archived conversations to memory
+
+4. **Memory Operations**:
+   - `CREATE`: Save new memories (auto-triggered by important concepts)
+   - `READ`: Query relevant memories before responding
+   - `UPDATE`: Reinforce through repetition (importance weighting)
+   - `DELETE`: User-initiated memory cleanup
+
+5. **User Controls**:
+   - `/memory-status`: View what's remembered
+   - `/memory-forget <topic>`: Remove specific memories
+   - `/memory-clear`: Nuclear reset (with confirmation)
+
+**Implementation Architecture**:
+```
+User Question → analyst agent
+       ↓
+Query MCP Memory → Retrieve relevant context
+       ↓
+Integrate with Knowledge Base → Unified context
+       ↓
+Generate Answer → Save important points to memory
+       ↓
+Update Memory Graph → Reinforce connections
+```
+
+**Acceptance Criteria**:
+- Context retained across 10+ separate sessions
+- Repetitive Q&A reduced by 70%
+- Memory queries respond in <500ms
+- Semantic search accuracy >85%
+- User never repeats project explanations
+
+**Effort**: 2 weeks
+**Impact**: User experience +80%, context continuity +90%
+
+**Research Foundation**: MongoDB Atlas + AWS implementation pattern, Knowledge Graph Memory Server architecture
+
+---
+
+#### **Priority 4: FSRS Algorithm Migration** 🚀 EVIDENCE-BASED
+
+**User Story**:
+> "As a learner, I want scientifically optimized review scheduling that learns from my performance so I retain knowledge with minimal review time."
+
+**Requirements**:
+
+1. **Algorithm Implementation**:
+   - Port FSRS algorithm from open-source (Anki FSRS, Jarrett Ye's research)
+   - Implement 4-parameter model (Difficulty, Stability, Retrievability)
+   - ML-based parameter optimization (gradient descent)
+
+2. **Default Parameters** (Pre-trained):
+   - Start with parameters from 10,000+ review dataset
+   - Provides good performance before personalization
+   - Falls back to these if insufficient data
+
+3. **Personalization Engine**:
+   - After 30+ reviews: Run ML optimizer on user's history
+   - Adjust parameters using maximum likelihood estimation
+   - Continuous learning (re-optimize every 100 reviews)
+
+4. **Migration Strategy**:
+   - Dual-mode support (SM-2 + FSRS in parallel)
+   - Gradual migration: New concepts use FSRS, keep SM-2 for existing
+   - A/B testing dashboard (compare performance)
+   - User choice: `/review --algorithm fsrs` or `/review --algorithm sm2`
+
+5. **New Review Scheduling**:
+   ```python
+   # FSRS core formula
+   def calculate_interval(difficulty, stability, retrievability):
+       # Difficulty: How hard the concept is for this user
+       # Stability: How well it's been retained
+       # Retrievability: Current memory strength
+       next_interval = stability * (1 / desired_retention - 1)
+       return next_interval
+   ```
+
+6. **Performance Metrics**:
+   - Track retention rate (SM-2 vs. FSRS)
+   - Measure review burden (hours/week)
+   - Calculate efficiency gain (concepts mastered / hours spent)
+
+**File Changes**:
+- New: `scripts/fsrs-algorithm.py`
+- Update: `.review/schedule.json` (add FSRS fields)
+- Update: `review-master` agent (support both algorithms)
+- New: `/review-stats` command (compare algorithms)
+
+**Acceptance Criteria**:
+- FSRS reduces review time by 30-50% vs. SM-2 (research-validated)
+- Personalization improves retention by 15% after 100 reviews
+- Seamless migration (no data loss)
+- Users can switch algorithms without re-learning
+
+**Effort**: 2-3 weeks
+**Impact**: Review efficiency +40%, retention +15%, time saved 30-50%
+
+**Research Foundation**: Anki FSRS integration (2023), open-spaced-repetition research, ML optimization papers
+
+---
+
+#### **Priority 5: Interactive Knowledge Graph Visualization** 🎨 USER DELIGHT
+
+**User Story**:
+> "As a learner, I want to visually explore my knowledge graph to discover connections, identify gaps, and understand my learning landscape."
+
+**Requirements**:
+
+1. **Visualization Engine**:
+   - D3.js force-directed graph OR Cytoscape.js
+   - React-based interactive interface
+   - Export as standalone HTML artifact (no server required)
+
+2. **Core Features**:
+   - **Nodes**: Concepts (sized by review count, colored by domain)
+   - **Edges**: Bidirectional links (thickness = relationship strength)
+   - **Clusters**: Auto-detect knowledge domains (modularity algorithm)
+   - **Zoom & Pan**: Navigate large graphs (100+ concepts)
+   - **Search**: Find concepts, highlight paths
+
+3. **Advanced Features**:
+   - **Filter by domain/tag**: Show only finance concepts
+   - **Highlight paths**: Shortest path between two concepts
+   - **Show orphans**: Concepts with no links (knowledge gaps)
+   - **Learning roadmap**: Suggest next concepts based on mastery
+   - **Temporal view**: Show knowledge growth over time (slider)
+
+4. **Integration**:
+   - New command: `/visualize [domain]`
+   - Data source: `knowledge-base/_index/backlinks.json`
+   - Live updates: Refresh when new concepts added
+   - Screenshot export: Save graph as PNG/SVG
+
+5. **UI/UX**:
+   ```
+   [Search Box]
+
+   [Graph Canvas - Interactive]
+   - Click node: Show concept details
+   - Double-click: Open concept markdown
+   - Drag: Rearrange layout
+   - Hover: Show connections
+
+   [Sidebar Controls]
+   - Filter: Domain | Tag | Status
+   - Layout: Force | Hierarchical | Circular
+   - Highlight: Orphans | Clusters | Paths
+   - Export: PNG | SVG | JSON
+   ```
+
+6. **Performance**:
+   - Handle 1000+ concepts smoothly (60fps)
+   - Lazy loading for large graphs
+   - WebGL rendering for performance
+
+**Implementation Approach**:
+```javascript
+// Use /artifact-react to create visualization
+- Parse backlinks.json → graph data structure
+- Render with D3.js force simulation
+- Add interactivity (zoom, filter, search)
+- Export as standalone HTML
+```
+
+**Acceptance Criteria**:
+- Graph renders 500 concepts in <2 seconds
+- All interactions smooth (60fps)
+- Cluster detection accuracy >80%
+- Path finding works for all connected components
+- Mobile-responsive (works on tablets)
+
+**Effort**: 2-3 weeks
+**Impact**: Concept discovery +60%, engagement +50%, knowledge structure awareness +70%
+
+**Research Foundation**: Obsidian Graph View, RemNote Knowledge Graph, D3.js force-directed layouts
+
+---
+
+### TIER 3: Enhanced Learning Experience (Weeks 7-12)
+
+#### **Priority 6: Adaptive Difficulty Engine** 🧠 INTELLIGENCE
+
+**User Story**:
+> "As a learner, I want the system to automatically adjust question difficulty based on my performance so I stay in flow state without frustration or boredom."
+
+**Requirements**:
+
+1. **Telemetry Collection** (in tutors):
+   - Response time per question
+   - Correction count (how many attempts needed)
+   - Self-reported difficulty (optional 1-5 scale)
+   - Consecutive correct answers (confidence signal)
+   - Domain-specific metrics (code execution success, calculation accuracy)
+
+2. **Difficulty Scoring Model**:
+   ```python
+   difficulty_score = (
+       base_difficulty +
+       (avg_response_time / target_time) * 0.3 +
+       (correction_count / max_corrections) * 0.4 +
+       (1 - consecutive_correct / target_streak) * 0.3
+   )
+   # Range: 0.0 (too easy) → 1.0 (optimal) → 2.0 (too hard)
+   ```
+
+3. **Zone of Proximal Development (ZPD) Targeting**:
+   - **Flow Zone**: 0.8 - 1.2 difficulty (target range)
+   - **Comfort Zone**: <0.8 (increase difficulty)
+   - **Frustration Zone**: >1.2 (decrease difficulty)
+   - Adjust question depth, complexity, abstraction level
+
+4. **Adaptive Questioning**:
+   - **Level 1** (Easy): Direct recall, definition questions
+   - **Level 2** (Medium): Application, examples, comparisons
+   - **Level 3** (Hard): Analysis, synthesis, evaluation
+   - **Level 4** (Expert): Create new examples, teach concept
+   - Dynamically select level based on recent performance
+
+5. **Chunk Size Optimization**:
+   - Fast learners: Larger chunks (7-10 concepts/session)
+   - Slow learners: Smaller chunks (3-5 concepts/session)
+   - Adjust based on comprehension velocity (concepts absorbed / hour)
+
+6. **Dashboard Integration**:
+   - Real-time difficulty meter (visual indicator)
+   - Session flow state score (0-100%)
+   - Adjustment history log (why difficulty changed)
+
+**Implementation**:
+- Update all tutor agents (book-tutor, domain tutors)
+- Add telemetry collection points
+- Implement difficulty calculation
+- Store in `.review/adaptive-profile.json`
+- Display in `/progress` dashboard
+
+**Acceptance Criteria**:
+- Flow state time increases by 45%
+- Frustration events decrease by 35%
+- Dropout rate decreases by 50%
+- 80% of session time in optimal difficulty range
+- Users report higher engagement scores
+
+**Effort**: 2 weeks
+**Impact**: Learning effectiveness +35%, satisfaction +45%, retention +25%
+
+**Research Foundation**: Khanmigo adaptive learning, Socratic Playground difficulty adjustment, Csikszentmihalyi flow theory
+
+---
+
+#### **Priority 7: Learning Analytics Dashboard** 📊 INSIGHTS
+
+**User Story**:
+> "As a learner, I want data-driven insights about my learning patterns so I can optimize my study habits and track mastery progress."
+
+**Requirements**:
+
+1. **Key Metrics**:
+   - **Retention Curves**: Ebbinghaus forgetting curve by domain
+   - **Learning Velocity**: Concepts/hour over time (trend line)
+   - **Mastery Heatmap**: Concept strength by domain (color-coded)
+   - **Review Adherence**: Scheduled vs. completed reviews (%)
+   - **Predicted Mastery**: Est. date to full mastery by domain
+   - **Streak Tracking**: Daily learning streak, review streak
+   - **Time Investment**: Hours spent by domain/week
+
+2. **Visualizations** (Chart.js or similar):
+   - Line chart: Retention curves
+   - Bar chart: Concepts learned per domain
+   - Heatmap: Concept mastery grid
+   - Pie chart: Time distribution by domain
+   - Gauge: Review adherence percentage
+   - Calendar: Activity heatmap (GitHub-style)
+
+3. **Insights Engine**:
+   - **Recommendations**: "Focus on finance domain (weakest retention)"
+   - **Alerts**: "5 concepts overdue for review"
+   - **Achievements**: "7-day streak! 🔥", "100 concepts mastered!"
+   - **Trends**: "Learning velocity +20% this month"
+
+4. **Data Sources**:
+   - `.review/schedule.json`: Review performance
+   - `.review/history.json`: Historical data
+   - `learning-materials/.index.json`: Material progress
+   - `knowledge-base/_index/backlinks.json`: Concept count
+   - `chats/index.json`: Q&A activity
+
+5. **Commands**:
+   - `/stats`: Overall dashboard
+   - `/stats finance`: Domain-specific stats
+   - `/stats weekly`: Weekly summary
+   - `/stats export`: Export data as CSV/JSON
+
+6. **Export Formats**:
+   - HTML artifact (interactive dashboard)
+   - CSV (for external analysis)
+   - JSON (programmatic access)
+   - PNG (screenshot for sharing)
+
+**Implementation**:
+- Create `/stats` command
+- Aggregate data from multiple sources
+- Generate charts using Chart.js
+- Export as React artifact (standalone HTML)
+
+**Acceptance Criteria**:
+- Dashboard loads in <2 seconds
+- All charts interactive (tooltips, zoom)
+- Data updates in real-time
+- Export works for all formats
+- Mobile-responsive design
+
+**Effort**: 1-2 weeks
+**Impact**: Self-awareness +80%, motivation +40%, optimization +30%
+
+**Research Foundation**: PKM analytics best practices, learning science metrics, gamification research
+
+---
+
+#### **Priority 8: Conversation Context Memory** 💬 CONTINUITY
+
+**User Story**:
+> "As a learner, I want Claude to remember our previous conversations and build understanding cumulatively so I don't repeat myself."
+
+**Requirements**:
+
+1. **Claude Native Memory Integration**:
+   - Enable Claude's built-in memory feature (available 2025)
+   - Configure memory scope (project-level)
+   - Set retention policies (what to save)
+
+2. **Auto-Save Triggers**:
+   - After `/ask` sessions: Save key concepts discussed
+   - After learning sessions: Save learner preferences
+   - After reviews: Save struggle areas
+   - After archival: Link conversation to memory
+
+3. **Memory Content**:
+   - **Preferences**: Learning style, pace, difficulty preference
+   - **Concepts**: Previously explained topics (avoid repetition)
+   - **Context**: Project goals, domains of interest
+   - **Struggles**: Concepts requiring extra attention
+
+4. **Query Integration**:
+   - Before answering: "As we discussed yesterday about X..."
+   - During learning: "You mentioned you prefer visual examples..."
+   - During review: "You struggled with this last time, let's reinforce..."
+
+5. **User Controls**:
+   - `/memory-show`: Display current memories
+   - `/memory-clear <topic>`: Remove specific memory
+   - `/memory-export`: Export as JSON
+
+6. **Integration with MCP Memory** (if Priority 3 completed):
+   - Sync Claude native memory with MCP knowledge graph
+   - Unified memory interface
+   - Cross-session persistence
+
+**Implementation**:
+- Enable Claude memory in project settings
+- Update analyst agent to query memory
+- Add memory save points in tutors
+- Create memory management commands
+
+**Acceptance Criteria**:
+- Context retained across 10+ sessions
+- Repetitive explanations reduced by 70%
+- Memory queries feel natural (conversational)
+- User controls work as expected
+- No performance degradation
+
+**Effort**: 1 week
+**Impact**: Continuity +90%, efficiency +40%, user satisfaction +50%
+
+**Research Foundation**: Claude memory feature docs (2025), conversation continuity research
+
+---
+
+### TIER 4: Ecosystem & Future (Month 4+)
+
+#### **Priority 9: Multi-Platform Sync** 🔄 ACCESSIBILITY
+
+**User Story**:
+> "As a learner, I want to access my knowledge system on mobile devices so I can learn during commutes, waiting rooms, and travel."
+
+**Requirements**:
+
+1. **Obsidian Mobile Compatibility**:
+   - Test current markdown format with Obsidian mobile
+   - Ensure bidirectional links render correctly
+   - Optimize file structure for mobile performance
+   - Add mobile-friendly frontmatter
+
+2. **Git LFS Setup**:
+   - Install Git LFS on system
+   - Configure for files >10MB
+   - Migrate large materials to LFS
+   - Update `.gitattributes`
+
+3. **Mobile Workflow**:
+   ```bash
+   # Desktop: After learning session
+   git add . && git commit -m "Learn: options-trading"
+   git push
+
+   # Mobile: Pull updates
+   git pull
+
+   # Mobile: Review on the go
+   [Obsidian mobile app]
+
+   # Mobile: Commit progress
+   git add . && git commit -m "Review: 5 concepts"
+   git push
+
+   # Desktop: Sync changes
+   git pull
+   ```
+
+4. **Mobile-Optimized Features**:
+   - Simplified review interface (thumb-friendly)
+   - Voice input support (for responses)
+   - Offline mode (sync when online)
+   - Quick review widget (iOS/Android)
+
+5. **Conflict Resolution**:
+   - Auto-merge strategy for non-conflicting changes
+   - Manual resolution workflow for conflicts
+   - Conflict detection alerts
+
+6. **Performance Optimization**:
+   - Lazy loading (don't load all concepts at once)
+   - Incremental sync (only changed files)
+   - Background sync (automatic when connected)
+
+**Implementation**:
+- Install and configure Git LFS
+- Test Obsidian mobile integration
+- Create mobile workflow documentation
+- Optimize markdown for mobile rendering
+
+**Acceptance Criteria**:
+- Obsidian mobile renders all Rems correctly
+- Git LFS handles large files (PDF, EPUB)
+- Sync completes in <30 seconds
+- Conflicts rare (<5% of syncs)
+- Mobile review experience rated 4+/5
+
+**Effort**: 2 weeks
+**Impact**: Learning time +100%, accessibility +300%, flexibility +150%
+
+**Research Foundation**: Obsidian mobile best practices, Git LFS documentation
+
+---
+
+#### **Priority 10: Export Ecosystem** 🌐 INTEROPERABILITY
+
+**User Story**:
+> "As a learner, I want to export my knowledge to other formats (Anki, PDF, RemNote) so I'm not locked into one system and can use my preferred tools."
+
+**Requirements**:
+
+1. **Anki Deck Export**:
+   - Command: `/export-anki <domain>`
+   - Format: `.apkg` (Anki package)
+   - Include FSRS parameters (if available)
+   - Preserve card relationships (parent-child)
+   - Include media (images, code snippets)
+   - Library: `genanki` Python package
+
+2. **PDF Study Guide**:
+   - Command: `/export-pdf <domain>`
+   - Format: LaTeX → PDF pipeline
+   - Table of contents, concept hierarchy
+   - Include related concepts section
+   - Code highlighting, math formulas
+   - Professional formatting (template-based)
+
+3. **RemNote Import/Export**:
+   - Export: `/export-remnote <domain>`
+   - Format: RemNote JSON
+   - Import: `/import-remnote <file>`
+   - Preserve hierarchical structure
+   - Map bidirectional links
+   - Convert tags appropriately
+
+4. **REST API** (for third-party integrations):
+   ```
+   GET /api/concepts              # List all concepts
+   GET /api/concepts/:id          # Get concept details
+   GET /api/concepts/:id/links    # Get related concepts
+   GET /api/schedule              # Get review schedule
+   POST /api/review               # Submit review result
+   ```
+
+5. **Export Formats**:
+   - **Markdown** (plain text backup)
+   - **JSON** (programmatic access)
+   - **CSV** (spreadsheet import)
+   - **HTML** (standalone website)
+   - **OPML** (outliner format)
+
+6. **Import Formats**:
+   - **Anki** (migrate from Anki to system)
+   - **RemNote** (migrate from RemNote)
+   - **Obsidian** (import existing vault)
+   - **CSV** (bulk import concepts)
+
+**Implementation**:
+- Create `/export` command hub
+- Implement format-specific exporters
+- Add import parsers
+- Create REST API server (optional)
+- Document migration guides
+
+**Acceptance Criteria**:
+- Anki export preserves FSRS data (100%)
+- PDF export professional quality (typography, formatting)
+- RemNote import accuracy >95%
+- API endpoints documented (OpenAPI spec)
+- Migration guides tested with real users
+
+**Effort**: 2-3 weeks
+**Impact**: User acquisition +30%, lock-in reduction +100%, ecosystem growth +40%
+
+**Research Foundation**: Anki genanki library, LaTeX best practices, RemNote API docs
+
+---
+
+## 📅 Implementation Phasing Strategy
+
+### **Phase 3a: Foundation** (Weeks 1-2)
+**Goal**: Production-ready baseline
+
+**Deliverables**:
+- ✅ Settings & hooks (`.claude/settings.json`)
+- ✅ Taxonomy file (`knowledge-base/.taxonomy.json`)
+- ✅ Rebuild scripts (3 Python utilities)
+- ✅ Hardened `/kb-init`
+- ✅ Domain-specific tutors (language, finance, programming)
+
+**Success Metrics**:
+- Zero critical bugs
+- System stability 99%+
+- Maintenance time -80%
+
+---
+
+### **Phase 3b: Intelligence** (Weeks 3-6)
+**Goal**: Next-gen learning system
+
+**Deliverables**:
+- 🚀 MCP Memory Integration
+- 🚀 FSRS Algorithm
+- 💬 Conversation Context Memory
+
+**Success Metrics**:
+- Review efficiency +40%
+- Context retention across 10+ sessions
+- Repetitive Q&A -70%
+
+---
+
+### **Phase 4: Experience** (Weeks 7-12)
+**Goal**: Best-in-class UX
+
+**Deliverables**:
+- 🎨 Knowledge Graph Visualization
+- 🧠 Adaptive Difficulty Engine
+- 📊 Learning Analytics Dashboard
+
+**Success Metrics**:
+- Concept discovery +60%
+- Flow state time +45%
+- User engagement +50%
+
+---
+
+### **Phase 5: Ecosystem** (Month 4+)
+**Goal**: Sustainable platform
+
+**Deliverables**:
+- 🔄 Multi-platform sync (mobile)
+- 🌐 Export ecosystem (Anki, PDF, RemNote)
+- 🔌 REST API for integrations
+
+**Success Metrics**:
+- Learning time +100% (mobile access)
+- User acquisition +30% (import/export)
+- Ecosystem partners 3+
+
+---
+
+## 🛠️ Technology Stack Updates
+
+### New Technologies (Phase 3)
+
+**Spaced Repetition**:
+- ~~SM-2 Algorithm~~ → **FSRS Algorithm** (ML-optimized)
+- Python libraries: `numpy`, `scipy` (for optimization)
+
+**Memory & Context**:
+- **Claude MCP Memory Server** (persistent memory)
+- **Knowledge Graph Memory** (semantic relationships)
+
+**Visualization**:
+- **D3.js** or **Cytoscape.js** (interactive graphs)
+- **React** (via /artifact-react) for UI
+
+**Analytics**:
+- **Chart.js** (data visualization)
+- **Pandas** (data processing)
+
+**Mobile & Sync**:
+- **Git LFS** (large file storage)
+- **Obsidian Mobile** (client app)
+
+**Export Ecosystem**:
+- **genanki** (Anki deck generation)
+- **LaTeX** + **pandoc** (PDF generation)
+- **FastAPI** (REST API server, optional)
+
+### Infrastructure Requirements
+
+**Python Packages** (update `requirements.txt`):
+```
+numpy>=1.24.0
+scipy>=1.11.0
+pandas>=2.0.0
+genanki>=0.13.0
+python-pptx>=0.6.21
+beautifulsoup4>=4.12.0
+fastapi>=0.104.0  # optional, for REST API
+```
+
+**Git LFS**:
+```bash
+git lfs install
+git lfs track "*.pdf"
+git lfs track "*.epub"
+git lfs track "*.pptx"
+```
+
+**Claude MCP** (if available):
+```bash
+# Install MCP memory server
+claude mcp install memory-server
+```
+
+---
+
+## 📊 Success Metrics & KPIs
+
+### Learning Effectiveness
+
+| Metric | Baseline | Phase 3 Target | Measurement |
+|--------|----------|----------------|-------------|
+| Review efficiency (time saved) | SM-2 baseline | +40% (FSRS) | Minutes/review |
+| Retention rate (30 days) | 80% | 95% | Concepts recalled |
+| Learning velocity | 5 concepts/hour | 7 concepts/hour | Concepts/session |
+| Flow state time | 30% | 75% | % of session |
+| Concept mastery (avg quality) | 3.5/5 | 4.2/5 | Review scores |
+
+### User Experience
+
+| Metric | Baseline | Phase 3 Target | Measurement |
+|--------|----------|----------------|-------------|
+| Repetitive Q&A frequency | High | -70% | Questions/session |
+| Context retention | 1 session | 10+ sessions | Session continuity |
+| Concept discovery rate | Manual search | +60% | Graph interactions |
+| Session satisfaction | 3.8/5 | 4.5/5 | User ratings |
+| Mobile learning time | 0 hours | +100% | Hours/week |
+
+### System Health
+
+| Metric | Baseline | Phase 3 Target | Measurement |
+|--------|----------|----------------|-------------|
+| Critical bugs | Varies | 0 | Bug count |
+| System uptime | Manual recovery | 99%+ | Availability |
+| Maintenance time | Manual fixes | -80% | Hours/month |
+| Index corruption events | Occasional | 0 | Incidents/month |
+| Rebuild success rate | N/A | 100% | Script runs |
+
+### Ecosystem Growth
+
+| Metric | Baseline | Phase 3 Target | Measurement |
+|--------|----------|----------------|-------------|
+| Platform support | Desktop only | +Mobile | Devices |
+| Export formats | 1 (Markdown) | 6+ | Format count |
+| Import sources | 0 | 3+ | Migration paths |
+| Third-party integrations | 0 | 3+ | API consumers |
+| User acquisition (via migration) | N/A | +30% | New users |
+
+---
+
+## 🏆 Competitive Positioning Analysis
+
+### vs. Anki (Flashcard System)
+
+**Anki Strengths**:
+- ✅ FSRS algorithm (adopted 2023)
+- ✅ Large community, mature ecosystem
+- ✅ Mobile apps (iOS, Android)
+- ✅ Extensive add-ons
+
+**Our Advantages** (Phase 3+):
+- 🚀 **Socratic learning** (dialogue vs. flashcards)
+- 🚀 **Knowledge graph** (connected understanding)
+- 🚀 **AI-powered tutoring** (adaptive difficulty)
+- 🚀 **Universal Q&A** (not just review)
+- ⚡ **FSRS parity** (Priority 4)
+
+**Strategy**: Better learning (Socratic) + FSRS for competitive parity
+
+---
+
+### vs. RemNote (Knowledge Management)
+
+**RemNote Strengths**:
+- ✅ Knowledge graph visualization
+- ✅ Bidirectional linking
+- ✅ Automatic flashcard generation
+- ✅ Spaced repetition (SM-2)
+
+**Our Advantages** (Phase 3+):
+- 🚀 **Better SRS** (FSRS vs. SM-2)
+- 🚀 **AI Socratic tutoring** (not auto-generated cards)
+- 🚀 **MCP memory** (cross-session intelligence)
+- 🚀 **Learning analytics** (data-driven insights)
+- ⚡ **Graph visualization parity** (Priority 5)
+
+**Strategy**: Superior SRS + AI tutoring + graph visualization for competitive advantage
+
+---
+
+### vs. Obsidian (Note-Taking)
+
+**Obsidian Strengths**:
+- ✅ Beautiful graph visualization
+- ✅ Mobile apps
+- ✅ Large plugin ecosystem
+- ✅ Local-first, privacy-focused
+
+**Our Advantages** (Phase 3+):
+- 🚀 **Spaced repetition** (not just notes)
+- 🚀 **AI Socratic learning** (not passive)
+- 🚀 **Adaptive difficulty** (personalized)
+- 🚀 **Learning analytics** (progress tracking)
+- ⚡ **Graph viz parity** (Priority 5)
+- ⚡ **Mobile sync** (Priority 9)
+
+**Strategy**: Obsidian + learning science + AI tutoring = unique value proposition
+
+---
+
+### vs. Claude.ai Web (AI Assistant)
+
+**Claude.ai Web Strengths**:
+- ✅ Simple, no setup required
+- ✅ Native memory feature (2025)
+- ✅ Projects feature (context persistence)
+- ✅ Multi-modal (images, PDFs)
+
+**Our Advantages** (Phase 3+):
+- 🚀 **Knowledge retention** (spaced repetition)
+- 🚀 **Structured learning** (not just Q&A)
+- 🚀 **Local-first** (privacy, control)
+- 🚀 **Knowledge graph** (connections)
+- 🚀 **Learning analytics** (insights)
+- ⚡ **MCP memory parity** (Priority 3)
+
+**Strategy**: Claude.ai + structured learning + spaced repetition = comprehensive learning platform
+
+---
+
+### vs. Khanmigo (AI Tutor)
+
+**Khanmigo Strengths**:
+- ✅ Socratic questioning approach
+- ✅ Subject-matter expertise (Khan Academy content)
+- ✅ Adaptive learning paths
+- ✅ Institutional backing
+
+**Our Advantages** (Phase 3+):
+- 🚀 **Multi-domain** (not just K-12 subjects)
+- 🚀 **Open-source** (vs. proprietary)
+- 🚀 **Knowledge graph** (connected learning)
+- 🚀 **FSRS spaced repetition** (long-term retention)
+- 🚀 **Personal knowledge base** (cumulative)
+- ⚡ **Adaptive difficulty parity** (Priority 6)
+
+**Strategy**: Khanmigo approach + multi-domain + knowledge retention = lifelong learning platform
+
+---
+
+## 🎯 Strategic Positioning Statement
+
+**Phase 3 transforms the knowledge system from a production-ready learning tool into the world's most intelligent personal learning platform by:**
+
+1. **Matching industry leaders** (FSRS, graph visualization, mobile sync)
+2. **Exceeding competitors** (MCP memory, adaptive difficulty, analytics)
+3. **Creating unique value** (Socratic + SRS + knowledge graph + AI memory)
+
+**Result**: A learning ecosystem that no single competitor can match because it combines the best of Anki (SRS), RemNote (knowledge graph), Obsidian (flexibility), Claude.ai (AI assistance), and Khanmigo (Socratic tutoring) into one cohesive, intelligent system.
+
+---
+
+## 🚨 Risk Assessment
+
+### Technical Risks
+
+**Risk 1: FSRS Complexity**
+- **Impact**: High (core feature)
+- **Probability**: Medium (algorithm complex)
+- **Mitigation**: Start with default parameters, gradual rollout, keep SM-2 fallback
+
+**Risk 2: MCP Memory Performance**
+- **Impact**: Medium (user experience)
+- **Probability**: Low (tested technology)
+- **Mitigation**: Implement caching, set memory limits, performance monitoring
+
+**Risk 3: Mobile Sync Conflicts**
+- **Impact**: Medium (data integrity)
+- **Probability**: Medium (concurrent edits)
+- **Mitigation**: Conflict detection, auto-merge strategy, user education
+
+### Product Risks
+
+**Risk 4: Feature Complexity Overwhelms Users**
+- **Impact**: High (adoption)
+- **Probability**: Medium (many new features)
+- **Mitigation**: Progressive disclosure, `/kb-init` wizard, documentation
+
+**Risk 5: Migration Barriers**
+- **Impact**: Medium (ecosystem growth)
+- **Probability**: Low (good import/export)
+- **Mitigation**: Comprehensive migration guides, one-click importers
+
+### Resource Risks
+
+**Risk 6: Development Time Overruns**
+- **Impact**: Medium (timeline)
+- **Probability**: Medium (ambitious scope)
+- **Mitigation**: Phased approach, MVP-first mentality, time-boxing
+
+---
+
+## 💰 Resource Requirements
+
+### Development Time
+
+**Phase 3a** (Foundation): 2 weeks
+**Phase 3b** (Intelligence): 4 weeks
+**Phase 4** (Experience): 6 weeks
+**Phase 5** (Ecosystem): 4+ weeks
+
+**Total**: ~16 weeks (4 months)
+
+### External Dependencies
+
+**Required**:
+- Python packages (free): numpy, scipy, pandas, genanki
+- Git LFS (free for <1GB, paid for larger)
+- Claude MCP (included with Claude Code)
+
+**Optional**:
+- Obsidian mobile (free)
+- LaTeX distribution (free)
+- FastAPI server hosting ($5-10/month if public API)
+
+### Skill Requirements
+
+**Core Skills**:
+- Python (ML algorithms, data processing)
+- JavaScript/React (visualization, dashboards)
+- Git (LFS, sync workflows)
+- Markdown (knowledge representation)
+
+**Nice-to-Have**:
+- Machine learning (FSRS optimization)
+- D3.js (graph visualization)
+- LaTeX (PDF generation)
+- Mobile development (testing)
+
+---
+
+## 📚 Research & References
+
+### Academic Foundation
+
+1. **FSRS Algorithm**:
+   - Jarrett Ye (2023): Free Spaced Repetition Scheduler
+   - Open-spaced-repetition research wiki
+   - Anki FSRS implementation (v23.10+)
+
+2. **Spaced Repetition**:
+   - Ebbinghaus forgetting curve research
+   - Leitner system evolution
+   - Spaced repetition comparative studies
+
+3. **AI Tutoring Systems**:
+   - Socratic Playground for Learning (GPT-4 based)
+   - Khanmigo pedagogical strategies
+   - Intelligent Tutoring Systems (ITS) research
+
+4. **Knowledge Graphs**:
+   - RemNote knowledge graph implementation
+   - Obsidian graph view architecture
+   - Graph-based memory systems research
+
+5. **Adaptive Learning**:
+   - Zone of Proximal Development (Vygotsky)
+   - Flow state theory (Csikszentmihalyi)
+   - Cognitive load theory (Sweller)
+
+### Industry Trends (2025)
+
+- **PKM Market Growth**: $667B (2024) → $3T (2033)
+- **FSRS Adoption**: Anki default algorithm (expected 2025)
+- **Claude MCP**: Memory systems standard (2025 release)
+- **AI Tutoring**: Context-aware, emotionally intelligent (2025 trend)
+- **Mobile-First Learning**: 2x time investment when mobile-enabled
+
+---
+
+## 🎓 Conclusion
+
+Phase 3 represents a quantum leap from a working learning system to an intelligent learning ecosystem that:
+
+✅ **Matches industry standards** (FSRS, visualization, mobile)
+✅ **Exceeds competitors** (MCP memory, adaptive difficulty, analytics)
+✅ **Creates unique value** (Socratic + SRS + graph + AI = unprecedented combination)
+
+**Strategic Vision**: By integrating cutting-edge 2025 technologies (FSRS, MCP, adaptive AI, knowledge graphs) with our unique Socratic approach, we create a learning platform that no competitor can replicate because it combines the best features of 5+ different tools into one intelligent, cumulative learning system.
+
+**Expected Outcome**:
+- 40% more efficient learning (FSRS + adaptive difficulty)
+- 70% better context retention (MCP memory)
+- 60% more concept discovery (graph visualization)
+- 100% more learning time (mobile accessibility)
+
+**Next Steps**: Begin Phase 3a (Foundation) implementation immediately.
+
+---
+
+**Document Status**: ✅ Ready for Development
+**Approval Required**: User confirmation to proceed
+**Related Documents**:
+- [Phase 2 PRD](./PRD.md) - Current baseline
+- [System Architecture](./SYSTEM_ARCHITECTURE.md) - Technical details
+- [Getting Started](./GETTING_STARTED.md) - User guide
+
+---
+
+*This is a living document. Update as Phase 3 progresses.*
