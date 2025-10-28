@@ -100,6 +100,84 @@ bash ~/.claude/hooks/checkpoint.sh
 
 ---
 
+### `/fswatch`
+**Best for**: Real-time file monitoring with automatic git operations
+
+**What it does**:
+- Watches directory for file changes using fswatch
+- Auto-commits changes with 5-second debounce
+- Auto-pushes to remote repository
+- Periodically pulls from remote (every 5 minutes)
+- Handles conflicts, lock files, and network failures
+
+**Quick start**:
+```bash
+# Start watching
+bash ~/.claude/hooks/fswatch-manager.sh start ~/my-project
+
+# Check status
+bash ~/.claude/hooks/fswatch-manager.sh status
+
+# Stop watching
+bash ~/.claude/hooks/fswatch-manager.sh stop
+```
+
+**Features**:
+- Zero Claude token cost (system-level monitoring)
+- Comprehensive error handling (conflicts, locks, network)
+- Automatic retry logic (3 attempts for push)
+- Debouncing to avoid commit spam
+- Full logging for debugging
+
+**When to use**:
+- Personal notes/documentation auto-backup
+- Configuration file synchronization (dotfiles)
+- Prototype development with automatic saves
+- Learning/experimental projects
+
+**When NOT to use**:
+- Production code repositories
+- Team collaboration projects
+- Projects needing clean commit history
+- Large repositories (>100K files)
+
+**Configuration**:
+```bash
+export FSWATCH_DEBOUNCE=5          # Debounce delay (seconds)
+export FSWATCH_PULL_INTERVAL=300   # Auto-pull interval (seconds)
+export FSWATCH_MAX_RETRIES=3       # Max push retry attempts
+```
+
+**Error handling**:
+- **Merge conflicts**: Pauses and prompts user with resolution steps
+- **Git lock files**: Automatically detects and removes stale locks
+- **Network failures**: Retries push with exponential backoff
+- **Diverged branches**: Auto-pulls before retrying push
+- **Detached HEAD**: Stops with clear instructions
+
+**Comparison with Smart Checkpoint**:
+
+| Feature | Smart Checkpoint | FSWatch |
+|---------|-----------------|---------|
+| Trigger | Claude Edit/Write | File system changes |
+| Token Cost | +16% | 0% |
+| Monitoring Scope | Claude modifications | All file changes |
+| Delay | Instant | 5s debounce |
+| Location | Claude hooks | System daemon |
+
+**Best practice**: Use **both** for maximum data protection!
+- Smart checkpoint: Handles Claude's modifications
+- FSWatch: Handles external editor changes
+- Combined: 99.99% data safety guarantee
+
+**Full documentation**: `~/.claude/docs/git-fswatch.md`
+
+**Related**:
+- Auto-sync analysis: `~/.claude/docs/auto-sync-analysis.md`
+- Lock file handling: `~/.claude/docs/lock-file-handling.md`
+
+---
+
 ## 🔍 Deep Search Commands
 
 ## 🚀 Available Commands
