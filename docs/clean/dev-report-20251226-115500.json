@@ -1,0 +1,411 @@
+{
+  "request_id": "clean-refactor-20251226-115500",
+  "timestamp": "2025-12-26T11:55:00Z",
+  "dev": {
+    "status": "completed",
+    "tasks_completed": [
+      {
+        "id": 1,
+        "description": "Created cleanliness-inspector agent",
+        "type": "agent",
+        "files_created": ["agents/cleanliness-inspector.md"],
+        "rationale": "Extracts all file organization detection logic from monolithic clean.md. Detects misplaced docs, naming violations, archive candidates, temp files, duplicates, and non-functional files. Returns structured JSON report."
+      },
+      {
+        "id": 2,
+        "description": "Created style-inspector agent",
+        "type": "agent",
+        "files_created": ["agents/style-inspector.md"],
+        "rationale": "Implements comprehensive development standards audit enforcing all /dev quality standards: no inline code, no hardcoded values, venv usage, integer step numbering, meaningful naming, English only, script merging, concise docs, git root cause, parameterized scripts."
+      },
+      {
+        "id": 3,
+        "description": "Created cleaner agent",
+        "type": "agent",
+        "files_created": ["agents/cleaner.md"],
+        "rationale": "Executes ONLY user-approved cleanup actions from both inspector reports. Handles move, archive, delete, rename, fix_style, and update_gitignore actions with full error handling and git integration."
+      },
+      {
+        "id": 4,
+        "description": "Created clean workflow checklist script",
+        "type": "script",
+        "files_created": ["scripts/todo/clean.py"],
+        "rationale": "Generates TodoWrite checklist for /clean workflow following same pattern as dev.py. Provides 10-step workflow visibility."
+      },
+      {
+        "id": 5,
+        "description": "Extended orchestrator.sh with clean modes",
+        "type": "script",
+        "files_modified": ["scripts/orchestrator.sh"],
+        "rationale": "Added three new modes to existing orchestrator: clean-inspect (coordinates both inspectors), clean-merge-reports (combines inspection results), clean-execute (coordinates cleaner with approvals). Follows DRY principle by extending existing script rather than creating separate orchestrator."
+      },
+      {
+        "id": 6,
+        "description": "Refactored clean.md to pure orchestrator",
+        "type": "command",
+        "files_modified": ["commands/clean.md"],
+        "rationale": "Root cause: clean.md was monolithic implementation with all logic inline, violating /dev orchestration pattern. Transformed to pure orchestrator delegating to three specialized subagents via JSON communication in docs/clean/. Reduced from 1015 lines to 583 lines, with NO implementation logic remaining."
+      }
+    ],
+    "scripts_created": [
+      {
+        "path": "scripts/todo/clean.py",
+        "purpose": "Generate TodoWrite workflow checklist for /clean command",
+        "parameters": [],
+        "usage": "python ~/.claude/scripts/todo/clean.py",
+        "exit_codes": {
+          "0": "success - prints JSON todo list to stdout"
+        }
+      }
+    ],
+    "git_rationale": {
+      "root_cause_commit": "bb76d511 - fix: resolve all P0 critical violations in /clean command",
+      "why_issue_occurred": "clean.md evolved organically with inline implementation logic. P0 fixes extracted bash to scripts but architecture remained monolithic. /dev orchestration pattern was introduced in same timeframe but not applied to /clean.",
+      "how_fix_addresses_root": "Apply same orchestration pattern as /dev: clean.md becomes pure orchestrator (like dev.md), delegates to three specialized agents (cleanliness-inspector, style-inspector, cleaner) via JSON communication, uses existing orchestrator.sh with new clean-* modes. All detection logic moved to inspectors, all execution logic moved to cleaner, all coordination via JSON in docs/clean/."
+    },
+    "architecture_changes": {
+      "before": {
+        "structure": "Monolithic clean.md with 1015 lines containing inline detection, decision, and execution logic",
+        "issues": [
+          "Violated /dev orchestration pattern",
+          "Mixed concerns (detection + execution)",
+          "Hard to test individual components",
+          "No structured JSON communication",
+          "Difficult to audit workflow"
+        ]
+      },
+      "after": {
+        "structure": "Orchestrated multi-agent workflow with specialized subagents",
+        "components": [
+          "commands/clean.md (583 lines) - Pure orchestrator, delegates to subagents",
+          "agents/cleanliness-inspector.md - File organization detection specialist",
+          "agents/style-inspector.md - Development standards auditor",
+          "agents/cleaner.md - Cleanup execution specialist",
+          "scripts/orchestrator.sh - Extended with clean-inspect, clean-merge-reports, clean-execute modes",
+          "scripts/todo/clean.py - Workflow checklist generator",
+          "docs/clean/ - JSON communication directory"
+        ],
+        "benefits": [
+          "Follows /dev orchestration pattern exactly",
+          "Clear separation of concerns",
+          "Each agent testable independently",
+          "Structured JSON schemas for communication",
+          "Full audit trail via JSON files",
+          "User approval workflow enforced",
+          "Safety features (git checkpoint, incremental commits)"
+        ]
+      }
+    },
+    "agent_responsibilities": {
+      "cleanliness_inspector": {
+        "input": "Context JSON with project info",
+        "responsibilities": [
+          "Detect misplaced markdown files (root -> docs/)",
+          "Detect naming violations (CamelCase, underscores)",
+          "Identify archive candidates (by pattern and age)",
+          "Detect dev context files needing archival",
+          "Find temp files and one-time scripts",
+          "Detect duplicate scripts and tests",
+          "Find non-functional files (build artifacts, logs)"
+        ],
+        "output": "docs/clean/cleanliness-report-{ts}.json",
+        "safety": [
+          "Uses check-file-references.sh for reference detection",
+          "Never recommends deleting files with functional references",
+          "Categorizes by severity (critical/major/minor)"
+        ]
+      },
+      "style_inspector": {
+        "input": "Context JSON with project info",
+        "responsibilities": [
+          "Audit for inline code in commands/agents",
+          "Detect hardcoded domains/URLs in scripts",
+          "Find direct python3 calls without venv",
+          "Detect decimal/letter step numbering",
+          "Find meaningless naming (enhance-*, fast-*, *-v2)",
+          "Detect Chinese text",
+          "Identify scripts that should be merged",
+          "Find verbose documentation",
+          "Check for missing git root cause analysis",
+          "Detect hardcoded values in scripts"
+        ],
+        "output": "docs/clean/style-report-{ts}.json",
+        "enforces_standards": "All 10 /dev quality standards"
+      },
+      "cleaner": {
+        "input": "Combined reports + user approvals",
+        "responsibilities": [
+          "Execute ONLY approved actions",
+          "Move/rename files per cleanliness report",
+          "Fix style violations per style report",
+          "Update .gitignore",
+          "Archive old files",
+          "Delete approved temp files",
+          "Create git commits with proper messages"
+        ],
+        "output": "docs/clean/cleanup-execution-{ts}.json",
+        "safety": [
+          "Verifies git checkpoint exists",
+          "Skips rejected actions",
+          "Continues on failure (doesn't abort)",
+          "Incremental commits per category",
+          "Full error reporting"
+        ]
+      }
+    },
+    "workflow_phases": [
+      {
+        "phase": 1,
+        "name": "Initialize",
+        "actions": [
+          "Load TodoWrite checklist from scripts/todo/clean.py",
+          "Create docs/clean/ directory",
+          "Generate request_id and timestamp"
+        ]
+      },
+      {
+        "phase": 2,
+        "name": "Scan Project",
+        "actions": [
+          "Detect project type (Python/Node.js/Go/Generic)",
+          "Count files (total, docs, scripts, tests)",
+          "Gather git status and recent commits"
+        ]
+      },
+      {
+        "phase": 3,
+        "name": "Build Context",
+        "actions": [
+          "Create comprehensive JSON context",
+          "Save to docs/clean/context-{request_id}.json"
+        ]
+      },
+      {
+        "phase": 4,
+        "name": "Invoke Inspectors",
+        "actions": [
+          "Call orchestrator.sh clean-inspect mode",
+          "Delegate to cleanliness-inspector (parallel possible)",
+          "Delegate to style-inspector (parallel possible)",
+          "Both write JSON reports to docs/clean/"
+        ]
+      },
+      {
+        "phase": 5,
+        "name": "Merge Reports",
+        "actions": [
+          "Load both reports into context",
+          "Call orchestrator.sh clean-merge-reports mode",
+          "Generate combined-report-{request_id}.json"
+        ]
+      },
+      {
+        "phase": 6,
+        "name": "User Approval",
+        "actions": [
+          "Present combined report to user",
+          "Offer 5 cleanup options",
+          "Collect approvals/rejections",
+          "Save to docs/clean/user-approvals-{request_id}.json"
+        ]
+      },
+      {
+        "phase": 7,
+        "name": "Safety Checkpoint",
+        "actions": [
+          "git add -A && git commit (checkpoint)",
+          "Record checkpoint commit hash in context"
+        ]
+      },
+      {
+        "phase": 8,
+        "name": "Execute Cleanup",
+        "actions": [
+          "Merge approvals into context",
+          "Call orchestrator.sh clean-execute mode",
+          "Delegate to cleaner subagent",
+          "Cleaner executes approved actions",
+          "Cleaner writes cleanup-execution-{request_id}.json"
+        ]
+      },
+      {
+        "phase": 9,
+        "name": "Verify Results",
+        "actions": [
+          "Run git status",
+          "Show diff summary",
+          "Present execution results to user"
+        ]
+      },
+      {
+        "phase": 10,
+        "name": "Completion Report",
+        "actions": [
+          "Generate comprehensive completion markdown",
+          "Save to docs/clean/completion-{request_id}.md",
+          "Provide rollback instructions if needed"
+        ]
+      }
+    ],
+    "json_schemas": {
+      "context": {
+        "file": "docs/clean/context-{request_id}.json",
+        "required_fields": [
+          "request_id",
+          "timestamp",
+          "orchestrator.requirement",
+          "orchestrator.analysis.project_root",
+          "orchestrator.analysis.project_type",
+          "full_context.codebase_state",
+          "parameters"
+        ]
+      },
+      "cleanliness_report": {
+        "file": "docs/clean/cleanliness-report-{request_id}.json",
+        "required_fields": [
+          "request_id",
+          "timestamp",
+          "inspector",
+          "findings",
+          "summary"
+        ]
+      },
+      "style_report": {
+        "file": "docs/clean/style-report-{request_id}.json",
+        "required_fields": [
+          "request_id",
+          "timestamp",
+          "inspector",
+          "violations",
+          "summary"
+        ]
+      },
+      "combined_report": {
+        "file": "docs/clean/combined-report-{request_id}.json",
+        "required_fields": [
+          "request_id",
+          "timestamp",
+          "cleanliness_report",
+          "style_report",
+          "combined_summary"
+        ]
+      },
+      "user_approvals": {
+        "file": "docs/clean/user-approvals-{request_id}.json",
+        "required_fields": [
+          "request_id",
+          "timestamp",
+          "user_approvals.approved_actions",
+          "user_approvals.rejected_actions"
+        ]
+      },
+      "cleanup_execution": {
+        "file": "docs/clean/cleanup-execution-{request_id}.json",
+        "required_fields": [
+          "request_id",
+          "timestamp",
+          "cleaner.status",
+          "cleaner.actions_completed",
+          "cleaner.summary",
+          "cleaner.git_status"
+        ]
+      }
+    },
+    "helper_scripts_used": [
+      {
+        "script": "~/.claude/scripts/check-file-references.sh",
+        "purpose": "Detects file references in docs, code, configs, and scripts",
+        "used_by": "cleanliness-inspector",
+        "exit_codes": {
+          "0": "safe to delete (no references)",
+          "1": "keep (has functional references)",
+          "2": "archive (only historical doc references)"
+        }
+      },
+      {
+        "script": "~/.claude/scripts/normalize-doc-names.sh",
+        "purpose": "Detects non-compliant markdown file names",
+        "used_by": "cleanliness-inspector",
+        "exit_codes": {
+          "0": "all files compliant",
+          "1": "non-compliant files found"
+        }
+      },
+      {
+        "script": "~/.claude/scripts/update-gitignore.sh",
+        "purpose": "Auto-updates .gitignore with project-specific rules",
+        "used_by": "cleaner",
+        "exit_codes": {
+          "0": "success",
+          "1": "no .gitignore exists"
+        }
+      },
+      {
+        "script": "~/.claude/scripts/orchestrator.sh",
+        "purpose": "Coordinates agent workflows",
+        "modes_added": [
+          "clean-inspect",
+          "clean-merge-reports",
+          "clean-execute"
+        ]
+      },
+      {
+        "script": "~/.claude/scripts/todo/clean.py",
+        "purpose": "Generates TodoWrite workflow checklist",
+        "created_by": "this implementation"
+      }
+    ],
+    "qa_ready": true,
+    "qa_notes": "Verify all three agents follow /dev patterns (read context, return JSON, no side effects in inspectors). Check JSON schemas match specifications. Test workflow end-to-end with mock project. Verify orchestrator.sh clean-* modes work correctly. Confirm no inline code remains in clean.md. Validate that cleaner only executes approved actions.",
+    "permissions_to_add": [
+      {
+        "section": "allow",
+        "pattern": "Bash(python ~/.claude/scripts/todo/clean.py:*)",
+        "reason": "Allow execution of clean workflow checklist generator"
+      },
+      {
+        "section": "allow",
+        "pattern": "Bash(~/.claude/scripts/orchestrator.sh clean-inspect:*)",
+        "reason": "Allow orchestrator to coordinate cleanliness and style inspectors"
+      },
+      {
+        "section": "allow",
+        "pattern": "Bash(~/.claude/scripts/orchestrator.sh clean-merge-reports:*)",
+        "reason": "Allow orchestrator to merge inspection reports"
+      },
+      {
+        "section": "allow",
+        "pattern": "Bash(~/.claude/scripts/orchestrator.sh clean-execute:*)",
+        "reason": "Allow orchestrator to coordinate cleaner execution"
+      }
+    ],
+    "implementation_metrics": {
+      "files_created": 4,
+      "files_modified": 2,
+      "agents_created": 3,
+      "scripts_created": 1,
+      "orchestrator_modes_added": 3,
+      "clean_md_reduction": {
+        "before": "1015 lines with inline logic",
+        "after": "583 lines pure orchestration",
+        "reduction": "43% smaller, 100% delegation"
+      },
+      "lines_of_code": {
+        "cleanliness_inspector_md": 428,
+        "style_inspector_md": 489,
+        "cleaner_md": 371,
+        "clean_py": 36,
+        "orchestrator_sh_additions": 134,
+        "total_new": 1458
+      }
+    }
+  },
+  "blocking_issues": [],
+  "recommendations": [
+    "Test /clean workflow end-to-end with a sample project",
+    "Create example JSON files showing expected schemas",
+    "Add unit tests for orchestrator.sh clean-* modes",
+    "Document example usage in CLAUDE.md or separate guide",
+    "Consider adding dry-run mode for inspectors (generate report without user interaction)"
+  ]
+}

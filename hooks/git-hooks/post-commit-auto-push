@@ -1,0 +1,24 @@
+#!/bin/bash
+# post-commit-auto-push - Automatically push after every commit
+# 每次 commit 后自动推送到远程（后台执行）
+# Installation: cp ~/.claude/hooks/git-hooks/post-commit-auto-push .git/hooks/post-commit
+
+# Get current branch
+BRANCH=$(git branch --show-current 2>/dev/null)
+
+if [ -z "$BRANCH" ]; then
+  # Detached HEAD, skip push
+  exit 0
+fi
+
+# Check if GIT_AUTO_PUSH is disabled
+if [ "${GIT_AUTO_PUSH:-1}" = "0" ]; then
+  exit 0
+fi
+
+# Push in background (non-blocking)
+# Using nohup to detach from current session
+nohup git push origin "$BRANCH" >/dev/null 2>&1 &
+
+# Don't wait for push to complete
+exit 0

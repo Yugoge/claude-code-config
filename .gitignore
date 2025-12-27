@@ -1,0 +1,44 @@
+# Claude Code .gitignore
+
+# Credentials and secrets
+.credentials.json
+*.key
+*.pem
+
+# Local settings (user-specific)
+settings.local.json
+
+# Temporary files
+*.tmp
+*.log
+
+# Session data (may contain sensitive tokens)
+todos/
+shell-snapshots/
+debug/
+projects/
+
+# Plugin data (may contain tokens)
+plugins/
+statsig/
+
+# History
+history.jsonl
+
+# Node modules (if any)
+node_modules/
+
+# Python virtual environments
+venv/
+env/
+.venv/
+*.pyc
+__pycache__/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backups
+*.backup
+*.bak
