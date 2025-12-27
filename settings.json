@@ -1,0 +1,315 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": 30,
+  "env": {
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "0",
+    "MAX_MCP_OUTPUT_TOKENS": "40000",
+    "EDITOR": "nano",
+    "LANG": "en_US.UTF-8",
+    "GIT_AUTO_STAGE_ALL": "0",
+    "GIT_BLOCK_ON_UNTRACKED": "0",
+    "GIT_WARN_UNTRACKED": "1",
+    "GIT_PUSH_AUTO_STAGE": "1",
+    "GIT_AUTO_PUSH": "1",
+    "GIT_CHECKPOINT_THRESHOLD": "10",
+    "GIT_CHECKPOINT_SILENT": "0",
+    "PLAYWRIGHT_MCP_SANDBOX": "false"
+  },
+  "includeCoAuthoredBy": true,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "SlashCommand",
+      "Bash(gh auth:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
+      "Bash(npm:*)",
+      "Bash(yarn:*)",
+      "Bash(pnpm:*)",
+      "Bash(pip:*)",
+      "Bash(pip3:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "Bash(npx:*)",
+      "Bash(go:*)",
+      "Bash(cargo:*)",
+      "Bash(rustc:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker images:*)",
+      "Bash(docker logs:*)",
+      "Bash(kubectl get:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(ls:*)",
+      "Bash(cd:*)",
+      "Bash(pwd:*)",
+      "Bash(cat:*)",
+      "Bash(cat > /tmp/*.json:*)",
+      "Bash(cat > /tmp/*.txt:*)",
+      "Bash(cat > /tmp/*.py:*)",
+      "Bash(cat > /tmp/*.md:*)",
+      "Bash(source venv/bin/activate:*)",
+      "Bash(source venv/bin/activate && python*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(which:*)",
+      "Bash(echo:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(chmod:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(awk:*)",
+      "Bash(sed:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(xargs:*)",
+      "Bash(test:*)",
+      "Bash(bash:*)",
+      "Bash(for:*)",
+      "Bash(do)",
+      "Bash(done)",
+      "Bash(if:*)",
+      "Bash(then)",
+      "Bash(else)",
+      "Bash(fi)",
+      "Bash(md5sum:*)",
+      "Bash(lsof:*)",
+      "Bash(tee:*)",
+      "Bash(date:*)",
+      "Bash(rm -f /tmp/*.pdf:*)",
+      "Bash(rm -f /tmp/*.tmp:*)",
+      "Bash(rm -f /tmp/*.json:*)",
+      "Bash(rm:*)",
+      "Bash(python ~/.claude/scripts/todo/clean.py:*)",
+      "Bash(~/.claude/scripts/orchestrator.sh clean-inspect:*)",
+      "Bash(~/.claude/scripts/orchestrator.sh clean-merge-reports:*)",
+      "Bash(~/.claude/scripts/orchestrator.sh clean-execute:*)",
+      "Bash(~/.claude/scripts/orchestrator.sh record-checkpoint:*)",
+      "Bash(~/.claude/scripts/scan-project.sh:*)",
+      "Read",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "SlashCommand",
+      "Task",
+      "TodoWrite",
+      "Write(learning-materials/**)",
+      "Write(knowledge-base/**)",
+      "Write(.review/**)",
+      "Write(chats/**)",
+      "Write(docs/**)",
+      "Write(scripts/**)",
+      "Write(/tmp/**)",
+      "Edit(learning-materials/**)",
+      "Edit(knowledge-base/**)",
+      "Edit(.review/**)",
+      "Edit(scripts/**)",
+      "Edit(docs/**)",
+      "Read(/root/**)",
+      "Read(/tmp/**)",
+      "mcp__memory-server__read_graph",
+      "mcp__memory-server__create_entities",
+      "mcp__memory-server__search_nodes",
+      "mcp__memory-server__delete_entities",
+      "mcp__memory-server__create_relations",
+      "mcp__memory-server__add_observations",
+      "mcp__memory-server__delete_observations",
+      "mcp__memory-server__delete_relations",
+      "mcp__memory-server__open_nodes",
+      "mcp__happy__change_title"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/credentials*)",
+      "Read(**/*secret*)",
+      "Read(**/*password*)",
+      "Read(**/*.key)",
+      "Read(**/*.pem)",
+      "Write(.env)",
+      "Write(**/.env)",
+      "Write(**/.env.*)",
+      "Write(**/credentials*)",
+      "Write(**/*secret*)",
+      "Write(**/*password*)",
+      "Bash(rm -rf /:*)",
+      "Bash(rm -rf /*:*)",
+      "Bash(dd:*)",
+      "Bash(mkfs:*)",
+      "Bash(fdisk:*)",
+      "Bash(shutdown:*)",
+      "Bash(reboot:*)",
+      "Bash(halt:*)",
+      "Bash(poweroff:*)",
+      "Bash(systemctl stop:*)",
+      "Bash(systemctl disable:*)",
+      "Bash(curl:* | sh:*)",
+      "Bash(wget:* | sh:*)",
+      "Bash(sudo:*)",
+      "Bash(su:*)"
+    ],
+    "ask": [
+      "Bash(docker run:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker rm:*)",
+      "Bash(kubectl delete:*)",
+      "Bash(kubectl apply:*)",
+      "Bash(kubectl create:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(npm publish:*)",
+      "Bash(yarn publish:*)",
+      "Bash(rm -rf:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Write(**/package.json)",
+      "Edit(**/package.json)",
+      "Write(**/pyproject.toml)",
+      "Edit(**/pyproject.toml)",
+      "Write(**/Cargo.toml)",
+      "Edit(**/Cargo.toml)",
+      "Write(**/go.mod)",
+      "Edit(**/go.mod)",
+      "Write(**/requirements.txt)",
+      "Edit(**/requirements.txt)",
+      "Write(.claude/commands/**)",
+      "Edit(.claude/commands/**)",
+      "Write(.claude/agents/**)",
+      "Edit(.claude/agents/**)",
+      "Write(.claude/hooks/**)",
+      "Edit(.claude/hooks/**)",
+      "Write(.claude/scripts/**)",
+      "Edit(.claude/scripts/**)",
+      "Edit(.claude/settings.json)",
+      "Edit(.claude/CLAUDE.md)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/session_start.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/ensure-git-repo.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f .claude/CLAUDE.md ]; then echo '[INFO] Project CLAUDE.md loaded'; fi"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash\\(rm -rf.*\\)|Bash\\(rm -r.*\\)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/pre_tool_use_safety.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash\\(git push --force.*\\)|Bash\\(git push -f.*\\)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/pre_tool_use_safety.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write\\(.*package\\.json.*\\)|Edit\\(.*package\\.json.*\\)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/pre_tool_use_safety.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/smart-checkpoint.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash\\(git commit.*\\)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git log -1 --oneline && echo '✅ Commit created successfully'"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/post-commit-warn.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash\\(npm install.*\\)|Bash\\(yarn install.*\\)|Bash\\(pnpm install.*\\)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '✅ Dependencies installed. Run tests to verify.'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/auto-commit.sh"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '👋 Session ended | 会话结束' && echo 'Remember: Review changes before pushing to remote!'"
+          }
+        ]
+      }
+    ]
+  },
+  "alwaysThinkingEnabled": true
+}

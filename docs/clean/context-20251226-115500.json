@@ -1,0 +1,201 @@
+{
+  "request_id": "clean-refactor-20251226-115500",
+  "timestamp": "2025-12-26T11:55:00Z",
+  "orchestrator": {
+    "requirement": "Refactor /clean command from monolithic implementation to orchestrated multi-agent workflow with three specialized subagents: cleanliness-inspector, style-inspector, and cleaner",
+    "analysis": {
+      "root_cause": "Current /clean command violates /dev standards by containing all logic inline instead of delegating to specialized subagents. Commit bb76d511 fixed P0 violations (inline code → scripts) but architecture still monolithic, not orchestrated like /dev.",
+      "affected_files": [
+        "commands/clean.md",
+        "scripts/orchestrator.sh",
+        "agents/cleanliness-inspector.md (new)",
+        "agents/style-inspector.md (new)",
+        "agents/cleaner.md (new)",
+        "scripts/todo/clean.py (new)"
+      ],
+      "constraints": [
+        "Must preserve all existing /clean functionality",
+        "Must follow /dev orchestration pattern exactly",
+        "All agent communication via JSON in docs/clean/",
+        "User approval required before execution phase",
+        "Must use existing helper scripts (check-file-references.sh, normalize-doc-names.sh, update-gitignore.sh)",
+        "No hardcoded values in scripts",
+        "Use source venv not python3",
+        "Integer step numbering only",
+        "English only (no Chinese)",
+        "Merge functionality into existing orchestrator.sh if possible"
+      ],
+      "success_criteria": [
+        "clean.md becomes pure orchestrator (like dev.md) with no implementation logic",
+        "cleanliness-inspector.md contains all file cleanup detection logic from current clean.md",
+        "style-inspector.md implements comprehensive development standards audit",
+        "cleaner.md executes cleanup actions approved by user",
+        "All three agents communicate via JSON in docs/clean/",
+        "User sees combined report from both inspectors before approval",
+        "User can approve/reject cleanup actions selectively",
+        "orchestrator.sh supports clean-workflow mode or separate clean orchestrator created",
+        "scripts/todo/clean.py generates workflow checklist",
+        "All development standards from /dev enforced by style-inspector"
+      ]
+    }
+  },
+  "full_context": {
+    "codebase_state": {
+      "git_status": "M commands/clean.md, M settings.json, ?? agents/dev.md, ?? agents/qa.md, ?? commands/dev.md, ?? scripts/orchestrator.sh, ?? scripts/todo/",
+      "current_branch": "master",
+      "recent_commits": [
+        "bb76d511 - fix: resolve all P0 critical violations in /clean command",
+        "c972c7ab - feat: enhance /clean command with intelligent reference detection",
+        "654bc524 - feat: add comprehensive reference detection for /clean command",
+        "31680994 - feat: rewrite /clean command - aggressive normalization and cleanup"
+      ]
+    },
+    "git_analysis": {
+      "last_changes": "bb76d511 fixed P0 violations by extracting inline bash code to scripts (normalize-doc-names.sh, update-gitignore.sh, check-file-references.sh)",
+      "why_refactor_needed": "Current clean.md still contains all detection/decision logic inline. Should follow /dev pattern: orchestrator delegates to specialized agents, agents return JSON reports, orchestrator coordinates workflow.",
+      "timeline": "clean.md rewritten 2024-12-26, made aggressive but monolithic. /dev pattern introduced same day with orchestrator.sh. Should apply same architecture to /clean."
+    },
+    "file_contents": {
+      "commands/clean.md": "1015 lines, contains inline logic for: doc normalization, script deletion, test cleanup, gitignore updates. Should be ~200 lines orchestrator.",
+      "commands/dev.md": "517 lines, pure orchestrator with 11 steps delegating to dev/qa subagents via JSON context",
+      "agents/dev.md": "518 lines, implementation specialist receiving JSON context",
+      "agents/qa.md": "592 lines, verification specialist receiving JSON context",
+      "scripts/orchestrator.sh": "202 lines, coordinates dev-workflow, qa-verify, iterate modes"
+    },
+    "dependencies": {
+      "runtime": "bash, jq, git, python (via venv)",
+      "existing_scripts": [
+        "~/.claude/scripts/check-file-references.sh - detects file references",
+        "~/.claude/scripts/normalize-doc-names.sh - detects naming violations",
+        "~/.claude/scripts/update-gitignore.sh - updates gitignore rules"
+      ]
+    },
+    "environment": {
+      "venv_path": "venv/ or .venv/",
+      "config_files": [
+        ".claude/settings.json",
+        ".claude/CLAUDE.md"
+      ],
+      "json_storage": "docs/clean/ (new, parallel to docs/dev/)"
+    }
+  },
+  "parameters": {
+    "new_agents": [
+      {
+        "name": "cleanliness-inspector",
+        "role": "Detects file organization issues: misplaced docs, duplicates, temp files, build artifacts",
+        "input": "Project directory path, git analysis",
+        "output": "JSON report with cleanup recommendations categorized by severity",
+        "delegates_from": "Current clean.md sections 1-6 (doc normalization, script cleanup, test cleanup, non-functional files)"
+      },
+      {
+        "name": "style-inspector",
+        "role": "Audits all files against development standards from /dev: no hardcoding, naming conventions, venv usage, step numbering, language, merging",
+        "input": "All .claude/ files, all scripts/, all tests/, all functional files",
+        "output": "JSON report with standards violations categorized by standard and severity",
+        "enforces_standards": [
+          "No inline code (use scripts)",
+          "No hardcoded domains/URLs in scripts",
+          "Use source venv not python3",
+          "Integer step numbering only",
+          "Meaningful naming (no enhance/fast/optimize-v2)",
+          "English only (no Chinese)",
+          "Merge with existing scripts when possible",
+          "Concise documentation (no verbose examples)",
+          "Git root cause analysis present",
+          "Scripts have parameters not hardcoded values"
+        ]
+      },
+      {
+        "name": "cleaner",
+        "role": "Executes cleanup actions from both inspectors after user approval",
+        "input": "Combined JSON from cleanliness-inspector + style-inspector + user approvals",
+        "output": "JSON execution report with results of each cleanup action",
+        "actions": [
+          "Move/rename files per cleanliness-inspector",
+          "Fix style violations per style-inspector",
+          "Update .gitignore",
+          "Archive old files",
+          "Delete approved temp files"
+        ]
+      }
+    ],
+    "workflow_phases": [
+      "Phase 1: Initialize (load todo checklist from scripts/todo/clean.py)",
+      "Phase 2: Invoke cleanliness-inspector → docs/clean/cleanliness-report-{ts}.json",
+      "Phase 3: Invoke style-inspector → docs/clean/style-report-{ts}.json",
+      "Phase 4: Merge reports → docs/clean/combined-report-{ts}.json",
+      "Phase 5: Present to user, request approval",
+      "Phase 6: User approval collected → docs/clean/user-approvals-{ts}.json",
+      "Phase 7: Invoke cleaner with approvals → docs/clean/cleanup-execution-{ts}.json",
+      "Phase 8: Generate completion report → docs/clean/completion-{ts}.md"
+    ],
+    "json_schemas": {
+      "cleanliness_report": {
+        "request_id": "string",
+        "timestamp": "ISO-8601",
+        "inspector": "cleanliness-inspector",
+        "findings": {
+          "misplaced_docs": [{"file": "path", "should_be": "path", "severity": "major|minor"}],
+          "duplicate_scripts": [{"files": ["paths"], "recommendation": "keep newest", "severity": "major|minor"}],
+          "temp_files": [{"file": "path", "safe_to_delete": true, "references": 0, "severity": "minor"}],
+          "archive_candidates": [{"file": "path", "reason": "pattern match + age", "severity": "minor"}],
+          "naming_violations": [{"file": "path", "issue": "CamelCase", "suggested": "kebab-case", "severity": "minor"}]
+        },
+        "summary": {
+          "total_issues": 0,
+          "critical": 0,
+          "major": 0,
+          "minor": 0
+        }
+      },
+      "style_report": {
+        "request_id": "string",
+        "timestamp": "ISO-8601",
+        "inspector": "style-inspector",
+        "violations": [
+          {
+            "standard": "no-hardcoded-domains",
+            "severity": "critical|major|minor",
+            "location": "file:line",
+            "finding": "description",
+            "recommendation": "how to fix"
+          }
+        ],
+        "summary": {
+          "standards_checked": 10,
+          "violations_found": 0,
+          "critical": 0,
+          "major": 0,
+          "minor": 0
+        }
+      },
+      "execution_report": {
+        "request_id": "string",
+        "timestamp": "ISO-8601",
+        "cleaner": {
+          "status": "completed|partial|blocked",
+          "actions_completed": [
+            {
+              "action": "move file",
+              "source": "path",
+              "destination": "path",
+              "result": "success|failed",
+              "error": "if failed"
+            }
+          ],
+          "summary": {
+            "total_actions": 0,
+            "successful": 0,
+            "failed": 0
+          }
+        }
+      }
+    },
+    "orchestration_approach": {
+      "option_1": "Extend existing orchestrator.sh with clean-inspect, clean-execute modes",
+      "option_2": "Create new scripts/clean-orchestrator.sh dedicated to clean workflow",
+      "recommendation": "Option 1 - merge into existing orchestrator.sh to follow DRY principle"
+    }
+  }
+}
