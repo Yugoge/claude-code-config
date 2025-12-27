@@ -1,0 +1,31 @@
+[Unit]
+Description=Git File Watcher for %I
+Documentation=file:///root/.claude/docs/git-fswatch.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=%h
+ExecStart=/bin/bash %h/.claude/hooks/git-fswatch.sh %h/%I
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Resource limits
+MemoryMax=500M
+CPUQuota=20%
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Environment
+Environment="FSWATCH_DEBOUNCE=5"
+Environment="FSWATCH_PULL_INTERVAL=300"
+Environment="FSWATCH_MAX_RETRIES=3"
+
+[Install]
+WantedBy=multi-user.target

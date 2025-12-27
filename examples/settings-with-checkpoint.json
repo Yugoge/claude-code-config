@@ -1,0 +1,47 @@
+{
+  "env": {
+    "GIT_AUTO_STAGE_ALL": "0",
+    "GIT_BLOCK_ON_UNTRACKED": "0",
+    "GIT_WARN_UNTRACKED": "1",
+    "GIT_PUSH_AUTO_STAGE": "1",
+    "GIT_AUTO_PUSH": "1",
+    "GIT_CHECKPOINT_THRESHOLD": "10",
+    "GIT_CHECKPOINT_SILENT": "0",
+    "CLAUDE_CO_AUTHOR": "Claude <noreply@anthropic.com>\nCo-Authored-By: Happy <yesreply@happy.engineering>"
+  },
+  "hooks": [
+    {
+      "matcher": "session_start",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/session_start.sh"
+        },
+        {
+          "type": "command",
+          "command": "bash ~/.claude/hooks/ensure-git-repo.sh"
+        }
+      ]
+    },
+    {
+      "matcher": "Bash\\(git commit.*\\)",
+      "type": "PostToolUse",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/post-commit-warn.sh"
+        }
+      ]
+    },
+    {
+      "matcher": "Edit|Write|NotebookEdit",
+      "type": "PostToolUse",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/smart-checkpoint.sh"
+        }
+      ]
+    }
+  ]
+}
