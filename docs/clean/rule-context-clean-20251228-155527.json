@@ -1,0 +1,18 @@
+{
+  "request_id": "clean-20251228-155527",
+  "timestamp": "2025-12-28T15:55:27Z",
+  "orchestrator": {
+    "requirement": "Discover and document folder organization rules",
+    "analysis": {
+      "project_root": "/root/.claude",
+      "folders_to_analyze": ["agents", "commands", "docs", "scripts", "hooks"]
+    }
+  },
+  "full_context": {
+    "codebase_state": {
+      "git_status": "On branch master\nnothing to commit, working tree clean",
+      "current_branch": "master"
+    },
+    "discovered_folders": ["agents", "commands", "docs", "scripts", "hooks"]
+  }
+}
