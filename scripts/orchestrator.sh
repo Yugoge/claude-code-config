@@ -190,6 +190,43 @@ clean_inspect() {
   PROJECT_ROOT=$(jq -r '.orchestrator.analysis.project_root // "."' "$CONTEXT_FILE")
   echo "Project: $PROJECT_ROOT" >&2
 
+  # Extract request ID for rule-context verification
+  REQUEST_ID=$(jq -r '.request_id // ""' "$CONTEXT_FILE")
+  RULE_CONTEXT_FILE="docs/clean/rule-context-${REQUEST_ID}.json"
+
+  # CRITICAL PREREQUISITE CHECK: Verify rule-inspector was executed
+  # Step 3.5 MUST complete before clean-inspect (Step 4)
+  echo "🔍 Checking prerequisite: rule-inspector completion..." >&2
+
+  # Check if key folders need documentation
+  KEY_FOLDERS=("agents" "scripts" "docs" "hooks" "commands")
+  NEEDS_RULES=false
+
+  for folder in "${KEY_FOLDERS[@]}"; do
+    if [[ ! -f "$PROJECT_ROOT/$folder/INDEX.md" ]] || [[ ! -f "$PROJECT_ROOT/$folder/README.md" ]]; then
+      NEEDS_RULES=true
+      echo "⚠️  Missing documentation in $folder/" >&2
+      break
+    fi
+  done
+
+  # If rules are needed but rule-context doesn't exist, BLOCK execution
+  if [[ "$NEEDS_RULES" == "true" ]] && [[ ! -f "$RULE_CONTEXT_FILE" ]]; then
+    echo "❌ ERROR: Rule initialization required but not completed!" >&2
+    echo "   Step 3.5 (rule-inspector) MUST execute before Step 4 (clean-inspect)" >&2
+    echo "   Missing: $RULE_CONTEXT_FILE" >&2
+    echo "" >&2
+    echo "   Action required: Execute Step 3.5 first:" >&2
+    echo "   ~/.claude/scripts/orchestrator.sh rule-inspect <rule-context-json>" >&2
+    exit 1
+  fi
+
+  if [[ "$NEEDS_RULES" == "false" ]]; then
+    echo "✅ Rule initialization not needed (all folders documented)" >&2
+  else
+    echo "✅ Rule initialization completed: $RULE_CONTEXT_FILE" >&2
+  fi
+
   # Validate required fields
   if ! jq -e '.orchestrator.requirement' "$CONTEXT_FILE" >/dev/null 2>&1; then
     echo "Error: Missing requirement in context" >&2

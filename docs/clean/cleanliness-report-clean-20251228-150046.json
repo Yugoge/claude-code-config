@@ -1,0 +1,368 @@
+{
+  "request_id": "clean-20251228-150046",
+  "timestamp": "2025-12-28T15:00:46Z",
+  "inspector": "cleanliness-inspector",
+  "findings": {
+    "misplaced_docs": [
+      {
+        "file": "/root/.claude/CLAUDE.md",
+        "current_location": "project_root",
+        "recommended_location": "docs/reference/claude-config.md",
+        "reason": "Global configuration file should be in docs/reference/ as it documents Claude Code configuration",
+        "severity": "major"
+      },
+      {
+        "file": "/root/.claude/docs/CONFIGURATION_SUMMARY.md",
+        "current_location": "docs/",
+        "recommended_location": "docs/reference/configuration-summary.md",
+        "reason": "Configuration reference should be categorized in docs/reference/",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/SLASHCOMMAND_QUICK_REFERENCE.md",
+        "current_location": "docs/",
+        "recommended_location": "docs/reference/slashcommand-quick-reference.md",
+        "reason": "Quick reference should be categorized in docs/reference/",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/PROJECT_SETTINGS_TEMPLATE_GUIDE.md",
+        "current_location": "docs/",
+        "recommended_location": "docs/guides/project-settings-template-guide.md",
+        "reason": "Template guide should be categorized in docs/guides/",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/INTEGRATION_GUIDE.md",
+        "current_location": "docs/",
+        "recommended_location": "docs/guides/integration-guide.md",
+        "reason": "Integration guide should be categorized in docs/guides/",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/SLASHCOMMAND_ROLLOUT_SUMMARY.md",
+        "current_location": "docs/",
+        "recommended_location": "docs/reports/slashcommand-rollout-summary.md",
+        "reason": "Rollout summary is a report and should be categorized in docs/reports/",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/git-fswatch.md",
+        "current_location": "docs/",
+        "recommended_location": "docs/guides/git-fswatch.md",
+        "reason": "Git fswatch guide should be categorized in docs/guides/",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/lock-file-handling.md",
+        "current_location": "docs/",
+        "recommended_location": "docs/guides/lock-file-handling.md",
+        "reason": "Lock file handling guide should be categorized in docs/guides/",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/fswatch-quickref.md",
+        "current_location": "docs/",
+        "recommended_location": "docs/reference/fswatch-quickref.md",
+        "reason": "Quick reference should be categorized in docs/reference/",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/auto-sync-quickstart.md",
+        "current_location": "docs/",
+        "recommended_location": "docs/guides/auto-sync-quickstart.md",
+        "reason": "Quickstart guide should be categorized in docs/guides/",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/clean/completion-20251226-115500.md",
+        "current_location": "docs/clean/",
+        "recommended_location": "docs/reports/clean-completion-20251226-115500.md",
+        "reason": "Completion report should be in docs/reports/, docs/clean/ should only contain workflow JSON files",
+        "severity": "major"
+      },
+      {
+        "file": "/root/.claude/docs/clean/test-results-20251228-145537.md",
+        "current_location": "docs/clean/",
+        "recommended_location": "docs/reports/clean-test-results-20251228-145537.md",
+        "reason": "Test results report should be in docs/reports/, docs/clean/ should only contain workflow JSON files",
+        "severity": "major"
+      },
+      {
+        "file": "/root/.claude/docs/dev/completion-dev-20251228-143334.md",
+        "current_location": "docs/dev/",
+        "recommended_location": "docs/reports/dev-completion-20251228-143334.md",
+        "reason": "Completion report should be in docs/reports/, docs/dev/ should only contain workflow JSON files",
+        "severity": "major"
+      },
+      {
+        "file": "/root/.claude/docs/dev/completion-20251226-160000.md",
+        "current_location": "docs/dev/",
+        "recommended_location": "docs/reports/dev-completion-20251226-160000.md",
+        "reason": "Completion report should be in docs/reports/, docs/dev/ should only contain workflow JSON files",
+        "severity": "major"
+      }
+    ],
+    "naming_violations": [
+      {
+        "file": "/root/.claude/docs/CONFIGURATION_SUMMARY.md",
+        "current_name": "CONFIGURATION_SUMMARY.md",
+        "recommended_name": "configuration-summary.md",
+        "reason": "Should use kebab-case naming instead of UPPERCASE",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/SLASHCOMMAND_QUICK_REFERENCE.md",
+        "current_name": "SLASHCOMMAND_QUICK_REFERENCE.md",
+        "recommended_name": "slashcommand-quick-reference.md",
+        "reason": "Should use kebab-case naming instead of UPPERCASE",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/PROJECT_SETTINGS_TEMPLATE_GUIDE.md",
+        "current_name": "PROJECT_SETTINGS_TEMPLATE_GUIDE.md",
+        "recommended_name": "project-settings-template-guide.md",
+        "reason": "Should use kebab-case naming instead of UPPERCASE",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/INTEGRATION_GUIDE.md",
+        "current_name": "INTEGRATION_GUIDE.md",
+        "recommended_name": "integration-guide.md",
+        "reason": "Should use kebab-case naming instead of UPPERCASE",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/SLASHCOMMAND_ROLLOUT_SUMMARY.md",
+        "current_name": "SLASHCOMMAND_ROLLOUT_SUMMARY.md",
+        "recommended_name": "slashcommand-rollout-summary.md",
+        "reason": "Should use kebab-case naming instead of UPPERCASE",
+        "severity": "minor"
+      }
+    ],
+    "archive_candidates": [
+      {
+        "file": "/root/.claude/docs/qa-improvements-summary.md",
+        "last_modified": "2025-10-28T11:26:09Z",
+        "recommended_action": "archive",
+        "archive_path": "docs/archive/2025-10/qa-improvements-summary.md",
+        "reason": "Summary report from October 2025 (60+ days old), matches *-summary.md pattern",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/auto-sync-analysis.md",
+        "last_modified": "2025-10-28T14:29:25Z",
+        "recommended_action": "archive",
+        "archive_path": "docs/archive/2025-10/auto-sync-analysis.md",
+        "reason": "Analysis document from October 2025 (60+ days old), matches *-analysis.md pattern",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/git-tracking-solution-plan.md",
+        "last_modified": "2025-10-28T10:28:52Z",
+        "recommended_action": "archive",
+        "archive_path": "docs/archive/2025-10/git-tracking-solution-plan.md",
+        "reason": "Planning document from October 2025 (60+ days old), matches *-plan.md pattern",
+        "severity": "minor"
+      }
+    ],
+    "dev_context_files": [
+      {
+        "file": "/root/.claude/docs/clean/context-20251226-115500.json",
+        "reason": "Previous clean workflow context from Dec 26, 2 days old",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/clean/context-clean-20251228-145537.json",
+        "reason": "Recent clean workflow context from earlier today",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/clean/context-clean-20251228-150046.json",
+        "reason": "Current clean workflow context (active)",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/clean/context-iter2-20251226-115500.json",
+        "reason": "Iteration 2 context from Dec 26, 2 days old",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/clean/dev-report-20251226-115500.json",
+        "reason": "Dev report from Dec 26, 2 days old",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/clean/dev-report-iter2-20251226-115500.json",
+        "reason": "Iteration 2 dev report from Dec 26, 2 days old",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/clean/qa-input-20251226-115500.json",
+        "reason": "QA input from Dec 26, 2 days old",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/clean/qa-report-20251226-115500.json",
+        "reason": "QA report from Dec 26, 2 days old",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/dev/context-20251226-160000.json",
+        "reason": "Dev workflow context from Dec 26, 2 days old",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/dev/context-20251228-143334.json",
+        "reason": "Recent dev workflow context from earlier today",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/dev/dev-report-20251226-160000.json",
+        "reason": "Dev report from Dec 26, 2 days old",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/dev/dev-report-20251228-143334.json",
+        "reason": "Recent dev report from earlier today",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/dev/qa-input-20251226-160000.json",
+        "reason": "QA input from Dec 26, 2 days old",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/dev/qa-input-20251228-143334.json",
+        "reason": "Recent QA input from earlier today",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/dev/qa-report-20251226-160000.json",
+        "reason": "QA report from Dec 26, 2 days old",
+        "recommended_action": "keep",
+        "severity": "info"
+      },
+      {
+        "file": "/root/.claude/docs/dev/qa-report-20251228-143334.json",
+        "reason": "Recent QA report from earlier today",
+        "recommended_action": "keep",
+        "severity": "info"
+      }
+    ],
+    "temp_files": [
+      {
+        "file": "/root/.claude/settings.local.json.backup",
+        "pattern_matched": "*.backup",
+        "commit_count": 0,
+        "last_modified": "unknown",
+        "references": 0,
+        "safe_to_delete": true,
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/README.md.backup",
+        "pattern_matched": "*.backup",
+        "commit_count": 0,
+        "last_modified": "unknown",
+        "references": 0,
+        "safe_to_delete": true,
+        "severity": "minor"
+      }
+    ],
+    "duplicate_scripts": [],
+    "duplicate_tests": [],
+    "non_functional_files": [
+      {
+        "file": "/root/.claude/venv/**/__pycache__/",
+        "category": "build_artifact",
+        "safe_to_delete": false,
+        "reason": "Part of Python virtual environment, should not be deleted (venv is functional)",
+        "severity": "info"
+      }
+    ],
+    "docs_categorization": [
+      {
+        "file": "/root/.claude/docs/git-fswatch.md",
+        "current_location": "docs/git-fswatch.md",
+        "suggested_category": "guides",
+        "suggested_location": "docs/guides/git-fswatch.md",
+        "pattern_matched": "git-* guide pattern",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/lock-file-handling.md",
+        "current_location": "docs/lock-file-handling.md",
+        "suggested_category": "guides",
+        "suggested_location": "docs/guides/lock-file-handling.md",
+        "pattern_matched": "handling guide pattern",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/auto-sync-quickstart.md",
+        "current_location": "docs/auto-sync-quickstart.md",
+        "suggested_category": "guides",
+        "suggested_location": "docs/guides/auto-sync-quickstart.md",
+        "pattern_matched": "*-quickstart.md guide pattern",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/fswatch-quickref.md",
+        "current_location": "docs/fswatch-quickref.md",
+        "suggested_category": "reference",
+        "suggested_location": "docs/reference/fswatch-quickref.md",
+        "pattern_matched": "*-quickref.md reference pattern",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/qa-improvements-summary.md",
+        "current_location": "docs/qa-improvements-summary.md",
+        "suggested_category": "archive",
+        "suggested_location": "docs/archive/2025-10/qa-improvements-summary.md",
+        "pattern_matched": "*-summary.md + age > 30 days",
+        "last_modified": "60 days ago",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/auto-sync-analysis.md",
+        "current_location": "docs/auto-sync-analysis.md",
+        "suggested_category": "archive",
+        "suggested_location": "docs/archive/2025-10/auto-sync-analysis.md",
+        "pattern_matched": "*-analysis.md + age > 30 days",
+        "last_modified": "60 days ago",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/git-tracking-solution-plan.md",
+        "current_location": "docs/git-tracking-solution-plan.md",
+        "suggested_category": "archive",
+        "suggested_location": "docs/archive/2025-10/git-tracking-solution-plan.md",
+        "pattern_matched": "*-plan.md + age > 30 days",
+        "last_modified": "60 days ago",
+        "severity": "minor"
+      }
+    ]
+  },
+  "summary": {
+    "total_issues": 47,
+    "critical": 0,
+    "major": 5,
+    "minor": 40,
+    "info": 18,
+    "estimated_space_saved": "0.01 MB"
+  }
+}
