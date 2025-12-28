@@ -213,10 +213,10 @@ clean_inspect() {
   # If rules are needed but rule-context doesn't exist, BLOCK execution
   if [[ "$NEEDS_RULES" == "true" ]] && [[ ! -f "$RULE_CONTEXT_FILE" ]]; then
     echo "❌ ERROR: Rule initialization required but not completed!" >&2
-    echo "   Step 3.5 (rule-inspector) MUST execute before Step 4 (clean-inspect)" >&2
+    echo "   Step 4 (rule-inspector) MUST execute before Step 5 (clean-inspect)" >&2
     echo "   Missing: $RULE_CONTEXT_FILE" >&2
     echo "" >&2
-    echo "   Action required: Execute Step 3.5 first:" >&2
+    echo "   Action required: Execute Step 4 first:" >&2
     echo "   ~/.claude/scripts/orchestrator.sh rule-inspect <rule-context-json>" >&2
     exit 1
   fi

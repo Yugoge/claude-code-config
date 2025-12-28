@@ -14,16 +14,19 @@ def get_todos():
         list[dict]: Todo items with content, activeForm, status
     """
     return [
-        {"content": "Step 1: Scan Project Structure", "activeForm": "Step 1: Scanning Project Structure", "status": "pending"},
-        {"content": "Step 2: Invoke Cleanliness Inspector", "activeForm": "Step 2: Invoking Cleanliness Inspector", "status": "pending"},
-        {"content": "Step 3: Invoke Style Inspector", "activeForm": "Step 3: Invoking Style Inspector", "status": "pending"},
-        {"content": "Step 4: Merge Inspection Reports", "activeForm": "Step 4: Merging Inspection Reports", "status": "pending"},
-        {"content": "Step 5: Present Combined Report to User", "activeForm": "Step 5: Presenting Combined Report to User", "status": "pending"},
-        {"content": "Step 6: Collect User Approval", "activeForm": "Step 6: Collecting User Approval", "status": "pending"},
-        {"content": "Step 7: Create Safety Checkpoint (Git Commit)", "activeForm": "Step 7: Creating Safety Checkpoint", "status": "pending"},
-        {"content": "Step 8: Invoke Cleaner with Approvals", "activeForm": "Step 8: Invoking Cleaner with Approvals", "status": "pending"},
-        {"content": "Step 9: Verify Cleanup Results", "activeForm": "Step 9: Verifying Cleanup Results", "status": "pending"},
-        {"content": "Step 10: Generate Completion Report", "activeForm": "Step 10: Generating Completion Report", "status": "pending"}
+        {"content": "Step 1: Initialize Workflow", "activeForm": "Step 1: Initializing Workflow", "status": "pending"},
+        {"content": "Step 2: Scan Project Structure", "activeForm": "Step 2: Scanning Project Structure", "status": "pending"},
+        {"content": "Step 3: Build Inspection Context", "activeForm": "Step 3: Building Inspection Context", "status": "pending"},
+        {"content": "Step 4: Rule Initialization (MANDATORY PRE-INSPECTION)", "activeForm": "Step 4: Initializing Folder Rules", "status": "pending"},
+        {"content": "Step 5: Invoke Cleanliness Inspector", "activeForm": "Step 5: Invoking Cleanliness Inspector", "status": "pending"},
+        {"content": "Step 6: Invoke Style Inspector", "activeForm": "Step 6: Invoking Style Inspector", "status": "pending"},
+        {"content": "Step 7: Merge Inspection Reports", "activeForm": "Step 7: Merging Inspection Reports", "status": "pending"},
+        {"content": "Step 8: Present Combined Report to User", "activeForm": "Step 8: Presenting Combined Report to User", "status": "pending"},
+        {"content": "Step 9: Collect User Approval", "activeForm": "Step 9: Collecting User Approval", "status": "pending"},
+        {"content": "Step 10: Create Safety Checkpoint (Git Commit)", "activeForm": "Step 10: Creating Safety Checkpoint", "status": "pending"},
+        {"content": "Step 11: Invoke Cleaner with Approvals", "activeForm": "Step 11: Invoking Cleaner with Approvals", "status": "pending"},
+        {"content": "Step 12: Verify Cleanup Results", "activeForm": "Step 12: Verifying Cleanup Results", "status": "pending"},
+        {"content": "Step 13: Generate Completion Report", "activeForm": "Step 13: Generating Completion Report", "status": "pending"}
     ]
 
 
