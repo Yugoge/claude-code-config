@@ -1,0 +1,36 @@
+{
+  "request_id": "clean-20251228-145537",
+  "timestamp": "2025-12-28T14:55:37Z",
+  "orchestrator": {
+    "requirement": "Inspect project for file organization issues and development standards violations",
+    "analysis": {
+      "project_root": "/root/.claude",
+      "project_type": "Generic",
+      "constraints": [
+        "preserve functional files",
+        "safety first - never delete without confirmation",
+        "archive docs rather than delete"
+      ]
+    }
+  },
+  "full_context": {
+    "codebase_state": {
+      "git_status": "clean",
+      "current_branch": "master",
+      "recent_commits": [
+        "e235faf7 checkpoint: Auto-save at 2025-12-28 14:50:41",
+        "d72db9ac checkpoint: Auto-save at 2025-12-28 14:40:29",
+        "26fcef75 chore: update cleanliness-inspector agent"
+      ]
+    },
+    "file_counts": {
+      "total": 21865,
+      "docs": 222,
+      "scripts": 211,
+      "tests": 40
+    }
+  },
+  "parameters": {
+    "project_root": "/root/.claude"
+  }
+}
