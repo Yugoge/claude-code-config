@@ -118,6 +118,71 @@ Create comprehensive JSON context for inspectors:
 
 Save to: `docs/clean/context-{REQUEST_ID}.json`
 
+### Step 3.5: Rule Initialization (Optional)
+
+Initialize folder rules if not already present:
+
+**Skip if**:
+- All folders already have INDEX.md and README.md
+- This is a repeat /clean execution
+
+**Execute if**:
+- First time running /clean on project
+- New folders detected without documentation
+
+```bash
+# Discover all folders dynamically
+FOLDERS=$(~/.claude/scripts/discover-folders.sh "$PROJECT_ROOT")
+
+# Check if rule initialization needed
+NEEDS_INIT=false
+while IFS= read -r folder; do
+  if [[ ! -f "$PROJECT_ROOT/$folder/INDEX.md" ]] || [[ ! -f "$PROJECT_ROOT/$folder/README.md" ]]; then
+    NEEDS_INIT=true
+    break
+  fi
+done <<< "$FOLDERS"
+
+# Initialize rules if needed
+if [[ "$NEEDS_INIT" == "true" ]]; then
+  echo "Initializing folder rules..." >&2
+
+  # Create context for rule-inspector
+  RULE_CONTEXT="docs/clean/rule-context-{REQUEST_ID}.json"
+
+  jq -n \
+    --arg request_id "$REQUEST_ID" \
+    --arg timestamp "$TIMESTAMP" \
+    --arg project_root "$PROJECT_ROOT" \
+    --argjson folders "$(echo "$FOLDERS" | jq -R . | jq -s .)" \
+    '{
+      request_id: $request_id,
+      timestamp: $timestamp,
+      orchestrator: {
+        requirement: "Discover and document folder organization rules",
+        analysis: {
+          project_root: $project_root,
+          folders_to_analyze: $folders
+        }
+      },
+      full_context: {
+        codebase_state: {
+          git_status: "output of git status",
+          current_branch: "branch name"
+        },
+        discovered_folders: $folders
+      }
+    }' > "$RULE_CONTEXT"
+
+  # Invoke rule-inspector subagent
+  ~/.claude/scripts/orchestrator.sh rule-inspect "$RULE_CONTEXT"
+
+  echo "Folder rules initialized" >&2
+else
+  echo "Folder rules already present, skipping initialization" >&2
+fi
+```
+
 ### Step 4: Invoke Cleanliness Inspector
 
 Delegate to cleanliness-inspector subagent:

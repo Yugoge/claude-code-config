@@ -42,9 +42,7 @@ You receive JSON context with this structure:
     "file_counts": {"total": 0, "docs": 0, "scripts": 0, "tests": 0}
   },
   "parameters": {
-    "docs_directory": "docs/",
-    "scripts_directory": "scripts/",
-    "tests_directory": "tests/"
+    "project_root": "/absolute/path/to/project"
   }
 }
 ```
@@ -53,22 +51,80 @@ You receive JSON context with this structure:
 
 ## Inspection Checklist
 
+### 0. Discover Folders and Load Rules
+
+Before inspection, discover all folders dynamically and load their rules:
+
+```bash
+# Get project root from parameters
+PROJECT_ROOT=$(jq -r '.parameters.project_root' context.json)
+
+# Discover all folders
+FOLDERS=$(~/.claude/scripts/discover-folders.sh "$PROJECT_ROOT")
+
+# For each folder, read INDEX.md and README.md if they exist
+while IFS= read -r folder; do
+  if [[ -f "$PROJECT_ROOT/$folder/README.md" ]]; then
+    # Extract rules from README.md
+    # - Allowed file types
+    # - Naming conventions
+    # - Organization rules
+    echo "Loaded rules for: $folder"
+  fi
+done <<< "$FOLDERS"
+```
+
+**Folder rule format (from README.md)**:
+```
+## Allowed File Types
+- .md, .json (parse to array)
+
+## Naming Convention
+- kebab-case (parse to convention string)
+
+## Organization Rules
+- (parse to rules array)
+```
+
+**Apply folder-specific rules during inspection**:
+```
+FOR each discovered folder:
+  READ folder/README.md for rules
+  IF folder has specific allowed types:
+    CHECK files match allowed types
+  IF folder has naming convention:
+    CHECK files follow naming convention
+  IF folder has organization rules:
+    CHECK compliance with rules
+```
+
 ### 1. Document Structure Violations
 
-Scan for markdown files in wrong locations:
+Scan for markdown files using discovered folder rules:
 
-**Rules**:
-- Root directory: ONLY README.md and ARCHITECTURE.md allowed
-- All other .md files MUST be in docs/
-- docs/ files MUST use kebab-case naming
+**Dynamic rules from folder README.md**:
+- Read docs/README.md for allowed file locations
+- Read root README.md for root-level file rules
+- Apply folder-specific naming conventions from each README.md
 
 **Detection**:
 ```bash
-# Find .md files in root (excluding allowed)
-find . -maxdepth 1 -name "*.md" -type f ! -name "README.md" ! -name "ARCHITECTURE.md"
+# Find .md files in root using dynamic rules from root README.md
+# If root README.md exists, read allowed files from it
+# Otherwise use defaults: README.md, ARCHITECTURE.md
 
-# Detect naming violations using helper
-~/.claude/scripts/normalize-doc-names.sh docs/
+# For each discovered folder with .md files, check naming
+while IFS= read -r folder; do
+  if [[ -f "$folder/README.md" ]]; then
+    # Extract naming convention from folder's README.md
+    NAMING_CONVENTION=$(grep -A2 "## Naming Convention" "$folder/README.md" | tail -1)
+
+    # Apply to all .md files in that folder
+    if [[ "$NAMING_CONVENTION" == *"kebab-case"* ]]; then
+      ~/.claude/scripts/normalize-doc-names.sh "$folder/"
+    fi
+  fi
+done <<< "$FOLDERS"
 ```
 
 **Report structure**:
@@ -447,47 +503,63 @@ Detect documentation describing deleted features:
 
 **Detection logic**:
 ```bash
-# For each docs/*.md file (excluding archive, dev, clean subdirs)
-for doc_file in docs/*.md docs/**/*.md; do
-  [[ ! -f "$doc_file" ]] && continue
-  [[ "$doc_file" =~ docs/archive/ ]] && continue
-  [[ "$doc_file" =~ docs/dev/ ]] && continue
-  [[ "$doc_file" =~ docs/clean/ ]] && continue
-  [[ "$doc_file" =~ INDEX.md$ ]] && continue
+# For each discovered folder, scan .md files (excluding INDEX.md, README.md)
+# Read folder's README.md for exclusion rules if present
+while IFS= read -r folder; do
+  [[ ! -d "$folder" ]] && continue
 
-  # Extract potential feature/module names from doc
-  # Look for: "## Module: xxx", "Feature: xxx", code blocks with filenames
+  # Read folder-specific exclusions from README.md if exists
+  EXCLUDE_PATTERN=""
+  if [[ -f "$folder/README.md" ]]; then
+    # Extract any exclusion patterns mentioned in organization rules
+    EXCLUDE_PATTERN=$(grep -A5 "## Organization Rules" "$folder/README.md" | grep -oE "archive|dev|clean" || true)
+  fi
 
-  # Check if doc mentions specific files
-  mentioned_files=$(grep -oE '`[a-zA-Z0-9_/-]+\.(py|js|ts|sh|go|rs)`' "$doc_file" | tr -d '`' || true)
+  # Scan .md files in this folder
+  for doc_file in "$folder"/*.md "$folder"/**/*.md; do
+    [[ ! -f "$doc_file" ]] && continue
+    [[ "$doc_file" =~ INDEX.md$ ]] && continue
+    [[ "$doc_file" =~ README.md$ ]] && continue
 
-  if [[ -n "$mentioned_files" ]]; then
-    missing_count=0
-    total_count=0
+    # Apply folder-specific exclusions
+    if [[ -n "$EXCLUDE_PATTERN" ]] && [[ "$doc_file" =~ $EXCLUDE_PATTERN ]]; then
+      continue
+    fi
 
-    while IFS= read -r mentioned_file; do
-      total_count=$((total_count + 1))
-      if [[ ! -f "$mentioned_file" ]]; then
-        missing_count=$((missing_count + 1))
-      fi
-    done <<< "$mentioned_files"
+    # Extract potential feature/module names from doc
+    # Look for: "## Module: xxx", "Feature: xxx", code blocks with filenames
 
-    # If > 50% of mentioned files are missing, likely historical
-    if [[ $total_count -gt 0 ]]; then
-      missing_percentage=$((missing_count * 100 / total_count))
-      if [[ $missing_percentage -gt 50 ]]; then
-        echo "$doc_file mentions $missing_count/$total_count missing files (${missing_percentage}%)"
+    # Check if doc mentions specific files
+    mentioned_files=$(grep -oE '`[a-zA-Z0-9_/-]+\.(py|js|ts|sh|go|rs)`' "$doc_file" | tr -d '`' || true)
+
+    if [[ -n "$mentioned_files" ]]; then
+      missing_count=0
+      total_count=0
+
+      while IFS= read -r mentioned_file; do
+        total_count=$((total_count + 1))
+        if [[ ! -f "$mentioned_file" ]]; then
+          missing_count=$((missing_count + 1))
+        fi
+      done <<< "$mentioned_files"
+
+      # If > 50% of mentioned files are missing, likely historical
+      if [[ $total_count -gt 0 ]]; then
+        missing_percentage=$((missing_count * 100 / total_count))
+        if [[ $missing_percentage -gt 50 ]]; then
+          echo "$doc_file mentions $missing_count/$total_count missing files (${missing_percentage}%)"
+        fi
       fi
     fi
-  fi
 
-  # Also check last modified date
-  file_age_days=$(( ($(date +%s) - $(stat -c %Y "$doc_file" 2>/dev/null || stat -f %m "$doc_file" 2>/dev/null)) / 86400 ))
+    # Also check last modified date
+    file_age_days=$(( ($(date +%s) - $(stat -c %Y "$doc_file" 2>/dev/null || stat -f %m "$doc_file" 2>/dev/null)) / 86400 ))
 
-  if [[ $file_age_days -gt 90 ]] && [[ $missing_percentage -gt 30 ]]; then
-    echo "$doc_file is likely historical (old + references deleted code)"
-  fi
-done
+    if [[ $file_age_days -gt 90 ]] && [[ ${missing_percentage:-0} -gt 30 ]]; then
+      echo "$doc_file is likely historical (old + references deleted code)"
+    fi
+  done
+done <<< "$FOLDERS"
 ```
 
 **Report structure**:
