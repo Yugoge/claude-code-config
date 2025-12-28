@@ -237,7 +237,55 @@ Example:
 
 ---
 
-### 7. Auto-Update Settings.json Permissions
+### 7. TodoWrite Integration for Multi-Step Workflows
+
+**CRITICAL**: For workflows with multiple steps, create a todo checklist script.
+
+**When to create todo script**:
+- Workflow has 3+ sequential steps
+- User needs visibility into progress
+- Steps have dependencies or blocking conditions
+- Workflow is complex (e.g., /clean, /dev, multi-agent orchestration)
+
+**Todo script requirements**:
+```python
+#!/usr/bin/env python3
+# ~/.claude/scripts/todo/{workflow-name}.py
+
+import json
+
+def get_todos():
+    return [
+        {"content": "Step description", "status": "pending", "activeForm": "Present continuous form"},
+        {"content": "Next step", "status": "pending", "activeForm": "Doing next step"},
+        # ... more steps
+    ]
+
+if __name__ == "__main__":
+    print(json.dumps(get_todos(), indent=2))
+```
+
+**Naming convention**:
+- Format: `~/.claude/scripts/todo/{workflow-name}.py`
+- Examples: `clean.py`, `dev.py`, `refactor.py`
+- NOT: `todo-helper.py`, `checklist.py` (too generic)
+
+**Integration**:
+- Workflow command should call: `python ~/.claude/scripts/todo/{workflow-name}.py`
+- Agent executing workflow uses TodoWrite tool to update status
+- Each step transitions: pending → in_progress → completed
+
+**Example** (from /clean workflow):
+```bash
+# Step 1 in /clean command
+python ~/.claude/scripts/todo/clean.py
+```
+
+Agent then uses TodoWrite to mark steps as in_progress/completed as workflow progresses.
+
+---
+
+### 8. Auto-Update Settings.json Permissions
 
 **CRITICAL**: When creating new functionality, automatically update permissions.
 
@@ -406,6 +454,8 @@ Before returning execution report, verify:
 - [ ] Git analysis referenced in rationale
 - [ ] Exit codes documented
 - [ ] Usage examples provided
+- [ ] **CRITICAL: Todo script created/updated** (if workflow has multiple steps, create `~/.claude/scripts/todo/{workflow-name}.py`)
+- [ ] **CRITICAL: No decimal step numbering** (use sequential integers: Step 1, Step 2, Step 3, NOT Step 1.1, Step 1.2)
 
 ---
 
@@ -455,18 +505,33 @@ api_call()
 
 **Decimal or letter step numbering**:
 ```bash
-# BAD
+# BAD (creates confusion, hard to track progress)
 # Step 1: Do thing
 # Step 1.1: Sub-thing
 # Step 1.2: Another sub-thing
 # Step 2: Next thing
+# Step 2.1: Sub-step
+# Step 2.1.1: Nested sub-step (WTF?)
 
-# GOOD (resequence to integers)
+# GOOD (resequence to integers - clear, trackable)
 # Step 1: Do thing
 # Step 2: Sub-thing
 # Step 3: Another sub-thing
 # Step 4: Next thing
+# Step 5: Sub-step
+# Step 6: Nested operation
 ```
+
+**Why decimal numbering is prohibited**:
+1. **TodoWrite incompatible**: TodoWrite tracks linear progress, not nested hierarchies
+2. **Ambiguous priority**: Is Step 1.1 more important than Step 2? Unclear.
+3. **Hard to reference**: "Step 1.2.3" is harder to communicate than "Step 5"
+4. **Git commit confusion**: "Completed Step 1.1" is less clear than "Completed Step 2"
+
+**How to handle sub-tasks**:
+- If workflow has sub-tasks, create separate todo items for each
+- Use descriptive names instead of nesting: "Validate config" not "Sub-step 1.1: validation"
+- If grouping needed, use markdown sections (## Section) not decimal steps
 
 ---
 

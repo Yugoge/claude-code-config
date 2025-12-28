@@ -118,9 +118,9 @@ Create comprehensive JSON context for inspectors:
 
 Save to: `docs/clean/context-{REQUEST_ID}.json`
 
-### Step 3.5: Rule Initialization ⚠️ MANDATORY PRE-INSPECTION
+### Step 4: Rule Initialization ⚠️ MANDATORY PRE-INSPECTION
 
-**CRITICAL**: This step MUST execute BEFORE Step 4. DO NOT SKIP unless explicitly verified.
+**CRITICAL**: This step MUST execute BEFORE Step 5. DO NOT SKIP unless explicitly verified.
 
 Initialize folder rules to establish baseline documentation:
 
@@ -194,7 +194,7 @@ if [[ ! -f "docs/clean/rule-context-$REQUEST_ID.json" ]] && [[ "$NEEDS_INIT" == 
 fi
 ```
 
-**Verification**: Before proceeding to Step 4, you MUST confirm one of:
+**Verification**: Before proceeding to Step 5, you MUST confirm one of:
 - ✅ Rule initialization completed (rule-context JSON exists)
 - ✅ Rule initialization was not needed (all folders documented)
 
@@ -202,7 +202,7 @@ fi
 
 ---
 
-### Step 4: Invoke Cleanliness Inspector
+### Step 5: Invoke Cleanliness Inspector
 
 Delegate to cleanliness-inspector subagent:
 
@@ -240,7 +240,7 @@ Expected output structure:
 }
 ```
 
-### Step 5: Invoke Style Inspector
+### Step 6: Invoke Style Inspector
 
 Delegate to style-inspector subagent:
 
@@ -277,7 +277,7 @@ Expected output structure:
 }
 ```
 
-### Step 6: Merge Inspection Reports
+### Step 7: Merge Inspection Reports
 
 Combine both reports using orchestrator:
 
@@ -289,7 +289,7 @@ Combine both reports using orchestrator:
 Orchestrator merges and writes:
 - `docs/clean/combined-report-{REQUEST_ID}.json`
 
-### Step 7: Present Combined Report to User
+### Step 8: Present Combined Report to User
 
 Format and display findings:
 
@@ -340,7 +340,7 @@ Format and display findings:
 5. Cancel and generate report only
 ```
 
-### Step 8: Collect User Approval
+### Step 9: Collect User Approval
 
 Based on user selection, build approval context:
 
@@ -385,7 +385,7 @@ Generate approval JSON:
 
 Save to: `docs/clean/user-approvals-{REQUEST_ID}.json`
 
-### Step 9: Create Safety Checkpoint
+### Step 10: Create Safety Checkpoint
 
 Before execution, create git checkpoint:
 
@@ -400,7 +400,7 @@ CHECKPOINT_COMMIT=$(git rev-parse HEAD)
   "$CHECKPOINT_COMMIT"
 ```
 
-### Step 10: Invoke Cleaner with Approvals
+### Step 11: Invoke Cleaner with Approvals
 
 Merge approvals into context:
 
@@ -452,7 +452,7 @@ Expected output structure:
 }
 ```
 
-### Step 11: Verify Cleanup Results
+### Step 12: Verify Cleanup Results
 
 Review git changes:
 
@@ -492,7 +492,7 @@ Present verification summary:
 4. See detailed report: docs/clean/completion-{REQUEST_ID}.md
 ```
 
-### Step 12: Generate Completion Report
+### Step 13: Generate Completion Report
 
 Create comprehensive completion report:
 
