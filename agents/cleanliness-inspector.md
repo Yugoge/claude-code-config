@@ -618,6 +618,233 @@ done
 
 **Severity**: minor (categorization improves organization but doesn't affect functionality)
 
+### 13. Obsolete Functionality Detection
+
+Detect superseded, deprecated, or unreachable code paths:
+
+**Purpose**: Find code/features that have been replaced or are no longer functional but remain in the codebase.
+
+**Detection rules**:
+
+**1. Git History Feature Replacement**
+
+Analyze git commits for feature supersession:
+
+```bash
+# Search git log for replacement/deprecation patterns (last 180 days)
+git log --all --since="180 days ago" --grep="replace\|supersede\|deprecat" \
+  --pretty=format:"%H|%s|%ai" | while IFS='|' read -r commit_hash commit_msg commit_date; do
+
+  # Extract old feature name from commit message patterns
+  # "replace X with Y", "supersede X", "deprecate X in favor of Y"
+
+  if echo "$commit_msg" | grep -qiE "(replace|supersed|deprecat)"; then
+    # Get files changed in this commit
+    changed_files=$(git diff-tree --no-commit-id --name-only -r "$commit_hash")
+
+    # Check for common replacement patterns
+    if echo "$commit_msg" | grep -qiE "netlify.*github.*pages"; then
+      # Example: Check if Netlify-related code still exists
+      if grep -rq "USE_NETLIFY\|NETLIFY_AUTH_TOKEN\|deploy-to-netlify" \
+         scripts/ .claude/ 2>/dev/null; then
+        echo "$commit_hash - $commit_msg: Netlify code still exists"
+      fi
+    fi
+
+    # Generic pattern: look for "old" feature markers in changed files
+    echo "$changed_files" | while read -r file; do
+      if [[ -f "$file" ]]; then
+        # Check if file still contains legacy references
+        if grep -q "legacy\|deprecated\|old_\|obsolete" "$file" 2>/dev/null; then
+          echo "$commit_hash - $file still contains legacy markers after replacement"
+        fi
+      fi
+    done
+  fi
+done
+```
+
+**2. Dead Code Env Vars**
+
+Find environment variables referenced in code but never defined:
+
+```bash
+# Extract all env var references from code
+env_vars_in_code=$(grep -rhoE '\$\{?[A-Z_][A-Z0-9_]{2,}\}?|\bos\.environ\[.([A-Z_][A-Z0-9_]+).\]' \
+  scripts/ .claude/ src/ lib/ app/ 2>/dev/null | \
+  sed -E 's/\$\{?([A-Z_][A-Z0-9_]+)\}?/\1/g' | \
+  sed -E "s/os\.environ\[.([A-Z_][A-Z0-9_]+).\]/\1/g" | \
+  sort -u)
+
+# Check each var against definition locations
+echo "$env_vars_in_code" | while read -r var; do
+  # Skip common system vars
+  [[ "$var" =~ ^(PATH|HOME|USER|SHELL|PWD|LANG|LC_).*$ ]] && continue
+
+  # Search in env var definition locations
+  found=0
+  for location in .env .env.example README.md docs/ .claude/settings.json config/; do
+    if [[ -e "$location" ]]; then
+      if grep -rq "^${var}=\|${var}:" "$location" 2>/dev/null; then
+        found=1
+        break
+      fi
+    fi
+  done
+
+  if [[ $found -eq 0 ]]; then
+    # Find where this dead env var is referenced
+    files_using_var=$(grep -rl "\$${var}\|\${${var}}\|os.environ\[.${var}.\]" \
+      scripts/ .claude/ src/ lib/ app/ 2>/dev/null)
+
+    if [[ -n "$files_using_var" ]]; then
+      echo "Dead env var: $var referenced in $files_using_var but never defined"
+    fi
+  fi
+done
+```
+
+**3. Legacy Markers Audit**
+
+Find code/comments with legacy markers older than 30 days:
+
+```bash
+# Find files with legacy/deprecated/obsolete markers
+grep -rn "legacy\|deprecated\|obsolete\|FIXME.*old\|TODO.*remove" \
+  scripts/ .claude/ src/ lib/ app/ --include="*.sh" --include="*.py" \
+  --include="*.js" --include="*.ts" --include="*.go" --include="*.md" \
+  2>/dev/null | while IFS=':' read -r file line_num match_text; do
+
+  # Calculate file age
+  file_mod_timestamp=$(stat -c %Y "$file" 2>/dev/null || stat -f %m "$file" 2>/dev/null)
+  current_timestamp=$(date +%s)
+  file_age_days=$(( (current_timestamp - file_mod_timestamp) / 86400 ))
+
+  # Check if marker is in a file modified > 30 days ago
+  if [[ $file_age_days -gt 30 ]]; then
+    # Extract marker context (20 chars before and after)
+    marker_context=$(echo "$match_text" | sed -E 's/.*(legacy|deprecated|obsolete).*/\1/')
+
+    # Check git log to see when this line was last modified
+    line_last_modified=$(git log -1 --pretty=format:"%ai" -L"${line_num},${line_num}:${file}" 2>/dev/null)
+
+    if [[ -n "$line_last_modified" ]]; then
+      line_mod_timestamp=$(date -d "$line_last_modified" +%s 2>/dev/null || \
+        date -j -f "%Y-%m-%d %H:%M:%S %z" "$line_last_modified" +%s 2>/dev/null)
+      line_age_days=$(( (current_timestamp - line_mod_timestamp) / 86400 ))
+
+      if [[ $line_age_days -gt 30 ]]; then
+        echo "$file:$line_num - Legacy marker age: ${line_age_days} days - $match_text"
+      fi
+    fi
+  fi
+done
+```
+
+**4. Unreachable Code Paths**
+
+Detect if statements with conditions that are always false:
+
+```bash
+# Find if statements checking env vars that are never set
+grep -rn "if.*\$\|if.*os\.environ" \
+  scripts/ .claude/ src/ lib/ app/ --include="*.sh" --include="*.py" \
+  2>/dev/null | while IFS=':' read -r file line_num condition; do
+
+  # Extract env var names from condition
+  env_vars=$(echo "$condition" | grep -oE '[A-Z_][A-Z0-9_]{2,}')
+
+  all_undefined=1
+  while read -r var; do
+    [[ -z "$var" ]] && continue
+
+    # Check if var is defined anywhere
+    if grep -rq "^${var}=\|${var}:" .env .env.example README.md docs/ \
+       .claude/settings.json config/ 2>/dev/null; then
+      all_undefined=0
+      break
+    fi
+  done <<< "$env_vars"
+
+  if [[ $all_undefined -eq 1 ]] && [[ -n "$env_vars" ]]; then
+    # This condition will always be false (vars never defined)
+    echo "$file:$line_num - Unreachable: $condition (env vars never defined)"
+  fi
+done
+
+# Also check for hardcoded false conditions
+grep -rn "if false\|if 0\|if \[\[ false \]\]" \
+  scripts/ .claude/ src/ lib/ app/ --include="*.sh" --include="*.py" \
+  --include="*.js" --include="*.ts" 2>/dev/null | while IFS=':' read -r file line_num condition; do
+
+  echo "$file:$line_num - Unreachable: hardcoded false condition - $condition"
+done
+```
+
+**Report structure**:
+```json
+{
+  "obsolete_functionality": [
+    {
+      "file": "scripts/deploy-to-netlify.sh",
+      "type": "git_replacement",
+      "reason": "Feature replaced by GitHub Pages but script still exists",
+      "evidence": {
+        "git_commit": "49ce651 - feat: Add GitHub Pages deployment (supersedes Netlify)"
+      },
+      "confidence": "high",
+      "last_modified": "2025-11-28T10:30:00Z",
+      "safe_to_delete": true,
+      "severity": "major"
+    },
+    {
+      "file": "scripts/analytics/generate-graph.py",
+      "type": "dead_env_var",
+      "reason": "References NETLIFY_AUTH_TOKEN which is never defined",
+      "evidence": {
+        "env_var_name": "NETLIFY_AUTH_TOKEN"
+      },
+      "confidence": "high",
+      "last_modified": "45 days ago",
+      "safe_to_delete": false,
+      "severity": "major"
+    },
+    {
+      "file": "src/legacy_import.py",
+      "type": "legacy_marker",
+      "reason": "Contains 'deprecated' marker for 90 days",
+      "evidence": {
+        "marker_text": "# TODO: Remove this legacy import handler",
+        "marker_age_days": 90
+      },
+      "confidence": "medium",
+      "last_modified": "2025-09-28",
+      "safe_to_delete": false,
+      "severity": "major"
+    },
+    {
+      "file": "scripts/check-netlify-status.sh",
+      "type": "unreachable_code",
+      "reason": "Condition 'if $USE_NETLIFY' always false (var never set)",
+      "evidence": {
+        "condition": "if [[ -n \"$USE_NETLIFY\" ]] && [[ -n \"$NETLIFY_AUTH_TOKEN\" ]]"
+      },
+      "confidence": "high",
+      "last_modified": "60 days ago",
+      "safe_to_delete": true,
+      "severity": "major"
+    }
+  ]
+}
+```
+
+**Severity**: major (obsolete functionality misleads developers and accumulates technical debt)
+
+**Confidence levels**:
+- **high**: Git commit shows explicit replacement + old code still exists, or env var never defined anywhere
+- **medium**: Legacy marker > 30 days + circumstantial evidence (e.g., related feature replaced)
+- **low**: Only pattern matches (e.g., "legacy" in comments) without other signals
+
 ---
 
 ## Output Format
@@ -753,6 +980,24 @@ Return inspection report as JSON:
         "suggested_location": "path",
         "pattern_matched": "pattern",
         "severity": "minor"
+      }
+    ],
+    "obsolete_functionality": [
+      {
+        "file": "path",
+        "type": "git_replacement|dead_env_var|legacy_marker|unreachable_code",
+        "reason": "description",
+        "evidence": {
+          "git_commit": "hash - message",
+          "env_var_name": "VAR_NAME",
+          "marker_text": "comment text",
+          "marker_age_days": 0,
+          "condition": "if statement"
+        },
+        "confidence": "high|medium|low",
+        "last_modified": "ISO-8601 or days ago",
+        "safe_to_delete": true,
+        "severity": "major"
       }
     ]
   },
