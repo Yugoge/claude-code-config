@@ -37,13 +37,8 @@ You receive JSON context with this structure:
   },
   "full_context": {
     "codebase_state": "git status, recent commits",
-    "files_to_audit": [
-      ".claude/commands/*.md",
-      ".claude/agents/*.md",
-      "scripts/*.sh",
-      "scripts/*.py",
-      "tests/*.py"
-    ]
+    "project_root": "/path/to/project",
+    "discovered_folders": ["dynamically discovered folders"]
   }
 }
 ```
@@ -51,6 +46,45 @@ You receive JSON context with this structure:
 ---
 
 ## Standards Checklist
+
+### 0. Discover Folders and Determine Audit Scope
+
+Before auditing, discover all folders and determine which files to audit:
+
+```bash
+# Get project root from context
+PROJECT_ROOT=$(jq -r '.full_context.project_root' context.json)
+
+# Discover all folders
+FOLDERS=$(~/.claude/scripts/discover-folders.sh "$PROJECT_ROOT")
+
+# Determine files to audit based on discovered folders
+FILES_TO_AUDIT=""
+
+# Always audit .claude/ if it exists
+if [[ -d "$PROJECT_ROOT/.claude" ]]; then
+  FILES_TO_AUDIT="$FILES_TO_AUDIT $PROJECT_ROOT/.claude/commands/*.md"
+  FILES_TO_AUDIT="$FILES_TO_AUDIT $PROJECT_ROOT/.claude/agents/*.md"
+fi
+
+# Audit scripts/ if it exists
+while IFS= read -r folder; do
+  case "$folder" in
+    scripts|scripts/*)
+      FILES_TO_AUDIT="$FILES_TO_AUDIT $PROJECT_ROOT/$folder/*.sh"
+      FILES_TO_AUDIT="$FILES_TO_AUDIT $PROJECT_ROOT/$folder/*.py"
+      ;;
+    tests|tests/*)
+      FILES_TO_AUDIT="$FILES_TO_AUDIT $PROJECT_ROOT/$folder/*.py"
+      ;;
+  esac
+done <<< "$FOLDERS"
+```
+
+**Dynamic file discovery ensures**:
+- No hardcoded folder assumptions
+- All actual project folders are audited
+- Custom folder structures are supported
 
 ### Standard 1: No Inline Code in Command/Agent Files
 

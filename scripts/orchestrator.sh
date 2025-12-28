@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-MODE="${1:?Missing mode (dev-workflow|qa-verify|iterate|clean-inspect|clean-execute|clean-merge-reports|record-checkpoint)}"
+MODE="${1:?Missing mode (dev-workflow|qa-verify|iterate|clean-inspect|clean-execute|clean-merge-reports|record-checkpoint|rule-inspect)}"
 CONTEXT_FILE="${2:?Missing context JSON file}"
 
 # Validate context file exists
