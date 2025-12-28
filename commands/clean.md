@@ -118,17 +118,22 @@ Create comprehensive JSON context for inspectors:
 
 Save to: `docs/clean/context-{REQUEST_ID}.json`
 
-### Step 3.5: Rule Initialization (Optional)
+### Step 3.5: Rule Initialization ⚠️ MANDATORY PRE-INSPECTION
 
-Initialize folder rules if not already present:
+**CRITICAL**: This step MUST execute BEFORE Step 4. DO NOT SKIP unless explicitly verified.
 
-**Skip if**:
-- All folders already have INDEX.md and README.md
-- This is a repeat /clean execution
+Initialize folder rules to establish baseline documentation:
 
-**Execute if**:
-- First time running /clean on project
-- New folders detected without documentation
+**You MUST execute this step if ANY of the following are true**:
+- First time running /clean on this project
+- Any folder lacks INDEX.md or README.md
+- New folders detected since last /clean run
+- You are unsure whether rules are initialized
+
+**Only skip if ALL conditions are met**:
+- All key folders have INDEX.md AND README.md
+- You have verified this in the current session
+- This is a repeat /clean execution within same session
 
 ```bash
 # Discover all folders dynamically
@@ -177,11 +182,25 @@ if [[ "$NEEDS_INIT" == "true" ]]; then
   # Invoke rule-inspector subagent
   ~/.claude/scripts/orchestrator.sh rule-inspect "$RULE_CONTEXT"
 
-  echo "Folder rules initialized" >&2
+  echo "✅ Folder rules initialized successfully" >&2
 else
-  echo "Folder rules already present, skipping initialization" >&2
+  echo "✅ Folder rules already present, skipping initialization" >&2
+fi
+
+# VERIFICATION CHECKPOINT: Ensure rule initialization completed or was not needed
+if [[ ! -f "docs/clean/rule-context-$REQUEST_ID.json" ]] && [[ "$NEEDS_INIT" == "true" ]]; then
+  echo "❌ ERROR: Rule initialization failed! Cannot proceed to inspection." >&2
+  exit 1
 fi
 ```
+
+**Verification**: Before proceeding to Step 4, you MUST confirm one of:
+- ✅ Rule initialization completed (rule-context JSON exists)
+- ✅ Rule initialization was not needed (all folders documented)
+
+**If uncertain, STOP and verify manually.**
+
+---
 
 ### Step 4: Invoke Cleanliness Inspector
 

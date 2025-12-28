@@ -1,0 +1,57 @@
+{
+  "request_id": "clean-20251228-150046",
+  "timestamp": "2025-12-28T15:00:46Z",
+  "orchestrator": {
+    "requirement": "Discover and document folder organization rules for key functional directories",
+    "analysis": {
+      "project_root": "/root/.claude",
+      "folders_to_analyze": [
+        "agents",
+        "scripts",
+        "docs",
+        "hooks",
+        "commands",
+        ".bmad-core",
+        "skills_package",
+        "projects",
+        "templates",
+        "tests",
+        "bin"
+      ],
+      "excluded_folders": [
+        "session-env (141 session directories - temporary)",
+        "shell-snapshots (temporary shell state)",
+        "todos (temporary todo items)",
+        "debug (debug logs)",
+        "venv (virtual environment)",
+        ".git (version control)"
+      ]
+    }
+  },
+  "full_context": {
+    "codebase_state": {
+      "git_status": "On branch master\nUntracked files:\n  docs/clean/context-clean-20251228-145537.json\n  docs/clean/test-results-20251228-145537.md",
+      "current_branch": "master"
+    },
+    "discovered_folders": [
+      "agents",
+      "scripts",
+      "docs",
+      "hooks",
+      "commands",
+      ".bmad-core",
+      "skills_package",
+      "projects",
+      "templates",
+      "tests",
+      "bin"
+    ],
+    "missing_documentation": {
+      "agents": "Missing INDEX.md and README.md",
+      "scripts": "Missing INDEX.md and README.md",
+      "docs": "Missing INDEX.md and README.md",
+      "hooks": "Missing INDEX.md and README.md",
+      "commands": "Missing INDEX.md and README.md"
+    }
+  }
+}
