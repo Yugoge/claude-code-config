@@ -1,0 +1,161 @@
+{
+  "request_id": "dev-20251228-143334",
+  "timestamp": "2025-12-28T14:33:34Z",
+  "requirement": {
+    "original": "现在修复clean，我发现了一个大问题，就是目前clean不检查一些非跨仓库通用的文件夹，比如仓库主目录的reports等，这导出现了很多被忽略的现象，比如非跨仓库通用文件夹中的非规范文件以及md文件等",
+    "clarified": "Implement dynamic folder discovery and per-folder rule-based inspection system for /clean command. Create new rule-inspector subagent to analyze folder contents via Git history and generate INDEX.md + README.md rules documentation. Update existing inspectors to read and apply folder-specific rules instead of hardcoded checks.",
+    "what": "Add rule-inspector subagent and make /clean inspect all folders dynamically with folder-specific rules",
+    "why": "Current /clean hardcodes folder list (docs/, scripts/, tests/) and ignores project-specific folders (learning-materials/, skills_package/, etc.), missing non-compliant files in those folders",
+    "where": [
+      "agents/cleanliness-inspector.md - Remove hardcoded folder checks",
+      "agents/rule-inspector.md - NEW: Create rule discovery agent",
+      "commands/clean.md - Add initialization phase before inspection",
+      "scripts/orchestrator.sh - Add rule-inspect command"
+    ],
+    "scope": {
+      "included": [
+        "Create rule-inspector subagent",
+        "Implement Git history analysis for folder rules",
+        "Generate INDEX.md and README.md for each folder",
+        "Update cleanliness-inspector to read folder rules",
+        "Update style-inspector to read folder rules",
+        "Add initialization step to /clean command"
+      ],
+      "excluded": [
+        "Changing existing folder structures",
+        "Modifying file contents (only documentation)",
+        "Automatic cleanup without user approval"
+      ]
+    },
+    "success_criteria": [
+      "rule-inspector subagent created with Git analysis capability",
+      "INDEX.md and README.md generated for all project folders",
+      "Inspectors discover folders dynamically (no hardcoding)",
+      "Inspectors read and apply folder-specific rules from INDEX.md/README.md",
+      "All folders (including learning-materials/, skills_package/) are checked",
+      "All files comply with their folder's documented rules"
+    ],
+    "constraints": [
+      "No hardcoded folder lists anywhere",
+      "Rules must be derived from Git history and actual usage patterns",
+      "Backward compatible with existing /clean workflow",
+      "Initialization step must be optional (can skip if rules exist)"
+    ]
+  },
+  "root_cause_analysis": {
+    "symptom": "Project-specific folders like learning-materials/, skills_package/ are ignored by /clean command",
+    "root_cause": "cleanliness-inspector.md hardcodes folder list in parameters (docs/, scripts/, tests/) and detection logic",
+    "root_cause_locations": [
+      "agents/cleanliness-inspector.md:45-48 - Hardcoded parameters",
+      "agents/cleanliness-inspector.md:62-63 - Hardcoded docs/ rules",
+      "agents/cleanliness-inspector.md:451-455 - Hardcoded folder iteration"
+    ],
+    "why_introduced": "Original design assumed all projects follow standard structure (docs/, scripts/, tests/)",
+    "why_problematic": "Real projects have custom folders (learning-materials/, examples/, templates/, skills_package/) with their own organization needs",
+    "timeline": "Existed since initial /clean implementation",
+    "affected_files": [
+      "agents/cleanliness-inspector.md",
+      "agents/style-inspector.md",
+      "commands/clean.md"
+    ]
+  },
+  "context": {
+    "codebase_state": {
+      "git_status": "On branch master, nothing to commit, working tree clean",
+      "current_branch": "master",
+      "recent_commits": [
+        "26fcef75 chore: update cleanliness-inspector agent",
+        "0ac96426 feat: complete Office Skills setup with LICENSE files and test guide",
+        "8dffd54b feat: clean repository without venv - fresh start"
+      ]
+    },
+    "current_project_folders": [
+      "agents/",
+      "bin/",
+      "commands/",
+      "debug/",
+      "docs/",
+      "examples/",
+      "hooks/",
+      "learning-materials/",
+      "logs/",
+      "plugins/",
+      "projects/",
+      "scripts/",
+      "session-env/",
+      "shell-snapshots/",
+      "skills_package/",
+      "statsig/",
+      "systemd/",
+      "templates/",
+      "tests/",
+      "todos/"
+    ],
+    "ignored_folders_examples": [
+      "learning-materials/ - Contains 2 MD files, not checked by /clean",
+      "skills_package/ - Contains ~18 MD documentation files, not checked",
+      "examples/ - May have example scripts, not validated",
+      "templates/ - May have template files, not validated"
+    ],
+    "file_contents": {
+      "agents/cleanliness-inspector.md": "Contains hardcoded folder checks at lines 45-48, 62-63, 451-455",
+      "commands/clean.md": "Orchestrates inspection workflow, needs initialization step added"
+    },
+    "dependencies": {
+      "runtime": "Bash 5.x, Git 2.x",
+      "packages": "jq for JSON processing"
+    },
+    "environment": {
+      "project_root": "/root/.claude",
+      "config_files": ["commands/clean.md", "agents/cleanliness-inspector.md", "agents/style-inspector.md"]
+    }
+  },
+  "development_approach": {
+    "strategy": "Two-phase approach: 1) Create rule-inspector to analyze and document folder rules, 2) Update inspectors to use those rules dynamically",
+    "phase_1_initialization": {
+      "description": "Rule discovery and documentation phase",
+      "tasks": [
+        "Create agents/rule-inspector.md subagent",
+        "Implement Git history analysis for each folder",
+        "Extract creation patterns from git log (which commands/subagents/scripts created files)",
+        "Generate INDEX.md (folder inventory and organization)",
+        "Generate README.md (folder purpose, rules, naming conventions)",
+        "Store rules in standardized format for inspector consumption"
+      ]
+    },
+    "phase_2_inspection": {
+      "description": "Dynamic folder discovery and rule-based checking",
+      "tasks": [
+        "Update cleanliness-inspector to discover folders dynamically",
+        "Read INDEX.md and README.md from each folder",
+        "Apply folder-specific rules instead of hardcoded checks",
+        "Update style-inspector similarly",
+        "Remove all hardcoded folder references"
+      ]
+    },
+    "scripts_to_create": [
+      "scripts/discover-folders.sh - Dynamic folder discovery (excluding .git, venv, etc)",
+      "scripts/analyze-folder-history.sh - Git history analysis for folder",
+      "scripts/generate-folder-index.sh - Generate INDEX.md from folder contents",
+      "scripts/generate-folder-readme.sh - Generate README.md from Git analysis"
+    ],
+    "files_to_create": [
+      "agents/rule-inspector.md - New subagent for rule discovery"
+    ],
+    "files_to_modify": [
+      "commands/clean.md - Add Step 3.5: Rule Initialization (before inspection)",
+      "agents/cleanliness-inspector.md - Remove hardcoding, add dynamic folder discovery",
+      "agents/style-inspector.md - Remove hardcoding, add dynamic folder discovery",
+      "scripts/orchestrator.sh - Add rule-inspect command handler"
+    ],
+    "validation_approach": "QA will verify: 1) All folders have INDEX.md + README.md, 2) No hardcoded folder lists remain, 3) Inspectors check all folders including learning-materials/, skills_package/"
+  },
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "use_source_venv": false,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true,
+    "parameterized_scripts": true
+  }
+}
