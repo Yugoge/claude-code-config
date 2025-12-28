@@ -350,6 +350,45 @@ record_checkpoint() {
   return 0
 }
 
+# Mode: rule-inspect
+# Coordinates rule-inspector subagent execution
+rule_inspect() {
+  echo "=== Rule Inspection Orchestration ===" >&2
+  echo "Context: $CONTEXT_FILE" >&2
+
+  # Extract project root
+  PROJECT_ROOT=$(jq -r '.orchestrator.analysis.project_root // "."' "$CONTEXT_FILE")
+  echo "Project: $PROJECT_ROOT" >&2
+
+  # Validate required fields
+  if ! jq -e '.orchestrator.requirement' "$CONTEXT_FILE" >/dev/null 2>&1; then
+    echo "Error: Missing requirement in context" >&2
+    exit 1
+  fi
+
+  if ! jq -e '.full_context.discovered_folders' "$CONTEXT_FILE" >/dev/null 2>&1; then
+    echo "Error: Missing discovered_folders in context" >&2
+    exit 1
+  fi
+
+  # Signal ready for rule-inspector subagent
+  echo "Rule inspector can now read context from: $CONTEXT_FILE" >&2
+
+  RULE_OUTPUT="/tmp/rule-output-$(date +%s).json"
+
+  jq -n \
+    --arg context "$CONTEXT_FILE" \
+    --arg output "$RULE_OUTPUT" \
+    '{
+      status: "ready",
+      context_file: $context,
+      expected_output: $output,
+      next_step: "invoke rule-inspector subagent with context"
+    }'
+
+  return 0
+}
+
 # Main execution
 case "$MODE" in
   dev-workflow)
@@ -373,9 +412,12 @@ case "$MODE" in
   record-checkpoint)
     record_checkpoint "$@"
     ;;
+  rule-inspect)
+    rule_inspect
+    ;;
   *)
     echo "Error: Invalid mode: $MODE" >&2
-    echo "Valid modes: dev-workflow, qa-verify, iterate, clean-inspect, clean-merge-reports, clean-execute, record-checkpoint" >&2
+    echo "Valid modes: dev-workflow, qa-verify, iterate, clean-inspect, clean-merge-reports, clean-execute, record-checkpoint, rule-inspect" >&2
     exit 1
     ;;
 esac
