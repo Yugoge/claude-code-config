@@ -1,15 +1,13 @@
 # 🚀 Claude Code Global Configuration
-# Claude Code 全局配置
 
 > Professional Claude Code setup with hooks, commands, and sub-agents
-> 专业的 Claude Code 配置，包含 hooks、命令和子代理
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude-Code-blue.svg)](https://claude.ai/code)
 
 ---
 
-## 📋 Overview | 概述
+## 📋 Overview
 
 This is a **production-ready Claude Code global configuration** that includes:
 - ✅ Global CLAUDE.md with best practices
@@ -19,17 +17,9 @@ This is a **production-ready Claude Code global configuration** that includes:
 - ✅ 3 specialized sub-agents (artifact, file processor, code auditor)
 - ✅ Deep integration with excel-analyzer
 
-这是一个**生产级的 Claude Code 全局配置**，包含：
-- ✅ 全局 CLAUDE.md 最佳实践
-- ✅ 完整的 settings.json 安全控制
-- ✅ 3个自动化 hooks（会话、安全、质量）
-- ✅ 5个核心 slash 命令（artifacts + 文件分析）
-- ✅ 3个专业子代理（artifact、文件处理、代码审计）
-- ✅ 与 excel-analyzer 深度集成
-
 ---
 
-## 🎯 Features | 特性
+## 🎯 Features
 
 ### 🪝 Hooks
 - **SessionStart**: Display environment info and available tools
@@ -50,7 +40,7 @@ This is a **production-ready Claude Code global configuration** that includes:
 
 ---
 
-## 📦 Installation | 安装
+## 📦 Installation
 
 ### Option 1: Clone to ~/.claude (Recommended)
 
@@ -81,7 +71,7 @@ chmod +x ~/.claude/bin/*
 
 ---
 
-## 🚀 Quick Start | 快速开始
+## 🚀 Quick Start
 
 ### 1. Basic Usage
 
@@ -114,7 +104,7 @@ Edit configuration files:
 
 ---
 
-## 📁 Structure | 结构
+## 📁 Structure
 
 ```
 ~/.claude/
@@ -142,7 +132,7 @@ Edit configuration files:
 
 ---
 
-## 🎓 Key Capabilities | 核心能力
+## 🎓 Key Capabilities
 
 ### Artifact Creation (Inherited from Claude.ai Web)
 Create standalone interactive applications:
@@ -167,7 +157,7 @@ Professional code review:
 
 ---
 
-## 🔒 Security | 安全
+## 🔒 Security
 
 Built-in security controls:
 - ❌ Block reading `.env`, credentials, secrets
@@ -177,7 +167,7 @@ Built-in security controls:
 
 ---
 
-## 📚 Documentation | 文档
+## 📚 Documentation
 
 Detailed documentation available:
 - **Configuration Summary**: `~/.claude/CONFIGURATION_SUMMARY.md`
@@ -186,7 +176,7 @@ Detailed documentation available:
 
 ---
 
-## 🤝 Integration | 集成
+## 🤝 Integration
 
 ### Works with excel-analyzer
 Seamlessly integrated with the [excel-analyzer](https://github.com/Yugoge/excel-analyzer) project:
@@ -196,7 +186,7 @@ Seamlessly integrated with the [excel-analyzer](https://github.com/Yugoge/excel-
 
 ---
 
-## 🛠️ Customization | 自定义
+## 🛠️ Customization
 
 ### Add Your Own Commands
 
@@ -243,7 +233,7 @@ chmod +x ~/.claude/hooks/my-hook.sh
 
 ---
 
-## 🎯 Best Practices | 最佳实践
+## 🎯 Best Practices
 
 ### Keep CLAUDE.md Concise
 - Focus on essential instructions
@@ -263,7 +253,7 @@ chmod +x ~/.claude/hooks/my-hook.sh
 
 ---
 
-## 🔧 Troubleshooting | 故障排除
+## 🔧 Troubleshooting
 
 ### Hooks Not Running
 ```bash
@@ -280,7 +270,7 @@ python3 -m json.tool ~/.claude/settings.json
 
 ---
 
-## 📊 Statistics | 统计
+## 📊 Statistics
 
 ```
 Total Configuration Files: 20+
@@ -293,7 +283,7 @@ Total Configuration Files: 20+
 
 ---
 
-## 🙏 Credits | 致谢
+## 🙏 Credits
 
 **Based on:**
 - Claude.ai Web artifact capabilities
@@ -303,24 +293,24 @@ Total Configuration Files: 20+
 
 ---
 
-## 📄 License | 许可证
+## 📄 License
 
 MIT License
 
 ---
 
-## 👨‍💻 Author | 作者
+## 👨‍💻 Author
 
 Created by Claude Code (Anthropic) for **Yugoge**
 
 ---
 
-## 🔗 Related Projects | 相关项目
+## 🔗 Related Projects
 
 - [excel-analyzer](https://github.com/Yugoge/excel-analyzer) - Professional Excel analysis tool
 
 ---
 
-**🚀 Enjoy powerful Claude Code capabilities! | 享受强大的 Claude Code 能力！**
+**🚀 Enjoy powerful Claude Code capabilities!**
 
 For questions or suggestions, please open an issue on GitHub.

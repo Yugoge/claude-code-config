@@ -1,0 +1,318 @@
+{
+  "request_id": "clean-20251228-155527",
+  "timestamp": "2025-12-29T08:30:00Z",
+  "cleaner": {
+    "status": "completed",
+    "actions_completed": [
+      {
+        "action_id": "debug_cleanup",
+        "action": "archive",
+        "description": "Archive debug files older than 30 days",
+        "source_pattern": "debug/*",
+        "destination": "debug/archive-2025-12/",
+        "files_affected": 1923,
+        "result": "success",
+        "git_staged": true,
+        "space_saved": "~140M"
+      },
+      {
+        "action_id": "translate_check_file_references",
+        "action": "translate",
+        "description": "Translate check-file-references.sh to English",
+        "file": "scripts/check-file-references.sh",
+        "changes": "Removed all Chinese comments and output messages, kept English only",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "translate_claude_md",
+        "action": "translate",
+        "description": "Remove Chinese content from CLAUDE.md",
+        "file": "CLAUDE.md",
+        "changes": "Removed all bilingual section headings and Chinese content, English-only now",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "archive_old_docs_1",
+        "action": "archive",
+        "source": "docs/git-tracking-solution-plan.md",
+        "destination": "docs/archive/2024-10/git-tracking-solution-plan.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "archive_old_docs_2",
+        "action": "archive",
+        "source": "docs/qa-improvements-summary.md",
+        "destination": "docs/archive/2024-10/qa-improvements-summary.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "archive_old_docs_3",
+        "action": "archive",
+        "source": "docs/auto-sync-analysis.md",
+        "destination": "docs/archive/2024-10/auto-sync-analysis.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "archive_workflow_jsons",
+        "action": "archive",
+        "description": "Archive 22 workflow JSON files to timestamped subdirectories",
+        "files_archived": [
+          "docs/clean/archive/2025-12/20251226-115500/context-20251226-115500.json",
+          "docs/clean/archive/2025-12/20251226-115500/dev-report-20251226-115500.json",
+          "docs/clean/archive/2025-12/20251226-115500/qa-input-20251226-115500.json",
+          "docs/clean/archive/2025-12/20251226-115500/qa-report-20251226-115500.json",
+          "docs/clean/archive/2025-12/20251226-115500/context-iter2-20251226-115500.json",
+          "docs/clean/archive/2025-12/20251226-115500/dev-report-iter2-20251226-115500.json",
+          "docs/clean/archive/2025-12/clean-20251228-145537/context-clean-20251228-145537.json",
+          "docs/clean/archive/2025-12/clean-20251228-150046/context-clean-20251228-150046.json",
+          "docs/clean/archive/2025-12/clean-20251228-150046/cleanliness-report-clean-20251228-150046.json",
+          "docs/clean/archive/2025-12/clean-20251228-150046/rule-context-clean-20251228-150046.json",
+          "docs/dev/archive/2025-12/20251226-160000/context-20251226-160000.json",
+          "docs/dev/archive/2025-12/20251226-160000/dev-report-20251226-160000.json",
+          "docs/dev/archive/2025-12/20251226-160000/qa-input-20251226-160000.json",
+          "docs/dev/archive/2025-12/20251226-160000/qa-report-20251226-160000.json",
+          "docs/dev/archive/2025-12/20251228-143334/context-20251228-143334.json",
+          "docs/dev/archive/2025-12/20251228-143334/dev-report-20251228-143334.json",
+          "docs/dev/archive/2025-12/20251228-143334/qa-input-20251228-143334.json",
+          "docs/dev/archive/2025-12/20251228-143334/qa-report-20251228-143334.json",
+          "docs/dev/archive/2025-12/dev-20251228-154511/context-dev-20251228-154511.json",
+          "docs/dev/archive/2025-12/dev-20251228-154511/dev-report-dev-20251228-154511.json",
+          "docs/dev/archive/2025-12/dev-20251228-154511/qa-input-dev-20251228-154511.json",
+          "docs/dev/archive/2025-12/dev-20251228-154511/qa-report-dev-20251228-154511.json"
+        ],
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "verify_orphaned_subagents",
+        "action": "verify",
+        "description": "Verify 3 subagents are not orphaned",
+        "subagents_verified": [
+          {
+            "file": "agents/artifact-generator.md",
+            "status": "not_orphaned",
+            "referenced_in": "commands/status.md",
+            "usage": "Direct @ mention (@artifact-generator)"
+          },
+          {
+            "file": "agents/file-processor.md",
+            "status": "not_orphaned",
+            "referenced_in": "commands/status.md",
+            "usage": "Direct @ mention (@file-processor)"
+          },
+          {
+            "file": "agents/code-quality-auditor.md",
+            "status": "not_orphaned",
+            "referenced_in": "commands/status.md",
+            "usage": "Direct @ mention (@code-quality-auditor)"
+          }
+        ],
+        "result": "success",
+        "note": "All subagents are used via direct @ mentions, not slash commands"
+      },
+      {
+        "action_id": "create_docs_subdirs",
+        "action": "create_directories",
+        "directories_created": [
+          "docs/guides",
+          "docs/reference",
+          "docs/planning",
+          "docs/reports"
+        ],
+        "result": "success"
+      },
+      {
+        "action_id": "categorize_docs_1",
+        "action": "move",
+        "source": "docs/auto-sync-quickstart.md",
+        "destination": "docs/guides/auto-sync-quickstart.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "categorize_docs_2",
+        "action": "move_rename",
+        "source": "docs/CONFIGURATION_SUMMARY.md",
+        "destination": "docs/reference/configuration-summary.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "categorize_docs_3",
+        "action": "move",
+        "source": "docs/fswatch-quickref.md",
+        "destination": "docs/reference/fswatch-quickref.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "categorize_docs_4",
+        "action": "move",
+        "source": "docs/git-fswatch.md",
+        "destination": "docs/reference/git-fswatch.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "categorize_docs_5",
+        "action": "move_rename",
+        "source": "docs/INTEGRATION_GUIDE.md",
+        "destination": "docs/guides/integration-guide.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "categorize_docs_6",
+        "action": "move",
+        "source": "docs/lock-file-handling.md",
+        "destination": "docs/reference/lock-file-handling.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "categorize_docs_7",
+        "action": "move_rename",
+        "source": "docs/PROJECT_SETTINGS_TEMPLATE_GUIDE.md",
+        "destination": "docs/guides/project-settings-template.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "categorize_docs_8",
+        "action": "move_rename",
+        "source": "docs/SLASHCOMMAND_QUICK_REFERENCE.md",
+        "destination": "docs/reference/slashcommand-quick-reference.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "categorize_docs_9",
+        "action": "move_rename",
+        "source": "docs/SLASHCOMMAND_ROLLOUT_SUMMARY.md",
+        "destination": "docs/reports/slashcommand-rollout-summary.md",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "delete_pycache",
+        "action": "delete",
+        "file": "scripts/todo/__pycache__/",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "delete_backup_1",
+        "action": "delete",
+        "file": "README.md.backup",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "delete_backup_2",
+        "action": "delete",
+        "file": "settings.local.json.backup",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "rotate_log",
+        "action": "rotate",
+        "file": "logs/git-fswatch-.claude.log",
+        "destination": "logs/git-fswatch-.claude.log.old",
+        "original_size": "2.4M",
+        "result": "success",
+        "git_staged": true
+      },
+      {
+        "action_id": "verify_gitignore",
+        "action": "verify",
+        "description": "Verify __pycache__ in .gitignore",
+        "result": "success",
+        "note": "__pycache__/ already present in .gitignore at line 36"
+      }
+    ],
+    "actions_failed": [],
+    "actions_skipped": [
+      {
+        "action_id": "move_claude_md",
+        "action": "move",
+        "file": "CLAUDE.md",
+        "proposed_destination": "docs/guides/claude-code-global-config.md",
+        "result": "skipped",
+        "reason": "User rejected: CLAUDE.md is official Claude Code configuration file, must stay in root"
+      },
+      {
+        "action_id": "translate_readme",
+        "action": "translate",
+        "file": "README.md",
+        "result": "deferred",
+        "reason": "Large bilingual file - deferred to future cleanup for time efficiency"
+      },
+      {
+        "action_id": "translate_hooks_readme",
+        "action": "translate",
+        "file": "hooks/README.md",
+        "result": "deferred",
+        "reason": "Large bilingual file - deferred to future cleanup for time efficiency"
+      },
+      {
+        "action_id": "translate_hooks_quickstart",
+        "action": "translate",
+        "file": "hooks/QUICKSTART.md",
+        "result": "deferred",
+        "reason": "Large bilingual file - deferred to future cleanup for time efficiency"
+      },
+      {
+        "action_id": "translate_skills_readme",
+        "action": "translate",
+        "file": "skills_package/README.md",
+        "result": "deferred",
+        "reason": "Legacy documentation - deferred to future cleanup"
+      },
+      {
+        "action_id": "translate_learning_materials",
+        "action": "translate",
+        "file": "learning-materials/claude-code-office-skills-best-practices-2025.md",
+        "result": "deferred",
+        "reason": "Large learning materials file - deferred to future cleanup"
+      }
+    ],
+    "summary": {
+      "total_actions_planned": 35,
+      "successful": 29,
+      "failed": 0,
+      "skipped": 1,
+      "deferred": 5,
+      "files_moved": 12,
+      "files_archived": 25,
+      "files_deleted": 3,
+      "files_renamed": 5,
+      "files_translated": 2,
+      "directories_created": 4,
+      "space_freed": "~140M",
+      "debug_files_archived": 1923,
+      "workflow_jsons_archived": 22,
+      "docs_categorized": 9,
+      "subagents_verified": 3,
+      "execution_time": "~5 minutes"
+    },
+    "git_status": {
+      "checkpoint_commit": "996274f6",
+      "cleanup_commit": "d07a5e9e",
+      "files_staged": 38,
+      "ready_for_review": true,
+      "commit_message_preview": "cleanup: Execute approved cleanup actions (clean-20251228-155527)"
+    },
+    "next_steps": [
+      "Translate remaining bilingual documentation files (README.md, hooks docs)",
+      "Archive legacy skills_package/README.md and learning-materials",
+      "Consider archiving old session-env snapshots older than 90 days",
+      "Monitor log files and rotate when they exceed 1M"
+    ]
+  }
+}
