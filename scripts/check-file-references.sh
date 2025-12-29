@@ -1,47 +1,47 @@
 #!/bin/bash
-# 文件引用检测脚本 - 用于 /clean 命令
-# 检测文件是否在项目中被引用（包括文档、代码、配置文件等）
+# File reference detection script - used by /clean command
+# Checks if a file is referenced in the project (including docs, code, config files, etc.)
 
 set -euo pipefail
 
-# 颜色定义
+# Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 使用说明
+# Usage help
 usage() {
     cat <<EOF
-用法: $0 <file-to-check> [project-root]
+Usage: $0 <file-to-check> [project-root]
 
-检测文件是否在项目中被引用
+Check if a file is referenced in the project
 
-参数:
-  file-to-check    要检查的文件路径（相对或绝对）
-  project-root     项目根目录（默认：当前目录）
+Arguments:
+  file-to-check    File path to check (relative or absolute)
+  project-root     Project root directory (default: current directory)
 
-示例:
+Examples:
   $0 scripts/test-migration.sh
   $0 tests/test_old.py /root/my-project
 
-输出:
-  - 引用位置列表
-  - Git 历史分析
-  - 引用类型分类（功能性 vs 历史性）
-  - 删除/归档建议
+Output:
+  - List of reference locations
+  - Git history analysis
+  - Reference type classification (functional vs historical)
+  - Delete/archive recommendations
 
-退出码:
-  0 - 文件无引用（安全删除）
-  1 - 文件有引用（不应删除） 或 被功能性引用（必须保留）
-  2 - 仅被历史性文档引用（建议归档）
-  3 - 错误
+Exit codes:
+  0 - File has no references (safe to delete)
+  1 - File has references (should not delete) or has functional references (must keep)
+  2 - Only referenced by historical docs (suggest archive)
+  3 - Error
 EOF
     exit 3
 }
 
-# 参数检查
+# Parameter check
 if [[ $# -lt 1 ]]; then
     usage
 fi
@@ -49,69 +49,69 @@ fi
 TARGET_FILE="$1"
 PROJECT_ROOT="${2:-.}"
 
-# 确保项目根目录存在
+# Ensure project root exists
 if [[ ! -d "$PROJECT_ROOT" ]]; then
-    echo -e "${RED}错误: 项目目录不存在: $PROJECT_ROOT${NC}" >&2
+    echo -e "${RED}Error: Project directory does not exist: $PROJECT_ROOT${NC}" >&2
     exit 3
 fi
 
 cd "$PROJECT_ROOT"
 
-# 确保文件存在
+# Ensure file exists
 if [[ ! -f "$TARGET_FILE" ]]; then
-    echo -e "${RED}错误: 文件不存在: $TARGET_FILE${NC}" >&2
+    echo -e "${RED}Error: File does not exist: $TARGET_FILE${NC}" >&2
     exit 3
 fi
 
-# 获取文件名（用于搜索引用）
+# Get filename (for searching references)
 FILENAME=$(basename "$TARGET_FILE")
 FILENAME_NO_EXT="${FILENAME%.*}"
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}📋 文件引用检测报告${NC}"
+echo -e "${BLUE}📋 File Reference Detection Report${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "文件: ${YELLOW}$TARGET_FILE${NC}"
-echo -e "项目: ${YELLOW}$PROJECT_ROOT${NC}"
+echo -e "File: ${YELLOW}$TARGET_FILE${NC}"
+echo -e "Project: ${YELLOW}$PROJECT_ROOT${NC}"
 echo ""
 
 # ============================================
-# 1. Git 历史分析
+# 1. Git History Analysis
 # ============================================
-echo -e "${BLUE}## 1. Git 历史分析${NC}"
+echo -e "${BLUE}## 1. Git History Analysis${NC}"
 echo ""
 
 if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-    # 文件创建时间
-    FILE_CREATED=$(git log --diff-filter=A --follow --format=%aI -1 -- "$TARGET_FILE" 2>/dev/null || echo "未知")
+    # File creation time
+    FILE_CREATED=$(git log --diff-filter=A --follow --format=%aI -1 -- "$TARGET_FILE" 2>/dev/null || echo "Unknown")
 
-    # 最后修改时间
-    FILE_MODIFIED=$(git log -1 --format=%aI -- "$TARGET_FILE" 2>/dev/null || echo "未知")
+    # Last modified time
+    FILE_MODIFIED=$(git log -1 --format=%aI -- "$TARGET_FILE" 2>/dev/null || echo "Unknown")
 
-    # 提交次数
+    # Commit count
     COMMIT_COUNT=$(git log --follow --oneline -- "$TARGET_FILE" 2>/dev/null | wc -l)
 
-    # 最后提交信息
-    LAST_COMMIT=$(git log -1 --format="%h - %s (%ar)" -- "$TARGET_FILE" 2>/dev/null || echo "无提交历史")
+    # Last commit info
+    LAST_COMMIT=$(git log -1 --format="%h - %s (%ar)" -- "$TARGET_FILE" 2>/dev/null || echo "No commit history")
 
-    echo -e "  创建时间: ${GREEN}$FILE_CREATED${NC}"
-    echo -e "  最后修改: ${GREEN}$FILE_MODIFIED${NC}"
-    echo -e "  提交次数: ${GREEN}$COMMIT_COUNT${NC}"
-    echo -e "  最后提交: ${GREEN}$LAST_COMMIT${NC}"
+    echo -e "  Created: ${GREEN}$FILE_CREATED${NC}"
+    echo -e "  Last modified: ${GREEN}$FILE_MODIFIED${NC}"
+    echo -e "  Commit count: ${GREEN}$COMMIT_COUNT${NC}"
+    echo -e "  Last commit: ${GREEN}$LAST_COMMIT${NC}"
 
-    # 判断是否为一次性文件
+    # Check if one-time file
     if [[ $COMMIT_COUNT -le 2 ]]; then
-        echo -e "  ${YELLOW}⚠️  提交次数较少 (≤2)，可能是一次性文件${NC}"
+        echo -e "  ${YELLOW}⚠️  Low commit count (≤2), possibly a one-time file${NC}"
     fi
 else
-    echo -e "  ${YELLOW}⚠️  不是 Git 仓库，跳过 Git 分析${NC}"
+    echo -e "  ${YELLOW}⚠️  Not a Git repository, skipping Git analysis${NC}"
 fi
 
 echo ""
 
 # ============================================
-# 2. 文档引用检查
+# 2. Documentation Reference Check
 # ============================================
-echo -e "${BLUE}## 2. 文档引用检查 (.md, .txt, README, etc.)${NC}"
+echo -e "${BLUE}## 2. Documentation Reference Check (.md, .txt, README, etc.)${NC}"
 echo ""
 
 MD_REFS=$(grep -r "$FILENAME" . \
@@ -128,22 +128,22 @@ MD_REFS=$(grep -r "$FILENAME" . \
     2>/dev/null || true)
 
 if [[ -n "$MD_REFS" ]]; then
-    echo -e "  ${RED}❌ 发现文档引用:${NC}"
+    echo -e "  ${RED}❌ Found documentation references:${NC}"
     echo "$MD_REFS" | while IFS= read -r line; do
         echo -e "    ${YELLOW}$line${NC}"
     done
     DOC_REF_FOUND=1
 else
-    echo -e "  ${GREEN}✅ 无文档引用${NC}"
+    echo -e "  ${GREEN}✅ No documentation references${NC}"
     DOC_REF_FOUND=0
 fi
 
 echo ""
 
 # ============================================
-# 3. 代码引用检查
+# 3. Code Reference Check
 # ============================================
-echo -e "${BLUE}## 3. 代码引用检查 (.py, .js, .ts, .sh, etc.)${NC}"
+echo -e "${BLUE}## 3. Code Reference Check (.py, .js, .ts, .sh, etc.)${NC}"
 echo ""
 
 CODE_REFS=$(grep -r "$FILENAME" . \
@@ -167,22 +167,22 @@ CODE_REFS=$(grep -r "$FILENAME" . \
     2>/dev/null || true)
 
 if [[ -n "$CODE_REFS" ]]; then
-    echo -e "  ${RED}❌ 发现代码引用:${NC}"
+    echo -e "  ${RED}❌ Found code references:${NC}"
     echo "$CODE_REFS" | while IFS= read -r line; do
         echo -e "    ${YELLOW}$line${NC}"
     done
     CODE_REF_FOUND=1
 else
-    echo -e "  ${GREEN}✅ 无代码引用${NC}"
+    echo -e "  ${GREEN}✅ No code references${NC}"
     CODE_REF_FOUND=0
 fi
 
 echo ""
 
 # ============================================
-# 4. 配置文件引用检查
+# 4. Config File Reference Check
 # ============================================
-echo -e "${BLUE}## 4. 配置文件引用检查 (settings.json, package.json, Makefile, etc.)${NC}"
+echo -e "${BLUE}## 4. Config File Reference Check (settings.json, package.json, Makefile, etc.)${NC}"
 echo ""
 
 CONFIG_FILES=(
@@ -202,7 +202,7 @@ CONFIG_FILES=(
 CONFIG_REF_FOUND=0
 
 for config_pattern in "${CONFIG_FILES[@]}"; do
-    # 使用 find 处理通配符
+    # Use find to handle wildcards
     if [[ "$config_pattern" == *"*"* ]]; then
         mapfile -t found_files < <(find . -path "./$config_pattern" 2>/dev/null)
     else
@@ -212,7 +212,7 @@ for config_pattern in "${CONFIG_FILES[@]}"; do
     for config_file in "${found_files[@]}"; do
         if [[ -f "$config_file" ]]; then
             if grep -q "$FILENAME" "$config_file" 2>/dev/null; then
-                echo -e "  ${RED}❌ 在 $config_file 中发现引用:${NC}"
+                echo -e "  ${RED}❌ Found reference in $config_file:${NC}"
                 grep -n "$FILENAME" "$config_file" | while IFS= read -r line; do
                     echo -e "    ${YELLOW}$line${NC}"
                 done
@@ -223,15 +223,15 @@ for config_pattern in "${CONFIG_FILES[@]}"; do
 done
 
 if [[ $CONFIG_REF_FOUND -eq 0 ]]; then
-    echo -e "  ${GREEN}✅ 无配置文件引用${NC}"
+    echo -e "  ${GREEN}✅ No config file references${NC}"
 fi
 
 echo ""
 
 # ============================================
-# 5. 脚本相互引用检查（source/exec）
+# 5. Script Cross-Reference Check (source/exec)
 # ============================================
-echo -e "${BLUE}## 5. 脚本相互引用检查 (source, exec, . )${NC}"
+echo -e "${BLUE}## 5. Script Cross-Reference Check (source, exec, . )${NC}"
 echo ""
 
 if [[ "$FILENAME" == *.sh ]] || [[ "$FILENAME" == *.bash ]]; then
@@ -243,26 +243,26 @@ if [[ "$FILENAME" == *.sh ]] || [[ "$FILENAME" == *.bash ]]; then
         2>/dev/null || true)
 
     if [[ -n "$SCRIPT_REFS" ]]; then
-        echo -e "  ${RED}❌ 发现脚本引用:${NC}"
+        echo -e "  ${RED}❌ Found script references:${NC}"
         echo "$SCRIPT_REFS" | while IFS= read -r line; do
             echo -e "    ${YELLOW}$line${NC}"
         done
         SCRIPT_REF_FOUND=1
     else
-        echo -e "  ${GREEN}✅ 无脚本引用${NC}"
+        echo -e "  ${GREEN}✅ No script references${NC}"
         SCRIPT_REF_FOUND=0
     fi
 else
-    echo -e "  ${YELLOW}⊘ 非脚本文件，跳过${NC}"
+    echo -e "  ${YELLOW}⊘ Not a script file, skipping${NC}"
     SCRIPT_REF_FOUND=0
 fi
 
 echo ""
 
 # ============================================
-# 6. 导入引用检查（Python import, JS require/import）
+# 6. Import Reference Check (Python import, JS require/import)
 # ============================================
-echo -e "${BLUE}## 6. 导入引用检查 (import, require, use)${NC}"
+echo -e "${BLUE}## 6. Import Reference Check (import, require, use)${NC}"
 echo ""
 
 if [[ "$FILENAME" == *.py ]] || [[ "$FILENAME" == *.js ]] || [[ "$FILENAME" == *.ts ]]; then
@@ -279,59 +279,59 @@ if [[ "$FILENAME" == *.py ]] || [[ "$FILENAME" == *.js ]] || [[ "$FILENAME" == *
         2>/dev/null || true)
 
     if [[ -n "$IMPORT_REFS" ]]; then
-        echo -e "  ${RED}❌ 发现导入引用:${NC}"
+        echo -e "  ${RED}❌ Found import references:${NC}"
         echo "$IMPORT_REFS" | while IFS= read -r line; do
             echo -e "    ${YELLOW}$line${NC}"
         done
         IMPORT_REF_FOUND=1
     else
-        echo -e "  ${GREEN}✅ 无导入引用${NC}"
+        echo -e "  ${GREEN}✅ No import references${NC}"
         IMPORT_REF_FOUND=0
     fi
 else
-    echo -e "  ${YELLOW}⊘ 非 Python/JS/TS 文件，跳过${NC}"
+    echo -e "  ${YELLOW}⊘ Not a Python/JS/TS file, skipping${NC}"
     IMPORT_REF_FOUND=0
 fi
 
 echo ""
 
 # ============================================
-# 7. 文件修改时间检查
+# 7. File Modification Time Check
 # ============================================
-echo -e "${BLUE}## 7. 文件修改时间检查${NC}"
+echo -e "${BLUE}## 7. File Modification Time Check${NC}"
 echo ""
 
 FILE_MTIME=$(stat -c %Y "$TARGET_FILE" 2>/dev/null || stat -f %m "$TARGET_FILE" 2>/dev/null)
 CURRENT_TIME=$(date +%s)
 DAYS_SINCE_MODIFIED=$(( (CURRENT_TIME - FILE_MTIME) / 86400 ))
 
-echo -e "  最后修改: ${GREEN}${DAYS_SINCE_MODIFIED} 天前${NC}"
+echo -e "  Last modified: ${GREEN}${DAYS_SINCE_MODIFIED} days ago${NC}"
 
 if [[ $DAYS_SINCE_MODIFIED -lt 7 ]]; then
-    echo -e "  ${YELLOW}⚠️  最近 7 天内修改过，建议谨慎删除${NC}"
+    echo -e "  ${YELLOW}⚠️  Modified within 7 days, suggest careful deletion${NC}"
     RECENT_MODIFIED=1
 else
-    echo -e "  ${GREEN}✅ 超过 7 天未修改${NC}"
+    echo -e "  ${GREEN}✅ Not modified for over 7 days${NC}"
     RECENT_MODIFIED=0
 fi
 
 echo ""
 
 # ============================================
-# 8. 引用类型分类 (功能性 vs 历史性)
+# 8. Reference Type Classification (Functional vs Historical)
 # ============================================
-echo -e "${BLUE}## 8. 引用类型分类${NC}"
+echo -e "${BLUE}## 8. Reference Type Classification${NC}"
 echo ""
 
-# 检测功能性引用 (commands, agents, scripts 中的引用)
+# Check for functional references (references in commands, agents, scripts)
 FUNCTIONAL_REF_FOUND=0
 
 if [[ -n "$MD_REFS" ]]; then
-    # 检查是否在 .claude/commands/, .claude/agents/, scripts/ 中被引用
+    # Check if referenced in .claude/commands/, .claude/agents/, scripts/
     FUNCTIONAL_REFS=$(echo "$MD_REFS" | grep -E "\.claude/commands/|\.claude/agents/|scripts/.*\.(sh|py)" || true)
 
     if [[ -n "$FUNCTIONAL_REFS" ]]; then
-        echo -e "  ${RED}❌ 发现功能性引用 (commands/agents/scripts):${NC}"
+        echo -e "  ${RED}❌ Found functional references (commands/agents/scripts):${NC}"
         echo "$FUNCTIONAL_REFS" | while IFS= read -r line; do
             echo -e "    ${YELLOW}$line${NC}"
         done
@@ -344,70 +344,70 @@ if [[ $CODE_REF_FOUND -eq 1 ]] || [[ $CONFIG_REF_FOUND -eq 1 ]] || [[ $SCRIPT_RE
 fi
 
 if [[ $FUNCTIONAL_REF_FOUND -eq 1 ]]; then
-    echo -e "  ${RED}⚠️  文件被功能性引用 (commands/agents/scripts/code)${NC}"
-    echo -e "  ${RED}→ 这是功能性文档/脚本，不能删除或归档${NC}"
+    echo -e "  ${RED}⚠️  File has functional references (commands/agents/scripts/code)${NC}"
+    echo -e "  ${RED}→ This is a functional doc/script, cannot delete or archive${NC}"
 else
-    # 检查是否仅被历史文档引用
+    # Check if only referenced by historical docs
     if [[ $DOC_REF_FOUND -eq 1 ]]; then
-        # 检查是否被 docs/ 或 reports/ 或历史性 .md 文件引用
+        # Check if referenced by docs/ or reports/ or historical .md files
         HISTORICAL_REFS=$(echo "$MD_REFS" | grep -E "docs/|reports/|chats/|.*-report\.md|.*-summary\.md|.*-plan\.md" || true)
 
         if [[ -n "$HISTORICAL_REFS" ]]; then
-            echo -e "  ${YELLOW}⚠️  仅被历史性文档引用 (docs/reports/chats):${NC}"
+            echo -e "  ${YELLOW}⚠️  Only referenced by historical docs (docs/reports/chats):${NC}"
             echo "$HISTORICAL_REFS" | head -5 | while IFS= read -r line; do
                 echo -e "    ${YELLOW}$line${NC}"
             done
-            echo -e "  ${YELLOW}→ 这是历史性文档，可以归档${NC}"
+            echo -e "  ${YELLOW}→ This is a historical doc, can be archived${NC}"
         fi
     else
-        echo -e "  ${GREEN}✅ 无任何引用${NC}"
+        echo -e "  ${GREEN}✅ No references${NC}"
     fi
 fi
 
 echo ""
 
 # ============================================
-# 9. 综合评估与建议
+# 9. Comprehensive Evaluation and Recommendations
 # ============================================
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}## 📊 综合评估${NC}"
+echo -e "${BLUE}## 📊 Comprehensive Evaluation${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-# 计算引用总数
+# Calculate total references
 TOTAL_REFS=$((DOC_REF_FOUND + CODE_REF_FOUND + CONFIG_REF_FOUND + SCRIPT_REF_FOUND + IMPORT_REF_FOUND))
 
-echo -e "引用统计:"
-echo -e "  - 文档引用: $([ $DOC_REF_FOUND -eq 1 ] && echo "${RED}是${NC}" || echo "${GREEN}否${NC}")"
-echo -e "  - 代码引用: $([ $CODE_REF_FOUND -eq 1 ] && echo "${RED}是${NC}" || echo "${GREEN}否${NC}")"
-echo -e "  - 配置引用: $([ $CONFIG_REF_FOUND -eq 1 ] && echo "${RED}是${NC}" || echo "${GREEN}否${NC}")"
-echo -e "  - 脚本引用: $([ $SCRIPT_REF_FOUND -eq 1 ] && echo "${RED}是${NC}" || echo "${GREEN}否${NC}")"
-echo -e "  - 导入引用: $([ $IMPORT_REF_FOUND -eq 1 ] && echo "${RED}是${NC}" || echo "${GREEN}否${NC}")"
-echo -e "  - ${YELLOW}功能性引用: $([ $FUNCTIONAL_REF_FOUND -eq 1 ] && echo "${RED}是 (不能删除)${NC}" || echo "${GREEN}否${NC}")${NC}"
+echo -e "Reference statistics:"
+echo -e "  - Documentation references: $([ $DOC_REF_FOUND -eq 1 ] && echo "${RED}Yes${NC}" || echo "${GREEN}No${NC}")"
+echo -e "  - Code references: $([ $CODE_REF_FOUND -eq 1 ] && echo "${RED}Yes${NC}" || echo "${GREEN}No${NC}")"
+echo -e "  - Config references: $([ $CONFIG_REF_FOUND -eq 1 ] && echo "${RED}Yes${NC}" || echo "${GREEN}No${NC}")"
+echo -e "  - Script references: $([ $SCRIPT_REF_FOUND -eq 1 ] && echo "${RED}Yes${NC}" || echo "${GREEN}No${NC}")"
+echo -e "  - Import references: $([ $IMPORT_REF_FOUND -eq 1 ] && echo "${RED}Yes${NC}" || echo "${GREEN}No${NC}")"
+echo -e "  - ${YELLOW}Functional references: $([ $FUNCTIONAL_REF_FOUND -eq 1 ] && echo "${RED}Yes (cannot delete)${NC}" || echo "${GREEN}No${NC}")${NC}"
 echo ""
 
-# 删除建议 (考虑功能性引用)
+# Delete recommendation (considering functional references)
 if [[ $FUNCTIONAL_REF_FOUND -eq 1 ]]; then
-    echo -e "${RED}❌ 删除建议: 不能删除${NC}"
-    echo -e "   理由: 被 commands/agents/scripts 功能性引用"
-    echo -e "   ${YELLOW}→ 这是功能性文档/脚本，必须保留${NC}"
+    echo -e "${RED}❌ Deletion recommendation: Cannot delete${NC}"
+    echo -e "   Reason: Has functional references in commands/agents/scripts"
+    echo -e "   ${YELLOW}→ This is a functional doc/script, must keep${NC}"
     EXIT_CODE=1
 elif [[ $TOTAL_REFS -eq 0 ]] && [[ $RECENT_MODIFIED -eq 0 ]]; then
-    echo -e "${GREEN}✅ 删除建议: 安全删除${NC}"
-    echo -e "   理由: 无任何引用，且超过 7 天未修改"
+    echo -e "${GREEN}✅ Deletion recommendation: Safe to delete${NC}"
+    echo -e "   Reason: No references and not modified within 7 days"
     EXIT_CODE=0
 elif [[ $TOTAL_REFS -eq 0 ]] && [[ $RECENT_MODIFIED -eq 1 ]]; then
-    echo -e "${YELLOW}⚠️  删除建议: 谨慎删除${NC}"
-    echo -e "   理由: 无引用，但最近修改过"
+    echo -e "${YELLOW}⚠️  Deletion recommendation: Delete with caution${NC}"
+    echo -e "   Reason: No references but recently modified"
     EXIT_CODE=0
 elif [[ $DOC_REF_FOUND -eq 1 ]] && [[ $CODE_REF_FOUND -eq 0 ]] && [[ $CONFIG_REF_FOUND -eq 0 ]]; then
-    echo -e "${YELLOW}📦 归档建议: 可以归档${NC}"
-    echo -e "   理由: 仅被历史性文档引用，无功能性引用"
-    echo -e "   ${YELLOW}→ 建议移动到 docs/archive/ 或相应归档目录${NC}"
-    EXIT_CODE=2  # 新的退出码: 2 = 建议归档
+    echo -e "${YELLOW}📦 Archive recommendation: Can be archived${NC}"
+    echo -e "   Reason: Only referenced by historical docs, no functional references"
+    echo -e "   ${YELLOW}→ Suggest moving to docs/archive/ or appropriate archive directory${NC}"
+    EXIT_CODE=2  # New exit code: 2 = suggest archive
 else
-    echo -e "${RED}❌ 删除建议: 不建议删除${NC}"
-    echo -e "   理由: 存在引用，删除可能导致问题"
+    echo -e "${RED}❌ Deletion recommendation: Not recommended${NC}"
+    echo -e "   Reason: Has references, deletion may cause issues"
     EXIT_CODE=1
 fi
 

@@ -1,12 +1,11 @@
 # Global Claude Code Configuration
-# 全局 Claude Code 配置
 
-> Personal global settings for all projects | 个人全局设置，适用于所有项目
+> Personal global settings for all projects
 > Last updated: 2025-10-25
 
 ---
 
-## 🎯 Core Principles | 核心原则
+## 🎯 Core Principles
 
 **IMPORTANT: Always follow these rules:**
 - **Security First**: NEVER hardcode secrets, API keys, or passwords
@@ -15,25 +14,18 @@
 - **Parallel Execution**: Run independent tool calls in parallel
 - **Use TodoWrite**: Track complex tasks with the TodoWrite tool
 
-**重要：始终遵循以下规则：**
-- **安全优先**：永远不要硬编码秘密、API密钥或密码
-- **先读后改**：修改文件前务必先读取
-- **清晰沟通**：提供文件路径和行号引用
-- **并行执行**：并行运行独立的工具调用
-- **使用TodoWrite**：用TodoWrite跟踪复杂任务
-
 ---
 
-## 📝 Coding Style | 编码风格
+## 📝 Coding Style
 
-### General | 通用
+### General
 - Use 2 spaces for indentation (JavaScript/TypeScript/JSON)
 - Use 4 spaces for Python
 - Max line length: 100 characters
 - Use meaningful variable names (avoid abbreviations)
 - Comments explain "why", not "what"
 
-### Language-Specific | 语言特定
+### Language-Specific
 **Python**: Follow PEP 8, use type hints, prefer f-strings
 **JavaScript/TypeScript**: Use ES6+, prefer `const`, use TypeScript when possible
 **Go**: Use `gofmt`, handle all errors explicitly
@@ -41,7 +33,7 @@
 
 ---
 
-## 🔒 Security Guidelines | 安全指南
+## 🔒 Security Guidelines
 
 **IMPORTANT: Security is non-negotiable**
 1. Use environment variables for secrets (`.env` files)
@@ -52,7 +44,7 @@
 
 ---
 
-## 🧪 Testing Strategy | 测试策略
+## 🧪 Testing Strategy
 
 **Test Pyramid:**
 - 70% Unit tests (fast, isolated)
@@ -66,7 +58,7 @@
 
 ---
 
-## 🛠️ Common Commands | 常用命令
+## 🛠️ Common Commands
 
 ### Git Workflow
 ```bash
@@ -95,7 +87,7 @@ mypy .                            # Type check
 
 ---
 
-## 🏗️ Project Structure Best Practices | 项目结构最佳实践
+## 🏗️ Project Structure Best Practices
 
 **IMPORTANT: Follow these patterns**
 - Separate concerns (MVC, layered architecture)
@@ -105,7 +97,7 @@ mypy .                            # Type check
 
 ---
 
-## 📚 Documentation Standards | 文档标准
+## 📚 Documentation Standards
 
 **README.md must include:**
 1. Project description
@@ -120,7 +112,7 @@ mypy .                            # Type check
 
 ---
 
-## ⚡ Performance Tips | 性能提示
+## ⚡ Performance Tips
 
 - Profile before optimizing (measure first!)
 - Use caching wisely
@@ -129,7 +121,7 @@ mypy .                            # Type check
 
 ---
 
-## 🔧 Claude Code Specific | Claude Code 专用
+## 🔧 Claude Code Specific
 
 ### Tool Usage
 - **Prefer specialized tools**: Use Read/Write/Edit instead of bash `cat`/`echo`
@@ -143,7 +135,7 @@ mypy .                            # Type check
 
 ---
 
-## 🤖 MCP Auto-Activation Rules | MCP 工具自动激活规则
+## 🤖 MCP Auto-Activation Rules
 
 **Context7 is your PRIMARY source for library documentation.**
 
@@ -156,7 +148,7 @@ mypy .                            # Type check
 
 ---
 
-## 🌐 Advanced Web Search | 高级网络搜索
+## 🌐 Advanced Web Search
 
 **For deep search and comprehensive research, use the `@deep-search` subagent:**
 - Automatically activates for: official documents, site exploration, multi-source research (5+ sources)
@@ -169,4 +161,3 @@ mypy .                            # Type check
 ---
 
 > 💡 **Tip**: Use `#` key to quickly add instructions to CLAUDE.md
-> 💡 **提示**：使用 `#` 键快速添加指令到 CLAUDE.md
