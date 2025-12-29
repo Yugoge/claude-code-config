@@ -1,0 +1,181 @@
+{
+  "request_id": "clean-20251228-155527",
+  "timestamp": "2025-12-28T15:59:52Z",
+  "inspector": "rule-inspector",
+  "discoveries": [
+    {
+      "folder": "agents/",
+      "purpose": "Specialized subagent definitions for orchestrated workflows",
+      "allowed_file_types": [".md"],
+      "naming_convention": "kebab-case",
+      "organization_rules": [
+        "Flat structure - All agent specs at root level, no subdirectories",
+        "One agent per file - Each .md file defines exactly one agent",
+        "Standardized format - All agents follow template structure with role, input/output, workflow, quality, and safety sections"
+      ],
+      "creation_patterns": {
+        "primary_creator": "manual",
+        "secondary_creators": ["/dev workflow", "/clean workflow"],
+        "automation_percentage": 40
+      },
+      "git_analysis": {
+        "first_created": "2025-10-25",
+        "total_files": 10,
+        "last_significant_update": "2025-12-28"
+      },
+      "index_md_generated": true,
+      "readme_md_generated": true,
+      "index_md_path": "agents/INDEX.md",
+      "readme_md_path": "agents/README.md"
+    },
+    {
+      "folder": "commands/",
+      "purpose": "Slash command definitions for Claude Code workflows",
+      "allowed_file_types": [".md"],
+      "naming_convention": "kebab-case",
+      "organization_rules": [
+        "Flat structure - All command definitions at root level",
+        "One command per file - Each .md file defines exactly one slash command",
+        "README.md contains comprehensive quick reference guide",
+        "Command files include usage examples and best practices"
+      ],
+      "creation_patterns": {
+        "primary_creator": "manual",
+        "secondary_creators": ["/dev workflow"],
+        "automation_percentage": 30
+      },
+      "git_analysis": {
+        "first_created": "2025-10-25",
+        "total_files": 30,
+        "last_significant_update": "2025-12-28"
+      },
+      "index_md_generated": true,
+      "readme_md_generated": false,
+      "readme_md_status": "existing README.md preserved (comprehensive quick reference guide)",
+      "index_md_path": "commands/INDEX.md",
+      "readme_md_path": "commands/README.md"
+    },
+    {
+      "folder": "docs/",
+      "purpose": "Project documentation, configuration guides, and workflow reports",
+      "allowed_file_types": [".md", ".json"],
+      "naming_convention": "mixed: UPPERCASE_WITH_UNDERSCORES.md for guides, kebab-case.md for technical docs, {type}-{workflow}-{timestamp}.json for reports",
+      "organization_rules": [
+        "Root docs/ - High-level guides and configuration documentation only",
+        "Workflow subdirectories - All workflow-generated JSON files go in docs/dev/ or docs/clean/",
+        "Timestamped files - Workflow reports include ISO-8601 timestamps in filename",
+        "Archive old reports - Consider archiving workflow reports older than 30 days"
+      ],
+      "creation_patterns": {
+        "primary_creator": "/dev and /clean workflows",
+        "secondary_creators": ["manual"],
+        "automation_percentage": 70
+      },
+      "git_analysis": {
+        "first_created": "2025-12-27",
+        "total_files": 42,
+        "file_breakdown": {
+          "md": 18,
+          "json": 24
+        },
+        "last_significant_update": "2025-12-28"
+      },
+      "index_md_generated": true,
+      "readme_md_generated": true,
+      "index_md_path": "docs/INDEX.md",
+      "readme_md_path": "docs/README.md"
+    },
+    {
+      "folder": "scripts/",
+      "purpose": "Automation scripts for project workflows and helper utilities",
+      "allowed_file_types": [".sh", ".py"],
+      "naming_convention": "kebab-case with {verb}-{noun}.sh pattern",
+      "organization_rules": [
+        "Root scripts/ - Main workflow scripts only",
+        "Subdirectories by language - Python utilities in scripts/todo/, scripts/utils/, etc.",
+        "Executable permissions - All .sh files must have chmod +x",
+        "Helper script pattern - Scripts should be callable from orchestrator",
+        "Gitignore .pyc files - Bytecode should never be committed"
+      ],
+      "creation_patterns": {
+        "primary_creator": "/clean workflow implementation",
+        "secondary_creators": ["/dev workflow", "manual"],
+        "automation_percentage": 80
+      },
+      "git_analysis": {
+        "first_created": "2025-12-27",
+        "total_files": 12,
+        "file_breakdown": {
+          "sh": 9,
+          "py": 2,
+          "pyc": 1
+        },
+        "last_significant_update": "2025-12-28"
+      },
+      "index_md_generated": true,
+      "readme_md_generated": true,
+      "index_md_path": "scripts/INDEX.md",
+      "readme_md_path": "scripts/README.md"
+    },
+    {
+      "folder": "hooks/",
+      "purpose": "Claude Code lifecycle hooks for automation and safety",
+      "allowed_file_types": [".sh", ".md", ".json", ".env"],
+      "naming_convention": "kebab-case for scripts, UPPERCASE for documentation",
+      "organization_rules": [
+        "Root hooks/ - Main hook scripts and documentation",
+        "Subdirectory hooks/git-hooks/ - Git-specific hooks",
+        "Configuration templates - JSON templates for project settings",
+        "Environment files - .env.example for configuration examples"
+      ],
+      "creation_patterns": {
+        "primary_creator": "manual",
+        "secondary_creators": ["git hooks"],
+        "automation_percentage": 20
+      },
+      "git_analysis": {
+        "first_created": "2025-10-25",
+        "total_files": 19,
+        "file_breakdown": {
+          "sh": 21,
+          "md": 3,
+          "json": 1,
+          "env": 1
+        },
+        "last_significant_update": "2025-12-28"
+      },
+      "index_md_generated": true,
+      "readme_md_generated": false,
+      "readme_md_status": "existing README.md preserved (comprehensive auto-commit setup guide)",
+      "index_md_path": "hooks/INDEX.md",
+      "readme_md_path": "hooks/README.md"
+    }
+  ],
+  "summary": {
+    "folders_analyzed": 5,
+    "rules_discovered": 21,
+    "index_files_generated": 5,
+    "readme_files_generated": 3,
+    "readme_files_preserved": 2,
+    "total_files_documented": 123,
+    "git_commit": "387c9cd9",
+    "execution_time_seconds": 242
+  },
+  "actions_taken": [
+    "Analyzed git history for 5 folders: agents, commands, docs, scripts, hooks",
+    "Generated INDEX.md files for all 5 folders",
+    "Generated new README.md files for: agents, docs, scripts",
+    "Preserved existing README.md files for: commands, hooks",
+    "Discovered naming conventions: kebab-case (agents, commands, scripts, hooks), mixed (docs)",
+    "Identified file type restrictions per folder",
+    "Documented organization rules from git commit patterns",
+    "Files auto-committed by smart checkpoint system at 2025-12-28T15:59:52Z"
+  ],
+  "notes": [
+    "commands/README.md and hooks/README.md already contain comprehensive user-facing documentation and were preserved",
+    "agents/README.md, docs/README.md, and scripts/README.md were generated with detailed analysis of git patterns",
+    "All INDEX.md files provide automated inventory of folder contents",
+    "scripts/todo/__pycache__/clean.cpython-312.pyc should be added to .gitignore",
+    "docs/ folder has 24 JSON workflow reports that may need archival cleanup"
+  ]
+}

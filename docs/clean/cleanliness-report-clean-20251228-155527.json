@@ -1,0 +1,546 @@
+{
+  "request_id": "clean-20251228-155527",
+  "timestamp": "2025-12-28T16:02:30Z",
+  "inspector": "cleanliness-inspector",
+  "findings": {
+    "misplaced_docs": [
+      {
+        "file": "/root/.claude/CLAUDE.md",
+        "should_be": "/root/.claude/docs/guides/claude-code-global-config.md",
+        "severity": "major",
+        "reason": "Root .md files should only be README.md and ARCHITECTURE.md per documentation standards"
+      }
+    ],
+    "naming_violations": [],
+    "archive_candidates": [
+      {
+        "file": "/root/.claude/docs/git-tracking-solution-plan.md",
+        "reason": "filename pattern *-plan.md, modified 61 days ago, 1 commit",
+        "last_modified": "2024-10-27T12:22:12Z",
+        "commit_count": 1,
+        "archive_to": "/root/.claude/docs/archive/2024-10/git-tracking-solution-plan.md",
+        "category": "auto_archive",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/qa-improvements-summary.md",
+        "reason": "filename pattern *-summary.md, modified 61 days ago, 1 commit",
+        "last_modified": "2024-10-27T13:19:29Z",
+        "commit_count": 1,
+        "archive_to": "/root/.claude/docs/archive/2024-10/qa-improvements-summary.md",
+        "category": "auto_archive",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/auto-sync-analysis.md",
+        "reason": "filename pattern *-analysis.md, modified 58 days ago, 1 commit",
+        "last_modified": "2024-10-27T16:22:45Z",
+        "commit_count": 1,
+        "archive_to": "/root/.claude/docs/archive/2024-10/auto-sync-analysis.md",
+        "category": "auto_archive",
+        "severity": "minor"
+      }
+    ],
+    "dev_context_files": [
+      {
+        "file": "/root/.claude/docs/clean/context-20251226-115500.json",
+        "request_id": "20251226-115500",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-26T11:55:00Z",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/20251226-115500/context-20251226-115500.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/clean/dev-report-20251226-115500.json",
+        "request_id": "20251226-115500",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-26T11:55:00Z",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/20251226-115500/dev-report-20251226-115500.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/clean/qa-input-20251226-115500.json",
+        "request_id": "20251226-115500",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-26T11:55:00Z",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/20251226-115500/qa-input-20251226-115500.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/clean/qa-report-20251226-115500.json",
+        "request_id": "20251226-115500",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-26T11:55:00Z",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/20251226-115500/qa-report-20251226-115500.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/clean/context-iter2-20251226-115500.json",
+        "request_id": "20251226-115500",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-26T11:55:00Z",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/20251226-115500/context-iter2-20251226-115500.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/clean/dev-report-iter2-20251226-115500.json",
+        "request_id": "20251226-115500",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-26T11:55:00Z",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/20251226-115500/dev-report-iter2-20251226-115500.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/context-20251226-160000.json",
+        "request_id": "20251226-160000",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-26T16:00:00Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/20251226-160000/context-20251226-160000.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/dev-report-20251226-160000.json",
+        "request_id": "20251226-160000",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-26T16:00:00Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/20251226-160000/dev-report-20251226-160000.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/qa-input-20251226-160000.json",
+        "request_id": "20251226-160000",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-26T16:00:00Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/20251226-160000/qa-input-20251226-160000.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/qa-report-20251226-160000.json",
+        "request_id": "20251226-160000",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-26T16:00:00Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/20251226-160000/qa-report-20251226-160000.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/context-20251228-143334.json",
+        "request_id": "20251228-143334",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T14:33:34Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/20251228-143334/context-20251228-143334.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/dev-report-20251228-143334.json",
+        "request_id": "20251228-143334",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T14:33:34Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/20251228-143334/dev-report-20251228-143334.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/qa-input-20251228-143334.json",
+        "request_id": "20251228-143334",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T14:33:34Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/20251228-143334/qa-input-20251228-143334.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/qa-report-20251228-143334.json",
+        "request_id": "20251228-143334",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T14:33:34Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/20251228-143334/qa-report-20251228-143334.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/clean/context-clean-20251228-145537.json",
+        "request_id": "clean-20251228-145537",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T14:55:37Z",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/clean-20251228-145537/context-clean-20251228-145537.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/clean/context-clean-20251228-150046.json",
+        "request_id": "clean-20251228-150046",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T15:00:46Z",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/clean-20251228-150046/context-clean-20251228-150046.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/clean/cleanliness-report-clean-20251228-150046.json",
+        "request_id": "clean-20251228-150046",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T15:00:46Z",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/clean-20251228-150046/cleanliness-report-clean-20251228-150046.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/clean/rule-context-clean-20251228-150046.json",
+        "request_id": "clean-20251228-150046",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T15:00:46Z",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/clean-20251228-150046/rule-context-clean-20251228-150046.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/context-dev-20251228-154511.json",
+        "request_id": "dev-20251228-154511",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T15:45:11Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/dev-20251228-154511/context-dev-20251228-154511.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/dev-report-dev-20251228-154511.json",
+        "request_id": "dev-20251228-154511",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T15:45:11Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/dev-20251228-154511/dev-report-dev-20251228-154511.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/qa-input-dev-20251228-154511.json",
+        "request_id": "dev-20251228-154511",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T15:45:11Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/dev-20251228-154511/qa-input-dev-20251228-154511.json",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/qa-report-dev-20251228-154511.json",
+        "request_id": "dev-20251228-154511",
+        "status": "completed",
+        "action": "auto_archive",
+        "last_modified": "2025-12-28T15:45:11Z",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/dev-20251228-154511/qa-report-dev-20251228-154511.json",
+        "severity": "minor"
+      }
+    ],
+    "temp_files": [],
+    "duplicate_scripts": [],
+    "duplicate_tests": [],
+    "non_functional_files": [
+      {
+        "file": "/root/.claude/scripts/todo/__pycache__/clean.cpython-312.pyc",
+        "category": "build_artifact",
+        "safe_to_delete": true,
+        "severity": "minor",
+        "reason": "Python bytecode should not be committed to git"
+      },
+      {
+        "file": "/root/.claude/scripts/todo/__pycache__",
+        "category": "build_artifact",
+        "safe_to_delete": true,
+        "severity": "minor",
+        "reason": "Python cache directory should be in .gitignore"
+      },
+      {
+        "file": "/root/.claude/README.md.backup",
+        "category": "temp",
+        "safe_to_delete": true,
+        "severity": "minor",
+        "reason": "Backup file from 64 days ago, original already in git history"
+      },
+      {
+        "file": "/root/.claude/settings.local.json.backup",
+        "category": "temp",
+        "safe_to_delete": true,
+        "severity": "minor",
+        "reason": "Backup file from 64 days ago, original already in git history"
+      }
+    ],
+    "orphaned_subagents": [
+      {
+        "file": "/root/.claude/agents/artifact-generator.md",
+        "reason": "Not referenced by any command in commands/*.md",
+        "last_modified": "2025-12-28",
+        "commit_count": 3,
+        "safe_to_delete": false,
+        "severity": "major",
+        "note": "May be used by /artifact-* commands, needs verification"
+      },
+      {
+        "file": "/root/.claude/agents/file-processor.md",
+        "reason": "Not referenced by any command in commands/*.md",
+        "last_modified": "2025-12-28",
+        "commit_count": 2,
+        "safe_to_delete": false,
+        "severity": "major",
+        "note": "May be used by /file-analyze command, needs verification"
+      },
+      {
+        "file": "/root/.claude/agents/code-quality-auditor.md",
+        "reason": "Not referenced by any command in commands/*.md",
+        "last_modified": "2025-12-28",
+        "commit_count": 2,
+        "safe_to_delete": false,
+        "severity": "major",
+        "note": "May be used by /code-review command, needs verification"
+      }
+    ],
+    "unreferenced_scripts": [],
+    "orphaned_tests": [],
+    "historical_docs": [
+      {
+        "file": "/root/.claude/docs/clean/completion-20251226-115500.md",
+        "reason": "Completion report for workflow run 20251226-115500, older than 2 days",
+        "missing_files": [],
+        "last_modified": "2 days ago",
+        "archive_to": "/root/.claude/docs/clean/archive/2025-12/completion-20251226-115500.md",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/dev/completion-20251226-160000.md",
+        "reason": "Completion report for workflow run 20251226-160000, older than 2 days",
+        "missing_files": [],
+        "last_modified": "2 days ago",
+        "archive_to": "/root/.claude/docs/dev/archive/2025-12/completion-20251226-160000.md",
+        "severity": "minor"
+      }
+    ],
+    "docs_categorization": [
+      {
+        "file": "/root/.claude/docs/auto-sync-quickstart.md",
+        "current_location": "/root/.claude/docs/auto-sync-quickstart.md",
+        "suggested_category": "guides",
+        "suggested_location": "/root/.claude/docs/guides/auto-sync-quickstart.md",
+        "pattern_matched": "*-quickstart.md",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/CONFIGURATION_SUMMARY.md",
+        "current_location": "/root/.claude/docs/CONFIGURATION_SUMMARY.md",
+        "suggested_category": "reference",
+        "suggested_location": "/root/.claude/docs/reference/configuration-summary.md",
+        "pattern_matched": "CONFIGURATION_* (uppercase guide)",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/fswatch-quickref.md",
+        "current_location": "/root/.claude/docs/fswatch-quickref.md",
+        "suggested_category": "reference",
+        "suggested_location": "/root/.claude/docs/reference/fswatch-quickref.md",
+        "pattern_matched": "*-quickref.md",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/git-fswatch.md",
+        "current_location": "/root/.claude/docs/git-fswatch.md",
+        "suggested_category": "reference",
+        "suggested_location": "/root/.claude/docs/reference/git-fswatch.md",
+        "pattern_matched": "technical doc",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/INTEGRATION_GUIDE.md",
+        "current_location": "/root/.claude/docs/INTEGRATION_GUIDE.md",
+        "suggested_category": "guides",
+        "suggested_location": "/root/.claude/docs/guides/integration-guide.md",
+        "pattern_matched": "*_GUIDE.md (uppercase guide)",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/lock-file-handling.md",
+        "current_location": "/root/.claude/docs/lock-file-handling.md",
+        "suggested_category": "reference",
+        "suggested_location": "/root/.claude/docs/reference/lock-file-handling.md",
+        "pattern_matched": "technical doc",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/PROJECT_SETTINGS_TEMPLATE_GUIDE.md",
+        "current_location": "/root/.claude/docs/PROJECT_SETTINGS_TEMPLATE_GUIDE.md",
+        "suggested_category": "guides",
+        "suggested_location": "/root/.claude/docs/guides/project-settings-template.md",
+        "pattern_matched": "*_GUIDE.md (uppercase guide)",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/SLASHCOMMAND_QUICK_REFERENCE.md",
+        "current_location": "/root/.claude/docs/SLASHCOMMAND_QUICK_REFERENCE.md",
+        "suggested_category": "reference",
+        "suggested_location": "/root/.claude/docs/reference/slashcommand-quick-reference.md",
+        "pattern_matched": "*_REFERENCE.md (uppercase reference)",
+        "severity": "minor"
+      },
+      {
+        "file": "/root/.claude/docs/SLASHCOMMAND_ROLLOUT_SUMMARY.md",
+        "current_location": "/root/.claude/docs/SLASHCOMMAND_ROLLOUT_SUMMARY.md",
+        "suggested_category": "reports",
+        "suggested_location": "/root/.claude/docs/reports/slashcommand-rollout-summary.md",
+        "pattern_matched": "*_SUMMARY.md (uppercase summary)",
+        "severity": "minor"
+      }
+    ],
+    "obsolete_functionality": [],
+    "session_files": [
+      {
+        "file": "/root/.claude/debug",
+        "type": "debug_session_files",
+        "file_count": 2667,
+        "total_size": "192M",
+        "old_files_count": 1885,
+        "old_files_threshold": "30 days",
+        "severity": "critical",
+        "reason": "1885 debug session files older than 30 days (71% of total)",
+        "recommendation": "Archive or delete debug files older than 30 days",
+        "estimated_space_saved": "~140M"
+      },
+      {
+        "file": "/root/.claude/session-env",
+        "type": "session_environment_snapshots",
+        "directory_count": 139,
+        "total_size": "596K",
+        "severity": "major",
+        "reason": "139 session environment snapshot directories",
+        "recommendation": "Review and archive old session snapshots older than 90 days",
+        "estimated_space_saved": "~200K"
+      }
+    ],
+    "log_files": [
+      {
+        "file": "/root/.claude/logs/git-fswatch-.claude.log",
+        "size": "2.4M",
+        "severity": "major",
+        "reason": "Large log file should be rotated",
+        "recommendation": "Implement log rotation for files >1M"
+      },
+      {
+        "file": "/root/.claude/logs/fswatch-.claude.log",
+        "size": "676K",
+        "severity": "minor",
+        "reason": "Log file approaching rotation threshold",
+        "recommendation": "Monitor and rotate when exceeds 1M"
+      },
+      {
+        "file": "/root/.claude/logs/fswatch-nohup.log",
+        "size": "724K",
+        "severity": "minor",
+        "reason": "Log file approaching rotation threshold",
+        "recommendation": "Monitor and rotate when exceeds 1M"
+      },
+      {
+        "file": "/root/.claude/logs/git-fswatch.log",
+        "size": "480K",
+        "severity": "minor",
+        "reason": "Log file approaching rotation threshold",
+        "recommendation": "Monitor and rotate when exceeds 1M"
+      }
+    ],
+    "venv_files": [
+      {
+        "directory": "/root/.claude/venv",
+        "size": "535M",
+        "severity": "minor",
+        "reason": "Virtual environment with __pycache__ directories (build artifacts)",
+        "recommendation": "Ensure venv/ is in .gitignore and .claudeignore",
+        "safe_to_clean_cache": true
+      }
+    ]
+  },
+  "summary": {
+    "total_issues": 67,
+    "critical": 1,
+    "major": 6,
+    "minor": 60,
+    "estimated_space_saved": "~140M",
+    "breakdown": {
+      "misplaced_docs": 1,
+      "archive_candidates": 3,
+      "dev_context_files": 22,
+      "non_functional_files": 4,
+      "orphaned_subagents": 3,
+      "historical_docs": 2,
+      "docs_categorization": 9,
+      "session_files": 2,
+      "log_files": 4,
+      "venv_files": 1
+    },
+    "priority_actions": [
+      {
+        "priority": 1,
+        "action": "Archive 1885 debug files older than 30 days from /root/.claude/debug/",
+        "estimated_space_saved": "~140M",
+        "severity": "critical"
+      },
+      {
+        "priority": 2,
+        "action": "Move CLAUDE.md to docs/guides/claude-code-global-config.md",
+        "estimated_space_saved": "0",
+        "severity": "major"
+      },
+      {
+        "priority": 3,
+        "action": "Archive 22 completed dev/clean workflow JSON files to docs/{clean,dev}/archive/2025-12/",
+        "estimated_space_saved": "~100K",
+        "severity": "major"
+      },
+      {
+        "priority": 4,
+        "action": "Verify and document orphaned subagents (artifact-generator, file-processor, code-quality-auditor)",
+        "estimated_space_saved": "0",
+        "severity": "major"
+      },
+      {
+        "priority": 5,
+        "action": "Create standard docs/ subdirectories (guides, reference, planning, reports, archive)",
+        "estimated_space_saved": "0",
+        "severity": "major"
+      },
+      {
+        "priority": 6,
+        "action": "Categorize 9 docs files into guides/reference/reports subdirectories",
+        "estimated_space_saved": "0",
+        "severity": "minor"
+      },
+      {
+        "priority": 7,
+        "action": "Delete 4 temp/backup files and Python cache artifacts",
+        "estimated_space_saved": "~50K",
+        "severity": "minor"
+      },
+      {
+        "priority": 8,
+        "action": "Rotate 1 large log file (git-fswatch-.claude.log 2.4M)",
+        "estimated_space_saved": "~1.5M",
+        "severity": "minor"
+      }
+    ]
+  },
+  "notes": [
+    "Debug directory contains 2667 files (192M), with 1885 files (71%) older than 30 days - critical cleanup priority",
+    "Session-env contains 139 snapshot directories (596K) - review and archive old snapshots",
+    "CLAUDE.md is in root but should be in docs/ per documentation standards",
+    "All workflow JSON files in docs/clean/ and docs/dev/ from previous runs should be archived",
+    "Standard docs/ subdirectories (guides, reference, planning, reports, archive) are missing and should be created",
+    "Python __pycache__ in scripts/todo/ should be added to .gitignore",
+    "Three subagents (artifact-generator, file-processor, code-quality-auditor) need verification - may be referenced by commands not yet analyzed",
+    "Venv directory (535M) is present and should be verified in .gitignore and .claudeignore",
+    "Log rotation needed for files exceeding 1M threshold"
+  ]
+}

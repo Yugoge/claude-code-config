@@ -1,42 +1,60 @@
 # docs
 
-To be determined from analysis
+Project documentation, configuration guides, and workflow reports
 
 ---
 
 ## Purpose
 
-This folder contains docs files organized according to project standards.
+This folder contains project documentation including:
+- Configuration guides (.md files with UPPERCASE names)
+- Workflow reports (JSON files in subdirectories)
+- Technical documentation (markdown files with kebab-case)
+
+**Subdirectories**:
+- `docs/dev/` - Development workflow reports and context files
+- `docs/clean/` - Cleanup workflow reports and context files
 
 ## Allowed File Types
 
-.md, .json, .sh, .py
+- `.md` - Documentation and guides
+- `.json` - Workflow reports, context files, and structured data
 
 ## Naming Convention
 
-Use consistent naming pattern
+**Mixed conventions based on purpose**:
+
+1. **Configuration/Guide files**: `UPPERCASE_WITH_UNDERSCORES.md`
+   - Examples: `CONFIGURATION_SUMMARY.md`, `SLASHCOMMAND_QUICK_REFERENCE.md`
+
+2. **Technical docs**: `kebab-case.md`
+   - Examples: `git-fswatch.md`, `lock-file-handling.md`
+
+3. **Workflow reports**: `{type}-{workflow}-{timestamp}.json`
+   - Examples: `dev-report-dev-20251228-154511.json`, `context-clean-20251228-155527.json`
 
 ## Organization Rules
 
-Files in this folder should follow these rules:
-
-1. Use appropriate file extensions
-2. Follow naming conventions
-3. Keep files organized and well-documented
+1. **Root docs/** - High-level guides and configuration documentation only
+2. **Workflow subdirectories** - All workflow-generated JSON files go in `docs/dev/` or `docs/clean/`
+3. **Timestamped files** - Workflow reports include ISO-8601 timestamps in filename
+4. **Archive old reports** - Consider archiving workflow reports older than 30 days
 
 ## Standards
 
-- Files must be valid format
-- Use descriptive names
-- Document purpose and usage
+- All .md files must be valid Markdown
+- All .json files must be valid JSON (use `jq` to validate)
+- Workflow JSON files must include: `request_id`, `timestamp`, agent name
+- Guide files should have clear section headers
 
 ---
 
 ## Git Analysis
 
 First created: 2025-12-27
+Primary creator: /dev and /clean workflows
 Last significant update: 2025-12-28
-Generated: 2025-12-28 15:58:20 UTC
+File types: 18 .md files, 24 .json files
 
 ---
 
