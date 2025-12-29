@@ -1,0 +1,23 @@
+{
+  "request_id": "clean-20251228-155527",
+  "timestamp": "2025-12-28T16:20:00Z",
+  "cleanliness_inspector": {
+    "total_issues": 67,
+    "critical": 1,
+    "major": 6,
+    "minor": 60
+  },
+  "style_inspector": {
+    "total_violations": 16,
+    "critical": 6,
+    "major": 7,
+    "minor": 3
+  },
+  "combined_summary": {
+    "total_issues": 83,
+    "critical": 7,
+    "major": 13,
+    "minor": 63,
+    "estimated_space_saved": "~140M"
+  }
+}

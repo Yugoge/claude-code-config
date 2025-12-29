@@ -1100,7 +1100,7 @@ Return inspection report as JSON:
 
 ### Never Delete
 
-- README.md, ARCHITECTURE.md (root only)
+- README.md, ARCHITECTURE.md, CLAUDE.md (root only - official Claude Code files)
 - Any file with code/config references
 - Files modified < 7 days (unless explicit temp patterns)
 - .git/ directory
