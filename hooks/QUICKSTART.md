@@ -1,23 +1,23 @@
-# 🚀 快速开始指南
+# 🚀 Quick Start Guide
 
-## ✅ 安装已完成！
+## ✅ Installation Complete!
 
-所有配置文件和脚本已经安装到 `~/.claude/hooks/`
+All configuration files and scripts have been installed to `~/.claude/hooks/`
 
 ---
 
-## 📋 必须执行的步骤
+## 📋 Required Steps
 
-### 1️⃣ 重启 Claude Code
+### 1️⃣ Restart Claude Code
 
-配置已更新，需要重启 Claude Code 才能生效：
+Configuration has been updated, restart Claude Code to take effect:
 
 ```bash
-# 退出当前会话并重新启动 Claude Code
+# Exit current session and restart Claude Code
 exit
 ```
 
-### 2️⃣ 安装 GitHub CLI（可选，但强烈推荐）
+### 2️⃣ Install GitHub CLI (Optional, but Highly Recommended)
 
 **macOS:**
 ```bash
@@ -29,127 +29,127 @@ brew install gh
 sudo apt install gh
 ```
 
-**其他系统:**
-访问 https://cli.github.com/
+**Other Systems:**
+Visit https://cli.github.com/
 
-### 3️⃣ 登录 GitHub
+### 3️⃣ Login to GitHub
 
 ```bash
 gh auth login
 ```
 
-按照提示选择：
+Follow the prompts to select:
 - GitHub.com
 - HTTPS
 - Login with a web browser
 
-### 4️⃣ 配置自动创建仓库（可选）
+### 4️⃣ Configure Auto-Create Repository (Optional)
 
-编辑你的 shell 配置文件：
+Edit your shell configuration file:
 
 ```bash
-# 对于 Bash 用户
+# For Bash users
 nano ~/.bashrc
 
-# 对于 Zsh 用户
+# For Zsh users
 nano ~/.zshrc
 ```
 
-添加以下内容：
+Add the following:
 
 ```bash
-# Claude Code 自动创建 GitHub 仓库
+# Claude Code auto-create GitHub repository
 export CLAUDE_AUTO_CREATE_REPO=true
 ```
 
-保存后重新加载：
+Save and reload:
 
 ```bash
-source ~/.bashrc  # 或 source ~/.zshrc
+source ~/.bashrc  # or source ~/.zshrc
 ```
 
 ---
 
-## 🎯 测试配置
+## 🎯 Test Configuration
 
-### 测试 1: 检查脚本权限
+### Test 1: Check Script Permissions
 
 ```bash
 ls -lh ~/.claude/hooks/*.sh
 ```
 
-应该看到 `-rwxr-xr-x`（x 表示可执行）
+Should see `-rwxr-xr-x` (x indicates executable)
 
-### 测试 2: 手动运行脚本
+### Test 2: Manually Run Scripts
 
 ```bash
-# 测试仓库初始化脚本
+# Test repository initialization script
 cd /tmp/test-project
 bash ~/.claude/hooks/ensure-git-repo.sh
 
-# 测试自动提交脚本
+# Test auto-commit script
 echo "test" > test.txt
 bash ~/.claude/hooks/auto-commit.sh
 ```
 
-### 测试 3: 验证 GitHub CLI
+### Test 3: Verify GitHub CLI
 
 ```bash
 gh auth status
 ```
 
-应该显示已登录。
+Should show logged in.
 
 ---
 
-## 🔄 工作流程示例
+## 🔄 Workflow Examples
 
-### 场景 1: 新项目
+### Scenario 1: New Project
 
 ```bash
-# 1. 创建新项目目录
+# 1. Create new project directory
 mkdir my-new-project
 cd my-new-project
 
-# 2. 启动 Claude Code
-claude-code  # 或你的启动命令
+# 2. Start Claude Code
+claude-code  # or your launch command
 
-# 3. Claude 会自动：
-#    ✅ 初始化 Git 仓库
-#    ✅ 创建 .gitignore
-#    ✅ 创建 GitHub 仓库（如果配置了 AUTO_CREATE）
-#    ✅ 每次响应后自动提交 + 推送
+# 3. Claude will automatically:
+#    ✅ Initialize Git repository
+#    ✅ Create .gitignore
+#    ✅ Create GitHub repository (if AUTO_CREATE is configured)
+#    ✅ Auto-commit + push after each response
 ```
 
-### 场景 2: 现有项目
+### Scenario 2: Existing Project
 
 ```bash
-# 1. 进入现有项目
+# 1. Enter existing project
 cd existing-project
 
-# 2. 启动 Claude Code
+# 2. Start Claude Code
 claude-code
 
-# 3. Claude 会自动：
-#    ✅ 检测到已有 Git 仓库
-#    ✅ 每次响应后自动提交 + 推送
+# 3. Claude will automatically:
+#    ✅ Detect existing Git repository
+#    ✅ Auto-commit + push after each response
 ```
 
 ---
 
-## ⚙️ 自定义选项
+## ⚙️ Custom Options
 
-### 选项 1: 禁用自动 Push
+### Option 1: Disable Auto Push
 
-如果你只想自动提交，不想自动推送：
+If you only want auto-commit without auto-push:
 
-编辑 `~/.claude/hooks/auto-commit.sh`:
+Edit `~/.claude/hooks/auto-commit.sh`:
 
 ```bash
 nano ~/.claude/hooks/auto-commit.sh
 ```
 
-找到这几行并注释掉（添加 # 号）：
+Find these lines and comment them out (add # prefix):
 
 ```bash
 # if git remote get-url origin > /dev/null 2>&1; then
@@ -158,19 +158,19 @@ nano ~/.claude/hooks/auto-commit.sh
 # fi
 ```
 
-### 选项 2: 更改提交消息格式
+### Option 2: Change Commit Message Format
 
-编辑 `~/.claude/hooks/auto-commit.sh`:
+Edit `~/.claude/hooks/auto-commit.sh`:
 
 ```bash
 nano ~/.claude/hooks/auto-commit.sh
 ```
 
-修改 `COMMIT_MSG` 变量。
+Modify the `COMMIT_MSG` variable.
 
-### 选项 3: 项目级配置
+### Option 3: Project-Level Configuration
 
-为特定项目创建自定义配置：
+Create custom configuration for specific project:
 
 ```bash
 cd your-project
@@ -181,15 +181,15 @@ nano .claude/settings.json
 
 ---
 
-## 🔍 验证配置
+## 🔍 Verify Configuration
 
-运行以下命令检查配置：
+Run the following command to check configuration:
 
 ```bash
-# 查看全局配置
+# View global configuration
 cat ~/.claude/settings.json | grep -A 10 '"Stop"'
 
-# 应该看到:
+# Should see:
 # "Stop": [
 #   {
 #     "hooks": [
@@ -204,47 +204,47 @@ cat ~/.claude/settings.json | grep -A 10 '"Stop"'
 
 ---
 
-## 📚 下一步
+## 📚 Next Steps
 
-- 📖 阅读完整文档: `~/.claude/hooks/README.md`
-- 🛠️ 查看脚本源码: `~/.claude/hooks/auto-commit.sh`
-- 🌐 访问 Claude Code 文档: https://docs.claude.com/
+- 📖 Read full documentation: `~/.claude/hooks/README.md`
+- 🛠️ View script source: `~/.claude/hooks/auto-commit.sh`
+- 🌐 Visit Claude Code docs: https://docs.claude.com/
 
 ---
 
-## ❓ 常见问题
+## ❓ FAQ
 
-**Q: 我看不到自动提交？**
+**Q: I don't see auto-commits?**
 
-A: 检查：
-1. 是否重启了 Claude Code
-2. 运行 `ls -lh ~/.claude/hooks/*.sh` 确认脚本可执行
-3. 查看 Claude Code 输出是否有错误信息
+A: Check:
+1. Have you restarted Claude Code
+2. Run `ls -lh ~/.claude/hooks/*.sh` to confirm scripts are executable
+3. Check Claude Code output for error messages
 
-**Q: Push 失败？**
+**Q: Push fails?**
 
-A: 检查：
-1. `gh auth status` - 确认已登录
-2. `git remote -v` - 确认远程仓库存在
-3. `git push` - 手动测试推送
+A: Check:
+1. `gh auth status` - Confirm logged in
+2. `git remote -v` - Confirm remote repository exists
+3. `git push` - Manually test push
 
-**Q: 如何临时禁用？**
+**Q: How to temporarily disable?**
 
-A: 重命名配置文件：
+A: Rename configuration file:
 
 ```bash
 mv ~/.claude/settings.json ~/.claude/settings.json.disabled
-# 恢复:
+# Restore:
 mv ~/.claude/settings.json.disabled ~/.claude/settings.json
 ```
 
 ---
 
-## 🎉 完成！
+## 🎉 Complete!
 
-你现在可以开始使用 Claude Code，它会自动：
-1. ✅ 检查/初始化 Git 仓库
-2. ✅ 每次响应后提交更改
-3. ✅ 自动推送到 GitHub
+You can now start using Claude Code, it will automatically:
+1. ✅ Check/initialize Git repository
+2. ✅ Commit changes after each response
+3. ✅ Auto-push to GitHub
 
-**享受自动化的 Git 工作流！** 🚀
+**Enjoy the automated Git workflow!** 🚀
