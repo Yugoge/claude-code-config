@@ -47,7 +47,7 @@ TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 **Documentation Structure Rules**:
 
 Root directory .md files:
-- **ALLOWED**: README.md, ARCHITECTURE.md (project-level files, do not move)
+- **ALLOWED**: README.md, ARCHITECTURE.md, CLAUDE.md (official Claude Code files, do not move)
 - **MOVE TO docs/**: All other .md files in project root
 
 docs/ subdirectory structure:

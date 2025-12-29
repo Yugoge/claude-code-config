@@ -1,42 +1,67 @@
 # scripts
 
-To be determined from analysis
+Automation scripts for project workflows and helper utilities
 
 ---
 
 ## Purpose
 
-This folder contains scripts files organized according to project standards.
+This folder contains shell scripts and Python utilities that support the /clean and /dev workflows. Scripts handle tasks like folder discovery, validation, and report generation.
+
+**Key scripts**:
+- `orchestrator.sh` - Main orchestration entry point
+- `discover-folders.sh` - Find all folders in project
+- `analyze-folder-history.sh` - Extract git history patterns
+- `generate-folder-index.sh` - Create INDEX.md files
+- `generate-folder-readme.sh` - Create README.md files
+- `check-file-references.sh` - Validate file references
+- `normalize-doc-names.sh` - Standardize documentation filenames
+- `scan-project.sh` - Project-wide scanning utilities
+- `update-gitignore.sh` - Maintain .gitignore rules
+
+**Subdirectories**:
+- `scripts/todo/` - Python utilities for TodoWrite management
 
 ## Allowed File Types
 
-.md, .json, .sh, .py
+- `.sh` - Bash shell scripts (primary)
+- `.py` - Python utilities (secondary)
+- `.pyc` - Python bytecode (auto-generated, should be gitignored)
 
 ## Naming Convention
 
-Use consistent naming pattern
+**kebab-case** for all scripts
+- Examples: `discover-folders.sh`, `check-file-references.sh`
+- Pattern: `{verb}-{noun}.sh` for shell scripts
+- Python files: `{noun}.py` in subdirectories
 
 ## Organization Rules
 
-Files in this folder should follow these rules:
-
-1. Use appropriate file extensions
-2. Follow naming conventions
-3. Keep files organized and well-documented
+1. **Root scripts/** - Main workflow scripts only
+2. **Subdirectories by language** - Python utilities in `scripts/todo/`, `scripts/utils/`, etc.
+3. **Executable permissions** - All .sh files must have `chmod +x`
+4. **Helper script pattern** - Scripts should be callable from orchestrator
+5. **Gitignore .pyc files** - Bytecode should never be committed
 
 ## Standards
 
-- Files must be valid format
-- Use descriptive names
-- Document purpose and usage
+- All scripts must include:
+  - `#!/usr/bin/env bash` or `#!/usr/bin/env python3` shebang
+  - `# Description:` comment explaining purpose
+  - `# Usage:` comment with example invocation
+  - `# Exit codes:` comment documenting return values
+- Use `set -euo pipefail` for bash scripts
+- Validate required arguments with `${1:?Missing argument}`
+- Exit with meaningful codes (0=success, 1=failure, 2=invalid input)
 
 ---
 
 ## Git Analysis
 
 First created: 2025-12-27
+Primary creator: /clean workflow implementation
 Last significant update: 2025-12-28
-Generated: 2025-12-28 15:58:21 UTC
+File types: 9 .sh scripts, 2 .py utilities, 1 .pyc (should be removed)
 
 ---
 

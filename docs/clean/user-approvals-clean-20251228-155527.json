@@ -1,0 +1,114 @@
+{
+  "request_id": "clean-20251228-155527",
+  "timestamp": "2025-12-29T08:17:31Z",
+  "user_decision": "Execute critical/major issues except CLAUDE.md",
+  "user_approvals": {
+    "approved_actions": [
+      {
+        "category": "debug_cleanup",
+        "action": "archive_old_debug_files",
+        "description": "Archive 1885 debug files older than 30 days",
+        "severity": "critical",
+        "approved": true
+      },
+      {
+        "category": "archive_docs",
+        "files": [
+          "docs/git-tracking-solution-plan.md",
+          "docs/qa-improvements-summary.md",
+          "docs/auto-sync-analysis.md"
+        ],
+        "action": "archive",
+        "severity": "minor",
+        "approved": true
+      },
+      {
+        "category": "archive_workflow_jsons",
+        "action": "archive_dev_context_files",
+        "file_count": 22,
+        "severity": "major",
+        "approved": true
+      },
+      {
+        "category": "verify_orphaned_subagents",
+        "files": [
+          "agents/artifact-generator.md",
+          "agents/file-processor.md",
+          "agents/code-quality-auditor.md"
+        ],
+        "action": "verify_and_document",
+        "severity": "major",
+        "approved": true
+      },
+      {
+        "category": "create_docs_structure",
+        "action": "create_subdirectories",
+        "directories": ["docs/guides", "docs/reference", "docs/planning", "docs/reports", "docs/archive"],
+        "severity": "major",
+        "approved": true
+      },
+      {
+        "category": "categorize_docs",
+        "action": "move_to_subdirectories",
+        "file_count": 9,
+        "severity": "minor",
+        "approved": true
+      },
+      {
+        "category": "clean_temp_files",
+        "files": [
+          "scripts/todo/__pycache__/clean.cpython-312.pyc",
+          "scripts/todo/__pycache__",
+          "README.md.backup",
+          "settings.local.json.backup"
+        ],
+        "action": "delete",
+        "severity": "minor",
+        "approved": true
+      },
+      {
+        "category": "rotate_logs",
+        "files": ["logs/git-fswatch-.claude.log"],
+        "action": "rotate",
+        "severity": "minor",
+        "approved": true
+      },
+      {
+        "category": "translate_to_english",
+        "files": [
+          "scripts/check-file-references.sh",
+          "CLAUDE.md",
+          "README.md",
+          "skills_package/README.md",
+          "hooks/README.md",
+          "hooks/QUICKSTART.md",
+          "learning-materials/claude-code-office-skills-best-practices-2025.md"
+        ],
+        "action": "remove_chinese_content",
+        "severity": "major",
+        "approved": true,
+        "note": "Translate functional code to English, keep documentation English-only"
+      },
+      {
+        "category": "update_gitignore",
+        "action": "add_pycache",
+        "severity": "minor",
+        "approved": true
+      }
+    ],
+    "rejected_actions": [
+      {
+        "category": "move_claude_md",
+        "file": "CLAUDE.md",
+        "action": "move_to_docs",
+        "reason": "CLAUDE.md is official Claude Code configuration file, must stay in root",
+        "approved": false
+      }
+    ]
+  },
+  "notes": [
+    "User confirmed CLAUDE.md is official Claude Code file and should not be moved",
+    "Updated clean.md and cleanliness-inspector.md to recognize CLAUDE.md as protected file",
+    "All other actions approved - including language fixes, debug cleanup, archiving"
+  ]
+}
