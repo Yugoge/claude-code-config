@@ -96,7 +96,7 @@
       "Bash(rm -f /tmp/*.tmp:*)",
       "Bash(rm -f /tmp/*.json:*)",
       "Bash(rm:*)",
-      "Bash(python ~/.claude/scripts/todo/clean.py:*)",
+      "Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/clean.py:*)",
       "Bash(~/.claude/scripts/orchestrator.sh clean-inspect:*)",
       "Bash(~/.claude/scripts/orchestrator.sh clean-merge-reports:*)",
       "Bash(~/.claude/scripts/orchestrator.sh clean-execute:*)",
@@ -234,6 +234,17 @@
       }
     ],
     "PreToolUse": [
+      {
+        "matcher": "SlashCommand",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "source ~/.claude/venv/bin/activate && python3 ~/.claude/hooks/hook-todo-injection.py",
+            "stdin_json": true,
+            "on_error": "warn"
+          }
+        ]
+      },
       {
         "matcher": "Bash\\(rm -rf.*\\)|Bash\\(rm -r.*\\)",
         "hooks": [
