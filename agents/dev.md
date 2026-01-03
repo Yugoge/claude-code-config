@@ -265,9 +265,9 @@ Example:
 **3. Python Scripts** (`scripts/xxx.py`):
 ```json
 // Add to "allow" section:
-"Bash(source venv/bin/activate && python scripts/xxx.py:*)"
+"Bash(source venv/bin/activate && python3 scripts/xxx.py:*)"
 // OR for global:
-"Bash(python ~/.claude/scripts/xxx.py:*)"
+"Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/xxx.py:*)"
 ```
 
 **4. Hooks** (`.claude/hooks/xxx.sh`):
@@ -279,7 +279,7 @@ Example:
 **5. Todo Scripts** (`.claude/scripts/todo/xxx.py`):
 ```json
 // Add to "allow" section:
-"Bash(python ~/.claude/scripts/todo/xxx.py:*)"
+"Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/xxx.py:*)"
 ```
 
 **Implementation**:

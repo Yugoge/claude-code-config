@@ -20,7 +20,7 @@ This command uses multi-round inquiry to fully understand requirements, then orc
 
 Execute:
 ```bash
-python ~/.claude/scripts/todo/dev.py
+source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/dev.py
 ```
 
 Use output to create TodoWrite with all workflow steps.
@@ -488,7 +488,7 @@ mv .claude/settings.json.tmp .claude/settings.json
    - `"Bash(~/.claude/scripts/<script-name>.sh:*)"`
 
 2. **Python scripts** → Add to "allow":
-   - `"Bash(python ~/.claude/scripts/todo/<script>.py:*)"`
+   - `"Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/<script>.py:*)"`
 
 3. **Hooks created** → Add to "allow":
    - `"Bash(~/.claude/hooks/<hook-name>.sh:*)"`
@@ -852,7 +852,7 @@ if __name__ == "__main__":
 
 Execute:
 \`\`\`bash
-python ~/.claude/scripts/todo/mycommand.py
+source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/mycommand.py
 \`\`\`
 
 Use output to create TodoWrite with all workflow steps.

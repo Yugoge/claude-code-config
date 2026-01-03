@@ -33,7 +33,7 @@ All agents communicate via JSON in `docs/clean/`.
 Load TodoList checklist:
 
 ```bash
-python ~/.claude/scripts/todo/clean.py
+source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/clean.py
 ```
 
 Set up working directory:
