@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
 ```bash
 # 测试/ask命令
-echo '{"command": "/ask test"}' | python3 ~/.claude/hooks/hook-todo-injection.py
+echo '{"command": "/ask test"}' | source ~/.claude/venv/bin/activate && python3 ~/.claude/hooks/hook-todo-injection.py
 
 # 应该看到JSON输出包含:
 # {

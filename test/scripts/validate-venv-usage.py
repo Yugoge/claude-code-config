@@ -35,20 +35,20 @@ def validate(project_root: Path) -> Dict:
     # File patterns to check
     extensions = ["*.md", "*.json", "*.sh"]
 
-    # Pattern: python3 or python followed by path, NOT preceded by venv activation
-    # Negative lookbehind: (?<!source.*venv/bin/activate && )
-    bad_pattern = re.compile(
-        r'(?<!source\s+.*venv/bin/activate\s+&&\s+)(python3?)\s+([~/.]\S+\.py)',
+    # Pattern to find Python script invocations
+    python_pattern = re.compile(
+        r'(python3?)\s+([~/.]\S+\.py)',
         re.IGNORECASE
     )
 
-    # Good pattern: source venv/bin/activate && python3
-    good_pattern = re.compile(
-        r'source\s+.*venv/bin/activate\s+&&\s+python3?',
+    # Pattern to check for venv activation in context
+    venv_pattern = re.compile(
+        r'source\s+.*venv/bin/activate\s+&&',
         re.IGNORECASE
     )
 
     files_checked = 0
+    previous_line = ""
 
     for ext in extensions:
         for file_path in project_root.rglob(ext):
@@ -60,24 +60,29 @@ def validate(project_root: Path) -> Dict:
 
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
-                    for line_num, line in enumerate(f, 1):
+                    lines = f.readlines()
+                    for line_num, line in enumerate(lines, 1):
                         # Skip comments in .sh files
                         if file_path.suffix == '.sh' and line.strip().startswith('#'):
+                            previous_line = line
                             continue
 
-                        # Check for bad pattern
-                        match = bad_pattern.search(line)
+                        # Find Python invocations
+                        match = python_pattern.search(line)
                         if match:
-                            # Double-check it's not a false positive by checking broader context
-                            # (sometimes the venv activation is on previous line)
-                            violations.append({
-                                "file": str(file_path.relative_to(project_root)),
-                                "line": line_num,
-                                "pattern": match.group(0),
-                                "expected": f"source venv/bin/activate && {match.group(1)} {match.group(2)}",
-                                "severity": "critical",
-                                "context": line.strip()
-                            })
+                            # Check if venv activation present in current line or previous line
+                            context = previous_line + line
+                            if not venv_pattern.search(context):
+                                violations.append({
+                                    "file": str(file_path.relative_to(project_root)),
+                                    "line": line_num,
+                                    "pattern": match.group(0),
+                                    "expected": f"source venv/bin/activate && {match.group(1)} {match.group(2)}",
+                                    "severity": "critical",
+                                    "context": line.strip()
+                                })
+
+                        previous_line = line
             except Exception as e:
                 # Skip files that can't be read
                 continue
