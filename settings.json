@@ -98,6 +98,9 @@
       "Bash(rm:*)",
       "Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/clean.py:*)",
       "Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/test.py:*)",
+      "Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/quick-prototype.py:*)",
+      "Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/file-analyze.py:*)",
+      "Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/reflect-search.py:*)",
       "Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/test/scripts/validate-*.py:*)",
       "Bash(~/.claude/scripts/orchestrator.sh clean-inspect:*)",
       "Bash(~/.claude/scripts/orchestrator.sh clean-merge-reports:*)",
@@ -323,7 +326,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '👋 Session ended | 会话结束' && echo 'Remember: Review changes before pushing to remote!'"
+            "command": "echo '👋 Session ended' && echo 'Remember: Review changes before pushing to remote!'"
           }
         ]
       }
