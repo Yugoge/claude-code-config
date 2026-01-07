@@ -1,6 +1,6 @@
 #!/bin/bash
 # git-fswatch.sh - Comprehensive Git file watcher using fswatch
-# 全面的 Git 文件监控器，使用 fswatch
+# Comprehensive Git file monitor using fswatch
 # Location: ~/.claude/hooks/git-fswatch.sh
 # Usage: bash ~/.claude/hooks/git-fswatch.sh [path]
 
@@ -21,9 +21,9 @@ readonly NC='\033[0m' # No Color
 WATCH_PATH="${1:-.}"
 WATCH_PATH=$(cd "$WATCH_PATH" 2>/dev/null && pwd) || WATCH_PATH="."
 REPO_NAME=$(basename "$WATCH_PATH")
-DEBOUNCE_DELAY=${FSWATCH_DEBOUNCE:-12}       # 防抖延迟（秒，确保不超过 GitHub 6次/分钟限制）
-AUTO_PULL_INTERVAL=${FSWATCH_PULL_INTERVAL:-300}  # 自动 pull 间隔（秒，默认5分钟）
-MAX_RETRIES=${FSWATCH_MAX_RETRIES:-3}        # 最大重试次数
+DEBOUNCE_DELAY=${FSWATCH_DEBOUNCE:-12}       # Debounce delay (seconds, ensures <6 pushes/min GitHub limit)
+AUTO_PULL_INTERVAL=${FSWATCH_PULL_INTERVAL:-300}  # Auto pull interval (seconds, default 5 minutes)
+MAX_RETRIES=${FSWATCH_MAX_RETRIES:-3}        # Maximum retry attempts
 LOG_FILE="${HOME}/.claude/logs/git-fswatch-${REPO_NAME}.log"
 LOCK_FILE="/tmp/git-fswatch-${USER}-${REPO_NAME}.lock"
 STATE_FILE="/tmp/git-fswatch-state-${USER}-${REPO_NAME}.txt"
