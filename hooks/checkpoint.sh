@@ -1,6 +1,6 @@
 #!/bin/bash
 # checkpoint.sh - Manual checkpoint command
-# 手动检查点命令：立即保存当前所有修改
+# Manual checkpoint command: immediately save all current changes
 # Location: ~/.claude/hooks/checkpoint.sh
 # Usage: bash ~/.claude/hooks/checkpoint.sh
 

@@ -20,9 +20,15 @@ from typing import List, Dict
 def count_workflow_steps(content: str) -> int:
     """Count workflow steps in markdown content."""
     # Pattern: Step N: or ### Step N
-    step_pattern = re.compile(r'(?:^###?\s+Step\s+\d+|^Step\s+\d+:)', re.MULTILINE)
+    step_pattern = re.compile(r'(?:^###?\s+Step\s+(\d+)|^Step\s+(\d+):)', re.MULTILINE)
     matches = step_pattern.findall(content)
-    return len(matches)
+    # Extract step numbers and deduplicate (in case Step 0 appears multiple times)
+    step_numbers = set()
+    for match in matches:
+        # match is a tuple (group1, group2), one will be empty
+        step_num = match[0] or match[1]
+        step_numbers.add(int(step_num))
+    return len(step_numbers)
 
 
 def validate(project_root: Path) -> Dict:

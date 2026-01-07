@@ -1100,6 +1100,8 @@ Return inspection report as JSON:
 
 ### Never Delete (OFFICIAL FILES - MUST NOT BE RELOCATED)
 
+**ALLOWED in root directory**: CLAUDE.md, README.md, ARCHITECTURE.md (official Claude Code files)
+
 **Official Claude Code files (MUST stay in root directory)**:
 - **CLAUDE.md** - Official Claude Code global configuration file (root only)
 - **README.md** - Official Claude Code project documentation (root only)

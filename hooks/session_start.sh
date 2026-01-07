@@ -3,7 +3,7 @@
 # ~/.claude/hooks/session_start.sh
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 Claude Code Session Started | 会话已启动"
+echo "🚀 Claude Code Session Started"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "📁 Working Directory: $(pwd)"

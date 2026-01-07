@@ -43,9 +43,18 @@ def validate(project_root: Path) -> Dict:
 
     for ext in extensions:
         for file_path in project_root.rglob(ext):
-            # Skip docs/ and archive/ directories
-            if any(part in ["docs", "archive", "test/data"] for part in file_path.parts):
+            # Skip docs/, archive/, venv/ directories entirely
+            # For test/, only allow test/scripts/ to be checked
+            relative_parts = file_path.relative_to(project_root).parts
+
+            # Exclude these directories entirely
+            if any(part in ["docs", "archive", "venv"] for part in relative_parts):
                 continue
+
+            # For test/, exclude test/reports/ and test/data/
+            if "test" in relative_parts:
+                if not ("scripts" in relative_parts):
+                    continue
 
             files_checked += 1
 

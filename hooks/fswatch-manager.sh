@@ -1,6 +1,6 @@
 #!/bin/bash
 # fswatch-manager.sh - Manage git-fswatch instances
-# git-fswatch 管理脚本
+# Git file watcher management script
 # Location: ~/.claude/hooks/fswatch-manager.sh
 # Usage: bash ~/.claude/hooks/fswatch-manager.sh [command] [path]
 
