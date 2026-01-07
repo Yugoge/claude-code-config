@@ -2,8 +2,6 @@
 
 Quick save current progress with automatic commit and push.
 
-快速保存当前进度，自动 commit 并推送。
-
 ## Usage
 
 ```bash
@@ -15,12 +13,6 @@ This command will:
 2. Stage all files (git add .)
 3. Create a checkpoint commit with timestamp
 4. Push to remote automatically
-
-该命令会：
-1. 检查未提交的修改
-2. 暂存所有文件
-3. 创建带时间戳的检查点 commit
-4. 自动推送到远程
 
 ## When to use
 
