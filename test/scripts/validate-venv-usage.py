@@ -56,6 +56,14 @@ def validate(project_root: Path) -> Dict:
             if "archive" in str(file_path):
                 continue
 
+            # Skip JSON reports (contain violation patterns as test data)
+            if file_path.suffix == '.json':
+                relative_path = str(file_path.relative_to(project_root))
+                if (relative_path.startswith('test/reports/') or
+                    relative_path.startswith('docs/dev/') or
+                    relative_path.startswith('docs/clean/')):
+                    continue
+
             files_checked += 1
 
             try:

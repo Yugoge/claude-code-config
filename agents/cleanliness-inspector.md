@@ -1100,11 +1100,22 @@ Return inspection report as JSON:
 
 ### Never Delete (OFFICIAL FILES - MUST NOT BE RELOCATED)
 
+**Official Claude Code files (MUST stay in root directory)**:
+- **CLAUDE.md** - Official Claude Code global configuration file (root only)
 - **README.md** - Official Claude Code project documentation (root only)
 - **ARCHITECTURE.md** - Official Claude Code architecture documentation (root only)
-- **CLAUDE.md** - Official Claude Code global configuration file (root only)
-- **CRITICAL**: CLAUDE.md, README.md, and ARCHITECTURE.md are official Claude Code files that MUST stay in root directory
-- **CRITICAL**: Never recommend relocating these files to docs/ or any other location
+
+**CRITICAL**: These three files are official Claude Code files that MUST stay in root directory:
+- CLAUDE.md
+- README.md
+- ARCHITECTURE.md
+
+**Never recommend**:
+- Relocating these files to docs/ or any other location
+- Deleting or archiving these files
+- Renaming these files
+
+**Additional protection**:
 - Any file with code/config references
 - Files modified < 7 days (unless explicit temp patterns)
 - .git/ directory

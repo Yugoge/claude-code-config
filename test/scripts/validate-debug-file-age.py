@@ -56,8 +56,9 @@ def validate(project_root: Path, max_age_days: int = 30) -> Dict:
         if not file_path.is_file():
             continue
 
-        # Skip archive directories
-        if "archive" in file_path.parts:
+        # Skip archive directories (already archived files should not be counted)
+        relative_parts = file_path.relative_to(debug_dir).parts
+        if any(part.startswith('archive') for part in relative_parts):
             continue
 
         files_checked += 1
