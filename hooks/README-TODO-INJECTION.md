@@ -203,10 +203,10 @@ cat ~/.claude/settings.json | grep -A 10 '"PreToolUse"'
 # 4. $(pwd)/.claude/scripts/todo/{command}.py
 # 5. ~/.claude/scripts/todo/{command}.py (全局fallback)
 
-# 确认脚本存在且可执行
+# Confirm script exists and is executable
 ls -l scripts/todo/
-ls -l ~/.claude/scripts/todo/  # 检查全局脚本
-python3 scripts/todo/ask.py  # 测试脚本
+ls -l ~/.claude/scripts/todo/  # Check global scripts
+python3 scripts/todo/ask.py  # Test script
 ```
 
 **检查权限:**
