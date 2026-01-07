@@ -278,7 +278,7 @@ For each permission in `dev.permissions_to_add`:
 **Python scripts**:
 ```json
 {
-  "pattern": "Bash(python ~/.claude/scripts/todo/xxx.py:*)",
+  "pattern": "Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/xxx.py:*)",
   "section": "allow"
 }
 ```

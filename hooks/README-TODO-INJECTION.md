@@ -183,7 +183,7 @@ cat ~/.claude/settings.json | grep -A 10 '"PreToolUse"'
     "hooks": [
       {
         "type": "command",
-        "command": "python3 ~/.claude/hooks/hook-todo-injection.py",
+        "command": "source ~/.claude/venv/bin/activate && python3 ~/.claude/hooks/hook-todo-injection.py",
         "stdin_json": true,
         "on_error": "warn"
       }

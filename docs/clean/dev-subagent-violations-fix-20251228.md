@@ -15,7 +15,7 @@ Dev subagent documentation (`/root/.claude/agents/dev.md`) had **critical gaps**
 **User Requirement**: "我明确要求过... 不要这样做" (I explicitly required not to do this)
 
 **Evidence**:
-- `/clean` workflow Step 1 (line 33-37) mandates: `python ~/.claude/scripts/todo/clean.py`
+- `/clean` workflow Step 1 (line 33-37) mandates: `source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/clean.py`
 - Dev subagent Quality Checklist (line 395-409) **completely missing** TodoWrite check
 - During /clean execution, todo script was **never called**
 - Workflow progress invisible to user
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 ```
 
 **Integration**:
-- Workflow command should call: `python ~/.claude/scripts/todo/{workflow-name}.py`
+- Workflow command should call: `source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/{workflow-name}.py`
 - Agent executing workflow uses TodoWrite tool to update status
 - Each step transitions: pending → in_progress → completed
 ```
@@ -246,7 +246,7 @@ return [
 
 **Test Result**:
 ```bash
-$ python3 /root/.claude/scripts/todo/clean.py | jq '.[3]'
+$ source ~/.claude/venv/bin/activate && python3 /root/.claude/scripts/todo/clean.py | jq '.[3]'
 {
   "content": "Step 4: Rule Initialization (MANDATORY PRE-INSPECTION)",
   "activeForm": "Step 4: Initializing Folder Rules",
