@@ -1,11 +1,10 @@
 #!/bin/bash
 # protection-status.sh - Display protection status for all git repositories
-# 显示所有 git 仓库的保护状态
+# Display protection status for all git repositories
 # Location: ~/.claude/hooks/protection-status.sh
 # Usage: bash ~/.claude/hooks/protection-status.sh
 
 echo "┌─────────────────────────────────────────────────────────────────┐"
-echo "│          Git 三层保护系统 - 状态总览                            │"
 echo "│          Git Three-Layer Protection System - Status              │"
 echo "└─────────────────────────────────────────────────────────────────┘"
 echo ""
@@ -75,12 +74,12 @@ done
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Legend 图例:"
-echo "  Status: 🟢 完全保护 | 🟡 部分保护 | 🔴 无保护"
+echo "Legend:"
+echo "  Status: 🟢 Full Protection | 🟡 Partial Protection | 🔴 No Protection"
 echo "  Layers: L1=Smart Checkpoint | L2=Auto-Push | L3=FSWatch"
-echo "  Marks:  ✅ 已启用 | ⚠️ 部分启用 | ❌ 未启用"
+echo "  Marks:  ✅ Enabled | ⚠️ Partially Enabled | ❌ Disabled"
 echo ""
-echo "Commands 命令:"
+echo "Commands:"
 echo "  Install protection: bash ~/.claude/hooks/install-protection-all.sh"
 echo "  Start fswatch:      bash ~/.claude/hooks/start-fswatch-all.sh"
 echo "  Stop fswatch:       pkill -f git-fswatch.sh"
