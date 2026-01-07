@@ -1,11 +1,10 @@
 #!/bin/bash
 # start-fswatch-all.sh - Start fswatch monitoring for all important repositories
-# 为所有重要仓库启动 fswatch 监控
 # Location: ~/.claude/hooks/start-fswatch-all.sh
 # Usage: bash ~/.claude/hooks/start-fswatch-all.sh
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 FSWatch Batch Starter - 批量启动 FSWatch"
+echo "🚀 FSWatch Batch Starter"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -80,12 +79,12 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "✅ FSWatch startup complete!"
 echo ""
-echo "Summary 汇总:"
+echo "Summary:"
 echo "  - Started:  $started_count"
 echo "  - Skipped:  $skipped_count"
 echo "  - Failed:   $failed_count"
 echo ""
-echo "Commands 命令:"
+echo "Commands:"
 echo "  Check status:   bash ~/.claude/hooks/protection-status.sh"
 echo "  View logs:      tail -f ~/.claude/logs/fswatch-*.log"
 echo "  Stop all:       pkill -f git-fswatch.sh"
