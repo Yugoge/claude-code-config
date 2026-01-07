@@ -8,7 +8,7 @@ allowed-tools: [Read, Grep, Glob, Bash]
 
 Perform security analysis on $ARGUMENTS to identify potential vulnerabilities.
 
-## Security Checklist | 安全检查清单
+## Security Checklist清单
 
 ### 🔴 Critical Vulnerabilities | 严重漏洞
 
@@ -19,7 +19,7 @@ Perform security analysis on $ARGUMENTS to identify potential vulnerabilities.
 - XML/XPath Injection
 - Template Injection
 
-#### 2. Authentication & Authorization | 认证与授权
+#### 2. Authentication & Authorization
 - Weak password policies
 - Missing authentication
 - Broken access control
@@ -61,7 +61,7 @@ Perform security analysis on $ARGUMENTS to identify potential vulnerabilities.
 
 ### 🟢 Best Practices | 最佳实践
 
-#### 9. Input Validation | 输入验证
+#### 9. Input Validation
 - Whitelist validation
 - Type checking
 - Length limits
@@ -72,7 +72,7 @@ Perform security analysis on $ARGUMENTS to identify potential vulnerabilities.
 - Certificate validation
 - Secure protocols (TLS 1.2+)
 
-## Output Format | 输出格式
+## Output Format
 
 For each finding:
 1. **Severity**: Critical / High / Medium / Low
