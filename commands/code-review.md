@@ -4,13 +4,13 @@ argument-hint: [file-path-or-pattern]
 allowed-tools: [Read, Grep, Glob, Bash]
 ---
 
-# Code Review | 代码审查
+# Code Review
 
 Perform a comprehensive code review on $ARGUMENTS following these criteria:
 
 ## Review Checklist | 审查清单
 
-### 1. Code Quality | 代码质量
+### 1. Code Quality
 - **Readability**: Is the code easy to understand?
 - **Naming**: Are variables and functions well-named?
 - **Complexity**: Is the code unnecessarily complex?
@@ -28,7 +28,7 @@ Perform a comprehensive code review on $ARGUMENTS following these criteria:
 - **Caching**: Can caching improve performance?
 - **Database Queries**: Are queries optimized?
 
-### 4. Testing | 测试
+### 4. Testing
 - **Test Coverage**: Are there sufficient tests?
 - **Edge Cases**: Are edge cases handled?
 - **Error Handling**: Is error handling robust?
@@ -38,7 +38,7 @@ Perform a comprehensive code review on $ARGUMENTS following these criteria:
 - **API Docs**: Are public APIs documented?
 - **README**: Is setup/usage documented?
 
-## Output Format | 输出格式
+## Output Format
 
 Provide:
 1. **Summary** - Overall assessment
