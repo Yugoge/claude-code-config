@@ -1,11 +1,11 @@
 #!/bin/bash
 # smart-checkpoint.sh - Intelligent auto-checkpoint system
-# 智能检查点系统：在合适时机自动保存代码
+# Smart checkpoint system: automatically save code at appropriate times
 # Location: ~/.claude/hooks/smart-checkpoint.sh
 
 # Configuration
-CHECKPOINT_THRESHOLD=${GIT_CHECKPOINT_THRESHOLD:-10}  # 默认累积10个文件
-SILENT_MODE=${GIT_CHECKPOINT_SILENT:-0}  # 是否静默模式
+CHECKPOINT_THRESHOLD=${GIT_CHECKPOINT_THRESHOLD:-10}  # Default: 10 files accumulated
+SILENT_MODE=${GIT_CHECKPOINT_SILENT:-0}  # Silent mode flag
 
 # Count changes
 STAGED=$(git diff --cached --name-only 2>/dev/null | wc -l)
