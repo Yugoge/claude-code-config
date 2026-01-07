@@ -43,11 +43,12 @@ Multiple files used direct `python` or `python3` commands instead of activating 
 Development standard documented venv usage requirement, but **no enforcement mechanism**. Developers (Claude) could violate standard without detection.
 
 **Fix Applied**:
-Changed all instances from:
+Changed all instances from (BAD - example only):
 ```bash
-python ~/.claude/scripts/xxx.py
+# ❌ WRONG - this was the violation pattern that needed fixing:
+# python ~/.claude/scripts/xxx.py
 ```
-To:
+To (GOOD):
 ```bash
 source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/xxx.py
 ```
