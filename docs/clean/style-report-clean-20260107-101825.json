@@ -1,0 +1,219 @@
+{
+  "request_id": "clean-20260107-101825",
+  "timestamp": "2026-01-07T10:18:25Z",
+  "inspector": "style-inspector",
+  "violations": [
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "hooks/install.sh:4,6,26,62,100,115-118,148,156,161,166,168,169",
+      "finding": "Contains Chinese text in comments, output messages, and UI text (e.g., '用途：快速安装和配置', '创建 hooks 目录...', '安装完成！', '环境变量已添加')",
+      "recommendation": "Translate all Chinese text to English: 'Purpose: Quick installation and configuration', 'Creating hooks directory...', 'Installation complete!', 'Environment variable added'"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "hooks/ensure-git-repo.sh:4,12-17",
+      "finding": "Contains Chinese text in header comments and variable names (e.g., '确保项目有 Git 仓库', color output messages)",
+      "recommendation": "Translate to English: 'Ensure project has Git repository', 'No Color'"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/refactor.md:7,11,13,15-95",
+      "finding": "Bilingual documentation with extensive Chinese text mixed with English throughout (headers, descriptions, examples)",
+      "recommendation": "Remove all Chinese text, keep English only. Examples: 'Code Smells to Address' (not '要解决的代码异味'), 'Bloaters' (not '膨胀者'), 'Output Format' (not '输出格式')"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/checkpoint.md:5,19-23",
+      "finding": "Contains Chinese text in command description and workflow steps (e.g., '快速保存当前进度', '该命令会：', '检查未提交的修改')",
+      "recommendation": "Translate all text to English: 'Quick save current progress', 'This command will:', 'Check uncommitted modifications'"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/fswatch.md:5",
+      "finding": "Contains Chinese text in command description (e.g., '实时文件监控，自动 git commit/push/pull')",
+      "recommendation": "Translate to English: 'Real-time file monitoring with automatic git commit/push/pull'"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/optimize.md:7-95",
+      "finding": "Bilingual documentation with Chinese text throughout (section headers, descriptions)",
+      "recommendation": "Remove all Chinese text, keep English only"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/explain-code.md:7-65",
+      "finding": "Bilingual documentation with Chinese text throughout, explicit mention of Chinese language in output style: '中英文双语解释复杂概念'",
+      "recommendation": "Remove all Chinese text and bilingual output requirements, keep English only"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/quick-commit.md:7-101",
+      "finding": "Bilingual documentation with Chinese text throughout all sections",
+      "recommendation": "Remove all Chinese text, keep English only"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/test-gen.md:7-107",
+      "finding": "Bilingual documentation with Chinese text throughout",
+      "recommendation": "Remove all Chinese text, keep English only"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/doc-gen.md:7-166",
+      "finding": "Bilingual documentation with Chinese text throughout, explicit bilingual requirement at line 166: 'Provide documentation in both English and Chinese (中文)'",
+      "recommendation": "Remove all Chinese text and bilingual documentation requirements, keep English only"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/deep-search.md:10-78",
+      "finding": "Contains Chinese text in section headers as parallel descriptions (e.g., 'Phase 1: Parallel Discovery (并行发现)', 'Entry Point Analysis (入口分析)')",
+      "recommendation": "Remove Chinese parenthetical translations, keep English only"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/security-check.md:7-75",
+      "finding": "Bilingual documentation with Chinese text throughout all security checklist sections",
+      "recommendation": "Remove all Chinese text, keep English only"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "commands/code-review.md:7-95",
+      "finding": "Bilingual documentation with Chinese text throughout review checklist",
+      "recommendation": "Remove all Chinese text, keep English only"
+    },
+    {
+      "standard": "english-only",
+      "severity": "major",
+      "location": "hooks/README-TODO-INJECTION.md:209",
+      "finding": "Contains Chinese comment in code example: '# 测试脚本'",
+      "recommendation": "Translate to English: '# Test script'"
+    },
+    {
+      "standard": "no-hardcoded-domains",
+      "severity": "minor",
+      "location": "hooks/checkpoint.sh:46,47",
+      "finding": "Hardcoded URL in commit co-authorship: 'https://claude.com/claude-code' and 'https://happy.engineering'",
+      "recommendation": "These are acceptable as they are part of standardized commit attribution, not configuration values. No action required unless parameterization is explicitly needed."
+    },
+    {
+      "standard": "no-hardcoded-domains",
+      "severity": "minor",
+      "location": "hooks/push.sh:217-218",
+      "finding": "Hardcoded URLs in commit messages: 'https://claude.com/claude-code' and 'https://happy.engineering'",
+      "recommendation": "Acceptable for commit attribution. No action required."
+    },
+    {
+      "standard": "no-hardcoded-domains",
+      "severity": "minor",
+      "location": "hooks/git-fswatch.sh:309-310",
+      "finding": "Hardcoded URLs in commit messages: 'https://claude.com/claude-code' and 'https://happy.engineering'",
+      "recommendation": "Acceptable for commit attribution. No action required."
+    },
+    {
+      "standard": "no-hardcoded-domains",
+      "severity": "minor",
+      "location": "hooks/ensure-git-repo.sh:83-84,94,127",
+      "finding": "Hardcoded URLs: 'https://claude.ai/code', 'https://cli.github.com', 'https://github.com/$USERNAME/$REPO_NAME'",
+      "recommendation": "GitHub URL at line 127 uses dynamic $USERNAME and $REPO_NAME variables (acceptable). CLI install URL is documentation reference (acceptable). Claude Code URL is commit attribution (acceptable). No action required."
+    },
+    {
+      "standard": "no-hardcoded-domains",
+      "severity": "minor",
+      "location": "hooks/install.sh:118",
+      "finding": "Hardcoded URL in installation instructions: 'https://cli.github.com/' (with Chinese text '其他:')",
+      "recommendation": "URL is documentation reference (acceptable), but fix Chinese text violation (covered separately)"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "minor",
+      "location": "agents/test-executor.md:92,107",
+      "finding": "Example code shows direct python3 invocation without venv activation: 'OUTPUT=$(python3 \"$VALIDATOR_PATH\" ...)' and example 'python3 test/scripts/validate-venv-usage.py'",
+      "recommendation": "Update examples to show proper venv usage pattern: 'source ~/.claude/venv/bin/activate && python3 ...'. Note: These appear to be examples/documentation, not actual script invocations, but should demonstrate correct pattern."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "minor",
+      "location": "agents/test-executor.md:544,550,559,573",
+      "finding": "Documentation examples show direct python3 invocation: 'python3 -c \"import sys; print(sys.prefix)\"', 'python3 -m venv ~/.claude/venv', 'time python3 test/scripts/validate-xxx.py', 'python3 test/scripts/validate-xxx.py 2>&1'",
+      "recommendation": "Update examples to demonstrate venv activation where applicable. Exception: 'python3 -m venv' for creating venv is correct. Other examples should show 'source venv/bin/activate && python3 ...'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "minor",
+      "location": "agents/test-validator.md:69,108",
+      "finding": "Examples show direct python3 invocation: 'python3 -m py_compile test/scripts/validate-venv-usage.py' and 'source {venv_path}/bin/activate && python3 -c 'import {imp}'",
+      "recommendation": "Line 108 is correct (uses source venv). Line 69 py_compile example should also show venv activation for consistency."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "minor",
+      "location": "test/instructions/execution-guide.md:76",
+      "finding": "Example shows direct python3 invocation: 'python3 test/scripts/validate-venv-usage.py --project-root /path/to/project > output.json'",
+      "recommendation": "Update to: 'source ~/.claude/venv/bin/activate && python3 test/scripts/validate-venv-usage.py --project-root /path/to/project > output.json'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "minor",
+      "location": "docs/reference/configuration-summary.md:374",
+      "finding": "Example shows direct python3 invocation: 'python3 -m json.tool ~/.claude/settings.json'",
+      "recommendation": "While json.tool is a standard library module, for consistency: 'source ~/.claude/venv/bin/activate && python3 -m json.tool ~/.claude/settings.json'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "minor",
+      "location": "docs/test/README.md:220",
+      "finding": "Example shows direct python3 invocation: 'python3 scripts/test/test_runner.py'",
+      "recommendation": "Update to: 'source ~/.claude/venv/bin/activate && python3 scripts/test/test_runner.py'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "minor",
+      "location": "README.md:268",
+      "finding": "Example shows direct python3 invocation: 'python3 -m json.tool ~/.claude/settings.json'",
+      "recommendation": "Update to: 'source ~/.claude/venv/bin/activate && python3 -m json.tool ~/.claude/settings.json'"
+    }
+  ],
+  "summary": {
+    "standards_checked": 10,
+    "violations_found": 30,
+    "critical": 0,
+    "major": 14,
+    "minor": 16,
+    "files_audited": 84,
+    "breakdown": {
+      "english_only_violations": 14,
+      "hardcoded_domains_violations": 5,
+      "venv_usage_violations": 7,
+      "decimal_step_numbering_violations": 0,
+      "inline_code_violations": 0,
+      "meaningful_naming_violations": 0,
+      "merge_similar_scripts_violations": 0,
+      "concise_documentation_violations": 0,
+      "git_root_cause_violations": 0,
+      "parameterized_scripts_violations": 0
+    },
+    "notes": [
+      "Primary issue: Extensive Chinese/bilingual content in 13 command files (refactor.md, optimize.md, explain-code.md, test-gen.md, doc-gen.md, deep-search.md, security-check.md, code-review.md, quick-commit.md, checkpoint.md, fswatch.md, doc-gen.md) and 2 hook files (install.sh, ensure-git-repo.sh)",
+      "All hardcoded domains are acceptable: commit attributions (claude.com, happy.engineering), documentation references (cli.github.com), or properly parameterized (github.com with variables)",
+      "Venv usage violations are all in documentation/examples, not actual script execution. These should be updated to demonstrate correct patterns.",
+      "No decimal step numbering violations found in actual workflows (only in style-inspector.md as violation examples and dev.md as documentation of what NOT to do)",
+      "No inline code violations - commands/agents properly use scripts via Bash tool calls",
+      "No naming convention violations - all scripts have meaningful, descriptive names",
+      "Scripts are properly parameterized with dynamic values via parameters or environment variables",
+      "Test validation context shows project is post-/dev workflow with recent venv enforcement improvements (commit 6bb2c742)"
+    ]
+  }
+}
