@@ -519,8 +519,8 @@ Each edge case should have a test fixture in `docs/test/test-fixtures/`:
 ```
 EC002-venv-violation/
 ├── input/
-│   ├── settings.json          # Contains: "python script.py" (violation)
-│   └── commands/clean.md      # Contains: "python ~/.claude/script.py"
+│   ├── settings.json          # Contains: "source venv/bin/activate && python script.py"
+│   └── commands/clean.md      # Contains: "source venv/bin/activate && python ~/.claude/script.py"
 ├── expected/
 │   └── violations.json        # Expected validator output
 └── README.md                  # Explains the test case
