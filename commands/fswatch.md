@@ -2,8 +2,6 @@
 
 Real-time file monitoring with automatic git commit/push/pull.
 
-实时文件监控，自动 git commit/push/pull。
-
 ## Quick Start
 
 ```bash

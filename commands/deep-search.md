@@ -7,14 +7,14 @@ Execute deep search on **$1** to find: **$2**
 
 ## Strategy: Multi-Phase Iterative Search
 
-### Phase 1: Parallel Discovery (并行发现)
+### Phase 1: Parallel Discovery
 Execute these searches **in parallel**:
 - `site:$1 "$2"`
 - `site:$1 "$2" filetype:pdf`
 - `site:$1 "$2" official guide documentation manual`
 - `"$2" site:$1 OR site:www.$1`
 
-### Phase 2: Entry Point Analysis (入口分析)
+### Phase 2: Entry Point Analysis
 
 ⚠️ **CRITICAL**: WebFetch is DISABLED (timeout risk). Use Playwright MCP instead.
 

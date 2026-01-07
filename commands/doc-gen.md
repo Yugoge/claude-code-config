@@ -4,13 +4,13 @@ argument-hint: [file-path-or-module]
 allowed-tools: [Read, Grep, Glob]
 ---
 
-# Documentation Generation | 文档生成
+# Documentation Generation
 
 Generate comprehensive documentation for $ARGUMENTS.
 
-## Documentation Types | 文档类型
+## Documentation Types
 
-### 1. API Documentation | API文档
+### 1. API Documentation
 
 #### Function/Method Documentation
 - **Purpose**: What does it do?
@@ -28,7 +28,7 @@ Generate comprehensive documentation for $ARGUMENTS.
 - **Rust**: rustdoc comments
 - **C#**: XML documentation
 
-### 2. Module/Class Documentation | 模块/类文档
+### 2. Module/Class Documentation
 
 - **Overview**: Purpose and responsibility
 - **Architecture**: Design and structure
@@ -37,7 +37,7 @@ Generate comprehensive documentation for $ARGUMENTS.
 - **Dependencies**: Required packages
 - **See Also**: Related modules
 
-### 3. README Documentation | README文档
+### 3. README Documentation
 
 #### Essential Sections:
 1. **Project Title & Description**
@@ -83,7 +83,7 @@ Generate comprehensive documentation for $ARGUMENTS.
     - Contributors
     - Credits
 
-### 4. Architecture Documentation | 架构文档
+### 4. Architecture Documentation
 
 - **System Overview**: High-level architecture
 - **Components**: Major parts and responsibilities
@@ -91,7 +91,7 @@ Generate comprehensive documentation for $ARGUMENTS.
 - **Design Decisions**: Why things are built this way
 - **Diagrams**: Architecture diagrams (ASCII or Mermaid)
 
-### 5. Change Documentation | 变更文档
+### 5. Change Documentation
 
 #### CHANGELOG.md Format:
 ```markdown
@@ -117,29 +117,29 @@ Generate comprehensive documentation for $ARGUMENTS.
 - Security fixes
 ```
 
-## Documentation Best Practices | 文档最佳实践
+## Documentation Best Practices
 
-### Writing Style | 写作风格
+### Writing Style
 - **Clear**: Use simple, direct language
 - **Concise**: Remove unnecessary words
 - **Complete**: Cover all important aspects
 - **Correct**: Keep documentation up-to-date
 - **Consistent**: Use consistent terminology
 
-### Code Examples | 代码示例
+### Code Examples
 - Include imports/setup
 - Show expected output
 - Use realistic examples
 - Cover common use cases
 - Include error handling
 
-### Maintenance | 维护
+### Maintenance
 - Update docs with code changes
 - Review docs regularly
 - Remove outdated information
 - Fix broken links
 
-## Output Format | 输出格式
+## Output Format
 
 Generate documentation that includes:
 
@@ -162,5 +162,3 @@ Generate documentation that includes:
    - Working code examples
    - Expected outputs
    - Common patterns
-
-Provide documentation in both English and Chinese (中文) for key concepts.

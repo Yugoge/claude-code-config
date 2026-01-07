@@ -4,28 +4,28 @@ argument-hint: [optional-message-prefix]
 allowed-tools: [Bash, Read, Grep]
 ---
 
-# Quick Commit | 快速提交
+# Quick Commit
 
 Create a git commit with an auto-generated message based on changes.
 
-## Process | 流程
+## Process
 
-1. **Analyze Changes** | 分析变更
+1. **Analyze Changes**
    - Review `git status` and `git diff`
    - Identify changed files and nature of changes
    - Categorize change type
 
-2. **Generate Commit Message** | 生成提交信息
+2. **Generate Commit Message**
    - Follow Conventional Commits format
    - Include clear, descriptive summary
    - Add detailed body if needed
 
-3. **Create Commit** | 创建提交
+3. **Create Commit**
    - Stage appropriate files
    - Commit with generated message
    - Include co-authorship attribution
 
-## Commit Message Format | 提交信息格式
+## Commit Message Format
 
 ```
 <type>(<scope>): <subject>
@@ -35,7 +35,7 @@ Create a git commit with an auto-generated message based on changes.
 <footer>
 ```
 
-### Types | 类型
+### Types
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -47,27 +47,27 @@ Create a git commit with an auto-generated message based on changes.
 - `ci`: CI/CD changes
 - `chore`: Other changes (dependencies, etc.)
 
-### Scope | 范围 (optional)
+### Scope
 - Component, module, or area affected
 - Examples: `auth`, `api`, `ui`, `database`
 
-### Subject | 主题
+### Subject
 - Concise description (50 chars or less)
 - Imperative mood: "add" not "added" or "adds"
 - No period at the end
 - Capitalize first letter
 
-### Body | 正文 (optional)
+### Body
 - Explain the "why" not the "what"
 - Wrap at 72 characters
 - Separate from subject with blank line
 
-### Footer | 页脚
+### Footer
 - Breaking changes: `BREAKING CHANGE: description`
 - Issue references: `Closes #123`
 - Co-authorship attribution
 
-## Example Commit Messages | 提交信息示例
+## Example Commit Messages
 
 ```
 feat(auth): add OAuth2 authentication
@@ -98,7 +98,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 Co-Authored-By: Happy <yesreply@happy.engineering>
 ```
 
-## Execution | 执行
+## Execution
 
 1. Run `git status` and `git diff` to analyze changes
 2. Generate appropriate commit message

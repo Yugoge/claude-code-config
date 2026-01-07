@@ -4,45 +4,45 @@ argument-hint: [file-path]
 allowed-tools: [Read, Grep, Bash]
 ---
 
-# Performance Optimization Analysis | 性能优化分析
+# Performance Optimization Analysis
 
 Analyze $ARGUMENTS for performance optimization opportunities.
 
-## Analysis Focus | 分析重点
+## Analysis Focus
 
-### 1. Algorithm Complexity | 算法复杂度
+### 1. Algorithm Complexity
 - Identify O(n²) or worse algorithms that could be improved
 - Suggest more efficient data structures
 - Look for unnecessary nested loops
 
-### 2. Resource Usage | 资源使用
+### 2. Resource Usage
 - Memory leaks or excessive allocations
 - Unnecessary object creation
 - Large data structures that could be optimized
 
-### 3. Database & I/O | 数据库与I/O
+### 3. Database & I/O
 - N+1 query problems
 - Missing indexes
 - Inefficient queries
 - File I/O that could be batched or cached
 
-### 4. Caching Opportunities | 缓存机会
+### 4. Caching Opportunities
 - Repeated calculations that could be memoized
 - API calls that could be cached
 - Static data that should be precomputed
 
-### 5. Concurrency | 并发
+### 5. Concurrency
 - Blocking operations that could be async
 - Opportunities for parallel processing
 - Race conditions or deadlocks
 
-### 6. Code-level Optimizations | 代码级优化
+### 6. Code-level Optimizations
 - String concatenation in loops
 - Inefficient regular expressions
 - Unnecessary type conversions
 - Function call overhead
 
-## Output Format | 输出格式
+## Output Format
 
 For each optimization opportunity, provide:
 1. **Location** - File and line number
