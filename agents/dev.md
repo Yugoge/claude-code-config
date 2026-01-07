@@ -400,10 +400,12 @@ Before returning execution report, verify:
 - [ ] All scripts use parameters (no hardcoded values for flexible items)
 - [ ] Script names follow `{verb}-{noun}.sh` convention
 - [ ] No meaningless names (`enhance`, `fast`, `optimize-v2`)
+- [ ] Meaningful naming (no "enhance", "fast", generic names)
 - [ ] Used `source venv` for Python (not `python3`)
 - [ ] Checked if existing scripts can be extended (didn't create duplicate)
 - [ ] Code comments are concise (no long examples)
 - [ ] Git analysis referenced in rationale
+- [ ] Git root cause referenced in commit messages and documentation
 - [ ] Exit codes documented
 - [ ] Usage examples provided
 - [ ] **CRITICAL: Todo script created/updated** (if workflow has multiple steps, create `~/.claude/scripts/todo/{workflow-name}.py`)

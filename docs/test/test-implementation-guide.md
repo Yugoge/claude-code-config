@@ -497,13 +497,13 @@ The /test command (commands/test.md) should:
 
 ```bash
 # Step 1: Initialize
-python3 scripts/todo/test.py
+source ~/.claude/venv/bin/activate && python3 scripts/todo/test.py
 
 # Step 2: Execute tests
-python3 scripts/test/test_runner.py > /tmp/test-report.json
+source ~/.claude/venv/bin/activate && python3 scripts/test/test_runner.py > /tmp/test-report.json
 
 # Step 3: Generate markdown report
-python3 scripts/test/report_generator.py /tmp/test-report.json > docs/test/latest-report.md
+source ~/.claude/venv/bin/activate && python3 scripts/test/report_generator.py /tmp/test-report.json > docs/test/latest-report.md
 
 # Step 4: Display results
 cat docs/test/latest-report.md
