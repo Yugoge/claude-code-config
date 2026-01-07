@@ -1,0 +1,187 @@
+{
+  "request_id": "clean-20260107-101825",
+  "timestamp": "2026-01-07T10:18:25Z",
+  "user_selection": "execute_all_recommended_actions",
+  "approved_actions": [
+    {
+      "action_id": "archive_markdown_1",
+      "action": "move",
+      "source": "docs/dev/completion-20251226-160000.md",
+      "destination": "docs/dev/archive/2025-12/completion-20251226-160000.md",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "11 days old, completed workflow"
+    },
+    {
+      "action_id": "archive_markdown_2",
+      "action": "move",
+      "source": "docs/dev/completion-dev-20251228-143334.md",
+      "destination": "docs/dev/archive/2025-12/completion-dev-20251228-143334.md",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, completed workflow"
+    },
+    {
+      "action_id": "archive_markdown_3",
+      "action": "move",
+      "source": "docs/clean/completion-clean-20251228-155527.md",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-155527/completion-clean-20251228-155527.md",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, completed workflow"
+    },
+    {
+      "action_id": "archive_markdown_4",
+      "action": "move",
+      "source": "docs/clean/workflow-fix-20251228-rule-inspector-enforcement.md",
+      "destination": "docs/clean/archive/2025-12/workflow-fix-20251228-rule-inspector-enforcement.md",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, workflow fix document"
+    },
+    {
+      "action_id": "archive_markdown_5",
+      "action": "move",
+      "source": "docs/clean/test-results-20251228-145537.md",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-145537/test-results-20251228-145537.md",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, test results"
+    },
+    {
+      "action_id": "archive_markdown_6",
+      "action": "move",
+      "source": "docs/clean/final-summary-clean-20251228-155527.md",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-155527/final-summary-clean-20251228-155527.md",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "8 days old, summary report"
+    },
+    {
+      "action_id": "archive_json_1",
+      "action": "move",
+      "source": "docs/clean/rule-context-clean-20251228-155527.json",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-155527/rule-context-clean-20251228-155527.json",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, completed workflow"
+    },
+    {
+      "action_id": "archive_json_2",
+      "action": "move",
+      "source": "docs/clean/context-clean-20251228-155527.json",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-155527/context-clean-20251228-155527.json",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, completed workflow"
+    },
+    {
+      "action_id": "archive_json_3",
+      "action": "move",
+      "source": "docs/clean/cleanliness-report-clean-20251228-155527.json",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-155527/cleanliness-report-clean-20251228-155527.json",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, completed workflow"
+    },
+    {
+      "action_id": "archive_json_4",
+      "action": "move",
+      "source": "docs/clean/rule-report-clean-20251228-155527.json",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-155527/rule-report-clean-20251228-155527.json",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, completed workflow"
+    },
+    {
+      "action_id": "archive_json_5",
+      "action": "move",
+      "source": "docs/clean/style-report-clean-20251228-155527.json",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-155527/style-report-clean-20251228-155527.json",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, completed workflow"
+    },
+    {
+      "action_id": "archive_json_6",
+      "action": "move",
+      "source": "docs/clean/combined-report-clean-20251228-155527.json",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-155527/combined-report-clean-20251228-155527.json",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, completed workflow"
+    },
+    {
+      "action_id": "archive_json_7",
+      "action": "move",
+      "source": "docs/clean/user-approvals-clean-20251228-155527.json",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-155527/user-approvals-clean-20251228-155527.json",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, completed workflow"
+    },
+    {
+      "action_id": "archive_json_8",
+      "action": "move",
+      "source": "docs/clean/cleanup-execution-clean-20251228-155527.json",
+      "destination": "docs/clean/archive/2025-12/clean-20251228-155527/cleanup-execution-clean-20251228-155527.json",
+      "approved": true,
+      "category": "file_organization",
+      "reason": "9 days old, completed workflow"
+    },
+    {
+      "action_id": "translate_chinese_commands",
+      "action": "translate_to_english",
+      "files": [
+        "commands/refactor.md",
+        "commands/optimize.md",
+        "commands/explain-code.md",
+        "commands/test-gen.md",
+        "commands/doc-gen.md",
+        "commands/deep-search.md",
+        "commands/security-check.md",
+        "commands/code-review.md",
+        "commands/quick-commit.md",
+        "commands/checkpoint.md",
+        "commands/fswatch.md"
+      ],
+      "approved": true,
+      "category": "style_standards",
+      "reason": "English-only requirement (EC006 compliance)"
+    },
+    {
+      "action_id": "translate_chinese_hooks",
+      "action": "translate_to_english",
+      "files": [
+        "hooks/install.sh",
+        "hooks/ensure-git-repo.sh",
+        "hooks/README-TODO-INJECTION.md"
+      ],
+      "approved": true,
+      "category": "style_standards",
+      "reason": "English-only requirement"
+    },
+    {
+      "action_id": "fix_venv_examples",
+      "action": "update_documentation",
+      "files": [
+        "agents/test-executor.md",
+        "agents/test-validator.md",
+        "test/instructions/execution-guide.md",
+        "docs/reference/configuration-summary.md",
+        "docs/test/README.md",
+        "README.md"
+      ],
+      "approved": true,
+      "category": "style_standards",
+      "reason": "Update examples to demonstrate correct venv activation pattern"
+    }
+  ],
+  "rejected_actions": [],
+  "summary": {
+    "total_approved": 17,
+    "file_organization_actions": 14,
+    "style_fix_actions": 3,
+    "total_files_affected": 35
+  }
+}
