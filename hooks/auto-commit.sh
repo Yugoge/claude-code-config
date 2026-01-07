@@ -1,50 +1,50 @@
 #!/bin/bash
 # ============================================================================
 # Auto-Commit Hook for Claude Code
-# 自动提交 Claude Code 的修改
+# Automatically commit Claude Code changes
 # ============================================================================
-# 用途：在 Claude Code 完成响应后自动提交所有更改
-# 触发：Stop Hook
+# Purpose: Auto-commit all changes after Claude Code completes a response
+# Trigger: Stop Hook
 # ============================================================================
 
 set -e
 
-# 颜色输出
+# Color output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# 可配置的 Co-Authorship
-# 设置环境变量 CLAUDE_CO_AUTHOR 来自定义
-# 留空则不添加 co-author
+# Configurable Co-Authorship
+# Set CLAUDE_CO_AUTHOR environment variable to customize
+# Leave empty to skip co-author
 CO_AUTHOR=${CLAUDE_CO_AUTHOR:-"Co-Authored-By: Claude <noreply@anthropic.com>
 Co-Authored-By: Happy <yesreply@happy.engineering>"}
 
-# 检查是否为 git 仓库
+# Check if this is a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
   echo -e "${YELLOW}⚠️  Not a git repository. Skipping commit.${NC}"
   exit 0
 fi
 
-# 检查是否有更改
+# Check if there are changes
 if git diff --quiet && git diff --cached --quiet; then
   echo -e "${GREEN}✅ No changes to commit.${NC}"
   exit 0
 fi
 
-# 获取当前时间戳
+# Get current timestamp
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
 
-# 尝试从 Claude 会话获取最后的用户提示（可选功能）
-# 需要访问 Claude 的会话数据，这里提供备用方案
+# Try to get last user prompt from Claude session (optional feature)
+# Requires access to Claude's session data, fallback provided here
 LAST_PROMPT="Claude Code auto-commit"
 
-# 如果有 git 暂存区的文件列表，添加到提交消息
+# Add staged file list to commit message if available
 CHANGED_FILES=$(git diff --cached --name-only 2>/dev/null || git diff --name-only)
 FILE_COUNT=$(echo "$CHANGED_FILES" | wc -l | tr -d ' ')
 
-# 构建提交消息
+# Build commit message
 COMMIT_MSG="Auto-commit: $TIMESTAMP
 
 Changed $FILE_COUNT file(s):
@@ -56,24 +56,24 @@ via [Happy](https://happy.engineering)
 
 ${CO_AUTHOR}"
 
-# 添加所有更改
+# Add all changes
 git add -A
 
-# 提交
+# Commit
 if git commit -m "$COMMIT_MSG" > /dev/null 2>&1; then
   echo -e "${GREEN}✅ Committed: Auto-commit at $TIMESTAMP${NC}"
   echo -e "${GREEN}   Files changed: $FILE_COUNT${NC}"
 
-  # 自动 Push（如果不想自动 push，注释掉下面的代码）
+  # Auto Push (comment out the code below if you don't want auto push)
   # ========================================
-  # 检查是否配置了远程仓库
+  # Check if remote repository is configured
   if git remote get-url origin > /dev/null 2>&1; then
     echo -e "${YELLOW}📤 Pushing to remote...${NC}"
 
-    # 获取当前分支
+    # Get current branch
     CURRENT_BRANCH=$(git branch --show-current)
 
-    # Push（如果失败不报错）
+    # Push (don't error on failure)
     if git push origin "$CURRENT_BRANCH" > /dev/null 2>&1; then
       echo -e "${GREEN}✅ Pushed to origin/$CURRENT_BRANCH${NC}"
     else
