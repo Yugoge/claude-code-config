@@ -1,6 +1,5 @@
 #!/bin/bash
 # install-protection-all.sh - Automatically install protection for all git repos
-# 自动为所有 git 仓库安装保护系统
 # Location: ~/.claude/hooks/install-protection-all.sh
 # Usage: bash ~/.claude/hooks/install-protection-all.sh
 
@@ -8,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK_TEMPLATE="$SCRIPT_DIR/git-hooks/post-commit-auto-push"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🔧 Git Protection Installer - 批量安装保护系统"
+echo "🔧 Git Protection Installer"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "🔍 Scanning for git repositories..."
@@ -21,7 +20,6 @@ create_combined_hook() {
     cat > "$hook_file" <<'EOF'
 #!/bin/bash
 # post-commit - Combined hook: Git LFS + Auto-Push
-# 组合钩子：Git LFS + 自动推送
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PART 1: Git LFS Post-Commit Hook
@@ -120,11 +118,11 @@ done
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "✅ Installation complete!"
 echo ""
-echo "Summary 汇总:"
+echo "Summary:"
 echo "  - Hooks installed: $installed_count"
 echo "  - Hooks skipped:   $skipped_count"
 echo ""
-echo "Next steps 下一步:"
+echo "Next steps:"
 echo "1. Review repositories with custom settings"
 echo "2. Start FSWatch: bash ~/.claude/hooks/start-fswatch-all.sh"
 echo "3. Check status:  bash ~/.claude/hooks/protection-status.sh"
