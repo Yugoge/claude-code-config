@@ -1,43 +1,48 @@
 # hooks Index
 
-Auto-generated folder inventory. Last updated: 2025-12-28 15:58:09 UTC
+Auto-generated folder inventory. Last updated: 2026-01-08T13:03:07Z
+
+## Purpose
+
+Git hooks and automation triggers
 
 ## Structure
 
-Total files: 28
-Total subdirectories: 1
+- Total files: 26
+- Total subdirectories: 1
 
-## Contents
+## Files
 
-- `audit-slashcommand.sh`
-- `auto-commit.sh`
-- `checkpoint.sh`
-- `ensure-git-repo.sh`
-- `.env.example`
-- `fswatch-manager.sh`
-- `git-fswatch.sh`
-- `git-hooks/post-commit-auto-push`
-- `git-hooks/pre-commit`
-- `git-hooks/README.md`
-- `INDEX.md`
-- `install-auto-sync.sh`
-- `install-git-hooks.sh`
-- `install-protection-all.sh`
-- `install.sh`
-- `post-commit-warn.sh`
-- `post_tool_use.sh`
-- `pre-commit-check.sh`
-- `pre_slashcommand_validate.sh`
-- `pre_tool_use_safety.sh`
-- `project-settings-template.json`
-- `protection-status.sh`
-- `pull.sh`
-- `push.sh`
-- `QUICKSTART.md`
-- `README.md`
-- `session_start.sh`
-- `smart-checkpoint.sh`
-- `start-fswatch-all.sh`
+- `audit-slashcommand.sh` - !/bin/bash
+- `auto-commit.sh` - !/bin/bash
+- `checkpoint.sh` - !/bin/bash
+- `ensure-git-repo.sh` - !/bin/bash
+- `.env.example` - ============================================================================
+- `fswatch-manager.sh` - !/bin/bash
+- `git-fswatch.sh` - !/bin/bash
+- `hook-todo-injection.py` - !/usr/bin/env python3
+- `install-auto-sync.sh` - !/bin/bash
+- `install-git-hooks.sh` - !/bin/bash
+- `install-protection-all.sh` - !/bin/bash
+- `install.sh` - !/bin/bash
+- `post-commit-warn.sh` - !/bin/bash
+- `post_tool_use.sh` - !/bin/bash
+- `pre-commit-check.sh` - !/bin/bash
+- `pre_slashcommand_validate.sh` - !/bin/bash
+- `pre_tool_use_safety.sh` - !/bin/bash
+- `project-settings-template.json` - {
+- `protection-status.sh` - !/bin/bash
+- `pull.sh` - !/bin/bash
+- `push.sh` - !/bin/bash
+- `QUICKSTART.md` - 🚀 Quick Start Guide
+- `README-TODO-INJECTION.md` - Global Todo Injection Hook
+- `session_start.sh` - !/bin/bash
+- `smart-checkpoint.sh` - !/bin/bash
+- `start-fswatch-all.sh` - !/bin/bash
+
+## Subdirectories
+
+- `git-hooks/` (3 files)
 
 ---
 

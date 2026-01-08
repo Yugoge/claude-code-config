@@ -1,57 +1,30 @@
 # docs Index
 
-Auto-generated folder inventory. Last updated: 2025-12-28 15:58:06 UTC
+Auto-generated folder inventory. Last updated: 2026-01-08T13:03:07Z
+
+## Purpose
+
+Project documentation and guides
 
 ## Structure
 
-Total files: 42
-Total subdirectories: 2
+- Total files: 0
+- Total subdirectories: 8
 
-## Contents
+## Files
 
-- `auto-sync-analysis.md`
-- `auto-sync-quickstart.md`
-- `clean/cleanliness-report-clean-20251228-150046.json`
-- `clean/completion-20251226-115500.md`
-- `clean/context-20251226-115500.json`
-- `clean/context-clean-20251228-145537.json`
-- `clean/context-clean-20251228-150046.json`
-- `clean/context-clean-20251228-155527.json`
-- `clean/context-iter2-20251226-115500.json`
-- `clean/dev-report-20251226-115500.json`
-- `clean/dev-report-iter2-20251226-115500.json`
-- `clean/dev-subagent-violations-fix-20251228.md`
-- `clean/qa-input-20251226-115500.json`
-- `clean/qa-report-20251226-115500.json`
-- `clean/rule-context-clean-20251228-150046.json`
-- `clean/rule-context-clean-20251228-155527.json`
-- `clean/test-results-20251228-145537.md`
-- `clean/workflow-fix-20251228-rule-inspector-enforcement.md`
-- `CONFIGURATION_SUMMARY.md`
-- `dev/completion-20251226-160000.md`
-- `dev/completion-dev-20251228-143334.md`
-- `dev/context-20251226-160000.json`
-- `dev/context-20251228-143334.json`
-- `dev/context-dev-20251228-154511.json`
-- `dev/dev-report-20251226-160000.json`
-- `dev/dev-report-20251228-143334.json`
-- `dev/dev-report-dev-20251228-154511.json`
-- `dev/qa-input-20251226-160000.json`
-- `dev/qa-input-20251228-143334.json`
-- `dev/qa-input-dev-20251228-154511.json`
-- `dev/qa-report-20251226-160000.json`
-- `dev/qa-report-20251228-143334.json`
-- `dev/qa-report-dev-20251228-154511.json`
-- `fswatch-quickref.md`
-- `git-fswatch.md`
-- `git-tracking-solution-plan.md`
-- `INDEX.md`
-- `INTEGRATION_GUIDE.md`
-- `lock-file-handling.md`
-- `PROJECT_SETTINGS_TEMPLATE_GUIDE.md`
-- `qa-improvements-summary.md`
-- `SLASHCOMMAND_QUICK_REFERENCE.md`
-- `SLASHCOMMAND_ROLLOUT_SUMMARY.md`
+*No files in root level*
+
+## Subdirectories
+
+- `archive/` (5 files)
+- `clean/` (33 files)
+- `dev/` (34 files)
+- `guides/` (3 files)
+- `planning/` (0 files)
+- `reference/` (5 files)
+- `reports/` (1 files)
+- `test/` (5 files)
 
 ---
 
