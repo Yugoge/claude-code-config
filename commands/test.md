@@ -27,7 +27,15 @@ All agents communicate via JSON in `test/reports/`.
 
 ## Execution Steps
 
-### Step 1: Initialize Workflow
+### Step 1: Initialize Workflow and Analyze Edge Cases
+
+Before test execution, analyze git history for edge cases using git-edge-case-analyst:
+
+```bash
+# Invoke git-edge-case-analyst to discover recurring development issues
+# This generates docs/test/edge-case-analysis.json which informs validator design
+# The analyst examines git history, identifies patterns, documents root causes
+```
 
 Load TodoList checklist:
 
