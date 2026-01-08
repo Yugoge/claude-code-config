@@ -175,12 +175,21 @@ fi
 ```
 
 **What this step does**:
-- Analyzes Git history for ALL folders
+- Analyzes Git history for ALL folders (including root directory)
 - Checks README freshness (compares README mtime vs folder content mtime)
 - Updates stale READMEs (> 7 days old: full update, 3-7 days: incremental)
+- **Special handling for root documentation files (README.md and ARCHITECTURE.md)**: Checks against structural changes, updates project-level overview (not folder rules)
 - Creates README for folders that lack one
 - Regenerates INDEX.md with current file inventory
 - Applies recency weighting (recent commits weighted 3x higher)
+
+**Root documentation special processing** (ref: commit 590881d5 fix):
+- Root `README.md` and `ARCHITECTURE.md` describe entire project structure, not folder-specific rules
+- Freshness check compares against last structural change (new folders, archived folders, major commits)
+- Update triggers when structural changes > 7 days old compared to documentation files
+- README preserves user-written sections (Installation, Quick Start, Features), only regenerates Structure and Git Analysis
+- ARCHITECTURE preserves user-written sections (Design Principles), only regenerates Directory Structure, Data Flow, and Git Analysis
+- Different templates from subfolder READMEs (project overview, not organization rules)
 
 **Verification**: Before proceeding to Step 5, you MUST confirm:
 - ✅ Rule inspection completed (rule-context JSON exists)

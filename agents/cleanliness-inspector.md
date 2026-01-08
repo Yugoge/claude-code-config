@@ -321,11 +321,39 @@ Detect subagents not referenced by any command:
 
 **Purpose**: Find subagent files that exist but are never invoked by slash commands.
 
+**Exception List**: Workflow-orchestrated agents that are invoked dynamically by orchestrators (not statically referenced in command files):
+- **git-edge-case-analyst**: Invoked by /test orchestrator as Step 1 for git history analysis
+- Add future dynamically-orchestrated agents here as they are created
+
+**Root cause context** (commit 78928f57):
+- git-edge-case-analyst was incorrectly archived as orphaned because /test orchestrator invokes it dynamically
+- Workflow-orchestrated agents aren't statically referenced in command files but are core workflow components
+- Exception list prevents false positives for agents invoked by orchestrators at runtime
+
 **Detection logic**:
 ```bash
+# Exception list: agents invoked dynamically by orchestrators
+WORKFLOW_ORCHESTRATED_AGENTS=(
+  "git-edge-case-analyst"  # Invoked by /test Step 1 for git history analysis
+)
+
 # For each agents/*.md file
 for agent_file in agents/*.md; do
   agent_name=$(basename "$agent_file" .md)
+
+  # Check exception list first
+  is_excepted=false
+  for excepted_agent in "${WORKFLOW_ORCHESTRATED_AGENTS[@]}"; do
+    if [[ "$agent_name" == "$excepted_agent" ]]; then
+      is_excepted=true
+      break
+    fi
+  done
+
+  # Skip excepted agents
+  if [[ "$is_excepted" == "true" ]]; then
+    continue
+  fi
 
   # Search in commands/*.md for:
   # 1. Task subagent_type references
