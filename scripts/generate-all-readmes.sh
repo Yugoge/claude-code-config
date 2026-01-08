@@ -35,7 +35,7 @@ generate_readme_for_folder() {
     # Run README generator
     if /root/.claude/scripts/generate-readme-from-git.sh "$full_path" "$mode" 2>&1; then
         READMES_GENERATED=$((READMES_GENERATED + 1))
-        GENERATED_LIST=$(echo "$GENERATED_LIST" | jq --arg f "$folder/$README.md" '. + [$f]')
+        GENERATED_LIST=$(echo "$GENERATED_LIST" | jq --arg f "$folder/README.md" '. + [$f]')
 
         if [[ "$mode" == "create" ]]; then
             READMES_CREATED=$((READMES_CREATED + 1))
