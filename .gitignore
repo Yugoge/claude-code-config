@@ -42,3 +42,7 @@ Thumbs.db
 # Backups
 *.backup
 *.bak
+
+# Runtime logs
+logs/*.log
+logs/*.pid
