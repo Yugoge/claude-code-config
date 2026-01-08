@@ -103,26 +103,37 @@ detect_creation_patterns() {
     # Analyze commit messages for pattern detection
     local commit_messages=$(git log --format="%s" -- "$folder" 2>/dev/null | head -n 50 || echo "")
 
-    # Count pattern occurrences
-    local command_count=$(echo "$commit_messages" | grep -c "^/" || echo "0")
-    local manual_count=$(echo "$commit_messages" | grep -c -i "manual\|add\|create" || echo "0")
-    local auto_count=$(echo "$commit_messages" | grep -c -i "auto\|script\|generated" || echo "0")
+    # Count pattern occurrences (use grep -c with proper handling)
+    local command_count=0
+    local manual_count=0
+    local auto_count=0
+
+    if [[ -n "$commit_messages" ]]; then
+        command_count=$(echo "$commit_messages" | grep -c "^/" 2>/dev/null || echo "0")
+        manual_count=$(echo "$commit_messages" | grep -c -i "manual\|add\|create" 2>/dev/null || echo "0")
+        auto_count=$(echo "$commit_messages" | grep -c -i "auto\|script\|generated" 2>/dev/null || echo "0")
+    fi
+
+    # Trim whitespace and ensure numeric
+    command_count=$(echo "$command_count" | tr -d '[:space:]')
+    manual_count=$(echo "$manual_count" | tr -d '[:space:]')
+    auto_count=$(echo "$auto_count" | tr -d '[:space:]')
 
     patterns+="Based on Git history analysis:\n\n"
 
-    if [[ $command_count -gt 5 ]]; then
+    if [[ ${command_count:-0} -gt 5 ]]; then
         patterns+="- Primarily created by slash commands (automated workflow)\n"
     fi
 
-    if [[ $auto_count -gt 5 ]]; then
+    if [[ ${auto_count:-0} -gt 5 ]]; then
         patterns+="- Many auto-generated files (scripts/tools)\n"
     fi
 
-    if [[ $manual_count -gt 5 ]]; then
+    if [[ ${manual_count:-0} -gt 5 ]]; then
         patterns+="- Contains manually created content\n"
     fi
 
-    if [[ $command_count -eq 0 ]] && [[ $auto_count -eq 0 ]]; then
+    if [[ ${command_count:-0} -eq 0 ]] && [[ ${auto_count:-0} -eq 0 ]]; then
         patterns+="- Manually maintained folder\n"
     fi
 
