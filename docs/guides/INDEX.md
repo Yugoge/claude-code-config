@@ -1,21 +1,19 @@
-# guides Index
+# learning-materials Index
 
 Auto-generated folder inventory. Last updated: 2026-01-08T13:03:07Z
 
 ## Purpose
 
-Folder: guides
+Folder: learning-materials
 
 ## Structure
 
-- Total files: 3
+- Total files: 1
 - Total subdirectories: 0
 
 ## Files
 
-- `auto-sync-quickstart.md` - 自动同步快速开始指南
-- `integration-guide.md` - 📊 Excel Analyzer 深度集成指南
-- `project-settings-template.md` - Project Settings Template Guide
+- `skills-test-guide.md` - Claude Code Office Skills 测试指南
 
 ---
 
