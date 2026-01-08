@@ -1,0 +1,38 @@
+{
+  "request_id": "clean-20260108-130050",
+  "timestamp": "2026-01-08T13:00:50Z",
+  "orchestrator": {
+    "requirement": "Inspect project for file organization issues and development standards violations",
+    "analysis": {
+      "project_root": "/root/.claude",
+      "project_type": "Generic",
+      "constraints": [
+        "preserve functional files",
+        "safety first - never delete without confirmation",
+        "archive docs rather than delete"
+      ]
+    }
+  },
+  "full_context": {
+    "codebase_state": {
+      "git_status": "On branch master, working tree clean",
+      "current_branch": "master",
+      "recent_commits": [
+        "590881d5 fix: enhance /clean workflow - detect non-functional folders and auto-update READMEs",
+        "15a2975f fix: achieve 100% validator pass rate by fixing EC002 documentation",
+        "c807ebc3 fix: translate remaining hooks files to complete EC006 compliance"
+      ]
+    },
+    "file_counts": {
+      "total": 22019,
+      "docs": 253,
+      "scripts": 214,
+      "tests": 41
+    }
+  },
+  "parameters": {
+    "docs_directory": "docs/",
+    "scripts_directory": "scripts/",
+    "tests_directory": "tests/"
+  }
+}
