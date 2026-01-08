@@ -118,87 +118,75 @@ Create comprehensive JSON context for inspectors:
 
 Save to: `docs/clean/context-{REQUEST_ID}.json`
 
-### Step 4: Rule Initialization ⚠️ MANDATORY PRE-INSPECTION
+### Step 4: Rule Inspection and README Updates
 
-**CRITICAL**: This step MUST execute BEFORE Step 5. DO NOT SKIP unless explicitly verified.
+**CRITICAL**: This step MUST execute BEFORE Step 5 on EVERY /clean run.
 
-Initialize folder rules to establish baseline documentation:
-
-**You MUST execute this step if ANY of the following are true**:
-- First time running /clean on this project
-- Any folder lacks INDEX.md or README.md
-- New folders detected since last /clean run
-- You are unsure whether rules are initialized
-
-**Only skip if ALL conditions are met**:
-- All key folders have INDEX.md AND README.md
-- You have verified this in the current session
-- This is a repeat /clean execution within same session
+Run rule-inspector to update folder documentation with recent changes:
 
 ```bash
 # Discover all folders dynamically
 FOLDERS=$(~/.claude/scripts/discover-folders.sh "$PROJECT_ROOT")
 
-# Check if rule initialization needed
-NEEDS_INIT=false
-while IFS= read -r folder; do
-  if [[ ! -f "$PROJECT_ROOT/$folder/INDEX.md" ]] || [[ ! -f "$PROJECT_ROOT/$folder/README.md" ]]; then
-    NEEDS_INIT=true
-    break
-  fi
-done <<< "$FOLDERS"
+echo "Running rule inspection with freshness check..." >&2
 
-# Initialize rules if needed
-if [[ "$NEEDS_INIT" == "true" ]]; then
-  echo "Initializing folder rules..." >&2
+# Create context for rule-inspector
+RULE_CONTEXT="docs/clean/rule-context-${REQUEST_ID}.json"
 
-  # Create context for rule-inspector
-  RULE_CONTEXT="docs/clean/rule-context-{REQUEST_ID}.json"
-
-  jq -n \
-    --arg request_id "$REQUEST_ID" \
-    --arg timestamp "$TIMESTAMP" \
-    --arg project_root "$PROJECT_ROOT" \
-    --argjson folders "$(echo "$FOLDERS" | jq -R . | jq -s .)" \
-    '{
-      request_id: $request_id,
-      timestamp: $timestamp,
-      orchestrator: {
-        requirement: "Discover and document folder organization rules",
-        analysis: {
-          project_root: $project_root,
-          folders_to_analyze: $folders
-        }
-      },
-      full_context: {
-        codebase_state: {
-          git_status: "output of git status",
-          current_branch: "branch name"
-        },
-        discovered_folders: $folders
+jq -n \
+  --arg request_id "$REQUEST_ID" \
+  --arg timestamp "$TIMESTAMP" \
+  --arg project_root "$PROJECT_ROOT" \
+  --argjson folders "$(echo "$FOLDERS" | jq -R . | jq -s .)" \
+  '{
+    request_id: $request_id,
+    timestamp: $timestamp,
+    orchestrator: {
+      requirement: "Discover and document folder organization rules with freshness check",
+      analysis: {
+        project_root: $project_root,
+        folders_to_analyze: $folders,
+        freshness_check: true
       }
-    }' > "$RULE_CONTEXT"
+    },
+    full_context: {
+      codebase_state: {
+        git_status: "output of git status",
+        current_branch: "branch name"
+      },
+      discovered_folders: $folders
+    },
+    parameters: {
+      freshness_check: true,
+      update_stale_readmes: true
+    }
+  }' > "$RULE_CONTEXT"
 
-  # Invoke rule-inspector subagent
-  ~/.claude/scripts/orchestrator.sh rule-inspect "$RULE_CONTEXT"
+# Invoke rule-inspector subagent with freshness check
+~/.claude/scripts/orchestrator.sh rule-inspect "$RULE_CONTEXT"
 
-  echo "✅ Folder rules initialized successfully" >&2
-else
-  echo "✅ Folder rules already present, skipping initialization" >&2
-fi
+echo "✅ Rule inspection completed - READMEs updated with recent changes" >&2
 
-# VERIFICATION CHECKPOINT: Ensure rule initialization completed or was not needed
-if [[ ! -f "docs/clean/rule-context-$REQUEST_ID.json" ]] && [[ "$NEEDS_INIT" == "true" ]]; then
-  echo "❌ ERROR: Rule initialization failed! Cannot proceed to inspection." >&2
+# VERIFICATION CHECKPOINT: Ensure rule inspection completed
+if [[ ! -f "docs/clean/rule-context-${REQUEST_ID}.json" ]]; then
+  echo "❌ ERROR: Rule inspection failed! Cannot proceed to cleanliness inspection." >&2
   exit 1
 fi
 ```
 
-**Verification**: Before proceeding to Step 5, you MUST confirm one of:
-- ✅ Rule initialization completed (rule-context JSON exists)
-- ✅ Rule initialization was not needed (all folders documented)
+**What this step does**:
+- Analyzes Git history for ALL folders
+- Checks README freshness (compares README mtime vs folder content mtime)
+- Updates stale READMEs (> 7 days old: full update, 3-7 days: incremental)
+- Creates README for folders that lack one
+- Regenerates INDEX.md with current file inventory
+- Applies recency weighting (recent commits weighted 3x higher)
 
-**If uncertain, STOP and verify manually.**
+**Verification**: Before proceeding to Step 5, you MUST confirm:
+- ✅ Rule inspection completed (rule-context JSON exists)
+- ✅ READMEs updated or confirmed fresh
+
+**Root cause reference**: This fixes the issue from commands/clean.md lines 151-188 where rule-inspector only ran conditionally (NEEDS_INIT check), causing READMEs to become stale as repository evolved. Now runs on EVERY execution with freshness detection.
 
 ---
 

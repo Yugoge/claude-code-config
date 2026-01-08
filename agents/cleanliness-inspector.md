@@ -917,6 +917,324 @@ done
 - **medium**: Legacy marker > 30 days + circumstantial evidence (e.g., related feature replaced)
 - **low**: Only pattern matches (e.g., "legacy" in comments) without other signals
 
+### 14. Non-Functional Folders Detection
+
+Detect entire folders that serve no functional purpose in the codebase:
+
+**Purpose**: Find folders that lack clear purpose and are not referenced by any functional code.
+
+**Detection logic**:
+
+**1. Folders Without Documentation AND No References**
+
+Find folders that have neither README.md nor functional references:
+
+```bash
+# For each folder in project root (excluding standard functional folders)
+for folder in */; do
+  [[ ! -d "$folder" ]] && continue
+
+  # Skip known functional folders
+  if [[ "$folder" =~ ^(agents|scripts|hooks|commands|docs|test|tests|src|lib|app|config)/ ]]; then
+    continue
+  fi
+
+  # Skip hidden folders initially (handle separately)
+  if [[ "$folder" =~ ^\. ]]; then
+    continue
+  fi
+
+  # Check for README.md
+  has_readme=false
+  if [[ -f "$folder/README.md" ]] || [[ -f "$folder/INDEX.md" ]]; then
+    has_readme=true
+  fi
+
+  # Check for references in functional locations
+  folder_name=$(basename "$folder")
+  has_references=false
+
+  if grep -rq "$folder_name" commands/ 2>/dev/null || \
+     grep -rq "$folder_name" agents/ 2>/dev/null || \
+     grep -rq "$folder_name" scripts/ 2>/dev/null || \
+     grep -rq "$folder" .claude/settings.json 2>/dev/null; then
+    has_references=true
+  fi
+
+  # Classify folder
+  if [[ "$has_readme" == "false" ]] && [[ "$has_references" == "false" ]]; then
+    file_count=$(find "$folder" -type f | wc -l)
+    folder_size=$(du -sh "$folder" 2>/dev/null | cut -f1)
+
+    echo "Non-functional folder: $folder ($file_count files, $folder_size)"
+  fi
+done
+```
+
+**2. Hidden Folders Detection**
+
+Scan hidden folders that may be orphaned tool configurations:
+
+```bash
+# Scan hidden folders (excluding .git, .venv, .claude)
+for hidden_folder in .*/; do
+  [[ ! -d "$hidden_folder" ]] && continue
+
+  # Skip essential hidden folders
+  if [[ "$hidden_folder" =~ ^(\.\./|\.git/|\.venv/|\.claude/)$ ]]; then
+    continue
+  fi
+
+  folder_name=$(basename "$hidden_folder")
+
+  # Check if it's a known tool config
+  known_tools=("node_modules" "pytest_cache" "mypy_cache" "ruff_cache" "coverage")
+  is_known=false
+  for tool in "${known_tools[@]}"; do
+    if [[ "$folder_name" == "$tool" ]] || [[ "$folder_name" == ".$tool" ]]; then
+      is_known=true
+      break
+    fi
+  done
+
+  if [[ "$is_known" == "false" ]]; then
+    # Check if tool is still in use
+    tool_active=false
+    case "$folder_name" in
+      .bmad-core)
+        # Check for bmad references
+        if grep -rq "bmad" .claude/ commands/ scripts/ 2>/dev/null; then
+          tool_active=true
+        fi
+        ;;
+      .cursor)
+        # Cursor editor config - check if Cursor is actively used
+        if [[ -f ".cursor/settings.json" ]]; then
+          file_age_days=$(( ($(date +%s) - $(stat -c %Y ".cursor/settings.json" 2>/dev/null || stat -f %m ".cursor/settings.json" 2>/dev/null)) / 86400 ))
+          if [[ $file_age_days -lt 30 ]]; then
+            tool_active=true
+          fi
+        fi
+        ;;
+    esac
+
+    if [[ "$tool_active" == "false" ]]; then
+      file_count=$(find "$hidden_folder" -type f | wc -l)
+      folder_size=$(du -sh "$hidden_folder" 2>/dev/null | cut -f1)
+
+      echo "Orphaned hidden folder: $hidden_folder ($file_count files, $folder_size)"
+    fi
+  fi
+done
+```
+
+**3. Orphaned Folders Detection**
+
+Detect folders with few files and no clear purpose:
+
+```bash
+# Find folders with < 5 files and no clear purpose
+find . -type d -not -path './.git/*' -not -path './.*' -not -path './venv/*' | while read -r folder; do
+  [[ "$folder" == "." ]] && continue
+
+  # Count files (not subdirectories)
+  file_count=$(find "$folder" -maxdepth 1 -type f | wc -l)
+
+  if [[ $file_count -lt 5 ]] && [[ $file_count -gt 0 ]]; then
+    folder_name=$(basename "$folder")
+
+    # Check if folder has clear purpose
+    has_purpose=false
+
+    # Check folder name patterns
+    if [[ "$folder_name" =~ ^(src|lib|app|test|tests|docs|scripts|config|examples|templates)$ ]]; then
+      has_purpose=true
+    fi
+
+    # Check for documentation
+    if [[ -f "$folder/README.md" ]]; then
+      has_purpose=true
+    fi
+
+    # Check for references
+    if grep -rq "$folder_name" commands/ agents/ scripts/ 2>/dev/null; then
+      has_purpose=true
+    fi
+
+    if [[ "$has_purpose" == "false" ]]; then
+      folder_size=$(du -sh "$folder" 2>/dev/null | cut -f1)
+
+      echo "Orphaned folder: $folder ($file_count files, $folder_size, unclear purpose)"
+    fi
+  fi
+done
+```
+
+**4. Logs Folder Special Handling**
+
+Detect runtime data folders that should be in .gitignore:
+
+```bash
+# Check for logs/ or log/ folder
+for log_folder in logs/ log/ var/log/; do
+  if [[ -d "$log_folder" ]]; then
+    # Check if in .gitignore
+    in_gitignore=false
+    if [[ -f ".gitignore" ]]; then
+      if grep -q "^${log_folder}$\|^${log_folder%/}$\|^${log_folder}\*$" .gitignore; then
+        in_gitignore=true
+      fi
+    fi
+
+    if [[ "$in_gitignore" == "false" ]]; then
+      # Count log files
+      log_file_count=$(find "$log_folder" -type f \( -name "*.log" -o -name "*.log.*" \) | wc -l)
+      folder_size=$(du -sh "$log_folder" 2>/dev/null | cut -f1)
+
+      echo "Runtime logs folder not in .gitignore: $log_folder ($log_file_count log files, $folder_size)"
+    fi
+  fi
+done
+```
+
+**5. Duplicate Folder Detection**
+
+Detect folders with duplicate purposes (e.g., test vs tests):
+
+```bash
+# Check for common duplicates
+duplicate_patterns=(
+  "test:tests"
+  "doc:docs"
+  "script:scripts"
+  "example:examples"
+  "template:templates"
+)
+
+for pattern in "${duplicate_patterns[@]}"; do
+  IFS=':' read -r folder1 folder2 <<< "$pattern"
+
+  if [[ -d "$folder1" ]] && [[ -d "$folder2" ]]; then
+    count1=$(find "$folder1" -type f | wc -l)
+    count2=$(find "$folder2" -type f | wc -l)
+    size1=$(du -sh "$folder1" 2>/dev/null | cut -f1)
+    size2=$(du -sh "$folder2" 2>/dev/null | cut -f1)
+
+    echo "Duplicate folders: $folder1/ ($count1 files, $size1) and $folder2/ ($count2 files, $size2)"
+
+    # Recommend merge target (larger folder)
+    if [[ $count2 -gt $count1 ]]; then
+      echo "  Recommendation: Merge $folder1/ into $folder2/"
+    else
+      echo "  Recommendation: Merge $folder2/ into $folder1/"
+    fi
+  fi
+done
+```
+
+**Report structure**:
+```json
+{
+  "non_functional_folders": [
+    {
+      "folder": "bin/",
+      "type": "orphaned_single_file",
+      "reason": "Only 1 file (quick-excel), no README.md, no references in commands/agents/scripts",
+      "file_count": 1,
+      "folder_size": "8K",
+      "recommendation": "merge",
+      "merge_target": "scripts/",
+      "rationale": "Single script should be in scripts/ folder",
+      "severity": "minor"
+    },
+    {
+      "folder": ".bmad-core/",
+      "type": "orphaned_tool_config",
+      "reason": "Hidden folder with 75 files (808K), no references to bmad in codebase",
+      "file_count": 75,
+      "folder_size": "808K",
+      "recommendation": "archive",
+      "archive_to": "docs/archive/tool-configs/bmad-core/",
+      "rationale": "External tool config not actively used",
+      "severity": "major"
+    },
+    {
+      "folder": ".cursor/",
+      "type": "orphaned_editor_config",
+      "reason": "Cursor editor config (10 files, 92K), last modified > 30 days",
+      "file_count": 10,
+      "folder_size": "92K",
+      "recommendation": "archive",
+      "archive_to": "docs/archive/editor-configs/cursor/",
+      "rationale": "Editor config not recently used",
+      "severity": "minor"
+    },
+    {
+      "folder": "logs/",
+      "type": "runtime_data_not_ignored",
+      "reason": "Runtime logs folder (18 files, 4.8MB) not in .gitignore",
+      "file_count": 18,
+      "folder_size": "4.8MB",
+      "recommendation": "add_to_gitignore_and_delete",
+      "gitignore_entry": "logs/",
+      "rationale": "Runtime logs should not be committed to repository",
+      "severity": "major"
+    },
+    {
+      "folder": "examples/",
+      "type": "orphaned_content",
+      "reason": "1 file (settings example), should be in docs/examples/",
+      "file_count": 1,
+      "folder_size": "8K",
+      "recommendation": "relocate",
+      "relocate_to": "docs/examples/",
+      "rationale": "Example files belong in docs/examples/",
+      "severity": "minor"
+    },
+    {
+      "folder": "skills_package/",
+      "type": "duplicate_legacy",
+      "reason": "18 files (252K), duplicate of .claude/skills/",
+      "file_count": 18,
+      "folder_size": "252K",
+      "recommendation": "archive",
+      "archive_to": "docs/archive/legacy/skills_package/",
+      "rationale": "Duplicate of active .claude/skills/ folder",
+      "severity": "major"
+    },
+    {
+      "folder": "tests/",
+      "type": "duplicate_folder",
+      "reason": "Duplicate of test/ folder (2 files vs 27 files)",
+      "file_count": 2,
+      "folder_size": "24K",
+      "recommendation": "merge",
+      "merge_target": "test/",
+      "duplicate_of": "test/",
+      "rationale": "Consolidate into single test/ folder",
+      "severity": "major"
+    }
+  ]
+}
+```
+
+**Severity classification**:
+- **major**: Large folders (>100K), runtime data in repo, duplicates, legacy packages
+- **minor**: Single-file folders, small orphaned configs, relocatable content
+
+**Recommendation types**:
+- **archive**: Move to docs/archive/ for historical reference
+- **delete**: Safe to remove (only after adding to .gitignore for runtime data)
+- **merge**: Combine into functional folder (scripts/, test/, docs/)
+- **relocate**: Move to proper location (docs/examples/, docs/templates/)
+- **add_to_gitignore_and_delete**: For runtime data (logs, cache)
+
+**Safety rules**:
+- NEVER recommend deleting test/ folder (functional)
+- ALWAYS preserve folders with README.md unless explicitly orphaned
+- ALWAYS check references before recommending deletion
+- Runtime data folders: add to .gitignore first, then delete
+
 ---
 
 ## Output Format
@@ -1000,6 +1318,23 @@ Return inspection report as JSON:
         "category": "temp|build_artifact|log",
         "safe_to_delete": true,
         "severity": "minor"
+      }
+    ],
+    "non_functional_folders": [
+      {
+        "folder": "path/",
+        "type": "orphaned_single_file|orphaned_tool_config|orphaned_editor_config|runtime_data_not_ignored|orphaned_content|duplicate_legacy|duplicate_folder",
+        "reason": "description",
+        "file_count": 0,
+        "folder_size": "XXK",
+        "recommendation": "archive|delete|merge|relocate|add_to_gitignore_and_delete",
+        "archive_to": "path",
+        "merge_target": "path",
+        "relocate_to": "path",
+        "duplicate_of": "path",
+        "gitignore_entry": "pattern",
+        "rationale": "explanation",
+        "severity": "major|minor"
       }
     ],
     "orphaned_subagents": [
