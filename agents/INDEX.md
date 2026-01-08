@@ -1,13 +1,17 @@
 # agents Index
 
-Auto-generated folder inventory. Last updated: 2025-12-28 15:58:03 UTC
+Auto-generated folder inventory. Last updated: 2026-01-08T13:03:07Z
+
+## Purpose
+
+AI agent definitions and configurations
 
 ## Structure
 
-Total files: 10
-Total subdirectories: 0
+- Total files: 13
+- Total subdirectories: 0
 
-## Contents
+## Files
 
 - `artifact-generator.md`
 - `cleaner.md`
@@ -16,10 +20,12 @@ Total subdirectories: 0
 - `deep-search.md`
 - `dev.md`
 - `file-processor.md`
-- `INDEX.md`
+- `git-edge-case-analyst.md`
 - `qa.md`
 - `rule-inspector.md`
 - `style-inspector.md`
+- `test-executor.md`
+- `test-validator.md`
 
 ---
 

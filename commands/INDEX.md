@@ -1,18 +1,22 @@
 # commands Index
 
-Auto-generated folder inventory. Last updated: 2025-12-28 15:58:05 UTC
+Auto-generated folder inventory. Last updated: 2026-01-08T13:03:07Z
+
+## Purpose
+
+Command definitions and slash commands
 
 ## Structure
 
-Total files: 30
-Total subdirectories: 0
+- Total files: 30
+- Total subdirectories: 0
 
-## Contents
+## Files
 
 - `artifact-excel-analyzer.md`
 - `artifact-mermaid.md`
 - `artifact-react.md`
-- `checkpoint.md`
+- `checkpoint.md` - Checkpoint Command
 - `clean.md`
 - `code-review.md`
 - `debug-help.md`
@@ -21,15 +25,13 @@ Total subdirectories: 0
 - `doc-gen.md`
 - `explain-code.md`
 - `file-analyze.md`
-- `fswatch.md`
-- `INDEX.md`
+- `fswatch.md` - FSWatch Command
 - `optimize.md`
 - `playwright-helper.md`
-- `pull.md`
-- `push.md`
+- `pull.md` - Pull Command
+- `push.md` - Push Command
 - `quick-commit.md`
 - `quick-prototype.md`
-- `README.md`
 - `refactor.md`
 - `reflect-search.md`
 - `research-deep.md`
@@ -38,6 +40,7 @@ Total subdirectories: 0
 - `site-navigate.md`
 - `status.md`
 - `test-gen.md`
+- `test.md`
 - `think.md`
 - `ultrathink.md`
 

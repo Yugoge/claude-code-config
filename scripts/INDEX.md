@@ -1,27 +1,32 @@
 # scripts Index
 
-Auto-generated folder inventory. Last updated: 2025-12-28 15:58:08 UTC
+Auto-generated folder inventory. Last updated: 2026-01-08T13:03:07Z
+
+## Purpose
+
+Automation scripts and utilities
 
 ## Structure
 
-Total files: 12
-Total subdirectories: 2
+- Total files: 10
+- Total subdirectories: 1
 
-## Contents
+## Files
 
-- `analyze-folder-history.sh`
-- `check-file-references.sh`
-- `discover-folders.sh`
-- `generate-folder-index.sh`
-- `generate-folder-readme.sh`
-- `INDEX.md`
-- `normalize-doc-names.sh`
-- `orchestrator.sh`
-- `scan-project.sh`
-- `todo/clean.py`
-- `todo/dev.py`
-- `todo/__pycache__/clean.cpython-312.pyc`
-- `update-gitignore.sh`
+- `analyze-folder-history.sh` - !/usr/bin/env bash
+- `analyze-readme-freshness.sh` - !/usr/bin/env bash
+- `check-file-references.sh` - !/bin/bash
+- `discover-folders.sh` - !/usr/bin/env bash
+- `generate-folder-index.sh` - !/usr/bin/env bash
+- `generate-folder-readme.sh` - !/usr/bin/env bash
+- `normalize-doc-names.sh` - !/usr/bin/env bash
+- `orchestrator.sh` - !/usr/bin/env bash
+- `scan-project.sh` - !/usr/bin/env bash
+- `update-gitignore.sh` - !/usr/bin/env bash
+
+## Subdirectories
+
+- `todo/` (6 files)
 
 ---
 
