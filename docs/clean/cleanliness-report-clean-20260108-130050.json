@@ -1,0 +1,317 @@
+{
+  "request_id": "clean-20260108-130050",
+  "timestamp": "2026-01-08T13:10:00Z",
+  "inspector": "cleanliness-inspector",
+  "findings": {
+    "misplaced_docs": [],
+    "naming_violations": [],
+    "archive_candidates": [],
+    "dev_context_files": [
+      {
+        "file": "docs/dev/completion-dev-20260107-091716.md",
+        "request_id": "dev-20260107-091716",
+        "status": "active",
+        "action": "keep",
+        "last_modified": "2026-01-07T09:44:00Z",
+        "age_days": 1.14,
+        "archive_to": "n/a",
+        "note": "Recent completion report, active within 7 days"
+      },
+      {
+        "file": "docs/dev/completion-dev-20260107-100221.md",
+        "request_id": "dev-20260107-100221",
+        "status": "active",
+        "action": "keep",
+        "last_modified": "2026-01-07T10:13:00Z",
+        "age_days": 1.12,
+        "archive_to": "n/a",
+        "note": "Recent completion report, active within 7 days"
+      },
+      {
+        "file": "docs/dev/completion-dev-20260108-111618.md",
+        "request_id": "dev-20260108-111618",
+        "status": "active",
+        "action": "keep",
+        "last_modified": "2026-01-08T11:29:00Z",
+        "age_days": 0.07,
+        "archive_to": "n/a",
+        "note": "Very recent completion report, < 1 day old"
+      },
+      {
+        "file": "docs/test/edge-case-analysis.json",
+        "request_id": "n/a",
+        "status": "active",
+        "action": "keep",
+        "last_modified": "2026-01-07",
+        "age_days": 1.17,
+        "archive_to": "n/a",
+        "note": "Recent test analysis, belongs in test/reports/"
+      }
+    ],
+    "temp_files": [
+      {
+        "file": "logs/git-fswatch-.claude.log.old",
+        "pattern_matched": "*.old",
+        "commit_count": 1,
+        "last_modified": "71 days ago (2025-10-29)",
+        "references": 0,
+        "safe_to_delete": true,
+        "severity": "minor",
+        "size": "2.4MB"
+      }
+    ],
+    "duplicate_scripts": [],
+    "duplicate_tests": [],
+    "non_functional_files": [
+      {
+        "file": "test/scripts/__pycache__/",
+        "category": "build_artifact",
+        "safe_to_delete": true,
+        "severity": "minor",
+        "size": "80K",
+        "note": "Python bytecode cache, should be in .gitignore"
+      }
+    ],
+    "non_functional_folders": [
+      {
+        "folder": "bin/",
+        "type": "orphaned_single_file",
+        "reason": "Only 3 files (quick-excel script, INDEX.md, README.md), no references in commands/agents/scripts",
+        "file_count": 3,
+        "folder_size": "16K",
+        "recommendation": "merge",
+        "merge_target": "scripts/",
+        "rationale": "Single utility script should be in scripts/ folder per standard conventions",
+        "severity": "minor"
+      },
+      {
+        "folder": ".bmad-core/",
+        "type": "orphaned_tool_config",
+        "reason": "Hidden folder with 93 files (880K), only self-referential in cleanliness-inspector agent (detection pattern)",
+        "file_count": 93,
+        "folder_size": "880K",
+        "recommendation": "archive",
+        "archive_to": "docs/archive/tool-configs/bmad-core/",
+        "rationale": "External tool config not actively used in functional code",
+        "severity": "major"
+      },
+      {
+        "folder": ".cursor/",
+        "type": "orphaned_editor_config",
+        "reason": "Cursor editor config (10 files estimated, 116K), no recent activity detected",
+        "file_count": 10,
+        "folder_size": "116K",
+        "recommendation": "archive",
+        "archive_to": "docs/archive/editor-configs/cursor/",
+        "rationale": "Editor config not recently used or referenced",
+        "severity": "minor"
+      },
+      {
+        "folder": "logs/",
+        "type": "runtime_data_not_ignored",
+        "reason": "Runtime logs folder (20 files, 4.8MB) NOT in .gitignore",
+        "file_count": 20,
+        "folder_size": "4.8MB",
+        "recommendation": "add_to_gitignore_and_delete_logs",
+        "gitignore_entry": "logs/*.log\nlogs/*.pid",
+        "rationale": "Runtime logs should not be committed to repository, keep folder structure but ignore log/pid files",
+        "severity": "major"
+      },
+      {
+        "folder": "examples/",
+        "type": "orphaned_content",
+        "reason": "3 files (settings example, INDEX.md, README.md), should be in docs/examples/",
+        "file_count": 3,
+        "folder_size": "24K",
+        "recommendation": "relocate",
+        "relocate_to": "docs/examples/",
+        "rationale": "Example files belong in docs/examples/ per documentation structure",
+        "severity": "minor"
+      },
+      {
+        "folder": "skills_package/",
+        "type": "duplicate_legacy",
+        "reason": "18 files (252K), duplicate of .claude/skills/ but missing INDEX.md and README.md files",
+        "file_count": 18,
+        "folder_size": "252K",
+        "recommendation": "archive",
+        "archive_to": "docs/archive/legacy/skills_package/",
+        "rationale": "Legacy duplicate of active .claude/skills/ folder, missing standardized documentation",
+        "severity": "major"
+      },
+      {
+        "folder": "tests/",
+        "type": "duplicate_folder",
+        "reason": "Duplicate of test/ folder (2 files vs 41+ files in test/)",
+        "file_count": 2,
+        "folder_size": "24K",
+        "recommendation": "merge",
+        "merge_target": "test/",
+        "duplicate_of": "test/",
+        "rationale": "Consolidate into single test/ folder per standard conventions",
+        "severity": "major"
+      },
+      {
+        "folder": "todos/",
+        "type": "runtime_data_in_repo",
+        "reason": "Runtime data folder (2752 files, 12MB), already in .gitignore",
+        "file_count": 2752,
+        "folder_size": "12MB",
+        "recommendation": "keep_as_is",
+        "rationale": "Already properly ignored, contains runtime todo state",
+        "severity": "none"
+      },
+      {
+        "folder": "debug/",
+        "type": "runtime_data_in_repo",
+        "reason": "Runtime debug folder (2766 files, 213MB), already in .gitignore",
+        "file_count": 2766,
+        "folder_size": "213MB",
+        "recommendation": "keep_as_is",
+        "rationale": "Already properly ignored, contains runtime debug data",
+        "severity": "none"
+      },
+      {
+        "folder": "shell-snapshots/",
+        "type": "runtime_data_in_repo",
+        "reason": "Runtime shell snapshots (170 files, 704K), already in .gitignore",
+        "file_count": 170,
+        "folder_size": "704K",
+        "recommendation": "keep_as_is",
+        "rationale": "Already properly ignored, contains shell history snapshots",
+        "severity": "none"
+      },
+      {
+        "folder": "statsig/",
+        "type": "runtime_data_in_repo",
+        "reason": "Statsig telemetry cache (4+ files), already in .gitignore",
+        "file_count": 4,
+        "folder_size": "unknown",
+        "recommendation": "keep_as_is",
+        "rationale": "Already properly ignored, contains analytics cache",
+        "severity": "none"
+      },
+      {
+        "folder": "systemd/",
+        "type": "config_folder",
+        "reason": "Systemd service configs (1 file), functional configuration",
+        "file_count": 1,
+        "folder_size": "unknown",
+        "recommendation": "keep_as_is",
+        "rationale": "Contains active systemd service configuration",
+        "severity": "none"
+      },
+      {
+        "folder": "templates/",
+        "type": "content_folder",
+        "reason": "Templates folder (size unknown), may contain useful templates",
+        "file_count": "unknown",
+        "folder_size": "unknown",
+        "recommendation": "review_manually",
+        "rationale": "May contain useful templates, needs manual review for relocation to docs/templates/",
+        "severity": "minor"
+      },
+      {
+        "folder": "learning-materials/",
+        "type": "content_folder",
+        "reason": "Learning materials (size unknown), educational content",
+        "file_count": "unknown",
+        "folder_size": "unknown",
+        "recommendation": "relocate",
+        "relocate_to": "docs/guides/",
+        "rationale": "Educational content belongs in docs/guides/",
+        "severity": "minor"
+      },
+      {
+        "folder": "projects/",
+        "type": "content_folder",
+        "reason": "Projects folder (size unknown), may contain project-specific content",
+        "file_count": "unknown",
+        "folder_size": "unknown",
+        "recommendation": "review_manually",
+        "rationale": "Needs manual review to determine if content should be in docs/",
+        "severity": "minor"
+      }
+    ],
+    "orphaned_subagents": [
+      {
+        "file": "agents/git-edge-case-analyst.md",
+        "reason": "Not referenced by any command in commands/*.md",
+        "last_modified": "unknown",
+        "commit_count": "unknown",
+        "safe_to_delete": false,
+        "severity": "major",
+        "recommendation": "review_manually",
+        "note": "May be legacy agent or not yet integrated into command workflow"
+      }
+    ],
+    "unreferenced_scripts": [],
+    "orphaned_tests": [],
+    "historical_docs": [],
+    "docs_categorization": [],
+    "obsolete_functionality": []
+  },
+  "summary": {
+    "total_issues": 17,
+    "critical": 0,
+    "major": 5,
+    "minor": 9,
+    "informational": 3,
+    "estimated_space_saved": "229 MB",
+    "breakdown": {
+      "major_issues": [
+        ".bmad-core/ - 880K orphaned tool config",
+        "logs/ - 4.8MB not in .gitignore (log files should be ignored)",
+        "skills_package/ - 252K duplicate legacy folder",
+        "tests/ - 24K duplicate of test/ folder",
+        "agents/git-edge-case-analyst.md - orphaned subagent"
+      ],
+      "minor_issues": [
+        "bin/ - single script folder (merge to scripts/)",
+        ".cursor/ - 116K orphaned editor config",
+        "examples/ - should relocate to docs/examples/",
+        "templates/ - review for docs/templates/",
+        "learning-materials/ - relocate to docs/guides/",
+        "projects/ - review manually",
+        "logs/git-fswatch-.claude.log.old - 2.4MB old backup file",
+        "test/scripts/__pycache__/ - 80K Python cache",
+        "docs/test/edge-case-analysis.json - belongs in test/reports/"
+      ],
+      "informational": [
+        "todos/ - 12MB (properly ignored)",
+        "debug/ - 213MB (properly ignored)",
+        "shell-snapshots/ - 704K (properly ignored)"
+      ]
+    }
+  },
+  "recommendations": {
+    "immediate_actions": [
+      "Add logs/*.log and logs/*.pid to .gitignore",
+      "Archive .bmad-core/ to docs/archive/tool-configs/",
+      "Archive skills_package/ to docs/archive/legacy/",
+      "Merge tests/ into test/ folder",
+      "Delete test/scripts/__pycache__/",
+      "Delete logs/git-fswatch-.claude.log.old"
+    ],
+    "review_required": [
+      "Review agents/git-edge-case-analyst.md - determine if still needed",
+      "Review bin/quick-excel - merge to scripts/ if appropriate",
+      "Review examples/ - relocate to docs/examples/",
+      "Review templates/ - relocate to docs/templates/ if appropriate",
+      "Review learning-materials/ - relocate to docs/guides/",
+      "Review projects/ - determine proper organization"
+    ],
+    "low_priority": [
+      "Archive .cursor/ to docs/archive/editor-configs/",
+      "Relocate docs/test/edge-case-analysis.json to test/reports/"
+    ]
+  },
+  "notes": {
+    "runtime_data": "Runtime folders (todos/, debug/, shell-snapshots/, statsig/) are properly ignored and functioning as intended. No action needed.",
+    "completion_reports": "All completion .md files in docs/dev/ are recent (< 2 days old) and should be kept active.",
+    "dev_json_files": "docs/dev/ JSON files are actively used by /dev workflow, properly organized",
+    "clean_json_files": "docs/clean/ JSON files include archived files older than 7 days, properly organized in archive/",
+    "naming_conventions": "All checked files follow kebab-case naming conventions correctly",
+    "protected_files": "README.md, ARCHITECTURE.md, CLAUDE.md in root are protected official files"
+  }
+}
