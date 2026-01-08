@@ -1,0 +1,15 @@
+{
+  "request_id": "clean-20260108-130050",
+  "timestamp": "2026-01-08T13:07:29Z",
+  "inspector": "rule-inspector",
+  "readme_generation": {
+    "total_generated": 65,
+    "created": 61,
+    "updated": 4,
+    "errors": []
+  },
+  "generated_files": ["agents/README.md","commands/README.md","hooks/README.md","scripts/README.md","bin/README.md",".bmad-core/README.md",".bmad-core/agents/README.md",".bmad-core/agent-teams/README.md",".bmad-core/checklists/README.md",".bmad-core/data/README.md",".bmad-core/tasks/README.md",".bmad-core/templates/README.md",".bmad-core/utils/README.md",".bmad-core/workflows/README.md",".claude/README.md",".claude/commands/README.md",".claude/commands/BMad/README.md",".claude/commands/BMad/agents/README.md",".claude/commands/BMad/tasks/README.md",".claude/skills/README.md",".claude/skills/docx/README.md",".claude/skills/frontend-design/README.md",".claude/skills/pdf/README.md",".claude/skills/pptx/README.md",".claude/skills/product-self-knowledge/README.md",".claude/skills/xlsx/README.md",".cursor/README.md",".cursor/rules/README.md",".cursor/rules/bmad/README.md","debug/README.md","debug/archive-2025-11/README.md","debug/archive-2025-12/README.md","docs/archive/README.md","docs/archive/2024-10/README.md","docs/archive/legacy-chinese/README.md","docs/clean/README.md","docs/clean/archive/README.md","docs/clean/archive/2025-12/README.md","docs/clean/archive/2025-12/20251226-115500/README.md","docs/clean/archive/2025-12/clean-20251228-145537/README.md","docs/clean/archive/2025-12/clean-20251228-150046/README.md","docs/clean/archive/2025-12/clean-20251228-155527/README.md","docs/dev/README.md","docs/dev/archive/README.md","docs/dev/archive/2025-12/README.md","docs/dev/archive/2025-12/20251226-160000/README.md","docs/dev/archive/2025-12/20251228-143334/README.md","docs/dev/archive/2025-12/dev-20251228-154511/README.md","docs/guides/README.md","docs/planning/README.md","docs/reference/README.md","docs/reports/README.md","examples/README.md","learning-materials/README.md","logs/README.md","plugins/README.md","plugins/repos/README.md","projects/README.md","projects/-root-budget-management/README.md","projects/-root--claude/README.md","projects/-root-happy-server/README.md","projects/-root-knowledge-system/README.md","projects/-root-multi-asset-portfolio/README.md","scripts/todo/README.md","session-env/README.md"],
+  "summary": {
+    "message": "Generated 65 README files (61 new, 4 updated)"
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "request_id": "clean-20260108-130050",
+  "timestamp": "2026-01-08T13:07:29Z",
+  "inspector": "rule-inspector",
+  "discoveries": {
+    "folders_analyzed": 68,
+    "readmes_generated": 65,
+    "readmes_created": 61,
+    "readmes_updated": 4,
+    "readmes_confirmed_fresh": 3,
+    "index_files_generated": 68
+  },
+  "freshness_analysis": {
+    "fresh_readmes": [
+      "docs",
+      "docs/test",
+      "hooks/git-hooks"
+    ],
+    "stale_readmes": [
+      {
+        "folder": "agents",
+        "reason": "stale (>7 days)",
+        "action": "full update"
+      },
+      {
+        "folder": "commands",
+        "reason": "stale (>7 days)",
+        "action": "full update"
+      },
+      {
+        "folder": "hooks",
+        "reason": "stale (>7 days)",
+        "action": "full update"
+      },
+      {
+        "folder": "scripts",
+        "reason": "stale (>7 days)",
+        "action": "full update"
+      }
+    ],
+    "missing_readmes": 61
+  },
+  "rule_discovery_patterns": {
+    "naming_conventions": {
+      "kebab-case": "Dominant pattern across most folders",
+      "snake_case": "Used in Python-related folders",
+      "mixed": "Some folders with no strict convention"
+    },
+    "file_type_patterns": {
+      ".md": "Primary documentation format",
+      ".sh": "Shell scripts in scripts/ and hooks/",
+      ".json": "Configuration and data files",
+      ".py": "Python utilities (if present)"
+    },
+    "organization_patterns": {
+      "subdirectory_categorization": "Most folders organize files into subdirectories",
+      "archive_pattern": "Historical files in archive/ subdirectories with date-based organization",
+      "session_pattern": "Session-specific files use UUID-based directories"
+    },
+    "creation_patterns": {
+      "automated": "Many files created by slash commands (/clean, /dev)",
+      "manual": "Some folders contain manually maintained content",
+      "auto_generated": "Scripts and tools generate files programmatically"
+    }
+  },
+  "generated_files": {
+    "index_files": 68,
+    "readme_files": 65,
+    "total_documentation_files": 133
+  },
+  "git_analysis_summary": {
+    "oldest_folder_creation": "2025-12-27",
+    "most_active_folders": [
+      "agents",
+      "scripts",
+      "docs",
+      "hooks"
+    ],
+    "recent_activity": "Last 30 days show active development across all analyzed folders"
+  },
+  "summary": {
+    "message": "Analyzed 68 folders, generated 68 INDEX.md files, created 61 new README.md files, updated 4 stale README.md files, confirmed 3 fresh README.md files. All folders now have complete documentation of their organization rules and patterns.",
+    "next_steps": [
+      "Cleanliness-inspector can now use these README files for folder-specific rules",
+      "Style-inspector can validate compliance with discovered naming conventions",
+      "Archive folders are clearly marked with non-modification rules"
+    ]
+  },
+  "errors": [],
+  "completion_status": "success"
+}
