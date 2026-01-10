@@ -319,11 +319,36 @@ mv test/reports/execution-context-${REQUEST_ID}.json.tmp test/reports/execution-
 
 ### Step 9: Invoke Test Executor
 
-Delegate to test-executor subagent:
+Delegate to test-executor subagent using Task tool:
 
-```bash
-# Executor reads context, runs all validators, writes execution report
-# This is conceptual - in practice, the agent performs execution inline
+```
+Use Task tool with:
+- subagent_type: "test-executor"
+- description: "Execute validated tests"
+- prompt: "
+  You are the test-executor subagent. Follow agents/test-executor.md instructions precisely.
+
+  Read execution context from: test/reports/execution-context-${REQUEST_ID}.json
+
+  Your tasks:
+  1. Read and validate execution context JSON
+  2. Execute all script-based validators (test/scripts/validate-*.py)
+  3. Execute all AI instruction-based validators (test/instructions/*.md)
+  4. Capture results, exit codes, timing for each validator
+  5. Aggregate summary statistics (total/passed/failed/errors)
+  6. Analyze failed tests and generate recommendations
+  7. Write execution report to: test/reports/execution-report-${REQUEST_ID}.json
+
+  Execution requirements:
+  - Activate venv: source ~/.claude/venv/bin/activate
+  - Pass --project-root parameter to all script validators
+  - Capture stdout (JSON), stderr (errors), exit codes
+  - Timeout: 30 seconds per validator
+  - Continue execution even if individual tests fail (unless fail_fast=true)
+  - Generate comprehensive execution report with all results
+
+  Follow all execution procedures from agents/test-executor.md.
+  "
 ```
 
 Test executor performs:
