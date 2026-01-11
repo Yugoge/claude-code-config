@@ -1,0 +1,23 @@
+{
+  "analysis_timestamp": "2026-01-11T19:49:09Z",
+  "project_root": "/root/.claude",
+  "since_date": "90.days.ago",
+  "commits_analyzed": 0,
+  "edge_cases": [],
+  "keywords_searched": [
+  "fix:",
+  "fix(",
+  "bug:",
+  "bug(",
+  "error:",
+  "issue:",
+  "problem:",
+  "resolve:",
+  "resolved:",
+  "hotfix:"
+],
+  "summary": {
+    "total_edge_cases": 0,
+    "commits_with_fixes": 0
+  }
+}
