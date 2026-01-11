@@ -66,7 +66,7 @@ For script-based validators (`validate-*.py`):
 
 **Python syntax check**:
 ```bash
-python3 -m py_compile test/scripts/validate-venv-usage.py
+python3 -m py_compile tests/scripts/validate-venv-usage.py
 ```
 
 **Checks**:
@@ -208,7 +208,7 @@ def validate_edge_case_coverage(validators: list, edge_cases: list) -> dict:
 
 ### 5. AI Instruction Validation
 
-For instruction-based validators (`*.md` in `test/instructions/`):
+For instruction-based validators (`*.md` in `tests/instructions/`):
 
 **Structure check**:
 ```markdown
@@ -310,7 +310,7 @@ Return validation report as JSON:
 }
 ```
 
-Save to: `test/reports/validation-report-{REQUEST_ID}.json`
+Save to: `tests/reports/validation-report-{REQUEST_ID}.json`
 
 ---
 

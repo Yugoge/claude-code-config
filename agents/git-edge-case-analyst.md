@@ -207,6 +207,8 @@ Return comprehensive edge case analysis as JSON:
 
 Save to: `docs/test/edge-case-analysis.json`
 
+**Note**: While edge case analysis is saved to docs/test/, the actual test validators are stored in the `tests/` folder (Python standard naming convention).
+
 ---
 
 ## Integration with /test Command

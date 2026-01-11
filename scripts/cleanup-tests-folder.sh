@@ -77,7 +77,7 @@ if [[ -d "$TESTS_DIR/scripts" ]]; then
   echo "Scanning tests/scripts/ for validators..." >&2
 
   # Find all validator scripts
-  for validator in "$TESTS_DIR/scripts"/validate-*.py "$TESTS_DIR/scripts"/validate-*.sh 2>/dev/null; do
+  for validator in "$TESTS_DIR/scripts"/validate-*.py "$TESTS_DIR/scripts"/validate-*.sh; do
     if [[ ! -e "$validator" ]]; then
       continue
     fi
