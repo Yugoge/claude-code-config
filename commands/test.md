@@ -21,21 +21,13 @@ This command orchestrates two specialized subagents:
 1. **test-validator**: Validates test syntax, dependencies, and quality
 2. **test-executor**: Executes script-based and AI instruction-based tests
 
-All agents communicate via JSON in `test/reports/`.
+All agents communicate via JSON in `tests/reports/`.
 
 ---
 
 ## Execution Steps
 
-### Step 1: Initialize Workflow and Analyze Edge Cases
-
-Before test execution, analyze git history for edge cases using git-edge-case-analyst:
-
-```bash
-# Invoke git-edge-case-analyst to discover recurring development issues
-# This generates docs/test/edge-case-analysis.json which informs validator design
-# The analyst examines git history, identifies patterns, documents root causes
-```
+### Step 1: Initialize Workflow and Load TodoList
 
 Load TodoList checklist:
 
@@ -46,65 +38,143 @@ source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/test.py
 Set up working directory:
 
 ```bash
-mkdir -p test/reports/
+mkdir -p tests/reports/
 REQUEST_ID="test-$(date +%Y%m%d-%H%M%S)"
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 ```
 
 **Test folder structure**:
 
-If `test/` directory doesn't exist, initialize it:
+If `tests/` directory doesn't exist, initialize it:
 
 ```bash
-if [[ ! -d "test" ]]; then
-  echo "Test directory not found. Initializing test folder structure..."
-  mkdir -p test/{scripts,instructions,data/fixtures,data/mocks,reports}
+if [[ ! -d "tests" ]]; then
+  echo "Test directory not found. Initializing tests folder structure..."
+  mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
 
   # Copy template README
-  cp ~/.claude/test/README.md test/README.md
-  cp ~/.claude/test/INDEX.md test/INDEX.md
-  cp ~/.claude/test/instructions/*.md test/instructions/
+  cp ~/.claude/tests/README.md tests/README.md
+  cp ~/.claude/tests/INDEX.md tests/INDEX.md
+  cp ~/.claude/tests/instructions/*.md tests/instructions/
 
-  echo "✅ Test folder initialized. Add validators to test/scripts/"
+  echo "✅ Test folder initialized. Add validators to tests/scripts/"
 fi
 ```
 
-### Step 2: Check Test Folder Exists
+### Step 2: Analyze Git History for Edge Cases
 
-Verify test infrastructure in place:
+Analyze git history to identify real edge cases from bug fix commits:
+
+```bash
+# Run git edge case analyzer
+~/.claude/scripts/analyze-git-edge-cases.sh \
+  --project-root "$(pwd)" \
+  --since-date "90.days.ago" \
+  --output "docs/test/edge-case-analysis.json"
+
+# Check if analysis succeeded
+if [[ $? -eq 0 ]]; then
+  EDGE_CASES_FOUND=$(jq -r '.summary.total_edge_cases' docs/test/edge-case-analysis.json)
+  echo "✅ Found $EDGE_CASES_FOUND edge cases from git history"
+else
+  echo "⚠️  Git edge case analysis failed - proceeding without cleanup"
+fi
+```
+
+This analyzer:
+- Searches git history for commits with keywords: fix, bug, error, issue, problem
+- Extracts edge case identifiers (EC001, EC002, etc.)
+- Groups by edge case and counts occurrences
+- Generates JSON analysis for validator cleanup
+
+### Step 3: Migrate test/ to tests/ if Needed
+
+Check if old `test/` folder exists and migrate to `tests/`:
+
+```bash
+if [[ -d "test" ]] && [[ ! -d "tests" || "test" -nt "tests" ]]; then
+  echo "Found test/ folder - migrating to tests/ (Python standard naming)"
+
+  ~/.claude/scripts/migrate-test-to-tests.sh --project-root "$(pwd)"
+
+  if [[ $? -eq 0 ]]; then
+    echo "✅ Migration complete - review tests/ folder"
+    echo "   Remove test/ folder when ready: rm -rf test/"
+  fi
+elif [[ -d "test" ]] && [[ -d "tests" ]]; then
+  echo "⚠️  Both test/ and tests/ exist - manual review recommended"
+  echo "   Run: ~/.claude/scripts/migrate-test-to-tests.sh --project-root $(pwd)"
+fi
+```
+
+This migration:
+- Merges all content from test/ into tests/
+- Preserves files, avoids overwriting different content
+- Creates backups for conflicts
+- Idempotent (safe to run multiple times)
+
+### Step 4: Cleanup tests/ Based on Git History
+
+Remove validators that don't correspond to edge cases found in git history:
+
+```bash
+if [[ -f "docs/test/edge-case-analysis.json" ]] && [[ -d "tests" ]]; then
+  echo "Cleaning tests/ folder based on git history analysis..."
+
+  ~/.claude/scripts/cleanup-tests-folder.sh \
+    --project-root "$(pwd)" \
+    --edge-case-analysis "docs/test/edge-case-analysis.json"
+
+  if [[ $? -eq 0 ]]; then
+    echo "✅ Tests folder cleanup complete"
+  fi
+else
+  echo "⚠️  Skipping cleanup - missing edge case analysis or tests/ folder"
+fi
+```
+
+This cleanup:
+- Preserves validators matching edge cases from git history
+- Removes validators for hypothetical edge cases not in git
+- Always preserves reports/ and data/ folders
+- Maintains documentation files (README.md, INDEX.md)
+
+### Step 5: Check Test Folder Exists
+
+Verify tests infrastructure in place:
 
 ```bash
 # Check required directories
-if [[ ! -d "test/scripts" ]] || [[ ! -d "test/reports" ]]; then
+if [[ ! -d "tests/scripts" ]] || [[ ! -d "tests/reports" ]]; then
   echo "❌ ERROR: Test folder structure incomplete" >&2
-  echo "Run Step 1 initialization or manually create test/ directory" >&2
+  echo "Run Step 1 initialization or manually create tests/ directory" >&2
   exit 1
 fi
 
 # Count available validators
-SCRIPT_VALIDATORS=$(find test/scripts -name "validate-*.py" 2>/dev/null | wc -l)
-INSTRUCTION_VALIDATORS=$(find test/instructions -name "*.md" -not -name "*guide.md" 2>/dev/null | wc -l)
+SCRIPT_VALIDATORS=$(find tests/scripts -name "validate-*.py" 2>/dev/null | wc -l)
+INSTRUCTION_VALIDATORS=$(find tests/instructions -name "*.md" -not -name "*guide.md" 2>/dev/null | wc -l)
 TOTAL_VALIDATORS=$((SCRIPT_VALIDATORS + INSTRUCTION_VALIDATORS))
 
 echo "Found $TOTAL_VALIDATORS validators ($SCRIPT_VALIDATORS scripts, $INSTRUCTION_VALIDATORS instructions)"
 
 if [[ $TOTAL_VALIDATORS -eq 0 ]]; then
-  echo "⚠️  WARNING: No validators found in test/scripts/ or test/instructions/" >&2
+  echo "⚠️  WARNING: No validators found in tests/scripts/ or tests/instructions/" >&2
   echo "Create validators based on edge case analysis in docs/test/edge-case-analysis.json" >&2
   exit 1
 fi
 ```
 
-### Step 3: Discover Validators
+### Step 6: Discover Validators
 
-Scan test directory for available validators:
+Scan tests directory for available validators:
 
 ```bash
 # Discover script-based validators
-SCRIPT_VALIDATORS=$(find test/scripts -name "validate-*.py" -type f 2>/dev/null)
+SCRIPT_VALIDATORS=$(find tests/scripts -name "validate-*.py" -type f 2>/dev/null)
 
 # Discover AI instruction-based validators
-INSTRUCTION_VALIDATORS=$(find test/instructions -name "*.md" -type f -not -name "*guide.md" 2>/dev/null)
+INSTRUCTION_VALIDATORS=$(find tests/instructions -name "*.md" -type f -not -name "*guide.md" 2>/dev/null)
 
 # Parse validator metadata (edge case, priority)
 # Extract from file headers using head/grep
@@ -118,7 +188,7 @@ Example validator registry:
   "validators": [
     {
       "type": "script",
-      "path": "test/scripts/validate-venv-usage.py",
+      "path": "tests/scripts/validate-venv-usage.py",
       "name": "validate-venv-usage",
       "edge_case": "EC002",
       "priority": "critical",
@@ -126,7 +196,7 @@ Example validator registry:
     },
     {
       "type": "instruction",
-      "path": "test/instructions/claude-md-protection.md",
+      "path": "tests/instructions/claude-md-protection.md",
       "name": "claude-md-protection",
       "edge_case": "EC001",
       "priority": "high",
@@ -136,9 +206,9 @@ Example validator registry:
 }
 ```
 
-Save to: `test/reports/validator-registry-{REQUEST_ID}.json`
+Save to: `tests/reports/validator-registry-{REQUEST_ID}.json`
 
-### Step 4: Build Validation Context
+### Step 7: Build Validation Context
 
 Create comprehensive JSON context for validator subagent:
 
@@ -153,12 +223,12 @@ Create comprehensive JSON context for validator subagent:
   },
   "context": {
     "project_root": "/absolute/path/to/project",
-    "test_directory": "/absolute/path/to/project/test",
+    "test_directory": "/absolute/path/to/project/tests",
     "venv_path": "~/.claude/venv",
     "validators": [
       {
         "type": "script",
-        "path": "test/scripts/validate-venv-usage.py",
+        "path": "tests/scripts/validate-venv-usage.py",
         "edge_case": "EC002",
         "priority": "critical"
       }
@@ -173,9 +243,9 @@ Create comprehensive JSON context for validator subagent:
 }
 ```
 
-Save to: `test/reports/validation-context-{REQUEST_ID}.json`
+Save to: `tests/reports/validation-context-{REQUEST_ID}.json`
 
-### Step 5: Invoke Test Validator
+### Step 8: Invoke Test Validator
 
 Delegate to test-validator subagent:
 
@@ -191,7 +261,7 @@ Test validator performs:
 3. **Quality check**: Exit codes documented, JSON output format, error handling
 4. **Edge case verification**: Validator prevents documented edge case from analysis
 
-Expected output: `test/reports/validation-report-{REQUEST_ID}.json`
+Expected output: `tests/reports/validation-report-{REQUEST_ID}.json`
 
 ```json
 {
@@ -217,18 +287,18 @@ Expected output: `test/reports/validation-report-{REQUEST_ID}.json`
 }
 ```
 
-### Step 6: Process Validation Results
+### Step 9: Process Validation Results
 
 Check validation report status:
 
 ```bash
-VALIDATION_STATUS=$(jq -r '.validator.status' test/reports/validation-report-${REQUEST_ID}.json)
+VALIDATION_STATUS=$(jq -r '.validator.status' tests/reports/validation-report-${REQUEST_ID}.json)
 
 if [[ "$VALIDATION_STATUS" == "fail" ]]; then
   echo "❌ Validation failed. Fix issues before execution:" >&2
-  jq -r '.validator.syntax_errors[]' test/reports/validation-report-${REQUEST_ID}.json
-  jq -r '.validator.dependency_errors[]' test/reports/validation-report-${REQUEST_ID}.json
-  jq -r '.validator.quality_issues[]' test/reports/validation-report-${REQUEST_ID}.json
+  jq -r '.validator.syntax_errors[]' tests/reports/validation-report-${REQUEST_ID}.json
+  jq -r '.validator.dependency_errors[]' tests/reports/validation-report-${REQUEST_ID}.json
+  jq -r '.validator.quality_issues[]' tests/reports/validation-report-${REQUEST_ID}.json
   exit 1
 fi
 
@@ -239,7 +309,7 @@ echo "✅ Validation passed. Proceeding to execution..."
 
 ```
 IF validation.status == "pass":
-  → Proceed to Step 7 (Build Execution Context)
+  → Proceed to Step 10 (Build Execution Context)
 
 ELIF validation.status == "fail":
   → Present errors to user
@@ -249,7 +319,7 @@ ELIF validation.status == "fail":
 
 ```
 
-### Step 7: Build Execution Context
+### Step 10: Build Execution Context
 
 Create comprehensive JSON context for executor subagent:
 
@@ -264,12 +334,12 @@ Create comprehensive JSON context for executor subagent:
   },
   "context": {
     "project_root": "/absolute/path/to/project",
-    "test_directory": "/absolute/path/to/project/test",
+    "test_directory": "/absolute/path/to/project/tests",
     "venv_path": "~/.claude/venv",
     "validators": [
       {
         "type": "script",
-        "path": "test/scripts/validate-venv-usage.py",
+        "path": "tests/scripts/validate-venv-usage.py",
         "edge_case": "EC002",
         "priority": "critical"
       }
@@ -278,7 +348,7 @@ Create comprehensive JSON context for executor subagent:
   "parameters": {
     "fail_fast": false,
     "verbose": true,
-    "report_path": "test/reports/execution-report-{REQUEST_ID}.json"
+    "report_path": "tests/reports/execution-report-{REQUEST_ID}.json"
   },
   "validation_report": {
     "status": "pass",
@@ -288,9 +358,9 @@ Create comprehensive JSON context for executor subagent:
 }
 ```
 
-Save to: `test/reports/execution-context-{REQUEST_ID}.json`
+Save to: `tests/reports/execution-context-{REQUEST_ID}.json`
 
-### Step 8: Create Safety Checkpoint
+### Step 11: Create Safety Checkpoint
 
 Before execution, create git checkpoint:
 
@@ -312,12 +382,12 @@ fi
 # Record checkpoint in context
 jq --arg commit "$CHECKPOINT_COMMIT" \
   '.context.checkpoint_commit = $commit' \
-  test/reports/execution-context-${REQUEST_ID}.json \
-  > test/reports/execution-context-${REQUEST_ID}.json.tmp
-mv test/reports/execution-context-${REQUEST_ID}.json.tmp test/reports/execution-context-${REQUEST_ID}.json
+  tests/reports/execution-context-${REQUEST_ID}.json \
+  > tests/reports/execution-context-${REQUEST_ID}.json.tmp
+mv tests/reports/execution-context-${REQUEST_ID}.json.tmp tests/reports/execution-context-${REQUEST_ID}.json
 ```
 
-### Step 9: Invoke Test Executor
+### Step 12: Invoke Test Executor
 
 Delegate to test-executor subagent using Task tool:
 
@@ -328,16 +398,16 @@ Use Task tool with:
 - prompt: "
   You are the test-executor subagent. Follow agents/test-executor.md instructions precisely.
 
-  Read execution context from: test/reports/execution-context-${REQUEST_ID}.json
+  Read execution context from: tests/reports/execution-context-${REQUEST_ID}.json
 
   Your tasks:
   1. Read and validate execution context JSON
-  2. Execute all script-based validators (test/scripts/validate-*.py)
-  3. Execute all AI instruction-based validators (test/instructions/*.md)
+  2. Execute all script-based validators (tests/scripts/validate-*.py)
+  3. Execute all AI instruction-based validators (tests/instructions/*.md)
   4. Capture results, exit codes, timing for each validator
   5. Aggregate summary statistics (total/passed/failed/errors)
   6. Analyze failed tests and generate recommendations
-  7. Write execution report to: test/reports/execution-report-${REQUEST_ID}.json
+  7. Write execution report to: tests/reports/execution-report-${REQUEST_ID}.json
 
   Execution requirements:
   - Activate venv: source ~/.claude/venv/bin/activate
@@ -353,12 +423,12 @@ Use Task tool with:
 
 Test executor performs:
 
-1. **Script-based tests**: Execute each `test/scripts/validate-*.py` with `--project-root`
+1. **Script-based tests**: Execute each `tests/scripts/validate-*.py` with `--project-root`
 2. **AI instruction-based tests**: Read instruction, gather context, perform validation
 3. **Capture results**: Exit codes, JSON output, execution time
 4. **Aggregate summary**: Total/passed/failed/errors, edge cases prevented
 
-Expected output: `test/reports/execution-report-{REQUEST_ID}.json`
+Expected output: `tests/reports/execution-report-{REQUEST_ID}.json`
 
 ```json
 {
@@ -419,16 +489,16 @@ Expected output: `test/reports/execution-report-{REQUEST_ID}.json`
 }
 ```
 
-### Step 10: Process Execution Results
+### Step 13: Process Execution Results
 
 Read execution report and determine next action:
 
 ```bash
-EXEC_STATUS=$(jq -r '.executor.status' test/reports/execution-report-${REQUEST_ID}.json)
-TOTAL_TESTS=$(jq -r '.executor.summary.total_tests' test/reports/execution-report-${REQUEST_ID}.json)
-PASSED=$(jq -r '.executor.summary.passed' test/reports/execution-report-${REQUEST_ID}.json)
-FAILED=$(jq -r '.executor.summary.failed' test/reports/execution-report-${REQUEST_ID}.json)
-ERRORS=$(jq -r '.executor.summary.errors' test/reports/execution-report-${REQUEST_ID}.json)
+EXEC_STATUS=$(jq -r '.executor.status' tests/reports/execution-report-${REQUEST_ID}.json)
+TOTAL_TESTS=$(jq -r '.executor.summary.total_tests' tests/reports/execution-report-${REQUEST_ID}.json)
+PASSED=$(jq -r '.executor.summary.passed' tests/reports/execution-report-${REQUEST_ID}.json)
+FAILED=$(jq -r '.executor.summary.failed' tests/reports/execution-report-${REQUEST_ID}.json)
+ERRORS=$(jq -r '.executor.summary.errors' tests/reports/execution-report-${REQUEST_ID}.json)
 
 echo "Test execution completed: $PASSED/$TOTAL_TESTS passed"
 
@@ -445,19 +515,19 @@ fi
 
 ```
 IF executor.status == "completed" AND failed == 0 AND errors == 0:
-  → All tests passed → Skip to Step 13 (Generate Success Report)
+  → All tests passed → Skip to Step 16 (Generate Success Report)
 
 ELIF executor.status == "completed" AND failed > 0:
-  → Tests failed → Proceed to Step 11 (Present Failures)
+  → Tests failed → Proceed to Step 14 (Present Failures)
 
 ELIF executor.status == "partial":
-  → Some tests couldn't run → Proceed to Step 11 (Present Failures)
+  → Some tests couldn't run → Proceed to Step 14 (Present Failures)
 
 ELIF executor.status == "blocked":
   → Execution blocked → Present error → Exit
 ```
 
-### Step 11: Present Test Failures to User
+### Step 14: Present Test Failures to User
 
 Format and display failures:
 
@@ -488,7 +558,7 @@ Format and display failures:
 # Edit each file and update venv usage
 
 # Option 2: Automated fix (if available)
-./test/scripts/fix-venv-usage.sh --project-root .
+./tests/scripts/fix-venv-usage.sh --project-root .
 ```
 
 ---
@@ -531,12 +601,12 @@ Format and display failures:
 
 ## 📁 Detailed Reports
 
-- Validation: test/reports/validation-report-{REQUEST_ID}.json
-- Execution: test/reports/execution-report-{REQUEST_ID}.json
-- Registry: test/reports/validator-registry-{REQUEST_ID}.json
+- Validation: tests/reports/validation-report-{REQUEST_ID}.json
+- Execution: tests/reports/execution-report-{REQUEST_ID}.json
+- Registry: tests/reports/validator-registry-{REQUEST_ID}.json
 ```
 
-### Step 12: Collect User Decision
+### Step 15: Collect User Decision
 
 Based on failures, offer options:
 
@@ -557,7 +627,7 @@ Select option [1-5]:
 **Option 1: Fix manually**
 - User makes changes
 - Offer to re-run tests
-- If re-run → Return to Step 7 (Execution)
+- If re-run → Return to Step 10 (Execution)
 
 **Option 2: Apply automated fixes**
 - Check if fix scripts exist for failed validators
@@ -571,18 +641,18 @@ Select option [1-5]:
 - Return to option selection
 
 **Option 4: Ignore failures**
-- Proceed to Step 13 with failures noted
+- Proceed to Step 16 with failures noted
 - NOT recommended for critical failures
 
 **Option 5: Cancel**
 - Exit workflow
 - Preserve reports for manual review
 
-### Step 13: Generate Completion Report
+### Step 16: Generate Completion Report
 
 Create comprehensive completion report:
 
-Save to: `test/reports/completion-{REQUEST_ID}.md`
+Save to: `tests/reports/completion-{REQUEST_ID}.md`
 
 ```markdown
 # Test Execution Completion Report
@@ -679,11 +749,11 @@ All validators passed for edge cases:
 
 ## Related Files
 
-- Validation Context: test/reports/validation-context-{REQUEST_ID}.json
-- Validation Report: test/reports/validation-report-{REQUEST_ID}.json
-- Execution Context: test/reports/execution-context-{REQUEST_ID}.json
-- Execution Report: test/reports/execution-report-{REQUEST_ID}.json
-- Validator Registry: test/reports/validator-registry-{REQUEST_ID}.json
+- Validation Context: tests/reports/validation-context-{REQUEST_ID}.json
+- Validation Report: tests/reports/validation-report-{REQUEST_ID}.json
+- Execution Context: tests/reports/execution-context-{REQUEST_ID}.json
+- Execution Report: tests/reports/execution-report-{REQUEST_ID}.json
+- Validator Registry: tests/reports/validator-registry-{REQUEST_ID}.json
 
 ---
 
@@ -714,15 +784,15 @@ All validators passed for edge cases:
 
 ## Test Folder Initialization
 
-If project has no `test/` directory, initialize it:
+If project has no `tests/` directory, initialize it:
 
 ```bash
-mkdir -p test/{scripts,instructions,data/fixtures,data/mocks,reports}
+mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
 
-# Copy templates from ~/.claude/test/
-cp ~/.claude/test/README.md test/
-cp ~/.claude/test/INDEX.md test/
-cp ~/.claude/test/instructions/*.md test/instructions/
+# Copy templates from ~/.claude/tests/
+cp ~/.claude/tests/README.md tests/
+cp ~/.claude/tests/INDEX.md tests/
+cp ~/.claude/tests/instructions/*.md tests/instructions/
 
 # Create initial validator set based on edge cases
 # (User must implement validators based on docs/test/edge-case-analysis.json)
@@ -730,16 +800,16 @@ cp ~/.claude/test/instructions/*.md test/instructions/
 
 **Initial validators to create** (based on 8 edge cases):
 
-1. `test/scripts/validate-venv-usage.py` - EC002
-2. `test/scripts/validate-todowrite-requirement.py` - EC003
-3. `test/scripts/validate-step-numbering.py` - EC004
-4. `test/scripts/validate-chinese-content.py` - EC006
-5. `test/scripts/validate-claude-md-protection.py` - EC001
-6. `test/scripts/validate-file-naming.py` - EC007
-7. `test/scripts/validate-debug-file-age.py` - EC008
-8. `test/scripts/validate-optionality-language.py` - EC005
-9. `test/scripts/validate-workflow-json-cleanup.py` - General
-10. `test/scripts/validate-checklist-completeness.py` - General
+1. `tests/scripts/validate-venv-usage.py` - EC002
+2. `tests/scripts/validate-todowrite-requirement.py` - EC003
+3. `tests/scripts/validate-step-numbering.py` - EC004
+4. `tests/scripts/validate-chinese-content.py` - EC006
+5. `tests/scripts/validate-claude-md-protection.py` - EC001
+6. `tests/scripts/validate-file-naming.py` - EC007
+7. `tests/scripts/validate-debug-file-age.py` - EC008
+8. `tests/scripts/validate-optionality-language.py` - EC005
+9. `tests/scripts/validate-workflow-json-cleanup.py` - General
+10. `tests/scripts/validate-checklist-completeness.py` - General
 
 ---
 
@@ -765,7 +835,7 @@ cp ~/.claude/test/instructions/*.md test/instructions/
 ## Quality Standards
 
 ### Agent Communication
-- All via JSON in test/reports/
+- All via JSON in tests/reports/
 - Structured schemas enforced
 - Clear request_id tracking
 
@@ -784,15 +854,18 @@ cp ~/.claude/test/instructions/*.md test/instructions/
 ## Helper Scripts Used
 
 - `~/.claude/scripts/todo/test.py` - Workflow checklist
-- Test validators in `test/scripts/validate-*.py`
-- AI instructions in `test/instructions/*.md`
+- `~/.claude/scripts/analyze-git-edge-cases.sh` - Git history edge case analyzer
+- `~/.claude/scripts/cleanup-tests-folder.sh` - Remove non-git validators
+- `~/.claude/scripts/migrate-test-to-tests.sh` - Migrate test/ to tests/
+- Test validators in `tests/scripts/validate-*.py`
+- AI instructions in `tests/instructions/*.md`
 
 ---
 
 ## Integration with Other Commands
 
 ### /clean
-- Archives old test reports to `test/reports/archive/YYYY-MM/`
+- Archives old test reports to `tests/reports/archive/YYYY-MM/`
 - Removes reports > 90 days old
 - Preserves validator scripts
 

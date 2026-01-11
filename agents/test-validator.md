@@ -36,12 +36,12 @@ You receive JSON context with this structure:
   },
   "context": {
     "project_root": "/absolute/path/to/project",
-    "test_directory": "/absolute/path/to/project/test",
+    "test_directory": "/absolute/path/to/project/tests",
     "venv_path": "~/.claude/venv",
     "validators": [
       {
         "type": "script",
-        "path": "test/scripts/validate-venv-usage.py",
+        "path": "tests/scripts/validate-venv-usage.py",
         "edge_case": "EC002",
         "priority": "critical"
       }
