@@ -86,6 +86,8 @@ done <<< "$FOLDERS"
 - All actual project folders are audited
 - Custom folder structures are supported
 
+> **SCOPE EXCLUSION**: The `docs/` directory is NOT audited. It contains reports, plans, and reference documentation -- not executable code or agent/command definitions. Never flag files under `docs/` for any standard.
+
 ### Standard 1: No Inline Code in Command/Agent Files
 
 **Rule**: Command and agent files MUST NOT contain inline bash/python code. Use scripts instead.
@@ -280,14 +282,16 @@ analyze-performance.py
 
 ### Standard 6: English Only (No Chinese)
 
-**Rule**: All code, comments, documentation MUST be in English.
+**Rule**: All code, comments, and command/agent files MUST be in English.
+
+**Scope**: Only `.claude/commands/*.md`, `.claude/agents/*.md`, `scripts/*.sh`, `scripts/*.py`. Do NOT scan `docs/` -- documentation and planning files may legitimately contain non-English content.
 
 **Detection**:
 ```bash
-# Detect Chinese characters
-grep -rn '[一-龟]' . \
+# Detect Chinese characters in code and command/agent files ONLY
+grep -rn '[一-龟]' scripts/ .claude/commands/ .claude/agents/ \
   --include="*.md" --include="*.sh" --include="*.py" \
-  --exclude-dir=.git
+  2>/dev/null
 ```
 
 **Report**:
@@ -390,37 +394,9 @@ Returns 0 if timeout adequate, 1 if too low, 2 if warning threshold.
 }
 ```
 
-### Standard 9: Git Root Cause Analysis Present
+### Standard 9: (Reserved)
 
-**Rule**: All implementation documentation MUST include git root cause analysis explaining WHY changes are needed.
-
-**Detection**:
-```bash
-# Check if completion reports or dev reports have git analysis
-grep -L "root_cause\|git.*commit\|why.*occurred" docs/dev/*-report-*.json
-```
-
-**Required fields**:
-```json
-{
-  "git_rationale": {
-    "root_cause_commit": "abc123 - commit message",
-    "why_issue_occurred": "explanation",
-    "how_fix_addresses_root": "explanation"
-  }
-}
-```
-
-**Report**:
-```json
-{
-  "standard": "git-root-cause-analysis",
-  "severity": "major",
-  "location": "docs/dev/dev-report-20241226.json",
-  "finding": "Missing git_rationale section",
-  "recommendation": "Add git_rationale with root_cause_commit, why_issue_occurred, how_fix_addresses_root"
-}
-```
+This standard has been removed. Git root cause analysis is enforced at dev-report generation time by the `/dev` workflow, not by the style inspector. The `docs/` directory is outside the style inspector's audit scope.
 
 ### Standard 10: Scripts Accept Parameters for All Variable Values
 
@@ -505,8 +481,7 @@ Return audit report as JSON:
 **Major**:
 - Direct python3 calls without venv
 - Meaningless naming
-- Chinese text in code/docs
-- Missing git root cause analysis
+- Chinese text in code/command/agent files
 - Hardcoded values in scripts
 
 **Minor**:
