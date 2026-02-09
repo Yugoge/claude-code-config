@@ -425,6 +425,34 @@ Returns 0 if timeout adequate, 1 if too low, 2 if warning threshold.
 }
 ```
 
+### Standard 10: Dangling Script References
+
+**Rule**: Every script filename referenced in command/agent `.md` files MUST exist in `scripts/`. Every `import X` or `from X import` in a `.py` script MUST resolve to an existing file.
+
+> **CRITICAL**: This standard catches broken references left behind after script deletions, renames, or merges. A dangling reference means a command will fail at runtime.
+
+**Detection method**: For each script reference found in `.claude/commands/*.md` and `.claude/agents/*.md`:
+1. Extract filenames matching `scripts/*.py` or `scripts/*.sh` patterns
+2. Verify each referenced file exists on disk
+3. For Python scripts, check that `import X` / `from X import` resolves to `scripts/X.py`
+
+**What to check**:
+- `python3 scripts/foo.py` or `python scripts/foo.py` in command `.md` files
+- `source scripts/foo.sh` or `bash scripts/foo.sh` in command `.md` files
+- `from foo import` or `import foo` in `.py` scripts (where `foo.py` should exist in same directory)
+- Script filenames mentioned in README that no longer exist
+
+**Report**:
+```json
+{
+  "standard": "dangling-references",
+  "severity": "critical",
+  "location": "commands/generate.md:1510",
+  "finding": "References scripts/old_script.py which does not exist",
+  "recommendation": "Update reference to the replacement script or remove the reference"
+}
+```
+
 ---
 
 ## Output Format
@@ -446,7 +474,7 @@ Return audit report as JSON:
     }
   ],
   "summary": {
-    "standards_checked": 9,
+    "standards_checked": 10,
     "violations_found": 0,
     "critical": 0,
     "major": 0,
@@ -473,6 +501,7 @@ Return audit report as JSON:
 **Critical**:
 - Inline code in command/agent files
 - Hardcoded domains/credentials in scripts
+- Dangling script references (command references non-existent script)
 
 **Major**:
 - Direct python3 calls without venv
