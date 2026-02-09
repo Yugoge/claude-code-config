@@ -394,11 +394,7 @@ Returns 0 if timeout adequate, 1 if too low, 2 if warning threshold.
 }
 ```
 
-### Standard 9: (Reserved)
-
-This standard has been removed. Git root cause analysis is enforced at dev-report generation time by the `/dev` workflow, not by the style inspector. The `docs/` directory is outside the style inspector's audit scope.
-
-### Standard 10: Scripts Accept Parameters for All Variable Values
+### Standard 9: Scripts Accept Parameters for All Variable Values
 
 **Rule**: Scripts MUST accept parameters (CLI args, environment variables, or config files) for any value that could reasonably differ between runs or environments.
 
@@ -450,7 +446,7 @@ Return audit report as JSON:
     }
   ],
   "summary": {
-    "standards_checked": 10,
+    "standards_checked": 9,
     "violations_found": 0,
     "critical": 0,
     "major": 0,
