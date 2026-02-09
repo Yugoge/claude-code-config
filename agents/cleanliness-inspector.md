@@ -330,61 +330,29 @@ Detect subagents not referenced by any command:
 - Workflow-orchestrated agents aren't statically referenced in command files but are core workflow components
 - Exception list prevents false positives for agents invoked by orchestrators at runtime
 
-**Detection logic**:
+**Detection script**:
 ```bash
-# Exception list: agents invoked dynamically by orchestrators
-WORKFLOW_ORCHESTRATED_AGENTS=(
-  "git-edge-case-analyst"  # Invoked by /test Step 1 for git history analysis
-)
-
-# For each agents/*.md file
-for agent_file in agents/*.md; do
-  agent_name=$(basename "$agent_file" .md)
-
-  # Check exception list first
-  is_excepted=false
-  for excepted_agent in "${WORKFLOW_ORCHESTRATED_AGENTS[@]}"; do
-    if [[ "$agent_name" == "$excepted_agent" ]]; then
-      is_excepted=true
-      break
-    fi
-  done
-
-  # Skip excepted agents
-  if [[ "$is_excepted" == "true" ]]; then
-    continue
-  fi
-
-  # Search in commands/*.md for:
-  # 1. Task subagent_type references
-  # 2. Direct agent name mentions in orchestration
-  # 3. orchestrator.sh invocations
-
-  if ! grep -rq "subagent_type.*$agent_name" commands/ 2>/dev/null && \
-     ! grep -rq "Task.*$agent_name" commands/ 2>/dev/null && \
-     ! grep -rq "agents/$agent_name.md" commands/ 2>/dev/null; then
-    # Check if it's a meta-agent (orchestrator, etc)
-    if [[ ! "$agent_name" =~ ^(orchestrator|dispatcher|coordinator)$ ]]; then
-      # Orphaned subagent detected
-      echo "$agent_file is orphaned"
-    fi
-  fi
-done
+# Use dedicated detection script
+~/.claude/scripts/detect-orphan-agents.sh "$PROJECT_ROOT"
 ```
 
-**Report structure**:
+**Script location**: `~/.claude/scripts/detect-orphan-agents.sh`
+
+**Output format** (JSON):
 ```json
 {
-  "orphaned_subagents": [
+  "orphan_agents": [
     {
       "file": "agents/old-processor.md",
-      "reason": "Not referenced by any command in commands/*.md",
-      "last_modified": "2024-10-15",
-      "commit_count": 3,
-      "safe_to_delete": true,
+      "reason": "Not referenced by any command",
+      "last_modified": "90 days ago",
+      "commit_count": 1,
       "severity": "major"
     }
-  ]
+  ],
+  "summary": {
+    "total": 1
+  }
 }
 ```
 
@@ -396,49 +364,47 @@ Detect scripts not referenced by commands or subagents:
 
 **Purpose**: Find scripts that exist but are never invoked functionally.
 
-**Detection logic**:
+> **CRITICAL: MANDATORY SCRIPT EXECUTION**
+>
+> You MUST execute this script via Bash and include its complete JSON output in the `unreferenced_scripts` findings. Do NOT substitute your own pattern-matching analysis.
+>
+> ALL items from the script output must appear in your report. Never omit, filter, or re-analyze the results yourself.
+
+**Detection script**:
 ```bash
-# For each scripts/*.sh and scripts/*.py file
-for script_file in scripts/*.sh scripts/*.py scripts/**/*.sh scripts/**/*.py; do
-  [[ ! -f "$script_file" ]] && continue
-
-  script_name=$(basename "$script_file")
-
-  # Use helper for comprehensive reference check
-  if ~/.claude/scripts/check-file-references.sh "$script_file" > /dev/null 2>&1; then
-    exit_code=$?
-
-    # Also check in commands/*.md and agents/*.md specifically
-    if ! grep -rq "$script_name" commands/ 2>/dev/null && \
-       ! grep -rq "$script_name" agents/ 2>/dev/null; then
-
-      # Verify with helper exit code
-      if [[ $exit_code -eq 0 ]]; then
-        # Safe to delete (no references)
-        echo "$script_file is unreferenced and safe to delete"
-      elif [[ $exit_code -eq 2 ]]; then
-        # Only historical doc references (archive candidate)
-        echo "$script_file is only referenced in historical docs"
-      fi
-    fi
-  fi
-done
+# MANDATORY: Run this script and use its output directly
+~/.claude/scripts/detect-orphan-scripts.sh "$PROJECT_ROOT"
 ```
 
-**Report structure**:
+You MUST run the above command. Do NOT skip it or attempt to detect orphan scripts manually. The script checks Python imports, subprocess calls, path-based references in commands, and direct filename references that manual analysis will miss.
+
+**Script location**: `~/.claude/scripts/detect-orphan-scripts.sh`
+
+**One-time fix script detection criteria**:
+- Filename contains: `-fix`, `-v2`, `-patch`, `-migration`, `-cleanup`, `-repair`, `-reextract`, `-batch`
+- Has corresponding `*-report.md` file
+- Modified > 30 days ago
+- Commit count <= 3
+
+**Output format** (JSON):
 ```json
 {
-  "unreferenced_scripts": [
+  "orphan_scripts": [
     {
-      "file": "scripts/migrate-legacy-data.sh",
-      "reason": "No references in commands/*.md or agents/*.md",
-      "reference_check_result": "no_references",
+      "file": "scripts/fix-something.py",
+      "reason": "No references in commands/agents/scripts",
+      "one_time_fix": true,
+      "has_report": true,
       "last_modified": "60 days ago",
       "commit_count": 2,
-      "safe_to_delete": true,
       "severity": "major"
     }
-  ]
+  ],
+  "summary": {
+    "total": 5,
+    "one_time_fixes": 3,
+    "general_orphans": 2
+  }
 }
 ```
 
@@ -1263,6 +1229,45 @@ done
 - ALWAYS check references before recommending deletion
 - Runtime data folders: add to .gitignore first, then delete
 
+### 15. Orphaned Commands Detection
+
+Detect orphan commands that may no longer be needed:
+
+**Purpose**: Find slash commands that are one-time use, lack todo scripts, or have not been used recently.
+
+**Detection script**:
+```bash
+# Use dedicated detection script
+~/.claude/scripts/detect-orphan-commands.sh "$PROJECT_ROOT"
+```
+
+**Script location**: `~/.claude/scripts/detect-orphan-commands.sh`
+
+**Detection criteria**:
+- Command has no corresponding todo script in `~/.claude/scripts/todo/`
+- Command name contains one-time patterns: `-fix`, `-migrate`, `-patch`, `-migration`, `-cleanup`, `-repair`
+- Command not used in 90+ days (check git log for invocation)
+
+**Output format** (JSON):
+```json
+{
+  "orphan_commands": [
+    {
+      "file": "commands/migrate-old-data.md",
+      "reason": "One-time migration command, no todo script",
+      "one_time_pattern": true,
+      "last_modified": "120 days ago",
+      "severity": "minor"
+    }
+  ],
+  "summary": {
+    "total": 1
+  }
+}
+```
+
+**Severity**: minor (orphaned commands don't break functionality but clutter the command list)
+
 ---
 
 ## Output Format
@@ -1433,6 +1438,15 @@ Return inspection report as JSON:
         "last_modified": "ISO-8601 or days ago",
         "safe_to_delete": true,
         "severity": "major"
+      }
+    ],
+    "orphan_commands": [
+      {
+        "file": "path",
+        "reason": "description",
+        "one_time_pattern": true,
+        "last_modified": "days ago",
+        "severity": "minor"
       }
     ]
   },

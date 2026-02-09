@@ -123,37 +123,49 @@ FOR each .md file in .claude/commands/ and .claude/agents/:
 }
 ```
 
-### Standard 2: No Hardcoded Domains/URLs in Scripts
+### Standard 2: No Hardcoded Values in Scripts
 
-**Rule**: Scripts MUST NOT contain hardcoded URLs, domains, or environment-specific values.
+**Rule**: Scripts MUST NOT contain hardcoded URLs, file paths, directory names, or environment-specific values that should be parameterized.
 
-**Detection**:
-```bash
-# Scan all scripts for hardcoded URLs
-grep -rE 'https?://[a-zA-Z0-9.-]+' scripts/ \
-  --include="*.sh" --include="*.py" \
-  | grep -v "# Example:" | grep -v "# Usage:"
-```
+> **CRITICAL: READ EACH SCRIPT FILE**
+>
+> You MUST read the actual source code of every script in `scripts/` (and `~/.claude/scripts/` if applicable) using the Read tool. Do NOT rely on grep patterns -- they miss most hardcode violations. Read each file and judge whether values should be parameters.
+
+**Detection method**: For each script file, read its full content and look for:
+
+1. **Hardcoded URLs/domains**: `https://...`, `http://...`, `s3://...`
+2. **Hardcoded file paths**: String literals containing `/`, `data/`, `docs/`, `template/`, etc. that are not derived from parameters or computed from `$PROJECT_ROOT`
+3. **Hardcoded directory names**: `WORK_DIR="data/work"`, `OUTPUT="data/output"` without parameter fallback
+4. **Hardcoded filenames**: `open("plain_text_resume.yaml")`, `TEMPLATE="harvard"` without parameter
+5. **Hardcoded numeric constants**: Timeouts, retries, port numbers that should be configurable
+
+**What is NOT a violation** (use judgment):
+- Color codes (`RED='\033[0;31m'`) -- these are display constants
+- `set -euo pipefail` -- shell boilerplate
+- Script self-references (`SCRIPT_DIR=$(dirname ...)`)
+- Default values with parameter fallback (`${1:-default}`, `${VAR:-fallback}`)
+- Constants that genuinely never change (e.g., `SECONDS_PER_DAY=86400`)
+- argparse/getopt defaults in Python (these ARE parameterized)
 
 **Violations**:
 ```bash
-# BAD
-API_URL="https://api.production.com"
-BUCKET="s3://my-specific-bucket"
+# BAD - hardcoded path, no parameter
+RESUME_FILE="data/plain_text_resume.yaml"
+open("template/resume/harvard.html")
 
-# GOOD
-API_URL="${1:?Missing API URL}"
-BUCKET="${2:?Missing bucket name}"
+# GOOD - parameterized with defaults
+RESUME_FILE="${1:-data/plain_text_resume.yaml}"
+template_path = sys.argv[1] if len(sys.argv) > 1 else "template/resume/harvard.html"
 ```
 
 **Report**:
 ```json
 {
-  "standard": "no-hardcoded-domains",
-  "severity": "critical",
-  "location": "scripts/deploy.sh:15",
-  "finding": "Hardcoded URL: https://api.production.com",
-  "recommendation": "Use parameter: API_URL=\"${1:?Missing API URL}\""
+  "standard": "no-hardcoded-values",
+  "severity": "major",
+  "location": "scripts/example.py:15",
+  "finding": "Hardcoded file path: open('data/plain_text_resume.yaml')",
+  "recommendation": "Accept path as CLI argument with default: parser.add_argument('--resume', default='data/plain_text_resume.yaml')"
 }
 ```
 
@@ -410,43 +422,34 @@ grep -L "root_cause\|git.*commit\|why.*occurred" docs/dev/*-report-*.json
 }
 ```
 
-### Standard 10: Scripts Have Parameters, Not Hardcoded Values
+### Standard 10: Scripts Accept Parameters for All Variable Values
 
-**Rule**: All scripts MUST accept parameters for flexible values, NOT hardcode them.
+**Rule**: Scripts MUST accept parameters (CLI args, environment variables, or config files) for any value that could reasonably differ between runs or environments.
 
-**Detection**:
-```bash
-# Scan scripts for common hardcoded patterns
-grep -rn '^[A-Z_]*="[^$]' scripts/ --include="*.sh" \
-  | grep -v "set -euo pipefail" \
-  | grep -v "NC='\033" \
-  | grep -v "RED='\033"
-```
+> **NOTE**: This standard is enforced together with Standard 2. If you already read each script file for Standard 2, combine your findings here. Do NOT re-read files -- use the same reading pass.
 
-**Violations**:
-```bash
-# BAD
-TIMEOUT=30
-MAX_RETRIES=5
-OUTPUT_DIR="/tmp/results"
+**What requires parameterization** (found by reading script source):
+- File/directory paths (input files, output directories, templates)
+- Threshold values (scores, sizes, percentages, timeouts)
+- Names/identifiers (job IDs, candidate names, template names)
+- External tool paths (if not using venv python)
 
-# GOOD
-TIMEOUT="${1:-30}"  # Default 30, overridable
-MAX_RETRIES="${2:-5}"
-OUTPUT_DIR="${3:-/tmp/results}"
-
-# OR require parameters
-TIMEOUT="${1:?Missing timeout parameter}"
-```
+**Acceptable parameterization patterns**:
+- Shell positional args with defaults: `VAR="${1:-default}"`
+- Shell required args: `VAR="${1:?Missing value}"`
+- Shell env vars: `VAR="${ENV_VAR:-default}"`
+- Python argparse/click/typer
+- Python `sys.argv` with defaults
+- Config file loading (JSON/YAML)
 
 **Report**:
 ```json
 {
   "standard": "parameterized-scripts",
   "severity": "major",
-  "location": "scripts/deploy.sh:10-12",
-  "finding": "Hardcoded values: TIMEOUT=30, MAX_RETRIES=5",
-  "recommendation": "Use parameters: TIMEOUT=\"${1:-30}\", MAX_RETRIES=\"${2:-5}\""
+  "location": "scripts/process.sh:10-12",
+  "finding": "Hardcoded threshold: SCORE_THRESHOLD=85 with no parameter override",
+  "recommendation": "Use: SCORE_THRESHOLD=\"${1:-85}\""
 }
 ```
 
