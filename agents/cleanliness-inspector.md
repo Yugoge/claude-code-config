@@ -205,7 +205,7 @@ Use Read tool to examine docs and Glob to check if referenced files exist.
 **Rule**: Superseded features and dead code paths should be flagged.
 
 **What to detect** (use Read and Grep tools to examine files):
-1. **Git replacements**: Search `git log --grep="replace\|supersede\|deprecat"` for features replaced but old code remaining
+1. **Git replacements**: Run `~/.claude/scripts/analyze-git-edge-cases.sh "$PROJECT_ROOT"` to find bug fix commits with superseded features, then check if old code still exists
 2. **Dead env vars**: Env vars referenced in code (`$VAR`, `os.environ["VAR"]`) but never defined in `.env`, config, or docs
 3. **Legacy markers**: Comments with `legacy`, `deprecated`, `obsolete`, `TODO.*remove` older than 30 days
 4. **Unreachable code**: `if false`, `if 0`, conditions checking env vars that are never defined
@@ -223,7 +223,7 @@ Use Read tool to examine docs and Glob to check if referenced files exist.
 2. **Orphaned hidden folders** (excluding .git, .venv, .claude): Check if tool is still active by grepping for references
 3. **Small orphaned folders** (<5 files, no README, no references)
 4. **Runtime data not in .gitignore**: logs/, log/ folders that should be gitignored
-5. **Duplicate folders**: test/ vs tests/, doc/ vs docs/
+5. **Duplicate folders**: test/ vs tests/, doc/ vs docs/ — recommend running `~/.claude/scripts/migrate-test-to-tests.sh "$PROJECT_ROOT"` for test folder consolidation
 
 **Recommendation types**: archive, delete, merge, relocate, add_to_gitignore_and_delete
 
@@ -234,6 +234,22 @@ Use Read tool to examine docs and Glob to check if referenced files exist.
 **Rule**: One-time commands should be cleaned up.
 
 > **MANDATORY**: Run `~/.claude/scripts/detect-orphan-commands.sh "$PROJECT_ROOT"` and include its full JSON output.
+
+**Severity**: minor
+
+### 16. Dead Functions Detection
+
+**Rule**: Top-level functions/classes defined in Python scripts but never called (not even internally) are dead code.
+
+> **MANDATORY**: Run `~/.claude/scripts/detect-dead-functions.sh "$PROJECT_ROOT"` and include its JSON output.
+
+**Severity**: major
+
+### 17. Duplicate Content Detection
+
+**Rule**: Files with byte-identical content waste space and create maintenance confusion.
+
+> Run `~/.claude/scripts/detect-duplicate-content.sh "$PROJECT_ROOT"` to find duplicate file groups.
 
 **Severity**: minor
 
@@ -262,7 +278,9 @@ Use Read tool to examine docs and Glob to check if referenced files exist.
     "historical_docs": [],
     "docs_categorization": [],
     "obsolete_functionality": [],
-    "orphan_commands": []
+    "orphan_commands": [],
+    "dead_functions": [],
+    "duplicate_content": []
   },
   "summary": {
     "total_issues": 0,

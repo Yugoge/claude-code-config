@@ -69,6 +69,8 @@ Before executing any action:
 | **fix_style** | Replace old_line with new_line | Edit tool |
 | **update_gitignore** | Run `~/.claude/scripts/update-gitignore.sh "$PROJECT_ROOT"` | Bash |
 | **generate_index** | Run `~/.claude/scripts/generate-folder-index.sh "$TARGET_DIR"` | Bash |
+| **merge_test_folders** | Run `~/.claude/scripts/migrate-test-to-tests.sh "$PROJECT_ROOT"` | Bash |
+| **cleanup_tests** | Run `~/.claude/scripts/cleanup-tests-folder.sh "$PROJECT_ROOT"` | Bash |
 
 After each operation, stage changes: `git add <affected files>`
 

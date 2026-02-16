@@ -237,18 +237,58 @@ Expected output structure:
 }
 ```
 
-### Step 6: Invoke Style Inspector
+### Step 6: Invoke Style Inspector (Loop Driver)
 
-Delegate to style-inspector subagent:
+The style-inspector uses a **budget protocol** to avoid context overflow. It audits 5 files per invocation and writes progress to a JSON file. The orchestrator loops until all files are covered.
 
-```bash
-~/.claude/scripts/orchestrator.sh clean-inspect docs/clean/context-{REQUEST_ID}.json
+**Progress file**: `docs/clean/style-progress-{REQUEST_ID}.json`
+**Final report**: `docs/clean/style-report-{REQUEST_ID}.json`
+
+**Loop implementation**:
+
+```
+PROGRESS_FILE="docs/clean/style-progress-${REQUEST_ID}.json"
+MAX_ROUNDS=20  # safety limit
+ROUND=0
+
+while true; do
+  ROUND=$((ROUND + 1))
+
+  # Safety: abort if too many rounds
+  if [ $ROUND -gt $MAX_ROUNDS ]; then
+    echo "ERROR: style-inspector exceeded $MAX_ROUNDS rounds. Aborting."
+    break
+  fi
+
+  # Invoke style-inspector subagent with Task tool
+  # Pass: context path, progress file path, request ID
+  # The inspector reads progress file to know what's already done
+  RESULT = invoke style-inspector with prompt:
+    "Audit project at {PROJECT_ROOT}.
+     Context: docs/clean/context-{REQUEST_ID}.json
+     Progress file: docs/clean/style-progress-{REQUEST_ID}.json
+     Request ID: {REQUEST_ID}
+     Budget: 5 files per invocation. Read each file fully.
+     Check all 11 standards. Write results to progress file."
+
+  # Check status from inspector's return message
+  if RESULT contains "STATUS: complete"; then
+    echo "Style inspection complete after $ROUND rounds."
+    break
+  fi
+
+  # If "STATUS: incomplete", loop continues automatically
+  echo "Round $ROUND complete. Files remain. Continuing..."
+done
 ```
 
-Style inspector reads context, audits standards, writes:
-- `docs/clean/style-report-{REQUEST_ID}.json`
+**What this achieves**:
+- Each round reads at most 5 files fully (stays within context budget)
+- Progress accumulates in the JSON file across rounds
+- No file is skipped -- every file gets deep analysis
+- On final round, inspector writes the complete report
 
-Expected output structure:
+Expected final output structure:
 
 ```json
 {
@@ -257,7 +297,7 @@ Expected output structure:
   "inspector": "style-inspector",
   "violations": [
     {
-      "standard": "no-hardcoded-domains",
+      "standard": "standard-name",
       "severity": "critical|major|minor",
       "location": "file:line",
       "finding": "description",
@@ -265,11 +305,14 @@ Expected output structure:
     }
   ],
   "summary": {
-    "standards_checked": 10,
+    "standards_checked": 11,
     "violations_found": 0,
     "critical": 0,
     "major": 0,
-    "minor": 0
+    "minor": 0,
+    "files_audited": 0,
+    "files_total": 0,
+    "rounds_completed": 0
   }
 }
 ```
