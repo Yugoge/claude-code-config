@@ -1,6 +1,6 @@
 # commands Index
 
-Auto-generated folder inventory. Last updated: 2026-01-08T13:03:07Z
+Auto-generated folder inventory. Last updated: 2026-02-16T01:35:00Z
 
 ## Purpose
 
@@ -8,41 +8,33 @@ Command definitions and slash commands
 
 ## Structure
 
-- Total files: 30
+- Total files: 22
 - Total subdirectories: 0
 
 ## Files
 
-- `artifact-excel-analyzer.md`
-- `artifact-mermaid.md`
-- `artifact-react.md`
 - `checkpoint.md` - Checkpoint Command
-- `clean.md`
-- `code-review.md`
-- `debug-help.md`
-- `deep-search.md`
-- `dev.md`
-- `doc-gen.md`
-- `explain-code.md`
-- `file-analyze.md`
+- `clean.md` - Aggressive project cleanup and normalization
+- `code-review.md` - Comprehensive code review with best practices analysis
+- `deep-search.md` - Deep website exploration with iterative search strategy
+- `dev-command.md` - Enhanced development workflow with command development best practices
+- `dev.md` - Orchestrated development workflow with multi-round requirement clarification
+- `doc-gen.md` - Generate comprehensive documentation for code
+- `explain-code.md` - Deep explanation of code functionality and design
+- `file-analyze.md` - Analyze PDF, Excel, Word, images and other files with deep insights
 - `fswatch.md` - FSWatch Command
-- `optimize.md`
-- `playwright-helper.md`
-- `pull.md` - Pull Command
+- `optimize.md` - Analyze code for performance optimization opportunities
+- `playwright-helper.md` - Guide for using Playwright MCP with deep search commands
 - `push.md` - Push Command
-- `quick-commit.md`
-- `quick-prototype.md`
-- `refactor.md`
-- `reflect-search.md`
-- `research-deep.md`
-- `search-tree.md`
-- `security-check.md`
-- `site-navigate.md`
-- `status.md`
-- `test-gen.md`
-- `test.md`
-- `think.md`
-- `ultrathink.md`
+- `quick-commit.md` - Create a well-formatted git commit with auto-generated message
+- `quick-prototype.md` - Rapidly create interactive prototypes and demos
+- `README.md` - Command system overview and documentation
+- `refactor.md` - Suggest refactoring improvements for code quality
+- `reflect-search.md` - Reflection-driven iterative search with goal evaluation
+- `research-deep.md` - Multi-source deep research with 15-20 iterative searches
+- `security-check.md` - Security vulnerability analysis and recommendations
+- `site-navigate.md` - Intelligent site navigation simulating click-through exploration
+- `test.md` - Test validation workflow with edge case detection
 
 ---
 

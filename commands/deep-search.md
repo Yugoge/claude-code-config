@@ -34,7 +34,7 @@ Use Playwright MCP to navigate the main homepage:
    - Sitemap or directory pages
 ```
 
-### Phase 3: Breadth Exploration (广度探索 - 并行)
+### Phase 3: Breadth Exploration
 From Phase 2 results, identify the top 3-5 most promising URLs.
 
 Use Playwright MCP **in parallel** to explore each URL:
@@ -49,7 +49,7 @@ For each URL:
    - Last updated date if shown
 ```
 
-### Phase 4: Depth Targeting (深度定位)
+### Phase 4: Depth Targeting
 Based on Phase 3 findings, use Playwright MCP for the most specific/relevant page:
 ```
 1. Navigate to the target page using mcp__playwright__navigate
@@ -61,7 +61,7 @@ Based on Phase 3 findings, use Playwright MCP for the most specific/relevant pag
    - Any referenced sub-pages or related documents (all hrefs)
 ```
 
-### Phase 5: Fallback Recovery (失败恢复)
+### Phase 5: Fallback Recovery
 If Playwright fails at any stage:
 
 **Fallback A**: Search for alternative official sources
@@ -75,7 +75,7 @@ If Playwright fails at any stage:
 **Fallback C**: Task agent for creative solutions
 - Launch general-purpose agent to explore alternative paths
 
-### Phase 6: Synthesis & Report (综合报告)
+### Phase 6: Synthesis & Report
 Compile all findings into a structured report:
 
 ```markdown
