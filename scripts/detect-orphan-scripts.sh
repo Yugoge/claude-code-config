@@ -147,6 +147,10 @@ check_script_references() {
         fi
     fi
 
+    # DO NOT check INDEX.md or docs/ references
+    # Scripts with only INDEX/docs references are still orphans
+    # They need to be directly invoked by commands/agents/scripts
+
     echo "$referenced"
 }
 
@@ -165,6 +169,8 @@ is_one_time_fix() {
 }
 
 # Function to check for corresponding report
+# NOTE: Has_report does NOT affect orphan status
+# Scripts with only docs/reports references are STILL orphans
 has_report() {
     local script_file="$1"
     local script_name
@@ -173,14 +179,8 @@ has_report() {
     local script_dir
     script_dir=$(dirname "$script_file")
 
-    # Check for report file in same directory or docs/
-    if [[ -f "${script_dir}/${script_name_no_ext}-report.md" ]] || \
-       [[ -f "docs/${script_name_no_ext}-report.md" ]] || \
-       [[ -f "docs/reports/${script_name_no_ext}-report.md" ]]; then
-        echo "true"
-    else
-        echo "false"
-    fi
+    # Always return false - docs/reports don't count as functional references
+    echo "false"
 }
 
 # Function to get last modified time

@@ -108,6 +108,9 @@
       "Bash(~/.claude/scripts/orchestrator.sh record-checkpoint:*)",
       "Bash(~/.claude/scripts/orchestrator.sh rule-inspect:*)",
       "Bash(~/.claude/scripts/scan-project.sh:*)",
+      "Bash(~/.claude/scripts/detect-orphan-scripts.sh:*)",
+      "Bash(~/.claude/scripts/detect-orphan-agents.sh:*)",
+      "Bash(~/.claude/scripts/detect-orphan-commands.sh:*)",
       "Bash(scripts/discover-folders.sh:*)",
       "Bash(scripts/analyze-folder-history.sh:*)",
       "Bash(scripts/generate-folder-index.sh:*)",
@@ -244,9 +247,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "source ~/.claude/venv/bin/activate && python3 ~/.claude/hooks/hook-todo-injection.py",
-            "stdin_json": true,
-            "on_error": "warn"
+            "command": "source ~/.claude/venv/bin/activate && python3 ~/.claude/hooks/hook-todo-injection.py"
           }
         ]
       },
@@ -332,5 +333,6 @@
       }
     ]
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "model": "claude-sonnet-4-5"
 }
