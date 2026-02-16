@@ -8,7 +8,7 @@ allowed-tools: [Read, Grep, Glob, Bash]
 
 Perform a comprehensive code review on $ARGUMENTS following these criteria:
 
-## Review Checklist | 审查清单
+## Review Checklist
 
 ### 1. Code Quality
 - **Readability**: Is the code easy to understand?
@@ -16,13 +16,13 @@ Perform a comprehensive code review on $ARGUMENTS following these criteria:
 - **Complexity**: Is the code unnecessarily complex?
 - **DRY Principle**: Is there code duplication?
 
-### 2. Security | 安全性
+### 2. Security
 - **Input Validation**: Are inputs properly validated?
 - **Secrets**: Are there any hardcoded credentials or API keys?
 - **Injection**: Is the code vulnerable to injection attacks?
 - **Dependencies**: Are dependencies up-to-date and secure?
 
-### 3. Performance | 性能
+### 3. Performance
 - **Algorithms**: Are appropriate algorithms used?
 - **Resource Usage**: Is memory/CPU used efficiently?
 - **Caching**: Can caching improve performance?
@@ -33,7 +33,7 @@ Perform a comprehensive code review on $ARGUMENTS following these criteria:
 - **Edge Cases**: Are edge cases handled?
 - **Error Handling**: Is error handling robust?
 
-### 5. Documentation | 文档
+### 5. Documentation
 - **Comments**: Are complex parts explained?
 - **API Docs**: Are public APIs documented?
 - **README**: Is setup/usage documented?
