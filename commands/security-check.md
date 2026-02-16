@@ -4,15 +4,15 @@ argument-hint: [file-path-or-directory]
 allowed-tools: [Read, Grep, Glob, Bash]
 ---
 
-# Security Vulnerability Check | 安全漏洞检查
+# Security Vulnerability Check
 
 Perform security analysis on $ARGUMENTS to identify potential vulnerabilities.
 
-## Security Checklist清单
+## Security Checklist
 
-### 🔴 Critical Vulnerabilities | 严重漏洞
+### 🔴 Critical Vulnerabilities
 
-#### 1. Injection Attacks | 注入攻击
+#### 1. Injection Attacks
 - SQL Injection
 - Command Injection
 - LDAP Injection
@@ -26,40 +26,40 @@ Perform security analysis on $ARGUMENTS to identify potential vulnerabilities.
 - Session management issues
 - JWT vulnerabilities
 
-#### 3. Sensitive Data Exposure | 敏感数据暴露
+#### 3. Sensitive Data Exposure
 - Hardcoded credentials (API keys, passwords, tokens)
 - Unencrypted sensitive data
 - Weak encryption algorithms
 - Data leakage in logs/errors
 
-#### 4. XSS (Cross-Site Scripting) | 跨站脚本
+#### 4. XSS (Cross-Site Scripting)
 - Reflected XSS
 - Stored XSS
 - DOM-based XSS
 - Unsafe HTML rendering
 
-### 🟡 Important Issues | 重要问题
+### 🟡 Important Issues
 
-#### 5. CSRF (Cross-Site Request Forgery) | 跨站请求伪造
+#### 5. CSRF (Cross-Site Request Forgery)
 - Missing CSRF tokens
 - Unsafe state-changing operations
 
-#### 6. Security Misconfiguration | 安全配置错误
+#### 6. Security Misconfiguration
 - Default credentials
 - Unnecessary features enabled
 - Insecure defaults
 - Verbose error messages
 
-#### 7. Insecure Dependencies | 不安全的依赖
+#### 7. Insecure Dependencies
 - Outdated libraries with known vulnerabilities
 - Packages with security advisories
 
-#### 8. Insufficient Logging | 日志不足
+#### 8. Insufficient Logging
 - Security events not logged
 - Sensitive data in logs
 - Log injection vulnerabilities
 
-### 🟢 Best Practices | 最佳实践
+### 🟢 Best Practices
 
 #### 9. Input Validation
 - Whitelist validation
@@ -67,7 +67,7 @@ Perform security analysis on $ARGUMENTS to identify potential vulnerabilities.
 - Length limits
 - Format validation
 
-#### 10. Secure Communication | 安全通信
+#### 10. Secure Communication
 - HTTPS enforcement
 - Certificate validation
 - Secure protocols (TLS 1.2+)

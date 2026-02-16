@@ -1,6 +1,6 @@
 # agents Index
 
-Auto-generated folder inventory. Last updated: 2026-01-08T13:03:07Z
+Auto-generated folder inventory. Last updated: 2026-02-16T01:36:00Z
 
 ## Purpose
 
@@ -8,24 +8,28 @@ AI agent definitions and configurations
 
 ## Structure
 
-- Total files: 13
+- Total files: 17
 - Total subdirectories: 0
 
 ## Files
 
-- `artifact-generator.md`
-- `cleaner.md`
-- `cleanliness-inspector.md`
-- `code-quality-auditor.md`
-- `deep-search.md`
-- `dev.md`
-- `file-processor.md`
-- `git-edge-case-analyst.md`
-- `qa.md`
-- `rule-inspector.md`
-- `style-inspector.md`
-- `test-executor.md`
-- `test-validator.md`
+- `cleaner.md` - Cleanup execution specialist
+- `cleanliness-inspector.md` - File organization inspector for cleanup tasks
+- `cover-letter-writer.md` - Cover letter writing expert
+- `dev.md` - Implementation specialist for development tasks
+- `git-edge-case-analyst.md` - Git history analysis specialist
+- `job-parser.md` - Job information extraction expert
+- `layout-optimizer.md` - Intelligent layout optimization expert
+- `prompt-inspector.md` - Prompt optimization inspector
+- `qa.md` - Quality assurance specialist for verification tasks
+- `README.md` - Agent system overview and documentation
+- `resume-critique.md` - Resume and cover letter critique expert
+- `resume-refiner.md` - Resume optimization expert
+- `resume-tailor.md` - Elite resume customization expert
+- `rule-inspector.md` - Folder rule discovery agent
+- `style-inspector.md` - Development standards auditor
+- `test-executor.md` - Execution specialist for test infrastructure
+- `test-validator.md` - Validation specialist for test infrastructure
 
 ---
 
