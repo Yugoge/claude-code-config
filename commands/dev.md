@@ -1,7 +1,5 @@
 ---
-description: Orchestrated development workflow with multi-round requirement clarification, parallel agent execution, and iterative QA verification
-allowed-tools: Task, Read, Write, Edit, Bash, Glob, Grep, TodoWrite
-argument-hint: "<development-requirement>"
+description: Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification
 ---
 
 **CRITICAL**: Use TodoWrite to track workflow phases. Mark in_progress before each step, completed immediately after.
@@ -14,32 +12,19 @@ This command uses multi-round inquiry to fully understand requirements, then orc
 
 ---
 
-## Step 0: Initialize Workflow Checklist
-
-**Load todos from**: `~/.claude/scripts/todo/dev.py`
-
-Execute:
-```bash
-source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/dev.py
-```
-
-Use output to create TodoWrite with all workflow steps.
-
-**Rules**: Mark `in_progress` before each step, `completed` after. NEVER skip steps.
-
----
-
 ## Core Workflow
 
-**Multi-Round Orchestration Pattern**:
+**BA-Delegated Orchestration Pattern**:
 ```
 User Requirement (may be vague)
   ↓
-Multi-round inquiry until requirement is CRYSTAL CLEAR
+Quick parse of $ARGUMENTS
   ↓
-Git deep-dive for root cause analysis
+Delegate to BA subagent (analysis + context building)
   ↓
-Build comprehensive JSON context (stored in docs/dev/)
+BA clarification loop (if BA needs user input, max 3 rounds)
+  ↓
+Validate BA output (ba-spec + context JSON)
   ↓
 Delegate to dev subagent (implementation)
   ↓
@@ -51,14 +36,13 @@ IF QA passes → Generate completion report
 ```
 
 **Key Principles**:
-- NEVER start development with unclear requirements
-- Multi-round questioning until you fully understand user intent
-- Orchestrator does NO implementation work
-- All execution delegated to subagents
-- Rich JSON context (1M tokens) stored in `docs/dev/`
+- Orchestrator does NO analysis or context building (BA handles it)
+- Orchestrator does NO implementation work (dev handles it)
+- All requirement clarification routed through BA subagent
+- BA returns dual output: Markdown spec + JSON context
+- Orchestrator only relays BA's clarification questions to user
+- Rich JSON context stored in `docs/dev/`
 - QA verification after each dev cycle
-- Git deep-dive for root cause analysis
-- Scripts for reusable logic, not inline code
 - Iterate until all quality standards met
 
 ---
@@ -75,242 +59,107 @@ Requirement: "$ARGUMENTS"
 
 **Edge cases**:
 - Empty `$ARGUMENTS` → Prompt user for requirement
-- Vague requirement → Proceed to Step 2 (Clarification)
-- Clear and specific → Skip to Step 3
+- Otherwise → Pass raw text to BA subagent in Step 2
 
-**Vague requirement signals**:
-- Too broad ("make better", "optimize everything")
-- Missing context ("fix the bug", "add feature")
-- Unclear scope ("improve performance")
-- Multiple unrelated requests
-- Missing success criteria
+**Keep this step lightweight** - BA subagent handles all analysis.
 
-### Step 2: Multi-Round Requirement Clarification
+### Step 2: Delegate to BA Subagent
 
-**DO NOT start development with unclear requirements**
-
-**Clarification approach** (iterative until clear):
-
-```
-I want to make sure I fully understand your requirement before starting.
-
-Current understanding: {your interpretation}
-
-Clarification questions:
-1. {Specific aspect 1}?
-2. {Specific aspect 2}?
-3. {Success criteria}?
-
-Please answer these so I can develop exactly what you need.
-```
-
-**Required information to gather**:
-- **What**: Specific feature/fix/change requested
-- **Why**: Business reason or problem being solved
-- **Where**: Affected components/files/systems
-- **Scope**: What's included vs excluded
-- **Success**: How to measure completion
-- **Constraints**: Technical limitations, backward compatibility
-
-**Multi-round dialog loop**:
-1. Ask targeted questions
-2. User responds
-3. Assess clarity: < 80% clear → Ask more questions
-4. Repeat until >= 80% clear
-5. Summarize understanding for user confirmation
-6. Wait for explicit confirmation ("yes", "correct", "proceed")
-
-**Clarity gate** (must pass before proceeding):
-- [ ] Specific components/files identified
-- [ ] Root problem understood (not just symptom)
-- [ ] Success criteria defined and measurable
-- [ ] Scope boundaries clear
-- [ ] Technical constraints known
-- [ ] User explicitly confirmed understanding
-
-**Example Multi-Round Dialog**:
-
-```
-User: "Fix the timeout"
-
-Round 1:
-You: "I need clarification on the timeout issue:
-1. Which component has the timeout (API client, server, database)?
-2. What error message or symptom are you seeing?
-3. When did this start happening?
-Please provide details so I can properly analyze the root cause."
-
-User: "API calls are timing out"
-
-Round 2:
-You: "Thanks. More specifics needed:
-1. Which API endpoints are timing out?
-2. All calls or only certain conditions?
-3. What's the current timeout value?
-4. What should be the success criteria (e.g., '99% of calls complete within X seconds')?
-Please clarify so we fix the right thing."
-
-User: "POST /api/data times out after 5s, needs to be 15s, should handle 95% of calls"
-
-Round 3:
-You: "Perfect! Let me confirm my understanding:
-- Issue: POST /api/data endpoint timing out at 5s
-- Root cause to investigate: Why 5s insufficient, when did it change
-- Solution: Adjust timeout to appropriate value (likely 15s) based on actual latency analysis
-- Success: 95% of POST /api/data calls complete without timeout
-Is this correct?"
-
-User: "Yes, correct"
-
-→ Proceed to Step 3
-```
-
-**Maximum clarification rounds**: 5 (if still unclear after 5, inform user requirement needs restructuring)
-
-### Step 3: Git Root Cause Analysis
-
-**CRITICAL**: Before any fix, understand WHY the problem exists.
-
-**Git investigation steps**:
-
-**1. Identify affected files**:
-```bash
-# Find files related to requirement
-git log --oneline --all --grep="<keyword-from-requirement>"
-
-# Check recent changes to suspected components
-git log --oneline -10 -- path/to/component
-```
-
-**2. Trace the symptom**:
-```bash
-# When was this file last changed?
-git log --follow --oneline -- path/to/file
-
-# What changed in that commit?
-git show <commit-hash>
-
-# Who else was affected by related changes?
-git log --all --since="1 month ago" --grep="<related-keyword>"
-```
-
-**3. Find root cause**:
-```bash
-# What was the file before the change?
-git show <commit>^:<file>
-
-# What is it now?
-git show <commit>:<file>
-
-# Diff to see exact changes
-git diff <commit>^ <commit> -- <file>
-
-# Check commit message for intent
-git log -1 --format="%B" <commit>
-```
-
-**4. Build timeline**:
-```bash
-# Chronological changes
-git log --oneline --reverse --all -- <affected-files>
-
-# Find when problem likely introduced
-git log --since="<estimated-date>" --oneline -- <files>
-```
-
-**Root cause determination**:
-- **NOT**: "Timeout value is too low" (symptom)
-- **YES**: "Performance optimization in commit abc123 reduced timeout from 30s to 5s without measuring actual latency" (root cause)
-
-**Document findings**:
-- Root cause commit: `<hash> - <message>`
-- Why change was made: `<original intent>`
-- Why it caused problem: `<unintended consequence>`
-- Proper fix approach: `<address root cause, not symptom>`
-
-### Step 4: Build Comprehensive Context JSON
-
-**JSON context file location**: `docs/dev/context-<timestamp>.json`
-
-**Structure**:
-```json
-{
-  "request_id": "dev-<timestamp>",
-  "timestamp": "ISO-8601",
-  "requirement": {
-    "original": "user's original request verbatim",
-    "clarified": "final clarified requirement after multi-round inquiry",
-    "what": "specific feature/fix/change",
-    "why": "business reason or problem",
-    "where": ["affected components"],
-    "scope": {
-      "included": ["what's in scope"],
-      "excluded": ["what's out of scope"]
-    },
-    "success_criteria": [
-      "measurable outcome 1",
-      "measurable outcome 2"
-    ],
-    "constraints": ["technical limitations"]
-  },
-  "root_cause_analysis": {
-    "symptom": "what user sees",
-    "root_cause": "underlying issue from git analysis",
-    "root_cause_commit": "abc123 - commit message",
-    "why_introduced": "original intent of problematic change",
-    "why_problematic": "unintended consequence",
-    "timeline": "when problem started",
-    "affected_files": ["list from git log"]
-  },
-  "context": {
-    "codebase_state": "git status output",
-    "recent_commits": "git log output",
-    "file_contents": {
-      "path/to/file1": "relevant file content",
-      "path/to/file2": "relevant file content"
-    },
-    "dependencies": {
-      "runtime": "Python 3.11, Node 20, etc",
-      "packages": "key dependency versions"
-    },
-    "environment": {
-      "venv_path": "path to venv if Python project",
-      "config_files": ["relevant configuration files"]
-    }
-  },
-  "development_approach": {
-    "strategy": "how to fix root cause",
-    "scripts_to_create": ["parameterized scripts needed"],
-    "files_to_modify": ["files to change"],
-    "validation_approach": "how QA will verify"
-  },
-  "standards_to_enforce": {
-    "no_hardcoded_values": true,
-    "use_source_venv": true,
-    "integer_step_numbering": true,
-    "meaningful_naming": true,
-    "git_root_cause_reference": true
-  }
-}
-```
-
-**Save to**: `docs/dev/context-<timestamp>.json`
-
-### Step 5: Delegate to Dev Subagent
-
-**Use Task tool to invoke dev subagent**:
+**Use Task tool to invoke BA subagent for requirements analysis and context building**:
 
 ```
 Use Task tool with:
-- subagent_type: "general-purpose"
-- description: "Implement development changes based on context"
+- description: "Analyze requirement and build development context"
+- prompt: "
+  You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  Requirement: '<requirement from Step 1>'
+  Clarification round: 0
+  Previous answers: null
+  Codebase hints: <any file paths mentioned by user, or null>
+  Timestamp: <YYYYMMDD-HHMMSS>
+
+  Perform full analysis:
+  1. Parse and decompose requirement
+  2. Perform git root cause analysis (if applicable)
+  3. Identify affected files
+  4. Generate MoSCoW requirements and BDD acceptance criteria
+  5. Write ba-spec-<timestamp>.md to docs/dev/
+  6. Write context-<timestamp>.json to docs/dev/
+
+  Return JSON with status, file paths, and summary.
+  "
+```
+
+**Wait for BA subagent completion** before proceeding.
+
+### Step 3: BA Clarification Loop
+
+**If BA returns `status: "needs_clarification"`**:
+
+1. Present BA's questions to user (relay verbatim)
+2. Collect user answers
+3. Re-invoke BA with answers:
+
+```
+Use Task tool with:
+- description: "Continue BA analysis with clarification answers"
+- prompt: "
+  You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  Requirement: '<original requirement>'
+  Clarification round: <N>
+  Previous answers: <JSON array of {question, answer} pairs>
+  Codebase hints: <accumulated hints>
+  Timestamp: <same timestamp>
+
+  Continue analysis with user's answers. Generate output if clarity sufficient.
+  "
+```
+
+**Loop rules**:
+- Maximum 3 clarification rounds
+- After round 3, BA returns best-effort with explicit assumptions
+- If BA returns `status: "ready"`, proceed to Step 4
+
+**If BA returns `status: "ready"` on first invocation**: Skip to Step 4.
+
+### Step 4: Validate BA Output
+
+**Check BA deliverables exist and are well-formed**:
+
+Read BA output files:
+- `docs/dev/ba-spec-<timestamp>.md` - Markdown specification
+- `docs/dev/context-<timestamp>.json` - JSON context for dev subagent
+
+**Sanity checks**:
+- [ ] Both files exist
+- [ ] Markdown spec has required sections (Goal, Requirements, Acceptance Criteria)
+- [ ] JSON context has required fields (requirement, root_cause_analysis, development_approach)
+- [ ] Success criteria are measurable
+- [ ] Affected files identified
+
+**If validation fails**:
+- Re-invoke BA with specific feedback about what's missing
+- Maximum 2 re-invocations for validation fixes
+
+**If validation passes**: Proceed to Step 5
+
+### Step 5: Delegate to Dev Subagent
+
+**Use Task tool to invoke dev subagent with BA-generated context**:
+
+```
+Use Task tool with:
+- description: "Implement development changes based on BA context"
 - prompt: "
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
   Read context from: docs/dev/context-<timestamp>.json
+  Also read BA spec for acceptance criteria: docs/dev/ba-spec-<timestamp>.md
 
   Your tasks:
-  1. Read and internalize the complete context JSON
+  1. Read and internalize the complete context JSON and BA spec
   2. Implement changes following the development approach
   3. Create parameterized scripts (no hardcoded values)
   4. Use source venv for Python (NOT python3)
@@ -339,7 +188,7 @@ Use Task tool with:
 ```
 
 **Dev subagent workflow** (see `agents/dev.md`):
-1. Reads context JSON
+1. Reads BA-generated context JSON and spec
 2. Implements changes
 3. Creates scripts with parameters
 4. Writes implementation report JSON
@@ -846,18 +695,6 @@ if __name__ == "__main__":
     print(json.dumps(get_todos(), indent=2, ensure_ascii=False))
 ```
 
-**Load in command**:
-```markdown
-## Step 0: Initialize Workflow Checklist
-
-Execute:
-\`\`\`bash
-source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/mycommand.py
-\`\`\`
-
-Use output to create TodoWrite with all workflow steps.
-```
-
 **Why todo scripts?**
 - Agent can see progress
 - User can track progress
@@ -870,17 +707,19 @@ Use output to create TodoWrite with all workflow steps.
 
 **User**: `/dev "Fix timeout in API"`
 
-**Step 1-2**: Multi-round clarification
-- Which API? → POST /api/data
-- Current timeout? → 5s
-- Success criteria? → 95% calls complete
+**Step 1**: Parse requirement
+- Requirement: "Fix timeout in API"
 
-**Step 3**: Git analysis
-- Found: commit abc123 reduced timeout
-- Root cause: Performance optimization without measurement
+**Step 2**: Delegate to BA subagent
+- BA returns `needs_clarification` with questions
 
-**Step 4**: Build context JSON
-- Saved to: `docs/dev/context-20251226-114500.json`
+**Step 3**: BA clarification loop
+- Round 1: Which API? → POST /api/data, timeout 5s, need 95% completion
+- Round 2: BA has enough clarity → returns `ready`
+- BA creates: `ba-spec-20251226-114500.md` + `context-20251226-114500.json`
+
+**Step 4**: Validate BA output
+- Both files exist with required sections
 
 **Step 5**: Dev subagent
 - Created: `scripts/measure-api-latency.sh`
@@ -897,7 +736,7 @@ Use output to create TodoWrite with all workflow steps.
 **Step 8**: Process results
 - QA passed → proceed to completion
 
-**Step 10**: Completion report
+**Step 11**: Completion report
 - Generated: `docs/dev/completion-20251226-114500.md`
 - Presented summary to user
 
