@@ -1,5 +1,5 @@
 ---
-description: Enhanced development workflow with command development best practices, Three-Party Architecture, specialist subagents, and comprehensive automation patterns
+description: Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 ---
 
 **CRITICAL**: Use TodoWrite to track workflow phases. Mark in_progress before each step, completed immediately after.
@@ -12,32 +12,19 @@ This command uses multi-round inquiry to fully understand requirements, then orc
 
 ---
 
-## Step 0: Initialize Workflow Checklist
-
-**Load todos from**: `~/.claude/scripts/todo/dev-command.py`
-
-Execute:
-```bash
-source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/dev-command.py
-```
-
-Use output to create TodoWrite with all workflow steps.
-
-**Rules**: Mark `in_progress` before each step, `completed` after. NEVER skip steps.
-
----
-
 ## Core Workflow
 
-**Multi-Round Orchestration Pattern**:
+**BA-Delegated Orchestration Pattern**:
 ```
 User Requirement (may be vague)
   ↓
-Multi-round inquiry until requirement is CRYSTAL CLEAR
+Quick parse of $ARGUMENTS
   ↓
-Git deep-dive for root cause analysis
+Delegate to BA subagent (analysis + context building)
   ↓
-Build comprehensive JSON context (stored in docs/dev/)
+BA clarification loop (if BA needs user input, max 3 rounds)
+  ↓
+Validate BA output (ba-spec + context JSON)
   ↓
 Delegate to dev subagent (implementation)
   ↓
@@ -49,14 +36,13 @@ IF QA passes → Generate completion report
 ```
 
 **Key Principles**:
-- NEVER start development with unclear requirements
-- Multi-round questioning until you fully understand user intent
-- Orchestrator does NO implementation work
-- All execution delegated to subagents
-- Rich JSON context (1M tokens) stored in `docs/dev/`
+- Orchestrator does NO analysis or context building (BA handles it)
+- Orchestrator does NO implementation work (dev handles it)
+- All requirement clarification routed through BA subagent
+- BA returns dual output: Markdown spec + JSON context
+- Orchestrator only relays BA's clarification questions to user
+- Rich JSON context stored in `docs/dev/`
 - QA verification after each dev cycle
-- Git deep-dive for root cause analysis
-- Scripts for reusable logic, not inline code
 - Iterate until all quality standards met
 
 ---
@@ -72,9 +58,10 @@ Developing effective slash commands requires understanding several key architect
 1. **Three-Party Architecture** - Orchestrator → Specialist → Orchestrator pattern
 2. **Specialist Subagent Design** - Domain-specific consultant agents
 3. **Todo Workflow Scripts** - Automated progress tracking
-4. **YAML Frontmatter** - Command metadata and configuration
-5. **Complete Automation** - Zero user-in-the-loop design
-6. **Script Parameterization** - Flexible, reusable scripts
+4. **Three-Hook Checklist Enforcement** - Hook-based mandatory workflow compliance
+5. **YAML Frontmatter** - Command metadata and configuration
+6. **Complete Automation** - Zero user-in-the-loop design
+7. **Script Parameterization** - Flexible, reusable scripts
 
 These patterns have been validated through successful implementations like the `/update` command.
 
@@ -307,23 +294,6 @@ if __name__ == "__main__":
     print(json.dumps(get_todos(), indent=2, ensure_ascii=False))
 ```
 
-**Integration in Command**:
-
-```markdown
-## Step 0: Initialize Workflow Checklist
-
-**Load todos from**: `~/.claude/scripts/todo/<command>.py`
-
-Execute:
-\`\`\`bash
-source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/<command>.py
-\`\`\`
-
-Use output to create TodoWrite with all workflow steps.
-
-**Rules**: Mark `in_progress` before each step, `completed` after. NEVER skip steps.
-```
-
 **When to Use**:
 - Multi-step commands (3+ steps)
 - Commands requiring progress tracking
@@ -354,13 +324,165 @@ def get_todos():
 
 **Anti-Patterns to Avoid**:
 - ❌ Hardcoding todos in command markdown
-- ❌ Skipping todo initialization (Step 0)
 - ❌ Not updating todos as steps complete
 - ❌ Using todos for trivial single-step commands
 
 ---
 
-### Pattern 4: YAML Frontmatter
+### Pattern 4: Three-Hook Checklist Enforcement
+
+**What**: A system of three coordinated hooks that enforce mandatory, ordered, step-by-step workflow compliance. Prevents agents from ignoring the checklist, abbreviating steps, or skipping ahead.
+
+**Why**: Todo scripts alone are passive — agents can ignore them or write fewer steps. The three-hook system makes the checklist mechanically enforced, not just advisory.
+
+**Architecture**:
+
+```
+User runs /command
+       ↓
+hook-checklist-userprompt.py creates workflow bookmark
+  (todo_acknowledged = false)
+       ↓
+Agent tries any tool
+       ↓
+[GATE 1] hook-precheck-workflow.py (PreToolUse)
+  - Blocks ALL tools until TodoWrite is called first
+  - Passes TodoWrite and ToolSearch through freely
+       ↓
+Agent calls TodoWrite
+       ↓
+[GATE 2] hook-enforce-todo-count.py (PostToolUse/TodoWrite)
+  - Checks count against canonical todo script output
+  - Blocks + resets lock if count < required
+  - Shows canonical step list on violation
+       ↓
+Count is correct → todo_acknowledged = true → gates open
+       ↓
+[GATE 3] hook-enforce-step-sequence.py (PostToolUse/TodoWrite)
+  - Tracks previous todo state in bookmark
+  - Blocks if: multiple steps completed at once,
+    pending→completed without in_progress,
+    multiple in_progress simultaneously,
+    starting step N while earlier step pending
+```
+
+**The Three Hooks**:
+
+**Hook 1: `~/.claude/hooks/hook-precheck-workflow.py`** (PreToolUse)
+- Fires before every tool use
+- Reads `workflow-{session_id}.json` bookmark
+- If `todo_acknowledged == false`: blocks all tools with descriptive error
+- Different error messages per `lock_reason`: `not_started`, `count_mismatch`, `sequence_violation`
+- Passes through: `TodoWrite` (to allow fix), `ToolSearch` (to allow schema loading)
+
+**Hook 2: `~/.claude/hooks/hook-enforce-todo-count.py`** (PostToolUse, matcher: TodoWrite)
+- Fires after every TodoWrite call
+- Runs the canonical todo script (`.claude/scripts/todo/<cmd>.py`) to get `blocking_count`
+- If `len(submitted_todos) < blocking_count`: sets `todo_acknowledged = false`, `lock_reason = 'count_mismatch'`, exits 2
+- Shows full canonical step list so agent knows exactly what to submit
+- Exit 0 if count matches or exceeds required
+
+**Hook 3: `~/.claude/hooks/hook-enforce-step-sequence.py`** (PostToolUse, matcher: TodoWrite)
+- Fires after every TodoWrite call (after hook 2)
+- Stores previous state as `last_todos` in bookmark; skips validation on first call
+- Enforces four rules per call:
+  1. Max 1 step newly completed per call
+  2. No `pending → completed` without passing through `in_progress`
+  3. Max 1 step in `in_progress` at a time
+  4. Cannot start step N if any earlier step is not yet `completed`
+- On violation: sets `todo_acknowledged = false`, `lock_reason = 'sequence_violation'`, exits 2
+- On valid transition: updates `last_todos` in bookmark
+
+**Workflow Bookmark**: `.claude/workflow-{session_id}.json`
+
+```json
+{
+  "command": "dev",
+  "todo_acknowledged": false,
+  "lock_reason": "not_started",
+  "last_todos": [...]
+}
+```
+
+**Settings.json Wiring**:
+
+```json
+"PreToolUse": [
+  {
+    "hooks": [{
+      "type": "command",
+      "command": "python3 ~/.claude/hooks/hook-precheck-workflow.py",
+      "stdin_json": true,
+      "on_error": "ignore"
+    }]
+  }
+],
+"PostToolUse": [
+  {
+    "matcher": "TodoWrite",
+    "hooks": [
+      {
+        "type": "command",
+        "command": "python3 ~/.claude/hooks/hook-todo-state-tracker.py",
+        "stdin_json": true,
+        "on_error": "ignore"
+      },
+      {
+        "type": "command",
+        "stdin_json": true,
+        "command": "python3 ~/.claude/hooks/hook-enforce-todo-count.py"
+      },
+      {
+        "type": "command",
+        "stdin_json": true,
+        "command": "python3 ~/.claude/hooks/hook-enforce-step-sequence.py"
+      }
+    ]
+  }
+]
+```
+
+**Complete Enforcement Chain**:
+
+| Violation | Hook | Action |
+|-----------|------|--------|
+| Agent ignores checklist entirely | hook-precheck-workflow | Block all tools, force TodoWrite |
+| TodoWrite with too few steps | hook-enforce-todo-count | Block, reset lock, show canonical list |
+| Multiple steps completed at once | hook-enforce-step-sequence | Block, reset lock, show next required action |
+| Step skips in_progress | hook-enforce-step-sequence | Block, reset lock |
+| Multiple in_progress simultaneously | hook-enforce-step-sequence | Block, reset lock |
+| Steps completed out of order | hook-enforce-step-sequence | Block, reset lock |
+
+**Required Files for Full Enforcement**:
+1. `~/.claude/scripts/todo/<command>.py` - Canonical step list (drives count enforcement)
+2. `~/.claude/hooks/hook-checklist-userprompt.py` - Creates workflow bookmark on command invocation
+3. `~/.claude/hooks/hook-precheck-workflow.py` - Gate 1 (pre-tool)
+4. `~/.claude/hooks/hook-enforce-todo-count.py` - Gate 2 (post-TodoWrite)
+5. `~/.claude/hooks/hook-enforce-step-sequence.py` - Gate 3 (post-TodoWrite)
+
+**Expected Agent Behavior** (compliant):
+```
+TodoWrite([11 canonical steps, all pending, step 1 in_progress])
+  → Gate 2: count OK (11 == 11) → todo_acknowledged = true
+  → Gate 3: first call, no validation, saves last_todos
+  → All gates open
+
+[... does work for step 1 ...]
+
+TodoWrite([step 1 completed, step 2 in_progress, rest pending])
+  → Gate 2: count OK → pass
+  → Gate 3: 1 newly completed ✓, pending→in_progress→completed ✓, 1 in_progress ✓ → pass
+```
+
+**Anti-Patterns to Avoid**:
+- ❌ Creating commands without a matching `.claude/scripts/todo/<cmd>.py` (count enforcement silently skips)
+- ❌ Submitting abbreviated or custom step lists (count hook blocks)
+- ❌ Marking multiple steps complete in one TodoWrite call (sequence hook blocks)
+- ❌ Going from `pending` directly to `completed` (sequence hook blocks)
+
+---
+
+### Pattern 5: YAML Frontmatter
 
 **What**: Structured metadata at the top of command files for configuration and discoverability.
 
@@ -426,7 +548,7 @@ When `/update` command failed silently during testing:
 
 ---
 
-### Pattern 5: Complete Automation
+### Pattern 6: Complete Automation
 
 **What**: Design workflows that require zero user interaction during execution.
 
@@ -520,7 +642,7 @@ fi
 
 ---
 
-### Pattern 6: Script Parameterization
+### Pattern 7: Script Parameterization
 
 **What**: All scripts use CLI arguments instead of hardcoded values for maximum flexibility.
 
@@ -687,7 +809,6 @@ process_resume "$RESUME_FILE" "$JOB_POSTING" "$OUTPUT_FILE"
 
 **Command Structure**:
 ```
-Step 0: Initialize todos (via todo script)
 Step 1: Parse job posting (URL or text)
 Step 2: Read current resume
 Step 3: Invoke resume-refiner-update specialist
@@ -729,242 +850,107 @@ Requirement: "$ARGUMENTS"
 
 **Edge cases**:
 - Empty `$ARGUMENTS` → Prompt user for requirement
-- Vague requirement → Proceed to Step 2 (Clarification)
-- Clear and specific → Skip to Step 3
+- Otherwise → Pass raw text to BA subagent in Step 2
 
-**Vague requirement signals**:
-- Too broad ("make better", "optimize everything")
-- Missing context ("fix the bug", "add feature")
-- Unclear scope ("improve performance")
-- Multiple unrelated requests
-- Missing success criteria
+**Keep this step lightweight** - BA subagent handles all analysis.
 
-### Step 2: Multi-Round Requirement Clarification
+### Step 2: Delegate to BA Subagent
 
-**DO NOT start development with unclear requirements**
-
-**Clarification approach** (iterative until clear):
-
-```
-I want to make sure I fully understand your requirement before starting.
-
-Current understanding: {your interpretation}
-
-Clarification questions:
-1. {Specific aspect 1}?
-2. {Specific aspect 2}?
-3. {Success criteria}?
-
-Please answer these so I can develop exactly what you need.
-```
-
-**Required information to gather**:
-- **What**: Specific feature/fix/change requested
-- **Why**: Business reason or problem being solved
-- **Where**: Affected components/files/systems
-- **Scope**: What's included vs excluded
-- **Success**: How to measure completion
-- **Constraints**: Technical limitations, backward compatibility
-
-**Multi-round dialog loop**:
-1. Ask targeted questions
-2. User responds
-3. Assess clarity: < 80% clear → Ask more questions
-4. Repeat until >= 80% clear
-5. Summarize understanding for user confirmation
-6. Wait for explicit confirmation ("yes", "correct", "proceed")
-
-**Clarity gate** (must pass before proceeding):
-- [ ] Specific components/files identified
-- [ ] Root problem understood (not just symptom)
-- [ ] Success criteria defined and measurable
-- [ ] Scope boundaries clear
-- [ ] Technical constraints known
-- [ ] User explicitly confirmed understanding
-
-**Example Multi-Round Dialog**:
-
-```
-User: "Fix the timeout"
-
-Round 1:
-You: "I need clarification on the timeout issue:
-1. Which component has the timeout (API client, server, database)?
-2. What error message or symptom are you seeing?
-3. When did this start happening?
-Please provide details so I can properly analyze the root cause."
-
-User: "API calls are timing out"
-
-Round 2:
-You: "Thanks. More specifics needed:
-1. Which API endpoints are timing out?
-2. All calls or only certain conditions?
-3. What's the current timeout value?
-4. What should be the success criteria (e.g., '99% of calls complete within X seconds')?
-Please clarify so we fix the right thing."
-
-User: "POST /api/data times out after 5s, needs to be 15s, should handle 95% of calls"
-
-Round 3:
-You: "Perfect! Let me confirm my understanding:
-- Issue: POST /api/data endpoint timing out at 5s
-- Root cause to investigate: Why 5s insufficient, when did it change
-- Solution: Adjust timeout to appropriate value (likely 15s) based on actual latency analysis
-- Success: 95% of POST /api/data calls complete without timeout
-Is this correct?"
-
-User: "Yes, correct"
-
-→ Proceed to Step 3
-```
-
-**Maximum clarification rounds**: 5 (if still unclear after 5, inform user requirement needs restructuring)
-
-### Step 3: Git Root Cause Analysis
-
-**CRITICAL**: Before any fix, understand WHY the problem exists.
-
-**Git investigation steps**:
-
-**1. Identify affected files**:
-```bash
-# Find files related to requirement
-git log --oneline --all --grep="<keyword-from-requirement>"
-
-# Check recent changes to suspected components
-git log --oneline -10 -- path/to/component
-```
-
-**2. Trace the symptom**:
-```bash
-# When was this file last changed?
-git log --follow --oneline -- path/to/file
-
-# What changed in that commit?
-git show <commit-hash>
-
-# Who else was affected by related changes?
-git log --all --since="1 month ago" --grep="<related-keyword>"
-```
-
-**3. Find root cause**:
-```bash
-# What was the file before the change?
-git show <commit>^:<file>
-
-# What is it now?
-git show <commit>:<file>
-
-# Diff to see exact changes
-git diff <commit>^ <commit> -- <file>
-
-# Check commit message for intent
-git log -1 --format="%B" <commit>
-```
-
-**4. Build timeline**:
-```bash
-# Chronological changes
-git log --oneline --reverse --all -- <affected-files>
-
-# Find when problem likely introduced
-git log --since="<estimated-date>" --oneline -- <files>
-```
-
-**Root cause determination**:
-- **NOT**: "Timeout value is too low" (symptom)
-- **YES**: "Performance optimization in commit abc123 reduced timeout from 30s to 5s without measuring actual latency" (root cause)
-
-**Document findings**:
-- Root cause commit: `<hash> - <message>`
-- Why change was made: `<original intent>`
-- Why it caused problem: `<unintended consequence>`
-- Proper fix approach: `<address root cause, not symptom>`
-
-### Step 4: Build Comprehensive Context JSON
-
-**JSON context file location**: `docs/dev/context-<timestamp>.json`
-
-**Structure**:
-```json
-{
-  "request_id": "dev-<timestamp>",
-  "timestamp": "ISO-8601",
-  "requirement": {
-    "original": "user's original request verbatim",
-    "clarified": "final clarified requirement after multi-round inquiry",
-    "what": "specific feature/fix/change",
-    "why": "business reason or problem",
-    "where": ["affected components"],
-    "scope": {
-      "included": ["what's in scope"],
-      "excluded": ["what's out of scope"]
-    },
-    "success_criteria": [
-      "measurable outcome 1",
-      "measurable outcome 2"
-    ],
-    "constraints": ["technical limitations"]
-  },
-  "root_cause_analysis": {
-    "symptom": "what user sees",
-    "root_cause": "underlying issue from git analysis",
-    "root_cause_commit": "abc123 - commit message",
-    "why_introduced": "original intent of problematic change",
-    "why_problematic": "unintended consequence",
-    "timeline": "when problem started",
-    "affected_files": ["list from git log"]
-  },
-  "context": {
-    "codebase_state": "git status output",
-    "recent_commits": "git log output",
-    "file_contents": {
-      "path/to/file1": "relevant file content",
-      "path/to/file2": "relevant file content"
-    },
-    "dependencies": {
-      "runtime": "Python 3.11, Node 20, etc",
-      "packages": "key dependency versions"
-    },
-    "environment": {
-      "venv_path": "path to venv if Python project",
-      "config_files": ["relevant configuration files"]
-    }
-  },
-  "development_approach": {
-    "strategy": "how to fix root cause",
-    "scripts_to_create": ["parameterized scripts needed"],
-    "files_to_modify": ["files to change"],
-    "validation_approach": "how QA will verify"
-  },
-  "standards_to_enforce": {
-    "no_hardcoded_values": true,
-    "use_source_venv": true,
-    "integer_step_numbering": true,
-    "meaningful_naming": true,
-    "git_root_cause_reference": true
-  }
-}
-```
-
-**Save to**: `docs/dev/context-<timestamp>.json`
-
-### Step 5: Delegate to Dev Subagent
-
-**Use Task tool to invoke dev subagent**:
+**Use Task tool to invoke BA subagent for requirements analysis and context building**:
 
 ```
 Use Task tool with:
-- subagent_type: "general-purpose"
-- description: "Implement development changes based on context"
+- description: "Analyze requirement and build development context"
+- prompt: "
+  You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  Requirement: '<requirement from Step 1>'
+  Clarification round: 0
+  Previous answers: null
+  Codebase hints: <any file paths mentioned by user, or null>
+  Timestamp: <YYYYMMDD-HHMMSS>
+
+  Perform full analysis:
+  1. Parse and decompose requirement
+  2. Perform git root cause analysis (if applicable)
+  3. Identify affected files
+  4. Generate MoSCoW requirements and BDD acceptance criteria
+  5. Write ba-spec-<timestamp>.md to docs/dev/
+  6. Write context-<timestamp>.json to docs/dev/
+
+  Return JSON with status, file paths, and summary.
+  "
+```
+
+**Wait for BA subagent completion** before proceeding.
+
+### Step 3: BA Clarification Loop
+
+**If BA returns `status: "needs_clarification"`**:
+
+1. Present BA's questions to user (relay verbatim)
+2. Collect user answers
+3. Re-invoke BA with answers:
+
+```
+Use Task tool with:
+- description: "Continue BA analysis with clarification answers"
+- prompt: "
+  You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  Requirement: '<original requirement>'
+  Clarification round: <N>
+  Previous answers: <JSON array of {question, answer} pairs>
+  Codebase hints: <accumulated hints>
+  Timestamp: <same timestamp>
+
+  Continue analysis with user's answers. Generate output if clarity sufficient.
+  "
+```
+
+**Loop rules**:
+- Maximum 3 clarification rounds
+- After round 3, BA returns best-effort with explicit assumptions
+- If BA returns `status: "ready"`, proceed to Step 4
+
+**If BA returns `status: "ready"` on first invocation**: Skip to Step 4.
+
+### Step 4: Validate BA Output
+
+**Check BA deliverables exist and are well-formed**:
+
+Read BA output files:
+- `docs/dev/ba-spec-<timestamp>.md` - Markdown specification
+- `docs/dev/context-<timestamp>.json` - JSON context for dev subagent
+
+**Sanity checks**:
+- [ ] Both files exist
+- [ ] Markdown spec has required sections (Goal, Requirements, Acceptance Criteria)
+- [ ] JSON context has required fields (requirement, root_cause_analysis, development_approach)
+- [ ] Success criteria are measurable
+- [ ] Affected files identified
+
+**If validation fails**:
+- Re-invoke BA with specific feedback about what's missing
+- Maximum 2 re-invocations for validation fixes
+
+**If validation passes**: Proceed to Step 5
+
+### Step 5: Delegate to Dev Subagent
+
+**Use Task tool to invoke dev subagent with BA-generated context**:
+
+```
+Use Task tool with:
+- description: "Implement development changes based on BA context"
 - prompt: "
   You are the dev subagent. Follow development standards precisely.
 
   Read context from: docs/dev/context-<timestamp>.json
+  Also read BA spec for acceptance criteria: docs/dev/ba-spec-<timestamp>.md
 
   Your tasks:
-  1. Read and internalize the complete context JSON
+  1. Read and internalize the complete context JSON and BA spec
   2. Implement changes following the development approach
   3. Create parameterized scripts (no hardcoded values)
   4. Use source venv for Python (NOT python3)
@@ -994,7 +980,7 @@ Use Task tool with:
 ```
 
 **Dev subagent workflow**:
-1. Reads context JSON
+1. Reads BA-generated context JSON and spec
 2. Implements changes
 3. Creates scripts with parameters
 4. Applies command development patterns
@@ -1484,17 +1470,19 @@ WHEN TO SCRIPT:
 
 **User**: `/dev-command "Create /analyze command that uses specialist subagent"`
 
-**Step 1-2**: Multi-round clarification
-- What should /analyze do? → Analyze code quality
-- What metrics? → Complexity, maintainability, test coverage
-- Success criteria? → Generate structured report with recommendations
+**Step 1**: Parse requirement
+- Requirement: "Create /analyze command that uses specialist subagent"
 
-**Step 3**: Git analysis
-- No root cause (new feature)
-- Review similar commands for patterns
+**Step 2**: Delegate to BA subagent
+- BA returns `needs_clarification` with questions about metrics and output format
 
-**Step 4**: Build context JSON
-- Saved to: `docs/dev/context-20260206-120000.json`
+**Step 3**: BA clarification loop
+- Round 1: What metrics? → Complexity, maintainability, test coverage
+- BA has enough clarity → returns `ready`
+- BA creates: `ba-spec-20260206-120000.md` + `context-20260206-120000.json`
+
+**Step 4**: Validate BA output
+- Both files exist with required sections
 
 **Step 5**: Dev subagent
 - Created: `.claude/commands/analyze.md` (with YAML frontmatter)

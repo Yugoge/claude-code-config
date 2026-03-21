@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Preloaded TodoList for /dev-command workflow.
 
-This todo script generates workflow steps for the enhanced dev-command workflow
+This todo script generates workflow steps for the BA-delegated dev-command workflow
 with command development best practices.
 """
 
@@ -9,28 +9,23 @@ def get_todos():
     """Return workflow steps as TodoWrite-compatible list."""
     return [
         {
-            "content": "Step 0: Initialize workflow checklist",
-            "activeForm": "Step 0: Initializing workflow checklist",
-            "status": "pending"
-        },
-        {
             "content": "Step 1: Parse development requirement",
             "activeForm": "Step 1: Parsing development requirement",
             "status": "pending"
         },
         {
-            "content": "Step 2: Multi-round requirement clarification",
-            "activeForm": "Step 2: Conducting multi-round requirement clarification",
+            "content": "Step 2: Delegate to BA subagent",
+            "activeForm": "Step 2: Delegating to BA subagent",
             "status": "pending"
         },
         {
-            "content": "Step 3: Git root cause analysis",
-            "activeForm": "Step 3: Performing git root cause analysis",
+            "content": "Step 3: BA clarification loop (if needed)",
+            "activeForm": "Step 3: Running BA clarification loop",
             "status": "pending"
         },
         {
-            "content": "Step 4: Build comprehensive context JSON",
-            "activeForm": "Step 4: Building comprehensive context JSON",
+            "content": "Step 4: Validate BA output",
+            "activeForm": "Step 4: Validating BA output",
             "status": "pending"
         },
         {
@@ -69,6 +64,8 @@ def get_todos():
             "status": "pending"
         }
     ]
+
+
 
 if __name__ == "__main__":
     import json
