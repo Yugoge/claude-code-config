@@ -26,16 +26,27 @@ Step 1: Create worktree (first run only)
   |       PRIORITIZATION (Step 3)
   |       Merge 4 reports, deduplicate, pick highest-priority issue
   |                |
-  |       FIX CYCLE (Steps 4-5-6)
-  |       BA analysis -> Dev implementation -> QA verification
+  |       FULL DEV CYCLE (Steps 4-11, identical to /dev)
+  |         Step 4:  BA analysis (autonomous, no clarification)
+  |         Step 5:  Validate BA output
+  |         Step 6:  Dev implementation
+  |         Step 7:  Validate Dev implementation
+  |         Step 8:  QA verification
+  |         Step 9:  Process QA results
+  |         Step 10: Update settings.json permissions
+  |         Step 11: Iteration loop (if QA fails, max 5)
   |                |
-  |       COMPLETE CYCLE (Step 7)
-  |       Update state, log results
+  |       LOG & TIME CHECK (Step 12)
+  |       Update state, log results, check end-time
+  |                |
+  |       SUMMARY OR LOOP (Step 13)
+  |       Time remaining? → reset todos, loop to Step 2
+  |       Time expired? → generate summary, cleanup
   |                |
   |       TODO COMPLETION DETECTION (PostToolUse hook)
-  |       All 7 steps completed?
-  |         YES + time remaining: reset todos, loop to Step 1
-  |         YES + time expired: generate summary, cleanup
+  |       All 13 steps completed?
+  |         YES + time remaining: reset todos, loop to Step 2
+  |         YES + time expired: allow natural completion
   |         NO: continue current step
 ```
 
@@ -60,15 +71,15 @@ Step 1: Create worktree (first run only)
 
 ### Step 1: Create Worktree
 
-The state file has already been created by the UserPromptSubmit hook at `.claude/overnight-state.json`. Verify it exists and read it.
-
-**Read the state file** to get the end_time and confirm initialization:
+The state file has already been created by the UserPromptSubmit hook at `.claude/overnight-state-<session_id>.json`. Find and read it:
 
 ```bash
-cat .claude/overnight-state.json
+ls .claude/overnight-state-*.json
 ```
 
-If the state file does not exist (edge case), create it manually using the same schema as the hook would.
+**Read the state file** to get the end_time, session_id, and confirm initialization. If multiple state files exist, use the one matching the current session.
+
+If no state file exists (edge case), create it manually using the v4 schema with a generated session_id.
 
 **WORKTREE GUARD**: FIRST check the state file's `worktree_path` field.
 - If `worktree_path` is NOT null: the worktree already exists from a previous cycle. Do NOT call EnterWorktree. Skip directly to Step 2.
@@ -76,10 +87,10 @@ If the state file does not exist (edge case), create it manually using the same 
 
 **Create worktree for isolation** (only when worktree_path is null):
 
-Call `EnterWorktree` with name `overnight-YYYYMMDD` (use today's date):
+Call `EnterWorktree` with name `overnight-YYYYMMDD-<session_id_short>` (first 8 chars of session_id):
 
 ```
-Call EnterWorktree with name: "overnight-<YYYYMMDD>"
+Call EnterWorktree with name: "overnight-<YYYYMMDD>-<session_id_short>"
 ```
 
 After EnterWorktree succeeds, update the state file:
@@ -115,9 +126,10 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
 3. Resume from the appropriate step based on current_phase:
    - `initializing` or `exploring` -> Step 2 (Explore)
    - `selecting` -> Step 3 (Select)
-   - `fixing` -> Step 4 (Fix)
-   - `verifying` -> Step 5 (Verify)
-   - `logging` -> Step 6 (Log)
+   - `analyzing` -> Step 4 (BA)
+   - `implementing` -> Step 6 (Dev)
+   - `verifying` -> Step 8 (QA)
+   - `logging` -> Step 12 (Log)
 4. The hook has already injected the command specification and state summary into this prompt
 
 **Do NOT**:
@@ -202,57 +214,255 @@ Launch 4 Agent tool calls simultaneously:
 - Set `current_issue` to the issue description
 - Increment `issues_found` counter
 
-### Step 4: Analyze Issue (BA)
+### Step 4: Delegate to BA Subagent
 
-**Update state**: Set `current_phase` to `"fixing"`.
+**Update state**: Set `current_phase` to `"analyzing"`.
 
-**Delegate to BA subagent** for lightweight analysis (no clarification needed since issue is self-discovered):
+**Delegate to BA subagent for requirements analysis and context building.**
+
+Since the issue is self-discovered (not user-provided), set clarification round to 3 to skip the clarification loop. The BA subagent will proceed directly to analysis.
 
 ```
-Agent(agent: "ba", prompt: "
-  Requirement: '<issue description>'
+Use Agent tool with:
+- subagent_type: "ba"
+- description: "Analyze self-discovered issue and build context"
+- prompt: "
+  You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  Requirement: '<issue description from Step 3>'
   Clarification round: 3
   Previous answers: null
-  Codebase hints: <file paths from the issue>
-  Timestamp: <current timestamp>
+  Codebase hints: <file paths from the issue report>
+  Timestamp: <YYYYMMDD-HHMMSS>
 
   This is a self-discovered issue from overnight exploration.
   No clarification is needed -- proceed directly to analysis.
-  Generate context JSON and BA spec for the dev subagent.")
+
+  Perform full analysis:
+  1. Parse and decompose requirement
+  2. Perform git root cause analysis (if applicable)
+  3. Identify affected files
+  4. Generate MoSCoW requirements and BDD acceptance criteria
+  5. Write ba-spec-<timestamp>.md to docs/dev/
+  6. Write context-<timestamp>.json to docs/dev/
+
+  Return JSON with status, file paths, and summary.
+  "
 ```
 
-### Step 5: Implement Fix (Dev)
+**Wait for BA subagent completion** before proceeding.
+
+**NOTE**: Since this is autonomous mode, there is NO BA clarification loop. If BA returns `needs_clarification`, treat it as `ready` and use the BA's best-effort output with explicit assumptions. Do NOT ask the user.
+
+### Step 5: Validate BA Output
+
+**Check BA deliverables exist and are well-formed**:
+
+Read BA output files:
+- `docs/dev/ba-spec-<timestamp>.md` - Markdown specification
+- `docs/dev/context-<timestamp>.json` - JSON context for dev subagent
+
+**Sanity checks**:
+- [ ] Both files exist
+- [ ] Markdown spec has required sections (Goal, Requirements, Acceptance Criteria)
+- [ ] JSON context has required fields (requirement, root_cause_analysis, development_approach)
+- [ ] Success criteria are measurable
+- [ ] Affected files identified
+
+**If validation fails**:
+- Re-invoke BA with specific feedback about what's missing
+- Maximum 2 re-invocations for validation fixes
+
+**If validation passes**: Proceed to Step 6
+
+### Step 6: Delegate to Dev Subagent
 
 **Update state**: Set `current_phase` to `"implementing"`.
 
-**Delegate to Dev subagent**:
+**Use Agent tool to invoke dev subagent with file paths only**:
 
 ```
-Agent(agent: "dev", prompt: "
-  Context file: <path to context JSON from BA>
-  BA spec file: <path to BA spec from BA>
-  Write your implementation report to: docs/dev/dev-report-overnight-<cycle>.json")
+Use Agent tool with:
+- subagent_type: "dev"
+- description: "Implement fix based on BA context"
+- prompt: "
+  You are the dev subagent. Follow agents/dev.md instructions precisely.
+
+  Context file: docs/dev/context-<timestamp>.json
+  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  Write your implementation report to: docs/dev/dev-report-overnight-<cycle>.json
+  "
 ```
 
-**Retry logic**:
-- If fix fails, retry up to 3 times
-- Track attempts in state file's `failed_attempts` dict
-- After 3 failures, mark as skipped
+**Wait for dev subagent completion** before proceeding.
 
-### Step 6: Verify Fix (QA) and Log Results
+### Step 7: Validate Dev Implementation
+
+**Quick validation before QA**:
+
+Read dev implementation report: `docs/dev/dev-report-overnight-<cycle>.json`
+
+**Sanity checks**:
+- [ ] Status is "completed" (not "blocked")
+- [ ] All tasks documented
+- [ ] Scripts created have usage examples
+- [ ] Git rationale references root cause
+- [ ] Files exist that were reported as created/modified
+
+**If dev blocked**:
+- Read blocking issues from report
+- Resolve blockers (e.g., missing information, technical constraints)
+- Refine context JSON with additional information
+- Re-invoke dev subagent (maximum 3 attempts)
+
+**If dev completed**: Proceed to Step 8
+
+### Step 8: Delegate to QA Subagent
 
 **Update state**: Set `current_phase` to `"verifying"`.
 
-**Delegate to QA subagent**:
+**Use Agent tool to invoke QA subagent with file paths only**:
 
 ```
-Agent(agent: "qa", prompt: "
-  Context file: <path to context JSON from BA>
-  Dev report: <path to dev report>
-  BA spec: <path to BA spec>")
+Use Agent tool with:
+- subagent_type: "qa"
+- description: "Verify implementation quality against standards"
+- prompt: "
+  You are the QA subagent. Follow agents/qa.md instructions precisely.
+
+  Context file: docs/dev/context-<timestamp>.json
+  Dev report file: docs/dev/dev-report-overnight-<cycle>.json
+  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  Write your verification report to: docs/dev/qa-report-overnight-<cycle>.json
+  "
 ```
 
-**Log cycle results** -- update the state file:
+**Wait for QA subagent completion** before proceeding.
+
+### Step 9: Process QA Results
+
+Read QA report: `docs/dev/qa-report-overnight-<cycle>.json`
+
+**Decision tree**:
+
+```
+IF qa.status == "pass":
+  → Proceed to Step 10 (Update Permissions)
+
+ELIF qa.status == "warning":
+  → Autonomous decision: if only minor/cosmetic issues, proceed to Step 10
+  → If major issues: proceed to Step 11 (Iteration)
+
+ELIF qa.status == "fail":
+  → Proceed to Step 11 (Iteration)
+```
+
+### Step 10: Update Settings.json Permissions
+
+**CRITICAL**: Auto-update permissions for new functionality.
+
+**Extract validated permissions from QA report**:
+
+```bash
+jq '.qa.permissions_verification.validated_permissions' docs/dev/qa-report-overnight-<cycle>.json
+```
+
+**Update settings.json**:
+
+Read current settings:
+```bash
+cat .claude/settings.json
+```
+
+For each validated permission:
+
+```json
+{
+  "pattern": "Bash(scripts/new-script.sh:*)",
+  "section": "allow",
+  "reason": "Allow execution of..."
+}
+```
+
+**Add to appropriate section in settings.json**:
+
+```bash
+# Use jq to add permission
+jq '.permissions.allow += ["Bash(scripts/new-script.sh:*)"]' .claude/settings.json > .claude/settings.json.tmp
+mv .claude/settings.json.tmp .claude/settings.json
+```
+
+**Permission update rules**:
+
+1. **Scripts created** → Add to "allow":
+   - `"Bash(scripts/<script-name>.sh:*)"`
+   - `"Bash(~/.claude/scripts/<script-name>.sh:*)"`
+
+2. **Python scripts** → Add to "allow":
+   - `"Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/<script>.py:*)"`
+
+3. **Hooks created** → Add to "allow":
+   - `"Bash(~/.claude/hooks/<hook-name>.sh:*)"`
+
+4. **Commands created** → Already allowed via "SlashCommand"
+
+**Validation**:
+- Check JSON syntax after modification
+- Verify no duplicate permissions
+- Confirm permissions follow patterns
+
+**Error handling**:
+- If settings.json has syntax error → Log and skip (do not ask user -- autonomous mode)
+- If permission already exists → Skip, don't duplicate
+
+### Step 11: Iteration Loop (if QA fails)
+
+**Iteration guard**: Maximum 5 iterations to prevent infinite loops
+
+**Current iteration**: Track internally (starts at 1)
+
+**If iteration > 5**:
+```
+Quality verification failed after 5 iterations for this issue.
+Marking issue as skipped and moving on to next cycle.
+```
+Mark the issue as skipped in `failed_attempts` and `addressed_issues`, then proceed to Step 12.
+
+**If iteration <= 5**:
+
+**Refine context for next iteration**:
+
+```bash
+# Extract refined context from QA report
+jq '.qa.refined_context' docs/dev/qa-report-overnight-<cycle>.json \
+  > docs/dev/refined-context-overnight-<cycle>.json
+
+# Merge with original context
+jq -s '.[0] * {
+  iteration: (.[0].iteration // 0) + 1,
+  previous_attempts: [.[0].previous_attempts // [], {
+    iteration: (.[0].iteration // 0),
+    dev: .[1].dev,
+    qa: .[1].qa,
+    timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ")
+  }] | flatten,
+  refined_requirements: .[2]
+}' \
+  docs/dev/context-<timestamp>.json \
+  docs/dev/qa-input-overnight-<cycle>.json \
+  docs/dev/refined-context-overnight-<cycle>.json \
+  > docs/dev/context-iter<N>-overnight-<cycle>.json
+```
+
+**Return to Step 6** with new context JSON
+
+**Iteration tracking**: Update TodoWrite with iteration number
+
+### Step 12: Log Cycle Results and Check Time
+
+**Update state**: Set `current_phase` to `"logging"`.
+
+**Update the state file** with cycle results:
 
 ```python
 state['cycle_count'] += 1
@@ -265,6 +475,7 @@ state['cycle_log'].append({
     'severity': severity,
     'status': 'fixed' if succeeded else 'skipped',
     'changes': list_of_changes,
+    'iterations': iteration_count,
     'timestamp': now_iso
 })
 state['current_issue'] = None
@@ -272,7 +483,16 @@ state['current_issue'] = None
 
 Write atomically (tmp + rename).
 
-**Append to running log** at `docs/dev/overnight-log-<date>.md`.
+**Append to running log** at `docs/dev/overnight-log-<date>.md`:
+
+```markdown
+### Cycle <N>: <issue description>
+- **Status**: Fixed / Skipped
+- **Location**: <file:line>
+- **Changes**: <brief summary>
+- **Iterations**: <N>
+- **Time**: <timestamp>
+```
 
 **TIME CHECK**:
 
@@ -280,20 +500,20 @@ Write atomically (tmp + rename).
 now = datetime.now()
 end_time = datetime.fromisoformat(state['end_time'])
 if now >= end_time:
-    # Proceed to Step 7 -- session is ending
+    # Proceed to Step 13 -- session is ending
 else:
     remaining = end_time - now
-    print(f"Time remaining: {remaining} -- marking Step 7 complete to trigger loop")
+    print(f"Time remaining: {remaining} -- marking Step 13 complete to trigger loop")
 ```
 
-If time expired: proceed to Step 7 for final summary.
-If time remains: mark Step 7 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 7 steps completed, reset todos to pending, and inject continuation instructions.
+If time expired: proceed to Step 13 for final summary.
+If time remains: mark Step 13 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 13 steps completed, reset todos to pending, and inject continuation instructions.
 
-### Step 7: Generate Summary Report (or trigger loop)
+### Step 13: Generate Summary Report or Loop
 
 **If time remains** (normal loop case):
 Simply mark this step as completed via TodoWrite. The PostToolUse:TodoWrite hook (`posttool-overnight-loop.py`) will:
-1. Detect all 7 steps are completed
+1. Detect all 13 steps are completed
 2. Check overnight-state.json for future end_time
 3. Reset all todos to pending
 4. Print loop continuation instructions
@@ -331,10 +551,18 @@ Simply mark this step as completed via TodoWrite. The PostToolUse:TodoWrite hook
 - **Status**: Fixed / Skipped
 - **Location**: <file>
 - **Changes**: <summary>
+- **Iterations**: <N>
 
 ## Skipped Issues (need manual attention)
 
-<List of issues that failed 3 times with error context>
+<List of issues that failed 3+ times with error context>
+
+## Files Generated
+
+- Context files: `docs/dev/context-*.json`
+- Dev reports: `docs/dev/dev-report-overnight-*.json`
+- QA reports: `docs/dev/qa-report-overnight-*.json`
+- Running log: `docs/dev/overnight-log-<date>.md`
 
 ## Recommendations
 
@@ -352,7 +580,7 @@ To discard: call ExitWorktree with action "remove"
 **Delete state file** to release time-lock:
 
 ```bash
-rm -f .claude/overnight-state.json
+rm -f .claude/overnight-state-<session_id>.json
 ```
 
 **Announce completion**:
@@ -375,26 +603,30 @@ The time-lock has been released. The session can now end normally.
 
 ## State File Management
 
-The state file `.claude/overnight-state.json` serves three purposes:
+The state file serves three purposes:
 1. **Persistence**: Track progress across cycles and loop resets
 2. **Time-lock**: The Stop hook reads this file to determine if termination is allowed
 3. **Continuation**: The UserPromptSubmit hook reads this to inject continuation context
 
 **Always write atomically**: Write to `.tmp` file first, then `os.rename()`.
 
-**State file location**: `<project_dir>/.claude/overnight-state.json`.
+**State file location**: `<project_dir>/.claude/overnight-state-<session_id>.json`
 
-**Schema (v3)**:
+**Multi-session support**: Each overnight session uses its own state file keyed by `session_id` (from `$CLAUDE_SESSION_ID` env var or a generated UUID). This allows multiple concurrent overnight sessions on the same project. The Stop hook scans for ALL `overnight-state-*.json` files and blocks termination if ANY has a future end_time.
+
+**Worktree naming**: Each session creates `overnight-<YYYYMMDD>-<session_id_short>` (first 8 chars of session_id) to avoid conflicts between concurrent sessions.
+
+**Schema (v4)**:
 ```json
 {
-  "session_id": "string",
+  "session_id": "string (from $CLAUDE_SESSION_ID or UUID)",
   "end_time": "ISO-8601 datetime",
   "start_time": "ISO-8601 datetime",
   "cycle_count": 0,
   "issues_found": 0,
   "issues_fixed": 0,
   "issues_skipped": 0,
-  "current_phase": "initializing|exploring|selecting|fixing|implementing|verifying|logging|completed",
+  "current_phase": "initializing|exploring|selecting|analyzing|implementing|verifying|logging|completed",
   "current_issue": "string or null",
   "failed_attempts": {"issue_desc": 2},
   "addressed_issues": ["issue_desc_1", "issue_desc_2"],
@@ -406,12 +638,13 @@ The state file `.claude/overnight-state.json` serves three purposes:
       "severity": "critical|major|minor|cosmetic",
       "status": "fixed|skipped",
       "changes": ["change 1", "change 2"],
+      "iterations": 1,
       "timestamp": "ISO-8601"
     }
   ],
   "worktree_path": "/path/to/worktree or null",
-  "worktree_branch": "overnight-YYYYMMDD or null",
-  "schema_version": 3
+  "worktree_branch": "overnight-YYYYMMDD-<session_id_short> or null",
+  "schema_version": 4
 }
 ```
 
@@ -441,7 +674,7 @@ If state file has `worktree_path=null` on continuation, attempt to create worktr
 
 ## Integration with Hooks
 
-- **prompt-workflow.py** (UserPromptSubmit): Creates overnight-state.json on /dev-overnight detection; injects continuation context with worktree guard
+- **prompt-workflow.py** (UserPromptSubmit): Creates overnight-state-<session_id>.json on /dev-overnight detection; injects continuation context with worktree guard
 - **posttool-overnight-loop.py** (PostToolUse:TodoWrite): Detects all-completed state, resets todos for new cycle if end_time is future
 - **pretool-overnight-hook-guard.py** (PreToolUse): Blocks Write/Edit/Bash targeting .claude/hooks/ during overnight sessions
 - **pretool-workflow-gate.py** (PreToolUse): Gates tools until TodoWrite is called
@@ -452,7 +685,7 @@ If state file has `worktree_path=null` on continuation, attempt to create worktr
 - **posttool-git-checkpoint.sh** (PostToolUse:Write|Edit): Auto-commits changes
 
 ### Loop Mechanism (v3)
-- When all 7 todo steps are marked completed via TodoWrite, the posttool-overnight-loop.py hook fires
+- When all 13 todo steps are marked completed via TodoWrite, the posttool-overnight-loop.py hook fires
 - It checks overnight-state.json: if end_time is in the future, it resets all todos to pending and injects loop continuation instructions
 - The agent then resumes from Step 2 (exploration) since worktree already exists
 - This provides natural context boundaries at each cycle without requiring external cron triggers
@@ -461,15 +694,15 @@ If state file has `worktree_path=null` on continuation, attempt to create worktr
 
 ## Quick Reference: The Loop
 
-After completing Steps 2-7, the loop is automatic:
+After completing Steps 2-13, the loop is automatic:
 
 ```
-TodoWrite marks Step 7 as completed
+TodoWrite marks Step 13 as completed
   |
 posttool-overnight-loop.py fires
   |
 IF end_time > now:
-    Reset all todos to pending
+    Reset all todos to pending (except Step 1 which stays completed)
     Increment cycle_count
     Print "OVERNIGHT LOOP: Starting cycle N+1"
     Agent resumes from Step 2
@@ -483,6 +716,111 @@ The loop MUST continue until end-time. Only break for:
 1. End-time reached
 2. Two consecutive clean sweeps
 3. Unrecoverable error
+
+---
+
+## JSON Storage Policy
+
+**All JSON files stored in**: `docs/dev/`
+
+**File naming convention**:
+- Context: `context-<timestamp>.json` or `context-iter<N>-overnight-<cycle>.json`
+- BA spec: `ba-spec-<timestamp>.md`
+- Dev report: `dev-report-overnight-<cycle>.json`
+- QA report: `qa-report-overnight-<cycle>.json`
+- QA input: `qa-input-overnight-<cycle>.json`
+- Overnight reports: `docs/dev/overnight/<session_id>/product-owner-report.json`, etc.
+- Running log: `overnight-log-<session_id>.md`
+- Summary: `overnight-summary-<session_id>.md`
+
+**Timestamp format**: `YYYYMMDD-HHMMSS`
+
+**Retention**:
+- Keep all files for current session
+- Archive to `docs/dev/archive/YYYY-MM/` after 30 days (via /clean)
+
+---
+
+## Integration with /clean
+
+The `/clean` command supports `docs/dev/`:
+- Preserves active development contexts (< 7 days old)
+- Archives completed contexts to `docs/dev/archive/YYYY-MM/`
+- Removes contexts > 90 days old
+
+See `/clean` command documentation for details.
+
+---
+
+## Quality Standards Enforcement
+
+**Specialist subagents discover** (Step 2, parallel):
+- **product-owner** (see `agents/product-owner.md`): Logical inconsistencies, feature gaps, broken user flows, missing features, business logic bugs
+- **architect** (see `agents/architect.md`): Structural issues, technical debt, optimization opportunities, dependency problems, pattern inconsistencies
+- **user** (see `agents/user.md`): UX friction, broken flows, confusing behavior, workflow gaps, real-world usage issues
+- **ui-specialist** (see `agents/ui-specialist.md`): Styling consistency, responsive design, accessibility, visual bugs, component quality, design system compliance
+
+**BA subagent analyzes** (see `agents/ba.md`):
+- Requirement decomposition from self-discovered issues
+- Git root cause analysis
+- MoSCoW requirements and BDD acceptance criteria
+- Context JSON generation for dev subagent
+
+**Dev subagent implements** (see `agents/dev.md`):
+- Parameterized scripts (no hardcoded values)
+- `source venv` (not `python3`)
+- Meaningful naming (no `enhance`, `fast`)
+- Git root cause analysis
+
+**QA subagent verifies** (see `agents/qa.md`):
+- Success criteria met
+- Root cause addressed
+- No regressions
+- Quality standards compliance
+- Integer step numbering
+
+**Orchestrator ensures**:
+- Issues fully explored by 4 specialist subagents before fixing
+- Comprehensive context via BA
+- Iterative quality improvement (max 5 iterations per issue)
+- Proper JSON storage with session-scoped naming
+- Cycle deduplication via state file
+- Multi-session isolation via session_id-keyed state files
+
+---
+
+## Comparison: /dev vs /dev-overnight
+
+| Aspect | /dev | /dev-overnight |
+|--------|------|----------------|
+| Input | User provides requirement | Agent discovers issues via 4 specialist subagents |
+| BA phase | Full BA + clarification loop (max 3 rounds) | BA with clarification skipped (round=3) |
+| BA validation | Step 4 | Step 5 |
+| Dev validation | Step 6 | Step 7 |
+| QA processing | Step 8 decision tree | Step 9 autonomous decision |
+| Settings update | Step 9 | Step 10 |
+| Iteration loop | Step 10 (max 5, asks user after 5) | Step 11 (max 5, auto-skip after 5) |
+| Loop | Single pass | Continuous until end-time |
+| Termination | After QA passes | After end-time expires |
+| User interaction | Required (clarification, approval) | None (fully autonomous) |
+| Scope per cycle | One complete feature/fix | One small-to-medium issue |
+| Subagent usage | BA + dev + QA | product-owner + architect + user + ui-specialist + BA + dev + QA |
+| Stop hook | Workflow enforcement only | Workflow + time-lock |
+| Worktree | Not used | Created on first run, reused across cycles |
+| Total steps | 11 | 13 |
+
+---
+
+## Success Metrics
+
+- ✅ All issues discovered autonomously via specialist subagents
+- ✅ Root cause identified and addressed for each issue
+- ✅ Zero hardcoded values in scripts
+- ✅ QA passes within 5 iterations per issue
+- ✅ All quality standards enforced
+- ✅ Complete audit trail in JSON files
+- ✅ Continuous loop until end-time
+- ✅ Worktree isolation protects main branch
 
 ---
 
