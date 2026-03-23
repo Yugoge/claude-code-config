@@ -31,15 +31,16 @@ def _all_completed(data: dict) -> bool:
 
 
 def _load_overnight_state() -> tuple[dict | None, Path]:
-    """Load overnight state. Returns (state, path) or (None, path)."""
+    """Load overnight state. Scans overnight-state-*.json files."""
     project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
-    state_path = project_dir / '.claude' / 'overnight-state.json'
-    if not state_path.exists():
-        return None, state_path
-    try:
-        return json.loads(state_path.read_text()), state_path
-    except Exception:
-        return None, state_path
+    claude_dir = project_dir / '.claude'
+    for p in sorted(claude_dir.glob('overnight-state-*.json')):
+        try:
+            state = json.loads(p.read_text())
+            return state, p
+        except Exception:
+            continue
+    return None, claude_dir / 'overnight-state-unknown.json' 
 
 
 def _check_end_time(state: dict) -> datetime | None:
