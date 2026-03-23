@@ -4,7 +4,7 @@ Stop Hook: Block conversation termination until overnight end-time.
 
 Logic:
   1. Read JSON from stdin (session_id)
-  2. Look for state file .claude/overnight-state.json
+  2. Scan for any .claude/overnight-state-*.json files
   3. If no state file: exit 0 (allow stop)
   4. If current time < end_time: exit 2 (block stop)
   5. If current time >= end_time: exit 0 (allow stop)
@@ -32,14 +32,15 @@ def read_stdin_context() -> dict:
 
 
 def load_state(project_dir: Path) -> dict | None:
-    """Load overnight state file. Returns None if missing or corrupt."""
-    state_path = project_dir / '.claude' / 'overnight-state.json'
-    if not state_path.exists():
-        return None
-    try:
-        return json.loads(state_path.read_text())
-    except (json.JSONDecodeError, OSError):
-        return None
+    """Load any active overnight state file. Scans overnight-state-*.json."""
+    claude_dir = project_dir / '.claude'
+    for p in sorted(claude_dir.glob('overnight-state-*.json')):
+        try:
+            state = json.loads(p.read_text())
+            return state
+        except (json.JSONDecodeError, OSError):
+            continue
+    return None
 
 
 def parse_end_time(state: dict) -> datetime | None:

@@ -6,15 +6,15 @@ Phase A (slash command detected):
   - Runs scripts/todo/<command>.py to get the step list
   - Writes todos to Claude Code's official todos file
   - Writes {session_id, command} to .claude/workflow-{session_id}.json (bookmark only)
-  - If /dev-overnight: also creates overnight-state.json with parsed end-time
+  - If /dev-overnight: creates overnight-state-<session_id>.json with parsed end-time
   - Prints checklist-ready message + exact first TodoWrite call to use
 
 Phase B (subsequent prompts, no slash command):
-  - If overnight-state.json exists with future end_time: inject continuation context
+  - If any overnight-state-*.json exists with future end_time: inject continuation
   - Reads official todos file for current session
   - Injects current progress + exact next TodoWrite call template
 
-State: only ~/.claude/todos/{sid}.json (official) + .claude/workflow-{session_id}.json (bookmark)
+State: todos/{sid}.json + workflow-{sid}.json + overnight-state-{sid}.json
 """
 
 import json
@@ -28,9 +28,24 @@ from pathlib import Path
 PROJECT_DIR = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
 
 
-def overnight_state_path() -> Path:
-    """Path to the overnight session state file."""
-    return PROJECT_DIR / '.claude' / 'overnight-state.json'
+def overnight_state_path(session_id: str = '') -> Path:
+    """Path to the overnight state file (keyed by session_id for multi-session)."""
+    sid = session_id or os.environ.get('CLAUDE_SESSION_ID', 'default')
+    return PROJECT_DIR / '.claude' / f'overnight-state-{sid}.json'
+
+
+def find_any_overnight_state() -> tuple:
+    """Find any active overnight state file for continuation."""
+    claude_dir = PROJECT_DIR / '.claude'
+    for p in sorted(claude_dir.glob('overnight-state-*.json')):
+        try:
+            state = json.loads(p.read_text())
+            et = state.get('end_time')
+            if et and datetime.fromisoformat(et) > datetime.now():
+                return state, p
+        except Exception:
+            continue
+    return None, None
 
 
 def extract_command_name(user_input: str) -> str:
@@ -271,9 +286,10 @@ def _apply_ampm(hour: int, ampm: str | None) -> int:
 
 
 def create_overnight_state(end_time_iso: str) -> bool:
-    """Atomically write overnight-state.json with v3 schema."""
+    """Atomically write overnight state with v4 schema (session-keyed)."""
+    sid = os.environ.get('CLAUDE_SESSION_ID', 'default')
     state = {
-        'session_id': os.environ.get('CLAUDE_SESSION_ID', 'default'),
+        'session_id': sid,
         'end_time': end_time_iso,
         'start_time': datetime.now().isoformat(),
         'cycle_count': 0, 'issues_found': 0, 'issues_fixed': 0,
@@ -281,9 +297,9 @@ def create_overnight_state(end_time_iso: str) -> bool:
         'current_issue': None, 'failed_attempts': {},
         'addressed_issues': [], 'cycle_log': [],
         'worktree_path': None, 'worktree_branch': None,
-        'schema_version': 3,
+        'schema_version': 4,
     }
-    sp = overnight_state_path()
+    sp = overnight_state_path(sid)
     tmp = sp.with_suffix('.tmp')
     try:
         sp.parent.mkdir(parents=True, exist_ok=True)
@@ -294,9 +310,9 @@ def create_overnight_state(end_time_iso: str) -> bool:
         return False
 
 
-def load_overnight_state() -> dict | None:
+def load_overnight_state(session_id: str = '') -> dict | None:
     """Load overnight state file. Returns None if missing or corrupt."""
-    sp = overnight_state_path()
+    sp = overnight_state_path(session_id)
     if not sp.exists():
         return None
     try:
@@ -335,28 +351,19 @@ def build_overnight_continuation(state: dict) -> str:
         '--- CONTINUATION INSTRUCTIONS ---', '',
         'You are continuing an overnight session with FRESH context.',
         wt_instruction,
-        'Loop is driven by todo completion detection -- when all 7 steps complete,',
+        'Loop is driven by todo completion detection -- when all 13 steps complete,',
         'the system automatically resets for a new cycle.',
         'Do NOT create state file.',
-        f'Read {overnight_state_path()} and resume from phase="{phase}".',
+        f'Read .claude/overnight-state-{state.get("session_id", "default")}.json and resume from phase="{phase}".',
         'Phase mapping: initializing/exploring->Step 2, selecting->Step 3,',
-        'fixing->Step 4, verifying->Step 5, logging->Step 6',
+        'analyzing->Step 4, implementing->Step 6, verifying->Step 8, logging->Step 12',
     ])
 
 
 def check_overnight_continuation() -> str | None:
-    """Check if overnight continuation should be injected."""
-    state = load_overnight_state()
+    """Check if any overnight session needs continuation."""
+    state, state_path = find_any_overnight_state()
     if state is None:
-        return None
-    et = state.get('end_time')
-    if not et:
-        return None
-    try:
-        end = datetime.fromisoformat(et)
-    except (ValueError, TypeError):
-        return None
-    if datetime.now() >= end:
         return None
     return build_overnight_continuation(state)
 
