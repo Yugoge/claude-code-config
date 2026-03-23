@@ -15,7 +15,8 @@
     "GIT_AUTO_PUSH": "1",
     "GIT_CHECKPOINT_THRESHOLD": "10",
     "GIT_CHECKPOINT_SILENT": "0",
-    "PLAYWRIGHT_MCP_SANDBOX": "false"
+    "PLAYWRIGHT_MCP_SANDBOX": "false",
+    "ENABLE_TOOL_SEARCH": "false"
   },
   "includeCoAuthoredBy": true,
   "permissions": {
@@ -111,6 +112,7 @@
       "Bash(~/.claude/scripts/detect-orphan-scripts.sh:*)",
       "Bash(~/.claude/scripts/detect-orphan-agents.sh:*)",
       "Bash(~/.claude/scripts/detect-orphan-commands.sh:*)",
+      "Bash(~/.claude/scripts/check-overnight-reports.sh:*)",
       "Bash(scripts/discover-folders.sh:*)",
       "Bash(scripts/analyze-folder-history.sh:*)",
       "Bash(scripts/generate-folder-index.sh:*)",
@@ -129,6 +131,8 @@
       "Write(docs/**)",
       "Write(scripts/**)",
       "Write(/tmp/**)",
+      "Write(data/**)",
+      "Edit(data/**)",
       "Edit(learning-materials/**)",
       "Edit(knowledge-base/**)",
       "Edit(.review/**)",
@@ -145,7 +149,10 @@
       "mcp__memory-server__delete_observations",
       "mcp__memory-server__delete_relations",
       "mcp__memory-server__open_nodes",
-      "mcp__happy__change_title"
+      "mcp__happy__change_title",
+      "mcp__playwright__*",
+      "Bash(source venv/bin/activate && python scripts/analyze/analyze_spending.py:*)",
+      "Bash(source venv/bin/activate && python scripts/add-status-field.py:*)"
     ],
     "deny": [
       "Read(.env)",
@@ -221,71 +228,119 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/session_start.sh"
+            "command": "bash \"$HOME/.claude/hooks/session-info.sh\""
           },
           {
             "type": "command",
-            "command": "~/.claude/hooks/ensure-git-repo.sh"
+            "command": "bash \"$HOME/.claude/hooks/session-git-init.sh\""
           }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
-        "matcher": ".*",
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -f .claude/CLAUDE.md ]; then echo '[INFO] Project CLAUDE.md loaded'; fi"
+            "command": "python3 \"$HOME/.claude/hooks/prompt-workflow.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/userprompt-doc-sync-check.py\"",
+            "on_error": "ignore"
           }
         ]
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "SlashCommand",
         "hooks": [
           {
             "type": "command",
-            "command": "source ~/.claude/venv/bin/activate && python3 ~/.claude/hooks/hook-todo-injection.py"
+            "command": "python3 \"$HOME/.claude/hooks/pretool-workflow-gate.py\""
           }
         ]
       },
       {
-        "matcher": "Bash\\(rm -rf.*\\)|Bash\\(rm -r.*\\)",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/pre_tool_use_safety.sh"
+            "command": "bash \"$HOME/.claude/hooks/pretool-bash-safety.sh\""
           }
         ]
       },
       {
-        "matcher": "Bash\\(git push --force.*\\)|Bash\\(git push -f.*\\)",
+        "matcher": "Write|Edit|Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/pre_tool_use_safety.sh"
+            "command": "python3 \"$HOME/.claude/hooks/pretool-overnight-hook-guard.py\""
           }
         ]
       },
       {
-        "matcher": "Write\\(.*package\\.json.*\\)|Edit\\(.*package\\.json.*\\)",
+        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/pre_tool_use_safety.sh"
+            "command": "python3 \"$HOME/.claude/hooks/pretool-quality-gate.py\"",
+            "stdin_json": true
+          }
+        ]
+      },
+      {
+        "matcher": "TodoWrite",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-todo-validate.py\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pretool-worktree-guard.sh\""
           }
         ]
       }
     ],
     "PostToolUse": [
       {
+        "matcher": "TodoWrite",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-tracker.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-count.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-sequence.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-overnight-loop.py\""
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/smart-checkpoint.sh"
+            "command": "bash \"$HOME/.claude/hooks/posttool-git-checkpoint.sh\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-doc-sync.py\"",
+            "stdin_json": true,
+            "on_error": "ignore"
           }
         ]
       },
@@ -294,20 +349,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git log -1 --oneline && echo '✅ Commit created successfully'"
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/post-commit-warn.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash\\(npm install.*\\)|Bash\\(yarn install.*\\)|Bash\\(pnpm install.*\\)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '✅ Dependencies installed. Run tests to verify.'"
+            "command": "bash \"$HOME/.claude/hooks/posttool-git-warn.sh\""
           }
         ]
       }
@@ -317,22 +359,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/auto-commit.sh"
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
+            "command": "python3 \"$HOME/.claude/hooks/stop-overnight-timelock.py\""
+          },
           {
             "type": "command",
-            "command": "echo '👋 Session ended' && echo 'Remember: Review changes before pushing to remote!'"
+            "command": "python3 \"$HOME/.claude/hooks/stop-workflow-enforce.py\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/stop-git-commit.sh\""
           }
         ]
       }
     ]
   },
-  "alwaysThinkingEnabled": true,
-  "model": "claude-sonnet-4-5"
+  "alwaysThinkingEnabled": true
 }
