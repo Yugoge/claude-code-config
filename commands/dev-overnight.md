@@ -149,40 +149,65 @@ Read the state file's `addressed_issues` array first, then launch all 4 Agent ca
 ```
 Launch 4 Agent tool calls simultaneously:
 
-1. Agent(agent: "product-owner", prompt: "
-   Project path: <project_path>
-   Already addressed: <addressed_issues from state>
-   Output report to: docs/dev/overnight/product-owner-report.json
-   Explore this project for product-level issues: logical inconsistencies,
-   feature gaps, broken user flows, missing features, business logic bugs.")
+1. Agent(subagent_type: "product-owner")
+   Write report to: docs/dev/overnight/<session_id>/product-owner-report.json
 
-2. Agent(agent: "architect", prompt: "
-   Project path: <project_path>
-   Already addressed: <addressed_issues from state>
-   Output report to: docs/dev/overnight/architect-report.json
-   Review architecture for: structural issues, technical debt, optimization
-   opportunities, dependency problems, pattern inconsistencies.")
+2. Agent(subagent_type: "architect")
+   Write report to: docs/dev/overnight/<session_id>/architect-report.json
 
-3. Agent(agent: "user", prompt: "
-   Project path: <project_path>
-   Already addressed: <addressed_issues from state>
-   Output report to: docs/dev/overnight/user-report.json
-   Simulate end-user usage: test real scenarios, find broken flows,
-   identify UX friction, confusing behavior, workflow gaps.")
+3. Agent(subagent_type: "user")
+   Write report to: docs/dev/overnight/<session_id>/user-report.json
 
-4. Agent(agent: "ui-specialist", prompt: "
-   Project path: <project_path>
-   Already addressed: <addressed_issues from state>
-   Output report to: docs/dev/overnight/ui-specialist-report.json
-   Review UI/UX: styling consistency, responsive design, accessibility,
-   visual bugs, component quality, design system compliance.")
+4. Agent(subagent_type: "ui-specialist")
+   Write report to: docs/dev/overnight/<session_id>/ui-specialist-report.json
+
+Each subagent receives ONLY:
+- Project path: <project_path>
+- Already addressed: <addressed_issues array from state file>
+- Output report to: <path above>
 ```
 
-**After all 4 return**, validate reports:
+**Wait for all 4 subagents to complete** before proceeding.
+
+**Validate reports** (main agent does NOT read project files, only validates report existence and structure):
 
 ```bash
-~/.claude/scripts/check-overnight-reports.sh docs/dev/overnight
+~/.claude/scripts/check-overnight-reports.sh docs/dev/overnight/<session_id>
 ```
+
+**Sanity checks on each report**:
+- [ ] File exists and is valid JSON
+- [ ] Has `issues` array (may be empty)
+- [ ] Each issue has required fields: `description`, `location`, `severity`, `category`, `estimated_effort`
+- [ ] No duplicate issues within the same report
+- [ ] Issues do not overlap with `addressed_issues` from state file
+
+**Report JSON schema** (all 4 subagents output the same schema):
+```json
+{
+  "agent": "product-owner|architect|user|ui-specialist",
+  "timestamp": "ISO-8601",
+  "project_path": "/path/to/project",
+  "scan_duration_seconds": 42,
+  "issues": [
+    {
+      "description": "Brief description of the issue",
+      "location": "file/path:line or file/path or 'project-wide'",
+      "severity": "critical|major|minor|cosmetic",
+      "category": "agent-specific category string",
+      "estimated_effort": "small|medium|large",
+      "details": "Extended explanation with evidence",
+      "suggested_fix": "How to fix (optional)"
+    }
+  ],
+  "summary": "One-line summary of findings"
+}
+```
+
+**If validation fails** for any report:
+- Log which reports failed and why
+- Re-invoke only the failed subagent(s) (maximum 2 retries)
+- If still failing after retries, proceed with available reports
 
 **If zero issues found across all 4 reports**:
 - Log a "clean sweep" entry
