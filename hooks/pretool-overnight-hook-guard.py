@@ -25,13 +25,15 @@ def is_overnight_active() -> bool:
 
 def get_overnight_state_for_session(project_dir: Path, session_id: str) -> dict | None:
     """Load overnight state file for the specific session."""
+    if not session_id:
+        return None
     state_path = project_dir / '.claude' / f'overnight-state-{session_id}.json'
-    if state_path.exists():
-        try:
-            return json.loads(state_path.read_text())
-        except (json.JSONDecodeError, OSError):
-            pass
-    return None
+    if not state_path.exists():
+        return None
+    try:
+        return json.loads(state_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
 
 
 def is_hooks_path(file_path: str) -> bool:
@@ -49,13 +51,18 @@ def is_state_file_path(file_path: str) -> bool:
 def is_outside_worktree(file_path: str, worktree_path: str) -> bool:
     """Check if a file path is outside the worktree directory."""
     abs_file = os.path.realpath(os.path.abspath(file_path))
-    abs_worktree = os.path.realpath(os.path.abspath(worktree_path))
-    return not abs_file.startswith(abs_worktree + os.sep) and abs_file != abs_worktree
+    abs_wt = os.path.realpath(os.path.abspath(worktree_path))
+    return not abs_file.startswith(abs_wt + os.sep) and abs_file != abs_wt
+
+
+def _matches_any(command: str, patterns: list[str]) -> bool:
+    """Return True if command matches any regex pattern."""
+    return any(re.search(p, command) for p in patterns)
 
 
 def check_bash_targets_state(command: str) -> bool:
     """Check if bash command modifies/deletes overnight state files."""
-    patterns = [
+    return _matches_any(command, [
         r'rm\s+.*overnight-state-',
         r'rm\s+-f\s+.*overnight-state-',
         r'rm\s+-rf\s+.*overnight-state-',
@@ -66,16 +73,12 @@ def check_bash_targets_state(command: str) -> bool:
         r'echo\s+.*>\s*.*overnight-state-',
         r'cat\s+.*>\s*.*overnight-state-',
         r'tee\s+.*overnight-state-',
-    ]
-    for pattern in patterns:
-        if re.search(pattern, command):
-            return True
-    return False
+    ])
 
 
 def check_bash_targets_hooks(command: str) -> bool:
     """Check if a bash command writes to .claude/hooks/ directory."""
-    patterns = [
+    return _matches_any(command, [
         r'(?:echo|printf)\s+.*>\s*.*\.claude/hooks/',
         r'cat\s+.*>\s*.*\.claude/hooks/',
         r'cp\s+.*\.claude/hooks/',
@@ -83,64 +86,102 @@ def check_bash_targets_hooks(command: str) -> bool:
         r'tee\s+.*\.claude/hooks/',
         r'>\s*.*\.claude/hooks/',
         r'>>\s*.*\.claude/hooks/',
-    ]
-    for pattern in patterns:
-        if re.search(pattern, command):
-            return True
-    return False
+    ])
+
+
+def _block(message: str) -> None:
+    """Write message to stderr and exit 2."""
+    sys.stderr.write(message)
+    sys.exit(2)
+
+
+def _check_write_edit_security(tool_name: str, file_path: str) -> None:
+    """Block Write/Edit to hooks or state files during overnight."""
+    if is_hooks_path(file_path):
+        _block(
+            '\nOVERNIGHT HOOK PROTECTION: Modifying .claude/hooks/ '
+            'is blocked during overnight sessions.\n'
+            f'Blocked: {tool_name} to {file_path}\n'
+        )
+    if is_state_file_path(file_path):
+        _block(
+            '\nOVERNIGHT STATE PROTECTION: Direct modification of '
+            'overnight-state files is blocked.\n'
+            f'Blocked: {tool_name} to {file_path}\n'
+        )
+
+
+def _check_bash_security(command: str) -> None:
+    """Block Bash commands targeting hooks or state files."""
+    if check_bash_targets_hooks(command):
+        _block(
+            '\nOVERNIGHT HOOK PROTECTION: Writing to .claude/hooks/ '
+            'via Bash is blocked during overnight sessions.\n'
+        )
+    if check_bash_targets_state(command):
+        _block(
+            '\nOVERNIGHT STATE PROTECTION: Modifying or deleting '
+            'overnight-state-*.json via Bash is blocked.\n'
+            'The state file can only be removed after end-time expires.\n'
+        )
 
 
 def apply_global_security_checks(tool_name: str, tool_input: dict) -> None:
-    """Block hooks/state modifications for ALL sessions during any overnight run."""
+    """Block hooks/state modifications for ALL sessions during any overnight."""
     if tool_name in ('Write', 'Edit'):
-        file_path = tool_input.get('file_path', '')
-        if is_hooks_path(file_path):
-            sys.stderr.write(
-                '\nOVERNIGHT HOOK PROTECTION: Modifying .claude/hooks/ '
-                'is blocked during overnight sessions.\n'
-                f'Blocked: {tool_name} to {file_path}\n'
-            )
-            sys.exit(2)
-        if is_state_file_path(file_path):
-            sys.stderr.write(
-                '\nOVERNIGHT STATE PROTECTION: Direct modification of '
-                'overnight-state files is blocked.\n'
-                f'Blocked: {tool_name} to {file_path}\n'
-            )
-            sys.exit(2)
-
+        _check_write_edit_security(tool_name, tool_input.get('file_path', ''))
     if tool_name == 'Bash':
-        command = tool_input.get('command', '')
-        if check_bash_targets_hooks(command):
-            sys.stderr.write(
-                '\nOVERNIGHT HOOK PROTECTION: Writing to .claude/hooks/ '
-                'via Bash is blocked during overnight sessions.\n'
-            )
-            sys.exit(2)
-        if check_bash_targets_state(command):
-            sys.stderr.write(
-                '\nOVERNIGHT STATE PROTECTION: Modifying or deleting '
-                'overnight-state-*.json via Bash is blocked.\n'
-                'The state file can only be removed after end-time expires.\n'
-            )
-            sys.exit(2)
+        _check_bash_security(tool_input.get('command', ''))
 
 
-def apply_worktree_enforcement(tool_name: str, tool_input: dict, worktree_path: str) -> None:
-    """Warn when overnight session writes outside its worktree."""
-    if tool_name not in ('Write', 'Edit'):
-        return
+def _extract_bash_write_paths(command: str) -> list[str]:
+    """Extract file paths from common Bash write patterns."""
+    paths = []
+    # Redirect: > /path, >> /path
+    for m in re.finditer(r'>{1,2}\s*(/[^\s;|&]+)', command):
+        paths.append(m.group(1))
+    # tee /path
+    for m in re.finditer(r'tee\s+(?:-a\s+)?(/[^\s;|&]+)', command):
+        paths.append(m.group(1))
+    # cp source /dest, mv source /dest
+    for m in re.finditer(r'(?:cp|mv)\s+\S+\s+(/[^\s;|&]+)', command):
+        paths.append(m.group(1))
+    # sed -i ... /path
+    for m in re.finditer(r'sed\s+-i[^\s]*\s+\S+\s+(/[^\s;|&]+)', command):
+        paths.append(m.group(1))
+    return paths
+
+
+def _block_worktree_violation(tool_name: str, path: str, wt: str) -> None:
+    """Block operation outside worktree with exit 2."""
+    _block(
+        f'\nWORKTREE ENFORCEMENT: File is outside the overnight worktree.\n'
+        f'Overnight changes MUST stay inside: {wt}\n'
+        f'Attempted: {tool_name} to {path}\n'
+        f'Use absolute paths inside the worktree.\n'
+    )
+
+
+def _enforce_write_edit_worktree(tool_name: str, tool_input: dict, wt: str) -> None:
+    """Check Write/Edit file_path against worktree boundary."""
     file_path = tool_input.get('file_path', '')
-    if not file_path:
-        return
-    if is_outside_worktree(file_path, worktree_path):
-        sys.stderr.write(
-            f'\n⚠️  WORKTREE WARNING: File is outside the overnight worktree.\n'
-            f'Overnight changes should stay inside: {worktree_path}\n'
-            f'Attempted path: {file_path}\n'
-            f'Use absolute paths inside the worktree to maintain branch isolation.\n'
-        )
-        # Advisory only — exit 0 to allow the operation but inform the agent
+    if file_path and is_outside_worktree(file_path, wt):
+        _block_worktree_violation(tool_name, file_path, wt)
+
+
+def _enforce_bash_worktree(command: str, wt: str) -> None:
+    """Check Bash write targets against worktree boundary."""
+    for path in _extract_bash_write_paths(command):
+        if is_outside_worktree(path, wt):
+            _block_worktree_violation('Bash', path, wt)
+
+
+def apply_worktree_enforcement(tool_name: str, tool_input: dict, wt: str) -> None:
+    """Hard-block when overnight session writes outside its worktree."""
+    if tool_name in ('Write', 'Edit'):
+        _enforce_write_edit_worktree(tool_name, tool_input, wt)
+    if tool_name == 'Bash':
+        _enforce_bash_worktree(tool_input.get('command', ''), wt)
 
 
 def main():
@@ -150,7 +191,6 @@ def main():
     except Exception:
         sys.exit(0)
 
-    # Global security: only activates when any overnight session is running.
     if not is_overnight_active():
         sys.exit(0)
 
@@ -161,14 +201,15 @@ def main():
     apply_global_security_checks(tool_name, tool_input)
 
     # Worktree enforcement: only for the specific overnight session.
-    current_session_id = os.environ.get('CLAUDE_SESSION_ID', '')
-    if current_session_id:
-        project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
-        state = get_overnight_state_for_session(project_dir, current_session_id)
-        if state:
-            worktree_path = state.get('worktree_path', '')
-            if worktree_path:
-                apply_worktree_enforcement(tool_name, tool_input, worktree_path)
+    session_id = data.get('session_id', '')
+    if not session_id:
+        sys.exit(0)
+
+    project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
+    state = get_overnight_state_for_session(project_dir, session_id)
+    wt = state.get('worktree_path', '') if state else ''
+    if wt:
+        apply_worktree_enforcement(tool_name, tool_input, wt)
 
     sys.exit(0)
 
