@@ -57,12 +57,19 @@ def load_state(project_dir: Path, session_id: str) -> dict | None:
 
 
 def parse_end_time(state: dict) -> datetime | None:
-    """Extract and parse end_time from state dict."""
+    """Extract and parse end_time from state dict.
+
+    Returns naive datetime for local-time comparison with datetime.now().
+    """
     end_time_str = state.get('end_time')
     if not end_time_str:
         return None
     try:
-        return datetime.fromisoformat(end_time_str)
+        dt = datetime.fromisoformat(end_time_str)
+        # Strip timezone if present — all comparisons use naive local time
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        return dt
     except (ValueError, TypeError):
         return None
 

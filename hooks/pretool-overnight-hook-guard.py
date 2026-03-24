@@ -24,7 +24,11 @@ from pathlib import Path
 
 
 def _is_session_live(state: dict) -> bool:
-    """Check if session is still live (not complete and end_time passed)."""
+    """Check if session is still live (not complete and end_time not passed).
+
+    Naive datetimes are compared with datetime.now() (local time).
+    Aware datetimes are compared with datetime.now(timezone.utc).
+    """
     from datetime import datetime, timezone
     phase = state.get("current_phase", "")
     if phase in ("complete", "completed"):
@@ -34,25 +38,53 @@ def _is_session_live(state: dict) -> bool:
         try:
             end_time = datetime.fromisoformat(end_time_str.replace("Z", "+00:00"))
             if end_time.tzinfo is None:
-                end_time = end_time.replace(tzinfo=timezone.utc)
-            if datetime.now(timezone.utc) > end_time:
-                return False
+                # Naive datetime: compare with local time (same convention as creation)
+                if datetime.now() > end_time:
+                    return False
+            else:
+                if datetime.now(timezone.utc) > end_time:
+                    return False
         except (ValueError, OSError):
             pass
     return True
 
 
+def _cleanup_expired_state(sf: Path, state: dict) -> None:
+    """Remove expired state file (session complete or end_time passed).
+
+    Safety: skip files modified within the last 60 seconds to avoid
+    racing with a session that is still writing its final state.
+    """
+    import time
+    try:
+        age = time.time() - sf.stat().st_mtime
+        if age < 60:
+            return  # Too fresh — might still be in use
+        sf.unlink()
+        sys.stderr.write(f'Cleaned up expired overnight state: {sf.name}\n')
+    except OSError:
+        pass
+
+
 def is_overnight_active() -> bool:
-    """Check if any overnight session is still live."""
+    """Check if any overnight session is still live. Auto-cleans expired ones."""
     project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
     state_files = list((project_dir / ".claude").glob("overnight-state-*.json"))
     if not state_files:
         return False
-    return any(
-        _is_session_live(json.loads(sf.read_text()))
-        for sf in state_files
-        if sf.stat().st_size > 0
-    )
+    any_live = False
+    for sf in state_files:
+        if sf.stat().st_size == 0:
+            continue
+        try:
+            state = json.loads(sf.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        if _is_session_live(state):
+            any_live = True
+        else:
+            _cleanup_expired_state(sf, state)
+    return any_live
 
 def get_overnight_state_for_session(project_dir: Path, session_id: str) -> dict | None:
     """Load overnight state file for the specific session."""

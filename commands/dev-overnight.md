@@ -632,11 +632,7 @@ To merge: git merge <worktree_branch>
 To discard: call ExitWorktree with action "remove"
 ```
 
-**Delete state file** to release time-lock:
-
-```bash
-rm -f .claude/overnight-state-<session_id>.json
-```
+**State file cleanup**: Automatic. The `pretool-overnight-hook-guard` auto-cleans expired state files on next hook invocation. No manual deletion needed.
 
 **Announce completion**:
 
@@ -698,9 +694,11 @@ The state file serves three purposes:
       "timestamp": "ISO-8601"
     }
   ],
+  "consecutive_clean_sweeps": 0,
+  "current_issue_iteration": 0,
   "worktree_path": "/path/to/worktree or null",
   "worktree_branch": "overnight-YYYYMMDD-<session_id_short> or null",
-  "schema_version": 4
+  "schema_version": 5
 }
 ```
 

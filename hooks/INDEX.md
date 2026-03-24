@@ -1,49 +1,74 @@
-# hooks Index
+# hooks
 
-Auto-generated folder inventory. Last updated: 2026-01-08T13:03:07Z
+*Last updated: 2026-03-24T22:43:06Z*
+**Total entries**: 61
+**Convention**: kebab
 
-## Purpose
-
-Git hooks and automation triggers
-
-## Structure
-
-- Total files: 26
-- Total subdirectories: 1
-
-## Files
-
-- `audit-slashcommand.sh` - !/bin/bash
-- `auto-commit.sh` - !/bin/bash
-- `checkpoint.sh` - !/bin/bash
-- `ensure-git-repo.sh` - !/bin/bash
-- `.env.example` - ============================================================================
-- `fswatch-manager.sh` - !/bin/bash
-- `git-fswatch.sh` - !/bin/bash
-- `hook-todo-injection.py` - !/usr/bin/env python3
-- `install-auto-sync.sh` - !/bin/bash
-- `install-git-hooks.sh` - !/bin/bash
-- `install-protection-all.sh` - !/bin/bash
-- `install.sh` - !/bin/bash
-- `post-commit-warn.sh` - !/bin/bash
-- `post_tool_use.sh` - !/bin/bash
-- `pre-commit-check.sh` - !/bin/bash
-- `pre_slashcommand_validate.sh` - !/bin/bash
-- `pre_tool_use_safety.sh` - !/bin/bash
-- `project-settings-template.json` - {
-- `protection-status.sh` - !/bin/bash
-- `pull.sh` - !/bin/bash
-- `push.sh` - !/bin/bash
-- `QUICKSTART.md` - 🚀 Quick Start Guide
-- `README-TODO-INJECTION.md` - Global Todo Injection Hook
-- `session_start.sh` - !/bin/bash
-- `smart-checkpoint.sh` - !/bin/bash
-- `start-fswatch-all.sh` - !/bin/bash
-
-## Subdirectories
-
-- `git-hooks/` (3 files)
+## Tree
+```
+hooks/
+├── doc_sync/
+│   ├── `claude.py` - CLAUDE.md auto-creation and patching.
+│   ├── `docker.py` - Parse docker-compose.yml and generate markdown table.
+│   ├── `extract.py` - Extract description from various file types.
+│   ├── `main.py` - Main entry point for doc-sync hook.
+│   ├── `patch.py` - Patch CLAUDE.md dynamic sections using AUTO markers.
+│   ├── `regen_index.py` - Regenerate INDEX.md for a directory.
+│   ├── `regen_readme.py` - Regenerate README.md for a directory.
+│   ├── `systemd.py` - Query systemctl for known services and generate markdown table.
+│   └── `tree.py` - Build directory trees for INDEX.md.
+├── git-hooks/
+│   ├── `post-commit-auto-push` - unknown file
+│   └── `pre-commit` - unknown file
+├── lib/
+│   └── `todo_canonical.py` - Shared canonical todo validation utilities
+├── `audit-slashcommand.sh` - audit-slashcommand.sh
+├── `auto-commit.sh` - ============================================================================
+├── `checkpoint.sh` - checkpoint.sh - Manual checkpoint command
+├── `ensure-git-repo.sh` - ============================================================================
+├── `fswatch-manager.sh` - fswatch-manager.sh - Manage git-fswatch instances
+├── `git-fswatch.sh` - git-fswatch.sh - Comprehensive Git file watcher using fswatch
+├── `git-fswatch@.service` - service file
+├── `hook-todo-injection.py` - Global PreToolUse Hook: Todo Injection for Slash Commands
+├── `install-auto-sync.sh` - install-auto-sync.sh - Quick installer for auto-sync features
+├── `install-git-hooks.sh` - install-git-hooks.sh - Install pre-commit hooks into git repositories
+├── `install-protection-all.sh` - install-protection-all.sh - Automatically install protection for all git repos
+├── `install.sh` - ============================================================================
+├── `post-commit-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
+├── `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
+├── `posttool-doc-sync.py` - PostToolUse Hook: Auto-sync INDEX.md and CLAUDE.md when structural files change
+├── `posttool-git-checkpoint.sh` - smart-checkpoint.sh - Intelligent auto-checkpoint system
+├── `posttool-git-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
+├── `posttool-overnight-loop.py` - PostToolUse:TodoWrite Hook: Overnight Loop Detection
+├── `posttool-todo-count.py` - PostToolUse Hook: Enforce canonical todo count immediately after TodoWrite
+├── `posttool-todo-sequence.py` - PostToolUse Hook: Enforce one-step-at-a-time progression in workflow checklists
+├── `posttool-todo-tracker.py` - PostToolUse Hook: Output checklist progress after every TodoWrite call
+├── `pre-commit-check.sh` - pre-commit-check.sh - Detect untracked files before commit
+├── `pre_slashcommand_validate.sh` - pre_slashcommand_validate.sh
+├── `pre_tool_use_safety.sh` - PreToolUse Safety Hook - Warn before dangerous operations
+├── `pretool-bash-safety.sh` - PreToolUse Safety Hook - Warn or block before dangerous operations
+├── `pretool-overnight-hook-guard.py` - PreToolUse Hook: Overnight session file modification guard
+├── `pretool-quality-gate.py` - PreToolUse Hook: Quality gate for Write/Edit operations
+├── `pretool-todo-validate.py` - PreToolUse Hook: Validate TodoWrite input BEFORE execution
+├── `pretool-workflow-gate.py` - PreToolUse Hook: Require TodoWrite/TodoRead acknowledgment before other tools
+├── `pretool-worktree-guard.sh` - PreToolUse hook: Detect stale agent worktrees before ANY tool call
+├── `project-settings-template.json` - json config
+├── `prompt-workflow.py` - UserPromptSubmit Hook: Checklist Injection for Slash Commands
+├── `protection-status.sh` - protection-status.sh - Display protection status for all git repositories
+├── `pull.sh` - pull.sh - Executable version of /pull command
+├── `push.sh` - push.sh - Executable version of /push command
+├── `QUICKSTART.md` - 🚀 Quick Start Guide
+├── `README-TODO-INJECTION.md` - Global Todo Injection Hook
+├── `session-git-init.sh` - ============================================================================
+├── `session-info.sh` - s-info.sh — SessionStart: display environment info + tool quick reference
+├── `session_start.sh` - SessionStart Hook - Display working environment info
+├── `smart-checkpoint.sh` - smart-checkpoint.sh - Intelligent auto-checkpoint system
+├── `start-fswatch-all.sh` - start-fswatch-all.sh - Start fswatch monitoring for all important repositories
+├── `stop-git-commit.sh` - ============================================================================
+├── `stop-overnight-timelock.py` - Stop Hook: Block conversation termination until overnight end-time
+├── `stop-workflow-enforce.py` - Stop Hook: Enforce workflow structural integrity before allowing Claude to stop
+└── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
+```
 
 ---
-
-*This file is auto-generated by rule-inspector. Do not edit manually.*
+*Auto-generated by doc-sync hook.*

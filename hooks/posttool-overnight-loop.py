@@ -71,10 +71,25 @@ def _check_end_time(state: dict) -> datetime | None:
     return end_time
 
 
+def _mark_session_complete(state: dict, state_path: Path) -> None:
+    """Mark session as complete when end_time has expired."""
+    state['current_phase'] = 'complete'
+    tmp = state_path.with_suffix('.tmp')
+    try:
+        tmp.write_text(json.dumps(state, indent=2))
+        os.rename(str(tmp), str(state_path))
+    except Exception:
+        pass
+    print(f'OVERNIGHT SESSION COMPLETE: end_time reached. Cycles: {state.get("cycle_count", 0)}, Fixed: {state.get("issues_fixed", 0)}')
+    print('Generate your summary and finish up.')
+
+
 def _update_state_cycle(state: dict, state_path: Path) -> None:
-    """Increment cycle_count and reset phase in state file."""
+    """Increment cycle_count, reset phase and iteration tracking in state file."""
     state['cycle_count'] = state.get('cycle_count', 0) + 1
     state['current_phase'] = 'exploring'
+    state['current_issue'] = None
+    state['current_issue_iteration'] = 0
     tmp = state_path.with_suffix('.tmp')
     try:
         tmp.write_text(json.dumps(state, indent=2))
@@ -124,6 +139,7 @@ def main() -> None:
 
     end_time = _check_end_time(state)
     if end_time is None:
+        _mark_session_complete(state, state_path)
         sys.exit(0)
 
     _update_state_cycle(state, state_path)

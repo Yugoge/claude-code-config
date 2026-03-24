@@ -309,7 +309,7 @@ def _apply_ampm(hour: int, ampm: str | None) -> int:
 
 
 def create_overnight_state(end_time_iso: str, focus: str = '', session_id: str = 'default') -> bool:
-    """Atomically write overnight state with v4 schema (session-keyed)."""
+    """Atomically write overnight state with v5 schema (session-keyed)."""
     sid = session_id
     state = {
         'session_id': sid,
@@ -320,8 +320,10 @@ def create_overnight_state(end_time_iso: str, focus: str = '', session_id: str =
         'issues_skipped': 0, 'current_phase': 'initializing',
         'current_issue': None, 'failed_attempts': {},
         'addressed_issues': [], 'cycle_log': [],
+        'consecutive_clean_sweeps': 0,
+        'current_issue_iteration': 0,
         'worktree_path': None, 'worktree_branch': None,
-        'schema_version': 4,
+        'schema_version': 5,
     }
     sp = overnight_state_path(sid)
     tmp = sp.with_suffix('.tmp')
@@ -348,7 +350,7 @@ def load_overnight_state(session_id: str = '') -> dict | None:
 def _build_worktree_instruction(state: dict) -> str:
     """Build worktree guard instruction based on state."""
     wt = state.get('worktree_path')
-    if wt:
+    if wt is not None and wt != '':
         return (
             f'CRITICAL: Worktree already exists at {wt}. '
             'DO NOT call EnterWorktree under any circumstances.'
