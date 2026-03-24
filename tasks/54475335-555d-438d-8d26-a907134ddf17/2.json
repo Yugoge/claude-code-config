@@ -1,0 +1,9 @@
+{
+  "id": "2",
+  "subject": "Fix command prompt wrapper showing as system message",
+  "description": "When Claude processes a slash command (e.g., /commit), the command prompt text that gets sent to Claude should appear as a user message, not a system message",
+  "activeForm": "Fixing command prompt display",
+  "status": "pending",
+  "blocks": [],
+  "blockedBy": []
+}

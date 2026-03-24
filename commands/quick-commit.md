@@ -2,6 +2,7 @@
 description: Create a well-formatted git commit with auto-generated message
 argument-hint: [optional-message-prefix]
 allowed-tools: [Bash, Read, Grep]
+disable-model-invocation: true
 ---
 
 # Quick Commit

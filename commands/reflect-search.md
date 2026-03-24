@@ -1,6 +1,7 @@
 ---
 description: Reflection-driven iterative search with goal evaluation
 argument-hint: <search-goal>
+disable-model-invocation: true
 ---
 
 Execute reflection-driven search for: **$ARGUMENTS**

@@ -2,6 +2,7 @@
 description: Security vulnerability analysis and recommendations
 argument-hint: [file-path-or-directory]
 allowed-tools: [Read, Grep, Glob, Bash]
+disable-model-invocation: true
 ---
 
 # Security Vulnerability Check

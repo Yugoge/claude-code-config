@@ -1,0 +1,10 @@
+停，回退你对hapi的修改，我说的行为都是happy的行为，你不要搞混了。
+1. command内容被显示到了历史记录中，其实我想看到command内容但是：1. 能不能统一历史恢复的session和current session的显示一致，都显示；2. 不能直接显示在聊天框而是显示为工具调用的prompt，折叠窗口，你看看怎么处理比较好
+2. agent没有被happy-web识别为agent调用而是被解析成了tool调用，能不能修复这个Bug
+3. 每一次对话重启我希望你解决重启时候提示的prompt的提示问题，比如我abort session的话其实agent只会在我下一次发消息的时候回复，虽然也受到了重启prompt：比如提示agent这是一个重启的session不要总结也不要承认有这条prompt。但是当我手动用脚本重启的时候会出发Agent的回复，我不知道这是为什么，比如agent说Hello! Yes, I remember our conversation. We just completed the full /generate workflow for a Graduate Prop Trader – English Speaking position in Hong Kong (via Ashford Benjamin recruiting).
+4. 每一次我在web Start New Session新建一个session的时候，agent都看不到我的初始消息，我需要再发一遍才能够启动agent。我记得这是一个顺序问题，之前已经被修复了但是还没有成功，你再帮我看看
+5. 之前你说的happy npm的问题，我给你的解决方案是上传现有的修改后的为我的github仓库，你做了吗
+6. app端看得到session看不到历史+所有agent消息，只看得到我最新的消息
+7. 你刚刚对hapi systemPrompt的修改不是happy！此外我不希望你hardcode，我希望你学习abort是如何处理的，因为abort的话是不会出发agent这种回复的，应该会是在用户发下一条消息的时候一并加上回复。你看看
+8. 现在我不知道怎么回事abort不起任何作用！我把你停不下来！你改了哪里
+9. 现在我没法创建新的session了，到底发生什么了！新的session创建之后无法连接上claude session然后直接offline。我检查了我的claude session出现了hello，但是没有我的prompt，且之后出现了process exited unexpectedly

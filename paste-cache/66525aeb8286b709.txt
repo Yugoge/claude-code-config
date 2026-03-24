@@ -1,0 +1,16 @@
+<meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">
+inject.bundle.js:216 [ChromePolyfill] Chrome API support enabled for web context
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_01AnmP) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_012zQw) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_01AnmP) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_012zQw) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_015yUU) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_012LQt) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:196 [PermissionFooter] TodoWrite permission: null state: completed disabled: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_01Ar6s) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_017v23) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_01Xi3n) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_0165f9) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_01AnmP) showsPermissionFooter: false hasBody: false showInline: false
+index-CO-oFodU.js:204 [ToolCard] Bash state: completed permission: approved(toolu_012zQw) showsPermissionFooter: false hasBody: false showInline: false
+971274d8-0213-4722-8d04-b781b4c01855:1  Unchecked runtime.lastError: The message port closed before a response was received.

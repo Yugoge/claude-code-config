@@ -1,6 +1,7 @@
 ---
 description: Intelligent site navigation simulating "click-through" exploration
 argument-hint: <url> <task>
+disable-model-invocation: true
 ---
 
 Navigate **$1** to accomplish: **$2**

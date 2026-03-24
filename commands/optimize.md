@@ -2,6 +2,7 @@
 description: Analyze code for performance optimization opportunities
 argument-hint: [file-path]
 allowed-tools: [Read, Grep, Bash]
+disable-model-invocation: true
 ---
 
 # Performance Optimization Analysis

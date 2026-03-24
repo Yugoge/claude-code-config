@@ -2,6 +2,7 @@
 description: Suggest refactoring improvements for code quality
 argument-hint: [file-path]
 allowed-tools: [Read, Grep, Bash]
+disable-model-invocation: true
 ---
 
 # Refactoring Suggestions

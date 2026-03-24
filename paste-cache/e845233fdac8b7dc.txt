@@ -1,0 +1,16 @@
+root@life-ai:~# docker compose -f /root/deploy/docker-compose.yml down
+[+] Running 13/13
+ ✔ Container knowledge-web             Removed                                                                     0.5s
+ ✔ Container leadership-web            Removed                                                                     0.5s
+ ✔ Container cloudflared-lifeai        Removed                                                                     0.2s
+ ✔ Container apply-web                 Removed                                                                     0.7s
+ ✔ Container travel-web                Removed                                                                     0.5s
+ ✔ Container budget-web                Removed                                                                     0.6s
+ ✔ Container happy-web                 Removed                                                                     0.5s
+ ✔ Container happy-server              Removed                                                                     0.6s
+ ✔ Container happy-postgres            Removed                                                                     0.5s
+ ✔ Container happy-redis               Removed                                                                     0.5s
+ ✔ Container happy-minio               Removed                                                                     0.4s
+ ✔ Network happy-server_happy-network  Removed                                                                     0.3s
+ ✔ Network happy-server_default        Removed                                                                     0.2s
+root@life-ai:~#

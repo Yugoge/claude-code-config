@@ -2,6 +2,7 @@
 description: Deep explanation of code functionality and design
 argument-hint: [file-path-or-function-name]
 allowed-tools: [Read, Grep, Glob]
+disable-model-invocation: true
 ---
 
 # Code Explanation

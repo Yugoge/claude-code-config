@@ -1,0 +1,698 @@
+{
+  "numStartups": 223,
+  "installMethod": "global",
+  "autoUpdates": true,
+  "hasSeenTasksHint": true,
+  "tipsHistory": {
+    "new-user-warmup": 5,
+    "terminal-setup": 219,
+    "memory-command": 206,
+    "theme-command": 215,
+    "status-line": 216,
+    "prompt-queue": 8,
+    "enter-to-steer-in-relatime": 204,
+    "todo-list": 202,
+    "# for memory": 172,
+    "install-github-app": 215,
+    "drag-and-drop-images": 161,
+    "double-esc": 10,
+    "continue": 216,
+    "permissions": 218,
+    "custom-commands": 211,
+    "shift-tab": 217,
+    "image-paste": 206,
+    "custom-agents": 211,
+    "plan-mode-for-complex-tasks": 219,
+    "ide-upsell-external-terminal": 217,
+    "double-esc-code-restore": 215,
+    "tab-toggle-thinking": 173,
+    "ultrathink-keyword": 160,
+    "git-worktrees": 218,
+    "stickers-command": 157,
+    "default-permission-mode-config": 217,
+    "colorterm-truecolor": 198,
+    "install-slack-app": 219,
+    "rename-conversation": 216,
+    "web-app": 216,
+    "mobile-app": 217,
+    "guest-passes": 219,
+    "agent-flag": 215
+  },
+  "promptQueueUseCount": 14,
+  "cachedStatsigGates": {
+    "tengu_disable_bypass_permissions_mode": false,
+    "tengu_tool_pear": false,
+    "tengu_migrate_ignore_patterns": false,
+    "tengu_halloween": false,
+    "tengu_web_tasks": false,
+    "tengu_prompt_suggestion": false
+  },
+  "cachedDynamicConfigs": {
+    "tengu-top-of-feed-tip": {
+      "tip": "",
+      "color": "dim"
+    }
+  },
+  "firstStartTime": "2025-09-11T23:47:59.408Z",
+  "userID": "f5db3d7308af283db89fa659685e35f7354b36bca057b76ab6b5c65479a529cf",
+  "projects": {
+    "/root/claude-agent": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false
+    },
+    "/root": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {
+        "playwright": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@playwright/mcp",
+            "--isolated",
+            "--headless",
+            "--browser",
+            "chrome",
+            "--no-sandbox",
+            "--output-dir",
+            ".playwright-mcp"
+          ],
+          "env": {}
+        }
+      },
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 4,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "lastTotalWebSearchRequests": 0,
+      "exampleFiles": [
+        "index.js",
+        "server.js",
+        "app.js",
+        "config.js",
+        "routes.js"
+      ],
+      "exampleFilesGeneratedAt": 1765376754677,
+      "reactVulnerabilityCache": {
+        "detected": false,
+        "package": null,
+        "packageName": null,
+        "version": null,
+        "packageManager": null
+      },
+      "lastAPIDurationWithoutRetries": 9133,
+      "lastModelUsage": {
+        "claude-haiku-4-5-20251001": {
+          "inputTokens": 559,
+          "outputTokens": 56,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "webSearchRequests": 0,
+          "costUSD": 0.000839
+        },
+        "claude-sonnet-4-5": {
+          "inputTokens": 10,
+          "outputTokens": 296,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 26240,
+          "webSearchRequests": 0,
+          "costUSD": 0.17145000000000002
+        }
+      },
+      "lastCost": 0.17228900000000003,
+      "lastAPIDuration": 9141,
+      "lastToolDuration": 0,
+      "lastDuration": 2810692,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 569,
+      "lastTotalOutputTokens": 352,
+      "lastTotalCacheCreationInputTokens": 26240,
+      "lastTotalCacheReadInputTokens": 0,
+      "lastSessionId": "65ca07e6-6de2-45e4-bdbc-1fa9ab076182",
+      "lastFpsAverage": 0.1,
+      "lastFpsLow1Pct": 55.17,
+      "lastSessionMetrics": {
+        "frame_duration_ms_count": 179,
+        "frame_duration_ms_min": 0.09265299999970011,
+        "frame_duration_ms_max": 19.045192000001407,
+        "frame_duration_ms_avg": 3.136278458101756,
+        "frame_duration_ms_p50": 2.3317260000003444,
+        "frame_duration_ms_p95": 7.559632999999302,
+        "frame_duration_ms_p99": 13.539948660001285
+      }
+    },
+    "/root/multi-asset-portfolio": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {
+        "playwright": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@playwright/mcp",
+            "--isolated",
+            "--headless",
+            "--browser",
+            "chrome",
+            "--no-sandbox",
+            "--output-dir",
+            ".playwright-mcp"
+          ],
+          "env": {}
+        }
+      },
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 4,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "lastTotalWebSearchRequests": 0,
+      "exampleFiles": [
+        "cache_manager.py",
+        "models.py",
+        "fetch_erp_data.py",
+        "save_metric_decision.py",
+        "fear_greed_index.py"
+      ],
+      "exampleFilesGeneratedAt": 1770375707685
+    },
+    "/root/application_assistant": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 4,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "logging.py",
+        "automation.py",
+        "linkedin_easy_apply.py",
+        "cover_letter.py",
+        "resume.py"
+      ],
+      "exampleFilesGeneratedAt": 1768327068740,
+      "lastTotalWebSearchRequests": 0
+    },
+    "/root/.claude": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "cleanliness-inspector.md",
+        "clean.md",
+        "validate-venv-usage.py",
+        "orchestrator.sh",
+        "dev.md"
+      ],
+      "exampleFilesGeneratedAt": 1768929027111,
+      "hasCompletedProjectOnboarding": true,
+      "lastTotalWebSearchRequests": 0
+    },
+    "/root/.claude/.dev/worktree/brave-valley": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "CLAUDE.md",
+        "index.js",
+        "app.py",
+        "user.js",
+        "main.cpp"
+      ],
+      "exampleFilesGeneratedAt": 1761471741448
+    },
+    "/root/excel-analyzer": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 1,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false
+    },
+    "/root/knowledge-system": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {
+        "memory-server": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@modelcontextprotocol/server-memory"
+          ],
+          "env": {}
+        },
+        "playwright": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@playwright/mcp",
+            "--isolated",
+            "--headless",
+            "--browser",
+            "chrome",
+            "--no-sandbox",
+            "--output-dir",
+            ".playwright-mcp"
+          ],
+          "env": {}
+        }
+      },
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 4,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "hook-counter.json",
+        "schedule.json",
+        "backlinks.json",
+        "playwright-stealth-wrapper.sh",
+        "workflow_orchestrator.py"
+      ],
+      "exampleFilesGeneratedAt": 1771919046983,
+      "lastTotalWebSearchRequests": 0,
+      "reactVulnerabilityCache": {
+        "detected": false,
+        "package": null,
+        "packageName": null,
+        "version": null,
+        "packageManager": null
+      },
+      "lastCost": 0.17733999999999997,
+      "lastAPIDuration": 17516,
+      "lastAPIDurationWithoutRetries": 17509,
+      "lastToolDuration": 0,
+      "lastDuration": 29712,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 176695,
+      "lastTotalOutputTokens": 129,
+      "lastTotalCacheCreationInputTokens": 0,
+      "lastTotalCacheReadInputTokens": 0,
+      "lastModelUsage": {
+        "claude-haiku-4-5-20251001": {
+          "inputTokens": 176695,
+          "outputTokens": 129,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "webSearchRequests": 0,
+          "costUSD": 0.17733999999999997
+        }
+      },
+      "lastSessionId": "120d70a0-1144-4c68-abfa-2e0197f87ead"
+    },
+    "/root/happy-server": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "ignorePatterns": [],
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "api.ts",
+        "schema.prisma",
+        "eventRouter.ts",
+        "types.ts",
+        "socket.ts"
+      ],
+      "hasCompletedProjectOnboarding": true,
+      "lastTotalWebSearchRequests": 0,
+      "exampleFilesGeneratedAt": 1770160376618
+    },
+    "/root/budget-management": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {
+        "playwright": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@playwright/mcp",
+            "--isolated",
+            "--headless",
+            "--browser",
+            "chrome",
+            "--no-sandbox",
+            "--output-dir",
+            ".playwright-mcp"
+          ],
+          "env": {}
+        }
+      },
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 3,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "transaction_extractor.py",
+        "generate_asset_tracker.py",
+        "merchant_lookup.py",
+        "asset-tracker.html",
+        "transaction_cache.json"
+      ],
+      "exampleFilesGeneratedAt": 1772364121194,
+      "reactVulnerabilityCache": {
+        "detected": false,
+        "package": null,
+        "packageName": null,
+        "version": null,
+        "packageManager": null
+      },
+      "lastCost": 0.000722,
+      "lastAPIDuration": 1014,
+      "lastAPIDurationWithoutRetries": 1011,
+      "lastToolDuration": 0,
+      "lastDuration": 212347,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 547,
+      "lastTotalOutputTokens": 35,
+      "lastTotalCacheCreationInputTokens": 0,
+      "lastTotalCacheReadInputTokens": 0,
+      "lastTotalWebSearchRequests": 0,
+      "lastModelUsage": {
+        "claude-haiku-4-5-20251001": {
+          "inputTokens": 547,
+          "outputTokens": 35,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "webSearchRequests": 0,
+          "costUSD": 0.000722
+        }
+      },
+      "lastSessionId": "98c29d81-f63e-4426-8f69-de94eecb2f43",
+      "lastSessionMetrics": {
+        "frame_duration_ms_count": 36,
+        "frame_duration_ms_min": 1.7934649999951944,
+        "frame_duration_ms_max": 1657.9315390000002,
+        "frame_duration_ms_avg": 86.14711197222178,
+        "frame_duration_ms_p50": 4.105407999999443,
+        "frame_duration_ms_p95": 517.2248837500001,
+        "frame_duration_ms_p99": 1285.9295043999987,
+        "hook_duration_ms_count": 2,
+        "hook_duration_ms_min": 208,
+        "hook_duration_ms_max": 1017,
+        "hook_duration_ms_avg": 612.5,
+        "hook_duration_ms_p50": 612.5,
+        "hook_duration_ms_p95": 976.55,
+        "hook_duration_ms_p99": 1008.91
+      },
+      "lastFpsAverage": 0.38,
+      "lastFpsLow1Pct": 0.6
+    },
+    "/root/application-assistant": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 1,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "generate.md",
+        "apply_resume_template.py",
+        "check_resume_quality.py",
+        "optimize_resume_layout.py",
+        "convert_to_pdf.py"
+      ],
+      "exampleFilesGeneratedAt": 1770238211605,
+      "reactVulnerabilityCache": {
+        "detected": false,
+        "package": null,
+        "packageName": null,
+        "version": null,
+        "packageManager": null
+      },
+      "lastCost": 0,
+      "lastAPIDuration": 0,
+      "lastAPIDurationWithoutRetries": 0,
+      "lastToolDuration": 0,
+      "lastDuration": 8578,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 0,
+      "lastTotalOutputTokens": 0,
+      "lastTotalCacheCreationInputTokens": 0,
+      "lastTotalCacheReadInputTokens": 0,
+      "lastTotalWebSearchRequests": 0,
+      "lastFpsAverage": 4.16,
+      "lastFpsLow1Pct": 25.87,
+      "lastModelUsage": {},
+      "lastSessionId": "b54debc8-193a-4c56-a7f1-ac06289e3384"
+    },
+    "/root/travel-planner": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 3,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "reactVulnerabilityCache": {
+        "detected": false,
+        "package": null,
+        "packageName": null,
+        "version": null,
+        "packageManager": null
+      },
+      "lastCost": 0,
+      "lastAPIDuration": 0,
+      "lastAPIDurationWithoutRetries": 0,
+      "lastToolDuration": 0,
+      "lastDuration": 15634,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 0,
+      "lastTotalOutputTokens": 0,
+      "lastTotalCacheCreationInputTokens": 0,
+      "lastTotalCacheReadInputTokens": 0,
+      "lastTotalWebSearchRequests": 0,
+      "lastFpsAverage": 2.65,
+      "lastFpsLow1Pct": 5.64,
+      "lastModelUsage": {},
+      "lastSessionId": "930173ab-f603-4dbb-b865-5e882b5d8d09",
+      "exampleFiles": [
+        "generate-html-interactive.py",
+        "attractions.json",
+        "timeline.json",
+        "fetch-images-batch.py",
+        "accommodation.json"
+      ],
+      "exampleFilesGeneratedAt": 1771611580315
+    }
+  },
+  "claudeCodeFirstTokenDate": "2025-06-26T14:07:40.624226Z",
+  "hasCompletedOnboarding": true,
+  "lastOnboardingVersion": "2.0.30",
+  "hasOpusPlanDefault": false,
+  "subscriptionNoticeCount": 0,
+  "hasAvailableSubscription": false,
+  "s1mAccessCache": {
+    "c4bdf953-2408-40db-8c99-4c5d2a4397be": {
+      "hasAccess": false,
+      "hasAccessNotAsDefault": false,
+      "timestamp": 1763364945516
+    },
+    "0054f5b6-3ae2-450b-9b78-575b4edf6576": {
+      "hasAccess": false,
+      "hasAccessNotAsDefault": false,
+      "timestamp": 1763395093179
+    },
+    "336318a9-373a-498f-a408-f362d9c5a9fa": {
+      "hasAccess": false,
+      "hasAccessNotAsDefault": false,
+      "timestamp": 1772023422085
+    }
+  },
+  "isQualifiedForDataSharing": false,
+  "fallbackAvailableWarningThreshold": 0.5,
+  "changelogLastFetched": 1772364375429,
+  "lastReleaseNotesSeen": "2.1.63",
+  "sonnet45MigrationComplete": true,
+  "mcpServers": {
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp",
+        "--api-key",
+        "ctx7sk-e89e1f4c-560f-4ba5-b693-44f6f6797f2e"
+      ],
+      "env": {}
+    }
+  },
+  "lastPlanModeUse": 1762163902257,
+  "feedbackSurveyState": {
+    "lastShownTime": 1762108832751
+  },
+  "passesEligibilityCache": {
+    "336318a9-373a-498f-a408-f362d9c5a9fa": {
+      "eligible": true,
+      "referral_code_details": {
+        "code": "W96mndgx2Q",
+        "campaign": "claude_code_guest_pass_a47c",
+        "referral_link": "https://claude.ai/referral/W96mndgx2Q"
+      },
+      "referrer_reward": {
+        "amount_minor_units": 4500,
+        "currency": "EUR"
+      },
+      "remaining_passes": 3,
+      "timestamp": 1772441762527
+    }
+  },
+  "githubRepoPaths": {
+    "yugoge/knowledge-system": [
+      "/root/knowledge-system"
+    ],
+    "yugoge/multi-asset-portfolio": [
+      "/root/budget-management",
+      "/root/multi-asset-portfolio",
+      "/root"
+    ],
+    "yugoge/claude-code-config": [
+      "/root/.claude"
+    ],
+    "slopus/happy-server": [
+      "/root/happy-server"
+    ],
+    "yugoge/happy-server": [
+      "/root/happy-server"
+    ],
+    "yugoge/budget-management": [
+      "/root/budget-management"
+    ],
+    "yugoge/life-ai-root": [
+      "/root"
+    ],
+    "yugoge/travel-planner-graph": [
+      "/root/travel-planner"
+    ],
+    "yugoge/application-assistant": [
+      "/root/application-assistant"
+    ]
+  },
+  "opus45MigrationComplete": true,
+  "hasShownOpus45Notice": {
+    "336318a9-373a-498f-a408-f362d9c5a9fa": true
+  },
+  "oauthAccount": {
+    "accountUuid": "2cde38bb-237d-490e-bbe3-aae3776151a1",
+    "emailAddress": "yugoge@gmail.com",
+    "organizationUuid": "336318a9-373a-498f-a408-f362d9c5a9fa",
+    "hasExtraUsageEnabled": true,
+    "displayName": "Yugo",
+    "organizationRole": "admin",
+    "workspaceRole": null,
+    "organizationName": "yugoge@gmail.com's Organization",
+    "organizationBillingType": "stripe_subscription",
+    "billingType": "stripe_subscription",
+    "accountCreatedAt": "2025-10-25T11:09:48.490455Z",
+    "subscriptionCreatedAt": "2025-11-17T15:56:46.902544Z"
+  },
+  "thinkingMigrationComplete": true,
+  "groveConfigCache": {
+    "2cde38bb-237d-490e-bbe3-aae3776151a1": {
+      "grove_enabled": true,
+      "timestamp": 1772364119259
+    }
+  },
+  "passesUpsellSeenCount": 4,
+  "officialMarketplaceAutoInstallAttempted": true,
+  "officialMarketplaceAutoInstalled": true,
+  "opusProMigrationComplete": true,
+  "cachedChromeExtensionInstalled": false,
+  "skillUsage": {
+    "dev": {
+      "usageCount": 262,
+      "lastUsedAt": 1772442974853
+    },
+    "equity-research": {
+      "usageCount": 6,
+      "lastUsedAt": 1769270827728
+    },
+    "ask": {
+      "usageCount": 58,
+      "lastUsedAt": 1772028491891
+    },
+    "push": {
+      "usageCount": 24,
+      "lastUsedAt": 1771166235997
+    },
+    "research-deep": {
+      "usageCount": 31,
+      "lastUsedAt": 1772028564835
+    },
+    "daily-brief": {
+      "usageCount": 2,
+      "lastUsedAt": 1768990493601
+    },
+    "save": {
+      "usageCount": 27,
+      "lastUsedAt": 1772023989863
+    },
+    "clean": {
+      "usageCount": 50,
+      "lastUsedAt": 1771899314891
+    },
+    "generate": {
+      "usageCount": 37,
+      "lastUsedAt": 1772178550688
+    },
+    "review": {
+      "usageCount": 31,
+      "lastUsedAt": 1772099654361
+    },
+    "convert": {
+      "usageCount": 35,
+      "lastUsedAt": 1772443115068
+    },
+    "graph": {
+      "usageCount": 15,
+ 

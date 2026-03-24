@@ -1,3 +1,8 @@
+---
+description: "Push Command"
+disable-model-invocation: true
+---
+
 # Push Command
 
 Execute validated git push with untracked file detection and optional auto-staging.

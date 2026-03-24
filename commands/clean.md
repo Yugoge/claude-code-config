@@ -1,5 +1,6 @@
 ---
 description: Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
+disable-model-invocation: true
 ---
 
 # Clean Command Orchestrator
@@ -128,9 +129,13 @@ Run rule-inspector to update folder documentation with recent changes:
 # Discover all folders dynamically
 FOLDERS=$(~/.claude/scripts/discover-folders.sh "$PROJECT_ROOT")
 
-echo "Running rule inspection with freshness check..." >&2
+# MANDATORY: Run freshness check BEFORE invoking agent
+FRESHNESS=$(~/.claude/scripts/check-readme-freshness.sh "$PROJECT_ROOT")
+echo "$FRESHNESS" > "docs/clean/freshness-${REQUEST_ID}.json"
+echo "Freshness data collected:" >&2
+echo "$FRESHNESS" | jq -r '.[] | "\(.folder): \(.action) (stale \(.stale_days) days, \(.file_count) files)"' >&2
 
-# Create context for rule-inspector
+# Create context for rule-inspector (includes freshness data)
 RULE_CONTEXT="docs/clean/rule-context-${REQUEST_ID}.json"
 
 jq -n \
@@ -138,6 +143,7 @@ jq -n \
   --arg timestamp "$TIMESTAMP" \
   --arg project_root "$PROJECT_ROOT" \
   --argjson folders "$(echo "$FOLDERS" | jq -R . | jq -s .)" \
+  --argjson freshness "$FRESHNESS" \
   '{
     request_id: $request_id,
     timestamp: $timestamp,
@@ -159,10 +165,11 @@ jq -n \
     parameters: {
       freshness_check: true,
       update_stale_readmes: true
-    }
+    },
+    readme_freshness: $freshness
   }' > "$RULE_CONTEXT"
 
-# Invoke rule-inspector subagent with freshness check
+# Invoke rule-inspector subagent with freshness data
 ~/.claude/scripts/orchestrator.sh rule-inspect "$RULE_CONTEXT"
 
 echo "✅ Rule inspection completed - READMEs updated with recent changes" >&2
@@ -171,6 +178,22 @@ echo "✅ Rule inspection completed - READMEs updated with recent changes" >&2
 if [[ ! -f "docs/clean/rule-context-${REQUEST_ID}.json" ]]; then
   echo "❌ ERROR: Rule inspection failed! Cannot proceed to cleanliness inspection." >&2
   exit 1
+fi
+
+# VERIFICATION: Check that stale READMEs were actually modified
+STALE_FOLDERS=$(echo "$FRESHNESS" | jq -r '.[] | select(.action != "FRESH") | .folder')
+if [[ -n "$STALE_FOLDERS" ]]; then
+  for folder in $STALE_FOLDERS; do
+    README_PATH="$PROJECT_ROOT/$folder/README.md"
+    [[ "$folder" == "." ]] && README_PATH="$PROJECT_ROOT/README.md"
+    if [[ -f "$README_PATH" ]]; then
+      MODIFIED_AFTER=$(stat -c %Y "$README_PATH")
+      SCRIPT_START=$(date -d "$TIMESTAMP" +%s 2>/dev/null || echo 0)
+      if [[ $MODIFIED_AFTER -lt $SCRIPT_START ]]; then
+        echo "⚠️  WARNING: $folder/README.md was marked $( echo "$FRESHNESS" | jq -r --arg f "$folder" '.[] | select(.folder==$f) | .action') but was NOT updated by agent" >&2
+      fi
+    fi
+  done
 fi
 ```
 

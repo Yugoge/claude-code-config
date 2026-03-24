@@ -1,4 +1,5 @@
 ---
+name: ba
 description: "Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context)."
 ---
 
@@ -105,6 +106,13 @@ Then return JSON to stdout:
 ---
 
 ## Analysis Process
+
+### Step 0: Dedup Check
+
+Before any analysis, check if this issue was already addressed:
+1. Read the overnight state file (if provided in codebase hints) for `addressed_issues`
+2. Check `docs/dev/` for existing BA specs with similar keywords
+3. If the issue is already addressed, return `{"status": "duplicate", "existing": "<matching issue>"}`
 
 ### Step 1: Parse and Decompose Requirement
 

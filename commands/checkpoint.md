@@ -1,3 +1,8 @@
+---
+description: "Checkpoint Command"
+disable-model-invocation: true
+---
+
 # Checkpoint Command
 
 Quick save current progress with automatic commit and push.
