@@ -28,10 +28,20 @@ from pathlib import Path
 PROJECT_DIR = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
 
 
-def overnight_state_path(session_id: str = '') -> Path:
+def overnight_state_path(session_id: str = 'default') -> Path:
     """Path to the overnight state file (keyed by session_id for multi-session)."""
-    sid = session_id or os.environ.get('CLAUDE_SESSION_ID', 'default')
-    return PROJECT_DIR / '.claude' / f'overnight-state-{sid}.json'
+    return PROJECT_DIR / '.claude' / f'overnight-state-{session_id}.json'
+
+
+def _is_active_state(state: dict) -> bool:
+    """Return True if state has a future end_time."""
+    et = state.get('end_time')
+    if not et:
+        return False
+    try:
+        return datetime.fromisoformat(et) > datetime.now()
+    except (ValueError, TypeError):
+        return False
 
 
 def find_any_overnight_state() -> tuple:
@@ -40,11 +50,10 @@ def find_any_overnight_state() -> tuple:
     for p in sorted(claude_dir.glob('overnight-state-*.json')):
         try:
             state = json.loads(p.read_text())
-            et = state.get('end_time')
-            if et and datetime.fromisoformat(et) > datetime.now():
-                return state, p
         except Exception:
             continue
+        if _is_active_state(state):
+            return state, p
     return None, None
 
 
@@ -299,9 +308,9 @@ def _apply_ampm(hour: int, ampm: str | None) -> int:
     return hour
 
 
-def create_overnight_state(end_time_iso: str, focus: str = '') -> bool:
+def create_overnight_state(end_time_iso: str, focus: str = '', session_id: str = 'default') -> bool:
     """Atomically write overnight state with v4 schema (session-keyed)."""
-    sid = os.environ.get('CLAUDE_SESSION_ID', 'default')
+    sid = session_id
     state = {
         'session_id': sid,
         'end_time': end_time_iso,
@@ -462,7 +471,7 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     _write_bookmark(cmd_name, sid)
     if cmd_name == 'dev-overnight':
         end_time, focus = parse_overnight_args(user_input)
-        create_overnight_state(end_time, focus)
+        create_overnight_state(end_time, focus, session_id=sid)
     emit_checklist_message(cmd_name, todos)
 
 

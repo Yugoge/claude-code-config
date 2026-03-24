@@ -6,6 +6,7 @@ Fires after every TodoWrite call. Checks if:
 1. This is a dev-overnight workflow (overnight-state.json exists)
 2. ALL todos have status "completed"
 3. end_time is still in the future
+4. session_id matches the overnight state file
 
 If all conditions met: increments cycle_count in state, prints
 continuation instructions telling the agent to reset its own todos
@@ -30,17 +31,30 @@ def _all_completed(data: dict) -> bool:
     return all(t.get('status') == 'completed' for t in todos)
 
 
-def _load_overnight_state() -> tuple[dict | None, Path]:
-    """Load overnight state. Scans overnight-state-*.json files."""
+def _try_load_json(path: Path) -> dict | None:
+    """Attempt to load JSON from a file path. Returns None on failure."""
+    try:
+        return json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _load_overnight_state(session_id: str) -> tuple[dict | None, Path]:
+    """Load overnight state, preferring exact session_id match."""
     project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
     claude_dir = project_dir / '.claude'
+    # Prefer exact match for this session
+    if session_id:
+        exact = claude_dir / f'overnight-state-{session_id}.json'
+        state = _try_load_json(exact)
+        if state:
+            return state, exact
+    # Fallback: scan all state files (backward compat)
     for p in sorted(claude_dir.glob('overnight-state-*.json')):
-        try:
-            state = json.loads(p.read_text())
+        state = _try_load_json(p)
+        if state:
             return state, p
-        except Exception:
-            continue
-    return None, claude_dir / 'overnight-state-unknown.json' 
+    return None, claude_dir / 'overnight-state-unknown.json'
 
 
 def _check_end_time(state: dict) -> datetime | None:
@@ -98,8 +112,14 @@ def main() -> None:
     if not _all_completed(data):
         sys.exit(0)
 
-    state, state_path = _load_overnight_state()
+    session_id = data.get('session_id', '')
+    state, state_path = _load_overnight_state(session_id)
     if state is None:
+        sys.exit(0)
+
+    # Only inject loop instructions for the matching overnight session
+    state_session_id = state.get('session_id', '')
+    if state_session_id and state_session_id != session_id:
         sys.exit(0)
 
     end_time = _check_end_time(state)
