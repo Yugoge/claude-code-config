@@ -178,10 +178,12 @@ Launch 4 Agent tool calls simultaneously:
    Write report to: docs/dev/overnight/<session_id>/ui-specialist-report.json
 
 Each subagent receives ONLY:
-- Project path: <project_path>
+- Project path: <worktree_path from state file if set, otherwise project_path>
 - Already addressed: <addressed_issues array from state file>
 - Focus: <focus string from state file, or "none">
 - Output report to: <path above>
+
+**NOTE**: Always use `worktree_path` as the project path when it is set in the state file. Subagents must scan and report on files inside the worktree, not the main project directory.
 ```
 
 **Wait for all 4 subagents to complete** before proceeding.
@@ -277,17 +279,19 @@ Use Agent tool with:
   Previous answers: null
   Codebase hints: <file paths from the issue report>
   Timestamp: <YYYYMMDD-HHMMSS>
+  Project root: <worktree_path from state file if set, otherwise project root>
 
   This is a self-discovered issue from overnight exploration.
   No clarification is needed -- proceed directly to analysis.
+  All file operations and git analysis must use paths inside the project root above.
 
   Perform full analysis:
   1. Parse and decompose requirement
   2. Perform git root cause analysis (if applicable)
   3. Identify affected files
   4. Generate MoSCoW requirements and BDD acceptance criteria
-  5. Write ba-spec-<timestamp>.md to docs/dev/
-  6. Write context-<timestamp>.json to docs/dev/
+  5. Write ba-spec-<timestamp>.md to docs/dev/ (inside project root)
+  6. Write context-<timestamp>.json to docs/dev/ (inside project root)
 
   Return JSON with status, file paths, and summary.
   "
@@ -334,6 +338,10 @@ Use Agent tool with:
   Context file: docs/dev/context-<timestamp>.json
   BA spec file: docs/dev/ba-spec-<timestamp>.md
   Write your implementation report to: docs/dev/dev-report-overnight-<cycle>.json
+  Project root: <worktree_path from state file if set, otherwise project root>
+
+  IMPORTANT: All file reads, writes, and git operations must use absolute paths
+  inside the project root above. Do not modify files in the main project directory.
   "
 ```
 
@@ -377,6 +385,10 @@ Use Agent tool with:
   Dev report file: docs/dev/dev-report-overnight-<cycle>.json
   BA spec file: docs/dev/ba-spec-<timestamp>.md
   Write your verification report to: docs/dev/qa-report-overnight-<cycle>.json
+  Project root: <worktree_path from state file if set, otherwise project root>
+
+  IMPORTANT: All file reads and verification must use the project root above.
+  Verify that changes were made inside the worktree, not the main project.
   "
 ```
 

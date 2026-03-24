@@ -89,6 +89,13 @@ def main():
     if state is None:
         sys.exit(0)
 
+    # Only block the overnight session itself — not other agents in the same project.
+    # If CLAUDE_SESSION_ID is set and doesn't match the state file's session_id, allow stop.
+    current_session_id = os.environ.get('CLAUDE_SESSION_ID', '')
+    state_session_id = state.get('session_id', '')
+    if current_session_id and state_session_id and current_session_id != state_session_id:
+        sys.exit(0)
+
     end_time = parse_end_time(state)
     if end_time is None:
         sys.exit(0)
