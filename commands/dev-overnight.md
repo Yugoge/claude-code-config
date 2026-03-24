@@ -67,6 +67,22 @@ Step 1: Create worktree (first run only)
 
 ---
 
+## Arguments
+
+```
+/dev-overnight [end-time] [focus]
+```
+
+**Examples**:
+- `/dev-overnight 6:00` — run until 6:00, no focus (explore everything)
+- `/dev-overnight 6:00 applio UI bugs` — run until 6:00, prioritize applio UI bugs
+- `/dev-overnight fix hooks` — default 8h, focus on hooks issues
+- `/dev-overnight` — default 8h, no focus
+
+The `focus` string is stored in the state file and passed to all 4 specialist subagents as a priority hint. Issues matching the focus are ranked higher in Step 3.
+
+---
+
 ## Implementation
 
 ### Step 1: Create Worktree
@@ -164,6 +180,7 @@ Launch 4 Agent tool calls simultaneously:
 Each subagent receives ONLY:
 - Project path: <project_path>
 - Already addressed: <addressed_issues array from state file>
+- Focus: <focus string from state file, or "none">
 - Output report to: <path above>
 ```
 
@@ -229,11 +246,12 @@ Each subagent receives ONLY:
 3. Filter out any issue already in `addressed_issues` from state file
 
 **Prioritization rules** (in order):
-1. Critical severity first
-2. Then major severity
-3. Among same severity, prefer small effort (quick wins)
-4. Among same severity and effort, prefer issues flagged by multiple agents
-5. Skip any issue that has failed 3 times (check `failed_attempts`)
+1. If `focus` is set in state file: boost issues whose description/location matches the focus string
+2. Critical severity first
+3. Then major severity
+4. Among same severity, prefer small effort (quick wins)
+5. Among same severity and effort, prefer issues flagged by multiple agents
+6. Skip any issue that has failed 3 times (check `failed_attempts`)
 
 **Select ONE issue**. Update state file:
 - Set `current_issue` to the issue description
@@ -647,6 +665,7 @@ The state file serves three purposes:
   "session_id": "string (from $CLAUDE_SESSION_ID or UUID)",
   "end_time": "ISO-8601 datetime",
   "start_time": "ISO-8601 datetime",
+  "focus": "string (priority hint from user, or empty)",
   "cycle_count": 0,
   "issues_found": 0,
   "issues_fixed": 0,
