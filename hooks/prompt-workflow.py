@@ -244,14 +244,28 @@ def format_progress(
 
 # --- Overnight helpers ---
 
-def parse_overnight_endtime(prompt_text: str) -> str:
-    """Extract HH:MM from /dev-overnight args, return ISO end time."""
+def parse_overnight_args(prompt_text: str) -> tuple[str, str]:
+    """Extract end-time and focus from /dev-overnight args.
+
+    Formats:
+      /dev-overnight 6:00                    -> (end_time, '')
+      /dev-overnight 6:00 applio UI bugs     -> (end_time, 'applio UI bugs')
+      /dev-overnight applio UI bugs          -> (default 8h, 'applio UI bugs')
+    Returns (end_time_iso, focus_string).
+    """
     match = re.search(r'/dev-overnight\s+(.*)', prompt_text.strip())
     args = match.group(1).strip() if match else ''
     now = datetime.now()
     if not args:
-        return (now + timedelta(hours=8)).isoformat()
-    return _parse_time_arg(args, now)
+        return (now + timedelta(hours=8)).isoformat(), ''
+    time_match = re.match(
+        r'^(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\s*(.*)', args,
+    )
+    if time_match:
+        end_time = _parse_time_arg(time_match.group(1), now)
+        focus = time_match.group(2).strip()
+        return end_time, focus
+    return (now + timedelta(hours=8)).isoformat(), args
 
 
 def _parse_time_arg(args: str, now: datetime) -> str:
@@ -285,13 +299,14 @@ def _apply_ampm(hour: int, ampm: str | None) -> int:
     return hour
 
 
-def create_overnight_state(end_time_iso: str) -> bool:
+def create_overnight_state(end_time_iso: str, focus: str = '') -> bool:
     """Atomically write overnight state with v4 schema (session-keyed)."""
     sid = os.environ.get('CLAUDE_SESSION_ID', 'default')
     state = {
         'session_id': sid,
         'end_time': end_time_iso,
         'start_time': datetime.now().isoformat(),
+        'focus': focus,
         'cycle_count': 0, 'issues_found': 0, 'issues_fixed': 0,
         'issues_skipped': 0, 'current_phase': 'initializing',
         'current_issue': None, 'failed_attempts': {},
@@ -347,6 +362,7 @@ def build_overnight_continuation(state: dict) -> str:
         '--- CURRENT STATE ---', '',
         f'Phase: {phase} | Cycles: {cc} | Fixed: {state.get("issues_fixed", 0)}',
         f'End time: {state.get("end_time")} | Issue: {state.get("current_issue", "none")}',
+        f'Focus: {state.get("focus", "none")}',
         f'Last cycle: {last}', '',
         '--- CONTINUATION INSTRUCTIONS ---', '',
         'You are continuing an overnight session with FRESH context.',
@@ -445,8 +461,8 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     tf.write_text(json.dumps(todos, ensure_ascii=False))
     _write_bookmark(cmd_name, sid)
     if cmd_name == 'dev-overnight':
-        end_time = parse_overnight_endtime(user_input)
-        create_overnight_state(end_time)
+        end_time, focus = parse_overnight_args(user_input)
+        create_overnight_state(end_time, focus)
     emit_checklist_message(cmd_name, todos)
 
 
