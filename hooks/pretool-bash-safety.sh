@@ -92,10 +92,11 @@ if echo "$COMMAND" | grep -qE 'systemctl\s+(stop|restart)\s+'; then
   exit 2
 fi
 
-# Warn: recursive delete of non-tmp paths
-if echo "$COMMAND" | grep -qE 'rm\s+-[a-zA-Z]*r[a-zA-Z]*\s+' && ! echo "$COMMAND" | grep -qE '/tmp/'; then
-  echo "WARNING: Recursive delete detected outside /tmp — verify this is intentional" >&2
+# Block: rm command (all forms) — use dedicated tools or manual deletion
+if echo "$COMMAND" | grep -qE '(^|\s|;|&&|\|\|)rm\s'; then
+  echo "BLOCKED: rm is forbidden — delete files manually or ask the user" >&2
   echo "Command: $COMMAND" >&2
+  exit 2
 fi
 
 # Warn: force push
