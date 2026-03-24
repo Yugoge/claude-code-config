@@ -66,6 +66,68 @@ def _cleanup_expired_state(sf: Path, state: dict) -> None:
         pass
 
 
+def _get_active_worktree_paths() -> list[str]:
+    """Return worktree_paths from all live overnight sessions."""
+    project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
+    state_files = list((project_dir / ".claude").glob("overnight-state-*.json"))
+    paths = []
+    for sf in state_files:
+        if sf.stat().st_size == 0:
+            continue
+        try:
+            state = json.loads(sf.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        if _is_session_live(state):
+            wt = state.get("worktree_path", "")
+            if wt:
+                paths.append(wt)
+    return paths
+
+
+def _is_path_allowed_during_overnight(file_path: str, worktree_paths: list[str]) -> bool:
+    """Check if a file path is allowed during overnight (inside worktree or /tmp)."""
+    abs_path = os.path.realpath(os.path.abspath(file_path))
+    # /tmp is always allowed (temp files, reports staging)
+    if abs_path.startswith("/tmp/") or abs_path.startswith("/tmp"):
+        return True
+    # Inside any active worktree is allowed
+    for wt in worktree_paths:
+        abs_wt = os.path.realpath(os.path.abspath(wt))
+        if abs_path.startswith(abs_wt + os.sep) or abs_path == abs_wt:
+            return True
+    return False
+
+
+def apply_global_worktree_enforcement(tool_name: str, tool_input: dict, worktree_paths: list[str]) -> None:
+    """Block ALL sessions from writing outside active overnight worktrees.
+
+    This catches subagents that have different session_ids from the
+    parent overnight agent but should still be confined to the worktree.
+    """
+    if not worktree_paths:
+        return
+    if tool_name in ('Write', 'Edit'):
+        fp = tool_input.get('file_path', '')
+        if fp and not _is_path_allowed_during_overnight(fp, worktree_paths):
+            _block(
+                f'\nOVERNIGHT WORKTREE ENFORCEMENT: All writes must target '
+                f'the overnight worktree during active sessions.\n'
+                f'Allowed worktrees: {", ".join(worktree_paths)}\n'
+                f'Attempted: {tool_name} to {fp}\n'
+            )
+    if tool_name == 'Bash':
+        command = tool_input.get('command', '')
+        for path in _extract_bash_write_paths(command):
+            if not _is_path_allowed_during_overnight(path, worktree_paths):
+                _block(
+                    f'\nOVERNIGHT WORKTREE ENFORCEMENT: Bash write target '
+                    f'is outside the overnight worktree.\n'
+                    f'Allowed worktrees: {", ".join(worktree_paths)}\n'
+                    f'Attempted: Bash write to {path}\n'
+                )
+
+
 def is_overnight_active() -> bool:
     """Check if any overnight session is still live. Auto-cleans expired ones."""
     project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
@@ -297,8 +359,12 @@ def main():
 
     # Global security: block hooks/state modifications when ANY overnight
     # session is active (security invariant, applies to all sessions).
+    # Also enforce worktree boundaries for ALL sessions (catches subagents).
     if is_overnight_active():
         apply_global_security_checks(tool_name, tool_input)
+        wt_paths = _get_active_worktree_paths()
+        if wt_paths:
+            apply_global_worktree_enforcement(tool_name, tool_input, wt_paths)
 
     # Session-specific enforcement: only apply to the session that owns
     # an overnight state file. Other sessions are free to operate.
