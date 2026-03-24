@@ -1,0 +1,74 @@
+#!/bin/bash
+# Check README.md freshness for all major folders
+# Outputs JSON array with stale days and required action
+# Usage: check-readme-freshness.sh /path/to/project
+
+set -euo pipefail
+
+PROJECT_ROOT="${1:-.}"
+NOW=$(date +%s)
+
+# Major folders to check (root + top-level)
+FOLDERS=("." "scripts" "data" "docs" "tests" "config" "tmp" "backups" "output")
+
+echo "["
+FIRST=true
+
+for folder in "${FOLDERS[@]}"; do
+  FOLDER_PATH="$PROJECT_ROOT/$folder"
+  [[ ! -d "$FOLDER_PATH" ]] && continue
+
+  README_PATH="$FOLDER_PATH/README.md"
+
+  # Get latest content modification time in folder (excluding README itself)
+  CONTENT_MTIME=$(find "$FOLDER_PATH" -maxdepth 2 -type f ! -name "README.md" ! -name "INDEX.md" ! -path "*/.git/*" ! -path "*/venv/*" ! -path "*/__pycache__/*" -printf '%T@\n' 2>/dev/null | sort -rn | head -1)
+  CONTENT_MTIME=${CONTENT_MTIME%.*}
+  CONTENT_MTIME=${CONTENT_MTIME:-$NOW}
+
+  if [[ -f "$README_PATH" ]]; then
+    README_MTIME=$(stat -c %Y "$README_PATH")
+    STALE_SECONDS=$((CONTENT_MTIME - README_MTIME))
+    STALE_DAYS=$((STALE_SECONDS / 86400))
+    [[ $STALE_DAYS -lt 0 ]] && STALE_DAYS=0
+
+    if [[ $STALE_DAYS -gt 7 ]]; then
+      ACTION="FULL_UPDATE_REQUIRED"
+    elif [[ $STALE_DAYS -gt 3 ]]; then
+      ACTION="INCREMENTAL_UPDATE"
+    else
+      ACTION="FRESH"
+    fi
+
+    # Count lines to gauge README size
+    LINE_COUNT=$(wc -l < "$README_PATH")
+  else
+    STALE_DAYS=-1
+    ACTION="CREATE_NEW"
+    README_MTIME=0
+    LINE_COUNT=0
+  fi
+
+  # Get file counts in folder
+  FILE_COUNT=$(find "$FOLDER_PATH" -maxdepth 2 -type f ! -path "*/.git/*" ! -path "*/venv/*" ! -path "*/__pycache__/*" 2>/dev/null | wc -l)
+
+  # Get subfolder count
+  SUBFOLDER_COUNT=$(find "$FOLDER_PATH" -mindepth 1 -maxdepth 1 -type d ! -name ".git" ! -name "venv" ! -name "__pycache__" 2>/dev/null | wc -l)
+
+  $FIRST || echo ","
+  FIRST=false
+
+  cat <<ENTRY
+  {
+    "folder": "$folder",
+    "readme_exists": $([ -f "$README_PATH" ] && echo true || echo false),
+    "stale_days": $STALE_DAYS,
+    "action": "$ACTION",
+    "readme_lines": $LINE_COUNT,
+    "file_count": $FILE_COUNT,
+    "subfolder_count": $SUBFOLDER_COUNT
+  }
+ENTRY
+
+done
+
+echo "]"

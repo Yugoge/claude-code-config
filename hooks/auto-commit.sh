@@ -27,8 +27,9 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
   exit 0
 fi
 
-# Check if there are changes
-if git diff --quiet && git diff --cached --quiet; then
+# Check if there are changes (including untracked files)
+# Use git status --porcelain to detect untracked files too (git diff only checks tracked)
+if [[ -z "$(git status --porcelain)" ]]; then
   echo -e "${GREEN}✅ No changes to commit.${NC}"
   exit 0
 fi
@@ -40,7 +41,10 @@ TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
 # Requires access to Claude's session data, fallback provided here
 LAST_PROMPT="Claude Code auto-commit"
 
-# Add staged file list to commit message if available
+# Add all changes (including untracked files)
+git add -A
+
+# Get list of all changes after add (for commit message)
 CHANGED_FILES=$(git diff --cached --name-only 2>/dev/null || git diff --name-only)
 FILE_COUNT=$(echo "$CHANGED_FILES" | wc -l | tr -d ' ')
 
@@ -55,9 +59,6 @@ $([ $FILE_COUNT -gt 10 ] && echo "... and $((FILE_COUNT - 10)) more")
 via [Happy](https://happy.engineering)
 
 ${CO_AUTHOR}"
-
-# Add all changes
-git add -A
 
 # Commit
 if git commit -m "$COMMIT_MSG" > /dev/null 2>&1; then

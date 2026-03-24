@@ -222,6 +222,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
+  "model": "opus[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -275,7 +276,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/pretool-overnight-hook-guard.py\""
+            "command": "python3 \"$HOME/.claude/hooks/pretool-overnight-hook-guard.py\"",
+            "stdin_json": true
           }
         ]
       },
@@ -294,7 +296,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/pretool-todo-validate.py\""
+            "command": "python3 \"$HOME/.claude/hooks/pretool-todo-validate.py\"",
+            "stdin_json": true
           }
         ]
       },
@@ -313,19 +316,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-tracker.py\""
+            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-tracker.py\"",
+            "stdin_json": true
           },
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-count.py\""
+            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-count.py\"",
+            "stdin_json": true
           },
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-sequence.py\""
+            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-sequence.py\"",
+            "stdin_json": true
           },
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/posttool-overnight-loop.py\""
+            "command": "python3 \"$HOME/.claude/hooks/posttool-overnight-loop.py\"",
+            "stdin_json": true
           }
         ]
       },
@@ -368,6 +375,10 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/stop-git-commit.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/auto-commit.sh\""
           }
         ]
       }

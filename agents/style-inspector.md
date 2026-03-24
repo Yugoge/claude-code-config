@@ -394,34 +394,113 @@ scripts/validate-api.sh <mode> <args>
 
 ### Standard 8: Concise Documentation
 
-**Rule**: Documentation MUST be concise. No verbose examples, no repetitive explanations.
+**Rule**: Command and agent files MUST be concise. No non-functional descriptive text, no repetitive examples, no verbose multi-paragraph explanations, no pseudocode blocks.
 
-**Detection**:
+**Distinction from Standard 1**: Standard 1 checks for inline executable code (bash/python logic). Standard 8 checks for verbose explanations, repetitive examples, and documentation bloat.
+
+> **PRE-SCAN**: Run grep patterns first to identify potential verbosity. Then read each flagged file to confirm.
+
+> **CRITICAL: READ EACH FLAGGED FILE**
+>
+> You MUST read the actual content of flagged .md files using the Read tool. Grep patterns catch obvious cases but miss most verbosity issues. Read each file and judge whether content is functional or verbose.
+
+**Detection method**: For each .md file in `.claude/commands/` and `.claude/agents/`, run cheap grep checks first, then read flagged files to look for:
+
+**Grep patterns (first-pass)**:
 ```bash
-# Check for verbose patterns
-grep -rn "This amazing\|is designed to enhance\|provides a fast and optimized" . \
-  --include="*.md"
+# Marketing/enhancement language
+grep -rn "This amazing\|is designed to enhance\|provides a fast and optimized\|powerful tool\|cutting-edge" \
+  .claude/ --include="*.md"
 
-# Check for excessive example sections (> 50 lines of examples)
+# Story-style descriptive text (not rules)
+grep -rn "When you\|Imagine that\|Let's say\|For example, suppose" \
+  .claude/ --include="*.md"
+
+# Excessive explanation markers
+grep -rn "In other words\|To put it another way\|What this means is\|Basically" \
+  .claude/ --include="*.md"
+
+# Repetitive example markers (multiple "Example:" sections)
+grep -c "Example:" .claude/**/*.md | grep -v ":0$\|:1$"
 ```
+
+**LLM-based judgment (deep analysis)**: Read each flagged file and check for:
+
+1. **Non-functional descriptive text**: Long paragraphs explaining context or philosophy instead of actionable rules
+   - "This section helps you understand how the system works by..."
+   - "The purpose of this command is to provide developers with..."
+
+2. **Repetitive examples**: Same concept shown 3+ times with minor variations
+   - Multiple "Example:" blocks showing essentially the same pattern
+   - Excessive inline comments in example code blocks
+
+3. **Verbose multi-paragraph explanations**: Technical facts buried in narrative prose
+   - Paragraphs >8 lines explaining what could be a 2-line rule
+   - Flowery language instead of direct instructions
+
+4. **Pseudocode blocks**: Code-like descriptions that should be actual executable scripts
+   - "First do X, then do Y, then do Z" in code blocks instead of real script
+   - Placeholder commands like `# Run validation here`
+
+5. **Excessive example sections**: Example blocks >30 lines with commented explanations of every line
+
+6. **Marketing language**: Adjectives like "amazing", "fast", "optimized", "powerful", "cutting-edge"
+
+**What is NOT a violation** (use judgment):
+- Concise technical explanations (≤3 lines) providing context
+- Single clear example showing usage pattern
+- Necessary background for understanding constraints
+- Tables or structured data (not prose)
+- Rule definitions with brief rationale
 
 **Violations**:
 ```markdown
-<!-- BAD -->
+<!-- BAD: Marketing language + verbose explanation -->
 ## validate-timeout.sh
 
 This amazing script is designed to enhance your API timeout validation
 by providing a fast and optimized way to check if your timeouts are
-correctly configured for maximum performance...
+correctly configured for maximum performance. When you run this tool,
+it will analyze your configuration and provide actionable insights
+to help you make informed decisions about your infrastructure.
 
 Example:
   validate-timeout.sh config.json https://api.example.com 100
   # This checks the timeout against example.com with 100 samples
   # and returns a status code indicating the result
   # You can use different URLs and sample sizes
-  # etc etc etc...
+  # The first parameter is your config file
+  # The second parameter is the endpoint to test
+  # The third parameter is how many samples to collect
 
-<!-- GOOD -->
+<!-- BAD: Non-functional story-style text -->
+When you're working on a large codebase, you might find yourself
+wondering how to keep track of all the different components. Imagine
+that you have dozens of files to manage. Let's say you want to ensure
+they all follow the same conventions...
+
+<!-- BAD: Pseudocode that should be real script -->
+```bash
+# First, check if the file exists
+# Then, validate its contents
+# Next, parse the data
+# Finally, output the results
+```
+
+<!-- BAD: Repetitive examples -->
+Example 1: Basic usage
+  command.sh file1.txt
+
+Example 2: With options
+  command.sh file2.txt --verbose
+
+Example 3: Different file
+  command.sh file3.txt
+
+Example 4: Another variation
+  command.sh file4.txt --debug
+
+<!-- GOOD: Concise, functional -->
 ## validate-timeout.sh
 
 Validates API endpoint timeout configuration against actual latency measurements.
@@ -429,6 +508,14 @@ Validates API endpoint timeout configuration against actual latency measurements
 Usage: `validate-timeout.sh <config-file> <endpoint-url> <sample-size>`
 
 Returns 0 if timeout adequate, 1 if too low, 2 if warning threshold.
+
+Example: `validate-timeout.sh config.json https://api.example.com 100`
+
+<!-- GOOD: Brief context + rules -->
+## Error Handling
+
+Scripts must handle errors explicitly. Use `set -euo pipefail` in bash.
+Exit codes: 0=success, 1=failure, 2=partial success.
 ```
 
 **Report**:
@@ -437,8 +524,8 @@ Returns 0 if timeout adequate, 1 if too low, 2 if warning threshold.
   "standard": "concise-documentation",
   "severity": "minor",
   "location": "commands/dev.md:150-180",
-  "finding": "Verbose description with marketing language",
-  "recommendation": "Remove adjectives like 'amazing', 'fast', 'optimized'; keep technical facts only"
+  "finding": "Verbose multi-paragraph explanation with marketing language ('amazing', 'fast', 'optimized') and repetitive example with excessive inline comments",
+  "recommendation": "Reduce to: tool purpose (1 line), usage syntax (1 line), exit codes (1 line), single clear example"
 }
 ```
 

@@ -22,6 +22,7 @@ def get_todos():
     ]
 
 
+
 if __name__ == "__main__":
     # CLI: print todos as formatted list
     import json

@@ -1,5 +1,6 @@
 ---
 description: Guide for using Playwright MCP with deep search commands
+disable-model-invocation: true
 ---
 
 # Playwright MCP Integration Guide

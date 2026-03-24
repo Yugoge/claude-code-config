@@ -2,6 +2,7 @@
 description: Generate comprehensive documentation for code
 argument-hint: [file-path-or-module]
 allowed-tools: [Read, Grep, Glob]
+disable-model-invocation: true
 ---
 
 # Documentation Generation

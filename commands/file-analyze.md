@@ -2,6 +2,7 @@
 description: Analyze PDF, Excel, Word, images and other files with deep insights
 argument-hint: [file-path] [analysis-question]
 allowed-tools: Read, Bash
+disable-model-invocation: true
 ---
 
 # File Analysis Command

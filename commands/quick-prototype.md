@@ -1,6 +1,7 @@
 ---
 description: Rapidly create interactive prototypes and demos combining multiple artifact capabilities
 argument-hint: [prototype-description]
+disable-model-invocation: true
 ---
 
 # Quick Prototype Generator
