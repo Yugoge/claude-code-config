@@ -23,6 +23,17 @@ def is_overnight_active() -> bool:
     return any((project_dir / '.claude').glob('overnight-state-*.json'))
 
 
+def get_overnight_state_for_session(project_dir: Path, session_id: str) -> dict | None:
+    """Load overnight state file for the specific session."""
+    state_path = project_dir / '.claude' / f'overnight-state-{session_id}.json'
+    if state_path.exists():
+        try:
+            return json.loads(state_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+    return None
+
+
 def is_hooks_path(file_path: str) -> bool:
     """Check if a file path targets the .claude/hooks/ directory."""
     normalized = file_path.replace('\\', '/')
@@ -33,6 +44,13 @@ def is_state_file_path(file_path: str) -> bool:
     """Check if a file path targets an overnight state file."""
     normalized = file_path.replace('\\', '/')
     return 'overnight-state-' in normalized and normalized.endswith('.json')
+
+
+def is_outside_worktree(file_path: str, worktree_path: str) -> bool:
+    """Check if a file path is outside the worktree directory."""
+    abs_file = os.path.realpath(os.path.abspath(file_path))
+    abs_worktree = os.path.realpath(os.path.abspath(worktree_path))
+    return not abs_file.startswith(abs_worktree + os.sep) and abs_file != abs_worktree
 
 
 def check_bash_targets_state(command: str) -> bool:
@@ -72,19 +90,8 @@ def check_bash_targets_hooks(command: str) -> bool:
     return False
 
 
-def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception:
-        sys.exit(0)
-
-    # Only activate if any overnight session is active
-    if not is_overnight_active():
-        sys.exit(0)
-
-    tool_name = data.get('tool_name', '')
-    tool_input = data.get('tool_input', {})
-
+def apply_global_security_checks(tool_name: str, tool_input: dict) -> None:
+    """Block hooks/state modifications for ALL sessions during any overnight run."""
     if tool_name in ('Write', 'Edit'):
         file_path = tool_input.get('file_path', '')
         if is_hooks_path(file_path):
@@ -117,6 +124,51 @@ def main():
                 'The state file can only be removed after end-time expires.\n'
             )
             sys.exit(2)
+
+
+def apply_worktree_enforcement(tool_name: str, tool_input: dict, worktree_path: str) -> None:
+    """Warn when overnight session writes outside its worktree."""
+    if tool_name not in ('Write', 'Edit'):
+        return
+    file_path = tool_input.get('file_path', '')
+    if not file_path:
+        return
+    if is_outside_worktree(file_path, worktree_path):
+        sys.stderr.write(
+            f'\n⚠️  WORKTREE WARNING: File is outside the overnight worktree.\n'
+            f'Overnight changes should stay inside: {worktree_path}\n'
+            f'Attempted path: {file_path}\n'
+            f'Use absolute paths inside the worktree to maintain branch isolation.\n'
+        )
+        # Advisory only — exit 0 to allow the operation but inform the agent
+
+
+def main():
+    """Entry point for the overnight hook guard."""
+    try:
+        data = json.load(sys.stdin)
+    except Exception:
+        sys.exit(0)
+
+    # Global security: only activates when any overnight session is running.
+    if not is_overnight_active():
+        sys.exit(0)
+
+    tool_name = data.get('tool_name', '')
+    tool_input = data.get('tool_input', {})
+
+    # Block hooks/state modifications for all sessions (security invariant).
+    apply_global_security_checks(tool_name, tool_input)
+
+    # Worktree enforcement: only for the specific overnight session.
+    current_session_id = os.environ.get('CLAUDE_SESSION_ID', '')
+    if current_session_id:
+        project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
+        state = get_overnight_state_for_session(project_dir, current_session_id)
+        if state:
+            worktree_path = state.get('worktree_path', '')
+            if worktree_path:
+                apply_worktree_enforcement(tool_name, tool_input, worktree_path)
 
     sys.exit(0)
 
