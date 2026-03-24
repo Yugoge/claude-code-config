@@ -1,0 +1,9 @@
+{
+  "id": "1",
+  "subject": "Fix command messages showing as system messages",
+  "description": "Commands like \"/plan xxx\" should display as user messages (right-aligned bubbles with plain text), not as centered system events. Need to: 1) Strip command XML tags from user messages in the normalizer/reducer, 2) Ensure command text appears as clean user message text",
+  "activeForm": "Fixing command message display",
+  "status": "pending",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -147,7 +147,7 @@ Read BA output files:
 
 ### Step 5: Delegate to Dev Subagent
 
-**Use Task tool to invoke dev subagent with BA-generated context**:
+**Use Task tool to invoke dev subagent with file paths only**:
 
 ```
 Use Task tool with:
@@ -155,43 +155,11 @@ Use Task tool with:
 - prompt: "
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
-  Read context from: docs/dev/context-<timestamp>.json
-  Also read BA spec for acceptance criteria: docs/dev/ba-spec-<timestamp>.md
-
-  Your tasks:
-  1. Read and internalize the complete context JSON and BA spec
-  2. Implement changes following the development approach
-  3. Create parameterized scripts (no hardcoded values)
-  4. Use source venv for Python (NOT python3)
-  5. Reference root cause in all changes
-  6. Write implementation report to: docs/dev/dev-report-<timestamp>.json
-
-  Implementation report structure:
-  {
-    \"request_id\": \"same as context\",
-    \"dev\": {
-      \"status\": \"completed|blocked\",
-      \"tasks_completed\": [...],
-      \"scripts_created\": [...],
-      \"files_modified\": [...],
-      \"git_rationale\": {
-        \"root_cause_commit\": \"...\",
-        \"why_issue_occurred\": \"...\",
-        \"how_fix_addresses_root\": \"...\"
-      },
-      \"qa_ready\": true|false
-    }
-  }
-
-  Follow all quality standards from agents/dev.md.
+  Context file: docs/dev/context-<timestamp>.json
+  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  Write your implementation report to: docs/dev/dev-report-<timestamp>.json
   "
 ```
-
-**Dev subagent workflow** (see `agents/dev.md`):
-1. Reads BA-generated context JSON and spec
-2. Implements changes
-3. Creates scripts with parameters
-4. Writes implementation report JSON
 
 **Wait for dev subagent completion** before proceeding.
 
@@ -218,59 +186,18 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 
 ### Step 7: Delegate to QA Subagent
 
-**Merge context + dev report for QA**:
-
-```bash
-# Combine JSONs
-jq -s '.[0] * {dev: .[1].dev}' \
-  docs/dev/context-<timestamp>.json \
-  docs/dev/dev-report-<timestamp>.json \
-  > docs/dev/qa-input-<timestamp>.json
-```
-
-**Use Task tool to invoke QA subagent**:
+**Use Task tool to invoke QA subagent with file paths only**:
 
 ```
 Use Task tool with:
-- subagent_type: "general-purpose"
 - description: "Verify implementation quality against standards"
 - prompt: "
   You are the QA subagent. Follow agents/qa.md instructions precisely.
 
-  Read combined context from: docs/dev/qa-input-<timestamp>.json
-
-  Your tasks:
-  1. Validate all success criteria met
-  2. Verify root cause addressed (not just symptom)
-  3. Test created scripts
-  4. Check for regressions
-  5. Verify quality standards:
-     - No hardcoded values in scripts
-     - Used source venv (not python3)
-     - Integer step numbering only
-     - Meaningful naming (no 'enhance', 'fast', etc)
-     - Git root cause referenced
-  6. Write verification report to: docs/dev/qa-report-<timestamp>.json
-
-  QA report structure:
-  {
-    \"request_id\": \"same as context\",
-    \"qa\": {
-      \"status\": \"pass|fail|warning\",
-      \"success_criteria_results\": [...],
-      \"root_cause_verification\": {...},
-      \"quality_findings\": [...],
-      \"summary\": {
-        \"critical_issues\": 0,
-        \"major_issues\": 0,
-        \"minor_issues\": 0
-      },
-      \"iteration_needed\": false|true,
-      \"refined_context\": {...}
-    }
-  }
-
-  Follow all verification procedures from agents/qa.md.
+  Context file: docs/dev/context-<timestamp>.json
+  Dev report file: docs/dev/dev-report-<timestamp>.json
+  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  Write your verification report to: docs/dev/qa-report-<timestamp>.json
   "
 ```
 

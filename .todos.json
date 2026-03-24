@@ -1,10 +1,5 @@
 [
   {
-    "content": "Step 0: Initialize workflow checklist",
-    "activeForm": "Initializing workflow checklist",
-    "status": "pending"
-  },
-  {
     "content": "Step 1: Get job description from user",
     "activeForm": "Getting job description from user",
     "status": "pending"

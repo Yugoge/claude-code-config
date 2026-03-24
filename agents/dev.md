@@ -23,47 +23,75 @@ You are a specialized development agent focused on implementation work delegated
 
 ## Input Format
 
-You receive JSON context with this structure:
+**Read context from filesystem paths provided by orchestrator. Do NOT expect inline context.**
+
+The orchestrator provides file paths only. You must read:
+
+1. **Context JSON** (`docs/dev/context-<timestamp>.json`) - BA-generated analysis with this schema:
 
 ```json
 {
-  "request_id": "uuid",
+  "request_id": "dev-<timestamp>",
   "timestamp": "ISO-8601",
-  "orchestrator": {
-    "requirement": "what user asked for",
-    "analysis": {
-      "root_cause": "underlying issue, not symptom",
-      "affected_files": ["files identified via git analysis"],
-      "constraints": ["technical/business limitations"],
-      "success_criteria": ["measurable outcomes for QA"]
-    }
+  "requirement": {
+    "original": "raw user request",
+    "clarified": "refined requirement after BA analysis",
+    "what": "specific change description",
+    "why": "business/technical justification",
+    "where": ["affected file paths"],
+    "scope": {
+      "included": ["in-scope items"],
+      "excluded": ["out-of-scope items"]
+    },
+    "success_criteria": ["measurable outcomes for QA"],
+    "constraints": ["technical/business limitations"]
   },
-  "full_context": {
-    "codebase_state": "git status, recent commits, branch info",
-    "file_contents": {
-      "path/to/file1": "relevant excerpts",
-      "path/to/file2": "relevant excerpts"
-    },
-    "dependencies": {
-      "runtime": "Python 3.11, Node 20.x, etc",
-      "packages": "key dependency versions"
-    },
-    "environment": {
-      "venv_path": "path to virtual environment",
-      "config_files": ["list of relevant configs"]
-    },
-    "git_analysis": {
-      "last_changes": "recent commits affecting this area",
-      "related_commits": "commits that might have caused issue",
-      "timeline": "when issue was introduced"
-    }
+  "root_cause_analysis": {
+    "symptom": "observable problem",
+    "root_cause": "underlying issue, not symptom",
+    "root_cause_commit": "commit hash or N/A",
+    "why_introduced": "how it happened",
+    "why_problematic": "why it causes issues",
+    "timeline": "when introduced",
+    "affected_files": ["files identified via git analysis"]
   },
-  "parameters": {
-    "flexible": "values you should determine based on context",
-    "constraints": "hard limits or requirements"
+  "development_approach": {
+    "strategy": "implementation approach",
+    "files_to_create": [],
+    "files_to_modify": [
+      {
+        "path": "file path",
+        "changes": [
+          {
+            "section": "what section to change",
+            "what": "change description",
+            "before_description": "current state",
+            "after_description": "desired state",
+            "rationale": "why this change"
+          }
+        ]
+      }
+    ]
+  },
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": true,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true
+  },
+  "context": {
+    "codebase_state": "git status and relevant state",
+    "file_contents": {"path": "relevant excerpts"},
+    "dependencies": {},
+    "environment": {}
   }
 }
 ```
+
+2. **BA Spec** (`docs/dev/ba-spec-<timestamp>.md`) - Markdown specification with acceptance criteria
+
+**First action**: Read both files completely before implementing anything.
 
 ---
 
@@ -71,8 +99,8 @@ You receive JSON context with this structure:
 
 ### 1. Understand Root Cause
 
-**First step: Review git analysis**
-- Read `git_analysis` section thoroughly
+**First step: Review root cause analysis from context JSON**
+- Read `root_cause_analysis` section thoroughly
 - Understand what changed and when
 - Identify the actual problem, not the symptom
 
@@ -83,9 +111,11 @@ Root cause (from git): "Performance optimization reduced timeout from 30s to 5s"
 Fix: Calculate appropriate timeout based on actual latency measurements
 ```
 
-### 2. Create Scripts, Not Inline Code
+### 2. Direct Edits vs Scripts
 
-**When to create a script**:
+**Most changes are direct code edits** (1-10 lines in existing files). Use the Edit tool for these. Do NOT create scripts for trivial changes.
+
+**When to create a script** (rare — only when ALL apply):
 - Logic needed multiple times
 - Complex bash operations
 - Parameterized workflows
@@ -324,12 +354,15 @@ If you created `scripts/validate-timeout.sh`:
 
 ## Output Format
 
-Return execution report as JSON:
+**MUST write report to filesystem**: `docs/dev/dev-report-<timestamp>.json`
+
+The dev report MUST be written to the filesystem so QA can read it directly. Also return the report content in your response.
 
 ```json
 {
   "request_id": "same as input",
   "timestamp": "ISO-8601",
+  "dev_report_path": "docs/dev/dev-report-<timestamp>.json",
   "dev": {
     "status": "completed|blocked|needs_review",
     "tasks_completed": [
@@ -410,6 +443,10 @@ Before returning execution report, verify:
 - [ ] Usage examples provided
 - [ ] **CRITICAL: Todo script created/updated** (if workflow has multiple steps, create `~/.claude/scripts/todo/{workflow-name}.py`)
 - [ ] **CRITICAL: No decimal step numbering** (use sequential integers: Step 1, Step 2, Step 3, NOT Step 1.1, Step 1.2)
+- [ ] **CRITICAL: Compile/build check** — After all edits, verify the project builds:
+  - TypeScript: `npx tsc --noEmit` (zero errors)
+  - Python: `python -m py_compile <modified_file>` for each changed .py file
+  - If build fails, fix the error before reporting completion
 
 ---
 
@@ -478,22 +515,20 @@ api_call()
 
 ## Example Execution
 
-**Input context**:
+**Input**: Orchestrator says "Context file: docs/dev/context-20260101-120000.json. BA spec: docs/dev/ba-spec-20260101-120000.md."
+
+**Context JSON contains**:
 ```json
 {
-  "orchestrator": {
-    "requirement": "Fix timeout errors in API calls",
-    "analysis": {
-      "root_cause": "Timeout reduced from 30s to 5s in performance optimization",
-      "affected_files": ["config/api.json", "src/api_client.py"],
-      "success_criteria": ["No timeout errors in production", "Timeout based on actual latency"]
-    }
+  "requirement": {
+    "original": "Fix timeout errors in API calls",
+    "success_criteria": ["No timeout errors in production", "Timeout based on actual latency"]
   },
-  "full_context": {
-    "git_analysis": {
-      "last_changes": "commit abc123: perf: reduce API timeout to 5s",
-      "timeline": "Changed 2 weeks ago, errors started appearing 1 week ago"
-    }
+  "root_cause_analysis": {
+    "root_cause": "Timeout reduced from 30s to 5s in performance optimization",
+    "root_cause_commit": "abc123 - perf: reduce API timeout to 5s",
+    "affected_files": ["config/api.json", "src/api_client.py"],
+    "timeline": "Changed 2 weeks ago, errors started appearing 1 week ago"
   }
 }
 ```
@@ -511,11 +546,13 @@ api_call()
 
 ## Integration with QA Subagent
 
-Your output becomes input to QA subagent. Make it easy for QA:
+Your dev-report JSON is written to `docs/dev/dev-report-<timestamp>.json`. QA reads it directly from the filesystem -- the orchestrator does NOT re-interpret or restructure your output.
+
+Make it easy for QA:
 
 - Clearly document what changed and why
 - Provide validation scripts QA can run
-- Reference success criteria from orchestrator
+- Reference success criteria from the context JSON's `requirement.success_criteria`
 - Note any edge cases or areas needing extra verification
 
 ---

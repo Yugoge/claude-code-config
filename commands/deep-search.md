@@ -1,6 +1,7 @@
 ---
 description: Deep website exploration with iterative search strategy
 argument-hint: <domain> <search-goal>
+disable-model-invocation: true
 ---
 
 Execute deep search on **$1** to find: **$2**

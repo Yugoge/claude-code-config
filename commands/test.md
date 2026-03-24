@@ -1,5 +1,6 @@
 ---
 description: Test validation workflow with edge case detection, systematic validation, and quality enforcement
+disable-model-invocation: true
 ---
 
 # Test Command Orchestrator

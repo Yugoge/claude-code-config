@@ -1,6 +1,7 @@
 ---
 description: Multi-source deep research with 15-20 iterative searches
 argument-hint: <research-topic>
+disable-model-invocation: true
 ---
 
 Perform deep research on: **$ARGUMENTS**

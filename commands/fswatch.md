@@ -1,3 +1,8 @@
+---
+description: "FSWatch Command"
+disable-model-invocation: true
+---
+
 # FSWatch Command
 
 Real-time file monitoring with automatic git commit/push/pull.

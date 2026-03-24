@@ -2,6 +2,7 @@
 description: Comprehensive code review with best practices analysis
 argument-hint: [file-path-or-pattern]
 allowed-tools: [Read, Grep, Glob, Bash]
+disable-model-invocation: true
 ---
 
 # Code Review
