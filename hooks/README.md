@@ -1,51 +1,63 @@
 # hooks
 
-Git hooks and automation triggers
+<!-- AUTO:readme-stats -->
+## Overview
+- **Total files**: 50
+- **Subdirectories**: 4
+- **Naming convention**: kebab
+
+## Files
+- `QUICKSTART.md` - 🚀 Quick Start Guide
+- `README-TODO-INJECTION.md` - Global Todo Injection Hook
+- `audit-slashcommand.sh` - audit-slashcommand.sh
+- `auto-commit.sh` - ============================================================================
+- `checkpoint.sh` - checkpoint.sh - Manual checkpoint command
+- `ensure-git-repo.sh` - ============================================================================
+- `fswatch-manager.sh` - fswatch-manager.sh - Manage git-fswatch instances
+- `git-fswatch.sh` - git-fswatch.sh - Comprehensive Git file watcher using fswatch
+- `git-fswatch@.service` - service file
+- `hook-todo-injection.py` - Global PreToolUse Hook: Todo Injection for Slash Commands
+- `install-auto-sync.sh` - install-auto-sync.sh - Quick installer for auto-sync features
+- `install-git-hooks.sh` - install-git-hooks.sh - Install pre-commit hooks into git repositories
+- `install-protection-all.sh` - install-protection-all.sh - Automatically install protection for all git repos
+- `install.sh` - ============================================================================
+- `post-commit-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
+- `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
+- `posttool-doc-sync.py` - PostToolUse Hook: Auto-sync INDEX.md and CLAUDE.md when structural files change
+- `posttool-git-checkpoint.sh` - smart-checkpoint.sh - Intelligent auto-checkpoint system
+- `posttool-git-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
+- `posttool-overnight-loop.py` - PostToolUse:TodoWrite Hook: Overnight Loop Detection
+- `posttool-todo-count.py` - PostToolUse Hook: Enforce canonical todo count immediately after TodoWrite
+- `posttool-todo-sequence.py` - PostToolUse Hook: Enforce one-step-at-a-time progression in workflow checklists
+- `posttool-todo-tracker.py` - PostToolUse Hook: Output checklist progress after every TodoWrite call
+- `pre-commit-check.sh` - pre-commit-check.sh - Detect untracked files before commit
+- `pre_slashcommand_validate.sh` - pre_slashcommand_validate.sh
+- `pre_tool_use_safety.sh` - PreToolUse Safety Hook - Warn before dangerous operations
+- `pretool-bash-safety.sh` - PreToolUse Safety Hook - Warn or block before dangerous operations
+- `pretool-overnight-hook-guard.py` - PreToolUse Hook: Overnight session file modification guard
+- `pretool-quality-gate.py` - PreToolUse Hook: Quality gate for Write/Edit operations
+- `pretool-todo-validate.py` - PreToolUse Hook: Validate TodoWrite input BEFORE execution
+- `pretool-workflow-gate.py` - PreToolUse Hook: Require TodoWrite/TodoRead acknowledgment before other tools
+- `pretool-worktree-guard.sh` - PreToolUse hook: Detect stale agent worktrees before ANY tool call
+- `project-settings-template.json` - json config
+- `prompt-workflow.py` - UserPromptSubmit Hook: Checklist Injection for Slash Commands
+- `protection-status.sh` - protection-status.sh - Display protection status for all git repositories
+- `pull.sh` - pull.sh - Executable version of /pull command
+- `push.sh` - push.sh - Executable version of /push command
+- `session-git-init.sh` - ============================================================================
+- `session-info.sh` - s-info.sh — SessionStart: display environment info + tool quick reference
+- `session_start.sh` - SessionStart Hook - Display working environment info
+- `smart-checkpoint.sh` - smart-checkpoint.sh - Intelligent auto-checkpoint system
+- `start-fswatch-all.sh` - start-fswatch-all.sh - Start fswatch monitoring for all important repositories
+- `stop-git-commit.sh` - ============================================================================
+- `stop-overnight-timelock.py` - Stop Hook: Block conversation termination until overnight end-time
+- `stop-workflow-enforce.py` - Stop Hook: Enforce workflow structural integrity before allowing Claude to stop
+- `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
+
+## Subdirectories
+- `doc_sync/`
+- `git-hooks/`
+- `lib/`
 
 ---
-
-## Purpose
-
-This folder contains files and resources for: Git hooks and automation triggers
-
-## File Organization
-
-- Files organized into subdirectories by category
-  - `git-hooks/`: Folder for git hooks
-## Allowed File Types
-
-- `.example` files: 1 found
-- `.json` files: 1 found
-- `.md` files: 4 found
-- `.py` files: 1 found
-- `.sh` files: 21 found
-## Naming Convention
-
-Mixed naming conventions (no dominant pattern)
-
-## File Creation Patterns
-
-Based on Git history analysis:
-
-- Many auto-generated files (scripts/tools)
-## Standards
-
-- Follow the naming convention specified above
-- Keep files organized according to the folder structure
-- See INDEX.md for complete file inventory
-
----
-
-## Git Analysis
-
-<!-- AUTO-GENERATED by rule-inspector - DO NOT EDIT -->
-First created: 2025-12-27
-Creation context: feat: clean repository without venv - fresh start
-Total commits: 12
-Last significant update: 2026-01-08<!-- END AUTO-GENERATED -->
-
----
-
-*This README documents the discovered organization patterns for this folder.*
-*Generated by rule-inspector from git history analysis on 2026-01-08T13:07:14Z*
-
+*Auto-generated by doc-sync hook.*

@@ -1,7 +1,7 @@
 # .claude
 
-*Last updated: 2026-03-24T22:19:23Z*
-**Total entries**: 9410
+*Last updated: 2026-03-24T22:28:37Z*
+**Total entries**: 9413
 **Convention**: kebab
 
 ## Tree
@@ -1686,7 +1686,7 @@
 │   ├── `pre_slashcommand_validate.sh` - pre_slashcommand_validate.sh
 │   ├── `pre_tool_use_safety.sh` - PreToolUse Safety Hook - Warn before dangerous operations
 │   ├── `pretool-bash-safety.sh` - PreToolUse Safety Hook - Warn or block before dangerous operations
-│   ├── `pretool-overnight-hook-guard.py` - PreToolUse Hook: Block modifications to hooks AND overnight state files during overnight
+│   ├── `pretool-overnight-hook-guard.py` - PreToolUse Hook: Overnight session file modification guard
 │   ├── `pretool-quality-gate.py` - PreToolUse Hook: Quality gate for Write/Edit operations
 │   ├── `pretool-todo-validate.py` - PreToolUse Hook: Validate TodoWrite input BEFORE execution
 │   ├── `pretool-workflow-gate.py` - PreToolUse Hook: Require TodoWrite/TodoRead acknowledgment before other tools
@@ -1786,6 +1786,7 @@
 │   │   ├── 0333732a-2b9a-4b51-85df-38dcb9b7347a/
 │   │   ├── 05b87556-44e5-4d96-bf88-cca751b3f2b8/
 │   │   ├── 063fc87a-772c-421f-bd4d-c737b6663379/
+│   │   ├── 0aa1f3a7-1a24-4dc8-8252-37d049ffaf94/
 │   │   ├── 0dad2960-33ee-4d0d-b6c0-0f1393a0f029/
 │   │   ├── 0e99bcdf-3877-4ca9-a2f5-bb3775d6fcfa/
 │   │   ├── 11df4f77-5620-4957-b99b-31748e361aa5/
@@ -1860,6 +1861,7 @@
 │   │   ├── `075bd959-1096-4aa4-8a73-46f255bfff2b.jsonl` - jsonl file
 │   │   ├── `0968e5b4-ddb8-4887-ad93-41fb8790f4fa.jsonl` - jsonl file
 │   │   ├── `09a72681-e908-423f-9f03-6b11601bd30c.jsonl` - jsonl file
+│   │   ├── `0aa1f3a7-1a24-4dc8-8252-37d049ffaf94.jsonl` - jsonl file
 │   │   ├── `0c3a52aa-6b3a-4a94-a6cb-970484625c9d.jsonl` - jsonl file
 │   │   ├── `0dad2960-33ee-4d0d-b6c0-0f1393a0f029.jsonl` - jsonl file
 │   │   ├── `0de3f6c4-ca58-4178-8082-7146c56cd2ba.jsonl` - jsonl file
@@ -3203,6 +3205,7 @@
 │   ├── 0a666d67-e3bd-46f1-9360-ccfbf8be8488/
 │   ├── 0a6c67fe-73ad-4a2f-8e2b-b0f5cccb3de8/
 │   ├── 0a98f473-3731-41e7-b859-9658d1160c43/
+│   ├── 0aa1f3a7-1a24-4dc8-8252-37d049ffaf94/
 │   ├── 0aa36c69-c686-40e2-b400-21586237ab86/
 │   ├── 0ad089b4-70c5-43b0-a903-8ae1c5e392b8/
 │   ├── 0afd32db-3244-44dd-a1e7-59210a749c9b/
@@ -4993,10 +4996,10 @@
 │   ├── `snapshot-bash-1774389506742-axt1o4.sh` - Snapshot file
 │   ├── `snapshot-bash-1774389530985-aoeumy.sh` - Snapshot file
 │   ├── `snapshot-bash-1774389874976-c5is5c.sh` - Snapshot file
-│   ├── `snapshot-bash-1774389931102-ftkuvm.sh` - Snapshot file
 │   ├── `snapshot-bash-1774389941185-kczhet.sh` - Snapshot file
 │   ├── `snapshot-bash-1774389953236-4jy6ti.sh` - Snapshot file
-│   └── `snapshot-bash-1774390235913-59l186.sh` - Snapshot file
+│   ├── `snapshot-bash-1774390235913-59l186.sh` - Snapshot file
+│   └── `snapshot-bash-1774391246194-yfy5um.sh` - Snapshot file
 ├── statsig/
 │   ├── `statsig.cached.evaluations.a4c4bed145` - a4c4bed145 file
 │   ├── `statsig.last_modified_time.evaluations` - evaluations file
@@ -5794,7 +5797,6 @@
 │   ├── `291b586f-03cd-449d-a93e-f568e834ad6e-agent-291b586f-03cd-449d-a93e-f568e834ad6e.json` - json config
 │   ├── `29591631-b435-45a7-9430-16cedea50435-agent-29591631-b435-45a7-9430-16cedea50435.json` - json config
 │   ├── `295fbed2-f296-4352-8201-53f3a39cc1e3-agent-295fbed2-f296-4352-8201-53f3a39cc1e3.json` - json config
-│   ├── `29646aaf-4b7a-47a9-8aaf-5022bc0362d6-agent-29646aaf-4b7a-47a9-8aaf-5022bc0362d6.json` - json config
 │   ├── `297b4515-9ac2-4b06-ab8a-eabb56e6880a-agent-297b4515-9ac2-4b06-ab8a-eabb56e6880a.json` - json config
 │   ├── `29c81dd7-daf3-4592-a798-67f7769395b1-agent-29c81dd7-daf3-4592-a798-67f7769395b1.json` - json config
 │   ├── `29d162a3-dd24-4482-8b13-dc6beabee787-agent-29d162a3-dd24-4482-8b13-dc6beabee787.json` - json config
@@ -8881,6 +8883,7 @@
 │   ├── `e1aec2cc-c02f-4e3e-b031-db78ded9b796-agent-e1aec2cc-c02f-4e3e-b031-db78ded9b796.json` - json config
 │   ├── `e1c86363-d299-49e5-a9de-363db9b0c049-agent-e1c86363-d299-49e5-a9de-363db9b0c049.json` - json config
 │   ├── `e1cf6560-1795-4bda-aead-8536146742a2-agent-e1cf6560-1795-4bda-aead-8536146742a2.json` - json config
+│   ├── `e1d577d2-a0d3-43c7-89ca-abfb39374e6e-agent-e1d577d2-a0d3-43c7-89ca-abfb39374e6e.json` - json config
 │   ├── `e1d5c98c-a4c4-4ceb-b38e-ac4fa294f95e-agent-e1d5c98c-a4c4-4ceb-b38e-ac4fa294f95e.json` - json config
 │   ├── `e1f86b3a-c37b-4719-b741-7ddbd05f8926-agent-e1f86b3a-c37b-4719-b741-7ddbd05f8926.json` - json config
 │   ├── `e20f44b4-a13e-4a7d-af41-9d8f9d8b7f22-agent-a595333.json` - json config
