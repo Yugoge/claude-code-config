@@ -85,13 +85,17 @@ def _get_active_worktree_paths() -> list[str]:
     return paths
 
 
+def _is_path_exempt(file_path: str) -> bool:
+    """Check if path is exempt from overnight worktree restrictions (/tmp)."""
+    abs_path = os.path.realpath(os.path.abspath(file_path))
+    return abs_path.startswith("/tmp/") or abs_path == "/tmp"
+
+
 def _is_path_allowed_during_overnight(file_path: str, worktree_paths: list[str]) -> bool:
     """Check if a file path is allowed during overnight (inside worktree or /tmp)."""
-    abs_path = os.path.realpath(os.path.abspath(file_path))
-    # /tmp is always allowed (temp files, reports staging)
-    if abs_path.startswith("/tmp/") or abs_path.startswith("/tmp"):
+    if _is_path_exempt(file_path):
         return True
-    # Inside any active worktree is allowed
+    abs_path = os.path.realpath(os.path.abspath(file_path))
     for wt in worktree_paths:
         abs_wt = os.path.realpath(os.path.abspath(wt))
         if abs_path.startswith(abs_wt + os.sep) or abs_path == abs_wt:
@@ -308,14 +312,14 @@ def _block_worktree_violation(tool_name: str, path: str, wt: str) -> None:
 def _enforce_write_edit_worktree(tool_name: str, tool_input: dict, wt: str) -> None:
     """Check Write/Edit file_path against worktree boundary."""
     file_path = tool_input.get('file_path', '')
-    if file_path and is_outside_worktree(file_path, wt):
+    if file_path and not _is_path_exempt(file_path) and is_outside_worktree(file_path, wt):
         _block_worktree_violation(tool_name, file_path, wt)
 
 
 def _enforce_bash_worktree(command: str, wt: str) -> None:
     """Check Bash write targets against worktree boundary."""
     for path in _extract_bash_write_paths(command):
-        if is_outside_worktree(path, wt):
+        if not _is_path_exempt(path) and is_outside_worktree(path, wt):
             _block_worktree_violation('Bash', path, wt)
 
 
@@ -323,12 +327,12 @@ def apply_worktree_string_check(tool_name: str, tool_input: dict) -> None:
     """Block when overnight session writes to path without 'worktree' in it."""
     if tool_name in ('Write', 'Edit'):
         file_path = tool_input.get('file_path', '')
-        if file_path and path_lacks_worktree_string(file_path):
+        if file_path and not _is_path_exempt(file_path) and path_lacks_worktree_string(file_path):
             _block_worktree_string_violation(tool_name, file_path)
     if tool_name == 'Bash':
         command = tool_input.get('command', '')
         for path in _extract_bash_write_paths(command):
-            if path_lacks_worktree_string(path):
+            if not _is_path_exempt(path) and path_lacks_worktree_string(path):
                 _block_worktree_string_violation('Bash', path)
 
 
@@ -362,28 +366,39 @@ def main():
     # Also enforce worktree boundaries for ALL sessions (catches subagents).
     if is_overnight_active():
         apply_global_security_checks(tool_name, tool_input)
-        wt_paths = _get_active_worktree_paths()
-        if wt_paths:
-            apply_global_worktree_enforcement(tool_name, tool_input, wt_paths)
 
-    # Session-specific enforcement: only apply to the session that owns
-    # an overnight state file. Other sessions are free to operate.
-    if not session_id:
-        sys.exit(0)
-
+    # Session-specific enforcement: apply to the overnight session itself.
+    # Also applies to subagents (different session_id) if their CWD is
+    # inside an overnight worktree.
     project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
-    state = get_overnight_state_for_session(project_dir, session_id)
-    if not state or not _is_session_live(state):
-        sys.exit(0)
 
-    # This session has an active overnight state. Enforce restrictions.
-    # 1. Block any file modification where path lacks "worktree" string.
-    apply_worktree_string_check(tool_name, tool_input)
+    # Check 1: does this session own an overnight state file?
+    state = get_overnight_state_for_session(project_dir, session_id) if session_id else None
+    is_overnight_session = state is not None and _is_session_live(state)
 
-    # 2. If worktree_path is set, enforce realpath boundary too.
-    wt = state.get('worktree_path', '')
-    if wt:
-        apply_worktree_enforcement(tool_name, tool_input, wt)
+    # Check 2: is this session's CWD inside an overnight worktree?
+    # (catches subagents launched by overnight agent)
+    cwd = os.getcwd()
+    is_in_worktree = any(
+        os.path.realpath(cwd).startswith(os.path.realpath(wt))
+        for wt in _get_active_worktree_paths()
+    )
+
+    if not is_overnight_session and not is_in_worktree:
+        sys.exit(0)  # Not overnight-related, allow freely
+
+    # This session is overnight or a subagent inside a worktree.
+    # Enforce worktree boundaries.
+    wt_paths = _get_active_worktree_paths()
+    if wt_paths:
+        apply_global_worktree_enforcement(tool_name, tool_input, wt_paths)
+
+    # Extra checks for the overnight session itself
+    if is_overnight_session:
+        apply_worktree_string_check(tool_name, tool_input)
+        wt = state.get('worktree_path', '')
+        if wt:
+            apply_worktree_enforcement(tool_name, tool_input, wt)
 
     sys.exit(0)
 
