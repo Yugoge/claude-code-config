@@ -85,11 +85,13 @@ def _mark_session_complete(state: dict, state_path: Path) -> None:
 
 
 def _update_state_cycle(state: dict, state_path: Path) -> None:
-    """Increment cycle_count, reset phase and iteration tracking in state file."""
+    """Increment cycle_count, reset phase and pipeline tracking in state file."""
     state['cycle_count'] = state.get('cycle_count', 0) + 1
     state['current_phase'] = 'exploring'
-    state['current_issue'] = None
-    state['current_issue_iteration'] = 0
+    state['current_issues'] = []  # Clear pipeline array for next cycle
+    # Backward compat: also clear legacy fields if present
+    state.pop('current_issue', None)
+    state.pop('current_issue_iteration', None)
     tmp = state_path.with_suffix('.tmp')
     try:
         tmp.write_text(json.dumps(state, indent=2))

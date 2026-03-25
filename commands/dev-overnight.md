@@ -23,21 +23,26 @@ Step 1: Create worktree (first run only)
   |       4 specialist subagents scan in parallel:
   |         product-owner | architect | user | ui-specialist
   |                |
-  |       PRIORITIZATION (Step 3)
-  |       Merge 4 reports, deduplicate, pick highest-priority issue
+  |       PIPELINE CREATION (Step 3)
+  |       Merge 4 reports, deduplicate, create N pipelines (one per issue)
   |                |
-  |       FULL DEV CYCLE (Steps 4-11, identical to /dev)
-  |         Step 4:  BA analysis (autonomous, no clarification)
-  |         Step 5:  Validate BA output
-  |         Step 6:  Dev implementation
-  |         Step 7:  Validate Dev implementation
-  |         Step 8:  QA verification
-  |         Step 9:  Process QA results
-  |         Step 10: Update settings.json permissions
-  |         Step 11: Iteration loop (if QA fails, max 5)
+  |       PARALLEL BA PHASE (Step 4-5)
+  |         Launch ALL N BA subagents in parallel → validate all outputs
+  |                |
+  |       PARALLEL DEV PHASE (Step 6-7)
+  |         Launch ALL N Dev subagents in parallel → validate all outputs
+  |                |
+  |       PARALLEL QA PHASE (Step 8-9)
+  |         Launch ALL N QA subagents in parallel → process all results
+  |                |
+  |       ITERATION LOOPS (Step 10)
+  |         Per-pipeline Dev→QA re-runs for failures (max 5 each)
+  |                |
+  |       PERMISSIONS (Step 11)
+  |         Aggregate permissions from all N pipelines, apply once
   |                |
   |       LOG & TIME CHECK (Step 12)
-  |       Update state, log results, check end-time
+  |       Update state with all N pipeline results, check end-time
   |                |
   |       SUMMARY OR LOOP (Step 13)
   |       Time remaining? → reset todos, loop to Step 2
@@ -56,7 +61,7 @@ Step 1: Create worktree (first run only)
 
 1. **You are autonomous**. Do NOT ask the user anything. Make decisions yourself.
 2. **Loop continuously**. After each fix cycle, the todo completion hook handles looping. This is non-negotiable.
-3. **Keep cycles lean**. Each cycle should be focused on ONE issue. Do not try to fix everything at once.
+3. **Keep cycles comprehensive**. Each cycle settles ALL discovered issues via parallel pipelines. Every issue gets its own BA/Dev/QA pipeline -- no prioritization, no ranking, no selection.
 4. **ALL exploration and fixes via subagents**. Use Agent tool for ALL scanning, analysis, and implementation work. Main context only handles state management, TodoWrite, and loop control.
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
 6. **Track everything**. Update the state file after every significant action.
@@ -75,11 +80,11 @@ Step 1: Create worktree (first run only)
 
 **Examples**:
 - `/dev-overnight 6:00` — run until 6:00, no focus (explore everything)
-- `/dev-overnight 6:00 applio UI bugs` — run until 6:00, prioritize applio UI bugs
+- `/dev-overnight 6:00 applio UI bugs` — run until 6:00, focus on applio UI bugs
 - `/dev-overnight fix hooks` — default 8h, focus on hooks issues
 - `/dev-overnight` — default 8h, no focus
 
-The `focus` string is stored in the state file and passed to all 4 specialist subagents as a priority hint. Issues matching the focus are ranked higher in Step 3.
+The `focus` string is stored in the state file and passed to all 4 specialist subagents as a discovery hint. It helps specialists focus their scans but does not affect pipeline creation -- all discovered issues get pipelines regardless of focus match.
 
 ---
 
@@ -141,10 +146,11 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
 2. Skip Step 1 entirely (worktree already exists)
 3. Resume from the appropriate step based on current_phase:
    - `initializing` or `exploring` -> Step 2 (Explore)
-   - `selecting` -> Step 3 (Select)
-   - `analyzing` -> Step 4 (BA)
-   - `implementing` -> Step 6 (Dev)
-   - `verifying` -> Step 8 (QA)
+   - `pipeline_creation` -> Step 3 (Create pipelines)
+   - `analyzing` -> Step 4 (Parallel BA)
+   - `implementing` -> Step 6 (Parallel Dev)
+   - `verifying` -> Step 8 (Parallel QA)
+   - `iterating` -> Step 10 (Iteration loops)
    - `logging` -> Step 12 (Log)
 4. The hook has already injected the command specification and state summary into this prompt
 
@@ -276,9 +282,9 @@ After all 4 specialists complete, read the user agent's report. Check `core_flow
 
 This gate is non-negotiable: if the user cannot complete the core business flow, the entire cycle is considered failed regardless of other agents' findings.
 
-### Step 3: Select and Prioritize Next Issue
+### Step 3: Create Parallel Pipelines for All Issues
 
-**Update state**: Set `current_phase` to `"selecting"`.
+**Update state**: Set `current_phase` to `"pipeline_creation"`.
 
 **Read all 4 JSON reports** from `docs/dev/overnight/`:
 - `product-owner-report.json`
@@ -290,183 +296,297 @@ This gate is non-negotiable: if the user cannot complete the core business flow,
 1. Combine all issues from all 4 reports
 2. Deduplicate: same file+description from multiple agents counts as one (but note which agents flagged it)
 3. Filter out any issue already in `addressed_issues` from state file
+4. Filter out any issue that has failed 3 times (check `failed_attempts`)
 
-**Prioritization rules** (in order):
-1. If `focus` is set in state file: boost issues whose description/location matches the focus string
-2. Critical severity first
-3. Then major severity
-4. Among same severity, prefer small effort (quick wins)
-5. Among same severity and effort, prefer issues flagged by multiple agents
-6. Skip any issue that has failed 3 times (check `failed_attempts`)
+**No prioritization or ranking**. Every remaining issue gets a pipeline.
 
-**Select ONE issue**. Update state file:
-- Set `current_issue` to the issue description
-- Increment `issues_found` counter
+**Time guard**: If time remaining < 5 minutes, skip issues with `estimated_effort: "large"` or `"medium"` to avoid starting work that cannot finish.
 
-### Step 4: Delegate to BA Subagent
+**Create pipeline definitions** -- one per deduplicated issue, with zero-indexed suffix:
+
+```python
+pipelines = []
+for i, issue in enumerate(deduplicated_issues):
+    pipelines.append({
+        "index": i,
+        "description": issue["description"],
+        "location": issue["location"],
+        "severity": issue["severity"],
+        "category": issue["category"],
+        "agents_flagged": issue["agents_flagged"],  # which specialists found it
+        "phase": "pending",      # pending -> ba -> dev -> qa -> done/skipped
+        "iteration": 0,
+        "status": "active",      # active -> fixed/skipped
+        "timestamp_suffix": f"{timestamp}-{i}"  # unique file naming suffix
+    })
+```
+
+**Update state file**:
+- Set `current_issues` to the pipeline array
+- Set `issues_found` += len(pipelines)
+
+**Announce pipeline creation**:
+```
+Created {N} parallel pipelines for this cycle:
+  Pipeline 0: {description} ({severity}, {location})
+  Pipeline 1: {description} ({severity}, {location})
+  ...
+Proceeding to parallel BA phase.
+```
+
+### Step 4: Run All BA Subagents (Parallel)
 
 **Update state**: Set `current_phase` to `"analyzing"`.
 
-**Delegate to BA subagent for requirements analysis and context building.**
-
-Since the issue is self-discovered (not user-provided), set clarification round to 3 to skip the clarification loop. The BA subagent will proceed directly to analysis.
+**Launch ALL N BA subagents in a SINGLE response** (parallel execution). Each pipeline gets its own BA Agent call with unique file naming.
 
 ```
-Use Agent tool with:
-- subagent_type: "ba"
-- description: "Analyze self-discovered issue and build context"
-- prompt: "
-  You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+Launch N Agent tool calls simultaneously (one per pipeline):
 
-  Requirement: '<issue description from Step 3>'
-  Clarification round: 3
-  Previous answers: null
-  Codebase hints: <file paths from the issue report>
-  Timestamp: <YYYYMMDD-HHMMSS>
-  Project root: <worktree_path from state file if set, otherwise project root>
+For each pipeline[i] in current_issues:
 
-  This is a self-discovered issue from overnight exploration.
-  No clarification is needed -- proceed directly to analysis.
-  All file operations and git analysis must use paths inside the project root above.
+Agent(subagent_type: "ba")
+  description: "BA analysis for pipeline {i}: {pipeline.description}"
+  prompt: "
+    You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
-  Perform full analysis:
-  1. Parse and decompose requirement
-  2. Perform git root cause analysis (if applicable)
-  3. Identify affected files
-  4. Generate MoSCoW requirements and BDD acceptance criteria
-  5. Write ba-spec-<timestamp>.md to docs/dev/ (inside project root)
-  6. Write context-<timestamp>.json to docs/dev/ (inside project root)
+    Requirement: '{pipeline.description}'
+    Clarification round: 3
+    Previous answers: null
+    Codebase hints: {pipeline.location}
+    Timestamp: {pipeline.timestamp_suffix}
+    Project root: <worktree_path from state file if set, otherwise project root>
 
-  Return JSON with status, file paths, and summary.
+    This is a self-discovered issue from overnight exploration.
+    No clarification is needed -- proceed directly to analysis.
+    All file operations and git analysis must use paths inside the project root above.
+
+    Perform full analysis:
+    1. Parse and decompose requirement
+    2. Perform git root cause analysis (if applicable)
+    3. Identify affected files
+    4. Generate MoSCoW requirements and BDD acceptance criteria
+    5. Write ba-spec-{pipeline.timestamp_suffix}.md to docs/dev/ (inside project root)
+    6. Write context-{pipeline.timestamp_suffix}.json to docs/dev/ (inside project root)
+
+    Return JSON with status, file paths, and summary.
   "
 ```
 
-**Wait for BA subagent completion** before proceeding.
+**Wait for ALL N BA subagents to complete** before proceeding.
 
-**NOTE**: Since this is autonomous mode, there is NO BA clarification loop. If BA returns `needs_clarification`, treat it as `ready` and use the BA's best-effort output with explicit assumptions. Do NOT ask the user.
+**NOTE**: Since this is autonomous mode, there is NO BA clarification loop. If any BA returns `needs_clarification`, treat it as `ready` and use best-effort output with explicit assumptions. Do NOT ask the user.
 
-### Step 5: Validate BA Output
+**Fallback**: If the Agent tool cannot handle N simultaneous calls, batch them in groups of 4 and wait for each batch to complete before starting the next.
 
-**Check BA deliverables exist and are well-formed**:
+### Step 5: Validate All BA Outputs
+
+**For each pipeline[i]**, check BA deliverables exist and are well-formed:
 
 Read BA output files:
-- `docs/dev/ba-spec-<timestamp>.md` - Markdown specification
-- `docs/dev/context-<timestamp>.json` - JSON context for dev subagent
+- `docs/dev/ba-spec-{pipeline.timestamp_suffix}.md` - Markdown specification
+- `docs/dev/context-{pipeline.timestamp_suffix}.json` - JSON context for dev subagent
 
-**Sanity checks**:
+**Sanity checks per pipeline**:
 - [ ] Both files exist
 - [ ] Markdown spec has required sections (Goal, Requirements, Acceptance Criteria)
 - [ ] JSON context has required fields (requirement, root_cause_analysis, development_approach)
 - [ ] Success criteria are measurable
 - [ ] Affected files identified
 
-**If validation fails**:
-- Re-invoke BA with specific feedback about what's missing
-- Maximum 2 re-invocations for validation fixes
+**If validation fails for pipeline[i]**:
+- Re-invoke only the failed BA with specific feedback about what's missing
+- Maximum 2 re-invocations per pipeline
+- If still failing after retries: mark pipeline status as `"skipped"` with reason `"BA validation failed"`
 
-**If validation passes**: Proceed to Step 6
+**Update state**: Set each pipeline's `phase` to `"ba_complete"`.
 
-### Step 6: Delegate to Dev Subagent
+**If all pipelines are skipped**: Skip to Step 12 (log results).
+
+### Step 6: Run All Dev Subagents (Parallel)
 
 **Update state**: Set `current_phase` to `"implementing"`.
 
-**Use Agent tool to invoke dev subagent with file paths only**:
+**Filter**: Only launch Dev for pipelines with `phase == "ba_complete"` and `status == "active"`.
+
+**Launch ALL active Dev subagents in a SINGLE response** (parallel execution):
 
 ```
-Use Agent tool with:
-- subagent_type: "dev"
-- description: "Implement fix based on BA context"
-- prompt: "
-  You are the dev subagent. Follow agents/dev.md instructions precisely.
+For each active pipeline[i]:
 
-  Context file: docs/dev/context-<timestamp>.json
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
-  Write your implementation report to: docs/dev/dev-report-overnight-<cycle>.json
-  Project root: <worktree_path from state file if set, otherwise project root>
+Agent(subagent_type: "dev")
+  description: "Dev implementation for pipeline {i}: {pipeline.description}"
+  prompt: "
+    You are the dev subagent. Follow agents/dev.md instructions precisely.
 
-  IMPORTANT: All file reads, writes, and git operations must use absolute paths
-  inside the project root above. Do not modify files in the main project directory.
+    Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
+    BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+    Write your implementation report to: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
+    Project root: <worktree_path from state file if set, otherwise project root>
+
+    IMPORTANT: All file reads, writes, and git operations must use absolute paths
+    inside the project root above. Do not modify files in the main project directory.
   "
 ```
 
-**Wait for dev subagent completion** before proceeding.
+**Wait for ALL Dev subagents to complete** before proceeding.
 
-### Step 7: Validate Dev Implementation
+**Fallback**: If the Agent tool cannot handle N simultaneous calls, batch them in groups of 4.
 
-**Quick validation before QA**:
+### Step 7: Validate All Dev Implementations
 
-Read dev implementation report: `docs/dev/dev-report-overnight-<cycle>.json`
+**For each active pipeline[i]**, validate dev output:
 
-**Sanity checks**:
+Read dev report: `docs/dev/dev-report-{pipeline.timestamp_suffix}.json`
+
+**Sanity checks per pipeline**:
 - [ ] Status is "completed" (not "blocked")
 - [ ] All tasks documented
 - [ ] Scripts created have usage examples
 - [ ] Git rationale references root cause
 - [ ] Files exist that were reported as created/modified
 
-**If dev blocked**:
+**If dev blocked for pipeline[i]**:
 - Read blocking issues from report
 - Resolve blockers (e.g., missing information, technical constraints)
 - Refine context JSON with additional information
-- Re-invoke dev subagent (maximum 3 attempts)
+- Re-invoke only that pipeline's dev subagent (maximum 3 attempts)
+- If still blocked: mark pipeline status as `"skipped"` with reason `"Dev blocked"`
 
-**If dev completed**: Proceed to Step 8
+**Update state**: Set each successful pipeline's `phase` to `"dev_complete"`.
 
-### Step 8: Delegate to QA Subagent
+### Step 8: Run All QA Subagents (Parallel)
 
 **Update state**: Set `current_phase` to `"verifying"`.
 
-**Use Agent tool to invoke QA subagent with file paths only**:
+**Filter**: Only launch QA for pipelines with `phase == "dev_complete"` and `status == "active"`.
+
+**Launch ALL active QA subagents in a SINGLE response** (parallel execution):
 
 ```
-Use Agent tool with:
-- subagent_type: "qa"
-- description: "Verify implementation quality against standards"
-- prompt: "
-  You are the QA subagent. Follow agents/qa.md instructions precisely.
+For each active pipeline[i]:
 
-  Context file: docs/dev/context-<timestamp>.json
-  Dev report file: docs/dev/dev-report-overnight-<cycle>.json
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
-  Write your verification report to: docs/dev/qa-report-overnight-<cycle>.json
-  Project root: <worktree_path from state file if set, otherwise project root>
+Agent(subagent_type: "qa")
+  description: "QA verification for pipeline {i}: {pipeline.description}"
+  prompt: "
+    You are the QA subagent. Follow agents/qa.md instructions precisely.
 
-  IMPORTANT: All file reads and verification must use the project root above.
-  Verify that changes were made inside the worktree, not the main project.
+    Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
+    Dev report file: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
+    BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+    Write your verification report to: docs/dev/qa-report-{pipeline.timestamp_suffix}.json
+    Project root: <worktree_path from state file if set, otherwise project root>
+
+    IMPORTANT: All file reads and verification must use the project root above.
+    Verify that changes were made inside the worktree, not the main project.
   "
 ```
 
-**Wait for QA subagent completion** before proceeding.
+**Wait for ALL QA subagents to complete** before proceeding.
 
-### Step 9: Process QA Results
+**Fallback**: If the Agent tool cannot handle N simultaneous calls, batch them in groups of 4.
 
-Read QA report: `docs/dev/qa-report-overnight-<cycle>.json`
+### Step 9: Process All QA Results
 
-**Decision tree**:
+**For each active pipeline[i]**, read QA report and classify:
+
+Read QA report: `docs/dev/qa-report-{pipeline.timestamp_suffix}.json`
+
+**Per-pipeline decision tree**:
 
 ```
 IF qa.status == "pass":
-  → Proceed to Step 10 (Update Permissions)
+  → Mark pipeline phase = "done", status = "fixed"
 
 ELIF qa.status == "warning":
-  → Autonomous decision: if only minor/cosmetic issues, proceed to Step 10
-  → If major issues: proceed to Step 11 (Iteration)
+  → Autonomous decision: if only minor/cosmetic issues, mark phase = "done", status = "fixed"
+  → If major issues: mark phase = "qa_failed" (will enter iteration in Step 10)
 
 ELIF qa.status == "fail":
-  → Proceed to Step 11 (Iteration)
+  → Mark pipeline phase = "qa_failed" (will enter iteration in Step 10)
 ```
 
-### Step 10: Update Settings.json Permissions
-
-**CRITICAL**: Auto-update permissions for new functionality.
-
-**Extract validated permissions from QA report**:
-
-```bash
-jq '.qa.permissions_verification.validated_permissions' docs/dev/qa-report-overnight-<cycle>.json
+**Tally results**:
+```
+Pipelines passed: {count} of {total}
+Pipelines needing iteration: {count}
+Pipelines skipped: {count}
 ```
 
-**Update settings.json**:
+**If all pipelines are done (no qa_failed)**: Skip Step 10, proceed to Step 11.
+
+### Step 10: Per-Pipeline Iteration Loops (if QA fails)
+
+**Only runs for pipelines with `phase == "qa_failed"`**. Pipelines that passed QA are already finalized.
+
+**Per-pipeline iteration guard**: Maximum 5 iterations per pipeline to prevent infinite loops.
+
+**For each failed pipeline[i]** (can be done sequentially since these are re-runs):
+
+```
+WHILE pipeline[i].iteration < 5 AND pipeline[i].phase == "qa_failed":
+    pipeline[i].iteration += 1
+
+    # Refine context
+    Extract refined context from QA report:
+    jq '.qa.refined_context' docs/dev/qa-report-{pipeline.timestamp_suffix}.json \
+      > docs/dev/refined-context-{pipeline.timestamp_suffix}.json
+
+    Merge with original context:
+    jq -s '.[0] * {
+      iteration: (.[0].iteration // 0) + 1,
+      previous_attempts: [.[0].previous_attempts // [], {
+        iteration: (.[0].iteration // 0),
+        dev: .[1].dev,
+        qa: .[1].qa,
+        timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ")
+      }] | flatten,
+      refined_requirements: .[2]
+    }' \
+      docs/dev/context-{pipeline.timestamp_suffix}.json \
+      docs/dev/qa-report-{pipeline.timestamp_suffix}.json \
+      docs/dev/refined-context-{pipeline.timestamp_suffix}.json \
+      > docs/dev/context-iter{pipeline.iteration}-{pipeline.timestamp_suffix}.json
+
+    # Re-run Dev for this pipeline only
+    Agent(subagent_type: "dev") with iteration context
+
+    # Re-run QA for this pipeline only
+    Agent(subagent_type: "qa") with new dev report
+
+    IF qa.status == "pass" or (qa.status == "warning" and minor only):
+        pipeline[i].phase = "done"
+        pipeline[i].status = "fixed"
+        BREAK
+```
+
+**If iteration reaches 5 without passing**:
+```
+Quality verification failed after 5 iterations for pipeline {i}: {description}.
+Marking as skipped.
+```
+Mark pipeline: `phase = "done"`, `status = "skipped"`.
+Add to `failed_attempts` in state file.
+
+### Step 11: Update Settings.json Permissions (Aggregated)
+
+**CRITICAL**: Aggregate permissions from ALL pipelines before updating.
+
+**Collect permissions from all pipeline QA reports**:
+
+```python
+all_permissions = []
+for pipeline in current_issues:
+    if pipeline['status'] == 'fixed':
+        qa_report = load(f"docs/dev/qa-report-{pipeline['timestamp_suffix']}.json")
+        perms = qa_report.get('qa', {}).get('permissions_verification', {}).get('validated_permissions', [])
+        all_permissions.extend(perms)
+
+# Deduplicate by pattern
+unique_permissions = deduplicate(all_permissions, key='pattern')
+```
+
+**Update settings.json** with deduplicated permissions:
 
 Read current settings:
 ```bash
@@ -486,24 +606,24 @@ For each validated permission:
 **Add to appropriate section in settings.json**:
 
 ```bash
-# Use jq to add permission
+# Use jq to add permission (for each unique permission)
 jq '.permissions.allow += ["Bash(scripts/new-script.sh:*)"]' .claude/settings.json > .claude/settings.json.tmp
 mv .claude/settings.json.tmp .claude/settings.json
 ```
 
 **Permission update rules**:
 
-1. **Scripts created** → Add to "allow":
+1. **Scripts created** -> Add to "allow":
    - `"Bash(scripts/<script-name>.sh:*)"`
    - `"Bash(~/.claude/scripts/<script-name>.sh:*)"`
 
-2. **Python scripts** → Add to "allow":
+2. **Python scripts** -> Add to "allow":
    - `"Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/<script>.py:*)"`
 
-3. **Hooks created** → Add to "allow":
+3. **Hooks created** -> Add to "allow":
    - `"Bash(~/.claude/hooks/<hook-name>.sh:*)"`
 
-4. **Commands created** → Already allowed via "SlashCommand"
+4. **Commands created** -> Already allowed via "SlashCommand"
 
 **Validation**:
 - Check JSON syntax after modification
@@ -511,73 +631,41 @@ mv .claude/settings.json.tmp .claude/settings.json
 - Confirm permissions follow patterns
 
 **Error handling**:
-- If settings.json has syntax error → Log and skip (do not ask user -- autonomous mode)
-- If permission already exists → Skip, don't duplicate
+- If settings.json has syntax error -> Log and skip (do not ask user -- autonomous mode)
+- If permission already exists -> Skip, don't duplicate
 
-### Step 11: Iteration Loop (if QA fails)
-
-**Iteration guard**: Maximum 5 iterations to prevent infinite loops
-
-**Current iteration**: Track internally (starts at 1)
-
-**If iteration > 5**:
-```
-Quality verification failed after 5 iterations for this issue.
-Marking issue as skipped and moving on to next cycle.
-```
-Mark the issue as skipped in `failed_attempts` and `addressed_issues`, then proceed to Step 12.
-
-**If iteration <= 5**:
-
-**Refine context for next iteration**:
-
-```bash
-# Extract refined context from QA report
-jq '.qa.refined_context' docs/dev/qa-report-overnight-<cycle>.json \
-  > docs/dev/refined-context-overnight-<cycle>.json
-
-# Merge with original context
-jq -s '.[0] * {
-  iteration: (.[0].iteration // 0) + 1,
-  previous_attempts: [.[0].previous_attempts // [], {
-    iteration: (.[0].iteration // 0),
-    dev: .[1].dev,
-    qa: .[1].qa,
-    timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ")
-  }] | flatten,
-  refined_requirements: .[2]
-}' \
-  docs/dev/context-<timestamp>.json \
-  docs/dev/qa-input-overnight-<cycle>.json \
-  docs/dev/refined-context-overnight-<cycle>.json \
-  > docs/dev/context-iter<N>-overnight-<cycle>.json
-```
-
-**Return to Step 6** with new context JSON
-
-**Iteration tracking**: Update TodoWrite with iteration number
-
-### Step 12: Log Cycle Results and Check Time
+### Step 12: Log All Cycle Results and Check Time
 
 **Update state**: Set `current_phase` to `"logging"`.
 
-**Update the state file** with cycle results:
+**Aggregate results from ALL pipelines and update the state file**:
 
 ```python
 state['cycle_count'] += 1
-state['issues_fixed' if succeeded else 'issues_skipped'] += 1
-state['addressed_issues'].append(issue_description)
-state['cycle_log'].append({
-    'cycle': state['cycle_count'],
-    'issue': issue_description,
-    'location': file_path,
-    'severity': severity,
-    'status': 'fixed' if succeeded else 'skipped',
-    'changes': list_of_changes,
-    'iterations': iteration_count,
-    'timestamp': now_iso
-})
-state['current_issue'] = None
+fixed_count = 0
+skipped_count = 0
+
+for pipeline in state['current_issues']:
+    if pipeline['status'] == 'fixed':
+        fixed_count += 1
+    elif pipeline['status'] == 'skipped':
+        skipped_count += 1
+
+    state['addressed_issues'].append(pipeline['description'])
+    state['cycle_log'].append({
+        'cycle': state['cycle_count'],
+        'pipeline_index': pipeline['index'],
+        'issue': pipeline['description'],
+        'location': pipeline['location'],
+        'severity': pipeline['severity'],
+        'status': pipeline['status'],
+        'iterations': pipeline['iteration'],
+        'timestamp': now_iso
+    })
+
+state['issues_fixed'] += fixed_count
+state['issues_skipped'] += skipped_count
+state['current_issues'] = []  # Clear pipeline array for next cycle
 ```
 
 Write atomically (tmp + rename).
@@ -585,12 +673,15 @@ Write atomically (tmp + rename).
 **Append to running log** at `docs/dev/overnight-log-<date>.md`:
 
 ```markdown
-### Cycle <N>: <issue description>
-- **Status**: Fixed / Skipped
-- **Location**: <file:line>
-- **Changes**: <brief summary>
-- **Iterations**: <N>
-- **Time**: <timestamp>
+### Cycle <N>: {total_pipelines} pipelines ({fixed_count} fixed, {skipped_count} skipped)
+
+| Pipeline | Issue | Status | Iterations |
+|----------|-------|--------|------------|
+| 0 | {description} | Fixed | 1 |
+| 1 | {description} | Skipped | 5 |
+| ... | ... | ... | ... |
+
+**Time**: <timestamp>
 ```
 
 **TIME CHECK**:
@@ -711,40 +802,54 @@ The state file serves three purposes:
 
 **Worktree naming**: Each session creates `overnight-<YYYYMMDD>-<session_id_short>` (first 8 chars of session_id) to avoid conflicts between concurrent sessions.
 
-**Schema (v4)**:
+**Schema (v6)**:
 ```json
 {
   "session_id": "string (from $CLAUDE_SESSION_ID or UUID)",
   "end_time": "ISO-8601 datetime",
   "start_time": "ISO-8601 datetime",
-  "focus": "string (priority hint from user, or empty)",
+  "focus": "string (discovery hint from user, or empty)",
   "cycle_count": 0,
   "issues_found": 0,
   "issues_fixed": 0,
   "issues_skipped": 0,
-  "current_phase": "initializing|exploring|selecting|analyzing|implementing|verifying|logging|completed",
-  "current_issue": "string or null",
+  "current_phase": "initializing|exploring|pipeline_creation|analyzing|implementing|verifying|iterating|logging|completed",
+  "current_issues": [
+    {
+      "index": 0,
+      "description": "issue description",
+      "location": "file:line",
+      "severity": "critical|major|minor|cosmetic",
+      "category": "category string",
+      "agents_flagged": ["product-owner", "architect"],
+      "phase": "pending|ba_complete|dev_complete|qa_failed|done",
+      "iteration": 0,
+      "status": "active|fixed|skipped",
+      "timestamp_suffix": "YYYYMMDD-HHMMSS-0"
+    }
+  ],
   "failed_attempts": {"issue_desc": 2},
   "addressed_issues": ["issue_desc_1", "issue_desc_2"],
   "cycle_log": [
     {
       "cycle": 1,
+      "pipeline_index": 0,
       "issue": "description",
       "location": "file:line",
       "severity": "critical|major|minor|cosmetic",
       "status": "fixed|skipped",
-      "changes": ["change 1", "change 2"],
       "iterations": 1,
       "timestamp": "ISO-8601"
     }
   ],
   "consecutive_clean_sweeps": 0,
-  "current_issue_iteration": 0,
   "worktree_path": "/path/to/worktree or null",
   "worktree_branch": "overnight-YYYYMMDD-<session_id_short> or null",
-  "schema_version": 5
+  "schema_version": 6
 }
 ```
+
+**Migration from v5**: If reading a v5 state file, convert `current_issue` (string) to `current_issues` (array with single entry if non-null, empty array if null). Remove `current_issue` and `current_issue_iteration` fields.
 
 ---
 
@@ -753,11 +858,11 @@ The state file serves three purposes:
 ### No issues found
 After 2 consecutive clean sweeps: treat as "codebase is clean", generate summary and delete state file.
 
-### Unfixable issue (3 failed attempts)
-Mark as skipped, add to addressed_issues, continue to next issue.
+### Unfixable issue (5 failed iterations per pipeline)
+Mark pipeline as skipped, add to addressed_issues. Other pipelines in the same cycle are unaffected.
 
 ### Very short time remaining (< 5 minutes)
-Skip medium/large effort issues, only attempt small fixes or go to summary.
+In Step 3 pipeline creation, skip issues with medium/large effort. If zero small-effort issues remain, go directly to summary.
 
 ### State file corruption
 Create a fresh state file preserving end_time from $ARGUMENTS. Continue operation.
@@ -822,11 +927,11 @@ The loop MUST continue until end-time. Only break for:
 **All JSON files stored in**: `docs/dev/`
 
 **File naming convention**:
-- Context: `context-<timestamp>.json` or `context-iter<N>-overnight-<cycle>.json`
-- BA spec: `ba-spec-<timestamp>.md`
-- Dev report: `dev-report-overnight-<cycle>.json`
-- QA report: `qa-report-overnight-<cycle>.json`
-- QA input: `qa-input-overnight-<cycle>.json`
+- Context: `context-<timestamp>-<pipeline_index>.json` or `context-iter<N>-<timestamp>-<pipeline_index>.json`
+- BA spec: `ba-spec-<timestamp>-<pipeline_index>.md`
+- Dev report: `dev-report-<timestamp>-<pipeline_index>.json`
+- QA report: `qa-report-<timestamp>-<pipeline_index>.json`
+- Refined context: `refined-context-<timestamp>-<pipeline_index>.json`
 - Overnight reports: `docs/dev/overnight/<session_id>/product-owner-report.json`, etc.
 - Running log: `overnight-log-<session_id>.md`
 - Summary: `overnight-summary-<session_id>.md`
@@ -879,9 +984,10 @@ See `/clean` command documentation for details.
 
 **Orchestrator ensures**:
 - Issues fully explored by 4 specialist subagents before fixing
-- Comprehensive context via BA
-- Iterative quality improvement (max 5 iterations per issue)
-- Proper JSON storage with session-scoped naming
+- ALL issues get parallel pipelines (no prioritization or ranking)
+- Comprehensive context via BA (one per pipeline)
+- Iterative quality improvement (max 5 iterations per pipeline, independent)
+- Proper JSON storage with pipeline-scoped naming (timestamp-index suffix)
 - Cycle deduplication via state file
 - Multi-session isolation via session_id-keyed state files
 
@@ -896,12 +1002,12 @@ See `/clean` command documentation for details.
 | BA validation | Step 4 | Step 5 |
 | Dev validation | Step 6 | Step 7 |
 | QA processing | Step 8 decision tree | Step 9 autonomous decision |
-| Settings update | Step 9 | Step 10 |
-| Iteration loop | Step 10 (max 5, asks user after 5) | Step 11 (max 5, auto-skip after 5) |
+| Iteration loop | Step 10 (max 5, asks user after 5) | Step 10 (max 5 per pipeline, auto-skip after 5) |
+| Settings update | Step 9 | Step 11 (aggregated from all pipelines) |
 | Loop | Single pass | Continuous until end-time |
 | Termination | After QA passes | After end-time expires |
 | User interaction | Required (clarification, approval) | None (fully autonomous) |
-| Scope per cycle | One complete feature/fix | One small-to-medium issue |
+| Scope per cycle | One complete feature/fix | ALL discovered issues (parallel pipelines) |
 | Subagent usage | BA + dev + QA | product-owner + architect + user + ui-specialist + BA + dev + QA |
 | Stop hook | Workflow enforcement only | Workflow + time-lock |
 | Worktree | Not used | Created on first run, reused across cycles |
