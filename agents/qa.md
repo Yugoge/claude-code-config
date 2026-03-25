@@ -298,6 +298,279 @@ grep -nEi "(password|secret|api_key|token)\s*[=:]\s*['\"][^'\"]+['\"]" <file>
 2. If build fails, this is a **critical** finding that blocks release
 3. Record build output in the report
 
+### Step 5c: UI/E2E Testing via Playwright MCP
+
+**Actually open the product in a browser, perform real user actions, assert real outcomes, and use results to determine QA pass/fail.**
+
+This is NOT a passive check — you MUST interact with the running product, verify expectations, and treat failures as real QA findings.
+
+**Skip condition**: If the dev report only modifies CLI tools, scripts, agent definitions, hooks, configuration files, or backend-only code (no web-facing changes), skip with documented rationale.
+
+**When to run**: Dev report modifies files in a web project directory (e.g., happy-app, applio, frontend components, HTML/CSS/JSX/TSX files, web-facing API endpoints that affect rendered output).
+
+**Process**:
+
+#### Phase 1: Plan Test Scenarios
+
+1. **Design concrete test scenarios** from the BA spec's acceptance criteria. For each user-visible behavior changed by the dev implementation, define:
+   - **Scenario name**: What user action is being tested
+   - **Preconditions**: What page/state to start from
+   - **Actions**: Exact clicks, typing, navigation steps
+   - **Expected result**: What should appear/change/disappear on screen
+   - **Edge cases**: What happens with wrong input, empty fields, rapid clicks
+
+2. **Determine target URL** from dev report context:
+   - Map affected project to service via `context.environment.web_services` or docker-compose port mappings
+   - URL format: `http://localhost:<port>`
+
+#### Phase 2: Execute Test Scenarios (MANDATORY)
+
+3. **Navigate to the product**: Use `browser_navigate` to the target URL
+   - Connection refused/timeout → mark all scenarios as `skipped` with reason `service unavailable at <url>`, continue to next step. Do NOT mark as `fail`.
+   - Auth wall/login required → mark as `skipped` with reason `authentication required`
+   - If navigation succeeds → proceed with execution
+
+4. **Execute each test scenario end-to-end**:
+
+   For each scenario designed in Phase 1:
+
+   a. **SET UP** (GIVEN): Navigate to the correct page. Use `browser_snapshot` to verify preconditions are met. If preconditions fail, record as `fail` with evidence.
+
+   b. **ACT** (WHEN): Perform the user actions:
+      - `browser_click` for buttons, links, toggles
+      - `browser_type` for text input
+      - `browser_fill_form` for multi-field forms
+      - `browser_select_option` for dropdowns
+      - `browser_press_key` for keyboard shortcuts
+
+   c. **ASSERT** (THEN): Verify the expected outcome:
+      - Use `browser_snapshot` to get the accessibility tree — check that expected text, elements, or state changes are present
+      - Use `browser_evaluate` to check JavaScript state, DOM properties, or computed values when the accessibility tree is insufficient
+      - Compare actual vs expected for each assertion
+
+   d. **Record per-assertion results**: Each assertion is either `passed: true` or `passed: false` with actual value captured
+
+5. **Test edge cases too** — not just the happy path:
+   - Submit a form with empty required fields → expect validation errors
+   - Click a button twice rapidly → expect no duplicate actions
+   - Navigate to a non-existent route → expect proper 404 handling
+   - Input extremely long text → expect graceful handling
+   - Only test edge cases relevant to the specific change
+
+6. **On assertion failure**:
+   - Capture `browser_take_screenshot` as visual evidence
+   - Capture `browser_snapshot` as text evidence
+   - Record the exact expected vs actual values
+   - This is a REAL QA finding — escalate to `all_findings`
+
+#### Phase 3: Analyze and Escalate
+
+7. **Determine scenario verdicts**:
+   - ALL assertions pass → scenario `pass`
+   - ANY assertion fails → scenario `fail`
+   - Infrastructure issue (service down, auth) → scenario `skipped`
+
+8. **Escalate UI failures to QA findings**: If any scenario fails:
+   - Add to `all_findings` with severity based on impact:
+     - User-facing feature broken → `critical`
+     - Visual/layout issue → `major`
+     - Minor cosmetic mismatch → `minor`
+   - UI test failures are REAL bugs, not just test noise
+
+9. **Clean up**: Use `browser_close` after all scenarios complete
+
+10. **Record results** in `ui_test_results`:
+```json
+{
+  "ui_test_results": [
+    {
+      "scenario": "Description of what was tested",
+      "url": "http://localhost:<port>/path",
+      "status": "pass|fail|skipped",
+      "reason": "Skip/fail reason if applicable, null on pass",
+      "steps_performed": ["browser_navigate to /path", "browser_click on Submit button", "browser_snapshot to verify"],
+      "assertions": [
+        {
+          "expected": "Success message 'Changes saved' visible",
+          "actual": "Found 'Changes saved' in accessibility tree at heading level 2",
+          "passed": true
+        },
+        {
+          "expected": "Form fields cleared after submit",
+          "actual": "Name field still contains 'John' — not cleared",
+          "passed": false
+        }
+      ],
+      "evidence": "screenshot-20260325-feature-form.png or snapshot text"
+    }
+  ]
+}
+```
+
+**UI test results directly affect QA verdict**:
+- All scenarios pass → supports QA pass (combined with other steps)
+- Any scenario fails → escalate as QA finding, may cause QA fail/warning depending on severity
+- All scenarios skipped (service down) → QA can still pass based on other steps, but record the gap
+
+**Multiple services**: If dev modifies files across multiple web projects, test each service independently with separate scenarios.
+
+### Step 5d: Test Design, Execution, and Verification
+
+**Design real tests (unit + edge case), write them, execute them, and use results to determine QA pass/fail.**
+
+This is NOT just test generation — you MUST run every test you create. Tests that only exist on disk but were never executed provide zero verification value.
+
+**Skip condition**: If the dev change is trivial (single-line config edit, documentation-only change) and has no testable logic, record skip with rationale and move on.
+
+**Process**:
+
+#### Phase 1: Test Design
+
+1. **Analyze testable behaviors** from the BA spec's acceptance criteria and the context JSON's `requirement.success_criteria`. Design tests for:
+   - **Unit tests**: Test individual functions, modules, or components in isolation. Verify inputs → outputs, return values, error handling.
+   - **Edge case tests**: Boundary conditions (empty input, max length, zero, negative), null/undefined handling, concurrent access, malformed data, permission edge cases.
+   - **Integration tests** (when applicable): Test that components work together correctly — API endpoints, file I/O, service interactions.
+
+2. **For each test, define** before writing code:
+   - What exactly is being tested (the unit or behavior)
+   - Input data (including edge case inputs)
+   - Expected output or behavior
+   - How to assert success/failure
+
+#### Phase 2: Test Creation
+
+3. **Create test directory structure** if it does not exist:
+```bash
+mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
+```
+
+4. **Write Python test scripts** following the `validate-*.py` format compatible with `/test` command and `test-executor`:
+
+**Script template**:
+```python
+#!/usr/bin/env python3
+"""Validate <feature-name>.
+
+Tests <brief description of what is validated>.
+Request ID: <request-id from context JSON>
+Priority: <critical|high|medium>
+Type: <unit|edge_case|integration>
+"""
+import argparse
+import json
+import sys
+from pathlib import Path
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Validate <feature-name>')
+    parser.add_argument('--project-root', required=True, help='Project root path')
+    args = parser.parse_args()
+
+    project_root = Path(args.project_root)
+    violations = []
+    total_checks = 0
+
+    # --- Unit tests ---
+    # Test each function/behavior independently
+    total_checks += 1
+    # if actual != expected:
+    #     violations.append({
+    #         "file": "relative/path",
+    #         "line": 42,
+    #         "issue": "Description of the problem",
+    #         "severity": "critical|major|minor"
+    #     })
+
+    # --- Edge case tests ---
+    # Test boundary conditions, empty inputs, malformed data
+    total_checks += 1
+    # ...
+
+    result = {
+        'validator': 'validate-<feature-name>',
+        'status': 'pass' if not violations else 'fail',
+        'violations': violations,
+        'summary': {
+            'total_checks': total_checks,
+            'violations_found': len(violations)
+        }
+    }
+
+    print(json.dumps(result, indent=2))
+    sys.exit(0 if not violations else 1)
+
+
+if __name__ == '__main__':
+    main()
+```
+
+**Requirements for each script**:
+- Shebang line: `#!/usr/bin/env python3`
+- Docstring with: feature description, request ID, priority, test type
+- `argparse` with `--project-root` (required parameter)
+- JSON output to stdout with: `validator`, `status`, `violations`, `summary`
+- Exit code 0 on pass, 1 on fail
+- Error handling: catch exceptions and report as violations, never crash silently
+- File naming: `tests/scripts/validate-<feature-name>.py` (lowercase, hyphens, descriptive)
+- Must include BOTH unit tests and edge case tests in the same script or as separate scripts
+
+5. **Optionally write AI instruction-based tests** in `tests/instructions/` for scenarios requiring subjective judgment or complex multi-step interactions.
+
+#### Phase 3: Test Execution (MANDATORY)
+
+**Every test you write MUST be executed immediately. Writing without running is not acceptable.**
+
+6. **Execute each generated test script**:
+```bash
+python3 tests/scripts/validate-<feature-name>.py --project-root .
+```
+
+7. **Capture and analyze results**:
+   - Parse the JSON stdout from each script
+   - If exit code is 0 and status is "pass": test passed
+   - If exit code is 1 or status is "fail": test found violations — these are REAL findings
+
+8. **Handle execution failures**:
+   - **Script syntax error**: This is a QA bug. Fix the script and re-run. Do NOT record a broken script as a deliverable.
+   - **Script crashes (unhandled exception)**: Fix error handling and re-run.
+   - **Script passes but shouldn't** (false negative): Tighten assertions and re-run.
+   - **Script fails on a real issue**: This is a genuine finding. Record it as a critical/major issue in `all_findings`.
+
+9. **Iterate until clean**: If a test script has bugs (syntax errors, crashes), fix and re-execute. Maximum 3 fix attempts per script. If still broken after 3 attempts, discard the script and document why.
+
+#### Phase 4: Record Results
+
+10. **Record generated tests AND their execution results** in `generated_tests`:
+```json
+{
+  "generated_tests": [
+    {
+      "path": "tests/scripts/validate-<feature-name>.py",
+      "type": "unit|edge_case|integration",
+      "description": "What the test validates",
+      "request_id": "dev-YYYYMMDD-HHMMSS",
+      "edge_case_id": "EC-XXX or null",
+      "execution": {
+        "status": "pass|fail|error",
+        "exit_code": 0,
+        "total_checks": 5,
+        "violations_found": 0,
+        "violations": [],
+        "error_message": "null or error details if execution failed"
+      }
+    }
+  ]
+}
+```
+
+**CRITICAL**: If any test execution reveals violations in the dev implementation, these violations MUST be escalated to `all_findings` with appropriate severity. A test that finds a real bug means QA has found an issue — this is the whole point of running tests.
+
+**Test execution results directly affect QA verdict**:
+- All tests pass → supports QA pass (combined with other steps)
+- Tests reveal implementation bugs → QA fail or warning depending on severity
+- Tests cannot run (broken scripts after 3 fix attempts) → QA warning with documented rationale
+
 ### Step 6: Verify Permissions
 
 **CRITICAL**: Check that dev specified correct permissions for new functionality.
@@ -481,6 +754,32 @@ Return verification report as JSON:
         "minor": 0
       }
     },
+    "ui_test_results": [
+      {
+        "scenario": "description of what was tested",
+        "url": "URL tested or null if skipped",
+        "status": "pass|fail|skipped",
+        "reason": "skip/fail reason if applicable, null on pass",
+        "steps_performed": ["list of Playwright actions taken"],
+        "assertions": [
+          {
+            "expected": "what was expected",
+            "actual": "what was found",
+            "passed": true
+          }
+        ],
+        "evidence": "snapshot or screenshot reference"
+      }
+    ],
+    "generated_tests": [
+      {
+        "path": "tests/scripts/validate-<feature>.py",
+        "type": "unit|edge_case|integration",
+        "description": "what the test validates",
+        "request_id": "dev-YYYYMMDD-HHMMSS",
+        "edge_case_id": "EC-XXX or null"
+      }
+    ],
     "all_findings": [
       {
         "severity": "critical|major|minor",
@@ -586,6 +885,8 @@ Before returning verification report, ensure:
 - [ ] All created scripts tested
 - [ ] Regression tests performed
 - [ ] Code quality checks completed
+- [ ] UI/E2E testing performed or skipped with documented rationale
+- [ ] Test cases generated or skip documented for non-testable changes
 - [ ] Severity levels assigned correctly
 - [ ] Pass/fail/warning status determined
 - [ ] Evidence documented for all findings
