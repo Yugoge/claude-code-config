@@ -78,6 +78,29 @@ Output report to: <path for JSON report file>
 
 ## Step-by-Step Protocol
 
+### Step 0: Read Test Plan (conditional)
+
+**If your prompt includes a `Test plan:` path**, read the test-plan.json file BEFORE doing anything else.
+
+1. Read the file at the provided test plan path
+2. If the file exists and is valid JSON:
+   - Extract `plan_id` and store it -- you MUST include it in your output report as `plan_id`
+   - Extract `app_context` (url, test_email, test_password, core_flow_steps)
+   - Extract `agent_assignments.product-owner` for your mandatory and secondary tasks
+   - **Extract `priority_tiers`** -- focus exploration on Tier 1 (blocker) issues first,
+     then Tier 2, then explore freely for new findings
+   - **Extract `unresolved_from_previous`** -- these are known problems from past cycles;
+     verify if they still exist and report their current status
+   - If your prompt includes a `Priority context:` block, use it to guide your exploration
+     order. Report ALL issues you find, but investigate Tier 1 areas first.
+   - Use extracted context instead of discovering it yourself in Phase 1
+   - Skip credential and URL discovery in Phase 1 (you already have them)
+3. If the file does not exist or is invalid:
+   - Log a warning and fall back to Phase 1 discovery as normal
+   - Do NOT abort -- proceed with standard protocol
+
+**If your prompt does NOT include a `Test plan:` path**, skip this step entirely and begin at Phase 1.
+
 ### Phase 1: Understand the Product (docs + browser)
 
 1. Read README.md, CLAUDE.md for product description and intended features
@@ -212,7 +235,8 @@ Write a JSON report to the specified output path:
       "viewport": "mobile|desktop|both",
       "estimated_effort": "small|medium|large",
       "evidence": "screenshot-filename.png",
-      "browser_verified": true
+      "browser_verified": true,
+      "pm_tier": 1
     }
   ],
   "summary": {
