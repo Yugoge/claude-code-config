@@ -158,9 +158,42 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
 
 **Update state**: Set `current_phase` to `"exploring"`.
 
-**CRITICAL: Launch 4 specialist subagents in parallel using Agent tool.** Do not scan the codebase directly from the main context. Do NOT read project files yourself.
+**CRITICAL: This step has two sub-steps. Step 2a launches the PM subagent to build a test plan. Step 2b launches 4 specialist subagents that read the test plan themselves.**
 
-Read the state file's `addressed_issues` array first, then launch all 4 Agent calls in a SINGLE response (parallel execution):
+Read the state file's `addressed_issues` array first.
+
+#### Step 2a: Launch PM Subagent
+
+Launch the PM (test plan manager) subagent to build a structured test plan. The PM reads CLAUDE.md and the state file, then writes test-plan.json.
+
+```
+Use Agent tool with:
+- subagent_type: "pm"
+- description: "Build test plan from project docs and session history"
+- prompt: "
+  You are the PM subagent. Follow agents/pm.md instructions precisely.
+
+  Project path: <worktree_path from state file if set, otherwise project_path>
+  State file path: <path to overnight-state-*.json>
+  Session ID: <session_id>
+  Output test plan to: docs/dev/overnight/<session_id>/test-plan.json
+  "
+```
+
+**Wait for PM subagent to complete.**
+
+**Validate test plan**: Read `docs/dev/overnight/<session_id>/test-plan.json` and verify:
+- File exists and is valid JSON
+- Has `app_context` with at least `url` field
+- Has `agent_assignments` with all 4 agent keys
+- Has `core_flow_gate.owner` set to `"user"`
+- Has `core_flow_gate.failure_is_cycle_failure` set to `true`
+
+If validation fails, re-invoke PM (maximum 2 retries). If still failing, proceed to Step 2b without a test plan (specialists will discover context themselves).
+
+#### Step 2b: Launch 4 Specialist Subagents
+
+Launch all 4 Agent calls in a SINGLE response (parallel execution):
 
 ```
 Launch 4 Agent tool calls simultaneously:
@@ -181,9 +214,12 @@ Each subagent receives ONLY:
 - Project path: <worktree_path from state file if set, otherwise project_path>
 - Already addressed: <addressed_issues array from state file>
 - Focus: <focus string from state file, or "none">
+- Test plan: docs/dev/overnight/<session_id>/test-plan.json
 - Output report to: <path above>
 
 **NOTE**: Always use `worktree_path` as the project path when it is set in the state file. Subagents must scan and report on files inside the worktree, not the main project directory.
+
+**IMPORTANT**: Do NOT include application context, credentials, flow steps, or sample data in the specialist prompts. The test plan file contains all of this. Specialists read it themselves via their Step 0 protocol.
 ```
 
 **Wait for all 4 subagents to complete** before proceeding.
@@ -231,6 +267,14 @@ Each subagent receives ONLY:
 **If zero issues found across all 4 reports**:
 - Log a "clean sweep" entry
 - After 2 consecutive clean sweeps: generate summary and allow termination
+
+**Core Flow Gate Check**:
+
+After all 4 specialists complete, read the user agent's report. Check `core_flow_completed`:
+- If `core_flow_completed: false` (or missing): the core flow gate has failed. Log this as a cycle-level failure. The user agent's core flow issues take top priority in Step 3.
+- If `core_flow_completed: true`: gate passed, proceed normally.
+
+This gate is non-negotiable: if the user cannot complete the core business flow, the entire cycle is considered failed regardless of other agents' findings.
 
 ### Step 3: Select and Prioritize Next Issue
 
