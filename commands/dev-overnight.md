@@ -61,7 +61,7 @@ Step 1: Create worktree (first run only)
 
 1. **You are autonomous**. Do NOT ask the user anything. Make decisions yourself.
 2. **Loop continuously**. After each fix cycle, the todo completion hook handles looping. This is non-negotiable.
-3. **Keep cycles comprehensive**. Each cycle settles ALL discovered issues via parallel pipelines. Every issue gets its own BA/Dev/QA pipeline -- no prioritization, no ranking, no selection.
+3. **Keep cycles comprehensive**. Each cycle settles ALL discovered issues via parallel pipelines. Every issue gets its own BA/Dev/QA pipeline. Pipelines are ordered by severity (critical > major > minor > cosmetic) and impact scope (agents_flagged count) to ensure high-severity issues are processed first.
 4. **ALL exploration and fixes via subagents**. Use Agent tool for ALL scanning, analysis, and implementation work. Main context only handles state management, TodoWrite, and loop control.
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
 6. **Track everything**. Update the state file after every significant action.
@@ -298,15 +298,22 @@ This gate is non-negotiable: if the user cannot complete the core business flow,
 3. Filter out any issue already in `addressed_issues` from state file
 4. Filter out any issue that has failed 3 times (check `failed_attempts`)
 
-**No prioritization or ranking**. Every remaining issue gets a pipeline.
+**Prioritize by severity and impact**. Every remaining issue gets a pipeline, ordered by: (1) severity: critical > major > minor > cosmetic, (2) impact scope: issues flagged by more agents rank higher within the same severity.
 
-**Time guard**: If time remaining < 5 minutes, skip issues with `estimated_effort: "large"` or `"medium"` to avoid starting work that cannot finish.
+**Time guard** (severity-aware): If time remaining < 5 minutes, filter issues by severity+effort: (a) Drop cosmetic issues regardless of effort, (b) Drop minor issues with medium/large effort, (c) Keep major issues with small effort only, (d) Keep critical issues with small effort only. This ensures remaining time is spent on the highest-severity fixable issues.
 
 **Create pipeline definitions** -- one per deduplicated issue, with zero-indexed suffix:
 
 ```python
+# Sort by severity (critical first), then by impact scope (more agents = higher priority)
+severity_order = {"critical": 0, "major": 1, "minor": 2, "cosmetic": 3}
+sorted_issues = sorted(
+    deduplicated_issues,
+    key=lambda x: (severity_order.get(x["severity"], 3), -len(x["agents_flagged"]))
+)
+
 pipelines = []
-for i, issue in enumerate(deduplicated_issues):
+for i, issue in enumerate(sorted_issues):
     pipelines.append({
         "index": i,
         "description": issue["description"],
@@ -521,9 +528,18 @@ Pipelines skipped: {count}
 
 **Per-pipeline iteration guard**: Maximum 5 iterations per pipeline to prevent infinite loops.
 
-**For each failed pipeline[i]** (can be done sequentially since these are re-runs):
+**Sort failed pipelines by severity before iterating** (critical first, cosmetic last):
 
 ```
+# Sort qa_failed pipelines by severity to prioritize critical fixes
+severity_order = {"critical": 0, "major": 1, "minor": 2, "cosmetic": 3}
+qa_failed_pipelines = sorted(
+    [p for p in pipelines if p["phase"] == "qa_failed"],
+    key=lambda p: (severity_order.get(p["severity"], 3), -len(p.get("agents_flagged", [])))
+)
+
+For each failed pipeline[i] in qa_failed_pipelines:
+
 WHILE pipeline[i].iteration < 5 AND pipeline[i].phase == "qa_failed":
     pipeline[i].iteration += 1
 
@@ -984,7 +1000,7 @@ See `/clean` command documentation for details.
 
 **Orchestrator ensures**:
 - Issues fully explored by 4 specialist subagents before fixing
-- ALL issues get parallel pipelines (no prioritization or ranking)
+- ALL issues get parallel pipelines, ordered by severity (critical first) and impact scope
 - Comprehensive context via BA (one per pipeline)
 - Iterative quality improvement (max 5 iterations per pipeline, independent)
 - Proper JSON storage with pipeline-scoped naming (timestamp-index suffix)
