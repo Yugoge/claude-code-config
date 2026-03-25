@@ -288,15 +288,65 @@ grep -nEi "(password|secret|api_key|token)\s*[=:]\s*['\"][^'\"]+['\"]" <file>
 - i18n translation key strings (e.g., `"settings.save"`, `"common.cancel"`)
 - Test fixture data (test files, test IDs, test emails)
 
-### Step 5b: Build/Compile Verification
+### Step 5b: Build/Compile and Deploy Verification
 
-**Mandatory: verify the project still builds after dev changes.**
+**MANDATORY: Rebuild the project and verify the running app reflects dev changes
+BEFORE any browser-based testing (Step 5c).**
 
-1. Identify project type from dev report files:
-   - TypeScript/JS: `npx tsc --noEmit` or `npm run build`
-   - Python: `python -m py_compile <file>` for each modified .py file
-2. If build fails, this is a **critical** finding that blocks release
-3. Record build output in the report
+Without this step, Playwright tests will validate the OLD deployed code, not the
+new changes. This is the #1 cause of false-positive QA passes in overnight sessions.
+
+**Process**:
+
+1. **Identify project type and build command** from dev report files and project structure:
+   - Next.js / React: `npm run build` or `npx next build` in the frontend directory
+   - Python / FastAPI: `python -m py_compile <file>` for each modified .py file
+   - Docker-based services: `docker compose build <service>` then
+     `docker compose up -d <service>` from the compose directory
+   - Static sites: rebuild and copy to serving directory
+
+2. **Execute the build**:
+   ```bash
+   # Example for a Next.js frontend served via Docker
+   cd <project_root>/frontend
+   npm run build
+   # Then rebuild and restart the Docker container
+   cd <compose_directory>
+   docker compose build <web_service_name>
+   docker compose up -d <web_service_name>
+   ```
+
+3. **Wait for the service to be healthy** (up to 60 seconds):
+   - Check the service URL responds with HTTP 200
+   - If the service has a health endpoint, use that
+   - If the service fails to start, record as **critical** finding
+
+4. **Verify changes are live**:
+   - If possible, check a known change is visible (e.g., new text, fixed element)
+   - Compare build timestamp or version indicator if available
+
+5. **If build fails**: This is a **critical** finding that blocks release.
+   Record full build error output. Do NOT proceed to Step 5c (Playwright
+   testing) as it would test stale code.
+
+6. **Record results** in `build_verification`:
+   ```json
+   {
+     "build_verification": {
+       "status": "pass|fail|skipped",
+       "build_command": "npm run build",
+       "deploy_command": "docker compose up -d applio-web",
+       "build_output_summary": "Compiled successfully in 45s",
+       "service_healthy": true,
+       "changes_verified_live": true,
+       "skip_reason": null
+     }
+   }
+   ```
+
+**Skip condition**: If dev changes only affect non-deployed files (scripts,
+hooks, agent definitions, documentation), skip with documented rationale.
+But if ANY web-facing file was modified, build is mandatory.
 
 ### Step 5c: UI/E2E Testing via Playwright MCP
 
@@ -699,6 +749,15 @@ Return verification report as JSON:
       "confidence": "high|medium|low",
       "rationale": "why you believe root cause is fixed"
     },
+    "build_verification": {
+      "status": "pass|fail|skipped",
+      "build_command": "npm run build",
+      "deploy_command": "docker compose up -d service-name",
+      "build_output_summary": "Compiled successfully",
+      "service_healthy": true,
+      "changes_verified_live": true,
+      "skip_reason": null
+    },
     "script_quality_results": [
       {
         "script": "path to script",
@@ -837,6 +896,7 @@ Return verification report as JSON:
 ## Pass/Fail Criteria
 
 **PASS** if:
+- Build/compile succeeds (or skipped with valid reason) ✓
 - All success criteria verified ✓
 - Root cause addressed with high confidence ✓
 - Zero critical issues ✓
@@ -851,6 +911,7 @@ Return verification report as JSON:
 - All regression tests pass ✓
 
 **FAIL** if:
+- Build/compile fails ✗
 - Any success criterion not met ✗
 - Root cause not addressed ✗
 - Any critical issues ✗
@@ -880,6 +941,7 @@ If QA fails, provide refined context for next dev iteration:
 
 Before returning verification report, ensure:
 
+- [ ] Build/compile verified (or skip documented)
 - [ ] All success criteria evaluated
 - [ ] Root cause verification attempted
 - [ ] All created scripts tested

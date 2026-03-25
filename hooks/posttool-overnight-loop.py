@@ -109,7 +109,7 @@ def _print_loop_instructions(state: dict, end_time: datetime, state_path: Path) 
     fixed = state.get('issues_fixed', 0)
     wt = state.get('worktree_path', 'unknown')
 
-    print(f'OVERNIGHT LOOP: Cycle {cc} complete. Starting cycle {cc + 1}.')
+    print(f'OVERNIGHT LOOP: Cycle {cc} complete (PM retro filed). Starting cycle {cc + 1}.')
     print(f'Time remaining: {hours}h {minutes}m')
     print(f'Issues fixed this session: {fixed}')
     print()

@@ -20,11 +20,13 @@ Hook creates state file + parses end-time (automatic)
 Step 1: Create worktree (first run only)
   |
   +---> EXPLORATION PHASE (Step 2)
-  |       4 specialist subagents scan in parallel:
-  |         product-owner | architect | user | ui-specialist
+  |       Step 2a: PM-Plan subagent (builds test plan with priorities)
+  |       Main agent reads test plan, extracts priority context
+  |       Step 2b: 4 specialist subagents scan in parallel (with priority context)
+  |       Step 2c: PM-Triage subagent (reads all 4 reports, writes triage)
   |                |
   |       PIPELINE CREATION (Step 3)
-  |       Merge 4 reports, deduplicate, create N pipelines (one per issue)
+  |       Main agent reads PM triage report, creates pipelines in triage order
   |                |
   |       PARALLEL BA PHASE (Step 4-5)
   |         Launch ALL N BA subagents in parallel → validate all outputs
@@ -44,12 +46,15 @@ Step 1: Create worktree (first run only)
   |       LOG & TIME CHECK (Step 12)
   |       Update state with all N pipeline results, check end-time
   |                |
-  |       SUMMARY OR LOOP (Step 13)
+  |       PM RETROSPECTIVE (Step 13)
+  |       PM reads all results, writes retro-report, hands off to next cycle
+  |                |
+  |       SUMMARY OR LOOP (Step 14)
   |       Time remaining? → reset todos, loop to Step 2
   |       Time expired? → generate summary, cleanup
   |                |
   |       TODO COMPLETION DETECTION (PostToolUse hook)
-  |       All 13 steps completed?
+  |       All 14 steps completed?
   |         YES + time remaining: reset todos, loop to Step 2
   |         YES + time expired: allow natural completion
   |         NO: continue current step
@@ -61,7 +66,7 @@ Step 1: Create worktree (first run only)
 
 1. **You are autonomous**. Do NOT ask the user anything. Make decisions yourself.
 2. **Loop continuously**. After each fix cycle, the todo completion hook handles looping. This is non-negotiable.
-3. **Keep cycles comprehensive**. Each cycle settles ALL discovered issues via parallel pipelines. Every issue gets its own BA/Dev/QA pipeline. Pipelines are ordered by severity (critical > major > minor > cosmetic) and impact scope (agents_flagged count) to ensure high-severity issues are processed first.
+3. **Keep cycles comprehensive and priority-driven**. PM triage determines pipeline ordering -- the main agent follows PM's authority. In Focus Mode (Tier 1 blockers exist), only blocker pipelines are created. In Normal Mode, all issues get pipelines ordered by tier: Tier 1 (blockers) first, then Tier 2 (major), then Tier 3 (minor/cosmetic). Within each tier, issues flagged by more agents rank higher.
 4. **ALL exploration and fixes via subagents**. Use Agent tool for ALL scanning, analysis, and implementation work. Main context only handles state management, TodoWrite, and loop control.
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
 6. **Track everything**. Update the state file after every significant action.
@@ -152,6 +157,7 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
    - `verifying` -> Step 8 (Parallel QA)
    - `iterating` -> Step 10 (Iteration loops)
    - `logging` -> Step 12 (Log)
+   - `retrospective` -> Step 13 (PM Retro)
 4. The hook has already injected the command specification and state summary into this prompt
 
 **Do NOT**:
@@ -164,7 +170,7 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
 
 **Update state**: Set `current_phase` to `"exploring"`.
 
-**CRITICAL: This step has two sub-steps. Step 2a launches the PM subagent to build a test plan. Step 2b launches 4 specialist subagents that read the test plan themselves.**
+**CRITICAL: This step has three sub-steps. Step 2a launches the PM subagent to build a test plan. The main agent then reads the test plan and extracts priority context. Step 2b launches 4 specialist subagents with that priority context. Step 2c launches PM again in TRIAGE mode to classify all findings.**
 
 Read the state file's `addressed_issues` array first.
 
@@ -197,6 +203,28 @@ Use Agent tool with:
 
 If validation fails, re-invoke PM (maximum 2 retries). If still failing, proceed to Step 2b without a test plan (specialists will discover context themselves).
 
+#### After PM-Plan Completes: Extract Priority Context
+
+**Main agent reads test-plan.json** and builds a priority context string for specialists:
+
+1. Read `priority_tiers` from the test plan
+2. Read `unresolved_from_previous` from the test plan
+3. Build a priority context block (included in each specialist's prompt):
+
+```
+Priority context from PM:
+- Tier 1 (blockers): [list descriptions from priority_tiers.tier_1_blockers]
+- Tier 2 (major): [list descriptions from priority_tiers.tier_2_major]
+- Tier 3 (minor): [list descriptions from priority_tiers.tier_3_minor]
+Unresolved from previous cycles: [list from unresolved_from_previous with cycle count]
+
+PRIORITY RULE: Investigate Tier 1 issues FIRST. Report ALL issues you find,
+but tag each with pm_tier: 1|2|3|new (where "new" = not in PM's list).
+```
+
+If the test plan has no `priority_tiers` (first cycle, no history), set the priority context to:
+`"No priority tiers from PM -- this is the first cycle. Explore freely and report all issues."`
+
 #### Step 2b: Launch 4 Specialist Subagents
 
 Launch all 4 Agent calls in a SINGLE response (parallel execution):
@@ -216,12 +244,18 @@ Launch 4 Agent tool calls simultaneously:
 4. Agent(subagent_type: "ui-specialist")
    Write report to: docs/dev/overnight/<session_id>/ui-specialist-report.json
 
-Each subagent receives ONLY:
+Each subagent receives:
 - Project path: <worktree_path from state file if set, otherwise project_path>
 - Already addressed: <addressed_issues array from state file>
 - Focus: <focus string from state file, or "none">
 - Test plan: docs/dev/overnight/<session_id>/test-plan.json
+- Priority context: <the priority context block built in the step above>
 - Output report to: <path above>
+
+**NOTE**: The priority context block is appended directly to each specialist's prompt
+so they see PM's priorities immediately. Specialists also read the full test plan via
+their Step 0 protocol, but the inline context ensures priority awareness even if Step 0
+is skipped.
 
 **NOTE**: Always use `worktree_path` as the project path when it is set in the state file. Subagents must scan and report on files inside the worktree, not the main project directory.
 
@@ -282,23 +316,78 @@ After all 4 specialists complete, read the user agent's report. Check `core_flow
 
 This gate is non-negotiable: if the user cannot complete the core business flow, the entire cycle is considered failed regardless of other agents' findings.
 
-### Step 3: Create Parallel Pipelines for All Issues
+#### Step 2c: Launch PM-Triage Subagent
+
+After all 4 specialists complete and reports are validated, launch PM in TRIAGE mode to
+classify and prioritize all findings.
+
+```
+Use Agent tool with:
+- subagent_type: "pm"
+- description: "PM triage: classify and prioritize all specialist findings"
+- prompt: "
+  PM_MODE: TRIAGE
+
+  You are the PM subagent in TRIAGE mode. Follow agents/pm.md Triage Protocol.
+
+  Project path: <worktree_path from state file if set, otherwise project_path>
+  Session ID: <session_id>
+  Cycle number: <cycle_count + 1>
+
+  Read these reports:
+  - docs/dev/overnight/<session_id>/product-owner-report.json
+  - docs/dev/overnight/<session_id>/architect-report.json
+  - docs/dev/overnight/<session_id>/user-report.json
+  - docs/dev/overnight/<session_id>/ui-specialist-report.json
+  - docs/dev/overnight/<session_id>/test-plan.json (your own plan for context)
+
+  Core flow gate result: <core_flow_completed from user report>
+  Core flow reliability: <core_flow_reliability from user report, if available>
+  Time remaining: <calculated time remaining in minutes>
+
+  Write triage report to: docs/dev/overnight/<session_id>/triage-report-cycle<N>.json
+  "
+```
+
+**Wait for PM-Triage to complete.**
+
+**Validate triage report**: Read `triage-report-cycle<N>.json` and verify:
+- File exists and is valid JSON
+- Has `mode` field (`focus` or `normal`)
+- Has `issues` array (may be empty on clean sweep)
+- Has `pipeline_order` array
+- Each issue has `tier`, `pipeline_recommendation`, and required fields
+
+If validation fails, re-invoke PM-Triage (maximum 2 retries). If still failing, fall back
+to the legacy mechanical sort in Step 3 (read all 4 reports, merge, sort by severity).
+
+**Update state**: Add triage report path to `pm_triage_reports` array in state file.
+
+### Step 3: Create Parallel Pipelines from PM Triage
 
 **Update state**: Set `current_phase` to `"pipeline_creation"`.
 
-**Read all 4 JSON reports** from `docs/dev/overnight/`:
+**Read PM triage report**: `docs/dev/overnight/<session_id>/triage-report-cycle<N>.json`
+
+**If triage report exists and is valid** (primary path):
+
+1. Use `pipeline_order` from triage report as the authoritative ordering
+2. For each issue in `pipeline_order`:
+   - If `pipeline_recommendation` is `"fix"`: create a pipeline
+   - If `pipeline_recommendation` is `"skip"` or `"defer"`: add to skipped list with reason
+3. Filter out any issue already in `addressed_issues` from state file
+4. Filter out any issue that has failed 3 times (check `failed_attempts`)
+
+**If triage report is missing or invalid** (fallback to legacy behavior):
+
+Read all 4 JSON reports from `docs/dev/overnight/`:
 - `product-owner-report.json`
 - `architect-report.json`
 - `user-report.json`
 - `ui-specialist-report.json`
 
-**Merge into single issue list**:
-1. Combine all issues from all 4 reports
-2. Deduplicate: same file+description from multiple agents counts as one (but note which agents flagged it)
-3. Filter out any issue already in `addressed_issues` from state file
-4. Filter out any issue that has failed 3 times (check `failed_attempts`)
-
-**Prioritize by severity and impact**. Every remaining issue gets a pipeline, ordered by: (1) severity: critical > major > minor > cosmetic, (2) impact scope: issues flagged by more agents rank higher within the same severity.
+Merge into single issue list, deduplicate, filter against addressed_issues and
+failed_attempts. Prioritize by severity and impact. Every remaining issue gets a pipeline, ordered by: (1) severity: critical > major > minor > cosmetic, (2) impact scope: issues flagged by more agents rank higher within the same severity.
 
 **Time guard** (severity-aware): If time remaining < 5 minutes, filter issues by severity+effort: (a) Drop cosmetic issues regardless of effort, (b) Drop minor issues with medium/large effort, (c) Keep major issues with small effort only, (d) Keep critical issues with small effort only. This ensures remaining time is spent on the highest-severity fixable issues.
 
@@ -324,7 +413,9 @@ for i, issue in enumerate(sorted_issues):
         "phase": "pending",      # pending -> ba -> dev -> qa -> done/skipped
         "iteration": 0,
         "status": "active",      # active -> fixed/skipped
-        "timestamp_suffix": f"{timestamp}-{i}"  # unique file naming suffix
+        "timestamp_suffix": f"{timestamp}-{i}",  # unique file naming suffix
+        "tier": issue.get("tier", 2),  # from PM triage
+        "pm_recommended": True,        # PM triage ordered this pipeline
     })
 ```
 
@@ -334,9 +425,10 @@ for i, issue in enumerate(sorted_issues):
 
 **Announce pipeline creation**:
 ```
-Created {N} parallel pipelines for this cycle:
-  Pipeline 0: {description} ({severity}, {location})
-  Pipeline 1: {description} ({severity}, {location})
+PM Triage: {mode} mode ({mode_reason})
+Created {N} pipelines ({tier1_count} Tier 1, {tier2_count} Tier 2, {tier3_count} Tier 3):
+  Pipeline 0 [T{tier}]: {description} ({severity}, {location})
+  Pipeline 1 [T{tier}]: {description} ({severity}, {location})
   ...
 Proceeding to parallel BA phase.
 ```
@@ -706,20 +798,73 @@ Write atomically (tmp + rename).
 now = datetime.now()
 end_time = datetime.fromisoformat(state['end_time'])
 if now >= end_time:
-    # Proceed to Step 13 -- session is ending
+    # Proceed to Step 14 -- session is ending
 else:
     remaining = end_time - now
-    print(f"Time remaining: {remaining} -- marking Step 13 complete to trigger loop")
+    print(f"Time remaining: {remaining} -- marking Step 14 complete to trigger loop")
 ```
 
-If time expired: proceed to Step 13 for final summary.
-If time remains: mark Step 13 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 13 steps completed, reset todos to pending, and inject continuation instructions.
+If time expired: proceed to Step 13 (PM Retro) then Step 14 for final summary.
+If time remains: proceed to Step 13 (PM Retro), then mark Step 14 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 14 steps completed, reset todos to pending, and inject continuation instructions.
 
-### Step 13: Generate Summary Report or Loop
+### Step 13: PM Retrospective
+
+**Update state**: Set `current_phase` to `"retrospective"`.
+
+Determine if this is the final cycle:
+- If time expired (from Step 12 time check): set `FINAL_CYCLE: true`
+- If time remains: set `FINAL_CYCLE: false`
+
+Launch PM in RETRO mode:
+
+```
+Use Agent tool with:
+- subagent_type: "pm"
+- description: "PM retrospective: cycle {N} summary and next-cycle handoff"
+- prompt: "
+  PM_MODE: RETRO
+  FINAL_CYCLE: <true|false>
+
+  You are the PM subagent in RETRO mode. Follow agents/pm.md Retrospective Protocol.
+
+  Project path: <worktree_path from state file if set, otherwise project_path>
+  Session ID: <session_id>
+  Cycle number: <current cycle_count>
+
+  Read your triage report: docs/dev/overnight/<session_id>/triage-report-cycle<N>.json
+  Read pipeline results from state file cycle_log (current cycle entries)
+  Read QA reports: docs/dev/qa-report-*.json (for this cycle's pipeline timestamp suffixes)
+  Read Dev reports: docs/dev/dev-report-*.json (for this cycle's pipeline timestamp suffixes)
+
+  Also read ALL previous retro reports for continuity:
+  docs/dev/overnight/<session_id>/retro-report-cycle*.json
+
+  Write retro report to: docs/dev/overnight/<session_id>/retro-report-cycle<N>.json
+  "
+```
+
+**Wait for PM-Retro to complete.**
+
+**Validate retro report**: Read `retro-report-cycle<N>.json` and verify:
+- File exists and is valid JSON
+- Has `plan_vs_outcome` array
+- Has `unresolved_issues` array
+- Has `cycle_stats` object
+- If `FINAL_CYCLE: true`: has `final_summary` object
+
+If validation fails, log warning and proceed (retro is informational, not blocking).
+
+**Update state file**:
+- Add retro report path to `pm_retro_reports` array
+- Update `unresolved_issues` from retro report's `unresolved_issues` array
+
+---
+
+### Step 14: Generate Summary Report or Loop
 
 **If time remains** (normal loop case):
 Simply mark this step as completed via TodoWrite. The PostToolUse:TodoWrite hook (`posttool-overnight-loop.py`) will:
-1. Detect all 13 steps are completed
+1. Detect all 14 steps are completed
 2. Check overnight-state.json for future end_time
 3. Reset all todos to pending
 4. Print loop continuation instructions
@@ -818,7 +963,7 @@ The state file serves three purposes:
 
 **Worktree naming**: Each session creates `overnight-<YYYYMMDD>-<session_id_short>` (first 8 chars of session_id) to avoid conflicts between concurrent sessions.
 
-**Schema (v6)**:
+**Schema (v7)**:
 ```json
 {
   "session_id": "string (from $CLAUDE_SESSION_ID or UUID)",
@@ -829,7 +974,7 @@ The state file serves three purposes:
   "issues_found": 0,
   "issues_fixed": 0,
   "issues_skipped": 0,
-  "current_phase": "initializing|exploring|pipeline_creation|analyzing|implementing|verifying|iterating|logging|completed",
+  "current_phase": "initializing|exploring|pipeline_creation|analyzing|implementing|verifying|iterating|logging|retrospective|completed",
   "current_issues": [
     {
       "index": 0,
@@ -861,9 +1006,24 @@ The state file serves three purposes:
   "consecutive_clean_sweeps": 0,
   "worktree_path": "/path/to/worktree or null",
   "worktree_branch": "overnight-YYYYMMDD-<session_id_short> or null",
-  "schema_version": 6
+  "pm_triage_reports": [],
+  "pm_retro_reports": [],
+  "unresolved_issues": [
+    {
+      "description": "issue description",
+      "severity": "critical|major|minor|cosmetic",
+      "cycles_unresolved": 0,
+      "last_attempt_reason": "why it failed or was deferred",
+      "recommended_approach": "what to try next"
+    }
+  ],
+  "schema_version": 7
 }
 ```
+
+**Migration from v6**: Add empty arrays for `pm_triage_reports`, `pm_retro_reports`,
+and `unresolved_issues`. Update `schema_version` to 7. Add `"retrospective"` to
+valid `current_phase` values.
 
 **Migration from v5**: If reading a v5 state file, convert `current_issue` (string) to `current_issues` (array with single entry if non-null, empty array if null). Remove `current_issue` and `current_issue_iteration` fields.
 
@@ -904,7 +1064,7 @@ If state file has `worktree_path=null` on continuation, attempt to create worktr
 - **posttool-git-checkpoint.sh** (PostToolUse:Write|Edit): Auto-commits changes
 
 ### Loop Mechanism (v3)
-- When all 13 todo steps are marked completed via TodoWrite, the posttool-overnight-loop.py hook fires
+- When all 14 todo steps are marked completed via TodoWrite, the posttool-overnight-loop.py hook fires
 - It checks overnight-state.json: if end_time is in the future, it resets all todos to pending and injects loop continuation instructions
 - The agent then resumes from Step 2 (exploration) since worktree already exists
 - This provides natural context boundaries at each cycle without requiring external cron triggers
@@ -913,10 +1073,10 @@ If state file has `worktree_path=null` on continuation, attempt to create worktr
 
 ## Quick Reference: The Loop
 
-After completing Steps 2-13, the loop is automatic:
+After completing Steps 2-14, the loop is automatic:
 
 ```
-TodoWrite marks Step 13 as completed
+TodoWrite marks Step 14 as completed
   |
 posttool-overnight-loop.py fires
   |
@@ -1000,7 +1160,7 @@ See `/clean` command documentation for details.
 
 **Orchestrator ensures**:
 - Issues fully explored by 4 specialist subagents before fixing
-- ALL issues get parallel pipelines, ordered by severity (critical first) and impact scope
+- ALL issues get parallel pipelines, ordered by PM triage (tier 1 blockers first, then tier 2, then tier 3)
 - Comprehensive context via BA (one per pipeline)
 - Iterative quality improvement (max 5 iterations per pipeline, independent)
 - Proper JSON storage with pipeline-scoped naming (timestamp-index suffix)
@@ -1027,7 +1187,7 @@ See `/clean` command documentation for details.
 | Subagent usage | BA + dev + QA | product-owner + architect + user + ui-specialist + BA + dev + QA |
 | Stop hook | Workflow enforcement only | Workflow + time-lock |
 | Worktree | Not used | Created on first run, reused across cycles |
-| Total steps | 11 | 13 |
+| Total steps | 11 | 14 |
 
 ---
 

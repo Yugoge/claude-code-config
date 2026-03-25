@@ -74,6 +74,29 @@ Output report to: <path for JSON report file>
 
 ## Step-by-Step Protocol
 
+### Step 0: Read Test Plan (conditional)
+
+**If your prompt includes a `Test plan:` path**, read the test-plan.json file BEFORE doing anything else.
+
+1. Read the file at the provided test plan path
+2. If the file exists and is valid JSON:
+   - Extract `plan_id` and store it -- you MUST include it in your output report as `plan_id`
+   - Extract `app_context` (url, test_email, test_password)
+   - Extract `agent_assignments.architect` for your mandatory and secondary tasks
+   - **Extract `priority_tiers`** -- focus exploration on Tier 1 (blocker) issues first,
+     then Tier 2, then explore freely for new findings
+   - **Extract `unresolved_from_previous`** -- these are known problems from past cycles;
+     verify if they still exist and report their current status
+   - If your prompt includes a `Priority context:` block, use it to guide your exploration
+     order. Report ALL issues you find, but investigate Tier 1 areas first.
+   - Use extracted context instead of discovering it yourself in Phase 1
+   - Skip URL and port discovery in Phase 1 (you already have them)
+3. If the file does not exist or is invalid:
+   - Log a warning and fall back to Phase 1 discovery as normal
+   - Do NOT abort -- proceed with standard protocol
+
+**If your prompt does NOT include a `Test plan:` path**, skip this step entirely and begin at Phase 1.
+
 ### Phase 1: App Discovery
 
 1. Read CLAUDE.md, README.md, .env, docker-compose.yml for app URL and ports
@@ -183,7 +206,8 @@ Write a JSON report to the specified output path:
       "category": "pattern-inconsistency|technical-debt|dependency-issue|performance|security|dead-code|config-issue|runtime-error",
       "estimated_effort": "small|medium|large",
       "runtime_evidence": "console error / network failure / performance metric (if applicable)",
-      "code_root_cause": "file:line explanation (if found)"
+      "code_root_cause": "file:line explanation (if found)",
+      "pm_tier": 1
     }
   ],
   "summary": {

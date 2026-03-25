@@ -83,6 +83,29 @@ Output report to: <path for JSON report file>
 
 ## Step-by-Step Protocol
 
+### Step 0: Read Test Plan (conditional)
+
+**If your prompt includes a `Test plan:` path**, read the test-plan.json file BEFORE doing anything else.
+
+1. Read the file at the provided test plan path
+2. If the file exists and is valid JSON:
+   - Extract `plan_id` and store it -- you MUST include it in your output report as `plan_id`
+   - Extract `app_context` (url, test_email, test_password, core_flow_steps, sample_data)
+   - Extract `agent_assignments.user` for your mandatory and secondary tasks
+   - **Extract `priority_tiers`** -- focus exploration on Tier 1 (blocker) issues first
+   - **Extract `unresolved_from_previous`** -- these are known problems from past cycles that
+     need re-verification. Check if they still exist.
+   - When reporting issues, tag each with `pm_tier: 1|2|3|new` where "new" means you
+     discovered something not in PM's priority list
+   - Use extracted context instead of discovering it yourself in Phase 1
+   - Skip credential discovery in Phase 1 (you already have them)
+   - Follow `core_flow_steps` from the plan for Phase 4
+3. If the file does not exist or is invalid:
+   - Log a warning and fall back to Phase 1 discovery as normal
+   - Do NOT abort -- proceed with standard protocol
+
+**If your prompt does NOT include a `Test plan:` path**, skip this step entirely and begin at Phase 1.
+
 ### Phase 1: App Discovery (find the running app)
 
 1. Read CLAUDE.md or README.md for app URL, ports, test credentials
@@ -122,6 +145,30 @@ Output report to: <path for JSON report file>
    - `browser_network_requests({includeStatic: false})` — check for 4xx/5xx API failures
    - `browser_console_messages({level: "error"})` — check for JS errors triggered by the action
    Document any failures as issues with the network/console evidence.
+
+**Completion Depth Assessment** (MANDATORY after core flow attempt):
+
+`core_flow_completed: true` requires ALL of the following:
+1. Every step of the flow was executed to completion (not just started)
+2. If the flow involves async processing (generation, build, upload, etc.), you WAITED
+   for the operation to FINISH and verified the output. "Submitted" is NOT "completed."
+   Seeing a loading spinner and moving on counts as `partial`, not `full`.
+3. The final result is meaningful and correct (not empty, not an error, not placeholder)
+4. You verified the result persists (refresh page, navigate away and back)
+
+`core_flow_completion_depth` values:
+- `full`: All 4 criteria above are met. Set `core_flow_completed: true`.
+- `partial`: Flow started and progressed but did not reach final result verification.
+  Set `core_flow_completed: false`.
+- `blocked`: Flow could not start or failed at an early step. Set `core_flow_completed: false`.
+
+**Reliability Testing** (MANDATORY if core flow succeeded at least once):
+After one successful completion, repeat the core flow 2 more times with different
+realistic data. Record success/failure for each attempt.
+- If >=50% of attempts fail: set `core_flow_reliability.reliability_blocked: true`
+- A reliability-blocked core flow is treated as a Tier 1 blocker by PM triage
+- If the app has existing completed results (e.g., past generations), count those
+  success/failure rates as additional evidence
 
 ### Phase 5: Secondary Flow Exploration
 
@@ -195,7 +242,23 @@ Write a JSON report to the specified output path:
     "core_flow_completed": true,
     "core_flow_steps": [
       {"url": "/", "action": "clicked Get Started", "result": "navigated to /signup", "screenshot": "step-1.png"}
-    ]
+    ],
+    "core_flow_completion_depth": "full|partial|blocked",
+    "core_flow_completion_evidence": {
+      "steps_total": 5,
+      "steps_completed_successfully": 5,
+      "async_operations_awaited": true,
+      "result_validated": true,
+      "failure_point": null,
+      "failure_error": null
+    },
+    "core_flow_reliability": {
+      "attempts": 3,
+      "successes": 2,
+      "failure_rate": 0.33,
+      "status": "reliable|flaky|unreliable",
+      "reliability_blocked": false
+    }
   },
   "quality_gate_results": {
     "all_gates_passed": true,
@@ -218,7 +281,8 @@ Write a JSON report to the specified output path:
       "viewport": "mobile|desktop|both",
       "estimated_effort": "small|medium|large",
       "evidence": "screenshot-filename.png",
-      "steps_to_reproduce": ["step 1", "step 2", "step 3"]
+      "steps_to_reproduce": ["step 1", "step 2", "step 3"],
+      "pm_tier": 1
     }
   ],
   "summary": {
