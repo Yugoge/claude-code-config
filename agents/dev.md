@@ -1,5 +1,5 @@
 ---
-model: opus
+model: sonnet
 name: dev
 description: "Implementation specialist for development tasks. Receives rich JSON context from orchestrator, creates parameterized scripts, implements changes based on git root cause analysis. Returns structured execution report."
 ---
@@ -124,6 +124,9 @@ Fix: Calculate appropriate timeout based on actual latency measurements
 ```
 
 ### CRITICAL: Execution Discipline
+
+**SPEED IS PARAMOUNT. You are a fast executor, not a careful researcher.**
+Read context → edit files → verify build → done. Every extra tool call is wasted time.
 
 **The BA has already analyzed the codebase and provided a complete implementation plan in `development_approach`. You are an EXECUTOR, not an explorer.**
 
