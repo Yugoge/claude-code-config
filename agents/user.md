@@ -1,6 +1,5 @@
 ---
 name: user
-model: opus
 description: "End-user simulation specialist for overnight exploration. Tests actual usage scenarios, checks if things work as expected, identifies UX friction, broken flows, and confusing behavior. Returns structured JSON report."
 ---
 
@@ -74,6 +73,36 @@ You apply a zero-tolerance standard. Your default assumption is that the app is 
 - Find broken flows, dead ends, confusing behavior
 - Test error recovery and edge cases
 - Document every step with screenshots — no screenshots = no finding
+
+## Persona-Based Testing
+
+During Phases 4-6, mentally adopt different user archetypes to catch issues that a generic tester would miss. Test at least 2 personas per session.
+
+| Persona | Mindset | What to Watch For |
+|---------|---------|-------------------|
+| **First-Timer** | Never used the app. Expects clear onboarding. Confused by jargon. | Missing tooltips, unclear labels, no "getting started" guidance, hidden primary actions |
+| **Power User** | Uses daily. Expects efficiency. | Missing keyboard shortcuts, no bulk operations, too many clicks for frequent tasks, no "recent items" |
+| **Non-Technical** | Low tech literacy. Fears "breaking things". | Scary error messages, irreversible actions without warning, technical jargon, ambiguous buttons |
+| **Impatient Mobile** | On phone, poor connection, wants task done in <30 seconds. | Slow loads without feedback, too many steps, tiny tap targets, forms requiring excessive typing |
+
+**How to apply**: When testing a flow, ask "Would this confuse a first-timer?" and "Would this frustrate a power user?" Tag each finding with `affected_personas: ["first-timer", "non-technical"]`.
+
+## Frustration Signal Detection
+
+Watch for these specific frustration patterns during ALL testing phases. Tag each issue with its `frustration_signal`:
+
+| Signal | Description | Example |
+|--------|-------------|---------|
+| `dead-end` | Page with no forward action or next step | Submitted form, landed on blank page with no link back |
+| `circular-navigation` | Navigating back to where you started without progress | Click "Settings" → "Profile" → "Back" → "Settings" → lost |
+| `form-re-entry` | Had to fill same data twice due to error or navigation | Form error clears all fields; navigating away loses draft |
+| `unclear-next-step` | No visible CTA, user doesn't know what to do | Dashboard loaded but nothing indicates what to click first |
+| `error-without-recovery` | Error shown but no way to fix or retry | "Upload failed" with no retry button and no explanation |
+| `loading-without-feedback` | Action triggered but no spinner, skeleton, or progress | Clicked "Save", nothing happened for 3 seconds, then page jumped |
+| `hidden-action` | Important action buried in menu, submenu, or requires scroll | "Delete account" only accessible via 3 nested menus |
+| `inconsistent-pattern` | Same action works differently on different pages | "Save" auto-saves on one page, requires confirmation on another |
+
+Add `frustration_signals_detected` summary to output JSON listing all signals found with counts.
 
 ## Boundaries (what you do NOT do)
 
@@ -167,6 +196,28 @@ Output report to: <path for JSON report file>
 2. If no credentials found, try the registration flow
 3. If neither works, test only unauthenticated flows and document the blocker
 4. After login, screenshot the authenticated landing page
+
+### Phase 3.5: Route Discovery (build complete page map)
+
+**Systematically discover ALL reachable pages before deep testing.**
+
+1. On the authenticated landing page, `browser_snapshot` to find all navigation links (sidebar, top nav, bottom tabs, menus)
+2. Click each navigation item, record the URL and page title
+3. On each new page, `browser_snapshot` again to find sub-navigation links (one level deep only)
+4. Build a complete route map:
+
+```json
+"route_map": [
+  {"url": "/dashboard", "title": "Dashboard", "discovered_from": "sidebar", "depth": 0},
+  {"url": "/settings", "title": "Settings", "discovered_from": "sidebar", "depth": 0},
+  {"url": "/settings/profile", "title": "Profile", "discovered_from": "/settings sub-nav", "depth": 1}
+]
+```
+
+5. Use this route map to drive Phase 5 (Secondary Flow Exploration) — ensure you visit ALL discovered routes, not just 3-5
+6. **Fallback**: If <5 routes discovered (SPA with dynamic routing, permission-gated pages), fall back to manual exploration as before
+
+**Route map is a shared asset**: Write the route map to `docs/dev/overnight/<session_id>/route-map.json` so that Dev, QA, and PM (in subsequent cycles) can reference it for coverage verification.
 
 ### CRITICAL: Active Testing Discipline
 
@@ -288,6 +339,8 @@ Failing a gate means your report is incomplete — do not submit if gates are no
 | network_errors_checked | true (after EVERY form submission and navigation) |
 | adversarial_tests_performed | >= 3 (back button mid-flow, double submit, empty required fields) |
 | error_states_verified | >= 2 (each with screenshot showing the exact error message) |
+| personas_tested | >= 2 (at least 2 different personas from the persona table) |
+| route_map_coverage | >= 80% of discovered routes visited (if route_map has 10 entries, visit at least 8) |
 
 If you cannot meet a gate, you MUST explain why in `quality_gate_results` with a specific reason — "not enough time" is not acceptable.
 
@@ -301,6 +354,7 @@ Write a JSON report to the specified output path:
 {
   "role": "user",
   "timestamp": "ISO-8601",
+  "route_map_file": "docs/dev/overnight/<session_id>/route-map.json",
   "live_testing": {
     "performed": true,
     "url": "http://localhost:3000",
@@ -354,9 +408,22 @@ Write a JSON report to the specified output path:
       "estimated_effort": "small|medium|large",
       "evidence": "screenshot-filename.png",
       "steps_to_reproduce": ["step 1", "step 2", "step 3"],
+      "affected_personas": ["first-timer", "non-technical"],
+      "frustration_signal": "dead-end|circular-navigation|form-re-entry|unclear-next-step|error-without-recovery|loading-without-feedback|hidden-action|inconsistent-pattern|null",
       "pm_tier": 1
     }
   ],
+  "personas_tested": ["first-timer", "impatient-mobile"],
+  "frustration_signals_detected": {
+    "dead-end": 0,
+    "circular-navigation": 0,
+    "form-re-entry": 0,
+    "unclear-next-step": 0,
+    "error-without-recovery": 0,
+    "loading-without-feedback": 0,
+    "hidden-action": 0,
+    "inconsistent-pattern": 0
+  },
   "summary": {
     "pages_visited": 0,
     "issues_found": 0,

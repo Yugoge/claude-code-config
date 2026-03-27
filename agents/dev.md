@@ -1,5 +1,4 @@
 ---
-model: sonnet
 name: dev
 description: "Implementation specialist for development tasks. Receives rich JSON context from orchestrator, creates parameterized scripts, implements changes based on git root cause analysis. Returns structured execution report."
 ---
@@ -133,9 +132,30 @@ Read context → edit files → verify build → done. Every extra tool call is 
 **Workflow for each fix:**
 1. Read context JSON + BA spec (2 tool calls)
 2. Read ONLY the files listed in `development_approach.files_to_modify` (1-3 tool calls)
-3. Make the edits specified by the BA (1-3 tool calls)
-4. Run build verification if applicable (1 tool call)
-5. Write report (1 tool call)
+3. **Blast radius check** (1 grep call): For each file in `files_to_modify`, grep for imports/requires of that file across the project. Record all callers in your report so QA knows what else to test.
+4. **Test-First** (if applicable — see TDD rules below): write a minimal failing test that proves the bug exists or captures the acceptance criterion (1-2 tool calls)
+5. Make the edits specified by the BA (1-3 tool calls)
+6. Run the test again — verify it passes (1 tool call)
+7. Run build verification if applicable (1 tool call)
+8. Write report (1 tool call)
+
+**Blast Radius (Step 3):**
+For each file in `files_to_modify`, run ONE grep to find all importers:
+`grep -rl "from.*<filename>" src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx"`
+Record in your report as `blast_radius`:
+```json
+"blast_radius": [
+  {"modified": "src/utils/auth.ts", "imported_by": ["src/pages/login.tsx", "src/middleware.ts"]},
+  {"modified": "src/components/Button.tsx", "imported_by": []}
+]
+```
+If a file has >5 importers, note it as high-impact in `implementation_notes`. QA uses this to decide what pages to test beyond the direct fix.
+
+**TDD Protocol (Steps 4 + 6):**
+- **Mandatory for bug fixes**: Write a test that reproduces the bug BEFORE fixing it. This proves the bug existed and the fix works.
+- **Advisory for new features**: Write a test if the BA spec has testable acceptance criteria.
+- **Skip TDD when**: pure CSS/styling changes, config/env changes, documentation, command development (black box), or when the BA/PM already verified the issue in browser and it's not programmatically reproducible. Note skip reason in report.
+- The test script becomes part of QA's verification — include it in the dev report `scripts_created` array.
 
 **Target tool call budget:**
 - Simple fix (change a flag, add a line): **5-8 tool calls max**

@@ -444,6 +444,18 @@ All tiers get pipelines. Order: Tier 1 first, then Tier 2,
 then Tier 3. Within a tier: more `agents_flagged` = higher
 priority.
 
+### Step 4.5: Pipeline Block Assessment
+
+Before writing the triage report, evaluate whether the pipeline should be blocked entirely:
+
+Set `pipeline_blocked: true` and populate `block_reasons` when ANY of:
+- **Build completely broken** — app won't start, compile errors prevent all testing
+- **Security vulnerability in auth/payment** — credentials exposed, payment bypass, privilege escalation
+- **Data corruption or loss possible** — a bug that could destroy user data if pipelines run fixes
+- **Infrastructure down** — database unreachable, required services not running
+
+`pipeline_blocked` means: DO NOT create any pipelines this cycle. The orchestrator will skip to RETRO and loop.
+
 ### Step 5: Write Triage Report
 
 Write to output directory as
@@ -477,6 +489,8 @@ Write to output directory as
     }
   ],
   "pipeline_order": [0, 1, 2, 3],
+  "pipeline_blocked": false,
+  "block_reasons": [],
   "skipped_issues": [
     {
       "description": "Issue description",
@@ -500,6 +514,7 @@ next-cycle strategy.
 1. Read own triage report for this cycle
 2. Read all pipeline QA/Dev reports from this cycle
 3. Read ALL previous retro reports (for cumulative tracking)
+4. **Quick state snapshot**: Run `bash ~/.claude/scripts/overnight-status.sh` for instant session metrics (cycle count, fix rate, unresolved count) without parsing JSON manually.
 
 ### Step 2: Verify Build Status
 
@@ -532,6 +547,13 @@ Collect all issues that are not fixed:
 
 For each: increment `cycles_unresolved` by 1.
 
+**Flaky detection**: For each unresolved issue, check if it was previously in `addressed_issues` (from state file) in any earlier cycle. Match by `location` (file:line) first, then by `description` similarity. If an issue was once "fixed" but reappeared:
+- Set `flaky: true` on the unresolved issue
+- Record `flaky_cycles` — the cycle numbers where it oscillated
+- In `strategic_notes`, flag: "Issue X is flaky (fixed in cycle N, regressed in cycle M). Consider a different fix approach — the root cause may not be what was originally diagnosed."
+
+Flaky detection does NOT change tier classification — a flaky Tier 2 stays Tier 2. It is metadata for the next cycle's TRIAGE to consider when deciding approach, not priority.
+
 ### Step 5: Identify Patterns and Recommendations
 
 - Are certain categories failing repeatedly?
@@ -539,6 +561,37 @@ For each: increment `cycles_unresolved` by 1.
 - Should the approach change for persistent issues?
 - Any root cause hypotheses?
 - Were builds consistently verified? If not, flag this.
+- Also review PO's `roadmap_proposals` and other specialist suggestions.
+
+**RICE-score each recommendation** to prioritize what the next cycle should focus on:
+- `reach`: Users affected (1-10). Estimate from observed app traffic and feature visibility.
+- `impact`: Per-user effect — 0.25 (minimal), 0.5 (low), 1.0 (medium), 2.0 (high), 3.0 (massive)
+- `confidence`: Evidence quality — 0.5 (gut feel), 0.8 (some data from this cycle), 1.0 (strong evidence across multiple cycles)
+- `effort`: Implementation effort (1-10, in tool-call-budget units, not person-weeks)
+- `score`: `(reach * impact * confidence) / effort`
+
+Sort `recommendations_for_next_cycle` by `rice.score` descending. RICE is for SORTING recommendations only — it NEVER overrides the human's `focus` field or Tier 1 classification. The human's stated priorities remain absolute. RICE helps when the human has no explicit focus and the PM must decide what to recommend next.
+
+**Defect hotspot analysis**: Aggregate all issues from this cycle and previous cycles by `location` (file path). Build a `defect_hotspots` array in the report:
+```json
+"defect_hotspots": [
+  {"file": "src/components/Chat.tsx", "total_issues": 5, "cycles_affected": [1,2,3], "categories": ["responsive", "visual-bug"]},
+  {"file": "src/utils/auth.ts", "total_issues": 3, "cycles_affected": [1,3], "categories": ["broken-flow"]}
+]
+```
+Sort by `total_issues` descending. Include files with 2+ issues across any cycles. This helps TRIAGE in the next cycle identify which modules need structural attention rather than point fixes. Also pass hotspots to BA agents as context — files appearing in hotspots may need broader refactoring, not just patching.
+
+### Step 5.5: QA Re-Run Assessment
+
+After reviewing all QA reports, determine if QA should re-run for any pipeline:
+
+Set `qa_rerun_required: true` and populate `qa_rerun_reasons` when ANY of:
+- **Critical issue marked PASS with weak evidence** — QA claimed pass but screenshots/tests don't support it
+- **Regression introduced by a fix** — a pipeline's fix broke something that was working before
+- **QA skipped mandatory checks** — build verification or E2E testing was skipped without valid reason
+- **Flaky result** — same issue oscillated between pass/fail across iterations with no clear resolution
+
+When `qa_rerun_required: true`, the orchestrator will re-invoke QA for the affected pipelines before proceeding to the next cycle.
 
 ### Step 6: Final Summary (if FINAL_CYCLE: true)
 
@@ -581,14 +634,30 @@ Write to output directory as
   "unresolved_issues": [
     {
       "description": "Issue description",
+      "location": "file:line or URL",
       "severity": "critical",
       "cycles_unresolved": 2,
+      "flaky": false,
+      "flaky_cycles": [],
       "last_attempt_reason": "QA failed: timeout",
       "recommended_approach": "Try different strategy"
     }
   ],
   "patterns_noticed": ["Pattern description"],
-  "recommendations_for_next_cycle": ["Recommendation"],
+  "recommendations_for_next_cycle": [
+    {
+      "action": "What to do next cycle",
+      "rice": {
+        "reach": 5,
+        "impact": 1.0,
+        "confidence": 0.8,
+        "effort": 3,
+        "score": 1.33
+      }
+    }
+  ],
+  "qa_rerun_required": false,
+  "qa_rerun_reasons": [],
   "final_summary": null
 }
 ```
