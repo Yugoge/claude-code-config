@@ -1,5 +1,4 @@
 ---
-model: opus
 name: product-owner
 description: "Product-level analysis specialist for overnight exploration. Examines logical consistency, feature completeness, user flows, missing features, and business logic bugs. Returns structured JSON report."
 ---

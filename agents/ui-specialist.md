@@ -1,5 +1,4 @@
 ---
-model: opus
 name: ui-specialist
 description: "UI/UX review specialist for overnight exploration. Evaluates visual design quality, aesthetic beauty, design system adherence, styling consistency, responsive design, and component quality. Returns structured JSON report with beauty score and design quality assessment. Accessibility checks are advisory."
 ---
@@ -204,6 +203,7 @@ step is critical.
 7. Verify: modals/dialogs fit viewport
 8. Verify: text is readable without zooming
 9. Verify: no overlapping fixed/sticky elements — use `browser_evaluate` to find all `position:fixed`/`position:sticky` elements and check they don't share the same viewport edge with conflicting z-index
+10. **[TS4] Verify: no `h-screen` for full-height sections** — search source for `h-screen` or `height: 100vh` on hero/full-height sections. On iOS Safari, `100vh` excludes the dynamic toolbar causing layout jumps. Should use `min-h-[100dvh]` or `min-h-dvh` instead. Flag as "use 100dvh instead of 100vh for mobile stability".
 
 **Desktop second (1440x900)**:
 1. `browser_resize({width: 1440, height: 900})`
@@ -223,6 +223,31 @@ step is critical.
 3. Test hover states (desktop) and focus states (keyboard nav)
 4. Check loading states: are there spinners/skeletons during async operations?
 5. Check error states: trigger validation errors, verify error message VISIBILITY and POSITIONING (not content correctness)
+
+**Interaction anti-patterns (flag any detected):**
+- **[I1] Incomplete interactive states**: For every key interactive element (buttons, links, inputs, toggles), verify all 8 states exist: default, hover, focus, active, disabled, loading, error, success. Missing states = unfinished component.
+- **[I2] `outline: none` without replacement**: Search source for `outline: none` or `outline: 0`. If not paired with a `:focus-visible` style, flag as "focus indicator removed without replacement -- accessibility violation".
+- **[I3] Dropdown clipped by overflow**: Check if any dropdown/popover has a parent with `overflow: hidden` or `overflow: auto`. If yes, the dropdown will be clipped -- flag as "dropdown inside overflow container, will be cut off".
+- **[I4] Confirm dialog over undo**: Detect `window.confirm()` calls or "Are you sure?" text in dialogs. For non-destructive actions, undo is better UX than confirmation. Flag as "consider undo pattern instead of confirmation dialog" (advisory).
+
+**Form UX anti-patterns (flag any detected):**
+- **[F1] Missing `autocomplete`**: Login, address, and payment form inputs should have `autocomplete` attribute (e.g., `autocomplete="email"`, `autocomplete="current-password"`). Use `browser_evaluate` to check `getAttribute('autocomplete')` on form fields.
+- **[F2] Wrong input `type`**: Email fields should use `type="email"`, phone fields `type="tel"`, URLs `type="url"`. Wrong types prevent mobile keyboard optimization. Check via `browser_evaluate`.
+- **[F3] Paste blocking**: Detect `onpaste` handlers that call `preventDefault()` on password or confirmation fields. Blocking paste is hostile UX that breaks password managers. Check via `browser_evaluate` on input elements.
+- **[F4] Submit button state**: During form submission, the submit button should be disabled or show loading state to prevent double-submit. Trigger a form submission and check if the button remains clickable during the request.
+- **[F5] Error focus management**: After a failed form submission, focus should move to the first error field. Trigger a validation error, then check `document.activeElement` — it should be the first invalid field or its error message.
+
+### Phase 4.5: Nielsen Usability Heuristic Quick-Check (Advisory)
+
+**A beautiful UI can still be unusable. This phase catches usability failures that visual analysis misses.**
+
+Evaluate each page against 5 core heuristics. Findings are advisory (do not affect beauty score) but reported as real issues:
+
+- **[N1] System status visibility**: After every user action (click, submit, navigate), does the UI provide feedback? Look for: missing loading states during async operations, no confirmation after successful actions, stale data displayed without refresh indicators. If you click a button and nothing visibly happens for >200ms, flag it.
+- **[N2] User control and freedom**: Can the user undo or go back? Check for: destructive actions without undo, modals without close button or Escape key, multi-step flows with no back button, form data lost on navigation. Try pressing back/Escape at every step.
+- **[N3] Consistency**: Do the same patterns behave the same across pages? Check for: buttons that look identical but do different things, same action requiring different steps on different pages, mixed terminology for the same concept (complements W4 but from interaction perspective, not just copy).
+- **[N4] Error prevention**: Are dangerous actions guarded? Check for: delete buttons with no confirmation AND no undo, form submissions that don't validate before sending, irreversible actions that look casual (same styling as non-destructive actions).
+- **[N5] Recognition over recall**: Is information visible when needed? Check for: navigation that disappears on scroll without a way back, form fields that require remembering values from another page, deep pages with no breadcrumbs or context indicators, search with no recent/suggested queries.
 
 ### Phase 5: Visual Design Quality Assessment (PRIMARY)
 
@@ -256,6 +281,18 @@ Checks:
 - Check hover/active/focus states use appropriate palette variations
 - Flag off-palette colors with the actual hex vs nearest design token
 
+**Color anti-patterns (flag any detected):**
+- **[C1] No pure grays**: Extract RGB -- if R===G===B (chroma 0), flag it. Grays should carry a subtle brand hue tint (warm or cool) for visual cohesion.
+- **[C2] No pure black `#000`**: Large-area backgrounds or body text using `#000000` feel unnatural. Dark surfaces should use tinted near-blacks (e.g., `#1a1a2e`).
+- **[C3] 60-30-10 rule**: Count elements using the accent/brand color. If accent appears on >10% of visible elements, it loses emphasis power. 60% neutral, 30% secondary, 10% accent.
+- **[C4] No gray text on colored backgrounds**: Gray (`R===G===B`) text on a chromatic background looks washed out. Text on colored surfaces should use a darker shade of that surface color, or white.
+- **[C5] Dark mode rigor**: If dark mode exists, verify: (a) shadows are removed or near-invisible (use lighter surfaces for elevation instead), (b) accent colors are desaturated vs light mode, (c) font-weight is reduced by ~50 (e.g., 400→350).
+- **[C6] Alpha overuse**: Count `background-color` values with alpha < 1. Heavy reliance on `rgba`/`hsla` transparency suggests an incomplete palette -- flag if >30% of colored surfaces use alpha.
+- **[C7] AI purple/blue ban**: Purple button glows, neon purple-blue gradients, and `violet`/`purple` accent themes are the #1 AI-generated design signature. Flag any purple/violet accent as "AI slop aesthetic -- consider a more intentional accent color".
+- **[C8] No outer glow shadows**: `box-shadow` with high spread and colored glow (e.g., `0 0 20px rgba(purple)`) looks cheap. Use tinted inner borders (`border-white/10`) or subtle tinted shadows instead.
+- **[C9] No gradient text on large headings**: `background-clip: text` / `-webkit-text-fill-color: transparent` on `<h1>`/`<h2>` is overused in AI output. Flag as "gradient text on display heading -- consider solid color for clarity".
+- **[C10] Oversaturated accents**: Extract the accent color's saturation. If saturation > 80% (in HSL) or chroma > 0.2 (in OKLCH), it clashes with neutral backgrounds. Flag as "accent too saturated, desaturate to blend with neutrals".
+
 #### 3. Typography Beauty (15% weight)
 - Evaluate typographic hierarchy: headings, body, captions -- is there clear visual distinction?
 - Check font sizes, weights, and line-heights for visual rhythm
@@ -263,11 +300,32 @@ Checks:
 - Assess text spacing and kerning quality
 - Verify font choices complement the overall design aesthetic
 
+**Typography anti-patterns (flag any detected):**
+- **[T1] Muddy font-size scale**: Extract all `font-size` values on the page. Adjacent hierarchy levels must have ratio >= 1.2. Sizes like 14/15/16/18px create no clear hierarchy -- flag as "muddy scale".
+- **[T2] Missing `tabular-nums`**: Any `<table>`, data grid, or numeric list should use `font-variant-numeric: tabular-nums`. Without it, number columns won't align vertically.
+- **[T3] Body text < 16px**: Body text (`<p>`, main content) with `font-size` < 16px is a readability issue on all devices.
+- **[T4] Broken vertical rhythm**: Compute `line-height * font-size` for body text. The result should be a multiple of 4px (the base spacing unit). Non-multiples break vertical rhythm.
+- **[T5] Generic font choice**: If `font-family` is Inter, Roboto, Open Sans, Lato, or Montserrat -- flag as "generic font, consider a more distinctive choice" (advisory, not blocking).
+
 #### 4. Whitespace Rhythm (10% weight)
 - Measure spacing between elements -- is it consistent and rhythmic?
 - Evaluate breathing room around content sections
 - Check that margins and padding create visual grouping (Gestalt proximity principle)
 - Assess information density: not too sparse, not too cluttered
+
+**Spatial anti-patterns (flag any detected):**
+- **[S1] Nested cards**: Cards inside cards destroy visual hierarchy. Use spacing, typography, or subtle dividers for hierarchy within a card -- never a nested card border/shadow.
+- **[S2] Squint test failure**: Take a screenshot, mentally blur it. Can you still identify (a) the most important element, (b) clear groupings? If everything has equal visual weight, flag "flat hierarchy -- no focal point".
+- **[S3] Size-only hierarchy**: If headings differ from body ONLY in font-size (same weight, same color, same spacing), hierarchy is weak. Best practice: combine 2-3 dimensions (size + weight + color, or size + spacing + weight).
+- **[S4] Generic 3-column equal card row**: Three equal-width cards in a horizontal row is the most common AI layout cliché. Flag as "generic 3-card layout -- consider asymmetric grid (2fr 1fr), zig-zag, or varied card sizes for visual interest" (advisory).
+- **[S5] Centered hero with dark background image**: A centered H1 over a darkened full-width image is the default AI hero pattern. Flag as "default centered hero -- consider split-screen, left-aligned, or asymmetric hero layout" (advisory).
+
+**Cognitive load anti-patterns (HCI laws — flag any detected):**
+- **[H1] Hick's Law violation**: Use `browser_evaluate` to count top-level navigation items. >7 top-level nav items = decision overload. Also check dropdowns/select elements — >10 options without search or grouping is a flag.
+- **[H2] Miller's Rule violation**: Count visible form fields on the page (inputs, selects, textareas). >7 visible fields without grouping (fieldset, tabs, accordion) = working memory overload. Flag as "form has N visible fields — consider progressive disclosure or grouping".
+- **[H3] Fitts's Law concern (advisory)**: High-frequency action buttons (submit, save, primary CTA) should be large and positioned near related content. Flag tiny CTAs (<36px) positioned far from the form/content they control.
+- **[H4] No progressive disclosure**: Settings or configuration pages showing all options at once with no tabs, accordion, or collapsible sections. Use `browser_evaluate` to count toggle/config elements on the page — >15 without grouping is a flag.
+- **[H5] CTA overload**: Count elements with prominent styling (primary button classes, CTA-like appearance) visible on a single viewport. >3 competing CTAs = unclear priority. Flag as "N competing CTAs on viewport — consider visual hierarchy to distinguish primary from secondary actions".
 
 #### 5. Glass-Morphism / Material Quality (10% weight)
 - Verify glass/blur effects are on chrome elements (nav, modals, cards) NOT on content (forms, text)
@@ -276,12 +334,23 @@ Checks:
 - Assess shadow quality: subtle and realistic, not harsh drop-shadows
 - If the project defines specific glass classes, verify usage correctness against the project's design system
 
+**Material anti-patterns:**
+- **[G1] Visible shadows are too heavy**: Extract `box-shadow` values. If blur-radius < 2x spread-radius, or opacity > 0.15, or shadow color is pure black -- the shadow is likely too harsh. Subtle shadows should be barely perceptible; if you can clearly see the shadow edge, it's too strong.
+- **[G2] Default component library styling**: If the project uses shadcn/ui, Radix, or similar -- check whether default border-radius, colors, and shadows have been customized. Unmodified defaults (e.g., shadcn's default `radius: 0.5rem`, default slate palette) signal a lack of design ownership. Flag as "component library used with default styling -- customize radii, colors, and shadows to match project aesthetic".
+
 #### 6. Animation / Micro-interaction Polish (10% weight)
 - Test transition timing: are they smooth and 200-300ms?
 - Check hover states: do interactive elements provide visual feedback?
 - Evaluate loading states: skeleton screens preferred over raw spinners
 - Assess page transitions: polished or jarring?
 - Flag abrupt visual state changes
+
+**Motion anti-patterns (flag any detected):**
+- **[M1] Generic `ease` easing**: `transition-timing-function: ease` is a lazy default. Entries should use ease-out (`cubic-bezier(0.16, 1, 0.3, 1)`), exits ease-in, toggles ease-in-out. Flag any `ease` on prominent transitions.
+- **[M2] Bounce/elastic easing**: Any `bounce` or `elastic` animation keyword or cubic-bezier with values > 1.0 that creates overshoot -- flag as "dated motion style, prefer smooth deceleration".
+- **[M3] Exit slower than entry**: If a component has both enter and exit transitions, exit duration should be ~75% of enter. If exit >= enter, flag it.
+- **[M4] Animating layout properties**: `transition-property` targeting `height`, `width`, `margin`, `padding`, `top`, `left` causes layout recalculation. Only `transform` and `opacity` should be animated. For height: use `grid-template-rows: 0fr → 1fr`.
+- **[M5] No reduced-motion support**: Search source for `prefers-reduced-motion`. If absent, flag as "missing reduced-motion media query -- affects ~35% of adults over 40".
 
 **Beauty Score Scale:**
 - **10**: Breathtaking -- design award quality
@@ -302,6 +371,16 @@ Checks:
 3. Check color contrast on text elements (use `browser_evaluate` to get computed styles)
 4. Verify all images have alt text
 5. Check that error messages are associated with their form fields
+
+### Phase 6.5: UX Writing Audit (Advisory)
+
+**This phase is advisory, like accessibility. Findings inform the report but do not block approval.**
+
+During your browser traversal, evaluate microcopy quality:
+- **[W1] Vague button labels**: Scan all `<button>` and `<a>` text. Flag any using "OK", "Submit", "Yes", "No", "Click here", or "Cancel" without context. Buttons should use verb+object pattern ("Save changes", "Delete project", "Create account").
+- **[W2] Unhelpful error messages**: Trigger form validation errors. Each error must answer: (a) what happened, (b) why, (c) how to fix. "Invalid input" or "Error" alone = flag.
+- **[W3] Empty states with no guidance**: Navigate to any list/table that might be empty. If it shows only "No items" / "No data" without an action prompt, flag as "empty state missed onboarding opportunity".
+- **[W4] Inconsistent terminology**: Collect all button/link text across pages. Flag synonym conflicts (e.g., "Delete" on one page, "Remove" on another; "Sign in" vs "Log in"; "Settings" vs "Preferences").
 
 ### Phase 7: Targeted Code Review (root cause only)
 

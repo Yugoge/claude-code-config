@@ -10,6 +10,8 @@ description: Autonomous overnight development loop - continuously explores codeb
 
 This command runs an unattended development loop. You are fully autonomous -- no user input is needed or expected. You discover issues yourself by scanning the codebase, fix each one through a simplified dev cycle, and keep going until the specified end time.
 
+**Quick status utility**: Use `bash ~/.claude/scripts/overnight-status.sh` for instant session status (zero LLM cost). Use this instead of reading/parsing the state JSON manually. Optionally pass session_id as argument.
+
 ---
 
 ## Overview
@@ -72,7 +74,7 @@ Step 1: Create worktree (first run only)
 6. **Track everything**. Update the state file after every significant action.
 7. **The Stop hook prevents premature exit**. The time-lock hook will block conversation termination until end-time. Do not try to circumvent it.
 8. **Git checkpoint after each fix**. The existing posttool-git-checkpoint.sh hook handles this automatically on Write/Edit.
-9. **Never modify production infrastructure**. No Docker operations, no service restarts, no deployment changes.
+9. **QA MUST rebuild and redeploy** to verify fixes in the real environment. `docker compose build` and `docker compose up -d` for the project's own services (e.g., applio-api, applio-worker, applio-web) are REQUIRED for QA verification. Do NOT touch unrelated services or infrastructure.
 10. **Deduplicate**. Check the state file's cycle_log before starting a fix -- do not re-fix issues already addressed.
 
 ---
@@ -108,22 +110,24 @@ ls .claude/overnight-state-*.json
 If no state file exists (edge case), create it manually using the v4 schema with a generated session_id.
 
 **WORKTREE GUARD**: FIRST check the state file's `worktree_path` field.
-- If `worktree_path` is NOT null: the worktree already exists from a previous cycle. Do NOT call EnterWorktree. Skip directly to Step 2.
+- If `worktree_path` is NOT null: the worktree already exists from a previous cycle. `cd` into it and skip to Step 2.
 - If `worktree_path` IS null: this is the first invocation. Create the worktree.
 
 **Create worktree for isolation** (only when worktree_path is null):
 
-Call `EnterWorktree` with name `overnight-YYYYMMDD-<session_id_short>` (first 8 chars of session_id):
+Run the worktree creation script (creates from local HEAD, not origin/main):
 
-```
-Call EnterWorktree with name: "overnight-<YYYYMMDD>-<session_id_short>"
+```bash
+RESULT=$(bash ~/.claude/scripts/create-worktree.sh "overnight-$(date +%Y%m%d)-<session_id_short>")
 ```
 
-After EnterWorktree succeeds, update the state file:
+Parse `WORKTREE_PATH` and `WORKTREE_BRANCH` from the output, then `cd` into the worktree path.
+
+After creation, update the state file:
 - Set `worktree_path` to the worktree directory path
 - Set `worktree_branch` to the branch name
 
-If EnterWorktree fails (disk space, git lock, etc):
+If creation fails (disk space, git lock, etc):
 - Log a warning
 - Continue on the current branch
 - Leave `worktree_path` as null in the state file
@@ -162,7 +166,7 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
 
 **Do NOT**:
 - Create the state file (it already exists)
-- Call EnterWorktree (the worktree already exists -- the continuation context explicitly tells you this)
+- Re-create the worktree (it already exists -- just `cd` into `worktree_path` from the state file)
 
 ---
 
@@ -176,7 +180,10 @@ Read the state file's `addressed_issues` array first.
 
 #### Step 2a: Launch PM Subagent
 
-Launch the PM (test plan manager) subagent to build a structured test plan. The PM reads CLAUDE.md and the state file, then writes test-plan.json.
+Launch the PM (test plan manager) subagent to build a structured test plan. The PM
+uses Playwright to explore the running app first (Phase 0), then reads CLAUDE.md
+and the state file, and writes test-plan.json with firsthand browser evidence in
+the `pm_experience` section.
 
 ```
 Use Agent tool with:
@@ -200,6 +207,11 @@ Use Agent tool with:
 - Has `agent_assignments` with all 4 agent keys
 - Has `core_flow_gate.owner` set to `"user"`
 - Has `core_flow_gate.failure_is_cycle_failure` set to `true`
+- Has `pm_experience` section with browser exploration evidence:
+  - If `pm_experience.app_not_running` is false: verify `urls_visited` is non-empty
+    and `actions_taken` has at least one entry (PM actually explored the app)
+  - If `pm_experience.app_not_running` is true: acceptable (app was not running,
+    PM fell back to doc-based planning)
 
 If validation fails, re-invoke PM (maximum 2 retries). If still failing, proceed to Step 2b without a test plan (specialists will discover context themselves).
 
@@ -252,10 +264,16 @@ Each subagent receives:
 - Priority context: <the priority context block built in the step above>
 - Output report to: <path above>
 
+**ENFORCEMENT**: Every specialist prompt MUST include the test plan path.
+Specialists have a MANDATORY Step 0 that reads this file -- it is not optional.
+The test plan contains PM's `pm_experience` (firsthand browser evidence) that
+specialists use as ground truth. Additionally, each specialist has a MANDATORY
+Step 0.5 that executes the core E2E flow via Playwright before their specialized
+analysis begins.
+
 **NOTE**: The priority context block is appended directly to each specialist's prompt
 so they see PM's priorities immediately. Specialists also read the full test plan via
-their Step 0 protocol, but the inline context ensures priority awareness even if Step 0
-is skipped.
+their Step 0 protocol -- the inline context provides redundancy.
 
 **NOTE**: Always use `worktree_path` as the project path when it is set in the state file. Subagents must scan and report on files inside the worktree, not the main project directory.
 
@@ -316,6 +334,11 @@ After all 4 specialists complete, read the user agent's report. Check `core_flow
 
 This gate is non-negotiable: if the user cannot complete the core business flow, the entire cycle is considered failed regardless of other agents' findings.
 
+**Route Map Extraction**: After the user agent completes, check if `route_map_file` exists in its report. If present, read the route map file and store the path in the state file as `route_map_path`. This route map will be passed to:
+- **Dev agent**: as context so it knows which pages might be affected by its changes
+- **QA agent**: so it can verify changes don't break pages listed in the route map
+- **PM agent** (next cycle only): so PLAN mode can skip browser discovery and use the existing route map
+
 #### Step 2c: Launch PM-Triage Subagent
 
 After all 4 specialists complete and reports are validated, launch PM in TRIAGE mode to
@@ -362,6 +385,10 @@ If validation fails, re-invoke PM-Triage (maximum 2 retries). If still failing, 
 to the legacy mechanical sort in Step 3 (read all 4 reports, merge, sort by severity).
 
 **Update state**: Add triage report path to `pm_triage_reports` array in state file.
+
+**Check pipeline_blocked**: Read the triage report's `pipeline_blocked` field.
+- If `pipeline_blocked: true`: log `block_reasons` to state file, skip Steps 3-12, jump directly to Step 13 (PM Retrospective) with context that the pipeline was blocked. PM RETRO will analyze the block and recommend next steps. Then loop to Step 2 for the next cycle.
+- If `pipeline_blocked: false` or field absent: proceed normally to Step 3.
 
 ### Step 3: Create Parallel Pipelines from PM Triage
 
@@ -554,7 +581,36 @@ Read dev report: `docs/dev/dev-report-{pipeline.timestamp_suffix}.json`
 
 **Update state**: Set each successful pipeline's `phase` to `"dev_complete"`.
 
-### Step 8: Run All QA Subagents (Parallel)
+### Step 8: PM QA Prep (Rebuild Docker + Write QA Verification Plans)
+
+**Update state**: Set current_phase to "qa_prep".
+
+**This step bridges Dev and QA by:**
+1. Reading ALL dev reports to understand what changed
+2. Rebuilding Docker containers so QA tests the NEW code
+3. Writing specific verification steps for each QA pipeline
+
+**Without this step, QA tests stale code and produces false passes.**
+
+Launch PM subagent in QA_PREP mode. The PM must:
+
+1. Read all dev reports and BA specs for this cycle
+2. Rebuild Docker: backend changes require applio-api + applio-worker rebuild,
+   frontend changes require applio-web rebuild. Verify docker-compose.yml build
+   contexts point to the worktree. Wait for services to be healthy.
+3. For EACH pipeline, write concrete QA verification steps:
+   - Exact URLs to visit
+   - Exact actions (click, type, wait)
+   - Exact assertions (text, element, state)
+   - For backend pipeline fixes: MUST trigger E2E generation via browser
+   - For frontend fixes: MUST do visual/interaction checks
+
+Output: qa-verification-plans.json with per-pipeline steps and docker status.
+
+**If Docker rebuild fails**: CYCLE BLOCKER. Debug and retry (max 3 attempts).
+Do NOT proceed to QA with stale containers.
+
+### Step 9: Run All QA Subagents (Parallel)
 
 **Update state**: Set `current_phase` to `"verifying"`.
 
@@ -805,7 +861,7 @@ else:
 ```
 
 If time expired: proceed to Step 13 (PM Retro) then Step 14 for final summary.
-If time remains: proceed to Step 13 (PM Retro), then mark Step 14 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 14 steps completed, reset todos to pending, and inject continuation instructions.
+If time remains: proceed to Step 13 (PM Retro), then mark Step 14 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 15 steps completed, reset todos to pending, and inject continuation instructions.
 
 ### Step 13: PM Retrospective
 
@@ -858,13 +914,17 @@ If validation fails, log warning and proceed (retro is informational, not blocki
 - Add retro report path to `pm_retro_reports` array
 - Update `unresolved_issues` from retro report's `unresolved_issues` array
 
+**Check qa_rerun_required**: Read the retro report's `qa_rerun_required` field.
+- If `qa_rerun_required: true`: re-invoke QA for the pipelines listed in `qa_rerun_reasons`. Use the same QA invocation pattern as Step 8-9, but pass additional context: `"This is a PM-requested QA re-run. Reasons: <qa_rerun_reasons>. Focus on the specific concerns raised."` After QA re-run completes, proceed to Step 14 (do NOT re-invoke RETRO — avoid infinite loops).
+- If `qa_rerun_required: false` or field absent: proceed normally to Step 14.
+
 ---
 
 ### Step 14: Generate Summary Report or Loop
 
 **If time remains** (normal loop case):
 Simply mark this step as completed via TodoWrite. The PostToolUse:TodoWrite hook (`posttool-overnight-loop.py`) will:
-1. Detect all 14 steps are completed
+1. Detect all 15 steps are completed
 2. Check overnight-state.json for future end_time
 3. Reset all todos to pending
 4. Print loop continuation instructions
@@ -1073,7 +1133,7 @@ If state file has `worktree_path=null` on continuation, attempt to create worktr
 
 ## Quick Reference: The Loop
 
-After completing Steps 2-14, the loop is automatic:
+After completing Steps 2-15, the loop is automatic:
 
 ```
 TodoWrite marks Step 14 as completed
@@ -1133,11 +1193,17 @@ See `/clean` command documentation for details.
 
 ## Quality Standards Enforcement
 
-**Specialist subagents discover** (Step 2, parallel):
-- **product-owner** (see `agents/product-owner.md`): Logical inconsistencies, feature gaps, broken user flows, missing features, business logic bugs
-- **architect** (see `agents/architect.md`): Structural issues, technical debt, optimization opportunities, dependency problems, pattern inconsistencies
-- **user** (see `agents/user.md`): UX friction, broken flows, confusing behavior, workflow gaps, real-world usage issues
-- **ui-specialist** (see `agents/ui-specialist.md`): Styling consistency, responsive design, accessibility, visual bugs, component quality, design system compliance
+**PM subagent plans** (Step 2a):
+- Uses Playwright to explore the running app (Phase 0) before writing the test plan
+- Writes `pm_experience` section with firsthand browser evidence (URLs visited, actions taken, screenshots)
+- `core_flow_steps` are derived from actual browser navigation, not documentation alone
+- Falls back to doc-based planning only when app is not running (`app_not_running: true`)
+
+**Specialist subagents discover** (Step 2b, parallel -- all read PM's test plan as Step 0, all execute E2E flow as Step 0.5):
+- **product-owner** (see `agents/product-owner.md`): Logical inconsistencies, feature gaps, broken user flows, missing features, business logic bugs. Executes E2E flow before feature inventory.
+- **architect** (see `agents/architect.md`): Structural issues, technical debt, optimization opportunities, dependency problems, pattern inconsistencies. Collects console/network errors during E2E flow execution.
+- **user** (see `agents/user.md`): UX friction, broken flows, confusing behavior, workflow gaps, real-world usage issues. Already has the most complete E2E protocol (Phase 4).
+- **ui-specialist** (see `agents/ui-specialist.md`): Styling consistency, responsive design, accessibility, visual bugs, component quality, design system compliance. Executes E2E flow on both mobile and desktop viewports.
 
 **BA subagent analyzes** (see `agents/ba.md`):
 - Requirement decomposition from self-discovered issues
@@ -1152,13 +1218,20 @@ See `/clean` command documentation for details.
 - Git root cause analysis
 
 **QA subagent verifies** (see `agents/qa.md`):
+- Reads test plan and PM experience as Step 0
 - Success criteria met
 - Root cause addressed
 - No regressions
+- Dynamic Playwright verification mandatory for web-facing changes (Step 5c)
+- Executes core E2E flow as baseline before specific fix verification (Step 5c.0)
 - Quality standards compliance
 - Integer step numbering
 
 **Orchestrator ensures**:
+- PM explores app via Playwright before writing test plan
+- Test plan contains `pm_experience` with browser evidence (validated in Step 2a)
+- All specialist prompts include test plan path (enforced, not optional)
+- All specialists execute E2E flow before specialized analysis
 - Issues fully explored by 4 specialist subagents before fixing
 - ALL issues get parallel pipelines, ordered by PM triage (tier 1 blockers first, then tier 2, then tier 3)
 - Comprehensive context via BA (one per pipeline)
