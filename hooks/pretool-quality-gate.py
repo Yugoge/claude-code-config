@@ -236,10 +236,10 @@ def main() -> None:
         violations.extend(check_nesting_depth(lines, ext))
 
         if violations:
-            print(f'QUALITY GATE BLOCKED \u2014 {file_path}:')
+            print(f'QUALITY GATE BLOCKED \u2014 {file_path}:', file=sys.stderr)
             for v in violations:
-                print(f'  - {v}')
-            print('Fix violations before writing. Split large functions into smaller ones.')
+                print(f'  - {v}', file=sys.stderr)
+            print('Fix violations before writing. Split large functions into smaller ones.', file=sys.stderr)
             sys.exit(2)
 
     except Exception:
