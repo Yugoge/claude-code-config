@@ -760,6 +760,76 @@ process_resume "$RESUME_FILE" "$JOB_POSTING" "$OUTPUT_FILE"
 
 ---
 
+### Pattern 8: Subagent Call Enforcement
+
+**What**: A fourth behavioral gate added to the three structural gates (Pattern 4) that mechanically prevents agents from marking subagent delegation steps as completed without actually calling the Agent tool.
+
+**Why**: The three-hook enforcement chain validates structural compliance (correct steps, correct order) but not behavioral compliance. Without this gate, an agent can mark "Delegate to BA subagent" as completed without ever spawning a subagent.
+
+**Schema**: Todo scripts add an optional `subagent_call` field to step dicts:
+
+```python
+# Single subagent (dev.py, dev-command.py)
+{"content": "Step 2: Delegate to BA subagent", ..., "subagent_call": {"agent": "ba", "subagent_type": "ba"}}
+
+# Multiple subagents (dev-overnight.py parallel steps)
+{"content": "Step 2: Explore codebase", ..., "subagent_call": [
+    {"agent": "pm", "subagent_type": "pm"},
+    {"agent": "specialist", "subagent_type": "architect"}
+]}
+```
+
+The `subagent_call` field lives in the todo script output only. It is NOT included in TodoWrite payloads (content/activeForm/status remain unchanged). Hooks read it via `run_todo_script()`.
+
+**How the hooks work together**:
+
+```
+Agent starts Step N (in_progress)
+       |
+[pretool-subagent-enforce.py] reads canonical todos
+  - Step N has subagent_call? → Initialize tracking in bookmark
+  - subagent_calls[N] == false? → BLOCK all tools except Agent/TodoWrite
+  - Step N-1 in_progress, Step N has subagent_call? → Advisory hint
+       |
+Agent calls Agent tool (subagent)
+       |
+[posttool-subagent-track.py] fires after Agent completes
+  - Sets subagent_calls[N] = true in bookmark
+  - Other tools now unblocked
+       |
+Agent tries TodoWrite to mark Step N completed
+       |
+[pretool-todo-validate.py] completion guard
+  - Step N has subagent_call AND subagent_calls[N] == false? → BLOCK
+  - subagent_calls[N] == true? → ALLOW completion
+```
+
+**Bookmark extension**: `subagent_calls` dict keyed by step index string:
+
+```json
+{
+  "command": "dev",
+  "todo_acknowledged": true,
+  "subagent_calls": {"1": true, "4": false, "6": false}
+}
+```
+
+**How to add subagent_call to new todo scripts**:
+
+1. Identify steps that require Agent tool invocation
+2. Add `subagent_call` field to those step dicts in `get_todos()`
+3. Use `{"agent": "<name>", "subagent_type": "<type>"}` for single calls
+4. Use a list of dicts for parallel/multi-call steps
+5. Steps without `subagent_call` are completely unaffected
+
+**Anti-Patterns to Avoid**:
+- Putting `subagent_call` in TodoWrite content/activeForm/status (canonical validation rejects it)
+- Adding `subagent_call` to non-delegation steps (only steps requiring Agent tool)
+- Manually editing the bookmark's `subagent_calls` field
+- Skipping the Agent call and expecting the gate to open
+
+---
+
 ### Real-World Case Study: /update Command
 
 **Context**: Need command to analyze job postings and update resumes with tailored content.
