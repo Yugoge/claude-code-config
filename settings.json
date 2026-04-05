@@ -247,8 +247,7 @@
           },
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/userprompt-doc-sync-check.py\"",
-            "on_error": "ignore"
+            "command": "python3 \"$HOME/.claude/hooks/userprompt-doc-sync-check.py\""
           }
         ]
       }
@@ -259,6 +258,14 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-workflow-gate.py\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-subagent-enforce.py\""
           }
         ]
       },
@@ -276,8 +283,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/pretool-overnight-hook-guard.py\"",
-            "stdin_json": true
+            "command": "python3 \"$HOME/.claude/hooks/pretool-overnight-hook-guard.py\""
           }
         ]
       },
@@ -286,8 +292,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/pretool-quality-gate.py\"",
-            "stdin_json": true
+            "command": "python3 \"$HOME/.claude/hooks/pretool-quality-gate.py\""
           }
         ]
       },
@@ -296,8 +301,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/pretool-todo-validate.py\"",
-            "stdin_json": true
+            "command": "python3 \"$HOME/.claude/hooks/pretool-todo-validate.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "EnterWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pretool-block-enterworktree.sh\""
           }
         ]
       },
@@ -316,23 +329,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-tracker.py\"",
-            "stdin_json": true
+            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-tracker.py\""
           },
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-count.py\"",
-            "stdin_json": true
+            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-count.py\""
           },
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-sequence.py\"",
-            "stdin_json": true
+            "command": "python3 \"$HOME/.claude/hooks/posttool-todo-sequence.py\""
           },
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/posttool-overnight-loop.py\"",
-            "stdin_json": true
+            "command": "python3 \"$HOME/.claude/hooks/posttool-overnight-loop.py\""
           }
         ]
       },
@@ -345,9 +354,11 @@
           },
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/posttool-doc-sync.py\"",
-            "stdin_json": true,
-            "on_error": "ignore"
+            "command": "python3 \"$HOME/.claude/hooks/posttool-doc-sync.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-command-frontmatter-validate.py\""
           }
         ]
       },
@@ -357,6 +368,19 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/posttool-git-warn.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-overnight-file-check.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-subagent-track.py\""
           }
         ]
       }

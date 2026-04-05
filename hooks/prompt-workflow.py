@@ -309,7 +309,7 @@ def _apply_ampm(hour: int, ampm: str | None) -> int:
 
 
 def create_overnight_state(end_time_iso: str, focus: str = '', session_id: str = 'default') -> bool:
-    """Atomically write overnight state with v5 schema (session-keyed)."""
+    """Atomically write overnight state with v7 schema (session-keyed)."""
     sid = session_id
     state = {
         'session_id': sid,
@@ -318,12 +318,12 @@ def create_overnight_state(end_time_iso: str, focus: str = '', session_id: str =
         'focus': focus,
         'cycle_count': 0, 'issues_found': 0, 'issues_fixed': 0,
         'issues_skipped': 0, 'current_phase': 'initializing',
-        'current_issue': None, 'failed_attempts': {},
+        'current_issues': [], 'failed_attempts': {},
         'addressed_issues': [], 'cycle_log': [],
         'consecutive_clean_sweeps': 0,
-        'current_issue_iteration': 0,
+        'pm_triage_reports': [], 'pm_retro_reports': [],
+        'unresolved_issues': [],
         'worktree_path': None, 'worktree_branch': None,
-        'schema_version': 5,
     }
     sp = overnight_state_path(sid)
     tmp = sp.with_suffix('.tmp')
@@ -372,7 +372,7 @@ def build_overnight_continuation(state: dict) -> str:
         '--- COMMAND SPECIFICATION ---', '', cmd_spec, '',
         '--- CURRENT STATE ---', '',
         f'Phase: {phase} | Cycles: {cc} | Fixed: {state.get("issues_fixed", 0)}',
-        f'End time: {state.get("end_time")} | Issue: {state.get("current_issue", "none")}',
+        f'End time: {state.get("end_time")} | Active issues: {len(state.get("current_issues", []))}',
         f'Focus: {state.get("focus", "none")}',
         f'Last cycle: {last}', '',
         '--- CONTINUATION INSTRUCTIONS ---', '',
@@ -462,11 +462,46 @@ def emit_checklist_message(cmd_name: str, todos: list) -> None:
     print('\n'.join(lines))
 
 
+def _warn_workflow_conflict(old_cmd: str, new_cmd: str, old_todos: list) -> None:
+    """Emit warning to stderr when active workflow is being replaced (E17)."""
+    incomplete = sum(1 for t in old_todos if t.get('status') != 'completed')
+    sys.stderr.write(
+        f'\nWARNING: Replacing active /{old_cmd} workflow ({incomplete} '
+        f'incomplete steps) with /{new_cmd}.\n'
+        f'The previous workflow state will be lost.\n\n'
+    )
+
+
+def _check_workflow_conflict(cmd_name: str, sid: str) -> None:
+    """Check if an active workflow exists and warn before replacement (E17)."""
+    bm_path = workflow_bookmark_path(sid)
+    if not bm_path.exists():
+        return
+    try:
+        bm = json.loads(bm_path.read_text())
+    except Exception:
+        return
+    old_cmd = bm.get('command', '')
+    if not old_cmd or old_cmd == cmd_name:
+        return
+    tf = official_todos_path(sid)
+    if not tf.exists():
+        return
+    try:
+        old_todos = json.loads(tf.read_text())
+    except Exception:
+        return
+    if not old_todos or all(t.get('status') == 'completed' for t in old_todos):
+        return
+    _warn_workflow_conflict(old_cmd, cmd_name, old_todos)
+
+
 def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     """Phase A: slash command detected -- setup todos, state, inject spec."""
     todos = run_todo_script(cmd_name)
     if not todos:
         return
+    _check_workflow_conflict(cmd_name, sid)
     tf = official_todos_path(sid)
     tf.parent.mkdir(parents=True, exist_ok=True)
     tf.write_text(json.dumps(todos, ensure_ascii=False))
