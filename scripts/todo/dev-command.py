@@ -5,66 +5,41 @@ This todo script generates workflow steps for the BA-delegated dev-command workf
 with command development best practices.
 """
 
+
+# (content, activeForm, extra_meta) tuples for each step
+_STEPS = [
+    ("Parse development requirement", "Parsing development requirement", None),
+    ("Delegate to BA subagent", "Delegating to BA subagent", {"subagent_call": {"agent": "ba", "subagent_type": "ba"}}),
+    ("BA clarification loop (if needed)", "Running BA clarification loop", None),
+    ("Validate BA output", "Validating BA output", None),
+    ("Delegate to dev subagent", "Delegating to dev subagent", {"subagent_call": {"agent": "dev", "subagent_type": "dev"}}),
+    ("Validate dev implementation", "Validating dev implementation", None),
+    ("Delegate to QA subagent", "Delegating to QA subagent", {"subagent_call": {"agent": "qa", "subagent_type": "qa"}}),
+    ("Process QA results", "Processing QA results", None),
+    ("Update settings.json permissions", "Updating settings.json permissions", None),
+    ("Iteration loop (if QA fails)", "Executing iteration loop", None),
+    ("Generate completion report", "Generating completion report", None),
+]
+
+
+def _build_step(index, desc, active, meta):
+    """Build a single todo item dict from step tuple."""
+    item = {
+        "content": f"Step {index}: {desc}",
+        "activeForm": f"Step {index}: {active}",
+        "status": "pending",
+    }
+    if meta:
+        item.update(meta)
+    return item
+
+
 def get_todos():
     """Return workflow steps as TodoWrite-compatible list."""
     return [
-        {
-            "content": "Step 1: Parse development requirement",
-            "activeForm": "Step 1: Parsing development requirement",
-            "status": "pending"
-        },
-        {
-            "content": "Step 2: Delegate to BA subagent",
-            "activeForm": "Step 2: Delegating to BA subagent",
-            "status": "pending"
-        },
-        {
-            "content": "Step 3: BA clarification loop (if needed)",
-            "activeForm": "Step 3: Running BA clarification loop",
-            "status": "pending"
-        },
-        {
-            "content": "Step 4: Validate BA output",
-            "activeForm": "Step 4: Validating BA output",
-            "status": "pending"
-        },
-        {
-            "content": "Step 5: Delegate to dev subagent",
-            "activeForm": "Step 5: Delegating to dev subagent",
-            "status": "pending"
-        },
-        {
-            "content": "Step 6: Validate dev implementation",
-            "activeForm": "Step 6: Validating dev implementation",
-            "status": "pending"
-        },
-        {
-            "content": "Step 7: Delegate to QA subagent",
-            "activeForm": "Step 7: Delegating to QA subagent",
-            "status": "pending"
-        },
-        {
-            "content": "Step 8: Process QA results",
-            "activeForm": "Step 8: Processing QA results",
-            "status": "pending"
-        },
-        {
-            "content": "Step 9: Update settings.json permissions",
-            "activeForm": "Step 9: Updating settings.json permissions",
-            "status": "pending"
-        },
-        {
-            "content": "Step 10: Iteration loop (if QA fails)",
-            "activeForm": "Step 10: Executing iteration loop",
-            "status": "pending"
-        },
-        {
-            "content": "Step 11: Generate completion report",
-            "activeForm": "Step 11: Generating completion report",
-            "status": "pending"
-        }
+        _build_step(i + 1, desc, active, meta)
+        for i, (desc, active, meta) in enumerate(_STEPS)
     ]
-
 
 
 if __name__ == "__main__":
