@@ -22,10 +22,10 @@ Hook creates state file + parses end-time (automatic)
 Step 1: Create worktree (first run only)
   |
   +---> EXPLORATION PHASE (Step 2)
-  |       Step 2a: PM-Plan subagent (builds test plan with priorities)
-  |       Main agent reads test plan, extracts priority context
-  |       Step 2b: 4 specialist subagents scan in parallel (with priority context)
-  |       Step 2c: PM-Triage subagent (reads all 4 reports, writes triage)
+  |       Step 2a: PM-Plan subagent (builds test plan with priorities + recommended_specialists)
+  |       Main agent reads test plan, extracts priority context + recommended specialists
+  |       Step 2b: PM-recommended specialist subagents scan in parallel (with priority context)
+  |       Step 2c: PM-Triage subagent (reads specialist reports, writes triage)
   |                |
   |       PIPELINE CREATION (Step 3)
   |       Main agent reads PM triage report, creates pipelines in triage order
@@ -74,24 +74,47 @@ Step 1: Create worktree (first run only)
 6. **Track everything**. Update the state file after every significant action.
 7. **The Stop hook prevents premature exit**. The time-lock hook will block conversation termination until end-time. Do not try to circumvent it.
 8. **Git checkpoint after each fix**. The existing posttool-git-checkpoint.sh hook handles this automatically on Write/Edit.
-9. **QA MUST rebuild and redeploy** to verify fixes in the real environment. `docker compose build` and `docker compose up -d` for the project's own services (e.g., applio-api, applio-worker, applio-web) are REQUIRED for QA verification. Do NOT touch unrelated services or infrastructure.
+9. **QA MUST rebuild and redeploy** to verify fixes in the real environment. `docker compose build` and `docker compose up -d` for the project's own services are REQUIRED for QA verification. Identify services from `docker-compose.yml`. Do NOT touch unrelated services or infrastructure.
 10. **Deduplicate**. Check the state file's cycle_log before starting a fix -- do not re-fix issues already addressed.
+11. **One issue per subagent, no exceptions**. Each BA subagent analyzes exactly ONE pipeline issue. Each Dev subagent implements exactly ONE pipeline fix. Each QA subagent verifies exactly ONE pipeline fix. The orchestrator launches N parallel subagents for N pipelines -- but each individual subagent handles only its own single pipeline. NEVER bundle multiple pipeline issues into one subagent prompt.
 
 ---
 
 ## Arguments
 
 ```
-/dev-overnight [end-time] [focus]
+/dev-overnight [end-time] [focus] [--spec path/to/spec.md]
 ```
 
 **Examples**:
 - `/dev-overnight 6:00` — run until 6:00, no focus (explore everything)
-- `/dev-overnight 6:00 applio UI bugs` — run until 6:00, focus on applio UI bugs
+- `/dev-overnight 6:00 fix pipeline bugs` — run until 6:00, focus on pipeline bugs
 - `/dev-overnight fix hooks` — default 8h, focus on hooks issues
 - `/dev-overnight` — default 8h, no focus
+- `/dev-overnight 6:00 --spec docs/my-spec.md` — run until 6:00, use user-provided spec
+- `/dev-overnight 6:00 fix UI --spec docs/ui-spec.md` — focus + user spec
 
-The `focus` string is stored in the state file and passed to all 4 specialist subagents as a discovery hint. It helps specialists focus their scans but does not affect pipeline creation -- all discovered issues get pipelines regardless of focus match.
+**`--spec` argument**: If provided, the session operates in **user-spec mode**:
+- The spec file is read by PM in PLAN mode (PM acts as supervisor, not full explorer)
+- Issues described in the user's spec are automatically Tier 1
+- Every subagent (BA, Dev, QA, PM-Retro) receives the spec path and reads it on startup
+- PM validates agent output against the user's spec during RETRO
+
+If `--spec` is NOT provided, the session operates in **autonomous mode** (default):
+- PM explores the app and discovers issues normally
+- After PM TRIAGE creates pipelines, the orchestrator creates spec files from the template at `~/.claude/templates/overnight-spec.md`
+- Each pipeline gets its own spec file at `docs/dev/overnight/<session_id>/spec-pipeline-<index>.md`
+
+**Spec mode detection**: Parse arguments for `--spec`. Extract the path that follows it. Store in state file as `user_spec_path`. If present, set `spec_mode: "user-provided"`. If absent, check for an auto-detectable spec (see below) before defaulting to `spec_mode: "autonomous"`.
+
+**Auto-detect default spec**: If `--spec` is NOT provided, scan `docs/dev/specs/` for `.md` files sorted by modification time (newest first). If a file exists there, treat it as the user-provided spec automatically — set `user_spec_path` to that path and `spec_mode: "user-provided"`. Announce this clearly:
+```
+Auto-detected spec: docs/dev/specs/spec-<timestamp>.md
+(Created by /spec command — treating as user-provided spec. Use --spec <other-path> to override.)
+```
+If `docs/dev/specs/` does not exist or is empty, fall back to `spec_mode: "autonomous"` as before.
+
+The `focus` string is stored in the state file and passed to all 4 specialist subagents as a discovery hint. It helps specialists focus their scans but does not affect pipeline creation -- all discovered issues get pipelines regardless of focus match. Additionally, in Step 3a, the orchestrator converts the focus into quantitative QA verification criteria that are passed to QA subagents in Step 9 as mandatory pass/fail checks.
 
 ---
 
@@ -126,6 +149,25 @@ Parse `WORKTREE_PATH` and `WORKTREE_BRANCH` from the output, then `cd` into the 
 After creation, update the state file:
 - Set `worktree_path` to the worktree directory path
 - Set `worktree_branch` to the branch name
+
+**Auto-detect default spec** (run immediately after state file is read, whether first run or continuation):
+
+If `user_spec_path` in the state file is null AND `spec_mode` is `"autonomous"`, scan for a `/spec`-generated spec:
+
+```bash
+ls -t docs/dev/specs/*.md 2>/dev/null | head -1
+```
+
+If a file is returned:
+1. Set `user_spec_path` to that path in the state file
+2. Set `spec_mode` to `"user-provided"` in the state file
+3. Announce:
+   ```
+   Auto-detected spec: <path>
+   (Created by /spec — treating as user-provided. Pass --spec <other-path> to override.)
+   ```
+
+If no file is returned, leave `spec_mode` as `"autonomous"` and proceed normally.
 
 If creation fails (disk space, git lock, etc):
 - Log a warning
@@ -174,7 +216,7 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
 
 **Update state**: Set `current_phase` to `"exploring"`.
 
-**CRITICAL: This step has three sub-steps. Step 2a launches the PM subagent to build a test plan. The main agent then reads the test plan and extracts priority context. Step 2b launches 4 specialist subagents with that priority context. Step 2c launches PM again in TRIAGE mode to classify all findings.**
+**CRITICAL: This step has three sub-steps. Step 2a launches the PM subagent to build a test plan (which includes a `recommended_specialists` field). The main agent then reads the test plan and extracts priority context. Step 2b launches ONLY the PM-recommended specialist subagents with that priority context. Step 2c launches PM again in TRIAGE mode to classify all findings.**
 
 Read the state file's `addressed_issues` array first.
 
@@ -196,6 +238,14 @@ Use Agent tool with:
   State file path: <path to overnight-state-*.json>
   Session ID: <session_id>
   Output test plan to: docs/dev/overnight/<session_id>/test-plan.json
+
+  <If spec_mode == 'user-provided', include:>
+  Overnight spec file: <user_spec_path from state file>
+  Spec mode: user-provided
+  You are in SUPERVISOR mode. Read the user's spec file first. Issues described
+  in the spec are pre-validated -- skip full browser exploration for those issues.
+  Focus your exploration on discovering ADDITIONAL issues not covered by the spec.
+  Set spec_mode: 'user-provided' and spec_path in your test plan output.
   "
 ```
 
@@ -237,24 +287,26 @@ but tag each with pm_tier: 1|2|3|new (where "new" = not in PM's list).
 If the test plan has no `priority_tiers` (first cycle, no history), set the priority context to:
 `"No priority tiers from PM -- this is the first cycle. Explore freely and report all issues."`
 
-#### Step 2b: Launch 4 Specialist Subagents
+#### Step 2b: Launch PM-Recommended Specialist Subagents
 
-Launch all 4 Agent calls in a SINGLE response (parallel execution):
+**Read `recommended_specialists` from the test plan.** PM decides which specialists are relevant for this cycle based on the project type, focus hint, and issue context.
+
+- If `recommended_specialists` is present and non-empty: launch ONLY the recommended specialists
+- If `recommended_specialists` is missing or null (backward compatibility): fall back to launching all 4 specialists
+
+Launch the recommended Agent calls in a SINGLE response (parallel execution):
 
 ```
-Launch 4 Agent tool calls simultaneously:
+For each specialist in recommended_specialists (or all 4 if missing):
 
-1. Agent(subagent_type: "product-owner")
-   Write report to: docs/dev/overnight/<session_id>/product-owner-report.json
+Agent(subagent_type: specialist.type)
+  Write report to: docs/dev/overnight/<session_id>/<specialist.type>-report.json
 
-2. Agent(subagent_type: "architect")
-   Write report to: docs/dev/overnight/<session_id>/architect-report.json
-
-3. Agent(subagent_type: "user")
-   Write report to: docs/dev/overnight/<session_id>/user-report.json
-
-4. Agent(subagent_type: "ui-specialist")
-   Write report to: docs/dev/overnight/<session_id>/ui-specialist-report.json
+Available specialists:
+- "product-owner" → docs/dev/overnight/<session_id>/product-owner-report.json
+- "architect" → docs/dev/overnight/<session_id>/architect-report.json
+- "user" → docs/dev/overnight/<session_id>/user-report.json
+- "ui-specialist" → docs/dev/overnight/<session_id>/ui-specialist-report.json
 
 Each subagent receives:
 - Project path: <worktree_path from state file if set, otherwise project_path>
@@ -280,7 +332,14 @@ their Step 0 protocol -- the inline context provides redundancy.
 **IMPORTANT**: Do NOT include application context, credentials, flow steps, or sample data in the specialist prompts. The test plan file contains all of this. Specialists read it themselves via their Step 0 protocol.
 ```
 
-**Wait for all 4 subagents to complete** before proceeding.
+**Announce specialist selection**:
+```
+PM recommended {N} specialists for this cycle: {list of specialist types}
+{If fallback: "No recommended_specialists in test plan -- falling back to all 4 specialists."}
+Launching specialist subagents...
+```
+
+**Wait for all recommended subagents to complete** before proceeding.
 
 **Validate reports** (main agent does NOT read project files, only validates report existence and structure):
 
@@ -288,7 +347,7 @@ their Step 0 protocol -- the inline context provides redundancy.
 ~/.claude/scripts/check-overnight-reports.sh docs/dev/overnight/<session_id>
 ```
 
-**Sanity checks on each report**:
+**Sanity checks on each report** (only for specialists that were launched):
 - [ ] File exists and is valid JSON
 - [ ] Has `issues` array (may be empty)
 - [ ] Each issue has required fields: `description`, `location`, `severity`, `category`, `estimated_effort`
@@ -310,7 +369,7 @@ their Step 0 protocol -- the inline context provides redundancy.
       "category": "agent-specific category string",
       "estimated_effort": "small|medium|large",
       "details": "Extended explanation with evidence",
-      "suggested_fix": "How to fix (optional)"
+      "observation_notes": "Factual observations and evidence (no fix suggestions)"
     }
   ],
   "summary": "One-line summary of findings"
@@ -390,6 +449,28 @@ to the legacy mechanical sort in Step 3 (read all 4 reports, merge, sort by seve
 - If `pipeline_blocked: true`: log `block_reasons` to state file, skip Steps 3-12, jump directly to Step 13 (PM Retrospective) with context that the pipeline was blocked. PM RETRO will analyze the block and recommend next steps. Then loop to Step 2 for the next cycle.
 - If `pipeline_blocked: false` or field absent: proceed normally to Step 3.
 
+### Step 2d: Create Overnight Spec Files
+
+**After PM TRIAGE completes and before pipeline creation, create spec files for each pipeline.**
+
+**Autonomous mode** (`spec_mode == "autonomous"`):
+For each pipeline that will be created (from triage report's `pipeline_order`):
+
+1. Copy the template from `~/.claude/templates/overnight-spec.md` to `docs/dev/overnight/<session_id>/spec-pipeline-<index>.md`
+2. Replace `<issue_description>` with the pipeline's `description` from triage
+3. Replace `<pipeline_index>` with the pipeline index
+4. Replace `<session_id>` with the session ID
+5. Replace `<ISO-8601>` with current timestamp
+6. Store spec paths in the pipeline definitions: `pipeline.spec_path = "docs/dev/overnight/<session_id>/spec-pipeline-<index>.md"`
+
+**User-spec mode** (`spec_mode == "user-provided"`):
+1. The user's spec file at `user_spec_path` is the primary spec
+2. For additional issues discovered beyond the user's spec, create new spec files from the template as in autonomous mode
+3. For the pipeline matching the user's spec issue, set `pipeline.spec_path = user_spec_path`
+
+**If Section 1 (Before) can be populated from specialist observations**:
+Read specialist reports. For each pipeline, if a specialist provided screenshots or detailed observation notes about the current state, prepopulate Section 1 in the spec with that information.
+
 ### Step 3: Create Parallel Pipelines from PM Triage
 
 **Update state**: Set `current_phase` to `"pipeline_creation"`.
@@ -397,6 +478,8 @@ to the legacy mechanical sort in Step 3 (read all 4 reports, merge, sort by seve
 **Read PM triage report**: `docs/dev/overnight/<session_id>/triage-report-cycle<N>.json`
 
 **If triage report exists and is valid** (primary path):
+
+**NOTE**: The PM triage report has already filtered out subjective improvements via the Improvement Quality Filter (Step 1.5 of PM triage protocol). Only findings with objective justification (code errors, specification violations, regressions, data loss risks, measurable performance degradation) remain in the `issues` array. Rejected subjective suggestions are logged in the `rejected_improvements` array for audit purposes. The orchestrator trusts PM's filtering -- do NOT second-guess or re-add filtered items.
 
 1. Use `pipeline_order` from triage report as the authoritative ordering
 2. For each issue in `pipeline_order`:
@@ -443,6 +526,7 @@ for i, issue in enumerate(sorted_issues):
         "timestamp_suffix": f"{timestamp}-{i}",  # unique file naming suffix
         "tier": issue.get("tier", 2),  # from PM triage
         "pm_recommended": True,        # PM triage ordered this pipeline
+        "spec_path": f"docs/dev/overnight/{session_id}/spec-pipeline-{i}.md",  # from Step 2d
     })
 ```
 
@@ -460,11 +544,40 @@ Created {N} pipelines ({tier1_count} Tier 1, {tier2_count} Tier 2, {tier3_count}
 Proceeding to parallel BA phase.
 ```
 
+### Step 3a: Convert Focus to QA Verification Criteria
+
+**If the state file has a non-empty `focus` string, convert it into quantitative QA verification criteria before proceeding.**
+
+The focus string is a qualitative directive from the user (e.g., "high quality output"). QA needs quantitative, measurable criteria to verify against. The orchestrator performs this conversion.
+
+**Process**:
+1. Read the `focus` field from the state file
+2. If empty or null, skip this step (no focus criteria to convert)
+3. Convert the qualitative focus into a `focus_verification_criteria` array of measurable criteria
+4. Store the array in memory for use in Step 9 (QA prompt)
+
+**Conversion examples**:
+| Focus string | QA verification criteria |
+|---|---|
+| "high quality output" | ["generated content fills >80% of target area (content_coverage >= 0.85)", "all output sections contain substantive content (not placeholder)", "generated documents have properly structured body content", "no template artifacts or raw markup visible in output"] |
+| "fix UI bugs" | ["all pages load without console errors", "no layout breakage on mobile (375px) or desktop (1440px)", "all interactive elements respond to clicks within 200ms"] |
+| "improve API performance" | ["all API endpoints respond within 1000ms", "no 5xx errors on standard requests", "response payloads contain all expected fields"] |
+
+**Rules**:
+- Each criterion must be measurable (includes a number, threshold, or binary check)
+- Each criterion must be verifiable by QA (observable in browser, API response, or file output)
+- Aim for 3-5 criteria per focus string
+- When in doubt, err on the side of stricter criteria
+
+The `focus_verification_criteria` array will be passed to each QA subagent in Step 9.
+
 ### Step 4: Run All BA Subagents (Parallel)
 
 **Update state**: Set `current_phase` to `"analyzing"`.
 
 **Launch ALL N BA subagents in a SINGLE response** (parallel execution). Each pipeline gets its own BA Agent call with unique file naming.
+
+**ENFORCEMENT: One pipeline per subagent. Each BA Agent call receives exactly ONE pipeline's issue description and location. Do NOT combine multiple pipelines into a single BA prompt. The same rule applies to Dev (Step 6) and QA (Step 9) subagents.**
 
 ```
 Launch N Agent tool calls simultaneously (one per pipeline):
@@ -483,17 +596,20 @@ Agent(subagent_type: "ba")
     Timestamp: {pipeline.timestamp_suffix}
     Project root: <worktree_path from state file if set, otherwise project root>
 
+    Overnight spec file: {pipeline.spec_path}
+
     This is a self-discovered issue from overnight exploration.
     No clarification is needed -- proceed directly to analysis.
     All file operations and git analysis must use paths inside the project root above.
 
-    Perform full analysis:
+    Read the overnight spec file FIRST. Then perform full analysis:
     1. Parse and decompose requirement
     2. Perform git root cause analysis (if applicable)
     3. Identify affected files
     4. Generate MoSCoW requirements and BDD acceptance criteria
     5. Write ba-spec-{pipeline.timestamp_suffix}.md to docs/dev/ (inside project root)
     6. Write context-{pipeline.timestamp_suffix}.json to docs/dev/ (inside project root)
+    7. Update the overnight spec: write Section 5 (User's Acceptance Criterion) and Section 1 (Before) if empty
 
     Return JSON with status, file paths, and summary.
   "
@@ -547,8 +663,12 @@ Agent(subagent_type: "dev")
 
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
     BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+    Overnight spec file: {pipeline.spec_path}
     Write your implementation report to: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
     Project root: <worktree_path from state file if set, otherwise project root>
+
+    Read the overnight spec file FIRST for cross-cycle context.
+    After implementation, update the spec: Section 2 (What Was Attempted) and Section 3 (What Was Changed).
 
     IMPORTANT: All file reads, writes, and git operations must use absolute paths
     inside the project root above. Do not modify files in the main project directory.
@@ -595,9 +715,9 @@ Read dev report: `docs/dev/dev-report-{pipeline.timestamp_suffix}.json`
 Launch PM subagent in QA_PREP mode. The PM must:
 
 1. Read all dev reports and BA specs for this cycle
-2. Rebuild Docker: backend changes require applio-api + applio-worker rebuild,
-   frontend changes require applio-web rebuild. Verify docker-compose.yml build
-   contexts point to the worktree. Wait for services to be healthy.
+2. Rebuild Docker: identify affected services from docker-compose.yml. Backend
+   changes require backend service rebuild, frontend changes require frontend
+   service rebuild. Verify build contexts point to the worktree. Wait for services to be healthy.
 3. For EACH pipeline, write concrete QA verification steps:
    - Exact URLs to visit
    - Exact actions (click, type, wait)
@@ -629,11 +749,21 @@ Agent(subagent_type: "qa")
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
     Dev report file: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
     BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+    Overnight spec file: {pipeline.spec_path}
     Write your verification report to: docs/dev/qa-report-{pipeline.timestamp_suffix}.json
     Project root: <worktree_path from state file if set, otherwise project root>
 
+    Read the overnight spec file FIRST for cross-cycle context and acceptance criteria.
+    After verification, update the spec: Section 4 (Current State) with measured values.
+    If verdict is fail, also update Section 6 (Why Not Met) and Section 7 (What Must Be Done).
+
     IMPORTANT: All file reads and verification must use the project root above.
     Verify that changes were made inside the worktree, not the main project.
+
+    <If focus_verification_criteria array exists from Step 3a, include:>
+    Focus verification criteria (MANDATORY -- these are hard pass/fail from user's focus directive):
+    <list each criterion from focus_verification_criteria array>
+    You MUST verify each criterion above. These are not optional hints. Failures count toward your QA verdict.
   "
 ```
 
@@ -714,9 +844,13 @@ WHILE pipeline[i].iteration < 5 AND pipeline[i].phase == "qa_failed":
 
     # Re-run Dev for this pipeline only
     Agent(subagent_type: "dev") with iteration context
+    Include in Dev prompt: Overnight spec file: {pipeline.spec_path}
+    Dev reads spec first for cross-cycle context, then updates Sections 2 and 3.
 
     # Re-run QA for this pipeline only
     Agent(subagent_type: "qa") with new dev report
+    Include in QA prompt: Overnight spec file: {pipeline.spec_path}
+    QA reads spec first, then updates Section 4 (and Sections 6-7 if fail).
 
     IF qa.status == "pass" or (qa.status == "warning" and minor only):
         pipeline[i].phase = "done"
@@ -895,6 +1029,13 @@ Use Agent tool with:
   Also read ALL previous retro reports for continuity:
   docs/dev/overnight/<session_id>/retro-report-cycle*.json
 
+  Overnight spec files (one per pipeline -- read ALL, update unresolved ones):
+  <For each pipeline in current_issues: {pipeline.spec_path}>
+
+  For each UNRESOLVED pipeline, update its spec:
+  - Section 7 (What Must Be Done): Prescriptive next step with exact file, line, action
+  - Section 8 (Attention Notes): Issue-specific traps and warnings for next cycle
+
   Write retro report to: docs/dev/overnight/<session_id>/retro-report-cycle<N>.json
   "
 ```
@@ -980,13 +1121,11 @@ Simply mark this step as completed via TodoWrite. The PostToolUse:TodoWrite hook
 <Patterns noticed during exploration that need human decision-making>
 ```
 
-**Worktree**: Keep the worktree for user to review. Mention:
-```
-The worktree at <worktree_path> contains all changes.
-Review with: git diff master...<worktree_branch>
-To merge: git merge <worktree_branch>
-To discard: call ExitWorktree with action "remove"
-```
+**CRITICAL: DO NOT auto-merge to master.**
+
+DO NOT squash merge. DO NOT manually copy files. DO NOT create a single commit on master with worktree changes. DO NOT cherry-pick commits. The worktree branch preserves full commit history. A proper `git merge` brings all commits to master with their original authorship and messages intact. Only the USER should trigger the merge, after reviewing the changes.
+
+The overnight session does NOT merge anything. It preserves the worktree for user review.
 
 **State file cleanup**: Automatic. The `pretool-overnight-hook-guard` auto-cleans expired state files on next hook invocation. No manual deletion needed.
 
@@ -1001,7 +1140,17 @@ Fixed: <issues_fixed> | Skipped: <issues_skipped>
 
 Summary: docs/dev/overnight-summary-<date>.md
 Log: docs/dev/overnight-log-<date>.md
-Worktree: <worktree_branch> (preserved for review)
+--- Worktree preserved for review ---
+Branch: <worktree_branch>
+Path:   <worktree_path>
+
+To review changes:
+  git log master..<worktree_branch> --oneline
+  git diff master...<worktree_branch>
+
+To merge (when ready):
+  /merge-overnight <worktree_branch>
+  OR manually: cd <project_root> && git merge <worktree_branch> --no-edit
 
 The time-lock has been released. The session can now end normally.
 ```
@@ -1023,13 +1172,15 @@ The state file serves three purposes:
 
 **Worktree naming**: Each session creates `overnight-<YYYYMMDD>-<session_id_short>` (first 8 chars of session_id) to avoid conflicts between concurrent sessions.
 
-**Schema (v7)**:
+**Schema**:
 ```json
 {
   "session_id": "string (from $CLAUDE_SESSION_ID or UUID)",
   "end_time": "ISO-8601 datetime",
   "start_time": "ISO-8601 datetime",
   "focus": "string (discovery hint from user, or empty)",
+  "spec_mode": "autonomous|user-provided",
+  "user_spec_path": "string (path to user-provided spec, or null)",
   "cycle_count": 0,
   "issues_found": 0,
   "issues_fixed": 0,
@@ -1046,7 +1197,8 @@ The state file serves three purposes:
       "phase": "pending|ba_complete|dev_complete|qa_failed|done",
       "iteration": 0,
       "status": "active|fixed|skipped",
-      "timestamp_suffix": "YYYYMMDD-HHMMSS-0"
+      "timestamp_suffix": "YYYYMMDD-HHMMSS-0",
+      "spec_path": "docs/dev/overnight/<session_id>/spec-pipeline-<index>.md"
     }
   ],
   "failed_attempts": {"issue_desc": 2},
@@ -1076,16 +1228,9 @@ The state file serves three purposes:
       "last_attempt_reason": "why it failed or was deferred",
       "recommended_approach": "what to try next"
     }
-  ],
-  "schema_version": 7
+  ]
 }
 ```
-
-**Migration from v6**: Add empty arrays for `pm_triage_reports`, `pm_retro_reports`,
-and `unresolved_issues`. Update `schema_version` to 7. Add `"retrospective"` to
-valid `current_phase` values.
-
-**Migration from v5**: If reading a v5 state file, convert `current_issue` (string) to `current_issues` (array with single entry if non-null, empty array if null). Remove `current_issue` and `current_issue_iteration` fields.
 
 ---
 
@@ -1260,7 +1405,7 @@ See `/clean` command documentation for details.
 | Subagent usage | BA + dev + QA | product-owner + architect + user + ui-specialist + BA + dev + QA |
 | Stop hook | Workflow enforcement only | Workflow + time-lock |
 | Worktree | Not used | Created on first run, reused across cycles |
-| Total steps | 11 | 14 |
+| Total steps | 12 | 15 |
 
 ---
 
