@@ -1,9 +1,100 @@
+# CLAUDE.md
+
+> Project-specific settings for .claude
+> Last updated: 2026-03-26
+
+---
+
 # Global Claude Code Configuration
 
 > Personal global settings for all projects
 <!-- AUTO:last-updated -->
 > Last updated: 2026-03-24
 <!-- /AUTO:last-updated -->
+
+---
+
+## 🚨 Production Catastrophe Lessons (2026-04-04)
+
+**These rules were learned from a catastrophic incident that killed ALL production sessions. They are NON-NEGOTIABLE.**
+
+### 8. NEVER npm install -g from dev/worktree/overnight environments
+On 2026-04-04, a subagent ran `npm install -g packages/happy-cli` from an overnight worktree. This replaced `/usr/lib/node_modules/happy` with a symlink to the worktree (version 1.1.3). 6 hours later, another subagent ran `happy --version`, triggering auto-upgrade version mismatch detection. The production daemon was killed. ALL production sessions were destroyed. The replacement daemon lived 1 second before systemd killed it. Session recovery failed. NEVER run `npm install -g` from any non-production path. The global binary is shared by ALL daemons — changing it is a nuclear option. Only the user may install the global CLI manually from `/root/happy`.
+
+### 9. NEVER invoke the global happy CLI binary from agents
+`/usr/bin/happy` is shared by all 3 daemons. Any invocation (`happy --version`, `happy daemon status`, etc.) can trigger auto-upgrade if the binary version doesn't match the running daemon. This killed production on 2026-04-04. To interact with dev daemon, use its HTTP control port or `node <path>/dist/index.mjs` directly.
+
+### 10. NEVER kill PIDs directly — use service controls
+On 2026-04-04, killing dev session PIDs cascaded to production via session recovery watcher. Use `systemctl restart happy-daemon-dev` or daemon HTTP `/stop` endpoint, NEVER `kill <PID>`.
+
+### 11. Subagent prompts must explicitly list what is FORBIDDEN, not just what is allowed
+Every subagent prompt that touches infrastructure must include an explicit "DO NOT" section. Listing only positive instructions is insufficient — subagents will take unlisted destructive actions if not explicitly forbidden. The 2026-04-04 incident happened because the dev subagent prompt said "deploy CLI" without saying "DO NOT npm install -g".
+
+### 12. E2E verification requires LIVE browser rendering on BOTH desktop and mobile
+Code review, bundle grep, and curl are NEVER sufficient for UI verification. If content doesn't exist in the dev environment, subagents MUST send messages via the UI to trigger it, then verify the rendered result. This was violated by 10+ subagents across multiple sessions.
+
+### 13. NEVER let a single subagent handle multiple tasks (multitask)
+Each subagent invocation MUST handle exactly ONE issue/task/problem. The orchestrator may launch multiple subagents in parallel for different issues, but each individual subagent receives exactly one issue. This applies to ALL subagent types: BA analyzes ONE issue, Dev implements ONE fix, QA verifies ONE fix. Bundling multiple issues into a single subagent prompt causes: (1) reduced quality per issue, (2) unclear accountability when something fails, (3) partial failures that are hard to retry. If you need to fix 5 issues, launch 5 BA + 5 Dev + 5 QA subagents (potentially in parallel), NOT 1 BA + 1 Dev + 1 QA handling all 5.
+
+---
+
+## 🔄 Auto-Commit Mechanism
+
+The development environment has an automatic checkpoint/commit system. When subagents make file changes, those changes may be auto-committed before the orchestrator can verify them via `git diff`. This means:
+
+- `git diff` may show empty even though changes were successfully made
+- Changes appear in recent `git log` as "checkpoint: Auto-save at ..." or "Auto-commit: ..." entries
+- To verify subagent work, check `git log --oneline -5` and `git show <hash> --stat` instead of `git diff`
+- Never assume "git diff is empty = nothing was done" — always check recent commits first
+
+---
+
+## 🚨 Overnight Incident Lessons (2026-03-28)
+
+**These rules were learned from a catastrophic overnight session failure. They are NON-NEGOTIABLE.**
+
+### 1. Never weaken checks to "fix" failures
+When a validation/check rejects output, the problem is the OUTPUT, not the check. Fix the upstream code that produces bad output. NEVER: lower thresholds, swallow exceptions, change error→warning, skip validation. If the reference implementation passes the same check, the check is correct.
+
+### 2. PM only prioritizes — PM never proposes solutions
+PM ranks issues by severity and orders pipelines. PM does NOT suggest "add component X", "rename Y to Z", or "change layout to W". Solutions are BA's and Dev's job. Every time PM proposed a solution in overnight, it was garbage.
+
+### 3. Specialists report symptoms only — no root cause, no fix suggestions
+Specialists observe and report what they see. They do NOT analyze why or suggest how to fix. Root cause analysis is exclusively BA's job. When architect diagnosed "threshold too strict" instead of "content too short", the entire fix chain went wrong.
+
+### 4. Always compare with reference implementation BEFORE fixing
+When the user says "align with X", every fix must be validated against X's behavior. The overnight session "fixed" height_ratio by lowering the threshold to 0.40 while the reference produces 0.98. Nobody checked.
+
+### 5. Output quality > no errors
+QA passing means the output is HIGH QUALITY, not just "no exceptions". A half-empty resume that doesn't crash is still a failed generation.
+
+### 6. Never make "improvements" the user didn't ask for
+Overnight added TipsBox to fill empty space (user had deliberately removed it), renamed a template heading (nobody asked), added features. These are regressions, not improvements. If the user didn't report it as broken, don't change it.
+
+### 7. Global agent files must be project-agnostic
+Files in `~/.claude/agents/` and `~/.claude/commands/` are used across ALL projects. Never put project-specific examples (applio, resume, height_ratio) in global files. Use generic terms.
+
+---
+
+## 🚨 SUPER MANDATORY: Orchestrator-Only Rule
+
+**This is the highest-priority rule. It overrides everything else.**
+
+The main agent MUST NOT perform any direct operations. All work goes through subagents (Agent tool). No exceptions.
+
+**Forbidden in main agent**: All tools not listed below (enforced by `pretool-orchestrator-gate.py`).
+
+**Always allowed**: Agent, TodoWrite, AskUserQuestion, Skill, CronCreate, CronDelete, CronList, ScheduleWakeup, mcp__happy__change_title, Bash, Read (≤200 lines), Glob, Grep.
+
+**Read limit**: Main agent Read is capped at 200 lines by `pretool-read-size-guard.py`. For larger files, delegate to a subagent.
+
+**Bash usage**: Main agent CAN and SHOULD use Bash for quick operations: git commands, jq queries, file checks, ls, state file reads. Do NOT delegate trivial shell commands to subagents.
+
+**Permanently forbidden**: EnterPlanMode, ExitPlanMode — never use these, even with /do.
+
+**Exception**: The user has invoked `/do` in this session, which grants consent for direct operations.
+
+**To get consent**: Tell the user to run `/do` if they want you to operate directly.
 
 ---
 
@@ -215,8 +306,9 @@ mypy .                            # Type check
 
 ### Brand
 - Always lowercase "applio" (never "Applio")
-- No Chinese text anywhere in the app
-- All user-facing strings in English
+- No hardcoded Chinese strings in source code (use i18n `t()` keys instead)
+- The app supports multiple locales (en, zh). NEVER delete locale files, NEVER remove the language switcher, NEVER narrow the Locale type.
+- All DEFAULT user-facing strings should have English as fallback
 
 ### Config: `frontend/tailwind.config.js`
 
@@ -241,7 +333,7 @@ happy-app (浏览器/手机 React Native) ←WS→ happy-server (Fastify+PG) ←
 ```
 - 所有数据客户端加密后传输，服务器只存加密 blob
 - 密钥体系：Ed25519签名 + Curve25519加密 + AES-256对称，详见 `docs/HAPPY-ARCHITECTURE.md` §3
-- 双 Daemon：default (`/root/.happy/`) + jade (`/root/.happy-jade/`)
+- 四 Daemon：default (`/root/.happy/`) + jade (`/root/.happy-jade/`) + dev (`/root/.happy-dev/`) + qijie (`/root/.happy-qijie/`)
 
 ### Other Systemd Services
 | Service | Port | Purpose |
@@ -251,7 +343,16 @@ happy-app (浏览器/手机 React Native) ←WS→ happy-server (Fastify+PG) ←
 
 ### Cloudflare Tunnels
 - `life-ai.app` → happy-server (port 3000) + happy-web (8090)
-- `dev.life-ai.app` → claudecodeui (port 3001)
+- `dev.life-ai.app` → happy-web-dev (port 8097)
+
+### Web Auth Pages (Browser Login)
+| Account | URL | Password |
+|---------|-----|----------|
+| Default | `https://life-ai.app/auth/default` | `1900015516` |
+| Jade | `https://life-ai.app/auth/jade` | `1900015516` |
+| Qijie | `https://life-ai.app/auth/qijie` | `15828522037` |
+| Dev | `https://dev.life-ai.app/auth/dev` | `1900015516` |
+Files: `/root/deploy/auth-pages/{default,jade,qijie,dev}/index.html`
 
 ### Docker Services (compose: `/root/deploy/docker-compose.yml`)
 <!-- AUTO:docker-services -->

@@ -45,6 +45,13 @@ IF QA passes → Generate completion report
 - QA verification after each dev cycle
 - Iterate until all quality standards met
 
+**No-Multitasking Rule (MANDATORY)**:
+- Each subagent invocation handles exactly ONE issue/task
+- BA analyzes ONE requirement, Dev implements ONE fix, QA verifies ONE fix
+- The orchestrator may launch multiple subagents in parallel for different issues
+- NEVER bundle multiple issues into a single subagent prompt
+- If QA fails and iteration is needed, re-invoke Dev with the SAME single issue, not a batch
+
 ---
 
 ## Implementation
@@ -63,7 +70,38 @@ Requirement: "$ARGUMENTS"
 
 **Keep this step lightweight** - BA subagent handles all analysis.
 
-### Step 2: Delegate to BA Subagent
+### Step 2: Consult Specialists (Optional)
+
+**The orchestrator may optionally consult one or more specialist subagents before delegating to BA.** This step is entirely optional -- the orchestrator freely decides whether to invoke any specialists, and which ones.
+
+**Available specialists**:
+- **UI specialist** (`ui-specialist`): Consult when the requirement involves UI/UX changes, visual design, responsive layout, or accessibility concerns
+- **Architect** (`architect`): Consult when there are architectural or structural concerns, performance implications, or significant codebase changes
+- **User simulator** (`user`): Consult when user flows need end-to-end validation, or when the requirement affects core user journeys
+- **Product Owner** (`product-owner`): Consult when business logic, feature completeness, or product requirements need clarification
+
+**How to invoke** (if needed):
+
+```
+Use Agent tool with:
+- description: "<Specialist role> consultation for: <requirement summary>"
+- prompt: "
+  You are the <specialist-name> specialist. Follow .claude/agents/<specialist-name>.md.
+
+  Requirement: '<requirement from Step 1>'
+
+  Provide your observations and analysis relevant to this requirement.
+  Return structured findings that will inform the BA analysis.
+  DO NOT modify files. Return observations only.
+  "
+```
+
+**Rules**:
+- Invoke 0 to 4 specialists based on the requirement type
+- Pass any specialist findings to the BA subagent in Step 3 as additional context
+- If no specialists are needed, mark this step as completed and proceed to Step 3
+
+### Step 3: Delegate to BA Subagent
 
 **Use Task tool to invoke BA subagent for requirements analysis and context building**:
 
@@ -93,7 +131,7 @@ Use Task tool with:
 
 **Wait for BA subagent completion** before proceeding.
 
-### Step 3: BA Clarification Loop
+### Step 4: BA Clarification Loop
 
 **If BA returns `status: "needs_clarification"`**:
 
@@ -120,11 +158,11 @@ Use Task tool with:
 **Loop rules**:
 - Maximum 3 clarification rounds
 - After round 3, BA returns best-effort with explicit assumptions
-- If BA returns `status: "ready"`, proceed to Step 4
+- If BA returns `status: "ready"`, proceed to Step 5
 
-**If BA returns `status: "ready"` on first invocation**: Skip to Step 4.
+**If BA returns `status: "ready"` on first invocation**: Skip to Step 5.
 
-### Step 4: Validate BA Output
+### Step 5: Validate BA Output
 
 **Check BA deliverables exist and are well-formed**:
 
@@ -143,9 +181,9 @@ Read BA output files:
 - Re-invoke BA with specific feedback about what's missing
 - Maximum 2 re-invocations for validation fixes
 
-**If validation passes**: Proceed to Step 5
+**If validation passes**: Proceed to Step 6
 
-### Step 5: Delegate to Dev Subagent
+### Step 6: Delegate to Dev Subagent
 
 **Use Task tool to invoke dev subagent with file paths only**:
 
@@ -163,7 +201,7 @@ Use Task tool with:
 
 **Wait for dev subagent completion** before proceeding.
 
-### Step 6: Validate Dev Implementation
+### Step 7: Validate Dev Implementation
 
 **Quick validation before QA**:
 
@@ -182,9 +220,9 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 - Refine context JSON with additional information
 - Re-invoke dev subagent (maximum 3 attempts)
 
-**If dev completed**: Proceed to Step 7
+**If dev completed**: Proceed to Step 8
 
-### Step 7: Delegate to QA Subagent
+### Step 8: Delegate to QA Subagent
 
 **Use Task tool to invoke QA subagent with file paths only**:
 
@@ -203,7 +241,7 @@ Use Task tool with:
 
 **Wait for QA subagent completion** before proceeding.
 
-### Step 8: Process QA Results
+### Step 9: Process QA Results
 
 Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
@@ -211,18 +249,18 @@ Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
 ```
 IF qa.status == "pass":
-  → Proceed to Step 9 (Update Permissions)
+  → Proceed to Step 10 (Update Permissions)
 
 ELIF qa.status == "warning":
   → Check if minor issues acceptable
-  → If yes: Proceed to Step 9 (Update Permissions)
-  → If no: Proceed to Step 10 (Iteration)
+  → If yes: Proceed to Step 10 (Update Permissions)
+  → If no: Proceed to Step 11 (Iteration)
 
 ELIF qa.status == "fail":
-  → Proceed to Step 10 (Iteration)
+  → Proceed to Step 11 (Iteration)
 ```
 
-### Step 9: Update Settings.json Permissions
+### Step 10: Update Settings.json Permissions
 
 **CRITICAL**: Auto-update permissions for new functionality.
 
@@ -295,7 +333,7 @@ You can now use these scripts without permission prompts.
 - If permission already exists → Skip, don't duplicate
 - If user denies update → Log to completion report
 
-### Step 10: Iteration Loop (if QA fails)
+### Step 11: Iteration Loop (if QA fails)
 
 **Iteration guard**: Maximum 5 iterations to prevent infinite loops
 
@@ -345,11 +383,11 @@ jq -s '.[0] * {
   > docs/dev/context-iter<N>-<timestamp>.json
 ```
 
-**Return to Step 5** with new context JSON
+**Return to Step 6** with new context JSON
 
 **Iteration tracking**: Update TodoWrite with iteration number
 
-### Step 11: Generate Completion Report
+### Step 12: Generate Completion Report
 
 **QA passed! Generate final report.**
 
@@ -637,33 +675,36 @@ if __name__ == "__main__":
 **Step 1**: Parse requirement
 - Requirement: "Fix timeout in API"
 
-**Step 2**: Delegate to BA subagent
+**Step 2**: Consult specialists (optional)
+- No specialists needed for this requirement → skip
+
+**Step 3**: Delegate to BA subagent
 - BA returns `needs_clarification` with questions
 
-**Step 3**: BA clarification loop
+**Step 4**: BA clarification loop
 - Round 1: Which API? → POST /api/data, timeout 5s, need 95% completion
 - Round 2: BA has enough clarity → returns `ready`
 - BA creates: `ba-spec-20251226-114500.md` + `context-20251226-114500.json`
 
-**Step 4**: Validate BA output
+**Step 5**: Validate BA output
 - Both files exist with required sections
 
-**Step 5**: Dev subagent
+**Step 6**: Dev subagent
 - Created: `scripts/measure-api-latency.sh`
 - Created: `scripts/validate-api-timeout.sh`
 - Modified: `config/api.json`
 - Saved report: `docs/dev/dev-report-20251226-114500.json`
 
-**Step 6-7**: QA subagent
+**Step 7-8**: QA subagent
 - Verified all scripts work
 - Confirmed root cause addressed
 - Status: PASS
 - Saved report: `docs/dev/qa-report-20251226-114500.json`
 
-**Step 8**: Process results
+**Step 9**: Process results
 - QA passed → proceed to completion
 
-**Step 11**: Completion report
+**Step 12**: Completion report
 - Generated: `docs/dev/completion-20251226-114500.md`
 - Presented summary to user
 
