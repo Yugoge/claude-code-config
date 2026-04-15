@@ -16,7 +16,9 @@
     "GIT_CHECKPOINT_THRESHOLD": "10",
     "GIT_CHECKPOINT_SILENT": "0",
     "PLAYWRIGHT_MCP_SANDBOX": "false",
-    "ENABLE_TOOL_SEARCH": "false"
+    "ENABLE_TOOL_SEARCH": "false",
+    "_comment_anthropic": "以下为可选配置（已禁用）",
+    "_disabled_anthropic": "[object Object]"
   },
   "includeCoAuthoredBy": true,
   "permissions": {
@@ -180,6 +182,12 @@
       "Bash(poweroff:*)",
       "Bash(systemctl stop:*)",
       "Bash(systemctl disable:*)",
+      "Read(**/session_dirs.txt)",
+      "Write(**/session_dirs.txt)",
+      "Edit(**/session_dirs.txt)",
+      "Bash(*session_dirs.txt*)",
+      "Bash(*happy-session-recovery*)",
+      "Bash(*happy-restart*)",
       "Bash(curl:* | sh:*)",
       "Bash(wget:* | sh:*)",
       "Bash(sudo:*)",
@@ -257,6 +265,22 @@
         "hooks": [
           {
             "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-orchestrator-gate.py\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-read-size-guard.py\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-workflow-gate.py\""
           }
         ]
@@ -319,6 +343,16 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/pretool-worktree-guard.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/pretool-write-guard.sh",
+            "timeout": 5
           }
         ]
       }
@@ -408,5 +442,6 @@
       }
     ]
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "high"
 }

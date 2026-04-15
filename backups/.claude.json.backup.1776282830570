@@ -1,0 +1,683 @@
+{
+  "numStartups": 65,
+  "installMethod": "global",
+  "hasSeenTasksHint": true,
+  "tipsHistory": {
+    "new-user-warmup": 7,
+    "plan-mode-for-complex-tasks": 60,
+    "terminal-setup": 54,
+    "memory-command": 54,
+    "theme-command": 44,
+    "colorterm-truecolor": 34,
+    "status-line": 59,
+    "prompt-queue": 60,
+    "enter-to-steer-in-relatime": 44,
+    "todo-list": 54,
+    "install-github-app": 54,
+    "install-slack-app": 54,
+    "double-esc-code-restore": 54,
+    "continue": 54,
+    "shift-tab": 54,
+    "image-paste": 54,
+    "web-app": 54,
+    "mobile-app": 54,
+    "color-when-multi-clauding": 54,
+    "ide-upsell-external-terminal": 60,
+    "custom-agents": 54,
+    "agent-flag": 54,
+    "feedback-command": 55,
+    "permissions": 54,
+    "rename-conversation": 54,
+    "custom-commands": 54,
+    "guest-passes": 61,
+    "git-worktrees": 54
+  },
+  "promptQueueUseCount": 3,
+  "btwUseCount": 1,
+  "opusProMigrationComplete": true,
+  "sonnet1m45MigrationComplete": true,
+  "userID": "cb9728b1f9971511733ec48785ec6b1603ff44eebe2564025208cf1337b75d76",
+  "firstStartTime": "2026-03-26T15:33:13.984Z",
+  "penguinModeOrgEnabled": true,
+  "clientDataCache": {
+    "quiet_salted_ember": "true"
+  },
+  "additionalModelOptionsCache": [],
+  "passesEligibilityCache": {
+    "c4bdf953-2408-40db-8c99-4c5d2a4397be": {
+      "eligible": false,
+      "referral_code_details": null,
+      "referrer_reward": null,
+      "remaining_passes": null,
+      "timestamp": 1776261704935
+    },
+    "336318a9-373a-498f-a408-f362d9c5a9fa": {
+      "eligible": true,
+      "referral_code_details": {
+        "code": "W96mndgx2Q",
+        "campaign": "claude_code_guest_pass_a47c",
+        "referral_link": "https://claude.ai/referral/W96mndgx2Q"
+      },
+      "referrer_reward": {
+        "amount_minor_units": 4500,
+        "currency": "EUR"
+      },
+      "remaining_passes": 0,
+      "timestamp": 1776058954188
+    },
+    "ee3a689f-e0eb-4495-9d88-e6eda10ad7e4": {
+      "eligible": false,
+      "referral_code_details": null,
+      "referrer_reward": null,
+      "remaining_passes": null,
+      "timestamp": 1776189139594
+    }
+  },
+  "skillUsage": {
+    "ask": {
+      "usageCount": 15,
+      "lastUsedAt": 1776249538480
+    },
+    "dev-overnight": {
+      "usageCount": 33,
+      "lastUsedAt": 1776251925576
+    },
+    "dev": {
+      "usageCount": 189,
+      "lastUsedAt": 1776279563071
+    },
+    "sentiment-monitor": {
+      "usageCount": 5,
+      "lastUsedAt": 1775645765094
+    },
+    "dev-command": {
+      "usageCount": 12,
+      "lastUsedAt": 1776111062511
+    },
+    "generate": {
+      "usageCount": 29,
+      "lastUsedAt": 1775970205703
+    },
+    "fact-check": {
+      "usageCount": 1,
+      "lastUsedAt": 1774786071958
+    },
+    "save": {
+      "usageCount": 12,
+      "lastUsedAt": 1776269808568
+    },
+    "discover-relations": {
+      "usageCount": 1,
+      "lastUsedAt": 1774872702656
+    },
+    "graph": {
+      "usageCount": 1,
+      "lastUsedAt": 1774883194764
+    },
+    "review": {
+      "usageCount": 11,
+      "lastUsedAt": 1776281276877
+    },
+    "agent-browser": {
+      "usageCount": 5,
+      "lastUsedAt": 1775388895389
+    },
+    "clean": {
+      "usageCount": 4,
+      "lastUsedAt": 1775483023782
+    },
+    "plan": {
+      "usageCount": 2,
+      "lastUsedAt": 1775983502407
+    },
+    "gaode-maps:readme": {
+      "usageCount": 5,
+      "lastUsedAt": 1776157563254
+    },
+    "gaode-maps:tools:README": {
+      "usageCount": 7,
+      "lastUsedAt": 1776158206820
+    },
+    "gaode-maps:examples:script-execution": {
+      "usageCount": 4,
+      "lastUsedAt": 1776102000092
+    },
+    "learn": {
+      "usageCount": 1,
+      "lastUsedAt": 1775470159291
+    },
+    "init": {
+      "usageCount": 1,
+      "lastUsedAt": 1775476652767
+    },
+    "kb-init": {
+      "usageCount": 2,
+      "lastUsedAt": 1775494693752
+    },
+    "xlsx": {
+      "usageCount": 1,
+      "lastUsedAt": 1775661169288
+    },
+    "gaode-maps:examples:inter-city-route": {
+      "usageCount": 1,
+      "lastUsedAt": 1775986144648
+    },
+    "spec": {
+      "usageCount": 5,
+      "lastUsedAt": 1776275534107
+    },
+    "daily-trade": {
+      "usageCount": 7,
+      "lastUsedAt": 1776199132764
+    },
+    "pdf": {
+      "usageCount": 1,
+      "lastUsedAt": 1776065789161
+    },
+    "update-config": {
+      "usageCount": 1,
+      "lastUsedAt": 1776077506484
+    },
+    "search-tree": {
+      "usageCount": 1,
+      "lastUsedAt": 1776077556955
+    },
+    "do": {
+      "usageCount": 3,
+      "lastUsedAt": 1776200400982
+    },
+    "push": {
+      "usageCount": 1,
+      "lastUsedAt": 1776109774753
+    },
+    "merge-overnight": {
+      "usageCount": 2,
+      "lastUsedAt": 1776265239569
+    }
+  },
+  "groveConfigCache": {
+    "40ee2570-f6e3-4628-ad85-0c898d1021a3": {
+      "grove_enabled": true,
+      "timestamp": 1776261703895
+    },
+    "2cde38bb-237d-490e-bbe3-aae3776151a1": {
+      "grove_enabled": true,
+      "timestamp": 1776058952958
+    },
+    "e2088328-cd6b-4c45-b159-77b19b707816": {
+      "grove_enabled": true,
+      "timestamp": 1776189140337
+    }
+  },
+  "cachedExtraUsageDisabledReason": null,
+  "mcpServers": {
+    "playwright": {
+      "command": "/usr/local/bin/playwright-mcp-stealth",
+      "args": [
+        "--cdp-endpoint",
+        "http://127.0.0.1:8080"
+      ]
+    }
+  },
+  "changelogLastFetched": 1776261683793,
+  "claudeCodeFirstTokenDate": "2025-06-26T14:07:40.624226Z",
+  "hasCompletedOnboarding": true,
+  "lastOnboardingVersion": "2.1.109",
+  "projects": {
+    "/root/happy": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "claudeRemoteLauncher.ts",
+        "sessionProtocolMapper.ts",
+        "apiSession.ts",
+        "typesRaw.ts",
+        "knownTools.tsx"
+      ],
+      "exampleFilesGeneratedAt": 1775220272869,
+      "hasCompletedProjectOnboarding": true,
+      "lastSessionMetrics": {
+        "frame_duration_ms_count": 9389,
+        "frame_duration_ms_min": 0.06857300000046962,
+        "frame_duration_ms_max": 58.59045600006357,
+        "frame_duration_ms_avg": 1.5320683880081687,
+        "frame_duration_ms_p50": 1.2189800000342075,
+        "frame_duration_ms_p95": 2.568940849989438,
+        "frame_duration_ms_p99": 19.792287370088133,
+        "hook_duration_ms_count": 112,
+        "hook_duration_ms_min": 0,
+        "hook_duration_ms_max": 352,
+        "hook_duration_ms_avg": 135.66964285714286,
+        "hook_duration_ms_p50": 100.5,
+        "hook_duration_ms_p95": 289.9,
+        "hook_duration_ms_p99": 337.16,
+        "pre_tool_hook_duration_ms_count": 53,
+        "pre_tool_hook_duration_ms_min": 87,
+        "pre_tool_hook_duration_ms_max": 342,
+        "pre_tool_hook_duration_ms_avg": 204.35849056603774,
+        "pre_tool_hook_duration_ms_p50": 240,
+        "pre_tool_hook_duration_ms_p95": 292.8,
+        "pre_tool_hook_duration_ms_p99": 319.1199999999999
+      },
+      "lastCost": 3.48938875,
+      "lastAPIDuration": 422625,
+      "lastAPIDurationWithoutRetries": 421671,
+      "lastToolDuration": 75393,
+      "lastDuration": 4286561,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 1668,
+      "lastTotalOutputTokens": 18041,
+      "lastTotalCacheCreationInputTokens": 96457,
+      "lastTotalCacheReadInputTokens": 4857519,
+      "lastTotalWebSearchRequests": 0,
+      "lastFpsAverage": 2.86,
+      "lastFpsLow1Pct": 49.23,
+      "lastModelUsage": {
+        "claude-haiku-4-5-20251001": {
+          "inputTokens": 343,
+          "outputTokens": 11,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "webSearchRequests": 0,
+          "costUSD": 0.00039799999999999997
+        },
+        "claude-opus-4-6[1m]": {
+          "inputTokens": 1325,
+          "outputTokens": 18030,
+          "cacheReadInputTokens": 4857519,
+          "cacheCreationInputTokens": 96457,
+          "webSearchRequests": 0,
+          "costUSD": 3.4889907499999993
+        }
+      },
+      "lastSessionId": "a8ee5bf5-a9cb-44bc-98c2-5cadf117d6c4"
+    },
+    "/root/happy-dev": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "activeWorktreeSession": {
+        "originalCwd": "/root/happy-dev",
+        "worktreePath": "/root/happy-dev/.claude/worktrees/overnight-20260326-01fbf46c",
+        "worktreeName": "overnight-20260326-01fbf46c",
+        "worktreeBranch": "worktree-overnight-20260326-01fbf46c",
+        "originalBranch": "main",
+        "originalHeadCommit": "d343330c86ab966969aecd82be4aecbad7ec4238",
+        "sessionId": "01fbf46c-246c-4262-a8e9-5694d01f150c",
+        "creationDurationMs": 1486,
+        "usedSparsePaths": false
+      }
+    },
+    "/root/applio": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "activeWorktreeSession": {
+        "originalCwd": "/root/applio",
+        "worktreePath": "/root/applio/.claude/worktrees/overnight-20260326-09fd0f71",
+        "worktreeName": "overnight-20260326-09fd0f71",
+        "worktreeBranch": "worktree-overnight-20260326-09fd0f71",
+        "originalBranch": "master",
+        "originalHeadCommit": "2e3702cb9d0af9f49df2350787ce674091910590",
+        "sessionId": "09fd0f71-d95c-418e-a215-c4a2e1b52cce",
+        "creationDurationMs": 1046,
+        "usedSparsePaths": false
+      }
+    },
+    "/root": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "session_history.jsonl",
+        "travel-planner",
+        "happy-session-recovery.sh",
+        "daemon.pid",
+        "index.html"
+      ],
+      "exampleFilesGeneratedAt": 1775935207464,
+      "hasCompletedProjectOnboarding": true,
+      "lastCost": 0,
+      "lastAPIDuration": 0,
+      "lastAPIDurationWithoutRetries": 0,
+      "lastToolDuration": 0,
+      "lastDuration": 5617626,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 0,
+      "lastTotalOutputTokens": 0,
+      "lastTotalCacheCreationInputTokens": 0,
+      "lastTotalCacheReadInputTokens": 0,
+      "lastTotalWebSearchRequests": 0,
+      "lastFpsAverage": 0.01,
+      "lastFpsLow1Pct": 34.79,
+      "lastModelUsage": {},
+      "lastSessionId": "53881983-c8c5-41c7-96c9-985eb6a97e6a",
+      "lastSessionMetrics": {
+        "frame_duration_ms_count": 59,
+        "frame_duration_ms_min": 0.07615499999883468,
+        "frame_duration_ms_max": 28.746856000000207,
+        "frame_duration_ms_avg": 2.189334796623833,
+        "frame_duration_ms_p50": 0.49681999999938853,
+        "frame_duration_ms_p95": 6.614767200029016,
+        "frame_duration_ms_p99": 28.46495048000008,
+        "hook_duration_ms_count": 1,
+        "hook_duration_ms_min": 237,
+        "hook_duration_ms_max": 237,
+        "hook_duration_ms_avg": 237,
+        "hook_duration_ms_p50": 237,
+        "hook_duration_ms_p95": 237,
+        "hook_duration_ms_p99": 237
+      },
+      "lastGracefulShutdown": true
+    },
+    "/dev/shm/dev-workspace/happy-dev": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "activeWorktreeSession": {
+        "originalCwd": "/dev/shm/dev-workspace/happy-dev",
+        "worktreePath": "/dev/shm/dev-workspace/happy-dev/.claude/worktrees/overnight-20260327-3bea7801",
+        "worktreeName": "overnight-20260327-3bea7801",
+        "worktreeBranch": "worktree-overnight-20260327-3bea7801",
+        "originalBranch": "main",
+        "originalHeadCommit": "94a6bdc7b41e96b878a5ca0f8a2becdfe5a7f219",
+        "sessionId": "3bea7801-50ca-4e10-b327-1b2ad1b51ef0",
+        "creationDurationMs": 492,
+        "usedSparsePaths": false
+      },
+      "exampleFiles": [
+        "claudeRemoteLauncher.ts",
+        "sessionProtocolMapper.ts",
+        "apiSession.ts",
+        "typesRaw.ts",
+        "knownTools.tsx"
+      ],
+      "exampleFilesGeneratedAt": 1775307852286,
+      "lastSessionMetrics": {
+        "frame_duration_ms_count": 14272,
+        "frame_duration_ms_min": 0.06402700000035111,
+        "frame_duration_ms_max": 37.880069999955595,
+        "frame_duration_ms_avg": 1.073057921033826,
+        "frame_duration_ms_p50": 1.0741549999802373,
+        "frame_duration_ms_p95": 1.7661852000572251,
+        "frame_duration_ms_p99": 2.641998159988723,
+        "hook_duration_ms_count": 59,
+        "hook_duration_ms_min": 84,
+        "hook_duration_ms_max": 357,
+        "hook_duration_ms_avg": 257.22033898305085,
+        "hook_duration_ms_p50": 272,
+        "hook_duration_ms_p95": 334,
+        "hook_duration_ms_p99": 354.68,
+        "pre_tool_hook_duration_ms_count": 54,
+        "pre_tool_hook_duration_ms_min": 85,
+        "pre_tool_hook_duration_ms_max": 359,
+        "pre_tool_hook_duration_ms_avg": 273.44444444444446,
+        "pre_tool_hook_duration_ms_p50": 275.5,
+        "pre_tool_hook_duration_ms_p95": 335,
+        "pre_tool_hook_duration_ms_p99": 356.88
+      },
+      "hasCompletedProjectOnboarding": true,
+      "lastCost": 1.4118821000000004,
+      "lastAPIDuration": 222030,
+      "lastAPIDurationWithoutRetries": 221792,
+      "lastToolDuration": 509992,
+      "lastDuration": 9051228,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 15101,
+      "lastTotalOutputTokens": 9320,
+      "lastTotalCacheCreationInputTokens": 139852,
+      "lastTotalCacheReadInputTokens": 1274157,
+      "lastTotalWebSearchRequests": 0,
+      "lastFpsAverage": 1.58,
+      "lastFpsLow1Pct": 331.25,
+      "lastModelUsage": {
+        "claude-haiku-4-5-20251001": {
+          "inputTokens": 366,
+          "outputTokens": 15,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "webSearchRequests": 0,
+          "costUSD": 0.000441
+        },
+        "claude-opus-4-6[1m]": {
+          "inputTokens": 806,
+          "outputTokens": 4684,
+          "cacheReadInputTokens": 555810,
+          "cacheCreationInputTokens": 64542,
+          "webSearchRequests": 0,
+          "costUSD": 0.8024224999999999
+        },
+        "claude-sonnet-4-6": {
+          "inputTokens": 13929,
+          "outputTokens": 4621,
+          "cacheReadInputTokens": 718347,
+          "cacheCreationInputTokens": 75310,
+          "webSearchRequests": 0,
+          "costUSD": 0.6090186
+        }
+      },
+      "lastSessionId": "2533b339-ab4a-4bf4-8e4c-17b0c28c8e55"
+    },
+    "/dev/shm/dev-workspace": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "lastSessionMetrics": {
+        "frame_duration_ms_count": 5,
+        "frame_duration_ms_min": 0.6410669999997936,
+        "frame_duration_ms_max": 12.854702999999972,
+        "frame_duration_ms_avg": 4.805476999999928,
+        "frame_duration_ms_p50": 3.0706539999998768,
+        "frame_duration_ms_p95": 11.597581199999967,
+        "frame_duration_ms_p99": 12.60327863999997
+      }
+    },
+    "/root/knowledge-system-qijie": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "ask.py",
+        "hook-checklist-userprompt.py",
+        "kb-init.py",
+        "session_detector.py",
+        "discover-relations.py"
+      ],
+      "exampleFilesGeneratedAt": 1775476649390,
+      "hasCompletedProjectOnboarding": true,
+      "lastCost": 0.58743575,
+      "lastAPIDuration": 90989,
+      "lastAPIDurationWithoutRetries": 90672,
+      "lastToolDuration": 430,
+      "lastDuration": 8117763,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 390,
+      "lastTotalOutputTokens": 3466,
+      "lastTotalCacheCreationInputTokens": 48577,
+      "lastTotalCacheReadInputTokens": 394011,
+      "lastTotalWebSearchRequests": 0,
+      "lastFpsAverage": 0.27,
+      "lastFpsLow1Pct": 34.99,
+      "lastModelUsage": {
+        "claude-opus-4-6[1m]": {
+          "inputTokens": 21,
+          "outputTokens": 3451,
+          "cacheReadInputTokens": 394011,
+          "cacheCreationInputTokens": 48577,
+          "webSearchRequests": 0,
+          "costUSD": 0.58699175
+        },
+        "claude-haiku-4-5-20251001": {
+          "inputTokens": 369,
+          "outputTokens": 15,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "webSearchRequests": 0,
+          "costUSD": 0.00044400000000000006
+        }
+      },
+      "lastSessionId": "b6545738-3f96-4fd0-b193-3fe413a260d9",
+      "lastSessionMetrics": {
+        "frame_duration_ms_count": 1845,
+        "frame_duration_ms_min": 0.05411199999798555,
+        "frame_duration_ms_max": 61.73425799999677,
+        "frame_duration_ms_avg": 1.348365544173354,
+        "frame_duration_ms_p50": 0.8630080000002636,
+        "frame_duration_ms_p95": 2.1712836499998702,
+        "frame_duration_ms_p99": 31.193167469990147,
+        "hook_duration_ms_count": 26,
+        "hook_duration_ms_min": 57,
+        "hook_duration_ms_max": 1370,
+        "hook_duration_ms_avg": 185.1153846153846,
+        "hook_duration_ms_p50": 110,
+        "hook_duration_ms_p95": 363.5,
+        "hook_duration_ms_p99": 1118.75,
+        "pre_tool_hook_duration_ms_count": 9,
+        "pre_tool_hook_duration_ms_min": 57,
+        "pre_tool_hook_duration_ms_max": 369,
+        "pre_tool_hook_duration_ms_avg": 216.88888888888889,
+        "pre_tool_hook_duration_ms_p50": 231,
+        "pre_tool_hook_duration_ms_p95": 367.8,
+        "pre_tool_hook_duration_ms_p99": 368.76
+      }
+    },
+    "/dev/shm/dev-workspace/applio": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "activeWorktreeSession": {
+        "originalCwd": "/dev/shm/dev-workspace/applio",
+        "worktreePath": "/dev/shm/dev-workspace/applio/.claude/worktrees/i18n-source-badges",
+        "worktreeName": "i18n-source-badges",
+        "worktreeBranch": "worktree-i18n-source-badges",
+        "originalBranch": "master",
+        "originalHeadCommit": "bdfab2d2e5157e2870e030a79040bf8d00ffdc94",
+        "sessionId": "705a223e-e7dc-4796-808a-646296e96872",
+        "creationDurationMs": 4053,
+        "usedSparsePaths": false
+      }
+    }
+  },
+  "githubRepoPaths": {
+    "slopus/happy": [
+      "/root/happy",
+      "/dev/shm/dev-workspace/happy-dev"
+    ],
+    "yugoge/life-ai-root": [
+      "/root"
+    ],
+    "yugoge/knowledge-system-qijie": [
+      "/root/knowledge-system-qijie"
+    ]
+  },
+  "effortCalloutV2Dismissed": true,
+  "lastReleaseNotesSeen": "2.1.109",
+  "officialMarketplaceAutoInstallAttempted": true,
+  "officialMarketplaceAutoInstalled": true,
+  "showSpinnerTree": false,
+  "subscriptionNoticeCount": 0,
+  "hasAvailableSubscription": false,
+  "passesUpsellSeenCount": 4,
+  "hasVisitedPasses": false,
+  "passesLastSeenRemaining": 3,
+  "overageCreditGrantCache": {
+    "336318a9-373a-498f-a408-f362d9c5a9fa": {
+      "info": {
+        "available": true,
+        "eligible": true,
+        "granted": true,
+        "amount_minor_units": 17000,
+        "currency": "EUR"
+      },
+      "timestamp": 1776098963404
+    },
+    "c4bdf953-2408-40db-8c99-4c5d2a4397be": {
+      "info": {
+        "available": true,
+        "eligible": true,
+        "granted": true,
+        "amount_minor_units": 17000,
+        "currency": "EUR"
+      },
+      "timestamp": 1776261704709
+    },
+    "ee3a689f-e0eb-4495-9d88-e6eda10ad7e4": {
+      "info": {
+        "available": false,
+        "eligible": false,
+        "granted": false,
+        "amount_minor_units": null,
+        "currency": null
+      },
+      "timestamp": 1776261677727
+    }
+  },
+  "migrationVersion": 11,
+  "additionalModelCostsCache": {},
+  "oauthAccount": {
+    "accountUuid": "40ee2570-f6e3-4628-ad85-0c898d1021a3",
+    "emailAddress": "***REDACTED***",
+    "organizationUuid": "c4bdf953-2408-40db-8c99-4c5d2a4397be",
+    "hasExtraUsageEnabled": true,
+    "billingType": "stripe_subscription",
+    "accountCreatedAt": "2025-06-26T13:32:15.786805Z",
+    "subscriptionCreatedAt": "2025-06-26T13:44:50.020873Z",
+    "displayName": "Yuge",
+    "organizationRole": "admin",
+    "workspaceRole": null,
+    "organizationName": "***REDACTED***'s Organization"
+  }
+}

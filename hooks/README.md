@@ -2,7 +2,7 @@
 
 <!-- AUTO:readme-stats -->
 ## Overview
-- **Total files**: 50
+- **Total files**: 52
 - **Subdirectories**: 4
 - **Naming convention**: kebab
 
@@ -34,8 +34,10 @@
 - `pre_slashcommand_validate.sh` - pre_slashcommand_validate.sh
 - `pre_tool_use_safety.sh` - PreToolUse Safety Hook - Warn before dangerous operations
 - `pretool-bash-safety.sh` - PreToolUse Safety Hook - Warn or block before dangerous operations
+- `pretool-orchestrator-gate.py` - PreToolUse Hook: Allowlist-based orchestrator gate (allows Agent/Bash/Read/Glob/Grep/TodoWrite/Skill + more), blocks other tools unless /do consent
 - `pretool-overnight-hook-guard.py` - PreToolUse Hook: Overnight session file modification guard
 - `pretool-quality-gate.py` - PreToolUse Hook: Quality gate for Write/Edit operations
+- `pretool-read-size-guard.py` - PreToolUse Hook: Block main agent from reading files >200 lines, subagents exempt
 - `pretool-todo-validate.py` - PreToolUse Hook: Validate TodoWrite input BEFORE execution
 - `pretool-workflow-gate.py` - PreToolUse Hook: Require TodoWrite/TodoRead acknowledgment before other tools
 - `pretool-worktree-guard.sh` - PreToolUse hook: Detect stale agent worktrees before ANY tool call

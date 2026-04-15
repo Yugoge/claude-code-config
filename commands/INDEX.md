@@ -1,7 +1,7 @@
 # commands
 
-*Last updated: 2026-03-24T22:42:20Z*
-**Total entries**: 25
+*Last updated: 2026-04-15T21:08:34Z*
+**Total entries**: 30
 **Convention**: kebab
 
 ## Tree
@@ -10,15 +10,19 @@ commands/
 ├── `checkpoint.md` - Checkpoint Command
 ├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
 ├── `code-review.md` - Comprehensive code review with best practices analysis
+├── `codex.md` - Delegate a task to OpenAI Codex CLI for a second opinion or parallel coding
 ├── `deep-search.md` - Deep website exploration with iterative search strategy
 ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
+├── `dev-overnight.md.bak` - bak file
 ├── `dev.md` - Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification
+├── `do.md` - Grant the main agent consent to perform direct operations in this session. This is a one-time consent flag.
 ├── `doc-gen.md` - Generate comprehensive documentation for code
 ├── `doc-sync.md` - Regenerate all INDEX.md files and patch CLAUDE.md auto-sections
 ├── `explain-code.md` - Deep explanation of code functionality and design
 ├── `file-analyze.md` - Analyze PDF, Excel, Word, images and other files with deep insights
 ├── `fswatch.md` - FSWatch Command
+├── `merge-overnight.md` - Merge an overnight worktree branch to master with full commit history preservation
 ├── `optimize.md` - Analyze code for performance optimization opportunities
 ├── `playwright-helper.md` - Guide for using Playwright MCP with deep search commands
 ├── `pull.md` - Pull Command
@@ -31,6 +35,7 @@ commands/
 ├── `search-tree.md` - Tree search exploration with MCTS-inspired path evaluation
 ├── `security-check.md` - Security vulnerability analysis and recommendations
 ├── `site-navigate.md` - Intelligent site navigation simulating "click-through" exploration
+├── `spec.md` - Create, validate, and list spec files for any dev workflow (/dev, /dev-overnight, or standalone reference)
 └── `test.md` - Test validation workflow with edge case detection, systematic validation, and quality enforcement
 ```
 

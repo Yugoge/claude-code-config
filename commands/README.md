@@ -5,12 +5,12 @@ Organization and usage documentation for `commands/`.
 <!-- AUTO:readme-stats -->
 ## Overview
 
-- **Total files**: 25
+- **Total files**: 26
 - **Naming convention**: kebab-case
 
 ## File Types
 
-- `.md`: 25 files
+- `.md`: 26 files
 
 *Last updated: 2026-03-24T11:16:17Z*
 <!-- /AUTO:readme-stats -->

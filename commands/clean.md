@@ -15,6 +15,26 @@ Enforce strict organization standards through systematic inspection and selectiv
 
 ---
 
+## Orchestrator Rules -- DO NOT
+
+**These rules are NON-NEGOTIABLE. Violating any of them is a critical workflow failure.**
+
+The orchestrator (the LLM executing this command) MUST NOT:
+
+1. **DO NOT use Edit, Write, or Bash tools to execute cleanup actions.** All file modifications during cleanup execution (Step 11) MUST be performed by the cleaner subagent, invoked via the Agent tool. The orchestrator coordinates; it does not execute.
+
+2. **DO NOT subjectively filter or narrow scope when the user selects "Execute all".** "Execute all" means every finding from the combined report becomes an approved action. The orchestrator has zero discretion to classify findings as "not in scope", "minor", or "not worth doing". If the inspectors found it, it gets approved.
+
+3. **DO NOT dismiss findings as "minor" or "not in scope" in aggressive mode.** When the user selects Option 1 (Execute all / aggressive), severity classification is irrelevant for approval purposes. All critical, major, AND minor findings are approved without exception.
+
+4. **DO NOT build approval JSONs manually when Option 1 is selected.** The approvals must be mechanically generated from the combined report -- one approved_action per finding, no omissions, no editorial judgment.
+
+5. **DO NOT execute any file modifications directly at any step.** The orchestrator's tools for cleanup execution are limited to the Agent tool (to invoke the cleaner subagent). This applies to Steps 11-12. Reading files and writing JSON coordination documents (docs/clean/) is permitted.
+
+**Root cause reference**: On 2026-04-05, the orchestrator violated rules 1, 2, and 3 -- it used Edit/Write tools directly for cleanup and reduced 92 inspector findings to 32 approved actions when the user selected "Execute all (aggressive)". 60 findings were skipped with excuses like "not in scope" and "minor severity".
+
+---
+
 ## Workflow Overview
 
 This command orchestrates three specialized subagents:
@@ -260,56 +280,102 @@ Expected output structure:
 }
 ```
 
-### Step 6: Invoke Style Inspector (Loop Driver)
+### Step 6: Invoke Style Inspectors (Parallel Multi-Agent)
 
-The style-inspector uses a **budget protocol** to avoid context overflow. It audits 5 files per invocation and writes progress to a JSON file. The orchestrator loops until all files are covered.
+The style-inspector uses a **budget protocol** to avoid context overflow. Instead of looping sequentially, the orchestrator plans the inspection upfront and launches ALL inspector agents in parallel, one per file group.
 
-**Progress file**: `docs/clean/style-progress-{REQUEST_ID}.json`
+**Plan file**: `docs/clean/style-plan-{REQUEST_ID}.json`
+**Partial reports**: `docs/clean/style-partial-{REQUEST_ID}-group{N}.json`
 **Final report**: `docs/clean/style-report-{REQUEST_ID}.json`
 
-**Loop implementation**:
+#### Step 6a: Plan Style Inspection
 
-```
-PROGRESS_FILE="docs/clean/style-progress-${REQUEST_ID}.json"
-MAX_ROUNDS=20  # safety limit
-ROUND=0
+Run the planner script to discover all auditable files and split them into groups:
 
-while true; do
-  ROUND=$((ROUND + 1))
-
-  # Safety: abort if too many rounds
-  if [ $ROUND -gt $MAX_ROUNDS ]; then
-    echo "ERROR: style-inspector exceeded $MAX_ROUNDS rounds. Aborting."
-    break
-  fi
-
-  # Invoke style-inspector subagent with Task tool
-  # Pass: context path, progress file path, request ID
-  # The inspector reads progress file to know what's already done
-  RESULT = invoke style-inspector with prompt:
-    "Audit project at {PROJECT_ROOT}.
-     Context: docs/clean/context-{REQUEST_ID}.json
-     Progress file: docs/clean/style-progress-{REQUEST_ID}.json
-     Request ID: {REQUEST_ID}
-     Budget: 5 files per invocation. Read each file fully.
-     Check all 11 standards. Write results to progress file."
-
-  # Check status from inspector's return message
-  if RESULT contains "STATUS: complete"; then
-    echo "Style inspection complete after $ROUND rounds."
-    break
-  fi
-
-  # If "STATUS: incomplete", loop continues automatically
-  echo "Round $ROUND complete. Files remain. Continuing..."
-done
+```bash
+STYLE_PLAN=$(~/.claude/scripts/plan-style-inspection.sh "$PROJECT_ROOT")
+echo "$STYLE_PLAN" > "docs/clean/style-plan-${REQUEST_ID}.json"
+AGENT_COUNT=$(echo "$STYLE_PLAN" | jq -r '.agent_count')
+TOTAL_FILES=$(echo "$STYLE_PLAN" | jq -r '.total_files')
 ```
 
-**What this achieves**:
-- Each round reads at most 5 files fully (stays within context budget)
-- Progress accumulates in the JSON file across rounds
-- No file is skipped -- every file gets deep analysis
-- On final round, inspector writes the complete report
+Log: "Style inspection planned: {AGENT_COUNT} agents for {TOTAL_FILES} files"
+
+If AGENT_COUNT is 0, skip to Step 7 (no files to audit).
+
+#### Step 6b: Launch Parallel Style Inspectors
+
+For EACH group in the plan JSON, launch a style-inspector agent using the **Agent tool** with `run_in_background: true`. All agents MUST be launched in a SINGLE message (parallel, not sequential).
+
+Each agent's prompt MUST contain:
+
+```
+You are a style-inspector. Audit ONLY the files listed below against all 11 development standards.
+
+Request ID: {REQUEST_ID}
+Group ID: {N}
+Project root: {PROJECT_ROOT}
+Context file: docs/clean/context-{REQUEST_ID}.json
+
+Files to audit (audit EVERY file in this list, no others):
+1. {file_path_1}
+2. {file_path_2}
+3. {file_path_3}
+4. {file_path_4}
+5. {file_path_5}
+
+Write your partial report to: docs/clean/style-partial-{REQUEST_ID}-group{N}.json
+
+The partial report MUST use this schema:
+{
+  "request_id": "{REQUEST_ID}",
+  "group_id": {N},
+  "files_audited": ["list of files you actually audited"],
+  "violations": [
+    {
+      "standard": "standard-name",
+      "severity": "critical",
+      "location": "file:line",
+      "finding": "description",
+      "recommendation": "how to fix"
+    }
+  ],
+  "status": "complete"
+}
+
+You MUST read each file fully before auditing it. Check all 11 standards against each file.
+```
+
+After launching all agents, log: "Launched {AGENT_COUNT} style-inspector agents in parallel"
+
+#### Step 6c: Collect and Merge Results
+
+After ALL agents complete, read each partial report file:
+
+```
+docs/clean/style-partial-{REQUEST_ID}-group1.json
+docs/clean/style-partial-{REQUEST_ID}-group2.json
+...
+docs/clean/style-partial-{REQUEST_ID}-group{N}.json
+```
+
+Merge all violations from every partial report into a single combined list. Merge all files_audited lists into a single deduplicated list. Write the final merged report to `docs/clean/style-report-{REQUEST_ID}.json`.
+
+#### Step 6d: Coverage Verification (MANDATORY GATE)
+
+Read the plan file `docs/clean/style-plan-{REQUEST_ID}.json` and extract the `all_files` array. Compare it against the merged `files_audited` list from Step 6c.
+
+If ANY file from `all_files` is missing from the merged `files_audited`:
+
+1. Log which files were missed and their count
+2. Build a new group containing ONLY the missed files
+3. Launch a targeted style-inspector agent for the missed files (same prompt format as Step 6b)
+4. After the targeted agent completes, merge its results into the final report
+5. Repeat coverage check -- if files are still missing after one retry, log an error and proceed
+
+**BLOCK Step 7 until coverage verification passes** (all files in the plan appear in files_audited) OR the retry has been attempted.
+
+---
 
 Expected final output structure:
 
@@ -321,7 +387,7 @@ Expected final output structure:
   "violations": [
     {
       "standard": "standard-name",
-      "severity": "critical|major|minor",
+      "severity": "critical",
       "location": "file:line",
       "finding": "description",
       "recommendation": "how to fix"
@@ -331,8 +397,6 @@ Expected final output structure:
     "standards_checked": 11,
     "violations_found": 0,
     "critical": 0,
-    "major": 0,
-    "minor": 0,
     "files_audited": 0,
     "files_total": 0,
     "rounds_completed": 0
@@ -407,7 +471,42 @@ Format and display findings:
 
 Based on user selection, build approval context:
 
-**Option 1: Execute all** (auto-approve everything)
+**Option 1: Execute all (aggressive) -- MECHANICAL GENERATION**
+
+When the user selects Option 1, the orchestrator MUST mechanically generate the approvals JSON by iterating ALL findings from the combined report. There is no manual curation, no editorial filtering, no severity-based exclusion.
+
+Procedure:
+1. Read `docs/clean/combined-report-{REQUEST_ID}.json`
+2. Extract every finding from `findings` (cleanliness) and `violations` (style)
+3. For EACH finding, create one entry in `approved_actions` with `"approved": true`
+4. Set `rejected_actions` to an empty array
+5. Record `total_issues_in_report` (from combined report summary `total_issues`)
+6. Record `total_approved_actions` (count of `approved_actions` array)
+7. These two counts MUST be equal. If they differ, the generation has a bug -- do NOT proceed
+
+```json
+{
+  "request_id": "clean-YYYYMMDD-HHMMSS",
+  "timestamp": "ISO-8601",
+  "mode": "execute_all",
+  "user_approvals": {
+    "total_issues_in_report": 92,
+    "total_approved_actions": 92,
+    "approved_actions": [
+      {
+        "action_id": "finding_1",
+        "source_report": "cleanliness|style",
+        "source_finding_index": 0,
+        "action": "move|delete|archive|fix",
+        "description": "copied from finding",
+        "location": "file:line or file path",
+        "approved": true
+      }
+    ],
+    "rejected_actions": []
+  }
+}
+```
 
 **Option 2: File organization only** (approve cleanliness findings, skip style)
 
@@ -417,36 +516,38 @@ Based on user selection, build approval context:
 
 **Option 5: Report only** (skip to completion report)
 
-Generate approval JSON:
-
-```json
-{
-  "request_id": "clean-YYYYMMDD-HHMMSS",
-  "timestamp": "ISO-8601",
-  "user_approvals": {
-    "approved_actions": [
-      {
-        "action_id": "misplace_doc_1",
-        "action": "move",
-        "source": "./SETUP.md",
-        "destination": "docs/setup.md",
-        "approved": true
-      }
-    ],
-    "rejected_actions": [
-      {
-        "action_id": "delete_script_1",
-        "action": "delete",
-        "file": "scripts/test-important.sh",
-        "approved": false,
-        "reason": "Still needed for testing"
-      }
-    ]
-  }
-}
-```
+For Options 2-4, the orchestrator may apply the stated filter (by report type, severity, or individual user decision). Only Option 1 requires mechanical all-inclusive generation.
 
 Save to: `docs/clean/user-approvals-{REQUEST_ID}.json`
+
+### Step 9b: Completeness Verification Gate (Option 1 Only)
+
+**This gate is MANDATORY when the user selected Option 1 (Execute all). Skip for Options 2-5.**
+
+Before proceeding to Step 10, the orchestrator MUST verify that the approvals JSON is complete:
+
+1. Read `total_issues` from `docs/clean/combined-report-{REQUEST_ID}.json` summary section
+2. Read `total_approved_actions` from `docs/clean/user-approvals-{REQUEST_ID}.json`
+3. Compare the two counts
+
+**If counts match**: Log "Completeness gate PASSED: {total_approved_actions} approved actions match {total_issues} combined report findings" and proceed to Step 10.
+
+**If counts do NOT match**: BLOCK execution immediately. Do NOT proceed to Step 10 or Step 11. Log the following error:
+
+```
+COMPLETENESS GATE FAILED
+Mode: execute_all
+Combined report total_issues: {N}
+Approved actions count: {M}
+Discrepancy: {N - M} findings missing from approvals
+ACTION: Regenerate approvals JSON from combined report. Every finding must have a corresponding approved_action.
+```
+
+The orchestrator MUST regenerate the approvals JSON (return to Step 9 Option 1 procedure) and re-run this gate. Do NOT bypass the gate or proceed with mismatched counts.
+
+**Root cause reference**: On 2026-04-05, the orchestrator generated 32 approved actions from 92 combined findings. This gate would have blocked execution and forced regeneration.
+
+---
 
 ### Step 10: Create Safety Checkpoint
 
@@ -463,9 +564,20 @@ CHECKPOINT_COMMIT=$(git rev-parse HEAD)
   "$CHECKPOINT_COMMIT"
 ```
 
-### Step 11: Invoke Cleaner with Approvals
+### Step 11: Invoke Cleaner with Approvals (DELEGATION ONLY)
 
-Merge approvals into context:
+**The orchestrator MUST delegate ALL cleanup execution to the cleaner subagent via the Agent tool. The orchestrator does NOT execute any file modifications itself.**
+
+**DO NOT -- the following are FORBIDDEN during Step 11:**
+- **DO NOT use the Edit tool** to modify any project files
+- **DO NOT use the Write tool** to create or overwrite any project files
+- **DO NOT use the Bash tool** to run commands that modify files (mv, cp, rm, sed, etc.)
+- **DO NOT use any tool other than Agent** for cleanup execution
+- **The ONLY tool permitted for cleanup execution is the Agent tool** (to invoke the cleaner subagent)
+
+The orchestrator may use Bash to prepare the context JSON (merging approvals), but MUST NOT use Bash/Edit/Write to make any changes to project files.
+
+Prepare context for the cleaner subagent:
 
 ```bash
 jq -s '.[0] * {user_approvals: .[1].user_approvals}' \
@@ -474,12 +586,26 @@ jq -s '.[0] * {user_approvals: .[1].user_approvals}' \
   > docs/clean/context-with-approvals-{REQUEST_ID}.json
 ```
 
-Delegate to cleaner subagent:
+Invoke the cleaner subagent using the Agent tool:
 
-```bash
-~/.claude/scripts/orchestrator.sh clean-execute \
-  docs/clean/context-with-approvals-{REQUEST_ID}.json
+The orchestrator MUST use the Agent tool with the cleaner subagent prompt. The cleaner subagent reads `docs/clean/context-with-approvals-{REQUEST_ID}.json`, executes ALL approved actions, and writes its execution report.
+
 ```
+Agent tool invocation:
+  prompt: "You are the cleaner subagent.
+
+Read these report files directly from the filesystem:
+- Combined report: docs/clean/combined-report-{REQUEST_ID}.json
+- Style report: docs/clean/style-report-{REQUEST_ID}.json
+- Cleanliness report: docs/clean/cleanliness-report-{REQUEST_ID}.json
+- User approvals: docs/clean/user-approvals-{REQUEST_ID}.json
+
+The merged context with approvals is at: docs/clean/context-with-approvals-{REQUEST_ID}.json
+
+Execute ALL approved_actions. Write results to docs/clean/cleanup-execution-{REQUEST_ID}.json."
+```
+
+The orchestrator MUST NOT supplement, assist, or "help" the cleaner by making additional edits. If the cleaner fails on specific actions, those failures are recorded in the execution report -- the orchestrator does not retry them directly.
 
 Cleaner reads approvals, executes actions, writes:
 - `docs/clean/cleanup-execution-{REQUEST_ID}.json`

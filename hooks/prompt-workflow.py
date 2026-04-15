@@ -496,8 +496,21 @@ def _check_workflow_conflict(cmd_name: str, sid: str) -> None:
     _warn_workflow_conflict(old_cmd, cmd_name, old_todos)
 
 
+def handle_do_consent(sid: str) -> None:
+    """Handle /do command: write consent flag and print confirmation."""
+    flag = Path(f"/tmp/claude-orchestrator-consent-{sid}.flag")
+    try:
+        flag.write_text("true")
+        print(f"[/do] Consent granted. Main agent may now perform direct operations this session.")
+    except Exception as e:
+        sys.stderr.write(f"[/do] Failed to write consent flag: {e}\n")
+
+
 def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     """Phase A: slash command detected -- setup todos, state, inject spec."""
+    if cmd_name == "do":
+        handle_do_consent(sid)
+        return
     todos = run_todo_script(cmd_name)
     if not todos:
         return

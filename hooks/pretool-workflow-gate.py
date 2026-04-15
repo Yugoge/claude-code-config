@@ -128,6 +128,12 @@ def main():
     # (Stop hook enforces todo count >= blocking_count, so reducing todos is caught at session end)
     # Note: type errors (todos as string instead of array) are caught by Claude Code's schema
     # validation BEFORE PreToolUse hooks run — no need to duplicate that check here.
+    # Tools that should always be allowed regardless of workflow state
+    ALWAYS_ALLOWED = {'TodoWrite', 'TodoRead', 'mcp__happy__change_title'}
+
+    if tool_name in ALWAYS_ALLOWED and tool_name != 'TodoWrite':
+        sys.exit(0)
+
     if tool_name == 'TodoWrite':
         if bookmark_path.exists():
             try:

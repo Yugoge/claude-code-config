@@ -1126,16 +1126,32 @@ IF verdict == "pass":
   -> BA conclusions validated. Proceed to Step 6.
 
 ELIF verdict == "fail":
-  -> BA-QA iteration needed.
+  -> Proceed to Step 5b for BA-QA iteration.
 ```
 
-**BA-QA Iteration Loop** (max 3 iterations):
+### Step 5b: BA-QA Iteration Loop (if QA rejects BA)
 
-If QA rejects BA's conclusions:
+**Iteration guard**: Maximum 3 BA-QA iterations to prevent infinite loops
 
-1. Announce: `BA-QA iteration <N>/3: QA found <count> objections in BA analysis. Re-invoking BA.`
+**Current BA-QA iteration**: Track internally (starts at 1)
 
-2. Re-invoke BA with QA's objections:
+**If BA-QA iteration > 3**:
+```
+BA-QA validation: 3 iterations exhausted. Proceeding with best-effort BA output.
+
+Unresolved objections:
+{summary of remaining QA objections}
+
+Appending unresolved objections to context JSON under `ba_qa_unresolved_objections`.
+Proceeding to Step 6 with documented assumptions.
+```
+
+**If BA-QA iteration <= 3**:
+
+**Announce**: `BA-QA iteration <N>/3: QA found <count> objections in BA analysis. Re-invoking BA to address objections.`
+
+**Re-invoke BA with QA's objections**:
+
 ```
 Use Agent tool with:
 - subagent_type: "ba"
@@ -1165,12 +1181,11 @@ Use Agent tool with:
   "
 ```
 
-3. Re-invoke QA to validate updated BA output (same prompt as above).
+**After BA re-delivers**: Return to Step 5 (validate BA output), then Step 5a (QA re-validates).
 
-4. If still failing after 3 iterations:
-   - Announce: `BA-QA validation: 3 iterations exhausted. Proceeding with best-effort BA output. Unresolved objections documented.`
-   - Append unresolved objections to context JSON under `ba_qa_unresolved_objections`
-   - Proceed to Step 6 with documented assumptions
+**Rule**: Every BA invocation MUST be followed by QA validation. No exceptions.
+
+**Iteration tracking**: Update TodoWrite with BA-QA iteration number.
 
 ### Step 6: Delegate to Dev Subagent
 

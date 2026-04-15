@@ -66,6 +66,22 @@ def _cleanup_expired_state(sf: Path, state: dict) -> None:
         pass
 
 
+def _is_orphaned_state(sf: Path, state: dict) -> bool:
+    """Detect orphaned state: appears live but has no backing session."""
+    import time
+    wt = state.get('worktree_path')
+    if wt and not Path(wt).is_dir():
+        return True
+    if not wt:
+        try:
+            age = time.time() - sf.stat().st_mtime
+            if age > 7200:
+                return True
+        except OSError:
+            pass
+    return False
+
+
 def _get_active_worktree_paths() -> list[str]:
     """Return worktree_paths from all live overnight sessions."""
     project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
@@ -86,8 +102,10 @@ def _get_active_worktree_paths() -> list[str]:
 
 
 def _is_path_exempt(file_path: str) -> bool:
-    """Check if path is exempt from overnight worktree restrictions (/tmp)."""
+    """Check if path is exempt from overnight worktree restrictions (/tmp, /dev/null)."""
     abs_path = os.path.realpath(os.path.abspath(file_path))
+    if abs_path == "/dev/null":
+        return True
     return abs_path.startswith("/tmp/") or abs_path == "/tmp"
 
 
@@ -122,6 +140,9 @@ def apply_global_worktree_enforcement(tool_name: str, tool_input: dict, worktree
             )
     if tool_name == 'Bash':
         command = tool_input.get('command', '')
+        # Allow docker compose build/up -- QA needs to rebuild containers
+        if _is_docker_compose_safe(command):
+            return
         for path in _extract_bash_write_paths(command):
             if not _is_path_allowed_during_overnight(path, worktree_paths):
                 _block(
@@ -147,7 +168,10 @@ def is_overnight_active() -> bool:
         except (json.JSONDecodeError, OSError):
             continue
         if _is_session_live(state):
-            any_live = True
+            if _is_orphaned_state(sf, state):
+                _cleanup_expired_state(sf, state)
+            else:
+                any_live = True
         else:
             _cleanup_expired_state(sf, state)
     return any_live
@@ -184,13 +208,17 @@ def is_outside_worktree(file_path: str, worktree_path: str) -> bool:
     return not abs_file.startswith(abs_wt + os.sep) and abs_file != abs_wt
 
 
-def path_lacks_worktree_string(file_path: str) -> bool:
-    """Check if 'worktree' is absent from the file path (case-insensitive).
+def path_outside_session_worktree(file_path: str, worktree_path: str) -> bool:
+    """Check if file_path is outside the session worktree_path.
 
-    Used to block overnight sessions from modifying files outside worktree
-    directories. Any path containing 'worktree' is considered safe.
+    Uses realpath comparison instead of naive 'worktree' substring matching.
+    Falls back to legacy string check if worktree_path is not available.
     """
-    return 'worktree' not in file_path.lower()
+    if not worktree_path:
+        return 'worktree' not in file_path.lower()
+    abs_file = os.path.realpath(os.path.abspath(file_path))
+    abs_wt = os.path.realpath(os.path.abspath(worktree_path))
+    return not abs_file.startswith(abs_wt + os.sep) and abs_file != abs_wt
 
 
 def _matches_any(command: str, patterns: list[str]) -> bool:
@@ -272,11 +300,16 @@ def apply_global_security_checks(tool_name: str, tool_input: dict) -> None:
         _check_bash_security(tool_input.get('command', ''))
 
 
+def _is_docker_compose_safe(command: str) -> bool:
+    """Check if command is a safe docker compose build/up (not down/restart)."""
+    return bool(re.search(r'docker[\s-]compose\s+(build|up)', command))
+
+
 def _extract_bash_write_paths(command: str) -> list[str]:
     """Extract file paths from common Bash write patterns."""
     paths = []
-    # Redirect: > /path, >> /path
-    for m in re.finditer(r'>{1,2}\s*(/[^\s;|&]+)', command):
+    # Redirect: > /path, >> /path  (skip fd redirects like 2>/dev/null)
+    for m in re.finditer(r'(?<!\d)>{1,2}\s*(/[^\s;|&]+)', command):
         paths.append(m.group(1))
     # tee /path
     for m in re.finditer(r'tee\s+(?:-a\s+)?(/[^\s;|&]+)', command):
@@ -323,16 +356,16 @@ def _enforce_bash_worktree(command: str, wt: str) -> None:
             _block_worktree_violation('Bash', path, wt)
 
 
-def apply_worktree_string_check(tool_name: str, tool_input: dict) -> None:
-    """Block when overnight session writes to path without 'worktree' in it."""
+def apply_worktree_string_check(tool_name: str, tool_input: dict, worktree_path: str = '') -> None:
+    """Block when overnight session writes outside worktree_path (or lacks 'worktree' string as fallback)."""
     if tool_name in ('Write', 'Edit'):
         file_path = tool_input.get('file_path', '')
-        if file_path and not _is_path_exempt(file_path) and path_lacks_worktree_string(file_path):
+        if file_path and not _is_path_exempt(file_path) and path_outside_session_worktree(file_path, worktree_path):
             _block_worktree_string_violation(tool_name, file_path)
     if tool_name == 'Bash':
         command = tool_input.get('command', '')
         for path in _extract_bash_write_paths(command):
-            if not _is_path_exempt(path) and path_lacks_worktree_string(path):
+            if not _is_path_exempt(path) and path_outside_session_worktree(path, worktree_path):
                 _block_worktree_string_violation('Bash', path)
 
 
@@ -395,8 +428,8 @@ def main():
 
     # Extra checks for the overnight session itself
     if is_overnight_session:
-        apply_worktree_string_check(tool_name, tool_input)
         wt = state.get('worktree_path', '')
+        apply_worktree_string_check(tool_name, tool_input, wt)
         if wt:
             apply_worktree_enforcement(tool_name, tool_input, wt)
 
