@@ -89,6 +89,31 @@ check_systemctl_targets_all_dev() {
   done
 }
 
+# ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
+# On 2026-04-09, editing session_dirs.txt triggered full restore and killed all sessions.
+# These files must NEVER be touched by Claude under any circumstances.
+
+if echo "$COMMAND" | grep -qE 'session_dirs\.txt'; then
+  echo "BLOCKED: session_dirs.txt is PERMANENTLY FORBIDDEN — never read, write, or reference this file" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: On 2026-04-09, editing session_dirs.txt triggered session-watcher full restore and killed ALL production sessions." >&2
+  exit 2
+fi
+
+if echo "$COMMAND" | grep -qE 'happy-session-recovery'; then
+  echo "BLOCKED: happy-session-recovery.sh is PERMANENTLY FORBIDDEN" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: This script manages critical session state. Only the user may run it manually." >&2
+  exit 2
+fi
+
+if echo "$COMMAND" | grep -qE 'happy-restart'; then
+  echo "BLOCKED: happy-restart.sh is PERMANENTLY FORBIDDEN" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: This script restarts daemons and can kill all sessions. Only the user may run it manually." >&2
+  exit 2
+fi
+
 # ── Rules ─────────────────────────────────────────────────────────
 
 # Block: sensitive file write via Bash redirect or as target
@@ -136,9 +161,9 @@ if echo "$COMMAND" | grep -qE 'docker\s+(stop|restart|rm|kill)\s+.*happy'; then
   fi
 fi
 
-# Block: docker-compose down and restart (destructive)
-if echo "$COMMAND" | grep -qE 'docker.compose\s+(down|restart)'; then
-  echo "BLOCKED: docker-compose down/restart is forbidden" >&2
+# Block: docker-compose down, stop, and restart (destructive)
+if echo "$COMMAND" | grep -qE 'docker.compose\s+(down|restart|stop)'; then
+  echo "BLOCKED: docker-compose down/stop/restart is forbidden" >&2
   echo "Command: $COMMAND" >&2
   exit 2
 fi
@@ -157,17 +182,17 @@ if echo "$COMMAND" | grep -qE '(killall|pkill)\s+.*(happy|claude|docker)'; then
   exit 2
 fi
 
-# Block: kill -9 targeting unknown PIDs (warn on any kill -9)
-if echo "$COMMAND" | grep -qE 'kill\s+-9'; then
-  echo "BLOCKED: kill -9 is forbidden — use graceful shutdown methods" >&2
+# Block: kill with ANY signal targeting PIDs (kill -9, kill -TERM, kill -15, kill -HUP, etc.)
+if echo "$COMMAND" | grep -qE 'kill\s+-'; then
+  echo "BLOCKED: kill with signals is forbidden — use graceful shutdown methods" >&2
   echo "Command: $COMMAND" >&2
   exit 2
 fi
 
-# Block: systemctl stop/restart (unless ALL targets are dev-whitelisted)
-if echo "$COMMAND" | grep -qE 'systemctl\s+(stop|restart)\s+'; then
+# Block: systemctl stop/restart/disable/enable (unless ALL targets are dev-whitelisted)
+if echo "$COMMAND" | grep -qE 'systemctl\s+(stop|restart|disable|enable)\s+'; then
   if ! check_systemctl_targets_all_dev "$COMMAND" "$DEV_SYSTEMD"; then
-    echo "BLOCKED: systemctl stop/restart is forbidden for production services" >&2
+    echo "BLOCKED: systemctl stop/restart/disable/enable is forbidden for production services" >&2
     echo "Command: $COMMAND" >&2
     echo "Hint: only $DEV_SYSTEMD is allowed." >&2
     exit 2
@@ -269,11 +294,20 @@ if echo "$COMMAND" | grep -qE '(curl|wget).*(/v1/sessions|/v1/machines|/session-
   exit 2
 fi
 
+# Block: curl/wget to production API (localhost:3000 or api.life-ai.app) — all methods
+if echo "$COMMAND" | grep -qE '(curl|wget).*(localhost:3000|127\.0\.0\.1:3000|api\.life-ai\.app)' && \
+   ! echo "$COMMAND" | grep -qE 'api-dev\.life-ai\.app'; then
+  echo "BLOCKED: Accessing production API is FORBIDDEN from dev environment" >&2
+  echo "Command: $COMMAND" >&2
+  echo "Hint: Use localhost:3005 (dev API) or api-dev.life-ai.app instead." >&2
+  exit 2
+fi
+
 # ── ABSOLUTE ISOLATION: happy-dev must NEVER touch production happy ──────────
 
 # Block: npm install -g (strip comments first to avoid false positives)
 CMD_NO_COMMENTS=$(echo "$COMMAND" | sed 's/#.*$//')
-if echo "$CMD_NO_COMMENTS" | grep -qE 'npm\s+install\s+-g' || echo "$CMD_NO_COMMENTS" | grep -qE 'npm\s+install\s+--global'; then
+if echo "$CMD_NO_COMMENTS" | grep -qE 'npm\s+(install|i)\s+.*(-g|--global)' || echo "$CMD_NO_COMMENTS" | grep -qE 'npm\s+(install|i)\s+-g'; then
   echo "BLOCKED: npm install -g is FORBIDDEN from this environment" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: On 2026-04-04, npm install -g from a worktree replaced the global happy binary," >&2
@@ -284,7 +318,7 @@ fi
 
 # Block: direct invocation of /usr/bin/happy or bare 'happy' CLI command
 # (prevents triggering auto-upgrade version mismatch detection)
-if echo "$COMMAND" | grep -qE '(^|[;&|]\s*)/usr/bin/happy\b' || echo "$COMMAND" | grep -qE '(^|[;&|]\s*)happy\s+(daemon|--version|auth)\b'; then
+if echo "$COMMAND" | grep -qE '(^|[;&|]\s*)/usr/bin/happy([^-]|$)' || echo "$COMMAND" | grep -qE '(^|[;&|]\s*)happy\s+(daemon|--version|auth)\b'; then
   echo "BLOCKED: Direct invocation of the global happy CLI is FORBIDDEN" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: The global /usr/bin/happy is shared by ALL daemons. Invoking it can trigger" >&2
@@ -303,9 +337,21 @@ if echo "$COMMAND" | grep -qE '(^|[;&|]\s*)kill\s+[0-9]'; then
 fi
 
 # Block: WRITING to /usr/lib/node_modules/happy or /usr/bin/happy (reading is OK)
-if echo "$COMMAND" | grep -qE '(ln|cp|mv|unlink|tee)\s.*(/usr/lib/node_modules/happy|/usr/bin/happy)'; then
+# Allow /usr/bin/happy-dev (dev binary) but block /usr/bin/happy (production binary)
+if echo "$COMMAND" | grep -qE '(ln|cp|mv|unlink|tee)\s.*(/usr/lib/node_modules/happy|/usr/bin/happy)' && \
+   ! echo "$COMMAND" | grep -qE '/usr/bin/happy-dev'; then
   echo "BLOCKED: Modifying global happy binary/modules is FORBIDDEN" >&2
   echo "Command: $COMMAND" >&2
+  exit 2
+fi
+
+# Block: happy-daemon-dev service must NEVER use /usr/bin/happy (production binary)
+# Allow /usr/bin/happy-dev but block /usr/bin/happy
+if echo "$COMMAND" | grep -q 'happy-daemon-dev' && echo "$COMMAND" | grep -qE '/usr/bin/happy([^-]|$)'; then
+  echo "BLOCKED: happy-daemon-dev must NEVER reference /usr/bin/happy (production binary)" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: Dev daemon must use /root/happy-dev/packages/happy-cli/dist/index.mjs directly." >&2
+  echo "Using /usr/bin/happy causes dev daemon to run production code, ignoring all dev fixes." >&2
   exit 2
 fi
 
