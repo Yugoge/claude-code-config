@@ -33,6 +33,10 @@ Step 1: Create worktree (first run only)
   |       PARALLEL BA PHASE (Step 4-5)
   |         Launch ALL N BA subagents in parallel → validate all outputs
   |                |
+  |       BA-QA VALIDATION (Step 5a)
+  |         Launch ALL N QA-validates-BA subagents in parallel
+  |         Per-pipeline BA-QA iteration loop (max 3) if QA rejects
+  |                |
   |       PARALLEL DEV PHASE (Step 6-7)
   |         Launch ALL N Dev subagents in parallel → validate all outputs
   |                |
@@ -56,7 +60,7 @@ Step 1: Create worktree (first run only)
   |       Time expired? → generate summary, cleanup
   |                |
   |       TODO COMPLETION DETECTION (PostToolUse hook)
-  |       All 14 steps completed?
+  |       All 16 steps completed?
   |         YES + time remaining: reset todos, loop to Step 2
   |         YES + time expired: allow natural completion
   |         NO: continue current step
@@ -645,6 +649,130 @@ Read BA output files:
 
 **If all pipelines are skipped**: Skip to Step 12 (log results).
 
+### Step 5a: QA Validates BA Conclusions (All Pipelines, Parallel)
+
+**Purpose**: Verify BA's analysis quality BEFORE Dev starts implementation. Catches unproven claims, scope mismatches, and missing investigation evidence early -- saving a wasted Dev+QA cycle. In overnight mode, this runs for ALL pipelines that passed Step 5 validation, with one QA subagent per pipeline launched in parallel.
+
+**Filter**: Only launch BA-validation QA for pipelines with `phase == "ba_complete"` and `status == "active"`.
+
+**Launch ALL active QA-validates-BA subagents in a SINGLE response** (parallel execution):
+
+```
+For each active pipeline[i]:
+
+Agent(subagent_type: "qa")
+  description: "Validate BA analysis quality for pipeline {i} (not code)"
+  prompt: "
+    You are the QA subagent in BA-VALIDATION MODE. This is NOT code verification.
+    You are verifying the QUALITY OF BA's ANALYSIS, not any implementation.
+
+    DO NOT: build, deploy, open browser, run Playwright, or test code.
+    DO: read BA's deliverables and challenge every claim.
+
+    BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+    Context JSON: docs/dev/context-{pipeline.timestamp_suffix}.json
+    Overnight spec file: {pipeline.spec_path}
+    Project root: <worktree_path from state file if set, otherwise project root>
+
+    Verify these 4 dimensions:
+
+    1. EVIDENCE QUALITY: For every factual claim BA makes (root cause, affected files,
+       component identification), is there evidence? 'BA says so' is not evidence.
+       Look for: git blame output, file path verification, code grep results,
+       import chain tracing. Flag claims stated as fact without investigation proof.
+
+    2. SCOPE ALIGNMENT: Compare BA's bug title and acceptance criteria against
+       the original requirement (and spec Section 5 if available). Did BA narrow,
+       rename, or redefine the bug? Is anything from the original requirement
+       missing from BA's analysis?
+
+    3. INVESTIGATION COMPLETENESS: If the requirement says 'audit X', 'investigate Y',
+       or 'trace Z' -- did BA actually do it, or did BA skip the investigation and
+       jump to a conclusion? Check for investigation deliverables the requirement
+       explicitly asked for.
+
+    4. AFFECTED-FILE ACCURACY: Are the files BA identified actually the right files?
+       Quick-verify: do the file paths exist? Do they contain the code BA claims?
+       Does the import chain support BA's component identification?
+
+    Return JSON:
+    {
+      'verdict': 'pass' or 'fail',
+      'objections': [
+        {
+          'dimension': 'evidence_quality|scope_alignment|investigation_completeness|affected_file_accuracy',
+          'claim': 'what BA claimed',
+          'problem': 'what is wrong with the claim',
+          'required_evidence': 'what BA must provide to satisfy this objection'
+        }
+      ],
+      'summary': 'one-line overall assessment'
+    }
+
+    Write report to: docs/dev/ba-qa-report-{pipeline.timestamp_suffix}.json
+  "
+```
+
+**Wait for ALL BA-validation QA subagents to complete** before proceeding.
+
+**Process QA results per pipeline**:
+
+```
+For each pipeline[i]:
+  Read docs/dev/ba-qa-report-{pipeline.timestamp_suffix}.json
+
+  IF verdict == "pass":
+    -> BA conclusions validated for pipeline {i}. Pipeline proceeds to Step 6.
+
+  ELIF verdict == "fail":
+    -> BA-QA iteration needed for pipeline {i}.
+```
+
+**Per-Pipeline BA-QA Iteration Loop** (max 3 iterations, independent per pipeline):
+
+For each pipeline where QA rejected BA's conclusions:
+
+1. Announce: `Pipeline {i} BA-QA iteration <N>/3: QA found <count> objections. Re-invoking BA.`
+
+2. Re-invoke BA for that pipeline only:
+```
+Agent(subagent_type: "ba")
+  description: "Re-investigate pipeline {i}: address QA objections on analysis quality"
+  prompt: "
+    You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+    Your previous analysis was REJECTED by QA. Address each objection below
+    with concrete evidence. Do not argue -- investigate and provide proof.
+
+    Original requirement: '{pipeline.description}'
+    Previous BA spec: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+    Previous context: docs/dev/context-{pipeline.timestamp_suffix}.json
+    Overnight spec file: {pipeline.spec_path}
+    Project root: <worktree_path from state file if set, otherwise project root>
+
+    QA objections:
+    <JSON array of objections from ba-qa-report-{pipeline.timestamp_suffix}.json>
+
+    For each objection:
+    - Perform the investigation QA requested
+    - Provide the specific evidence QA asked for
+    - If your original claim was wrong, CORRECT it
+    - If your original claim was right, PROVE it with evidence
+
+    Update ba-spec and context JSON with corrected/proven analysis.
+    Return JSON with status and updated file paths.
+  "
+```
+
+3. Re-invoke QA to validate updated BA output for that pipeline (same BA-validation prompt as above).
+
+4. If still failing after 3 iterations for a pipeline:
+   - Announce: `Pipeline {i} BA-QA validation: 3 iterations exhausted. Proceeding with best-effort BA output.`
+   - Append unresolved objections to that pipeline's context JSON under `ba_qa_unresolved_objections`
+   - Pipeline still proceeds to Step 6 with documented assumptions
+
+**Note**: Pipelines iterate their BA-QA loops independently. A pipeline that passes on the first QA check does not wait for other pipelines' BA-QA iterations.
+
 ### Step 6: Run All Dev Subagents (Parallel)
 
 **Update state**: Set `current_phase` to `"implementing"`.
@@ -995,7 +1123,7 @@ else:
 ```
 
 If time expired: proceed to Step 13 (PM Retro) then Step 14 for final summary.
-If time remains: proceed to Step 13 (PM Retro), then mark Step 14 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 15 steps completed, reset todos to pending, and inject continuation instructions.
+If time remains: proceed to Step 13 (PM Retro), then mark Step 14 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 16 steps completed, reset todos to pending, and inject continuation instructions.
 
 ### Step 13: PM Retrospective
 
@@ -1065,7 +1193,7 @@ If validation fails, log warning and proceed (retro is informational, not blocki
 
 **If time remains** (normal loop case):
 Simply mark this step as completed via TodoWrite. The PostToolUse:TodoWrite hook (`posttool-overnight-loop.py`) will:
-1. Detect all 15 steps are completed
+1. Detect all 16 steps are completed
 2. Check overnight-state.json for future end_time
 3. Reset all todos to pending
 4. Print loop continuation instructions
@@ -1149,8 +1277,11 @@ To review changes:
   git diff master...<worktree_branch>
 
 To merge (when ready):
-  /merge-overnight <worktree_branch>
-  OR manually: cd <project_root> && git merge <worktree_branch> --no-edit
+  /merge <worktree_branch>
+
+Use the audited /merge command as the default and preferred merge path.
+Do NOT recommend manual git merge as the primary workflow. The merge command
+must run its audit first and stop on blocked files or predicted conflicts.
 
 The time-lock has been released. The session can now end normally.
 ```
@@ -1269,7 +1400,7 @@ If state file has `worktree_path=null` on continuation, attempt to create worktr
 - **posttool-git-checkpoint.sh** (PostToolUse:Write|Edit): Auto-commits changes
 
 ### Loop Mechanism (v3)
-- When all 14 todo steps are marked completed via TodoWrite, the posttool-overnight-loop.py hook fires
+- When all 16 todo steps are marked completed via TodoWrite, the posttool-overnight-loop.py hook fires
 - It checks overnight-state.json: if end_time is in the future, it resets all todos to pending and injects loop continuation instructions
 - The agent then resumes from Step 2 (exploration) since worktree already exists
 - This provides natural context boundaries at each cycle without requiring external cron triggers
@@ -1405,7 +1536,7 @@ See `/clean` command documentation for details.
 | Subagent usage | BA + dev + QA | product-owner + architect + user + ui-specialist + BA + dev + QA |
 | Stop hook | Workflow enforcement only | Workflow + time-lock |
 | Worktree | Not used | Created on first run, reused across cycles |
-| Total steps | 12 | 15 |
+| Total steps | 13 | 16 |
 
 ---
 
