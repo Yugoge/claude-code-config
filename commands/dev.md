@@ -26,6 +26,8 @@ BA clarification loop (if BA needs user input, max 3 rounds)
   ↓
 Validate BA output (ba-spec + context JSON)
   ↓
+QA validates BA conclusions (analysis quality check)
+  ↓
 Delegate to dev subagent (implementation)
   ↓
 Delegate to QA subagent (verification)
@@ -64,9 +66,19 @@ Extract requirement from `$ARGUMENTS`:
 Requirement: "$ARGUMENTS"
 ```
 
+**Parse `--spec`**: If `$ARGUMENTS` contains `--spec <path>`, extract the path and remove the flag from the requirement text. Store as `spec_path`.
+
+**Auto-detect spec**: If `--spec` is NOT provided, scan `docs/dev/specs/*.md` sorted by modification time (newest first). If a file exists, set `spec_path` to that path and announce:
+```
+Auto-detected spec: <path>
+(Created by /spec — pass --spec <other-path> to override.)
+```
+
+If no spec found, set `spec_path = null`. All downstream behavior is unchanged when `spec_path` is null.
+
 **Edge cases**:
 - Empty `$ARGUMENTS` → Prompt user for requirement
-- Otherwise → Pass raw text to BA subagent in Step 2
+- Otherwise → Pass raw text (minus --spec flag) to BA subagent in Step 2
 
 **Keep this step lightweight** - BA subagent handles all analysis.
 
@@ -116,6 +128,9 @@ Use Task tool with:
   Previous answers: null
   Codebase hints: <any file paths mentioned by user, or null>
   Timestamp: <YYYYMMDD-HHMMSS>
+  Spec file: <spec_path or null>
+
+  If Spec file is not null: Read the spec file FIRST. Use Section 5 (User's Acceptance Criterion) as the primary requirement source. Use Sections 1-4 as baseline context. If Section 7 (What Must Be Done) is populated, treat it as prescriptive guidance.
 
   Perform full analysis:
   1. Parse and decompose requirement
@@ -181,7 +196,120 @@ Read BA output files:
 - Re-invoke BA with specific feedback about what's missing
 - Maximum 2 re-invocations for validation fixes
 
-**If validation passes**: Proceed to Step 6
+**If validation passes**: Proceed to Step 5a
+
+### Step 5a: QA Validates BA Conclusions
+
+**Purpose**: Verify BA's analysis quality BEFORE Dev starts implementation. Catches unproven claims, scope mismatches, and missing investigation evidence early -- saving a wasted Dev+QA cycle.
+
+**Invoke QA in BA-validation mode**:
+
+```
+Use Agent tool with:
+- subagent_type: "qa"
+- description: "Validate BA analysis quality (not code)"
+- prompt: "
+  You are the QA subagent in BA-VALIDATION MODE. This is NOT code verification.
+  You are verifying the QUALITY OF BA's ANALYSIS, not any implementation.
+
+  DO NOT: build, deploy, open browser, run Playwright, or test code.
+  DO: read BA's deliverables and challenge every claim.
+
+  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  Context JSON: docs/dev/context-<timestamp>.json
+  Spec file: <spec_path or null>
+
+  Verify these 4 dimensions:
+
+  1. EVIDENCE QUALITY: For every factual claim BA makes (root cause, affected files,
+     component identification), is there evidence? 'BA says so' is not evidence.
+     Look for: git blame output, file path verification, code grep results,
+     import chain tracing. Flag claims stated as fact without investigation proof.
+
+  2. SCOPE ALIGNMENT: Compare BA's bug title and acceptance criteria against
+     the original requirement (and spec Section 5 if available). Did BA narrow,
+     rename, or redefine the bug? Is anything from the original requirement
+     missing from BA's analysis?
+
+  3. INVESTIGATION COMPLETENESS: If the requirement says 'audit X', 'investigate Y',
+     or 'trace Z' -- did BA actually do it, or did BA skip the investigation and
+     jump to a conclusion? Check for investigation deliverables the requirement
+     explicitly asked for.
+
+  4. AFFECTED-FILE ACCURACY: Are the files BA identified actually the right files?
+     Quick-verify: do the file paths exist? Do they contain the code BA claims?
+     Does the import chain support BA's component identification?
+
+  Return JSON:
+  {
+    'verdict': 'pass' or 'fail',
+    'objections': [
+      {
+        'dimension': 'evidence_quality|scope_alignment|investigation_completeness|affected_file_accuracy',
+        'claim': 'what BA claimed',
+        'problem': 'what is wrong with the claim',
+        'required_evidence': 'what BA must provide to satisfy this objection'
+      }
+    ],
+    'summary': 'one-line overall assessment'
+  }
+
+  Write report to: docs/dev/ba-qa-report-<timestamp>.json
+  "
+```
+
+**Process QA result**:
+
+```
+IF verdict == "pass":
+  -> BA conclusions validated. Proceed to Step 6.
+
+ELIF verdict == "fail":
+  -> BA-QA iteration needed.
+```
+
+**BA-QA Iteration Loop** (max 3 iterations):
+
+If QA rejects BA's conclusions:
+
+1. Announce: `BA-QA iteration <N>/3: QA found <count> objections in BA analysis. Re-invoking BA.`
+
+2. Re-invoke BA with QA's objections:
+```
+Use Agent tool with:
+- subagent_type: "ba"
+- description: "Re-investigate: address QA objections on analysis quality"
+- prompt: "
+  You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  Your previous analysis was REJECTED by QA. Address each objection below
+  with concrete evidence. Do not argue -- investigate and provide proof.
+
+  Original requirement: '<requirement>'
+  Previous BA spec: docs/dev/ba-spec-<timestamp>.md
+  Previous context: docs/dev/context-<timestamp>.json
+  Spec file: <spec_path or null>
+
+  QA objections:
+  <JSON array of objections from ba-qa-report>
+
+  For each objection:
+  - Perform the investigation QA requested
+  - Provide the specific evidence QA asked for
+  - If your original claim was wrong, CORRECT it
+  - If your original claim was right, PROVE it with evidence
+
+  Update ba-spec and context JSON with corrected/proven analysis.
+  Return JSON with status and updated file paths.
+  "
+```
+
+3. Re-invoke QA to validate updated BA output (same prompt as above).
+
+4. If still failing after 3 iterations:
+   - Announce: `BA-QA validation: 3 iterations exhausted. Proceeding with best-effort BA output. Unresolved objections documented.`
+   - Append unresolved objections to context JSON under `ba_qa_unresolved_objections`
+   - Proceed to Step 6 with documented assumptions
 
 ### Step 6: Delegate to Dev Subagent
 
@@ -195,7 +323,10 @@ Use Task tool with:
 
   Context file: docs/dev/context-<timestamp>.json
   BA spec file: docs/dev/ba-spec-<timestamp>.md
+  Spec file: <spec_path or null>
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
+
+  If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
   "
 ```
 
@@ -235,7 +366,10 @@ Use Task tool with:
   Context file: docs/dev/context-<timestamp>.json
   Dev report file: docs/dev/dev-report-<timestamp>.json
   BA spec file: docs/dev/ba-spec-<timestamp>.md
+  Spec file: <spec_path or null>
   Write your verification report to: docs/dev/qa-report-<timestamp>.json
+
+  If Spec file is not null: Read the spec file FIRST. After verification, update the spec: Section 4 (Current State) with measured values. If verdict is fail, also update Section 6 (Why Not Met) and Section 7 (What Must Be Done) with prescriptive next steps.
   "
 ```
 
