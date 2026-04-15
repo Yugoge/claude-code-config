@@ -46,3 +46,6 @@ Thumbs.db
 logs/
 session-env/
 systemd/
+
+# File history (contains session data, may include secrets)
+file-history/

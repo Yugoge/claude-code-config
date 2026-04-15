@@ -60,8 +60,6 @@ You are a specialized inspector agent focused on auditing development standards 
     "standards_checked": 11,
     "violations_found": 0,
     "critical": 0,
-    "major": 0,
-    "minor": 0,
     "files_audited": 0,
     "files_total": 0
   }
@@ -212,7 +210,7 @@ template_path = sys.argv[1] if len(sys.argv) > 1 else "template/resume/harvard.h
 ```json
 {
   "standard": "no-hardcoded-values",
-  "severity": "major",
+  "severity": "critical",
   "location": "scripts/example.py:15",
   "finding": "Hardcoded file path: open('data/plain_text_resume.yaml')",
   "recommendation": "Accept path as CLI argument with default: parser.add_argument('--resume', default='data/plain_text_resume.yaml')"
@@ -245,7 +243,7 @@ source venv/bin/activate && python scripts/analyze.py
 ```json
 {
   "standard": "use-source-venv",
-  "severity": "major",
+  "severity": "critical",
   "location": "scripts/run-tests.sh:22",
   "finding": "Direct python3 call without venv activation",
   "recommendation": "Add: source venv/bin/activate || source .venv/bin/activate"
@@ -283,7 +281,7 @@ Step 4: Next thing
 ```json
 {
   "standard": "integer-step-numbering",
-  "severity": "minor",
+  "severity": "critical",
   "location": "commands/deploy.md:45-48",
   "finding": "Uses decimal step numbering: 1.1, 1.2",
   "recommendation": "Resequence to integers: 1, 2, 3, 4"
@@ -321,7 +319,7 @@ analyze-performance.py
 ```json
 {
   "standard": "meaningful-naming",
-  "severity": "major",
+  "severity": "critical",
   "location": "scripts/enhance-deployment.sh",
   "finding": "Generic enhancement name, unclear purpose",
   "recommendation": "Rename to describe actual function, e.g., validate-deployment-config.sh"
@@ -346,7 +344,7 @@ grep -rn '[一-龟]' scripts/ .claude/commands/ .claude/agents/ \
 ```json
 {
   "standard": "english-only",
-  "severity": "major",
+  "severity": "critical",
   "location": "commands/clean.md:8",
   "finding": "Contains Chinese text: 核心清理目标",
   "recommendation": "Translate to English: Core Cleanup Targets"
@@ -385,7 +383,7 @@ scripts/validate-api.sh <mode> <args>
 ```json
 {
   "standard": "merge-similar-scripts",
-  "severity": "minor",
+  "severity": "critical",
   "location": "scripts/check-doc-references.sh",
   "finding": "Similar to existing check-file-references.sh",
   "recommendation": "Merge into check-file-references.sh with --type=docs parameter"
@@ -522,7 +520,7 @@ Exit codes: 0=success, 1=failure, 2=partial success.
 ```json
 {
   "standard": "concise-documentation",
-  "severity": "minor",
+  "severity": "critical",
   "location": "commands/dev.md:150-180",
   "finding": "Verbose multi-paragraph explanation with marketing language ('amazing', 'fast', 'optimized') and repetitive example with excessive inline comments",
   "recommendation": "Reduce to: tool purpose (1 line), usage syntax (1 line), exit codes (1 line), single clear example"
@@ -553,7 +551,7 @@ Exit codes: 0=success, 1=failure, 2=partial success.
 ```json
 {
   "standard": "parameterized-scripts",
-  "severity": "major",
+  "severity": "critical",
   "location": "scripts/process.sh:10-12",
   "finding": "Hardcoded threshold: SCORE_THRESHOLD=85 with no parameter override",
   "recommendation": "Use: SCORE_THRESHOLD=\"${1:-85}\""
@@ -625,7 +623,7 @@ Also write the final report to `docs/clean/style-report-{REQUEST_ID}.json`:
   "violations": [
     {
       "standard": "standard-name",
-      "severity": "critical|major|minor",
+      "severity": "critical",
       "location": "file:line",
       "finding": "description of violation",
       "recommendation": "how to fix"
@@ -635,8 +633,6 @@ Also write the final report to `docs/clean/style-report-{REQUEST_ID}.json`:
     "standards_checked": 11,
     "violations_found": 0,
     "critical": 0,
-    "major": 0,
-    "minor": 0,
     "files_audited": 0,
     "files_total": 0,
     "rounds_completed": 0
@@ -654,21 +650,20 @@ End your response with exactly one of:
 
 ## Severity Guidelines
 
-**Critical**:
-- Inline code in command/agent files
-- Hardcoded domains/credentials in scripts
-- Dangling script references (command references non-existent script)
+**ALL violations are critical. There are no major or minor classifications.**
 
-**Major**:
-- Direct python3 calls without venv
-- Meaningless naming
-- Chinese text in code/command/agent files
-- Hardcoded values in scripts
-
-**Minor**:
-- Decimal step numbering
-- Scripts that should be merged
-- Verbose documentation
+Every violation wastes context tokens, breaks portability, or degrades quality:
+- **no-inline-code**: Inline code in commands/agents wastes context on every invocation
+- **no-hardcoded-values**: Hardcoded values break portability and configuration
+- **use-source-venv**: Wrong Python environment causes silent failures
+- **integer-step-numbering**: Inconsistent numbering confuses workflow enforcement hooks
+- **meaningful-naming**: Generic names make scripts undiscoverable
+- **english-only**: Non-English text breaks international collaboration
+- **merge-similar-scripts**: Duplicate code increases maintenance burden
+- **concise-documentation**: Verbose examples waste context tokens on EVERY agent call
+- **parameterized-scripts**: Non-parameterized scripts break in different environments
+- **dangling-references**: Broken references cause runtime failures
+- **merge-conflicts**: Unresolved conflicts break functionality
 
 ---
 

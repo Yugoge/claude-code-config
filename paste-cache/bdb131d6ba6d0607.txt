@@ -1,0 +1,36 @@
+root@life-ai:~/happy/packages/happy-cli# bash /root/bin/happy-session-recovery.sh restore
+[2026-04-04 13:52:32] Starting session recovery...
+[2026-04-04 13:52:32] Daemon(s) available, starting restore
+[2026-04-04 13:52:32] Waiting for server at http://188.245.32.161:3000 ...
+[2026-04-04 13:52:32] Server reachable after 0s
+[2026-04-04 13:52:34] Restoring 6 sessions for /root/.happy
+[2026-04-04 13:52:34] Restoring 11df4f77-5620-4957-b99b-31748e361aa5 in /root via /root/.happy
+[2026-04-04 13:52:34] Spawning via /root/.happy: env=[HAPPY_HOME_DIR=/root/.happy HAPPY_SERVER_URL=http://188.245.32.161:3000] dir=/root (cgroup=happy-daemon.service)
+[2026-04-04 13:52:34] Spawned via /root/.happy: PID=4097044 claudeId=11df4f77-5620-4957-b99b-31748e361aa5 dir=/root
+[2026-04-04 13:52:39] Restoring 353c80f2-a42c-4924-8d54-f5e5d6c84c1e in /root/application-assistant via /root/.happy
+[2026-04-04 13:52:39] Spawning via /root/.happy: env=[HAPPY_HOME_DIR=/root/.happy HAPPY_SERVER_URL=http://188.245.32.161:3000] dir=/root/application-assistant (cgroup=happy-daemon.service)
+[2026-04-04 13:52:39] Spawned via /root/.happy: PID=4097165 claudeId=353c80f2-a42c-4924-8d54-f5e5d6c84c1e dir=/root/application-assistant
+[2026-04-04 13:52:44] Restoring 817e8407-1601-4b06-a9da-cf2c2cc61006 in /root/knowledge-system via /root/.happy
+[2026-04-04 13:52:44] Spawning via /root/.happy: env=[HAPPY_HOME_DIR=/root/.happy HAPPY_SERVER_URL=http://188.245.32.161:3000] dir=/root/knowledge-system (cgroup=happy-daemon.service)
+[2026-04-04 13:52:44] Spawned via /root/.happy: PID=4097277 claudeId=817e8407-1601-4b06-a9da-cf2c2cc61006 dir=/root/knowledge-system
+[2026-04-04 13:52:49] Restoring 9162590b-9560-426a-be69-9b11b141747e in /root/knowledge-system via /root/.happy
+[2026-04-04 13:52:49] Spawning via /root/.happy: env=[HAPPY_HOME_DIR=/root/.happy HAPPY_SERVER_URL=http://188.245.32.161:3000] dir=/root/knowledge-system (cgroup=happy-daemon.service)
+[2026-04-04 13:52:49] Spawned via /root/.happy: PID=4097388 claudeId=9162590b-9560-426a-be69-9b11b141747e dir=/root/knowledge-system
+[2026-04-04 13:52:54] Restoring 9bef2d5a-5963-4b6c-a0b1-7d913224cbba in /root/application-assistant via /root/.happy
+[2026-04-04 13:52:54] Spawning via /root/.happy: env=[HAPPY_HOME_DIR=/root/.happy HAPPY_SERVER_URL=http://188.245.32.161:3000] dir=/root/application-assistant (cgroup=happy-daemon.service)
+[2026-04-04 13:52:54] Spawned via /root/.happy: PID=4097460 claudeId=9bef2d5a-5963-4b6c-a0b1-7d913224cbba dir=/root/application-assistant
+[2026-04-04 13:52:59] Restoring a1e9b8d2-162c-40fd-941d-6fec5a3c3ba1 in /root/knowledge-system via /root/.happy
+[2026-04-04 13:52:59] Spawning via /root/.happy: env=[HAPPY_HOME_DIR=/root/.happy HAPPY_SERVER_URL=http://188.245.32.161:3000] dir=/root/knowledge-system (cgroup=happy-daemon.service)
+[2026-04-04 13:52:59] Spawned via /root/.happy: PID=4097573 claudeId=a1e9b8d2-162c-40fd-941d-6fec5a3c3ba1 dir=/root/knowledge-system
+[2026-04-04 13:53:04] /root/.happy-jade: session_dirs.txt empty, trying peak JSON snapshot...
+[2026-04-04 13:53:05] Using peak snapshot: 2026-04-04-13-41.json
+[2026-04-04 13:53:05] Restoring 2 sessions for /root/.happy-jade
+[2026-04-04 13:53:05] Restoring 24ac74b3-c465-4808-8845-ad644572751a in /root via /root/.happy-jade
+[2026-04-04 13:53:05] Spawning via /root/.happy-jade: env=[HAPPY_HOME_DIR=/root/.happy-jade HAPPY_SERVER_URL=http://188.245.32.161:3000] dir=/root (cgroup=happy-daemon-jade.service)
+[2026-04-04 13:53:05] Spawned via /root/.happy-jade: PID=4097873 claudeId=24ac74b3-c465-4808-8845-ad644572751a dir=/root
+[2026-04-04 13:53:10] Restoring 610b36ac-0ce2-4cc6-8984-89c3cda3c6dd in /root via /root/.happy-jade
+[2026-04-04 13:53:10] Spawning via /root/.happy-jade: env=[HAPPY_HOME_DIR=/root/.happy-jade HAPPY_SERVER_URL=http://188.245.32.161:3000] dir=/root (cgroup=happy-daemon-jade.service)
+[2026-04-04 13:53:10] Spawned via /root/.happy-jade: PID=4097982 claudeId=610b36ac-0ce2-4cc6-8984-89c3cda3c6dd dir=/root
+[2026-04-04 13:53:15] Skip /root/.happy-dev: daemon not running
+[2026-04-04 13:53:15] Recovery: total=8 running=0 restored=8 skipped=0 failed=0
+root@life-ai:~/happy/packages/happy-cli#

@@ -85,11 +85,19 @@ def _mark_session_complete(state: dict, state_path: Path) -> None:
 
 
 def _update_state_cycle(state: dict, state_path: Path) -> None:
-    """Increment cycle_count, reset phase and pipeline tracking in state file."""
+    """Increment cycle_count, reset phase and pipeline tracking in state file.
+
+    Preserves session-level data (pm_triage_reports, pm_retro_reports) across cycles.
+    Resets per-cycle data (current_issues, unresolved_issues).
+    """
     state['cycle_count'] = state.get('cycle_count', 0) + 1
     state['current_phase'] = 'exploring'
     state['current_issues'] = []  # Clear pipeline array for next cycle
-    # Backward compat: also clear legacy fields if present
+    state['unresolved_issues'] = []  # Reset for next cycle
+    # Ensure session-level report arrays exist (preserve across cycles)
+    state.setdefault('pm_triage_reports', [])
+    state.setdefault('pm_retro_reports', [])
+    # Backward compat: remove legacy v5 fields if present
     state.pop('current_issue', None)
     state.pop('current_issue_iteration', None)
     tmp = state_path.with_suffix('.tmp')

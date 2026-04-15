@@ -36,6 +36,8 @@ jq -r '
 + "\n  End:      " + (.end_time // "unknown")
 + "\n  Clean sweeps: " + (.consecutive_clean_sweeps // 0 | tostring)
 + "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
++ "\n  Triage reports:  " + ((.pm_triage_reports // []) | length | tostring)
++ "\n  Retro reports:   " + ((.pm_retro_reports // []) | length | tostring)
 + "\n  Unresolved: " + ((.unresolved_issues // []) | length | tostring) + " issues"
 + (if ((.unresolved_issues // []) | length) > 0 then
     "\n" + ((.unresolved_issues // []) | map("    - [" + (.severity // "?") + "] " + (.description // "?")[0:60]) | join("\n"))

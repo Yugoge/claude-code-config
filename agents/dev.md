@@ -418,6 +418,33 @@ If you created `scripts/validate-timeout.sh`:
 
 **QA will verify and orchestrator will update settings.json**
 
+### Post-Implementation Self-Verification (MANDATORY)
+
+Before reporting success, you MUST verify your changes at two levels:
+
+1. **Build verification**: Run the project's build command (e.g., `npm run build`, `docker build`). If it fails, fix the errors before reporting.
+
+2. **Behavioral smoke check**: If the context JSON includes executable acceptance criteria or validation commands, run them. If the actual result differs from expected, investigate — do NOT report success with a known discrepancy.
+
+This is NOT QA's job — QA does thorough verification. This is a basic sanity check to catch:
+- Changes that don't compile
+- Changes made in the wrong directory (e.g., worktree vs Docker build context)
+- CSS overrides that didn't take effect (check computed styles if applicable)
+- Import errors, typos, missing dependencies
+
+**Report format**: Include a `self_verification` field in your dev report:
+```json
+{
+  "self_verification": {
+    "build": "pass|fail",
+    "smoke_check": "pass|fail|skipped (no executable criteria)",
+    "notes": "<any discrepancies found>"
+  }
+}
+```
+
+If either check fails and you cannot fix it, report `"status": "blocked"` instead of `"status": "success"`.
+
 ---
 
 ## Output Format

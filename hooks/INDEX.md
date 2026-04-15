@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-03-24T22:43:06Z*
-**Total entries**: 61
+*Last updated: 2026-04-15T19:53:21Z*
+**Total entries**: 72
 **Convention**: kebab
 
 ## Tree
@@ -36,10 +36,13 @@ hooks/
 ├── `install.sh` - ============================================================================
 ├── `post-commit-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
 ├── `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
+├── `posttool-command-frontmatter-validate.py` - PostToolUse Hook: Validate .claude/commands/*.md frontmatter structure
 ├── `posttool-doc-sync.py` - PostToolUse Hook: Auto-sync INDEX.md and CLAUDE.md when structural files change
 ├── `posttool-git-checkpoint.sh` - smart-checkpoint.sh - Intelligent auto-checkpoint system
 ├── `posttool-git-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
+├── `posttool-overnight-file-check.py` - PostToolUse:Agent Hook: Verify overnight subagent output files exist
 ├── `posttool-overnight-loop.py` - PostToolUse:TodoWrite Hook: Overnight Loop Detection
+├── `posttool-subagent-track.py` - PostToolUse:Agent Hook: Track subagent invocations in workflow bookmark
 ├── `posttool-todo-count.py` - PostToolUse Hook: Enforce canonical todo count immediately after TodoWrite
 ├── `posttool-todo-sequence.py` - PostToolUse Hook: Enforce one-step-at-a-time progression in workflow checklists
 ├── `posttool-todo-tracker.py` - PostToolUse Hook: Output checklist progress after every TodoWrite call
@@ -47,11 +50,19 @@ hooks/
 ├── `pre_slashcommand_validate.sh` - pre_slashcommand_validate.sh
 ├── `pre_tool_use_safety.sh` - PreToolUse Safety Hook - Warn before dangerous operations
 ├── `pretool-bash-safety.sh` - PreToolUse Safety Hook - Warn or block before dangerous operations
+├── `pretool-block-enterworktree.sh` - PreToolUse hook: Block EnterWorktree tool
+├── `pretool-block-production-files.sh` - PreToolUse hook: Block Write/Edit to production paths from dev environment
+├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
+├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
+├── `pretool-orchestrator-gate.py` - PreToolUse Hook: Orchestrator Gate
 ├── `pretool-overnight-hook-guard.py` - PreToolUse Hook: Overnight session file modification guard
 ├── `pretool-quality-gate.py` - PreToolUse Hook: Quality gate for Write/Edit operations
+├── `pretool-read-size-guard.py` - PreToolUse Hook: Read Size Guard
+├── `pretool-subagent-enforce.py` - PreToolUse Hook: Enforce subagent invocation at designated workflow steps
 ├── `pretool-todo-validate.py` - PreToolUse Hook: Validate TodoWrite input BEFORE execution
 ├── `pretool-workflow-gate.py` - PreToolUse Hook: Require TodoWrite/TodoRead acknowledgment before other tools
 ├── `pretool-worktree-guard.sh` - PreToolUse hook: Detect stale agent worktrees before ANY tool call
+├── `pretool-write-guard.sh` - PreToolUse Hook - Block Write tool from overwriting existing files
 ├── `project-settings-template.json` - json config
 ├── `prompt-workflow.py` - UserPromptSubmit Hook: Checklist Injection for Slash Commands
 ├── `protection-status.sh` - protection-status.sh - Display protection status for all git repositories

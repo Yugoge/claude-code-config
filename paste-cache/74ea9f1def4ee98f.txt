@@ -1,0 +1,21 @@
+root@life-ai:~# grep -c "sendExisting" /root/happy/packages/happy-cli/dist/index-*.mjs
+/root/happy/packages/happy-cli/dist/index-ClsViIPu.mjs:0
+/root/happy/packages/happy-cli/dist/index-CSXLdU_1.mjs:3
+root@life-ai:~# grep -c "shouldHideParentToolCall" /root/happy/packages/happy-cli/dist/types-*.mjs
+0
+root@life-ai:~# echo "=== default ===" && cat /root/.happy/session_dirs.txt && echo "=== jade ===" && cat
+  /root/.happy-jade/session_dirs.txt && echo "=== dev ===" && cat /root/.happy-dev/session_dirs.txt
+=== default ===
+# Happy Session Snapshot - 2026-04-04 13:53:30
+# Format: claude_uuid:working_dir
+# Count: 6
+11df4f77-5620-4957-b99b-31748e361aa5:/root
+353c80f2-a42c-4924-8d54-f5e5d6c84c1e:/root/application-assistant
+817e8407-1601-4b06-a9da-cf2c2cc61006:/root/knowledge-system
+9162590b-9560-426a-be69-9b11b141747e:/root/knowledge-system
+9bef2d5a-5963-4b6c-a0b1-7d913224cbba:/root/application-assistant
+a1e9b8d2-162c-40fd-941d-6fec5a3c3ba1:/root/knowledge-system
+=== jade ===
+^C
+-bash: /root/.happy-jade/session_dirs.txt: Permission denied
+root@life-ai:~#

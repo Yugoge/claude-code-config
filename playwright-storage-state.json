@@ -1,0 +1,31 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "https://dev.life-ai.app",
+      "localStorage": [
+        {
+          "name": "auth_credentials",
+          "value": "{\"token\":\"eyJhbGciOiJFZERTQSJ9.eyJzdWIiOiJjbWk1bXY5ZWgwMHd6cGcxNHBoNzNqajNuIiwiaWF0IjoxNzczNDc4MzIwLCJuYmYiOjE3NzM0NzgzMjAsImlzcyI6ImhhbmR5IiwianRpIjoiOGE2MTRjNDAtMWVhNS00ZGRjLWFiYjgtYmI2NDdhZjNhNDVlIn0.qtK1jZFkprfJXyJ_DzuDX5yAXgUWVPzxRKLGdQSENueFC3u7xPwBT0Y9fsntDCJD5Q4eg2JZXMriqyBRx6lCBw\",\"secret\":\"gWwKFlcU7I3OixXUE-aiUEEEZyzRCQSL583hd3WgALs\"}"
+        },
+        {
+          "name": "mmkv.server-config\\custom-server-url",
+          "value": "https://api.life-ai.app"
+        }
+      ]
+    },
+    {
+      "origin": "http://localhost:8097",
+      "localStorage": [
+        {
+          "name": "auth_credentials",
+          "value": "{\"token\":\"eyJhbGciOiJFZERTQSJ9.eyJzdWIiOiJjbWk1bXY5ZWgwMHd6cGcxNHBoNzNqajNuIiwiaWF0IjoxNzczNDc4MzIwLCJuYmYiOjE3NzM0NzgzMjAsImlzcyI6ImhhbmR5IiwianRpIjoiOGE2MTRjNDAtMWVhNS00ZGRjLWFiYjgtYmI2NDdhZjNhNDVlIn0.qtK1jZFkprfJXyJ_DzuDX5yAXgUWVPzxRKLGdQSENueFC3u7xPwBT0Y9fsntDCJD5Q4eg2JZXMriqyBRx6lCBw\",\"secret\":\"gWwKFlcU7I3OixXUE-aiUEEEZyzRCQSL583hd3WgALs\"}"
+        },
+        {
+          "name": "mmkv.server-config\\custom-server-url",
+          "value": "https://api.life-ai.app"
+        }
+      ]
+    }
+  ]
+}
