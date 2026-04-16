@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-04-15T19:53:21Z*
-**Total entries**: 72
+*Last updated: 2026-04-16T06:09:47Z*
+**Total entries**: 73
 **Convention**: kebab
 
 ## Tree
@@ -78,6 +78,7 @@ hooks/
 ├── `stop-git-commit.sh` - ============================================================================
 ├── `stop-overnight-timelock.py` - Stop Hook: Block conversation termination until overnight end-time
 ├── `stop-workflow-enforce.py` - Stop Hook: Enforce workflow structural integrity before allowing Claude to stop
+├── `subagent-stop-diff-check.sh` - SubagentStop hook: flag large diffs without minimum-diff justification
 └── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
 ```
 

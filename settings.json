@@ -440,6 +440,17 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/subagent-stop-diff-check.sh\""
+          }
+        ]
+      }
     ]
   },
   "alwaysThinkingEnabled": true,
