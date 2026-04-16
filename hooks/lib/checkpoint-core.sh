@@ -414,7 +414,9 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
     while [ "$retry" -lt "$CHECKPOINT_CAS_MAX_RETRIES" ]; do
         retry=$((retry + 1))
 
-        local old_ref_sha parent_sha parent_tree
+        local old_ref_sha=""
+        local parent_sha=""
+        local parent_tree=""
         old_ref_sha=$($git_cmd rev-parse --verify -q "$ref" 2>/dev/null || true)
         if [ -n "$old_ref_sha" ]; then
             parent_sha="$old_ref_sha"
