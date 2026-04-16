@@ -229,6 +229,7 @@ write_checkpoint() {
     abs_git_dir=$($git_cmd rev-parse --absolute-git-dir 2>/dev/null)
     if [ -z "$abs_git_dir" ]; then
         _checkpoint_log ERROR "cannot resolve absolute git dir (work_dir='${work_dir}')"
+        _checkpoint_record_failure
         return 1
     fi
 
