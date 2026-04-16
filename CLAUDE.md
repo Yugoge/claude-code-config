@@ -9,7 +9,7 @@
 
 > Personal global settings for all projects
 <!-- AUTO:last-updated -->
-> Last updated: 2026-03-24
+> Last updated: 2026-04-16
 <!-- /AUTO:last-updated -->
 
 ---
@@ -356,7 +356,7 @@ Files: `/root/deploy/auth-pages/{default,jade,qijie,dev}/index.html`
 
 ### Docker Services (compose: `/root/deploy/docker-compose.yml`)
 <!-- AUTO:docker-services -->
-All 16 containers managed by single compose project, `restart: always`:
+All 22 containers managed by single compose project, `restart: always`:
 | Service | Container | Port | Notes |
 |---------|-----------|------|-------|
 | postgres | happy-postgres | internal | postgres:15-alpine |
@@ -365,6 +365,10 @@ All 16 containers managed by single compose project, `restart: always`:
 | happy-server | happy-server | 3000→3005 | happy-server-happy-server; depends on postgres, redis, minio |
 | cloudflared-lifeai | cloudflared-lifeai | host network | cloudflare/cloudflared:latest; depends on happy-server, happy-web, budget-web, applio-web |
 | happy-web | happy-web | 8090→80 | happy-app:message-fixes; depends on happy-server |
+| postgres-dev | happy-postgres-dev | internal | postgres:15-alpine |
+| redis-dev | happy-redis-dev | internal | redis:7-alpine |
+| happy-server-dev | happy-server-dev | 3005→3005 | happy-server-dev:latest; depends on postgres-dev, redis-dev, minio |
+| happy-web-dev | happy-web-dev | 8097→80 | happy-app:dev; depends on happy-server-dev |
 | knowledge-web | knowledge-web | 8092→80 | nginx:alpine |
 | budget-web | budget-web | 8093→80 | nginx:alpine |
 | leadership-web | leadership-web | 8091→80 | nginx:alpine |
@@ -374,7 +378,9 @@ All 16 containers managed by single compose project, `restart: always`:
 | applio-redis | applio-redis | internal | redis:7-alpine |
 | applio-api | applio-api | internal | applio-api:latest; depends on applio-postgres, applio-redis |
 | applio-worker | applio-worker | internal | applio-api:latest; depends on applio-api |
+| applio-beat | applio-beat | internal | applio-api:latest; depends on applio-api |
 | applio-web | applio-web | 8096→3000 | applio-web:latest; depends on applio-api |
+| ib-gateway | ib-gateway | 127.0.0.1→4001→4003, 127.0.0.1→4002→4004, 127.0.0.1→5900→5900 | ghcr.io/gnzsnz/ib-gateway:stable |
 <!-- /AUTO:docker-services -->
 
 ### Systemd Services (non-Docker)
@@ -401,10 +407,8 @@ All 16 containers managed by single compose project, `restart: always`:
 ## 📦 Claude Infrastructure Inventory
 
 <!-- AUTO:claude-inventory -->
-- **commands**: 25 files
-- **agents**: 21 files
-- **hooks**: 23 files
-- **scripts**: 22 files
+- **commands**: 2 files
+- **skills**: 0 active
 <!-- /AUTO:claude-inventory -->
 
 ---
