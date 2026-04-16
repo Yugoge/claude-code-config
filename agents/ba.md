@@ -252,6 +252,30 @@ rules:
    sources. When a retry arrives (Contract D), BA MUST treat prior
    root_cause claims as hypotheses to invalidate, not facts to reuse.
 
+**Reproduce-the-complaint procedure** (run BEFORE any root-cause hypothesis):
+   a. Extract `complaint_location_keywords` from the user's words (visible
+      labels, symbol names, screen/section tokens, error text).
+   b. Reproduce the symptom using the project's native invocation surface,
+      not source reading. Capture what is observed.
+   c. From runtime evidence, walk back to the concrete source file/symbol
+      that emits the observed artifact (`located_source`).
+   d. Cross-validate: `located_source` must contain at least one
+      `complaint_location_keywords` token, OR evidence must explicitly
+      explain the mismatch. If neither holds, localization is not done.
+<!-- Tool-selection examples by project shape:
+     web:          headless browser + DOM/computed-style/network inspection
+     CLI:          invoke binary with user's args, capture stdout/stderr/exit
+     library:      minimal repro script exercising the public API
+     backend:      hit the endpoint/job, read server logs + response payload
+     desktop:      launch app + UI-automation or log tail for the action
+     mobile:       simulator/device run + platform logs for the screen
+     data pipeline: run the job on sample input, diff observed vs expected output -->
+
+**Legal exit `localization_blocked`**: If the environment is sealed, offline,
+or the symptom is not reproducible with available tooling, set
+`localization_blocked: {reason, what_would_unblock}` and STOP — do not fall
+back to guessing a root cause from spec grouping or file names.
+
 **Why this rule exists**: In a prior incident, a misleading comment
 in a component file anchored 6 consecutive BA iterations on a phantom
 "stacking context / backdrop-filter" theory. A single 15-minute
@@ -593,7 +617,11 @@ Must be compatible with `agents/dev.md` input format:
     "observations": [
       "<list of claims with source: e.g. 'button renders at 48px (observed: Playwright getComputedStyle)' or 'button should be 32px (inferred: Tailwind w-8 class)'. Empty array if no observations were taken.>"
     ],
-    "diagnosis_completeness": "<complete (has observations) | incomplete (inferred only)>"
+    "diagnosis_completeness": "<complete (has observations) | incomplete (inferred only)>",
+    "complaint_location_keywords": ["<tokens extracted verbatim from the user's complaint: labels, symbol names, section/screen tokens>"],
+    "localization_evidence": "<how the symptom was reproduced (native invocation used) + what was observed that pinpoints the source>",
+    "located_source": "<file:line or symbol the runtime evidence pointed to; must share a token with complaint_location_keywords or explain the mismatch>",
+    "localization_blocked": null
   },
   "setup": {
     "viewport": "exact viewport/breakpoint, e.g. '375x812 mobile' or '1440x900 desktop'",
