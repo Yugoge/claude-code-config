@@ -551,18 +551,30 @@ The orchestrator MUST regenerate the approvals JSON (return to Step 9 Option 1 p
 
 ### Step 10: Create Safety Checkpoint
 
-Before execution, create git checkpoint:
+Before execution, create a safety checkpoint on `refs/checkpoints/<branch>`
+(NOT on HEAD — preserves git blame hygiene). The checkpoint-core library
+handles the no-changes case (exit 0) and uses an isolated temp index so
+your real staged area is untouched.
 
 ```bash
-git add -A
-git commit -m "checkpoint: Before aggressive cleanup on $(date +%Y-%m-%d)"
+bash ~/.claude/hooks/checkpoint.sh "Before /clean aggressive cleanup"
 
-# Record checkpoint in context
-CHECKPOINT_COMMIT=$(git rev-parse HEAD)
+# Record checkpoint ref in context (refs/checkpoints/<branch>, not HEAD)
+CURRENT_BRANCH=$(git branch --show-current)
+CHECKPOINT_REF="refs/checkpoints/${CURRENT_BRANCH}"
+CHECKPOINT_COMMIT=$(git rev-parse "$CHECKPOINT_REF" 2>/dev/null || echo "none")
+echo "Checkpoint ref: ${CHECKPOINT_REF} @ ${CHECKPOINT_COMMIT}"
+
 ~/.claude/scripts/orchestrator.sh record-checkpoint \
   docs/clean/context-with-reports-{REQUEST_ID}.json \
   "$CHECKPOINT_COMMIT"
 ```
+
+**Rollback**: The checkpoint lives on a detached ref, not as a HEAD
+ancestor. To recover individual files:
+`git checkout refs/checkpoints/$(git branch --show-current) -- <path>`
+For a full-tree reset (destructive, prefer file-level):
+`git reset --hard refs/checkpoints/$(git branch --show-current)`
 
 ### Step 11: Invoke Cleaner with Approvals (DELEGATION ONLY)
 
