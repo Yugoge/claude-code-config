@@ -35,6 +35,8 @@ Step 1: Create worktree (first run only)
   |                |
   |       BA-QA VALIDATION (Step 5a)
   |         Launch ALL N QA-validates-BA subagents in parallel
+  |                |
+  |       BA-QA ITERATION (Step 5b)
   |         Per-pipeline BA-QA iteration loop (max 3) if QA rejects
   |                |
   |       PARALLEL DEV PHASE (Step 6-7)
@@ -725,53 +727,68 @@ For each pipeline[i]:
     -> BA conclusions validated for pipeline {i}. Pipeline proceeds to Step 6.
 
   ELIF verdict == "fail":
-    -> BA-QA iteration needed for pipeline {i}.
+    -> Proceed to Step 5b for BA-QA iteration.
 ```
 
-**Per-Pipeline BA-QA Iteration Loop** (max 3 iterations, independent per pipeline):
+### Step 5b: BA-QA Iteration Loop (if QA rejects BA)
 
-For each pipeline where QA rejected BA's conclusions:
+**Iteration guard**: Maximum 3 BA-QA iterations per pipeline to prevent infinite loops
 
-1. Announce: `Pipeline {i} BA-QA iteration <N>/3: QA found <count> objections. Re-invoking BA.`
+**Current BA-QA iteration**: Track internally per pipeline (starts at 1)
 
-2. Re-invoke BA for that pipeline only:
+**If BA-QA iteration > 3**:
 ```
-Agent(subagent_type: "ba")
-  description: "Re-investigate pipeline {i}: address QA objections on analysis quality"
-  prompt: "
-    You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+BA-QA validation: 3 iterations exhausted for pipeline <pipeline_id>. Proceeding with best-effort BA output.
 
-    Your previous analysis was REJECTED by QA. Address each objection below
-    with concrete evidence. Do not argue -- investigate and provide proof.
+Unresolved objections:
+{summary of remaining QA objections}
 
-    Original requirement: '{pipeline.description}'
-    Previous BA spec: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
-    Previous context: docs/dev/context-{pipeline.timestamp_suffix}.json
-    Overnight spec file: {pipeline.spec_path}
-    Project root: <worktree_path from state file if set, otherwise project root>
+Appending unresolved objections to context JSON under `ba_qa_unresolved_objections`.
+Proceeding to Step 6 with documented assumptions.
+```
 
-    QA objections:
-    <JSON array of objections from ba-qa-report-{pipeline.timestamp_suffix}.json>
+**If BA-QA iteration <= 3**:
 
-    For each objection:
-    - Perform the investigation QA requested
-    - Provide the specific evidence QA asked for
-    - If your original claim was wrong, CORRECT it
-    - If your original claim was right, PROVE it with evidence
+**Announce**: `BA-QA iteration <N>/3 for pipeline <pipeline_id>: QA found <count> objections in BA analysis. Re-invoking BA to address objections.`
 
-    Update ba-spec and context JSON with corrected/proven analysis.
-    Return JSON with status and updated file paths.
+**Re-invoke BA with QA's objections**:
+
+```
+Use Agent tool with:
+- subagent_type: "ba"
+- description: "Re-investigate: address QA objections on analysis quality"
+- prompt: "
+  You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  Your previous analysis was REJECTED by QA. Address each objection below
+  with concrete evidence. Do not argue -- investigate and provide proof.
+
+  Original requirement: '<requirement>'
+  Previous BA spec: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+  Previous context: docs/dev/context-{pipeline.timestamp_suffix}.json
+  Spec file: {pipeline.spec_path}
+
+  QA objections:
+  <JSON array of objections from ba-qa-report>
+
+  For each objection:
+  - Perform the investigation QA requested
+  - Provide the specific evidence QA asked for
+  - If your original claim was wrong, CORRECT it
+  - If your original claim was right, PROVE it with evidence
+
+  Update ba-spec and context JSON with corrected/proven analysis.
+  Return JSON with status and updated file paths.
   "
 ```
 
-3. Re-invoke QA to validate updated BA output for that pipeline (same BA-validation prompt as above).
+**After BA re-delivers**: Return to Step 5 (validate BA output), then Step 5a (QA re-validates).
 
-4. If still failing after 3 iterations for a pipeline:
-   - Announce: `Pipeline {i} BA-QA validation: 3 iterations exhausted. Proceeding with best-effort BA output.`
-   - Append unresolved objections to that pipeline's context JSON under `ba_qa_unresolved_objections`
-   - Pipeline still proceeds to Step 6 with documented assumptions
+**Rule**: Every BA invocation MUST be followed by QA validation. No exceptions.
 
-**Note**: Pipelines iterate their BA-QA loops independently. A pipeline that passes on the first QA check does not wait for other pipelines' BA-QA iterations.
+**Note**: Each pipeline iterates independently. Pipeline A being in BA-QA iteration 2 does not affect Pipeline B.
+
+**Iteration tracking**: Update TodoWrite with BA-QA iteration number per pipeline.
 
 ### Step 6: Run All Dev Subagents (Parallel)
 
