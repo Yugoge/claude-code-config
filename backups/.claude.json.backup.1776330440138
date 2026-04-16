@@ -75,16 +75,16 @@
   },
   "skillUsage": {
     "ask": {
-      "usageCount": 15,
-      "lastUsedAt": 1776249538480
+      "usageCount": 16,
+      "lastUsedAt": 1776330077072
     },
     "dev-overnight": {
       "usageCount": 33,
       "lastUsedAt": 1776251925576
     },
     "dev": {
-      "usageCount": 189,
-      "lastUsedAt": 1776279563071
+      "usageCount": 193,
+      "lastUsedAt": 1776330335999
     },
     "sentiment-monitor": {
       "usageCount": 5,
@@ -115,8 +115,8 @@
       "lastUsedAt": 1774883194764
     },
     "review": {
-      "usageCount": 11,
-      "lastUsedAt": 1776281276877
+      "usageCount": 12,
+      "lastUsedAt": 1776320594549
     },
     "agent-browser": {
       "usageCount": 5,
