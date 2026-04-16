@@ -328,7 +328,10 @@ write_checkpoint() {
 
             # Build commit message (inside the lock so timestamp/file-count
             # reflect the actual committed state).
-            local summary timestamp file_count commit_body
+            local summary=""
+            local timestamp=""
+            local file_count=""
+            local commit_body=""
             timestamp=$(date '+%Y-%m-%d %H:%M:%S')
             if [ -n "$parent_tree_inner" ]; then
                 file_count=$($git_cmd diff-tree -r --name-only "$parent_tree_inner" "$tree_sha" 2>/dev/null | wc -l | tr -d ' ')
