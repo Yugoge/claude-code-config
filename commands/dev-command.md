@@ -979,6 +979,71 @@ Use Agent tool with:
 
 Pass all specialist findings to the BA subagent in Step 3 as additional context.
 
+## Four Contracts Awareness (Orchestrator Role)
+
+The BA subagent enforces four domain-agnostic contracts (see
+`~/.claude/agents/ba.md` §Four Contracts). The orchestrator MUST
+complement BA by surfacing context before delegation and verifying
+compliance after BA returns. The orchestrator does NOT re-do BA's work —
+it prepares inputs and validates outputs.
+
+### Pre-BA: surface retry signals
+
+Before delegating to BA, scan the user's request and repo state for retry
+signals. BA will independently check these, but the orchestrator must
+provide them explicitly so BA starts with ground truth:
+
+- **Retry phrasing** in user text: "again", "still", "didn't fix",
+  "Nth time", "又", "还是", "没修好", "第 N 次"
+- **Recent related commits**: `git log --oneline --grep="<keyword>" -20`
+- **Existing BA specs**: files matching `docs/dev/ba-spec-*.md` with
+  keywords from the current request
+
+Pass findings to BA in the delegation prompt under an explicit
+`prior_attempt_signals` block:
+
+    prior_attempt_signals:
+      retry_phrase: "<matched phrase or null>"
+      recent_commits: ["<hash> <subject>", ...]
+      existing_specs: ["docs/dev/ba-spec-<ts>.md", ...]
+
+### Post-BA: verify contract compliance
+
+Before proceeding to dev, verify the BA JSON context contains:
+
+- `evidence.measured.value` populated (not null, not empty string)
+- `evidence.expected.source` populated
+- `scope_expansion.all_occurrences` non-empty (or scope_expansion explicitly
+  marked `not_applicable` with reason)
+- `reference_source.tier` not `tier_3_tainted` when `copy_allowed: true`
+- If Contract D triggered: `prior_attempts.novelty_check.differs_from_all_priors = true`
+
+If any check fails, the orchestrator re-delegates to BA with explicit
+feedback naming the missing field. Do NOT proceed to dev with an
+incomplete spec.
+
+### BA rejection handling
+
+If BA returns `status: "rejected"` (Contract D novelty-check failure):
+
+- Do NOT retry BA with the same input (it will reject again)
+- Surface the rejection reason and prior-attempt layer to the user
+- Propose a different-layer approach (use the L1–L5 layer vocabulary)
+- Only after user selects a different layer, re-delegate to BA
+
+### Layer vocabulary (shared with BA)
+
+Layers from shallow to deep:
+
+- **L1 cosmetic**: styling, class names, component swap
+- **L2 structural**: layout, component hierarchy
+- **L3 data**: coordinates, schema values, regex, constants, SVG paths
+- **L4 logic**: conditions, state machines, data flow
+- **L5 infrastructure**: build, deploy, environment
+
+When dev reports back, verify implementation layer matches BA's spec layer.
+If dev changed L1 when spec called for L3, treat as failed implementation.
+
 ### Step 3: Delegate to BA Subagent
 
 **Use Task tool to invoke BA subagent for requirements analysis and context building**:
@@ -995,6 +1060,10 @@ Use Task tool with:
   Codebase hints: <any file paths mentioned by user, or null>
   Timestamp: <YYYYMMDD-HHMMSS>
   Spec file: <spec_path or null>
+  Prior attempt signals:
+    retry_phrase: <matched phrase or null>
+    recent_commits: [<hash> <subject>, ...]
+    existing_specs: [docs/dev/ba-spec-<ts>.md, ...]
 
   If Spec file is not null: Read the spec file FIRST. Use Section 5 (User's Acceptance Criterion) as the primary requirement source. Use Sections 1-4 as baseline context. If Section 7 (What Must Be Done) is populated, treat it as prescriptive guidance.
 
