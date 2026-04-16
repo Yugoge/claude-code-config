@@ -557,6 +557,17 @@ Target: 500-1500 tokens
 - <Explicit exclusion 1>
 - <Explicit exclusion 2>
 
+## Requirements Decomposition
+
+Each distinct requirement the user stated MUST be listed separately, even when they're in the same sentence. "X and Y" → 2 items. "X that also does Y" → 2 items.
+
+| ID | Source phrase (verbatim from user) | Acceptance criterion |
+|----|-----------------------------------|---------------------|
+| R1 | "<user's exact words>" | <testable criterion> |
+| R2 | ... | ... |
+
+If user's requirement contains "and" / "also" / "以及" / "并且" / multiple sentences, you MUST produce ≥2 decomposition items.
+
 ## Edge Cases & Risks
 
 - <Risk or edge case 1>
@@ -621,7 +632,49 @@ Must be compatible with `agents/dev.md` input format:
     "complaint_location_keywords": ["<tokens extracted verbatim from the user's complaint: labels, symbol names, section/screen tokens>"],
     "localization_evidence": "<how the symptom was reproduced (native invocation used) + what was observed that pinpoints the source>",
     "located_source": "<file:line or symbol the runtime evidence pointed to; must share a token with complaint_location_keywords or explain the mismatch>",
-    "localization_blocked": null
+    "localization_blocked": null,
+    "git_bisect_result": {
+      "triggered": true,
+      "suspect_commit": "<hash>",
+      "commit_message": "<message>",
+      "confirmed_by": "bisect | git-log-diff | manual-reproduction",
+      "bisect_blocked": null,
+      "reproducibility_verified": true
+    }
+  },
+  "diagnosis_layer": "L1 | L2 | L3 | L4 | L5",
+  "requirements_decomposition": [
+    {"id": "R1", "source_phrase": "<verbatim>", "acceptance_criterion": "<testable>"}
+  ],
+  "component_chain": [
+    {
+      "file": "<relative path>",
+      "line_range": "<start-end>",
+      "role": "<what this component does in the chain>",
+      "imports_from": ["<next file in chain or 'leaf'>"],
+      "evidence": "<exact grep pattern or Read line numbers that proved this hop>",
+      "verified_via": "grep | Read | both"
+    }
+  ],
+  "pre_existing_guards": [
+    {
+      "file": "<path>",
+      "line": 0,
+      "type": "if | assert | validator | css-selector-negation | type-guard",
+      "code_snippet": "<verbatim>",
+      "purpose": "<what it guards against>",
+      "removal_authorized": false
+    }
+  ],
+  "regression_investigation_checklist": {
+    "triggered": true,
+    "items": [
+      {"check": "git bisect performed", "status": "done|skipped|blocked", "evidence": "<commit or reason>"},
+      {"check": "globals.css reviewed", "status": "done|skipped", "finding": "<rule or null>"},
+      {"check": "middleware / root layout / providers audited", "status": "done|skipped", "findings": []},
+      {"check": "getComputedStyle() read on target element", "status": "done|skipped", "computed": "<value or null>"},
+      {"check": "build / deploy / dependency changes ruled out", "status": "done|skipped"}
+    ]
   },
   "setup": {
     "viewport": "exact viewport/breakpoint, e.g. '375x812 mobile' or '1440x900 desktop'",
@@ -698,6 +751,15 @@ Must be compatible with `agents/dev.md` input format:
   }
 }
 ```
+
+### Field Rules (consolidated)
+
+- **`requirements_decomposition`**: same rule as Markdown section — "and" / "also" / "以及" / "并且" / multiple sentences → ≥2 items.
+- **`diagnosis_layer`**: the layer (from the L1–L5 taxonomy already defined in Contract D) at which the ROOT CAUSE lives, not necessarily where symptoms appear. Dev's `fix_layer` must match this.
+- **`component_chain`**: every hop must be verified with a tool call. "I assume this imports from X" is invalid — grep or Read it. A `component_chain` with any unverified hop is an invalid BA output.
+- **`pre_existing_guards`**: before identifying the fix, grep for existing guards in the files you plan to modify (if / assert / validator / `:not()` selectors / type guards). Declare them here. Dev is forbidden from removing or weakening any guard unless `removal_authorized: true` is explicitly set.
+- **`regression_investigation_checklist`**: required ONLY when user's complaint contains regression keywords ("was working" / "以前" / "broke" / "regression" / "used to"). Omit the field entirely for non-regression bugs. Executes the ordered investigation already defined in the "Primary suspects for regression bugs" section above.
+- **`git_bisect_result`** (inside `root_cause_analysis`): REQUIRED when complaint contains regression keywords. If bisect couldn't run (e.g., shallow clone), set `bisect_blocked` to the reason. Omitting this field on a regression bug is an invalid BA output. See the "Primary suspects for regression bugs" section above for the bisect-first rule.
 
 ---
 

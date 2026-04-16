@@ -505,6 +505,7 @@ The dev report MUST be written to the filesystem so QA can read it directly. Als
       "minimum_possible_lines_estimate": <integer>,
       "justification_for_overage": "<string, required if lines_added > 20>" or null
     },
+    "fix_layer": "L1" | "L2" | "L3" | "L4" | "L5",
     "scope_review_requested": <boolean, true if asking orchestrator to approve a large scope>,
     "qa_ready": true,
     "qa_notes": "Run validate-timeout.sh against all production endpoints to verify",
@@ -618,6 +619,22 @@ api_call()
 # Step 4: Next thing
 # Step 5: Sub-step
 ```
+
+---
+
+## MANDATORY: Match BA's `diagnosis_layer`
+
+BA's JSON context declares `diagnosis_layer` (L1-L5 per the existing layer taxonomy). Your `fix_layer` in the dev report MUST match it. If you believe the fix needs to happen at a DIFFERENT layer than BA diagnosed, STOP and write `scope_review_requested: true` with a note explaining which layer you'd use instead — do not silently fix at a different layer. Mismatched layers are rejected by the orchestrator.
+
+---
+
+## MANDATORY: Respect BA-declared guards
+
+BA's context includes `pre_existing_guards[]` — a list of existing checks (if/assert/validator/CSS :not selectors/type guards) that must NOT be removed or weakened by your fix. Each entry has `removal_authorized: true|false`.
+
+Before editing any file listed in a guard entry, check whether your change would delete, comment out, weaken, or bypass the guard. If yes and `removal_authorized: false`, STOP — either find a different fix OR request BA re-analysis with `scope_review_requested: true`.
+
+This rule is enforced by a SubagentStop hook that scans your diff against the guard list. Removing a guard without authorization will trigger a hard warning.
 
 ---
 
