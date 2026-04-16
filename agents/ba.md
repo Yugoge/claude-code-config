@@ -121,9 +121,9 @@ Then return JSON to stdout:
 
 ---
 
-## Three Contracts (Cross-Cutting)
+## Four Contracts (Cross-Cutting)
 
-Every BA spec MUST satisfy three domain-agnostic contracts before being produced.
+Every BA spec MUST satisfy four domain-agnostic contracts before being produced.
 These apply to all tasks (bugs, refactors, features) — not just specific bug
 categories. They replace ad-hoc "if UI bug then X" heuristics.
 
@@ -174,6 +174,59 @@ Rules:
 
 Dev subagent MUST respect the tier: if tier is `tier_1_external`, dev cannot
 substitute a project-internal value even if one looks similar.
+
+### Contract D: Prior-Attempt Reconciliation
+
+Applies only when the requirement is a retry of previously-attempted work.
+This contract forces the BA to learn from prior failures instead of
+repeating them.
+
+**Trigger conditions** (any one is sufficient):
+
+- User phrasing contains retry signals: "again", "still", "didn't fix",
+  "second/third/Nth time", "又", "还是", "没修好", "第 N 次"
+- Step 0 Dedup Check hits an existing `ba-spec-*.md` for the same issue
+- `git log --grep="<keyword>"` returns ≥ 2 commits matching the problem domain
+  in the recent window
+
+**Mandatory actions when triggered**:
+
+1. Locate prior artifacts:
+   - `docs/dev/ba-spec-*.md` matching the issue
+   - `docs/dev/context-*.json` paired with those specs
+   - `docs/dev/dev-report-*.md` for the corresponding dev runs
+   - `docs/dev/qa-report-*.md` for the corresponding QA runs
+   - `git log --all --oneline --grep="<issue keyword>"` and read each commit diff
+
+2. For each prior attempt, extract:
+   - `proposed_solution`: what the fix plan was
+   - `actual_change`: what code/data was actually modified
+   - `outcome`: did it hold? What symptom persisted?
+   - `failure_category`: symptom_treatment | wrong_scope | tainted_reference | other
+
+3. Populate the `prior_attempts` field in JSON context and the
+   `Prior Attempts` section in the Markdown spec.
+
+4. **Novelty check**: Compare the BA's proposed solution against each prior
+   attempt. If the new solution is essentially the same kind of action as a
+   prior failed attempt (same file, same component swap, same style tweak —
+   without addressing a different layer), BA MUST:
+   - NOT produce the spec
+   - Return to orchestrator with `status: "rejected"` and field
+     `rejection_reason: "proposed solution duplicates failed attempt N;
+     redesign required at a different layer"`
+
+**Layer differentiation guide** (used in the novelty check):
+
+Layers from shallow to deep:
+- L1: cosmetic (styling, class names, component swap)
+- L2: structural (layout, component hierarchy)
+- L3: data (SVG paths, coordinates, schema values, regex, constants)
+- L4: logic (conditions, state machines, data flow)
+- L5: infrastructure (build, deploy, environment)
+
+If all N prior attempts targeted the same layer and failed, the new attempt
+MUST target a different (typically deeper) layer.
 
 ---
 
@@ -416,6 +469,24 @@ Target: 500-1500 tokens
 - **Copy allowed**: yes | no
 - **Dev constraint**: <e.g., "Use external Heroicons spec only; do NOT reuse existing project SVG path data">
 
+## Prior Attempts (Contract D) — only if triggered
+
+- **Triggered**: yes | no
+- **Trigger source**: <user_phrasing | dedup_hit | git_log>
+
+### Attempts
+- Attempt 1 — <artifact or commit>
+  - Proposed: <what was planned>
+  - Changed: <what was modified>
+  - Outcome: <why it failed / what persisted>
+  - Failure category: <symptom_treatment | wrong_scope | tainted_reference | other>
+  - Target layer: L1 | L2 | L3 | L4 | L5
+
+### Novelty Check
+- **This attempt's layer**: L1 | L2 | L3 | L4 | L5
+- **Differs from all priors**: yes | no
+- **Rationale**: <why this attempt addresses a different layer or dimension>
+
 ## Requirements (MoSCoW)
 
 ### Must Have
@@ -527,6 +598,25 @@ Must be compatible with `agents/dev.md` input format:
     "description": "what the reference is",
     "url_or_location": "where dev can independently verify",
     "copy_allowed": true
+  },
+  "prior_attempts": {
+    "triggered": "boolean — whether Contract D activated",
+    "trigger_source": "user_phrasing | dedup_hit | git_log | null",
+    "attempts": [
+      {
+        "artifact_path": "docs/dev/ba-spec-<timestamp>.md or commit hash",
+        "proposed_solution": "string",
+        "actual_change": "string",
+        "outcome": "string",
+        "failure_category": "symptom_treatment | wrong_scope | tainted_reference | other",
+        "target_layer": "L1 | L2 | L3 | L4 | L5"
+      }
+    ],
+    "novelty_check": {
+      "this_attempt_layer": "L1 | L2 | L3 | L4 | L5",
+      "differs_from_all_priors": "boolean",
+      "rationale": "why this attempt will not repeat the prior failure pattern"
+    }
   },
   "context": {
     "codebase_state": "<relevant git status>",

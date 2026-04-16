@@ -91,8 +91,8 @@
       "lastUsedAt": 1775645765094
     },
     "dev-command": {
-      "usageCount": 12,
-      "lastUsedAt": 1776111062511
+      "usageCount": 14,
+      "lastUsedAt": 1776285631860
     },
     "generate": {
       "usageCount": 29,
@@ -167,8 +167,8 @@
       "lastUsedAt": 1776275534107
     },
     "daily-trade": {
-      "usageCount": 7,
-      "lastUsedAt": 1776199132764
+      "usageCount": 8,
+      "lastUsedAt": 1776314705981
     },
     "pdf": {
       "usageCount": 1,
@@ -193,6 +193,10 @@
     "merge-overnight": {
       "usageCount": 2,
       "lastUsedAt": 1776265239569
+    },
+    "fx-monitor": {
+      "usageCount": 1,
+      "lastUsedAt": 1776318749889
     }
   },
   "groveConfigCache": {
@@ -209,7 +213,7 @@
       "timestamp": 1776189140337
     }
   },
-  "cachedExtraUsageDisabledReason": null,
+  "cachedExtraUsageDisabledReason": "out_of_credits",
   "mcpServers": {
     "playwright": {
       "command": "/usr/local/bin/playwright-mcp-stealth",

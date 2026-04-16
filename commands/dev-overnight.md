@@ -370,16 +370,33 @@ If the test plan has no `priority_tiers` (first cycle, no history), set the prio
 
 #### Step 2b: Launch PM-Recommended Specialist Subagents
 
-## Specialist Consultation (triggered, not automatic)
+### Step 2b Specialist Calling Rule
 
-Do NOT call all 4 specialists by default. Call ONLY the specialists whose domain matches the issue being analyzed. Same trigger rules as dev.md apply.
+This step is EXPLORATION — the goal is to discover unknown issues. In exploration, cast a wide net.
 
-Reason: Calling all 4 on every cycle wastes tokens and produces irrelevant findings. Match specialist to problem domain.
+**Exploration mode (user did NOT provide a spec)**: Call all 4 specialists by default. Broad coverage is the point. PM's `recommended_specialists` field may narrow the list if PM has strong signal, but the DEFAULT is all 4.
+
+**Supervisor mode (user PROVIDED a spec)**: Issues are pre-known. Apply the evaluate-then-call rule (same as dev.md): assess relevance per issue, call only relevant specialists.
+
+Do NOT use "evaluate then call" in exploration mode — you cannot evaluate relevance to an issue you haven't discovered yet. Discovery needs all perspectives.
+
+**How to decide at runtime**:
+- If state file / cycle context indicates NO user spec → exploration mode → launch all 4 (or the PM-narrowed subset if PM supplied `recommended_specialists` with a strong rationale)
+- If state file / cycle context indicates a user spec is present → supervisor mode → apply the dev.md unified rule: for each of the 4 specialists produce `RELEVANT — <reason>` or `SKIP — <concrete reason>`, then call every RELEVANT one in a single parallel Agent call. Record the assessment in the orchestrator's reasoning as:
+
+```json
+"specialists_assessed": {
+  "ui-specialist": "RELEVANT — layout issue" | "SKIP — pure backend change",
+  "architect": "...",
+  "product-owner": "...",
+  "user": "..."
+}
+```
 
 **Read `recommended_specialists` from the test plan.** PM decides which specialists are relevant for this cycle based on the project type, focus hint, and issue context.
 
-- If `recommended_specialists` is present and non-empty: launch ONLY the recommended specialists
-- If `recommended_specialists` is missing or null: apply the trigger rules above to pick only the domain-matching specialists. Do NOT fall back to launching all 4.
+- Exploration mode: if `recommended_specialists` is present and non-empty, launch that narrowed subset; if missing or null, launch all 4.
+- Supervisor mode: treat `recommended_specialists` as advisory only; the evaluate-then-call assessment is authoritative.
 
 Launch the recommended Agent calls in a SINGLE response (parallel execution):
 
