@@ -174,11 +174,44 @@ Before proceeding to dev, verify the BA JSON context contains:
 - `scope_expansion.all_occurrences` non-empty (or scope_expansion explicitly
   marked `not_applicable` with reason)
 - `reference_source.tier` not `tier_3_tainted` when `copy_allowed: true`
-- If Contract D triggered: `prior_attempts.novelty_check.differs_from_all_priors = true`
+- If Contract D triggered: novelty across BOTH dimensions — `layer` AND
+  `target_location` (see Contract D extension below)
+- **Location-complaint overlap**: tokens of BA's `affected_files ∪
+  located_source` must intersect the complaint's location keywords, OR
+  BA must declare `status: localization_blocked`. Mismatch is a hard
+  reject — re-delegate BA, do NOT dispatch dev.
 
 If any check fails, the orchestrator re-delegates to BA with explicit
 feedback naming the missing field. Do NOT proceed to dev with an
 incomplete spec.
+
+**Location-complaint tokenization procedure** (shared with Contract D):
+
+1. `C` = complaint_location_keywords (prefer BA-extracted field; fallback:
+   tokenize user's original request text).
+2. `F` = tokens of `affected_files ∪ located_source`, split on `/ . - _`,
+   lowercased.
+3. `overlap = F ∩ C`. Pass iff `overlap` non-empty OR
+   `status == localization_blocked`.
+4. On fail: re-delegate BA with the mismatch report (list `C`, `F`, and
+   empty overlap). Do not advance to dev.
+
+<!-- Token examples across forms:
+     web          → page, route, view, component, header, nav, card
+     cli          → command, subcommand, flag, arg, stdout, stderr
+     library      → module, class, method, export, api
+     backend      → endpoint, handler, service, worker, queue, job
+     desktop      → window, dialog, menu, panel, shortcut
+     data         → table, column, migration, schema, index, query
+-->
+
+**Contract D novelty extension — two dimensions**:
+Two attempts are considered equivalent (reject as non-novel) iff
+`this_attempt_layer == prior_attempt_layer` AND
+`jaccard(tokens_of(target_location_i), tokens_of(target_location_j)) >=
+0.5`, using the same tokenization as above. Novelty requires EITHER a
+different layer OR `jaccard < 0.5` on `target_location`. This blocks the
+"different-words-same-wrong-file" loophole.
 
 ### BA rejection handling
 
