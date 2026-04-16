@@ -438,7 +438,10 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
             return 0
         fi
 
-        local summary timestamp file_count commit_body
+        local summary=""
+        local timestamp=""
+        local file_count=""
+        local commit_body=""
         timestamp=$(date '+%Y-%m-%d %H:%M:%S')
         if [ -n "$parent_tree" ]; then
             file_count=$($git_cmd diff-tree -r --name-only "$parent_tree" "$tree_sha" 2>/dev/null | wc -l | tr -d ' ')
