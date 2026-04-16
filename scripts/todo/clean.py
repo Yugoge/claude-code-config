@@ -23,6 +23,7 @@ def get_todos():
         {"content": "Step 7: Merge Inspection Reports", "activeForm": "Step 7: Merging Inspection Reports", "status": "pending"},
         {"content": "Step 8: Present Combined Report to User", "activeForm": "Step 8: Presenting Combined Report to User", "status": "pending"},
         {"content": "Step 9: Collect User Approval", "activeForm": "Step 9: Collecting User Approval", "status": "pending"},
+        {"content": "Step 9b: Completeness verification gate (Option 1 only)", "activeForm": "Step 9b: Verifying cleanup completeness", "status": "pending"},
         {"content": "Step 10: Create Safety Checkpoint (Git Commit)", "activeForm": "Step 10: Creating Safety Checkpoint", "status": "pending"},
         {"content": "Step 11: Invoke Cleaner with Approvals", "activeForm": "Step 11: Invoking Cleaner with Approvals", "status": "pending", "subagent_call": {"agent": "cleaner", "subagent_type": "cleaner"}},
         {"content": "Step 12: Verify Cleanup Results", "activeForm": "Step 12: Verifying Cleanup Results", "status": "pending"},

@@ -45,19 +45,19 @@ Step 1: Create worktree (first run only)
   |       PARALLEL QA PHASE (Step 8-9)
   |         Launch ALL N QA subagents in parallel → process all results
   |                |
-  |       ITERATION LOOPS (Step 10)
+  |       ITERATION LOOPS (Step 11)
   |         Per-pipeline Dev→QA re-runs for failures (max 5 each)
   |                |
-  |       PERMISSIONS (Step 11)
+  |       PERMISSIONS (Step 12)
   |         Aggregate permissions from all N pipelines, apply once
   |                |
-  |       LOG & TIME CHECK (Step 12)
+  |       LOG & TIME CHECK (Step 13)
   |       Update state with all N pipeline results, check end-time
   |                |
-  |       PM RETROSPECTIVE (Step 13)
+  |       PM RETROSPECTIVE (Step 14)
   |       PM reads all results, writes retro-report, hands off to next cycle
   |                |
-  |       SUMMARY OR LOOP (Step 14)
+  |       SUMMARY OR LOOP (Step 15)
   |       Time remaining? → reset todos, loop to Step 2
   |       Time expired? → generate summary, cleanup
   |                |
@@ -207,9 +207,9 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
    - `analyzing` -> Step 4 (Parallel BA)
    - `implementing` -> Step 6 (Parallel Dev)
    - `verifying` -> Step 8 (Parallel QA)
-   - `iterating` -> Step 10 (Iteration loops)
-   - `logging` -> Step 12 (Log)
-   - `retrospective` -> Step 13 (PM Retro)
+   - `iterating` -> Step 11 (Iteration loops)
+   - `logging` -> Step 13 (Log)
+   - `retrospective` -> Step 14 (PM Retro)
 4. The hook has already injected the command specification and state summary into this prompt
 
 **Do NOT**:
@@ -550,7 +550,7 @@ to the legacy mechanical sort in Step 3 (read all 4 reports, merge, sort by seve
 **Update state**: Add triage report path to `pm_triage_reports` array in state file.
 
 **Check pipeline_blocked**: Read the triage report's `pipeline_blocked` field.
-- If `pipeline_blocked: true`: log `block_reasons` to state file, skip Steps 3-12, jump directly to Step 13 (PM Retrospective) with context that the pipeline was blocked. PM RETRO will analyze the block and recommend next steps. Then loop to Step 2 for the next cycle.
+- If `pipeline_blocked: true`: log `block_reasons` to state file, skip Steps 3-13, jump directly to Step 14 (PM Retrospective) with context that the pipeline was blocked. PM RETRO will analyze the block and recommend next steps. Then loop to Step 2 for the next cycle.
 - If `pipeline_blocked: false` or field absent: proceed normally to Step 3.
 
 ### Step 2d: Create Overnight Spec Files
@@ -753,7 +753,7 @@ Read BA output files:
 
 **Update state**: Set each pipeline's `phase` to `"ba_complete"`.
 
-**If all pipelines are skipped**: Skip to Step 12 (log results).
+**If all pipelines are skipped**: Skip to Step 13 (log results).
 
 ### Step 5a: QA Validates BA Conclusions (All Pipelines, Parallel)
 
@@ -1020,7 +1020,7 @@ Agent(subagent_type: "qa")
 
 **Fallback**: If the Agent tool cannot handle N simultaneous calls, batch them in groups of 4.
 
-### Step 9: Process All QA Results
+### Step 10: Process All QA Results
 
 **For each active pipeline[i]**, read QA report and classify:
 
@@ -1034,10 +1034,10 @@ IF qa.status == "pass":
 
 ELIF qa.status == "warning":
   → Autonomous decision: if only minor/cosmetic issues, mark phase = "done", status = "fixed"
-  → If major issues: mark phase = "qa_failed" (will enter iteration in Step 10)
+  → If major issues: mark phase = "qa_failed" (will enter iteration in Step 11)
 
 ELIF qa.status == "fail":
-  → Mark pipeline phase = "qa_failed" (will enter iteration in Step 10)
+  → Mark pipeline phase = "qa_failed" (will enter iteration in Step 11)
 ```
 
 **Tally results**:
@@ -1047,9 +1047,9 @@ Pipelines needing iteration: {count}
 Pipelines skipped: {count}
 ```
 
-**If all pipelines are done (no qa_failed)**: Skip Step 10, proceed to Step 11.
+**If all pipelines are done (no qa_failed)**: Skip Step 11, proceed to Step 12.
 
-### Step 10: Per-Pipeline Iteration Loops (if QA fails)
+### Step 11: Per-Pipeline Iteration Loops (if QA fails)
 
 **Only runs for pipelines with `phase == "qa_failed"`**. Pipelines that passed QA are already finalized.
 
@@ -1148,7 +1148,7 @@ Marking as skipped.
 Mark pipeline: `phase = "done"`, `status = "skipped"`.
 Add to `failed_attempts` in state file.
 
-### Step 11: Update Settings.json Permissions (Aggregated)
+### Step 12: Update Settings.json Permissions (Aggregated)
 
 **CRITICAL**: Aggregate permissions from ALL pipelines before updating.
 
@@ -1214,7 +1214,7 @@ mv .claude/settings.json.tmp .claude/settings.json
 - If settings.json has syntax error -> Log and skip (do not ask user -- autonomous mode)
 - If permission already exists -> Skip, don't duplicate
 
-### Step 12: Log All Cycle Results and Check Time
+### Step 13: Log All Cycle Results and Check Time
 
 **Update state**: Set `current_phase` to `"logging"`.
 
@@ -1270,21 +1270,21 @@ Write atomically (tmp + rename).
 now = datetime.now()
 end_time = datetime.fromisoformat(state['end_time'])
 if now >= end_time:
-    # Proceed to Step 14 -- session is ending
+    # Proceed to Step 15 -- session is ending
 else:
     remaining = end_time - now
-    print(f"Time remaining: {remaining} -- marking Step 14 complete to trigger loop")
+    print(f"Time remaining: {remaining} -- marking Step 15 complete to trigger loop")
 ```
 
-If time expired: proceed to Step 13 (PM Retro) then Step 14 for final summary.
-If time remains: proceed to Step 13 (PM Retro), then mark Step 14 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 16 steps completed, reset todos to pending, and inject continuation instructions.
+If time expired: proceed to Step 14 (PM Retro) then Step 15 for final summary.
+If time remains: proceed to Step 14 (PM Retro), then mark Step 15 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 16 steps completed, reset todos to pending, and inject continuation instructions.
 
-### Step 13: PM Retrospective
+### Step 14: PM Retrospective
 
 **Update state**: Set `current_phase` to `"retrospective"`.
 
 Determine if this is the final cycle:
-- If time expired (from Step 12 time check): set `FINAL_CYCLE: true`
+- If time expired (from Step 13 time check): set `FINAL_CYCLE: true`
 - If time remains: set `FINAL_CYCLE: false`
 
 Launch PM in RETRO mode:
@@ -1338,12 +1338,12 @@ If validation fails, log warning and proceed (retro is informational, not blocki
 - Update `unresolved_issues` from retro report's `unresolved_issues` array
 
 **Check qa_rerun_required**: Read the retro report's `qa_rerun_required` field.
-- If `qa_rerun_required: true`: re-invoke QA for the pipelines listed in `qa_rerun_reasons`. Use the same QA invocation pattern as Step 8-9, but pass additional context: `"This is a PM-requested QA re-run. Reasons: <qa_rerun_reasons>. Focus on the specific concerns raised."` After QA re-run completes, proceed to Step 14 (do NOT re-invoke RETRO — avoid infinite loops).
-- If `qa_rerun_required: false` or field absent: proceed normally to Step 14.
+- If `qa_rerun_required: true`: re-invoke QA for the pipelines listed in `qa_rerun_reasons`. Use the same QA invocation pattern as Step 8-10, but pass additional context: `"This is a PM-requested QA re-run. Reasons: <qa_rerun_reasons>. Focus on the specific concerns raised."` After QA re-run completes, proceed to Step 15 (do NOT re-invoke RETRO — avoid infinite loops).
+- If `qa_rerun_required: false` or field absent: proceed normally to Step 15.
 
 ---
 
-### Step 14: Generate Summary Report or Loop
+### Step 15: Generate Summary Report or Loop
 
 **If time remains** (normal loop case):
 Simply mark this step as completed via TodoWrite. The PostToolUse:TodoWrite hook (`posttool-overnight-loop.py`) will:
@@ -1566,7 +1566,7 @@ If state file has `worktree_path=null` on continuation, attempt to create worktr
 After completing Steps 2-15, the loop is automatic:
 
 ```
-TodoWrite marks Step 14 as completed
+TodoWrite marks Step 15 as completed
   |
 posttool-overnight-loop.py fires
   |
@@ -1680,9 +1680,9 @@ See `/clean` command documentation for details.
 | BA phase | Full BA + clarification loop (max 3 rounds) | BA with clarification skipped (round=3) |
 | BA validation | Step 4 | Step 5 |
 | Dev validation | Step 6 | Step 7 |
-| QA processing | Step 8 decision tree | Step 9 autonomous decision |
-| Iteration loop | Step 10 (max 5, asks user after 5) | Step 10 (max 5 per pipeline, auto-skip after 5) |
-| Settings update | Step 9 | Step 11 (aggregated from all pipelines) |
+| QA processing | Step 8 decision tree | Step 10 autonomous decision |
+| Iteration loop | Step 10 (max 5, asks user after 5) | Step 11 (max 5 per pipeline, auto-skip after 5) |
+| Settings update | Step 9 | Step 12 (aggregated from all pipelines) |
 | Loop | Single pass | Continuous until end-time |
 | Termination | After QA passes | After end-time expires |
 | User interaction | Required (clarification, approval) | None (fully autonomous) |
