@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-04-15T20:15:09Z*
-**Total entries**: 44
+*Last updated: 2026-04-16T09:31:25Z*
+**Total entries**: 45
 **Convention**: kebab
 
 ## Tree
@@ -31,6 +31,7 @@ scripts/
 ├── `check-file-references.sh` - File reference detection script - used by /clean command
 ├── `check-overnight-reports.sh` - Description: Validates all 4 overnight exploration reports exist, are valid JSON,
 ├── `check-readme-freshness.sh` - Check README.md freshness for all major folders
+├── `checkpoint-prune.sh` - checkpoint-prune.sh — trim refs/checkpoints/* to the most recent N commits
 ├── `cleanup-tests-folder.sh` - Description: Remove validators that don't match git edge cases, preserving reports/
 ├── `create-worktree.sh` - Create a git worktree from local HEAD (not origin/main).
 ├── `detect-dead-functions.sh` - Shell script
