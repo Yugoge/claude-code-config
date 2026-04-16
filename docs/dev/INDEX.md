@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-04-16T09:08:31Z*
-**Total entries**: 61
+*Last updated: 2026-04-16T09:19:24Z*
+**Total entries**: 62
 **Convention**: kebab
 
 ## Tree
@@ -16,6 +16,7 @@ dev/
 │       └── `completion-dev-20251228-143334.md` - Development Completion Report
 ├── `ba-qa-report-20260416-063500.json` - json config
 ├── `ba-spec-20260416-063500.md` - BA Specification: Auto-Commit/Checkpoint System v2 — refs/checkpoints Migration
+├── `ba-spec-20260416-073000.md` - BA Specification: SaaS-Grade git blame — 5 Leak Paths + Ops Gaps (Iter 3)
 ├── `completion-dev-20260107-091716.md` - Development Completion Report
 ├── `completion-dev-20260107-100221.md` - Development Completion Report
 ├── `completion-dev-20260108-111618.md` - Development Completion Report
