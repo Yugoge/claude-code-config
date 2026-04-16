@@ -384,8 +384,7 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
             printf '%s' "$new_sha_inner" > "$result_file"
             exit 1
         ) 9>"$lockfile"
-        local rc=0
-        rc=$?
+        local rc=$?
 
         rm -f "$TMP_INDEX"
         trap - EXIT INT TERM HUP
