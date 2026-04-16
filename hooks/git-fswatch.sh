@@ -436,7 +436,7 @@ sync_changes() {
         fi
     fi
 
-    # Step 5: Push
+    # Step 4: Push
     if ! safe_push; then
         log_error "Sync failed at push stage (commit is safe locally)"
         return 1
