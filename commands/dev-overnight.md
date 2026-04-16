@@ -218,6 +218,81 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
 
 ---
 
+## Four Contracts Awareness (Orchestrator Role)
+
+The BA subagent enforces four domain-agnostic contracts (see
+`~/.claude/agents/ba.md` §Four Contracts). The orchestrator MUST
+complement BA by surfacing context before delegation and verifying
+compliance after BA returns. The orchestrator does NOT re-do BA's work —
+it prepares inputs and validates outputs.
+
+In overnight mode this is especially load-bearing because many iterations
+compound. A single L1-only fix that should have been L3 silently
+propagates failure across the whole night.
+
+### Pre-BA: surface retry signals
+
+Before delegating to BA, scan the current iteration's input and repo state
+for retry signals:
+
+- **Retry phrasing** in the iteration prompt or triage report: "again",
+  "still", "didn't fix", "Nth time", "又", "还是", "没修好"
+- **Recent related commits from this overnight run**:
+  `git log --oneline --grep="<keyword>" HEAD~30..HEAD`
+- **Existing BA specs from earlier iterations**: files matching
+  `docs/dev/ba-spec-*.md` with keywords from the current issue
+- **Prior-cycle failure reports**: any QA report flagged as failed in an
+  earlier iteration that matches the current issue
+
+Pass findings to BA in the delegation prompt under an explicit
+`prior_attempt_signals` block:
+
+    prior_attempt_signals:
+      retry_phrase: "<matched phrase or null>"
+      recent_commits: ["<hash> <subject>", ...]
+      existing_specs: ["docs/dev/ba-spec-<ts>.md", ...]
+      prior_qa_failures: ["docs/dev/qa-report-<ts>.md", ...]
+
+### Post-BA: verify contract compliance
+
+Before proceeding to dev, verify the BA JSON context contains:
+
+- `evidence.measured.value` populated
+- `evidence.expected.source` populated
+- `scope_expansion.all_occurrences` non-empty (or explicit not_applicable)
+- `reference_source.tier` not `tier_3_tainted` when `copy_allowed: true`
+- If Contract D triggered: `prior_attempts.novelty_check.differs_from_all_priors = true`
+
+If any check fails, the orchestrator re-delegates to BA with explicit
+feedback. Do NOT proceed to dev with an incomplete spec. Do NOT skip
+validation to keep the overnight loop running — a non-compliant spec in
+overnight is worse than a stalled iteration.
+
+### BA rejection handling in overnight mode
+
+If BA returns `status: "rejected"` (Contract D novelty-check failure):
+
+- Do NOT retry BA with the same input
+- Record the rejection in the cycle retrospective
+- Mark this issue as `blocked_same_layer_retry` and SKIP to the next
+  issue in the triage queue — do not burn further iterations on a
+  redesign-needed problem
+- On RETRO, surface the blocked issue for user review next session
+
+### Layer vocabulary (shared with BA)
+
+Layers from shallow to deep:
+
+- **L1 cosmetic**: styling, class names, component swap
+- **L2 structural**: layout, component hierarchy
+- **L3 data**: coordinates, schema values, regex, constants, SVG paths
+- **L4 logic**: conditions, state machines, data flow
+- **L5 infrastructure**: build, deploy, environment
+
+The PM subagent MUST record the layer in its per-issue triage output so
+the orchestrator can detect "same-layer retry" patterns across iterations.
+When dev reports back, verify implementation layer matches BA's spec layer.
+
 ### Step 2: Explore Codebase for Issues
 
 **Update state**: Set `current_phase` to `"exploring"`.
@@ -295,15 +370,21 @@ If the test plan has no `priority_tiers` (first cycle, no history), set the prio
 
 #### Step 2b: Launch PM-Recommended Specialist Subagents
 
+## Specialist Consultation (triggered, not automatic)
+
+Do NOT call all 4 specialists by default. Call ONLY the specialists whose domain matches the issue being analyzed. Same trigger rules as dev.md apply.
+
+Reason: Calling all 4 on every cycle wastes tokens and produces irrelevant findings. Match specialist to problem domain.
+
 **Read `recommended_specialists` from the test plan.** PM decides which specialists are relevant for this cycle based on the project type, focus hint, and issue context.
 
 - If `recommended_specialists` is present and non-empty: launch ONLY the recommended specialists
-- If `recommended_specialists` is missing or null (backward compatibility): fall back to launching all 4 specialists
+- If `recommended_specialists` is missing or null: apply the trigger rules above to pick only the domain-matching specialists. Do NOT fall back to launching all 4.
 
 Launch the recommended Agent calls in a SINGLE response (parallel execution):
 
 ```
-For each specialist in recommended_specialists (or all 4 if missing):
+For each specialist in recommended_specialists (domain-matched only):
 
 Agent(subagent_type: specialist.type)
   Write report to: docs/dev/overnight/<session_id>/<specialist.type>-report.json
@@ -341,7 +422,7 @@ their Step 0 protocol -- the inline context provides redundancy.
 **Announce specialist selection**:
 ```
 PM recommended {N} specialists for this cycle: {list of specialist types}
-{If fallback: "No recommended_specialists in test plan -- falling back to all 4 specialists."}
+{If fallback: "No recommended_specialists in test plan -- selected {list} via domain trigger rules."}
 Launching specialist subagents...
 ```
 
@@ -603,6 +684,12 @@ Agent(subagent_type: "ba")
     Project root: <worktree_path from state file if set, otherwise project root>
 
     Overnight spec file: {pipeline.spec_path}
+
+    prior_attempt_signals:
+      retry_phrase: <matched retry phrase or null, from triage/iteration prompt>
+      recent_commits: [<hash> <subject>, ...]  # git log results for related keywords
+      existing_specs: [docs/dev/ba-spec-<ts>.md, ...]  # earlier iteration specs matching this issue
+      prior_qa_failures: [docs/dev/qa-report-<ts>.md, ...]  # prior failed QA reports on this issue
 
     This is a self-discovered issue from overnight exploration.
     No clarification is needed -- proceed directly to analysis.
