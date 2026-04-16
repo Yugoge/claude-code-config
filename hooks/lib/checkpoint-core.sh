@@ -40,11 +40,21 @@
 #   ~/.claude/logs/checkpoint-push.log   background push failures
 #
 # Concurrency safety:
-#   - CAS update-ref: atomic swap, at most one writer advances the ref
-#   - 5 retries with 50ms..200ms backoff, losers re-read parent and retry
+#   - flock advisory lock on .git/checkpoint-core.lock serializes the
+#     critical section (parent-read + commit-tree + update-ref) so at most
+#     one writer creates a commit object at a time; prevents dangling
+#     commit objects from CAS losers.
+#   - CAS update-ref retained as belt-and-suspenders; should never fail
+#     under the lock.
+#   - Tree build (read-tree + add -A + write-tree) runs outside the lock
+#     because it does not create persistent git objects that would be
+#     orphaned on a lost race (blobs/trees are content-addressed and
+#     would be created anyway by the winning writer).
 #   - Temp index isolation: GIT_INDEX_FILE=.git/checkpoint-index.$$.<ns>
 #   - Stale temp-index sweep (>60 min) at entry
 #   - trap EXIT INT TERM HUP removes temp index on any exit path
+#   - If flock is unavailable, falls back to the old CAS-retry loop (and
+#     logs a warning about potential orphan commits under concurrency).
 # ============================================================================
 
 CHECKPOINT_LOG_DIR="${CHECKPOINT_LOG_DIR:-$HOME/.claude/logs}"
