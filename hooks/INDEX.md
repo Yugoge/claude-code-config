@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-04-16T06:09:47Z*
-**Total entries**: 73
+*Last updated: 2026-04-16T06:51:54Z*
+**Total entries**: 74
 **Convention**: kebab
 
 ## Tree
@@ -21,10 +21,11 @@ hooks/
 │   ├── `post-commit-auto-push` - unknown file
 │   └── `pre-commit` - unknown file
 ├── lib/
+│   ├── `checkpoint-core.sh` - ============================================================================
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 ├── `audit-slashcommand.sh` - audit-slashcommand.sh
 ├── `auto-commit.sh` - ============================================================================
-├── `checkpoint.sh` - checkpoint.sh - Manual checkpoint command
+├── `checkpoint.sh` - checkpoint.sh - Manual /checkpoint command
 ├── `ensure-git-repo.sh` - ============================================================================
 ├── `fswatch-manager.sh` - fswatch-manager.sh - Manage git-fswatch instances
 ├── `git-fswatch.sh` - git-fswatch.sh - Comprehensive Git file watcher using fswatch
@@ -38,7 +39,7 @@ hooks/
 ├── `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
 ├── `posttool-command-frontmatter-validate.py` - PostToolUse Hook: Validate .claude/commands/*.md frontmatter structure
 ├── `posttool-doc-sync.py` - PostToolUse Hook: Auto-sync INDEX.md and CLAUDE.md when structural files change
-├── `posttool-git-checkpoint.sh` - smart-checkpoint.sh - Intelligent auto-checkpoint system
+├── `posttool-git-checkpoint.sh` - posttool-git-checkpoint.sh - PostToolUse checkpoint trigger
 ├── `posttool-git-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
 ├── `posttool-overnight-file-check.py` - PostToolUse:Agent Hook: Verify overnight subagent output files exist
 ├── `posttool-overnight-loop.py` - PostToolUse:TodoWrite Hook: Overnight Loop Detection
@@ -73,7 +74,7 @@ hooks/
 ├── `session-git-init.sh` - ============================================================================
 ├── `session-info.sh` - s-info.sh — SessionStart: display environment info + tool quick reference
 ├── `session_start.sh` - SessionStart Hook - Display working environment info
-├── `smart-checkpoint.sh` - smart-checkpoint.sh - Intelligent auto-checkpoint system
+├── `smart-checkpoint.sh` - smart-checkpoint.sh - DEPRECATED, scheduled for deletion
 ├── `start-fswatch-all.sh` - start-fswatch-all.sh - Start fswatch monitoring for all important repositories
 ├── `stop-git-commit.sh` - ============================================================================
 ├── `stop-overnight-timelock.py` - Stop Hook: Block conversation termination until overnight end-time

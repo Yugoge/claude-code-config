@@ -281,50 +281,66 @@ safe_add() {
     fi
 }
 
-# Perform git commit with validation
+# Source the shared checkpoint library once (idempotent)
+if [ -z "${_CHECKPOINT_CORE_SOURCED:-}" ]; then
+    # shellcheck source=lib/checkpoint-core.sh
+    if [ -f "$HOME/.claude/hooks/lib/checkpoint-core.sh" ]; then
+        . "$HOME/.claude/hooks/lib/checkpoint-core.sh"
+        _CHECKPOINT_CORE_SOURCED=1
+    fi
+fi
+
+# Write a snapshot to refs/checkpoints/<branch> via the shared library.
+# The working branch HEAD is never moved. Replaces the former `git commit`
+# path so fswatch no longer pollutes branch history.
+#
+# Note: previous safe_add() runs `git add .` on the REAL index. The lib
+# uses an isolated temp index, so any prior staging is harmless — the lib
+# captures the full working-tree state regardless of real-index contents.
 safe_commit() {
     cd "$WATCH_PATH" || return 1
 
-    # Check if there's anything to commit
-    if git diff --cached --quiet; then
-        log_info "No changes to commit"
+    # Short-circuit if there are no changes at all (tracked or untracked).
+    local untracked
+    untracked=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l)
+    if git diff --quiet && git diff --cached --quiet && [ "$untracked" -eq 0 ]; then
+        log_info "No changes to checkpoint"
         return 0
     fi
 
-    # Check lock file
+    # handle_git_lock() is retained because temp-index build still reads
+    # metadata; but the lib itself uses an isolated index and does not
+    # contend for .git/index.lock.
     if ! handle_git_lock; then
         return 1
     fi
 
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local file_count=$(git diff --cached --name-only | wc -l)
+    if [ -z "${_CHECKPOINT_CORE_SOURCED:-}" ]; then
+        log_error "checkpoint-core.sh not available at ~/.claude/hooks/lib/"
+        return 1
+    fi
 
-    log_info "Creating commit..."
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    local commit_msg="fswatch auto-commit: $timestamp
+    log_info "Writing checkpoint to refs/checkpoints/<branch>..."
 
-Files changed: $file_count
-Triggered by: fswatch monitoring system
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-via [Happy](https://happy.engineering)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-Co-Authored-By: Happy <yesreply@happy.engineering>"
-
-    if echo "$commit_msg" | git commit -F - 2>&1 | tee -a "$LOG_FILE"; then
-        local commit_hash=$(git rev-parse --short HEAD)
-        log_success "Commit created: $commit_hash ($file_count files)"
+    if write_checkpoint "$WATCH_PATH" "fswatch daemon: $REPO_NAME"; then
+        local branch sanitized ref tip
+        branch=$(git branch --show-current 2>/dev/null)
+        if [ -n "$branch" ]; then
+            sanitized=$(printf '%s' "$branch" | tr '/' '-')
+        else
+            local short
+            short=$(git rev-parse --short HEAD 2>/dev/null)
+            sanitized="detached-${short:-empty}"
+        fi
+        ref="refs/checkpoints/${sanitized}"
+        tip=$(git rev-parse --short "$ref" 2>/dev/null)
+        log_success "Checkpoint created: ${tip:-?} on ${ref} (at ${timestamp})"
         return 0
     else
-        log_error "Failed to create commit"
-
-        # Check for common issues
-        if git status | grep -q "nothing to commit"; then
-            log_info "Nothing to commit (files may be ignored)"
-            return 0
-        fi
-
+        log_error "Failed to create checkpoint (see ~/.claude/logs/checkpoint.log)"
         return 1
     fi
 }

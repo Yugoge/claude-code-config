@@ -1,12 +1,13 @@
 # lib
 
-*Last updated: 2026-04-05T13:47:05Z*
-**Total entries**: 1
-**Convention**: lower
+*Last updated: 2026-04-16T06:48:00Z*
+**Total entries**: 2
+**Convention**: kebab
 
 ## Tree
 ```
 lib/
+├── `checkpoint-core.sh` - ============================================================================
 └── `todo_canonical.py` - Shared canonical todo validation utilities
 ```
 
