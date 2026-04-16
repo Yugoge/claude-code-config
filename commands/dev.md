@@ -577,6 +577,34 @@ You can now use these scripts without permission prompts.
 
 ### Step 11: Iteration Loop (if QA fails)
 
+#### Layer-escalation gate (mandatory)
+
+When QA rejects the dev fix, the orchestrator MUST track the layer used in
+each attempt. Rules:
+
+1. Attempt 1 may target any layer BA recommends (usually the lowest plausible
+   layer).
+2. If attempts 1 AND 2 both target the SAME layer (L1 / L2 / L3 / L4 / L5)
+   and BOTH fail QA, iteration 3 MUST target a DIFFERENT layer. The
+   orchestrator passes `layer_escalation_required: true` to BA and the BA
+   MUST produce a new root-cause hypothesis at a DIFFERENT layer.
+3. The orchestrator MUST record every attempt's layer in the context JSON
+   under `attempts[i].target_layer`. Before iteration N, the orchestrator
+   checks the last N-1 layers; if they are all equal and QA has rejected
+   them all, escalation is mandatory.
+4. BA's Contract D novelty-check MUST include `differs_from_all_prior_layers`
+   in addition to `differs_from_all_priors`. A fix that changes L1 wording
+   but stays in L1 is NOT novel under this rule.
+5. If the same layer is the only one that can plausibly solve the bug
+   (genuine edge case), BA MUST explicitly argue this in prose with
+   evidence; the orchestrator may override the gate only after user
+   confirmation.
+
+**Why this rule exists**: In a prior incident, a bug cycled through 6
+BA→Dev→QA iterations all operating on the same L1 CSS style condition.
+The actual fix was L3 (data hydration). This gate forces the orchestrator
+to escalate out of local optima.
+
 **Iteration guard**: Maximum 5 iterations to prevent infinite loops
 
 **Current iteration**: Track internally (starts at 1)

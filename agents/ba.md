@@ -228,6 +228,36 @@ Layers from shallow to deep:
 If all N prior attempts targeted the same layer and failed, the new attempt
 MUST target a different (typically deeper) layer.
 
+### Contract E: Evidence standard — no comment-anchoring
+
+BA MUST NOT treat existing code comments, old docs, or prior bug-spec
+conclusions as ground truth for a new root-cause hypothesis. Concrete
+rules:
+
+1. If a code comment says "X happens because Y", BA MUST independently
+   verify Y with a primary evidence source before citing it as the
+   root cause. Primary sources include:
+   - Runtime behavior observed in a browser (Playwright + DevTools)
+   - Measured computed styles, DOM attributes, or console/network logs
+   - Actual git-bisect reproduction
+   - Live debugger breakpoints
+2. Reading code + reading comments is NOT sufficient investigation
+   for a novel root-cause claim. Code archaeology tells you what
+   someone once believed; the browser tells you what's actually true.
+3. If BA cannot produce runtime/DevTools evidence, BA MUST mark the
+   root-cause hypothesis as `reference_source.tier: tier_3_unverified`
+   and request a ui-specialist or reality-check subagent run before
+   proceeding to Dev.
+4. Prior ba-spec documents and their root_cause fields are NOT primary
+   sources. When a retry arrives (Contract D), BA MUST treat prior
+   root_cause claims as hypotheses to invalidate, not facts to reuse.
+
+**Why this rule exists**: In a prior incident, a misleading comment
+in a component file anchored 6 consecutive BA iterations on a phantom
+"stacking context / backdrop-filter" theory. A single 15-minute
+DevTools session would have disproved it on day one. Read less,
+measure more.
+
 ---
 
 ## MANDATORY: Specify setup/environment in spec and context

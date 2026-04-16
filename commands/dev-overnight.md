@@ -1053,6 +1053,39 @@ Pipelines skipped: {count}
 
 **Only runs for pipelines with `phase == "qa_failed"`**. Pipelines that passed QA are already finalized.
 
+#### Layer-escalation gate (mandatory, per-pipeline)
+
+When QA rejects a dev fix within a pipeline, the orchestrator MUST track the
+layer used in each attempt for that pipeline. Rules:
+
+1. Attempt 1 may target any layer BA recommends (usually the lowest plausible
+   layer).
+2. If attempts 1 AND 2 both target the SAME layer (L1 / L2 / L3 / L4 / L5)
+   and BOTH fail QA, iteration 3 MUST target a DIFFERENT layer. The
+   orchestrator passes `layer_escalation_required: true` to BA for that
+   pipeline and the BA MUST produce a new root-cause hypothesis at a
+   DIFFERENT layer.
+3. The orchestrator MUST record every attempt's layer in the pipeline's
+   context JSON under `attempts[i].target_layer`. Before iteration N for
+   pipeline P, the orchestrator checks the last N-1 layers on that pipeline;
+   if they are all equal and QA has rejected them all, escalation is
+   mandatory for the next iteration.
+4. BA's Contract D novelty-check MUST include `differs_from_all_prior_layers`
+   in addition to `differs_from_all_priors`. A fix that changes L1 wording
+   but stays in L1 is NOT novel under this rule.
+5. If the same layer is the only one that can plausibly solve the bug on a
+   given pipeline (genuine edge case), BA MUST explicitly argue this in
+   prose with evidence. In overnight autonomous mode (no user available),
+   the orchestrator MUST NOT override the gate -- instead mark the pipeline
+   `blocked_same_layer_retry`, skip further iterations, and surface to the
+   user on RETRO.
+
+**Why this rule exists**: In a prior incident, a bug cycled through 6
+BA→Dev→QA iterations all operating on the same L1 CSS style condition.
+The actual fix was L3 (data hydration). This gate forces the orchestrator
+to escalate out of local optima, which is especially load-bearing in
+overnight mode where many iterations compound silently.
+
 **Per-pipeline iteration guard**: Maximum 5 iterations per pipeline to prevent infinite loops.
 
 **Sort failed pipelines by severity before iterating** (critical first, cosmetic last):
