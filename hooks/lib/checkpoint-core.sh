@@ -292,12 +292,14 @@ write_checkpoint() {
         if ! GIT_INDEX_FILE="$TMP_INDEX" $git_cmd read-tree "$seed_parent_tree" 2>>"$CHECKPOINT_LOG_FILE"; then
             _checkpoint_log ERROR "read-tree failed (parent_tree=${seed_parent_tree}, ref=${ref})"
             rm -f "$TMP_INDEX"
+            _checkpoint_record_failure
             return 1
         fi
     else
         if ! GIT_INDEX_FILE="$TMP_INDEX" $git_cmd read-tree --empty 2>>"$CHECKPOINT_LOG_FILE"; then
             _checkpoint_log ERROR "read-tree --empty failed (ref=${ref})"
             rm -f "$TMP_INDEX"
+            _checkpoint_record_failure
             return 1
         fi
     fi
@@ -305,6 +307,7 @@ write_checkpoint() {
     if ! GIT_INDEX_FILE="$TMP_INDEX" $git_cmd add -A 2>>"$CHECKPOINT_LOG_FILE"; then
         _checkpoint_log ERROR "add -A failed (ref=${ref})"
         rm -f "$TMP_INDEX"
+        _checkpoint_record_failure
         return 1
     fi
 
@@ -313,6 +316,7 @@ write_checkpoint() {
     if [ -z "$tree_sha" ]; then
         _checkpoint_log ERROR "write-tree produced empty sha (ref=${ref})"
         rm -f "$TMP_INDEX"
+        _checkpoint_record_failure
         return 1
     fi
 
