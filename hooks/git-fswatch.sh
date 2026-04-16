@@ -260,26 +260,11 @@ safe_pull() {
     fi
 }
 
-# Perform git add with validation
-safe_add() {
-    cd "$WATCH_PATH" || return 1
-
-    # Check lock file
-    if ! handle_git_lock; then
-        return 1
-    fi
-
-    log_info "Staging changes..."
-
-    if git add . 2>&1 | tee -a "$LOG_FILE"; then
-        local staged=$(git diff --cached --name-only | wc -l)
-        log_success "Staged $staged file(s)"
-        return 0
-    else
-        log_error "Failed to stage files"
-        return 1
-    fi
-}
+# NOTE: safe_add() was removed on 2026-04-16 (SaaS-grade blame audit fix).
+# It called `git add .` on the REAL index before every fswatch cycle, silently
+# polluting the user's staged area. checkpoint-core.sh writes to an isolated
+# temp index (GIT_INDEX_FILE) so pre-staging is redundant. sync_changes()
+# now calls safe_commit() directly without a staging step.
 
 # Source the shared checkpoint library once (idempotent)
 if [ -z "${_CHECKPOINT_CORE_SOURCED:-}" ]; then
