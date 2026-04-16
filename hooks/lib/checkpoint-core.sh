@@ -519,6 +519,7 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
         if [ -z "$new_sha" ]; then
             _checkpoint_log ERROR "commit-tree failed (ref=${ref}, tree=${tree_sha})"
             rm -f "$result_file"
+            _checkpoint_record_failure
             return 1
         fi
 
@@ -526,6 +527,7 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
             rm -f "$result_file"
             rm -f "$TMP_INDEX"
             trap - EXIT INT TERM HUP
+            _checkpoint_record_success
             _checkpoint_rate_limited_push "$work_dir" "$ref"
             return 0
         fi
