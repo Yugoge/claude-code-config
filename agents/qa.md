@@ -178,6 +178,8 @@ Example of invalid verification: User says "右侧有空白" (right-side gap). Q
 
 Output `verified_against_complaint: false` and FAIL if verification does not match user's pointer.
 
+**Location keyword re-extraction (hard gate)**: Re-extract location keywords from the user's verbatim complaint — NEVER copy any "where"-type token (url_path, cli subcommand, module name, screen id, file path, endpoint, table) from the dev report or BA spec. Tokenize by `/ . - _` separators, lowercase, take set intersection with tokens of QA's actual verification target `T`. If intersection is empty → output `verified_against_complaint: false`, `location_overlap: []`, auto-FAIL with reason `location_mismatch`. Do NOT proceed to any functional check. If the user's location is inaccessible (sealed/offline), mark `verification_blocked` — do NOT substitute an adjacent target.
+
 ### Step 0: Read Test Plan and PM Experience (MANDATORY)
 
 **Before starting any verification, read the test plan to understand
@@ -633,6 +635,9 @@ baseline understanding of the running application.**
 
 #### Phase 2: Execute Test Scenarios (MANDATORY)
 
+**Pre-navigation gate (HARD FAIL)**: BEFORE firing any tool at the verification target (navigate, run command, hit endpoint, import library, open file, query data), re-extract location keywords from the user's verbatim complaint (NOT from dev report / BA spec setup fields), tokenize by `/ . - _` and lowercase, compute intersection with tokens of `T`. Empty intersection → record `verified_location_keywords`, `location_overlap: []`, auto-FAIL with reason `location_mismatch`. Do not run the functional check. Inaccessible location → mark `verification_blocked`, do not substitute a neighbor.
+<!-- Tool examples per project shape: web → browser_navigate(url); CLI → exec(subcommand+flags); library → import module / call fn; backend → GET/POST endpoint; desktop → open window/screen id; mobile → open route/deep-link; data → query table/dataset. Each "where"-type token must come from user's words. -->
+
 3. **Navigate to the product**: Use `browser_navigate` to the target URL
    - Connection refused/timeout → mark all scenarios as `skipped` with reason `service unavailable at <url>`, continue to next step. Do NOT mark as `fail`.
    - Auth wall/login required → mark as `skipped` with reason `authentication required`
@@ -1075,6 +1080,8 @@ Return verification report as JSON:
     "status": "pass|fail|warning",
     "user_verbatim_complaint": "<exact quote from user describing the bug, in their original language>",
     "verified_against_complaint": true,
+    "verified_location_keywords": ["tokens", "of", "qa", "verification", "target"],
+    "location_overlap": ["intersection", "with", "user", "complaint", "tokens"],
     "complaint_resolution_evidence": "<what specifically in the fix addresses this exact complaint>",
     "overall_assessment": "Brief summary of QA results",
     "success_criteria_results": [
