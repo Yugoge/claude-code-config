@@ -63,6 +63,13 @@ CHECKPOINT_PUSH_LOG_FILE="${CHECKPOINT_LOG_DIR}/checkpoint-push.log"
 CHECKPOINT_PUSH_MIN_INTERVAL="${CHECKPOINT_PUSH_MIN_INTERVAL:-30}"  # seconds
 CHECKPOINT_CAS_MAX_RETRIES="${CHECKPOINT_CAS_MAX_RETRIES:-5}"
 
+# Consecutive-failure alerting (2026-04-16 SaaS-grade ops gap fix).
+# Counter file tracks back-to-back write_checkpoint failures; on the 3rd
+# consecutive failure within one hook invocation we print a single stderr
+# alert so users actually see the breakage. Any success resets the counter.
+CHECKPOINT_FAIL_COUNT_FILE="${CHECKPOINT_FAIL_COUNT_FILE:-${CHECKPOINT_LOG_DIR}/.checkpoint-fail-count}"
+CHECKPOINT_FAIL_ALERT_THRESHOLD="${CHECKPOINT_FAIL_ALERT_THRESHOLD:-3}"
+
 # Internal: timestamped log line to checkpoint.log
 _checkpoint_log() {
     local level="$1"
