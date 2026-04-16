@@ -14,6 +14,7 @@ _STEPS = [
     ("4", "BA clarification loop (if needed)", "Running BA clarification loop", None),
     ("5", "Validate BA output", "Validating BA output", None),
     ("5a", "QA validates BA conclusions", "QA validating BA conclusions", {"subagent_call": {"agent": "qa", "subagent_type": "qa"}}),
+    ("5b", "BA-QA iteration loop (if QA rejects BA)", "Iterating BA analysis based on QA objections", None),
     ("6", "Delegate to dev subagent", "Delegating to dev subagent", {"subagent_call": {"agent": "dev", "subagent_type": "dev"}}),
     ("7", "Validate dev implementation", "Validating dev implementation", None),
     ("8", "Delegate to QA subagent", "Delegating to QA subagent", {"subagent_call": {"agent": "qa", "subagent_type": "qa"}}),
