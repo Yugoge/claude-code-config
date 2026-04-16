@@ -2,6 +2,10 @@
 # checkpoint-prune.sh — trim refs/checkpoints/* to the most recent N commits
 # ----------------------------------------------------------------------------
 # Installed 2026-04-16 (SaaS-grade blame-hygiene audit — ops gap O3).
+# iter2 2026-04-16: inverted-semantics bug fixed — algorithm now rebuilds
+# the ref chain via git commit-tree so the ref retains the NEWEST N commits,
+# not the oldest. The previous version moved the ref backwards via
+# update-ref, which kept the OLDEST N and discarded the most recent.
 #
 # Purpose
 #   refs/checkpoints/<branch> grows monotonically as posttool-git-checkpoint,
@@ -9,11 +13,12 @@
 #   ref accumulates thousands of commits over weeks, inflating .git/objects
 #   and slowing `git log refs/checkpoints/*`.
 #
-#   This script rewrites each checkpoint ref to its Nth most recent ancestor
-#   (CHECKPOINT_RETENTION, default 200) so the ref still points into the
-#   existing chain (fast-forward only — no forced rewrites, no rebases).
-#   A subsequent `git reflog expire` + `git gc` (run by this script) prunes
-#   the detached commits.
+#   This script rewrites each checkpoint ref to a NEW chain of exactly
+#   CHECKPOINT_RETENTION commits (default 200), preserving the most recent
+#   RETENTION commits' trees, messages, authors, and dates. The oldest of
+#   those RETENTION becomes a parentless root; the remaining RETENTION-1
+#   are recreated on top of it in order. The ref then points to the new
+#   tip. Old commits become unreachable and are pruned by reflog expire + gc.
 #
 # Usage
 #   checkpoint-prune.sh [-h]                      run in current repo ($PWD)
@@ -21,20 +26,25 @@
 #   CHECKPOINT_RETENTION=500 checkpoint-prune.sh  override retention count
 #
 # Environment
-#   CHECKPOINT_RETENTION   Number of commits to keep per ref (default 200)
+#   CHECKPOINT_RETENTION      Number of commits to keep per ref (default 200)
 #   CHECKPOINT_REFLOG_EXPIRE  Reflog expiry window (default 30.days)
 #   CHECKPOINT_GC_PRUNE       GC prune window (default 30.days.ago)
 #
 # Exit codes
 #   0  success (including no-op when every ref has <= retention commits)
-#   1  not in a git repo, or a ref rewrite failed safety check
+#   1  not in a git repo, or a ref rewrite failed
 #   2  invalid arguments (e.g. -h)
 #
 # Safety
-#   - new tip MUST be an ancestor of the current ref tip (verified via
-#     `git merge-base --is-ancestor`); otherwise the rewrite is skipped
-#     with a warning — this cannot accidentally lose commits
-#   - idempotent: running twice is a no-op the second time
+#   - New chain preserves each kept commit's tree SHA, message, author name
+#     and email, author date, committer name and email, committer date —
+#     only the parent chain is rewritten (the oldest kept commit becomes
+#     a root; the rest chain up to it).
+#   - Sanity check: the rewritten tip's tree MUST equal the original tip's
+#     tree; if not, the rebuild is aborted and the ref is left untouched.
+#   - CAS guard: update-ref uses the original tip as the expected old value,
+#     so a concurrent writer appending to the ref aborts the prune cleanly.
+#   - Idempotent: a second run finds exactly RETENTION commits and is a no-op.
 # ----------------------------------------------------------------------------
 
 set -euo pipefail
