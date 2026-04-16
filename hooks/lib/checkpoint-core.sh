@@ -540,6 +540,7 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
     rm -f "$result_file"
     rm -f "$TMP_INDEX"
     trap - EXIT INT TERM HUP
+    _checkpoint_record_failure
     return 1
 }
 
