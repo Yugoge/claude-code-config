@@ -14,7 +14,7 @@ import sys
 BINARY_EXTENSIONS = {
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".bmp", ".pdf",
 }
-LINE_LIMIT = 200
+LINE_LIMIT = 600
 
 
 def is_exempt(data, file_path):
