@@ -160,7 +160,7 @@ The main agent MUST NOT perform any direct operations. All work goes through sub
 
 **Always allowed**: Agent, TodoWrite, AskUserQuestion, Skill, CronCreate, CronDelete, CronList, ScheduleWakeup, mcp__happy__change_title, Bash, Read (≤600 lines), Glob, Grep.
 
-**Read limit**: Main agent Read is capped at 200 lines by `pretool-read-size-guard.py`. For larger files, delegate to a subagent. IMPORTANT: When delegating, instruct the subagent to **summarize** the file and return only the relevant findings — NEVER ask it to return the raw file contents, as that defeats the purpose of the size guard by flooding the main context window.
+**Read limit**: Main agent Read is capped at 600 lines by `pretool-read-size-guard.py`. For larger files, delegate to a subagent. IMPORTANT: When delegating, instruct the subagent to **summarize** the file and return only the relevant findings — NEVER ask it to return the raw file contents, as that defeats the purpose of the size guard by flooding the main context window.
 
 **Bash usage**: Main agent CAN and SHOULD use Bash for quick operations: git commands, jq queries, file checks, ls, state file reads. Do NOT delegate trivial shell commands to subagents.
 
