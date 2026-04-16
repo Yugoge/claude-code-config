@@ -104,6 +104,100 @@ fi
 
 PRUNED_COUNT=0
 SKIPPED_COUNT=0
+FAILED_COUNT=0
+
+# rebuild_ref <ref>
+#   Rewrite the named ref so its chain is exactly RETENTION commits long,
+#   keeping the NEWEST RETENTION commits (by topo order from the current tip).
+#   Echoes the new tip SHA on stdout; returns non-zero on any rebuild error.
+rebuild_ref() {
+    local ref="$1"
+    local current_tip
+    current_tip=$(git rev-parse "$ref")
+
+    # Collect the newest RETENTION commits (rev-list is tip-first).
+    local commits
+    commits=$(git rev-list --topo-order "$ref" | head -n "$RETENTION")
+    local got
+    got=$(printf '%s\n' "$commits" | grep -c '^[0-9a-f]' || true)
+    if [ "$got" -lt "$RETENTION" ]; then
+        echo "Error: expected ${RETENTION} commits, rev-list produced ${got}" >&2
+        return 1
+    fi
+
+    # Reverse so we walk oldest-kept -> newest (tip). Use awk for portability
+    # (tac is GNU-only on some platforms).
+    local reversed
+    reversed=$(printf '%s\n' "$commits" | awk '{a[NR]=$0} END{for(i=NR;i>=1;i--) print a[i]}')
+
+    local msg_file
+    msg_file=$(mktemp)
+    # shellcheck disable=SC2064
+    trap "rm -f '$msg_file'" RETURN
+
+    local new_parent=""
+    local new_tip=""
+    local c tree author_name author_email author_date committer_name committer_email committer_date
+    while IFS= read -r c; do
+        [ -z "$c" ] && continue
+        tree=$(git rev-parse "${c}^{tree}")
+        git log -1 --format='%B' "$c" >"$msg_file"
+        author_name=$(git log -1 --format='%an' "$c")
+        author_email=$(git log -1 --format='%ae' "$c")
+        author_date=$(git log -1 --format='%aI' "$c")
+        committer_name=$(git log -1 --format='%cn' "$c")
+        committer_email=$(git log -1 --format='%ce' "$c")
+        committer_date=$(git log -1 --format='%cI' "$c")
+
+        if [ -z "$new_parent" ]; then
+            # Oldest-kept commit becomes the parentless root of the new chain.
+            new_tip=$(
+                GIT_AUTHOR_NAME="$author_name" \
+                GIT_AUTHOR_EMAIL="$author_email" \
+                GIT_AUTHOR_DATE="$author_date" \
+                GIT_COMMITTER_NAME="$committer_name" \
+                GIT_COMMITTER_EMAIL="$committer_email" \
+                GIT_COMMITTER_DATE="$committer_date" \
+                git commit-tree "$tree" -F "$msg_file"
+            )
+        else
+            new_tip=$(
+                GIT_AUTHOR_NAME="$author_name" \
+                GIT_AUTHOR_EMAIL="$author_email" \
+                GIT_AUTHOR_DATE="$author_date" \
+                GIT_COMMITTER_NAME="$committer_name" \
+                GIT_COMMITTER_EMAIL="$committer_email" \
+                GIT_COMMITTER_DATE="$committer_date" \
+                git commit-tree "$tree" -p "$new_parent" -F "$msg_file"
+            )
+        fi
+        new_parent="$new_tip"
+    done <<< "$reversed"
+
+    if [ -z "$new_tip" ]; then
+        echo "Error: rebuild produced empty new_tip for ${ref}" >&2
+        return 1
+    fi
+
+    # Sanity: rewritten tip must carry the same tree as the original tip.
+    local orig_tree new_tree
+    orig_tree=$(git rev-parse "${current_tip}^{tree}")
+    new_tree=$(git rev-parse "${new_tip}^{tree}")
+    if [ "$orig_tree" != "$new_tree" ]; then
+        echo "Error: tree mismatch after rebuild (orig=${orig_tree} new=${new_tree})" >&2
+        return 1
+    fi
+
+    # CAS update-ref — aborts if a concurrent writer has advanced the ref
+    # since we snapshotted current_tip.
+    if ! git update-ref "$ref" "$new_tip" "$current_tip"; then
+        echo "Error: update-ref failed for ${ref} (CAS mismatch?)" >&2
+        return 1
+    fi
+
+    printf '%s\n' "$new_tip"
+    return 0
+}
 
 while IFS= read -r ref; do
     [ -z "$ref" ] && continue
@@ -115,42 +209,17 @@ while IFS= read -r ref; do
         continue
     fi
 
-    # Find the Nth commit from the tip. rev-list is tip-first, so element
-    # at index (RETENTION-1) is the new tip (zero-indexed via sed).
-    new_tip=$(git rev-list "$ref" | sed -n "${RETENTION}p")
-    if [ -z "$new_tip" ]; then
-        echo "  ${ref}: could not locate retention boundary at position ${RETENTION} — skipping" >&2
-        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
-        continue
-    fi
-
-    current_tip=$(git rev-parse "$ref" 2>/dev/null || echo "")
-    if [ -z "$current_tip" ]; then
-        echo "  ${ref}: cannot resolve current tip — skipping" >&2
-        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
-        continue
-    fi
-
-    # Safety: new tip MUST be an ancestor of the current tip (this is always
-    # the case because we picked it from `git rev-list $ref`, but verify
-    # defensively before rewriting the ref).
-    if ! git merge-base --is-ancestor "$new_tip" "$current_tip" 2>/dev/null; then
-        echo "  ${ref}: SAFETY FAIL — new-tip ${new_tip} is not ancestor of ${current_tip} — skipping" >&2
-        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
-        continue
-    fi
-
-    if git update-ref "$ref" "$new_tip" "$current_tip" 2>/dev/null; then
+    if new_tip=$(rebuild_ref "$ref"); then
         after=$(git rev-list --count "$ref" 2>/dev/null || echo 0)
-        echo "  ${ref}: ${before} -> ${after} commits (pruned $((before - after)))"
+        echo "  ${ref}: ${before} -> ${after} commits (rewrote chain, new tip ${new_tip:0:12})"
         PRUNED_COUNT=$((PRUNED_COUNT + 1))
     else
-        echo "  ${ref}: update-ref failed (CAS mismatch?) — skipping" >&2
-        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+        echo "  ${ref}: rebuild failed — leaving ref unchanged" >&2
+        FAILED_COUNT=$((FAILED_COUNT + 1))
     fi
 done <<< "$REFS"
 
-echo "checkpoint-prune: pruned=${PRUNED_COUNT} skipped=${SKIPPED_COUNT}"
+echo "checkpoint-prune: pruned=${PRUNED_COUNT} skipped=${SKIPPED_COUNT} failed=${FAILED_COUNT}"
 
 # ---------- reclaim storage ----------------------------------------------
 if [ "$PRUNED_COUNT" -gt 0 ]; then
@@ -161,4 +230,7 @@ else
     echo "checkpoint-prune: no pruning performed — skipping gc"
 fi
 
+if [ "$FAILED_COUNT" -gt 0 ]; then
+    exit 1
+fi
 exit 0
