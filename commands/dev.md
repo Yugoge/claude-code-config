@@ -82,23 +82,44 @@ If no spec found, set `spec_path = null`. All downstream behavior is unchanged w
 
 **Keep this step lightweight** - BA subagent handles all analysis.
 
-### Step 2: Specialist Consultation (MANDATORY for matching domains)
+### Step 2: Specialist Consultation (always evaluate, never silently skip)
 
-When the requirement matches a specialist's domain, you MUST call that specialist. This is not optional.
+Before touching any specialist, you MUST evaluate each one's relevance to the issue and document the decision. Silently skipping is forbidden — skipping without assessment is itself a workflow violation.
 
-**Mandatory triggers:**
-- ANY visual/UI/UX/layout/styling/responsive issue → MUST call `ui-specialist`
-- ANY architectural/structural/performance/dependency concern → MUST call `architect`
-- ANY business-logic/feature-completeness/user-flow question → MUST call `product-owner`
-- ANY end-to-end user scenario or UX-friction issue → MUST call `user`
+#### Procedure (mandatory, applies to every issue)
 
-**How to decide:**
-- Read the requirement text
-- If it contains words like: "UI", "layout", "CSS", "gap", "margin", "padding", "mobile", "desktop", "responsive", "style", "color", "icon", "component looks", "render", "visible", "hidden", "overflow", "scroll" → ui-specialist is REQUIRED
-- If it contains words like: "performance", "architecture", "slow", "memory", "dependency", "integration", "pattern", "structure" → architect is REQUIRED
-- Multiple specialists can and should be called in parallel when multiple domains are touched.
+1. For each of the 4 specialists (`ui-specialist`, `architect`, `product-owner`, `user`), produce one line:
+   - `<specialist>: RELEVANT — <reason>` OR
+   - `<specialist>: SKIP — <concrete reason>`
+2. Call every specialist marked RELEVANT. Parallelize in a single Agent call.
+3. If you cannot articulate a concrete SKIP reason, default to CALL.
 
-**How to invoke**:
+#### Relevance triggers (treat as RELEVANT unless clearly unrelated)
+
+- **ui-specialist**: any visual/UI/UX/layout/CSS/responsive/styling/icon/component-appearance issue, any "looks wrong" report, any viewport-specific bug
+- **architect**: any architectural/performance/dependency/pattern-consistency/structural concern, any cross-module change
+- **product-owner**: any business-logic/feature-completeness/user-flow/missing-feature question, any "should this exist" question
+- **user**: any end-to-end scenario, UX friction, broken flow, or unclear-behavior report
+
+#### Forbidden shortcuts
+
+- "No specialists needed" without per-specialist assessment — INVALID
+- Skipping all 4 by default — INVALID
+- Calling all 4 when 2 clearly don't apply — wasteful (document why each skipped)
+
+#### Record the assessment
+
+In the orchestrator's reasoning (and in BA's context JSON when BA is invoked next), include:
+```json
+"specialists_assessed": {
+  "ui-specialist": "RELEVANT — layout issue" | "SKIP — pure backend change",
+  "architect": "...",
+  "product-owner": "...",
+  "user": "..."
+}
+```
+
+**How to invoke** (for each RELEVANT specialist, parallelize in a single response):
 
 ```
 Use Agent tool with:
@@ -114,9 +135,7 @@ Use Agent tool with:
   "
 ```
 
-**Rationale:** Skipping the UI specialist on a UI bug means BA analyzes from a code perspective only, missing visual cause patterns (global CSS overrides, computed style inspection, viewport-specific bugs). This has caused 6 consecutive fix failures.
-
-Pass all specialist findings to the BA subagent in Step 3 as additional context.
+Pass all specialist findings (and the full `specialists_assessed` block) to the BA subagent in Step 3 as additional context.
 
 ## Four Contracts Awareness (Orchestrator Role)
 
