@@ -415,19 +415,14 @@ sync_changes() {
         return 0
     fi
 
-    # Step 2: Add
-    if ! safe_add; then
-        log_error "Sync failed at add stage"
-        return 1
-    fi
-
-    # Step 3: Commit
+    # Step 2: Checkpoint (writes to refs/checkpoints/<branch> via temp index;
+    # the real .git/index is never touched — no pre-staging needed).
     if ! safe_commit; then
-        log_error "Sync failed at commit stage"
+        log_error "Sync failed at checkpoint stage"
         return 1
     fi
 
-    # Step 4: Pull (periodic or before push)
+    # Step 3: Pull (periodic or before push)
     local current_time=$(date +%s)
     local time_since_pull=$((current_time - LAST_PULL_TIME))
 
