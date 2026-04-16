@@ -242,7 +242,8 @@ write_checkpoint() {
     # inside the lock for correctness). In an empty repo HEAD has no tree,
     # so seed from --empty instead.
     # -------------------------------------------------------------------------
-    local seed_parent_sha seed_parent_tree
+    local seed_parent_sha=""
+    local seed_parent_tree=""
     seed_parent_sha=$($git_cmd rev-parse --verify -q "$ref" 2>/dev/null || true)
     if [ -z "$seed_parent_sha" ]; then
         seed_parent_sha=$($git_cmd rev-parse --verify -q HEAD 2>/dev/null || true)
