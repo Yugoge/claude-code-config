@@ -943,17 +943,23 @@ If no spec found, set `spec_path = null`. All downstream behavior is unchanged w
 
 **Keep this step lightweight** - BA subagent handles all analysis.
 
-### Step 2: Consult Specialists (Optional)
+### Step 2: Specialist Consultation (MANDATORY for matching domains)
 
-**The orchestrator may optionally consult one or more specialist subagents before delegating to BA.** This step is entirely optional -- the orchestrator freely decides whether to invoke any specialists, and which ones.
+When the requirement matches a specialist's domain, you MUST call that specialist. This is not optional.
 
-**Available specialists**:
-- **UI specialist** (`ui-specialist`): Consult when the requirement involves UI/UX changes, visual design, responsive layout, or accessibility concerns
-- **Architect** (`architect`): Consult when there are architectural or structural concerns, performance implications, or significant codebase changes
-- **User simulator** (`user`): Consult when user flows need end-to-end validation, or when the requirement affects core user journeys
-- **Product Owner** (`product-owner`): Consult when business logic, feature completeness, or product requirements need clarification
+**Mandatory triggers:**
+- ANY visual/UI/UX/layout/styling/responsive issue → MUST call `ui-specialist`
+- ANY architectural/structural/performance/dependency concern → MUST call `architect`
+- ANY business-logic/feature-completeness/user-flow question → MUST call `product-owner`
+- ANY end-to-end user scenario or UX-friction issue → MUST call `user`
 
-**How to invoke** (if needed):
+**How to decide:**
+- Read the requirement text
+- If it contains words like: "UI", "layout", "CSS", "gap", "margin", "padding", "mobile", "desktop", "responsive", "style", "color", "icon", "component looks", "render", "visible", "hidden", "overflow", "scroll" → ui-specialist is REQUIRED
+- If it contains words like: "performance", "architecture", "slow", "memory", "dependency", "integration", "pattern", "structure" → architect is REQUIRED
+- Multiple specialists can and should be called in parallel when multiple domains are touched.
+
+**How to invoke**:
 
 ```
 Use Agent tool with:
@@ -969,10 +975,9 @@ Use Agent tool with:
   "
 ```
 
-**Rules**:
-- Invoke 0 to 4 specialists based on the requirement type
-- Pass any specialist findings to the BA subagent in Step 3 as additional context
-- If no specialists are needed, mark this step as completed and proceed to Step 3
+**Rationale:** Skipping the UI specialist on a UI bug means BA analyzes from a code perspective only, missing visual cause patterns (global CSS overrides, computed style inspection, viewport-specific bugs). This has caused 6 consecutive fix failures.
+
+Pass all specialist findings to the BA subagent in Step 3 as additional context.
 
 ### Step 3: Delegate to BA Subagent
 
