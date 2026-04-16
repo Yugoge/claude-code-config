@@ -20,7 +20,9 @@ _STEPS = [
             {"agent": "pm", "subagent_type": "pm"},
         ]},
     ),
+    ("2d", "Create overnight spec files", "Creating overnight spec files", None),
     ("3", "Create parallel pipelines from PM triage", "Creating parallel pipelines from PM triage", None),
+    ("3a", "Convert focus to QA verification criteria", "Converting focus to QA verification criteria", None),
     (
         "4",
         "Run all BA subagents (parallel)",
@@ -34,6 +36,7 @@ _STEPS = [
         "QA validating BA conclusions for all pipelines",
         {"subagent_call": {"agent": "qa", "subagent_type": "qa"}},
     ),
+    ("5b", "BA-QA iteration loop (if QA rejects BA)", "Iterating BA analysis based on QA objections", None),
     (
         "6",
         "Run all Dev subagents (parallel)",

@@ -244,6 +244,10 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/session-git-init.sh\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/check-todo-md-sync.py\""
           }
         ]
       }
@@ -368,6 +372,10 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/pretool-bisect-gate.sh\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-spec-block-foreground-agent.py\""
           }
         ]
       }
