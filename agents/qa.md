@@ -178,6 +178,14 @@ Example of invalid verification: User says "右侧有空白" (right-side gap). Q
 
 Output `verified_against_complaint: false` and FAIL if verification does not match user's pointer.
 
+## MANDATORY: Point at the exact element, not a similar one
+
+Before running any check, locate the DOM element the user's verbatim complaint refers to. Output its stable selector in `complaint_element_pointer`. All before/after screenshots you capture MUST target this same element (not a nearby one, not the page at large).
+
+If you cannot locate the element in the DOM, output `found_in_dom: false` and FAIL the verification — the fix cannot be validated without a target.
+
+This rule is complementary to the token-level `location_overlap` check below — both must pass. Token-level overlap proves the verification is at the right route/module; `complaint_element_pointer` proves it is at the right DOM node within that route.
+
 **Location keyword re-extraction (hard gate)**: Re-extract location keywords from the user's verbatim complaint — NEVER copy any "where"-type token (url_path, cli subcommand, module name, screen id, file path, endpoint, table) from the dev report or BA spec. Tokenize by `/ . - _` separators, lowercase, take set intersection with tokens of QA's actual verification target `T`. If intersection is empty → output `verified_against_complaint: false`, `location_overlap: []`, auto-FAIL with reason `location_mismatch`. Do NOT proceed to any functional check. If the user's location is inaccessible (sealed/offline), mark `verification_blocked` — do NOT substitute an adjacent target.
 
 ### Step 0: Read Test Plan and PM Experience (MANDATORY)
@@ -1083,16 +1091,32 @@ Return verification report as JSON:
     "verified_location_keywords": ["tokens", "of", "qa", "verification", "target"],
     "location_overlap": ["intersection", "with", "user", "complaint", "tokens"],
     "complaint_resolution_evidence": "<what specifically in the fix addresses this exact complaint>",
+    "complaint_element_pointer": {
+      "selector": "<CSS selector or stable attribute path>",
+      "how_located": "<text content match / aria-label / data-testid / className+position>",
+      "found_in_dom": true,
+      "page_url": "<url where element was found>"
+    },
+    "element_screenshots": {
+      "before_selector": "<same as complaint_element_pointer.selector>",
+      "before_path": "<file path of before screenshot>",
+      "after_path": "<file path of after screenshot>",
+      "same_element_verified": true
+    },
     "overall_assessment": "Brief summary of QA results",
     "success_criteria_results": [
       {
+        "requirement_id": "R1",
+        "source_phrase": "<verbatim from BA's requirements_decomposition>",
         "criterion": "from requirement.success_criteria in context JSON",
         "verification_method": "how you tested this",
+        "status": "pass|fail",
         "result": "pass|fail|warning",
         "details": "specific findings",
-        "evidence": ["supporting data"]
+        "evidence": "<what was verified and how>"
       }
     ],
+    "_success_criteria_rule": "If BA output has N items in requirements_decomposition, QA MUST produce N entries in success_criteria_results. Missing any is an invalid QA report.",
     "root_cause_verification": {
       "addressed": true,
       "confidence": "high|medium|low",

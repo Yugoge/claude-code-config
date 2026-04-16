@@ -1,7 +1,7 @@
 # .claude
 
-*Last updated: 2026-04-16T09:53:47Z*
-**Total entries**: 15348
+*Last updated: 2026-04-16T10:33:01Z*
+**Total entries**: 15356
 **Convention**: kebab
 
 ## Tree
@@ -965,10 +965,13 @@
 │   │   ├── `pre_slashcommand_validate.sh` - pre_slashcommand_validate.sh
 │   │   ├── `pre_tool_use_safety.sh` - PreToolUse Safety Hook - Warn before dangerous operations
 │   │   ├── `pretool-bash-safety.sh` - PreToolUse Safety Hook - Warn or block before dangerous operations
+│   │   ├── `pretool-bisect-gate.sh` - pretool-bisect-gate.sh
 │   │   ├── `pretool-block-enterworktree.sh` - PreToolUse hook: Block EnterWorktree tool
 │   │   ├── `pretool-block-production-files.sh` - PreToolUse hook: Block Write/Edit to production paths from dev environment
 │   │   ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
 │   │   ├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
+│   │   ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
+│   │   ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
 │   │   ├── `pretool-orchestrator-gate.py` - PreToolUse Hook: Orchestrator Gate
 │   │   ├── `pretool-overnight-hook-guard.py` - PreToolUse Hook: Overnight session file modification guard
 │   │   ├── `pretool-quality-gate.py` - PreToolUse Hook: Quality gate for Write/Edit operations
@@ -994,6 +997,7 @@
 │   │   ├── `stop-overnight-timelock.py` - Stop Hook: Block conversation termination until overnight end-time
 │   │   ├── `stop-workflow-enforce.py` - Stop Hook: Enforce workflow structural integrity before allowing Claude to stop
 │   │   ├── `subagent-stop-diff-check.sh` - SubagentStop hook: flag large diffs without minimum-diff justification
+│   │   ├── `subagent-stop-guard-integrity.sh` - subagent-stop-guard-integrity.sh
 │   │   └── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
 │   ├── logs/
 │   │   ├── `checkpoint-push.log` - log file
@@ -7699,10 +7703,13 @@
 │   ├── `pre_slashcommand_validate.sh` - pre_slashcommand_validate.sh
 │   ├── `pre_tool_use_safety.sh` - PreToolUse Safety Hook - Warn before dangerous operations
 │   ├── `pretool-bash-safety.sh` - PreToolUse Safety Hook - Warn or block before dangerous operations
+│   ├── `pretool-bisect-gate.sh` - pretool-bisect-gate.sh
 │   ├── `pretool-block-enterworktree.sh` - PreToolUse hook: Block EnterWorktree tool
 │   ├── `pretool-block-production-files.sh` - PreToolUse hook: Block Write/Edit to production paths from dev environment
 │   ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
 │   ├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
+│   ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
+│   ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
 │   ├── `pretool-orchestrator-gate.py` - PreToolUse Hook: Orchestrator Gate
 │   ├── `pretool-overnight-hook-guard.py` - PreToolUse Hook: Overnight session file modification guard
 │   ├── `pretool-quality-gate.py` - PreToolUse Hook: Quality gate for Write/Edit operations
@@ -7728,6 +7735,7 @@
 │   ├── `stop-overnight-timelock.py` - Stop Hook: Block conversation termination until overnight end-time
 │   ├── `stop-workflow-enforce.py` - Stop Hook: Enforce workflow structural integrity before allowing Claude to stop
 │   ├── `subagent-stop-diff-check.sh` - SubagentStop hook: flag large diffs without minimum-diff justification
+│   ├── `subagent-stop-guard-integrity.sh` - subagent-stop-guard-integrity.sh
 │   └── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
 ├── logs/
 │   ├── `checkpoint-push.log` - log file

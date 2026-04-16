@@ -357,6 +357,19 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pretool-layer-escalation-check.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pretool-bisect-gate.sh\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -450,6 +463,14 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/subagent-stop-diff-check.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pretool-layer-match-gate.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/subagent-stop-guard-integrity.sh\""
           }
         ]
       }
