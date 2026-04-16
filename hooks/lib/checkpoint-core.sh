@@ -172,9 +172,9 @@ _checkpoint_rate_limited_push() {
 #   1  build/CAS failure after retries
 #   2  not a git repo
 write_checkpoint() {
-    local work_dir="$1"
+    local work_dir="${1:-}"
     local trigger="${2:-unknown}"
-    local custom_message="$3"
+    local custom_message="${3:-}"
 
     # Resolve git dir; bail gracefully if not a repo
     local git_dir
