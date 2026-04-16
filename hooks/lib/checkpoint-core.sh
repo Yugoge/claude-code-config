@@ -90,6 +90,31 @@ _checkpoint_push_log() {
     printf '[%s] [%s] %s\n' "$ts" "$level" "$*" >> "$CHECKPOINT_PUSH_LOG_FILE" 2>/dev/null || true
 }
 
+# Internal: atomically increment the consecutive-failure counter and emit a
+# single stderr CHECKPOINT ALERT when the threshold is reached. Safe against
+# racing hook invocations via atomic temp-file rename.
+_checkpoint_record_failure() {
+    mkdir -p "$CHECKPOINT_LOG_DIR" 2>/dev/null
+    local current=0
+    if [ -f "$CHECKPOINT_FAIL_COUNT_FILE" ]; then
+        current=$(cat "$CHECKPOINT_FAIL_COUNT_FILE" 2>/dev/null | tr -dc '0-9')
+        current=${current:-0}
+    fi
+    local next=$((current + 1))
+    local tmp="${CHECKPOINT_FAIL_COUNT_FILE}.$$"
+    printf '%s\n' "$next" > "$tmp" 2>/dev/null && mv -f "$tmp" "$CHECKPOINT_FAIL_COUNT_FILE" 2>/dev/null || rm -f "$tmp" 2>/dev/null
+    if [ "$next" -ge "$CHECKPOINT_FAIL_ALERT_THRESHOLD" ]; then
+        echo "[CHECKPOINT ALERT] ${next} consecutive write failures — check ${CHECKPOINT_LOG_FILE}" >&2
+    fi
+}
+
+# Internal: reset the consecutive-failure counter on a successful write.
+_checkpoint_record_success() {
+    if [ -f "$CHECKPOINT_FAIL_COUNT_FILE" ]; then
+        printf '0\n' > "$CHECKPOINT_FAIL_COUNT_FILE" 2>/dev/null || true
+    fi
+}
+
 # Internal: compute git dir (.git) for the repo at <work_dir>
 _checkpoint_git_dir() {
     local work_dir="$1"
