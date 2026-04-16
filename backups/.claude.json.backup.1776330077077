@@ -83,8 +83,8 @@
       "lastUsedAt": 1776251925576
     },
     "dev": {
-      "usageCount": 189,
-      "lastUsedAt": 1776279563071
+      "usageCount": 192,
+      "lastUsedAt": 1776321491107
     },
     "sentiment-monitor": {
       "usageCount": 5,
@@ -115,8 +115,8 @@
       "lastUsedAt": 1774883194764
     },
     "review": {
-      "usageCount": 11,
-      "lastUsedAt": 1776281276877
+      "usageCount": 12,
+      "lastUsedAt": 1776320594549
     },
     "agent-browser": {
       "usageCount": 5,
@@ -193,6 +193,10 @@
     "merge-overnight": {
       "usageCount": 2,
       "lastUsedAt": 1776265239569
+    },
+    "fx-monitor": {
+      "usageCount": 1,
+      "lastUsedAt": 1776318749889
     }
   },
   "groveConfigCache": {
