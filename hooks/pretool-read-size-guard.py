@@ -2,7 +2,7 @@
 """
 PreToolUse Hook: Read Size Guard
 
-Blocks the main agent from reading files larger than 200 lines.
+Blocks the main agent from reading files larger than 600 lines.
 Subagents (agent_id present) are exempt.
 Binary files (images, PDFs) are exempt.
 """
