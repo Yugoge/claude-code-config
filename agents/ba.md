@@ -121,6 +121,62 @@ Then return JSON to stdout:
 
 ---
 
+## Three Contracts (Cross-Cutting)
+
+Every BA spec MUST satisfy three domain-agnostic contracts before being produced.
+These apply to all tasks (bugs, refactors, features) — not just specific bug
+categories. They replace ad-hoc "if UI bug then X" heuristics.
+
+### Contract A: Evidence
+
+User natural-language descriptions are OBSERVATIONS, not specifications. BA must
+translate observations into falsifiable data statements.
+
+Every spec MUST populate:
+
+- **observed**: verbatim user description (what they said)
+- **measured**: actual data from current code/runtime (BA reads it directly)
+- **expected**: correct-state data (from external authoritative source)
+- **gap**: quantified diff between measured and expected
+
+If BA cannot populate `measured` or `expected`, the spec is NOT allowed to ship.
+This forces measurement before solutioning.
+
+### Contract B: Scope
+
+User-reported scope is a LOWER BOUND, never the full scope. "Saw bug in file A"
+means "at least A has it," not "only A."
+
+Mandatory actions:
+
+1. Use `measured` data/pattern from Contract A as the search seed
+2. Grep the EXACT pattern across the entire project (not keywords, not synonyms)
+3. `affected_files` MUST be ≥ the grep result set
+4. If user-reported scope < grep result, spec MUST list both sets explicitly:
+   - `user_reported`: [...]
+   - `additional_found`: [...]
+
+### Contract C: Reference Integrity
+
+Fixes require knowing the correct answer. BA MUST tag each reference source by
+trust tier:
+
+- **tier_1_external**: official spec / RFC / design system doc / standard library
+- **tier_2_verified**: code verified in this session by user or QA
+- **tier_3_tainted**: other project code / git history / user description
+
+Rules:
+
+- When the fix copies data values (coordinates, paths, schemas, constants, regex),
+  the reference MUST be tier_1 or tier_2
+- tier_3 is allowed for heuristic inspiration only — NEVER for direct copy
+- `reference_source.tier` is a required field
+
+Dev subagent MUST respect the tier: if tier is `tier_1_external`, dev cannot
+substitute a project-internal value even if one looks similar.
+
+---
+
 ## Analysis Process
 
 ### Step 0: Dedup Check
@@ -290,6 +346,29 @@ Target: 500-1500 tokens
 
 <Brief background: what exists today, what triggered this request>
 
+## Evidence (Contract A)
+
+- **Observed**: <verbatim user description>
+- **Measured**: `<exact value>` at `<file:line>`
+- **Expected**: `<correct value>` — source: <spec URL or reference>
+- **Gap**: <quantified diff>
+
+## Scope (Contract B)
+
+- **Search pattern**: `<exact string or regex>`
+- **Search scope**: <e.g., frontend/src/**>
+- **User reported**: <files>
+- **Additional found via grep**: <files>
+- **All occurrences**: <file:line list>
+
+## Reference Source (Contract C)
+
+- **Tier**: tier_1_external | tier_2_verified | tier_3_tainted
+- **Source**: <description>
+- **Location**: <URL or file:line that dev can verify>
+- **Copy allowed**: yes | no
+- **Dev constraint**: <e.g., "Use external Heroicons spec only; do NOT reuse existing project SVG path data">
+
 ## Requirements (MoSCoW)
 
 ### Must Have
@@ -367,6 +446,31 @@ Must be compatible with `agents/dev.md` input format:
       "<list of claims with source: e.g. 'button renders at 48px (observed: Playwright getComputedStyle)' or 'button should be 32px (inferred: Tailwind w-8 class)'. Empty array if no observations were taken.>"
     ],
     "diagnosis_completeness": "<complete (has observations) | incomplete (inferred only)>"
+  },
+  "evidence": {
+    "observed": "verbatim user description",
+    "measured": {
+      "value": "actual data extracted from code (string, number, path, etc.)",
+      "location": "file:line"
+    },
+    "expected": {
+      "value": "correct-state data",
+      "source": "where this came from (spec URL, doc ref, etc.)"
+    },
+    "gap": "quantified diff between measured and expected"
+  },
+  "scope_expansion": {
+    "search_pattern": "exact string or regex used as search seed",
+    "search_scope": "e.g., frontend/src/**",
+    "user_reported": ["files user mentioned"],
+    "additional_found": ["files discovered via grep but not reported"],
+    "all_occurrences": ["file:line"]
+  },
+  "reference_source": {
+    "tier": "tier_1_external | tier_2_verified | tier_3_tainted",
+    "description": "what the reference is",
+    "url_or_location": "where dev can independently verify",
+    "copy_allowed": true
   },
   "context": {
     "codebase_state": "<relevant git status>",
