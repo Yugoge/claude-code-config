@@ -53,7 +53,9 @@ def main():
     sys.stderr.write(
         f"[Read Size Guard] File too large: {file_path} "
         f"({line_count} lines, limit {LINE_LIMIT}).\n"
-        f"Use an Agent subagent to read and summarize this file instead.\n"
+        f"Do NOT retry with offset/limit to fetch the raw content piecewise. Choose one:\n"
+        f"  1. Use Grep to locate the specific section you need, then Read that narrow range.\n"
+        f"  2. Delegate to an Agent subagent asking it to SUMMARIZE the file (not return raw content).\n"
     )
     sys.exit(2)
 
