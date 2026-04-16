@@ -1,6 +1,6 @@
 # hooks
 
-*Last updated: 2026-04-16T08:17:15Z*
+*Last updated: 2026-04-16T09:26:18Z*
 **Total entries**: 74
 **Convention**: kebab
 
@@ -26,7 +26,7 @@ hooks/
 ├── `audit-slashcommand.sh` - audit-slashcommand.sh
 ├── `auto-commit.sh` - ============================================================================
 ├── `checkpoint.sh` - checkpoint.sh - Manual /checkpoint command
-├── `ensure-git-repo.sh` - ============================================================================
+├── `ensure-git-repo.sh` - ensure-git-repo.sh - DEPRECATED, scheduled for deletion
 ├── `fswatch-manager.sh` - fswatch-manager.sh - Manage git-fswatch instances
 ├── `git-fswatch.sh` - git-fswatch.sh - Comprehensive Git file watcher using fswatch
 ├── `git-fswatch@.service` - service file

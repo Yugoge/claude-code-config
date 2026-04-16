@@ -454,7 +454,7 @@ All 22 containers managed by single compose project, `restart: always`:
 | applio-worker | applio-worker | internal | applio-api:latest; depends on applio-api |
 | applio-beat | applio-beat | internal | applio-api:latest; depends on applio-api |
 | applio-web | applio-web | 8096→3000 | applio-web:latest; depends on applio-api |
-| ib-gateway | ib-gateway | 127.0.0.1→4001→4003, 127.0.0.1→4002→4004, 127.0.0.1→5900→5900 | ghcr.io/gnzsnz/ib-gateway:stable |
+| ib-gateway | ib-gateway | 127.0.0.1→4001→4003, 127.0.0.1→4002→4004, 127.0.0.1→5900→5900 | ghcr.io/gnzsnz/ib-gateway@sha256:92ec011323ad1a36ff8a346d430ae26ff94ee300765f4b1a67a04fe05d25f96a |
 <!-- /AUTO:docker-services -->
 
 ### Systemd Services (non-Docker)
