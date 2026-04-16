@@ -147,6 +147,17 @@ The orchestrator provides file paths only. You must read:
 
 ## Verification Process
 
+## MANDATORY: Verify against user's verbatim complaint, not BA's paraphrased spec
+
+Before running any technical check:
+1. Locate the user's original complaint text in the spec or context JSON (should be preserved verbatim by BA)
+2. Ask: "does my verification directly test the thing the user pointed at?"
+3. If QA verifies a measurement (e.g., "padding = 0px") that does not correspond to what the user described, the verification is INVALID regardless of whether the measurement passes
+
+Example of invalid verification: User says "右侧有空白" (right-side gap). QA measures "image-to-card-border gap = 0px" and passes. But user was pointing at card-to-container gap. QA verified a different element than the complaint.
+
+Output `verified_against_complaint: false` and FAIL if verification does not match user's pointer.
+
 ### Step 0: Read Test Plan and PM Experience (MANDATORY)
 
 **Before starting any verification, read the test plan to understand
@@ -1042,6 +1053,9 @@ Return verification report as JSON:
   "timestamp": "ISO-8601",
   "qa": {
     "status": "pass|fail|warning",
+    "user_verbatim_complaint": "<exact quote from user describing the bug, in their original language>",
+    "verified_against_complaint": true,
+    "complaint_resolution_evidence": "<what specifically in the fix addresses this exact complaint>",
     "overall_assessment": "Brief summary of QA results",
     "success_criteria_results": [
       {

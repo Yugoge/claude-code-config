@@ -177,6 +177,43 @@ substitute a project-internal value even if one looks similar.
 
 ---
 
+## MANDATORY: Specify setup/environment in spec and context
+
+Every BA spec and context JSON must explicitly record:
+
+- **viewport**: the exact viewport/breakpoint where the bug is reproducible (e.g., "375x812 mobile", "1440x900 desktop")
+- **theme**: light / dark / both
+- **locale**: which language the user reported in
+- **auth_state**: logged-in / logged-out
+- **data_state**: empty / with-data / specific-condition
+- **browser**: if platform-specific
+- **url_path**: the exact route
+
+If the user did not specify, ASK during the clarification round. Do not assume.
+
+**Why**: On 2026-04-15, bug #9 was repeatedly fixed on desktop and verified PASS by QA, while the user was actually reporting the bug on mobile. 6 cycles failed because nobody pinned down the viewport first.
+
+Include this in BOTH the markdown spec AND the context JSON (add a `setup` object to the JSON schema).
+
+---
+
+## MANDATORY: Primary suspects for regression bugs
+
+When user says "it used to work" / "以前没问题" / "broke after X", these are REGRESSION bugs. The default investigation order:
+
+1. **Git bisect first** — find the commit that introduced the break. Do this BEFORE analyzing any component code.
+2. **Global CSS rules / hooks / middleware** — high-impact, low-visibility. Always check globals.css, middleware files, root layout, global event handlers, service workers.
+3. **Build / deploy / dependency changes** — package updates, Dockerfile changes, Next.js config changes
+4. **Component-local code** — last, not first
+
+**Anti-pattern to avoid**: diving into the component's own code first (what the user pointed at) before ruling out global-scope regressions. 6 cycles failed because every agent started by reading the component at the user's pointer, never checking global CSS that silently overrode it.
+
+When inspecting CSS/layout issues specifically:
+- Use Playwright `getComputedStyle()` on the actual DOM element before reading className
+- className can lie — global rules with higher specificity silently override it
+
+---
+
 ## Analysis Process
 
 ### Step 0: Dedup Check
@@ -346,6 +383,16 @@ Target: 500-1500 tokens
 
 <Brief background: what exists today, what triggered this request>
 
+## Setup / Environment
+
+- **viewport**: <e.g., "375x812 mobile" | "1440x900 desktop">
+- **theme**: <light | dark | both>
+- **locale**: <en | zh | ...>
+- **auth_state**: <logged-in | logged-out>
+- **data_state**: <empty | with-data | specific-condition>
+- **browser**: <e.g., "Chrome desktop" | "Safari iOS" | N/A>
+- **url_path**: <exact route>
+
 ## Evidence (Contract A)
 
 - **Observed**: <verbatim user description>
@@ -447,6 +494,15 @@ Must be compatible with `agents/dev.md` input format:
     ],
     "diagnosis_completeness": "<complete (has observations) | incomplete (inferred only)>"
   },
+  "setup": {
+    "viewport": "exact viewport/breakpoint, e.g. '375x812 mobile' or '1440x900 desktop'",
+    "theme": "light | dark | both",
+    "locale": "en | zh | ...",
+    "auth_state": "logged-in | logged-out",
+    "data_state": "empty | with-data | specific-condition",
+    "browser": "e.g. 'Chrome desktop' | 'Safari iOS' | 'N/A'",
+    "url_path": "exact route where bug is reproducible"
+  },
   "evidence": {
     "observed": "verbatim user description",
     "measured": {
@@ -513,6 +569,8 @@ Must be compatible with `agents/dev.md` input format:
 Before returning output, verify:
 
 - [ ] Requirement fully decomposed (what/why/where/scope/success)
+- [ ] `setup` section populated (viewport, theme, locale, auth_state, data_state, browser, url_path) in both spec and JSON
+- [ ] For regression bugs ("used to work"), git bisect + global CSS/middleware ruled out before component-local code
 - [ ] Best practices research performed or skip documented with reason
 - [ ] Git analysis performed (or documented as N/A)
 - [ ] Diagnostic claims labeled as inferred vs observed; diagnosis_completeness set
