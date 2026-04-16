@@ -477,6 +477,7 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
         # Idempotency short-circuit on pre-built tree.
         if [ -n "$parent_tree" ] && [ "$tree_sha" = "$parent_tree" ]; then
             rm -f "$result_file"
+            _checkpoint_record_success
             return 0
         fi
 
