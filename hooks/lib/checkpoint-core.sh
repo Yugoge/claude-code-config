@@ -209,6 +209,8 @@ write_checkpoint() {
     local custom_message="${3:-}"
 
     # Resolve git dir; bail gracefully if not a repo
+    # Note: rc=2 (not-a-repo) is NOT a checkpoint failure — it's a no-op skip,
+    # so we do NOT increment the failure counter here.
     local git_dir
     git_dir=$(_checkpoint_git_dir "$work_dir")
     if [ -z "$git_dir" ]; then
