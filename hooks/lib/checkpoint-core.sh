@@ -306,7 +306,9 @@ write_checkpoint() {
             flock -x 9
 
             # Re-read parent INSIDE the lock for correctness.
-            local old_ref_sha_inner parent_sha_inner parent_tree_inner
+            local old_ref_sha_inner=""
+            local parent_sha_inner=""
+            local parent_tree_inner=""
             old_ref_sha_inner=$($git_cmd rev-parse --verify -q "$ref" 2>/dev/null || true)
             if [ -n "$old_ref_sha_inner" ]; then
                 parent_sha_inner="$old_ref_sha_inner"
