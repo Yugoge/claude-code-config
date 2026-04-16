@@ -229,23 +229,192 @@ write_checkpoint() {
     # including the enclosing shell. Removing at end-of-function too (below).
     trap 'rm -f "$TMP_INDEX"' EXIT INT TERM HUP
 
-    # Retry loop covers:
-    #   - CAS race (another writer advanced the ref between our read and swap)
-    #   - Rare transient errors from git plumbing
+    # -------------------------------------------------------------------------
+    # PHASE 1: Build the working-tree snapshot OUTSIDE the lock.
+    #
+    # This phase does NOT create any commit objects — only blobs and a tree,
+    # which are content-addressed and would be created by whichever writer
+    # ultimately wins. Running this outside the lock preserves concurrency
+    # for the expensive `git add -A` step and does not contribute to the
+    # dangling-objects problem the flock fix targets.
+    #
+    # Seed temp index from HEAD tree (best-effort; exact parent is re-read
+    # inside the lock for correctness). In an empty repo HEAD has no tree,
+    # so seed from --empty instead.
+    # -------------------------------------------------------------------------
+    local seed_parent_sha seed_parent_tree
+    seed_parent_sha=$($git_cmd rev-parse --verify -q "$ref" 2>/dev/null || true)
+    if [ -z "$seed_parent_sha" ]; then
+        seed_parent_sha=$($git_cmd rev-parse --verify -q HEAD 2>/dev/null || true)
+    fi
+    if [ -n "$seed_parent_sha" ]; then
+        seed_parent_tree=$($git_cmd rev-parse "${seed_parent_sha}^{tree}" 2>/dev/null || true)
+    fi
+
+    rm -f "$TMP_INDEX"
+    if [ -n "$seed_parent_tree" ]; then
+        if ! GIT_INDEX_FILE="$TMP_INDEX" $git_cmd read-tree "$seed_parent_tree" 2>>"$CHECKPOINT_LOG_FILE"; then
+            _checkpoint_log ERROR "read-tree failed (parent_tree=${seed_parent_tree}, ref=${ref})"
+            rm -f "$TMP_INDEX"
+            return 1
+        fi
+    else
+        if ! GIT_INDEX_FILE="$TMP_INDEX" $git_cmd read-tree --empty 2>>"$CHECKPOINT_LOG_FILE"; then
+            _checkpoint_log ERROR "read-tree --empty failed (ref=${ref})"
+            rm -f "$TMP_INDEX"
+            return 1
+        fi
+    fi
+
+    if ! GIT_INDEX_FILE="$TMP_INDEX" $git_cmd add -A 2>>"$CHECKPOINT_LOG_FILE"; then
+        _checkpoint_log ERROR "add -A failed (ref=${ref})"
+        rm -f "$TMP_INDEX"
+        return 1
+    fi
+
+    local tree_sha
+    tree_sha=$(GIT_INDEX_FILE="$TMP_INDEX" $git_cmd write-tree 2>>"$CHECKPOINT_LOG_FILE")
+    if [ -z "$tree_sha" ]; then
+        _checkpoint_log ERROR "write-tree produced empty sha (ref=${ref})"
+        rm -f "$TMP_INDEX"
+        return 1
+    fi
+
+    # -------------------------------------------------------------------------
+    # PHASE 2: Enter flock-protected critical section for the commit-tree +
+    # update-ref pair. Only one writer per repo runs this section at a time,
+    # so commit-tree never produces an orphan object.
+    #
+    # The flock FD (9) is local to the subshell; closing the subshell
+    # releases the lock automatically even on error.
+    # -------------------------------------------------------------------------
+    local lockfile="${abs_git_dir}/checkpoint-core.lock"
+    touch "$lockfile" 2>/dev/null || true
+
+    local result_file
+    result_file=$(mktemp 2>/dev/null || printf '%s' "/tmp/checkpoint-result.$$.${ns}")
+
+    if command -v flock >/dev/null 2>&1; then
+        # Run the critical section inside a flock-protected subshell.
+        # Output the ref tip (or empty on idempotent no-op) to $result_file,
+        # and use the subshell's exit code to signal status:
+        #   0 = success (new commit written); result_file has the new sha
+        #   2 = idempotent no-op (tree unchanged); result_file empty
+        #   1 = hard failure; caller returns 1
+        (
+            flock -x 9
+
+            # Re-read parent INSIDE the lock for correctness.
+            local old_ref_sha_inner parent_sha_inner parent_tree_inner
+            old_ref_sha_inner=$($git_cmd rev-parse --verify -q "$ref" 2>/dev/null || true)
+            if [ -n "$old_ref_sha_inner" ]; then
+                parent_sha_inner="$old_ref_sha_inner"
+            else
+                parent_sha_inner=$($git_cmd rev-parse --verify -q HEAD 2>/dev/null || true)
+            fi
+            if [ -n "$parent_sha_inner" ]; then
+                parent_tree_inner=$($git_cmd rev-parse "${parent_sha_inner}^{tree}" 2>/dev/null || true)
+            fi
+
+            # Idempotency short-circuit: if the pre-built tree matches the
+            # CURRENT parent tree (latest, under the lock), do not commit.
+            if [ -n "$parent_tree_inner" ] && [ "$tree_sha" = "$parent_tree_inner" ]; then
+                : > "$result_file"
+                exit 2
+            fi
+
+            # Build commit message (inside the lock so timestamp/file-count
+            # reflect the actual committed state).
+            local summary timestamp file_count commit_body
+            timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+            if [ -n "$parent_tree_inner" ]; then
+                file_count=$($git_cmd diff-tree -r --name-only "$parent_tree_inner" "$tree_sha" 2>/dev/null | wc -l | tr -d ' ')
+            else
+                file_count=$($git_cmd ls-tree -r --name-only "$tree_sha" 2>/dev/null | wc -l | tr -d ' ')
+            fi
+            if [ -n "$custom_message" ]; then
+                summary="$custom_message"
+            else
+                summary="checkpoint: Auto-save at ${timestamp}"
+            fi
+            commit_body="${summary}
+
+Trigger: ${trigger}
+Ref: ${ref}
+Files: ${file_count}
+
+This commit is a snapshot written to refs/checkpoints/* by
+~/.claude/hooks/lib/checkpoint-core.sh. It is NOT on any branch HEAD.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+via [Happy](https://happy.engineering)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+Co-Authored-By: Happy <yesreply@happy.engineering>"
+
+            # commit-tree inside the lock: only one writer creates a commit
+            # object at a time, so no dangling objects accumulate.
+            local new_sha_inner
+            if [ -n "$parent_sha_inner" ]; then
+                new_sha_inner=$(printf '%s' "$commit_body" | $git_cmd commit-tree "$tree_sha" -p "$parent_sha_inner" 2>>"$CHECKPOINT_LOG_FILE")
+            else
+                new_sha_inner=$(printf '%s' "$commit_body" | $git_cmd commit-tree "$tree_sha" 2>>"$CHECKPOINT_LOG_FILE")
+            fi
+            if [ -z "$new_sha_inner" ]; then
+                _checkpoint_log ERROR "commit-tree failed (ref=${ref}, tree=${tree_sha})"
+                : > "$result_file"
+                exit 1
+            fi
+
+            # CAS update-ref kept as safety net. Under the lock it must not
+            # fail; if it does, something is badly wrong — log and abort.
+            # Do NOT retry inside the lock (that reintroduces the orphan bug).
+            if $git_cmd update-ref "$ref" "$new_sha_inner" "$old_ref_sha_inner" 2>>"$CHECKPOINT_LOG_FILE"; then
+                printf '%s' "$new_sha_inner" > "$result_file"
+                exit 0
+            fi
+
+            _checkpoint_log ERROR "update-ref failed INSIDE flock for ${ref} (old=${old_ref_sha_inner}, new=${new_sha_inner}); aborting without retry"
+            printf '%s' "$new_sha_inner" > "$result_file"
+            exit 1
+        ) 9>"$lockfile"
+        local rc=$?
+
+        rm -f "$TMP_INDEX"
+        trap - EXIT INT TERM HUP
+
+        case "$rc" in
+            0)
+                rm -f "$result_file"
+                _checkpoint_rate_limited_push "$work_dir" "$ref"
+                return 0
+                ;;
+            2)
+                rm -f "$result_file"
+                return 0
+                ;;
+            *)
+                rm -f "$result_file"
+                return 1
+                ;;
+        esac
+    fi
+
+    # -------------------------------------------------------------------------
+    # PHASE 2 FALLBACK: flock unavailable. Warn and fall back to the old
+    # CAS-retry loop. Under concurrency this may produce orphan commit
+    # objects (GC-eligible) — the flock path above is preferred when
+    # available.
+    # -------------------------------------------------------------------------
+    _checkpoint_log WARN "flock unavailable; falling back to CAS-retry loop (orphan commits possible under concurrency)"
+
     local retry=0
     local new_sha=""
     while [ "$retry" -lt "$CHECKPOINT_CAS_MAX_RETRIES" ]; do
         retry=$((retry + 1))
 
-        # Read current ref value (OLD_SHA) — empty if ref does not yet exist
-        local old_ref_sha
+        local old_ref_sha parent_sha parent_tree
         old_ref_sha=$($git_cmd rev-parse --verify -q "$ref" 2>/dev/null || true)
-
-        # Determine parent for commit-tree and its tree sha for idempotency.
-        # Parent chain: if ref exists, parent = ref HEAD; otherwise parent = HEAD;
-        # otherwise (empty repo) parent = none.
-        local parent_sha=""
-        local parent_tree=""
         if [ -n "$old_ref_sha" ]; then
             parent_sha="$old_ref_sha"
         else
@@ -255,62 +424,19 @@ write_checkpoint() {
             parent_tree=$($git_cmd rev-parse "${parent_sha}^{tree}" 2>/dev/null || true)
         fi
 
-        # Seed temp index from parent tree, or empty if bootstrapping.
-        # We always rm first so a partially-written index from a previous retry
-        # iteration cannot corrupt this one.
-        rm -f "$TMP_INDEX"
-        if [ -n "$parent_tree" ]; then
-            if ! GIT_INDEX_FILE="$TMP_INDEX" $git_cmd read-tree "$parent_tree" 2>>"$CHECKPOINT_LOG_FILE"; then
-                _checkpoint_log ERROR "read-tree failed (parent_tree=${parent_tree}, ref=${ref})"
-                rm -f "$TMP_INDEX"
-                return 1
-            fi
-        else
-            if ! GIT_INDEX_FILE="$TMP_INDEX" $git_cmd read-tree --empty 2>>"$CHECKPOINT_LOG_FILE"; then
-                _checkpoint_log ERROR "read-tree --empty failed (ref=${ref})"
-                rm -f "$TMP_INDEX"
-                return 1
-            fi
-        fi
-
-        # Stage all working-tree state into the temp index (no effect on real index).
-        if ! GIT_INDEX_FILE="$TMP_INDEX" $git_cmd add -A 2>>"$CHECKPOINT_LOG_FILE"; then
-            _checkpoint_log ERROR "add -A failed (ref=${ref})"
-            rm -f "$TMP_INDEX"
-            return 1
-        fi
-
-        # Build tree from temp index.
-        local tree_sha
-        tree_sha=$(GIT_INDEX_FILE="$TMP_INDEX" $git_cmd write-tree 2>>"$CHECKPOINT_LOG_FILE")
-        if [ -z "$tree_sha" ]; then
-            _checkpoint_log ERROR "write-tree produced empty sha (ref=${ref})"
-            rm -f "$TMP_INDEX"
-            return 1
-        fi
-
-        # Idempotency short-circuit: tree identical to parent tree -> no-op.
+        # Idempotency short-circuit on pre-built tree.
         if [ -n "$parent_tree" ] && [ "$tree_sha" = "$parent_tree" ]; then
-            rm -f "$TMP_INDEX"
-            trap - EXIT INT TERM HUP
+            rm -f "$result_file"
             return 0
         fi
 
-        # Build commit message. custom_message (if any) is the summary line.
         local summary timestamp file_count commit_body
         timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        file_count=$(GIT_INDEX_FILE="$TMP_INDEX" $git_cmd diff --cached --name-only 2>/dev/null |
-                     { [ -n "$parent_sha" ] || cat; $git_cmd diff-tree -r --name-only "$parent_tree" "$tree_sha" 2>/dev/null; } |
-                     sort -u | wc -l | tr -d ' ')
-        if [ -z "$file_count" ] || [ "$file_count" = "0" ]; then
-            # Fallback: count files in the tree diff directly
-            if [ -n "$parent_tree" ]; then
-                file_count=$($git_cmd diff-tree -r --name-only "$parent_tree" "$tree_sha" 2>/dev/null | wc -l | tr -d ' ')
-            else
-                file_count=$($git_cmd ls-tree -r --name-only "$tree_sha" 2>/dev/null | wc -l | tr -d ' ')
-            fi
+        if [ -n "$parent_tree" ]; then
+            file_count=$($git_cmd diff-tree -r --name-only "$parent_tree" "$tree_sha" 2>/dev/null | wc -l | tr -d ' ')
+        else
+            file_count=$($git_cmd ls-tree -r --name-only "$tree_sha" 2>/dev/null | wc -l | tr -d ' ')
         fi
-
         if [ -n "$custom_message" ]; then
             summary="$custom_message"
         else
@@ -331,7 +457,6 @@ via [Happy](https://happy.engineering)
 Co-Authored-By: Claude <noreply@anthropic.com>
 Co-Authored-By: Happy <yesreply@happy.engineering>"
 
-        # Build the commit object (not attached to any ref yet).
         if [ -n "$parent_sha" ]; then
             new_sha=$(printf '%s' "$commit_body" | $git_cmd commit-tree "$tree_sha" -p "$parent_sha" 2>>"$CHECKPOINT_LOG_FILE")
         else
@@ -339,29 +464,24 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
         fi
         if [ -z "$new_sha" ]; then
             _checkpoint_log ERROR "commit-tree failed (ref=${ref}, tree=${tree_sha})"
-            rm -f "$TMP_INDEX"
+            rm -f "$result_file"
             return 1
         fi
 
-        # CAS update-ref:
-        #   - if old_ref_sha is empty, pass "" as expected value (ref must not exist)
-        #   - if old_ref_sha is set, pass it as expected value (atomic advance)
         if $git_cmd update-ref "$ref" "$new_sha" "$old_ref_sha" 2>>"$CHECKPOINT_LOG_FILE"; then
+            rm -f "$result_file"
             rm -f "$TMP_INDEX"
             trap - EXIT INT TERM HUP
-            # Rate-limited background push (non-blocking)
             _checkpoint_rate_limited_push "$work_dir" "$ref"
             return 0
         fi
 
-        # CAS lost race; the orphaned new_sha commit is unreachable.
-        # It will be GC'd eventually. Log and retry.
         _checkpoint_log WARN "CAS race on ${ref} (attempt ${retry}/${CHECKPOINT_CAS_MAX_RETRIES}), retrying"
-        # Small staggered backoff to reduce thundering-herd
         sleep "0.0$((50 + RANDOM % 150))" 2>/dev/null || sleep 1
     done
 
     _checkpoint_log ERROR "CAS exceeded ${CHECKPOINT_CAS_MAX_RETRIES} retries for ${ref}"
+    rm -f "$result_file"
     rm -f "$TMP_INDEX"
     trap - EXIT INT TERM HUP
     return 1
