@@ -119,6 +119,8 @@
       "Bash(scripts/analyze-folder-history.sh:*)",
       "Bash(scripts/generate-folder-index.sh:*)",
       "Bash(scripts/generate-folder-readme.sh:*)",
+      "Bash(scripts/checkpoint-prune.sh:*)",
+      "Bash(scripts/install-checkpoint-refspec.sh:*)",
       "Read",
       "Glob",
       "Grep",
