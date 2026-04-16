@@ -279,9 +279,8 @@ fi
 # The working branch HEAD is never moved. Replaces the former `git commit`
 # path so fswatch no longer pollutes branch history.
 #
-# Note: previous safe_add() runs `git add .` on the REAL index. The lib
-# uses an isolated temp index, so any prior staging is harmless — the lib
-# captures the full working-tree state regardless of real-index contents.
+# The checkpoint-core library uses an isolated temp index (GIT_INDEX_FILE),
+# so the real .git/index is never touched by the snapshot operation.
 safe_commit() {
     cd "$WATCH_PATH" || return 1
 
