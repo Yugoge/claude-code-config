@@ -360,7 +360,7 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
 
             # commit-tree inside the lock: only one writer creates a commit
             # object at a time, so no dangling objects accumulate.
-            local new_sha_inner
+            local new_sha_inner=""
             if [ -n "$parent_sha_inner" ]; then
                 new_sha_inner=$(printf '%s' "$commit_body" | $git_cmd commit-tree "$tree_sha" -p "$parent_sha_inner" 2>>"$CHECKPOINT_LOG_FILE")
             else
