@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-04-16T09:31:25Z*
-**Total entries**: 45
+*Last updated: 2026-04-16T09:31:50Z*
+**Total entries**: 46
 **Convention**: kebab
 
 ## Tree
@@ -44,6 +44,7 @@ scripts/
 ├── `discover-folders.sh` - Description: Dynamically discover project folders excluding system directories
 ├── `generate-folder-index.sh` - Description: Generate INDEX.md for folder (inventory of contents)
 ├── `generate-folder-readme.sh` - Description: Generate README.md for folder (purpose and organization rules)
+├── `install-checkpoint-refspec.sh` - install-checkpoint-refspec.sh — idempotently add refs/checkpoints/* to
 ├── `migrate-test-to-tests.sh` - Description: Merge test/ folder into tests/ preserving all content (idempotent)
 ├── `normalize-doc-names.sh` - normalize-doc-names.sh - Detect and report non-compliant documentation file names
 ├── `orchestrator.sh` - Description: Agent orchestration coordinator for development and cleanup workflows
