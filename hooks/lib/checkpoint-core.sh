@@ -431,15 +431,18 @@ Co-Authored-By: Happy <yesreply@happy.engineering>"
         case "$rc" in
             0)
                 rm -f "$result_file"
+                _checkpoint_record_success
                 _checkpoint_rate_limited_push "$work_dir" "$ref"
                 return 0
                 ;;
             2)
                 rm -f "$result_file"
+                _checkpoint_record_success
                 return 0
                 ;;
             *)
                 rm -f "$result_file"
+                _checkpoint_record_failure
                 return 1
                 ;;
         esac
