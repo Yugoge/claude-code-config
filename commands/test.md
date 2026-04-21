@@ -363,22 +363,20 @@ Save to: `tests/reports/execution-context-{REQUEST_ID}.json`
 
 ### Step 11: Create Safety Checkpoint
 
-Before execution, create git checkpoint:
+Before execution, create a safety checkpoint on `refs/checkpoints/<branch>`
+(NOT on HEAD — preserves git blame hygiene). The checkpoint-core library
+handles the no-changes case (exit 0) internally, so no guard is needed here.
 
 ```bash
-# Check if there are uncommitted changes
-if [[ -n $(git status --porcelain) ]]; then
-  echo "Creating safety checkpoint before test execution..."
-  git add -A
-  git commit -m "checkpoint: Before test execution on $(date +%Y-%m-%d)"
+bash ~/.claude/hooks/checkpoint.sh "Before /test execution"
 
-  CHECKPOINT_COMMIT=$(git rev-parse HEAD)
-  echo "✅ Checkpoint created: $CHECKPOINT_COMMIT"
-  echo "   Rollback command: git reset --hard $CHECKPOINT_COMMIT"
-else
-  echo "✅ No uncommitted changes, skipping checkpoint"
-  CHECKPOINT_COMMIT=$(git rev-parse HEAD)
-fi
+# Record checkpoint ref in context (refs/checkpoints/<branch>, not HEAD)
+CURRENT_BRANCH=$(git branch --show-current)
+CHECKPOINT_REF="refs/checkpoints/${CURRENT_BRANCH}"
+CHECKPOINT_COMMIT=$(git rev-parse "$CHECKPOINT_REF" 2>/dev/null || echo "none")
+echo "✅ Checkpoint ref: ${CHECKPOINT_REF} @ ${CHECKPOINT_COMMIT}"
+echo "   Rollback (file-level): git checkout ${CHECKPOINT_REF} -- <path>"
+echo "   Rollback (full tree, destructive): git reset --hard ${CHECKPOINT_REF}"
 
 # Record checkpoint in context
 jq --arg commit "$CHECKPOINT_COMMIT" \

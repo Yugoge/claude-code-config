@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-04-16T06:44:13Z*
-**Total entries**: 56
+*Last updated: 2026-04-16T09:52:30Z*
+**Total entries**: 68
 **Convention**: kebab
 
 ## Tree
@@ -15,7 +15,9 @@ dev/
 │       ├── `completion-20251226-160000.md` - /dev Workflow Completion Report
 │       └── `completion-dev-20251228-143334.md` - Development Completion Report
 ├── `ba-qa-report-20260416-063500.json` - json config
+├── `ba-qa-report-20260416-073000.json` - json config
 ├── `ba-spec-20260416-063500.md` - BA Specification: Auto-Commit/Checkpoint System v2 — refs/checkpoints Migration
+├── `ba-spec-20260416-073000.md` - BA Specification: SaaS-Grade git blame — 5 Leak Paths + Ops Gaps (Iter 3)
 ├── `completion-dev-20260107-091716.md` - Development Completion Report
 ├── `completion-dev-20260107-100221.md` - Development Completion Report
 ├── `completion-dev-20260108-111618.md` - Development Completion Report
@@ -24,6 +26,7 @@ dev/
 ├── `completion-dev-20260108-164641.md` - Development Completion Report
 ├── `completion-dev-20260110-001044.md` - Development Completion Report
 ├── `context-20260416-063500.json` - json config
+├── `context-20260416-073000.json` - json config
 ├── `context-dev-20260107-091716.json` - json config
 ├── `context-dev-20260107-100221.json` - json config
 ├── `context-dev-20260107-104430.json` - json config
@@ -35,6 +38,10 @@ dev/
 ├── `context-dev-20260111-193314.json` - json config
 ├── `context-iter2-dev-20260111-193314.json` - json config
 ├── `dev-report-20260110-001044.json` - json config
+├── `dev-report-20260416-063500-iter2.json` - json config
+├── `dev-report-20260416-063500.json` - json config
+├── `dev-report-20260416-073000-iter2.json` - json config
+├── `dev-report-20260416-073000.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
 ├── `dev-report-dev-20260107-104430.json` - json config
@@ -43,6 +50,7 @@ dev/
 ├── `dev-report-dev-20260108-163807.json` - json config
 ├── `dev-report-dev-20260108-164641.json` - json config
 ├── `dev-report-dev-20260111-193314.json` - json config
+├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
 ├── `qa-input-dev-20260107-091716.json` - json config
 ├── `qa-input-dev-20260107-100221.json` - json config
@@ -53,6 +61,10 @@ dev/
 ├── `qa-input-dev-20260108-164641.json` - json config
 ├── `qa-input-dev-20260111-193314.json` - json config
 ├── `qa-report-20260110-001044.json` - json config
+├── `qa-report-20260416-063500-iter2.json` - json config
+├── `qa-report-20260416-063500.json` - json config
+├── `qa-report-20260416-073000-iter2.json` - json config
+├── `qa-report-20260416-073000.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
 ├── `qa-report-dev-20260107-100221.json` - json config
 ├── `qa-report-dev-20260107-104430.json` - json config

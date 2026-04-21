@@ -4,7 +4,10 @@
 # Usage: bash ~/.claude/hooks/push.sh [--auto]
 #
 # Options:
-#   --auto    Non-interactive mode (auto-stage all, auto-remove locks)
+#   --auto    Non-interactive mode (auto-remove stale locks only; does NOT
+#             auto-commit — a dirty tree is ALWAYS rejected with a clear
+#             "commit first" message. Automated snapshots now live on
+#             refs/checkpoints/<branch> and must NOT be promoted to HEAD.)
 
 # Colors
 GREEN='\033[0;32m'
@@ -79,157 +82,41 @@ if [ "$STAGED_COUNT" = "0" ] && [ "$MODIFIED_COUNT" = "0" ] && [ "$UNTRACKED_COU
   echo ""
 fi
 
-# Step 4: Auto-staging (interactive or automatic)
-SHOULD_STAGE=0
-if [ "${GIT_PUSH_AUTO_STAGE:-1}" = "1" ] && ([ "$MODIFIED_COUNT" != "0" ] || [ "$UNTRACKED_COUNT" != "0" ]); then
-  TOTAL_UNSTAGED=$((MODIFIED_COUNT + UNTRACKED_COUNT))
-
-  if [ "$AUTO_MODE" = "1" ]; then
-    # Non-interactive mode: auto-stage all
-    echo -e "${YELLOW}Auto-staging $TOTAL_UNSTAGED file(s)...${NC}"
-    SHOULD_STAGE=1
-  else
-    # Interactive mode: prompt user
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}Auto-Staging Available${NC}"
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
-    echo "Found $TOTAL_UNSTAGED file(s) not staged for commit."
-    echo ""
-    echo -e "${CYAN}Stage all files including untracked? (y/n)${NC}"
-    read -r RESPONSE
-
-    if [ "$RESPONSE" = "y" ] || [ "$RESPONSE" = "Y" ] || [ "$RESPONSE" = "yes" ]; then
-      SHOULD_STAGE=1
-    fi
-  fi
+# Step 4: Dirty-tree guard — /push must NOT create commits.
+# If the working tree or index is dirty, reject with a clear "commit first"
+# message. Automated snapshots live on refs/checkpoints/<branch> (written by
+# the Stop hooks and /checkpoint) and must not be promoted to HEAD by /push.
+DIRTY_STATUS=$(git status --porcelain 2>/dev/null)
+if [ -n "$DIRTY_STATUS" ]; then
+  echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${RED}❌ Refusing to push: working tree is dirty${NC}"
+  echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo ""
+  echo "commit first — /push no longer auto-commits."
+  echo ""
+  echo "Options to proceed:"
+  echo "  • Create a real semantic commit:   git add <files> && git commit -m \"...\""
+  echo "  • Discard changes:                 git checkout -- <files>"
+  echo "  • Snapshot to checkpoint ref only: bash ~/.claude/hooks/checkpoint.sh"
+  echo "      (checkpoint saves to refs/checkpoints/<branch>, does NOT move HEAD)"
+  echo ""
+  echo "Why? Automated snapshots belong on refs/checkpoints/<branch>, never on HEAD."
+  echo "See CLAUDE.md → 'Auto-Commit Mechanism' for recovery commands."
+  exit 1
 fi
 
-# Step 5: Stage files if requested
-if [ "$SHOULD_STAGE" = "1" ]; then
-  echo "📦 Staging all files..."
-  git add .
-  if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Error: Failed to stage files${NC}"
-    exit 1
-  fi
-
-  # Recount staged files
-  STAGED=$(git diff --cached --name-only 2>/dev/null)
-  STAGED_COUNT=$(echo "$STAGED" | grep -c '^' 2>/dev/null || echo "0")
-
-  echo -e "${GREEN}✅ Staged $STAGED_COUNT file(s)${NC}"
-  echo ""
-fi
-
-# Step 6: Check if there are staged changes to commit
+# Step 5: No staged/unstaged/untracked content at this point. Verify there is
+# actually something to push; otherwise exit cleanly.
 if [ "$STAGED_COUNT" = "0" ]; then
-  echo -e "${YELLOW}⚠️  No staged changes to commit${NC}"
-  echo ""
-
-  # Check if there are commits to push
   COMMITS_AHEAD=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo "0")
   if [ "$COMMITS_AHEAD" != "0" ] && [ "$COMMITS_AHEAD" != "" ]; then
-    echo "However, you have $COMMITS_AHEAD commit(s) ahead of remote."
-    echo "Proceeding with push..."
+    echo "Working tree clean. $COMMITS_AHEAD commit(s) ahead of remote — proceeding with push."
     echo ""
   else
-    echo "Nothing to commit or push."
+    echo "Nothing to push (working tree clean, no commits ahead of remote)."
     echo ""
-    if [ "$MODIFIED_COUNT" != "0" ] || [ "$UNTRACKED_COUNT" != "0" ]; then
-      echo "Suggestions:"
-      echo "  • Stage files: git add <file>"
-      echo "  • Stage all: git add ."
-      echo "  • Run this script again with auto-staging"
-    fi
     exit 0
   fi
-else
-  # Step 7: Check for git lock file before committing
-  LOCK_FILE=".git/index.lock"
-  if [ -f "$LOCK_FILE" ]; then
-    echo -e "${YELLOW}⚠️  Warning: Git lock file detected${NC}"
-    echo ""
-    echo "A lock file exists at: $LOCK_FILE"
-    echo "This usually means:"
-    echo "  • Another git process is running"
-    echo "  • A previous git process crashed"
-    echo ""
-
-    # Check if any git process is running
-    GIT_PROCESSES=$(ps aux | grep -i '[g]it' | grep -v grep || true)
-    if [ -n "$GIT_PROCESSES" ]; then
-      echo -e "${RED}Active git processes found:${NC}"
-      echo "$GIT_PROCESSES"
-      echo ""
-      echo "Please wait for other git operations to complete."
-      exit 1
-    else
-      echo "No active git processes detected."
-      echo "The lock file appears to be stale (from a crashed process)."
-      echo ""
-
-      if [ "$AUTO_MODE" = "1" ]; then
-        # Non-interactive mode: auto-remove stale lock
-        echo "Auto-removing stale lock file..."
-        rm -f "$LOCK_FILE"
-        if [ $? -eq 0 ]; then
-          echo -e "${GREEN}✅ Lock file removed${NC}"
-          echo ""
-        else
-          echo -e "${RED}❌ Failed to remove lock file${NC}"
-          echo "You may need to remove it manually:"
-          echo "  rm $LOCK_FILE"
-          exit 1
-        fi
-      else
-        # Interactive mode: ask user
-        echo -e "${CYAN}Remove the lock file and continue? (y/n)${NC}"
-        read -r RESPONSE
-
-        if [ "$RESPONSE" = "y" ] || [ "$RESPONSE" = "Y" ] || [ "$RESPONSE" = "yes" ]; then
-          rm -f "$LOCK_FILE"
-          if [ $? -eq 0 ]; then
-            echo -e "${GREEN}✅ Lock file removed${NC}"
-            echo ""
-          else
-            echo -e "${RED}❌ Failed to remove lock file${NC}"
-            echo "You may need to remove it manually:"
-            echo "  rm $LOCK_FILE"
-            exit 1
-          fi
-        else
-          echo "Operation cancelled."
-          echo "To remove manually: rm $LOCK_FILE"
-          exit 0
-        fi
-      fi
-    fi
-  fi
-
-  # Step 8: Create commit with staged changes
-  echo "📝 Creating commit..."
-
-  # Generate commit message
-  COMMIT_MSG="Update: Comprehensive changes via push script
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-via [Happy](https://happy.engineering)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-Co-Authored-By: Happy <yesreply@happy.engineering>"
-
-  # Create commit
-  git commit -m "$COMMIT_MSG"
-  if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Error: Failed to create commit${NC}"
-    exit 1
-  fi
-
-  COMMIT_HASH=$(git rev-parse --short HEAD)
-  echo -e "${GREEN}✅ Commit created: $COMMIT_HASH${NC}"
-  echo ""
 fi
 
 # Step 9: Push to remote

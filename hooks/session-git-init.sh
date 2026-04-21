@@ -76,9 +76,19 @@ EOF
   echo -e "${GREEN}✅ Created .gitignore${NC}"
 fi
 
-# Initial commit
+# Initial commit — ONLY on repos with zero commits (blame hygiene guard)
+# ----------------------------------------------------------------------------
+# If HEAD already resolves, this is an existing repo (even one we just
+# re-init'd alongside history); DO NOT write a non-semantic commit to HEAD.
+# This guard closes the HEAD-pollution leak identified by the 2026-04-16
+# SaaS-grade blame audit (qa-final-blame-audit-20260416-063500.json).
+if git rev-parse --verify -q HEAD >/dev/null 2>&1; then
+  echo -e "${GREEN}✅ Git repository already has history; skipping Initial commit${NC}"
+  exit 0
+fi
+
 git add .
-git commit -m "Initial commit
+git commit -m "chore: initialize repository with default .gitignore
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 via [Happy](https://happy.engineering)

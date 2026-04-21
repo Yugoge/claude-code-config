@@ -1,92 +1,57 @@
 #!/bin/bash
 # ============================================================================
-# Auto-Commit Hook for Claude Code
-# Automatically commit Claude Code changes
-# ============================================================================
-# Purpose: Auto-commit all changes after Claude Code completes a response
-# Trigger: Stop Hook
+# stop-git-commit.sh - Stop hook: snapshot on conversation end (chain #1)
+# ----------------------------------------------------------------------------
+# Writes a checkpoint to refs/checkpoints/<branch> via the shared library.
+# The working branch HEAD is never moved.
+#
+# Note: This hook runs BEFORE auto-commit.sh in the Stop chain. The first
+# hook to fire creates a checkpoint; the second one sees TREE == PARENT_TREE
+# (idempotency short-circuit in checkpoint-core.sh) and returns 0 silently.
 # ============================================================================
 
 set -e
 
-# Color output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-# Configurable Co-Authorship
-# Set CLAUDE_CO_AUTHOR environment variable to customize
-# Leave empty to skip co-author
-CO_AUTHOR=${CLAUDE_CO_AUTHOR:-"Co-Authored-By: Claude <noreply@anthropic.com>
-Co-Authored-By: Happy <yesreply@happy.engineering>"}
+NC='\033[0m'
 
 # Check if this is a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
-  echo -e "${YELLOW}⚠️  Not a git repository. Skipping commit.${NC}"
+  echo -e "${YELLOW}⚠️  Not a git repository. Skipping checkpoint.${NC}"
   exit 0
 fi
 
-# Check if there are changes (tracked modifications + untracked files)
+# Fast exit if there are no changes (tracked modifications + untracked)
 UNTRACKED=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l)
 if git diff --quiet && git diff --cached --quiet && [ "$UNTRACKED" -eq 0 ]; then
-  echo -e "${GREEN}✅ No changes to commit.${NC}"
+  echo -e "${GREEN}✅ No changes to checkpoint.${NC}"
   exit 0
 fi
 
-# Get current timestamp
-TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+# Source and delegate to the shared library
+# shellcheck source=lib/checkpoint-core.sh
+. "$HOME/.claude/hooks/lib/checkpoint-core.sh"
 
-# Try to get last user prompt from Claude session (optional feature)
-# Requires access to Claude's session data, fallback provided here
-LAST_PROMPT="Claude Code auto-commit"
-
-# Add staged file list to commit message if available
-CHANGED_FILES=$(git diff --cached --name-only 2>/dev/null || git diff --name-only)
-FILE_COUNT=$(echo "$CHANGED_FILES" | wc -l | tr -d ' ')
-
-# Build commit message
-COMMIT_MSG="Auto-commit: $TIMESTAMP
-
-Changed $FILE_COUNT file(s):
-$(echo "$CHANGED_FILES" | head -n 10 | sed 's/^/- /')
-$([ $FILE_COUNT -gt 10 ] && echo "... and $((FILE_COUNT - 10)) more" || true)
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
-via [Happy](https://happy.engineering)
-
-${CO_AUTHOR}"
-
-# Add all changes
-git add -A
-
-# Commit
-if git commit -m "$COMMIT_MSG" > /dev/null 2>&1; then
-  echo -e "${GREEN}✅ Committed: Auto-commit at $TIMESTAMP${NC}"
-  echo -e "${GREEN}   Files changed: $FILE_COUNT${NC}"
-
-  # Auto Push (comment out the code below if you don't want auto push)
-  # ========================================
-  # Check if remote repository is configured
-  if git remote get-url origin > /dev/null 2>&1; then
-    echo -e "${YELLOW}📤 Pushing to remote...${NC}"
-
-    # Get current branch
-    CURRENT_BRANCH=$(git branch --show-current)
-
-    # Push (don't error on failure)
-    if git push origin "$CURRENT_BRANCH" > /dev/null 2>&1; then
-      echo -e "${GREEN}✅ Pushed to origin/$CURRENT_BRANCH${NC}"
-    else
-      echo -e "${YELLOW}⚠️  Push failed. You may need to pull first or check permissions.${NC}"
-    fi
+if write_checkpoint "" "stop hook: stop-git-commit.sh"; then
+  TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+  BRANCH=$(git branch --show-current 2>/dev/null)
+  if [ -n "$BRANCH" ]; then
+    SANITIZED=$(printf '%s' "$BRANCH" | tr '/' '-')
   else
-    echo -e "${YELLOW}⚠️  No remote repository configured. Skipping push.${NC}"
+    SHORT=$(git rev-parse --short HEAD 2>/dev/null)
+    SANITIZED="detached-${SHORT:-empty}"
   fi
-  # ========================================
-
+  REF="refs/checkpoints/${SANITIZED}"
+  TIP=$(git rev-parse --short "$REF" 2>/dev/null)
+  echo -e "${GREEN}✅ Checkpoint saved at $TIMESTAMP${NC}"
+  echo -e "${GREEN}   Ref: ${REF}${NC}"
+  if [ -n "$TIP" ]; then
+    echo -e "${GREEN}   Tip: ${TIP}${NC}"
+  fi
 else
-  echo -e "${RED}❌ Commit failed.${NC}"
+  echo -e "${RED}❌ Checkpoint failed. See ~/.claude/logs/checkpoint.log${NC}"
   exit 1
 fi
 

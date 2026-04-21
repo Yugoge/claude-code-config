@@ -270,6 +270,14 @@
             "command": "python3 \"$HOME/.claude/hooks/userprompt-doc-sync-check.py\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/prehook-overnight-worktree-check.sh\""
+          }
+        ]
       }
     ],
     "PreToolUse": [
