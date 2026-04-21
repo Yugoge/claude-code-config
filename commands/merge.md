@@ -9,11 +9,11 @@ Merges an overnight development worktree branch into master using a proper `git 
 ## Arguments
 
 ```
-/merge-overnight <worktree-branch-name>
+/merge <worktree-branch-name>
 ```
 
 **Example**:
-- `/merge-overnight overnight-20260411-3fba4092`
+- `/merge overnight-20260411-3fba4092`
 
 ## CRITICAL RULES
 

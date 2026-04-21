@@ -1,5 +1,5 @@
 {
-  "numStartups": 65,
+  "numStartups": 78,
   "installMethod": "global",
   "hasSeenTasksHint": true,
   "tipsHistory": {
@@ -7,11 +7,11 @@
     "plan-mode-for-complex-tasks": 60,
     "terminal-setup": 54,
     "memory-command": 54,
-    "theme-command": 44,
-    "colorterm-truecolor": 34,
+    "theme-command": 71,
+    "colorterm-truecolor": 71,
     "status-line": 59,
     "prompt-queue": 60,
-    "enter-to-steer-in-relatime": 44,
+    "enter-to-steer-in-relatime": 71,
     "todo-list": 54,
     "install-github-app": 54,
     "install-slack-app": 54,
@@ -21,7 +21,7 @@
     "image-paste": 54,
     "web-app": 54,
     "mobile-app": 54,
-    "color-when-multi-clauding": 54,
+    "color-when-multi-clauding": 71,
     "ide-upsell-external-terminal": 60,
     "custom-agents": 54,
     "agent-flag": 54,
@@ -38,10 +38,8 @@
   "sonnet1m45MigrationComplete": true,
   "userID": "cb9728b1f9971511733ec48785ec6b1603ff44eebe2564025208cf1337b75d76",
   "firstStartTime": "2026-03-26T15:33:13.984Z",
-  "penguinModeOrgEnabled": true,
-  "clientDataCache": {
-    "quiet_salted_ember": "true"
-  },
+  "penguinModeOrgEnabled": false,
+  "clientDataCache": {},
   "additionalModelOptionsCache": [],
   "passesEligibilityCache": {
     "c4bdf953-2408-40db-8c99-4c5d2a4397be": {
@@ -49,7 +47,7 @@
       "referral_code_details": null,
       "referrer_reward": null,
       "remaining_passes": null,
-      "timestamp": 1776261704935
+      "timestamp": 1776551348829
     },
     "336318a9-373a-498f-a408-f362d9c5a9fa": {
       "eligible": true,
@@ -63,48 +61,48 @@
         "currency": "EUR"
       },
       "remaining_passes": 0,
-      "timestamp": 1776058954188
+      "timestamp": 1776762857236
     },
     "ee3a689f-e0eb-4495-9d88-e6eda10ad7e4": {
       "eligible": false,
       "referral_code_details": null,
       "referrer_reward": null,
       "remaining_passes": null,
-      "timestamp": 1776189139594
+      "timestamp": 1776750483911
     }
   },
   "skillUsage": {
     "ask": {
-      "usageCount": 15,
-      "lastUsedAt": 1776249538480
+      "usageCount": 20,
+      "lastUsedAt": 1776697458288
     },
     "dev-overnight": {
-      "usageCount": 33,
-      "lastUsedAt": 1776251925576
+      "usageCount": 40,
+      "lastUsedAt": 1776762858182
     },
     "dev": {
-      "usageCount": 191,
-      "lastUsedAt": 1776321344621
+      "usageCount": 231,
+      "lastUsedAt": 1776767528428
     },
     "sentiment-monitor": {
       "usageCount": 5,
       "lastUsedAt": 1775645765094
     },
     "dev-command": {
-      "usageCount": 14,
-      "lastUsedAt": 1776285631860
+      "usageCount": 15,
+      "lastUsedAt": 1776627129476
     },
     "generate": {
-      "usageCount": 29,
-      "lastUsedAt": 1775970205703
+      "usageCount": 31,
+      "lastUsedAt": 1776747070034
     },
     "fact-check": {
       "usageCount": 1,
       "lastUsedAt": 1774786071958
     },
     "save": {
-      "usageCount": 12,
-      "lastUsedAt": 1776269808568
+      "usageCount": 16,
+      "lastUsedAt": 1776701748198
     },
     "discover-relations": {
       "usageCount": 1,
@@ -115,8 +113,8 @@
       "lastUsedAt": 1774883194764
     },
     "review": {
-      "usageCount": 12,
-      "lastUsedAt": 1776320594549
+      "usageCount": 16,
+      "lastUsedAt": 1776630322763
     },
     "agent-browser": {
       "usageCount": 5,
@@ -127,20 +125,20 @@
       "lastUsedAt": 1775483023782
     },
     "plan": {
-      "usageCount": 2,
-      "lastUsedAt": 1775983502407
+      "usageCount": 4,
+      "lastUsedAt": 1776526291307
     },
     "gaode-maps:readme": {
-      "usageCount": 5,
-      "lastUsedAt": 1776157563254
+      "usageCount": 8,
+      "lastUsedAt": 1776521817664
     },
     "gaode-maps:tools:README": {
-      "usageCount": 7,
-      "lastUsedAt": 1776158206820
+      "usageCount": 9,
+      "lastUsedAt": 1776627705465
     },
     "gaode-maps:examples:script-execution": {
-      "usageCount": 4,
-      "lastUsedAt": 1776102000092
+      "usageCount": 5,
+      "lastUsedAt": 1776628723643
     },
     "learn": {
       "usageCount": 1,
@@ -159,36 +157,36 @@
       "lastUsedAt": 1775661169288
     },
     "gaode-maps:examples:inter-city-route": {
-      "usageCount": 1,
-      "lastUsedAt": 1775986144648
+      "usageCount": 4,
+      "lastUsedAt": 1776627703006
     },
     "spec": {
-      "usageCount": 5,
-      "lastUsedAt": 1776275534107
+      "usageCount": 25,
+      "lastUsedAt": 1776749752563
     },
     "daily-trade": {
-      "usageCount": 8,
-      "lastUsedAt": 1776314705981
+      "usageCount": 19,
+      "lastUsedAt": 1776690208470
     },
     "pdf": {
       "usageCount": 1,
       "lastUsedAt": 1776065789161
     },
     "update-config": {
-      "usageCount": 2,
-      "lastUsedAt": 1776282830557
+      "usageCount": 7,
+      "lastUsedAt": 1776764917759
     },
     "search-tree": {
       "usageCount": 1,
       "lastUsedAt": 1776077556955
     },
     "do": {
-      "usageCount": 3,
-      "lastUsedAt": 1776200400982
+      "usageCount": 4,
+      "lastUsedAt": 1776448210953
     },
     "push": {
-      "usageCount": 1,
-      "lastUsedAt": 1776109774753
+      "usageCount": 5,
+      "lastUsedAt": 1776521737710
     },
     "merge-overnight": {
       "usageCount": 2,
@@ -197,23 +195,51 @@
     "fx-monitor": {
       "usageCount": 1,
       "lastUsedAt": 1776318749889
+    },
+    "backtest": {
+      "usageCount": 1,
+      "lastUsedAt": 1776409669440
+    },
+    "codex": {
+      "usageCount": 24,
+      "lastUsedAt": 1776747377960
+    },
+    "approve": {
+      "usageCount": 3,
+      "lastUsedAt": 1776719133698
+    },
+    "merge": {
+      "usageCount": 2,
+      "lastUsedAt": 1776749114515
+    },
+    "redev": {
+      "usageCount": 7,
+      "lastUsedAt": 1776761373835
+    },
+    "doc-sync": {
+      "usageCount": 1,
+      "lastUsedAt": 1776753980018
+    },
+    "applio-design": {
+      "usageCount": 1,
+      "lastUsedAt": 1776767430091
     }
   },
   "groveConfigCache": {
     "40ee2570-f6e3-4628-ad85-0c898d1021a3": {
       "grove_enabled": true,
-      "timestamp": 1776261703895
+      "timestamp": 1776551349217
     },
     "2cde38bb-237d-490e-bbe3-aae3776151a1": {
       "grove_enabled": true,
-      "timestamp": 1776058952958
+      "timestamp": 1776762857978
     },
     "e2088328-cd6b-4c45-b159-77b19b707816": {
       "grove_enabled": true,
-      "timestamp": 1776189140337
+      "timestamp": 1776750483267
     }
   },
-  "cachedExtraUsageDisabledReason": "out_of_credits",
+  "cachedExtraUsageDisabledReason": "org_level_disabled",
   "mcpServers": {
     "playwright": {
       "command": "/usr/local/bin/playwright-mcp-stealth",
@@ -223,10 +249,10 @@
       ]
     }
   },
-  "changelogLastFetched": 1776261683793,
+  "changelogLastFetched": 1776759257962,
   "claudeCodeFirstTokenDate": "2025-06-26T14:07:40.624226Z",
   "hasCompletedOnboarding": true,
-  "lastOnboardingVersion": "2.1.109",
+  "lastOnboardingVersion": "2.1.116",
   "projects": {
     "/root/happy": {
       "allowedTools": [],
@@ -360,18 +386,18 @@
       "hasClaudeMdExternalIncludesWarningShown": false,
       "exampleFiles": [
         "session_history.jsonl",
+        "logs_2.sqlite-shm",
         "travel-planner",
         "happy-session-recovery.sh",
-        "daemon.pid",
-        "index.html"
+        "rollout-2026-04-14T13-27-01-019d8c2c-87ae-7812-8324-035c288ad1f9.jsonl"
       ],
-      "exampleFilesGeneratedAt": 1775935207464,
+      "exampleFilesGeneratedAt": 1776587790571,
       "hasCompletedProjectOnboarding": true,
       "lastCost": 0,
       "lastAPIDuration": 0,
       "lastAPIDurationWithoutRetries": 0,
       "lastToolDuration": 0,
-      "lastDuration": 5617626,
+      "lastDuration": 212529,
       "lastLinesAdded": 0,
       "lastLinesRemoved": 0,
       "lastTotalInputTokens": 0,
@@ -379,27 +405,27 @@
       "lastTotalCacheCreationInputTokens": 0,
       "lastTotalCacheReadInputTokens": 0,
       "lastTotalWebSearchRequests": 0,
-      "lastFpsAverage": 0.01,
-      "lastFpsLow1Pct": 34.79,
+      "lastFpsAverage": 0.33,
+      "lastFpsLow1Pct": 108.8,
       "lastModelUsage": {},
-      "lastSessionId": "53881983-c8c5-41c7-96c9-985eb6a97e6a",
+      "lastSessionId": "9fcf1a48-f775-4d32-9437-8f7cb79396fc",
       "lastSessionMetrics": {
-        "frame_duration_ms_count": 59,
-        "frame_duration_ms_min": 0.07615499999883468,
-        "frame_duration_ms_max": 28.746856000000207,
-        "frame_duration_ms_avg": 2.189334796623833,
-        "frame_duration_ms_p50": 0.49681999999938853,
-        "frame_duration_ms_p95": 6.614767200029016,
-        "frame_duration_ms_p99": 28.46495048000008,
+        "frame_duration_ms_count": 69,
+        "frame_duration_ms_min": 0.07539400000314345,
+        "frame_duration_ms_max": 9.191109000000097,
+        "frame_duration_ms_avg": 1.4490275797107524,
+        "frame_duration_ms_p50": 0.5511419999997997,
+        "frame_duration_ms_p95": 6.913539799999916,
+        "frame_duration_ms_p99": 8.387570000004699,
         "hook_duration_ms_count": 1,
-        "hook_duration_ms_min": 237,
-        "hook_duration_ms_max": 237,
-        "hook_duration_ms_avg": 237,
-        "hook_duration_ms_p50": 237,
-        "hook_duration_ms_p95": 237,
-        "hook_duration_ms_p99": 237
+        "hook_duration_ms_min": 627,
+        "hook_duration_ms_max": 627,
+        "hook_duration_ms_avg": 627,
+        "hook_duration_ms_p50": 627,
+        "hook_duration_ms_p95": 627,
+        "hook_duration_ms_p99": 627
       },
-      "lastGracefulShutdown": true
+      "lastGracefulShutdown": false
     },
     "/dev/shm/dev-workspace/happy-dev": {
       "allowedTools": [],
@@ -628,7 +654,7 @@
     ]
   },
   "effortCalloutV2Dismissed": true,
-  "lastReleaseNotesSeen": "2.1.109",
+  "lastReleaseNotesSeen": "2.1.116",
   "officialMarketplaceAutoInstallAttempted": true,
   "officialMarketplaceAutoInstalled": true,
   "showSpinnerTree": false,
@@ -640,23 +666,23 @@
   "overageCreditGrantCache": {
     "336318a9-373a-498f-a408-f362d9c5a9fa": {
       "info": {
-        "available": true,
-        "eligible": true,
-        "granted": true,
-        "amount_minor_units": 17000,
-        "currency": "EUR"
+        "available": false,
+        "eligible": false,
+        "granted": false,
+        "amount_minor_units": null,
+        "currency": null
       },
-      "timestamp": 1776098963404
+      "timestamp": 1776768730782
     },
     "c4bdf953-2408-40db-8c99-4c5d2a4397be": {
       "info": {
-        "available": true,
-        "eligible": true,
-        "granted": true,
-        "amount_minor_units": 17000,
-        "currency": "EUR"
+        "available": false,
+        "eligible": false,
+        "granted": false,
+        "amount_minor_units": null,
+        "currency": null
       },
-      "timestamp": 1776261704709
+      "timestamp": 1776587790172
     },
     "ee3a689f-e0eb-4495-9d88-e6eda10ad7e4": {
       "info": {
@@ -666,22 +692,23 @@
         "amount_minor_units": null,
         "currency": null
       },
-      "timestamp": 1776261677727
+      "timestamp": 1776768967746
     }
   },
   "migrationVersion": 11,
   "additionalModelCostsCache": {},
+  "opus47LaunchSeenCount": 7,
   "oauthAccount": {
-    "accountUuid": "40ee2570-f6e3-4628-ad85-0c898d1021a3",
-    "emailAddress": "***REDACTED***",
-    "organizationUuid": "c4bdf953-2408-40db-8c99-4c5d2a4397be",
-    "hasExtraUsageEnabled": true,
+    "accountUuid": "e2088328-cd6b-4c45-b159-77b19b707816",
+    "emailAddress": "yuge.tang@orchestrade.com",
+    "organizationUuid": "ee3a689f-e0eb-4495-9d88-e6eda10ad7e4",
+    "hasExtraUsageEnabled": false,
     "billingType": "stripe_subscription",
-    "accountCreatedAt": "2025-06-26T13:32:15.786805Z",
-    "subscriptionCreatedAt": "2025-06-26T13:44:50.020873Z",
+    "accountCreatedAt": "2026-04-06T18:54:17.457821Z",
+    "subscriptionCreatedAt": "2026-04-06T18:57:39.659364Z",
     "displayName": "Yuge",
     "organizationRole": "admin",
     "workspaceRole": null,
-    "organizationName": "***REDACTED***'s Organization"
+    "organizationName": "yuge.tang@orchestrade.com's Organization"
   }
 }

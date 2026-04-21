@@ -1,7 +1,7 @@
 # commands
 
-*Last updated: 2026-04-16T06:28:22Z*
-**Total entries**: 30
+*Last updated: 2026-04-21T13:57:02Z*
+**Total entries**: 31
 **Convention**: kebab
 
 ## Tree
@@ -10,7 +10,7 @@ commands/
 ├── `checkpoint.md` - Checkpoint Command
 ├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
 ├── `code-review.md` - Comprehensive code review with best practices analysis
-├── `codex.md` - Delegate a task to OpenAI Codex CLI for a second opinion or parallel coding
+├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.4, xhigh reasoning) for a second opinion or parallel coding
 ├── `deep-search.md` - Deep website exploration with iterative search strategy
 ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
@@ -22,13 +22,14 @@ commands/
 ├── `explain-code.md` - Deep explanation of code functionality and design
 ├── `file-analyze.md` - Analyze PDF, Excel, Word, images and other files with deep insights
 ├── `fswatch.md` - FSWatch Command
-├── `merge-overnight.md` - Merge an overnight worktree branch to master with full commit history preservation
+├── `merge.md` - Merge an overnight worktree branch to master with full commit history preservation
 ├── `optimize.md` - Analyze code for performance optimization opportunities
 ├── `playwright-helper.md` - Guide for using Playwright MCP with deep search commands
 ├── `pull.md` - Pull Command
 ├── `push.md` - Push Command
 ├── `quick-commit.md` - Create a well-formatted git commit with auto-generated message
 ├── `quick-prototype.md` - Rapidly create interactive prototypes and demos combining multiple artifact capabilities
+├── `redev.md` - dev workflow, skip prompt injection — for re-invocation with /dev context already loaded
 ├── `refactor.md` - Suggest refactoring improvements for code quality
 ├── `reflect-search.md` - Reflection-driven iterative search with goal evaluation
 ├── `research-deep.md` - Multi-source deep research with 15-20 iterative searches

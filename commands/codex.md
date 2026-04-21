@@ -1,6 +1,6 @@
 ---
-description: Delegate a task to OpenAI Codex CLI for a second opinion or parallel coding
-argument-hint: [prompt or --review]
+description: Delegate a task to OpenAI Codex CLI (gpt-5.4, xhigh reasoning) for a second opinion or parallel coding
+argument-hint: [prompt or --review or --model <model> <prompt>]
 allowed-tools: [Bash, Read, Glob, Grep]
 ---
 
@@ -13,9 +13,9 @@ Run OpenAI Codex CLI to get a second opinion, delegate coding tasks, or perform 
 If `$ARGUMENTS` is empty or blank, print this usage guide and stop:
 
 ```
-Usage: /codex <prompt>    — run codex exec with the given prompt
-       /codex --review    — run codex review on the current directory
-       /codex --model <model> <prompt> — use a specific model (default: o4-mini)
+Usage: /codex <prompt>              — run codex exec with the given prompt (default: gpt-5.4, reasoning: xhigh)
+       /codex --review              — run codex review on the current directory
+       /codex --model <model> <prompt> — use a specific model (still xhigh reasoning)
 
 Examples:
   /codex refactor the auth middleware to use async/await
@@ -29,24 +29,39 @@ Otherwise, proceed:
 
 - If `$ARGUMENTS` starts with `--review`, run **review mode**.
 - If `$ARGUMENTS` starts with `--model`, extract the model name and the rest as the prompt, then run **exec mode** with `--model <model>`.
-- Otherwise, run **exec mode** with the full `$ARGUMENTS` as the prompt.
+- Otherwise, run **exec mode** with the full `$ARGUMENTS` as the prompt (no `--model` flag — uses gpt-5.4 default with xhigh reasoning).
 
-### 2. Review mode
+### 2. Generate unique output path
 
-Run:
+Run this first to get a collision-safe output file:
 ```bash
-codex review 2>&1 | head -500
+echo "/tmp/codex-output-$$-$(date +%s).txt"
 ```
 
-### 3. Exec mode
+Capture the printed path. Use it as `$CODEX_OUT` in all subsequent commands.
 
-Run:
+### 3. Review mode
+
 ```bash
-codex exec --model <model> "$PROMPT" 2>&1 | head -500
+codex review -c 'model="gpt-5.4"' -c 'reasoning_effort="xhigh"' 2>&1 | tee "$CODEX_OUT"
 ```
 
-Default model is `o4-mini` unless `--model` was specified.
+Use 10 minute Bash timeout. Then Read `$CODEX_OUT` with the Read tool.
 
-### 4. Present results
+### 4. Exec mode
 
-Show the full Codex output to the user. If Codex made file changes, summarize what was modified. If it failed, show the error and suggest corrections.
+**Without --model (default gpt-5.4):**
+```bash
+codex exec -c 'model="gpt-5.4"' -c 'reasoning_effort="xhigh"' "$PROMPT" 2>&1 | tee "$CODEX_OUT"
+```
+
+**With --model (user-specified model, still xhigh reasoning):**
+```bash
+codex exec -c 'model="<model>"' -c 'reasoning_effort="xhigh"' "$PROMPT" 2>&1 | tee "$CODEX_OUT"
+```
+
+Use 10 minute Bash timeout. Then Read `$CODEX_OUT` with the Read tool.
+
+### 5. Present results
+
+Read `$CODEX_OUT` with the Read tool. Show the complete Codex output to the user. If Codex made file changes, summarize what was modified. If it failed, show the error and suggest corrections.

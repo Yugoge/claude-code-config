@@ -1,7 +1,7 @@
 # todo
 
-*Last updated: 2026-04-15T20:15:09Z*
-**Total entries**: 18
+*Last updated: 2026-04-19T12:15:10Z*
+**Total entries**: 20
 **Convention**: kebab
 
 ## Tree
@@ -19,11 +19,13 @@ todo/
 ├── `optimize.py` - Python script
 ├── `playwright-helper.py` - Python script
 ├── `quick-prototype.py` - Preloaded TodoList for /quick-prototype workflow
+├── `redev.py` - Preloaded TodoList for /redev workflow. Delegates to dev.py (single source of truth).
 ├── `refactor.py` - Python script
 ├── `reflect-search.py` - Preloaded TodoList for /reflect-search workflow
 ├── `research-deep.py` - Python script
 ├── `security-check.py` - Python script
 ├── `site-navigate.py` - Python script
+├── `spec.py` - The /spec command supports 4 modes (see ~/.claude/commands/spec.md):
 └── `test.py` - Preloaded TodoList for /test workflow
 ```
 
