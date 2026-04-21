@@ -20,66 +20,81 @@ import json
 import os
 import re
 import sys
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 
-def _is_session_live(state: dict) -> bool:
-    """Check if session is still live (not complete and end_time not passed).
+def _end_time_passed(end_time_str: str) -> bool:
+    """Return True when the ISO end_time has passed (mixed naive/aware)."""
+    if not end_time_str:
+        return False
+    try:
+        end_time = datetime.fromisoformat(end_time_str.replace("Z", "+00:00"))
+    except (ValueError, OSError):
+        return False
+    if end_time.tzinfo is None:
+        return datetime.now() > end_time
+    return datetime.now(timezone.utc) > end_time
 
-    Naive datetimes are compared with datetime.now() (local time).
-    Aware datetimes are compared with datetime.now(timezone.utc).
-    """
-    from datetime import datetime, timezone
+
+def _is_session_live(state: dict) -> bool:
+    """Check if session is still live (not complete and end_time not passed)."""
     phase = state.get("current_phase", "")
     if phase in ("complete", "completed"):
         return False
-    end_time_str = state.get("end_time", "")
-    if end_time_str:
-        try:
-            end_time = datetime.fromisoformat(end_time_str.replace("Z", "+00:00"))
-            if end_time.tzinfo is None:
-                # Naive datetime: compare with local time (same convention as creation)
-                if datetime.now() > end_time:
-                    return False
-            else:
-                if datetime.now(timezone.utc) > end_time:
-                    return False
-        except (ValueError, OSError):
-            pass
+    if _end_time_passed(state.get("end_time", "")):
+        return False
     return True
 
 
 def _cleanup_expired_state(sf: Path, state: dict) -> None:
-    """Remove expired state file (session complete or end_time passed).
+    """No-op retained for call-site compatibility.
 
-    Safety: skip files modified within the last 60 seconds to avoid
-    racing with a session that is still writing its final state.
+    Changed 2026-04-21: previously unlinked expired overnight-state files;
+    now retains them on disk as post-mortem evidence. Enforcement naturally
+    stands down because `_is_session_live()` already returns False once the
+    end_time has passed.
     """
-    import time
+    return
+
+
+def _file_age_seconds(sf: Path) -> float:
+    """Return seconds since sf was last modified, or 0.0 on OSError."""
     try:
-        age = time.time() - sf.stat().st_mtime
-        if age < 60:
-            return  # Too fresh — might still be in use
-        sf.unlink()
-        sys.stderr.write(f'Cleaned up expired overnight state: {sf.name}\n')
+        return time.time() - sf.stat().st_mtime
     except OSError:
-        pass
+        return 0.0
 
 
 def _is_orphaned_state(sf: Path, state: dict) -> bool:
     """Detect orphaned state: appears live but has no backing session."""
-    import time
     wt = state.get('worktree_path')
     if wt and not Path(wt).is_dir():
         return True
-    if not wt:
-        try:
-            age = time.time() - sf.stat().st_mtime
-            if age > 7200:
-                return True
-        except OSError:
-            pass
-    return False
+    if wt:
+        return False
+    return _file_age_seconds(sf) > 7200
+
+
+def _load_state(sf: Path) -> dict | None:
+    """Read and JSON-parse a state file; return None on any failure."""
+    try:
+        if sf.stat().st_size == 0:
+            return None
+        return json.loads(sf.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _extract_live_worktree_path(sf: Path) -> str:
+    """Return worktree_path from a live, non-orphaned state file; else empty."""
+    state = _load_state(sf)
+    if state is None:
+        return ""
+    if not _is_session_live(state):
+        return ""
+    return state.get("worktree_path", "") or ""
 
 
 def _get_active_worktree_paths() -> list[str]:
@@ -88,16 +103,9 @@ def _get_active_worktree_paths() -> list[str]:
     state_files = list((project_dir / ".claude").glob("overnight-state-*.json"))
     paths = []
     for sf in state_files:
-        if sf.stat().st_size == 0:
-            continue
-        try:
-            state = json.loads(sf.read_text())
-        except (json.JSONDecodeError, OSError):
-            continue
-        if _is_session_live(state):
-            wt = state.get("worktree_path", "")
-            if wt:
-                paths.append(wt)
+        wt = _extract_live_worktree_path(sf)
+        if wt:
+            paths.append(wt)
     return paths
 
 
@@ -121,6 +129,42 @@ def _is_path_allowed_during_overnight(file_path: str, worktree_paths: list[str])
     return False
 
 
+def _block_global_worktree(tool_name: str, target: str, worktree_paths: list[str]) -> None:
+    """Emit the shared OVERNIGHT WORKTREE ENFORCEMENT block message."""
+    allowed = ", ".join(worktree_paths)
+    _block(
+        '\nOVERNIGHT WORKTREE ENFORCEMENT: All writes must target '
+        'the overnight worktree during active sessions.\n'
+        f'Allowed worktrees: {allowed}\n'
+        f'Attempted: {tool_name} to {target}\n'
+    )
+
+
+def _enforce_write_edit_all_sessions(tool_name: str, tool_input: dict, worktree_paths: list[str]) -> None:
+    """Block Write/Edit outside active overnight worktrees for all sessions."""
+    if tool_name not in ('Write', 'Edit'):
+        return
+    fp = tool_input.get('file_path', '')
+    if not fp:
+        return
+    if _is_path_allowed_during_overnight(fp, worktree_paths):
+        return
+    _block_global_worktree(tool_name, fp, worktree_paths)
+
+
+def _enforce_bash_all_sessions(tool_name: str, tool_input: dict, worktree_paths: list[str]) -> None:
+    """Block Bash writes outside active overnight worktrees for all sessions."""
+    if tool_name != 'Bash':
+        return
+    command = tool_input.get('command', '')
+    # Allow docker compose build/up -- QA needs to rebuild containers
+    if _is_docker_compose_safe(command):
+        return
+    for path in _extract_bash_write_paths(command):
+        if not _is_path_allowed_during_overnight(path, worktree_paths):
+            _block_global_worktree('Bash', path, worktree_paths)
+
+
 def apply_global_worktree_enforcement(tool_name: str, tool_input: dict, worktree_paths: list[str]) -> None:
     """Block ALL sessions from writing outside active overnight worktrees.
 
@@ -129,52 +173,36 @@ def apply_global_worktree_enforcement(tool_name: str, tool_input: dict, worktree
     """
     if not worktree_paths:
         return
-    if tool_name in ('Write', 'Edit'):
-        fp = tool_input.get('file_path', '')
-        if fp and not _is_path_allowed_during_overnight(fp, worktree_paths):
-            _block(
-                f'\nOVERNIGHT WORKTREE ENFORCEMENT: All writes must target '
-                f'the overnight worktree during active sessions.\n'
-                f'Allowed worktrees: {", ".join(worktree_paths)}\n'
-                f'Attempted: {tool_name} to {fp}\n'
-            )
-    if tool_name == 'Bash':
-        command = tool_input.get('command', '')
-        # Allow docker compose build/up -- QA needs to rebuild containers
-        if _is_docker_compose_safe(command):
-            return
-        for path in _extract_bash_write_paths(command):
-            if not _is_path_allowed_during_overnight(path, worktree_paths):
-                _block(
-                    f'\nOVERNIGHT WORKTREE ENFORCEMENT: Bash write target '
-                    f'is outside the overnight worktree.\n'
-                    f'Allowed worktrees: {", ".join(worktree_paths)}\n'
-                    f'Attempted: Bash write to {path}\n'
-                )
+    _enforce_write_edit_all_sessions(tool_name, tool_input, worktree_paths)
+    _enforce_bash_all_sessions(tool_name, tool_input, worktree_paths)
+
+
+def _any_live_state(sf: Path) -> bool:
+    """Return True if sf describes a live, non-orphaned overnight session.
+
+    Calls `_cleanup_expired_state` for expired/orphaned entries (now a
+    no-op per 2026-04-21) to keep the legacy call graph intact.
+    """
+    state = _load_state(sf)
+    if state is None:
+        return False
+    if not _is_session_live(state):
+        _cleanup_expired_state(sf, state)
+        return False
+    if _is_orphaned_state(sf, state):
+        _cleanup_expired_state(sf, state)
+        return False
+    return True
 
 
 def is_overnight_active() -> bool:
-    """Check if any overnight session is still live. Auto-cleans expired ones."""
+    """Check if any overnight session is still live."""
     project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
     state_files = list((project_dir / ".claude").glob("overnight-state-*.json"))
     if not state_files:
         return False
-    any_live = False
-    for sf in state_files:
-        if sf.stat().st_size == 0:
-            continue
-        try:
-            state = json.loads(sf.read_text())
-        except (json.JSONDecodeError, OSError):
-            continue
-        if _is_session_live(state):
-            if _is_orphaned_state(sf, state):
-                _cleanup_expired_state(sf, state)
-            else:
-                any_live = True
-        else:
-            _cleanup_expired_state(sf, state)
-    return any_live
+    return any(_any_live_state(sf) for sf in state_files)
+
 
 def get_overnight_state_for_session(project_dir: Path, session_id: str) -> dict | None:
     """Load overnight state file for the specific session."""
@@ -302,7 +330,7 @@ def apply_global_security_checks(tool_name: str, tool_input: dict) -> None:
 
 def _is_docker_compose_safe(command: str) -> bool:
     """Check if command is a safe docker compose build/up (not down/restart)."""
-    return bool(re.search(r'docker[\s-]compose\s+(build|up)', command))
+    return bool(re.search(r'docker[\s-]compose\s+(build|up)', command))
 
 
 def _extract_bash_write_paths(command: str) -> list[str]:
@@ -356,17 +384,31 @@ def _enforce_bash_worktree(command: str, wt: str) -> None:
             _block_worktree_violation('Bash', path, wt)
 
 
+def _check_write_edit_string(tool_name: str, tool_input: dict, worktree_path: str) -> None:
+    """Emit string-fallback block for Write/Edit outside session worktree."""
+    file_path = tool_input.get('file_path', '')
+    if not file_path or _is_path_exempt(file_path):
+        return
+    if path_outside_session_worktree(file_path, worktree_path):
+        _block_worktree_string_violation(tool_name, file_path)
+
+
+def _check_bash_string(tool_input: dict, worktree_path: str) -> None:
+    """Emit string-fallback block for Bash writes outside session worktree."""
+    command = tool_input.get('command', '')
+    for path in _extract_bash_write_paths(command):
+        if _is_path_exempt(path):
+            continue
+        if path_outside_session_worktree(path, worktree_path):
+            _block_worktree_string_violation('Bash', path)
+
+
 def apply_worktree_string_check(tool_name: str, tool_input: dict, worktree_path: str = '') -> None:
     """Block when overnight session writes outside worktree_path (or lacks 'worktree' string as fallback)."""
     if tool_name in ('Write', 'Edit'):
-        file_path = tool_input.get('file_path', '')
-        if file_path and not _is_path_exempt(file_path) and path_outside_session_worktree(file_path, worktree_path):
-            _block_worktree_string_violation(tool_name, file_path)
+        _check_write_edit_string(tool_name, tool_input, worktree_path)
     if tool_name == 'Bash':
-        command = tool_input.get('command', '')
-        for path in _extract_bash_write_paths(command):
-            if not _is_path_exempt(path) and path_outside_session_worktree(path, worktree_path):
-                _block_worktree_string_violation('Bash', path)
+        _check_bash_string(tool_input, worktree_path)
 
 
 def apply_worktree_enforcement(tool_name: str, tool_input: dict, wt: str) -> None:
@@ -377,61 +419,55 @@ def apply_worktree_enforcement(tool_name: str, tool_input: dict, wt: str) -> Non
         _enforce_bash_worktree(tool_input.get('command', ''), wt)
 
 
-def main():
-    """Entry point for the overnight hook guard.
-
-    Session isolation: only the session that owns an overnight state file
-    is subject to worktree enforcement. Other sessions are unaffected.
-    Global security checks (hooks/state protection) still apply when any
-    overnight session is active.
-    """
+def _parse_hook_input() -> tuple[str, dict, str]:
+    """Read the PreToolUse JSON from stdin; exit 0 on parse failure."""
     try:
         data = json.load(sys.stdin)
     except Exception:
         sys.exit(0)
+    return (
+        data.get('tool_name', ''),
+        data.get('tool_input', {}),
+        data.get('session_id', ''),
+    )
 
-    tool_name = data.get('tool_name', '')
-    tool_input = data.get('tool_input', {})
-    session_id = data.get('session_id', '')
 
-    # Global security: block hooks/state modifications when ANY overnight
-    # session is active (security invariant, applies to all sessions).
-    # Also enforce worktree boundaries for ALL sessions (catches subagents).
+def _is_cwd_in_worktree(worktree_paths: list[str]) -> bool:
+    """Return True if cwd realpath is inside any active overnight worktree."""
+    cwd_real = os.path.realpath(os.getcwd())
+    return any(cwd_real.startswith(os.path.realpath(wt)) for wt in worktree_paths)
+
+
+def _apply_session_enforcement(state: dict, tool_name: str, tool_input: dict) -> None:
+    """Apply session-specific worktree string + realpath enforcement."""
+    wt = state.get('worktree_path', '')
+    apply_worktree_string_check(tool_name, tool_input, wt)
+    if wt:
+        apply_worktree_enforcement(tool_name, tool_input, wt)
+
+
+def main():
+    """Entry point: apply global + session-specific overnight enforcement."""
+    tool_name, tool_input, session_id = _parse_hook_input()
+
     if is_overnight_active():
         apply_global_security_checks(tool_name, tool_input)
 
-    # Session-specific enforcement: apply to the overnight session itself.
-    # Also applies to subagents (different session_id) if their CWD is
-    # inside an overnight worktree.
     project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
-
-    # Check 1: does this session own an overnight state file?
     state = get_overnight_state_for_session(project_dir, session_id) if session_id else None
     is_overnight_session = state is not None and _is_session_live(state)
 
-    # Check 2: is this session's CWD inside an overnight worktree?
-    # (catches subagents launched by overnight agent)
-    cwd = os.getcwd()
-    is_in_worktree = any(
-        os.path.realpath(cwd).startswith(os.path.realpath(wt))
-        for wt in _get_active_worktree_paths()
-    )
+    wt_paths = _get_active_worktree_paths()
+    is_in_worktree = _is_cwd_in_worktree(wt_paths)
 
     if not is_overnight_session and not is_in_worktree:
-        sys.exit(0)  # Not overnight-related, allow freely
+        sys.exit(0)
 
-    # This session is overnight or a subagent inside a worktree.
-    # Enforce worktree boundaries.
-    wt_paths = _get_active_worktree_paths()
     if wt_paths:
         apply_global_worktree_enforcement(tool_name, tool_input, wt_paths)
 
-    # Extra checks for the overnight session itself
     if is_overnight_session:
-        wt = state.get('worktree_path', '')
-        apply_worktree_string_check(tool_name, tool_input, wt)
-        if wt:
-            apply_worktree_enforcement(tool_name, tool_input, wt)
+        _apply_session_enforcement(state, tool_name, tool_input)
 
     sys.exit(0)
 

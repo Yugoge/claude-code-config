@@ -22,7 +22,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_DIR = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
@@ -106,7 +106,7 @@ def read_command_spec(cmd_name: str) -> str:
     return ''
 
 
-def run_todo_script(cmd_name: str) -> list:
+def run_todo_script(cmd_name: str, user_input: str = "") -> list:
     todo_script = PROJECT_DIR / 'scripts' / 'todo' / f'{cmd_name}.py'
     if not todo_script.exists():
         global_todo = Path.home() / '.claude' / 'scripts' / 'todo' / f'{cmd_name}.py'
@@ -114,9 +114,13 @@ def run_todo_script(cmd_name: str) -> list:
             todo_script = global_todo
         else:
             return []
+    # Forward the raw user prompt to the todo script via env var so
+    # argument-aware scripts (e.g. spec.py) can distinguish modes.
+    # Other todo scripts don't read this var; setting it is harmless.
     result = subprocess.run(
         ['python3', str(todo_script)],
-        capture_output=True, text=True, cwd=str(PROJECT_DIR)
+        capture_output=True, text=True, cwd=str(PROJECT_DIR),
+        env={**os.environ, "CLAUDE_TODO_PROMPT": user_input}
     )
     if result.returncode != 0 or not result.stdout.strip():
         return []
@@ -253,84 +257,50 @@ def format_progress(
 
 # --- Overnight helpers ---
 
-def parse_overnight_args(prompt_text: str) -> tuple[str, str]:
-    """Extract end-time and focus from /dev-overnight args.
+def parse_overnight_args(prompt_text: str) -> tuple[str, str, str]:
+    """Extract end-time, focus, and spec path from /dev-overnight args.
 
-    Formats:
-      /dev-overnight 6:00                    -> (end_time, '')
-      /dev-overnight 6:00 applio UI bugs     -> (end_time, 'applio UI bugs')
-      /dev-overnight applio UI bugs          -> (default 8h, 'applio UI bugs')
-    Returns (end_time_iso, focus_string).
+    Returns (end_time_raw, focus_string, spec_path).
     """
     match = re.search(r'/dev-overnight\s+(.*)', prompt_text.strip())
     args = match.group(1).strip() if match else ''
-    now = datetime.now()
+    spec_path = ''
+    # Accept --spec (ASCII), —spec (em-dash U+2014), –spec (en-dash U+2013).
+    # Autocorrect/smart-dash IMEs often rewrite -- to — on input.
+    spec_match = re.search(r'(?:--|[–—])spec\s+(\S+)', args)
+    if spec_match:
+        spec_path = spec_match.group(1)
+        args = args[:spec_match.start()].rstrip() + ' ' + args[spec_match.end():].lstrip()
+        args = args.strip()
     if not args:
-        return (now + timedelta(hours=8)).isoformat(), ''
+        return '', '', spec_path
     time_match = re.match(
         r'^(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\s*(.*)', args,
     )
     if time_match:
-        end_time = _parse_time_arg(time_match.group(1), now)
-        focus = time_match.group(2).strip()
-        return end_time, focus
-    return (now + timedelta(hours=8)).isoformat(), args
+        return time_match.group(1).strip(), time_match.group(2).strip(), spec_path
+    return '', args, spec_path
 
 
-def _parse_time_arg(args: str, now: datetime) -> str:
-    """Parse a time argument string into an ISO-8601 future datetime."""
-    time_match = re.match(
-        r'^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$', args.strip(),
-    )
-    if not time_match:
-        return (now + timedelta(hours=8)).isoformat()
-    hour = int(time_match.group(1))
-    minute = int(time_match.group(2))
-    ampm = time_match.group(3)
-    hour = _apply_ampm(hour, ampm)
-    if hour > 23 or minute > 59:
-        return (now + timedelta(hours=8)).isoformat()
-    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    if target <= now:
-        target += timedelta(days=1)
-    return target.isoformat()
-
-
-def _apply_ampm(hour: int, ampm: str | None) -> int:
-    """Apply AM/PM modifier to hour value."""
-    if not ampm:
-        return hour
-    ampm = ampm.upper()
-    if ampm == 'PM' and hour < 12:
-        return hour + 12
-    if ampm == 'AM' and hour == 12:
-        return 0
-    return hour
-
-
-def create_overnight_state(end_time_iso: str, focus: str = '', session_id: str = 'default') -> bool:
-    """Atomically write overnight state with v7 schema (session-keyed)."""
-    sid = session_id
-    state = {
-        'session_id': sid,
-        'end_time': end_time_iso,
-        'start_time': datetime.now().isoformat(),
-        'focus': focus,
-        'cycle_count': 0, 'issues_found': 0, 'issues_fixed': 0,
-        'issues_skipped': 0, 'current_phase': 'initializing',
-        'current_issues': [], 'failed_attempts': {},
-        'addressed_issues': [], 'cycle_log': [],
-        'consecutive_clean_sweeps': 0,
-        'pm_triage_reports': [], 'pm_retro_reports': [],
-        'unresolved_issues': [],
-        'worktree_path': None, 'worktree_branch': None,
-    }
-    sp = overnight_state_path(sid)
-    tmp = sp.with_suffix('.tmp')
+def create_overnight_state(end_time: str, focus: str = '', spec_path: str = '', session_id: str = 'default') -> bool:
+    """Create overnight state file by calling the bash script."""
+    script = Path.home() / '.claude' / 'scripts' / 'create-overnight-state.sh'
+    cmd = [str(script)]
+    if end_time:
+        cmd += ['--end-time', end_time]
+    if focus:
+        cmd += ['--focus', focus]
+    if spec_path:
+        cmd += ['--spec', spec_path]
+    cmd += ['--session-id', session_id]
+    cmd += ['--project-dir', str(PROJECT_DIR)]
     try:
-        sp.parent.mkdir(parents=True, exist_ok=True)
-        tmp.write_text(json.dumps(state, indent=2))
-        os.rename(str(tmp), str(sp))
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            print(result.stderr, file=sys.stderr)
+            return False
+        if result.stderr:
+            print(result.stderr.rstrip(), file=sys.stderr)
         return True
     except Exception:
         return False
@@ -511,7 +481,7 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     if cmd_name == "do":
         handle_do_consent(sid)
         return
-    todos = run_todo_script(cmd_name)
+    todos = run_todo_script(cmd_name, user_input)
     if not todos:
         return
     _check_workflow_conflict(cmd_name, sid)
@@ -520,8 +490,8 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     tf.write_text(json.dumps(todos, ensure_ascii=False))
     _write_bookmark(cmd_name, sid)
     if cmd_name == 'dev-overnight':
-        end_time, focus = parse_overnight_args(user_input)
-        create_overnight_state(end_time, focus, session_id=sid)
+        end_time, focus, spec_path = parse_overnight_args(user_input)
+        create_overnight_state(end_time, focus, spec_path=spec_path, session_id=sid)
     emit_checklist_message(cmd_name, todos)
 
 
