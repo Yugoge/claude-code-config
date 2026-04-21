@@ -22,7 +22,7 @@ Run a full sweep of the documentation auto-sync system across the current projec
    - `skill-list` — enumerate skill directories
    - `claude-inventory` — count all categories
    - `docker-services` — parse docker-compose.yml (global only)
-   - `systemd-services` — query systemctl (global only)
+   - `systemd-services` — query systemctl for services listed in `<project>/.claude/doc-sync.json` (never patched into the global `~/.claude/CLAUDE.md`)
    - `last-updated` — set today's date
 4. Report changes made
 
@@ -45,3 +45,15 @@ CLAUDE.md sections are opt-in. To make a section auto-updatable, wrap it:
 ```
 
 Sections without markers are never touched.
+
+## Project Config: `.claude/doc-sync.json`
+
+Infrastructure AUTO blocks (`systemd-services`) read their source list from a project-local config. Example `<project>/.claude/doc-sync.json`:
+
+```json
+{
+  "systemd_services": ["my-daemon", "my-worker"]
+}
+```
+
+When missing or empty: the `systemd-services` block is left unchanged. The global `~/.claude/CLAUDE.md` is guarded — `systemd-services` and `docker-services` AUTO blocks are never patched there, even if a config exists.

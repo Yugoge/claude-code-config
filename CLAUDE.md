@@ -9,7 +9,7 @@
 
 > Personal global settings for all projects
 <!-- AUTO:last-updated -->
-> Last updated: 2026-04-16
+> Last updated: 2026-04-21
 <!-- /AUTO:last-updated -->
 
 ---
@@ -292,32 +292,13 @@ mypy .                            # Type check
 - No external volumes (sdb removed 2026-03-21)
 - swappiness=1 (`/etc/sysctl.conf` + `/etc/sysctl.d/99-performance.conf`)
 
-### Happy 三层架构
-```
-happy-app (浏览器/手机 React Native) ←WS→ happy-server (Fastify+PG) ←WS→ happy-cli (Daemon+CLI+Claude)
-```
-- 所有数据客户端加密后传输，服务器只存加密 blob
-- 密钥体系：Ed25519签名 + Curve25519加密 + AES-256对称，详见 `docs/HAPPY-ARCHITECTURE.md` §3
-- 四 Daemon：default (`/root/.happy/`) + jade (`/root/.happy-jade/`) + dev (`/root/.happy-dev/`) + qijie (`/root/.happy-qijie/`)
+> Happy architecture (three-layer, daemons, encryption) lives in `/root/happy/CLAUDE.md` — do not duplicate here.
 
 ### Other Systemd Services
 | Service | Port | Purpose |
 |---------|------|---------|
 | claudecodeui | 3001 | Claude Code Web UI (dev.life-ai.app via Cloudflare tunnel) |
 | baton-host | 9966 | Remote clipboard bridge |
-
-### Systemd Services (non-Docker)
-<!-- AUTO:systemd-services -->
-| Service | Status | Purpose |
-|---------|--------|---------|
-| happy-daemon | enabled | |
-| happy-daemon-jade | enabled | |
-| happy-session-watcher | enabled | |
-| hapi-hub | unknown | |
-| hapi-runner | unknown | |
-| hapi-restore | unknown | |
-| hapi-session-watcher | unknown | |
-<!-- /AUTO:systemd-services -->
 
 ### Key Rules
 - **NEVER** create containers with `docker run` — always use `docker compose up -d` from `/root/deploy/`
