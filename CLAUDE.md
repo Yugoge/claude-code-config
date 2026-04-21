@@ -86,19 +86,24 @@ Files in `~/.claude/agents/` and `~/.claude/commands/` apply to ALL projects. No
 
 **This is the highest-priority rule. It overrides everything else.**
 
-The main agent MUST NOT perform any direct operations. All work goes through subagents (Agent tool). No exceptions.
+The main agent is the orchestrator. Prefer delegating real work to subagents (Agent tool); the main-agent gate enforces consecutive-call discipline so any direct tool use must stay short-lived.
 
-**Forbidden in main agent**: All tools not listed below (enforced by `pretool-orchestrator-gate.py`).
+**Policy (enforced by `pretool-orchestrator-gate.py`)**:
 
-**Always allowed**: Agent, TodoWrite, AskUserQuestion, Skill, CronCreate, CronDelete, CronList, ScheduleWakeup, mcp__happy__change_title, Bash, Read (≤600 lines), Glob, Grep.
+- **Whitelist tools** (always allowed): `Agent`, `TodoWrite`, `AskUserQuestion`, `Skill`, `CronCreate`, `CronDelete`, `CronList`, `ScheduleWakeup`, `mcp__happy__change_title`, `Bash`, `Read` (≤600 lines), `Glob`, `Grep`.
+  - `Bash` is capped at **3 consecutive same-name calls** (4th `Bash` in a row is blocked — use a non-Bash tool to reset, or delegate).
+  - All other whitelist tools have **no consecutive limit**.
+- **Non-whitelist tools** (everything else — `Edit`, `Write`, `WebFetch`, `WebSearch`, `NotebookEdit`, `EnterWorktree`, `ExitWorktree`, `mcp__playwright__*`, …): allowed **once per consecutive same-name streak**. The 2nd same-name call in a row is blocked. `Edit` then `Write` is allowed (per-tool-name streak); `Edit` then `Edit` is blocked.
+- **Permanently blocked**: `EnterPlanMode`, `ExitPlanMode` — always blocked, even with `/do`.
+- **Streak reset**: any different tool name (whitelist or non-whitelist) resets the tracked name and sets `count = 1` for the new tool. A whitelist call like `Read` between two `Edit` calls allows the 2nd `Edit` to pass.
 
-**Read limit**: Main agent Read is capped at 600 lines by `pretool-read-size-guard.py`. For larger files, delegate to a subagent. IMPORTANT: When delegating, instruct the subagent to **summarize** the file and return only the relevant findings — NEVER ask it to return the raw file contents, as that defeats the purpose of the size guard by flooding the main context window.
+**Read limit**: Main agent `Read` is capped at 600 lines by `pretool-read-size-guard.py`. For larger files, delegate to a subagent and ask it to **summarize** — never request raw contents, which defeats the guard.
 
-**Bash usage**: Main agent CAN and SHOULD use Bash for quick operations: git commands, jq queries, file checks, ls, state file reads. Do NOT delegate trivial shell commands to subagents.
+**Bash usage**: Main agent CAN and SHOULD use Bash for quick operations (git, jq, file checks, ls, state file reads) within the 3-consecutive limit. Do NOT delegate trivial shell commands to subagents.
 
-**Permanently forbidden**: EnterPlanMode, ExitPlanMode — never use these, even with /do.
+**Streak state**: `/tmp/claude-tool-streak-<sid>.json` holds `{"last_tool", "count"}`. Subagents (`agent_id` present) bypass all checks and do NOT update this file.
 
-**Exception**: The user has invoked `/do` in this session, which grants consent for direct operations.
+**Exception — /do consent**: If the user has invoked `/do` this session, the orchestrator gate exits 0 immediately for every non-permanently-blocked tool and does NOT update streak state. `EnterPlanMode` and `ExitPlanMode` stay blocked regardless.
 
 **To get consent**: Tell the user to run `/do` if they want you to operate directly.
 

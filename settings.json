@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "cleanupPeriodDays": 30,
+  "cleanupPeriodDays": 365,
   "env": {
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
     "DISABLE_TELEMETRY": "1",
@@ -16,6 +16,7 @@
     "GIT_CHECKPOINT_THRESHOLD": "10",
     "GIT_CHECKPOINT_SILENT": "0",
     "PLAYWRIGHT_MCP_SANDBOX": "false",
+    "PLAYWRIGHT_RUNCODE_TIMEOUT": "120",
     "ENABLE_TOOL_SEARCH": "false",
     "_comment_anthropic": "以下为可选配置（已禁用）",
     "_disabled_anthropic": "[object Object]"
@@ -248,6 +249,11 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/check-todo-md-sync.py\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/session-promote-hook.sh\"",
+            "timeout": 10
           }
         ]
       }
@@ -378,6 +384,15 @@
             "command": "python3 \"$HOME/.claude/hooks/pretool-spec-block-foreground-agent.py\""
           }
         ]
+      },
+      {
+        "matcher": "mcp__playwright__browser_run_code",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-runcode-watchdog.py\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -438,6 +453,15 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/posttool-subagent-track.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__playwright__browser_run_code",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-runcode-watchdog.py\""
           }
         ]
       }
