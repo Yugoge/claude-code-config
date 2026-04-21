@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-04-15T20:15:09Z*
-**Total entries**: 44
+*Last updated: 2026-04-21T09:47:27Z*
+**Total entries**: 51
 **Convention**: kebab
 
 ## Tree
@@ -20,18 +20,22 @@ scripts/
 │   ├── `optimize.py` - Python script
 │   ├── `playwright-helper.py` - Python script
 │   ├── `quick-prototype.py` - Preloaded TodoList for /quick-prototype workflow
+│   ├── `redev.py` - Preloaded TodoList for /redev workflow. Delegates to dev.py (single source of truth).
 │   ├── `refactor.py` - Python script
 │   ├── `reflect-search.py` - Preloaded TodoList for /reflect-search workflow
 │   ├── `research-deep.py` - Python script
 │   ├── `security-check.py` - Python script
 │   ├── `site-navigate.py` - Python script
+│   ├── `spec.py` - The /spec command supports 4 modes (see ~/.claude/commands/spec.md):
 │   └── `test.py` - Preloaded TodoList for /test workflow
 ├── `analyze-folder-history.sh` - Description: Analyze Git history for folder to discover file creation patterns
 ├── `analyze-git-edge-cases.sh` - Description: Analyze git history for edge cases from bug fix commits
 ├── `check-file-references.sh` - File reference detection script - used by /clean command
 ├── `check-overnight-reports.sh` - Description: Validates all 4 overnight exploration reports exist, are valid JSON,
 ├── `check-readme-freshness.sh` - Check README.md freshness for all major folders
+├── `checkpoint-prune.sh` - checkpoint-prune.sh — trim refs/checkpoints/* to the most recent N commits
 ├── `cleanup-tests-folder.sh` - Description: Remove validators that don't match git edge cases, preserving reports/
+├── `create-overnight-state.sh` - create-overnight-state.sh — Create overnight state file (v7 schema)
 ├── `create-worktree.sh` - Create a git worktree from local HEAD (not origin/main).
 ├── `detect-dead-functions.sh` - Shell script
 ├── `detect-duplicate-content.sh` - Shell script
@@ -43,14 +47,17 @@ scripts/
 ├── `discover-folders.sh` - Description: Dynamically discover project folders excluding system directories
 ├── `generate-folder-index.sh` - Description: Generate INDEX.md for folder (inventory of contents)
 ├── `generate-folder-readme.sh` - Description: Generate README.md for folder (purpose and organization rules)
+├── `install-checkpoint-refspec.sh` - install-checkpoint-refspec.sh — idempotently add refs/checkpoints/* to
 ├── `migrate-test-to-tests.sh` - Description: Merge test/ folder into tests/ preserving all content (idempotent)
 ├── `normalize-doc-names.sh` - normalize-doc-names.sh - Detect and report non-compliant documentation file names
 ├── `orchestrator.sh` - Description: Agent orchestration coordinator for development and cleanup workflows
 ├── `overnight-status.sh` - overnight-status.sh — Zero-LLM overnight session status query
 ├── `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
 ├── `quick-excel` - unknown file
+├── `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 ├── `scan-project.sh` - Description: Scan project structure and detect project type
-└── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
+├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
+└── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 ```
 
 ---
