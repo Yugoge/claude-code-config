@@ -8,6 +8,14 @@ from .docker import build_docker_table
 from .systemd import build_systemd_table
 
 
+def _is_global_claude_md(claude_md: Path) -> bool:
+    """True when the target path resolves to the global ~/.claude/CLAUDE.md."""
+    try:
+        return claude_md.resolve() == (Path.home() / '.claude' / 'CLAUDE.md').resolve()
+    except OSError:
+        return False
+
+
 def _replace_section(content: str, marker_id: str, new_body: str) -> str:
     start = f'<!-- AUTO:{marker_id} -->'
     end = f'<!-- /AUTO:{marker_id} -->'
@@ -18,6 +26,18 @@ def _replace_section(content: str, marker_id: str, new_body: str) -> str:
     return content[:s + len(start)] + '\n' + new_body + '\n' + content[e:]
 
 
+def _count_entries(subdir_path: Path, is_skills: bool) -> int:
+    if is_skills:
+        return len([dd for dd in subdir_path.iterdir() if dd.is_dir() and not dd.name.startswith('.')])
+    return len([f for f in subdir_path.iterdir() if f.is_file()])
+
+
+def _format_inventory_line(subdir: str, count: int) -> str:
+    if subdir == 'skills':
+        return f'- **{subdir}**: {count} active'
+    return f'- **{subdir}**: {count} files'
+
+
 def _build_inventory(project_dir: Path) -> str:
     claude_dir = project_dir / '.claude'
     if not claude_dir.is_dir():
@@ -25,13 +45,10 @@ def _build_inventory(project_dir: Path) -> str:
     lines = []
     for subdir in ['commands', 'agents', 'hooks', 'skills', 'scripts']:
         d = claude_dir / subdir
-        if d.is_dir():
-            if subdir == 'skills':
-                count = len([dd for dd in d.iterdir() if dd.is_dir() and not dd.name.startswith('.')])
-                lines.append(f'- **{subdir}**: {count} active')
-            else:
-                count = len([f for f in d.iterdir() if f.is_file()])
-                lines.append(f'- **{subdir}**: {count} files')
+        if not d.is_dir():
+            continue
+        count = _count_entries(d, subdir == 'skills')
+        lines.append(_format_inventory_line(subdir, count))
     return '\n'.join(lines)
 
 
@@ -92,9 +109,9 @@ def _patch_docker(content: str) -> str:
     return content
 
 
-def _patch_systemd(content: str) -> str:
+def _patch_systemd(content: str, project_dir: Path) -> str:
     if '<!-- AUTO:systemd-services -->' in content:
-        table = build_systemd_table()
+        table = build_systemd_table(project_dir)
         if table:
             return _replace_section(content, 'systemd-services', table)
     return content
@@ -113,14 +130,19 @@ def patch_claude_md(project_dir: Path):
         content = claude_md.read_text()
         if '<!-- AUTO:' not in content:
             continue
+        is_global = _is_global_claude_md(claude_md)
         new_content = content
         new_content = _patch_inventory(new_content, project_dir)
         new_content = _patch_commands(new_content, project_dir)
         new_content = _patch_agents(new_content, project_dir)
         new_content = _patch_skills(new_content, project_dir)
         new_content = _patch_last_updated(new_content)
-        new_content = _patch_docker(new_content)
-        new_content = _patch_systemd(new_content)
+        # Project-specific infrastructure (docker/systemd) must never be patched
+        # into the global ~/.claude/CLAUDE.md — it leaks one project's service
+        # status into every other project's context.
+        if not is_global:
+            new_content = _patch_docker(new_content)
+            new_content = _patch_systemd(new_content, project_dir)
         if new_content != content:
             claude_md.write_text(new_content)
         break
