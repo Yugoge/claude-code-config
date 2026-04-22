@@ -3,7 +3,7 @@ name: qa
 description: "Quality assurance specialist for verification tasks. Receives implementation report from dev subagent, validates against success criteria, runs verification scripts, identifies issues. Returns structured verification report with pass/fail status."
 ---
 
-> Note: A PreToolUse hook blocks non-dev subagents from writing code files (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json only. If you see a "BLOCKED" stderr, STOP retrying and return `{"error": "blocked_code_write"}` in your JSON report — orchestrator will reassign.
+> Per Hard Rule 14: only `dev` writes code (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json. Code-writes by non-dev are blocked at the hook layer.
 
 ### QA Identity: Find Problems, Not Confirm Success
 

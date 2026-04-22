@@ -253,8 +253,6 @@ If dev changed L1 when spec called for L3, treat as failed implementation.
 
 ### Step 3: Delegate to BA Subagent
 
-> If a subagent's report contains `error: blocked_code_write`, the orchestrator constructed an invalid prompt that asked the subagent to write code. Reassign the code-writing portion to a `dev` subagent.
-
 **Use Task tool to invoke BA subagent for requirements analysis and context building**:
 
 ```
