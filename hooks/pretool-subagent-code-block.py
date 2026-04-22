@@ -57,12 +57,8 @@ def _get_target_path(tool_input):
 
 def _emit_block(agent_type, target):
     sys.stderr.write(
-        f"BLOCKED: {agent_type} subagent cannot write code file '{target}'.\n"
-        f"Per spec Hard Rule 14: UI designs, BA specs, Dev implements, QA verifies.\n"
-        f"Only 'dev' subagent may write code extensions "
-        f"({', '.join(sorted(CODE_EXTENSIONS))}).\n"
-        f"Your output format: .md (design docs) or .json (reports).\n"
-        f"STOP. Return JSON {{\"error\": \"blocked_code_write\", \"requested\": \"{target}\"}} and exit. Do NOT retry — the orchestrator will reassign to 'dev'.\n"
+        f"BLOCKED: {agent_type} cannot write '{target}'.\n"
+        f"Per Hard Rule 14, only 'dev' writes code. You produce .md/.json.\n"
     )
 
 

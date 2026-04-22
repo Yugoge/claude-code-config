@@ -524,8 +524,6 @@ Launching specialist subagents...
 - Re-invoke only the failed subagent(s) (maximum 2 retries)
 - If still failing after retries, proceed with available reports
 
-> If a subagent's report contains `error: blocked_code_write`, the orchestrator constructed an invalid prompt that asked the subagent to write code. Reassign the code-writing portion to a `dev` subagent.
-
 **If zero issues found across all RELEVANT specialist reports** (reports from launched specialists only — skipped specialists do not count as clean):
 - Log a "clean sweep" entry
 - After 2 consecutive clean sweeps: generate summary and allow termination
