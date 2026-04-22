@@ -17,9 +17,9 @@ This command runs an unattended development loop. You are fully autonomous -- no
 ## Overview
 
 ```
-Hook creates state file + parses end-time (automatic)
+Hook creates state file + worktree + view detection (automatic)
   |
-Step 1: Create worktree (first run only)
+Step 1: Read state file + enter worktree (first run only)
   |
   +---> EXPLORATION PHASE (Step 2)
   |       Step 2a: PM-Plan subagent (builds test plan with priorities + recommended_specialists)
@@ -52,7 +52,7 @@ Step 1: Create worktree (first run only)
   |         Aggregate permissions from all N pipelines, apply once
   |                |
   |       LOG & TIME CHECK (Step 13)
-  |       Update state with all N pipeline results, check end-time
+  |       Log all N pipeline results to cycle_log file, check end-time
   |                |
   |       PM RETROSPECTIVE (Step 14)
   |       PM reads all results, writes retro-report, hands off to next cycle
@@ -75,9 +75,9 @@ Step 1: Create worktree (first run only)
 1. **You are autonomous**. Do NOT ask the user anything. Make decisions yourself.
 2. **Loop continuously**. After each fix cycle, the todo completion hook handles looping. This is non-negotiable.
 3. **Keep cycles comprehensive and priority-driven**. PM triage determines pipeline ordering -- the main agent follows PM's authority. In Focus Mode (Tier 1 blockers exist), only blocker pipelines are created. In Normal Mode, all issues get pipelines ordered by tier: Tier 1 (blockers) first, then Tier 2 (major), then Tier 3 (minor/cosmetic). Within each tier, issues flagged by more agents rank higher.
-4. **ALL exploration and fixes via subagents**. Use Agent tool for ALL scanning, analysis, and implementation work. Main context only handles state management, TodoWrite, and loop control.
+4. **ALL exploration and fixes via subagents**. Use Agent tool for ALL scanning, analysis, and implementation work. Main context only handles TodoWrite and loop control.
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
-6. **Track everything**. Update the state file after every significant action.
+6. **Track everything**. Use TodoWrite to track progress -- the state file is read-only after creation.
 7. **The Stop hook prevents premature exit**. The time-lock hook will block conversation termination until end-time. Do not try to circumvent it.
 8. **Git checkpoint after each fix**. The existing posttool-git-checkpoint.sh hook handles this automatically on Write/Edit.
 9. **QA MUST rebuild and redeploy** to verify fixes in the real environment. `docker compose build` and `docker compose up -d` for the project's own services are REQUIRED for QA verification. Identify services from `docker-compose.yml`. Do NOT touch unrelated services or infrastructure.
@@ -111,14 +111,11 @@ If `--spec` is NOT provided, the session operates in **autonomous mode** (defaul
 - After PM TRIAGE creates pipelines, the orchestrator creates spec files from the template at `~/.claude/templates/overnight-spec.md`
 - Each pipeline gets its own spec file at `docs/dev/overnight/<session_id>/spec-pipeline-<index>.md`
 
-**Spec mode detection**: Parse arguments for `--spec`. Extract the path that follows it. Store in state file as `user_spec_path`. If present, set `spec_mode: "user-provided"`. If absent, check for an auto-detectable spec (see below) before defaulting to `spec_mode: "autonomous"`.
+**Spec mode detection**: Argument parsing and spec mode detection are handled by `create-overnight-state.sh` at session creation. The state file already contains `user_spec_path` and `spec_mode` fields. Read them from the state file in Step 1.
 
-**Auto-detect default spec**: If `--spec` is NOT provided, scan `docs/dev/specs/` for `.md` files sorted by modification time (newest first). If a file exists there, treat it as the user-provided spec automatically — set `user_spec_path` to that path and `spec_mode: "user-provided"`. Announce this clearly:
-```
-Auto-detected spec: docs/dev/specs/spec-<timestamp>.md
-(Created by /spec command — treating as user-provided spec. Use --spec <other-path> to override.)
-```
-If `docs/dev/specs/` does not exist or is empty, fall back to `spec_mode: "autonomous"` as before.
+**Detect views folder**: View detection is handled by `create-overnight-state.sh` at session creation. The state file's `view_paths` field contains the manifest.views dict (or null if no views exist). Each subagent receives its per-agent view path alongside the monolith spec path. If `view_paths` is null, views are not available and subagents receive only the monolith path -- legacy specs are fully supported.
+
+**Auto-detect default spec**: Auto-detection of specs in `docs/dev/specs/` is handled by `create-overnight-state.sh` at session creation. If a spec was auto-detected, the state file will have `spec_mode: "user-provided"` and `user_spec_path` populated. The session announces this in Step 1 when reading the state file.
 
 The `focus` string is stored in the state file and passed to all 4 specialist subagents as a discovery hint. It helps specialists focus their scans but does not affect pipeline creation -- all discovered issues get pipelines regardless of focus match. Additionally, in Step 3a, the orchestrator converts the focus into quantitative QA verification criteria that are passed to QA subagents in Step 9 as mandatory pass/fail checks.
 
@@ -126,59 +123,31 @@ The `focus` string is stored in the state file and passed to all 4 specialist su
 
 ## Implementation
 
-### Step 1: Create Worktree
+### Step 1: Read State File and Enter Worktree
 
-The state file has already been created by the UserPromptSubmit hook at `.claude/overnight-state-<session_id>.json`. Find and read it:
+The state file has already been created by the UserPromptSubmit hook at `.claude/overnight-state-<session_id>.json`, including `worktree_path`, `worktree_branch`, `view_paths`, `user_spec_path`, `spec_mode`, and `current_phase: "exploring"`. Find and read it:
 
 ```bash
 ls .claude/overnight-state-*.json
 ```
 
-**Read the state file** to get the end_time, session_id, and confirm initialization. If multiple state files exist, use the one matching the current session.
+**Read the state file** to get the end_time, session_id, worktree_path, spec_mode, user_spec_path, view_paths, and confirm initialization. If multiple state files exist, use the one matching the current session.
 
 If no state file exists (edge case), create it manually using the v4 schema with a generated session_id.
 
-**WORKTREE GUARD**: FIRST check the state file's `worktree_path` field.
-- If `worktree_path` is NOT null: the worktree already exists from a previous cycle. `cd` into it and skip to Step 2.
-- If `worktree_path` IS null: this is the first invocation. Create the worktree.
+**WORKTREE GUARD**: Check the state file's `worktree_path` field.
+- If `worktree_path` is NOT null: `cd` into the worktree path.
+- If `worktree_path` IS null (edge case: worktree creation failed during hook): log a warning and continue on the current branch.
 
-**Create worktree for isolation** (only when worktree_path is null):
-
-Run the worktree creation script (creates from local HEAD, not origin/main):
-
-```bash
-RESULT=$(bash ~/.claude/scripts/create-worktree.sh "overnight-$(date +%Y%m%d)-<session_id_short>")
+**Spec announcement**: If `spec_mode` is `"user-provided"` and `user_spec_path` is set, announce:
 ```
-
-Parse `WORKTREE_PATH` and `WORKTREE_BRANCH` from the output, then `cd` into the worktree path.
-
-After creation, update the state file:
-- Set `worktree_path` to the worktree directory path
-- Set `worktree_branch` to the branch name
-
-**Auto-detect default spec** (run immediately after state file is read, whether first run or continuation):
-
-If `user_spec_path` in the state file is null AND `spec_mode` is `"autonomous"`, scan for a `/spec`-generated spec:
-
-```bash
-ls -t docs/dev/specs/*.md 2>/dev/null | head -1
+Spec mode: user-provided
+Spec path: <user_spec_path>
 ```
-
-If a file is returned:
-1. Set `user_spec_path` to that path in the state file
-2. Set `spec_mode` to `"user-provided"` in the state file
-3. Announce:
-   ```
-   Auto-detected spec: <path>
-   (Created by /spec — treating as user-provided. Pass --spec <other-path> to override.)
-   ```
-
-If no file is returned, leave `spec_mode` as `"autonomous"` and proceed normally.
-
-If creation fails (disk space, git lock, etc):
-- Log a warning
-- Continue on the current branch
-- Leave `worktree_path` as null in the state file
+If `user_spec_path` was auto-detected (not passed via `--spec`), also announce:
+```
+(Auto-detected by session creation hook. Pass --spec <other-path> to override.)
+```
 
 **Announce initialization**:
 
@@ -295,8 +264,6 @@ When dev reports back, verify implementation layer matches BA's spec layer.
 
 ### Step 2: Explore Codebase for Issues
 
-**Update state**: Set `current_phase` to `"exploring"`.
-
 **CRITICAL: This step has three sub-steps. Step 2a launches the PM subagent to build a test plan (which includes a `recommended_specialists` field). The main agent then reads the test plan and extracts priority context. Step 2b launches ONLY the PM-recommended specialist subagents with that priority context. Step 2c launches PM again in TRIAGE mode to classify all findings.**
 
 Read the state file's `addressed_issues` array first.
@@ -398,7 +365,46 @@ Do NOT use "evaluate then call" in exploration mode — you cannot evaluate rele
 - Exploration mode: if `recommended_specialists` is present and non-empty, launch that narrowed subset; if missing or null, launch all 4.
 - Supervisor mode: treat `recommended_specialists` as advisory only; the evaluate-then-call assessment is authoritative.
 
-Launch the recommended Agent calls in a SINGLE response (parallel execution):
+Launch the recommended Agent calls in a SINGLE response (parallel execution).
+
+**Supervisor-mode specialist prompts** (when `spec_mode == "user-provided"` AND `view_paths` is non-null):
+
+Before launching specialists, the orchestrator MUST:
+1. Read `view_paths["orchestrator"]` (the orchestrator view file)
+2. Search for a `## Pipeline Workflow` section in that view
+3. If found, extract the per-specialist prompt templates from that section
+4. Use those templates as the specialist's focus/task description instead of the default exploration prompt
+5. Pass `View file: {view_paths[specialist_type]}` to each specialist so they read their own view
+
+If the orchestrator view contains prompt templates like:
+  "When launching ui-specialist: Design <icon>, output SVG + motion CSS"
+Then the specialist prompt MUST use that language, NOT the default exploration-mode language
+(e.g. "Evaluate visual design quality, assess design system adherence").
+
+Each specialist prompt in supervisor mode should follow this structure:
+```
+You are the <specialist_type> specialist.
+
+View file: <view_paths[specialist_type]>
+Read your view file FIRST — it contains your Role Mandate (what you ARE and ARE NOT)
+and the content blocks relevant to your role.
+
+<orchestrator-view prompt template for this specialist, if found in Pipeline Workflow section>
+
+Overnight spec file: <user_spec_path>
+Project path: <worktree_path>
+Test plan: docs/dev/overnight/<session_id>/test-plan.json
+Output report to: <report path>
+Priority context from PM: <priorities>
+```
+
+If the orchestrator view does NOT contain a `## Pipeline Workflow` section or has no per-specialist templates, fall back to the default exploration prompt below (backward compatible).
+
+**Exploration-mode specialist prompts** (when `spec_mode == "autonomous"` OR `view_paths` is null):
+
+Use the default exploration prompt — same as existing behavior. No view file or spec file needed.
+
+---
 
 ```
 For each specialist in recommended_specialists (domain-matched only):
@@ -417,6 +423,8 @@ Each subagent receives:
 - Already addressed: <addressed_issues array from state file>
 - Focus: <focus string from state file, or "none">
 - Test plan: docs/dev/overnight/<session_id>/test-plan.json
+- View file: {view_paths[specialist_type] or null}
+- Overnight spec file: {user_spec_path or null}
 - Priority context: <the priority context block built in the step above>
 - Output report to: <path above>
 
@@ -497,7 +505,7 @@ After all 4 specialists complete, read the user agent's report. Check `core_flow
 
 This gate is non-negotiable: if the user cannot complete the core business flow, the entire cycle is considered failed regardless of other agents' findings.
 
-**Route Map Extraction**: After the user agent completes, check if `route_map_file` exists in its report. If present, read the route map file and store the path in the state file as `route_map_path`. This route map will be passed to:
+**Route Map Extraction**: After the user agent completes, check if `route_map_file` exists in its report. If present, read the route map file and note the path for use in subsequent subagent prompts. This route map will be passed to:
 - **Dev agent**: as context so it knows which pages might be affected by its changes
 - **QA agent**: so it can verify changes don't break pages listed in the route map
 - **PM agent** (next cycle only): so PLAN mode can skip browser discovery and use the existing route map
@@ -547,10 +555,8 @@ Use Agent tool with:
 If validation fails, re-invoke PM-Triage (maximum 2 retries). If still failing, fall back
 to the legacy mechanical sort in Step 3 (read all 4 reports, merge, sort by severity).
 
-**Update state**: Add triage report path to `pm_triage_reports` array in state file.
-
 **Check pipeline_blocked**: Read the triage report's `pipeline_blocked` field.
-- If `pipeline_blocked: true`: log `block_reasons` to state file, skip Steps 3-13, jump directly to Step 14 (PM Retrospective) with context that the pipeline was blocked. PM RETRO will analyze the block and recommend next steps. Then loop to Step 2 for the next cycle.
+- If `pipeline_blocked: true`: log `block_reasons` to the cycle log file, skip Steps 3-13, jump directly to Step 14 (PM Retrospective) with context that the pipeline was blocked. PM RETRO will analyze the block and recommend next steps. Then loop to Step 2 for the next cycle.
 - If `pipeline_blocked: false` or field absent: proceed normally to Step 3.
 
 ### Step 2d: Create Overnight Spec Files
@@ -576,8 +582,6 @@ For each pipeline that will be created (from triage report's `pipeline_order`):
 Read specialist reports. For each pipeline, if a specialist provided screenshots or detailed observation notes about the current state, prepopulate Section 1 in the spec with that information.
 
 ### Step 3: Create Parallel Pipelines from PM Triage
-
-**Update state**: Set `current_phase` to `"pipeline_creation"`.
 
 **Read PM triage report**: `docs/dev/overnight/<session_id>/triage-report-cycle<N>.json`
 
@@ -634,10 +638,6 @@ for i, issue in enumerate(sorted_issues):
     })
 ```
 
-**Update state file**:
-- Set `current_issues` to the pipeline array
-- Set `issues_found` += len(pipelines)
-
 **Announce pipeline creation**:
 ```
 PM Triage: {mode} mode ({mode_reason})
@@ -677,8 +677,6 @@ The `focus_verification_criteria` array will be passed to each QA subagent in St
 
 ### Step 4: Run All BA Subagents (Parallel)
 
-**Update state**: Set `current_phase` to `"analyzing"`.
-
 **Launch ALL N BA subagents in a SINGLE response** (parallel execution). Each pipeline gets its own BA Agent call with unique file naming.
 
 **ENFORCEMENT: One pipeline per subagent. Each BA Agent call receives exactly ONE pipeline's issue description and location. Do NOT combine multiple pipelines into a single BA prompt. The same rule applies to Dev (Step 6) and QA (Step 9) subagents.**
@@ -701,6 +699,7 @@ Agent(subagent_type: "ba")
     Project root: <worktree_path from state file if set, otherwise project root>
 
     Overnight spec file: {pipeline.spec_path}
+    View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
 
     prior_attempt_signals:
       retry_phrase: <matched retry phrase or null, from triage/iteration prompt>
@@ -751,8 +750,6 @@ Read BA output files:
 - Maximum 2 re-invocations per pipeline
 - If still failing after retries: mark pipeline status as `"skipped"` with reason `"BA validation failed"`
 
-**Update state**: Set each pipeline's `phase` to `"ba_complete"`.
-
 **If all pipelines are skipped**: Skip to Step 13 (log results).
 
 ### Step 5a: QA Validates BA Conclusions (All Pipelines, Parallel)
@@ -778,6 +775,7 @@ Agent(subagent_type: "qa")
     BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
     Context JSON: docs/dev/context-{pipeline.timestamp_suffix}.json
     Overnight spec file: {pipeline.spec_path}
+    View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
     Project root: <worktree_path from state file if set, otherwise project root>
 
     Verify these 4 dimensions:
@@ -896,8 +894,6 @@ Use Agent tool with:
 
 ### Step 6: Run All Dev Subagents (Parallel)
 
-**Update state**: Set `current_phase` to `"implementing"`.
-
 **Filter**: Only launch Dev for pipelines with `phase == "ba_complete"` and `status == "active"`.
 
 **Launch ALL active Dev subagents in a SINGLE response** (parallel execution):
@@ -913,6 +909,7 @@ Agent(subagent_type: "dev")
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
     BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
     Overnight spec file: {pipeline.spec_path}
+    View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
     Write your implementation report to: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
     Project root: <worktree_path from state file if set, otherwise project root>
 
@@ -948,11 +945,7 @@ Read dev report: `docs/dev/dev-report-{pipeline.timestamp_suffix}.json`
 - Re-invoke only that pipeline's dev subagent (maximum 3 attempts)
 - If still blocked: mark pipeline status as `"skipped"` with reason `"Dev blocked"`
 
-**Update state**: Set each successful pipeline's `phase` to `"dev_complete"`.
-
 ### Step 8: PM QA Prep (Rebuild Docker + Write QA Verification Plans)
-
-**Update state**: Set current_phase to "qa_prep".
 
 **This step bridges Dev and QA by:**
 1. Reading ALL dev reports to understand what changed
@@ -981,8 +974,6 @@ Do NOT proceed to QA with stale containers.
 
 ### Step 9: Run All QA Subagents (Parallel)
 
-**Update state**: Set `current_phase` to `"verifying"`.
-
 **Filter**: Only launch QA for pipelines with `phase == "dev_complete"` and `status == "active"`.
 
 **Launch ALL active QA subagents in a SINGLE response** (parallel execution):
@@ -999,6 +990,7 @@ Agent(subagent_type: "qa")
     Dev report file: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
     BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
     Overnight spec file: {pipeline.spec_path}
+    View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
     Write your verification report to: docs/dev/qa-report-{pipeline.timestamp_suffix}.json
     Project root: <worktree_path from state file if set, otherwise project root>
 
@@ -1146,7 +1138,7 @@ Quality verification failed after 5 iterations for pipeline {i}: {description}.
 Marking as skipped.
 ```
 Mark pipeline: `phase = "done"`, `status = "skipped"`.
-Add to `failed_attempts` in state file.
+Record the failure in the cycle log.
 
 ### Step 12: Update Settings.json Permissions (Aggregated)
 
@@ -1216,39 +1208,7 @@ mv .claude/settings.json.tmp .claude/settings.json
 
 ### Step 13: Log All Cycle Results and Check Time
 
-**Update state**: Set `current_phase` to `"logging"`.
-
-**Aggregate results from ALL pipelines and update the state file**:
-
-```python
-state['cycle_count'] += 1
-fixed_count = 0
-skipped_count = 0
-
-for pipeline in state['current_issues']:
-    if pipeline['status'] == 'fixed':
-        fixed_count += 1
-    elif pipeline['status'] == 'skipped':
-        skipped_count += 1
-
-    state['addressed_issues'].append(pipeline['description'])
-    state['cycle_log'].append({
-        'cycle': state['cycle_count'],
-        'pipeline_index': pipeline['index'],
-        'issue': pipeline['description'],
-        'location': pipeline['location'],
-        'severity': pipeline['severity'],
-        'status': pipeline['status'],
-        'iterations': pipeline['iteration'],
-        'timestamp': now_iso
-    })
-
-state['issues_fixed'] += fixed_count
-state['issues_skipped'] += skipped_count
-state['current_issues'] = []  # Clear pipeline array for next cycle
-```
-
-Write atomically (tmp + rename).
+**Aggregate results from ALL pipelines** by tallying fixed vs skipped counts.
 
 **Append to running log** at `docs/dev/overnight-log-<date>.md`:
 
@@ -1280,8 +1240,6 @@ If time expired: proceed to Step 14 (PM Retro) then Step 15 for final summary.
 If time remains: proceed to Step 14 (PM Retro), then mark Step 15 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 16 steps completed, reset todos to pending, and inject continuation instructions.
 
 ### Step 14: PM Retrospective
-
-**Update state**: Set `current_phase` to `"retrospective"`.
 
 Determine if this is the final cycle:
 - If time expired (from Step 13 time check): set `FINAL_CYCLE: true`
@@ -1333,10 +1291,6 @@ Use Agent tool with:
 
 If validation fails, log warning and proceed (retro is informational, not blocking).
 
-**Update state file**:
-- Add retro report path to `pm_retro_reports` array
-- Update `unresolved_issues` from retro report's `unresolved_issues` array
-
 **Check qa_rerun_required**: Read the retro report's `qa_rerun_required` field.
 - If `qa_rerun_required: true`: re-invoke QA for the pipelines listed in `qa_rerun_reasons`. Use the same QA invocation pattern as Step 8-10, but pass additional context: `"This is a PM-requested QA re-run. Reasons: <qa_rerun_reasons>. Focus on the specific concerns raised."` After QA re-run completes, proceed to Step 15 (do NOT re-invoke RETRO — avoid infinite loops).
 - If `qa_rerun_required: false` or field absent: proceed normally to Step 15.
@@ -1354,8 +1308,6 @@ Simply mark this step as completed via TodoWrite. The PostToolUse:TodoWrite hook
 5. You then resume from Step 2 (worktree already exists)
 
 **If time expired** (session ending):
-**Update state**: Set `current_phase` to `"completed"`.
-
 **Read the full state file** to get all cycle data.
 
 **Generate summary report** at `docs/dev/overnight-summary-<date>.md`:
@@ -1444,12 +1396,12 @@ The time-lock has been released. The session can now end normally.
 
 ## State File Management
 
-The state file serves three purposes:
-1. **Persistence**: Track progress across cycles and loop resets
+The state file is created by `create-overnight-state.sh` during session initialization and is **read-only** for the session thereafter. It serves three purposes:
+1. **Configuration**: Provides worktree_path, worktree_branch, view_paths, spec_mode, user_spec_path, end_time
 2. **Time-lock**: The Stop hook reads this file to determine if termination is allowed
 3. **Continuation**: The UserPromptSubmit hook reads this to inject continuation context
 
-**Always write atomically**: Write to `.tmp` file first, then `os.rename()`.
+**Do NOT write to the state file**. Use TodoWrite for progress tracking and the cycle log file (`docs/dev/overnight-log-<date>.md`) for cycle results.
 
 **State file location**: `<project_dir>/.claude/overnight-state-<session_id>.json`
 
@@ -1534,16 +1486,16 @@ In Step 3 pipeline creation, skip issues with medium/large effort. If zero small
 Create a fresh state file preserving end_time from $ARGUMENTS. Continue operation.
 
 ### Worktree creation failure
-Log warning, continue on current branch. All changes still tracked in state file.
+Log warning, continue on current branch. All changes still tracked via TodoWrite and cycle log.
 
 ### Missing worktree in continuation mode
-If state file has `worktree_path=null` on continuation, attempt to create worktree.
+If state file has `worktree_path=null` on continuation, log a warning and continue on the current branch.
 
 ---
 
 ## Integration with Hooks
 
-- **prompt-workflow.py** (UserPromptSubmit): Creates overnight-state-<session_id>.json on /dev-overnight detection; injects continuation context with worktree guard
+- **prompt-workflow.py** (UserPromptSubmit): Creates overnight-state-<session_id>.json (complete with worktree_path, worktree_branch, view_paths, spec detection) on /dev-overnight detection; injects continuation context with worktree guard
 - **posttool-overnight-loop.py** (PostToolUse:TodoWrite): Detects all-completed state, resets todos for new cycle if end_time is future
 - **pretool-overnight-hook-guard.py** (PreToolUse): Blocks Write/Edit/Bash targeting .claude/hooks/ during overnight sessions
 - **pretool-workflow-gate.py** (PreToolUse): Gates tools until TodoWrite is called
@@ -1667,7 +1619,7 @@ See `/clean` command documentation for details.
 - Comprehensive context via BA (one per pipeline)
 - Iterative quality improvement (max 5 iterations per pipeline, independent)
 - Proper JSON storage with pipeline-scoped naming (timestamp-index suffix)
-- Cycle deduplication via state file
+- Cycle deduplication via addressed_issues tracking
 - Multi-session isolation via session_id-keyed state files
 
 ---
@@ -1707,4 +1659,4 @@ See `/clean` command documentation for details.
 
 ---
 
-**Remember**: You are autonomous. You explore, discover, fix, and loop. No user input needed. ALL exploration and fix work goes through Agent subagents. Main context only manages state and the loop. Keep going until the clock says stop.
+**Remember**: You are autonomous. You explore, discover, fix, and loop. No user input needed. ALL exploration and fix work goes through Agent subagents. Main context only manages TodoWrite and the loop. Keep going until the clock says stop.
