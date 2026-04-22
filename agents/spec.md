@@ -220,6 +220,10 @@ Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with ALL of the following
 3. Launch dev → executes BA spec, deploys to main tree
 4. Launch QA → runs Playwright against prod, reports pass/fail
 
+### Serial Execution Gate (MANDATORY)
+
+Complete the full pipeline for ONE item before starting the next. NEVER batch-launch N specialists in parallel. One item at a time through the full pipeline. PM triage decides the ORDER of items, not whether to parallelize. If QA fails, re-enter at the failed stage.
+
 ### Orchestrator Prompt Templates:
 
 When launching ui-specialist, your prompt MUST include:
@@ -248,6 +252,19 @@ When launching QA, your prompt MUST include:
 - NEVER skip the design step and go straight to implementation
 - NEVER collapse two pipeline stages into one subagent (e.g., ui-specialist + dev in same prompt)
 - NEVER let a specialist do work outside its pipeline stage
+- NEVER embed design details (stroke-width, motion CSS parameters, viewBox sizes, naming conventions, axis values) in subagent prompts. The subagent reads its view file for these details.
+- NEVER paraphrase the spec into prompts. Pass `View file: {view_paths[agent]}` and let the subagent read it.
+- Orchestrator prompts must be <= 10 lines. If your prompt is longer, you are acting as designer/analyst, not as delegator.
+- NEVER launch more than one specialist (ui-specialist, architect, product-owner, user) at a time. Specialists are one-at-a-time consultations. Only BA/Dev/QA may run in parallel, and even those should typically run sequentially per item in pipeline mode.
+- NEVER ask ui-specialist to write application code. ui-specialist outputs ONLY design artifacts (SVG + motion CSS + README) to skill/design asset locations. Application code (component integration, imports, route changes) is dev's job AFTER BA writes implementation spec.
+
+### Rule 13: Orchestrator delegates, never reads spec directly
+
+**FORBIDDEN content in subagent prompts** (orchestrator must NOT include these -- let subagent read from its view):
+- Specific stroke-width values, CSS motion parameters, color hex codes or var names
+- Naming convention patterns, animation duration values
+
+**Correct pattern**: pass `View file: {view_paths[agent]}` and let the subagent read its own view for all design/implementation details.
 
 ---
 
@@ -265,7 +282,7 @@ When launching QA, your prompt MUST include:
 | ba | yes/no | <reason> |
 | dev | yes/no | <reason> |
 | qa | yes/no | <reason> |
-| pm | yes/no | <reason> |
+| pm | yes (supervisory) | Triage/prioritization -- decides item order, monitors progress. NOT a pipeline stage. |
 | architect | yes/no | <reason> |
 | product-owner | yes/no | <reason> |
 | user | yes/no | <reason> |
@@ -452,6 +469,7 @@ Write cp-state files via `bin/spec-check.py`. Do not write cp-state JSON directl
 python3 /root/bin/spec-check.py check-in \
     --spec-id <spec-id> \
     --agent <agent> \
+    --agent-id <item-name> \
     --artifact docs/dev/<agent>-report-<ts>.json
 ```
 
@@ -466,8 +484,10 @@ def now(): return datetime.now(timezone.utc).isoformat(timespec="seconds").repla
 
 spec_id = "<spec-id>"
 agent = "<agent>"
+agent_id = "<item-name>"  # None if no instance keying needed
 project_dir = os.environ["CLAUDE_PROJECT_DIR"]
-path = f"{project_dir}/.claude/specs/{spec_id}/cp-state-{agent}.json"
+suffix = f"-{agent_id}" if agent_id else ""
+path = f"{project_dir}/.claude/specs/{spec_id}/cp-state-{agent}{suffix}.json"
 with open(path) as f:
     data = json.load(f)
 data["checkpoints"] = [
