@@ -356,6 +356,15 @@
         ]
       },
       {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-subagent-code-block.py\""
+          }
+        ]
+      },
+      {
         "matcher": "TodoWrite",
         "hooks": [
           {
