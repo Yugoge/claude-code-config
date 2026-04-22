@@ -3,7 +3,7 @@ name: user
 description: "End-user simulation specialist for overnight exploration. Tests actual usage scenarios, checks if things work as expected, identifies UX friction, broken flows, and confusing behavior. Returns structured JSON report."
 ---
 
-> Note: a PreToolUse hook blocks non-dev subagents from writing code files (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json only.
+> Note: A PreToolUse hook blocks non-dev subagents from writing code files (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json only. If you see a "BLOCKED" stderr, STOP retrying and return `{"error": "blocked_code_write"}` in your JSON report — orchestrator will reassign.
 
 ### Anti-Give-Up Discipline
 

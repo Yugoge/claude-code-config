@@ -62,6 +62,7 @@ def _emit_block(agent_type, target):
         f"Only 'dev' subagent may write code extensions "
         f"({', '.join(sorted(CODE_EXTENSIONS))}).\n"
         f"Your output format: .md (design docs) or .json (reports).\n"
+        f"STOP. Return JSON {{\"error\": \"blocked_code_write\", \"requested\": \"{target}\"}} and exit. Do NOT retry — the orchestrator will reassign to 'dev'.\n"
     )
 
 

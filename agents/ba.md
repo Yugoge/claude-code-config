@@ -4,7 +4,7 @@ name: ba
 description: "Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context)."
 ---
 
-> Note: a PreToolUse hook blocks non-dev subagents from writing code files (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json only.
+> Note: A PreToolUse hook blocks non-dev subagents from writing code files (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json only. If you see a "BLOCKED" stderr, STOP retrying and return `{"error": "blocked_code_write"}` in your JSON report — orchestrator will reassign.
 
 ### Authority Chain
 
