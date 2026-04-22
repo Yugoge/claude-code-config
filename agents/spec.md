@@ -73,9 +73,27 @@ Then proceed to Phase 1.
 
 ## Phase 1: Intelligent Content-Block Extraction
 
+## CRITICAL: Verbatim-only rule
+
+You may ONLY use content that appears byte-for-byte in the monolith.
+Allowed non-verbatim content (strictly limited):
+- Section titles (## / ### / ####)
+- View header HTML comment
+- "# <agent> view of <spec-id>" first heading
+- "**Monolith**: <path>" reference line
+- "**Extraction**: <description>" description line
+- "---" separators
+
+Everything else MUST be verbatim from monolith. You have FREEDOM to 
+select, reorder, and combine monolith content — but you may NOT
+paraphrase, summarize, or invent content.
+
+If you cannot construct a section using only monolith content, the 
+section must be OMITTED rather than fabricated.
+
 **Purpose**: For each agent selected in Phase 0, scan the ENTIRE monolith and extract only the content blocks relevant to that agent using INCLUDE/SKIP criteria. There is NO section-to-agent mapping — a single section may contain content blocks relevant to DIFFERENT agents. The spec agent freely picks content blocks from ANYWHERE in the monolith based on relevance. The same block MAY appear in multiple agent views.
 
-**CRITICAL CONSTRAINT**: Every character of extracted content must be a VERBATIM byte-identical substring of the monolith. No summarization, no paraphrasing, no rewording, no new text. The ONLY non-verbatim content allowed is: (1) the view file header (HTML comment + agent name heading), (2) the Role Mandate section (structured summary of spec-defined role responsibilities — see Step 3), and (3) the orchestrator navigation map.
+**CRITICAL CONSTRAINT**: Every character of extracted content must be a VERBATIM byte-identical substring of the monolith. No summarization, no paraphrasing, no rewording, no new text. The ONLY non-verbatim content allowed is listed in the "CRITICAL: Verbatim-only rule" block above: section titles, view header scaffolding (HTML comment, first heading, Monolith/Extraction reference lines), and `---` separators.
 
 ### Step 1: Decompose the monolith into content blocks
 
@@ -162,27 +180,25 @@ For each relevant agent:
    ---
    ```
 
-2. **Role Mandate section** (second allowed non-verbatim section — placed immediately after the header, before any content blocks):
+2. **Role Mandate section** — placed immediately after the header, before any content blocks:
 
-   Scan the monolith for explicit role definitions: pipeline definitions (e.g., "UI → BA → Dev → QA"), role-split rules (e.g., "UI设计师统筹设计构思图形和动效的表述，BA设计代码实现，dev实现，QA验证"), and any "this agent does X, not Y" constraints. If found, assemble a Role Mandate section for this agent:
+   Scan the monolith for explicit role definitions: pipeline definitions (e.g., "UI → BA → Dev → QA"), role-split rules (e.g., "UI设计师统筹设计构思图形和动效的表述，BA设计代码实现，dev实现，QA验证"), and any "this agent does X, not Y" constraints. If found, assemble a Role Mandate section for this agent using ONLY verbatim monolith quotes:
 
    ```
    ## Role Mandate (from spec)
 
-   > <verbatim quote of the spec's role definition that mentions this agent>
+   > <verbatim quote from monolith that defines this agent's responsibility>
 
-   **YOU ARE**: <structured summary of what this agent does, derived from the spec's role definitions>
-   **YOU ARE NOT**: <what the OTHER roles do — prevents role collapse into generic observation/audit>
-
-   ---
+   <optional: additional verbatim quotes that relate to this role>
    ```
 
    **Rules for Role Mandate**:
-   - The `>` blockquote MUST be a verbatim substring from the monolith (the exact sentence/paragraph that defines this agent's role).
-   - The `YOU ARE` / `YOU ARE NOT` lines are structured summaries (non-verbatim, like the header) derived from the spec's role definitions. Keep them concise — one sentence each.
+   - Every `>` blockquote MUST be a verbatim substring from the monolith (the exact sentence/paragraph that defines this agent's role). The surrounding `> ` prefix for each line is allowed because the quoted text itself is verbatim.
+   - The section title `## Role Mandate (from spec)` is the ONLY non-verbatim structural line.
+   - You may include multiple verbatim quotes if the spec has multiple sentences that define this agent's role. Do NOT synthesize summaries, "YOU ARE" lines, or any other non-verbatim content inside this section.
    - If the spec defines no explicit role responsibilities for any agent, OMIT the Role Mandate section entirely (do not fabricate roles).
-   - If the spec defines roles for SOME agents but not this one, still include a Role Mandate with the blockquote from the general pipeline definition and a `YOU ARE` line inferred from the pipeline position.
-   - **ui-specialist special constraint** (for design-spec scenarios where the spec defines a design → implement pipeline): when generating the ui-specialist Role Mandate, the `YOU ARE NOT` section MUST include an explicit "NEVER write application code" clause — e.g., "Do NOT write application code, JSX/TSX components, imports, or any files outside the design asset directory (dev's job after BA writes impl spec). Your output is ONLY design artifacts (SVG + motion CSS + README). Not one line of React/Next.js/TypeScript code." This prevents ui-specialist from collapsing into dev's role when the orchestrator asks it to "integrate" its design.
+   - If the spec defines roles for SOME agents but not this one, still include a Role Mandate with a verbatim blockquote from the general pipeline definition. Do not invent a "YOU ARE" line — quote what the spec actually says.
+   - **ui-specialist special constraint** (for design-spec scenarios where the spec defines a design → implement pipeline): quote the spec's verbatim role-split lines that constrain ui-specialist (e.g., the sentence that says ui-specialist produces design artifacts only, not application code). Do NOT synthesize a "NEVER write application code" clause — locate the spec's own wording and quote it. If the spec does not contain such wording, rely on the blockquote of the general role-split rule alone.
 
 3. Append the assigned content blocks in their ORIGINAL order from the monolith. Preserve blank lines between blocks exactly as they appear in the monolith.
 
@@ -192,7 +208,7 @@ For each relevant agent:
 
 The orchestrator view is ALWAYS created (even if orchestrator was not selected as a consumer agent). It is the MOST IMPORTANT view because the overnight skill reads it to construct subagent prompts. If the orchestrator view only contains a navigation map, the overnight skill defaults to generic exploration behavior (scan/audit/report) instead of the spec's production pipeline. The orchestrator view must contain enough information for the overnight skill to construct CORRECT subagent prompts for every pipeline stage.
 
-Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with ALL of the following sections in order:
+Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with the sections below in order. **Every content line must be verbatim from the monolith.** Section titles (##/###/####) and the view-file header scaffolding (HTML comment, first heading, Monolith/Extraction lines, `---` separators) are the ONLY non-verbatim lines allowed.
 
 ```
 <!-- AUTO-GENERATED VIEW for orchestrator | source: <monolith-relative-path> | extracted: <ISO-8601> -->
@@ -205,75 +221,27 @@ Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with ALL of the following
 
 ## Role Mandate (from spec)
 
-**YOU ARE**: pipeline orchestrator — delegate design/implementation/verification to subagents per the pipeline below.
-**YOU ARE NOT**: explorer/scanner — do NOT use exploration-mode specialist prompts. This spec defines a PRODUCTION pipeline, not a bug-hunting workflow.
-  - NOT allowed to extract design details (stroke-width, motion CSS parameters, color hex codes, naming conventions, specific D/M/S cell semantics) from the spec into subagent prompts. Each subagent reads its OWN view file. Pass `View file: {view_paths[<agent>]}` and let them read it.
-  - If you find yourself copy-pasting more than 2 lines of spec content into a subagent prompt, STOP — you're violating Rule 13.
+> <verbatim quote from the monolith that defines the orchestrator's role / delegation mandate>
+
+<optional: additional verbatim quotes from the monolith that relate to orchestrator responsibilities>
 
 ---
 
 ## Pipeline Workflow
 
-<verbatim content blocks from the monolith that define the role split and pipeline stages — e.g., the Hard Rule about "UI设计师统筹设计构思图形和动效的表述，BA设计代码实现，dev实现，QA验证">
-
-### Per-Cycle Steps:
-
-1. Launch ui-specialist → it DESIGNS (outputs SVG + motion CSS + README), does NOT scan/audit
-2. Launch BA → reads ui-specialist output, writes implementation spec
-3. Launch dev → executes BA spec, deploys to main tree
-4. Launch QA → runs Playwright against prod, reports pass/fail
-
-### Orchestrator Prompt Templates:
-
-**CRITICAL**: Only launch ONE specialist at a time (ui-specialist, architect, product-owner, user). Wait for completion before launching the next. BA/Dev/QA may be parallelized.
-
-When launching ui-specialist, your prompt MUST include:
-- "Design <item-name> following the design brief in your view"
-- "Output: <the artifacts the spec defines for this role>"
-- NEVER: "scan", "assess", "audit", "find issues", "report observations"
-
-When launching BA, your prompt MUST include:
-- "Read ui-specialist output at <path> and write implementation spec"
-- NEVER: "analyze the codebase", "identify issues"
-
-When launching dev, your prompt MUST include:
-- "Execute the BA spec at <path>"
-- NEVER: "explore", "investigate"
-
-When launching QA, your prompt MUST include:
-- "Verify <acceptance criteria> against prod URL"
-- NEVER: "assess quality", "review code"
+<verbatim content blocks from the monolith that define the role split and pipeline stages (e.g., Hard Rule about "UI设计师统筹设计构思图形和动效的表述，BA设计代码实现，dev实现，QA验证"). Quote the monolith — do NOT synthesize a "Per-Cycle Steps" list or "Prompt Templates" block.>
 
 ---
 
-## Anti-Patterns (from prior failures)
+## Anti-Patterns
 
-- NEVER use exploration-mode prompts for specialists ("scan", "assess current state", "identify issues", "audit")
-- NEVER ask ui-specialist to count existing icons or check conventions — that is QA's job
-- NEVER skip the design step and go straight to implementation
-- NEVER collapse two pipeline stages into one subagent (e.g., ui-specialist + dev in same prompt)
-- NEVER let a specialist do work outside its pipeline stage
-- NEVER embed design details (stroke-width, motion CSS parameters, viewBox sizes, naming conventions, axis values) in subagent prompts. The subagent reads its view file for these details.
-- NEVER paraphrase the spec into prompts. Pass `View file: {view_paths[agent]}` and let the subagent read it.
-- Orchestrator prompts must be <= 10 lines. If your prompt is longer, you are acting as designer/analyst, not as delegator.
-- NEVER launch more than one specialist (ui-specialist, architect, product-owner, user) at a time. Specialists are one-at-a-time consultations. Only BA/Dev/QA may run in parallel, and even those should typically run sequentially per item in pipeline mode.
-- NEVER ask ui-specialist to write application code. ui-specialist outputs ONLY design artifacts (SVG + motion CSS + README) to skill/design asset locations. Application code (component integration, imports, route changes) is dev's job AFTER BA writes implementation spec.
-- NEVER run specialists (ui-specialist, architect, product-owner, user) in parallel — ONE specialist at a time, always. Only BA/Dev/QA may run in parallel.
-- NEVER read the spec directly to stuff implementation details into subagent prompts. The subagent reads its own view file. If you find yourself extracting stroke-width, CSS values, file paths, or any specific artifact into a prompt — STOP. You are violating Rule 13.
-
-### Rule 13: Orchestrator delegates, never reads spec directly
-
-**FORBIDDEN content in subagent prompts** (orchestrator must NOT include these -- let subagent read from its view):
-- Specific stroke-width values, CSS motion parameters, color hex codes or var names
-- Naming convention patterns, animation duration values
-
-**Correct pattern**: pass `View file: {view_paths[agent]}` and let the subagent read its own view for all design/implementation details.
+<verbatim content blocks from the monolith that describe forbidden orchestrator behaviors, prior failures, or rule-13-style constraints. Quote the monolith — do NOT synthesize a new list.>
 
 ---
 
 ## Hard Rules Relevant to Orchestrator
 
-<Extract ALL Hard Rules from the monolith preamble that constrain orchestrator behavior. Include each rule VERBATIM. These typically include rules about: role split, worktree-only writes, PM scope, phase gates, shipping cadence, delegation-only orchestration, and any rule that says "orchestrator must/must not...">
+<Extract Hard Rules from the monolith preamble that constrain orchestrator behavior. Include each rule VERBATIM. These typically cover: role split, worktree-only writes, PM scope, phase gates, shipping cadence, delegation-only orchestration, and any rule that says "orchestrator must/must not...".>
 
 ---
 
@@ -290,15 +258,6 @@ When launching QA, your prompt MUST include:
 | product-owner | yes/no | <reason> |
 | user | yes/no | <reason> |
 
-## PM Supervisory Role
-
-PM is NOT a Rule 14 pipeline stage. PM is orchestrator's SUPERVISOR:
-- PM-PLAN: decides which targets (batch) to address this cycle
-- PM-TRIAGE: prioritizes issues after specialist reports
-- PM-RETRO: cross-cycle continuity
-
-PM may launch before Rule 14 pipeline or after QA, but NEVER as a pipeline stage itself.
-
 ## Views Created
 
 <list of view files created with line counts>
@@ -308,7 +267,9 @@ PM may launch before Rule 14 pipeline or after QA, but NEVER as a pipeline stage
 <for each section: section heading + first 2 lines as preview>
 ```
 
-**Content extraction for orchestrator view**: Unlike other agent views which are pure verbatim extraction, the orchestrator view contains both structured sections (Role Mandate, Pipeline Workflow, Anti-Patterns, Prompt Templates — these are non-verbatim like the header) AND verbatim content blocks. The Hard Rules section MUST contain verbatim extracts from the monolith. The Pipeline Workflow section should include verbatim quotes of role definitions from the monolith wrapped in the structured template above.
+**Content extraction for orchestrator view**: The orchestrator view is **pure verbatim extraction** just like the consumer views. Section titles are structural; every other line must be a byte-for-byte substring of the monolith. The agent SELECTS which verbatim content blocks (role-split rules, Hard Rules, anti-pattern rules, pipeline-definition paragraphs) belong in each orchestrator section. If the monolith does not contain the content needed for a section (e.g., no anti-pattern rules in the spec), OMIT the section rather than fabricate.
+
+Only the `## Agent Relevance Analysis` table, `## Views Created` list, and `## Monolith Sections` preview may be machine-generated from the view set itself — these are mechanical summaries of the generated views, not claims about spec content.
 
 ### Step 5: Write manifest.json
 
@@ -367,9 +328,7 @@ Replace `<AGENT_RELEVANCE_DICT>` with the actual dict from Phase 0, and `<VIEWS_
 
 ### Step 6: Verbatim self-verification
 
-After writing EACH view file, verify the verbatim constraint.
-
-**Skip the orchestrator view** — the orchestrator view contains structured non-verbatim sections (Role Mandate, Pipeline Workflow, Anti-Patterns, Prompt Templates) by design. Only run this check on consumer agent views.
+After writing EACH view file (including orchestrator.md), verify the verbatim constraint. Under the tightened rule, every non-blank line that is NOT a section title (##/###/####), view-header scaffolding, or `---` separator must be a byte-for-byte substring of the monolith. Blockquote lines (`> ...`) pass when the quoted text (after stripping `> `) is a verbatim monolith substring.
 
 ```bash
 python3 -c "
@@ -377,26 +336,30 @@ import sys, re
 monolith = open('$MONOLITH_PATH', encoding='utf-8').read()
 with open('$VIEW_PATH', encoding='utf-8') as f:
     lines = f.readlines()
-# Skip header: everything up to and including the first '---' line after content starts
-# Also skip Role Mandate section (## Role Mandate through next ---)
+# Whitelist: section titles + view-header scaffolding + '---' separators
+WHITELIST = [
+    re.compile(r'^<!--\s*AUTO-GENERATED\b.*-->\s*$'),
+    re.compile(r'^#\s+\S.*\s+view of\s+\S+\s*$'),
+    re.compile(r'^\*\*Monolith\*\*:\s+.+$'),
+    re.compile(r'^\*\*Extraction\*\*:\s+.+$'),
+    re.compile(r'^---\s*$'),
+    re.compile(r'^#{2,4}\s+\S.*$'),
+]
 in_header = True
-in_role_mandate = False
 failures = []
 for i, line in enumerate(lines, 1):
-    stripped = line.rstrip('\n')
+    stripped = line.rstrip('\n').rstrip()
     if in_header:
         if stripped == '---' and i > 3:
             in_header = False
         continue
-    # Skip Role Mandate section (non-verbatim allowed)
-    if stripped == '## Role Mandate (from spec)':
-        in_role_mandate = True
+    if not stripped:
         continue
-    if in_role_mandate:
-        if stripped == '---':
-            in_role_mandate = False
+    if any(p.match(stripped) for p in WHITELIST):
         continue
-    if stripped and stripped not in monolith:
+    # Strip '> ' blockquote prefix for verbatim check
+    candidate = stripped[2:].rstrip() if stripped.startswith('> ') else ('' if stripped == '>' else stripped)
+    if candidate and candidate not in monolith:
         failures.append((i, stripped[:80]))
 if failures:
     print(f'FAIL: {len(failures)} non-verbatim lines')
@@ -644,8 +607,9 @@ You may use: `Read`, `Write`, `Bash` (for `bin/spec-check.py`, `bin/spec-verify-
 You must NOT:
 - Modify the monolith spec (read-only)
 - Generate checkpoints with count < 1 or > 10
-- Add ANY non-verbatim content to view files (except the structural header and Role Mandate section)
+- Add ANY non-verbatim content to view files except the strictly-limited allowlist in the "CRITICAL: Verbatim-only rule" block (section titles, view-header HTML comment, "# <agent> view of <spec-id>" heading, "**Monolith**:" / "**Extraction**:" reference lines, `---` separators)
 - Summarize, paraphrase, or rewrite monolith content
+- Synthesize "YOU ARE" / "YOU ARE NOT" lines, Per-Cycle Steps lists, Orchestrator Prompt Templates, or any other non-verbatim content that used to be allowed in earlier versions of this agent
 - Create views for agents not selected in Phase 0
 - Skip the orchestrator view (it is always created)
 
