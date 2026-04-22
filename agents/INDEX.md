@@ -1,7 +1,7 @@
 # agents
 
-*Last updated: 2026-04-16T10:32:26Z*
-**Total entries**: 22
+*Last updated: 2026-04-21T21:34:10Z*
+**Total entries**: 23
 **Convention**: kebab
 
 ## Tree
@@ -24,6 +24,7 @@ agents/
 ├── `resume-refiner.md` - Resume optimization expert that iteratively optimizes resumes based on quality feedback (ATS coverage, page height)
 ├── `resume-tailor.md` - Elite resume customization expert that tailors personalized resume content based on job descriptions
 ├── `rule-inspector.md` - Folder rule discovery agent. Analyzes Git history to discover file creation patterns, extracts folder organization rules, generates INDEX.md and README.md documentation. Returns structured JSON with discovered rules.
+├── `spec.md` - Two-phase spec subagent. Phase 1 = intelligent within-section extraction (overwrites coarse views for monoliths > 200 lines). Phase 2 = Gawande-style checkpoint generation via bin/spec-check.py. Invoked by /spec command after bin/spec-split.py writes the initial coarse views.
 ├── `style-inspector.md` - Development standards auditor. Enforces /dev quality standards: no hardcoding, naming conventions, venv usage, step numbering, language, script merging, documentation conciseness. Returns structured JSON report with violations.
 ├── `test-executor.md` - Execution specialist for test infrastructure. Executes script-based and AI instruction-based tests. Returns structured execution report with results and recommendations.
 ├── `test-validator.md` - Validation specialist for test infrastructure. Validates test syntax, dependencies, and quality before execution. Returns structured validation report.

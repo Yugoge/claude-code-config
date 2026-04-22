@@ -76,6 +76,22 @@ Auto-detected spec: <path>
 
 If no spec found, set `spec_path = null`. All downstream behavior is unchanged when `spec_path` is null.
 
+**Detect views folder (sibling to spec)**:
+
+If `spec_path` is not null, check for a sibling views folder:
+```
+views_dir = <dirname(spec_path)>/<basename(spec_path, .md)>/views/
+manifest  = <views_dir>/manifest.json
+```
+
+If `manifest.json` exists AND is valid JSON AND `schema_version` matches (currently 1), set:
+- `views_available = true`
+- `view_paths` = manifest.views (dict of agent → path)
+
+Otherwise `views_available = false`. **Legacy specs without a views folder are fully supported** — all subagents receive the monolith spec_path as before. No error, no checkpoint enforcement.
+
+Pass `view_paths.ba`, `view_paths.qa`, `view_paths.dev`, etc. alongside (not in place of) `spec_path` when delegating to subagents. Each subagent gets its own view path so its context window is smaller.
+
 **Edge cases**:
 - Empty `$ARGUMENTS` → Prompt user for requirement
 - Otherwise → Pass raw text (minus --spec flag) to BA subagent in Step 2
@@ -251,6 +267,7 @@ Use Task tool with:
   Codebase hints: <any file paths mentioned by user, or null>
   Timestamp: <YYYYMMDD-HHMMSS>
   Spec file: <spec_path or null>
+  View file: <view_paths.ba or null — sibling views/ba.md if present>
   Prior attempt signals:
     retry_phrase: <matched phrase or null>
     recent_commits: [<hash> <subject>, ...]
@@ -344,6 +361,7 @@ Use Agent tool with:
   BA spec file: docs/dev/ba-spec-<timestamp>.md
   Context JSON: docs/dev/context-<timestamp>.json
   Spec file: <spec_path or null>
+  View file: <view_paths.qa or null — sibling views/qa.md if present>
 
   Verify these 4 dimensions:
 
@@ -465,9 +483,11 @@ Use Task tool with:
   Context file: docs/dev/context-<timestamp>.json
   BA spec file: docs/dev/ba-spec-<timestamp>.md
   Spec file: <spec_path or null>
+  View file: <view_paths.dev or null — sibling views/dev.md if present>
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
+  If View file is not null: you may read the view instead of the full monolith — it contains only the sections relevant to dev (S1, S2, S3, S7, S8) and is a byte-slice of the monolith.
   "
 ```
 
@@ -508,6 +528,7 @@ Use Task tool with:
   Dev report file: docs/dev/dev-report-<timestamp>.json
   BA spec file: docs/dev/ba-spec-<timestamp>.md
   Spec file: <spec_path or null>
+  View file: <view_paths.qa or null — sibling views/qa.md if present>
   Write your verification report to: docs/dev/qa-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST. After verification, update the spec: Section 4 (Current State) with measured values. If verdict is fail, also update Section 6 (Why Not Met) and Section 7 (What Must Be Done) with prescriptive next steps.

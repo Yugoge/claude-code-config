@@ -256,6 +256,9 @@ def _matches_any(command: str, patterns: list[str]) -> bool:
 
 def check_bash_targets_state(command: str) -> bool:
     """Check if bash command modifies/deletes overnight state files."""
+    # Whitelist: update-overnight-state.sh is the sanctioned state mutation tool
+    if 'update-overnight-state.sh' in command:
+        return False
     return _matches_any(command, [
         r'rm\s+.*overnight-state-',
         r'rm\s+-f\s+.*overnight-state-',
@@ -307,6 +310,8 @@ def _check_write_edit_security(tool_name: str, file_path: str) -> None:
 
 def _check_bash_security(command: str) -> None:
     """Block Bash commands targeting hooks or state files."""
+    if 'update-overnight-state.sh' in command:
+        return  # Sanctioned state update tool
     if check_bash_targets_hooks(command):
         _block(
             '\nOVERNIGHT HOOK PROTECTION: Writing to .claude/hooks/ '

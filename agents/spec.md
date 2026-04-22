@@ -182,6 +182,7 @@ For each relevant agent:
    - The `YOU ARE` / `YOU ARE NOT` lines are structured summaries (non-verbatim, like the header) derived from the spec's role definitions. Keep them concise — one sentence each.
    - If the spec defines no explicit role responsibilities for any agent, OMIT the Role Mandate section entirely (do not fabricate roles).
    - If the spec defines roles for SOME agents but not this one, still include a Role Mandate with the blockquote from the general pipeline definition and a `YOU ARE` line inferred from the pipeline position.
+   - **ui-specialist special constraint** (for design-spec scenarios where the spec defines a design → implement pipeline): when generating the ui-specialist Role Mandate, the `YOU ARE NOT` section MUST include an explicit "NEVER write application code" clause — e.g., "Do NOT write application code, JSX/TSX components, imports, or any files outside the design asset directory (dev's job after BA writes impl spec). Your output is ONLY design artifacts (SVG + motion CSS + README). Not one line of React/Next.js/TypeScript code." This prevents ui-specialist from collapsing into dev's role when the orchestrator asks it to "integrate" its design.
 
 3. Append the assigned content blocks in their ORIGINAL order from the monolith. Preserve blank lines between blocks exactly as they appear in the monolith.
 
@@ -206,6 +207,8 @@ Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with ALL of the following
 
 **YOU ARE**: pipeline orchestrator — delegate design/implementation/verification to subagents per the pipeline below.
 **YOU ARE NOT**: explorer/scanner — do NOT use exploration-mode specialist prompts. This spec defines a PRODUCTION pipeline, not a bug-hunting workflow.
+  - NOT allowed to extract design details (stroke-width, motion CSS parameters, color hex codes, naming conventions, specific D/M/S cell semantics) from the spec into subagent prompts. Each subagent reads its OWN view file. Pass `View file: {view_paths[<agent>]}` and let them read it.
+  - If you find yourself copy-pasting more than 2 lines of spec content into a subagent prompt, STOP — you're violating Rule 13.
 
 ---
 
@@ -219,10 +222,6 @@ Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with ALL of the following
 2. Launch BA → reads ui-specialist output, writes implementation spec
 3. Launch dev → executes BA spec, deploys to main tree
 4. Launch QA → runs Playwright against prod, reports pass/fail
-
-### Serial Execution Gate (MANDATORY)
-
-Complete the full pipeline for ONE item before starting the next. NEVER batch-launch N specialists in parallel. One item at a time through the full pipeline. PM triage decides the ORDER of items, not whether to parallelize. If QA fails, re-enter at the failed stage.
 
 ### Orchestrator Prompt Templates:
 
@@ -286,6 +285,15 @@ When launching QA, your prompt MUST include:
 | architect | yes/no | <reason> |
 | product-owner | yes/no | <reason> |
 | user | yes/no | <reason> |
+
+## PM Supervisory Role
+
+PM is NOT a Rule 14 pipeline stage. PM is orchestrator's SUPERVISOR:
+- PM-PLAN: decides which targets (batch) to address this cycle
+- PM-TRIAGE: prioritizes issues after specialist reports
+- PM-RETRO: cross-cycle continuity
+
+PM may launch before Rule 14 pipeline or after QA, but NEVER as a pipeline stage itself.
 
 ## Views Created
 
