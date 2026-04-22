@@ -390,6 +390,9 @@ else:
 
 ### Step 7: Coverage verification
 
+NOTE: A stop hook (`stop-spec-coverage-enforce.py`) will BLOCK you from
+exiting if coverage < 100%. You cannot skip this -- fix the coverage first.
+
 After ALL views are written, run the coverage verification script:
 
 ```bash
