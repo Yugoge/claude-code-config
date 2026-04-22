@@ -438,16 +438,40 @@ This checks that every non-blank, non-separator line from the monolith appears i
 ### Coverage fallback (deterministic, no LLM judgment)
 
 If after ONE retry the coverage is still < 100%, apply this deterministic rule:
-1. Run spec-verify.py with --show-uncovered flag to get exact uncovered line numbers
-2. For EACH uncovered line, assign it to the agent with the LARGEST view (by line count). 
-   In a design spec this is typically ui-specialist; in a backend spec this is typically dev.
-3. Append the uncovered lines (preserving order) to that agent's view under a 
-   `## Additional Content (coverage fallback)` heading
-4. Re-run spec-verify.py — it MUST now be 100%
-5. If STILL not 100% after deterministic fallback — this is a bug in spec-verify.py itself. 
-   Report the exact failure and stop.
 
-This fallback ensures 100% coverage is GUARANTEED, not aspirational.
+1. Run spec-verify.py with `--show-uncovered` flag to get exact uncovered line numbers.
+
+2. **Assign each uncovered line to EXACTLY ONE agent** (never to multiple agents). For each uncovered line:
+   - First, apply the INCLUDE/SKIP criteria from Step 2. Identify all agents whose INCLUDE criterion matches AND whose SKIP criterion does NOT match.
+   - If exactly one agent matches → assign to that agent.
+   - If multiple agents match → assign to the agent with the SMALLEST current view size (by line count). This load-balances rather than inflating the already-largest view.
+   - If NO agent's INCLUDE criterion matches → assign to the agent with the most closely-related SKIP criteria (the "agent who cares least if they accidentally see it"). This should be RARE.
+
+3. Append the assigned lines (preserving monolith order) to that agent's view under a `## Additional Content (coverage fallback)` heading.
+
+4. Re-run spec-verify.py with `--strict` flag (enforces coverage = 100%, max pairwise overlap < 70%, per-view uniqueness > 15%):
+
+   ```bash
+   python3 /root/bin/spec-verify.py --monolith "$MONOLITH_PATH" --views-dir "docs/dev/specs/<spec-id>/views/" --strict
+   ```
+
+5. **Diagnose failures by type**:
+   - **Coverage < 100%** after fallback → bug in spec-verify.py itself. Report exact failure and stop.
+   - **Max pairwise overlap > 70%** OR **per-view uniqueness < 15%** → the fallback went wrong (likely dumped the same content into multiple views). Investigate:
+     - If > 20% of monolith lines were uncovered after Phase 1, the Phase 1 extraction itself failed. Do NOT patch this with bulk fallback dumps. Restart Phase 1 extraction with more aggressive INCLUDE criteria (broaden matching, decompose blocks more finely).
+     - If < 20% of monolith lines were uncovered, re-check that each uncovered line was assigned to EXACTLY ONE agent in step 2 above — never to multiple.
+
+**ANTI-PATTERN (forbidden)**: Do NOT dump unclassifiable content into multiple agents' views just to force coverage. That defeats the purpose of splitting — each view must contain agent-specific content, not a near-copy of the monolith. A spec that produces 99.9% pairwise overlap is a FAILED split, even if coverage is 100%.
+
+If a content block truly doesn't fit any agent's INCLUDE criteria, assign it to the agent with the most closely-related SKIP criteria (i.e., the agent who "cares least if they accidentally see it"). This should be RARE — most lines are clearly related to specific roles.
+
+### Acceptable view characteristics (enforced by spec-verify.py --strict)
+
+- **Coverage**: 100% (every non-blank, non-separator monolith line appears in at least one view)
+- **Max pairwise overlap**: < 70% (no two views may share more than 70% of their content)
+- **Per-view uniqueness**: > 15% (each view must have at least 15% content that no other view contains)
+
+If any metric fails after fallback, restart Phase 1 rather than patching further.
 
 ### Step 8: Extraction report
 
