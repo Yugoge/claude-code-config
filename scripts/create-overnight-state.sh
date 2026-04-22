@@ -106,6 +106,35 @@ elif [[ -d "$PROJECT_DIR/docs/dev/specs" ]]; then
     fi
 fi
 
+# --- Create worktree ---
+WORKTREE_PATH=""
+WORKTREE_BRANCH=""
+WORKTREE_SCRIPT="$(dirname "$0")/create-worktree.sh"
+WORKTREE_NAME="overnight-$(date +%Y%m%d)-${SESSION_ID:0:8}"
+if [[ -x "$WORKTREE_SCRIPT" ]] && WORKTREE_RESULT=$(bash "$WORKTREE_SCRIPT" "$WORKTREE_NAME" 2>/dev/null); then
+    WORKTREE_PATH=$(echo "$WORKTREE_RESULT" | grep -oP 'WORKTREE_PATH=\K\S+')
+    WORKTREE_BRANCH=$(echo "$WORKTREE_RESULT" | grep -oP 'WORKTREE_BRANCH=\K\S+')
+    echo "Created worktree: $WORKTREE_PATH (branch: $WORKTREE_BRANCH)" >&2
+else
+    echo "Warning: worktree creation failed, continuing without worktree" >&2
+fi
+
+# --- Detect view_paths from spec views manifest ---
+VIEW_PATHS="{}"
+if [[ "$USER_SPEC_PATH" != "null" && -n "$USER_SPEC_PATH" ]]; then
+    SPEC_DIR="${USER_SPEC_PATH%.md}"
+    MANIFEST="$SPEC_DIR/views/manifest.json"
+    if [[ -f "$MANIFEST" ]]; then
+        SCHEMA_VER=$(jq -r '.schema_version // empty' "$MANIFEST" 2>/dev/null)
+        if [[ "$SCHEMA_VER" == "1" ]]; then
+            VIEW_PATHS=$(jq -c '.views // {}' "$MANIFEST" 2>/dev/null || echo '{}')
+            echo "Loaded view_paths from manifest ($MANIFEST)" >&2
+        else
+            echo "Warning: manifest schema_version is '$SCHEMA_VER', expected 1; ignoring" >&2
+        fi
+    fi
+fi
+
 # --- Ensure output directory exists ---
 STATE_DIR="$PROJECT_DIR/.claude"
 mkdir -p "$STATE_DIR"
@@ -121,6 +150,9 @@ jq -n \
     --arg focus "$FOCUS" \
     --arg spec_mode "$SPEC_MODE" \
     --arg user_spec_path "$USER_SPEC_PATH" \
+    --arg worktree_path "$WORKTREE_PATH" \
+    --arg worktree_branch "$WORKTREE_BRANCH" \
+    --argjson view_paths "$VIEW_PATHS" \
     '{
         session_id: $session_id,
         end_time: $end_time,
@@ -132,14 +164,15 @@ jq -n \
         issues_found: 0,
         issues_fixed: 0,
         issues_skipped: 0,
-        current_phase: "initializing",
+        current_phase: (if $worktree_path == "" then "initializing" else "exploring" end),
         current_issues: [],
         failed_attempts: {},
         addressed_issues: [],
         cycle_log: [],
         consecutive_clean_sweeps: 0,
-        worktree_path: null,
-        worktree_branch: null,
+        worktree_path: (if $worktree_path == "" then null else $worktree_path end),
+        worktree_branch: (if $worktree_branch == "" then null else $worktree_branch end),
+        view_paths: $view_paths,
         pm_triage_reports: [],
         pm_retro_reports: [],
         unresolved_issues: []
@@ -152,4 +185,7 @@ echo "Created overnight state v7: $STATE_FILE" >&2
 echo "  Session: $SESSION_ID" >&2
 echo "  End time: $END_TIME" >&2
 echo "  Spec mode: $SPEC_MODE" >&2
+if [[ -n "$WORKTREE_PATH" ]]; then
+    echo "  Worktree: $WORKTREE_PATH" >&2
+fi
 echo "STATE_PATH=$STATE_FILE"

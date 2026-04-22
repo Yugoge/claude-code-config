@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-04-21T13:57:02Z*
-**Total entries**: 85
+*Last updated: 2026-04-22T06:42:50Z*
+**Total entries**: 88
 **Convention**: kebab
 
 ## Tree
@@ -55,10 +55,12 @@ hooks/
 ├── `pre_tool_use_safety.sh` - PreToolUse Safety Hook - Warn before dangerous operations
 ├── `prehook-overnight-worktree-check.sh` - UserPromptSubmit hook — block /dev-overnight launch if an applio worktree already exists.
 ├── `pretool-bash-safety.sh` - PreToolUse Safety Hook - Warn or block before dangerous operations
+├── `pretool-bash-views-guard.py` - Parallels pretool-bash-safety.sh but focuses on views/cp-state write bypass
 ├── `pretool-bisect-gate.sh` - pretool-bisect-gate.sh
 ├── `pretool-block-enterworktree.sh` - PreToolUse hook: Block EnterWorktree tool
 ├── `pretool-block-production-files.sh` - PreToolUse hook: Block Write/Edit to production paths from dev environment
 ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
+├── `pretool-cp-checkin.py` - Triggers when a subagent's `Read` tool call targets a file whose path matches:
 ├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
 ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
 ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
@@ -91,6 +93,7 @@ hooks/
 ├── `stop-workflow-enforce.py` - Stop Hook: Enforce workflow structural integrity before allowing Claude to stop
 ├── `subagent-stop-diff-check.sh` - SubagentStop hook: flag large diffs without minimum-diff justification
 ├── `subagent-stop-guard-integrity.sh` - subagent-stop-guard-integrity.sh
+├── `subagentstop-cp-enforce.py` - Activation gate (NOT matcher=*): this hook exits 0 unless BOTH conditions hold:
 └── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
 ```
 

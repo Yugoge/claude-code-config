@@ -7,6 +7,10 @@
 
 set -euo pipefail
 
+# Prevent stacking: concurrent SubagentStop hooks skip instead of piling up CPU.
+exec 9>/tmp/.subagent-stop-guard-integrity.lock
+flock -n 9 || exit 0
+
 cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null || exit 0
 git rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
@@ -27,7 +31,7 @@ diff_uncommitted=$(git diff 2>/dev/null || true)
 diff="${diff_recent}
 ${diff_uncommitted}"
 
-if [ -z "${diff// /}" ]; then
+if ! printf '%s' "$diff" | grep -q '[^[:space:]]'; then
   exit 0
 fi
 

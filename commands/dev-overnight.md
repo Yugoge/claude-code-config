@@ -341,7 +341,21 @@ If the test plan has no `priority_tiers` (first cycle, no history), set the prio
 
 This step is EXPLORATION — the goal is to discover unknown issues. In exploration, cast a wide net.
 
-**Exploration mode (user did NOT provide a spec)**: Call all 4 specialists by default. Broad coverage is the point. PM's `recommended_specialists` field may narrow the list if PM has strong signal, but the DEFAULT is all 4.
+**SERIAL SPECIALIST CONSTRAINT**: Launch ONE specialist at a time in a single Agent call.
+NEVER launch 2+ specialists in parallel. If 4 specialists are RELEVANT, launch them
+sequentially across 4 Agent calls, not in one parallel batch. Specialists are expensive,
+one-at-a-time consultations — parallelizing them corrupts evidence ordering and wastes
+context budget. Only BA/Dev/QA may run in parallel (and even those typically run
+sequentially per item in supervisor/pipeline mode).
+
+**SUPERVISOR MODE (user-provided spec)**: Specialists should typically be called
+ZERO times in supervisor mode — the spec's Pipeline Workflow already defines the
+roles. Only call specialists when the orchestrator view explicitly requires
+specialist consultation (e.g., a pipeline stage that maps to ui-specialist/architect/
+product-owner/user). If the spec's pipeline is BA → Dev → QA only, do NOT launch
+any specialists in Step 2b — skip to Step 2c or further.
+
+**Exploration mode (user did NOT provide a spec)**: Call all 4 specialists by default. Broad coverage is the point. PM's `recommended_specialists` field may narrow the list if PM has strong signal, but the DEFAULT is all 4. Even in exploration mode, launch them SEQUENTIALLY (one Agent call per specialist), not in parallel.
 
 **Supervisor mode (user PROVIDED a spec)**: Issues are pre-known. Apply the evaluate-then-call rule (same as dev.md): assess relevance per issue, call only relevant specialists.
 
@@ -349,7 +363,7 @@ Do NOT use "evaluate then call" in exploration mode — you cannot evaluate rele
 
 **How to decide at runtime**:
 - If state file / cycle context indicates NO user spec → exploration mode → launch all 4 (or the PM-narrowed subset if PM supplied `recommended_specialists` with a strong rationale)
-- If state file / cycle context indicates a user spec is present → supervisor mode → apply the dev.md unified rule: for each of the 4 specialists produce `RELEVANT — <reason>` or `SKIP — <concrete reason>`, then call every RELEVANT one in a single parallel Agent call. Record the assessment in the orchestrator's reasoning as:
+- If state file / cycle context indicates a user spec is present → supervisor mode → apply the dev.md unified rule: for each of the 4 specialists produce `RELEVANT — <reason>` or `SKIP — <concrete reason>`, launch each RELEVANT specialist sequentially (one at a time, never in parallel). Record the assessment in the orchestrator's reasoning as:
 
 ```json
 "specialists_assessed": {
@@ -365,7 +379,7 @@ Do NOT use "evaluate then call" in exploration mode — you cannot evaluate rele
 - Exploration mode: if `recommended_specialists` is present and non-empty, launch that narrowed subset; if missing or null, launch all 4.
 - Supervisor mode: treat `recommended_specialists` as advisory only; the evaluate-then-call assessment is authoritative.
 
-Launch the recommended Agent calls in a SINGLE response (parallel execution).
+Launch the recommended Agent calls SEQUENTIALLY (one Agent call per specialist, one at a time — not in a single parallel batch). This supersedes any earlier parallel-launch guidance. Specialists are one-at-a-time consultations; parallelizing them corrupts evidence ordering and wastes context budget.
 
 **Supervisor-mode specialist prompts** (when `spec_mode == "user-provided"` AND `view_paths` is non-null):
 

@@ -36,6 +36,16 @@ Code review, bundle grep, and curl are NEVER sufficient. Trigger content via UI,
 ### 13. NEVER let a single subagent handle multiple tasks (multitask)
 Each subagent invocation handles exactly ONE issue. Launch multiple subagents in parallel for multiple issues — never bundle.
 
+### 14. NEVER let subagents run `git stash`, wide-path `git checkout <ref> -- .`, or `git reset --hard <commit>` (2026-04-19 incident)
+On 2026-04-19 a dev subagent, instructed to revert 2 CLI files, self-expanded to a "typecheck baseline" hack: `git stash && cd packages/happy-app && git checkout 925f5960 -- .`. The wide-path checkout overwrote the entire happy-app directory with 3-27 content, silently erasing 17 days of UI work. The stash pop then failed, leaving the worktree regressed. The subagent's final report reads "something happened" — as if it were an accident — concealing that the agent itself ran the destructive command.
+
+Enforced by `~/.claude/hooks/pretool-bash-safety.sh` (exit 2):
+- **`git stash` / `stash push` / `stash save` / `stash create` / `stash store`** → blocked. Safe: `list`, `show`, `pop`, `apply`, `drop`, `clear`, `branch`.
+- **`git checkout <ref> -- .` / `-- *` / `-- <dir>/`** → blocked. Safe: single-file checkout `git checkout <ref> -- path/to/file.ts`, branch switch `git checkout <branch>`.
+- **`git reset --hard <commit>` (non-HEAD)** → blocked. Safe: bare `git reset --hard` or `git reset --hard HEAD`. For recovery, use `git revert` or `git checkout -b recovery <ref>`.
+
+Applies to main agent AND subagents. If a subagent genuinely needs one of these operations, it must surface the intent to the user and ask them to run it manually. Subagent-initiated destructive history rewrites are never acceptable.
+
 ---
 
 ## 🔄 Auto-Commit Mechanism (refs/checkpoints/* — no HEAD pollution)

@@ -46,45 +46,52 @@ def _load_json(path: Path):
         return None
 
 
-def _should_block(data: dict) -> tuple[bool, int, int]:
-    """Evaluate all 5 activation conditions.
-
-    Returns (block, done_count, total_count). When block is False the
-    counts are zero.
-    """
-    # Condition 1: Agent tool only
-    if data.get("tool_name") != "Agent":
-        return False, 0, 0
-
-    tool_input = data.get("tool_input") or {}
-
-    # Condition 2: foreground Agent only
-    if tool_input.get("run_in_background") is True:
-        return False, 0, 0
-
-    # Condition 3: subagent-initiated Agent calls are exempt
-    if data.get("agent_id"):
-        return False, 0, 0
-
-    session_id = data.get("session_id") or "default"
-
-    # Condition 4: bookmark exists AND command == "spec"
+def _is_spec_workflow_active(session_id: str) -> bool:
+    """True when the /spec Interview bookmark is active for this session."""
     bookmark = _load_json(_workflow_bookmark_path(session_id))
     if not isinstance(bookmark, dict):
-        return False, 0, 0
-    if bookmark.get("command") != "spec":
-        return False, 0, 0
+        return False
+    return bookmark.get("command") == "spec"
 
-    # Condition 5: todos file exists AND has at least one non-completed step
+
+def _todo_progress(session_id: str):
+    """Return (done, total) for the session's official todos file, or None."""
     todos = _load_json(_official_todos_path(session_id))
     if not isinstance(todos, list) or not todos:
-        return False, 0, 0
-
+        return None
     total = len(todos)
     done = sum(1 for t in todos if isinstance(t, dict) and t.get("status") == "completed")
+    return done, total
+
+
+def _tool_is_exempt(data: dict) -> bool:
+    """Exemptions that short-circuit the block decision (arch-10 + background)."""
+    tool_input = data.get("tool_input") or {}
+    if tool_input.get("run_in_background") is True:
+        return True
+    # arch-10: the spec subagent itself must be allowed as /spec Step 8
+    if tool_input.get("subagent_type") == "spec":
+        return True
+    if data.get("agent_id"):
+        return True
+    return False
+
+
+def _should_block(data: dict) -> tuple[bool, int, int]:
+    """Evaluate activation conditions. Returns (block, done_count, total_count)."""
+    if data.get("tool_name") != "Agent":
+        return False, 0, 0
+    if _tool_is_exempt(data):
+        return False, 0, 0
+    session_id = data.get("session_id") or "default"
+    if not _is_spec_workflow_active(session_id):
+        return False, 0, 0
+    progress = _todo_progress(session_id)
+    if progress is None:
+        return False, 0, 0
+    done, total = progress
     if done >= total:
         return False, 0, 0
-
     return True, done, total
 
 

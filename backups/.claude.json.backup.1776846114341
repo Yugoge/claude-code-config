@@ -1,20 +1,20 @@
 {
-  "numStartups": 78,
+  "numStartups": 85,
   "installMethod": "global",
   "hasSeenTasksHint": true,
   "tipsHistory": {
     "new-user-warmup": 7,
     "plan-mode-for-complex-tasks": 60,
-    "terminal-setup": 54,
-    "memory-command": 54,
+    "terminal-setup": 79,
+    "memory-command": 80,
     "theme-command": 71,
     "colorterm-truecolor": 71,
     "status-line": 59,
     "prompt-queue": 60,
     "enter-to-steer-in-relatime": 71,
-    "todo-list": 54,
-    "install-github-app": 54,
-    "install-slack-app": 54,
+    "todo-list": 81,
+    "install-github-app": 81,
+    "install-slack-app": 85,
     "double-esc-code-restore": 54,
     "continue": 54,
     "shift-tab": 54,
@@ -30,16 +30,16 @@
     "rename-conversation": 54,
     "custom-commands": 54,
     "guest-passes": 61,
-    "git-worktrees": 54
+    "git-worktrees": 81
   },
-  "promptQueueUseCount": 3,
+  "promptQueueUseCount": 4,
   "btwUseCount": 1,
   "opusProMigrationComplete": true,
   "sonnet1m45MigrationComplete": true,
   "userID": "cb9728b1f9971511733ec48785ec6b1603ff44eebe2564025208cf1337b75d76",
   "firstStartTime": "2026-03-26T15:33:13.984Z",
   "penguinModeOrgEnabled": false,
-  "clientDataCache": {},
+  "clientDataCache": null,
   "additionalModelOptionsCache": [],
   "passesEligibilityCache": {
     "c4bdf953-2408-40db-8c99-4c5d2a4397be": {
@@ -68,7 +68,7 @@
       "referral_code_details": null,
       "referrer_reward": null,
       "remaining_passes": null,
-      "timestamp": 1776750483911
+      "timestamp": 1776844402842
     }
   },
   "skillUsage": {
@@ -77,20 +77,20 @@
       "lastUsedAt": 1776697458288
     },
     "dev-overnight": {
-      "usageCount": 40,
-      "lastUsedAt": 1776762858182
+      "usageCount": 46,
+      "lastUsedAt": 1776837495800
     },
     "dev": {
-      "usageCount": 231,
-      "lastUsedAt": 1776767528428
+      "usageCount": 233,
+      "lastUsedAt": 1776813924589
     },
     "sentiment-monitor": {
       "usageCount": 5,
       "lastUsedAt": 1775645765094
     },
     "dev-command": {
-      "usageCount": 15,
-      "lastUsedAt": 1776627129476
+      "usageCount": 17,
+      "lastUsedAt": 1776806418164
     },
     "generate": {
       "usageCount": 31,
@@ -161,20 +161,20 @@
       "lastUsedAt": 1776627703006
     },
     "spec": {
-      "usageCount": 25,
-      "lastUsedAt": 1776749752563
+      "usageCount": 28,
+      "lastUsedAt": 1776834408471
     },
     "daily-trade": {
-      "usageCount": 19,
-      "lastUsedAt": 1776690208470
+      "usageCount": 20,
+      "lastUsedAt": 1776778398866
     },
     "pdf": {
       "usageCount": 1,
       "lastUsedAt": 1776065789161
     },
     "update-config": {
-      "usageCount": 7,
-      "lastUsedAt": 1776764917759
+      "usageCount": 9,
+      "lastUsedAt": 1776837739538
     },
     "search-tree": {
       "usageCount": 1,
@@ -201,8 +201,8 @@
       "lastUsedAt": 1776409669440
     },
     "codex": {
-      "usageCount": 24,
-      "lastUsedAt": 1776747377960
+      "usageCount": 25,
+      "lastUsedAt": 1776792364011
     },
     "approve": {
       "usageCount": 3,
@@ -213,8 +213,8 @@
       "lastUsedAt": 1776749114515
     },
     "redev": {
-      "usageCount": 7,
-      "lastUsedAt": 1776761373835
+      "usageCount": 8,
+      "lastUsedAt": 1776841134561
     },
     "doc-sync": {
       "usageCount": 1,
@@ -236,7 +236,7 @@
     },
     "e2088328-cd6b-4c45-b159-77b19b707816": {
       "grove_enabled": true,
-      "timestamp": 1776750483267
+      "timestamp": 1776844402160
     }
   },
   "cachedExtraUsageDisabledReason": "org_level_disabled",
@@ -249,10 +249,10 @@
       ]
     }
   },
-  "changelogLastFetched": 1776759257962,
+  "changelogLastFetched": 1776844373375,
   "claudeCodeFirstTokenDate": "2025-06-26T14:07:40.624226Z",
   "hasCompletedOnboarding": true,
-  "lastOnboardingVersion": "2.1.116",
+  "lastOnboardingVersion": "2.1.117",
   "projects": {
     "/root/happy": {
       "allowedTools": [],
@@ -397,7 +397,7 @@
       "lastAPIDuration": 0,
       "lastAPIDurationWithoutRetries": 0,
       "lastToolDuration": 0,
-      "lastDuration": 212529,
+      "lastDuration": 3511,
       "lastLinesAdded": 0,
       "lastLinesRemoved": 0,
       "lastTotalInputTokens": 0,
@@ -405,25 +405,25 @@
       "lastTotalCacheCreationInputTokens": 0,
       "lastTotalCacheReadInputTokens": 0,
       "lastTotalWebSearchRequests": 0,
-      "lastFpsAverage": 0.33,
-      "lastFpsLow1Pct": 108.8,
+      "lastFpsAverage": 8.5,
+      "lastFpsLow1Pct": 54.44,
       "lastModelUsage": {},
-      "lastSessionId": "9fcf1a48-f775-4d32-9437-8f7cb79396fc",
+      "lastSessionId": "067bcc35-5b47-46da-b093-2a9c0d18099b",
       "lastSessionMetrics": {
-        "frame_duration_ms_count": 69,
-        "frame_duration_ms_min": 0.07539400000314345,
-        "frame_duration_ms_max": 9.191109000000097,
-        "frame_duration_ms_avg": 1.4490275797107524,
-        "frame_duration_ms_p50": 0.5511419999997997,
-        "frame_duration_ms_p95": 6.913539799999916,
-        "frame_duration_ms_p99": 8.387570000004699,
+        "frame_duration_ms_count": 26,
+        "frame_duration_ms_min": 0.14265500000010434,
+        "frame_duration_ms_max": 18.367244000000028,
+        "frame_duration_ms_avg": 2.099480115384604,
+        "frame_duration_ms_p50": 0.7270574999998871,
+        "frame_duration_ms_p95": 8.001942750000012,
+        "frame_duration_ms_p99": 15.969017750000035,
         "hook_duration_ms_count": 1,
-        "hook_duration_ms_min": 627,
-        "hook_duration_ms_max": 627,
-        "hook_duration_ms_avg": 627,
-        "hook_duration_ms_p50": 627,
-        "hook_duration_ms_p95": 627,
-        "hook_duration_ms_p99": 627
+        "hook_duration_ms_min": 650,
+        "hook_duration_ms_max": 650,
+        "hook_duration_ms_avg": 650,
+        "hook_duration_ms_p50": 650,
+        "hook_duration_ms_p95": 650,
+        "hook_duration_ms_p99": 650
       },
       "lastGracefulShutdown": false
     },
@@ -638,6 +638,48 @@
         "sessionId": "705a223e-e7dc-4796-808a-646296e96872",
         "creationDurationMs": 4053,
         "usedSparsePaths": false
+      },
+      "lastGracefulShutdown": true,
+      "exampleFiles": [
+        "globals.css",
+        "NavBar.tsx",
+        "generate-form.tsx",
+        "page.tsx",
+        "GenerationRow.tsx"
+      ],
+      "exampleFilesGeneratedAt": 1776809759291,
+      "hasCompletedProjectOnboarding": true,
+      "lastCost": 0,
+      "lastAPIDuration": 0,
+      "lastAPIDurationWithoutRetries": 0,
+      "lastToolDuration": 0,
+      "lastDuration": 463703,
+      "lastLinesAdded": 0,
+      "lastLinesRemoved": 0,
+      "lastTotalInputTokens": 0,
+      "lastTotalOutputTokens": 0,
+      "lastTotalCacheCreationInputTokens": 0,
+      "lastTotalCacheReadInputTokens": 0,
+      "lastTotalWebSearchRequests": 0,
+      "lastFpsAverage": 0.36,
+      "lastFpsLow1Pct": 92,
+      "lastModelUsage": {},
+      "lastSessionId": "f7d10cf2-7016-47e3-aab1-1d23da67f518",
+      "lastSessionMetrics": {
+        "frame_duration_ms_count": 168,
+        "frame_duration_ms_min": 0.1184490000000551,
+        "frame_duration_ms_max": 13.062868999999978,
+        "frame_duration_ms_avg": 1.1142487857150845,
+        "frame_duration_ms_p50": 0.7660060000016529,
+        "frame_duration_ms_p95": 3.477166200033391,
+        "frame_duration_ms_p99": 9.230608529987343,
+        "hook_duration_ms_count": 2,
+        "hook_duration_ms_min": 64,
+        "hook_duration_ms_max": 678,
+        "hook_duration_ms_avg": 371,
+        "hook_duration_ms_p50": 371,
+        "hook_duration_ms_p95": 647.3,
+        "hook_duration_ms_p99": 671.86
       }
     }
   },
@@ -651,10 +693,13 @@
     ],
     "yugoge/knowledge-system-qijie": [
       "/root/knowledge-system-qijie"
+    ],
+    "yugoge/applio": [
+      "/dev/shm/dev-workspace/applio"
     ]
   },
   "effortCalloutV2Dismissed": true,
-  "lastReleaseNotesSeen": "2.1.116",
+  "lastReleaseNotesSeen": "2.1.117",
   "officialMarketplaceAutoInstallAttempted": true,
   "officialMarketplaceAutoInstalled": true,
   "showSpinnerTree": false,
@@ -672,7 +717,7 @@
         "amount_minor_units": null,
         "currency": null
       },
-      "timestamp": 1776768730782
+      "timestamp": 1776844374257
     },
     "c4bdf953-2408-40db-8c99-4c5d2a4397be": {
       "info": {
@@ -692,7 +737,7 @@
         "amount_minor_units": null,
         "currency": null
       },
-      "timestamp": 1776768967746
+      "timestamp": 1776844402733
     }
   },
   "migrationVersion": 11,
