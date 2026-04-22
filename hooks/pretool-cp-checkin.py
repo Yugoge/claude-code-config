@@ -36,6 +36,12 @@ CP_AGENTS = {
 }
 
 
+# Slot filename pattern: cp-state-<agent>.json (primary)
+#                    or  cp-state-<agent>-<N>.json (numbered, N>=2, auto-allocated
+#                        by spec-check.py when the primary is held by a running
+#                        instance). See /root/bin/spec-check.py for the writer.
+
+
 def _now_iso_z():
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
@@ -60,8 +66,33 @@ def _extract_target(data):
     return m.group("spec_id"), m.group("agent")
 
 
-def _cp_file(project_dir, spec_id, agent):
-    return Path(project_dir) / ".claude" / "specs" / spec_id / f"cp-state-{agent}.json"
+def _cp_dir(project_dir, spec_id):
+    return Path(project_dir) / ".claude" / "specs" / spec_id
+
+
+def _all_cp_files(project_dir, spec_id, agent):
+    """Return every cp-state slot file for (spec, agent): primary + numbered.
+
+    Primary (cp-state-<agent>.json) first, then numbered slots in ascending
+    integer order (cp-state-<agent>-2.json, -3.json, ...). Mirrors the
+    allocation policy in /root/bin/spec-check.py.
+    """
+    cp_dir = _cp_dir(project_dir, spec_id)
+    if not cp_dir.exists():
+        return []
+    files = []
+    primary = cp_dir / f"cp-state-{agent}.json"
+    if primary.exists():
+        files.append(primary)
+    pattern = re.compile(rf"^cp-state-{re.escape(agent)}-(\d+)\.json$")
+    numbered = []
+    for child in cp_dir.iterdir():
+        m = pattern.match(child.name)
+        if m:
+            numbered.append((int(m.group(1)), child))
+    numbered.sort(key=lambda pair: pair[0])
+    files.extend(p for _, p in numbered)
+    return files
 
 
 def _read_payload(path):
@@ -88,6 +119,54 @@ def _update_payload(payload, agent_id):
     return payload
 
 
+def _load_slots(files):
+    loaded = []
+    for p in files:
+        payload = _read_payload(p)
+        if payload is not None:
+            loaded.append((p, payload))
+    return loaded
+
+
+def _match_by_agent_id(loaded, agent_id):
+    if not agent_id:
+        return None
+    for p, payload in loaded:
+        if payload.get("agent_id") == agent_id:
+            return p, payload
+    return None
+
+
+def _first_idle_slot(loaded):
+    for p, payload in loaded:
+        if not payload.get("is_running"):
+            return p, payload
+    return None
+
+
+def _pick_slot(files, agent_id):
+    """Choose which cp-state slot this Read belongs to.
+
+    1. If agent_id is present, prefer a slot whose stored agent_id matches
+       (unambiguous pin for parallel instances of the same agent type).
+    2. Otherwise, prefer the first slot that is NOT is_running (the slot
+       that will transition to running via this Read).
+    3. Otherwise, fall back to the primary slot (first file).
+
+    Returns (path, payload) or (None, None).
+    """
+    loaded = _load_slots(files)
+    if not loaded:
+        return None, None
+    pinned = _match_by_agent_id(loaded, agent_id)
+    if pinned is not None:
+        return pinned
+    idle = _first_idle_slot(loaded)
+    if idle is not None:
+        return idle
+    return loaded[0]
+
+
 def main():
     data = _load_stdin()
     if data is None:
@@ -96,13 +175,13 @@ def main():
     if spec_id is None or agent not in CP_AGENTS:
         sys.exit(0)
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
-    path = _cp_file(project_dir, spec_id, agent)
-    if not path.exists():
-        sys.exit(0)
-    payload = _read_payload(path)
-    if payload is None:
+    files = _all_cp_files(project_dir, spec_id, agent)
+    if not files:
         sys.exit(0)
     agent_id = data.get("agent_id")
+    path, payload = _pick_slot(files, agent_id)
+    if path is None or payload is None:
+        sys.exit(0)
     payload = _update_payload(payload, agent_id)
     _write_payload(path, payload)
     sys.exit(0)

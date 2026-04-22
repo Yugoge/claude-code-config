@@ -65,6 +65,11 @@ def _match_agent(cp_file, agent_id):
 
 
 def _scan_spec_dir(spec_dir, agent_id):
+    # Glob covers both primary (cp-state-<agent>.json) and numbered
+    # auto-allocated slots (cp-state-<agent>-<N>.json, N>=2). Lock files
+    # (cp-state-*.json.lock) are excluded by the .json suffix. The actual
+    # agent-identity match is done in _match_agent via payload.agent_id,
+    # which is an unambiguous, per-instance pin.
     for cp_file in spec_dir.glob("cp-state-*.json"):
         payload = _match_agent(cp_file, agent_id)
         if payload is not None:
