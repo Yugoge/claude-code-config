@@ -1,0 +1,64 @@
+{
+  "spec_id": "spec-20260420-213508",
+  "agent_type": "dev",
+  "agent_id": "subagent-abc123",
+  "is_running": true,
+  "checked_in_at": "2026-04-21T22:16:12Z",
+  "checked_out_at": null,
+  "checkpoints": [
+    {
+      "id": "cp-01",
+      "action": "Read dev.md view and identify implementation tasks from S2/S3/S7",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-02",
+      "action": "Verify worktree-only write constraint (rule 4) and pre-seed settings.local.json (rule 6)",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-03",
+      "action": "Write SVG files to .claude/skills/applio-design/assets/icons/<icon-name>/ per S8 engineering spec",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-04",
+      "action": "Write docs/dev/dev-report-<ts>.json with status=completed|blocked",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-05",
+      "action": "Build preview.html with server-side inlined SVG (rule 8: no fetch/innerHTML)",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-06",
+      "action": "Add card to frontend/public/design/index.html linking new preview (rule 9)",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-07",
+      "action": "Deploy via rsync worktree to main + docker compose build/up applio-web (rule 11)",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    }
+  ],
+  "terminal_artifact": {
+    "path": "docs/dev/dev-report-20260420-213508.json",
+    "exists": false,
+    "validated_at": null
+  }
+}

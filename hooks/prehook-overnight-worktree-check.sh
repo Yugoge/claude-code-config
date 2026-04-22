@@ -57,20 +57,18 @@ count=$(printf '%s\n' "$existing" | grep -c '.' || true)
 
 if [ "${count:-0}" -gt 0 ]; then
     {
-        echo "[BLOCKED] Existing overnight worktree(s) detected under $wt_dir:"
+        echo "[WARNING] Existing overnight worktree(s) detected under $wt_dir:"
         printf '%s\n' "$existing" | sed 's|^|  - |'
         echo ""
-        echo "Remove them before starting a new /dev-overnight cycle."
-        echo "Max 1 worktree allowed at a time."
-        echo ""
-        echo "Remove with:"
+        echo "Ask the user whether to remove them before proceeding."
+        echo "If user agrees, run:"
         echo "  for wt in \$(ls $wt_dir); do"
         echo "    git -C $repo_root worktree remove $wt_dir/\$wt --force"
         echo "    git -C $repo_root branch -D worktree-\$wt 2>/dev/null || true"
         echo "  done"
         echo "  git -C $repo_root worktree prune"
     } >&2
-    exit 2
+    exit 0
 fi
 
 exit 0

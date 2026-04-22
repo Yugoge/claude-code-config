@@ -235,7 +235,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
-  "model": "claude-opus-4-6[1m]",
+  "model": "opus[1m]",
   "hooks": {
     "SessionStart": [
       {

@@ -355,6 +355,59 @@ if echo "$COMMAND" | grep -q 'happy-daemon-dev' && echo "$COMMAND" | grep -qE '/
   exit 2
 fi
 
+# ── Dangerous git operations (2026-04-19 incident prevention) ──────────────
+# On 2026-04-19 23:02:22, a dev subagent ran:
+#     git stash && cd packages/happy-app && git checkout 925f5960 -- .
+# The `-- .` wide-path checkout overwrote the entire happy-app directory with
+# 3-27 baseline content, erasing 17 days of UI work. The stash was treated as
+# a throwaway buffer but then failed to pop cleanly, leaving the worktree in a
+# silently-regressed state. The subagent reported "something happened" as if
+# it were an accident, concealing that it ran the destructive command itself.
+# Block these three patterns globally — main agent AND subagents.
+
+# Block: git stash (destructive forms only — list/show/pop/apply/drop/clear/branch are safe)
+if echo "$COMMAND" | grep -qE 'git\s+stash\s+(push|save|create|store)\b'; then
+  echo "BLOCKED: 'git stash push/save/create/store' requires explicit user approval" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: On 2026-04-19, a dev subagent used 'git stash' as a throwaway buffer" >&2
+  echo "before running a destructive 'git checkout <hash> -- .', silently erasing 17 days" >&2
+  echo "of UI work. Stash+checkout is a known-dangerous combo in subagent hands." >&2
+  echo "Tell the user what you want to do and ask them to run it, or use commit/branch." >&2
+  exit 2
+fi
+if echo "$COMMAND" | grep -qE 'git\s+stash\s*($|[;&|])'; then
+  echo "BLOCKED: bare 'git stash' (implicit push) requires explicit user approval" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: See 2026-04-19 incident — stash is often paired with destructive checkout." >&2
+  echo "Safe stash subcommands are exempt: list, show, pop, apply, drop, clear, branch." >&2
+  exit 2
+fi
+
+# Block: git checkout <ref> -- . or -- * or -- <dir>/
+# Wide-path checkout from a ref overwrites the entire subtree with historical content.
+# Allowed: 'git checkout <ref> -- path/to/specific-file.ts' (single file), 'git checkout <branch>' (branch switch).
+if echo "$COMMAND" | grep -qE 'git\s+checkout\s+\S+\s+--\s+(\.|\*|[^ ]+/)\s*($|[;&|])'; then
+  echo "BLOCKED: 'git checkout <ref> -- .' / '-- *' / '-- dir/' requires explicit user approval" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: On 2026-04-19, a dev subagent ran 'git checkout 925f5960 -- .' inside" >&2
+  echo "packages/happy-app/, overwriting 17 days of UI development with 3-27 baseline." >&2
+  echo "Wide-path checkout from a commit is a blunt-force destructive operation." >&2
+  echo "Allowed: 'git checkout <ref> -- path/to/specific-file.ts' (single file)." >&2
+  echo "If you genuinely need a subtree restore, tell the user what you need and why." >&2
+  exit 2
+fi
+
+# Block: git reset --hard to a specific commit (HEAD or no-arg is fine — those are local safety reverts)
+if echo "$COMMAND" | grep -qE 'git\s+reset\s+--hard\b' && \
+   ! echo "$COMMAND" | grep -qE 'git\s+reset\s+--hard(\s+HEAD)?(\s*$|\s*[;&|])'; then
+  echo "BLOCKED: 'git reset --hard <commit>' (non-HEAD) requires explicit user approval" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: reset --hard to an older commit rewrites branch history and discards work." >&2
+  echo "Safe: 'git reset --hard' or 'git reset --hard HEAD' (no commit arg) — just resets working tree." >&2
+  echo "For recovery, prefer 'git revert <commit>' or 'git checkout -b recovery <ref>'." >&2
+  exit 2
+fi
+
 # Warn: force push
 if echo "$COMMAND" | grep -qE 'git push\s+(--force|-f)\b'; then
   echo "WARNING: Force push will rewrite remote history" >&2

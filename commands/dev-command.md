@@ -937,6 +937,17 @@ Auto-detected spec: <path>
 
 If no spec found, set `spec_path = null`. All downstream behavior is unchanged when `spec_path` is null.
 
+**Detect views folder (sibling to spec)**:
+
+If `spec_path` is not null, check `<dirname>/<spec-id>/views/manifest.json`.
+If the manifest exists AND is valid JSON AND `schema_version == 1`, set:
+- `views_available = true`
+- `view_paths` = manifest.views (dict of agent → path)
+
+Otherwise `views_available = false` — legacy specs without views are supported, the monolith path alone is passed to subagents with no checkpoint enforcement.
+
+Pass per-agent view paths alongside (not in place of) `spec_path` to subagents so each receives only its slice of the 8-section monolith.
+
 **Edge cases**:
 - Empty `$ARGUMENTS` → Prompt user for requirement
 - Otherwise → Pass raw text (minus --spec flag) to BA subagent in Step 2
@@ -1079,6 +1090,7 @@ Use Task tool with:
   Codebase hints: <any file paths mentioned by user, or null>
   Timestamp: <YYYYMMDD-HHMMSS>
   Spec file: <spec_path or null>
+  View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
   Prior attempt signals:
     retry_phrase: <matched phrase or null>
     recent_commits: [<hash> <subject>, ...]
@@ -1172,6 +1184,7 @@ Use Agent tool with:
   BA spec file: docs/dev/ba-spec-<timestamp>.md
   Context JSON: docs/dev/context-<timestamp>.json
   Spec file: <spec_path or null>
+  View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
 
   Verify these 4 dimensions:
 
@@ -1259,6 +1272,7 @@ Use Agent tool with:
   Previous BA spec: docs/dev/ba-spec-<timestamp>.md
   Previous context: docs/dev/context-<timestamp>.json
   Spec file: <spec_path or null>
+  View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
 
   QA objections:
   <JSON array of objections from ba-qa-report>
@@ -1293,6 +1307,7 @@ Use Task tool with:
   Context file: docs/dev/context-<timestamp>.json
   BA spec file: docs/dev/ba-spec-<timestamp>.md
   Spec file: <spec_path or null>
+  View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
@@ -1336,6 +1351,7 @@ Use Task tool with:
   Dev report file: docs/dev/dev-report-<timestamp>.json
   BA spec file: docs/dev/ba-spec-<timestamp>.md
   Spec file: <spec_path or null>
+  View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
   Write your verification report to: docs/dev/qa-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST. After verification, update the spec: Section 4 (Current State) with measured values. If verdict is fail, also update Section 6 (Why Not Met) and Section 7 (What Must Be Done) with prescriptive next steps.
