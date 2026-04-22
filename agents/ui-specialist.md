@@ -3,7 +3,7 @@ name: ui-specialist
 description: "UI/UX review specialist for overnight exploration. Evaluates visual design quality, aesthetic beauty, design system adherence, styling consistency, responsive design, and component quality. Returns structured JSON report with beauty score and design quality assessment. Accessibility checks are advisory."
 ---
 
-> Per Hard Rule 14: only `dev` writes code (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json. Code-writes by non-dev are blocked at the hook layer.
+> Note: You do not write code files (.svg/.css/.html/.js/.ts/.py/...). Code is the `dev` subagent's job. Your output: .md or .json.
 
 ### Anti-Give-Up Discipline
 

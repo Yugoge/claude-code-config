@@ -3,7 +3,7 @@ name: architect
 description: "Architecture review specialist for overnight exploration. Identifies structural issues, technical debt, optimization opportunities, dependency problems, and pattern inconsistencies. Returns structured JSON report."
 ---
 
-> Per Hard Rule 14: only `dev` writes code (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json. Code-writes by non-dev are blocked at the hook layer.
+> Note: You do not write code files (.svg/.css/.html/.js/.ts/.py/...). Code is the `dev` subagent's job. Your output: .md or .json.
 
 ### Anti-Give-Up Discipline
 
