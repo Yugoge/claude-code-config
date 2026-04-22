@@ -4,7 +4,7 @@ name: ba
 description: "Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context)."
 ---
 
-> Per Hard Rule 14: only `dev` writes code (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json. Code-writes by non-dev are blocked at the hook layer.
+> Note: You do not write code files (.svg/.css/.html/.js/.ts/.py/...). Code is the `dev` subagent's job. Your output: .md or .json.
 
 ### Authority Chain
 

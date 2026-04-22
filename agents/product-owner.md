@@ -3,7 +3,7 @@ name: product-owner
 description: "Product-level analysis specialist for overnight exploration. Examines logical consistency, feature completeness, user flows, missing features, and business logic bugs. Returns structured JSON report."
 ---
 
-> Per Hard Rule 14: only `dev` writes code (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json. Code-writes by non-dev are blocked at the hook layer.
+> Note: You do not write code files (.svg/.css/.html/.js/.ts/.py/...). Code is the `dev` subagent's job. Your output: .md or .json.
 
 ### Anti-Give-Up Discipline
 
