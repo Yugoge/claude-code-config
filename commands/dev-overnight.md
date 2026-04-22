@@ -344,6 +344,28 @@ If the test plan has no `priority_tiers` (first cycle, no history), set the prio
 
 #### Step 2b: Launch PM-Recommended Specialist Subagents
 
+### SPECIALISTS NEVER WRITE CODE (mandatory)
+
+Specialists (ui-specialist, architect, product-owner, user) produce
+ANALYSIS + DESIGN DOCUMENTS only. Their output format is:
+- Markdown files (.md) with conceptual content, design rationale,
+  observations
+- JSON reports (.json) with structured findings
+- NEVER .svg, .css, .html, .js, .ts, .tsx, .jsx, .py or any code file
+
+When constructing specialist prompts, orchestrator MUST:
+- NOT include "Output: <code-artifact>" or any specific code file paths
+- NOT mention specific counts of code artifacts (e.g., "27 SVGs")
+- NOT include file extensions for code files in deliverables list
+- Only mention: view file path, task description, report output path
+
+If specialist's view or spec references code artifacts (e.g., "27 SVGs"),
+those artifacts are produced by DEV (a separate pipeline stage), not by
+the specialist. The specialist provides the CONCEPT that dev implements.
+
+Violation: any prompt that tells a specialist to write .svg/.css/.html
+is a pipeline error — abort and reconstruct the prompt.
+
 ### CRITICAL: Specialists run SERIALLY, not in parallel
 
 Launch specialists ONE AT A TIME (ui-specialist, architect, product-owner, user).
@@ -458,6 +480,21 @@ Each subagent receives:
 - Overnight spec file: {user_spec_path or null}
 - Priority context: <the priority context block built in the step above>
 - Output report to: <path above>
+
+**MUST NOT include in specialist prompt**:
+- Deliverable lists naming code files (.svg, .css, .html, .js, .ts, .tsx, .jsx, .py, etc.)
+- "Output: 27 SVGs" or similar code-artifact counts
+- File paths with code extensions as expected outputs
+- Any instruction that makes the specialist write code
+
+**MUST include**:
+- View file path (they read their view)
+- Report output path (they write JSON report only)
+- Task description at CONCEPT level (not implementation level)
+
+Code artifacts referenced in specs (e.g., "27 SVGs", "motion.css") are produced
+by the DEV subagent in a later pipeline stage, not by the specialist. The
+specialist's job is to describe the CONCEPT; dev implements it.
 
 **ENFORCEMENT**: Every specialist prompt MUST include the test plan path.
 Specialists have a MANDATORY Step 0 that reads this file -- it is not optional.
