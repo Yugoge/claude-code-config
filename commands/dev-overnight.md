@@ -24,7 +24,7 @@ Step 1: Read state file + enter worktree (first run only)
   +---> EXPLORATION PHASE (Step 2)
   |       Step 2a: PM-Plan subagent (builds test plan with priorities + recommended_specialists)
   |       Main agent reads test plan, extracts priority context + recommended specialists
-  |       Step 2b: PM-recommended specialist subagents scan in parallel (with priority context)
+  |       Step 2b: PM-recommended specialist subagents scan SERIALLY, one at a time (with priority context)
   |       Step 2c: PM-Triage subagent (reads specialist reports, writes triage)
   |                |
   |       PIPELINE CREATION (Step 3)
@@ -294,6 +294,13 @@ Use Agent tool with:
   in the spec are pre-validated -- skip full browser exploration for those issues.
   Focus your exploration on discovering ADDITIONAL issues not covered by the spec.
   Set spec_mode: 'user-provided' and spec_path in your test plan output.
+
+  <If spec_mode == 'user-provided' AND view_paths['orchestrator'] is non-null, include:>
+  Orchestrator view file: <view_paths['orchestrator']>
+
+  Read the orchestrator view FIRST. It contains the project's Role Mandate,
+  Pipeline Workflow, Anti-Patterns, and Hard Rules you must enforce as supervisor.
+  Incorporate these into your test plan's priority_tiers and recommended_specialists.
   "
 ```
 
@@ -336,6 +343,16 @@ If the test plan has no `priority_tiers` (first cycle, no history), set the prio
 `"No priority tiers from PM -- this is the first cycle. Explore freely and report all issues."`
 
 #### Step 2b: Launch PM-Recommended Specialist Subagents
+
+### CRITICAL: Specialists run SERIALLY, not in parallel
+
+Launch specialists ONE AT A TIME (ui-specialist, architect, product-owner, user).
+Wait for each to complete before launching the next. Do NOT put multiple
+specialists in a single Agent tool call. This is non-negotiable — parallel
+specialists violate spec design contracts.
+
+Exception: BA/Dev/QA may still be parallelized (they have instance-isolated state
+via spec-check.py --instance-id). Specialists do NOT have instance-isolated state.
 
 ### Step 2b Specialist Calling Rule
 
@@ -507,17 +524,20 @@ Launching specialist subagents...
 - Re-invoke only the failed subagent(s) (maximum 2 retries)
 - If still failing after retries, proceed with available reports
 
-**If zero issues found across all 4 reports**:
+**If zero issues found across all RELEVANT specialist reports** (reports from launched specialists only — skipped specialists do not count as clean):
 - Log a "clean sweep" entry
 - After 2 consecutive clean sweeps: generate summary and allow termination
 
 **Core Flow Gate Check**:
 
-After all 4 specialists complete, read the user agent's report. Check `core_flow_completed`:
-- If `core_flow_completed: false` (or missing): the core flow gate has failed. Log this as a cycle-level failure. The user agent's core flow issues take top priority in Step 3.
-- If `core_flow_completed: true`: gate passed, proceed normally.
+After all RELEVANT specialists complete, check whether the user agent was launched this cycle (look up `user` in `specialists_assessed` — `RELEVANT` means its report should exist; `SKIP` means the gate is not applicable).
 
-This gate is non-negotiable: if the user cannot complete the core business flow, the entire cycle is considered failed regardless of other agents' findings.
+- If the user agent was SKIPPED this cycle: skip the core flow gate check entirely and proceed to Step 2c. Record `core_flow_gate: "skipped — user specialist not launched"` in the cycle log.
+- If the user agent was RELEVANT and its report exists: read the user agent's report and check `core_flow_completed`:
+  - If `core_flow_completed: false` (or missing): the core flow gate has failed. Log this as a cycle-level failure. The user agent's core flow issues take top priority in Step 3.
+  - If `core_flow_completed: true`: gate passed, proceed normally.
+
+When applicable, this gate is non-negotiable: if the user cannot complete the core business flow, the entire cycle is considered failed regardless of other agents' findings.
 
 **Route Map Extraction**: After the user agent completes, check if `route_map_file` exists in its report. If present, read the route map file and note the path for use in subsequent subagent prompts. This route map will be passed to:
 - **Dev agent**: as context so it knows which pages might be affected by its changes
@@ -526,8 +546,14 @@ This gate is non-negotiable: if the user cannot complete the core business flow,
 
 #### Step 2c: Launch PM-Triage Subagent
 
-After all 4 specialists complete and reports are validated, launch PM in TRIAGE mode to
-classify and prioritize all findings.
+After all RELEVANT specialists complete and their reports are validated, launch PM in
+TRIAGE mode to classify and prioritize all findings.
+
+**Dynamic specialist report list**: Build the PM-Triage prompt using the
+`specialists_assessed` map recorded in Step 2b. Only include report paths for specialists
+whose value starts with `"RELEVANT"`. For specialists whose value starts with `"SKIP"`,
+list them with their skip reason so PM understands why that perspective is absent and
+does NOT attempt to read a non-existent file.
 
 ```
 Use Agent tool with:
@@ -542,16 +568,30 @@ Use Agent tool with:
   Session ID: <session_id>
   Cycle number: <cycle_count + 1>
 
-  Read these reports:
-  - docs/dev/overnight/<session_id>/product-owner-report.json
-  - docs/dev/overnight/<session_id>/architect-report.json
-  - docs/dev/overnight/<session_id>/user-report.json
-  - docs/dev/overnight/<session_id>/ui-specialist-report.json
-  - docs/dev/overnight/<session_id>/test-plan.json (your own plan for context)
+  You will receive reports ONLY from specialists that were RELEVANT and launched this
+  cycle. Skipped specialists are listed below with their skip reason. Do NOT attempt to
+  read report files for skipped specialists — those files do not exist.
+
+  Specialist reports (only the specialists actually launched this cycle):
+  <For each specialist in specialists_assessed where value starts with 'RELEVANT':>
+  - <specialist>: docs/dev/overnight/<session_id>/<specialist>-report.json
+  </For>
+  <For each specialist in specialists_assessed where value starts with 'SKIP':>
+  - <specialist>: SKIPPED — <skip reason from specialists_assessed[specialist]>
+  </For>
+  - test-plan: docs/dev/overnight/<session_id>/test-plan.json (your own plan for context)
 
   Core flow gate result: <core_flow_completed from user report>
   Core flow reliability: <core_flow_reliability from user report, if available>
   Time remaining: <calculated time remaining in minutes>
+
+  <If spec_mode == 'user-provided' AND view_paths['orchestrator'] is non-null, include:>
+  Orchestrator view file: <view_paths['orchestrator']>
+
+  Read the orchestrator view FIRST. It contains the project's Role Mandate,
+  Pipeline Workflow, Anti-Patterns, and Hard Rules you must enforce as supervisor.
+  Incorporate these into your triage decisions (tier assignments, pipeline_order,
+  recommended_specialists) so specialist invocations comply with the spec's constraints.
 
   Write triage report to: docs/dev/overnight/<session_id>/triage-report-cycle<N>.json
   "
@@ -567,7 +607,8 @@ Use Agent tool with:
 - Each issue has `tier`, `pipeline_recommendation`, and required fields
 
 If validation fails, re-invoke PM-Triage (maximum 2 retries). If still failing, fall back
-to the legacy mechanical sort in Step 3 (read all 4 reports, merge, sort by severity).
+to the legacy mechanical sort in Step 3 (read the RELEVANT specialist reports only — per
+`specialists_assessed` — merge, sort by severity).
 
 **Check pipeline_blocked**: Read the triage report's `pipeline_blocked` field.
 - If `pipeline_blocked: true`: log `block_reasons` to the cycle log file, skip Steps 3-13, jump directly to Step 14 (PM Retrospective) with context that the pipeline was blocked. PM RETRO will analyze the block and recommend next steps. Then loop to Step 2 for the next cycle.
@@ -612,13 +653,19 @@ Read specialist reports. For each pipeline, if a specialist provided screenshots
 
 **If triage report is missing or invalid** (fallback to legacy behavior):
 
-Read all 4 JSON reports from `docs/dev/overnight/`:
-- `product-owner-report.json`
-- `architect-report.json`
-- `user-report.json`
-- `ui-specialist-report.json`
+Read JSON reports from `docs/dev/overnight/<session_id>/` for ONLY the specialists that
+were RELEVANT (launched) this cycle. Determine the launched set from the
+`specialists_assessed` map recorded in Step 2b — include a report path for each entry
+whose value starts with `"RELEVANT"`, and skip (do NOT attempt to read) any entry whose
+value starts with `"SKIP"`.
 
-Merge into single issue list, deduplicate, filter against addressed_issues and
+Candidate report paths (include only for RELEVANT specialists):
+- `product-owner-report.json` (if `specialists_assessed["product-owner"]` starts with "RELEVANT")
+- `architect-report.json` (if `specialists_assessed["architect"]` starts with "RELEVANT")
+- `user-report.json` (if `specialists_assessed["user"]` starts with "RELEVANT")
+- `ui-specialist-report.json` (if `specialists_assessed["ui-specialist"]` starts with "RELEVANT")
+
+Merge the available reports into a single issue list, deduplicate, filter against addressed_issues and
 failed_attempts. Prioritize by severity and impact. Every remaining issue gets a pipeline, ordered by: (1) severity: critical > major > minor > cosmetic, (2) impact scope: issues flagged by more agents rank higher within the same severity.
 
 **Time guard** (severity-aware): If time remaining < 5 minutes, filter issues by severity+effort: (a) Drop cosmetic issues regardless of effort, (b) Drop minor issues with medium/large effort, (c) Keep major issues with small effort only, (d) Keep critical issues with small effort only. This ensures remaining time is spent on the highest-severity fixable issues.
@@ -1290,6 +1337,15 @@ Use Agent tool with:
   - Section 7 (What Must Be Done): Prescriptive next step with exact file, line, action
   - Section 8 (Attention Notes): Issue-specific traps and warnings for next cycle
 
+  <If spec_mode == 'user-provided' AND view_paths['orchestrator'] is non-null, include:>
+  Orchestrator view file: <view_paths['orchestrator']>
+
+  Read the orchestrator view FIRST. It contains the project's Role Mandate,
+  Pipeline Workflow, Anti-Patterns, and Hard Rules you must enforce as supervisor.
+  Use these constraints to shape Section 7 (What Must Be Done) and Section 8
+  (Attention Notes) for each unresolved pipeline, and to evaluate whether
+  specialist invocations in this cycle complied with the spec.
+
   Write retro report to: docs/dev/overnight/<session_id>/retro-report-cycle<N>.json
   "
 ```
@@ -1595,7 +1651,7 @@ See `/clean` command documentation for details.
 - `core_flow_steps` are derived from actual browser navigation, not documentation alone
 - Falls back to doc-based planning only when app is not running (`app_not_running: true`)
 
-**Specialist subagents discover** (Step 2b, parallel -- all read PM's test plan as Step 0, all execute E2E flow as Step 0.5):
+**Specialist subagents discover** (Step 2b, serial — launched ONE at a time, each reads PM's test plan as Step 0, each executes E2E flow as Step 0.5):
 - **product-owner** (see `agents/product-owner.md`): Logical inconsistencies, feature gaps, broken user flows, missing features, business logic bugs. Executes E2E flow before feature inventory.
 - **architect** (see `agents/architect.md`): Structural issues, technical debt, optimization opportunities, dependency problems, pattern inconsistencies. Collects console/network errors during E2E flow execution.
 - **user** (see `agents/user.md`): UX friction, broken flows, confusing behavior, workflow gaps, real-world usage issues. Already has the most complete E2E protocol (Phase 4).
