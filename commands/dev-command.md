@@ -2,6 +2,8 @@
 description: Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 ---
 
+> Code-writing tasks (.svg/.css/.html/.js/.ts/.py/...) go to `dev`. Specialists, BA, and QA produce .md/.json only.
+
 **CRITICAL**: Use TodoWrite to track workflow phases. Mark in_progress before each step, completed immediately after.
 
 # Development Orchestrator for Command Development

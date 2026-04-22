@@ -57,8 +57,9 @@ def _get_target_path(tool_input):
 
 def _emit_block(agent_type, target):
     sys.stderr.write(
-        f"BLOCKED: {agent_type} cannot write '{target}'.\n"
-        f"Per Hard Rule 14, only 'dev' writes code. You produce .md/.json.\n"
+        f"BLOCKED: '{agent_type}' cannot write code files. "
+        f"Only 'dev' subagent writes code (.svg/.css/.html/.js/.ts/.py/...). "
+        f"Your output: .md (docs) or .json (reports).\n"
     )
 
 

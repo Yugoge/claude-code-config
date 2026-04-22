@@ -2,6 +2,8 @@
 description: Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
 ---
 
+> Code-writing tasks (.svg/.css/.html/.js/.ts/.py/...) go to `dev`. Specialists, BA, and QA produce .md/.json only.
+
 **CRITICAL**: Use TodoWrite to track workflow phases. Mark in_progress before each step, completed immediately after.
 
 # Dev-Overnight: Autonomous Continuous Development

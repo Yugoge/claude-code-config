@@ -2,6 +2,8 @@
 description: Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification
 ---
 
+> Code-writing tasks (.svg/.css/.html/.js/.ts/.py/...) go to `dev`. Specialists, BA, and QA produce .md/.json only.
+
 **CRITICAL**: Use TodoWrite to track workflow phases. Mark in_progress before each step, completed immediately after.
 
 # Development Orchestrator
