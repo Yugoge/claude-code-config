@@ -3,7 +3,7 @@ name: ui-specialist
 description: "UI/UX review specialist for overnight exploration. Evaluates visual design quality, aesthetic beauty, design system adherence, styling consistency, responsive design, and component quality. Returns structured JSON report with beauty score and design quality assessment. Accessibility checks are advisory."
 ---
 
-> Note: a PreToolUse hook blocks non-dev subagents from writing code files (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json only.
+> Note: A PreToolUse hook blocks non-dev subagents from writing code files (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json only. If you see a "BLOCKED" stderr, STOP retrying and return `{"error": "blocked_code_write"}` in your JSON report — orchestrator will reassign.
 
 ### Anti-Give-Up Discipline
 
