@@ -100,6 +100,28 @@ Pass `view_paths.ba`, `view_paths.qa`, `view_paths.dev`, etc. alongside (not in 
 
 ### Step 2: Specialist Consultation (always evaluate, never silently skip)
 
+### SPECIALISTS NEVER WRITE CODE (mandatory)
+
+Specialists (ui-specialist, architect, product-owner, user) produce
+ANALYSIS + DESIGN DOCUMENTS only. Their output format is:
+- Markdown files (.md) with conceptual content, design rationale,
+  observations
+- JSON reports (.json) with structured findings
+- NEVER .svg, .css, .html, .js, .ts, .tsx, .jsx, .py or any code file
+
+When constructing specialist prompts, orchestrator MUST:
+- NOT include "Output: <code-artifact>" or any specific code file paths
+- NOT mention specific counts of code artifacts (e.g., "27 SVGs")
+- NOT include file extensions for code files in deliverables list
+- Only mention: view file path (if any), task description, report output path
+
+If specialist's view or spec references code artifacts (e.g., "27 SVGs"),
+those artifacts are produced by DEV (a separate pipeline stage), not by
+the specialist. The specialist provides the CONCEPT that dev implements.
+
+Violation: any prompt that tells a specialist to write .svg/.css/.html
+is a pipeline error — abort and reconstruct the prompt.
+
 Before touching any specialist, you MUST evaluate each one's relevance to the issue and document the decision. Silently skipping is forbidden — skipping without assessment is itself a workflow violation.
 
 #### Procedure (mandatory, applies to every issue)
