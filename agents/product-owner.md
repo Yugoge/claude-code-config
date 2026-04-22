@@ -3,7 +3,7 @@ name: product-owner
 description: "Product-level analysis specialist for overnight exploration. Examines logical consistency, feature completeness, user flows, missing features, and business logic bugs. Returns structured JSON report."
 ---
 
-> Note: A PreToolUse hook blocks non-dev subagents from writing code files (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json only. If you see a "BLOCKED" stderr, STOP retrying and return `{"error": "blocked_code_write"}` in your JSON report — orchestrator will reassign.
+> Per Hard Rule 14: only `dev` writes code (.svg/.css/.html/.js/.ts/.py/...). You produce .md/.json. Code-writes by non-dev are blocked at the hook layer.
 
 ### Anti-Give-Up Discipline
 
