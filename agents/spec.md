@@ -225,6 +225,8 @@ Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with ALL of the following
 
 ### Orchestrator Prompt Templates:
 
+**CRITICAL**: Only launch ONE specialist at a time (ui-specialist, architect, product-owner, user). Wait for completion before launching the next. BA/Dev/QA may be parallelized.
+
 When launching ui-specialist, your prompt MUST include:
 - "Design <item-name> following the design brief in your view"
 - "Output: <the artifacts the spec defines for this role>"
@@ -256,6 +258,8 @@ When launching QA, your prompt MUST include:
 - Orchestrator prompts must be <= 10 lines. If your prompt is longer, you are acting as designer/analyst, not as delegator.
 - NEVER launch more than one specialist (ui-specialist, architect, product-owner, user) at a time. Specialists are one-at-a-time consultations. Only BA/Dev/QA may run in parallel, and even those should typically run sequentially per item in pipeline mode.
 - NEVER ask ui-specialist to write application code. ui-specialist outputs ONLY design artifacts (SVG + motion CSS + README) to skill/design asset locations. Application code (component integration, imports, route changes) is dev's job AFTER BA writes implementation spec.
+- NEVER run specialists (ui-specialist, architect, product-owner, user) in parallel — ONE specialist at a time, always. Only BA/Dev/QA may run in parallel.
+- NEVER read the spec directly to stuff implementation details into subagent prompts. The subagent reads its own view file. If you find yourself extracting stroke-width, CSS values, file paths, or any specific artifact into a prompt — STOP. You are violating Rule 13.
 
 ### Rule 13: Orchestrator delegates, never reads spec directly
 
@@ -473,36 +477,77 @@ For each agent selected in Phase 0 (excluding orchestrator), read the view file 
 Write cp-state files via `bin/spec-check.py`. Do not write cp-state JSON directly.
 
 ```bash
-# 1. Register agent (creates cp-state file)
+# 1. Register agent (creates cp-state file). spec-check.py AUTO-ALLOCATES
+#    the cp-state slot: primary cp-state-<agent>.json if free, otherwise
+#    the next cp-state-<agent>-N.json (N>=2). Capture the actual path from
+#    the `cp-state-path:` line in stdout — do NOT assume a filename.
+#
+#    --agent-id is REQUIRED (stored INSIDE the payload as `agent_id`).
+#    It is NEVER used as a filename suffix; the slot number alone
+#    disambiguates slots, but agent_id disambiguates the LOGICAL caller
+#    when multiple same-type instances run concurrently. Without it,
+#    Phase 2 cannot reliably pin to the correct slot.
 python3 /root/bin/spec-check.py check-in \
     --spec-id <spec-id> \
     --agent <agent> \
-    --agent-id <item-name> \
+    --agent-id <agent-id> \
     --artifact docs/dev/<agent>-report-<ts>.json
 ```
 
-Then write checkpoints via a Python stanza that preserves flock discipline:
+Then write checkpoints via a Python stanza that preserves flock discipline.
+The stanza resolves the cp-state path by locating the running slot whose
+stored `agent_id` matches THIS invocation's `<agent-id>` (not just "any
+running slot" — that would race with concurrent same-type instances):
 
 ```bash
 python3 - <<'PY'
-import json, os, fcntl, sys
+import json, os, fcntl, re, sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 def now(): return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 spec_id = "<spec-id>"
 agent = "<agent>"
-agent_id = "<item-name>"  # None if no instance keying needed
+my_agent_id = "<agent-id>"  # MUST match what was passed to check-in above
 project_dir = os.environ["CLAUDE_PROJECT_DIR"]
-suffix = f"-{agent_id}" if agent_id else ""
-path = f"{project_dir}/.claude/specs/{spec_id}/cp-state-{agent}{suffix}.json"
+cp_dir = Path(project_dir) / ".claude" / "specs" / spec_id
+
+# Enumerate all slots for this agent type (primary first, then numbered
+# in ascending order). We will filter by agent_id below.
+candidates = []
+primary = cp_dir / f"cp-state-{agent}.json"
+if primary.exists():
+    candidates.append(primary)
+pattern = re.compile(rf"^cp-state-{re.escape(agent)}-(\d+)\.json$")
+numbered = sorted(
+    (int(pattern.match(p.name).group(1)), p)
+    for p in cp_dir.iterdir()
+    if pattern.match(p.name)
+)
+candidates.extend(p for _, p in numbered)
+
+# Pick the slot where agent_id matches my_agent_id AND is_running.
+# Matching by is_running alone is WRONG: concurrent same-type instances
+# (e.g., two ba's running in parallel) produce two running slots and the
+# first-match rule would non-deterministically hijack the sibling's slot.
+path = None
+for c in candidates:
+    with open(c) as f:
+        d = json.load(f)
+    if d.get("agent_id") == my_agent_id and d.get("is_running"):
+        path = c
+        break
+if path is None:
+    sys.exit(f"no running cp-state slot found for agent={agent} agent_id={my_agent_id}")
+
 with open(path) as f:
     data = json.load(f)
 data["checkpoints"] = [
     {"id": "cp-01", "action": "<verb-first atomic action>", "state": "pending", "waived_reason": None, "updated_at": now()},
     # ... more cps
 ]
-lock_path = path + ".lock"
+lock_path = str(path) + ".lock"
 with open(lock_path, "w") as lh:
     fcntl.flock(lh.fileno(), fcntl.LOCK_EX)
     with open(path, "w") as f:

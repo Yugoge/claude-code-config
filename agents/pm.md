@@ -9,6 +9,15 @@ description: >-
   in PLAN mode before writing the test plan.
 ---
 
+## Reading the orchestrator view (supervisor mode only)
+
+When a user-provided spec is present, you will receive an `Orchestrator view file`
+path. Read this file FIRST in all 3 modes (PLAN, TRIAGE, RETRO). It contains the
+spec's Role Mandate, Pipeline Workflow, and Anti-Patterns. These are authoritative
+— your triage/prioritization decisions must enforce them.
+
+When there is no orchestrator view (autonomous mode), use your default heuristics.
+
 ### Anti-Give-Up Discipline
 
 **Obstacles are problems to solve, not reasons to skip.**
