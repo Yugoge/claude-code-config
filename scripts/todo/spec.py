@@ -1,29 +1,32 @@
 #!/usr/bin/env python3
-"""Preloaded TodoList for /spec workflow (Interview Mode only).
+"""Preloaded TodoList for /spec workflow.
 
-The /spec command supports 4 modes (see ~/.claude/commands/spec.md):
-  Mode 1: Quick creation -- /spec <inline text>
-  Mode 2: Interview      -- bare /spec (no args)  [todos written here]
-  Mode 3: Validate       -- /spec --validate <path>
-  Mode 4: List           -- /spec --list
+The /spec command supports 7 modes (see ~/.claude/commands/spec.md):
+  Mode 1: Quick creation   -- /spec <inline text>
+  Mode 2: Interview        -- bare /spec (no args)
+  Mode 3: Validate         -- /spec --validate <path>
+  Mode 4: List             -- /spec --list
+  Mode 5: Unlock           -- /spec --unlock <spec-id>
+  Mode 6: Batch            -- /spec --batch ...
+  Mode 7: Split            -- /spec --split <path>
 
-Only Mode 2 (bare /spec) should write todos. prompt-workflow.py's
-extract_command_name returns "spec" for ALL four modes, so this script
-inspects the CLAUDE_TODO_PROMPT env var (injected by prompt-workflow.py's
-run_todo_script) to distinguish Mode 2 from the others. Non-Interview
-modes return [] so no bookmark/todos file is written and the spec-block
-hook never activates for them.
+Mode 2 (Interview) gets interview-specific steps.
+Modes 1, 6 (flush), 7 get the general split workflow steps.
+Modes 3, 4, 5, 6 (non-flush) are simple operations -- return [].
 
-The 7 steps below map 1:1 to the 7 Interview Flow steps in spec.md.
+Inspects CLAUDE_TODO_PROMPT env var (injected by prompt-workflow.py's
+run_todo_script) to distinguish modes.
 """
 
 import json
 import os
 import sys
 
+# Flags that map to simple (no-todo) modes
+_SIMPLE_FLAGS = ("--validate", "--list", "--unlock")
 
-# (label, content, activeForm) tuples for each Interview Mode step.
-_STEPS = (
+# Interview Mode steps (Mode 2)
+_INTERVIEW_STEPS = (
     ("1", "Open interview -- ask what the issue or feature is",
            "Opening interview"),
     ("2", "Deep-dive on problem -- ask about current behavior",
@@ -38,6 +41,26 @@ _STEPS = (
            "Previewing and confirming spec"),
     ("7", "Write the spec file",
            "Writing spec file"),
+    ("8", "Invoke spec subagent for checkpoint generation",
+           "Invoking spec subagent for checkpoint generation"),
+)
+
+# General workflow steps (Mode 1 quick, Mode 6 flush, Mode 7 split)
+_GENERAL_STEPS = (
+    ("1", "Parse arguments and determine mode",
+           "Parsing arguments"),
+    ("2", "Read/create spec file",
+           "Reading/creating spec file"),
+    ("3", "Count monolith lines",
+           "Counting monolith lines"),
+    ("4", "Invoke spec subagent (Phase 0 + 1 + 2)",
+           "Running spec subagent"),
+    ("5", "QA validation of split quality",
+           "QA validating split quality"),
+    ("6", "Create .split-complete marker",
+           "Marking split as complete"),
+    ("7", "Display results",
+           "Displaying results"),
 )
 
 
@@ -50,26 +73,37 @@ def _build_step(label: str, desc: str, active: str) -> dict:
     }
 
 
-def is_interview_mode() -> bool:
-    """Return True when the prompt is bare /spec (no arguments).
-
-    Inspects CLAUDE_TODO_PROMPT (set by prompt-workflow.py run_todo_script).
-    When the env var is missing or empty, default to Interview Mode so
-    that direct CLI invocation (no env var) still prints the 7 steps.
-    """
-    prompt = os.environ.get("CLAUDE_TODO_PROMPT", "")
-    parts = prompt.strip().split(None, 1)
-    # Empty prompt or just "/spec" (no second token) -> Interview Mode
+def _extract_args() -> str:
+    """Extract the arguments portion from CLAUDE_TODO_PROMPT."""
+    prompt = os.environ.get("CLAUDE_TODO_PROMPT", "").strip()
+    parts = prompt.split(None, 1)
     if len(parts) <= 1:
-        return True
-    return parts[1].strip() == ""
+        return ""
+    return parts[1].strip()
+
+
+def _detect_mode() -> str:
+    """Detect /spec mode. Returns: interview, quick, split, batch_flush, simple."""
+    args = _extract_args()
+    if not args:
+        return "interview"
+    if any(args.startswith(f) for f in _SIMPLE_FLAGS):
+        return "simple"
+    if args.startswith("--batch"):
+        return "batch_flush" if "--flush" in args else "simple"
+    if args.startswith("--split"):
+        return "split"
+    return "quick"
 
 
 def get_todos() -> list:
-    """Return 7 pending Interview Mode steps, or [] for other modes."""
-    if not is_interview_mode():
-        return []
-    return [_build_step(label, desc, active) for label, desc, active in _STEPS]
+    """Return appropriate todo steps based on detected mode."""
+    mode = _detect_mode()
+    if mode == "interview":
+        return [_build_step(l, d, a) for l, d, a in _INTERVIEW_STEPS]
+    if mode in ("quick", "split", "batch_flush"):
+        return [_build_step(l, d, a) for l, d, a in _GENERAL_STEPS]
+    return []
 
 
 if __name__ == "__main__":
