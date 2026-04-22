@@ -157,7 +157,9 @@
       "mcp__happy__change_title",
       "mcp__playwright__*",
       "Bash(source venv/bin/activate && python scripts/analyze/analyze_spending.py:*)",
-      "Bash(source venv/bin/activate && python scripts/add-status-field.py:*)"
+      "Bash(source venv/bin/activate && python scripts/add-status-field.py:*)",
+      "Bash(python3 /root/bin/spec-check.py:*)",
+      "Bash(python3 /root/bin/spec-verify-views.py:*)"
     ],
     "deny": [
       "Read(.env)",
@@ -233,7 +235,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
-  "model": "opus[1m]",
+  "model": "claude-opus-4-6[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -319,6 +321,19 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/pretool-bash-safety.sh\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-bash-views-guard.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-cp-checkin.py\""
           }
         ]
       },
@@ -487,6 +502,10 @@
           },
           {
             "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/stop-spec-coverage-enforce.py\""
+          },
+          {
+            "type": "command",
             "command": "bash \"$HOME/.claude/hooks/stop-git-commit.sh\""
           },
           {
@@ -511,6 +530,15 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/subagent-stop-guard-integrity.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "cp-enforce",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/subagentstop-cp-enforce.py\""
           }
         ]
       }
