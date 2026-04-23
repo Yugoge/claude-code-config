@@ -29,8 +29,8 @@ _SIMPLE_FLAGS = ("--validate", "--list", "--unlock")
 _INTERVIEW_STEPS = (
     ("1", "Request description from user",
            "Requesting description from user"),
-    ("2", "Detect vagueness and handle clarification",
-           "Detecting vagueness and handling clarification"),
+    ("2", "Clarify until Section 5 can be written concretely",
+           "Clarifying intent until spec can be written"),
     ("3", "Dispatch background exploration (if needed)",
            "Dispatching background exploration"),
     ("4", "Write spec file",
