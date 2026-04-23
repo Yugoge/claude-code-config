@@ -150,20 +150,21 @@ What do you want to spec?
 
 Wait for user's response. Proceed to Step 2.
 
-### Step 2: Detect vagueness (surgical rules only)
+### Step 2: Clarify until Section 5 can be written concretely
 
-**Vague input triggers exactly ONE clarification question** if input matches ANY of:
-- Contains "everything", "all", "一切", "所有" about a topic without specifics
-- Single word or phrase without context (e.g., just "login", just "登录", just "auth")
-- Multiple unrelated topics in one message (e.g., "the login button and the dashboard charts")
+Ask one clarification question if the input leaves Section 5 (Acceptance Criterion) impossible to write without guessing.
 
-**Clarification (if triggered)**:
-```
-To write a useful spec, could you clarify: [one specific question about the ambiguous part]?
-```
-After ONE clarification answer, proceed to Step 3 regardless.
+**Repeat this loop**:
+1. If the current input allows writing Section 5 with: (a) at least one GIVEN, one WHEN, one THEN clause; (b) no placeholder tokens (X, Y, "the thing", "it"); (c) at least one concrete noun (file path, feature name, component name, or user-visible label) — stop. Proceed to Step 3.
+2. Otherwise: ask exactly one targeted question about the single most blocking unknown. Wait for answer. Return to 1.
 
-**If NOT vague** (input has enough to write): Proceed directly to Step 3.
+**Rules**:
+- Ask at most one question per turn
+- Never ask about things not needed for Section 5
+- Never ask the same question twice
+- If after 3 questions you still cannot write Section 5 concretely, proceed anyway and flag the uncertainty in Section 8
+
+**If NOT needed** (initial input already satisfies the three criteria above): Proceed directly to Step 3.
 
 ### Step 3: Background exploration (non-blocking)
 
