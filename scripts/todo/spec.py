@@ -27,20 +27,22 @@ _SIMPLE_FLAGS = ("--validate", "--list", "--unlock")
 
 # Interview Mode steps (Mode 2)
 _INTERVIEW_STEPS = (
-    ("1", "Request description from user",
-           "Requesting description from user"),
-    ("2", "Detect vagueness and handle clarification",
-           "Detecting vagueness and handling clarification"),
-    ("3", "Dispatch background exploration (if needed)",
-           "Dispatching background exploration"),
-    ("4", "Write spec file",
+    ("1", "Open interview -- ask what the issue or feature is",
+           "Opening interview"),
+    ("2", "Deep-dive on problem -- ask about current behavior",
+           "Deep-diving on problem"),
+    ("3", "Acceptance criteria -- ask what done looks like",
+           "Gathering acceptance criteria"),
+    ("4", "Context and constraints -- ask for additional context",
+           "Gathering context and constraints"),
+    ("5", "Incorporate exploration results",
+           "Incorporating exploration results"),
+    ("6", "Preview and confirm spec with user",
+           "Previewing and confirming spec"),
+    ("7", "Write the spec file",
            "Writing spec file"),
-    ("5", "Invoke spec subagent (split + checkpoints)",
-           "Invoking spec subagent"),
-    ("6", "QA validation of split quality",
-           "QA validating split quality"),
-    ("7", "Mark complete and display",
-           "Marking complete and displaying"),
+    ("8", "Invoke spec subagent for checkpoint generation",
+           "Invoking spec subagent for checkpoint generation"),
 )
 
 # General workflow steps (Mode 1 quick, Mode 6 flush, Mode 7 split)
