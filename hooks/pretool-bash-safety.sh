@@ -151,10 +151,10 @@ BLOCK_RULES = [
     r'git\s+checkout\s+\S+\s+--\s+(\.|\*|[^ ]+/)',
     # V6 restore wide-path (two-condition joined for subcommand match).
     # Wide-path alternative '[^ /]+/' = bare dir-segment ending in '/' — excludes src/index.ts (interior '/').
-    # Trailing boundary '(\s*$|\s+[;&|])' required only when --source/-s precedes the wide-path,
+    # Trailing boundary '\s*($|[;&|])' required only when --source/-s precedes the wide-path,
     # so that 'src/' at end-of-token is flagged but 'src/index.ts' is not.
-    r'git\s+restore\b.*(--source\b|-s\b).*--\s+(\.|\*|[^ /]+/)(\s*$|\s+[;&|])',
-    r'git\s+restore\b.*--\s+(\.|\*|[^ /]+/)(\s*$|\s+[;&|]).*(--source\b|-s\b)',
+    r'git\s+restore\b.*(--source\b|-s\b).*--\s+(\.|\*|[^ /]+/)\s*($|[;&|])',
+    r'git\s+restore\b.*--\s+(\.|\*|[^ /]+/)\s*($|[;&|]).*(--source\b|-s\b)',
     # reset --hard to non-HEAD
     r'git\s+reset\s+--hard\s+(?!HEAD(\s|$))\S+',
     # V5 revert forms (no \b after ^/~/} — non-word chars, \b would fail at boundary)
@@ -624,7 +624,7 @@ fi
 #          'git restore --source=HEAD -- specific-file.ts' (specific file, not wide-path).
 if echo "$COMMAND" | grep -qE 'git\s+restore\b' && \
    echo "$COMMAND" | grep -qE -- '(--source\b|-s\b)' && \
-   echo "$COMMAND" | grep -qE -- '--\s+(\.|\*|[^ /]+/)(\s*$|\s+[;&|])'; then
+   echo "$COMMAND" | grep -qE -- '--\s+(\.|\*|[^ /]+/)\s*($|[;&|])'; then
   check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: 'git restore --source=<ref> -- .' / '-- *' / '-- dir/' requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
