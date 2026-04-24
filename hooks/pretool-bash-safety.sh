@@ -404,8 +404,30 @@ if echo "$COMMAND" | grep -qE 'git\s+reset\s+--hard\b' && \
   echo "Command: $COMMAND" >&2
   echo "REASON: reset --hard to an older commit rewrites branch history and discards work." >&2
   echo "Safe: 'git reset --hard' or 'git reset --hard HEAD' (no commit arg) — just resets working tree." >&2
-  echo "For recovery, prefer 'git revert <commit>' or 'git checkout -b recovery <ref>'." >&2
+  echo "For recovery, prefer 'git revert HEAD' (only the most recent commit) or 'git checkout -b recovery <ref>'. To revert older commits, ask the user." >&2
   exit 2
+fi
+
+# Block: git revert <commit-hash> or git revert HEAD~N (N>=1)
+# Reverting a non-HEAD historical commit can undo deliberate user work.
+# Safe: 'git revert HEAD' (undo most recent commit, e.g., one you just made by accident).
+# Dangerous: 'git revert <hash>' or 'git revert HEAD~N' — may undo intentional historical work.
+if echo "$COMMAND" | grep -qE 'git\s+revert\s+'; then
+  # Block hex hashes (7+ chars) and HEAD~N where N>=1
+  if echo "$COMMAND" | grep -qE 'git\s+revert\s+([^-]\S*\s+)*[0-9a-f]{7,40}\b' || \
+     echo "$COMMAND" | grep -qE 'git\s+revert\s+([^-]\S*\s+)*HEAD~[1-9]'; then
+    echo "BLOCKED: 'git revert <hash>' or 'git revert HEAD~N' requires explicit user approval" >&2
+    echo "Command: $COMMAND" >&2
+    echo "REASON: On 2026-04-23, a dev subagent ran 'git revert 1204d62' which undid a user-approved" >&2
+    echo "feature commit (the /spec simplification the user had explicitly endorsed), restoring an" >&2
+    echo "unwanted 5-step interview state. The user had explicitly forbidden full revert in chat." >&2
+    echo "Reverting historical commits without user authorization is destructive — it overrides" >&2
+    echo "deliberate work that may have been thoroughly reviewed and accepted." >&2
+    echo "Safe: 'git revert HEAD' or 'git revert HEAD^' (undo the immediate previous commit)." >&2
+    echo "If you genuinely need to revert a historical commit, tell the user the hash and the" >&2
+    echo "rationale, and ask them to run it manually." >&2
+    exit 2
+  fi
 fi
 
 # Warn: force push
