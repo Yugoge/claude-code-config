@@ -158,16 +158,16 @@ Ask one clarification question if the input leaves Section 5 (Acceptance Criteri
 1. If the current input allows writing Section 5 with: (a) at least one GIVEN, one WHEN, one THEN clause; (b) no placeholder tokens (X, Y, "the thing", "it"); (c) at least one concrete noun (file path, feature name, component name, or user-visible label) — stop. Proceed to Step 3.
 2. Otherwise: ask exactly one targeted question about the single most blocking unknown. Wait for answer. Return to 1.
 
+**Common vagueness triggers** (treat as needing follow-up; not exhaustive):
+- Universal scope words: "everything", "all", "一切", "所有" without specifics
+- Single word or phrase without context (e.g., just "login", just "登录", just "auth")
+- Multiple unrelated topics in one message (e.g., "the login button and the dashboard charts")
+
 **Rules**:
 - Ask at most one question per turn
 - Never ask about things not needed for Section 5
 - Never ask the same question twice
 - If after 3 questions you still cannot write Section 5 concretely, proceed anyway and flag the uncertainty in Section 8
-
-**Common patterns that fire the loop** (illustrative, not exhaustive):
-- Open-ended scope words: "everything", "all", "一切", "所有"
-- Single word or phrase without context: "login", "登录", "auth"
-- Multiple unrelated topics in one message
 
 **If NOT needed** (initial input already satisfies the three criteria above): Proceed directly to Step 3.
 
