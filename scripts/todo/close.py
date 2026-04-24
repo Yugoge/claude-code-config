@@ -2,7 +2,8 @@
 """Preloaded TodoList for /close workflow.
 
 /close is a true wrapper. It has exactly 3 orchestration steps:
-  1. Load input (auto-detect newest ba-spec/qa-report or use argument)
+  1. Load input (resolve spec path from $ARGUMENTS or conversation context;
+     no filesystem scan)
   2. Invoke QA subagent once with a debate prompt - QA runs the
      multi-round debate with codex INTERNALLY via the Skill tool
   3. Print the one-line CLOSE: YES/NO verdict that QA returns
@@ -13,7 +14,7 @@ dev-command.py.
 
 
 _STEPS = [
-    ("1", "Load input (auto-detect newest ba-spec/qa-report at top-level docs/dev/ or use argument)", "Loading input", None),
+    ("1", "Load input (spec path from $ARGUMENTS or from conversation context; no filesystem scan)", "Resolving spec path from argument or context", None),
     ("2", "Invoke QA subagent with debate prompt (QA runs multi-round internal debate with codex, returns CLOSE: YES/NO)", "Invoking QA subagent for internal debate", {"subagent_call": {"agent": "qa", "subagent_type": "qa"}}),
     ("3", "Print CLOSE: YES/NO verdict returned by QA", "Printing QA verdict", None),
 ]
