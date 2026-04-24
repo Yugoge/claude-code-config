@@ -89,6 +89,86 @@ check_systemctl_targets_all_dev() {
   done
 }
 
+# ── One-shot allowlist bypass for developer-class blocks ─────────────────────
+# Reads /tmp/claude-bash-allowlist-<sid>.json (written by userprompt-consent-allowlist.sh).
+# On match: deletes the entry (single-use), logs, exits 0.
+# NEVER called for asteroid-class blocks.
+# NEVER bypasses subagent calls (agent_id check first, inline fresh parse).
+CONSENT_LOG="$HOME/.claude/logs/bash-consent.log"
+
+check_and_consume_allowlist() {
+  local cmd="$1"
+
+  # IS_SUBAGENT check: INLINE fresh parse from $INPUT.
+  # The IS_SUBAGENT variable assigned at line ~415 is NOT yet set when this function is called
+  # at call sites at line ~369/~378/~389/~401/~441 (all before the IS_SUBAGENT assignment).
+  # Reusing the later var is infeasible. Inline parse is the ONLY correct approach.
+  local is_sub
+  is_sub=$(echo "$INPUT" | python3 -c \
+    "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
+    2>/dev/null)
+  if [ "$is_sub" = "1" ]; then
+    return 1
+  fi
+
+  local sid
+  sid=$(echo "$INPUT" | python3 -c \
+    "import json,sys,os; d=json.load(sys.stdin); print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
+    2>/dev/null)
+  [ -z "$sid" ] && sid="default"
+
+  local flag_file="/tmp/claude-bash-allowlist-${sid}.json"
+  [ ! -f "$flag_file" ] && return 1
+
+  # Safe regex/literal match: pattern and command passed to Python via environment variables.
+  # The pattern string is NEVER shell-interpolated into Python source code.
+  # This is immune to patterns containing single quotes, backslashes, or newlines.
+  local matched_flag
+  matched_flag=$(FLAG_FILE="$flag_file" CMD_INPUT="$cmd" python3 - <<'PYEOF'
+import json, os, re, sys
+
+flag_file = os.environ['FLAG_FILE']
+cmd = os.environ['CMD_INPUT']
+
+try:
+    with open(flag_file) as f:
+        data = json.load(f)
+    pattern = data.get('pattern', '')
+    is_regex = data.get('is_regex', False)
+    if not pattern:
+        print('0')
+        sys.exit(0)
+    if is_regex:
+        try:
+            matched = bool(re.search(pattern, cmd))
+        except re.error:
+            matched = False
+    else:
+        matched = pattern in cmd
+    print('1' if matched else '0')
+except Exception:
+    print('0')
+PYEOF
+)
+
+  if [ "$matched_flag" = "1" ]; then
+    # Read pattern + is_regex via env-var Python (never shell-interpolate flag contents)
+    local pattern is_regex
+    pattern=$(FLAG_FILE="$flag_file" python3 -c \
+      "import json,os; d=json.load(open(os.environ['FLAG_FILE'])); print(d.get('pattern',''))" \
+      2>/dev/null || echo "unknown")
+    is_regex=$(FLAG_FILE="$flag_file" python3 -c \
+      "import json,os; d=json.load(open(os.environ['FLAG_FILE'])); print('1' if d.get('is_regex') else '0')" \
+      2>/dev/null || echo "0")
+    rm -f "$flag_file"
+    mkdir -p "$(dirname "$CONSENT_LOG")"
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$sid CONSUMED pattern='$pattern' is_regex=$is_regex matched_cmd='$cmd'" >> "$CONSENT_LOG"
+    echo "[allow] One-shot bypass consumed for pattern='$pattern'. Command will proceed." >&2
+    return 0
+  fi
+  return 1
+}
+
 # ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
 # On 2026-04-09, editing session_dirs.txt triggered full restore and killed all sessions.
 # These files must NEVER be touched by Claude under any circumstances.
@@ -367,6 +447,7 @@ fi
 
 # Block: git stash (destructive forms only — list/show/pop/apply/drop/clear/branch are safe)
 if echo "$COMMAND" | grep -qE 'git\s+stash\s+(push|save|create|store)\b'; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: 'git stash push/save/create/store' requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: On 2026-04-19, a dev subagent used 'git stash' as a throwaway buffer" >&2
@@ -376,6 +457,7 @@ if echo "$COMMAND" | grep -qE 'git\s+stash\s+(push|save|create|store)\b'; then
   exit 2
 fi
 if echo "$COMMAND" | grep -qE 'git\s+stash\s*($|[;&|])'; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: bare 'git stash' (implicit push) requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: See 2026-04-19 incident — stash is often paired with destructive checkout." >&2
@@ -387,6 +469,7 @@ fi
 # Wide-path checkout from a ref overwrites the entire subtree with historical content.
 # Allowed: 'git checkout <ref> -- path/to/specific-file.ts' (single file), 'git checkout <branch>' (branch switch).
 if echo "$COMMAND" | grep -qE 'git\s+checkout\s+\S+\s+--\s+(\.|\*|[^ ]+/)\s*($|[;&|])'; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: 'git checkout <ref> -- .' / '-- *' / '-- dir/' requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: On 2026-04-19, a dev subagent ran 'git checkout 925f5960 -- .' inside" >&2
@@ -400,6 +483,7 @@ fi
 # Block: git reset --hard to a specific commit (HEAD or no-arg is fine — those are local safety reverts)
 if echo "$COMMAND" | grep -qE 'git\s+reset\s+--hard\b' && \
    ! echo "$COMMAND" | grep -qE 'git\s+reset\s+--hard(\s+HEAD)?(\s*$|\s*[;&|])'; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: 'git reset --hard <commit>' (non-HEAD) requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: reset --hard to an older commit rewrites branch history and discards work." >&2
@@ -440,6 +524,7 @@ if echo "$COMMAND" | grep -qE 'git\s+revert\s+'; then
   # Block hex hashes (7+ chars) and HEAD~N where N>=1
   if echo "$COMMAND" | grep -qE 'git\s+revert\s+([^-]\S*\s+)*[0-9a-f]{7,40}\b' || \
      echo "$COMMAND" | grep -qE 'git\s+revert\s+([^-]\S*\s+)*HEAD~[1-9]'; then
+    check_and_consume_allowlist "$COMMAND" && exit 0
     echo "BLOCKED: 'git revert <hash>' or 'git revert HEAD~N' requires explicit user approval" >&2
     echo "Command: $COMMAND" >&2
     echo "REASON: On 2026-04-23, a dev subagent ran 'git revert 1204d62' which undid a user-approved" >&2
