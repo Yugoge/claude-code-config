@@ -6,10 +6,18 @@ Logic:
   1. If stop_hook_active -> exit 0
   2. Read workflow bookmark to check if current workflow is /spec
   3. If NOT /spec -> exit 0 (allow)
-  4. If /spec -> find latest spec views dir and monolith
-  5. Run spec-verify.py --monolith <path> --views-dir <path>
-  6. If exit 0 (100% coverage) -> exit 0 (allow stop)
-  7. If exit != 0 -> exit 2 (block stop)
+  4. Derive the target spec from the stopping session's own transcript JSONL
+     (transcript_path from stdin). Scan last 500 lines in reverse for the most
+     recent Read/Write/Edit/MultiEdit tool_use targeting docs/dev/specs/spec-*.md.
+  5. If no spec touched, or transcript missing, or no views/ dir -> exit 0
+  6. Run spec-verify.py --monolith <path> --views-dir <path>
+  7. If exit 0 (100% coverage) -> exit 0 (allow stop)
+  8. If exit != 0 -> exit 2 (block stop)
+
+Session isolation:
+  The target spec is derived per-session from transcript_path, not via a global
+  filesystem heuristic. Parallel /spec sessions no longer interfere with each
+  other. See ba-spec-20260424-093644.md (revision 2) for rationale.
 
 Exit codes:
   0: Allow stop
@@ -18,12 +26,26 @@ Exit codes:
 
 import json
 import os
+import re
 import subprocess
 import sys
+from collections import deque
 from pathlib import Path
+from typing import Optional
 
 
 SPEC_VERIFY = "/root/bin/spec-verify.py"
+
+# Matches docs/dev/specs/spec-YYYYMMDD-HHMMSS in monolith or split-dir paths.
+# Captures the bare spec_id (e.g. "spec-20260424-090315") with no trailing
+# extension or subpath. Accepts absolute and relative file_path values.
+SPEC_ID_RE = re.compile(r"docs/dev/specs/(spec-\d{8}-\d{6})(?:\.md|/|$)")
+
+# Tool names whose tool_use events carry a file_path input we care about.
+SPEC_TOOL_NAMES = frozenset({"Read", "Write", "Edit", "MultiEdit"})
+
+# Cap transcript scan cost — most tool events live near the end anyway.
+TRANSCRIPT_TAIL_LINES = 500
 
 
 def read_stdin():
@@ -48,16 +70,78 @@ def get_workflow_command(project_dir: Path, session_id: str) -> str:
         return ""
 
 
-def find_latest_spec(specs_base: Path):
-    """Find the most recent spec dir that has a views/ subdirectory."""
-    if not specs_base.is_dir():
+def _extract_spec_id_from_tool_use(item) -> Optional[str]:
+    """Return spec_id if this content item is a spec-targeting tool_use, else None."""
+    if not isinstance(item, dict) or item.get("type") != "tool_use":
         return None
-    spec_dirs = sorted(
-        [d for d in specs_base.iterdir() if d.is_dir() and (d / "views").is_dir()],
-        key=lambda d: d.name,
-        reverse=True,
-    )
-    return spec_dirs[0] if spec_dirs else None
+    if item.get("name") not in SPEC_TOOL_NAMES:
+        return None
+    tool_input = item.get("input")
+    if not isinstance(tool_input, dict):
+        return None
+    file_path = tool_input.get("file_path")
+    if not isinstance(file_path, str):
+        return None
+    match = SPEC_ID_RE.search(file_path)
+    return match.group(1) if match else None
+
+
+def _spec_id_from_message_content(content) -> Optional[str]:
+    """Walk a message.content list (newest first) for a spec-targeting tool_use."""
+    if not isinstance(content, list):
+        return None
+    for item in reversed(content):
+        spec_id = _extract_spec_id_from_tool_use(item)
+        if spec_id:
+            return spec_id
+    return None
+
+
+def _spec_id_from_transcript_line(line: str) -> Optional[str]:
+    """Parse one JSONL line and return the most recent spec_id referenced, or None."""
+    line = line.strip()
+    if not line:
+        return None
+    try:
+        obj = json.loads(line)
+    except Exception:
+        return None
+    if not isinstance(obj, dict):
+        return None
+    message = obj.get("message")
+    if not isinstance(message, dict):
+        return None
+    return _spec_id_from_message_content(message.get("content"))
+
+
+def _read_transcript_tail(transcript_path: str) -> Optional[deque]:
+    """Return a deque with the last TRANSCRIPT_TAIL_LINES lines, or None on failure."""
+    try:
+        path = Path(transcript_path)
+        if not path.is_file():
+            return None
+        with path.open("r", encoding="utf-8", errors="replace") as fh:
+            return deque(fh, maxlen=TRANSCRIPT_TAIL_LINES)
+    except Exception:
+        return None
+
+
+def derive_spec_id_from_transcript(transcript_path: str) -> Optional[str]:
+    """Scan a session's JSONL transcript in reverse for the last spec it touched.
+
+    Returns the bare spec_id (e.g. ``spec-20260424-090315``) from the most recent
+    Read/Write/Edit/MultiEdit tool_use whose ``file_path`` lives under
+    ``docs/dev/specs/``. Returns None on any failure — callers treat None as
+    "allow stop".
+    """
+    tail = _read_transcript_tail(transcript_path)
+    if tail is None:
+        return None
+    for line in reversed(tail):
+        spec_id = _spec_id_from_transcript_line(line)
+        if spec_id:
+            return spec_id
+    return None
 
 
 def find_monolith(specs_base: Path, spec_dir: Path) -> Path | None:
@@ -102,25 +186,40 @@ def block_with_message(result: subprocess.CompletedProcess):
     sys.exit(2)
 
 
+def resolve_target_spec_dir(data: dict, project_dir: Path) -> Optional[Path]:
+    """Given stdin payload, return the per-session spec dir, or None to allow stop."""
+    session_id = data.get("session_id", "default")
+    transcript_path = data.get("transcript_path")
+    if get_workflow_command(project_dir, session_id) != "spec":
+        return None
+    if not transcript_path or not Path(transcript_path).is_file():
+        return None
+    spec_id = derive_spec_id_from_transcript(transcript_path)
+    if spec_id is None:
+        return None
+    spec_dir = project_dir / "docs" / "dev" / "specs" / spec_id
+    if not (spec_dir / "views").is_dir():
+        return None
+    return spec_dir
+
+
 def main():
     data = read_stdin()
     if data.get("stop_hook_active", False):
         sys.exit(0)
 
-    session_id = data.get("session_id", "default")
     project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
-
-    if get_workflow_command(project_dir, session_id) != "spec":
-        sys.exit(0)
-
-    specs_base = project_dir / "docs" / "dev" / "specs"
-    spec_dir = find_latest_spec(specs_base)
+    spec_dir = resolve_target_spec_dir(data, project_dir)
     if spec_dir is None:
         sys.exit(0)
 
+    specs_base = project_dir / "docs" / "dev" / "specs"
     monolith = find_monolith(specs_base, spec_dir)
     if monolith is None or not Path(SPEC_VERIFY).is_file():
         sys.exit(0)
+
+    # Non-blocking breadcrumb — stderr is only surfaced when the hook blocks.
+    sys.stderr.write(f"[stop-spec-coverage-enforce] target spec: {spec_dir.name}\n")
 
     result = run_coverage_check(monolith, spec_dir / "views")
     if result.returncode == 0:
