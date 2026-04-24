@@ -404,8 +404,32 @@ if echo "$COMMAND" | grep -qE 'git\s+reset\s+--hard\b' && \
   echo "Command: $COMMAND" >&2
   echo "REASON: reset --hard to an older commit rewrites branch history and discards work." >&2
   echo "Safe: 'git reset --hard' or 'git reset --hard HEAD' (no commit arg) — just resets working tree." >&2
-  echo "For recovery, prefer 'git revert HEAD' (only the most recent commit) or 'git checkout -b recovery <ref>'. To revert older commits, ask the user." >&2
+  echo "For recovery, prefer 'git revert HEAD' (main agent only, with user consent) or 'git checkout -b recovery <ref>'. To revert older commits, ask the user." >&2
   exit 2
+fi
+
+# Block: subagent-initiated git history mutation (2026-04-23 incident)
+# Subagents have weak context and cannot reliably know whether the user has consented.
+# All git history changes by subagents must be surfaced to the user instead.
+# Detection: parse stdin JSON for agent_id (matches pretool-orchestrator-gate.py mechanism).
+IS_SUBAGENT=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
+if [ "$IS_SUBAGENT" = "1" ]; then
+  if echo "$COMMAND" | grep -qE 'git[[:space:]]+(revert|commit|merge|cherry-pick|rebase|push)([[:space:]]|$)'; then
+    echo "BLOCKED: Subagent-initiated git history mutation is FORBIDDEN" >&2
+    echo "Command: $COMMAND" >&2
+    echo "REASON: On 2026-04-23, a dev subagent ran 'git revert 1204d62 --no-edit' on the" >&2
+    echo "nested .claude repo, undoing a user-approved feature commit. The user had stated" >&2
+    echo "'禁止 full revert' but the subagent had no real-time access to that constraint." >&2
+    echo "Subagents must NEVER mutate git history. Tell the user what you want done" >&2
+    echo "and ask them to run the command themselves." >&2
+    echo "Allowed git verbs for subagents: status, log, show, diff, blame, ls-tree, ls-files, branch (read-only), worktree list." >&2
+    exit 2
+  fi
+  if echo "$COMMAND" | grep -qE 'git[[:space:]]+branch[[:space:]]+-D[[:space:]]'; then
+    echo "BLOCKED: Subagent-initiated branch deletion is FORBIDDEN" >&2
+    echo "Command: $COMMAND" >&2
+    exit 2
+  fi
 fi
 
 # Block: git revert <commit-hash> or git revert HEAD~N (N>=1)

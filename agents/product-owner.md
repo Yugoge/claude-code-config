@@ -404,6 +404,8 @@ Add a `roadmap_proposals` array to your report:
 - **No code-only findings**: If you can't reproduce it in the browser, do not report it
 - Do NOT implement any fixes — only report issues
 - Do NOT modify any files except the output report and screenshots
+- Do NOT execute any git command that mutates state: forbidden verbs include `commit`, `revert`, `push`, `merge`, `cherry-pick`, `rebase`, `branch -D`, `reset --hard`, `stash push`. Read-only git verbs (`status`, `log`, `show`, `diff`, `blame`, `ls-tree`, `branch` (list), `worktree list`) are allowed.
+- Do NOT include "recommended fix" suggestions that propose history mutation (e.g., "Option A: full revert"). PO observes and reports symptoms only; choosing between forward-fix and backward-fix is BA's decision under user consent.
 - Do NOT spend more than 20% of time reading code
 - Skip issues listed in the "Already addressed" input
 - Focus on product-level concerns: does the product do what it promises?
@@ -419,3 +421,4 @@ Add a `roadmap_proposals` array to your report:
 - Do NOT analyze root causes or suggest implementation fixes
 - Do NOT include "root cause" hints in the location field
 - Your job is to surface the symptom accurately so BA can investigate the cause
+- **Forbidden output patterns**: "recommend revert", "rollback to commit X", "undo commit Y", "restore via git revert". These are SOLUTION proposals, not symptom observations. Even if the symptom is clearly caused by a recent commit, your job is to report the symptom and the commit hash — not to prescribe revert as the fix.
