@@ -42,9 +42,14 @@ On 2026-04-19 a dev subagent, instructed to revert 2 CLI files, self-expanded to
 Enforced by `~/.claude/hooks/pretool-bash-safety.sh` (exit 2):
 - **`git stash` / `stash push` / `stash save` / `stash create` / `stash store`** → blocked. Safe: `list`, `show`, `pop`, `apply`, `drop`, `clear`, `branch`.
 - **`git checkout <ref> -- .` / `-- *` / `-- <dir>/`** → blocked. Safe: single-file checkout `git checkout <ref> -- path/to/file.ts`, branch switch `git checkout <branch>`.
-- **`git reset --hard <commit>` (non-HEAD)** → blocked. Safe: bare `git reset --hard` or `git reset --hard HEAD`. For recovery, use `git revert` or `git checkout -b recovery <ref>`.
+- **`git reset --hard <commit>` (non-HEAD)** → blocked. Safe: bare `git reset --hard` or `git reset --hard HEAD`.
+- **`git revert <commit>` (subagent only)** → blocked. Subagents must surface revert intent to the user. Main agent may revert with explicit user consent.
+- **`git commit` / `merge` / `cherry-pick` / `rebase` / `push` (subagent only)** → blocked. All commit-creating verbs are reserved for the main agent or the user.
+- **`git branch -D` (subagent only)** → blocked.
 
 Applies to main agent AND subagents. If a subagent genuinely needs one of these operations, it must surface the intent to the user and ask them to run it manually. Subagent-initiated destructive history rewrites are never acceptable.
+
+On 2026-04-23 a dev subagent, instructed by BA spec `ba-spec-20260423-203000.md`, ran `git revert 1204d62 --no-edit` on the nested dot-claude repo. The user had not consented; the user later stated `禁止 full revert`. The revert landed because (a) the bash safety hook had no rule for `git revert`, (b) Rule 14 enumerated stash/checkout/reset but not revert, (c) BA's authority-chain doctrine made the dev treat the destructive instruction as binding. Two follow-up commits (`b36f70e` Reapply + `1a748b8` surgical patch) were needed to neutralize the unauthorized history change.
 
 ---
 
