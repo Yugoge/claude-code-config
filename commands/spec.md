@@ -15,7 +15,7 @@ You manage spec files. `$ARGUMENTS` may be empty or hold the user's first requir
 ### Step 1: Parse $ARGUMENTS
 
 - **Non-empty non-flag text**: treat as the first requirement. Skip to Step 3.
-- **Empty**: ask ONCE — "What do you want to spec?" — and wait for the user's response. Use the response as the first requirement.
+- **Empty**: ask once, briefly and naturally — one sentence, first-person, match the user's energy and language (en or zh). Do not use a fixed phrase; vary wording. Then wait for the response and use it as the first requirement.
 
 Do NOT ask multiple framing questions. No "deep-dive", no "acceptance criteria" interview, no preview-and-confirm gate.
 
@@ -63,7 +63,7 @@ Adapted from `/dev` BA clarification pattern (dev.md Step 4 loop, max 3 rounds, 
    ```
    Findings integrate when they arrive (see Step 4). Discrepancies may surface as a single targeted question but do NOT gate the loop.
 
-6. Acknowledge briefly: `Spec written at <spec_path>. Send more requirements to append; say thanks/谢谢 when done.`
+6. Acknowledge that the spec was written. Include the full `<spec_path>` so the user knows where it landed. Convey that more requirements can be added whenever they are ready. Keep it brief and natural — first-person, match the user's language and energy, no fixed template.
 
 **Do NOT** run split / checkpoints / QA yet. Finalize happens exactly once in Step 6.
 
@@ -80,7 +80,7 @@ After Step 3, wait for the next user message and branch:
   <verbatim requirement text>
   ```
   `N` increments from 2 (the first requirement populates Section 5; subsequent requirements become 5.2, 5.3, …). Then loop back to wait.
-- **Exploration findings arrive** → integrate into Section 1 (Before) silently. If a finding contradicts the user's description, surface one targeted question ("I looked at X and found Y — does that match?") then loop back. Never gate the loop on exploration.
+- **Exploration findings arrive** → integrate into Section 1 (Before) silently. If a finding contradicts the user's description, surface one targeted question — for example, "I looked at X and found Y — does that match?" — then loop back. Never gate the loop on exploration.
 - **Mid-loop vague input** → apply Step 2 logic (max 3 rounds) to that single message before appending, then loop back.
 
 Maintain `turn_count` internally (not user-visible), increment after each user response. No hard turn cap — termination is signal-driven.
