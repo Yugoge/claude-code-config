@@ -88,7 +88,38 @@ The main agent is the orchestrator. Prefer delegating real work to subagents (Ag
 
 ## 🚫 Safety Enforcement
 
-Enforced by `~/.claude/hooks/pretool-bash-safety.sh` (PreToolUse). See the hook source for the current rule set.
+Enforced by `~/.claude/hooks/pretool-bash-safety.sh` (PreToolUse). Hook is the authoritative source.
+
+Enforced categories (paraphrase labels — see hook for exact patterns):
+- Session-critical scripts: three named operational scripts permanently forbidden (lines 92–115)
+- Sensitive file redirects: credential/secret/env files written via shell redirect (lines 119–131)
+- Destructive disk operations: low-level block-device commands (lines 133–138)
+- Docker daemon control: daemon stop/restart/disable and daemon config modification (lines 140–152)
+- Production container lifecycle: stop/restart/remove/kill of happy production containers (lines 154–162)
+- Container orchestration teardown: compose down/stop/restart (lines 164–169)
+- Container image prune: full system prune of all images (lines 171–176)
+- Named-process termination: name-based terminate targeting infra service processes (lines 178–183)
+- Signal-bearing process kill: terminate command with signal flags (lines 185–190)
+- Service lifecycle management: unit stop/restart/disable/enable for non-dev services (lines 192–200)
+- Workflow state file protection: remove/move targeting workflow enforcement files (lines 202–208)
+- Filesystem removal: the remove-files command (use manual deletion or ask user) (lines 210–215)
+- Source tree contamination: file-copy from external dev paths into production source (lines 217–229)
+- Web-app image build guard: build of webapp image requires correct server URL argument (lines 231–244)
+- Production database writes: direct SQL mutation on production database containers (lines 246–258)
+- Container orchestration up/build for non-dev services: only whitelisted dev services allowed (lines 260–287)
+- HTTP mutation to session-creating endpoints: API calls that create or modify sessions (lines 289–295)
+- HTTP access to production API: any request to production host from dev environment (lines 297–304)
+- Global package installation: installing packages to system-wide registry (lines 308–317)
+- Global CLI binary invocation: invoking the production binary directly (lines 319–327)
+- Numeric PID termination: terminate command with bare process IDs (lines 329–337)
+- Global binary modification: writing to the shared production binary install paths (lines 339–346)
+- Dev daemon isolation: dev daemon service must not reference the production binary (lines 348–356)
+- Git stash destructive forms: stash commands that create a new stash entry (lines 368–384)
+- Git wide-path subtree checkout: ref-based checkout targeting a directory or wildcard (lines 386–398)
+- Git non-HEAD hard reset: hard reset to any commit other than HEAD (lines 400–409)
+- Subagent history mutations: history-mutating verbs and branch deletion blocked for subagents (lines 411–433)
+- Git historical revert: revert targeting a hash or HEAD offset greater than zero (lines 435–455)
+- Force-push to remote: WARN only (not blocked) — rewrites remote history (lines 457–461)
 
 ---
 
