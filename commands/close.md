@@ -5,7 +5,7 @@ description: Wrapper - ask QA agent to debate with codex and return CLOSE YES/NO
 # /close
 
 True wrapper. Three steps total:
-1. Load input (newest ba-spec + qa-report at top-level `docs/dev/` or explicit argument).
+1. Load input (spec from `$ARGUMENTS` or from the calling conversation's context).
 2. Invoke the QA subagent ONCE with a debate prompt. QA runs the multi-round debate with codex INTERNALLY (using the Skill tool) and returns a single verdict line.
 3. Print whatever verdict line QA returned.
 
@@ -14,10 +14,11 @@ The orchestration of rounds, the calls to codex, the evaluation of agreement, an
 ## Invocation
 
 ```
-/close                               # auto-detect newest top-level ba-spec + qa-report
 /close 20260424-074346               # timestamp token -> docs/dev/ba-spec-<ts>.md + qa-report-<ts>.json
 /close docs/dev/ba-spec-20260424.md  # explicit path
 ```
+
+When invoked mid-conversation without an argument, the orchestrator identifies the current dev cycle's spec from conversation context (it just ran /dev in the same session) and embeds those paths directly into Step 2's QA prompt. No filesystem scan, no default-to-newest.
 
 ## Workflow
 
@@ -33,15 +34,10 @@ Compute a timestamp for the report filename:
 TS=$(date +%Y%m%d-%H%M%S)
 ```
 
-Determine input files:
-- If $ARGUMENTS contains `/` or ends in `.md`/`.json`: treat as explicit path. Verify it exists; fail clearly if not.
-- Else if $ARGUMENTS matches a timestamp pattern (YYYYMMDD-HHMMSS or similar): look for `docs/dev/ba-spec-${ARGUMENTS}.md` and `docs/dev/qa-report-${ARGUMENTS}.json`.
-- Else (no argument): auto-detect the newest match from the top level of `docs/dev/` only (do NOT descend into `docs/dev/specs/`):
-  ```bash
-  BA_SPEC=$(find docs/dev -maxdepth 1 -type f -name "ba-spec-*.md" -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -n1 | cut -d" " -f2-)
-  QA_REPORT=$(find docs/dev -maxdepth 1 -type f -name "qa-report-*.json" -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -n1 | cut -d" " -f2-)
-  ```
-  If both empty: print `No ba-spec or qa-report found in docs/dev/. Provide a path: /close <path>` and exit.
+Resolve the spec to evaluate (in priority order):
+- If `$ARGUMENTS` is an explicit path (ends in `.md`/`.json` or contains `/`): use that path. Verify it exists; fail clearly if not.
+- Elif `$ARGUMENTS` matches a timestamp pattern (e.g. `20260424-103044`): use `docs/dev/ba-spec-${ARGUMENTS}.md` and `docs/dev/qa-report-${ARGUMENTS}.json`. Verify both exist.
+- Else (no argument): the orchestrator invoking /close MUST already know this conversation's dev artifacts from context (it just ran /dev in the same session). It embeds those paths directly into Step 2's QA prompt. There is NO filesystem scan and NO default-to-newest. If the orchestrator cannot identify the spec from context, exit with: `No spec identified. Either run /close within a conversation that just completed /dev, or provide an explicit path/timestamp.`
 
 Also optionally note companion files if they exist at the same timestamp: `context-<ts>.json`, `dev-report-<ts>.json`.
 
