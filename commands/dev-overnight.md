@@ -88,6 +88,33 @@ Step 1: Read state file + enter worktree (first run only)
 
 ---
 
+## Overnight Incident Lessons (2026-03-28)
+
+**NON-NEGOTIABLE.** Full stories: `docs/incidents-2026-03-28.md`.
+
+### Rule 1: Never weaken checks to "fix" failures
+If validation rejects output, fix the upstream code producing the output. Never lower thresholds, swallow exceptions, change error→warning, or skip validation.
+
+### Rule 2: PM only prioritizes — PM never proposes solutions
+PM ranks issues by severity and orders pipelines. Solutions are BA's and Dev's job.
+
+### Rule 3: Specialists report symptoms only — no root cause, no fix suggestions
+Specialists observe and report. Root cause analysis is exclusively BA's job.
+
+### Rule 4: Always compare with reference implementation BEFORE fixing
+When the user says "align with X", every fix must be validated against X's behavior.
+
+### Rule 5: Output quality > no errors
+QA passing means HIGH QUALITY output, not just "no exceptions".
+
+### Rule 6: Never make "improvements" the user didn't ask for
+If the user didn't report it as broken, don't change it. Don't add features, rename, or fill empty space.
+
+### Rule 7: Global agent files must be project-agnostic
+Files in `~/.claude/agents/` and `~/.claude/commands/` apply to ALL projects. No project-specific examples.
+
+---
+
 ## Arguments
 
 ```

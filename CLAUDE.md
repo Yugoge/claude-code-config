@@ -18,15 +18,6 @@
 
 **NON-NEGOTIABLE.** Full stories: `docs/incidents-2026-04-04.md`.
 
-### 8. NEVER npm install -g from dev/worktree/overnight environments
-Global binary is shared by ALL daemons. Only the user installs the global CLI manually from `/root/happy`.
-
-### 9. NEVER invoke the global happy CLI binary from agents
-`/usr/bin/happy` can trigger auto-upgrade on version mismatch and kill all daemons. Use dev daemon's HTTP control port or `node <path>/dist/index.mjs` directly.
-
-### 10. NEVER kill PIDs directly — use service controls
-Use `systemctl restart happy-daemon-dev` or the daemon HTTP `/stop` endpoint, NEVER `kill <PID>`.
-
 ### 11. Subagent prompts must explicitly list what is FORBIDDEN, not just what is allowed
 Every infrastructure-touching subagent prompt needs an explicit "DO NOT" section; positive instructions alone are insufficient.
 
@@ -35,21 +26,6 @@ Code review, bundle grep, and curl are NEVER sufficient. Trigger content via UI,
 
 ### 13. NEVER let a single subagent handle multiple tasks (multitask)
 Each subagent invocation handles exactly ONE issue. Launch multiple subagents in parallel for multiple issues — never bundle.
-
-### 14. NEVER let subagents run `git stash`, wide-path `git checkout <ref> -- .`, or `git reset --hard <commit>` (2026-04-19 incident)
-On 2026-04-19 a dev subagent, instructed to revert 2 CLI files, self-expanded to a "typecheck baseline" hack: `git stash && cd packages/happy-app && git checkout 925f5960 -- .`. The wide-path checkout overwrote the entire happy-app directory with 3-27 content, silently erasing 17 days of UI work. The stash pop then failed, leaving the worktree regressed. The subagent's final report reads "something happened" — as if it were an accident — concealing that the agent itself ran the destructive command.
-
-Enforced by `~/.claude/hooks/pretool-bash-safety.sh` (exit 2):
-- **`git stash` / `stash push` / `stash save` / `stash create` / `stash store`** → blocked. Safe: `list`, `show`, `pop`, `apply`, `drop`, `clear`, `branch`.
-- **`git checkout <ref> -- .` / `-- *` / `-- <dir>/`** → blocked. Safe: single-file checkout `git checkout <ref> -- path/to/file.ts`, branch switch `git checkout <branch>`.
-- **`git reset --hard <commit>` (non-HEAD)** → blocked. Safe: bare `git reset --hard` or `git reset --hard HEAD`.
-- **`git revert <commit>` (subagent only)** → blocked. Subagents must surface revert intent to the user. Main agent may revert with explicit user consent.
-- **`git commit` / `merge` / `cherry-pick` / `rebase` / `push` (subagent only)** → blocked. All commit-creating verbs are reserved for the main agent or the user.
-- **`git branch -D` (subagent only)** → blocked.
-
-Applies to main agent AND subagents. If a subagent genuinely needs one of these operations, it must surface the intent to the user and ask them to run it manually. Subagent-initiated destructive history rewrites are never acceptable.
-
-On 2026-04-23 a dev subagent, instructed by BA spec `ba-spec-20260423-203000.md`, ran `git revert 1204d62 --no-edit` on the nested dot-claude repo. The user had not consented; the user later stated `禁止 full revert`. The revert landed because (a) the bash safety hook had no rule for `git revert`, (b) Rule 14 enumerated stash/checkout/reset but not revert, (c) BA's authority-chain doctrine made the dev treat the destructive instruction as binding. Two follow-up commits (`b36f70e` Reapply + `1a748b8` surgical patch) were needed to neutralize the unauthorized history change.
 
 ---
 
@@ -67,33 +43,6 @@ All automated snapshots (PostToolUse threshold, Stop hooks, fswatch daemon, manu
 **Logs**: `~/.claude/logs/checkpoint.log`, `~/.claude/logs/checkpoint-push.log` (push rate-limited to once per 30s, never `-f`).
 
 **`/push` behaviour**: no longer auto-commits. Dirty tree → exits non-zero. Use `/checkpoint` (snapshot-only) or `git commit` first.
-
----
-
-## 🚨 Overnight Incident Lessons (2026-03-28)
-
-**NON-NEGOTIABLE.** Full stories: `docs/incidents-2026-03-28.md`.
-
-### 1. Never weaken checks to "fix" failures
-If validation rejects output, fix the upstream code producing the output. Never lower thresholds, swallow exceptions, change error→warning, or skip validation.
-
-### 2. PM only prioritizes — PM never proposes solutions
-PM ranks issues by severity and orders pipelines. Solutions are BA's and Dev's job.
-
-### 3. Specialists report symptoms only — no root cause, no fix suggestions
-Specialists observe and report. Root cause analysis is exclusively BA's job.
-
-### 4. Always compare with reference implementation BEFORE fixing
-When the user says "align with X", every fix must be validated against X's behavior.
-
-### 5. Output quality > no errors
-QA passing means HIGH QUALITY output, not just "no exceptions".
-
-### 6. Never make "improvements" the user didn't ask for
-If the user didn't report it as broken, don't change it. Don't add features, rename, or fill empty space.
-
-### 7. Global agent files must be project-agnostic
-Files in `~/.claude/agents/` and `~/.claude/commands/` apply to ALL projects. No project-specific examples.
 
 ---
 
@@ -137,10 +86,9 @@ The main agent is the orchestrator. Prefer delegating real work to subagents (Ag
 
 ---
 
-## 🚫 Safety Enforcement (via hooks)
+## 🚫 Safety Enforcement
 
-Docker/process safety rules are enforced by `~/.claude/hooks/pretool-bash-safety.sh` (PreToolUse hook).
-The hook blocks: Docker daemon ops, happy container stop/restart, kill -9, systemctl stop/restart, docker-compose down, docker system prune -a.
+Enforced by `~/.claude/hooks/pretool-bash-safety.sh` (PreToolUse). See the hook source for the current rule set.
 
 ---
 
