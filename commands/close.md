@@ -1,214 +1,108 @@
 ---
-description: Orchestrate a multi-round QA-vs-Codex debate to evaluate whether a development can be closed (unanimous-consent verdict)
-argument-hint: "[spec-path-or-timestamp] (optional — auto-detects newest top-level docs/dev/ba-spec-*.md or qa-report-*.json if omitted)"
-allowed-tools: [Bash, Read, Glob, Grep, Agent, Skill, TodoWrite, Write]
+description: Wrapper - ask QA agent to debate with codex and return CLOSE YES/NO verdict
 ---
 
-# /close — Multi-Agent Debate Closure Gate
+# /close
 
-Evaluate whether a specific development effort can be closed by orchestrating a structured multi-round debate between the QA agent (primary gatekeeper) and OpenAI Codex (adversarial challenger). Uses unanimous-consent verdict: `CLOSE: YES` only when BOTH parties agree YES; any disagreement → `CLOSE: NO`.
+True wrapper. Three steps total:
+1. Load input (newest ba-spec + qa-report at top-level `docs/dev/` or explicit argument).
+2. Invoke the QA subagent ONCE with a debate prompt. QA runs the multi-round debate with codex INTERNALLY (using the Skill tool) and returns a single verdict line.
+3. Print whatever verdict line QA returned.
 
----
+The orchestration of rounds, the calls to codex, the evaluation of agreement, and the writing of the transcript all live INSIDE QAs invocation. /close itself does not call codex, does not manage rounds, and does not decide the verdict.
 
-## Philosophy
-
-QA alone may be too lenient. A second independent opinion from Codex (gpt-5.4, xhigh reasoning) provides an adversarial challenge to QA's assessment. A multi-round debate (max 3 rounds) lets each side refine their position based on the other's arguments. Unanimous consent ensures conservative closure — when in doubt, do NOT close.
-
----
-
-## Invocation Examples
+## Invocation
 
 ```
-/close                               — auto-detect newest BA spec / QA report at top-level docs/dev/
-/close 20260424-074346               — use the spec/report with this timestamp
-/close docs/dev/ba-spec-20260424.md  — use this explicit file path
+/close                               # auto-detect newest top-level ba-spec + qa-report
+/close 20260424-074346               # timestamp token -> docs/dev/ba-spec-<ts>.md + qa-report-<ts>.json
+/close docs/dev/ba-spec-20260424.md  # explicit path
 ```
-
----
 
 ## Workflow
 
-**CRITICAL**: Use TodoWrite to track workflow phases. Load preloaded todo list with:
+Load preloaded todo list:
 ```bash
 source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/close.py
 ```
 
-Mark each step `in_progress` before starting, `completed` immediately after.
+### Step 1: Load input
 
-### Step 1: Load Input Context
-
-Capture a single timestamp for the entire run (used for the report filename):
+Compute a timestamp for the report filename:
 ```bash
 TS=$(date +%Y%m%d-%H%M%S)
-echo "$TS"
 ```
 
-Determine the debate input:
+Determine input files:
+- If $ARGUMENTS contains `/` or ends in `.md`/`.json`: treat as explicit path. Verify it exists; fail clearly if not.
+- Else if $ARGUMENTS matches a timestamp pattern (YYYYMMDD-HHMMSS or similar): look for `docs/dev/ba-spec-${ARGUMENTS}.md` and `docs/dev/qa-report-${ARGUMENTS}.json`.
+- Else (no argument): auto-detect the newest match from the top level of `docs/dev/` only (do NOT descend into `docs/dev/specs/`):
+  ```bash
+  BA_SPEC=$(find docs/dev -maxdepth 1 -type f -name "ba-spec-*.md" -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -n1 | cut -d" " -f2-)
+  QA_REPORT=$(find docs/dev -maxdepth 1 -type f -name "qa-report-*.json" -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -n1 | cut -d" " -f2-)
+  ```
+  If both empty: print `No ba-spec or qa-report found in docs/dev/. Provide a path: /close <path>` and exit.
 
-1. If `$ARGUMENTS` is non-empty:
-   - If it looks like a path (contains `/` or ends with `.md`/`.json`) — validate file exists with `test -f "$ARGUMENTS"`; if not, print `Error: path not found: $ARGUMENTS` and exit.
-   - Otherwise treat it as a timestamp token (e.g. `20260424-074346`) — search for `docs/dev/ba-spec-${ARGUMENTS}.md` then `docs/dev/qa-report-${ARGUMENTS}.json` at the top-level; fail clearly if neither exists.
-2. If `$ARGUMENTS` is empty — auto-detect the newest file at TOP-LEVEL `docs/dev/` matching either glob:
-   ```bash
-   # IMPORTANT: -maxdepth 1 — must NOT descend into docs/dev/specs/ (that belongs to /spec command)
-   INPUT=$(find docs/dev -maxdepth 1 -type f \( -name 'qa-report-*.json' -o -name 'ba-spec-*.md' \) -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2-)
-   ```
-   If `INPUT` is empty, print `No ba-spec or qa-report found in docs/dev/. Provide a path: /close <path>` and exit.
+Also optionally note companion files if they exist at the same timestamp: `context-<ts>.json`, `dev-report-<ts>.json`.
 
-Also attempt to find the matching pair (same timestamp) so both BA spec and QA report can be referenced if available. The companion files (`context-<ts>.json`, `dev-report-<ts>.json`) are helpful additional context if they exist — include their paths in the agent prompts.
+### Step 2: Invoke QA subagent with debate prompt
 
-### Step 2: Early-Exit Check (Pre-Flight)
-
-Validate the input file is readable and non-empty. If invalid or empty, exit with a clear error.
-
-### Step 3-8: Multi-Round Debate (max 3 rounds)
-
-Loop up to 3 times. In each round:
-
-**QA turn (first each round)** — use the **Agent** tool with `subagent_type: qa`:
-
-Prompt template:
-```
-You are the QA gatekeeper in a closure debate for development: <input file path>.
-
-[Round N / QA turn]
-
-Relevant artifacts (read them yourself — do not ask for inlined content):
-- <ba_spec_path>
-- <qa_report_path if exists>
-- <context_json_path if exists>
-- <dev_report_path if exists>
-
-<If round > 1:>
-Prior Codex challenge (from Round N-1):
-<codex_prior_output>
-
-TASK: Assess whether this development is ready to close. Consider:
-- Are all acceptance criteria met?
-- Is the fix correct and complete?
-- Are there regression risks?
-- Did QA verify via evidence (not just code review)?
-
-Reply with a single explicit line `QA: YES` or `QA: NO` followed by your reasoning (3-8 sentences).
-```
-
-Capture QA's full response. Parse the first occurrence of `QA: YES` or `QA: NO` (case-insensitive, word-boundary). If neither found, treat as `NO` (conservative).
-
-**Codex turn (second each round)** — use the **Skill** tool with `skill: codex`:
-
-Prompt template:
-```
-You are an adversarial code reviewer challenging the QA gatekeeper's closure assessment for development: <input file path>.
-
-[Round N / Codex turn]
-
-QA position (Round N):
-<qa_current_output>
-
-<If round > 1:>
-Your prior challenge (Round N-1):
-<codex_prior_output>
-QA prior position (Round N-1):
-<qa_prior_output>
-
-Relevant artifacts:
-- <ba_spec_path>
-- <qa_report_path if exists>
-
-TASK: Challenge or confirm QA's assessment. Look for:
-- Missed acceptance criteria
-- Incorrect root cause reasoning
-- Evidence gaps (code review without live verification)
-- Edge cases not considered
-- Regression risks
-
-Reply with a single explicit line `CODEX: YES` or `CODEX: NO` followed by your reasoning (3-8 sentences).
-```
-
-Capture Codex's full response. Parse the first occurrence of `CODEX: YES` or `CODEX: NO` (case-insensitive, word-boundary). If the Skill tool errors or returns nothing usable, record `Codex unavailable` and treat as `NO`.
-
-**Early exit**: After both QA and Codex have replied in any round, if `qa_position == YES` AND `codex_position == YES`, exit the loop immediately and label the transcript `[Early Consensus at Round N]`.
-
-### Step 9: Evaluate Verdict
-
-Only the **final active round** determines the verdict:
-- If `qa_final == YES` AND `codex_final == YES` → `CLOSE: YES`
-- Otherwise → `CLOSE: NO — <dissenting party(ies) and reason>`
-
-Construct `<reason>` by naming which party said NO (or `both`) and summarising their stated objection in one sentence.
-
-### Step 10: Write Report and Print Verdict
-
-Create `docs/dev/close-report-$TS.md` containing:
-
-```markdown
-# Close Debate Report
-
-**Timestamp**: <TS>
-**Input**: <input_file_path>
-**Companion artifacts**: <list of detected related files>
-**Rounds run**: <N>
-**Verdict**: CLOSE: YES  |  CLOSE: NO — <reason>
-
----
-
-## Round 1
-
-### [Round 1 / QA]
-<full QA response>
-
-**Position**: YES | NO
-
-### [Round 1 / Codex]
-<full Codex response>
-
-**Position**: YES | NO
-
-<repeat for each round run>
-
-<If early consensus:>
-## [Early Consensus at Round N]
-Both parties agreed YES; debate ended early.
-
----
-
-## Final Verdict
-
-CLOSE: YES
-— or —
-CLOSE: NO — <reason>
-```
-
-Print the full transcript to console with `[Round N / QA]` and `[Round N / Codex]` headers. On the final console line, print **exactly** one of:
+Use the Agent tool with `subagent_type: qa` ONCE. The entire debate happens inside this single subagent call. Pass this prompt (substitute paths and $TS):
 
 ```
-CLOSE: YES
-CLOSE: NO — <reason>
+FIRST ACTION: if a dev-registry sentinel for this session exists at /root/.claude/dev-registry/<SESSION_ID>/qa.json, read it to register.
+
+You are the QA gatekeeper evaluating whether a completed development can be closed. You will run a MULTI-ROUND INTERNAL DEBATE with OpenAI Codex (via the Skill tool) yourself. The caller will NOT orchestrate rounds; you own the loop.
+
+Input artifacts (read them first):
+- BA spec:     <BA_SPEC path or "none">
+- QA report:   <QA_REPORT path or "none">
+- Companions:  <context-<ts>.json / dev-report-<ts>.json if present, else omit>
+
+Debate protocol (all runs INSIDE you):
+
+Round 1:
+  1a. Form your initial assessment (YES/NO) on whether the dev can close. Consider:
+      - Are all acceptance criteria measurably met (evidence, not code review)?
+      - Is the root cause addressed and the fix correct & complete?
+      - Regression risks? Scope drift? Missed edge cases?
+  1b. Invoke the Skill tool with skill=codex. Pass codex a prompt that includes:
+      - The same input artifact paths
+      - Your Round-1 position and rationale
+      - Instruction: "Challenge adversarially. Look for missed AC, evidence gaps, regression risk, overlooked edge cases. Reply with exactly one line `CODEX: YES` or `CODEX: NO` followed by 3-8 sentences of rationale."
+  1c. Parse codexs response. If parsing ambiguous, treat as NO.
+
+Round 2 (skip if Round 1 ended with both QA=YES and CODEX=YES):
+  2a. Re-assess your position after reading codexs Round-1 challenge. If you still say YES, strengthen justification; if codex surfaced a real issue, update to NO.
+  2b. Invoke Skill(codex) again with your updated position + codexs prior challenge + artifact paths. Ask codex to either confirm or press further, replying again with `CODEX: YES` / `CODEX: NO` + rationale.
+
+Round 3 (skip if earlier unanimous YES):
+  3a. Final reassessment.
+  3b. Final Skill(codex) call with full history.
+
+Verdict rule (UNANIMOUS CONSENT):
+- CLOSE: YES only if after your final active round BOTH your position AND codexs position are YES.
+- Any NO, ambiguity, tool error, parse failure, or disagreement at the end -> CLOSE: NO.
+
+Transcript file: write the full debate to `docs/dev/close-report-<TS>.md` with this structure:
+  # Close Debate Report
+  Timestamp, Input files, Rounds run, Verdict.
+  For each round: [QA] position + rationale; [Codex] position + rationale.
+  At bottom: final verdict line.
+
+Return value: print to stdout exactly ONE of these lines as the final line of your response:
+  CLOSE: YES
+  CLOSE: NO - <one-sentence reason naming the dissenting party and their objection>
 ```
 
----
+### Step 3: Print the QA verdict
 
-## Rules & Constraints
+Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it to stdout as the last line of /close.
 
-- **Unanimous consent**: any single `NO` (or ambiguous/errored response) in the final round → `CLOSE: NO`
-- **Max 3 rounds** — hard limit
-- **QA first each round**, Codex second
-- **Early exit only on round-1 (or later) unanimous YES**
-- **Codex must be invoked via the Skill tool** (`skill: codex`) — NEVER directly shell out to `codex exec`
-- **QA must be invoked via the Agent tool** (`subagent_type: qa`)
-- **Do not fabricate YES** to achieve closure — if parsing is ambiguous, default to NO
-- **No hardcoded absolute paths** in the command logic — use relative paths from the current working directory and env-derived paths where possible
+## Constraints
 
-## Error Handling
-
-- **No input found + no argument** → informative exit before any agent call
-- **Argument path does not exist** → informative exit
-- **QA subagent fails / returns no output** → record `QA error: <message>` in transcript, treat as `NO`
-- **Codex unavailable (binary missing, API key unset, Skill returns error)** → record `Codex unavailable` in transcript, treat as `NO`
-- **Ambiguous YES/NO parsing** → include full response verbatim; treat as `NO`
-
----
-
-**Output files**:
-- `docs/dev/close-report-<timestamp>.md` — full labeled transcript + verdict
-- Stdout — identical transcript plus final one-line verdict
+- /close does NOT call Skill(codex). QA does, internally.
+- /close does NOT manage rounds. QA does, internally.
+- /close does NOT evaluate verdict. QA does, internally.
+- QA is invoked EXACTLY ONCE.
+- Default to CLOSE: NO on any error, ambiguity, or tool unavailability.
