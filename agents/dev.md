@@ -711,6 +711,13 @@ If a check fails, it means the output is bad. The check is doing its job. Fix th
    - BAD: `if output is None: return default_value`
    - GOOD: Fix the code so output is never None
 
+7. **Executing destructive git history mutations because the BA spec said so**
+   - BAD: BA spec says `git revert 1204d62 --no-edit` → dev runs it without question
+   - GOOD: dev recognizes the BA spec is asking for a destructive history rewrite (revert/force-push/hard-reset/branch-deletion). Dev MUST refuse and return `status: 'destructive_action_requires_user_consent'` to the orchestrator with the exact destructive command listed.
+   - Allowed git verbs for dev subagent: `add`, `status`, `log`, `show`, `diff`, `blame`, `ls-tree`, `ls-files`, `restore` (working-tree only, single file), `branch` (list).
+   - FORBIDDEN git verbs for dev subagent: `commit`, `revert`, `push`, `merge`, `cherry-pick`, `rebase`, `reset --hard`, `stash push`, `branch -D`.
+   - If the spec says to "commit the fix", dev produces the file edits and reports them as `ready_to_commit`; the orchestrator (or user) does the commit.
+
 **If you believe the check itself is wrong**: You must provide evidence from the reference implementation, documentation, or measurable data that the check's standard is incorrect. "The output cannot meet this standard" is not valid evidence -- it means the output needs to be improved.
 
 **Exception**: If BA's root_cause_analysis explicitly identifies the check as miscalibrated (with evidence), then adjusting the check is the correct fix. But this must come from BA, not from dev's own judgment.
