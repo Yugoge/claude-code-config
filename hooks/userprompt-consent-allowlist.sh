@@ -68,6 +68,28 @@ if [ -z "$PATTERN" ]; then
   exit 0
 fi
 
+# ── V1b: structural rejection of catastrophic-backtracking regex shapes ──
+# Defense-in-depth for V1 (SIGALRM consumer-side timeout). Reject nested-quantifier
+# patterns like (a+)+, (a*)*, (a|b)+ at WRITE time so they never reach the consumer.
+# Heuristic: body contains '(...)' with '+' or '*' inside the group AND the group is
+# followed by '+' or '*' — structural shape of catastrophic backtracking.
+if [ "$IS_REGEX" = "true" ]; then
+  STRUCT_CHECK=$(ALLOW_PATTERN="$PATTERN" python3 -c "
+import os, re, sys
+p = os.environ['ALLOW_PATTERN']
+# Nested-quantifier detector: group containing + or *, followed by + or *
+if re.search(r'\([^)]*[+*][^)]*\)[+*]', p):
+    print('REJECT')
+else:
+    print('OK')
+" 2>/dev/null)
+  if [ "$STRUCT_CHECK" = "REJECT" ]; then
+    echo "[allow] ERROR: pattern rejected — contains nested quantifier (e.g., (a+)+, (a*)*) which risks catastrophic backtracking." >&2
+    echo "[allow] Use a more specific literal pattern or a bounded-quantifier regex instead." >&2
+    exit 0
+  fi
+fi
+
 # ── Step 3: write flag via env-var Python (no shell interpolation) ──
 FLAG="/tmp/claude-bash-allowlist-${SID}.json"
 ALLOW_PATTERN="$PATTERN" ALLOW_IS_REGEX="$IS_REGEX" FLAG_PATH="$FLAG" python3 -c "
