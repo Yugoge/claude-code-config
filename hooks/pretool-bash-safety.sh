@@ -100,9 +100,9 @@ check_and_consume_allowlist() {
   local cmd="$1"
 
   # IS_SUBAGENT check: INLINE fresh parse from $INPUT.
-  # The IS_SUBAGENT variable assigned at line ~415 is NOT yet set when this function is called
-  # at call sites at line ~369/~378/~389/~401/~441 (all before the IS_SUBAGENT assignment).
-  # Reusing the later var is infeasible. Inline parse is the ONLY correct approach.
+  # The IS_SUBAGENT variable assigned at line ~499 is NOT yet set when this function is called
+  # at upstream call sites (all before the IS_SUBAGENT assignment). Inline parse is the only
+  # correct approach.
   local is_sub
   is_sub=$(echo "$INPUT" | python3 -c \
     "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
@@ -120,53 +120,186 @@ check_and_consume_allowlist() {
   local flag_file="/tmp/claude-bash-allowlist-${sid}.json"
   [ ! -f "$flag_file" ] && return 1
 
-  # Safe regex/literal match: pattern and command passed to Python via environment variables.
-  # The pattern string is NEVER shell-interpolated into Python source code.
-  # This is immune to patterns containing single quotes, backslashes, or newlines.
-  local matched_flag
-  matched_flag=$(FLAG_FILE="$flag_file" CMD_INPUT="$cmd" python3 - <<'PYEOF'
-import json, os, re, sys
+  # Consolidated consume path: V1 (SIGALRM regex timeout) + V2 (flock atomic read-match-unlink) +
+  # V3 (compound-command split on && || ; | with per-subcommand match + block-rule cross-check).
+  # Pattern and command passed via environment variables — never shell-interpolated into Python.
+  local lock_file="${flag_file}.lock"
+  local consume_result
+  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" CMD_INPUT="$cmd" SID_VAL="$sid" python3 - <<'PYEOF'
+# V1: SIGALRM-only timeout (1s) around re.search to stop catastrophic-backtracking DoS.
+#     ThreadPoolExecutor fallback is PROHIBITED — it does not interrupt a running C regex.
+# V2: flock(LOCK_EX | LOCK_NB) with 3x 100ms retry; atomic unlink while lock held; finally-unlock.
+# V3: split cmd on &&, ||, ;, | (single pipe). Process || BEFORE | via sentinel placeholder.
+#     Match per-subcommand AND cross-check against embedded block-rule list. Bypass fires only
+#     when the same subcommand matches both the user's allow-pattern and a dev-class block rule.
+# NOTE: backtick substitution, $(...), <(...) process substitution, << heredoc are OUT OF SCOPE
+#       — full shell parser required. Documented limitation.
+import fcntl, json, os, re, signal, sys, time
 
 flag_file = os.environ['FLAG_FILE']
+lock_file = os.environ['LOCK_FILE']
 cmd = os.environ['CMD_INPUT']
 
-try:
-    with open(flag_file) as f:
-        data = json.load(f)
-    pattern = data.get('pattern', '')
-    is_regex = data.get('is_regex', False)
-    if not pattern:
-        print('0')
-        sys.exit(0)
-    if is_regex:
+# Dev-class block rules embedded here (must be kept in sync with the outer shell block list).
+# Each entry is a Python regex string. A subcommand is "dangerous" iff it matches ANY of these.
+BLOCK_RULES = [
+    # V4 stash forms
+    r'git\s+stash\s+(push|save|create|store|-u|--include-untracked|-a|--all)\b',
+    r'git\s+stash\s+-[ua]+\b',
+    r'git\s+stash\s*($|[;&|])',
+    # Wide-path checkout
+    r'git\s+checkout\s+\S+\s+--\s+(\.|\*|[^ ]+/)',
+    # V6 restore wide-path (two-condition joined for subcommand match).
+    # Wide-path alternative '[^ /]+/' = bare dir-segment ending in '/' — excludes src/index.ts (interior '/').
+    # Trailing boundary '(\s*$|\s+[;&|])' required only when --source/-s precedes the wide-path,
+    # so that 'src/' at end-of-token is flagged but 'src/index.ts' is not.
+    r'git\s+restore\b.*(--source\b|-s\b).*--\s+(\.|\*|[^ /]+/)(\s*$|\s+[;&|])',
+    r'git\s+restore\b.*--\s+(\.|\*|[^ /]+/)(\s*$|\s+[;&|]).*(--source\b|-s\b)',
+    # reset --hard to non-HEAD
+    r'git\s+reset\s+--hard\s+(?!HEAD(\s|$))\S+',
+    # V5 revert forms (no \b after ^/~/} — non-word chars, \b would fail at boundary)
+    r'git\s+revert\s+(\S+\s+)*[0-9a-f]{7,40}\b',
+    r'git\s+revert\s+(\S+\s+)*\S+\^+',
+    r'git\s+revert\s+(\S+\s+)*\S+~[0-9]*',
+    r'git\s+revert\s+(\S+\s+)*\S+@\{[0-9]+\}',
+]
+
+
+def _alarm_handler(signum, frame):
+    raise TimeoutError('regex timeout')
+
+
+def safe_search(pattern, text, is_regex, timeout_sec=1):
+    """Match pattern against text. Literal substring or regex with SIGALRM timeout."""
+    if not is_regex:
+        return pattern in text
+    old_handler = signal.signal(signal.SIGALRM, _alarm_handler)
+    signal.alarm(timeout_sec)
+    try:
+        return bool(re.search(pattern, text))
+    except (re.error, TimeoutError):
+        return False
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+
+def split_subcommands(raw_cmd):
+    """Split on && || ; | . Order matters: || before | so || becomes \\n\\n not \\n|\\n."""
+    s = raw_cmd.replace('||', '\n').replace('&&', '\n').replace(';', '\n').replace('|', '\n')
+    return [t.strip() for t in s.split('\n') if t.strip()]
+
+
+def matches_any_block_rule(subcmd):
+    """True iff subcmd matches at least one dev-class block rule."""
+    for rule in BLOCK_RULES:
         try:
-            matched = bool(re.search(pattern, cmd))
+            if re.search(rule, subcmd):
+                return True
         except re.error:
-            matched = False
-    else:
-        matched = pattern in cmd
-    print('1' if matched else '0')
-except Exception:
-    print('0')
+            continue
+    return False
+
+
+# V2: acquire exclusive lock with bounded retry (3x 100ms). Block on failure (no deadlock).
+lock_fd = None
+try:
+    lock_fd = os.open(lock_file, os.O_CREAT | os.O_RDWR, 0o600)
+    attempts = 0
+    while True:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except BlockingIOError:
+            attempts += 1
+            if attempts >= 3:
+                print('BLOCKED_LOCK')
+                sys.exit(0)
+            time.sleep(0.1)
+
+    # Lock held. Read-match-unlink sequence is now atomic.
+    if not os.path.exists(flag_file):
+        print('NO_FLAG')
+        sys.exit(0)
+    try:
+        with open(flag_file) as f:
+            data = json.load(f)
+    except Exception:
+        print('NO_FLAG')
+        sys.exit(0)
+
+    pattern = data.get('pattern', '')
+    is_regex = bool(data.get('is_regex', False))
+    if not pattern:
+        print('NO_MATCH')
+        sys.exit(0)
+
+    # V3: split compound command into subcommands.
+    subcmds = split_subcommands(cmd)
+    if not subcmds:
+        subcmds = [cmd]
+
+    matched_subcmd = None
+    for sub in subcmds:
+        # Both conditions must hold on the SAME subcommand:
+        # (a) subcommand matches the user's allow-pattern
+        # (b) subcommand matches at least one dev-class block rule
+        if safe_search(pattern, sub, is_regex) and matches_any_block_rule(sub):
+            matched_subcmd = sub
+            break
+
+    if matched_subcmd is None:
+        print('NO_MATCH')
+        sys.exit(0)
+
+    # Atomic consume: unlink flag while still holding the lock.
+    try:
+        os.unlink(flag_file)
+    except FileNotFoundError:
+        print('NO_FLAG')
+        sys.exit(0)
+
+    # Emit structured result for shell wrapper to parse and log.
+    # Escape single quotes in matched_subcmd for safe shell consumption.
+    print('CONSUMED\t{}\t{}\t{}'.format(
+        pattern,
+        '1' if is_regex else '0',
+        matched_subcmd,
+    ))
+except Exception as e:
+    print('ERROR: {}'.format(e))
+    sys.exit(0)
+finally:
+    if lock_fd is not None:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        except Exception:
+            pass
+        try:
+            os.close(lock_fd)
+        except Exception:
+            pass
 PYEOF
 )
 
-  if [ "$matched_flag" = "1" ]; then
-    # Read pattern + is_regex via env-var Python (never shell-interpolate flag contents)
-    local pattern is_regex
-    pattern=$(FLAG_FILE="$flag_file" python3 -c \
-      "import json,os; d=json.load(open(os.environ['FLAG_FILE'])); print(d.get('pattern',''))" \
-      2>/dev/null || echo "unknown")
-    is_regex=$(FLAG_FILE="$flag_file" python3 -c \
-      "import json,os; d=json.load(open(os.environ['FLAG_FILE'])); print('1' if d.get('is_regex') else '0')" \
-      2>/dev/null || echo "0")
-    rm -f "$flag_file"
-    mkdir -p "$(dirname "$CONSENT_LOG")"
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$sid CONSUMED pattern='$pattern' is_regex=$is_regex matched_cmd='$cmd'" >> "$CONSENT_LOG"
-    echo "[allow] One-shot bypass consumed for pattern='$pattern'. Command will proceed." >&2
-    return 0
-  fi
-  return 1
+  # Parse structured result.
+  case "$consume_result" in
+    CONSUMED$'\t'*)
+      local rest pattern is_regex matched_sub
+      rest="${consume_result#CONSUMED$'\t'}"
+      pattern="${rest%%$'\t'*}"
+      rest="${rest#*$'\t'}"
+      is_regex="${rest%%$'\t'*}"
+      matched_sub="${rest#*$'\t'}"
+      mkdir -p "$(dirname "$CONSENT_LOG")"
+      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$sid CONSUMED pattern='$pattern' is_regex=$is_regex matched_subcmd='$matched_sub' full_cmd='$cmd'" >> "$CONSENT_LOG"
+      echo "[allow] One-shot bypass consumed for pattern='$pattern' (matched subcommand: '$matched_sub'). Command will proceed." >&2
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 # ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
@@ -446,13 +579,16 @@ fi
 # Block these three patterns globally — main agent AND subagents.
 
 # Block: git stash (destructive forms only — list/show/pop/apply/drop/clear/branch are safe)
-if echo "$COMMAND" | grep -qE 'git\s+stash\s+(push|save|create|store)\b'; then
+# V4: extended to also cover -u/--include-untracked/-a/--all variants (which include untracked/ignored files)
+if echo "$COMMAND" | grep -qE 'git\s+stash\s+(push|save|create|store|-u|--include-untracked|-a|--all)\b' || \
+   echo "$COMMAND" | grep -qE 'git\s+stash\s+-[ua]+\b'; then
   check_and_consume_allowlist "$COMMAND" && exit 0
-  echo "BLOCKED: 'git stash push/save/create/store' requires explicit user approval" >&2
+  echo "BLOCKED: 'git stash push/save/create/store/-u/--all' requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: On 2026-04-19, a dev subagent used 'git stash' as a throwaway buffer" >&2
   echo "before running a destructive 'git checkout <hash> -- .', silently erasing 17 days" >&2
   echo "of UI work. Stash+checkout is a known-dangerous combo in subagent hands." >&2
+  echo "-u/--include-untracked/-a/--all forms include untracked/ignored files — more destructive." >&2
   echo "Tell the user what you want to do and ask them to run it, or use commit/branch." >&2
   exit 2
 fi
@@ -476,6 +612,26 @@ if echo "$COMMAND" | grep -qE 'git\s+checkout\s+\S+\s+--\s+(\.|\*|[^ ]+/)\s*($|[
   echo "packages/happy-app/, overwriting 17 days of UI development with 3-27 baseline." >&2
   echo "Wide-path checkout from a commit is a blunt-force destructive operation." >&2
   echo "Allowed: 'git checkout <ref> -- path/to/specific-file.ts' (single file)." >&2
+  echo "If you genuinely need a subtree restore, tell the user what you need and why." >&2
+  exit 2
+fi
+
+# Block: git restore --source=<ref> -- . / -- */ -- <dir>/  (V6)
+# Modern equivalent of 'git checkout <ref> -- .' (git 2.23+) — overwrites working tree with historical content.
+# Two-condition approach (order-independent): command must contain BOTH a source flag AND a wide-path.
+# Covers all four syntaxes: --source=X, --source X, -s=X, -s X.
+# Allowed: 'git restore -- myfile.ts' (no --source, no overwrite), 'git restore --staged -- file' (index-only),
+#          'git restore --source=HEAD -- specific-file.ts' (specific file, not wide-path).
+if echo "$COMMAND" | grep -qE 'git\s+restore\b' && \
+   echo "$COMMAND" | grep -qE -- '(--source\b|-s\b)' && \
+   echo "$COMMAND" | grep -qE -- '--\s+(\.|\*|[^ /]+/)(\s*$|\s+[;&|])'; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
+  echo "BLOCKED: 'git restore --source=<ref> -- .' / '-- *' / '-- dir/' requires explicit user approval" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: 'git restore --source=<ref> -- .' is the modern equivalent of" >&2
+  echo "'git checkout <ref> -- .' (git 2.23+). It overwrites the working tree with historical" >&2
+  echo "content — same blunt-force destructive operation that erased 17 days of UI work on 2026-04-19." >&2
+  echo "Allowed: 'git restore -- path/to/specific-file.ts' (no --source, or specific file)." >&2
   echo "If you genuinely need a subtree restore, tell the user what you need and why." >&2
   exit 2
 fi
@@ -516,23 +672,35 @@ if [ "$IS_SUBAGENT" = "1" ]; then
   fi
 fi
 
-# Block: git revert <commit-hash> or git revert HEAD~N (N>=1)
-# Reverting a non-HEAD historical commit can undo deliberate user work.
-# Safe: 'git revert HEAD' (undo most recent commit, e.g., one you just made by accident).
-# Dangerous: 'git revert <hash>' or 'git revert HEAD~N' — may undo intentional historical work.
+# Block: git revert <commit-hash> or git revert <ref>^ or git revert <ref>~N or git revert <ref>@{N}
+# V5: broadened from HEAD-only anchor to \S+ so any ref (HEAD, master, main, branch, tag)
+# with a modifier (caret, tilde, reflog, hash) is blocked.
+# Reverting a non-bare-HEAD commit can undo deliberate user work.
+# Safe: 'git revert HEAD' ONLY (bare — no caret, no tilde, no reflog, no branch-ref modifier).
+# All other revert forms are blocked.
 if echo "$COMMAND" | grep -qE 'git\s+revert\s+'; then
-  # Block hex hashes (7+ chars) and HEAD~N where N>=1
-  if echo "$COMMAND" | grep -qE 'git\s+revert\s+([^-]\S*\s+)*[0-9a-f]{7,40}\b' || \
-     echo "$COMMAND" | grep -qE 'git\s+revert\s+([^-]\S*\s+)*HEAD~[1-9]'; then
+  # Block hex hashes (7+ chars)
+  # Block caret form: <ref>^ or <ref>^^ (e.g., HEAD^, master^, HEAD^^)
+  # Block tilde form: <ref>~ or <ref>~N (e.g., HEAD~, HEAD~1, master~2)
+  # Block reflog form: <ref>@{N} (e.g., HEAD@{1})
+  # Intermediate group (\S+\s+)* allows flags-before-ref (e.g., git revert --no-edit HEAD^)
+  # Note: \b after ^/~/} is omitted because those characters are non-word — \b requires
+  # a word-char transition and would fail to match at end-of-string or before whitespace.
+  if echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*[0-9a-f]{7,40}\b' || \
+     echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*\S+\^+' || \
+     echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*\S+~[0-9]*' || \
+     echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*\S+@\{[0-9]+\}'; then
     check_and_consume_allowlist "$COMMAND" && exit 0
-    echo "BLOCKED: 'git revert <hash>' or 'git revert HEAD~N' requires explicit user approval" >&2
+    echo "BLOCKED: 'git revert' with any ref modifier (caret/tilde/reflog/hash) requires explicit user approval" >&2
     echo "Command: $COMMAND" >&2
     echo "REASON: On 2026-04-23, a dev subagent ran 'git revert 1204d62' which undid a user-approved" >&2
     echo "feature commit (the /spec simplification the user had explicitly endorsed), restoring an" >&2
     echo "unwanted 5-step interview state. The user had explicitly forbidden full revert in chat." >&2
     echo "Reverting historical commits without user authorization is destructive — it overrides" >&2
     echo "deliberate work that may have been thoroughly reviewed and accepted." >&2
-    echo "Safe: 'git revert HEAD' or 'git revert HEAD^' (undo the immediate previous commit)." >&2
+    # V5 comment fix: Only bare 'git revert HEAD' (no suffix) is safe. All other forms blocked.
+    echo "Safe: 'git revert HEAD' only (bare — no caret, no tilde, no reflog, no branch-ref)." >&2
+    echo "All other revert forms (HEAD^, HEAD~N, HEAD@{N}, master^, <hash>) are blocked." >&2
     echo "If you genuinely need to revert a historical commit, tell the user the hash and the" >&2
     echo "rationale, and ask them to run it manually." >&2
     exit 2
