@@ -164,6 +164,11 @@ Ask one clarification question if the input leaves Section 5 (Acceptance Criteri
 - Never ask the same question twice
 - If after 3 questions you still cannot write Section 5 concretely, proceed anyway and flag the uncertainty in Section 8
 
+**Common patterns that fire the loop** (illustrative, not exhaustive):
+- Open-ended scope words: "everything", "all", "一切", "所有"
+- Single word or phrase without context: "login", "登录", "auth"
+- Multiple unrelated topics in one message
+
 **If NOT needed** (initial input already satisfies the three criteria above): Proceed directly to Step 3.
 
 ### Step 3: Background exploration (non-blocking)
