@@ -654,6 +654,11 @@ fi
 # Detection: parse stdin JSON for agent_id (matches pretool-orchestrator-gate.py mechanism).
 IS_SUBAGENT=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
 if [ "$IS_SUBAGENT" = "1" ]; then
+  # /do bypass (2026-04-25): user has explicitly consented via /do — allow subagent history mutation
+  SID=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('session_id',''))" 2>/dev/null)
+  if [ -n "$SID" ] && [ -e "/tmp/claude-orchestrator-consent-${SID}.flag" ]; then
+    exit 0
+  fi
   if echo "$COMMAND" | grep -qE 'git[[:space:]]+(revert|commit|merge|cherry-pick|rebase|push)([[:space:]]|$)'; then
     echo "BLOCKED: Subagent-initiated git history mutation is FORBIDDEN" >&2
     echo "Command: $COMMAND" >&2
