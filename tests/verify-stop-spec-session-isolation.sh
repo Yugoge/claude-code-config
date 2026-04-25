@@ -221,6 +221,36 @@ else
 fi
 
 # ==================================================================
+# Test 10: Ordering-bug regression — Write(own) then Read(foreign)
+# must target own-spec, not the more-recently-Read foreign spec.
+# (Regression for commit ad9759c; see close-report-20260424-133333.md)
+# ==================================================================
+SID_H="11111111-1111-1111-1111-111111111111"
+make_bookmark "$SID_H" "spec"
+TSH="$WORK/.claude/projects/-root/${SID_H}.jsonl"
+# Transcript order: Write(own-new-spec) first, then Read(foreign-spec views).
+# Reverse scan must ignore the Read and return spec-20260424-111111.
+# spec-20260424-111111 has no monolith and no views/ dir in $WORK,
+# so AC3/AC4 applies: hook exits 0 even after correct targeting.
+cat > "$TSH" <<'EOF'
+{"message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Write", "input": {"file_path": "/root/docs/dev/specs/spec-20260424-111111.md", "content": "own spec"}}]}}
+{"message": {"role": "user", "content": [{"type": "tool_result", "content": "done"}]}}
+{"message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Read", "input": {"file_path": "/root/docs/dev/specs/spec-20260423-080000/views/ba.md"}}]}}
+EOF
+
+RC=$(run_hook "{\"session_id\":\"$SID_H\",\"transcript_path\":\"$TSH\",\"stop_hook_active\":false}")
+STDERR_H="$(cat "$WORK/stderr.log")"
+if [[ "$RC" != "0" ]]; then
+  log_fail "ordering_bug_write_then_read_foreign" "expected rc=0, got rc=$RC; stderr: $STDERR_H"
+elif grep -q "spec-20260423-080000" <<<"$STDERR_H"; then
+  log_fail "ordering_bug_write_then_read_foreign" "foreign spec leaked into stderr — Read overrode Write: $STDERR_H"
+elif grep -q "⛔ SPEC COVERAGE ENFORCEMENT" <<<"$STDERR_H"; then
+  log_fail "ordering_bug_write_then_read_foreign" "hook emitted blocking message when it should have exited 0: $STDERR_H"
+else
+  log_pass "ordering_bug_write_then_read_foreign: Read(foreign) ignored; Write(own) correctly drives target; rc=0"
+fi
+
+# ==================================================================
 # Cleanup
 # ==================================================================
 rm -rf "$WORK"

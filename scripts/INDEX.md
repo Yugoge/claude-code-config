@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-04-22T06:42:54Z*
-**Total entries**: 51
+*Last updated: 2026-04-24T13:13:16Z*
+**Total entries**: 52
 **Convention**: kebab
 
 ## Tree
@@ -9,6 +9,7 @@
 scripts/
 ├── todo/
 │   ├── `clean.py` - Preloaded TodoList for /clean workflow
+│   ├── `close.py` - /close is a true wrapper. It has exactly 3 orchestration steps:
 │   ├── `code-review.py` - Python script
 │   ├── `deep-search.py` - Python script
 │   ├── `dev-command.py` - This todo script generates workflow steps for the BA-delegated dev-command workflow
@@ -26,7 +27,7 @@ scripts/
 │   ├── `research-deep.py` - Python script
 │   ├── `security-check.py` - Python script
 │   ├── `site-navigate.py` - Python script
-│   ├── `spec.py` - The /spec command supports 4 modes (see ~/.claude/commands/spec.md):
+│   ├── `spec.py` - Mirrors /root/knowledge-system/scripts/todo/ask.py structure
 │   └── `test.py` - Preloaded TodoList for /test workflow
 ├── `analyze-folder-history.sh` - Description: Analyze Git history for folder to discover file creation patterns
 ├── `analyze-git-edge-cases.sh` - Description: Analyze git history for edge cases from bug fix commits

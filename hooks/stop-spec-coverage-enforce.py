@@ -8,7 +8,8 @@ Logic:
   3. If NOT /spec -> exit 0 (allow)
   4. Derive the target spec from the stopping session's own transcript JSONL
      (transcript_path from stdin). Scan last 500 lines in reverse for the most
-     recent Read/Write/Edit/MultiEdit tool_use targeting docs/dev/specs/spec-*.md.
+     recent Write/Edit/MultiEdit tool_use targeting docs/dev/specs/spec-*.md.
+     Read is intentionally excluded — see SPEC_TOOL_NAMES comment below.
   5. If no spec touched, or transcript missing, or no views/ dir -> exit 0
   6. Run spec-verify.py --monolith <path> --views-dir <path>
   7. If exit 0 (100% coverage) -> exit 0 (allow stop)
@@ -41,8 +42,13 @@ SPEC_VERIFY = "/root/bin/spec-verify.py"
 # extension or subpath. Accepts absolute and relative file_path values.
 SPEC_ID_RE = re.compile(r"docs/dev/specs/(spec-\d{8}-\d{6})(?:\.md|/|$)")
 
-# Tool names whose tool_use events carry a file_path input we care about.
-SPEC_TOOL_NAMES = frozenset({"Read", "Write", "Edit", "MultiEdit"})
+# Tool names whose tool_use events establish spec authorship. Only authorship
+# signals (Write/Edit/MultiEdit) drive target-spec selection. Read was excluded
+# because inspecting another session's spec should not select it as this
+# session's coverage target (see close-report-20260424-133333.md for the bug
+# reproduction: Write(own) + Read(foreign) previously returned the foreign
+# spec_id because Read was the most recent match in the reverse scan).
+SPEC_TOOL_NAMES = frozenset({"Write", "Edit", "MultiEdit"})
 
 # Cap transcript scan cost — most tool events live near the end anyway.
 TRANSCRIPT_TAIL_LINES = 500
@@ -130,9 +136,10 @@ def derive_spec_id_from_transcript(transcript_path: str) -> Optional[str]:
     """Scan a session's JSONL transcript in reverse for the last spec it touched.
 
     Returns the bare spec_id (e.g. ``spec-20260424-090315``) from the most recent
-    Read/Write/Edit/MultiEdit tool_use whose ``file_path`` lives under
-    ``docs/dev/specs/``. Returns None on any failure — callers treat None as
-    "allow stop".
+    Write/Edit/MultiEdit tool_use whose ``file_path`` lives under
+    ``docs/dev/specs/``. Read is intentionally excluded because inspecting a
+    foreign spec must not override this session's own authorship signal.
+    Returns None on any failure — callers treat None as "allow stop".
     """
     tail = _read_transcript_tail(transcript_path)
     if tail is None:
