@@ -68,3 +68,4 @@ specs/*/cp-state-*.json
 specs/spec-*/
 worktrees/
 backups/.claude.json.backup.*
+settings.json.bak-*
