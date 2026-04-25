@@ -63,3 +63,8 @@ sessions/
 workflow-*.json
 dev-registry/
 specs/*/cp-state-*.json
+
+# Spec checkpoint state, worktrees, and rotating .claude.json backups
+specs/spec-*/
+worktrees/
+backups/.claude.json.backup.*
