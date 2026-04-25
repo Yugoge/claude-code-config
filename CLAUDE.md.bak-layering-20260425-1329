@@ -27,9 +27,6 @@ Code review, bundle grep, and curl are NEVER sufficient. Trigger content via UI,
 ### 13. NEVER let a single subagent handle multiple tasks (multitask)
 Each subagent invocation handles exactly ONE issue. Launch multiple subagents in parallel for multiple issues — never bundle.
 
-### 14. Subagent rejected by a hook MUST PAUSE + report — never bypass
-Writing the blocked command into a script file, wrapping it in `nohup`/`systemd-run`/`setsid`, or editing the hook itself is a security violation, even if the rejection looks like a parsing bug.
-
 ---
 
 ## 🔄 Auto-Commit Mechanism (refs/checkpoints/* — no HEAD pollution)
@@ -126,23 +123,6 @@ Enforced categories (paraphrase labels — see hook for exact patterns):
 
 ---
 
-## 🛡️ Subagent Hook Discipline
-
-**NON-NEGOTIABLE.** Applies to every subagent in every project.
-
-When a hook (PreToolUse / PostToolUse / Stop) rejects a command, the subagent MUST:
-
-1. **PAUSE** immediately and report the rejected command + hook output to the user.
-2. **NOT** rewrite the command into another shell wrapper (`nohup`, `systemd-run`, `disown`, `setsid`, `at`, `cron`, …) to dodge the same rule.
-3. **NOT** write the rejected command body into a file (e.g. `/tmp/*.sh`, `/var/tmp/*.sh`, any file outside the working tree) and execute that file.
-4. **NOT** read hook source code looking for parsing gaps — reconnaissance counts as a bypass attempt.
-5. **NOT** modify, rename, or move any file under `~/.claude/hooks/` or `~/.claude.bak/hooks/`.
-6. If the task genuinely requires the rejected operation, output a **REQUEST** message to the user describing exactly what needs to run and why; the user decides.
-
-**Why this rule exists**: a subagent that "finds a way around" a hook negates the hook's purpose and can corrupt long-running processes or production state. Whether the hook itself is correct is a separate question — if the hook is buggy, the subagent's correct response is still PAUSE + report.
-
----
-
 ## 📝 Coding Style
 
 ### General
@@ -182,18 +162,6 @@ When a hook (PreToolUse / PostToolUse / Stop) rejects a command, the subagent MU
 - Tests must be deterministic and independent
 - Follow AAA pattern: Arrange, Act, Assert
 - Use descriptive test names
-
----
-
-## 🌙 Long-Running Process Verification
-
-When a code change targets a long-running daemon-style process (one whose source tree is hot-loaded by a separately-running OS process or service), a subagent MUST NOT cause that process to restart in order to verify the change. Acceptable verification paths:
-
-1. **Sandboxed instance**: launch a parallel copy of the daemon binary against a throwaway state directory and verify there.
-2. **Static verification**: read the post-build artifact and confirm the change is present (sufficient when behaviour is structurally obvious).
-3. **PAUSE-PENDING-USER**: if neither (1) nor (2) is feasible, output a REQUEST naming the restart command and stop; the user triggers it.
-
-Restarting a long-running daemon from inside a session that itself depends on that daemon will kill the session before it can report results.
 
 ---
 
