@@ -116,24 +116,31 @@ def _split_frontmatter(content: str) -> tuple[str, str]:
     return content[3:end], content[end + 4:]
 
 
-def _empty_body_error(cmd_name: str, path: Path) -> str:
-    """Format the BLOCKED message for empty-body commands."""
-    return (
-        f'BLOCKED: /{cmd_name} has an empty body and no '
-        f'`disable-model-invocation: true` in frontmatter.\n'
-        f'Sending it would create an empty text content block; the '
-        f'Anthropic API returns 400 and the error becomes permanent in '
-        f'the message history, poisoning this conversation.\n'
-        f'Fix {path}:\n'
-        f'  (a) add any non-empty body (one line is enough), OR\n'
-        f'  (b) add `disable-model-invocation: true` to frontmatter '
-        f'(only for hook-only commands like /do, /allow).\n'
-    )
+_HEAL_PLACEHOLDER = (
+    '\n_(auto-injected placeholder — original body was empty, which would '
+    'have caused an Anthropic API 400 on the empty content block. Replace '
+    'this line with real content, or add `disable-model-invocation: true` '
+    'to the frontmatter for hook-only commands.)_\n'
+)
 
 
-def _validate_command_body_nonempty(cmd_name: str) -> str | None:
-    """Return error text if /<cmd>.md has empty body and no
-    disable-model-invocation flag. See _empty_body_error for rationale."""
+def _heal_empty_body(path: Path, content: str) -> bool:
+    """Append the placeholder to make body non-empty. Returns True on success."""
+    sep = '' if content.endswith('\n') else '\n'
+    try:
+        path.write_text(content + sep + _HEAL_PLACEHOLDER)
+        return True
+    except Exception:
+        return False
+
+
+def _autoheal_command_body(cmd_name: str) -> str | None:
+    """If /<cmd>.md has empty body and no `disable-model-invocation: true`,
+    append a placeholder so the slash-command expander does not produce an
+    empty text content block (which the API rejects with HTTP 400, poisoning
+    the conversation). Returns a stderr note when a heal occurred, else None.
+    The hook does NOT block — the user's command continues normally.
+    """
     for search_path in [
         PROJECT_DIR / '.claude' / 'commands' / f'{cmd_name}.md',
         Path.home() / '.claude' / 'commands' / f'{cmd_name}.md',
@@ -147,7 +154,9 @@ def _validate_command_body_nonempty(cmd_name: str) -> str | None:
         frontmatter, body = _split_frontmatter(content)
         if body.strip() or 'disable-model-invocation: true' in frontmatter:
             return None
-        return _empty_body_error(cmd_name, search_path)
+        if not _heal_empty_body(search_path, content):
+            return None
+        return f'[auto-heal] /{cmd_name} had empty body; placeholder appended to {search_path}\n'
     return None
 
 
@@ -552,13 +561,12 @@ def _write_bookmark(cmd_name: str, sid: str) -> None:
         pass
 
 
-def _maybe_block_empty_command(cmd_name: str) -> None:
-    """Exit 2 with a clear error if the slash command would inject an empty
-    text content block (which the API rejects, poisoning the conversation)."""
-    err = _validate_command_body_nonempty(cmd_name)
-    if err:
-        sys.stderr.write(err)
-        sys.exit(2)
+def _maybe_heal_empty_command(cmd_name: str) -> None:
+    """Auto-heal /<cmd>.md if its body is empty (would otherwise cause API
+    400 on empty content block). Does NOT block — the prompt continues."""
+    note = _autoheal_command_body(cmd_name)
+    if note:
+        sys.stderr.write(note)
 
 
 def main():
@@ -568,7 +576,7 @@ def main():
         session_id = data.get('session_id', 'default')
         cmd_name = extract_command_name(user_input)
         if cmd_name:
-            _maybe_block_empty_command(cmd_name)
+            _maybe_heal_empty_command(cmd_name)
             handle_phase_a(cmd_name, user_input, session_id)
         else:
             handle_phase_b(session_id)
