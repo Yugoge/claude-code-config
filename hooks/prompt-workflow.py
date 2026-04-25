@@ -106,6 +106,51 @@ def read_command_spec(cmd_name: str) -> str:
     return ''
 
 
+def _split_frontmatter(content: str) -> tuple[str, str]:
+    """Return (frontmatter, body). Empty frontmatter if none present."""
+    if not content.startswith('---'):
+        return '', content
+    end = content.find('\n---', 3)
+    if end == -1:
+        return '', content
+    return content[3:end], content[end + 4:]
+
+
+def _empty_body_error(cmd_name: str, path: Path) -> str:
+    """Format the BLOCKED message for empty-body commands."""
+    return (
+        f'BLOCKED: /{cmd_name} has an empty body and no '
+        f'`disable-model-invocation: true` in frontmatter.\n'
+        f'Sending it would create an empty text content block; the '
+        f'Anthropic API returns 400 and the error becomes permanent in '
+        f'the message history, poisoning this conversation.\n'
+        f'Fix {path}:\n'
+        f'  (a) add any non-empty body (one line is enough), OR\n'
+        f'  (b) add `disable-model-invocation: true` to frontmatter '
+        f'(only for hook-only commands like /do, /allow).\n'
+    )
+
+
+def _validate_command_body_nonempty(cmd_name: str) -> str | None:
+    """Return error text if /<cmd>.md has empty body and no
+    disable-model-invocation flag. See _empty_body_error for rationale."""
+    for search_path in [
+        PROJECT_DIR / '.claude' / 'commands' / f'{cmd_name}.md',
+        Path.home() / '.claude' / 'commands' / f'{cmd_name}.md',
+    ]:
+        if not search_path.exists():
+            continue
+        try:
+            content = search_path.read_text()
+        except Exception:
+            return None
+        frontmatter, body = _split_frontmatter(content)
+        if body.strip() or 'disable-model-invocation: true' in frontmatter:
+            return None
+        return _empty_body_error(cmd_name, search_path)
+    return None
+
+
 def run_todo_script(cmd_name: str, user_input: str = "") -> list:
     todo_script = PROJECT_DIR / 'scripts' / 'todo' / f'{cmd_name}.py'
     if not todo_script.exists():
@@ -507,16 +552,26 @@ def _write_bookmark(cmd_name: str, sid: str) -> None:
         pass
 
 
+def _maybe_block_empty_command(cmd_name: str) -> None:
+    """Exit 2 with a clear error if the slash command would inject an empty
+    text content block (which the API rejects, poisoning the conversation)."""
+    err = _validate_command_body_nonempty(cmd_name)
+    if err:
+        sys.stderr.write(err)
+        sys.exit(2)
+
+
 def main():
     try:
         data = json.load(sys.stdin)
         user_input = data.get('prompt', '')
         session_id = data.get('session_id', 'default')
         cmd_name = extract_command_name(user_input)
-        if not cmd_name:
-            handle_phase_b(session_id)
-        else:
+        if cmd_name:
+            _maybe_block_empty_command(cmd_name)
             handle_phase_a(cmd_name, user_input, session_id)
+        else:
+            handle_phase_b(session_id)
     except Exception:
         pass
     sys.exit(0)
