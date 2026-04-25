@@ -116,12 +116,7 @@ def _split_frontmatter(content: str) -> tuple[str, str]:
     return content[3:end], content[end + 4:]
 
 
-_HEAL_PLACEHOLDER = (
-    '\n_(auto-injected placeholder — original body was empty, which would '
-    'have caused an Anthropic API 400 on the empty content block. Replace '
-    'this line with real content, or add `disable-model-invocation: true` '
-    'to the frontmatter for hook-only commands.)_\n'
-)
+_HEAL_PLACEHOLDER = '\n.\n'
 
 
 def _heal_empty_body(path: Path, content: str) -> bool:
