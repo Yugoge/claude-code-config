@@ -106,55 +106,6 @@ def read_command_spec(cmd_name: str) -> str:
     return ''
 
 
-def _split_frontmatter(content: str) -> tuple[str, str]:
-    """Return (frontmatter, body). Empty frontmatter if none present."""
-    if not content.startswith('---'):
-        return '', content
-    end = content.find('\n---', 3)
-    if end == -1:
-        return '', content
-    return content[3:end], content[end + 4:]
-
-
-_HEAL_PLACEHOLDER = '\n.\n'
-
-
-def _heal_empty_body(path: Path, content: str) -> bool:
-    """Append the placeholder to make body non-empty. Returns True on success."""
-    sep = '' if content.endswith('\n') else '\n'
-    try:
-        path.write_text(content + sep + _HEAL_PLACEHOLDER)
-        return True
-    except Exception:
-        return False
-
-
-def _autoheal_command_body(cmd_name: str) -> str | None:
-    """If /<cmd>.md has empty body and no `disable-model-invocation: true`,
-    append a placeholder so the slash-command expander does not produce an
-    empty text content block (which the API rejects with HTTP 400, poisoning
-    the conversation). Returns a stderr note when a heal occurred, else None.
-    The hook does NOT block — the user's command continues normally.
-    """
-    for search_path in [
-        PROJECT_DIR / '.claude' / 'commands' / f'{cmd_name}.md',
-        Path.home() / '.claude' / 'commands' / f'{cmd_name}.md',
-    ]:
-        if not search_path.exists():
-            continue
-        try:
-            content = search_path.read_text()
-        except Exception:
-            return None
-        frontmatter, body = _split_frontmatter(content)
-        if body.strip() or 'disable-model-invocation: true' in frontmatter:
-            return None
-        if not _heal_empty_body(search_path, content):
-            return None
-        return f'[auto-heal] /{cmd_name} had empty body; placeholder appended to {search_path}\n'
-    return None
-
-
 def run_todo_script(cmd_name: str, user_input: str = "") -> list:
     todo_script = PROJECT_DIR / 'scripts' / 'todo' / f'{cmd_name}.py'
     if not todo_script.exists():
@@ -556,25 +507,16 @@ def _write_bookmark(cmd_name: str, sid: str) -> None:
         pass
 
 
-def _maybe_heal_empty_command(cmd_name: str) -> None:
-    """Auto-heal /<cmd>.md if its body is empty (would otherwise cause API
-    400 on empty content block). Does NOT block — the prompt continues."""
-    note = _autoheal_command_body(cmd_name)
-    if note:
-        sys.stderr.write(note)
-
-
 def main():
     try:
         data = json.load(sys.stdin)
         user_input = data.get('prompt', '')
         session_id = data.get('session_id', 'default')
         cmd_name = extract_command_name(user_input)
-        if cmd_name:
-            _maybe_heal_empty_command(cmd_name)
-            handle_phase_a(cmd_name, user_input, session_id)
-        else:
+        if not cmd_name:
             handle_phase_b(session_id)
+        else:
+            handle_phase_a(cmd_name, user_input, session_id)
     except Exception:
         pass
     sys.exit(0)
