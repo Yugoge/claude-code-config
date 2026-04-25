@@ -67,6 +67,47 @@ Agent selection:
   Excluded: <list of agents and why>
 ```
 
+Then proceed to Phase 0.5 (meta-rule discovery), then Phase 1.
+
+---
+
+## Phase 0.5: Meta-Rule Discovery (R5.1, R5.2)
+
+**Purpose**: Before assembling any view, scan the monolith for author-declared meta-rules and apply each parseable rule to the view-emission process. This phase runs ALWAYS — meta-rule discovery is cheap and its output gates Phase 1 emission decisions.
+
+### Step 1: Scan for meta-rules
+
+Search the monolith for two surface forms:
+
+1. **Structured meta-rule section (R6.3)** — a top-level heading `## Meta-Rules` followed by bullet items in the form `- **R{id}**: <rule-text>` or `- **D{id}**: <rule-text>`. This is the ONLY format R5 v1 recognizes for hard enforcement.
+
+2. **Inline MUST/SHOULD statements** — sentences anywhere in the monolith body using `MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`. These are advisory: emit a WARN if violated, but do NOT halt the run.
+
+### Step 2: Apply recognized operators
+
+R5 v1 recognizes exactly THREE meta-rule operators (R5.2). Other operators emit a WARN only — they do not halt:
+
+- **`cite-by-range`**: forbid inline-paste of monolith ranges longer than N lines. When a meta-rule names this operator, prefer EXPLICIT markers (R2.A.2) over duplicate-paste; if a block exceeds the size limit, the marker plus a short verbatim header is sufficient and the rest of the block stays referenced by line-range only.
+- **`no-paraphrase`**: forbid any non-EXPLICIT marker in a section the meta-rule names. INFERRED markers are rejected in those sections; only verbatim-class content survives.
+- **`verbatim-only`**: stricter `no-paraphrase` — entire view (or named section) must contain ONLY EXPLICIT markers + the structural whitelist (section titles, view header scaffolding, `---` separators).
+
+### Step 3: Parse failure handling
+
+Meta-rules that the parser cannot decode (unrecognized operator, malformed bullet, missing rule-id) produce a WARN in the final verifier report (`META-RULE: WARN`). Do NOT halt the run on parse failure. Record the un-parseable lines so the verifier can echo them in the final summary.
+
+### Step 4: Record discovered meta-rules
+
+Emit the discovered meta-rules into the run's reasoning trace:
+
+```
+Meta-Rule discovery:
+  Recognized: <list of {id, operator, target-section}>
+  Advisory (MUST/SHOULD inline): <count>
+  Un-parseable: <list>
+```
+
+The verifier's `META-RULE: PASS|FAIL|N/A` summary line (R5.3) is gated on `guide_version >= 1` — on legacy monoliths the meta-rule set is still discovered but the verifier reports `META-RULE: N/A`.
+
 Then proceed to Phase 1.
 
 ---
@@ -180,25 +221,71 @@ For each relevant agent:
    ---
    ```
 
-2. **Role Mandate section** — placed immediately after the header, before any content blocks:
+2. **Role Mandate section** — placed immediately after the header, before any content blocks. Role Mandate is the canonical INFERRED-class section; it carries `derivation:role_mapping` content (R3.2). The section heading `## Role Mandate` MUST appear in every view that has a mandate; views that OMIT the mandate per R3.4 also omit the heading.
 
-   Scan the monolith for explicit role definitions: pipeline definitions (e.g., "UI → BA → Dev → QA"), role-split rules (e.g., "UI设计师统筹设计构思图形和动效的表述，BA设计代码实现，dev实现，QA验证"), and any "this agent does X, not Y" constraints. If found, assemble a Role Mandate section for this agent using ONLY verbatim monolith quotes:
+   **R3.0 activation gate** — what runs depends on whether the monolith declares `guide_version: 1` (or higher) in its YAML front-matter:
+   - **`guide_version >= 1` (Path C, strict)**: R3.2 INFERRED marker wrapping + R3.3 annotation-based role-evidence are REQUIRED. R3.4 (OMIT), R3.5 (AMBIGUOUS), and R3.6 (byte-equality) also run.
+   - **Legacy (no `guide_version` or `guide_version: 0`)**: R3.2/R3.3/R3.7 are SKIPPED. Use the legacy verbatim-quote form (see "Legacy form" below). R3.4/R3.5/R3.6 still run because they are scope-neutral.
+
+   **R3.2 INFERRED marker emission protocol (active when guide_version >= 1)**:
+
+   Scan the monolith for `## Role: {agent}` and `### Role: {agent}` headings (Annotation Type 1, R6.6) and block-level `<!-- consumers: [...] -->` or `consumers: [...]` annotations (Annotation Type 2, R6.6) that match THIS view's canonical agent name. The first non-blank line inside the Role Mandate section MUST be a single INFERRED marker:
 
    ```
-   ## Role Mandate (from spec)
+   ## Role Mandate
+
+   <!-- INFERRED basis:L{N}-L{M} sha256:{hex} derivation:role_mapping -->
+
+   <role-introducing prose; subagent-authored, anchored to basis range>
+   ```
+
+   The marker contract:
+   - `basis:L{N}-L{M}` MUST point to a monolith range that lies ENTIRELY inside a block which carries either a `## Role: {agent}` heading matching this view OR a `consumers:` annotation listing this agent (or `all`). The verifier (R3.3) consults the front-matter / annotation parser sidecar (built by `spec-verify.py` per R1.6) and rejects ranges outside any qualifying block.
+   - `sha256:{hex}` is computed on the cited range using normalized whitespace (rstrip per line, `\n`-joined) — same recipe as R2.A.2 EXPLICIT markers and R4a.2 verifier validation.
+   - `derivation:role_mapping` is one of the five closed-enum types (R4a.1). For Role Mandate, `role_mapping` is the only valid value.
+   - The INFERRED prose that follows the marker MAY be subagent-authored (paraphrase, synthesize) — it is anchored to the basis range and validated by the Layer-1 reference-truth check, not by verbatim substring.
+
+   **R3.2 cross-contamination prevention (per-agent scoped buffers)**: When assembling agent X's Role Mandate, the subagent MUST work in an agent-scoped buffer. NEVER read another agent's pending Role Mandate output, NEVER copy text between agent buffers, and NEVER reuse a basis range across two views (each view's marker MUST cite a range whose annotation is specific to THAT view's agent). Two views with byte-equal Role Mandate sections are a hard fail per R3.6.
+
+   **R3.4 OMIT path (active on all monoliths — scope-neutral)**: If no monolith range satisfies R3.3 for this agent (no `## Role: {agent}` heading, no `consumers:` annotation listing the agent, OR — under `guide_version < 1` — no monolith block whose role-defining content is unambiguous), then OMIT the Role Mandate section entirely. Do NOT fabricate role content. Record the omission so the verifier can reconcile it:
+
+   Append a record to `views/mandate-omissions.json`:
+
+   ```json
+   {"omissions": [{"view": "<agent>.md", "agent": "<agent>", "reason": "<closed-enum>"}]}
+   ```
+
+   `reason` is a CLOSED ENUM — exactly one of:
+   - `"no_role_definition_in_monolith"` — no `## Role:` heading AND no `consumers:` annotation names this agent
+   - `"role_definition_ambiguous"` — multiple candidate blocks conflict; user decision required
+   - `"guide_version_not_declared"` — monolith is legacy and the subagent could not produce a confident verbatim quote
+
+   No free-form reasons are permitted. The verifier reads this file to confirm OMITted views are accounted for.
+
+   **R3.5 AMBIGUOUS escalation (active on all monoliths — scope-neutral)**: If the monolith author marked a paragraph with the literal token `AMBIGUOUS:` (per R6.4) AND that paragraph would otherwise be cited as the Role Mandate basis, propagate the ambiguity verbatim. Emit, in place of the INFERRED marker:
+
+   ```
+   <!-- AMBIGUOUS source:L{N}-L{M} candidates:["role-definition","other"] -->
+   ```
+
+   Per R4a.3, any AMBIGUOUS marker in any view blocks the `/spec` run — the verifier exits 1 and lists each AMBIGUOUS marker for user resolution. Do NOT auto-resolve.
+
+   **R3.6 byte-equality check (active on all monoliths — scope-neutral)**: After all views are written, the subagent MUST assert that no two views' Role Mandate sections (the bytes between the `## Role Mandate` heading and the next `##` heading) are byte-equal. Two views with identical Role Mandate content indicate cross-contamination and MUST fail the run before submitting to the verifier. Reject the draft and re-extract with stricter per-agent buffer discipline.
+
+   **Legacy form (active when guide_version is absent or < 1)**: When R3.0 gate is closed, fall back to the verbatim-quote form retained from pre-spec behavior:
+
+   ```
+   ## Role Mandate
 
    > <verbatim quote from monolith that defines this agent's responsibility>
 
    <optional: additional verbatim quotes that relate to this role>
    ```
 
-   **Rules for Role Mandate**:
-   - Every `>` blockquote MUST be a verbatim substring from the monolith (the exact sentence/paragraph that defines this agent's role). The surrounding `> ` prefix for each line is allowed because the quoted text itself is verbatim.
-   - The section title `## Role Mandate (from spec)` is the ONLY non-verbatim structural line.
-   - You may include multiple verbatim quotes if the spec has multiple sentences that define this agent's role. Do NOT synthesize summaries, "YOU ARE" lines, or any other non-verbatim content inside this section.
-   - If the spec defines no explicit role responsibilities for any agent, OMIT the Role Mandate section entirely (do not fabricate roles).
-   - If the spec defines roles for SOME agents but not this one, still include a Role Mandate with a verbatim blockquote from the general pipeline definition. Do not invent a "YOU ARE" line — quote what the spec actually says.
-   - **ui-specialist special constraint** (for design-spec scenarios where the spec defines a design → implement pipeline): quote the spec's verbatim role-split lines that constrain ui-specialist (e.g., the sentence that says ui-specialist produces design artifacts only, not application code). Do NOT synthesize a "NEVER write application code" clause — locate the spec's own wording and quote it. If the spec does not contain such wording, rely on the blockquote of the general role-split rule alone.
+   - Every `>` blockquote MUST be a verbatim substring from the monolith.
+   - The section heading `## Role Mandate` is the only non-verbatim structural line.
+   - If the spec defines no explicit role responsibilities for any agent, OMIT the Role Mandate per R3.4 with `reason: "guide_version_not_declared"`.
+   - **ui-specialist special constraint** (design-spec scenarios where the spec defines a design → implement pipeline): quote the spec's verbatim role-split lines that constrain ui-specialist. Do NOT synthesize a "NEVER write application code" clause — locate the spec's own wording and quote it.
 
 3. Append the assigned content blocks in their ORIGINAL order from the monolith. Preserve blank lines between blocks exactly as they appear in the monolith.
 
@@ -404,11 +491,41 @@ If after ONE retry the coverage is still < 100%, apply this deterministic rule:
 
 1. Run spec-verify.py with `--show-uncovered` flag to get exact uncovered line numbers.
 
-2. **Assign each uncovered line to EXACTLY ONE agent** (never to multiple agents). For each uncovered line:
-   - First, apply the INCLUDE/SKIP criteria from Step 2. Identify all agents whose INCLUDE criterion matches AND whose SKIP criterion does NOT match.
-   - If exactly one agent matches → assign to that agent.
-   - If multiple agents match → assign to the agent with the SMALLEST current view size (by line count). This load-balances rather than inflating the already-largest view.
-   - If NO agent's INCLUDE criterion matches → assign to the agent with the most closely-related SKIP criteria (the "agent who cares least if they accidentally see it"). This should be RARE.
+2. **Assign each uncovered line to ALL matching consumer agents** (multi-consumer allocation per R2.A). For each uncovered line:
+   - First, consult the monolith's authoritative consumer-set source: the explicit `<!-- consumers: [...] -->` annotation or `consumers: [...]` inline tag (R6.2 / R6.6) on the enclosing block. If present, the listed agents (or `all`) ARE the consumer set — no inference.
+   - If no explicit consumers tag exists, apply the INCLUDE/SKIP criteria from Step 2 to identify all agents whose INCLUDE matches AND whose SKIP does NOT match. EVERY matching agent is a consumer; the line is duplicated into each matching view.
+   - If NO agent's INCLUDE criterion matches AND no consumers tag exists → assign to the agent with the most closely-related SKIP criteria. This should be RARE.
+
+   **Deterministic single-owner allocation by smallest-current-view-size is DELETED.** Allocation is driven by the explicit consumers tag from the monolith (R6.2) or, in its absence, by INCLUDE/SKIP fan-out — never by view size.
+
+3. **Stamp each duplicated copy with an EXPLICIT marker (R2.A.2)**. Every block emitted to a view via duplication MUST be preceded, on the line immediately above the block, by:
+
+   ```
+   <!-- EXPLICIT source:L{N}-L{M} sha256:{hex} -->
+   ```
+
+   Where:
+   - `L{N}-L{M}` is the inclusive 1-based monolith line range of the source block.
+   - `sha256:{hex}` is the SHA-256 of the cited range's content after rstrip-per-line + `\n`-joining (normalized whitespace; this is what the verifier recomputes per R4a.2).
+
+   Compute the hash with a Python stanza like:
+
+   ```python
+   import hashlib
+   lines = monolith_lines[N-1:M]                       # 1-based inclusive
+   normalized = "\n".join(line.rstrip() for line in lines)
+   sha = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+   ```
+
+   The verifier (`spec-verify.py`, R4a.2) recomputes this hash from the cited range and rejects mismatches. The marker is whitelisted by R4a.4 so the fabrication check ignores the comment line itself.
+
+4. **Allocation conflicts → `views/allocation-decisions.json` (R2.A.4)**. When a block's consumer set is non-obvious (multiple INCLUDE matches with no explicit consumers tag, or a consumers tag that names an agent not in the selected consumer set), append a record to `views/allocation-decisions.json`:
+
+   ```json
+   {"block_id": "L{N}-L{M}", "consumers": ["dev", "qa"], "source_range": "L{N}-L{M}", "reason": "<short rationale>"}
+   ```
+
+5. **Orphan-block halt (R2.A.5)**. If any monolith block carries `consumers: [agent]` for an agent that produced no view in Phase 0, OR if a block has no matching consumer at all (no INCLUDE match, no consumers tag), HALT before writing any view. Emit a clear error: `"orphan block L{N}-L{M}: consumers=[X] but X not in selected views"` or `"orphan block L{N}-L{M}: no consumer matched"`.
 
 3. Append the assigned lines (preserving monolith order) to that agent's view under a `## Additional Content (coverage fallback)` heading.
 
@@ -420,18 +537,18 @@ If after ONE retry the coverage is still < 100%, apply this deterministic rule:
 
 5. **Diagnose failures by type**:
    - **Coverage < 100%** after fallback → bug in spec-verify.py itself. Report exact failure and stop.
-   - **Max pairwise overlap > 70%** OR **per-view uniqueness < 15%** → the fallback went wrong (likely dumped the same content into multiple views). Investigate:
+   - **Max pairwise overlap exceeds threshold** OR **per-view uniqueness below threshold** → the fallback emitted bulk duplicates without authoritative consumer evidence. Investigate:
      - If > 20% of monolith lines were uncovered after Phase 1, the Phase 1 extraction itself failed. Do NOT patch this with bulk fallback dumps. Restart Phase 1 extraction with more aggressive INCLUDE criteria (broaden matching, decompose blocks more finely).
-     - If < 20% of monolith lines were uncovered, re-check that each uncovered line was assigned to EXACTLY ONE agent in step 2 above — never to multiple.
+     - If < 20% of monolith lines were uncovered, re-check that each duplicated copy carries an EXPLICIT marker (R2.A.2) AND that the consumer set was driven by an explicit `consumers:` tag (R6.2) or a justifiable INCLUDE-fan-out — not arbitrary fan-out without authority.
 
-**ANTI-PATTERN (forbidden)**: Do NOT dump unclassifiable content into multiple agents' views just to force coverage. That defeats the purpose of splitting — each view must contain agent-specific content, not a near-copy of the monolith. A spec that produces 99.9% pairwise overlap is a FAILED split, even if coverage is 100%.
+**ANTI-PATTERN (forbidden)**: Do NOT dump unclassifiable content into every view just to force coverage. Multi-consumer duplication is authorized only when the monolith explicitly tags consumers (R6.2) OR when INCLUDE criteria match. Each view must remain agent-relevant, not a near-copy of the monolith.
 
-If a content block truly doesn't fit any agent's INCLUDE criteria, assign it to the agent with the most closely-related SKIP criteria (i.e., the agent who "cares least if they accidentally see it"). This should be RARE — most lines are clearly related to specific roles.
+If a content block truly doesn't fit any agent's INCLUDE criteria AND has no `consumers:` tag, assign it to the agent with the most closely-related SKIP criteria (i.e., the agent who "cares least if they accidentally see it"). This should be RARE — most lines are clearly related to specific roles.
 
 ### Acceptable view characteristics (enforced by spec-verify.py --strict)
 
 - **Coverage**: 100% (every non-blank, non-separator monolith line appears in at least one view)
-- **Max pairwise overlap**: < 70% (no two views may share more than 70% of their content)
+- **Max pairwise overlap**: configurable threshold (default 30% per R1.4) — duplication driven by `consumers:` tags is expected; thresholds catch unauthorized bulk fan-out
 - **Per-view uniqueness**: > 15% (each view must have at least 15% content that no other view contains)
 
 If any metric fails after fallback, restart Phase 1 rather than patching further.

@@ -1,5 +1,4 @@
 ---
-model: sonnet
 name: ba
 description: "Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context)."
 ---
@@ -778,6 +777,60 @@ Must be compatible with `agents/dev.md` input format:
 - **`pre_existing_guards`**: before identifying the fix, grep for existing guards in the files you plan to modify (if / assert / validator / `:not()` selectors / type guards). Declare them here. Dev is forbidden from removing or weakening any guard unless `removal_authorized: true` is explicitly set.
 - **`regression_investigation_checklist`**: required ONLY when user's complaint contains regression keywords ("was working" / "以前" / "broke" / "regression" / "used to"). Omit the field entirely for non-regression bugs. Executes the ordered investigation already defined in the "Primary suspects for regression bugs" section above.
 - **`git_bisect_result`** (inside `root_cause_analysis`): REQUIRED when complaint contains regression keywords. If bisect couldn't run (e.g., shallow clone), set `bisect_blocked` to the reason. Omitting this field on a regression bug is an invalid BA output. See the "Primary suspects for regression bugs" section above for the bisect-first rule.
+
+---
+
+## Forbidden BA Patterns (MANDATORY)
+
+**Added 2026-04-25 after overnight session 21d24e89 post-mortem.**
+
+These patterns in your output will cause the orchestrator's QA-validates-BA gate to reject your spec:
+
+### 1. `fallback_plan: source+bundle+typecheck` for UI-rendering pipelines is FORBIDDEN
+
+If your pipeline produces a UI surface a user would see (any change to `packages/happy-app/sources/components/`, any new view component, any new tool registration, any styling change), you MAY NOT write a `fallback_plan` that allows QA to skip live browser verification.
+
+**Specifically forbidden phrases in BA spec or context JSON**:
+- `fallback_plan: source+bundle+typecheck only`
+- `acceptance per BA fallback_plan is source + bundle grep + typecheck only`
+- `live verification not required (DORMANT precedent)`
+- `BA-sanctioned source-only verification`
+
+If a precondition is required for live verification (e.g., a Codex session must exist in the dev account before Phase C renderers can fire events), document it as `precondition` in the spec, not `fallback`. Preconditions are HARD GATES — QA cannot bypass them. Either the precondition is met (QA proceeds with full live evidence) or the cycle BLOCKS (QA reports the precondition failure as the issue).
+
+```yaml
+# CORRECT
+precondition:
+  - description: "Codex session must exist in dev account cmi5mv9eh00wzpg14ph73jj3n"
+  - how_to_create: "Open https://dev.life-ai.app, click + sidebar button, select Codex agent flavor, send test command"
+  - if_missing: "BLOCK cycle. Report 'UI affordance for Codex flavor missing' as P0 bug. DO NOT proceed with source-only verification."
+
+# FORBIDDEN
+fallback_plan:
+  - "If Codex session not available, fall back to source+bundle grep + typecheck"
+```
+
+### 2. Never inherit a sibling pipeline fallback verbatim
+
+Cycle 2 of session 21d24e89 had BA pipeline 0 (protocol activation) inherit the dormant-strategy fallback from cycle 1's BA pipelines 1+2 (which were dormant by design). The fallback was no longer legitimate; it was a copy-paste artifact. Each pipeline's `fallback_plan` (if any — and there should be none for UI pipelines) must be derived from the current pipeline's actual constraints, not inherited from earlier specs.
+
+### 3. Never write "out of scope" for prerequisites a Playwright click could create
+
+If creating a prerequisite session, sending a trigger message, or clicking a UI button could establish the test data, the prerequisite is NOT out of scope. It is a setup step that belongs in the spec's `precondition_setup_steps` or as a sibling setup pipeline. "Manual user setup task" is forbidden language for any prerequisite achievable via the UI.
+
+### 4. Acceptance Criteria for UI pipelines MUST include live screenshot evidence
+
+Every BDD acceptance criterion for a UI-rendering pipeline must specify the screenshot evidence required:
+
+```
+GIVEN <precondition met>
+WHEN <user action via Playwright>
+THEN <UI element renders correctly>
+AND screenshot captured at desktop 1440x900: <path>
+AND screenshot captured at mobile 390x844: <path>
+```
+
+If your AC reads `THEN bundle grep finds string "X"` and the change is UI-rendering, your AC is defective. Bundle grep proves shipped, not rendered.
 
 ---
 

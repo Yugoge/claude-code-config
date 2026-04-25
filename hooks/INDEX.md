@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-04-22T06:42:50Z*
-**Total entries**: 88
+*Last updated: 2026-04-25T13:41:05Z*
+**Total entries**: 96
 **Convention**: kebab
 
 ## Tree
@@ -60,8 +60,11 @@ hooks/
 ├── `pretool-block-enterworktree.sh` - PreToolUse hook: Block EnterWorktree tool
 ├── `pretool-block-production-files.sh` - PreToolUse hook: Block Write/Edit to production paths from dev environment
 ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
+├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 2.
+├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
 ├── `pretool-cp-checkin.py` - Triggers when a subagent's `Read` tool call targets a file whose path matches:
 ├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
+├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
 ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
 ├── `pretool-orchestrator-gate.py` - PreToolUse Hook: Orchestrator Gate (Unified)
@@ -70,6 +73,7 @@ hooks/
 ├── `pretool-read-size-guard.py` - PreToolUse Hook: Read Size Guard
 ├── `pretool-runcode-watchdog.py` - PreToolUse Hook: Start timeout watchdog for browser_run_code
 ├── `pretool-spec-block-foreground-agent.py` - PreToolUse Hook: Block foreground Agent during an active /spec Interview
+├── `pretool-subagent-code-block.py` - Matcher: Write|Edit|NotebookEdit
 ├── `pretool-subagent-enforce.py` - PreToolUse Hook: Enforce subagent invocation at designated workflow steps
 ├── `pretool-todo-validate.py` - PreToolUse Hook: Validate TodoWrite input BEFORE execution
 ├── `pretool-workflow-gate.py` - PreToolUse Hook: Require TodoWrite/TodoRead acknowledgment before other tools
@@ -82,18 +86,22 @@ hooks/
 ├── `push.sh` - push.sh - Executable version of /push command
 ├── `QUICKSTART.md` - 🚀 Quick Start Guide
 ├── `README-TODO-INJECTION.md` - Global Todo Injection Hook
+├── `sentinel-lint.sh` - sentinel-lint.sh - Guards the dev-registry sentinel anchor in orchestrator files
 ├── `session-git-init.sh` - ============================================================================
 ├── `session-info.sh` - s-info.sh — SessionStart: display environment info + tool quick reference
 ├── `session-promote-hook.sh` - Description: SessionStart hook that promotes a cold session back to ramdisk.
 ├── `session_start.sh` - SessionStart Hook - Display working environment info
 ├── `smart-checkpoint.sh` - smart-checkpoint.sh - DEPRECATED, scheduled for deletion
 ├── `start-fswatch-all.sh` - start-fswatch-all.sh - Start fswatch monitoring for all important repositories
+├── `stop-cleanup-allowlist.sh` - Stop Hook: Wipe any unconsumed /allow grant at turn end.
 ├── `stop-git-commit.sh` - ============================================================================
 ├── `stop-overnight-timelock.py` - Stop Hook: Block conversation termination until overnight end-time
+├── `stop-spec-coverage-enforce.py` - Stop Hook: Block spec agent from exiting with < 100% monolith coverage
 ├── `stop-workflow-enforce.py` - Stop Hook: Enforce workflow structural integrity before allowing Claude to stop
 ├── `subagent-stop-diff-check.sh` - SubagentStop hook: flag large diffs without minimum-diff justification
 ├── `subagent-stop-guard-integrity.sh` - subagent-stop-guard-integrity.sh
 ├── `subagentstop-cp-enforce.py` - Activation gate (NOT matcher=*): this hook exits 0 unless BOTH conditions hold:
+├── `userprompt-consent-allowlist.sh` - UserPromptSubmit Hook: parse `/allow <pattern>` and write a single-use
 └── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
 ```
 

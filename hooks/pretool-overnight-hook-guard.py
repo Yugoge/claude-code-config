@@ -223,6 +223,18 @@ def is_hooks_path(file_path: str) -> bool:
     return '.claude/hooks/' in normalized or '.claude/hooks\\' in normalized
 
 
+def is_commands_path(file_path: str) -> bool:
+    """Check if a file path targets the .claude/commands/ directory.
+
+    Mirrors `is_hooks_path()` structure (R4.1, spec-20260424-233926 §5.2.4).
+    Added 2026-04-25 to close the gap that allowed b5d447e-style sweep
+    commits to silently rewrite slash-command files during overnight
+    sessions.
+    """
+    normalized = file_path.replace('\\', '/')
+    return '.claude/commands/' in normalized or '.claude/commands\\' in normalized
+
+
 def is_state_file_path(file_path: str) -> bool:
     """Check if a file path targets an overnight state file."""
     normalized = file_path.replace('\\', '/')
@@ -286,6 +298,24 @@ def check_bash_targets_hooks(command: str) -> bool:
     ])
 
 
+def check_bash_targets_commands(command: str) -> bool:
+    r"""Check if a bash command writes to .claude/commands/ directory.
+
+    Mirrors `check_bash_targets_hooks()` (R4.1, spec-20260424-233926 §5.2.4).
+    Pattern matches `\.claude/commands/[A-Za-z0-9_.-]+\.md` reachable via
+    echo/printf/cat/cp/mv/tee/>/>> redirects.
+    """
+    return _matches_any(command, [
+        r'(?:echo|printf)\s+.*>\s*.*\.claude/commands/',
+        r'cat\s+.*>\s*.*\.claude/commands/',
+        r'cp\s+.*\.claude/commands/',
+        r'mv\s+.*\.claude/commands/',
+        r'tee\s+.*\.claude/commands/',
+        r'>\s*.*\.claude/commands/',
+        r'>>\s*.*\.claude/commands/',
+    ])
+
+
 def _block(message: str) -> None:
     """Write message to stderr and exit 2."""
     sys.stderr.write(message)
@@ -293,11 +323,19 @@ def _block(message: str) -> None:
 
 
 def _check_write_edit_security(tool_name: str, file_path: str) -> None:
-    """Block Write/Edit to hooks or state files during overnight."""
+    """Block Write/Edit to hooks, commands, or state files during overnight."""
     if is_hooks_path(file_path):
         _block(
             '\nOVERNIGHT HOOK PROTECTION: Modifying .claude/hooks/ '
             'is blocked during overnight sessions.\n'
+            f'Blocked: {tool_name} to {file_path}\n'
+        )
+    if is_commands_path(file_path):
+        _block(
+            '\nOVERNIGHT COMMANDS PROTECTION: Modifying .claude/commands/ '
+            'is blocked during overnight sessions (R4.1; closes the gap '
+            'that allowed b5d447e-style sweep commits to silently rewrite '
+            'slash-command files).\n'
             f'Blocked: {tool_name} to {file_path}\n'
         )
     if is_state_file_path(file_path):
@@ -309,13 +347,19 @@ def _check_write_edit_security(tool_name: str, file_path: str) -> None:
 
 
 def _check_bash_security(command: str) -> None:
-    """Block Bash commands targeting hooks or state files."""
+    """Block Bash commands targeting hooks, commands, or state files."""
     if 'update-overnight-state.sh' in command:
         return  # Sanctioned state update tool
     if check_bash_targets_hooks(command):
         _block(
             '\nOVERNIGHT HOOK PROTECTION: Writing to .claude/hooks/ '
             'via Bash is blocked during overnight sessions.\n'
+        )
+    if check_bash_targets_commands(command):
+        _block(
+            '\nOVERNIGHT COMMANDS PROTECTION: Writing to .claude/commands/ '
+            'via Bash is blocked during overnight sessions (R4.1; references '
+            'b5d447e style regression).\n'
         )
     if check_bash_targets_state(command):
         _block(
