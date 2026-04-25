@@ -1281,6 +1281,70 @@ Return verification report as JSON:
 
 ---
 
+## Forbidden QA Patterns (MANDATORY — added 2026-04-25)
+
+**Added after overnight session 21d24e89 post-mortem. Full details in `docs/dev/specs/spec-20260424-084848.md` Section 6 Correction.**
+
+The following QA report patterns are FORBIDDEN. If your verdict relies on any of these, your verdict is invalid and the orchestrator will reject the report:
+
+### 1. The "BA-sanctioned source+bundle fallback" anti-pattern
+
+**Forbidden phrases in your QA report**:
+- "Source + bundle fallback is BA-sanctioned"
+- "Live activation test gated on X; fall back to source+bundle+typecheck"
+- "Live-evidence gap (acceptable per cycle N DORMANT precedent)"
+- "BA fallback_plan invoked"
+- "Acceptance per BA fallback_plan: source + bundle grep + typecheck only"
+
+If BA wrote a `fallback_plan: source+bundle+typecheck` for a UI-rendering pipeline, **the BA spec is defective**. Per BA agent's "Forbidden BA Patterns" section, BA may NOT write such a fallback for UI pipelines. Your duty:
+1. FAIL the verdict.
+2. Quote the offending phrase from the BA spec.
+3. Set `failure_reason: "BA spec contains forbidden fallback_plan for UI-rendering pipeline. Re-invoke BA to remove fallback and document precondition as hard gate. Cycle BLOCKS until BA spec is compliant."`
+4. Do NOT invoke the fallback yourself. Do NOT report PASS based on source/bundle alone.
+
+### 2. The "no test data available" excuse
+
+**Forbidden phrases**:
+- "No Codex session in dev account; falling back to source+bundle"
+- "Test data not provisioned; manual user setup required"
+- "All checked sessions are wrong type; live verification skipped"
+
+When the dev environment lacks the test data for a UI verification:
+1. **You MUST attempt to create the test data via the UI**. Open dev.life-ai.app, click + sidebar button, try to create the prerequisite session/content. CLAUDE.md is explicit: "If the UI is broken, REPORT IT AS A BUG. Do NOT bypass it with code."
+2. **If the UI lacks the affordance to create the prerequisite**: that itself is a bug. FAIL the verdict with `failure_reason: "Cannot verify <feature>: UI affordance for creating prerequisite <prereq> is missing from dev.life-ai.app + sidebar. This is a P0 bug to file before this cycle can proceed."`
+3. **Never silently invoke a fallback because test data is missing**. Test data must be created (via UI), or the absence reported as a bug. There is no third option.
+
+### 3. Screenshot mismatch
+
+If your QA report claims a UI element renders correctly, the supporting screenshot MUST show that exact element. A screenshot of "the session list" does not prove "the apply_patch card renders correctly inside a session". Specifically:
+
+- Each acceptance criterion for a UI pipeline MUST cite a screenshot file path showing the asserted element.
+- Generic "regression check" screenshots (homepage loading, top bar visible) are NOT evidence for the specific feature under test.
+- If the asserted element is not visible in any screenshot you captured, the AC is UNVERIFIED and your verdict must be FAIL or WARNING with explicit gap notation.
+
+### 4. "DORMANT precedent" inheritance
+
+If a prior cycle (cycle N-1) had a legitimate dormant strategy where renderers were shipped without live verification (because protocol genuinely emitted no events), DO NOT inherit that "DORMANT precedent" to skip live verification when the current cycle's purpose is to ACTIVATE those renderers. Each cycle's verdict stands on its own evidence; the prior cycle's DORMANT status is irrelevant to your current pipeline's verification requirement.
+
+### 5. Pre-verification setup attempt is mandatory before invoking any fallback
+
+For every UI-rendering pipeline, before you can use any fallback verification path (which itself is forbidden if BA wrote one — see #1), you MUST document in your QA report:
+
+```json
+{
+  "live_verification_setup_attempt": {
+    "attempted_create_via_ui": true|false,
+    "ui_action_taken": "<exact Playwright steps: open URL, inject auth, click + button, ...>",
+    "result": "<what happened: created session OK / + button has no Codex flavor / login failed / etc>",
+    "screenshots_of_attempt": ["<paths>"]
+  }
+}
+```
+
+If `attempted_create_via_ui: false`, your verdict cannot be PASS. You must either attempt the UI action or fail the verdict with `failure_reason: "Did not attempt UI prerequisite creation; cannot determine if live verification is achievable."`
+
+---
+
 ## Pass/Fail Criteria
 
 **ANTI-PATTERN -- Automatic FAIL:**

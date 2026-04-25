@@ -1,14 +1,16 @@
 # commands
 
-*Last updated: 2026-04-22T06:48:51Z*
-**Total entries**: 31
+*Last updated: 2026-04-25T14:17:22Z*
+**Total entries**: 33
 **Convention**: kebab
 
 ## Tree
 ```
 commands/
+├── `allow.md` - Grant the main agent one-shot consent to run a developer-class bash command that would otherwise be blocked by pretool-bash-safety.sh. Usage: /allow <pattern> (literal substring match, or re:<regex> for regex).
 ├── `checkpoint.md` - Checkpoint Command
 ├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
+├── `close.md` - Wrapper - ask QA agent to debate with codex and return CLOSE YES/NO verdict
 ├── `code-review.md` - Comprehensive code review with best practices analysis
 ├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.4, xhigh reasoning) for a second opinion or parallel coding
 ├── `deep-search.md` - Deep website exploration with iterative search strategy
@@ -22,7 +24,7 @@ commands/
 ├── `explain-code.md` - Deep explanation of code functionality and design
 ├── `file-analyze.md` - Analyze PDF, Excel, Word, images and other files with deep insights
 ├── `fswatch.md` - FSWatch Command
-├── `merge.md` - Merge an overnight worktree branch to master with full commit history preservation
+├── `merge.md` - Merge an overnight worktree branch to the default branch with full commit history preservation
 ├── `optimize.md` - Analyze code for performance optimization opportunities
 ├── `playwright-helper.md` - Guide for using Playwright MCP with deep search commands
 ├── `pull.md` - Pull Command
@@ -36,7 +38,7 @@ commands/
 ├── `search-tree.md` - Tree search exploration with MCTS-inspired path evaluation
 ├── `security-check.md` - Security vulnerability analysis and recommendations
 ├── `site-navigate.md` - Intelligent site navigation simulating "click-through" exploration
-├── `spec.md` - Create, validate, and list spec files for any dev workflow (/dev, /dev-overnight, or standalone reference)
+├── `spec.md` - Create spec files for any dev workflow (/dev, /dev-overnight, or standalone reference)
 └── `test.md` - Test validation workflow with edge case detection, systematic validation, and quality enforcement
 ```
 

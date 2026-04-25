@@ -1,13 +1,14 @@
 # todo
 
-*Last updated: 2026-04-21T20:14:28Z*
-**Total entries**: 20
+*Last updated: 2026-04-24T13:13:16Z*
+**Total entries**: 21
 **Convention**: kebab
 
 ## Tree
 ```
 todo/
 ├── `clean.py` - Preloaded TodoList for /clean workflow
+├── `close.py` - /close is a true wrapper. It has exactly 3 orchestration steps:
 ├── `code-review.py` - Python script
 ├── `deep-search.py` - Python script
 ├── `dev-command.py` - This todo script generates workflow steps for the BA-delegated dev-command workflow
@@ -25,7 +26,7 @@ todo/
 ├── `research-deep.py` - Python script
 ├── `security-check.py` - Python script
 ├── `site-navigate.py` - Python script
-├── `spec.py` - The /spec command supports 4 modes (see ~/.claude/commands/spec.md):
+├── `spec.py` - Mirrors /root/knowledge-system/scripts/todo/ask.py structure
 └── `test.py` - Preloaded TodoList for /test workflow
 ```
 

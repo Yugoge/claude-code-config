@@ -36,23 +36,57 @@ Adapted from `/dev` BA clarification pattern (dev.md Step 4 loop, max 3 rounds, 
 
 1. Read the template at `~/.claude/templates/overnight-spec.md`. If missing, report error and stop.
 
-2. Generate the output path:
-   ```
-   docs/dev/specs/spec-<YYYYMMDD-HHMMSS>.md
-   ```
-   Create `docs/dev/specs/` if it does not exist. Store this path as `spec_path` for reuse in Step 4. A fresh `/spec` invocation in a new session creates a new timestamped file; within-session follow-ups append to the same file.
+2. **Resolve the spec base directory (worktree-aware)**:
 
-3. Populate the template:
+   Before computing the output path, detect whether an overnight worktree is active for the current project. If one is active, the spec belongs inside that worktree so the parent does not accumulate untracked `docs/dev/specs/...` files that later collide with `/merge` (this is the exact failure mode that forced the manual workaround `mv docs/dev/specs docs/dev/specs.pre-merge-backup` during the failed `/merge worktree-overnight-20260424-bfbc5f54` invocation).
+
+   Detection uses the same convention as `pretool-overnight-hook-guard.py`: scan the parent project's `.claude/overnight-state-*.json` files, read their `worktree_path` field, and treat one as live when the path exists and is a directory.
+
+   ```bash
+   PARENT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+   ACTIVE_WORKTREES=()
+   # Iterate newest-first so the multi-active fallback picks the most recent.
+   while IFS= read -r -d '' sf; do
+     [ -f "$sf" ] || continue
+     WT=$(jq -r '.worktree_path // empty' "$sf" 2>/dev/null)
+     [ -n "$WT" ] && [ -d "$WT" ] && ACTIVE_WORKTREES+=("$WT")
+   done < <(find "$PARENT_DIR/.claude" -maxdepth 1 -name 'overnight-state-*.json' -printf '%T@\t%p\0' 2>/dev/null \
+            | sort -zrn | cut -z -f2-)
+
+   case "${#ACTIVE_WORKTREES[@]}" in
+     0)  SPEC_BASE="$PARENT_DIR" ;;                # no overnight active → parent
+     1)  SPEC_BASE="${ACTIVE_WORKTREES[0]}" ;;     # exactly one → use it
+     *)
+       # Multiple active overnights: prefer the user's choice when interactive,
+       # else fall back to the most-recently-modified state file (already first
+       # in the list because of the newest-first sort above).
+       if [ -t 0 ]; then
+         echo "Multiple active overnight worktrees detected:" >&2
+         printf '  %s\n' "${ACTIVE_WORKTREES[@]}" >&2
+         echo "Defaulting to the most recently modified one. Override by exporting CLAUDE_SPEC_WORKTREE." >&2
+       fi
+       SPEC_BASE="${CLAUDE_SPEC_WORKTREE:-${ACTIVE_WORKTREES[0]}}"
+       ;;
+   esac
+   ```
+
+3. Generate the output path:
+   ```
+   <SPEC_BASE>/docs/dev/specs/spec-<YYYYMMDD-HHMMSS>.md
+   ```
+   Create `<SPEC_BASE>/docs/dev/specs/` if it does not exist. Store this path as `spec_path` for reuse in Step 4. A fresh `/spec` invocation in a new session creates a new timestamped file; within-session follow-ups append to the same file.
+
+   Note: when `SPEC_BASE` is the active worktree, the spec lands inside the worktree's tree (where `/merge` will pull it back to the parent on completion). When no overnight is active, `SPEC_BASE` is the parent and the existing default behavior is preserved.
+
+4. Populate the template:
    - `<issue_description>` → short summary of the user's requirement
-   - `<pipeline_index>` → `standalone`
-   - `<session_id>` → `manual`
    - `<ISO-8601>` → current timestamp
    - Section 5 → user's requirement verbatim
    - All other sections → `_Not yet populated._`
 
-4. Write the spec.
+5. Write the spec.
 
-5. **Background exploration (non-blocking)**: when the user mentions specific files, components, features, or technical terms, immediately dispatch an Explore agent in the background:
+6. **Background exploration (non-blocking)**: when the user mentions specific files, components, features, or technical terms, immediately dispatch an Explore agent in the background:
    ```
    Agent(
      subagent_type="Explore",
@@ -63,7 +97,7 @@ Adapted from `/dev` BA clarification pattern (dev.md Step 4 loop, max 3 rounds, 
    ```
    Findings integrate when they arrive (see Step 4). Discrepancies may surface as a single targeted question but do NOT gate the loop.
 
-6. Acknowledge that the spec was written. Include the full `<spec_path>` so the user knows where it landed. Convey that more requirements can be added whenever they are ready. Keep it brief and natural — first-person, match the user's language and energy, no fixed template.
+7. Acknowledge that the spec was written. Include the full `<spec_path>` so the user knows where it landed. Convey that more requirements can be added whenever they are ready. Keep it brief and natural — first-person, match the user's language and energy, no fixed template.
 
 **Do NOT** run split / checkpoints / QA yet. Finalize happens exactly once in Step 6.
 
@@ -161,12 +195,67 @@ Only proceed to Step 6 when a STRONG signal fires.
      "
    ```
 
-   If QA fails: report issues to user, ask whether to re-split or proceed.
-   If QA passes: proceed to mark and display.
+   **Split-QA auto-iteration loop** (mirrors `/dev` Step 5b; max 3 rounds, no user prompt between rounds):
+
+   **Iteration guard**: Maximum 3 split-QA rounds to prevent infinite loops.
+
+   **Current split-QA round**: Track internally as `SPLIT_QA_ROUND` (starts at 1).
+
+   **If QA verdict == `pass`** (at any round): exit loop, proceed to sub-step 4 (mark split complete).
+
+   **If QA verdict == `fail` and `SPLIT_QA_ROUND` < 3**:
+
+   Announce: `Split-QA round <N>/3: QA found <count> issue(s). Re-invoking spec subagent with feedback.`
+
+   Re-invoke the spec subagent with the same Agent pattern as sub-step 2, appending the QA `issues` array verbatim under the label `qa_feedback_from_previous_round` in the prompt:
+
+   ```
+   Use Agent tool with:
+   - description: "Spec agent re-split (round <N>) addressing QA feedback for <spec-id>"
+   - prompt: "
+     You are the spec subagent. Read and follow the instructions in /dev/shm/dev-workspace/dot-claude/agents/spec.md EXACTLY.
+     Spec id: <spec-id>
+     Monolith: <spec_path>
+     Monolith lines: <MONOLITH_LINES>
+     Output folder: docs/dev/specs/<spec-id>/
+     Project dir: <$CLAUDE_PROJECT_DIR>
+
+     Your previous split was REJECTED by QA. Address each issue below with concrete
+     corrections to the views and/or checkpoints. Do not argue -- investigate and fix.
+
+     qa_feedback_from_previous_round:
+     <JSON array of issues from the previous QA verdict>
+
+     For each issue:
+     - Identify which view(s) or checkpoint(s) the issue targets
+     - Apply the specific correction QA requested
+     - If the original extraction was wrong, RE-EXTRACT it verbatim from the monolith
+     - If the agent selection was wrong, ADJUST the selected set
+
+     Re-run Phase 0 (re-decide agents if selection was flagged),
+     Phase 1 (re-extract affected views), Phase 2 (refresh checkpoints).
+     Return a JSON summary."
+   ```
+
+   Increment `SPLIT_QA_ROUND` and re-run the QA validation (sub-step 3) against the refreshed split.
+
+   **If QA verdict == `fail` and `SPLIT_QA_ROUND` == 3** (all rounds exhausted — auto-proceed, do NOT prompt the user):
+
+   1. Print to stdout (non-blocking): `Spec split QA: 3 rounds exhausted. Proceeding with best-effort split. Unresolved issues: <list of QA issues>.`
+   2. Write the round-3 `issues` array verbatim to `docs/dev/specs/<spec-id>/split-qa-unresolved.json`.
+   3. Continue to sub-step 4 (mark split complete); the caveat line is appended there.
+   4. Include the caveat in the Step 7 displayed output so reviewers are notified.
+
+   **Rule**: Every spec subagent invocation MUST be followed by QA validation. The loop exits only on `pass` or on round-3 exhaustion.
 
 4. **Mark split as complete**:
    ```bash
    echo "split-complete: $(date -Iseconds)" > docs/dev/specs/<spec-id>/.split-complete
+   ```
+
+   If the loop exited via round-3 exhaustion (sub-step 3), also append the caveat line so reviewers see the warning inline with the marker:
+   ```bash
+   echo "⚠ unresolved split-QA issues (<N>); see split-qa-unresolved.json" >> docs/dev/specs/<spec-id>/.split-complete
    ```
 
 ### Step 7: Display result
@@ -180,6 +269,9 @@ Checkpoints:  .claude/specs/<spec-id>/cp-state-*.json
 Sections populated:
 - Section 5 (User's Acceptance Criterion): populated (N requirements accumulated)
 - Section 1 (Before): <populated from Explore findings, or empty>
+
+<If split-QA exhausted 3 rounds, include:>
+⚠ Split-QA: 3 rounds exhausted with unresolved issues — see docs/dev/specs/<spec-id>/split-qa-unresolved.json
 
 Usage:
   /dev                                   ← auto-detects this spec
