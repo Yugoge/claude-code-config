@@ -557,6 +557,28 @@ When `/update` command failed silently during testing:
 
 **Lesson Learned**: Don't assume frontmatter fields from other systems work in Claude Code. Test commands after creation and verify execution, not just file existence.
 
+**Critical Pitfall — Empty Body Poisons the Conversation**
+
+A `commands/*.md` file with frontmatter only (empty body) AND no `disable-model-invocation: true` will **permanently break any conversation that invokes it**.
+
+- The Claude Code CLI expands a slash-command's body into a separate text content block in the user message.
+- Anthropic API rejects empty text content blocks with HTTP 400 (`messages.N.content.M.text: text content blocks must be non-empty` / `cache_control cannot be set for empty text blocks`).
+- The error lands in conversation history and every subsequent turn replays it — the conversation is irrecoverable. Only remedy: start a new session.
+
+**Two valid shapes for hook-only commands** (e.g., `/do`, `/allow` — commands that exist purely to trigger UserPromptSubmit hook side-effects):
+
+1. **`disable-model-invocation: true` in frontmatter** — body is never injected as a content block.
+2. **Non-empty body** — even a single character is enough.
+
+**Belt-and-suspenders (recommended)**: do BOTH. Keep a one-line placeholder body even when the flag is set, so a later removal of the flag doesn't silently turn the command into a poison bomb.
+
+**Real-world incident**: `/redev` (commit `5ec0ba2`, 2026-04-25). Original design left body empty intentionally, assuming "empty body = no spec injection". That assumption was wrong — the CLI injects an empty content block regardless, the API 400s, and the conversation dies.
+
+**Anti-Patterns to Avoid**:
+- ❌ Frontmatter-only command file without `disable-model-invocation: true`
+- ❌ "Clever" empty-body designs to skip prompt injection (use the `disable-model-invocation` flag instead)
+- ❌ Removing `disable-model-invocation` from a hook-only command without giving it a body first
+
 ---
 
 ### Pattern 6: Complete Automation
