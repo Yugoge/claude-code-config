@@ -13,6 +13,21 @@
 #
 # To bypass this hook: git commit --no-verify
 
+# Sentinel lint — guards the dev-registry injection anchor in the three
+# orchestrator files (dev.md, dev-command.md, dev-overnight.md). Fires only
+# when one of those files is part of the staged diff; otherwise passes through
+# with zero cost. See /root/.claude/hooks/sentinel-lint.sh for details.
+if [ -f "$HOME/.claude/hooks/sentinel-lint.sh" ]; then
+  staged_targets=$(git diff --cached --name-only 2>/dev/null \
+    | grep -E '^commands/dev(\.md|-command\.md|-overnight\.md)$' || true)
+  if [ -n "$staged_targets" ]; then
+    if ! "$HOME/.claude/hooks/sentinel-lint.sh"; then
+      echo "❌ Pre-commit blocked: sentinel-lint failed (see above)." >&2
+      exit 1
+    fi
+  fi
+fi
+
 # Source the checking script from Claude Code hooks directory
 if [ -f "$HOME/.claude/hooks/pre-commit-check.sh" ]; then
   "$HOME/.claude/hooks/pre-commit-check.sh"
