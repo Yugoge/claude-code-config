@@ -1493,13 +1493,29 @@ Simply mark this step as completed via TodoWrite. The PostToolUse:TodoWrite hook
 <Patterns noticed during exploration that need human decision-making>
 ```
 
-**CRITICAL: DO NOT auto-merge to master.**
+**CRITICAL: DO NOT auto-merge to $DEFAULT_BRANCH.**
 
-DO NOT squash merge. DO NOT manually copy files. DO NOT create a single commit on master with worktree changes. DO NOT cherry-pick commits. The worktree branch preserves full commit history. A proper `git merge` brings all commits to master with their original authorship and messages intact. Only the USER should trigger the merge, after reviewing the changes.
+DO NOT squash merge. DO NOT manually copy files. DO NOT create a single commit on $DEFAULT_BRANCH with worktree changes. DO NOT cherry-pick commits. The worktree branch preserves full commit history. A proper `git merge` brings all commits to $DEFAULT_BRANCH with their original authorship and messages intact. Only the USER should trigger the merge, after reviewing the changes.
 
 The overnight session does NOT merge anything. It preserves the worktree for user review.
 
 **State file cleanup**: Automatic. The `pretool-overnight-hook-guard` auto-cleans expired state files on next hook invocation. No manual deletion needed.
+
+**Default-branch resolver** (run BEFORE producing the announcement):
+
+Detects the repository's default branch dynamically (`main`, `master`, or any other) by reading `refs/remotes/origin/HEAD`. The announcement below references `$DEFAULT_BRANCH` rather than a hardcoded literal. Same resolver pattern as `/merge`. Per spec-20260424-233926 Section 5.2.1.1, all command-execution paths must derive the default branch dynamically.
+
+```bash
+# Detect default branch dynamically (handles main/master/any other)
+DEFAULT_BRANCH="$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')"
+if [ -z "$DEFAULT_BRANCH" ]; then
+  DEFAULT_BRANCH="$(git remote show origin 2>/dev/null | sed -n 's/.*HEAD branch: //p')"
+fi
+if [ -z "$DEFAULT_BRANCH" ]; then
+  DEFAULT_BRANCH="master"  # final fallback
+fi
+echo "target=$DEFAULT_BRANCH"
+```
 
 **Announce completion**:
 
@@ -1517,8 +1533,8 @@ Branch: <worktree_branch>
 Path:   <worktree_path>
 
 To review changes:
-  git log master..<worktree_branch> --oneline
-  git diff master...<worktree_branch>
+  git log $DEFAULT_BRANCH..<worktree_branch> --oneline
+  git diff $DEFAULT_BRANCH...<worktree_branch>
 
 To merge (when ready):
   /merge <worktree_branch>
