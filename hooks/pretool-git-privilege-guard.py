@@ -2,23 +2,25 @@
 """
 PreToolUse Hook: Agent git-privilege guard.
 
-Scope: Runs on Bash tool calls in OVERNIGHT (unattended autonomous-loop)
-sessions only. Interactive sessions where the human is online and
-supervising every tool call do not need this guard - the human can
-reject any unwanted git mutation directly. Detection is the canonical
-state-file probe used by every other overnight-aware hook in this
-codebase: glob `<project>/.claude/overnight-state-*.json`, check
-`current_phase != complete` AND `now < end_time`. If no live overnight
-state file exists, the hook fail-opens (exit 0).
+Scope: Runs on EVERY Bash tool call in agent (subagent + main-agent
+orchestrator) contexts, regardless of whether the session is overnight
+or interactive. The b5d447e regression (2026-04-21 17:45 UTC) which
+this guard exists to prevent - a 93-file `git commit` + `git push`
+sweep authored by the orchestrator with no human signoff - happened in
+an INTERACTIVE session (JSONL message 293 of session
+962de59f-fe0b-416e-b88b-7345fdf569e2, prompt `全部commit push`,
+no overnight-state-*.json present). Gating this hook on overnight-
+context only would let that exact regression class pass through; the
+guard must be always-on per spec 5.2.4 line 240-241.
 
-Closes the gap that allowed b5d447e (2026-04-21 17:45 UTC) to commit a
-93-file sweep WITHOUT human authorship - the orchestrator-gate fired
-(rate-based 4/3 streak) but the agent reset the streak with a Grep
-call and the SAME git commit succeeded 9 seconds later, with no human
-awake to intervene. That scenario can only happen in an overnight loop;
-in interactive sessions the human sees every tool call.
+The whitelists below preserve the legitimate paths:
+  - `^auto-bulk: end-of-cycle commit for ` blessed bridge from /merge
+  - CLAUDE_MERGE_COMMAND_ACTIVE=1 env exemption for git merge
+  - reset to HEAD (non-destructive)
+  - human-driven commits: the human exits the agent context and runs
+    git commit at their own shell; this hook does not see those calls.
 
-Forbidden agent operations (in overnight context):
+Forbidden agent operations:
   - git commit -m '<msg>' whose message does NOT match
     `^auto-bulk: end-of-cycle commit for ` (the blessed bridge from
     /merge per spec section 5.2.1.2 R2). Stderr literal:
@@ -37,11 +39,14 @@ git stash list/show/pop (non-destructive forms), and reset to HEAD only.
 
 Spec: spec-20260424-233926 section 5.2.4 (R4.3) line 233-249.
 
-Refactored 2026-04-25: replaced the dead-code `CLAUDE_OVERNIGHT_ACTIVE`
-env-var path with the canonical state-file probe. The env var was
-referenced but never set anywhere in the codebase - the hook had been
-applying to interactive sessions too, blocking legitimate human-
-supervised commits. Now it gates correctly on overnight context only.
+Revision history:
+  2026-04-25 (Option alpha): made always-on. Removed the overnight-
+  context gate after confirming b5d447e occurred in an interactive
+  session - the gate would have let the regression through. The
+  `_is_overnight_active()` helper is retained as dead code for
+  reference but is no longer consulted by main().
+  2026-04-25 (earlier): replaced the dead-code `CLAUDE_OVERNIGHT_ACTIVE`
+  env-var path with the canonical state-file probe.
 
 Exit codes:
   0: Allow tool use
@@ -218,8 +223,9 @@ def main():
     try:
         if data.get('tool_name', '') != 'Bash':
             sys.exit(0)
-        if not _is_overnight_active():
-            sys.exit(0)
+        # Always-on per spec 5.2.4 line 240-241; overnight gate removed
+        # 2026-04-25 (Option alpha) after b5d447e proved interactive
+        # sessions need this guard too.
         command = (data.get('tool_input', {}) or {}).get('command', '') or ''
         if not command:
             sys.exit(0)
