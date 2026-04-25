@@ -956,6 +956,24 @@ Pass per-agent view paths alongside (not in place of) `spec_path` to subagents s
 
 **Keep this step lightweight** - BA subagent handles all analysis.
 
+**Initialize dev-registry for hard subagent enforcement** (MANDATORY — do this before ANY Agent launch):
+
+The hook `pretool-subagent-code-block.py` blocks non-`dev` subagents from writing code files, but it needs the Claude-internal subagent UUID to be registered against an `agent_type`. Root cause of the /dev gap (see commit `e086ccb`): /dev-command sessions produce no `.claude/specs/` cp-state files, so the hook falls open and every subagent can write code. The fix is an orchestrator-provided sentinel file that the subagent reads as its FIRST ACTION; `pretool-cp-checkin.py` then writes the UUID→agent_type mapping into `.claude/dev-registry/agent-index.json`.
+
+Generate a session_id and create sentinel files for every agent type this orchestrator can launch:
+
+```bash
+DEV_SESSION_ID="dev-command-$(date +%Y%m%d-%H%M%S)"
+REGISTRY_DIR="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID"
+mkdir -p "$REGISTRY_DIR"
+for agent in ba qa dev pm architect product-owner ui-specialist user; do
+  printf '{"agent_type": "%s", "session_id": "%s"}\n' "$agent" "$DEV_SESSION_ID" \
+    > "$REGISTRY_DIR/$agent.json"
+done
+```
+
+Store `$DEV_SESSION_ID` for use in every Agent launch prompt below. Every Agent launch prompt MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent.
+
 ### Step 2: Specialist Consultation (always evaluate, never silently skip)
 
 Before touching any specialist, you MUST evaluate each one's relevance to the issue and document the decision. Silently skipping is forbidden — skipping without assessment is itself a workflow violation.
@@ -999,6 +1017,8 @@ In the orchestrator's reasoning (and in BA's context JSON when BA is invoked nex
 Use Agent tool with:
 - description: "<Specialist role> consultation for: <requirement summary>"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<specialist-name>.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   You are the <specialist-name> specialist. Follow .claude/agents/<specialist-name>.md.
 
   Requirement: '<requirement from Step 1>'
@@ -1084,6 +1104,8 @@ If dev changed L1 when spec called for L3, treat as failed implementation.
 Use Task tool with:
 - description: "Analyze requirement and build development context"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
   Requirement: '<requirement from Step 1>'
@@ -1126,6 +1148,8 @@ Use Task tool with:
 Use Task tool with:
 - description: "Continue BA analysis with clarification answers"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
   Requirement: '<original requirement>'
@@ -1177,6 +1201,8 @@ Use Agent tool with:
 - subagent_type: "qa"
 - description: "Validate BA analysis quality (not code)"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   You are the QA subagent in BA-VALIDATION MODE. This is NOT code verification.
   You are verifying the QUALITY OF BA's ANALYSIS, not any implementation.
 
@@ -1265,6 +1291,8 @@ Use Agent tool with:
 - subagent_type: "ba"
 - description: "Re-investigate: address QA objections on analysis quality"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
   Your previous analysis was REJECTED by QA. Address each objection below
@@ -1304,6 +1332,8 @@ Use Agent tool with:
 Use Task tool with:
 - description: "Implement development changes based on BA context"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/dev.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
   Context file: docs/dev/context-<timestamp>.json
@@ -1347,6 +1377,8 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 Use Task tool with:
 - description: "Verify implementation quality against standards"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   You are the QA subagent. Follow agents/qa.md instructions precisely.
 
   Context file: docs/dev/context-<timestamp>.json
