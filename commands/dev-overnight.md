@@ -190,6 +190,28 @@ Time-lock hook is active -- session will not terminate until end-time.
 Beginning autonomous exploration...
 ```
 
+**Initialize dev-registry for hard subagent enforcement** (MANDATORY — do this before ANY Agent launch):
+
+The hook `pretool-subagent-code-block.py` blocks non-`dev` subagents from writing code files, but it needs the Claude-internal subagent UUID to be registered against an `agent_type`. Root cause of the /dev gap (see commit `e086ccb`): /dev-overnight sessions produce no `.claude/specs/` cp-state files, so the hook falls open and every subagent can write code. The fix is an orchestrator-provided sentinel file that each subagent reads as its FIRST ACTION; `pretool-cp-checkin.py` then writes the UUID→agent_type mapping into `.claude/dev-registry/agent-index.json`.
+
+Reuse the overnight `session_id` from the state file (do NOT invent a new one — the same value is reused across cycles and continuations). Create sentinel files for every agent type this orchestrator can launch, including overnight-only specialists:
+
+```bash
+DEV_SESSION_ID="$session_id"  # from overnight state file
+REGISTRY_DIR="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID"
+mkdir -p "$REGISTRY_DIR"
+for agent in \
+    ba qa dev pm architect product-owner ui-specialist user \
+    cleaner rule-inspector style-inspector prompt-inspector \
+    cleanliness-inspector git-edge-case-analyst \
+    test-executor test-validator; do
+  printf '{"agent_type": "%s", "session_id": "%s"}\n' "$agent" "$DEV_SESSION_ID" \
+    > "$REGISTRY_DIR/$agent.json"
+done
+```
+
+Every Agent launch prompt in this orchestrator MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent. In continuation mode (after a hook-induced context reset), re-run the `mkdir -p` + sentinel loop above — it's idempotent, so re-running is safe and guarantees sentinels exist even if a cleanup step removed them.
+
 ---
 
 ### Continuation Mode
@@ -309,6 +331,8 @@ Use Agent tool with:
 - subagent_type: "pm"
 - description: "Build test plan from project docs and session history"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/pm.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   You are the PM subagent. Follow agents/pm.md instructions precisely.
 
   Project path: <worktree_path from state file if set, otherwise project_path>
@@ -478,7 +502,8 @@ Available specialists:
 - "user" → docs/dev/overnight/<session_id>/user-report.json
 - "ui-specialist" → docs/dev/overnight/<session_id>/ui-specialist-report.json
 
-Each subagent receives:
+Each subagent receives, at the TOP of its prompt before any other content:
+- FIRST ACTION line: "Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/<specialist.type>.json to register with the enforcement system. Do this BEFORE any other tool call."
 - Project path: <worktree_path from state file if set, otherwise project_path>
 - Already addressed: <addressed_issues array from state file>
 - Focus: <focus string from state file, or "none">
@@ -589,6 +614,8 @@ Use Agent tool with:
 - subagent_type: "pm"
 - description: "PM triage: classify and prioritize all specialist findings"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/pm.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   PM_MODE: TRIAGE
 
   You are the PM subagent in TRIAGE mode. Follow agents/pm.md Triage Protocol.
@@ -779,6 +806,8 @@ For each pipeline[i] in current_issues:
 Agent(subagent_type: "ba")
   description: "BA analysis for pipeline {i}: {pipeline.description}"
   prompt: "
+    FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+
     You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
     Requirement: '{pipeline.description}'
@@ -856,6 +885,8 @@ For each active pipeline[i]:
 Agent(subagent_type: "qa")
   description: "Validate BA analysis quality for pipeline {i} (not code)"
   prompt: "
+    FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+
     You are the QA subagent in BA-VALIDATION MODE. This is NOT code verification.
     You are verifying the QUALITY OF BA's ANALYSIS, not any implementation.
 
@@ -950,6 +981,8 @@ Use Agent tool with:
 - subagent_type: "ba"
 - description: "Re-investigate: address QA objections on analysis quality"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
   Your previous analysis was REJECTED by QA. Address each objection below
@@ -994,6 +1027,8 @@ For each active pipeline[i]:
 Agent(subagent_type: "dev")
   description: "Dev implementation for pipeline {i}: {pipeline.description}"
   prompt: "
+    FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/dev.json to register with the enforcement system. Do this BEFORE any other tool call.
+
     You are the dev subagent. Follow agents/dev.md instructions precisely.
 
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
@@ -1074,6 +1109,8 @@ For each active pipeline[i]:
 Agent(subagent_type: "qa")
   description: "QA verification for pipeline {i}: {pipeline.description}"
   prompt: "
+    FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+
     You are the QA subagent. Follow agents/qa.md instructions precisely.
 
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
@@ -1342,6 +1379,8 @@ Use Agent tool with:
 - subagent_type: "pm"
 - description: "PM retrospective: cycle {N} summary and next-cycle handoff"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/pm.json to register with the enforcement system. Do this BEFORE any other tool call.
+
   PM_MODE: RETRO
   FINAL_CYCLE: <true|false>
 
