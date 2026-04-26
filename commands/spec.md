@@ -36,57 +36,21 @@ Adapted from `/dev` BA clarification pattern (dev.md Step 4 loop, max 3 rounds, 
 
 1. Read the template at `~/.claude/templates/overnight-spec.md`. If missing, report error and stop.
 
-2. **Resolve the spec base directory (worktree-aware)**:
-
-   Before computing the output path, detect whether an overnight worktree is active for the current project. If one is active, the spec belongs inside that worktree so the parent does not accumulate untracked `docs/dev/specs/...` files that later collide with `/merge` (this is the exact failure mode that forced the manual workaround `mv docs/dev/specs docs/dev/specs.pre-merge-backup` during the failed `/merge worktree-overnight-20260424-bfbc5f54` invocation).
-
-   Detection uses the same convention as `pretool-overnight-hook-guard.py`: scan the parent project's `.claude/overnight-state-*.json` files, read their `worktree_path` field, and treat one as live when the path exists and is a directory.
-
-   ```bash
-   PARENT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
-   ACTIVE_WORKTREES=()
-   # Iterate newest-first so the multi-active fallback picks the most recent.
-   while IFS= read -r -d '' sf; do
-     [ -f "$sf" ] || continue
-     WT=$(jq -r '.worktree_path // empty' "$sf" 2>/dev/null)
-     [ -n "$WT" ] && [ -d "$WT" ] && ACTIVE_WORKTREES+=("$WT")
-   done < <(find "$PARENT_DIR/.claude" -maxdepth 1 -name 'overnight-state-*.json' -printf '%T@\t%p\0' 2>/dev/null \
-            | sort -zrn | cut -z -f2-)
-
-   case "${#ACTIVE_WORKTREES[@]}" in
-     0)  SPEC_BASE="$PARENT_DIR" ;;                # no overnight active → parent
-     1)  SPEC_BASE="${ACTIVE_WORKTREES[0]}" ;;     # exactly one → use it
-     *)
-       # Multiple active overnights: prefer the user's choice when interactive,
-       # else fall back to the most-recently-modified state file (already first
-       # in the list because of the newest-first sort above).
-       if [ -t 0 ]; then
-         echo "Multiple active overnight worktrees detected:" >&2
-         printf '  %s\n' "${ACTIVE_WORKTREES[@]}" >&2
-         echo "Defaulting to the most recently modified one. Override by exporting CLAUDE_SPEC_WORKTREE." >&2
-       fi
-       SPEC_BASE="${CLAUDE_SPEC_WORKTREE:-${ACTIVE_WORKTREES[0]}}"
-       ;;
-   esac
+2. Generate the output path:
    ```
-
-3. Generate the output path:
+   ${CLAUDE_PROJECT_DIR:-$(pwd)}/docs/dev/specs/spec-<YYYYMMDD-HHMMSS>.md
    ```
-   <SPEC_BASE>/docs/dev/specs/spec-<YYYYMMDD-HHMMSS>.md
-   ```
-   Create `<SPEC_BASE>/docs/dev/specs/` if it does not exist. Store this path as `spec_path` for reuse in Step 4. A fresh `/spec` invocation in a new session creates a new timestamped file; within-session follow-ups append to the same file.
+   Specs always land in the parent project directory, never inside an overnight worktree. Create `docs/dev/specs/` if it does not exist. Store the resulting path as `spec_path` for reuse in Step 4. A fresh `/spec` invocation in a new session creates a new timestamped file; within-session follow-ups append to the same file.
 
-   Note: when `SPEC_BASE` is the active worktree, the spec lands inside the worktree's tree (where `/merge` will pull it back to the parent on completion). When no overnight is active, `SPEC_BASE` is the parent and the existing default behavior is preserved.
-
-4. Populate the template:
+3. Populate the template:
    - `<issue_description>` → short summary of the user's requirement
    - `<ISO-8601>` → current timestamp
    - Section 5 → user's requirement verbatim
    - All other sections → `_Not yet populated._`
 
-5. Write the spec.
+4. Write the spec.
 
-6. **Background exploration (non-blocking)**: when the user mentions specific files, components, features, or technical terms, immediately dispatch an Explore agent in the background:
+5. **Background exploration (non-blocking)**: when the user mentions specific files, components, features, or technical terms, immediately dispatch an Explore agent in the background:
    ```
    Agent(
      subagent_type="Explore",
@@ -97,7 +61,7 @@ Adapted from `/dev` BA clarification pattern (dev.md Step 4 loop, max 3 rounds, 
    ```
    Findings integrate when they arrive (see Step 4). Discrepancies may surface as a single targeted question but do NOT gate the loop.
 
-7. Acknowledge that the spec was written. Include the full `<spec_path>` so the user knows where it landed. Convey that more requirements can be added whenever they are ready. Keep it brief and natural — first-person, match the user's language and energy, no fixed template.
+6. Acknowledge that the spec was written. Include the full `<spec_path>` so the user knows where it landed. Convey that more requirements can be added whenever they are ready. Keep it brief and natural — first-person, match the user's language and energy, no fixed template.
 
 **Do NOT** run split / checkpoints / QA yet. Finalize happens exactly once in Step 6.
 
