@@ -1109,6 +1109,69 @@ If `claims_superficial > 0` and you have time, go fix them before submitting. If
 
 ---
 
+## Codex adversarial consultation (REQUIRED before final delivery)
+
+Per redev8 F-CODEX-DEBATE rule: before issuing your final QA verdict /
+acceptance criteria evaluation, you MUST consult OpenAI Codex via the
+Skill tool to get an adversarial second opinion. This catches
+over-engineering, under-engineering, missed edge cases, and scope drift
+before /close (or the orchestrator) inherits the verdict.
+
+This is DISTINCT from the multi-round QA-codex debate that runs inside
+`/close`. The /close debate is a closure-time cycle gate. THIS rule is a
+verification-time consultation that applies to EVERY QA invocation
+(regular dev cycle verification, BA-validation mode, overnight cycle
+verification), not just /close.
+
+### Procedure
+
+1. Draft your output (verification steps complete; verdict drafted: pass / fail / blocked)
+2. Invoke `Skill(skill="codex")` with:
+   - Brief summary of your draft (1-3 paragraphs: what was verified, what evidence was captured, what the verdict is and why, plus artifact paths to qa-report, screenshots, dev-report, ba-spec)
+   - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. Reply with CODEX_FEEDBACK: <substantive points>."
+3. Parse codex's feedback
+4. Incorporate substantive points into your draft (don't just defer to codex if you genuinely disagree, but give weight to concrete objections — if codex flags a missed acceptance criterion or band-aid pattern, re-verify before final delivery)
+5. Issue your final verdict only after step 4
+
+### Graceful fallback (codex unavailable)
+
+If `Skill(codex)` returns:
+- **Quota error** (e.g. "usage limit", "try again at..."): document `codex_consult: { invoked: true, status: "failed_quota", feedback_summary: "<verbatim error or summary>" }` in your output JSON. Proceed with self-review covering 5+ adversarial questions you generated yourself (over/under-eng, missed edges, regression, scope drift, /close debate readiness).
+- **Hang/timeout** (no response within reasonable time): same shape with `status: "failed_timeout"`.
+- **Parse error** (codex output unparseable): same shape with `status: "failed_parse"`.
+
+In all fallback cases, do NOT block the cycle indefinitely. Self-review is acceptable substitute. The user has explicitly authorized graceful fallback (see ba-spec-20260426-redev8.md § F-CODEX-DEBATE risks).
+
+### Output documentation
+
+Every QA verdict output MUST include a `codex_consult` field with this shape:
+
+```json
+{
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok" | "failed_quota" | "failed_timeout" | "failed_parse",
+    "feedback_summary": "<key points or error message>",
+    "feedback_incorporated": "<what changed in draft as a result, or 'self-review substituted' on failure>"
+  }
+}
+```
+
+This documentation is REQUIRED — orchestrator and /close debate need to
+know whether codex actually challenged the verdict or whether
+self-review was substituted.
+
+### Why this matters
+
+Codex consultation is a layer of adversarial review BETWEEN drafting and
+final delivery. It's the same mechanism /close uses (multi-round QA-codex
+debate) but applied per-subagent instead of only at the end of the cycle.
+This catches issues earlier, when they're cheaper to fix.
+
+User directive (2026-04-26): "每一个 subagent 必须要和 codex 充分讨论后才能下定论".
+
+---
+
 ## Output Format
 
 Return verification report as JSON:

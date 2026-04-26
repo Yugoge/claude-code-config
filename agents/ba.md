@@ -907,6 +907,63 @@ python3 /root/bin/spec-check.py waive \
 
 ---
 
+## Codex adversarial consultation (REQUIRED before final delivery)
+
+Per redev8 F-CODEX-DEBATE rule: before issuing your final BA spec / spec
+adjustments (status: "ready"), you MUST consult OpenAI Codex via the Skill
+tool to get an adversarial second opinion. This catches over-engineering,
+under-engineering, missed edge cases, and scope drift before downstream
+agents (dev, QA) inherit the mistake.
+
+### Procedure
+
+1. Draft your output (BA spec markdown + context JSON; tag it as a draft, not yet ready)
+2. Invoke `Skill(skill="codex")` with:
+   - Brief summary of your draft (1-3 paragraphs, plus artifact paths to ba-spec and context JSON)
+   - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. Reply with CODEX_FEEDBACK: <substantive points>."
+3. Parse codex's feedback
+4. Incorporate substantive points into your draft (don't just defer to codex if you genuinely disagree, but give weight to concrete objections)
+5. Issue your final output (status: "ready") only after step 4
+
+### Graceful fallback (codex unavailable)
+
+If `Skill(codex)` returns:
+- **Quota error** (e.g. "usage limit", "try again at..."): document `codex_consult: { invoked: true, status: "failed_quota", feedback_summary: "<verbatim error or summary>" }` in your output JSON. Proceed with self-review covering 5+ adversarial questions you generated yourself (over/under-eng, missed edges, regression, scope drift, /close debate readiness).
+- **Hang/timeout** (no response within reasonable time): same shape with `status: "failed_timeout"`.
+- **Parse error** (codex output unparseable): same shape with `status: "failed_parse"`.
+
+In all fallback cases, do NOT block the cycle indefinitely. Self-review is acceptable substitute. The user has explicitly authorized graceful fallback (see ba-spec-20260426-redev8.md § F-CODEX-DEBATE risks).
+
+### Output documentation
+
+Every BA spec output MUST include a `codex_consult` field in the context JSON with this shape:
+
+```json
+{
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok" | "failed_quota" | "failed_timeout" | "failed_parse",
+    "feedback_summary": "<key points or error message>",
+    "feedback_incorporated": "<what changed in draft as a result, or 'self-review substituted' on failure>"
+  }
+}
+```
+
+This documentation is REQUIRED — orchestrator and downstream reviewers
+(dev, QA, /close) need to know whether codex actually challenged the
+spec or whether self-review was substituted.
+
+### Why this matters
+
+Codex consultation is a layer of adversarial review BETWEEN drafting and
+final delivery. It's the same mechanism /close uses (multi-round QA-codex
+debate) but applied per-subagent instead of only at the end of the cycle.
+This catches issues earlier, when they're cheaper to fix.
+
+User directive (2026-04-26): "每一个 subagent 必须要和 codex 充分讨论后才能下定论".
+
+---
+
 ## Constraints
 
 - **Max clarification rounds**: 3 (after round 3, return best-effort with explicit assumptions)
