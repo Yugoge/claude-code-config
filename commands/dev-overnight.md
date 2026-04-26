@@ -81,7 +81,7 @@ Step 1: Read state file + enter worktree (first run only)
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
 6. **Track everything**. Use TodoWrite to track progress -- the state file is read-only after creation.
 7. **The Stop hook prevents premature exit**. The time-lock hook will block conversation termination until end-time. Do not try to circumvent it.
-8. **Git checkpoint after each fix**. The existing posttool-git-checkpoint.sh hook handles this automatically on Write/Edit.
+8. **Git checkpoint after each fix**. The existing posttool-git-checkpoint.sh hook handles this automatically on Write/Edit (writes to `refs/checkpoints/*`, no HEAD pollution). At the END of each cycle, Step 13 also lands a HEAD commit on the worktree branch via `commit.sh --auto-bulk-bridge <branch>` — this routes the cycle commit through the same grant-manifest mechanism `/commit` uses (defense-in-depth) while preserving the legacy `auto-bulk: end-of-cycle commit for <branch>` message format consumed by `/merge`.
 9. **QA MUST rebuild and redeploy** to verify fixes in the real environment. `docker compose build` and `docker compose up -d` for the project's own services are REQUIRED for QA verification. Identify services from `docker-compose.yml`. Do NOT touch unrelated services or infrastructure.
 10. **Deduplicate**. Check the state file's cycle_log before starting a fix -- do not re-fix issues already addressed.
 11. **One issue per subagent, no exceptions**. Each BA subagent analyzes exactly ONE pipeline issue. Each Dev subagent implements exactly ONE pipeline fix. Each QA subagent verifies exactly ONE pipeline fix. The orchestrator launches N parallel subagents for N pipelines -- but each individual subagent handles only its own single pipeline. NEVER bundle multiple pipeline issues into one subagent prompt.
@@ -1362,6 +1362,27 @@ else:
     remaining = end_time - now
     print(f"Time remaining: {remaining} -- marking Step 15 complete to trigger loop")
 ```
+
+**Per-cycle commit (bridge mode)**:
+
+After the time check, land a HEAD commit on the worktree branch covering this cycle's accumulated changes. Use the bridge-mode invocation of the `/commit` wrapper so the cycle commit picks up grant-manifest defense-in-depth while still emitting the `auto-bulk:` message format that `/merge` consumes:
+
+```bash
+# Stage only the files modified during this cycle (or `git add -A` if the whole
+# worktree state should be committed; bridge mode commits the pre-staged set
+# verbatim).  Then invoke commit.sh in bridge mode with the worktree branch
+# from overnight-state-<session_id>.json.
+git add <files-modified-this-cycle>
+bash ~/.claude/hooks/commit.sh --auto-bulk-bridge "<worktree_branch>"
+```
+
+The wrapper:
+1. Reads `git diff --cached --name-only` as the file set.
+2. Emits message `auto-bulk: end-of-cycle commit for <worktree_branch>` (matches `BLESSED_BRIDGE_RE` in `pretool-git-privilege-guard.py:92`, preserving compatibility with the existing privilege-guard early-return; AC-P3-4).
+3. Writes a per-nonce grant manifest with `allowed_files` + `expected_message_sha256` + `branch` so the guard's defense-in-depth path can observe staged-set / hash drift (warning-only this cycle; AC-P3-2 in `ba-spec-20260426-redev3.md`).
+4. Runs the blessed `git commit`, unlinks the grant on success, appends a `mode=auto-bulk-bridge` audit-log line at `/root/.claude/logs/git-privilege-grants.log`.
+
+If `commit.sh --auto-bulk-bridge` exits non-zero (e.g., empty staged set, branch arg invalid), log the failure to the cycle log and continue — the cycle's per-fix `refs/checkpoints/*` snapshots remain intact and the operator can promote them manually.
 
 If time expired: proceed to Step 14 (PM Retro) then Step 15 for final summary.
 If time remains: proceed to Step 14 (PM Retro), then mark Step 15 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 16 steps completed, reset todos to pending, and inject continuation instructions.

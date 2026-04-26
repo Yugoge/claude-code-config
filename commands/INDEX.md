@@ -1,7 +1,7 @@
 # commands
 
-*Last updated: 2026-04-25T14:17:22Z*
-**Total entries**: 33
+*Last updated: 2026-04-26T08:59:33Z*
+**Total entries**: 34
 **Convention**: kebab
 
 ## Tree
@@ -13,6 +13,7 @@ commands/
 ├── `close.md` - Wrapper - ask QA agent to debate with codex and return CLOSE YES/NO verdict
 ├── `code-review.md` - Comprehensive code review with best practices analysis
 ├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.4, xhigh reasoning) for a second opinion or parallel coding
+├── `commit.md` - Commit closed dev task to branch HEAD
 ├── `deep-search.md` - Deep website exploration with iterative search strategy
 ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time

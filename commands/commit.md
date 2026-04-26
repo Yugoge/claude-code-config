@@ -55,6 +55,26 @@ bash ~/.claude/hooks/commit.sh "$ARGUMENTS"
 
 The script handles closure detection, dev-report parsing, grant emission, narrow staging, the blessed `git commit`, and audit-log writes. See `pretool-git-privilege-guard.py` Scheme 6 manifest-validation logic for the receiving end.
 
+## Bridge mode (overnight integration)
+
+For `/dev-overnight` per-cycle commits, `commit.sh` accepts a second invocation form:
+
+```
+bash ~/.claude/hooks/commit.sh --auto-bulk-bridge <branch>
+```
+
+This is **not** a user-facing entry point — normal users should always use `/commit <task-id>`. Bridge mode exists so `/dev-overnight` cycles can land HEAD commits without producing a per-cycle close-report (which would not be meaningful for bulk multi-issue cycles).
+
+What bridge mode does differently:
+
+- Skips closure detection entirely (no PRIMARY/SECONDARY check; no close-report or completion+qa-pass evidence required).
+- Reads the pre-staged file set via `git diff --cached --name-only` (caller is responsible for `git add` before invoking).
+- Emits commit message `auto-bulk: end-of-cycle commit for <branch>` — this format matches `BLESSED_BRIDGE_RE` in `pretool-git-privilege-guard.py:92`, so the privilege-guard's existing early-return continues to admit the commit (preserving in-flight overnight compatibility; AC-P3-4 in `ba-spec-20260426-redev3.md`).
+- STILL writes a per-nonce grant manifest with `allowed_files` + `expected_message_sha256` + `branch`. The privilege-guard observes this manifest and warns on staged-set / hash drift (defense-in-depth, observation-only this cycle; AC-P3-2).
+- Audit-log entries carry `mode=auto-bulk-bridge branch=<branch>` so post-hoc forensics can distinguish bridge-mode commits from closed-task commits.
+
+Bridge mode and closed-task mode are mutually exclusive — `commit.sh` parses `$1` to decide which flow runs and exits early once it returns.
+
 ## Out of scope
 
 - Free-form / model-driven commits — see `/quick-commit` (kept independent; different threat model).
