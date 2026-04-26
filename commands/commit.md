@@ -45,8 +45,14 @@ The guard validates: env=`CLAUDE_COMMIT_COMMAND_ACTIVE=1` AND grant exists AND `
 Ordered, **fail-closed**:
 
 1. **PRIMARY**: `docs/dev/close-report-<task-id>.md` exists AND its last non-empty line matches `^CLOSE:\s*YES\b` (allows both `CLOSE: YES` standalone and `CLOSE: YES — narrative`).
-2. **SECONDARY** (only if PRIMARY missing): `docs/dev/completion-<task-id>.md` exists AND `docs/dev/qa-report-<task-id>.json` exists AND its `qa.status` field equals `"pass"`.
+2. **SECONDARY** (only if no close-report exists): `docs/dev/completion-<task-id>.md` exists AND `docs/dev/qa-report-<task-id>.json` exists AND its `qa.status` field equals `"pass"`.
 3. If neither holds, the wrapper exits non-zero with `task not closed: no close-report or completion+qa-pass evidence for <task-id>`.
+
+**P-CLOSEHONOR (close-report verdict is binding)**: when a `close-report-<task-id>.md` exists, its verdict is authoritative. SECONDARY is only consulted when no close-report exists at all (legacy/no-close cycles).
+
+- `CLOSE: YES` → PRIMARY admits the commit (existing behavior).
+- `CLOSE: NO` → wrapper exits 2 with `task closed with verdict NO; cannot commit until /close passes`. SECONDARY is **not** consulted — this prevents the prior back-door where a deliberate negative /close verdict could be bypassed by SECONDARY fallthrough. To recover, run `/close` again after the corrective dev cycle so it produces a new close-report ending `CLOSE: YES`.
+- Malformed close-report (last non-empty line is neither `CLOSE: YES` nor `CLOSE: NO`) → wrapper exits 2 with `close-report exists for <task-id> but verdict is unrecognized; expected CLOSE: YES or CLOSE: NO`. Fail-closed; SECONDARY is **not** consulted.
 
 The closure check is **necessary but not sufficient** — even if forged, the bulk-commit-detector (`pretool-bulk-commit-detector.py`) remains an independent gate that blocks the b5d447e shape (3+ subsystem prefixes + sync.* subject) regardless.
 

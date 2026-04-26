@@ -225,14 +225,36 @@ QA_REPORT="${DOCS_DIR}/qa-report-${TASK_ID}.json"
 
 CLOSURE_PATH=""    # path of the file that satisfied the check (used for title extraction)
 CLOSURE_KIND=""    # "primary" | "secondary"
+CLOSE_VERDICT_OBSERVED="absent"   # "yes" | "no" | "absent" — for S2 audit log
 
-# PRIMARY: close-report exists AND last non-empty line matches '^CLOSE:\s*YES\b'
+# PRIMARY: close-report exists AND last non-empty line matches '^CLOSE:\s*YES\b'.
+#
+# P-CLOSEHONOR (ba-spec-20260426-redev5.md M5 / AC-CLOSEHONOR-1..4):
+# When a close-report exists for the task-id, its verdict is AUTHORITATIVE.
+#   CLOSE: YES → PRIMARY (current behavior preserved, AC-CLOSEHONOR-2)
+#   CLOSE: NO  → REFUSE the commit (AC-CLOSEHONOR-1) — do NOT fall through to SECONDARY
+#   neither   → REFUSE (defensive; AC-CLOSEHONOR-4) — do NOT fall through
+# This closes the SECONDARY back-door that previously admitted commits even
+# when /close had returned a deliberate negative verdict.
 if [ -f "$CLOSE_REPORT" ]; then
   # Last non-empty line — strip CR, drop blank lines, take final survivor.
   LAST_NONEMPTY="$(tr -d '\r' < "$CLOSE_REPORT" | awk 'NF{line=$0} END{print line}')"
   if [[ "$LAST_NONEMPTY" =~ ^CLOSE:[[:space:]]*YES([[:space:]]|$|\b) ]]; then
     CLOSURE_PATH="$CLOSE_REPORT"
     CLOSURE_KIND="primary"
+    CLOSE_VERDICT_OBSERVED="yes"
+  elif [[ "$LAST_NONEMPTY" =~ ^CLOSE:[[:space:]]*NO([[:space:]]|$|\b) ]]; then
+    CLOSE_VERDICT_OBSERVED="no"
+    echo "task closed with verdict NO; cannot commit until /close passes" >&2
+    echo "  close-report: ${CLOSE_REPORT}" >&2
+    echo "  last non-empty line: ${LAST_NONEMPTY}" >&2
+    exit 2
+  else
+    # close-report exists but last line is neither YES nor NO — fail closed.
+    echo "close-report exists for ${TASK_ID} but verdict is unrecognized; expected CLOSE: YES or CLOSE: NO" >&2
+    echo "  close-report: ${CLOSE_REPORT}" >&2
+    echo "  last non-empty line: ${LAST_NONEMPTY}" >&2
+    exit 2
   fi
 fi
 
@@ -259,13 +281,48 @@ status = data.get('qa', {}).get('status') if isinstance(data, dict) else None
 sys.exit(0 if status == 'pass' else 1)
 " "$QA_REPORT" && echo yes || echo no)"
     if [ "$QA_STATUS_OK" = "yes" ]; then
-      # F2 check 1: task_id must appear in completion-md H1/title.
-      if ! grep -E "^#[[:space:]]+.*${TASK_ID}" "$COMPLETION_DOC" > /dev/null; then
-        echo "SECONDARY closure refused: ${TASK_ID} not in ${COMPLETION_DOC} title/H1" >&2
+      # F2 check 1 (P-H1, ba-spec-20260426-redev5.md M1 / AC-H1-1..3):
+      # task_id evidence in the completion-md may come from ANY of three sources:
+      #   (a) filename match — proven by the lookup at COMPLETION_DOC=
+      #       "${DOCS_DIR}/completion-${TASK_ID}.md" already succeeding;
+      #       this alone is sufficient (canonical proof — historically all 40
+      #       completion files use generic H1 'Development Completion Report'
+      #       with the task-id only in the filename + Request-ID body line).
+      #   (b) Request-ID body line — case-insensitive, decoration-tolerant
+      #       (e.g. '**Request ID**: dev-<task-id>', 'Request-ID: <task-id>').
+      #   (c) H1 contains task-id — kept as legacy fallback (iter2 schema).
+      # Pass if ANY one holds. The lookup path satisfies (a) by construction,
+      # so this check is effectively a sanity confirmation; we still verify
+      # explicitly so the audit trail records which source matched.
+      H1_EVIDENCE_SOURCE=""
+      # (a) filename match: COMPLETION_DOC ends with the task-id.
+      if [[ "$COMPLETION_DOC" == *"completion-${TASK_ID}.md" ]]; then
+        H1_EVIDENCE_SOURCE="filename"
+      fi
+      # (b) Request-ID body line: case-insensitive, allow markdown decoration
+      # (asterisks/underscores) and tabs/spaces around the colon.
+      if [ -z "$H1_EVIDENCE_SOURCE" ] && \
+         grep -iE "[Rr]equest[[:space:]_*-]*[Ii][Dd][[:space:]*_]*:[[:space:]]*${TASK_ID}" \
+              "$COMPLETION_DOC" > /dev/null 2>&1; then
+        H1_EVIDENCE_SOURCE="request_id_body"
+      fi
+      # (c) H1 fallback: legacy iter2 behavior.
+      if [ -z "$H1_EVIDENCE_SOURCE" ] && \
+         grep -E "^#[[:space:]]+.*${TASK_ID}" "$COMPLETION_DOC" > /dev/null 2>&1; then
+        H1_EVIDENCE_SOURCE="h1"
+      fi
+      if [ -z "$H1_EVIDENCE_SOURCE" ]; then
+        echo "SECONDARY closure refused: task_id ${TASK_ID} not bound to ${COMPLETION_DOC}" >&2
+        echo "  checked: filename match, Request-ID body line, H1 fallback — all missed" >&2
         exit 2
       fi
 
       # F2 check 2: task_id must appear in qa-report.json content (UNION rule).
+      # P-TASKID (ba-spec-20260426-redev5.md M2 / AC-TASKID-1..3):
+      # Match by literal-equality OR substring containment (TASK_ID in str(value)).
+      # Real reports prefix request_id with 'qa-' / 'dev-' / 'commit-'; substring
+      # match accepts these without enumerating prefixes. Task-ids are typically
+      # 15+ char timestamps (YYYYMMDD-HHMMSS), making collision risk negligible.
       DEV_REPORT_PRECHECK="${DOCS_DIR}/dev-report-${TASK_ID}.json"
       if python3 -c "
 import json, sys
@@ -283,15 +340,26 @@ keys_to_check = [
     qa_node.get('task_id'),
     qa_node.get('request_id'),
 ]
-sys.exit(0 if sys.argv[2] in keys_to_check else 1)
+task_id = sys.argv[2]
+def matches(value, tid):
+    if value is None:
+        return False
+    if value == tid:
+        return True
+    if isinstance(value, str) and tid in value:
+        return True
+    return False
+sys.exit(0 if any(matches(v, task_id) for v in keys_to_check) else 1)
 " "$QA_REPORT" "$TASK_ID"; then
         :
       else
-        echo "SECONDARY closure refused: task_id ${TASK_ID} not found in ${QA_REPORT} (checked task_id, request_id, qa.task_id, qa.request_id)" >&2
+        echo "SECONDARY closure refused: task_id ${TASK_ID} not found in ${QA_REPORT} (checked task_id, request_id, qa.task_id, qa.request_id; literal+substring)" >&2
         exit 2
       fi
 
       # F2 check 3: task_id must appear in dev-report.json content (UNION rule).
+      # P-TASKID (ba-spec-20260426-redev5.md M2 / AC-TASKID-2):
+      # Same literal-or-substring matcher as the qa-report check above.
       if [ ! -f "$DEV_REPORT_PRECHECK" ]; then
         echo "SECONDARY closure refused: dev-report missing at ${DEV_REPORT_PRECHECK}" >&2
         exit 2
@@ -312,11 +380,20 @@ keys_to_check = [
     dev_node.get('task_id'),
     dev_node.get('request_id'),
 ]
-sys.exit(0 if sys.argv[2] in keys_to_check else 1)
+task_id = sys.argv[2]
+def matches(value, tid):
+    if value is None:
+        return False
+    if value == tid:
+        return True
+    if isinstance(value, str) and tid in value:
+        return True
+    return False
+sys.exit(0 if any(matches(v, task_id) for v in keys_to_check) else 1)
 " "$DEV_REPORT_PRECHECK" "$TASK_ID"; then
         :
       else
-        echo "SECONDARY closure refused: task_id ${TASK_ID} not found in ${DEV_REPORT_PRECHECK} (checked task_id, request_id, dev.task_id, dev.request_id)" >&2
+        echo "SECONDARY closure refused: task_id ${TASK_ID} not found in ${DEV_REPORT_PRECHECK} (checked task_id, request_id, dev.task_id, dev.request_id; literal+substring)" >&2
         exit 2
       fi
 
@@ -342,8 +419,21 @@ if [ ! -f "$DEV_REPORT" ]; then
   exit 2
 fi
 
-# Union: top.files_modified ∪ top.files_created ∪ dev.files_modified ∪ dev.files_created
-# Output: newline-separated, sorted+deduped. Empty/missing fields ignored.
+# Union from an enumerated set of paths in the dev-report JSON.
+#
+# P-NESTED (ba-spec-20260426-redev5.md M3 / AC-NESTED-1..3):
+# Real dev-reports nest files_modified/files_created under various paths.
+# We enumerate the known schemas (deterministic + auditable; no recursive walk):
+#   top.files_modified, top.files_created                             (existing)
+#   dev.files_modified, dev.files_created                             (existing)
+#   dev.tasks_completed[*].files_modified / files_created             (NEW)
+#   tasks[*].files_modified / files_created                           (NEW alt schema)
+#   deliverables[*].files_modified / files_created                    (NEW alt schema)
+#
+# Each entry is filtered to non-empty strings (defense against the list-of-dicts
+# corner case BA-QA flagged in dev-report-20260420-080000.json).
+# Empty union → fail-closed at the existing ALLOWED_RAW check below.
+# Output: newline-separated, sorted+deduped.
 ALLOWED_RAW="$(python3 - "$DEV_REPORT" <<'PY'
 import json, sys
 path = sys.argv[1]
@@ -362,10 +452,36 @@ def collect(node, key):
         return [v for v in val if isinstance(v, str) and v.strip()]
     return []
 
+def collect_from_array(parent, array_key, file_key):
+    if not isinstance(parent, dict):
+        return []
+    arr = parent.get(array_key)
+    if not isinstance(arr, list):
+        return []
+    out = []
+    for item in arr:
+        out.extend(collect(item, file_key))
+    return out
+
 files = set()
+
+# (1) top-level + .dev (existing schemas)
 for node in (data, data.get('dev') if isinstance(data, dict) else None):
     files.update(collect(node, 'files_modified'))
     files.update(collect(node, 'files_created'))
+
+# (2) dev.tasks_completed[*].files_*
+dev_node = data.get('dev') if isinstance(data, dict) else None
+files.update(collect_from_array(dev_node, 'tasks_completed', 'files_modified'))
+files.update(collect_from_array(dev_node, 'tasks_completed', 'files_created'))
+
+# (3) top-level tasks[*].files_*  (alt schema)
+files.update(collect_from_array(data, 'tasks', 'files_modified'))
+files.update(collect_from_array(data, 'tasks', 'files_created'))
+
+# (4) top-level deliverables[*].files_*  (alt schema)
+files.update(collect_from_array(data, 'deliverables', 'files_modified'))
+files.update(collect_from_array(data, 'deliverables', 'files_created'))
 
 # Print one path per line, sorted + deduped.
 for f in sorted(files):
@@ -379,18 +495,102 @@ if [ -z "$ALLOWED_RAW" ]; then
   exit 2
 fi
 
-# Pack into a bash array.
+# Preserve the FULL union for the audit log (M4 / AC-CROSSREPO-3).
+ALLOWED_FULL_RAW="$ALLOWED_RAW"
+
+# P-CROSSREPO (ba-spec-20260426-redev5.md M4 / AC-CROSSREPO-1..3):
+# Filter allowed_files to current-repo membership BEFORE staging/comparison.
+# A file belongs to the current repo if EITHER:
+#   (a) `git ls-files --error-unmatch -- <path>` succeeds (tracked file), OR
+#   (b) the path exists at <repo_root>/<path> on disk (newly-created file
+#       not yet tracked, or path normalization edge cases).
+# Empty filtered set → exit 2 with "wrong repo" message; the FULL set was
+# non-empty (we'd have exited above otherwise), so this distinguishes
+# "wrong repo" from "no files modified".
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$REPO_ROOT" ]; then
+  echo "commit.sh: not inside a git repository (git rev-parse --show-toplevel failed)" >&2
+  exit 2
+fi
+
+# Pass full-list via a temp file — heredoc-vs-herestring stdin conflicts with
+# `python3 - <<PY ... PY <<< "$VAR"` (the herestring would clobber the heredoc).
+ALLOWED_FULL_TMP="$(mktemp /tmp/claude-commit-allowed-XXXXXX)"
+printf '%s\n' "$ALLOWED_FULL_RAW" > "$ALLOWED_FULL_TMP"
+
+ALLOWED_RAW="$(python3 - "$REPO_ROOT" "$ALLOWED_FULL_TMP" <<'PY'
+import os, subprocess, sys
+repo_root = sys.argv[1]
+list_path = sys.argv[2]
+with open(list_path) as fh:
+    paths = [l.strip() for l in fh.read().splitlines() if l.strip()]
+def in_current_repo(path):
+    # (a) tracked file in current repo (cheapest authoritative check).
+    try:
+        rc = subprocess.run(
+            ['git', 'ls-files', '--error-unmatch', '--', path],
+            cwd=repo_root,
+            capture_output=True,
+        ).returncode
+    except Exception:
+        rc = 1
+    if rc == 0:
+        return True
+    # (b) exists on disk AND lives under repo_root (newly-created file).
+    # NB: a bare os.path.exists() check is wrong — an absolute path like
+    # /dev/shm/.../dot-claude/foo.sh would exist on disk but belongs to a
+    # different repo. Require the resolved path to be under repo_root.
+    abs_path = path if os.path.isabs(path) else os.path.join(repo_root, path)
+    try:
+        real_abs = os.path.realpath(abs_path)
+        real_root = os.path.realpath(repo_root)
+    except Exception:
+        return False
+    if not os.path.exists(abs_path):
+        return False
+    # Path must be under repo_root (or equal to it). Use commonpath for
+    # boundary safety (avoids '/foo' matching '/foobar' as prefix).
+    try:
+        common = os.path.commonpath([real_abs, real_root])
+    except ValueError:
+        return False
+    return common == real_root
+kept = [p for p in paths if in_current_repo(p)]
+for p in sorted(set(kept)):
+    print(p)
+PY
+)"
+
+# Best-effort cleanup of the temp list (keep output regardless of rm result).
+[ -f "$ALLOWED_FULL_TMP" ] && : > "$ALLOWED_FULL_TMP" 2>/dev/null || true
+
+if [ -z "$ALLOWED_RAW" ]; then
+  echo "no dev-report files belong to this repo (${REPO_ROOT}); commit from the correct repo" >&2
+  echo "--- allowed_files (full union) ---" >&2
+  printf '%s\n' "$ALLOWED_FULL_RAW" >&2
+  exit 2
+fi
+
+# Pack the FILTERED set into a bash array (used for staging + comparison).
 ALLOWED_FILES=()
 while IFS= read -r line; do
   [ -n "$line" ] && ALLOWED_FILES+=("$line")
 done <<< "$ALLOWED_RAW"
 
-# JSON-encode for the grant manifest.
+# JSON-encode the FILTERED set for the grant manifest (W2: grant carries the
+# FILTERED set; full set goes to the audit log only).
 ALLOWED_JSON="$(python3 -c "
 import json, sys
 files = [l for l in sys.stdin.read().splitlines() if l.strip()]
 print(json.dumps(sorted(set(files))))
 " <<< "$ALLOWED_RAW")"
+
+# JSON-encode the FULL set (audit-log only, M4 / AC-CROSSREPO-3).
+ALLOWED_FULL_JSON="$(python3 -c "
+import json, sys
+files = [l for l in sys.stdin.read().splitlines() if l.strip()]
+print(json.dumps(sorted(set(files))))
+" <<< "$ALLOWED_FULL_RAW")"
 
 # -----------------------------------------------------------------------------
 # Step 4 — generate commit message + sha256
@@ -475,9 +675,13 @@ MSG_SHA_SHORT="${MSG_SHA256:0:12}"
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # Append a single JSON line for downstream parsing convenience.
-python3 - "$LOG_PATH" "$TS" "$SID" "$TASK_ID" "$NONCE" "$PPID_VAL" "$MSG_SHA_SHORT" "$NEW_HEAD" "$CLOSURE_KIND" <<'PY'
+# M4 / AC-CROSSREPO-3: log both allowed_files_full and allowed_files_filtered.
+# S2: log close_verdict_observed ("yes" | "no" | "absent") for forensics.
+python3 - "$LOG_PATH" "$TS" "$SID" "$TASK_ID" "$NONCE" "$PPID_VAL" "$MSG_SHA_SHORT" "$NEW_HEAD" "$CLOSURE_KIND" "$ALLOWED_FULL_JSON" "$ALLOWED_JSON" "$CLOSE_VERDICT_OBSERVED" <<'PY'
 import json, sys
-path, ts, sid, task_id, nonce, ppid_val, msg_sha_short, head, closure_kind = sys.argv[1:10]
+(path, ts, sid, task_id, nonce, ppid_val, msg_sha_short, head,
+ closure_kind, allowed_full_json, allowed_filtered_json,
+ close_verdict_observed) = sys.argv[1:13]
 line = {
     "timestamp": ts,
     "sid": sid,
@@ -488,6 +692,9 @@ line = {
     "message_sha256_short": msg_sha_short,
     "head": head,
     "closure_kind": closure_kind,
+    "allowed_files_full": json.loads(allowed_full_json),
+    "allowed_files_filtered": json.loads(allowed_filtered_json),
+    "close_verdict_observed": close_verdict_observed,
 }
 with open(path, "a") as fh:
     fh.write(json.dumps(line) + "\n")
