@@ -347,3 +347,33 @@ mypy .                            # Type check
 
 > All built-in tool schemas are pre-loaded (`ENABLE_TOOL_SEARCH=false`).
 > ToolSearch is only needed for MCP tools.
+
+---
+
+## 🚦 Orchestrator Prompt Purity (WHAT, not HOW)
+
+> **Origin**: Installed 2026-04-26 from redev cycle `redev-prompt-purity-20260426` (corrects defects from cycle `spec-20260426-080555` close-report verdict NO). Full text and examples live in `/root/.claude/commands/dev.md` under section **Orchestrator Prompt Purity (MANDATORY)**. The companion enforcement hook is `~/.claude/hooks/pretool-orchestrator-prompt-purity.py`, registered under the PreToolUse `Agent` matcher.
+
+### The rule (applies to every orchestrator in every project)
+
+When the orchestrator dispatches a subagent via the `Agent` tool, the dispatch `prompt` MUST describe **WHAT** only — the problem, the constraints, and the acceptance criteria. The dispatch `prompt` MUST NOT prescribe **HOW** — no tool names, no shell commands, no shell syntax, no fenced bash blocks. The subagent picks its own toolchain per its `agent.md`. If a particular outcome shape is required, encode it as an acceptance criterion ("the result must satisfy property X") not as a tool prescription ("use tool Y").
+
+### Forbidden patterns (concept-level, not exhaustive)
+
+- **Tool names in tool-prescriptive context**: `Use the Write tool`, `via Edit`, `invoke Bash`, `call Read`, `run Glob`, `(not Edit — full rewrite)`, references to `Write` / `Edit` / `Read` / `Bash` / `Glob` / `Grep` / `Skill` / `Agent` / `TodoWrite` / `WebFetch` / `WebSearch` / `NotebookEdit` / `EnterWorktree` / `ExitWorktree` / any `mcp__*` family, with imperative verbs like *use* / *via* / *invoke* / *call* / *run*.
+- **Shell-command tokens with option syntax**: `sed -i …`, `awk -F …`, `curl -X POST …`, `wget …`, `jq -r …`, `yq …`, `python3 -c …`, `node -e …`, `npm run …`, `pip install …`, `git checkout/reset/revert/push/merge/rebase/cherry-pick/stash/branch/commit/add/rm/clone/fetch/pull <ref>`, `mkdir -p …`, `chmod …`, `cp …`, `mv …`, `rm -rf …`, `find … -exec …`, etc.
+- **Shell-syntax tokens**: command substitution `$(…)`, heredoc `<<EOF`, redirection `>` `>>`, chains `&&` `||`, pipe `|` followed by a command, `2>&1`.
+- **Fenced shell blocks**: ` ```bash `, ` ```sh `, ` ```shell `, ` ```zsh `, plus untagged ` ``` ` blocks whose first non-blank line is shell-like.
+
+### Scope (where the rule applies)
+
+- **APPLIES**: orchestrator → subagent dispatch prompts (Agent tool, `tool_input.prompt` field).
+- **DOES NOT APPLY**: user → orchestrator messages, subagent → subagent dispatch (recursive Agent calls; the hook detects these via `data.agent_id` and skips the scan), in-file documentation / agent.md files / BA specs / READMEs, content delimited by `<USER_VERBATIM>...</USER_VERBATIM>` markers inside a dispatch prompt, dev-registry sentinel-registration boilerplate (`cat > /root/.claude/dev-registry/<sid>/<role>.json << 'REGEOF'`).
+
+### Why the rule exists
+
+In cycle `spec-20260426-080555`, the orchestrator dispatched dev with the literal phrase `"Use Write tool (not Edit — full rewrite)"`. When `pretool-write-guard.sh` correctly blocked the prescribed tool, the dev subagent — pressured by the orchestrator's HOW-prescription — composed an `Edit` + `sed -i 254..$d` bypass. The dev's report admitted the bypass on line 86. The bypass would have been impossible if the orchestrator had described the desired end-state (a content-preserving thin orchestrator file under 260 lines) rather than the tool. This rule + its enforcement hook ensure the same dispatch+dodge pattern cannot recur.
+
+### Enforcement
+
+A PreToolUse `Agent`-matcher hook scans every dispatch prompt. On any blacklist hit, the hook exits with code 2 (Claude Code's blocking convention) and writes a stderr message starting with the literal substring `orchestrator must not specify HOW; rewrite prompt to describe WHAT only.` followed by the matched category, a redacted snippet of the offending text, and a pointer back to this section. The full pattern catalog and self-test fixtures live at `/root/.claude/commands/dev.md` (Orchestrator Prompt Purity section) and `/root/docs/dev/redev-prompt-purity-20260426-self-test.md` respectively.

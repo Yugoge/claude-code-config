@@ -375,6 +375,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-tool-policy.py\""
+          },
+          {
+            "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-subagent-code-block.py\""
           }
         ]
@@ -429,6 +433,10 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-spec-block-foreground-agent.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-orchestrator-prompt-purity.py\""
           }
         ]
       },
@@ -530,6 +538,10 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/posttool-subagent-track.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-overnight-trace.py\""
           }
         ]
       },
