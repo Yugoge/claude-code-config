@@ -118,6 +118,25 @@ done
 
 Store `$DEV_SESSION_ID` for use in every Agent launch prompt below. Every Agent launch prompt MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent.
 
+**Also derive `<SPEC_ID>` for cp-state checkpoint propagation.** `/spec` writes per-agent `cp-state-<agent>.json` files into `.claude/specs/<SPEC_ID>/`, and `subagentstop-cp-enforce.py` will BLOCK any subagent that exits without marking every checkpoint as `done` or `waived`. The orchestrator must compute `<SPEC_ID>` from the `spec_path` detected in Step 1 and pass it into every Agent launch prompt below alongside `<DEV_SESSION_ID>`.
+
+```bash
+if [ -n "$spec_path" ]; then
+  # Common case: spec_path = docs/dev/specs/<SPEC_ID>/<SPEC_ID>.md
+  # → SPEC_ID is the basename of the parent directory.
+  SPEC_ID="$(basename "$(dirname "$spec_path")" 2>/dev/null)"
+  # Edge case: flat-file spec_path = docs/dev/specs/<SPEC_ID>.md
+  # (no per-spec subdirectory); fall back to the file basename.
+  [ -d "$CLAUDE_PROJECT_DIR/.claude/specs/$SPEC_ID" ] || SPEC_ID="$(basename "${spec_path%.md}")"
+else
+  SPEC_ID=""
+fi
+```
+
+When `SPEC_ID` is non-empty, every Agent launch prompt MUST include a `SECOND ACTION` block (template under each Step's prompt below) instructing the subagent to read `$CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json` and to mark each checkpoint via `python3 /root/bin/spec-check.py mark` (or `waive` with a reason) before Stop. When `SPEC_ID` is empty (non-`/spec` invocation), the SECOND ACTION block is omitted — there are no checkpoints to mark.
+
+**Regression guard**: do NOT change the `subagentstop-cp-enforce.py` matcher in `settings.json` back to a custom string like `"cp-enforce"`. Per <https://code.claude.com/docs/en/hooks>, `SubagentStop` matchers match subagent type names, not hook roles; the wildcard `"*"` is the canonical form and is what causes the hook to actually fire.
+
 ### Step 2: Specialist Consultation (always evaluate, never silently skip)
 
 Before touching any specialist, you MUST evaluate each one's relevance to the issue and document the decision. Silently skipping is forbidden — skipping without assessment is itself a workflow violation.
@@ -162,6 +181,17 @@ Use Agent tool with:
 - description: "<Specialist role> consultation for: <requirement summary>"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<specialist-name>.json to register with the enforcement system. Do this BEFORE any other tool call.
+
+  SECOND ACTION (only if SPEC_ID is non-empty): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<specialist-name>.json to discover your atomic checkpoints (cp-01, cp-02, ...).
+
+  CHECKPOINT MARKING CONTRACT:
+  As you complete each atomic action listed in cp-state-<specialist-name>.json, mark it via:
+    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent <specialist-name> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
+  If a checkpoint genuinely does not apply to this run, waive it with a reason:
+    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent <specialist-name> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
+  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
+
+  If SPEC_ID is empty (no /spec was used), skip this entire SECOND ACTION block — there are no checkpoints to mark.
 
   You are the <specialist-name> specialist. Follow .claude/agents/<specialist-name>.md.
 
@@ -283,6 +313,17 @@ Use Task tool with:
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
 
+  SECOND ACTION (only if SPEC_ID is non-empty): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to discover your atomic checkpoints (cp-01, cp-02, ...).
+
+  CHECKPOINT MARKING CONTRACT:
+  As you complete each atomic action listed in cp-state-ba.json, mark it via:
+    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
+  If a checkpoint genuinely does not apply to this run, waive it with a reason:
+    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
+  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
+
+  If SPEC_ID is empty (no /spec was used), skip this entire SECOND ACTION block — there are no checkpoints to mark.
+
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
   Requirement: '<requirement from Step 1>'
@@ -326,6 +367,17 @@ Use Task tool with:
 - description: "Continue BA analysis with clarification answers"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+
+  SECOND ACTION (only if SPEC_ID is non-empty): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to discover your atomic checkpoints (cp-01, cp-02, ...).
+
+  CHECKPOINT MARKING CONTRACT:
+  As you complete each atomic action listed in cp-state-ba.json, mark it via:
+    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
+  If a checkpoint genuinely does not apply to this run, waive it with a reason:
+    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
+  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
+
+  If SPEC_ID is empty (no /spec was used), skip this entire SECOND ACTION block — there are no checkpoints to mark.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -379,6 +431,17 @@ Use Agent tool with:
 - description: "Validate BA analysis quality (not code)"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+
+  SECOND ACTION (only if SPEC_ID is non-empty): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to discover your atomic checkpoints (cp-01, cp-02, ...).
+
+  CHECKPOINT MARKING CONTRACT:
+  As you complete each atomic action listed in cp-state-qa.json, mark it via:
+    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
+  If a checkpoint genuinely does not apply to this run, waive it with a reason:
+    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
+  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
+
+  If SPEC_ID is empty (no /spec was used), skip this entire SECOND ACTION block — there are no checkpoints to mark.
 
   You are the QA subagent in BA-VALIDATION MODE. This is NOT code verification.
   You are verifying the QUALITY OF BA's ANALYSIS, not any implementation.
@@ -470,6 +533,17 @@ Use Agent tool with:
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
 
+  SECOND ACTION (only if SPEC_ID is non-empty): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to discover your atomic checkpoints (cp-01, cp-02, ...).
+
+  CHECKPOINT MARKING CONTRACT:
+  As you complete each atomic action listed in cp-state-ba.json, mark it via:
+    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
+  If a checkpoint genuinely does not apply to this run, waive it with a reason:
+    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
+  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
+
+  If SPEC_ID is empty (no /spec was used), skip this entire SECOND ACTION block — there are no checkpoints to mark.
+
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
   Your previous analysis was REJECTED by QA. Address each objection below
@@ -509,6 +583,17 @@ Use Task tool with:
 - description: "Implement development changes based on BA context"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/dev.json to register with the enforcement system. Do this BEFORE any other tool call.
+
+  SECOND ACTION (only if SPEC_ID is non-empty): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-dev.json to discover your atomic checkpoints (cp-01, cp-02, ...).
+
+  CHECKPOINT MARKING CONTRACT:
+  As you complete each atomic action listed in cp-state-dev.json, mark it via:
+    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent dev --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
+  If a checkpoint genuinely does not apply to this run, waive it with a reason:
+    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent dev --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
+  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
+
+  If SPEC_ID is empty (no /spec was used), skip this entire SECOND ACTION block — there are no checkpoints to mark.
 
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
@@ -555,6 +640,17 @@ Use Task tool with:
 - description: "Verify implementation quality against standards"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+
+  SECOND ACTION (only if SPEC_ID is non-empty): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to discover your atomic checkpoints (cp-01, cp-02, ...).
+
+  CHECKPOINT MARKING CONTRACT:
+  As you complete each atomic action listed in cp-state-qa.json, mark it via:
+    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
+  If a checkpoint genuinely does not apply to this run, waive it with a reason:
+    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
+  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
+
+  If SPEC_ID is empty (no /spec was used), skip this entire SECOND ACTION block — there are no checkpoints to mark.
 
   You are the QA subagent. Follow agents/qa.md instructions precisely.
 
