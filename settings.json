@@ -592,7 +592,7 @@
         ]
       },
       {
-        "matcher": "cp-enforce",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
