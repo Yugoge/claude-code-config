@@ -48,17 +48,167 @@ GRANT_FILE=""
 # -----------------------------------------------------------------------------
 # Step 1 — argument parse
 # -----------------------------------------------------------------------------
+# Two modes:
+#   commit.sh <task-id>                     — closed-task commit (PRIMARY/SECONDARY)
+#   commit.sh --auto-bulk-bridge <branch>   — overnight per-cycle commit (P3 bridge mode)
+#
+# Bridge mode (AC-P3-2 in ba-spec-20260426-redev3.md):
+#   Used by /dev-overnight per-cycle finalization. Stages from the already-cached
+#   set (caller pre-stages with `git add`), emits commit message
+#   `auto-bulk: end-of-cycle commit for <branch>` (matches BLESSED_BRIDGE_RE in
+#   pretool-git-privilege-guard.py:92), AND writes a grant manifest so the guard
+#   gains defense-in-depth visibility into staged-set / message-hash. Bridge
+#   mode does NOT require close-report or dev-report — overnight cycles produce
+#   bulk commits across many small fixes; closure evidence is per-issue, not
+#   per-cycle.
 if [ $# -lt 1 ] || [ -z "${1:-}" ]; then
-  echo "Usage: commit.sh <task-id>" >&2
+  echo "Usage:" >&2
+  echo "  commit.sh <task-id>                       # closed-task commit" >&2
+  echo "  commit.sh --auto-bulk-bridge <branch>     # overnight per-cycle commit" >&2
   echo "Example: commit.sh dev-20260425-145411" >&2
+  echo "Example: commit.sh --auto-bulk-bridge cycle-2-redev" >&2
   exit 2
 fi
-TASK_ID="$1"
 
-# Reject obvious shell metacharacters in task id (defense in depth).
-if [[ "$TASK_ID" =~ [[:space:]\;\&\|\`\$\(\)\<\>\\\"\'\*\?\[\]] ]]; then
-  echo "commit.sh: invalid task-id (shell-metacharacters not allowed): $TASK_ID" >&2
-  exit 2
+MODE="closed-task"
+TASK_ID=""
+BRIDGE_BRANCH=""
+
+if [ "$1" = "--auto-bulk-bridge" ]; then
+  if [ $# -lt 2 ] || [ -z "${2:-}" ]; then
+    echo "commit.sh --auto-bulk-bridge: missing <branch> argument" >&2
+    exit 2
+  fi
+  MODE="auto-bulk-bridge"
+  BRIDGE_BRANCH="$2"
+  if [[ "$BRIDGE_BRANCH" =~ [[:space:]\;\&\|\`\$\(\)\<\>\\\"\'\*\?\[\]] ]]; then
+    echo "commit.sh: invalid branch (shell-metacharacters not allowed): $BRIDGE_BRANCH" >&2
+    exit 2
+  fi
+  # Bridge mode uses the branch as the task-id surrogate for grant + audit.
+  TASK_ID="$BRIDGE_BRANCH"
+else
+  TASK_ID="$1"
+  if [[ "$TASK_ID" =~ [[:space:]\;\&\|\`\$\(\)\<\>\\\"\'\*\?\[\]] ]]; then
+    echo "commit.sh: invalid task-id (shell-metacharacters not allowed): $TASK_ID" >&2
+    exit 2
+  fi
+fi
+
+# -----------------------------------------------------------------------------
+# Step 1b — bridge-mode short-circuit
+# -----------------------------------------------------------------------------
+# When invoked as `commit.sh --auto-bulk-bridge <branch>`:
+#   - Skip closure detection entirely (no close-report / completion / qa-report
+#     required — overnight cycles produce bulk commits across many issues).
+#   - Read pre-staged file set from `git diff --cached --name-only` (caller
+#     stages files before invoking the bridge).
+#   - Compute commit message of the form `auto-bulk: end-of-cycle commit for <branch>`
+#     (matches BLESSED_BRIDGE_RE in pretool-git-privilege-guard.py:92).
+#   - Write a per-nonce grant manifest with allowed_files + expected_message_sha256
+#     + branch (defense-in-depth: the guard's defense-in-depth path validates
+#     this manifest when it sees a bridge-mode commit with the env+grant pair).
+#   - Export CLAUDE_COMMIT_COMMAND_ACTIVE=1; run blessed git commit.
+#   - Wrapper unlinks grant on success (preserve iter3 fix).
+#   - Audit log line carries `mode=auto-bulk-bridge branch=<branch>`.
+if [ "$MODE" = "auto-bulk-bridge" ]; then
+  # Pre-staged set required (caller is responsible for staging).
+  STAGED_RAW="$(git diff --cached --name-only | sort -u)"
+  if [ -z "$STAGED_RAW" ]; then
+    echo "commit.sh --auto-bulk-bridge: no files staged for ${BRIDGE_BRANCH}" >&2
+    echo "  Caller must run 'git add' before invoking bridge mode." >&2
+    exit 2
+  fi
+
+  # Pack into a bash array.
+  ALLOWED_FILES=()
+  while IFS= read -r line; do
+    [ -n "$line" ] && ALLOWED_FILES+=("$line")
+  done <<< "$STAGED_RAW"
+
+  # JSON-encode for the grant manifest.
+  ALLOWED_JSON="$(python3 -c "
+import json, sys
+files = [l for l in sys.stdin.read().splitlines() if l.strip()]
+print(json.dumps(sorted(set(files))))
+" <<< "$STAGED_RAW")"
+
+  # Bridge-mode commit message (matches BLESSED_BRIDGE_RE — preserves
+  # backwards-compat with the existing privilege-guard early-return at line
+  # 440-442 of pretool-git-privilege-guard.py).
+  COMMIT_MSG="auto-bulk: end-of-cycle commit for ${BRIDGE_BRANCH}"
+
+  MSG_SHA256="$(python3 -c "
+import hashlib, sys
+print(hashlib.sha256(sys.argv[1].encode('utf-8')).hexdigest())
+" "$COMMIT_MSG")"
+
+  # Grant manifest (per-nonce; mirrors the closed-task path).
+  SID="${CLAUDE_SESSION_ID:-$$}"
+  NONCE="$(python3 -c "import secrets; print(secrets.token_hex(16))")"
+  GRANT_FILE="/tmp/claude-commit-grant-${SID}-${NONCE}.json"
+  CREATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  PPID_VAL="$$"
+
+  python3 - "$GRANT_FILE" "$NONCE" "$SID" "$BRIDGE_BRANCH" "$ALLOWED_JSON" "$MSG_SHA256" "$CREATED_AT" "$PPID_VAL" <<'PY'
+import json, sys
+path, nonce, sid, branch, allowed_json, msg_sha, created_at, ppid_val = sys.argv[1:9]
+grant = {
+    "nonce": nonce,
+    "sid": sid,
+    "mode": "auto-bulk-bridge",
+    "branch": branch,
+    "task_id": branch,
+    "allowed_files": json.loads(allowed_json),
+    "expected_message_sha256": msg_sha,
+    "created_at": created_at,
+    "ppid": int(ppid_val),
+}
+with open(path, "w") as fh:
+    json.dump(grant, fh, indent=2, sort_keys=True)
+PY
+
+  # Bless the commit.  The privilege-guard's BLESSED_BRIDGE_RE early-return
+  # admits this regardless of env/grant (AC-P3-4: in-flight overnight runs
+  # without bridge-mode patches keep working).  Bridge mode ALSO sets the env
+  # and writes the grant so the guard's defense-in-depth path (added in this
+  # cycle) can observe and warn on staged-set / message-hash drift.
+  export CLAUDE_COMMIT_COMMAND_ACTIVE=1
+
+  git commit -m "$COMMIT_MSG"
+
+  # Wrapper unlinks grant on success path (guard never fires on subprocess).
+  rm -f "$GRANT_FILE"
+  GRANT_FILE=""
+
+  # Audit log line.
+  mkdir -p "$(dirname "$LOG_PATH")"
+  NEW_HEAD="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+  MSG_SHA_SHORT="${MSG_SHA256:0:12}"
+  TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  python3 - "$LOG_PATH" "$TS" "$SID" "$BRIDGE_BRANCH" "$NONCE" "$PPID_VAL" "$MSG_SHA_SHORT" "$NEW_HEAD" <<'PY'
+import json, sys
+path, ts, sid, branch, nonce, ppid_val, msg_sha_short, head = sys.argv[1:9]
+line = {
+    "timestamp": ts,
+    "sid": sid,
+    "command_kind": "commit",
+    "mode": "auto-bulk-bridge",
+    "branch": branch,
+    "task_id": branch,
+    "sentinel_nonce": nonce,
+    "ppid": int(ppid_val),
+    "message_sha256_short": msg_sha_short,
+    "head": head,
+    "closure_kind": "bridge",
+}
+with open(path, "a") as fh:
+    fh.write(json.dumps(line) + "\n")
+PY
+
+  echo "commit.sh: success — mode=auto-bulk-bridge branch=${BRIDGE_BRANCH} head=${NEW_HEAD} files=${#ALLOWED_FILES[@]}"
+  exit 0
 fi
 
 # -----------------------------------------------------------------------------

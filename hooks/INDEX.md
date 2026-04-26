@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-04-25T18:22:05Z*
-**Total entries**: 96
+*Last updated: 2026-04-26T08:58:36Z*
+**Total entries**: 97
 **Convention**: kebab
 
 ## Tree
@@ -28,6 +28,7 @@ hooks/
 ├── `auto-commit.sh` - ============================================================================
 ├── `check-todo-md-sync.py` - check-todo-md-sync.py — Session-start drift detector for todo scripts
 ├── `checkpoint.sh` - checkpoint.sh - Manual /checkpoint command
+├── `commit.sh` - 
 ├── `ensure-git-repo.sh` - ensure-git-repo.sh - DEPRECATED, scheduled for deletion
 ├── `fswatch-manager.sh` - fswatch-manager.sh - Manage git-fswatch instances
 ├── `git-fswatch.sh` - git-fswatch.sh - Comprehensive Git file watcher using fswatch
