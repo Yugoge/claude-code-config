@@ -33,7 +33,12 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 # Config
 # -----------------------------------------------------------------------------
-DOCS_DIR="/root/docs/dev"
+# Honor CLAUDE_PROJECT_DIR for cross-project use; default /root preserves
+# in-/root backwards-compat (AC-DOCS-1..3, ba-spec-20260426-redev4 §4).
+DOCS_DIR="${CLAUDE_PROJECT_DIR:-/root}/docs/dev"
+# LOG_PATH is intentionally user-home-anchored (audit log lives where Claude
+# infrastructure lives, not where the project lives). Do NOT parameterize via
+# CLAUDE_PROJECT_DIR — this is by design (AC-DOCS-4).
 LOG_PATH="/root/.claude/logs/git-privilege-grants.log"
 GRANT_FILE=""
 
