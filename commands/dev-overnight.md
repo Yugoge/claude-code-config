@@ -10,7 +10,7 @@ description: Autonomous overnight development loop - continuously explores codeb
 
 **Philosophy**: Explore autonomously, discover real issues, fix them systematically, loop until time expires, then summarize everything.
 
-This command runs an unattended development loop. You are fully autonomous -- no user input is needed or expected. You discover issues yourself by scanning the codebase, fix each one through a simplified dev cycle, and keep going until the specified end time.
+This command runs an unattended development loop. When `spec_mode == "autonomous"`, you are fully autonomous -- no user input is needed or expected. When `spec_mode == "user-provided"`, honor the orchestrator view's Hard Rule 10 user-pause gate; do not auto-loop past it. You discover issues yourself by scanning the codebase, fix each one through a simplified dev cycle, and keep going until the specified end time (autonomous mode) or until the next user-gate pause (user-provided spec mode).
 
 **Quick status utility**: Use `bash ~/.claude/scripts/overnight-status.sh` for instant session status (zero LLM cost). Use this instead of reading/parsing the state JSON manually. Optionally pass session_id as argument.
 
@@ -74,15 +74,15 @@ Step 1: Read state file + enter worktree (first run only)
 
 ## IMPORTANT RULES
 
-1. **You are autonomous**. Do NOT ask the user anything. Make decisions yourself.
-2. **Loop continuously**. After each fix cycle, the todo completion hook handles looping. This is non-negotiable.
+1. **Autonomy is gated by `spec_mode`**. In `spec_mode == "autonomous"`: do NOT ask the user anything; make decisions yourself. In `spec_mode == "user-provided"`: honor the spec's user-gate pauses (orchestrator view Hard Rule 10) — pause the loop at every spec-defined user gate and do not auto-resume past it.
+2. **Loop continuously in autonomous mode**. When `spec_mode == "autonomous"`, after each fix cycle the todo completion hook handles looping; this is non-negotiable. When `spec_mode == "user-provided"`, the loop pauses at every spec-defined user gate and only resumes after the user clears the gate.
 3. **Keep cycles comprehensive and priority-driven**. PM triage determines pipeline ordering -- the main agent follows PM's authority. In Focus Mode (Tier 1 blockers exist), only blocker pipelines are created. In Normal Mode, all issues get pipelines ordered by tier: Tier 1 (blockers) first, then Tier 2 (major), then Tier 3 (minor/cosmetic). Within each tier, issues flagged by more agents rank higher.
 4. **ALL exploration and fixes via subagents**. Use Agent tool for ALL scanning, analysis, and implementation work. Main context only handles TodoWrite and loop control.
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
 6. **Track everything**. Use TodoWrite to track progress -- the state file is read-only after creation.
 7. **The Stop hook prevents premature exit**. The time-lock hook will block conversation termination until end-time. Do not try to circumvent it.
-8. **Git checkpoint after each fix**. The existing posttool-git-checkpoint.sh hook handles this automatically on Write/Edit (writes to `refs/checkpoints/*`, no HEAD pollution). At the END of each cycle, Step 13 also lands a HEAD commit on the worktree branch via `commit.sh --auto-bulk-bridge <branch>` — this routes the cycle commit through the same grant-manifest mechanism `/commit` uses (defense-in-depth) while preserving the legacy `auto-bulk: end-of-cycle commit for <branch>` message format consumed by `/merge`.
-9. **QA MUST rebuild and redeploy** to verify fixes in the real environment. `docker compose build` and `docker compose up -d` for the project's own services are REQUIRED for QA verification. Identify services from `docker-compose.yml`. Do NOT touch unrelated services or infrastructure.
+8. **Git checkpoint vs HEAD commit are distinct semantic layers**. The existing posttool-git-checkpoint.sh hook writes mid-cycle Write/Edit snapshots to `refs/checkpoints/*` only — these are NOT merge-ready commits and they do NOT advance any branch HEAD. They exist for crash recovery and audit, not for shipping. End-of-cycle Step 13 lands a real HEAD commit on the worktree branch via `commit.sh --auto-bulk-bridge <branch>` — that HEAD commit IS merge-ready and is the only artifact `/merge` consumes. See `/root/.claude/CLAUDE.md` (Auto-Commit Mechanism section) for the full checkpoint-ref vs HEAD-commit contract. Do NOT conflate "checkpoint after fix" (refs/checkpoints/*, recovery-only) with "ship upstream" (HEAD commit + `/merge`, distribution).
+9. **Cycle-end deploy is autonomous-mode only** (canonical overnight Hard Rule 9). When `spec_mode == "autonomous"`, every cycle MUST end with QA rebuilding and redeploying via `docker compose build` and `docker compose up -d` for the project's own services (identified from `docker-compose.yml`); deploy verification is REQUIRED in this mode. When `spec_mode == "user-provided"`, deploy is NOT mandatory at the engine level — the user spec dictates whether to deploy (the orchestrator view's Pipeline Workflow may instruct deploy, may instruct skip, or may defer to a user gate). Regular `/dev` (single-pass, NOT `/dev-overnight`) MUST NOT auto-deploy regardless of spec_mode — `/dev` is a single-feature implementation pass, not an overnight cycle. Do NOT touch unrelated services or infrastructure.
 10. **Deduplicate**. Check the state file's cycle_log before starting a fix -- do not re-fix issues already addressed.
 11. **One issue per subagent, no exceptions**. Each BA subagent analyzes exactly ONE pipeline issue. Each Dev subagent implements exactly ONE pipeline fix. Each QA subagent verifies exactly ONE pipeline fix. The orchestrator launches N parallel subagents for N pipelines -- but each individual subagent handles only its own single pipeline. NEVER bundle multiple pipeline issues into one subagent prompt.
 
@@ -418,12 +418,14 @@ one-at-a-time consultations — parallelizing them corrupts evidence ordering an
 context budget. Only BA/Dev/QA may run in parallel (and even those typically run
 sequentially per item in supervisor/pipeline mode).
 
-**SUPERVISOR MODE (user-provided spec)**: Specialists should typically be called
-ZERO times in supervisor mode — the spec's Pipeline Workflow already defines the
-roles. Only call specialists when the orchestrator view explicitly requires
-specialist consultation (e.g., a pipeline stage that maps to ui-specialist/architect/
-product-owner/user). If the spec's pipeline is BA → Dev → QA only, do NOT launch
-any specialists in Step 2b — skip to Step 2c or further.
+**SUPERVISOR MODE (user-provided spec)**: Specialist routing is determined by the
+orchestrator view manifest (Agent Relevance table). If the manifest marks N
+specialists as relevant for this spec, launch those N specialists per the spec's
+Pipeline Workflow. Do NOT default to ZERO. Only fall back to ZERO if the
+orchestrator view manifest is missing or malformed (and log this fallback as an
+anomaly in the cycle log so the user can fix the view). When the manifest IS
+present and explicitly assigns specialists, ignoring it is a contract violation —
+the spec's Pipeline Workflow is the authoritative routing source.
 
 **Exploration mode (user did NOT provide a spec)**: Call all 4 specialists by default. Broad coverage is the point. PM's `recommended_specialists` field may narrow the list if PM has strong signal, but the DEFAULT is all 4. Even in exploration mode, launch them SEQUENTIALLY (one Agent call per specialist), not in parallel.
 
@@ -794,7 +796,7 @@ The `focus_verification_criteria` array will be passed to each QA subagent in St
 
 ### Step 4: Run All BA Subagents (Parallel)
 
-**Launch ALL N BA subagents in a SINGLE response** (parallel execution). Each pipeline gets its own BA Agent call with unique file naming.
+**Launch BA subagents in batches of 1-3 per response, sequential between batches** (per pacing rule). For N pipelines, dispatch ceil(N/3) batches; wait for each batch to complete before launching the next. Each pipeline gets its own BA Agent call with unique file naming.
 
 **ENFORCEMENT: One pipeline per subagent. Each BA Agent call receives exactly ONE pipeline's issue description and location. Do NOT combine multiple pipelines into a single BA prompt. The same rule applies to Dev (Step 6) and QA (Step 9) subagents.**
 
@@ -830,7 +832,9 @@ Agent(subagent_type: "ba")
     No clarification is needed -- proceed directly to analysis.
     All file operations and git analysis must use paths inside the project root above.
 
-    Read the overnight spec file FIRST. Then perform full analysis:
+    **FIRST**: Read the project's CLAUDE.md (if present at the project root or worktree root) -- it is the authority for the role table (CTA hex, neutral hex, etc.), naming conventions, and project-specific rules. Without this read, downstream Dev/QA cannot enforce role-token equality. If the file is absent, log "no project CLAUDE.md" and continue.
+    **THEN**: Read the overnight spec file.
+    **THEN**: perform full analysis:
     1. Parse and decompose requirement
     2. Perform git root cause analysis (if applicable)
     3. Identify affected files
@@ -877,7 +881,7 @@ Read BA output files:
 
 **Filter**: Only launch BA-validation QA for pipelines with `phase == "ba_complete"` and `status == "active"`.
 
-**Launch ALL active QA-validates-BA subagents in a SINGLE response** (parallel execution):
+**Launch QA-validates-BA subagents in batches of 1-3 per response, sequential between batches** (per pacing rule):
 
 ```
 For each active pipeline[i]:
@@ -1019,7 +1023,7 @@ Use Agent tool with:
 
 **Filter**: Only launch Dev for pipelines with `phase == "ba_complete"` and `status == "active"`.
 
-**Launch ALL active Dev subagents in a SINGLE response** (parallel execution):
+**Launch Dev subagents in batches of 1-3, sequential between batches** (per pacing rule):
 
 ```
 For each active pipeline[i]:
@@ -1070,38 +1074,40 @@ Read dev report: `docs/dev/dev-report-{pipeline.timestamp_suffix}.json`
 - Re-invoke only that pipeline's dev subagent (maximum 3 attempts)
 - If still blocked: mark pipeline status as `"skipped"` with reason `"Dev blocked"`
 
-### Step 8: PM QA Prep (Rebuild Docker + Write QA Verification Plans)
+### Step 8: QA Prep (Docker Rebuild + Verification Plan)
 
 **This step bridges Dev and QA by:**
 1. Reading ALL dev reports to understand what changed
-2. Rebuilding Docker containers so QA tests the NEW code
+2. Rebuilding Docker containers so QA tests the NEW code (autonomous-mode only — see Hard Rule 9)
 3. Writing specific verification steps for each QA pipeline
 
 **Without this step, QA tests stale code and produces false passes.**
 
-Launch PM subagent in QA_PREP mode. The PM must:
+**This step is performed by the orchestrator directly, NOT by a PM subagent.** The PM subagent only has three modes — `PLAN`, `TRIAGE`, `RETRO` — defined in `agents/pm.md`. There is no fourth PM mode for QA preparation. The orchestrator handles Step 8 inline:
 
-1. Read all dev reports and BA specs for this cycle
-2. Rebuild Docker: identify affected services from docker-compose.yml. Backend
-   changes require backend service rebuild, frontend changes require frontend
-   service rebuild. Verify build contexts point to the worktree. Wait for services to be healthy.
-3. For EACH pipeline, write concrete QA verification steps:
+1. **Read dev artifacts**: For each active pipeline, read `docs/dev/dev-report-{pipeline.timestamp_suffix}.json` and the corresponding `ba-spec-*.md`.
+2. **Rebuild Docker (gated on `spec_mode == "autonomous"` per Hard Rule 9)**:
+   - Identify affected services from `docker-compose.yml`. Backend changes require backend service rebuild; frontend changes require frontend service rebuild.
+   - Verify build contexts point to the worktree, NOT the main project directory.
+   - Run `docker compose build` then `docker compose up -d` for the affected services. Wait for services to be healthy.
+   - When `spec_mode == "user-provided"`, skip the rebuild unless the spec's Pipeline Workflow explicitly requires it.
+3. **Write QA verification plans**: For EACH pipeline, write concrete QA verification steps:
    - Exact URLs to visit
    - Exact actions (click, type, wait)
    - Exact assertions (text, element, state)
    - For backend pipeline fixes: MUST trigger E2E generation via browser
    - For frontend fixes: MUST do visual/interaction checks
 
-Output: qa-verification-plans.json with per-pipeline steps and docker status.
+Output: `qa-verification-plans.json` with per-pipeline steps and docker status. The orchestrator writes this file directly (no subagent dispatch).
 
-**If Docker rebuild fails**: CYCLE BLOCKER. Debug and retry (max 3 attempts).
+**If Docker rebuild fails (autonomous mode)**: CYCLE BLOCKER. Debug and retry (max 3 attempts).
 Do NOT proceed to QA with stale containers.
 
 ### Step 9: Run All QA Subagents (Parallel)
 
 **Filter**: Only launch QA for pipelines with `phase == "dev_complete"` and `status == "active"`.
 
-**Launch ALL active QA subagents in a SINGLE response** (parallel execution):
+**Launch QA subagents in batches of 1-3, sequential between batches** (per pacing rule):
 
 ```
 For each active pipeline[i]:
