@@ -19,6 +19,18 @@ This is the ONLY agent-authorized path that advances branch HEAD outside of `/me
 
 The argument is the same `<task-id>` used by `/dev`, `/qa`, `/close`, etc. It locates closure evidence in `docs/dev/` and the dev-report whose `files_modified` defines the staging set.
 
+## Task-id resolution
+
+Resolve the **task-id** the same way `/close` does (see `commands/close.md:32-39` for the reference pattern — `/commit` mirrors it for documentation parity per AC-INFER-5). The task-id is the SAME identifier used by the source `/dev` (or `/redev`) cycle (e.g. `dev-20260425-145411`, `redev3-p1p2-20260426`) — NOT a fresh `date +%Y%m%d-%H%M%S` at /commit invocation time. Using a fresh timestamp would break the artifact chain (`close-report-<task-id>.md`, `dev-report-<task-id>.json`) that closure detection and grant emission depend on.
+
+Resolve in this priority order:
+
+- **If `$ARGUMENTS` is non-empty**: treat it as the task-id directly (or as an explicit task-id-bearing token). The orchestrator passes it through unchanged. This is the explicit-form path — backwards-compatible with every `/commit <task-id>` invocation.
+- **Else (no argument)**: the orchestrator invoking /commit MUST already know this conversation's dev artifacts from context (it just ran `/dev` or `/redev` in the same session). It identifies the active dev cycle's task-id from visible artifact filenames in the transcript (`ba-spec-<task-id>.md`, `dev-report-<task-id>.json`, `close-report-<task-id>.md`) and embeds the resolved task-id directly into Implementation's bash invocation, NOT a literal empty string. There is NO filesystem scan and NO default-to-newest.
+- **Else (neither resolves)**: exit non-zero with: `No task-id resolved. Either run /commit within a conversation that just completed /dev or /redev, or pass /commit <task-id>.`
+
+If the orchestrator cannot identify the task-id from context AND `$ARGUMENTS` is empty, /commit MUST exit with the error message above. /commit MUST NOT default to `date +%Y%m%d-%H%M%S` and MUST NOT invoke `commit.sh` with an empty positional argument — resolution failure is signaled at the orchestrator/slash-command layer, not at the wrapper layer (the wrapper's empty-arg guard remains as defense-in-depth, but it should never be reached under correct orchestrator behavior).
+
 ## Scheme 6 mechanism
 
 The git-privilege-guard (`pretool-git-privilege-guard.py`) ships always-on per spec-20260424-233926 §5.2.4 R4.3. It rejects every agent-issued `git commit` except:
@@ -47,13 +59,15 @@ The closure check is **necessary but not sufficient** — even if forged, the bu
 
 ## Implementation
 
-This slash command is a thin shim over `~/.claude/hooks/commit.sh`:
+This slash command is a thin shim over `~/.claude/hooks/commit.sh`. The orchestrator invoking /commit MUST already know this conversation's dev artifacts from context (per Task-id resolution rules above). It embeds the resolved task-id directly into:
 
 ```bash
-bash ~/.claude/hooks/commit.sh "$ARGUMENTS"
+bash ~/.claude/hooks/commit.sh <resolved-task-id>
 ```
 
-The script handles closure detection, dev-report parsing, grant emission, narrow staging, the blessed `git commit`, and audit-log writes. See `pretool-git-privilege-guard.py` Scheme 6 manifest-validation logic for the receiving end.
+NO filesystem scan, NO default-to-newest, NO literal empty-string pass-through. If the task-id cannot be resolved (no `$ARGUMENTS`, no identifiable /dev or /redev cycle in conversation context), exit with the error message defined in Task-id resolution; do NOT invoke `commit.sh` at all.
+
+The script handles closure detection, dev-report parsing, grant emission, narrow staging, the blessed `git commit`, and audit-log writes. The wrapper itself still requires an explicit positional task-id (its empty-arg guard remains as defense-in-depth) — this slash-command layer is responsible for ensuring the wrapper is called with a real, resolved value. See `pretool-git-privilege-guard.py` Scheme 6 manifest-validation logic for the receiving end.
 
 ## Bridge mode (overnight integration)
 
