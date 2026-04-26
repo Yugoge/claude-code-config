@@ -1,0 +1,590 @@
+# anti-pattern-catalog.yml
+# Source data for ui-anti-pattern-catalog skill.
+# Spec: /root/docs/dev/specs/spec-20260426-080555.md sections 5.4, 5.11, 5.16.
+#
+# Each rule MUST have:
+#   id           — stable rule identifier (e.g., C1, T3, AI4)
+#   dimension    — which beauty dimension it scores against
+#   category     — hard_defect | taste_heuristic
+#   severity_cap — maximum severity any finding using this rule may receive
+#   advisory_flag — true|false; advisory:true means non-blocking by design
+#   detection_pseudocode — natural-language LLM-readable detection logic
+#   examples     — one or more concrete examples
+#   false_positive_risk — low | medium | medium-high | high
+#
+# Severity hard-cap rule (DOUBLE DEFENSE per 5.11 #6 + #7):
+#   Any rule with category: taste_heuristic MUST have severity_cap: minor + advisory_flag: true.
+#   The skill schema enforces this at extraction time; the subagent aggregator enforces it again at report time.
+#
+# Categories (per 5.4 + 5.11 + 5.16):
+#   C  = Color anti-patterns (10)
+#   M  = Motion anti-patterns (5)
+#   T  = Typography anti-patterns (5)
+#   S  = Spacing / Whitespace anti-patterns (5)
+#   G  = Glass / Material anti-patterns (2)
+#   H  = Cognitive load / HCI law violations (5)
+#   W  = UX writing anti-patterns (4)
+#   F  = Form UX anti-patterns (5)
+#   I  = Interactive state anti-patterns (4)
+#   N  = Nielsen heuristic violations (5)
+#   AI = AI-slop aesthetic blacklist (8)  [all taste_heuristic, severity_cap: minor, advisory_flag: true]
+#
+# Total: 10 + 5 + 5 + 5 + 2 + 5 + 4 + 5 + 4 + 5 + 8 = 58 rules (>= 55 minimum per 5.4)
+
+rules:
+
+  # ============================================================
+  # COLOR (C1-C10) — 10 rules
+  # ============================================================
+  - id: C1
+    dimension: color_harmony_token_adherence
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Extract computed RGB on text/background; if R == G == B (chroma 0) on >=3 distinct elements, flag as 'pure-gray usage; should carry brand hue tint'"
+    examples: ["body text #888888 with no warm/cool bias", "card background #f5f5f5 pure gray"]
+    false_positive_risk: low
+
+  - id: C2
+    dimension: color_harmony_token_adherence
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Find background-color or color values exactly equal to #000000 on body or large surface; flag in favor of tinted near-black like #0f0f17 or #1a1a2e"
+    examples: ["body { background:#000 }", "h1 { color:#000000 }"]
+    false_positive_risk: low
+
+  - id: C3
+    dimension: color_harmony_token_adherence
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Count visible elements colored with the brand accent token; if >10% of visible elements use accent, flag as 60-30-10 violation (accent loses emphasis power)"
+    examples: ["10 of 30 visible buttons use accent color"]
+    false_positive_risk: medium
+
+  - id: C4
+    dimension: color_harmony_token_adherence
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "For text where parent computed background-color has chroma > 0, if text computed color has R == G == B, flag as 'gray text on chromatic background -- washed out'"
+    examples: ["#666 text on #2563eb background"]
+    false_positive_risk: medium
+
+  - id: C5
+    dimension: color_harmony_token_adherence
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "If dark mode exists (color-scheme:dark or .dark class active), verify (a) box-shadow opacity < 0.05 OR shadow removed, (b) accent saturation reduced vs light, (c) body font-weight reduced ~50 vs light"
+    examples: ["dark mode keeps shadow:rgba(0,0,0,0.3)", "dark mode reuses light-mode accent at full saturation"]
+    false_positive_risk: medium
+
+  - id: C6
+    dimension: color_harmony_token_adherence
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Count surfaces with computed background-color alpha < 1.0; if >30% of colored surfaces use rgba/hsla transparency, flag 'incomplete palette suspicion'"
+    examples: ["card bg rgba(255,255,255,0.1)", "modal overlay alpha across many components"]
+    false_positive_risk: medium-high
+
+  - id: C7
+    dimension: color_harmony_token_adherence
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect any computed color in HSL hue range 270-300 (purple/violet) used as primary brand or CTA color; flag as AI-slop signature unless intentional"
+    examples: ["primary button bg violet-500", "purple gradient hero"]
+    false_positive_risk: medium
+
+  - id: C8
+    dimension: color_harmony_token_adherence
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Find box-shadow with spread-radius > 10px and colored shadow (not gray/black); flag 'outer glow shadow -- looks cheap'"
+    examples: ["box-shadow: 0 0 20px rgba(168,85,247,0.5)"]
+    false_positive_risk: low
+
+  - id: C9
+    dimension: typography_beauty
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Find h1/h2 with background-clip:text and -webkit-text-fill-color:transparent; flag 'gradient text on display heading -- overused in AI output'"
+    examples: ["h1 { background:linear-gradient(...); -webkit-background-clip:text; color:transparent }"]
+    false_positive_risk: low
+
+  - id: C10
+    dimension: color_harmony_token_adherence
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Extract accent color; convert to HSL; if saturation > 80% OR OKLCH chroma > 0.2, flag 'oversaturated accent clashes with neutrals'"
+    examples: ["accent hsl(220, 95%, 50%)"]
+    false_positive_risk: low
+
+  # ============================================================
+  # MOTION (M1-M5) — 5 rules
+  # ============================================================
+  - id: M1
+    dimension: animation_polish
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Find transition-timing-function:ease (no curve) on prominent transitions; flag in favor of cubic-bezier(0.16,1,0.3,1) for entries"
+    examples: [".modal { transition: all 200ms ease }"]
+    false_positive_risk: low
+
+  - id: M2
+    dimension: animation_polish
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Find cubic-bezier with any value > 1.0 (overshoot) or keyword 'bounce'/'elastic'; flag 'dated motion style'"
+    examples: ["cubic-bezier(0.68, -0.55, 0.27, 1.55)"]
+    false_positive_risk: low
+
+  - id: M3
+    dimension: animation_polish
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "If a component has both enter and exit transitions, exit duration MUST be ~75% of enter duration; if exit >= enter, flag"
+    examples: ["enter:200ms ease-out, exit:300ms ease-in"]
+    false_positive_risk: medium
+
+  - id: M4
+    dimension: animation_polish
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Find transition-property targeting height/width/margin/padding/top/left; flag 'animating layout properties causes recalc; use transform/opacity'"
+    examples: ["transition: height 300ms"]
+    false_positive_risk: low
+
+  - id: M5
+    dimension: animation_polish
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Search source for @media (prefers-reduced-motion); if absent and any non-trivial animation exists, flag 'missing reduced-motion media query'"
+    examples: ["app has page transitions but no prefers-reduced-motion override"]
+    false_positive_risk: low
+
+  # ============================================================
+  # TYPOGRAPHY (T1-T5) — 5 rules
+  # ============================================================
+  - id: T1
+    dimension: typography_beauty
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Extract all font-size values used on a page; for adjacent hierarchy levels (h1>h2>h3>body), ratio MUST be >= 1.2; sizes like 14/15/16/18px create no clear hierarchy"
+    examples: ["h2:18px, h3:16px, body:15px (ratios 1.13, 1.07)"]
+    false_positive_risk: low
+
+  - id: T2
+    dimension: typography_beauty
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "On <table>/data-grid/numeric-list elements, verify font-variant-numeric: tabular-nums is set; absence breaks vertical alignment of numbers"
+    examples: ["pricing table without tabular-nums"]
+    false_positive_risk: low
+
+  - id: T3
+    dimension: typography_beauty
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Body text (p, main content) with computed font-size < 16px is a readability issue across all device classes"
+    examples: ["body { font-size:14px }"]
+    false_positive_risk: low
+
+  - id: T4
+    dimension: typography_beauty
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Compute line-height * font-size for body text; result MUST be a multiple of 4px (base spacing unit). Non-multiples break vertical rhythm."
+    examples: ["font-size:16, line-height:1.6 -> 25.6px (not multiple of 4)"]
+    false_positive_risk: medium
+
+  - id: T5
+    dimension: typography_beauty
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "If primary font-family is Inter/Roboto/Open Sans/Lato/Montserrat exactly, flag 'generic font choice -- consider distinctive choice' (advisory)"
+    examples: ["font-family: 'Inter', system-ui, sans-serif"]
+    false_positive_risk: medium-high
+
+  # ============================================================
+  # SPACING / WHITESPACE (S1-S5) — 5 rules
+  # ============================================================
+  - id: S1
+    dimension: whitespace_rhythm
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Find a Card-like element (border + shadow OR rounded + bg) whose direct child is also a Card-like element; flag 'nested cards destroy hierarchy'"
+    examples: ["<Card><Card>...</Card></Card>"]
+    false_positive_risk: low
+
+  - id: S2
+    dimension: whitespace_rhythm
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Mentally blur a screenshot; if all elements have equal visual weight and no focal point is identifiable, flag 'flat hierarchy -- no focal point'"
+    examples: ["dashboard with 12 equal-weight stat cards"]
+    false_positive_risk: medium
+
+  - id: S3
+    dimension: typography_beauty
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "If headings differ from body ONLY in font-size (same weight, same color, same spacing), hierarchy is weak. Best practice: combine 2-3 dimensions"
+    examples: ["h2 and p both font-weight:400, color:#333, only size differs"]
+    false_positive_risk: low
+
+  - id: S4
+    dimension: whitespace_rhythm
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Find horizontal flex/grid row with exactly 3 equal-width Card children; flag 'generic 3-card layout -- consider asymmetric grid (2fr 1fr) or zig-zag'"
+    examples: ["grid-template-columns: repeat(3, 1fr) with 3 Cards"]
+    false_positive_risk: medium-high
+
+  - id: S5
+    dimension: whitespace_rhythm
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect centered H1 atop a darkened full-width background image hero; flag 'default centered hero -- consider split-screen or asymmetric layout'"
+    examples: ["full-bleed hero img + center-aligned h1 + darken overlay"]
+    false_positive_risk: medium-high
+
+  # ============================================================
+  # GLASS / MATERIAL (G1-G2) — 2 rules
+  # ============================================================
+  - id: G1
+    dimension: glass_morphism_quality
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Extract box-shadow values; if blur-radius < 2 * spread-radius OR opacity > 0.15 OR shadow color is pure black, flag 'shadow too harsh'"
+    examples: ["box-shadow: 0 4px 8px rgba(0,0,0,0.3)"]
+    false_positive_risk: low
+
+  - id: G2
+    dimension: glass_morphism_quality
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect shadcn/ui or Radix primitive usage with default border-radius (0.5rem), default slate palette, and unmodified default shadows; flag 'component library used with default styling -- lack of design ownership'"
+    examples: ["Button uses shadcn default rounded-md slate-700"]
+    false_positive_risk: medium
+
+  # ============================================================
+  # COGNITIVE / HCI LAWS (H1-H5) — 5 rules
+  # ============================================================
+  - id: H1
+    dimension: whitespace_rhythm
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Count top-level navigation items; >7 items = Hick's Law decision overload. Also flag select/dropdown elements with >10 options lacking search or grouping"
+    examples: ["nav has 11 top-level items"]
+    false_positive_risk: low
+
+  - id: H2
+    dimension: whitespace_rhythm
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Count visible form fields (input/select/textarea); >7 visible fields without grouping (fieldset, tabs, accordion) = Miller's Rule working memory overload"
+    examples: ["signup form with 12 visible fields, no grouping"]
+    false_positive_risk: low
+
+  - id: H3
+    dimension: whitespace_rhythm
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "High-frequency primary action buttons should be >=36px tall and positioned near related content; flag tiny CTAs <36px positioned far from their content (Fitts's Law)"
+    examples: ["Save button 28px tall in page footer 600px from form"]
+    false_positive_risk: medium
+
+  - id: H4
+    dimension: whitespace_rhythm
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "On settings/config pages, count visible toggle/config elements; >15 elements without tabs/accordion/collapsible grouping = no progressive disclosure"
+    examples: ["settings page lists 24 toggles in a single scroll"]
+    false_positive_risk: low
+
+  - id: H5
+    dimension: whitespace_rhythm
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Count elements styled as primary CTA visible in initial viewport; >3 competing CTAs = unclear priority"
+    examples: ["hero has 'Sign up', 'Watch demo', 'Learn more', 'Pricing' all primary-styled"]
+    false_positive_risk: low
+
+  # ============================================================
+  # UX WRITING (W1-W4) — 4 rules
+  # ============================================================
+  - id: W1
+    dimension: accessibility_advisory
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Scan all <button> and <a> text; flag any using exactly 'OK', 'Submit', 'Yes', 'No', 'Click here', or 'Cancel' without verb+object context"
+    examples: ["<button>OK</button>", "<a>Click here</a>"]
+    false_positive_risk: low
+
+  - id: W2
+    dimension: accessibility_advisory
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Trigger form validation; each error message MUST answer (a) what happened (b) why (c) how to fix; 'Invalid input' or 'Error' alone = flag"
+    examples: ["error text: 'Invalid'"]
+    false_positive_risk: low
+
+  - id: W3
+    dimension: accessibility_advisory
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Navigate to any list/table that might be empty; if it shows only 'No items'/'No data' without an action prompt, flag 'empty state missed onboarding opportunity'"
+    examples: ["Projects page empty state: 'No projects'"]
+    false_positive_risk: medium
+
+  - id: W4
+    dimension: accessibility_advisory
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Collect all button/link text across pages; flag synonym conflicts ('Delete' vs 'Remove', 'Sign in' vs 'Log in', 'Settings' vs 'Preferences')"
+    examples: ["nav says 'Sign in', form button says 'Log in'"]
+    false_positive_risk: low
+
+  # ============================================================
+  # FORM UX (F1-F5) — 5 rules
+  # ============================================================
+  - id: F1
+    dimension: accessibility_advisory
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "On login/address/payment forms, each input MUST have an autocomplete attribute (e.g., autocomplete='email', autocomplete='current-password')"
+    examples: ["<input type='email'> with no autocomplete"]
+    false_positive_risk: low
+
+  - id: F2
+    dimension: accessibility_advisory
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Email fields MUST use type='email', phone type='tel', URL type='url'; wrong types prevent mobile keyboard optimization"
+    examples: ["<input type='text'> for email field"]
+    false_positive_risk: low
+
+  - id: F3
+    dimension: accessibility_advisory
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Detect onpaste handlers calling preventDefault on password/confirmation fields; blocking paste breaks password managers"
+    examples: ["<input type='password' onpaste='return false'>"]
+    false_positive_risk: low
+
+  - id: F4
+    dimension: accessibility_advisory
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "During form submission, the submit button MUST be disabled or show loading state to prevent double-submit"
+    examples: ["form posts twice when user clicks submit twice quickly"]
+    false_positive_risk: medium
+
+  - id: F5
+    dimension: accessibility_advisory
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "After failed form submission, focus MUST move to the first invalid field (document.activeElement check)"
+    examples: ["validation error appears, focus stays on submit button"]
+    false_positive_risk: medium
+
+  # ============================================================
+  # INTERACTIVE STATES (I1-I4) — 4 rules
+  # ============================================================
+  - id: I1
+    dimension: animation_polish
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "For every key interactive element (button/link/input/toggle), verify all 7 states exist: default, hover, focus, active, disabled, loading, error"
+    examples: ["primary button has no hover state"]
+    false_positive_risk: medium
+
+  - id: I2
+    dimension: accessibility_advisory
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Search source for outline:none or outline:0; if not paired with :focus-visible style, flag 'focus indicator removed without replacement -- accessibility violation'"
+    examples: ["button:focus { outline:none } (no :focus-visible elsewhere)"]
+    false_positive_risk: low
+
+  - id: I3
+    dimension: animation_polish
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Check if any dropdown/popover has a parent with overflow:hidden or overflow:auto; the dropdown will be clipped"
+    examples: ["combobox menu inside overflow:hidden card"]
+    false_positive_risk: medium
+
+  - id: I4
+    dimension: accessibility_advisory
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect window.confirm() calls or 'Are you sure?' text in dialogs for non-destructive actions; undo is better UX than confirmation (advisory)"
+    examples: ["confirm('Are you sure you want to mark as read?')"]
+    false_positive_risk: medium
+
+  # ============================================================
+  # NIELSEN HEURISTICS (N1-N5) — 5 rules
+  # ============================================================
+  - id: N1
+    dimension: animation_polish
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "After user actions (click, submit, navigate), UI MUST provide feedback within 200ms; missing loading states / no confirmation / stale data = flag"
+    examples: ["click submit -> nothing happens for 800ms before result"]
+    false_positive_risk: medium
+
+  - id: N2
+    dimension: accessibility_advisory
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "User must be able to undo or go back; check destructive actions without undo, modals without close/Escape, multi-step flows with no back button, form data lost on navigation"
+    examples: ["Delete account confirmation has no undo"]
+    false_positive_risk: low
+
+  - id: N3
+    dimension: whitespace_rhythm
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Same patterns MUST behave the same across pages; identical-looking buttons doing different things, mixed terminology, same action via different steps = flag"
+    examples: ["'Settings' icon opens drawer on /home but full page on /profile"]
+    false_positive_risk: medium
+
+  - id: N4
+    dimension: accessibility_advisory
+    category: hard_defect
+    severity_cap: major
+    advisory_flag: false
+    detection_pseudocode: "Dangerous actions MUST be guarded (delete with no confirmation AND no undo, irreversible actions styled identically to safe actions)"
+    examples: ["Delete project button styled exactly like Save button"]
+    false_positive_risk: medium
+
+  - id: N5
+    dimension: accessibility_advisory
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Information must be visible when needed; navigation that disappears on scroll without recovery, deep pages with no breadcrumbs, search with no recent/suggested queries = flag (advisory)"
+    examples: ["sticky nav hidden after first scroll, no scroll-to-top affordance"]
+    false_positive_risk: medium
+
+  # ============================================================
+  # AI-SLOP BLACKLIST (AI1-AI8) — 8 rules
+  # ALL: category=taste_heuristic, severity_cap=minor, advisory_flag=true (per 5.16)
+  # ============================================================
+  - id: AI1
+    dimension: color_harmony_token_adherence
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect linear-gradient with HSL hue range 270-300 (purple/violet) used on hero background or large surfaces; flag 'AI purple/blue gradient cliché'"
+    examples: ["hero { background: linear-gradient(135deg, #a855f7, #6366f1) }"]
+    false_positive_risk: medium
+
+  - id: AI2
+    dimension: glass_morphism_quality
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect backdrop-filter:blur on >40% of surfaces in viewport; flag 'glassmorphism overuse -- AI-slop signature'"
+    examples: ["nav, sidebar, hero card, modal all use backdrop-blur"]
+    false_positive_risk: medium
+
+  - id: AI3
+    dimension: typography_beauty
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect emoji used as section icons inside primary product UI (not chat, not user content); 🚀✨🎉 used as bullet/badge icons = AI-slop"
+    examples: ["heading '🚀 Get started'", "badge '✨ New'"]
+    false_positive_risk: medium
+
+  - id: AI4
+    dimension: whitespace_rhythm
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect repeated 3-stat-card horizontal row with identical card structure (icon + number + label) on landing/dashboard; flag 'AI marketing template cliché'"
+    examples: ["3 stat cards: '99.9% uptime', '10K users', '24/7 support'"]
+    false_positive_risk: medium-high
+
+  - id: AI5
+    dimension: animation_polish
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect floating-blob/animated-blob backgrounds (CSS @keyframes that morph border-radius, scale, and translate organic shapes); flag 'AI organic-blob aesthetic'"
+    examples: ["abstract blob SVG with morph animation behind hero"]
+    false_positive_risk: low
+
+  - id: AI6
+    dimension: typography_beauty
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect hero copy patterns 'Empower your X', 'Unleash your X', 'Transform your X', 'AI-powered X', 'Revolutionize your X'; flag 'AI copywriting cliché'"
+    examples: ["h1: 'Empower your team with AI'", "subheading: 'Transform your workflow'"]
+    false_positive_risk: medium
+
+  - id: AI7
+    dimension: color_harmony_token_adherence
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect colored neon glow on box-shadow with high opacity AND high spread (e.g., shadow:0 0 40px rgba(168,85,247,0.6)); flag 'neon glow AI-slop'"
+    examples: ["box-shadow: 0 0 40px rgba(99,102,241,0.7)"]
+    false_positive_risk: low
+
+  - id: AI8
+    dimension: glass_morphism_quality
+    category: taste_heuristic
+    severity_cap: minor
+    advisory_flag: true
+    detection_pseudocode: "Detect default shadcn/ui or v0.dev styling with no customization (default rounded-md, default slate palette, default shadow-sm, default border-input); flag 'untouched component library defaults -- lack of design ownership'"
+    examples: ["10 shadcn Buttons all using default variant + size + rounded"]
+    false_positive_risk: medium
