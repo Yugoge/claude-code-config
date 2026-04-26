@@ -1,5 +1,6 @@
 ---
 description: Wrapper - ask QA agent to debate with codex and return CLOSE YES/NO verdict
+disable-model-invocation: true
 ---
 
 # /close
@@ -14,11 +15,17 @@ The orchestration of rounds, the calls to codex, the evaluation of agreement, an
 ## Invocation
 
 ```
-/close 20260424-074346               # timestamp token -> docs/dev/ba-spec-<ts>.md + qa-report-<ts>.json
-/close docs/dev/ba-spec-20260424.md  # explicit path
+/close 20260424-074346                       # timestamp token -> docs/dev/ba-spec-<ts>.md + qa-report-<ts>.json
+/close docs/dev/ba-spec-20260424.md          # explicit path
+/close 20260424-074346 --force               # forced close, skip debate, audit-logged (escape hatch — see Step 0)
+/close 20260424-074346 --force --reason "<text>"   # forced close with rationale recorded in audit
+/close --force 20260424-074346               # equivalent — flag position is flexible
 ```
 
 When invoked mid-conversation without an argument, the orchestrator identifies the current dev cycle's spec from conversation context (it just ran /dev in the same session) and embeds those paths directly into Step 2's QA prompt. No filesystem scan, no default-to-newest.
+
+<!-- Cross-reference: BA spec /root/docs/dev/ba-spec-20260426-redev8.md § AC-CLOSE-FORCE-1..6 govern --force / --reason behavior. -->
+
 
 ## Workflow
 
@@ -26,6 +33,90 @@ Load preloaded todo list:
 ```bash
 source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/close.py
 ```
+
+### Step 0 (optional): --force flag short-circuit
+
+If `$ARGUMENTS` contains the literal token `--force` (in any position), this short-circuits the entire debate path. **The model itself cannot trigger this** — `disable-model-invocation: true` (frontmatter line 3) prevents `SlashCommand`-based self-invocation regardless of arguments. Only a human invoking via the slash UI can trigger `--force`.
+
+Argument parsing order (orchestrator parses at the slash-command layer):
+
+```
+/close <task-id> --force [--reason "<text>"]
+/close --force <task-id> [--reason "<text>"]
+/close <task-id> --force --reason "<text>"
+```
+
+Procedure when `--force` is present:
+
+1. **Strip `--force` from `$ARGUMENTS`**. If `--reason "<text>"` follows, capture `<text>` (everything between the matched quotes) as `$REASON`. If absent, set `$REASON="no reason provided"`.
+2. **Resolve the task-id** from the remaining argument using the same Step 1 rules below (explicit path → derive from basename; timestamp → use directly; no argument → orchestrator infers from session context). The task-id resolution rules are reused identically; do NOT branch the resolution logic.
+3. **Skip Step 2 entirely** — no QA subagent invocation, no Skill(codex) call, no Workflow Integrity Dimension evaluation, no multi-round debate.
+4. **Write the forced close-report** to `docs/dev/close-report-<task-id>.md` with this exact structure:
+
+   ```
+   # Close Debate Report (FORCED)
+   Task-id: <task-id>
+   Mode: --force (user override)
+   Closed at: <ISO-8601 timestamp>
+   Reason: <$REASON value, or "no reason provided">
+
+   **Verdict**: **CLOSE: YES — FORCED by user override**
+
+   No multi-round debate occurred. The user explicitly invoked /close with
+   --force, accepting full responsibility for any defects this verdict masks.
+
+   ## Forced Override Audit
+   - Timestamp: <ISO-8601>
+   - Task-id: <task-id>
+   - Invoker: human user (model cannot self-invoke /close; disable-model-invocation: true)
+   - Workflow Integrity Dimension: ALL bullets OVERRIDDEN — not evaluated
+     1. Downstream consumability: OVERRIDDEN
+     2. task-id chain consistency: OVERRIDDEN
+     3. Pre-existing-defect rule: OVERRIDDEN
+     4. Self-deployability: OVERRIDDEN
+   - Rationale (from invoker): <$REASON value>
+   - User explicitly accepts the risk of closing without debate.
+
+   ---
+   CLOSE: YES (FORCED)
+   ```
+
+   This file MUST be written even if the task-id has no upstream BA spec / context / dev-report (per AC-CLOSE-FORCE-6). The close-report is itself the audit trail; absence of upstream artifacts becomes visible in the report and is intentional.
+
+5. **Append audit log entry** to `~/.claude/logs/close-overrides.log` (best-effort):
+
+   ```bash
+   mkdir -p ~/.claude/logs
+   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=<task-id> mode=force reason=\"<$REASON>\"" >> ~/.claude/logs/close-overrides.log
+   ```
+
+   If the append fails (permissions, missing dir despite mkdir, etc.), the close-report write still succeeds. The audit log is a best-effort cross-task ledger; the close-report (per-task artifact) is the authoritative record.
+
+6. **Print the final stdout line** (this is the line consumers grep for):
+
+   ```
+   CLOSE: YES — FORCED
+   ```
+
+   The close-report's own final line remains `CLOSE: YES (FORCED)` per the template above (AC-CLOSE-FORCE-1 specifies the report's bottom line in that form). The two forms are intentional: the **stdout signal** uses the em-dash form (`CLOSE: YES — FORCED`) for downstream `/commit` / `/push` consumers; the **close-report final line** uses the parenthesized form (`CLOSE: YES (FORCED)`) so existing `grep "^CLOSE: YES$"` patterns also catch the prefix.
+
+   Stop. Do NOT proceed to Step 1 / Step 2 / Step 3.
+
+**When to use** (escape hatch — strongly discouraged for routine use):
+- Codex hits its usage limit and Round 2 cannot complete (see redev7 close-debate stall).
+- Workflow Integrity Dimension bullet flags a known-acceptable artifact (e.g., parallel-dev cycle pre-F-AGGREGATE).
+- Operator has read all dissent and explicitly accepts the risk of shipping NOW.
+
+**What it preserves**:
+- `disable-model-invocation: true` — model cannot self-invoke /close (with or without --force). Only human via SlashCommand.
+- Close-report artifact (every override is auditable).
+- Audit log line (cross-task ledger of all overrides).
+
+**What it skips**:
+- Multi-round QA+codex debate (entire Step 2).
+- Workflow Integrity Dimension evaluation (all four bullets recorded as `OVERRIDDEN`).
+
+Every forced override is auditable and traceable. Routine use defeats the purpose of /close as a quality gate.
 
 ### Step 1: Load input
 
@@ -118,5 +209,6 @@ Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it 
 - /close does NOT call Skill(codex). QA does, internally.
 - /close does NOT manage rounds. QA does, internally.
 - /close does NOT evaluate verdict. QA does, internally.
-- QA is invoked EXACTLY ONCE.
-- Default to CLOSE: NO on any error, ambiguity, or tool unavailability.
+- QA is invoked EXACTLY ONCE (non-force path) or ZERO times (forced path).
+- Default to CLOSE: NO on any error, ambiguity, or tool unavailability — EXCEPT when `--force` is explicitly passed by a human user, in which case CLOSE: YES (FORCED) is the result regardless of upstream artifact state (Step 0 short-circuit).
+- `disable-model-invocation: true` (frontmatter) means the model cannot self-invoke /close via SlashCommand — this applies equally to the forced path. Only a human can trigger `--force`.

@@ -610,6 +610,65 @@ Use Task tool with:
 
 **Wait for dev subagent completion** before proceeding.
 
+#### Parallel Dev Aggregate (when dispatching N parallel dev subagents, N>1)
+
+When the orchestrator dispatches N parallel `dev` subagents (one per file-disjoint
+work item), EACH dev writes its own report to
+`docs/dev/dev-report-<task-id>-<worker-id>.json`. Downstream `/commit`
+(`commit.sh:690`) reads ONLY the canonical singular path
+`docs/dev/dev-report-<task-id>.json` and fails closed if it is missing
+(redev7 cycle could not self-deploy for this exact reason).
+
+**After ALL parallel devs return, the orchestrator MUST write a canonical
+aggregate `dev-report-<task-id>.json`** that unions the per-worker reports
+into a single artifact consumable by downstream `/commit`. This is an
+orchestrator-side rule; do NOT modify `commit.sh`, the singular-filename
+consumer contract stays as-is.
+
+**Aggregate construction rule**:
+- `request_id` = `dev-<task-id>` (literal, matches the cycle task-id)
+- `timestamp` = ISO-8601 of the aggregate write
+- `dev_report_path` = `docs/dev/dev-report-<task-id>.json` (the canonical path)
+- `parallel_workers` = list of per-worker ids `["<worker-id>", ...]`
+  (top-level field for traceability; sources the per-worker reports)
+- `dev.status` = `"completed"` iff ALL workers reported `"completed"`,
+  otherwise `"blocked"` with first-failure rationale in `blocking_issues`
+- `dev.tasks_completed` = UNION of all per-worker `dev.tasks_completed`
+- `dev.scripts_created` = UNION of all per-worker `dev.scripts_created`
+- `dev.permissions_to_add` = UNION of all per-worker `dev.permissions_to_add`
+- `dev.files_modified` = UNION of all per-worker `dev.files_modified`
+- `dev.files_created` = UNION of all per-worker `dev.files_created`
+- `blocking_issues` = UNION of all per-worker `blocking_issues`
+- `recommendations` = UNION of all per-worker `recommendations`
+
+**Example aggregate JSON** (template; orchestrator writes inline via `jq` or
+Python in a single Bash call — no separate script):
+
+```json
+{
+  "request_id": "dev-<task-id>",
+  "timestamp": "<ISO-8601>",
+  "dev_report_path": "docs/dev/dev-report-<task-id>.json",
+  "parallel_workers": ["pcwd", "ppush"],
+  "dev": {
+    "status": "completed",
+    "tasks_completed": [],
+    "scripts_created": [],
+    "permissions_to_add": [],
+    "files_modified": [],
+    "files_created": []
+  },
+  "blocking_issues": [],
+  "recommendations": []
+}
+```
+
+**Single-dev path is unaffected** (do NOT add aggregate logic for N=1):
+when only one dev was dispatched, that dev writes
+`dev-report-<task-id>.json` directly and the orchestrator does NOT write an
+additional aggregate (that would clobber). The aggregate rule applies ONLY
+when N>1 parallel devs were dispatched.
+
 ### Step 7: Validate Dev Implementation
 
 **Quick validation before QA**:

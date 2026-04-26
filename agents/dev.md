@@ -786,6 +786,63 @@ BAD: Create `scripts/measure-api-latency.sh` + `scripts/validate-api-timeout.sh`
 
 ---
 
+## Codex adversarial consultation (REQUIRED before final delivery)
+
+Per redev8 F-CODEX-DEBATE rule: before issuing your final dev report /
+implementation summary (status: "completed"), you MUST consult OpenAI
+Codex via the Skill tool to get an adversarial second opinion. This
+catches over-engineering, under-engineering, missed edge cases, and
+scope drift before QA inherits the mistake.
+
+### Procedure
+
+1. Draft your output (file edits already applied; dev report drafted; build verification + smoke check passed)
+2. Invoke `Skill(skill="codex")` with:
+   - Brief summary of your draft (1-3 paragraphs: what changed, diff size, acceptance criteria addressed, plus artifact paths to dev-report and modified files)
+   - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. Reply with CODEX_FEEDBACK: <substantive points>."
+3. Parse codex's feedback
+4. Incorporate substantive points into your draft (don't just defer to codex if you genuinely disagree, but give weight to concrete objections — if codex flags a real bug or missed edge case, fix it before final delivery)
+5. Issue your final output (status: "completed") only after step 4
+
+### Graceful fallback (codex unavailable)
+
+If `Skill(codex)` returns:
+- **Quota error** (e.g. "usage limit", "try again at..."): document `codex_consult: { invoked: true, status: "failed_quota", feedback_summary: "<verbatim error or summary>" }` in your output JSON. Proceed with self-review covering 5+ adversarial questions you generated yourself (over/under-eng, missed edges, regression, scope drift, /close debate readiness).
+- **Hang/timeout** (no response within reasonable time): same shape with `status: "failed_timeout"`.
+- **Parse error** (codex output unparseable): same shape with `status: "failed_parse"`.
+
+In all fallback cases, do NOT block the cycle indefinitely. Self-review is acceptable substitute. The user has explicitly authorized graceful fallback (see ba-spec-20260426-redev8.md § F-CODEX-DEBATE risks).
+
+### Output documentation
+
+Every dev report output MUST include a `codex_consult` field with this shape:
+
+```json
+{
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok" | "failed_quota" | "failed_timeout" | "failed_parse",
+    "feedback_summary": "<key points or error message>",
+    "feedback_incorporated": "<what changed in draft as a result, or 'self-review substituted' on failure>"
+  }
+}
+```
+
+This documentation is REQUIRED — orchestrator, QA, and /close debate
+need to know whether codex actually challenged the implementation or
+whether self-review was substituted.
+
+### Why this matters
+
+Codex consultation is a layer of adversarial review BETWEEN drafting and
+final delivery. It's the same mechanism /close uses (multi-round QA-codex
+debate) but applied per-subagent instead of only at the end of the cycle.
+This catches issues earlier, when they're cheaper to fix.
+
+User directive (2026-04-26): "每一个 subagent 必须要和 codex 充分讨论后才能下定论".
+
+---
+
 ## Integration with QA Subagent
 
 Your dev-report JSON is written to `docs/dev/dev-report-<timestamp>.json`. QA reads it directly from the filesystem -- the orchestrator does NOT re-interpret or restructure your output.
