@@ -5,8 +5,10 @@
 #
 # Options:
 #   --auto    Non-interactive mode (auto-remove stale locks only; does NOT
-#             auto-commit — a dirty tree is ALWAYS rejected with a clear
-#             "commit first" message. Automated snapshots now live on
+#             auto-commit. A dirty working tree no longer blocks /push
+#             (redev7 P-PUSH-DIRTY-OK) — the wrapper shows an informational
+#             warning and proceeds, since git push only ships already-
+#             committed commits to remote. Automated snapshots live on
 #             refs/checkpoints/<branch> and must NOT be promoted to HEAD.)
 
 # Colors
@@ -42,16 +44,20 @@ echo "📊 Checking repository status..."
 echo ""
 
 # Get staged files
+# F-STAGED-COUNT (redev8): explicit empty-string guard. The previous form
+# `echo "$STAGED" | grep -c '^'` returned 1 for empty $STAGED because echo
+# always emits a single newline. Use parameter expansion to short-circuit
+# to 0 when the variable is empty.
 STAGED=$(git diff --cached --name-only 2>/dev/null)
-STAGED_COUNT=$(echo "$STAGED" | grep -c '^' 2>/dev/null || echo "0")
+if [ -z "$STAGED" ]; then STAGED_COUNT=0; else STAGED_COUNT=$(echo "$STAGED" | wc -l); fi
 
 # Get modified but unstaged files
 MODIFIED=$(git diff --name-only 2>/dev/null)
-MODIFIED_COUNT=$(echo "$MODIFIED" | grep -c '^' 2>/dev/null || echo "0")
+if [ -z "$MODIFIED" ]; then MODIFIED_COUNT=0; else MODIFIED_COUNT=$(echo "$MODIFIED" | wc -l); fi
 
 # Get untracked files (respecting .gitignore)
 UNTRACKED=$(git ls-files --others --exclude-standard 2>/dev/null)
-UNTRACKED_COUNT=$(echo "$UNTRACKED" | grep -c '^' 2>/dev/null || echo "0")
+if [ -z "$UNTRACKED" ]; then UNTRACKED_COUNT=0; else UNTRACKED_COUNT=$(echo "$UNTRACKED" | wc -l); fi
 
 # Step 3: Display status summary
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -82,27 +88,20 @@ if [ "$STAGED_COUNT" = "0" ] && [ "$MODIFIED_COUNT" = "0" ] && [ "$UNTRACKED_COU
   echo ""
 fi
 
-# Step 4: Dirty-tree guard — /push must NOT create commits.
-# If the working tree or index is dirty, reject with a clear "commit first"
-# message. Automated snapshots live on refs/checkpoints/<branch> (written by
-# the Stop hooks and /checkpoint) and must not be promoted to HEAD by /push.
+# Step 4: Dirty-tree informational warning (redev7 P-PUSH-DIRTY-OK).
+# Working tree drift does NOT block push. git push only ships already-committed
+# commits to remote — the working tree state is irrelevant to git push semantics.
+# This was a vestigial gate from an old design where /push auto-committed.
+# The b5d447e snapshots-off-HEAD design guarantees /push cannot promote
+# working-tree content to HEAD, so the gate is unnecessary.
 DIRTY_STATUS=$(git status --porcelain 2>/dev/null)
 if [ -n "$DIRTY_STATUS" ]; then
-  echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${RED}❌ Refusing to push: working tree is dirty${NC}"
-  echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  DIRTY_COUNT=$(echo "$DIRTY_STATUS" | grep -c '^' 2>/dev/null || echo "0")
+  echo -e "${YELLOW}ℹ  Working tree has ${DIRTY_COUNT} dirty file(s) (not blocking).${NC}"
+  echo "   These files (modified/staged/untracked) are NOT being pushed —"
+  echo "   git push only ships already-committed commits to remote."
+  echo "   To push your local changes, commit them first via /commit."
   echo ""
-  echo "commit first — /push no longer auto-commits."
-  echo ""
-  echo "Options to proceed:"
-  echo "  • Create a real semantic commit:   git add <files> && git commit -m \"...\""
-  echo "  • Discard changes:                 git checkout -- <files>"
-  echo "  • Snapshot to checkpoint ref only: bash ~/.claude/hooks/checkpoint.sh"
-  echo "      (checkpoint saves to refs/checkpoints/<branch>, does NOT move HEAD)"
-  echo ""
-  echo "Why? Automated snapshots belong on refs/checkpoints/<branch>, never on HEAD."
-  echo "See CLAUDE.md → 'Auto-Commit Mechanism' for recovery commands."
-  exit 1
 fi
 
 # Step 5: No staged/unstaged/untracked content at this point. Verify there is

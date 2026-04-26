@@ -24,10 +24,13 @@ the guard.
 
 1. **Detached HEAD check**: refuses to push if not on a branch.
 2. **Status report**: prints staged / modified / untracked files for context.
-3. **Dirty-tree rejection** (HARD): if `git status --porcelain` is non-empty,
-   the wrapper exits non-zero with a "Refusing to push: working tree is dirty"
-   message. **It does NOT auto-stage and does NOT auto-commit.** A real
-   semantic commit must already be on the branch before `/push` will run.
+3. **Dirty-tree informational warning** (NON-BLOCKING): if
+   `git status --porcelain` is non-empty, the wrapper prints a yellow
+   informational notice with the dirty-file count and continues. Working-tree
+   drift (modified, staged, or untracked files) does NOT block `/push`. Only
+   already-committed commits get pushed — staged and unstaged working-tree
+   files are NOT pushed. To push your local changes, commit them via
+   `/commit` first.
 4. **Nothing-to-push exit**: if the tree is clean and there are zero commits
    ahead of the upstream, the wrapper prints "Nothing to push" and exits 0
    without writing a grant or contacting the remote.
@@ -78,28 +81,26 @@ authorized path; everything else exits 2 from the guard.
 ## Pre-conditions for a successful push
 
 - On a real branch (not detached HEAD).
-- Working tree is clean — every change is already in a real commit on the
-  branch. If you have local edits, run a real semantic commit first
-  (e.g., via `/commit <task-id>` for closed dev tasks, or by hand for
-  ad-hoc work). Automated snapshots on `refs/checkpoints/<branch>` are out
-  of scope here — `/push` never advances HEAD.
 - Branch has commits ahead of upstream (or no upstream is set yet).
+- Working-tree drift (modified, staged, or untracked files) is **allowed** —
+  it does NOT block `/push`. Only already-committed commits get pushed.
+  Staged and unstaged working-tree files are NOT pushed; only commits
+  already on `<branch>` are pushed. If you want to ship local edits, run a
+  real semantic commit first (e.g., via `/commit <task-id>` for closed dev
+  tasks, or by hand for ad-hoc work). Automated snapshots on
+  `refs/checkpoints/<branch>` are out of scope here — `/push` never
+  advances HEAD.
 
 ## Exit codes
 
 | Exit | Meaning |
 |------|---------|
 | 0    | Push succeeded, OR nothing to push (clean tree, zero commits ahead) |
-| 1    | Detached HEAD, dirty-tree rejection, or `git push` failed |
+| 1    | Detached HEAD, or `git push` failed |
 
 ## Failure modes
 
 - **Detached HEAD**: checkout a real branch first.
-- **Dirty tree**: commit or discard changes; `/push` will not stage for you.
-  - Real commit: `git add <files> && git commit -m "..."` or
-    `/commit <task-id>` for closed dev tasks.
-  - Discard: `git checkout -- <files>`.
-  - Snapshot only (no HEAD movement): `bash ~/.claude/hooks/checkpoint.sh`.
 - **Push rejected by remote** (e.g., remote ahead): pull first
   (`git pull --rebase`).
 - **Guard rejection**: if the wrapper itself was invoked correctly but the
@@ -133,3 +134,9 @@ through `SlashCommand`.
 - The grant file lives in `/tmp` and is single-use: the privilege-guard
   unlinks it on first valid consumption. A second `git push` in the same
   session needs a new grant (i.e., a new `/push` invocation).
+- **redev7 removed the dirty-tree hard gate**. The gate was a leftover from
+  the earlier auto-staging design (pre-`b5d447e`). Since `/push` no longer
+  auto-commits, working-tree state cannot leak to HEAD via `/push`, and the
+  gate is unnecessary. Working-tree drift (modified, staged, or untracked
+  files) does NOT block `/push`. Only already-committed commits get pushed.
+  To push your local changes, commit them via `/commit` first.
