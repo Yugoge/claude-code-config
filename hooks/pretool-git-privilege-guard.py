@@ -434,10 +434,63 @@ def _block_missing_commit_grant(sid):
     )
 
 
+def _warn_bridge_message_drift(grant, msg):
+    """Emit warning if bridge-mode message hash differs from grant.expected."""
+    expected_hash = (grant.get('expected_message_sha256') or '').lower()
+    actual_hash = _sha256_text(msg)
+    if expected_hash and expected_hash != actual_hash:
+        sys.stderr.write(
+            'WARN: bridge-mode commit message hash mismatch '
+            '(expected=%s actual=%s); allowed under AC-P3-4 transition.\n'
+            % (expected_hash[:12], actual_hash[:12])
+        )
+
+
+def _warn_bridge_staged_drift(grant):
+    """Emit warning if bridge-mode staged-set differs from grant.allowed_files."""
+    allowed_raw = grant.get('allowed_files') or []
+    if not isinstance(allowed_raw, list):
+        return
+    allowed_set = set(str(p) for p in allowed_raw if p)
+    staged_raw = _git_output(['diff', '--cached', '--name-only'])
+    staged_set = set(p for p in staged_raw.splitlines() if p)
+    if staged_set != allowed_set:
+        sys.stderr.write(
+            'WARN: bridge-mode commit staged-set drift '
+            '(extras=%s missing=%s); allowed under AC-P3-4 transition.\n'
+            % (sorted(staged_set - allowed_set),
+               sorted(allowed_set - staged_set))
+        )
+
+
+def _observe_bridge_commit(sid, msg):
+    """AC-P3-2 defense-in-depth (added 2026-04-26 in dev-redev3-p3).
+
+    When the blessed-bridge regex matches AND the wrapper has set
+    CLAUDE_COMMIT_COMMAND_ACTIVE=1 AND a per-nonce grant manifest is
+    on disk, validate message hash + staged set against the grant.
+    Drift is logged (warning) but does NOT block — promotion to
+    hard-block is deferred to a future cycle (AC-P3-5).  Manifest
+    absence is allowed, preserving AC-P3-4 in-flight compatibility.
+    """
+    if os.environ.get('CLAUDE_COMMIT_COMMAND_ACTIVE') != '1':
+        return
+    grant_path, grant = _find_grant('commit', sid)
+    if grant is None:
+        return
+    _warn_bridge_message_drift(grant, msg)
+    _warn_bridge_staged_drift(grant)
+    _unlink_grant(grant_path)
+
+
 def _evaluate_commit(command, sid):
     # AC-A12: blessed-bridge regex commit STILL ALLOWED (regression).
     msg = _extract_commit_message(command)
     if msg and BLESSED_BRIDGE_RE.search(msg):
+        # AC-P3-2 defense-in-depth: observe-only validation when a
+        # bridge-mode grant accompanies the commit.  Plain blessed-bridge
+        # commits with no env/grant continue to be allowed (AC-P3-4).
+        _observe_bridge_commit(sid, msg)
         return
     # AC-A2: literal-substring inline-env injection (precedes env check).
     if _inline_env_present(command, 'CLAUDE_COMMIT_COMMAND_ACTIVE'):
