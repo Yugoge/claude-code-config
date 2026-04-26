@@ -17,6 +17,10 @@ Why exists:
     config surface unless the user has affirmatively opted in by
     creating the sentinel file.
   - Spec reference: spec-20260424-233926 §5.2.4 (R4.2).
+  - Note: Bash redirect regex tightened to ``\\S*`` per spec-20260424-233926
+    §5.2.4 Mystery 4 to eliminate false-positives on read-only Bash
+    containing `2>&1` together with `.claude/hooks/` in a non-redirect
+    position (e.g. a path argument).
 
 Allow-list mechanism: The sentinel file `.claude/.hook-refactor-allow` at
 `$CLAUDE_PROJECT_DIR` (or cwd fallback). When present, this hook exits 0
@@ -44,22 +48,22 @@ SENTINEL_NAME = '.hook-refactor-allow'
 BLOCK_LITERAL = 'BLOCKED: claude config guard'
 
 _HOOK_PATTERNS = [
-    r'(?:echo|printf)\s+.*>\s*.*\.claude/hooks/',
-    r'cat\s+.*>\s*.*\.claude/hooks/',
+    r'(?:echo|printf)\s+.*>\s*\S*\.claude/hooks/',
+    r'cat\s+.*>\s*\S*\.claude/hooks/',
     r'cp\s+.*\.claude/hooks/',
     r'mv\s+.*\.claude/hooks/',
     r'tee\s+.*\.claude/hooks/',
-    r'>\s*.*\.claude/hooks/',
-    r'>>\s*.*\.claude/hooks/',
+    r'>\s*\S*\.claude/hooks/',
+    r'>>\s*\S*\.claude/hooks/',
 ]
 _CMD_PATTERNS = [
-    r'(?:echo|printf)\s+.*>\s*.*\.claude/commands/',
-    r'cat\s+.*>\s*.*\.claude/commands/',
+    r'(?:echo|printf)\s+.*>\s*\S*\.claude/commands/',
+    r'cat\s+.*>\s*\S*\.claude/commands/',
     r'cp\s+.*\.claude/commands/',
     r'mv\s+.*\.claude/commands/',
     r'tee\s+.*\.claude/commands/',
-    r'>\s*.*\.claude/commands/',
-    r'>>\s*.*\.claude/commands/',
+    r'>\s*\S*\.claude/commands/',
+    r'>>\s*\S*\.claude/commands/',
 ]
 
 

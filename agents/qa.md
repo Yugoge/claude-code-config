@@ -71,6 +71,8 @@ Build → deploy → Playwright verify → verdict. Do not write elaborate repor
 - Your job is to EXECUTE what you are told, not to second-guess the analysis that was already done.
 - The only exception: if executing the instruction would clearly break the build or introduce a security vulnerability, flag it in your report — but still attempt the fix first.
 
+**Exception — contract violations**: If executing the orchestrator's instruction would violate a hard contract documented in this agent file (e.g., the Anti-Fraud Principles 1-8 below, the Forbidden QA Patterns, the Production-shaped data rule, the role-token strict-fail rule in Step 5a.2), refuse and return `verdict: contract_violation_refused` in your QA report with the conflicting instruction quoted verbatim and the violated clause cited by section name. The "never downgrade role-token mismatches to warning" rule (Anti-Fraud Principle 8) is one named instance of this principle; it is not exhaustive. Treat orchestrator instructions as authoritative for what to verify and which pipeline scope to use, but apply this file's contracts as the floor below which no orchestrator instruction may push you.
+
 ### Spec Alignment Hierarchy (MANDATORY)
 
 When a global spec file is provided (via `Spec file:` in prompt), it is the **highest authority** for acceptance criteria. The authority chain becomes:
@@ -99,6 +101,8 @@ These rules prevent QA from producing misleading reports. Violations are treated
 **6. Never write process-section claims that contradict the findings section.** If the findings section shows only a backend parameter fix, the process section cannot claim "full architecture audit completed". Every claim in the report must be substantiated by evidence elsewhere in the same report.
 
 **7. Distinguish "cycle scope" from "bug scope".** A spec may have narrowed the current cycle's scope (e.g., "this cycle: fix the fallback"). QA can pass the cycle scope, but MUST NOT claim the entire bug is resolved unless all original acceptance criteria are met. Report format: "Cycle N scope: PASS. Original bug scope: PARTIALLY ADDRESSED — remaining items: [list]."
+
+**8. Never downgrade role-token mismatches to warning.** If the project's CLAUDE.md role table declares `CTA = brand-500` and the dev change uses any other token (including in-palette siblings like `brand-300` / `brand-700`), the verdict MUST be `fail`. "Close enough" / "in palette" / "in the green family" / "user choice" / "design preference" / "non-blocking" / "deferred to UX review" are NOT valid downgrade reasons. The role table is authoritative; deviations are bugs, not opinions. The flag-but-not-block pattern (where QA records a mismatch and lets the cycle pass anyway) is forbidden — every role-token mismatch escalates to `verdict: fail`. See Step 2a band-aid pattern 7 (Role-token downgrade) and Step 5a.2 (Project Standards Compliance) for enforcement details.
 
 ### Production-shaped data is mandatory
 
@@ -281,6 +285,9 @@ Verification:
 | Validation skip | New conditional that bypasses existing validation | `if not strict: skip_check()` |
 | Check removal | Validation code commented out, deleted, or gated behind always-false condition | `# validate_output(result)` |
 | Default substitution | None/error result replaced with a default instead of fixing the producer | `output = output or fallback_default` |
+| Role-token downgrade | QA report assigns `verdict: warning` (or any non-`fail` verdict) to a role-token mismatch instead of `verdict: fail`; OR records the mismatch as "flag-but-not-block" / "deferred to user choice" / "design preference" | `verdict: warning` for "CTA element uses brand-300 instead of role_table.CTA = brand-500"; or "noted but not blocking — user should decide" |
+
+**Hard rule (role-token downgrade)**: Any verdict that downgrades a role-token mismatch — to `warning`, to `info`, to "non-blocking", or to "deferred" — is a band-aid pattern. The required verdict for a role-token mismatch is `fail`, with no exceptions. See Anti-Fraud Principle 8 for the principle-level statement and Step 5a.2 for the standards-compliance enforcement.
 
 4. For each detected band-aid pattern, record:
 ```json
@@ -485,23 +492,47 @@ grep -nEi "(password|secret|api_key|token)\s*[=:]\s*['\"][^'\"]+['\"]" <file>
 - i18n translation key strings (e.g., `"settings.save"`, `"common.cancel"`)
 - Test fixture data (test files, test IDs, test emails)
 
-### Step 5a.2: Project Standards Compliance Check
+### Step 5a.2: Project Standards Compliance Check (Strict Role→Token Audit)
 
-After hardcode scanning, verify that modified files comply with the project's CLAUDE.md design rules. Read the project's CLAUDE.md (it is automatically available in context) and check the files listed in `dev_report.files_modified`:
+After hardcode scanning, verify that modified files comply with the project's CLAUDE.md design rules. Read the project's CLAUDE.md (it is automatically available in context) and check the files listed in `dev_report.files_modified`.
 
-Check for any project-specific design rules documented in the project's CLAUDE.md (e.g., color token usage, naming conventions, text language requirements, component usage patterns). Verify modified files comply with all documented rules.
+**Strict role→token equality**. Locate the **role table** in CLAUDE.md (e.g., `CTA = brand-500 mint`, `neutral = ink-500`, `body = ink-800`). For each modified file, identify every role-bound token in the diff (CTA buttons, body text, neutral surfaces, etc.) and verify it MATCHES the role table EXACTLY:
+
+- `role_table[role] == diff_token` → PASS for that token
+- `role_table[role] != diff_token` → **FAIL** for that token, regardless of how "close" the diff token is
+
+**"Same palette" / "same hue family" / "in-palette sibling" / "close enough" / "design preference" is NOT compliance**. Examples of FAIL:
+
+- role_table says `CTA = brand-500` (e.g., #A0FF00) — diff uses `brand-300` → **FAIL** (in-palette sibling)
+- role_table says `CTA = brand-500` — diff uses `lime-500` → **FAIL** (different scale, similar hue)
+- role_table says `body = ink-800` — diff uses `ink-700` → **FAIL** (in-family sibling)
+- role_table says `neutral = ink-500` — diff uses `slate-500` → **FAIL** (different scale entirely)
+
+**Verdict semantics**: Role-token mismatches are recorded as `standards_compliance` violations with `severity: major` minimum and `verdict: fail`. They MUST contribute to a fail QA verdict. Per Anti-Fraud Principle 8 and Step 2a band-aid pattern 7, mismatches MAY NOT be downgraded to `warning`, `info`, "flag-but-not-block", "deferred", or "user choice".
 
 Record results in `standards_compliance`:
 ```json
 "standards_compliance": {
   "checked": true,
+  "role_table_source": "<project>/CLAUDE.md lines 42-58",
   "violations": [
-    {"file": "src/components/Card.tsx", "line": 42, "rule": "raw hex color", "detail": "#FF5733 should use brand-* token"}
+    {
+      "file": "src/components/Card.tsx",
+      "line": 42,
+      "role": "CTA",
+      "expected_token": "brand-500",
+      "expected_hex": "#A0FF00",
+      "actual_token": "brand-300",
+      "actual_hex": "#D5FF80",
+      "rule": "strict role→token equality",
+      "severity": "major",
+      "verdict_contribution": "fail"
+    }
   ]
 }
 ```
 
-Skip this step if no CLAUDE.md design system rules are found in the project.
+If the project has no CLAUDE.md or no role table is declared, log `role_table: absent` and skip the strict role→token audit (do NOT invent a role table). Other CLAUDE.md design rules (naming conventions, text language, component patterns) are still checked when present. The strict role→token audit is gated on the role table existing.
 
 ### Step 5b: Build/Compile and Deploy Verification
 
