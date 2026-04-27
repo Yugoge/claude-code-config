@@ -3,22 +3,40 @@
 Preloaded TodoList for /dev-overnight workflow.
 
 Autonomous overnight development loop with continuous
-exploration and fix cycles (16 steps). State file is created
+exploration and fix cycles. State file is created
 by the UserPromptSubmit hook; Step 1 handles worktree setup.
 
-PM is invoked 3 times per cycle: Plan (2a), Triage (2c), Retro (13).
+Per spec-20260426-090235 P0/M10, Step 2 is split into three contract-aware
+slots so cycle-contract.json's required_calls can bookmark each slot
+independently:
+
+  2a — PM Plan (PM subagent)
+  2b — Specialist subagents (per PM Plan; dispatched serially by command)
+  2c — PM Triage (PM subagent)
+
+PM is invoked 3 times per cycle: Plan (2a), Triage (2c), Retro (14).
 """
 
 # (label, content, activeForm, extra_meta) tuples for each step
 _STEPS = [
     ("1", "Create worktree (first run only)", "Creating worktree", None),
     (
-        "2",
-        "Explore codebase for issues (PM plan + PM-recommended specialists + PM triage)",
-        "Exploring codebase for issues",
-        {"subagent_call": [
-            {"agent": "pm", "subagent_type": "pm"},
-        ]},
+        "2a",
+        "PM Plan",
+        "PM planning",
+        {"subagent_call": {"agent": "pm", "subagent_type": "pm"}},
+    ),
+    (
+        "2b",
+        "Specialist subagents (per PM Plan)",
+        "Specialists scanning",
+        None,
+    ),
+    (
+        "2c",
+        "PM Triage",
+        "PM triaging",
+        {"subagent_call": {"agent": "pm", "subagent_type": "pm"}},
     ),
     ("2d", "Create overnight spec files", "Creating overnight spec files", None),
     ("3", "Create parallel pipelines from PM triage", "Creating parallel pipelines from PM triage", None),

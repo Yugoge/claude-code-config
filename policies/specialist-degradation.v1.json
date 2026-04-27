@@ -1,0 +1,20 @@
+{
+  "policy_version": 1,
+  "defaults": {
+    "low_yield_threshold": 3,
+    "clean_sweep_threshold": 5,
+    "degradation_actions": ["reduce_budget_50pct", "skip_next_cycle"],
+    "history_window": 5,
+    "escalation_after_actions": ["reduce_budget_50pct", "skip_next_cycle", "skip_next_2_cycles", "escalate_to_user"]
+  },
+  "per_specialist_overrides": {
+    "ui-specialist": {
+      "low_yield_threshold": 4,
+      "clean_sweep_threshold": 7
+    },
+    "user": {
+      "low_yield_threshold": 5,
+      "clean_sweep_threshold": 10
+    }
+  }
+}

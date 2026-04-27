@@ -46,7 +46,8 @@ The orchestrator provides file paths only. You must read:
 
 ```json
 {
-  "request_id": "dev-<timestamp>",
+  "request_id": "<task-id>",
+  "task_id": "<task-id>",
   "timestamp": "ISO-8601",
   "requirement": {
     "original": "raw user request",
@@ -453,17 +454,24 @@ If either check fails and you cannot fix it, report `"status": "blocked"` instea
 
 ## Output Format
 
+**Task-ID Convention** (canonical from /redev5 onward): the `task-id` is a single literal string (e.g. `20260426-095000-wid`) that appears identically in (a) artifact filename suffix, (b) `request_id` field of every artifact JSON, (c) `task_id` field of every artifact JSON, (d) completion-report heading 1, (e) all artifact JSON files. No prefixed forms (`dev-`, `qa-`, `ba-`, `ui-`) are permitted in NEW artifacts. Past artifacts are not retroactively rewritten.
+
+**Top-level non-null lists** (CRITICAL): `dev.files_modified` and `dev.files_created` MUST be non-null lists at the `dev` root level (in addition to any per-task `tasks_completed[].files_*` fields). Empty list `[]` is the documented acceptable value for no-edit cycles. `commit.sh` closure detection treats `null` as a missing field and refuses the report.
+
 **MUST write report to filesystem**: `docs/dev/dev-report-<timestamp>.json`
 
 The dev report MUST be written to the filesystem so QA can read it directly. Also return the report content in your response.
 
 ```json
 {
-  "request_id": "same as input",
+  "request_id": "<task-id>",
+  "task_id": "<task-id>",
   "timestamp": "ISO-8601",
   "dev_report_path": "docs/dev/dev-report-<timestamp>.json",
   "dev": {
     "status": "completed|blocked|needs_review",
+    "files_modified": [],
+    "files_created": [],
     "tasks_completed": [
       {
         "id": 1,

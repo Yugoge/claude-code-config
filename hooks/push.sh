@@ -1,7 +1,17 @@
 #!/bin/bash
 # push.sh - Executable version of /push command
 # Location: ~/.claude/hooks/push.sh
-# Usage: bash ~/.claude/hooks/push.sh [--auto]
+# Usage: bash ~/.claude/hooks/push.sh [<remote>] [--auto]
+#
+# Args:
+#   <remote>  Optional remote name (default: "origin"). Forwarded into
+#             the Scheme 6 grant manifest's "remote" field AND the
+#             `git push <remote> <branch>` invocation. The privilege-guard
+#             (_validate_push_grant_remote) requires the command's remote
+#             token to match grant.remote, so passing a remote here keeps
+#             both sides aligned. Useful for fork-based workflows where
+#             `origin` points at upstream (no write access) and a separate
+#             remote (e.g., `fork`) points at the user's writable fork.
 #
 # Options:
 #   --auto    Non-interactive mode (auto-remove stale locks only; does NOT
@@ -19,10 +29,67 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Check for --auto flag or if running in non-interactive environment
+# Parse args: optional [<remote>], [--auto], [--force-with-lease], [--delete <branch>]
+REMOTE="origin"
 AUTO_MODE=0
-if [ "$1" = "--auto" ] || [ ! -t 0 ]; then
+FORCE_WITH_LEASE=0
+DELETE_MODE=0
+DELETE_BRANCH=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --auto) AUTO_MODE=1 ;;
+    --force-with-lease)
+      # Force-replace remote branch IF its tip is what we expect (i.e., we have its
+      # current state fetched and visible). Refuses when remote moved beyond our
+      # last fetch — strictly safer than `--force` which clobbers unconditionally.
+      # The privilege-guard's _extract_push_remote skips flags (anything starting
+      # with `-`), so this flag is invisible to the remote-binding check; env-var
+      # + grant-manifest validation still runs unchanged.
+      FORCE_WITH_LEASE=1
+      ;;
+    --delete)
+      # Delete a remote branch. The next positional arg is the branch name on the remote.
+      # Skips the working-tree status report, ahead-count check, and grant-manifest's
+      # head-binding (the manifest still binds remote+ppid+sid+nonce; head is set to
+      # the branch tip we observed locally for audit-trail completeness).
+      DELETE_MODE=1
+      shift
+      DELETE_BRANCH="$1"
+      if [ -z "$DELETE_BRANCH" ] || [ "${DELETE_BRANCH:0:1}" = "-" ]; then
+        echo -e "${RED}❌ --delete requires a remote branch name as the next positional argument${NC}" >&2
+        echo "Usage: bash ~/.claude/hooks/push.sh [<remote>] --delete <branch-name>" >&2
+        exit 2
+      fi
+      ;;
+    -*)
+      echo -e "${RED}❌ Unknown flag: $1${NC}" >&2
+      echo "Usage: bash ~/.claude/hooks/push.sh [<remote>] [--auto] [--force-with-lease] [--delete <branch>]" >&2
+      exit 2
+      ;;
+    *) REMOTE="$1" ;;
+  esac
+  shift
+done
+
+# --force-with-lease and --delete are mutually exclusive
+if [ "$FORCE_WITH_LEASE" = "1" ] && [ "$DELETE_MODE" = "1" ]; then
+  echo -e "${RED}❌ --force-with-lease and --delete are mutually exclusive${NC}" >&2
+  exit 2
+fi
+# Non-interactive stdin also engages auto-mode regardless of explicit flag
+if [ ! -t 0 ]; then
   AUTO_MODE=1
+fi
+
+# Validate remote exists locally before continuing — fail fast with a helpful
+# message instead of producing a broken grant + cryptic git push error.
+if ! git remote get-url "$REMOTE" >/dev/null 2>&1; then
+  echo -e "${RED}❌ Error: remote '$REMOTE' not found.${NC}" >&2
+  echo "Configured remotes:" >&2
+  git remote -v | sed 's/^/   /' >&2
+  echo "" >&2
+  echo "Configure with: git remote add $REMOTE <url>" >&2
+  exit 1
 fi
 
 echo -e "${BLUE}🚀 Starting validated push...${NC}"
@@ -30,6 +97,57 @@ if [ "$AUTO_MODE" = "1" ]; then
   echo -e "${CYAN}(Non-interactive mode)${NC}"
 fi
 echo ""
+
+# Delete-mode short-circuit: skip the working-tree report, ahead-count, and head-binding.
+# We still emit a grant manifest (for audit + privilege-guard match) but use the deleted
+# branch name as the manifest "branch" so the guard's remote-binding check passes.
+if [ "$DELETE_MODE" = "1" ]; then
+  echo -e "${CYAN}Delete mode: $REMOTE/$DELETE_BRANCH${NC}"
+  echo ""
+  SID="${CLAUDE_SESSION_ID:-default}"
+  NONCE=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+  GRANT_PATH="/tmp/claude-push-grant-${SID}-${NONCE}.json"
+  CREATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  # For delete we don't have a meaningful HEAD — record the soon-to-be-deleted ref's tip on remote
+  # if knowable, else "0000000000000000000000000000000000000000" (git's null sha for delete refspec).
+  CURRENT_HEAD=$(git rev-parse "$REMOTE/$DELETE_BRANCH" 2>/dev/null || echo "0000000000000000000000000000000000000000")
+  python3 - <<PYEOF
+import json
+data = {
+    "branch": "$DELETE_BRANCH",
+    "expected_head": "$CURRENT_HEAD",
+    "remote": "$REMOTE",
+    "nonce": "$NONCE",
+    "sid": "$SID",
+    "ppid": $$,
+    "created_at": "$CREATED_AT",
+    "mode": "delete",
+}
+with open("$GRANT_PATH", "w") as f:
+    json.dump(data, f, indent=2)
+PYEOF
+  export CLAUDE_PUSH_COMMAND_ACTIVE=1
+  echo "🗑️  Deleting $REMOTE/$DELETE_BRANCH..."
+  echo ""
+  git push "$REMOTE" --delete "$DELETE_BRANCH"
+  PUSH_STATUS=$?
+  if [ $PUSH_STATUS -ne 0 ]; then
+    echo ""
+    echo -e "${RED}❌ Delete push failed${NC}"
+    exit 1
+  fi
+  rm -f "$GRANT_PATH"
+  mkdir -p ~/.claude/logs
+  AUDIT_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  printf '%s sid=%s command_kind=push remote=%s branch=%s head=%s sentinel_nonce=%s ppid=%s mode=delete\n' \
+    "$AUDIT_TS" "$SID" "$REMOTE" "$DELETE_BRANCH" "$CURRENT_HEAD" "$NONCE" "$$" \
+    >> ~/.claude/logs/git-privilege-grants.log
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo -e "${GREEN}✅ Successfully deleted $REMOTE/$DELETE_BRANCH${NC}"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 0
+fi
 
 # Step 1: Get current branch
 BRANCH=$(git branch --show-current)
@@ -106,15 +224,39 @@ fi
 
 # Step 5: No staged/unstaged/untracked content at this point. Verify there is
 # actually something to push; otherwise exit cleanly.
+#
+# Two distinct cases must be handled:
+#   (a) Branch HAS an upstream: ahead-count comes from `@{u}..HEAD`.
+#   (b) Branch has NO upstream yet (first push of a new local branch): the entire branch
+#       counts as "to push" — git push -u <REMOTE> <BRANCH> will publish it. We must NOT
+#       exit early just because @{u} is unresolvable.
+#
+# Earlier versions used `git rev-list --count @{u}..HEAD 2>/dev/null || echo "0"` which
+# silently coerced the no-upstream case to "0 ahead" and exited "Nothing to push". That
+# blocked legitimate first-push flows for branches like cycle6-fixes-* pushed to fork.
 if [ "$STAGED_COUNT" = "0" ]; then
-  COMMITS_AHEAD=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo "0")
-  if [ "$COMMITS_AHEAD" != "0" ] && [ "$COMMITS_AHEAD" != "" ]; then
-    echo "Working tree clean. $COMMITS_AHEAD commit(s) ahead of remote — proceeding with push."
+  HAS_UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
+  if [ -z "$HAS_UPSTREAM" ]; then
+    # Case (b): no upstream → first-push flow is the right path. Fall through to step 9.
+    BRANCH_COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "0")
+    if [ "$BRANCH_COMMIT_COUNT" = "0" ] || [ -z "$BRANCH_COMMIT_COUNT" ]; then
+      echo "Nothing to push (branch has zero commits)."
+      echo ""
+      exit 0
+    fi
+    echo "Working tree clean. Branch '$BRANCH' has no upstream yet — first-push flow ($BRANCH_COMMIT_COUNT commit(s) total) will set upstream to $REMOTE/$BRANCH."
     echo ""
   else
-    echo "Nothing to push (working tree clean, no commits ahead of remote)."
-    echo ""
-    exit 0
+    # Case (a): upstream exists, normal ahead-count check.
+    COMMITS_AHEAD=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo "0")
+    if [ "$COMMITS_AHEAD" != "0" ] && [ -n "$COMMITS_AHEAD" ]; then
+      echo "Working tree clean. $COMMITS_AHEAD commit(s) ahead of remote — proceeding with push."
+      echo ""
+    else
+      echo "Nothing to push (working tree clean, no commits ahead of remote)."
+      echo ""
+      exit 0
+    fi
   fi
 fi
 
@@ -138,7 +280,7 @@ import json
 data = {
     "branch": "$BRANCH",
     "expected_head": "$CURRENT_HEAD",
-    "remote": "origin",
+    "remote": "$REMOTE",
     "nonce": "$NONCE",
     "sid": "$SID",
     "ppid": $$,
@@ -152,7 +294,7 @@ PYEOF
 export CLAUDE_PUSH_COMMAND_ACTIVE=1
 
 # Step 9: Push to remote
-echo "🌐 Pushing to remote..."
+echo "🌐 Pushing to $REMOTE..."
 echo ""
 
 # Check if upstream is set
@@ -160,12 +302,22 @@ UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
 
 if [ -z "$UPSTREAM" ]; then
   # No upstream set, push with -u
-  echo "Setting upstream to origin/$BRANCH..."
-  git push -u origin "$BRANCH"
+  echo "Setting upstream to $REMOTE/$BRANCH..."
+  if [ "$FORCE_WITH_LEASE" = "1" ]; then
+    echo -e "${YELLOW}⚠  --force-with-lease engaged on first push (refuses if remote ref already exists with diverging tip).${NC}"
+    git push --force-with-lease -u "$REMOTE" "$BRANCH"
+  else
+    git push -u "$REMOTE" "$BRANCH"
+  fi
   PUSH_STATUS=$?
 else
   # Upstream exists, normal push
-  git push origin "$BRANCH"
+  if [ "$FORCE_WITH_LEASE" = "1" ]; then
+    echo -e "${YELLOW}⚠  --force-with-lease engaged: remote ref will be replaced if its tip matches our last-fetched value.${NC}"
+    git push --force-with-lease "$REMOTE" "$BRANCH"
+  else
+    git push "$REMOTE" "$BRANCH"
+  fi
   PUSH_STATUS=$?
 fi
 
@@ -198,14 +350,14 @@ rm -f "$GRANT_PATH"
 # log is the durable record independent of grant-file lifecycle.
 mkdir -p ~/.claude/logs
 AUDIT_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-printf '%s sid=%s command_kind=push branch=%s head=%s sentinel_nonce=%s ppid=%s\n' \
-  "$AUDIT_TS" "$SID" "$BRANCH" "$CURRENT_HEAD" "$NONCE" "$$" \
+printf '%s sid=%s command_kind=push remote=%s branch=%s head=%s sentinel_nonce=%s ppid=%s\n' \
+  "$AUDIT_TS" "$SID" "$REMOTE" "$BRANCH" "$CURRENT_HEAD" "$NONCE" "$$" \
   >> ~/.claude/logs/git-privilege-grants.log
 
 # Step 11: Success summary
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo -e "${GREEN}✅ Successfully pushed to origin/$BRANCH${NC}"
+echo -e "${GREEN}✅ Successfully pushed to $REMOTE/$BRANCH${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -214,6 +366,7 @@ LATEST_COMMIT=$(git log -1 --oneline)
 FILES_CHANGED=$(git diff --stat HEAD~1 HEAD 2>/dev/null | tail -n 1)
 
 echo "Summary:"
+echo "  • Remote: $REMOTE"
 echo "  • Branch: $BRANCH"
 echo "  • Latest commit: $LATEST_COMMIT"
 if [ -n "$FILES_CHANGED" ]; then
@@ -222,9 +375,9 @@ fi
 echo ""
 
 # Get remote URL
-REMOTE_URL=$(git remote get-url origin 2>/dev/null)
+REMOTE_URL=$(git remote get-url "$REMOTE" 2>/dev/null)
 if [ -n "$REMOTE_URL" ]; then
-  echo "Remote: $REMOTE_URL"
+  echo "Remote URL: $REMOTE_URL"
   echo ""
 fi
 
