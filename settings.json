@@ -437,6 +437,10 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-orchestrator-prompt-purity.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-aggregate-check.py\""
           }
         ]
       },
@@ -551,6 +555,17 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/posttool-runcode-watchdog.py\""
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/notification-idle-overnight.py\""
           }
         ]
       }
