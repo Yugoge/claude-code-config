@@ -610,6 +610,20 @@ Use Task tool with:
 
 **Wait for dev subagent completion** before proceeding.
 
+### Step 6.5: Write Canonical Aggregate Dev-Report (Parallel-Dev Only)
+
+**Applies ONLY when N>1 parallel dev subagents were dispatched in Step 6.** Single-dev cycles SKIP this step entirely (the lone dev subagent writes `dev-report-<task-id>.json` directly).
+
+**Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files matching `dev-report-<role>-<task-id>.json` for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 8 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate.
+
+**Authoritative construction rule**: see lines 613-670 below for the full aggregate JSON schema and union semantics. Summary:
+- `request_id` = `dev-<task-id>`; `dev_report_path` = canonical singular path
+- `parallel_workers` = list of per-worker ids
+- `dev.status`, `dev.tasks_completed`, `dev.scripts_created`, `dev.permissions_to_add`, `dev.files_modified`, `dev.files_created`, `blocking_issues`, `recommendations` = unions of per-worker reports
+- The orchestrator writes the aggregate inline via `jq` or `python3` in a single Bash call — do NOT modify `commit.sh`, do NOT add a separate script
+
+**Single-dev cycles**: mark this todo step waived (skip). The aggregate-check hook does not fire for single-dev cycles because only one per-worker file pattern can match.
+
 #### Parallel Dev Aggregate (when dispatching N parallel dev subagents, N>1)
 
 When the orchestrator dispatches N parallel `dev` subagents (one per file-disjoint
@@ -646,7 +660,8 @@ Python in a single Bash call — no separate script):
 
 ```json
 {
-  "request_id": "dev-<task-id>",
+  "request_id": "<task-id>",
+  "task_id": "<task-id>",
   "timestamp": "<ISO-8601>",
   "dev_report_path": "docs/dev/dev-report-<task-id>.json",
   "parallel_workers": ["pcwd", "ppush"],
@@ -904,12 +919,15 @@ jq -s '.[0] * {
 
 **QA passed! Generate final report.**
 
+**Task-ID Convention** (canonical from /redev5 onward): the `task-id` is a single literal string (e.g. `20260426-095000-wid`) that appears identically in (a) artifact filename suffix, (b) `request_id` field of every artifact JSON, (c) `task_id` field of every artifact JSON, (d) completion-report heading 1, (e) all artifact JSON files. No prefixed forms (`dev-`, `qa-`, `ba-`, `ui-`) are permitted in NEW artifacts. Past artifacts are not retroactively rewritten.
+
 **Completion report structure**:
 
 ```markdown
-# Development Completion Report
+# Development Completion Report — <task-id>
 
-**Request ID**: dev-<timestamp>
+**Request ID**: <task-id>
+**Task ID**: <task-id>
 **Completed**: <ISO-8601>
 **Iterations**: <N>
 
