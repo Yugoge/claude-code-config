@@ -136,12 +136,27 @@ TASK_ID="<resolved task-id from rules above>"   # e.g. "$ARGUMENTS" when timesta
 
 Also optionally note companion files if they exist at the same task-id: `context-<task-id>.json`, `dev-report-<task-id>.json`.
 
+Resolve optional cp-state handoff for the QA close gate:
+
+- If the resolved input spec path is `docs/dev/specs/<SPEC_ID>.md` and
+  `.claude/specs/<SPEC_ID>/cp-state-qa.json` exists, bind `SPEC_ID`.
+- Else if `context-<task-id>.json` contains a `spec_path`, `spec_file`, or
+  `user_spec_path` pointing at `docs/dev/specs/<SPEC_ID>.md`, bind that `SPEC_ID`
+  when `.claude/specs/<SPEC_ID>/cp-state-qa.json` exists.
+- Else if `.claude/specs/<TASK_ID>/cp-state-qa.json` exists, bind `SPEC_ID="$TASK_ID"`.
+- Else bind `SPEC_ID=""` and skip the QA cp-state `SECOND ACTION`.
+
+When `SPEC_ID` is non-empty, `/close` MUST hand the QA subagent
+`.claude/specs/<SPEC_ID>/cp-state-qa.json`; this is what makes the close gate
+participate in the same check-in/checklist/Stop-block chain as `/dev`.
+
 ### Step 2: Invoke QA subagent with debate prompt
 
 Use the Agent tool with `subagent_type: qa` ONCE. The entire debate happens inside this single subagent call. Pass this prompt (substitute paths and $TS):
 
 ```
-FIRST ACTION: if a dev-registry sentinel for this session exists at /root/.claude/dev-registry/<SESSION_ID>/qa.json, read it to register.
+FIRST ACTION: if a dev-registry sentinel for this session exists at $CLAUDE_PROJECT_DIR/.claude/dev-registry/<SESSION_ID>/qa.json, read it to register.
+SECOND ACTION (only if SPEC_ID is non-empty): read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist before the debate. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
 
 You are the QA gatekeeper evaluating whether a completed development can be closed. You will run a MULTI-ROUND INTERNAL DEBATE with OpenAI Codex (via the Skill tool) yourself. The caller will NOT orchestrate rounds; you own the loop.
 
@@ -186,22 +201,52 @@ Round 3 (skip if earlier unanimous YES):
   3a. Final reassessment.
   3b. Final Skill(codex) call with full history.
 
-Verdict rule (UNANIMOUS CONSENT):
-- CLOSE: YES only if after your final active round BOTH your position AND codexs position are YES AND all four Workflow Integrity Dimension bullets evaluate to PASS (or N/A-with-reason; never FAIL).
-- Any NO, ambiguity, tool error, parse failure, or disagreement at the end -> CLOSE: NO.
-- Any Workflow Integrity Dimension bullet failing -> CLOSE: NO regardless of AC coverage status, with the failing bullet named in the dissent line.
+Verdict rule (UNANIMOUS CONSENT, with infrastructure-failure escape valve):
+
+Track a single field about the codex consultation across all rounds:
+  `codex_status`: `ok` | `failed_quota` | `failed_timeout` | `failed_parse`
+
+- `ok` — at least one round received a parseable `CODEX: YES` or `CODEX: NO`.
+- `failed_quota` — every round attempted hit a usage-limit / quota error.
+- `failed_timeout` — every round attempted hung past the round's deadline.
+- `failed_parse` — every round attempted returned content that could not be parsed into `CODEX: YES` / `CODEX: NO`. Unlike `failed_quota` / `failed_timeout`, the round produced output -- it just did not match the schema. QA MUST preserve the verbatim raw output and perform a manual dissent scan before branch 5b can grant CLOSE: YES (FINDING-4).
+
+Verdict branches:
+
+1. **Unanimous YES (normal happy path)**: QA position = YES AND codex position = YES (codex_status = ok) AND all four Workflow Integrity Dimension bullets PASS (or N/A-with-reason; never FAIL) → **CLOSE: YES**.
+
+2. **Substantive Codex dissent**: codex_status = ok AND any round ended with `CODEX: NO` AND the disagreement was not resolved by a later round → **CLOSE: NO**, with the dissent line citing codex's substantive objection. This branch is unchanged: a working codex saying NO still forces NO.
+
+3. **Workflow Integrity FAIL**: any of the four bullets evaluates to FAIL (not N/A-with-reason) → **CLOSE: NO** regardless of QA / codex positions, with the failing bullet named in the dissent line. Unchanged.
+
+4. **QA dissent**: QA position = NO at end of final round → **CLOSE: NO**, with QA's substantive objection in the dissent line. Unchanged.
+
+5. **Codex infrastructure failure (BUG-CLOSE-2 escape valve)**: codex_status ∈ {`failed_quota`, `failed_timeout`} AND QA position = YES AND all four Workflow Integrity Dimension bullets PASS → **CLOSE: YES (degraded codex consultation)**. The verdict is granted on QA's substantive YES alone because codex never produced a substantive opinion to disagree with. Document the codex_status value verbatim in the close-report transcript under a new "Degraded codex consultation" section. The dissent line is replaced by an annotation: `degraded codex consultation: codex_status=<value>, codex contributed no substantive position`. This branch ONLY applies when the failure mode is unambiguous mechanical / infrastructural transport failure (the request never produced any output at all); a successful CODEX: NO still falls under branch 2. `failed_quota` and `failed_timeout` are unambiguous (the round produced no body to inspect). `failed_parse` is NOT in this branch -- see branch 5b.
+
+5b. **Codex parse failure (FINDING-4 hardening for `failed_parse`)**: codex_status = `failed_parse` AND QA position = YES AND all four Workflow Integrity Dimension bullets PASS → conditional **CLOSE: YES (degraded codex consultation)**, BUT ONLY when QA also attests in the close-report:
+    - **(a)** the verbatim raw codex output text from each `failed_parse` round is recorded in the "Degraded codex consultation" section;
+    - **(b)** QA performed a manual scan of that verbatim output for substantive dissent signals -- including but not limited to: `CODEX: NO`, `Codex: NO`, the literal substring `NO`, the words `bug`, `defect`, `regression`, `wrong`, `incorrect`, `must not`, `should not`, `does not work`, `fails`, `broken`, or any prose explicitly objecting to the proposed close;
+    - **(c)** QA explicitly states the determination: `manual parse: NO substantive dissent signal found in failed_parse output` (verbatim wording required).
+
+    `failed_parse` differs from `failed_quota`/`failed_timeout` because the request DID complete and the codex CLI DID emit content -- the parser merely could not map it to the `CODEX: YES` / `CODEX: NO` schema. Skipping the manual scan would create a downgrade vector: a substantive `NO` could ride a malformed response into a YES verdict. If the manual parse finds ANY dissent signal, this branch fails over to **CLOSE: NO** (treat as substantive Codex dissent under branch 2 with the verbatim signal as the dissent line). If QA omits the verbatim attestation, fail over to branch 6 (conservative NO).
+
+6. **Other ambiguity / parse failure on QA's side / unresolved disagreement after final round**: → **CLOSE: NO** (conservative default). Distinct from branch 5: the failure is on QA's reasoning side, not codex's transport.
+
+The /close --force escape hatch (Step 0) is unchanged. It bypasses Step 2 entirely; none of the verdict branches above run on the forced path.
 
 Transcript file: write the full debate to `docs/dev/close-report-<task-id>.md` (substitute `<task-id>` with the value resolved in Step 1 — e.g. the source `/dev` cycle's task-id; do NOT use a fresh `date +%Y%m%d-%H%M%S` here, that would break /commit's PRIMARY-path lookup) with this structure:
   # Close Debate Report
   Task-id, Input files, Rounds run, Verdict.
   Workflow Integrity Dimension: explicit per-bullet status (1. Downstream consumability: PASS/FAIL/N/A; 2. task-id chain consistency: PASS/FAIL/N/A; 3. Pre-existing-defect rule: PASS/FAIL/N/A; 4. Self-deployability: PASS/FAIL/N/A) — with one-sentence reason for each FAIL or N/A.
-  For each round: [QA] position + rationale; [Codex] position + rationale.
+  Codex consultation: explicit `codex_status` value (`ok` | `failed_quota` | `failed_timeout` | `failed_parse`). When the value is one of the failure modes, include a "Degraded codex consultation" section that records: which rounds failed, the verbatim error / timeout / parse-issue from each attempt, and the explicit acknowledgement that the verdict was granted on QA's substantive YES alone (per Verdict rule branch 5 / 5b). For `failed_parse` specifically (FINDING-4), the section MUST additionally include: (i) the verbatim raw codex output text from EACH failed_parse round, (ii) QA's explicit per-round manual scan note, and (iii) the verbatim attestation `manual parse: NO substantive dissent signal found in failed_parse output`. Without all three, branch 5b is not satisfied and the verdict falls to branch 6 (CLOSE: NO).
+  For each round: [QA] position + rationale; [Codex] position + rationale (or "consultation failed: <reason>" when codex_status was failed-* in that round).
   At bottom: final verdict line.
 
 Overwrite policy: if `docs/dev/close-report-<task-id>.md` already exists with a `CLOSE:` line in it (a prior closure attempt for the same task-id), do NOT silently overwrite — append a fresh debate as a new section dated by ISO timestamp, OR (if your tooling cannot append cleanly) treat the prior closure as authoritative and do not re-close.
 
 Return value: print to stdout exactly ONE of these lines as the final line of your response:
   CLOSE: YES
+  CLOSE: YES - degraded codex consultation: codex_status=<failed_quota|failed_timeout|failed_parse>
   CLOSE: NO - <one-sentence reason naming the dissenting party and their objection>
 ```
 

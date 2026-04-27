@@ -533,6 +533,29 @@ Target: 500-1500 tokens
 
 ## Setup / Environment
 
+For UI / browser-rendered cycles, populate every field below with concrete
+values. For non-UI cycles you MAY use the compact form, BUT applicability=N/A
+is permitted ONLY when the cycle's deliverables involve NONE of:
+  (1) rendered UI element changes (any visual / DOM output);
+  (2) browser interaction (clicks, navigation, form input);
+  (3) Playwright or other browser-automation tooling;
+  (4) live screenshot evidence (any screenshot-based verification).
+
+The `reason` field in the compact form MUST cite which of the four
+non-applicability categories applies, in this exact enumerated form:
+
+```
+- **applicability**: N/A
+- **reason**: non-UI -- <ONE of: pure backend / hook / config / CLI / agent-prompt edit / doc-only / build-CI>; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, or (4) screenshot evidence
+```
+
+Free-form rationales like "simple bugfix", "no UI focus this round", or
+"in scope but not the focus" are NOT acceptable -- those rationalizations
+were FINDING-5 of the QA bugfix cycle and are explicitly forbidden.
+For any cycle that is even partially UI / browser-rendered (i.e. ANY of
+the four categories above are triggered), applicability MUST be
+"applicable" and the full setup fields below are mandatory.
+
 - **viewport**: <e.g., "375x812 mobile" | "1440x900 desktop">
 - **theme**: <light | dark | both>
 - **locale**: <en | zh | ...>
@@ -721,13 +744,15 @@ Must be compatible with `agents/dev.md` input format:
     ]
   },
   "setup": {
-    "viewport": "exact viewport/breakpoint, e.g. '375x812 mobile' or '1440x900 desktop'",
-    "theme": "light | dark | both",
-    "locale": "en | zh | ...",
-    "auth_state": "logged-in | logged-out",
-    "data_state": "empty | with-data | specific-condition",
-    "browser": "e.g. 'Chrome desktop' | 'Safari iOS' | 'N/A'",
-    "url_path": "exact route where bug is reproducible"
+    "applicability": "applicable | N/A",
+    "reason": "FINDING-5 strict form: when applicability=N/A, this MUST start with 'non-UI -- ' followed by one of {pure backend, hook, config, CLI, agent-prompt edit, doc-only, build-CI} and explicitly attest that the cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, or (4) screenshot evidence. Required when applicability=N/A; omit when applicability=applicable. Free-form rationales like 'simple bugfix' or 'no UI focus' are forbidden.",
+    "viewport": "exact viewport/breakpoint, e.g. '375x812 mobile' or '1440x900 desktop' (required when applicability=applicable; omit or set to null when N/A)",
+    "theme": "light | dark | both (required when applicability=applicable)",
+    "locale": "en | zh | ... (required when applicability=applicable)",
+    "auth_state": "logged-in | logged-out (required when applicability=applicable)",
+    "data_state": "empty | with-data | specific-condition (required when applicability=applicable)",
+    "browser": "e.g. 'Chrome desktop' | 'Safari iOS' | 'N/A' (required when applicability=applicable)",
+    "url_path": "exact route where bug is reproducible (required when applicability=applicable)"
   },
   "evidence": {
     "observed": "verbatim user description",
@@ -882,7 +907,7 @@ If you are invoked under a `/spec`-driven workflow (the orchestrator passes a no
 
 **File you own**: `.claude/specs/<SPEC_ID>/cp-state-ba.json`
 
-**On entry** (the `pretool-cp-checkin.py` hook does this for you when you Read your view file): your `is_running` flips to true and your `agent_id` is recorded.
+**On entry** (the `pretool-cp-checkin.py` hook does this for you when you Read your view file): your `is_running` flips to true and your `agent_id` is recorded. Use the recorded `agent_id` value as `--agent-id`; if `$CLAUDE_AGENT_ID` is available, it must match that value.
 
 **During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it:
 ```bash
@@ -990,7 +1015,7 @@ User directive (2026-04-26): "每一个 subagent 必须要和 codex 充分讨论
 Before returning output, verify:
 
 - [ ] Requirement fully decomposed (what/why/where/scope/success)
-- [ ] `setup` section populated (viewport, theme, locale, auth_state, data_state, browser, url_path) in both spec and JSON
+- [ ] `setup` section populated. For UI / browser-rendered cycles all seven fields (viewport, theme, locale, auth_state, data_state, browser, url_path) are present in both spec and JSON. For non-UI cycles (pure backend, hooks, config, CLI, build/CI, agent-prompt edits, doc-only) the compact form is allowed: `applicability: N/A` plus a `reason` string; the seven detail fields may be omitted from the Markdown Setup section and set to null in the JSON. Mixed cycles use the full form.
 - [ ] For regression bugs ("used to work"), git bisect + global CSS/middleware ruled out before component-local code
 - [ ] Best practices research performed or skip documented with reason
 - [ ] Git analysis performed (or documented as N/A)
