@@ -617,7 +617,7 @@ Use Task tool with:
 **Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files matching `dev-report-<role>-<task-id>.json` for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 8 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate.
 
 **Authoritative construction rule**: see lines 613-670 below for the full aggregate JSON schema and union semantics. Summary:
-- `request_id` = `dev-<task-id>`; `dev_report_path` = canonical singular path
+- `request_id` = `<task-id>`; `dev_report_path` = canonical singular path
 - `parallel_workers` = list of per-worker ids
 - `dev.status`, `dev.tasks_completed`, `dev.scripts_created`, `dev.permissions_to_add`, `dev.files_modified`, `dev.files_created`, `blocking_issues`, `recommendations` = unions of per-worker reports
 - The orchestrator writes the aggregate inline via `jq` or `python3` in a single Bash call — do NOT modify `commit.sh`, do NOT add a separate script
@@ -640,7 +640,7 @@ orchestrator-side rule; do NOT modify `commit.sh`, the singular-filename
 consumer contract stays as-is.
 
 **Aggregate construction rule**:
-- `request_id` = `dev-<task-id>` (literal, matches the cycle task-id)
+- `request_id` = `<task-id>` (literal, matches the cycle task-id)
 - `timestamp` = ISO-8601 of the aggregate write
 - `dev_report_path` = `docs/dev/dev-report-<task-id>.json` (the canonical path)
 - `parallel_workers` = list of per-worker ids `["<worker-id>", ...]`
