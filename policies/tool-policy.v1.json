@@ -1,0 +1,180 @@
+{
+  "policy_version": 1,
+  "default_action": "deny",
+  "_shared_protected_path_prefixes": [
+    "/.claude/hooks/",
+    "/.claude/agents/",
+    "/.claude/commands/",
+    "/.claude/policies/",
+    "/.claude/schemas/",
+    "/.claude/scripts/",
+    "/.claude/settings.json"
+  ],
+  "_note": "Path prefixes containing '*' use glob-aware matching (fnmatch-style). Use '*/docs/dev/foo-' to match the prefix 'docs/dev/foo-' anywhere under any worktree. Use '/docs/dev/foo-' to anchor at any path that ends with '/docs/dev/foo-' boundary. Shared protected list is the SOLE catch-all for /.claude/ — DO NOT add broad '/.claude/' to denied prefixes; use only the explicit subdirs above so legitimate worktree artifact paths (e.g. /root/.claude/worktrees/X/docs/dev/...) remain writable.",
+  "roles": {
+    "user": {
+      "allowed_tools": ["mcp__playwright__*", "Read", "Glob", "Grep"],
+      "allowed_path_prefixes": ["/CLAUDE.md", "/README.md", "/.env"],
+      "denied_path_prefixes": ["/src/", "/app/", "/lib/", "/components/"],
+      "rationale": "User simulation: only Playwright + read URL/credentials; forbid source-tree reads"
+    },
+    "ui-specialist": {
+      "allowed_tools": ["mcp__playwright__*", "Read", "Glob", "Grep", "Bash", "Write", "Edit"],
+      "allowed_write_path_prefixes": [
+        "*/docs/dev/ui-specialist-",
+        "*/docs/dev/design-handoff-",
+        "*/docs/dev/ui-evidence-",
+        "*/docs/dev/ui-audit-",
+        "*/docs/dev/specs/*/cp-state-ui-specialist.json",
+        "*/.claude/specs/*/cp-state-ui-specialist.json"
+      ],
+      "denied_write_path_prefixes": [
+        "/src/",
+        "/app/",
+        "/lib/",
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json"
+      ],
+      "rationale": "UI specialist DESIGN_MODE: read + screenshot + write design-handoff/ui-evidence artifacts; forbid app-source writes and protected infrastructure"
+    },
+    "ba": {
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write", "Edit", "Skill"],
+      "allowed_write_path_prefixes": [
+        "*/docs/dev/ba-spec-",
+        "*/docs/dev/context-",
+        "*/docs/dev/ba-qa-report-",
+        "*/docs/dev/ba-spec-iter-",
+        "*/docs/dev/context-iter-",
+        "*/docs/dev/specs/*/ba-",
+        "*/docs/dev/specs/*/cp-state-ba.json",
+        "*/.claude/specs/*/cp-state-ba.json"
+      ],
+      "denied_write_path_prefixes": [
+        "/src/",
+        "/app/",
+        "/lib/",
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json"
+      ],
+      "rationale": "BA: analysis + spec/context outputs + ba-iter; cp-state limited to own (cp-state-ba.json); no code/agent/hook writes"
+    },
+    "dev": {
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write", "Edit", "NotebookEdit", "Skill"],
+      "allowed_write_path_prefixes": ["*"],
+      "rationale": "Dev: write per files_to_modify/files_to_create from BA context; orchestrator-level enforcement of scope"
+    },
+    "qa": {
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write", "Edit", "mcp__playwright__*", "Skill"],
+      "allowed_write_path_prefixes": [
+        "*/docs/dev/qa-report-",
+        "*/docs/dev/qa-input-",
+        "*/docs/dev/qa-spec-",
+        "*/docs/dev/qa-output-",
+        "*/docs/dev/ba-qa-report-",
+        "*/docs/dev/qa-codex-consensus-",
+        "*/docs/dev/specs/*/qa-",
+        "*/docs/dev/specs/*/cp-state-qa.json",
+        "*/.claude/specs/*/cp-state-qa.json"
+      ],
+      "denied_write_path_prefixes": [
+        "/src/",
+        "/app/",
+        "/lib/",
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json",
+        "/tests/"
+      ],
+      "rationale": "QA: read + verify + write report (qa-report, qa-input, qa-output, qa-spec, qa-codex-consensus, ba-qa-report, spec-section qa-*); cp-state limited to own (cp-state-qa.json); no app/source/test edits"
+    },
+    "pm": {
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write", "Edit", "mcp__playwright__*"],
+      "allowed_write_path_prefixes": [
+        "*/docs/dev/test-plan",
+        "*/docs/dev/pm-",
+        "*/docs/dev/pm-plan-",
+        "*/docs/dev/pm-triage-",
+        "*/docs/dev/pm-retro-",
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/pm-",
+        "*/docs/dev/specs/*/cp-state-pm.json",
+        "*/.claude/specs/*/cp-state-pm.json"
+      ],
+      "denied_write_path_prefixes": [
+        "/src/",
+        "/app/",
+        "/lib/",
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json",
+        "/tests/"
+      ],
+      "rationale": "PM: read + plan/triage/retro outputs + overnight test-plan; cp-state limited to own (cp-state-pm.json); no implementation"
+    },
+    "architect": {
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "allowed_write_path_prefixes": [
+        "*/docs/dev/architect-",
+        "*/docs/dev/specs/*/architect-",
+        "*/docs/dev/specs/*/cp-state-architect.json",
+        "*/.claude/specs/*/cp-state-architect.json"
+      ],
+      "denied_write_path_prefixes": [
+        "/src/",
+        "/app/",
+        "/lib/",
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json"
+      ],
+      "rationale": "Architect: read + analyze + write architectural reports (architect-*); cp-state limited to own (cp-state-architect.json)"
+    },
+    "product-owner": {
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "allowed_write_path_prefixes": [
+        "*/docs/dev/product-owner-",
+        "*/docs/dev/po-",
+        "*/docs/dev/user-report-",
+        "*/docs/dev/user-feedback-",
+        "*/docs/dev/specs/*/product-owner-",
+        "*/docs/dev/specs/*/cp-state-product-owner.json",
+        "*/.claude/specs/*/cp-state-product-owner.json"
+      ],
+      "denied_write_path_prefixes": [
+        "/src/",
+        "/app/",
+        "/lib/",
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json"
+      ],
+      "rationale": "Product-owner: business-logic analysis + report (product-owner-, user-report-, user-feedback-); cp-state limited to own"
+    }
+  }
+}

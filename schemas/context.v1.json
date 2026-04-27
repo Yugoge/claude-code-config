@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "context.v1",
+  "title": "BA Context JSON",
+  "description": "BA-produced wave/task plan and root cause analysis. Read by dev subagents to understand implementation scope.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["requirement", "root_cause_analysis", "waves"],
+  "properties": {
+    "requirement": {
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "original": {"type": "string"},
+            "clarified": {"type": "string"},
+            "what": {"type": "string"},
+            "why": {"type": "string"},
+            "where": {"type": "array", "items": {"type": "string"}},
+            "scope": {"type": "object"},
+            "success_criteria": {"type": "array"},
+            "constraints": {"type": "array"}
+          }
+        }
+      ]
+    },
+    "root_cause_analysis": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "symptom": {"type": "string"},
+        "root_cause": {"type": "string"},
+        "root_cause_commit": {"type": "string"},
+        "why_introduced": {"type": "string"},
+        "why_problematic": {"type": "string"},
+        "timeline": {"type": "string"},
+        "affected_files": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "waves": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["wave_id", "tasks"],
+        "properties": {
+          "wave_id": {"type": ["integer", "number"]},
+          "parallel": {"type": "boolean"},
+          "max_concurrent_dev_subagents": {"type": "integer"},
+          "depends_on_waves": {"type": "array"},
+          "rationale": {"type": "string"},
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "required": ["task_id", "title"],
+              "properties": {
+                "task_id": {"type": "string", "minLength": 1},
+                "title": {"type": "string"},
+                "files_to_modify": {"type": "array", "items": {"type": "string"}},
+                "files_to_create": {"type": "array", "items": {"type": "string"}},
+                "depends_on": {"type": "array", "items": {"type": "string"}},
+                "implementation_notes": {"type": "string"},
+                "acceptance_criteria": {
+                  "oneOf": [
+                    {"type": "array"},
+                    {"type": "object"}
+                  ]
+                },
+                "estimated_loc": {"type": "integer"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

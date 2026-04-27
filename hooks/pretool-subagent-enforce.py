@@ -1,207 +1,212 @@
 #!/usr/bin/env python3
 """
-PreToolUse Hook: Enforce subagent invocation at designated workflow steps.
+PreToolUse:Agent Hook — Contract-driven role/pipeline enforcement.
 
-Gate 4 in the enforcement chain. Two behaviors:
+Replaces the legacy 'any Agent call satisfies the current step' behavior
+with a strict cycle-contract.json lookup. For overnight sessions:
 
-1. BLOCKING (exit 2): When the current in_progress step has subagent_call
-   metadata AND the Agent tool has not yet been called (per bookmark),
-   block all tools EXCEPT Agent and TodoWrite.
+  1. Resolve the active cycle-contract.json (via lib.contract_runtime).
+  2. Derive the current step from the workflow bookmark's todo state.
+  3. Look up the required_calls entry whose ``step`` matches.
+  4. Validate the about-to-fire Agent's role / pipeline_id / mode against
+     that entry. On mismatch, exit 2 with a structured stderr message.
+  5. On match, write a bookmark file
+     ``/tmp/contract-bookmark-<sid>-<cycle>.json`` so
+     ``posttool-subagent-track.py`` can reconcile what it sees against
+     what was authorized.
 
-2. ADVISORY (exit 0, stderr hint): When the current in_progress step is
-   the step BEFORE a step with subagent_call, print a non-blocking hint.
-
-Reads subagent_call metadata from canonical todo script (NOT from
-TodoWrite payloads). Reads/writes subagent tracking state in the
-workflow bookmark's 'subagent_calls' dict.
+HARD CUTOVER: when ``cycle-contract.json`` is absent for the session,
+exit 0 silently (legacy /spec, /dev single-cycle sessions are not
+overnight workflows and produce no contract).
 
 Exit codes:
-  0: Allow tool use (with optional advisory hint on stderr)
-  2: Block tool use (subagent must be called first)
+  0 — Allow (no contract present, or call matches contract).
+  2 — Reject (role/pipeline_id mismatch against contract).
 """
+
+from __future__ import annotations
 
 import json
 import os
+import re
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from lib.todo_canonical import run_todo_script
+from lib import contract_runtime  # noqa: E402
 
 
-# Tools always allowed even during subagent enforcement
-ALWAYS_ALLOWED = {'Agent', 'TodoWrite', 'TodoRead', 'mcp__happy__change_title'}
+def _parse_stdin() -> dict:
+    try:
+        return json.load(sys.stdin)
+    except Exception:
+        return {}
 
 
-def load_bookmark(session_id: str) -> tuple:
-    """Load workflow bookmark. Returns (state_dict, path) or (None, path)."""
+def _load_bookmark(session_id: str) -> dict | None:
     project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
     path = project_dir / '.claude' / f'workflow-{session_id}.json'
     if not path.exists():
-        return None, path
+        return None
     try:
-        return json.loads(path.read_text()), path
+        return json.loads(path.read_text(encoding='utf-8'))
     except Exception:
-        return None, path
+        return None
 
 
-def find_in_progress_index(last_todos: list) -> int | None:
-    """Return the index of the current in_progress step, or None."""
-    for i, t in enumerate(last_todos):
-        if t.get('status') == 'in_progress':
-            return i
+def _content_to_step(content: str) -> str:
+    """Map a todo content string ('Step 2a: ...') to a bare label ('2a')."""
+    if content.startswith('Step '):
+        head = content.split(':', 1)[0]
+        return head.replace('Step ', '').strip()
+    return content
+
+
+def _current_step_label(state: dict) -> str | None:
+    """Extract the current in-progress step label from the bookmark."""
+    last_todos = state.get('last_todos') or []
+    for item in last_todos:
+        if item.get('status') == 'in_progress':
+            return _content_to_step(item.get('content', ''))
     return None
 
 
-def get_subagent_call(canonical: list, step_index: int):
-    """Get subagent_call metadata for a step from canonical todos."""
-    if step_index < 0 or step_index >= len(canonical):
-        return None
-    return canonical[step_index].get('subagent_call')
-
-
-def is_subagent_called(state: dict, step_index: int) -> bool:
-    """Check if the subagent has been called for this step."""
-    calls = state.get('subagent_calls', {})
-    return calls.get(str(step_index), False)
-
-
-def init_subagent_tracking(state: dict, step_index: int, bookmark_path: Path):
-    """Initialize subagent tracking for a step if not already present."""
-    calls = state.get('subagent_calls', {})
-    key = str(step_index)
-    if key not in calls:
-        calls[key] = False
-        state['subagent_calls'] = calls
-        try:
-            bookmark_path.write_text(json.dumps(state))
-        except Exception:
-            pass
-
-
-def format_subagent_hint(subagent_call) -> str:
-    """Format a human-readable hint about which subagent to call."""
-    if isinstance(subagent_call, list):
-        agents = [s.get('subagent_type', '?') for s in subagent_call]
-        return ', '.join(agents)
-    if isinstance(subagent_call, dict):
-        return subagent_call.get('subagent_type', '?')
-    return '?'
-
-
-def emit_block(step_index: int, step_content: str, subagent_call):
-    """Block with clear message about which subagent to call."""
-    hint = format_subagent_hint(subagent_call)
-    sys.stderr.write(
-        f'\nBLOCKED: Step {step_index} ("{step_content}") requires '
-        f'a subagent call before other tools can be used.\n'
-        f'Required subagent: {hint}\n'
-        f'Call the Agent tool with the appropriate subagent, '
-        f'then other tools will be unblocked.\n'
-        f'Allowed tools: Agent, TodoWrite\n\n'
-    )
-    sys.exit(2)
-
-
-def emit_advisory(next_step_index: int, next_content: str, subagent_call):
-    """Print non-blocking hint about upcoming subagent step."""
-    hint = format_subagent_hint(subagent_call)
-    sys.stderr.write(
-        f'\nHINT: Next step (Step {next_step_index}: "{next_content}") '
-        f'requires subagent call: {hint}\n'
-        f'Prepare to invoke the Agent tool after completing '
-        f'the current step.\n\n'
-    )
-
-
-def check_current_step(state, bookmark_path, last_todos, canonical, ip_index):
-    """Check if current in_progress step requires subagent enforcement."""
-    subagent_call = get_subagent_call(canonical, ip_index)
-    if not subagent_call:
-        return
-    init_subagent_tracking(state, ip_index, bookmark_path)
-    if not is_subagent_called(state, ip_index):
-        step_content = last_todos[ip_index].get('content', '?')
-        emit_block(ip_index, step_content, subagent_call)
-
-
-def check_next_step_advisory(canonical, ip_index):
-    """Emit advisory hint if the next step requires a subagent."""
-    next_index = ip_index + 1
-    next_call = get_subagent_call(canonical, next_index)
-    if next_call and next_index < len(canonical):
-        next_content = canonical[next_index].get('content', '?')
-        emit_advisory(next_index, next_content, next_call)
-
-
-def parse_stdin() -> tuple:
-    """Parse stdin JSON. Returns (tool_name, session_id) or exits."""
+def _cycle_id_from_state(state: dict) -> int:
+    """Best-effort cycle id resolution. Defaults to 1 for cold sessions."""
+    val = state.get('cycle_id') or state.get('cycle_count')
     try:
-        data = json.load(sys.stdin)
-        return data.get('tool_name', ''), data.get('session_id', 'default')
-    except Exception:
-        sys.exit(0)
+        return int(val) if val else 1
+    except (TypeError, ValueError):
+        return 1
 
 
-def mark_subagent_called(state, step_index, bookmark_path):
-    """Pre-mark subagent as called when Agent tool is invoked."""
-    calls = state.get('subagent_calls', {})
-    calls[str(step_index)] = True
-    state['subagent_calls'] = calls
+def _resolve_session_and_cycle(stdin_data: dict) -> tuple[str, int, dict | None]:
+    session_id = stdin_data.get('session_id', 'default')
+    state = _load_bookmark(session_id)
+    cycle_id = _cycle_id_from_state(state) if state else 1
+    return session_id, cycle_id, state
+
+
+def _detect_mode(prompt: str) -> str:
+    """Identify a mode keyword embedded in the Agent prompt, if any."""
+    for keyword in ('PLAN', 'TRIAGE', 'RETRO', 'DESIGN_MODE', 'AUDIT_MODE', 'UI_MODE'):
+        if keyword in prompt:
+            return keyword
+    return ''
+
+
+def _detect_pipeline_id_from_prompt(prompt: str) -> str:
+    """Heuristically identify a pipeline_id token (e.g. 'pipeline-3')."""
+    match = re.search(r'pipeline[-_](\w+)', prompt, re.IGNORECASE)
+    return f'pipeline-{match.group(1)}' if match else ''
+
+
+def _resolve_pipeline_id(ti: dict, prompt: str) -> str:
+    """T2.3: explicit tool_input.pipeline_id wins; prompt regex is fallback."""
+    if not isinstance(ti, dict):
+        return _detect_pipeline_id_from_prompt(prompt)
+    explicit = ti.get('pipeline_id') or ti.get('pipelineId')
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    return _detect_pipeline_id_from_prompt(prompt)
+
+
+def _extract_agent_fields(stdin_data: dict) -> tuple[str, str, str, str]:
+    """Return (role, mode, pipeline_id, prompt_preview) extracted from Agent call."""
+    ti = stdin_data.get('tool_input', {}) or {}
+    role = (ti.get('subagent_type') or '').strip().lower()
+    prompt = ti.get('prompt', '') if isinstance(ti, dict) else ''
+    mode = _detect_mode(prompt)
+    pipeline_id = _resolve_pipeline_id(ti, prompt)
+    preview = prompt[:200].replace('\n', ' ')
+    return role, mode, pipeline_id, preview
+
+
+def _bookmark_path(session_id: str, cycle_id: int) -> Path:
+    return Path(f'/tmp/contract-bookmark-{session_id}-{cycle_id}.json')
+
+
+def _write_bookmark(session_id: str, cycle_id: int, step: str, payload: dict) -> None:
+    """Persist authorization context for posttool-subagent-track to read."""
+    path = _bookmark_path(session_id, cycle_id)
     try:
-        bookmark_path.write_text(json.dumps(state))
+        existing = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
     except Exception:
+        existing = {}
+    existing[step] = payload
+    try:
+        path.write_text(json.dumps(existing, indent=2), encoding='utf-8')
+    except OSError:
         pass
 
 
-def handle_agent_tool(session_id):
-    """When Agent tool is invoked, pre-mark bookmark so subagent is unblocked."""
-    state, bookmark_path = load_bookmark(session_id)
-    if state is None:
-        return
-    cmd_name = state.get('command', '')
-    last_todos = state.get('last_todos')
-    if not cmd_name or not last_todos:
-        return
-    canonical = run_todo_script(cmd_name)
-    if not canonical:
-        return
-    ip_index = find_in_progress_index(last_todos)
-    if ip_index is None:
-        return
-    if get_subagent_call(canonical, ip_index):
-        mark_subagent_called(state, ip_index, bookmark_path)
+def _emit_block(step: str, role: str, pipeline_id: str, errors: list) -> None:
+    sys.stderr.write(
+        '\nCONTRACT BLOCK (pretool-subagent-enforce):\n'
+        f'  step={step} attempted_role={role} attempted_pipeline_id={pipeline_id or "<none>"}\n'
+        '  errors:\n'
+    )
+    for err in errors:
+        sys.stderr.write(f'    - {err}\n')
+    sys.stderr.write('  Adjust the Agent call to match cycle-contract.json or '
+                     'request orchestrator escalation.\n\n')
 
 
-def main():
-    tool_name, session_id = parse_stdin()
+def _entry_identity(entry: dict | None) -> dict:
+    """T2.3: distill matched required_call entry to identity fields for bookmarking."""
+    if not isinstance(entry, dict):
+        return {}
+    return {
+        'step': entry.get('step'),
+        'role': entry.get('role'),
+        'pipeline_id': entry.get('pipeline_id'),
+        'mode': entry.get('mode'),
+        'expected_output_path': entry.get('expected_output_path'),
+        'schema_name': entry.get('schema_name') or entry.get('expected_schema'),
+    }
 
-    if tool_name in ALWAYS_ALLOWED:
-        if tool_name == 'Agent':
-            handle_agent_tool(session_id)
+
+def _enforce(stdin_data: dict, contract: dict, step: str) -> None:
+    session_id, cycle_id, _state = _resolve_session_and_cycle(stdin_data)
+    role, mode, pipeline_id, preview = _extract_agent_fields(stdin_data)
+    result = contract_runtime.validate_required_call(
+        contract, role, pipeline_id or None, mode or None, step,
+    )
+    if not result['ok'] and result['severity'] == 'fail':
+        _emit_block(step, role, pipeline_id, result['errors'])
+        sys.exit(2)
+    _write_bookmark(session_id, cycle_id, step, {
+        'role': role,
+        'mode': mode,
+        'pipeline_id': pipeline_id,
+        'agent_id': stdin_data.get('agent_id', ''),
+        'ts': time.time(),
+        'prompt_preview': preview,
+        'severity': result['severity'],
+        # T2.3: persist matched required_call identity so posttool-subagent-track
+        # can validate the produced artifact against the authorized contract entry.
+        'matched_entry': _entry_identity(result.get('entry')),
+    })
+
+
+def _main() -> None:
+    stdin_data = _parse_stdin()
+    if not stdin_data or stdin_data.get('tool_name') != 'Agent':
         sys.exit(0)
-
-    state, bookmark_path = load_bookmark(session_id)
-    if state is None:
+    session_id, cycle_id, state = _resolve_session_and_cycle(stdin_data)
+    contract = contract_runtime.load_contract(session_id, cycle_id)
+    if contract is None:
+        # Hard cutover: legacy session — silent passthrough.
         sys.exit(0)
-
-    cmd_name = state.get('command', '')
-    last_todos = state.get('last_todos')
-    if not cmd_name or not last_todos:
+    step = _current_step_label(state) if state else None
+    if not step:
+        # No bookmark / no in-progress step — cannot enforce; fail open
+        # rather than block all Agent calls.
         sys.exit(0)
-
-    canonical = run_todo_script(cmd_name)
-    if not canonical:
-        sys.exit(0)
-
-    ip_index = find_in_progress_index(last_todos)
-    if ip_index is None:
-        sys.exit(0)
-
-    check_current_step(state, bookmark_path, last_todos, canonical, ip_index)
-    check_next_step_advisory(canonical, ip_index)
+    _enforce(stdin_data, contract, step)
     sys.exit(0)
 
 
 if __name__ == '__main__':
-    main()
+    _main()

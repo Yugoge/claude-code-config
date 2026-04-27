@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-04-24T13:13:16Z*
-**Total entries**: 52
+*Last updated: 2026-04-27T00:01:39Z*
+**Total entries**: 53
 **Convention**: kebab
 
 ## Tree
@@ -32,7 +32,8 @@ scripts/
 ├── `analyze-folder-history.sh` - Description: Analyze Git history for folder to discover file creation patterns
 ├── `analyze-git-edge-cases.sh` - Description: Analyze git history for edge cases from bug fix commits
 ├── `check-file-references.sh` - File reference detection script - used by /clean command
-├── `check-overnight-reports.sh` - Description: Validates all 4 overnight exploration reports exist, are valid JSON,
+├── `check-overnight-reports.py` - Description: Validates all overnight required outputs declared by the active
+├── `check-overnight-reports.sh` - DEPRECATED — replaced by check-overnight-reports.py per spec-20260426-090235 P0/M5.
 ├── `check-readme-freshness.sh` - Check README.md freshness for all major folders
 ├── `checkpoint-prune.sh` - checkpoint-prune.sh — trim refs/checkpoints/* to the most recent N commits
 ├── `cleanup-tests-folder.sh` - Description: Remove validators that don't match git edge cases, preserving reports/

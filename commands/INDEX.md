@@ -1,7 +1,7 @@
 # commands
 
-*Last updated: 2026-04-26T10:05:34Z*
-**Total entries**: 34
+*Last updated: 2026-04-27T01:23:48Z*
+**Total entries**: 35
 **Convention**: kebab
 
 ## Tree
@@ -12,7 +12,7 @@ commands/
 ├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
 ├── `close.md` - Wrapper - ask QA agent to debate with codex and return CLOSE YES/NO verdict
 ├── `code-review.md` - Comprehensive code review with best practices analysis
-├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.4, xhigh reasoning) for a second opinion or parallel coding
+├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.5, xhigh reasoning) for a second opinion or parallel coding
 ├── `commit.md` - Commit closed dev task to branch HEAD
 ├── `deep-search.md` - Deep website exploration with iterative search strategy
 ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
@@ -38,6 +38,7 @@ commands/
 ├── `research-deep.md` - Multi-source deep research with 15-20 iterative searches
 ├── `search-tree.md` - Tree search exploration with MCTS-inspired path evaluation
 ├── `security-check.md` - Security vulnerability analysis and recommendations
+├── `ship-overnight.md` - Overnight cycle commit + merge + push composite
 ├── `site-navigate.md` - Intelligent site navigation simulating "click-through" exploration
 ├── `spec.md` - Create spec files for any dev workflow (/dev, /dev-overnight, or standalone reference)
 └── `test.md` - Test validation workflow with edge case detection, systematic validation, and quality enforcement

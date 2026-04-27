@@ -20,6 +20,17 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Make sibling lib importable for closeout integration.
+_HOOKS_DIR = Path(__file__).resolve().parent
+if str(_HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(_HOOKS_DIR))
+
+try:
+    from lib.closeout import has_pending_required_calls, run_cycle_closeout
+except Exception:  # pragma: no cover - fail-soft if lib missing
+    has_pending_required_calls = None  # type: ignore[assignment]
+    run_cycle_closeout = None  # type: ignore[assignment]
+
 
 def read_stdin_context() -> dict:
     """Read and parse JSON from stdin."""
@@ -84,6 +95,67 @@ def is_session_mismatch(current_id: str, state: dict) -> bool:
     return current_id != state_id
 
 
+def _coerce_cycle_id(state: dict) -> int | None:
+    raw = state.get("cycle_count")
+    try:
+        return int(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _invoke_closeout(session_id: str, state: dict) -> bool:
+    """Run cycle closeout. Returns True if pending required_calls remain."""
+    if run_cycle_closeout is None or has_pending_required_calls is None:
+        return False
+    cycle_id = _coerce_cycle_id(state)
+    if not session_id or cycle_id is None:
+        return False
+    try:
+        run_cycle_closeout(session_id, cycle_id)
+        return bool(has_pending_required_calls(session_id, cycle_id))
+    except Exception as exc:  # pragma: no cover - fail-soft
+        sys.stderr.write(f"[stop-overnight-timelock] closeout error: {exc}\n")
+        return False
+
+
+def _block_pending(session_id: str, cycle_id_str: str) -> None:
+    sys.stderr.write(
+        "\n CLOSEOUT GATE: cycle still has unresolved required_calls.\n"
+        f" session={session_id} cycle={cycle_id_str}\n"
+        " Complete or waive the missing entries before terminating.\n"
+    )
+    sys.exit(2)
+
+
+def _write_continuation_sentinel(
+    state: dict, end_time: datetime, total_seconds: int
+) -> None:
+    """Drop /tmp/overnight-needs-continuation-<sid> on every block.
+
+    Provides observable proof for downstream consumers (watchdog, QA) that
+    the Stop hook fired and continuation is needed. Fail-soft: any I/O
+    error is swallowed so a /tmp failure cannot escalate Stop into a hard
+    error. Source: BA spec ba-spec-stop-hook-gap-20260426-2250.md (M4).
+    """
+    try:
+        sid = state.get('session_id') or 'unknown'
+        payload = {
+            'ts': datetime.now().isoformat(timespec='seconds'),
+            'session_id': sid,
+            'reason': 'stop-overnight-timelock blocked stop',
+            'end_time': end_time.isoformat(timespec='seconds'),
+            'time_remaining_seconds': total_seconds,
+            'current_phase': state.get('current_phase'),
+            'cycle_count': state.get('cycle_count'),
+        }
+        sentinel = Path(f'/tmp/overnight-needs-continuation-{sid}')
+        sentinel.write_text(json.dumps(payload, ensure_ascii=False))
+    except Exception as exc:  # pragma: no cover - fail-soft
+        sys.stderr.write(
+            f'[stop-overnight-timelock] sentinel write error: {exc}\n'
+        )
+
+
 def block_with_message(end_time: datetime, state: dict) -> None:
     """Write time-lock message to stderr and exit 2."""
     remaining = end_time - datetime.now()
@@ -103,7 +175,24 @@ def block_with_message(end_time: datetime, state: dict) -> None:
         f'The session cannot end until the end-time is reached.\n'
         f'Continue working on the current cycle.\n'
     )
+    _write_continuation_sentinel(state, end_time, total_seconds)
     sys.exit(2)
+
+
+def _enforce_timelock(session_id: str, state: dict) -> None:
+    """Run closeout + apply blocking rules. Exits 0 or 2 directly."""
+    end_time = parse_end_time(state)
+    end_time_expired = end_time is not None and datetime.now() >= end_time
+    # Always run closeout (produces harness-report). HARD CUTOVER: closeout
+    # itself no-ops if no cycle-contract.json exists (legacy session).
+    pending = _invoke_closeout(session_id, state)
+    if pending and not end_time_expired:
+        _block_pending(session_id, str(state.get('cycle_count', '?')))
+    if end_time is None:
+        sys.exit(0)
+    if datetime.now() < end_time:
+        block_with_message(end_time, state)
+    sys.exit(0)
 
 
 def main():
@@ -113,9 +202,7 @@ def main():
         sys.exit(0)
 
     session_id = context.get('session_id', '')
-    project_dir = Path(
-        os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())
-    )
+    project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
     state = load_state(project_dir, session_id)
     if state is None:
         sys.exit(0)
@@ -124,14 +211,7 @@ def main():
     if is_session_mismatch(session_id, state):
         sys.exit(0)
 
-    end_time = parse_end_time(state)
-    if end_time is None:
-        sys.exit(0)
-
-    if datetime.now() < end_time:
-        block_with_message(end_time, state)
-
-    sys.exit(0)
+    _enforce_timelock(session_id, state)
 
 
 if __name__ == '__main__':

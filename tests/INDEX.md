@@ -1,7 +1,7 @@
 # tests
 
-*Last updated: 2026-04-24T14:23:11Z*
-**Total entries**: 22
+*Last updated: 2026-04-26T19:31:15Z*
+**Total entries**: 24
 **Convention**: kebab
 
 ## Tree
@@ -28,6 +28,8 @@ tests/
 │   └── `validate-workflow-json-cleanup.py` - Validator: validate-workflow-json-cleanup
 ├── `integration-test.sh` - integration-test.sh - Integration tests for git tracking solution
 ├── `test-lock-detection.sh` - Test script to verify git lock file detection and handling
+├── `test_overnight_loop_tz.py` - Verifies the overnight loop hook compares end_time correctly against the
+├── `test_specialist_yield.py` - Tests use a tmp dir for the yield log and the bundled production policy file
 └── `verify-stop-spec-session-isolation.sh` - QA verification harness for stop-spec-coverage-enforce.py session isolation fix.
 ```
 

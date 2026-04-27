@@ -330,6 +330,31 @@ When writing the test plan, assess whether the target environment has sufficient
 - Include in `agent_assignments` a note that specialists must create test data before testing
 - In TRIAGE mode: if specialists report "cannot verify" issues, check whether they attempted to create test data first. Demote issues that were not actually browser-tested.
 
+### Step 4-bis (S4-bis): Specialist Auto-Degradation Check
+
+**MANDATORY before emitting `recommended_specialists`.** PM consults the rolling specialist-yield log to decide whether each candidate specialist should be called at full budget, called at reduced budget, skipped this cycle, or escalated to the user.
+
+For each specialist under consideration (`ui-specialist`, `architect`, `user`, `product-owner`), PM MUST:
+
+1. Call the helper `lib.specialist_yield.get_degradation_state(specialist_type, session_id)` (see `/root/.claude/hooks/lib/specialist_yield.py`). It returns a dict with at least:
+   - `state`: `"active" | "degraded" | "skipped" | "escalated"`
+   - `reason`: human-readable rationale (trailing low_yield/clean_sweep run lengths or escalation chain length)
+   - `action`: `"active" | "reduce_budget_50pct" | "skip_next_cycle" | "escalate_to_user"`
+   - `source_records`: the recent yield-log entries that drove the verdict
+2. Populate the entry in `recommended_specialists`:
+   - `degradation_check.pre_check_state` = the returned `state`
+   - `degradation_check.action_taken` = the returned `action`
+   - `degradation_check.rationale` = the returned `reason`
+3. Apply the policy to the entry:
+   - If `state == "active"` → `decision: "call"` at full budget.
+   - If `state == "degraded"` → reduce the budget by 50% (preferred): halve `budget.max_pages`, `budget.max_viewports`, `budget.max_minutes`, `budget.max_screenshots`. Keep `decision: "call"`. If you judge the cost-of-budget-cut higher than the cost-of-skipping, you MAY instead set `decision: "skip"` with a `reason` referencing the degradation policy.
+   - If `state == "skipped"` → `decision: "skip"` this cycle. The `reason` MUST reference the degradation policy (clean-sweep streak >= threshold).
+   - If `state == "escalated"` → `decision: "skip"` AND emit a top-level `escalation_notes` entry in the test plan describing the escalation chain (PM does NOT call this specialist; the orchestrator surfaces the escalation to the user instead).
+
+The policy file is `/root/.claude/policies/specialist-degradation.v1.json` (Draft-7 JSON). Per-specialist override keys (`low_yield_threshold`, `clean_sweep_threshold`, `history_window`, `degradation_actions`, `escalation_after_actions`) live there — PM MUST NOT hard-code thresholds.
+
+This is a HARD requirement: omitting `degradation_check` from any `recommended_specialists[]` entry is a defective test plan and will be rejected by the orchestrator's plan-validation gate.
+
 ### Step 5: Write Test Plan
 
 Generate `plan_id` using current UTC time:
@@ -447,8 +472,24 @@ Write to output directory as
   ],
   "recommended_specialists": [
     {
-      "type": "ui-specialist|architect|user|product-owner",
-      "reason": "Why this specialist is recommended for this cycle"
+      "specialist_type": "ui-specialist|architect|user|product-owner",
+      "decision": "call|skip",
+      "reason": "Why this specialist is recommended (or skipped) for this cycle",
+      "scope": {
+        "target_routes": ["/dashboard"],
+        "target_components": ["header"]
+      },
+      "budget": {
+        "max_pages": 5,
+        "max_viewports": 2,
+        "max_minutes": 8,
+        "max_screenshots": 12
+      },
+      "degradation_check": {
+        "pre_check_state": "active|degraded|skipped|escalated",
+        "action_taken": "active|reduce_budget_50pct|skip_next_cycle|escalate_to_user",
+        "rationale": "yield-history shows productive last 3 cycles"
+      }
     }
   ],
   "strategic_notes": "Free text: patterns from previous cycles",

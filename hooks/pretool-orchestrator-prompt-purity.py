@@ -42,8 +42,11 @@ Exit codes:
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
+from datetime import datetime
+from pathlib import Path
 
 
 RULE_DOC_POINTER = (
@@ -55,8 +58,17 @@ STDERR_HEADER = (
     "orchestrator must not specify HOW; rewrite prompt to describe WHAT only."
 )
 
+# PRESCRIBED_TOOL_NAMES: built-in tool names that the orchestrator must not
+# prescribe imperatively in subagent dispatch prompts. The bare token "Skill"
+# is intentionally OMITTED (T1.1 bugfix harness-bugfix-20260427): "Skill" is
+# the meta-delegation primitive — it appears legitimately in narrative prose
+# (e.g. "the Skill tool exists for delegating to other models") and in the
+# orchestrator's own dev.md instructions for codex consultation. False-firing
+# on bare "Skill" caused valid dispatches to be blocked. The other built-in
+# tool names below remain enforced because prescribing them substitutes a
+# specific HOW for the desired WHAT.
 PRESCRIBED_TOOL_NAMES = (
-    r"Write|Edit|Read|Bash|Glob|Grep|Skill|Agent|TodoWrite|"
+    r"Write|Edit|Read|Bash|Glob|Grep|Agent|TodoWrite|"
     r"WebFetch|WebSearch|NotebookEdit|EnterWorktree|ExitWorktree|"
     r"AskUserQuestion|ScheduleWakeup|CronCreate|CronDelete|CronList|"
     r"TaskStop|mcp__\w+"
@@ -113,6 +125,22 @@ FENCED_UNTAGGED_BASH_PATTERN = re.compile(
     r"```\s*\n\s*(?:\$\s|cd\s|export\s|source\s|alias\s|cat\s|ls\s|echo\s)",
 )
 
+# Overnight-gated category: orchestrator MUST NOT dispatch <options> XML
+# blocks during an active /dev-overnight session. The block prompt would
+# cause the chat UI to go idle awaiting user input even though the Stop
+# hook is blocking termination -- the documented Stop-continuation contract
+# is overridden in practice by interrogative agent output. See BA spec
+# ba-spec-stop-hook-gap-20260426-2250.md (M2 / AC2).
+OPTIONS_XML_PATTERNS = (
+    re.compile(r"<options>", re.IGNORECASE),
+    re.compile(r"<option\s", re.IGNORECASE),
+)
+OPTIONS_XML_HEADER = (
+    "orchestrator must not dispatch <options> blocks during overnight; "
+    "choose autonomously or write a deadlock report and skip."
+)
+OPTIONS_XML_LABEL = "options-xml block (overnight forbids)"
+
 USER_VERBATIM_RE = re.compile(
     r"<USER_VERBATIM>.*?</USER_VERBATIM>",
     re.DOTALL,
@@ -122,6 +150,28 @@ DEV_REGISTRY_HEREDOC_RE = re.compile(
     r".*?\nREGEOF\b",
     re.DOTALL,
 )
+# Pre-redact <options>...</options> XML blocks before the generic 4-category
+# scan so XML closing-tag tokens (e.g. `</options>`, `n>A`) cannot collide
+# with SHELL_SYNTAX_PATTERNS' redirection regex. The OPTIONS_XML category
+# scans the UN-redacted prompt separately (overnight-gated) so it can still
+# fire its dedicated header when active.
+OPTIONS_XML_BLOCK_RE = re.compile(
+    r"<options\b[^>]*>.*?</options\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+
+# T1.1 bugfix (harness-bugfix-20260427): angle-bracket documentation
+# placeholders like <SPEC_ID>, <agent-name>, <cp-NN>, <role>, <N> are a
+# documentation convention denoting variable names — they are NOT shell
+# syntax, NOT tool prescriptions, and NOT prescriptive HOW. Redact them
+# before the 4-category scan so they cannot accidentally match any pattern
+# (e.g. `<x>` could collide with redirection-style heuristics). The match
+# is restricted to simple identifier-shape contents (letters, digits,
+# underscore, hyphen) with no whitespace or attribute syntax, so it does
+# NOT match real XML elements with attributes (e.g. `<option name="a">`).
+# The OPTIONS_XML category scans the UN-redacted prompt separately, so this
+# redaction never weakens the overnight OPTIONS_XML enforcement (AC5).
+PLACEHOLDER_TOKEN_RE = re.compile(r"<[A-Za-z][A-Za-z0-9_-]*>")
 
 
 def _redact_exempt_regions(prompt: str) -> str:
@@ -129,7 +179,48 @@ def _redact_exempt_regions(prompt: str) -> str:
     redacted = DEV_REGISTRY_HEREDOC_RE.sub(
         " [DEV_REGISTRY_REGISTRATION_REDACTED] ", redacted,
     )
+    redacted = OPTIONS_XML_BLOCK_RE.sub(
+        " [OPTIONS_XML_BLOCK_REDACTED] ", redacted,
+    )
+    redacted = PLACEHOLDER_TOKEN_RE.sub(
+        " [PLACEHOLDER_REDACTED] ", redacted,
+    )
     return redacted
+
+
+def _state_file_has_future_end_time(state_path: Path, now: datetime) -> bool:
+    try:
+        data = json.loads(state_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
+    end_time_str = data.get("end_time")
+    if not end_time_str:
+        return False
+    try:
+        end_time = datetime.fromisoformat(end_time_str)
+    except (TypeError, ValueError):
+        return False
+    if end_time.tzinfo is not None:
+        end_time = end_time.replace(tzinfo=None)
+    return end_time > now
+
+
+def _overnight_active() -> bool:
+    """Return True iff any .claude/overnight-state-*.json exists with a
+    non-expired end_time. Fail-soft on any error.
+    """
+    try:
+        project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
+        claude_dir = project_dir / ".claude"
+        if not claude_dir.is_dir():
+            return False
+        now = datetime.now()
+        return any(
+            _state_file_has_future_end_time(p, now)
+            for p in claude_dir.glob("overnight-state-*.json")
+        )
+    except Exception:
+        return False
 
 
 def _truncate_snippet(text: str, limit: int = 80) -> str:
@@ -161,12 +252,22 @@ def _scan_fenced_blocks(prompt: str):
 
 
 def _scan_prompt(prompt: str):
+    # OPTIONS_XML scans the un-redacted prompt FIRST when overnight is active
+    # so it wins on `<options>` payloads and emits its dedicated header. The
+    # other 4 categories scan a version with `<options>...</options>` blocks
+    # redacted out, preventing XML closing-tag tokens from colliding with
+    # SHELL_SYNTAX redirection patterns.
+    if _overnight_active():
+        hit = _scan_category(prompt, OPTIONS_XML_PATTERNS, OPTIONS_XML_LABEL)
+        if hit:
+            return hit
     redacted = _redact_exempt_regions(prompt)
-    for patterns, label in (
+    categories = [
         (TOOL_PRESCRIPTION_PATTERNS, "tool-name prescription"),
         (SHELL_COMMAND_PATTERNS, "shell-command token"),
         (SHELL_SYNTAX_PATTERNS, "shell-syntax token"),
-    ):
+    ]
+    for patterns, label in categories:
         hit = _scan_category(redacted, patterns, label)
         if hit:
             return hit
@@ -174,14 +275,27 @@ def _scan_prompt(prompt: str):
 
 
 def _emit_block(category: str, snippet: str) -> None:
+    if category == OPTIONS_XML_LABEL:
+        header = OPTIONS_XML_HEADER
+        remedy = (
+            "describe the work autonomously: pick one path,\n"
+            "            execute it, or write docs/dev/overnight-deadlock-<ts>.md\n"
+            "            and skip to the next pipeline. Defer all user-input\n"
+            "            questions to the end-of-overnight summary."
+        )
+    else:
+        header = STDERR_HEADER
+        remedy = (
+            "describe the desired end-state (problem, constraints,\n"
+            "            acceptance criteria) and let the subagent select its\n"
+            "            own tool per its agent.md."
+        )
     msg = (
-        f"{STDERR_HEADER}\n"
+        f"{header}\n"
         f"  category: {category}\n"
         f'  snippet:  "{snippet}"\n'
         f"  rule:     {RULE_DOC_POINTER}\n"
-        f"  remedy:   describe the desired end-state (problem, constraints,\n"
-        f"            acceptance criteria) and let the subagent select its\n"
-        f"            own tool per its agent.md.\n"
+        f"  remedy:   {remedy}\n"
     )
     sys.stderr.write(msg)
     sys.stderr.flush()
