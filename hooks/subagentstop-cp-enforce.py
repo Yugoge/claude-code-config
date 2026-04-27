@@ -5,9 +5,10 @@ Activation gate (NOT matcher=*): this hook exits 0 unless BOTH conditions hold:
   1. The stopping subagent's agent_id is present in stdin data
   2. A cp-state file exists with is_running=true AND matching agent_id
 
-Blocks (exit 2) iff any checkpoint is still pending AND PID is alive AND no
-30-minute timeout has expired. Timeout auto-waives all pending with
-reason=timeout. PID death -> clean exit. Fail-open on any error.
+Blocks (exit 2) iff any checkpoint is still pending AND no 30-minute timeout
+has expired. Timeout auto-waives all pending with reason=timeout. PID liveness
+is only a stale-cleanup signal after all checkpoints are done/waived; a dead
+PID must never bypass pending checkpoint enforcement.
 """
 
 import fcntl
@@ -143,14 +144,54 @@ def _clean_exit(payload):
     payload["checked_out_at"] = _now_iso_z()
 
 
-def _emit_block_message(pending):
+def _parse_cp_identity(cp_file, payload):
+    """Return (spec_id, agent, instance_id) for diagnostics/commands."""
+    spec_id = payload.get("spec_id") or cp_file.parent.name
+    agent = payload.get("agent_type")
+    instance_id = payload.get("instance_id")
+    if not agent:
+        name = cp_file.name
+        if name.startswith("cp-state-") and name.endswith(".json"):
+            body = name[len("cp-state-"):-len(".json")]
+            if "-" in body:
+                maybe_agent, maybe_instance = body.rsplit("-", 1)
+                if maybe_instance.isdigit():
+                    agent = maybe_agent
+                    instance_id = int(maybe_instance)
+                else:
+                    agent = body
+            else:
+                agent = body
+    return spec_id, agent or "<AGENT>", instance_id
+
+
+def _instance_arg(instance_id):
+    if instance_id in (None, ""):
+        return ""
+    return f" --instance-id {instance_id}"
+
+
+def _agent_id_arg(payload):
+    agent_id = payload.get("agent_id")
+    if not agent_id:
+        return ""
+    return f" --agent-id {agent_id}"
+
+
+def _emit_block_message(cp_file, payload, pending):
     names = ", ".join(cp.get("id", "?") for cp in pending)
+    spec_id, agent, instance_id = _parse_cp_identity(cp_file, payload)
+    instance = _instance_arg(instance_id)
+    agent_id = _agent_id_arg(payload)
     sys.stderr.write(
         f"SUBAGENT STOP BLOCKED: {len(pending)} checkpoint(s) still pending: {names}\n"
+        f"cp-state: {cp_file}\n"
         "Mark them done via:\n"
-        "  python3 /root/bin/spec-check.py mark --spec-id <SID> --agent <AGENT> --cp-id <CP>\n"
+        f"  python3 /root/bin/spec-check.py mark --spec-id {spec_id} "
+        f"--agent {agent}{instance}{agent_id} --cp-id <CP>\n"
         "Or waive with a reason:\n"
-        "  python3 /root/bin/spec-check.py waive --spec-id <SID> --agent <AGENT> --cp-id <CP> --reason <TEXT>\n"
+        f"  python3 /root/bin/spec-check.py waive --spec-id {spec_id} "
+        f"--agent {agent}{instance}{agent_id} --cp-id <CP> --reason <TEXT>\n"
     )
 
 
@@ -172,8 +213,8 @@ def _handle_dead_pid(cp_file, payload):
     return 0
 
 
-def _handle_pending(payload):
-    _emit_block_message(_list_pending(payload))
+def _handle_pending(cp_file, payload):
+    _emit_block_message(cp_file, payload, _list_pending(payload))
     return 2
 
 
@@ -186,11 +227,11 @@ def _handle_complete(cp_file, payload):
 def _handle_active_state(cp_file, payload, data):
     if _is_timed_out(payload):
         return _handle_timeout(cp_file, payload)
+    if _has_pending(payload):
+        return _handle_pending(cp_file, payload)
     pid = _extract_stop_pid(data) or payload.get("pid")
     if pid and not _is_pid_alive(pid):
         return _handle_dead_pid(cp_file, payload)
-    if _has_pending(payload):
-        return _handle_pending(payload)
     return _handle_complete(cp_file, payload)
 
 

@@ -147,10 +147,10 @@ Use Task tool:
   "
 ```
 
-**Real-World Example**: `/update` command
-- Main agent: Reads resume, prepares job posting context
-- Specialist (resume-refiner-update): Analyzes fit, recommends additions/changes
-- Main agent: Implements recommendations, saves updated resume
+**Real-World Example**: a command-quality audit workflow
+- Main agent: Reads the user's command requirement and prepares neutral context
+- Specialist (`prompt-inspector`): analyzes prompt clarity and rule conflicts
+- Main agent: applies approved recommendations to the command spec
 
 **Anti-Patterns to Avoid**:
 - ❌ Orchestrator performing domain analysis directly
@@ -247,15 +247,15 @@ Return JSON only:
 - **Rationale** (explains reasoning)
 - **Confidence levels** (indicates certainty)
 
-**Real-World Example**: `resume-refiner-update.md`
+**Real-World Example**: `prompt-inspector.md`
 ```markdown
-# Resume Refiner Update Subagent
+# Prompt Inspector Subagent
 
-**Role**: Analyze job postings and recommend resume enhancements
+**Role**: Analyze command/agent prompts and report rule or verbosity violations
 
-**Input**: Job posting text + current resume JSON
-**Output**: Recommendations for additions/modifications
-**Does NOT**: Modify resume files directly
+**Input**: Command file path + rule context
+**Output**: Findings and recommendations
+**Does NOT**: Modify command files directly
 ```
 
 **Anti-Patterns to Avoid**:
@@ -322,13 +322,13 @@ if __name__ == "__main__":
 - `activeForm`: Present continuous ("Parsing input", "Running tests")
 - `status`: "pending" (all start as pending)
 
-**Real-World Example**: `~/.claude/scripts/todo/update.py`
+**Real-World Example**: `~/.claude/scripts/todo/audit-command.py`
 ```python
 def get_todos():
     return [
         {"content": "Step 1: Parse arguments", "activeForm": "...", "status": "pending"},
-        {"content": "Step 2: Validate job posting", "activeForm": "...", "status": "pending"},
-        {"content": "Step 3: Invoke resume-refiner-update specialist", "activeForm": "...", "status": "pending"},
+        {"content": "Step 2: Validate command path", "activeForm": "...", "status": "pending"},
+        {"content": "Step 3: Invoke prompt-inspector specialist", "activeForm": "...", "status": "pending"},
         # ... 7 steps total
     ]
 ```
@@ -863,20 +863,20 @@ Agent tries TodoWrite to mark Step N completed
 
 ---
 
-### Real-World Case Study: /update Command
+### Real-World Case Study: Command Quality Audit
 
-**Context**: Need command to analyze job postings and update resumes with tailored content.
+**Context**: Need a command to inspect another slash command for prompt-rule violations and produce a clean implementation plan.
 
 **Patterns Applied**:
 
 1. **Three-Party Architecture**:
-   - Main agent: Parses job posting, prepares context
-   - Specialist (resume-refiner-update): Analyzes fit, recommends changes
-   - Main agent: Implements recommendations, saves result
+   - Main agent: Parses the audit target and prepares context
+   - Specialist (`prompt-inspector`): analyzes rule violations and recommends changes
+   - Main agent: implements approved prompt/spec edits
 
 2. **Specialist Subagent**:
-   - Created `.claude/agents/resume-refiner-update.md`
-   - Analyzes job requirements vs current resume
+   - Uses `.claude/agents/prompt-inspector.md`
+   - Analyzes command text against prompt-purity and concision rules
    - Returns JSON recommendations (not direct edits)
 
 3. **Todo Workflow Script**:
@@ -886,17 +886,17 @@ Agent tries TodoWrite to mark Step N completed
 
 4. **YAML Frontmatter**:
    ```yaml
-   description: Analyze job posting and intelligently update resume
+   description: Audit a slash command and produce prompt-quality recommendations
    allowed-tools: Task, Read, Write, Edit, Bash, Glob, Grep, TodoWrite
-   argument-hint: "<job-posting-url-or-text>"
+   argument-hint: "<command-file-or-topic>"
    model: claude-sonnet-4-5
    ```
 
 5. **Complete Automation**:
-   - Automatic backup before changes
+   - Automatic report generation
    - Automatic validation of JSON structure
-   - Automatic archival of old backups
-   - No user confirmation needed
+   - Automatic archival of prior audit artifacts
+   - No user confirmation needed for read-only analysis
 
 6. **Script Parameterization**:
    - All paths passed as arguments
@@ -905,37 +905,37 @@ Agent tries TodoWrite to mark Step N completed
 
 **Results**:
 - ✅ Clear separation of concerns
-- ✅ Reusable specialist for future resume commands
+- ✅ Reusable specialist for future command-quality workflows
 - ✅ Consistent workflow enforcement
 - ✅ Zero user interaction required
-- ✅ Fully automated backup/restore
+- ✅ Fully automated report validation
 
 **Command Structure**:
 ```
-Step 1: Parse job posting (URL or text)
-Step 2: Read current resume
-Step 3: Invoke resume-refiner-update specialist
+Step 1: Parse audit target
+Step 2: Read current command/agent file
+Step 3: Invoke prompt-inspector specialist
 Step 4: Receive recommendations (JSON)
-Step 5: Apply recommendations to resume
-Step 6: Validate updated resume
-Step 7: Archive old versions, save new resume
+Step 5: Apply approved prompt/spec edits
+Step 6: Validate updated command
+Step 7: Archive audit report
 ```
 
 **Key Takeaways**:
 1. Specialist subagent enables reuse across commands
 2. Todo script ensures workflow never deviates
-3. Automatic backup/restore provides safety
+3. Automatic artifact validation provides safety
 4. Clear architecture makes debugging easy
 5. Zero user interaction improves experience
 
 **Files Created**:
-- `.claude/commands/update.md` (11KB, 7 steps)
-- `.claude/agents/resume-refiner-update.md` (specialist)
-- `.claude/scripts/todo/update.py` (workflow tracker)
+- `.claude/commands/audit-command.md` (workflow)
+- `.claude/agents/prompt-inspector.md` (specialist)
+- `.claude/scripts/todo/audit-command.py` (workflow tracker)
 
 **Success Metrics**:
 - 100% workflow compliance (todos enforce)
-- Zero data loss (automatic backups)
+- Zero source edits by specialist (recommendations only)
 - Reusable specialist (can serve other commands)
 - Excellent user experience (fully automated)
 
@@ -988,13 +988,37 @@ Generate a session_id and create sentinel files for every agent type this orches
 DEV_SESSION_ID="dev-command-$(date +%Y%m%d-%H%M%S)"
 REGISTRY_DIR="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID"
 mkdir -p "$REGISTRY_DIR"
-for agent in ba qa dev pm architect product-owner ui-specialist user; do
+for agent in \
+    architect ba cleaner cleanliness-inspector dev git-edge-case-analyst \
+    pm product-owner prompt-inspector qa rule-inspector style-inspector \
+    test-executor test-validator ui-specialist user; do
   printf '{"agent_type": "%s", "session_id": "%s"}\n' "$agent" "$DEV_SESSION_ID" \
     > "$REGISTRY_DIR/$agent.json"
 done
 ```
 
 Store `$DEV_SESSION_ID` for use in every Agent launch prompt below. Every Agent launch prompt MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent.
+
+**Initialize cp-state handoff when a `/spec` view exists** (MANDATORY when `views_available=true`):
+
+If `spec_path` points at `docs/dev/specs/<SPEC_ID>.md` and the sibling directory
+`.claude/specs/<SPEC_ID>/` contains cp-state files, bind:
+
+```bash
+SPEC_ID="<SPEC_ID from spec_path basename>"
+```
+
+If no spec/cp-state directory exists, set `SPEC_ID=""` and skip the `SECOND ACTION`
+lines below. If a particular agent has no cp-state file under that SPEC_ID, omit that
+agent's `SECOND ACTION` for this launch. When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a
+cp-state file MUST include a `SECOND ACTION` line immediately after the dev-registry `FIRST ACTION`:
+
+```text
+SECOND ACTION: Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json to load your mandatory checklist before doing substantive work. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
+```
+
+This is the checklist-stop handoff: dev-registry handles role registration for
+write-policy, while cp-state handles required atomic actions for Stop enforcement.
 
 ### Step 2: Specialist Consultation (always evaluate, never silently skip)
 
@@ -1040,6 +1064,7 @@ Use Agent tool with:
 - description: "<Specialist role> consultation for: <requirement summary>"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<specialist-name>.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<specialist-name>.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent <specialist-name> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent <specialist-name> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   You are the <specialist-name> specialist. Follow .claude/agents/<specialist-name>.md.
 
@@ -1127,6 +1152,7 @@ Use Task tool with:
 - description: "Analyze requirement and build development context"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -1171,6 +1197,7 @@ Use Task tool with:
 - description: "Continue BA analysis with clarification answers"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -1224,6 +1251,7 @@ Use Agent tool with:
 - description: "Validate BA analysis quality (not code)"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   You are the QA subagent in BA-VALIDATION MODE. This is NOT code verification.
   You are verifying the QUALITY OF BA's ANALYSIS, not any implementation.
@@ -1314,6 +1342,7 @@ Use Agent tool with:
 - description: "Re-investigate: address QA objections on analysis quality"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -1355,6 +1384,7 @@ Use Task tool with:
 - description: "Implement development changes based on BA context"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/dev.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-dev.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent dev --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent dev --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
@@ -1400,6 +1430,7 @@ Use Task tool with:
 - description: "Verify implementation quality against standards"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   You are the QA subagent. Follow agents/qa.md instructions precisely.
 

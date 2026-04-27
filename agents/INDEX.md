@@ -1,7 +1,7 @@
 # agents
 
-*Last updated: 2026-04-27T09:12:38Z*
-**Total entries**: 23
+*Last updated: 2026-04-27T17:02:23Z*
+**Total entries**: 17
 **Convention**: kebab
 
 ## Tree
@@ -11,18 +11,12 @@ agents/
 ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
 ├── `cleaner.md` - Cleanup execution specialist. Executes approved cleanup actions from cleanliness-inspector and style-inspector reports. Returns structured JSON execution report with results.
 ├── `cleanliness-inspector.md` - File organization inspector for cleanup tasks. Detects misplaced docs, duplicates, temp files, build artifacts. Returns structured JSON report with cleanup recommendations.
-├── `cover-letter-writer.md` - Cover letter writing expert that generates concise, impactful, and humanized personalized cover letters
 ├── `dev.md` - Implementation specialist for development tasks. Receives rich JSON context from orchestrator, creates parameterized scripts, implements changes based on git root cause analysis. Returns structured execution report.
 ├── `git-edge-case-analyst.md` - Git history analysis specialist. Discovers development edge cases by analyzing commits, violations, and patterns. Returns structured edge case report with prevention recommendations.
-├── `job-parser.md` - Job information extraction expert that parses unstructured job descriptions into structured data
-├── `layout-optimizer.md` - Intelligent layout optimization expert that optimizes resume/cover letter page layout while preserving critical information
 ├── `pm.md` - >-
 ├── `product-owner.md` - Product-level analysis specialist for overnight exploration. Examines logical consistency, feature completeness, user flows, missing features, and business logic bugs. Returns structured JSON report.
 ├── `prompt-inspector.md` - Prompt optimization inspector. Detects verbose non-functional content in command/agent documentation following 'rules not stories' principle. Returns structured JSON report with verbosity violations.
 ├── `qa.md` - Quality assurance specialist for verification tasks. Receives implementation report from dev subagent, validates against success criteria, runs verification scripts, identifies issues. Returns structured verification report with pass/fail status.
-├── `resume-critique.md` - Resume and cover letter critique expert conducting rigorous review from HR and technical interviewer perspectives
-├── `resume-refiner.md` - Resume optimization expert that iteratively optimizes resumes based on quality feedback (ATS coverage, page height)
-├── `resume-tailor.md` - Elite resume customization expert that tailors personalized resume content based on job descriptions
 ├── `rule-inspector.md` - Folder rule discovery agent. Analyzes Git history to discover file creation patterns, extracts folder organization rules, generates INDEX.md and README.md documentation. Returns structured JSON with discovered rules.
 ├── `spec.md` - Three-phase spec subagent. Phase 0 = read spec, decide which agents need views (free judgment). Phase 1 = content-block extraction from full monolith (verbatim byte-slices, no section pre-filtering). Phase 2 = Gawande-style checkpoint generation. Invoked by /spec command with monolith path.
 ├── `style-inspector.md` - Development standards auditor. Enforces /dev quality standards: no hardcoding, naming conventions, venv usage, step numbering, language, script merging, documentation conciseness. Returns structured JSON report with violations.
