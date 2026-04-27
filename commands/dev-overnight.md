@@ -74,12 +74,15 @@ Step 1: Read state file + enter worktree (first run only)
 
 ## IMPORTANT RULES
 
-1. **Autonomy is gated by `spec_mode`**. In `spec_mode == "autonomous"`: do NOT ask the user anything; make decisions yourself. In `spec_mode == "user-provided"`: honor the spec's user-gate pauses (orchestrator view Hard Rule 10) — pause the loop at every spec-defined user gate and do not auto-resume past it.
+1. **Autonomy is gated by `spec_mode`**, with a third clause for autonomy-directive override.
+   - **Clause A** — `spec_mode == "autonomous"`: do NOT ask the user anything; make decisions yourself.
+   - **Clause B** — `spec_mode == "user-provided"` AND focus does NOT contain autonomy-directive tokens: honor the spec's user-gate pauses (orchestrator view Hard Rule 10) — pause the loop at every spec-defined user gate and do not auto-resume past it.
+   - **Clause C (autonomy-directive override)** — `spec_mode == "user-provided"` AND focus contains any of `\b(autonomously|manual\s+interrupt|don.?t\s+ask|no\s+questions|自动|手动中断|不要问|不要打扰)\b` (case-insensitive, Unicode-safe): treat the run as autonomous regardless of spec_mode. The orchestrator MUST NOT emit `<options>` XML or interrogative endings. When genuine deadlock occurs (e.g., META-DEADLOCK where a hook blocks the very fix needed), the orchestrator MUST: (a) write a deadlock report to `docs/dev/overnight-deadlock-<ts>.md` with the situation summary; (b) skip the blocked work item; (c) continue with the next pipeline; (d) defer all user-input questions to the end-of-overnight summary. Asking the user mid-cycle is a Clause-C violation.
 2. **Loop continuously in autonomous mode**. When `spec_mode == "autonomous"`, after each fix cycle the todo completion hook handles looping; this is non-negotiable. When `spec_mode == "user-provided"`, the loop pauses at every spec-defined user gate and only resumes after the user clears the gate.
 3. **Keep cycles comprehensive and priority-driven**. PM triage determines pipeline ordering -- the main agent follows PM's authority. In Focus Mode (Tier 1 blockers exist), only blocker pipelines are created. In Normal Mode, all issues get pipelines ordered by tier: Tier 1 (blockers) first, then Tier 2 (major), then Tier 3 (minor/cosmetic). Within each tier, issues flagged by more agents rank higher.
 4. **ALL exploration and fixes via subagents**. Use Agent tool for ALL scanning, analysis, and implementation work. Main context only handles TodoWrite and loop control.
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
-6. **Track everything**. Use TodoWrite to track progress -- the state file is read-only after creation.
+6. **Track everything**. Use TodoWrite to track per-cycle workflow progress in your own todo list. Do NOT write to `.claude/overnight-state-<sid>.json` from the main agent — that file is owned and updated by the orchestrator hooks (`posttool-overnight-loop.py` increments `cycle_count`, resets `current_phase`/`current_issues`/`unresolved_issues`, preserves `pm_triage_reports`/`pm_retro_reports`; `posttool-overnight-loop.py:_mark_session_complete` flips `current_phase` to `complete` at end-time). See `docs/dev/state-file-write-policy.md` for the full per-field write matrix.
 7. **The Stop hook prevents premature exit**. The time-lock hook will block conversation termination until end-time. Do not try to circumvent it.
 8. **Git checkpoint vs HEAD commit are distinct semantic layers**. The existing posttool-git-checkpoint.sh hook writes mid-cycle Write/Edit snapshots to `refs/checkpoints/*` only — these are NOT merge-ready commits and they do NOT advance any branch HEAD. They exist for crash recovery and audit, not for shipping. End-of-cycle Step 13 lands a real HEAD commit on the worktree branch via `commit.sh --auto-bulk-bridge <branch>` — that HEAD commit IS merge-ready and is the only artifact `/merge` consumes. See `/root/.claude/CLAUDE.md` (Auto-Commit Mechanism section) for the full checkpoint-ref vs HEAD-commit contract. Do NOT conflate "checkpoint after fix" (refs/checkpoints/*, recovery-only) with "ship upstream" (HEAD commit + `/merge`, distribution).
 9. **Cycle-end deploy is autonomous-mode only** (canonical overnight Hard Rule 9). When `spec_mode == "autonomous"`, every cycle MUST end with QA rebuilding and redeploying via `docker compose build` and `docker compose up -d` for the project's own services (identified from `docker-compose.yml`); deploy verification is REQUIRED in this mode. When `spec_mode == "user-provided"`, deploy is NOT mandatory at the engine level — the user spec dictates whether to deploy (the orchestrator view's Pipeline Workflow may instruct deploy, may instruct skip, or may defer to a user gate). Regular `/dev` (single-pass, NOT `/dev-overnight`) MUST NOT auto-deploy regardless of spec_mode — `/dev` is a single-feature implementation pass, not an overnight cycle. Do NOT touch unrelated services or infrastructure.
@@ -112,6 +115,9 @@ If the user didn't report it as broken, don't change it. Don't add features, ren
 
 ### Rule 7: Global agent files must be project-agnostic
 Files in `~/.claude/agents/` and `~/.claude/commands/` apply to ALL projects. No project-specific examples.
+
+### Rule 8: Autonomy-directive in focus overrides spec_mode (2026-04-26 incident)
+When `spec_mode == "user-provided"` is auto-detected from a spec but the user's focus string explicitly demands autonomy (`手动中断`, `自动`, `不要问`, `不要打扰`, `autonomously`, `manual interrupt`, `don't ask`, `no questions`), Hard Rule 1 Clause C applies: behave as autonomous. Emitting `<options>` XML or interrogative endings under autonomy-directive override is a critical violation — it causes the chat UI to go idle awaiting user input even though the Stop hook is blocking termination. Source: BA spec `docs/dev/ba-spec-stop-hook-gap-20260426-2250.md` + architect report `docs/dev/architect-stop-hook-gap-20260426-2245.json`. Enforcement: `pretool-orchestrator-prompt-purity.py` rejects subagent dispatches containing `<options>` when overnight is active; main-agent text emission is unhookable, so this rule is the primary defense.
 
 ---
 
@@ -312,6 +318,15 @@ Layers from shallow to deep:
 The PM subagent MUST record the layer in its per-issue triage output so
 the orchestrator can detect "same-layer retry" patterns across iterations.
 When dev reports back, verify implementation layer matches BA's spec layer.
+
+### Step 1.5: UI Mode Detection
+
+Parse the invocation flags:
+- If invoked as `/dev-overnight --ui-spec <path>`, this is a UI Development workflow:
+  - Read the ui-spec markdown (must have YAML frontmatter with `ui_target`, `viewport_targets`, `design_inputs`)
+  - Skip autonomous discovery (PM-Plan does NOT call architect/product-owner/user — only ui-specialist DESIGN_MODE + BA + dev + qa UI_MODE)
+  - Set workflow_type="ui_development" in cycle-contract.json
+- Otherwise, run the existing autonomous overnight discovery flow (workflow_type="ui_audit" or "general", as decided by PM-Plan).
 
 ### Step 2: Explore Codebase for Issues
 
@@ -671,6 +686,38 @@ to the legacy mechanical sort in Step 3 (read the RELEVANT specialist reports on
 **Check pipeline_blocked**: Read the triage report's `pipeline_blocked` field.
 - If `pipeline_blocked: true`: log `block_reasons` to the cycle log file, skip Steps 3-13, jump directly to Step 14 (PM Retrospective) with context that the pipeline was blocked. PM RETRO will analyze the block and recommend next steps. Then loop to Step 2 for the next cycle.
 - If `pipeline_blocked: false` or field absent: proceed normally to Step 3.
+
+### Step 2c.5: Write cycle-contract.json
+
+**MANDATORY for autonomous overnight cycles per spec-20260426-090235 (P0/M1 contract pipeline).**
+
+Immediately after PM Triage completes (Step 2c) and before pipeline creation (Step 3), the orchestrator writes the per-cycle contract manifest. This file is the single source of truth that the contract-aware hooks (`pretool-subagent-enforce.py`, `posttool-subagent-track.py`, `posttool-overnight-file-check.py`) and `check-overnight-reports.py` consume to enforce role/pipeline/artifact compliance for every subsequent Agent invocation in the cycle.
+
+**Output paths** (write both — primary plus colocated mirror so hooks can resolve without scanning):
+
+- Primary: `docs/dev/overnight/<session_id>/cycle-<N>/cycle-contract.json`
+- Stable symlink for hooks: `docs/dev/overnight/<session_id>/cycle-current.json` → `cycle-<N>/cycle-contract.json`
+- Colocated mirror: `.claude/overnight-contract-<session_id>-cycle<N>.json`
+
+**Schema**: `/root/.claude/schemas/cycle-contract.v1.json` (Draft 7). The full shape is documented there; the orchestrator MUST populate at minimum:
+
+- `schema_version: 1`
+- `spec_id` (e.g. the spec id when `spec_mode == "user-provided"`, or `autonomous-<sid>` otherwise)
+- `session_id`, `cycle_id` (1-indexed integer), `created_at` (ISO-8601 UTC with terminal `Z`)
+- `monolith_sha256` (sha256 of the monolithic spec file when present, else `null`)
+- `required_calls`: one entry per Agent call the orchestrator commits to making this cycle. Each entry: `{step, role, mode|null, pipeline_id|null, expected_output_path, schema_name, max_retries}`. Step ids align with the canonical todo (`2a`, `2b-<specialist>`, `2c`, `4`, `5a`, `6`, `8`, `9`, `14`).
+- `pipelines`: keyed by pipeline id with `{ba_status, dev_status, qa_status, artifact_paths {ba, dev, qa}}` — initialise all statuses to `pending`.
+- `specialist_selection`: object keyed by specialist name with `{decision, reason, scope, budget {max_pages, max_viewports, max_minutes}}`. Specialists not chosen by PM Plan get `decision: "skip"` (or are omitted entirely — both forms are valid per AC12 variable-specialist-count).
+
+**Sources for population**:
+
+- `required_calls` derives from PM Triage's `pipeline_order` × the canonical pipeline workflow (each pipeline produces one BA call, one Dev call, one QA call) plus the cycle-level PM PLAN/TRIAGE/RETRO entries.
+- `pipelines` derives from PM Triage's `issues` array.
+- `specialist_selection` derives from PM Plan's `recommended_specialists` field (Step 2a output) reconciled with what was actually launched in Step 2b.
+
+**HARD CUTOVER**: this file is the trigger that switches the contract-aware hooks from silent passthrough into enforce mode. Until cycle-contract.json exists, the hooks behave like the legacy /spec single-cycle session. Once it exists, role/pipeline mismatches are exit-2 hard blocks (no warning-then-proceed). The contract's mere presence is the switch — there is no env-var override (per spec-20260426-090235 AC10 / user_decisions.rollout_strategy = HARD CUTOVER).
+
+**Update cycle**: cycle-contract.json is append-only after publish. If pipeline ids change after Step 3 (e.g. on a re-plan), produce `cycle-contract.v2.json` in the same cycle dir; never edit the v1 file in place.
 
 ### Step 2d: Create Overnight Spec Files
 
@@ -1570,8 +1617,40 @@ Use the audited /merge command as the default and preferred merge path.
 Do NOT recommend manual git merge as the primary workflow. The merge command
 must run its audit first and stop on blocked files or predicted conflicts.
 
+To ship the worktree end-to-end after overnight completes, see the
+"Post-loop manual flow (human-in-the-loop)" subsection below. The user
+manually runs three independent commands in this order:
+  /commit -m "<summary>"   (optional — only for master-side touch-ups)
+  /merge <worktree_branch>
+  /push
+
+There is NO unified ship-overnight command. The three commands stay
+independent so the user can inspect state between each step.
+
 The time-lock has been released. The session can now end normally.
 ```
+
+### Post-loop manual flow (human-in-the-loop)
+
+After all overnight cycles complete, the user is expected to review results and run the following three commands MANUALLY, in this order:
+
+1. **`/commit -m "<session summary>"`** (optional)
+   - Use this if the user has master-branch touch-ups OUTSIDE the worktree cycles (e.g. README updates, doc fixes)
+   - Skip if there's nothing to commit on master beyond what overnight cycles produced
+   - The commit message MUST be a real session summary the agent writes (not a placeholder); per redev6 P-MSG, `-m` is REQUIRED in non-bridge modes
+   - For `--force` overrides on `/commit` (e.g., spec-only commits without ceremony artifacts), see `commands/commit.md`
+
+2. **`/merge <worktree-branch>`**
+   - Merges the overnight worktree branch back into master
+   - The blessed-bridge env-var (`CLAUDE_MERGE_COMMAND_ACTIVE=1`) handles privilege-guard authorization
+   - If merge conflicts arise, the user resolves manually before continuing
+
+3. **`/push`**
+   - Pushes master to origin
+   - Requires clean working tree post-merge and commits ahead of upstream
+   - The push wrapper writes its own grant manifest; no further user action required
+
+These are THREE INDEPENDENT human invocations. There is NO auto-sequenced ship-overnight command and no Bash blocks chaining them. The human inspects state between each step. The overnight loop does not auto-sequence /commit, /merge, /push — auto-sequencing them from inside the agent context would give the agent unilateral push authority, which is a deliberate non-goal per the always-on guard architecture.
 
 ---
 
@@ -1824,6 +1903,22 @@ See `/clean` command documentation for details.
 | Stop hook | Workflow enforcement only | Workflow + time-lock |
 | Worktree | Not used | Created on first run, reused across cycles |
 | Total steps | 13 | 16 |
+
+---
+
+## UI Development Workflow
+
+**Trigger**: `/dev-overnight --ui-spec <path>` (parsed in Step 1.5 above).
+
+When `workflow_type="ui_development"` is set in cycle-contract.json, the cycle skips autonomous discovery and runs a focused UI build pipeline:
+
+1. **ui-specialist DESIGN_MODE**: read the ui-spec markdown, gather design inputs (handoff JSON, screenshots, design system tokens), and emit `design-handoff.json` per `/root/docs/templates/design-handoff.example.json`. Bound by Phase 0 DESIGN_MODE budgets in `agents/ui-specialist.md` (max_pages_visited=3, max_screenshots=10, max_tool_calls=20–30).
+2. **BA**: convert `design-handoff.json` into an implementable component spec — `context.json` with concrete `files_to_modify` referencing real component paths, plus role-table-grounded acceptance criteria per CLAUDE.md role tokens.
+3. **dev**: implement the component(s) listed in BA's `files_to_modify`. Minimum-Diff Rule applies — no scope expansion beyond what BA's spec authorizes.
+4. **qa UI_MODE**: dual-viewport screenshots (desktop 1440x900 + mobile 390x844), Playwright trace, `evidence_map` keyed by AC-NN, and the mandatory `ui_evidence` schema per `agents/qa.md` Step 5c.1. PM-Retro will run `/root/bin/ui-evidence-audit.py` against the qa-report.
+5. **PM Retro UI_AUDIT**: false-pass audit — execute `/root/bin/ui-evidence-audit.py` against the qa-report; any FP-1..FP-13 failure or missing required field flags the cycle as a false-pass risk and feeds back into the spec for the next cycle.
+
+In UI Development workflow, autonomous specialist discovery (architect / product-owner / user) is skipped — only `ui-specialist` runs, and only in DESIGN_MODE. The BA→dev→qa pipeline is otherwise unchanged from the standard cycle.
 
 ---
 

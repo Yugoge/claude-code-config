@@ -371,12 +371,17 @@
         ]
       },
       {
-        "matcher": "Write|Edit|NotebookEdit",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-tool-policy.py\""
-          },
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-subagent-code-block.py\""

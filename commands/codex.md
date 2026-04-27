@@ -1,5 +1,5 @@
 ---
-description: Delegate a task to OpenAI Codex CLI (gpt-5.4, xhigh reasoning) for a second opinion or parallel coding
+description: Delegate a task to OpenAI Codex CLI (gpt-5.5, xhigh reasoning) for a second opinion or parallel coding
 argument-hint: [prompt or --review or --model <model> <prompt>]
 allowed-tools: [Bash, Read, Glob, Grep]
 ---
@@ -13,7 +13,7 @@ Run OpenAI Codex CLI to get a second opinion, delegate coding tasks, or perform 
 If `$ARGUMENTS` is empty or blank, print this usage guide and stop:
 
 ```
-Usage: /codex <prompt>              — run codex exec with the given prompt (default: gpt-5.4, reasoning: xhigh)
+Usage: /codex <prompt>              — run codex exec with the given prompt (default: gpt-5.5, reasoning: xhigh)
        /codex --review              — run codex review on the current directory
        /codex --model <model> <prompt> — use a specific model (still xhigh reasoning)
 
@@ -29,7 +29,7 @@ Otherwise, proceed:
 
 - If `$ARGUMENTS` starts with `--review`, run **review mode**.
 - If `$ARGUMENTS` starts with `--model`, extract the model name and the rest as the prompt, then run **exec mode** with `--model <model>`.
-- Otherwise, run **exec mode** with the full `$ARGUMENTS` as the prompt (no `--model` flag — uses gpt-5.4 default with xhigh reasoning).
+- Otherwise, run **exec mode** with the full `$ARGUMENTS` as the prompt (no `--model` flag — uses gpt-5.5 default with xhigh reasoning).
 
 ### 2. Generate unique output path
 
@@ -43,16 +43,16 @@ Capture the printed path. Use it as `$CODEX_OUT` in all subsequent commands.
 ### 3. Review mode
 
 ```bash
-codex review -c 'model="gpt-5.4"' -c 'reasoning_effort="xhigh"' 2>&1 | tee "$CODEX_OUT"
+codex review -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' 2>&1 | tee "$CODEX_OUT"
 ```
 
 Use 10 minute Bash timeout. Then Read `$CODEX_OUT` with the Read tool.
 
 ### 4. Exec mode
 
-**Without --model (default gpt-5.4):**
+**Without --model (default gpt-5.5):**
 ```bash
-codex exec -c 'model="gpt-5.4"' -c 'reasoning_effort="xhigh"' "$PROMPT" 2>&1 | tee "$CODEX_OUT"
+codex exec -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' "$PROMPT" 2>&1 | tee "$CODEX_OUT"
 ```
 
 **With --model (user-specified model, still xhigh reasoning):**

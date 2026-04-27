@@ -33,9 +33,12 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 # Config
 # -----------------------------------------------------------------------------
-# Honor CLAUDE_PROJECT_DIR for cross-project use; default /root preserves
-# in-/root backwards-compat (AC-DOCS-1..3, ba-spec-20260426-redev4 §4).
-DOCS_DIR="${CLAUDE_PROJECT_DIR:-/root}/docs/dev"
+# Smart fallback chain (redev7 P-CWD-FALLBACK):
+#   1. CLAUDE_PROJECT_DIR set → use it (redev4 explicit override behavior preserved)
+#   2. cwd inside a git repo → use repo toplevel (handles real-world cross-project use)
+#   3. cwd not in a repo → use cwd (last resort; never blindly /root)
+DOCS_DIR_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+DOCS_DIR="${DOCS_DIR_ROOT}/docs/dev"
 # LOG_PATH is intentionally user-home-anchored (audit log lives where Claude
 # infrastructure lives, not where the project lives). Do NOT parameterize via
 # CLAUDE_PROJECT_DIR — this is by design (AC-DOCS-4).
@@ -53,9 +56,22 @@ GRANT_FILE=""
 # -----------------------------------------------------------------------------
 # Step 1 — argument parse
 # -----------------------------------------------------------------------------
-# Two modes:
-#   commit.sh <task-id>                     — closed-task commit (PRIMARY/SECONDARY)
+# Three modes:
+#   commit.sh <task-id> -m "<msg>"          — closed-task commit (PRIMARY/SECONDARY)
+#                                             -m REQUIRED non-empty (redev6 P-MSG / M-MSG-1).
+#                                             Auto-derive from H1 title is REMOVED.
 #   commit.sh --auto-bulk-bridge <branch>   — overnight per-cycle commit (P3 bridge mode)
+#                                             -m FORBIDDEN (BLESSED_BRIDGE_RE locks message)
+#   commit.sh --force -m "<msg>"            — irregular-path escape hatch (redev6 P-FORCE)
+#                                             -m REQUIRED non-empty; bypasses closure /
+#                                             task-id / dev-report / cross-repo / P-CLOSEHONOR
+#                                             / H1 checks. The four always-on security layers
+#                                             (disable-model-invocation on commit.md,
+#                                             inline-env literal-substring rejection,
+#                                             bulk-commit-detector, grant manifest emission)
+#                                             remain engaged.
+#
+# --force and --auto-bulk-bridge are mutually exclusive; passing both -> exit 2.
 #
 # Bridge mode (AC-P3-2 in ba-spec-20260426-redev3.md):
 #   Used by /dev-overnight per-cycle finalization. Stages from the already-cached
@@ -66,19 +82,66 @@ GRANT_FILE=""
 #   mode does NOT require close-report or dev-report — overnight cycles produce
 #   bulk commits across many small fixes; closure evidence is per-issue, not
 #   per-cycle.
+#
+# Force mode (ba-spec-20260426-redev6.md M-FORCE / AC-FORCE-1..4):
+#   The irregular-path escape hatch for hand-written single-file commits, spec-only
+#   commits, manual recovery commits — flows that have no closure ceremony but are
+#   still legitimate. The closure / task-id / dev-report layers are demoted from
+#   "gate" to "audit metadata" per feedback_commit_overengineering.md. Security
+#   rests on the four always-on layers, all of which stay engaged in --force mode.
 if [ $# -lt 1 ] || [ -z "${1:-}" ]; then
   echo "Usage:" >&2
-  echo "  commit.sh <task-id>                       # closed-task commit" >&2
-  echo "  commit.sh --auto-bulk-bridge <branch>     # overnight per-cycle commit" >&2
-  echo "Example: commit.sh dev-20260425-145411" >&2
+  echo "  commit.sh <task-id> -m \"<msg>\"             # closed-task commit (-m required)" >&2
+  echo "  commit.sh --auto-bulk-bridge <branch>      # overnight per-cycle commit (-m forbidden)" >&2
+  echo "  commit.sh --force -m \"<msg>\"                # irregular-path escape hatch (-m required)" >&2
+  echo "Example: commit.sh dev-20260425-145411 -m \"real session summary describing the fix\"" >&2
   echo "Example: commit.sh --auto-bulk-bridge cycle-2-redev" >&2
+  echo "Example: commit.sh --force -m \"docs(notes): add foo notes — hand-written single-file\"" >&2
   exit 2
 fi
 
 MODE="closed-task"
 TASK_ID=""
 BRIDGE_BRANCH=""
+CALLER_MESSAGE=""
+HAS_CALLER_MESSAGE=0
+MESSAGE_SOURCE="auto"   # "auto" | "caller" — recorded in audit log
 
+# Pre-scan: extract `-m "<msg>"` (or `--message "<msg>"`) from anywhere in argv
+# (M-MSG-5 / AC-MSG-6 — orchestrator may pass -m before or after the mode flag).
+# The remaining (non--m) tokens are repacked into the positional argv for the
+# first-pass dispatch + second-pass leftover loop.
+PRESCAN_REMAINING=()
+PRESCAN_I=0
+while [ $PRESCAN_I -lt $# ]; do
+  PRESCAN_I=$((PRESCAN_I + 1))
+  PRESCAN_ARG="${!PRESCAN_I}"
+  if [ "$PRESCAN_ARG" = "-m" ] || [ "$PRESCAN_ARG" = "--message" ]; then
+    PRESCAN_I=$((PRESCAN_I + 1))
+    if [ $PRESCAN_I -gt $# ]; then
+      echo "commit.sh: -m requires a message argument" >&2
+      exit 2
+    fi
+    if [ "$HAS_CALLER_MESSAGE" -eq 1 ]; then
+      echo "commit.sh: -m specified more than once" >&2
+      exit 2
+    fi
+    CALLER_MESSAGE="${!PRESCAN_I}"
+    HAS_CALLER_MESSAGE=1
+  else
+    PRESCAN_REMAINING+=("$PRESCAN_ARG")
+  fi
+done
+# Repack argv with -m / --message stripped out.
+set -- "${PRESCAN_REMAINING[@]+"${PRESCAN_REMAINING[@]}"}"
+
+# After pre-scan, at least one positional must remain (the mode flag or task-id).
+if [ $# -lt 1 ] || [ -z "${1:-}" ]; then
+  echo "commit.sh: no mode argument (task-id, --auto-bulk-bridge <branch>, or --force)" >&2
+  exit 2
+fi
+
+# First-pass dispatch: identify the mode based on the first positional arg.
 if [ "$1" = "--auto-bulk-bridge" ]; then
   if [ $# -lt 2 ] || [ -z "${2:-}" ]; then
     echo "commit.sh --auto-bulk-bridge: missing <branch> argument" >&2
@@ -92,12 +155,88 @@ if [ "$1" = "--auto-bulk-bridge" ]; then
   fi
   # Bridge mode uses the branch as the task-id surrogate for grant + audit.
   TASK_ID="$BRIDGE_BRANCH"
+  shift 2
+elif [ "$1" = "--force" ]; then
+  MODE="force"
+  shift 1
 else
   TASK_ID="$1"
   if [[ "$TASK_ID" =~ [[:space:]\;\&\|\`\$\(\)\<\>\\\"\'\*\?\[\]] ]]; then
     echo "commit.sh: invalid task-id (shell-metacharacters not allowed): $TASK_ID" >&2
     exit 2
   fi
+  shift 1
+fi
+
+# Second pass: parse trailing flags. Currently only -m "<msg>" is supported.
+# Per-mode -m semantics:
+#   closed-task: REQUIRED non-empty (M-MSG-1; auto-derive REMOVED in redev6)
+#   force:       REQUIRED non-empty (empty/missing both reject)
+#   bridge:      FORBIDDEN (would break BLESSED_BRIDGE_RE locked message format)
+#
+# Mutual exclusion: encountering --force or --auto-bulk-bridge in this loop
+# means the caller passed BOTH mode flags (the first-pass dispatch already
+# consumed exactly one). Reject with usage (ba-spec-20260426-redev6.md mutual-
+# exclusion clause in user prompt).
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -m|--message)
+      if [ $# -lt 2 ]; then
+        echo "commit.sh: -m requires a message argument" >&2
+        exit 2
+      fi
+      CALLER_MESSAGE="$2"
+      HAS_CALLER_MESSAGE=1
+      shift 2
+      ;;
+    --force|--auto-bulk-bridge)
+      echo "commit.sh: --force and --auto-bulk-bridge are mutually exclusive" >&2
+      echo "Usage:" >&2
+      echo "  commit.sh <task-id> -m \"<msg>\"             # closed-task commit (-m required)" >&2
+      echo "  commit.sh --auto-bulk-bridge <branch>      # overnight per-cycle commit (-m forbidden)" >&2
+      echo "  commit.sh --force -m \"<msg>\"                # irregular-path escape hatch (-m required)" >&2
+      exit 2
+      ;;
+    *)
+      echo "commit.sh: unrecognized argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+# Per-mode -m policy enforcement (ba-spec-20260426-redev6.md M-MSG-1..3,
+# AC-MSG-1, AC-MSG-3, AC-MSG-5).
+#
+# Verbatim exit-message contract (asserted by AC-MSG-1, AC-MSG-3, AC-MSG-5):
+#   closed-task without -m  -> "commit message required (-m); agent must summarize session intent"
+#   --force without -m      -> "commit message required (-m); agent must summarize session intent"
+#   --force with -m ""      -> "commit message required (-m); agent must summarize session intent"
+#   --auto-bulk-bridge -m   -> "commit.sh --auto-bulk-bridge: -m not allowed (bridge mode uses fixed BLESSED message format)"
+if [ "$MODE" = "force" ]; then
+  if [ "$HAS_CALLER_MESSAGE" -eq 0 ] || [ -z "$CALLER_MESSAGE" ]; then
+    echo "commit message required (-m); agent must summarize session intent" >&2
+    exit 2
+  fi
+  MESSAGE_SOURCE="caller"
+elif [ "$MODE" = "auto-bulk-bridge" ]; then
+  if [ "$HAS_CALLER_MESSAGE" -eq 1 ]; then
+    echo "commit.sh --auto-bulk-bridge: -m not allowed (bridge mode uses fixed BLESSED message format)" >&2
+    exit 2
+  fi
+elif [ "$MODE" = "closed-task" ]; then
+  # M-MSG-1: -m is now REQUIRED in closed-task mode (auto-derive REMOVED).
+  if [ "$HAS_CALLER_MESSAGE" -eq 0 ] || [ -z "$CALLER_MESSAGE" ]; then
+    echo "commit message required (-m); agent must summarize session intent" >&2
+    exit 2
+  fi
+  MESSAGE_SOURCE="caller"
+fi
+
+# S-FORCE-WARNING: emit a one-line stderr warning for --force mode so the
+# operator is reminded that closure/task-id/dev-report layers are bypassed
+# but the four always-on security layers remain engaged.
+if [ "$MODE" = "force" ]; then
+  echo "commit.sh: --force bypasses closure/task-id/dev-report checks; security relies on disable-model-invocation + inline-env rejection + bulk-detector + grant manifest" >&2
 fi
 
 # -----------------------------------------------------------------------------
@@ -213,6 +352,141 @@ with open(path, "a") as fh:
 PY
 
   echo "commit.sh: success — mode=auto-bulk-bridge branch=${BRIDGE_BRANCH} head=${NEW_HEAD} files=${#ALLOWED_FILES[@]}"
+  exit 0
+fi
+
+# -----------------------------------------------------------------------------
+# Step 1c — force-mode short-circuit (ba-spec-20260426-redev6.md M-FORCE / AC-FORCE-1..4)
+# -----------------------------------------------------------------------------
+# When invoked as `commit.sh --force -m "<msg>"`:
+#   - Skip closure detection entirely (no PRIMARY/SECONDARY check; no close-report
+#     / completion-md / qa-report / dev-report required).
+#   - Skip task-id resolution (TASK_ID stays empty).
+#   - Skip dev-report parsing (no allowed_files extraction from dev-report).
+#   - Skip cross-repo filter (allowed_files == staged set, by definition).
+#   - Skip P-CLOSEHONOR (no close-report consultation).
+#   - Skip P-H1 / P-TASKID / P-NESTED / P-CROSSREPO checks.
+#   - Read pre-staged file set via `git diff --cached --name-only` (caller stages
+#     files before invoking).
+#   - Use caller-supplied message verbatim (CALLER_MESSAGE, validated above).
+#   - Write a per-nonce grant manifest with mode="force"; allowed_files = staged
+#     set; expected_message_sha256 = sha256(CALLER_MESSAGE). The privilege-guard's
+#     existing schema admits this without modification (it validates env +
+#     sha256(message) + allowed_files = staged set; the `mode` field is
+#     metadata-only).
+#   - Export CLAUDE_COMMIT_COMMAND_ACTIVE=1; run blessed git commit.
+#   - Wrapper unlinks grant on success (matches commit.sh:666 pattern).
+#   - Audit log line carries `mode=force` for forensics, with
+#     `message_source=caller` (--force requires caller-supplied -m).
+#
+# Security model: the FOUR ALWAYS-ON layers remain engaged in --force mode:
+#   1. disable-model-invocation: true on commit.md (the slash command can only
+#      be invoked by a human, never the model — AV-5 mitigation).
+#   2. inline-env literal-substring rejection in privilege-guard
+#      (CLAUDE_COMMIT_COMMAND_ACTIVE=1 prefix in the raw command text rejects).
+#   3. bulk-commit-detector (independent gate; AC-FORCE-3: --force does NOT
+#      bypass the b5d447e-shape detector).
+#   4. grant manifest emission with sha256(message) + allowed_files binding +
+#      single-use unlink on success (replay defense).
+if [ "$MODE" = "force" ]; then
+  # Pre-staged set required (caller is responsible for staging via `git add`).
+  # M-FORCE-2 (ba-spec-20260426-redev6.md / orchestrator-prompt verbatim):
+  # exit 2 with explicit no-staged message (mirrors bridge-mode behavior).
+  STAGED_RAW="$(git diff --cached --name-only | sort -u)"
+  if [ -z "$STAGED_RAW" ]; then
+    echo "commit.sh --force: no files staged; run 'git add' first" >&2
+    exit 2
+  fi
+
+  # Pack into a bash array (matches bridge-mode pattern at lines 129-132).
+  ALLOWED_FILES=()
+  while IFS= read -r line; do
+    [ -n "$line" ] && ALLOWED_FILES+=("$line")
+  done <<< "$STAGED_RAW"
+
+  # JSON-encode for the grant manifest.
+  ALLOWED_JSON="$(python3 -c "
+import json, sys
+files = [l for l in sys.stdin.read().splitlines() if l.strip()]
+print(json.dumps(sorted(set(files))))
+" <<< "$STAGED_RAW")"
+
+  # Caller-supplied message verbatim (validated non-empty above at the
+  # per-mode policy enforcement step).
+  COMMIT_MSG="$CALLER_MESSAGE"
+
+  MSG_SHA256="$(python3 -c "
+import hashlib, sys
+print(hashlib.sha256(sys.argv[1].encode('utf-8')).hexdigest())
+" "$COMMIT_MSG")"
+
+  # Grant manifest (per-nonce; mirrors the bridge-mode + closed-task pattern).
+  SID="${CLAUDE_SESSION_ID:-$$}"
+  NONCE="$(python3 -c "import secrets; print(secrets.token_hex(16))")"
+  GRANT_FILE="/tmp/claude-commit-grant-${SID}-${NONCE}.json"
+  CREATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  PPID_VAL="$$"
+
+  # --force mode has no task-id; use the literal sentinel "__force__" as the
+  # task_id field so audit-log readers can distinguish force-mode entries.
+  FORCE_TASK_SENTINEL="__force__"
+
+  python3 - "$GRANT_FILE" "$NONCE" "$SID" "$FORCE_TASK_SENTINEL" "$ALLOWED_JSON" "$MSG_SHA256" "$CREATED_AT" "$PPID_VAL" <<'PY'
+import json, sys
+path, nonce, sid, task_id, allowed_json, msg_sha, created_at, ppid_val = sys.argv[1:9]
+grant = {
+    "nonce": nonce,
+    "sid": sid,
+    "mode": "force",
+    "task_id": task_id,
+    "allowed_files": json.loads(allowed_json),
+    "expected_message_sha256": msg_sha,
+    "created_at": created_at,
+    "ppid": int(ppid_val),
+}
+with open(path, "w") as fh:
+    json.dump(grant, fh, indent=2, sort_keys=True)
+PY
+
+  # Bless the commit. The privilege-guard will validate env-var presence + grant
+  # manifest + sha256(message) + allowed_files = staged set. The bulk-commit-
+  # detector remains an independent downstream gate (AC-FORCE-3).
+  export CLAUDE_COMMIT_COMMAND_ACTIVE=1
+
+  git commit -m "$COMMIT_MSG"
+
+  # Wrapper unlinks grant on success path (guard never fires on subprocess).
+  rm -f "$GRANT_FILE"
+  GRANT_FILE=""
+
+  # Audit log line.
+  mkdir -p "$(dirname "$LOG_PATH")"
+  NEW_HEAD="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+  MSG_SHA_SHORT="${MSG_SHA256:0:12}"
+  TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  python3 - "$LOG_PATH" "$TS" "$SID" "$FORCE_TASK_SENTINEL" "$NONCE" "$PPID_VAL" "$MSG_SHA_SHORT" "$NEW_HEAD" "$ALLOWED_JSON" <<'PY'
+import json, sys
+path, ts, sid, task_id, nonce, ppid_val, msg_sha_short, head, allowed_json = sys.argv[1:10]
+line = {
+    "timestamp": ts,
+    "sid": sid,
+    "command_kind": "commit",
+    "mode": "force",
+    "task_id": task_id,
+    "sentinel_nonce": nonce,
+    "ppid": int(ppid_val),
+    "message_sha256_short": msg_sha_short,
+    "head": head,
+    "closure_kind": "force",
+    "allowed_files": json.loads(allowed_json),
+    "message_source": "caller",
+}
+with open(path, "a") as fh:
+    fh.write(json.dumps(line) + "\n")
+PY
+
+  echo "commit.sh: success — mode=force head=${NEW_HEAD} files=${#ALLOWED_FILES[@]}"
   exit 0
 fi
 
@@ -593,19 +867,14 @@ print(json.dumps(sorted(set(files))))
 " <<< "$ALLOWED_FULL_RAW")"
 
 # -----------------------------------------------------------------------------
-# Step 4 — generate commit message + sha256
+# Step 4 — finalize commit message + compute sha256
 # -----------------------------------------------------------------------------
-# Title = first '# ' heading in CLOSURE_PATH (close-report or completion).
-TITLE="$(awk '
-  /^# / { sub(/^# /, ""); print; exit }
-' "$CLOSURE_PATH" 2>/dev/null || true)"
-TITLE="${TITLE:-closed dev task}"
-
-# Sanitize: collapse whitespace, trim CR.
-TITLE="$(printf '%s' "$TITLE" | tr -d '\r' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
-[ -n "$TITLE" ] || TITLE="closed dev task"
-
-COMMIT_MSG="commit(${TASK_ID}): ${TITLE}"
+# Closed-task mode message resolution (ba-spec-20260426-redev6.md M-MSG-1):
+# -m is REQUIRED; the caller-supplied message is used verbatim. The auto-derive
+# from CLOSURE_PATH H1 is REMOVED. Empty/missing -m has already been rejected
+# above at the per-mode policy enforcement step (exit 2 with the verbatim
+# AC-MSG-1 message). MESSAGE_SOURCE was already set to "caller" in that block.
+COMMIT_MSG="$CALLER_MESSAGE"
 
 MSG_SHA256="$(python3 -c "
 import hashlib, sys
@@ -677,15 +946,19 @@ TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 # Append a single JSON line for downstream parsing convenience.
 # M4 / AC-CROSSREPO-3: log both allowed_files_full and allowed_files_filtered.
 # S2: log close_verdict_observed ("yes" | "no" | "absent") for forensics.
-python3 - "$LOG_PATH" "$TS" "$SID" "$TASK_ID" "$NONCE" "$PPID_VAL" "$MSG_SHA_SHORT" "$NEW_HEAD" "$CLOSURE_KIND" "$ALLOWED_FULL_JSON" "$ALLOWED_JSON" "$CLOSE_VERDICT_OBSERVED" <<'PY'
+# S-MSG-AUDIT (redev6): log message_source ("caller" | "auto") so downstream
+# forensics can distinguish orchestrator-written session summaries from auto-
+# derived `commit(<task-id>): <H1>` boilerplate.
+python3 - "$LOG_PATH" "$TS" "$SID" "$TASK_ID" "$NONCE" "$PPID_VAL" "$MSG_SHA_SHORT" "$NEW_HEAD" "$CLOSURE_KIND" "$ALLOWED_FULL_JSON" "$ALLOWED_JSON" "$CLOSE_VERDICT_OBSERVED" "$MESSAGE_SOURCE" <<'PY'
 import json, sys
 (path, ts, sid, task_id, nonce, ppid_val, msg_sha_short, head,
  closure_kind, allowed_full_json, allowed_filtered_json,
- close_verdict_observed) = sys.argv[1:13]
+ close_verdict_observed, message_source) = sys.argv[1:14]
 line = {
     "timestamp": ts,
     "sid": sid,
     "command_kind": "commit",
+    "mode": "closed-task",
     "task_id": task_id,
     "sentinel_nonce": nonce,
     "ppid": int(ppid_val),
@@ -695,6 +968,7 @@ line = {
     "allowed_files_full": json.loads(allowed_full_json),
     "allowed_files_filtered": json.loads(allowed_filtered_json),
     "close_verdict_observed": close_verdict_observed,
+    "message_source": message_source,
 }
 with open(path, "a") as fh:
     fh.write(json.dumps(line) + "\n")

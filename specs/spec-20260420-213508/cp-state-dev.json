@@ -1,9 +1,9 @@
 {
   "spec_id": "spec-20260420-213508",
   "agent_type": "dev",
-  "agent_id": "subagent-abc123",
+  "agent_id": "a24a25fcf26db6542",
   "is_running": true,
-  "checked_in_at": "2026-04-21T22:16:12Z",
+  "checked_in_at": "2026-04-26T12:20:42Z",
   "checked_out_at": null,
   "checkpoints": [
     {

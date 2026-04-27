@@ -238,7 +238,24 @@ Three layers — **Coverage** (browser traversal), **Skill-invocation** (evaluat
 
 ## Output Format
 
+**Task-ID Convention** (canonical from /redev5 onward): the `task-id` is a single literal string (e.g. `20260426-095000-wid`) that appears identically in (a) artifact filename suffix, (b) `request_id` field of every artifact JSON, (c) `task_id` field of every artifact JSON, (d) completion-report heading 1, (e) all artifact JSON files. No prefixed forms (`dev-`, `qa-`, `ba-`, `ui-`) are permitted in NEW artifacts. Past artifacts are not retroactively rewritten.
+
 Write a single JSON report whose schema is the canonical 6-channel contract published at `~/.claude/skills/ui-shared/report-schema.json`. The six top-level channels are: `app_understanding` (E2E flow evidence), `live_testing` (coverage counters), `design_quality` (beauty_score + sub_scores + design-system adherence), `quality_gate_results` (each gate from the table below), `issues[]` (every browser-verified finding with screenshot + measurement), and `design_enhancements[]` (improvement proposals). Aggregation of `aesthetic_findings`, `automated_findings`, and `alignment_measurements` into the final `beauty_score` is performed by the `ui-beauty-score` skill — invoke it during Phase 7 before serializing.
+
+**Required top-level metadata keys** (sibling to the 6 canonical channels — additive; the canonical schema is unchanged): every ui-specialist report MUST emit `request_id` and `task_id` at the JSON root, both equal to the bare task-id string. These two keys are NOT new channels; they are metadata required by `commit.sh` closure detection and the /close Workflow Integrity Dimension gate. Example shape:
+
+```json
+{
+  "request_id": "<task-id>",
+  "task_id": "<task-id>",
+  "app_understanding": { "...": "..." },
+  "live_testing": { "...": "..." },
+  "design_quality": { "...": "..." },
+  "quality_gate_results": { "...": "..." },
+  "issues": [],
+  "design_enhancements": []
+}
+```
 
 ## Design Enhancement Opportunities (Core Output)
 

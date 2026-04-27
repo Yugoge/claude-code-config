@@ -19,7 +19,7 @@ for the agent to act on, avoiding race conditions with other hooks.
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -58,15 +58,22 @@ def _load_overnight_state(session_id: str) -> tuple[dict | None, Path]:
 
 
 def _check_end_time(state: dict) -> datetime | None:
-    """Parse end_time from state. Returns None if expired or invalid."""
+    """Parse end_time from state. Returns None if expired or invalid.
+
+    Always normalizes end_time to a timezone-aware UTC datetime, so all
+    comparisons against datetime.now(timezone.utc) are aware-aware. Naive
+    end_time strings (no offset, no Z) are auto-promoted to UTC.
+    """
     et = state.get('end_time')
     if not et:
         return None
     try:
-        end_time = datetime.fromisoformat(et)
-    except (ValueError, TypeError):
+        end_time = datetime.fromisoformat(et.replace('Z', '+00:00'))
+    except (ValueError, TypeError, AttributeError):
         return None
-    if datetime.now() >= end_time:
+    if end_time.tzinfo is None:
+        end_time = end_time.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) >= end_time:
         return None
     return end_time
 
@@ -110,7 +117,7 @@ def _update_state_cycle(state: dict, state_path: Path) -> None:
 
 def _print_loop_instructions(state: dict, end_time: datetime, state_path: Path) -> None:
     """Print continuation instructions for the agent."""
-    remaining = end_time - datetime.now()
+    remaining = end_time - datetime.now(timezone.utc)
     hours = int(remaining.total_seconds() // 3600)
     minutes = int((remaining.total_seconds() % 3600) // 60)
     cc = state.get('cycle_count', 0)

@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-04-26T10:01:52Z*
-**Total entries**: 97
+*Last updated: 2026-04-27T10:09:13Z*
+**Total entries**: 110
 **Convention**: kebab
 
 ## Tree
@@ -22,7 +22,14 @@ hooks/
 │   ├── `post-commit-auto-push` - unknown file
 │   └── `pre-commit` - unknown file
 ├── lib/
+│   ├── `agent_resolver.py` - Refactored from pretool-subagent-code-block.py::_find_agent_type so that
+│   ├── `bash_write_targets.py` - Provides two public functions used by tool-policy and overnight-hook-guard:
 │   ├── `checkpoint-core.sh` - ============================================================================
+│   ├── `closeout.py` - Public API:
+│   ├── `contract_runtime.py` - This module is the single shared engine consumed by every contract-aware
+│   ├── `policy_registry.py` - Reads /root/.claude/policies/tool-policy.v1.json and provides a single
+│   ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
+│   ├── `specialist_yield.py` - Public API:
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 ├── `audit-slashcommand.sh` - audit-slashcommand.sh
 ├── `auto-commit.sh` - ============================================================================
@@ -38,14 +45,16 @@ hooks/
 ├── `install-git-hooks.sh` - install-git-hooks.sh - Install pre-commit hooks into git repositories
 ├── `install-protection-all.sh` - install-protection-all.sh - Automatically install protection for all git repos
 ├── `install.sh` - ============================================================================
+├── `notification-idle-overnight.py` - Notification hook: Observe overnight idle events
 ├── `post-commit-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
 ├── `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
 ├── `posttool-command-frontmatter-validate.py` - PostToolUse Hook: Validate .claude/commands/*.md frontmatter structure
 ├── `posttool-doc-sync.py` - PostToolUse Hook: Auto-sync INDEX.md and CLAUDE.md when structural files change
 ├── `posttool-git-checkpoint.sh` - posttool-git-checkpoint.sh - PostToolUse checkpoint trigger
 ├── `posttool-git-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
-├── `posttool-overnight-file-check.py` - PostToolUse:Agent Hook: Verify overnight subagent output files exist
+├── `posttool-overnight-file-check.py` - PostToolUse:Agent Hook — Contract-driven overnight file check
 ├── `posttool-overnight-loop.py` - PostToolUse:TodoWrite Hook: Overnight Loop Detection
+├── `posttool-overnight-trace.py` - Writes one JSONL trace record per Agent invocation to:
 ├── `posttool-runcode-watchdog.py` - PostToolUse Hook: Cancel timeout watchdog after browser_run_code completes
 ├── `posttool-subagent-track.py` - PostToolUse:Agent Hook: Track subagent invocations in workflow bookmark
 ├── `posttool-todo-count.py` - PostToolUse Hook: Enforce canonical todo count immediately after TodoWrite
@@ -55,6 +64,7 @@ hooks/
 ├── `pre_slashcommand_validate.sh` - pre_slashcommand_validate.sh
 ├── `pre_tool_use_safety.sh` - PreToolUse Safety Hook - Warn before dangerous operations
 ├── `prehook-overnight-worktree-check.sh` - UserPromptSubmit hook — block /dev-overnight launch if an applio worktree already exists.
+├── `pretool-aggregate-check.py` - existence before allowing the orchestrator to dispatch the QA subagent in
 ├── `pretool-bash-safety.sh` - PreToolUse Safety Hook - Warn or block before dangerous operations
 ├── `pretool-bash-views-guard.py` - Parallels pretool-bash-safety.sh but focuses on views/cp-state write bypass
 ├── `pretool-bisect-gate.sh` - pretool-bisect-gate.sh
@@ -69,14 +79,16 @@ hooks/
 ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
 ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
 ├── `pretool-orchestrator-gate.py` - PreToolUse Hook: Orchestrator Gate (Unified)
+├── `pretool-orchestrator-prompt-purity.py` - PreToolUse hook: Orchestrator Prompt Purity
 ├── `pretool-overnight-hook-guard.py` - PreToolUse Hook: Overnight session file modification guard
 ├── `pretool-quality-gate.py` - PreToolUse Hook: Quality gate for Write/Edit operations
 ├── `pretool-read-size-guard.py` - PreToolUse Hook: Read Size Guard
 ├── `pretool-runcode-watchdog.py` - PreToolUse Hook: Start timeout watchdog for browser_run_code
 ├── `pretool-spec-block-foreground-agent.py` - PreToolUse Hook: Block foreground Agent during an active /spec Interview
-├── `pretool-subagent-code-block.py` - Matcher: Write|Edit|NotebookEdit
-├── `pretool-subagent-enforce.py` - PreToolUse Hook: Enforce subagent invocation at designated workflow steps
+├── `pretool-subagent-code-block.py` - Canonical enforcement: pretool-tool-policy.py + lib/policy_registry
+├── `pretool-subagent-enforce.py` - PreToolUse:Agent Hook — Contract-driven role/pipeline enforcement
 ├── `pretool-todo-validate.py` - PreToolUse Hook: Validate TodoWrite input BEFORE execution
+├── `pretool-tool-policy.py` - Single hook that consumes /root/.claude/policies/tool-policy.v1.json via
 ├── `pretool-workflow-gate.py` - PreToolUse Hook: Require TodoWrite/TodoRead acknowledgment before other tools
 ├── `pretool-worktree-guard.sh` - PreToolUse hook: Detect stale agent worktrees before ANY tool call
 ├── `pretool-write-guard.sh` - PreToolUse Hook - Block Write tool from overwriting existing files
@@ -92,6 +104,7 @@ hooks/
 ├── `session-info.sh` - s-info.sh — SessionStart: display environment info + tool quick reference
 ├── `session-promote-hook.sh` - Description: SessionStart hook that promotes a cold session back to ramdisk.
 ├── `session_start.sh` - SessionStart Hook - Display working environment info
+├── `ship-overnight.sh` - 
 ├── `smart-checkpoint.sh` - smart-checkpoint.sh - DEPRECATED, scheduled for deletion
 ├── `start-fswatch-all.sh` - start-fswatch-all.sh - Start fswatch monitoring for all important repositories
 ├── `stop-cleanup-allowlist.sh` - Stop Hook: Wipe any unconsumed /allow grant at turn end.

@@ -13,8 +13,21 @@ path for an agent context to push to a remote. The guard rejects every other
 ## Usage
 
 ```
-/push
+/push                # push current branch to "origin" (default)
+/push <remote>       # push current branch to the named remote
 ```
+
+The optional `<remote>` argument is forwarded into both the Scheme 6 grant
+manifest's `remote` field AND the underlying `git push <remote> <branch>`
+invocation, so the privilege-guard's `_validate_push_grant_remote` check
+(grant.remote vs cmd-line remote token) admits the push. Useful for
+fork-based workflows where `origin` points at an upstream you cannot write
+to (e.g., `slopus/happy`) and a separate remote (e.g., `fork`) points at
+your own writable fork (e.g., `Yugoge/happy`).
+
+If the named remote is not configured locally, the wrapper exits 1 with a
+helpful message and prints `git remote -v` so you can correct the typo or
+add the remote.
 
 The command is gated with `disable-model-invocation: true`: only the human
 user can trigger it. The model cannot self-invoke `/push` as a way around
