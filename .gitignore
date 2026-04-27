@@ -63,6 +63,7 @@ sessions/
 workflow-*.json
 dev-registry/
 specs/*/cp-state-*.json
+.hook-refactor-allow
 
 # Spec checkpoint state, worktrees, and rotating .claude.json backups
 specs/spec-*/
