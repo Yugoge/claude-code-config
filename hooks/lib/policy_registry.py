@@ -20,13 +20,12 @@ Path prefix matching (T1.2 fix for B.11):
   - Glob: prefix containing '*' uses fnmatch.fnmatchcase, with a
     trailing '*' auto-appended so '*/docs/dev/foo-' matches any suffix
     after the prefix anchor (e.g. inside any worktree).
-  - Absolute prefix (starts with '/'): boundary-aware — matches when
-    the prefix occurs at the start of the target OR immediately after
-    a '/' boundary character. This prevents the old substring-collision
-    bug where '/.claude/hooks/' matched a target containing
-    '/root/.claude/worktrees/<sid>/docs/dev/...' just because the
-    string '.claude/' appeared somewhere; the matcher now respects
-    path boundaries.
+  - Absolute anchor (starts with '/'): interpreted as project-root
+    anchored, not as a raw substring. For example '/.claude/hooks/'
+    becomes '<CLAUDE_PROJECT_DIR>/.claude/hooks/' (plus its realpath
+    form) and matches only that path or descendants. This closes the old
+    substring-collision bug where an anchor could match merely because
+    the same text appeared somewhere inside an unrelated target path.
   - Relative prefix (doesn't start with '/' and contains no '*'):
     falls back to legacy substring containment. New policies should
     always anchor with '/' or '*'; relative prefixes remain only for
@@ -42,7 +41,7 @@ import sys
 from typing import Optional, Tuple
 
 POLICY_PATH = "/root/.claude/policies/tool-policy.v1.json"
-WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
+WRITE_TOOLS = {"Write", "Edit", "NotebookEdit", "MultiEdit"}
 ALLOWED_TYPES_FALLBACK = {"dev"}
 
 _CACHE: Optional[dict] = None
@@ -76,7 +75,10 @@ def get_role_policy(role: str) -> dict:
     if not policy:
         return {"allowed_tools": [], "default_action": "deny"}
     roles = policy.get("roles", {})
-    return roles.get(role, {"allowed_tools": [], "default_action": "deny"})
+    return roles.get(
+        role,
+        {"allowed_tools": [], "default_action": "deny", "_unknown_role": True},
+    )
 
 
 def _entry_matches(entry: str, tool_name: str) -> bool:
@@ -130,31 +132,50 @@ def _glob_match(prefix: str, target_canonical: str) -> bool:
     return fnmatch.fnmatchcase(target_canonical, pattern)
 
 
-def _boundary_substring_match(prefix: str, target_canonical: str) -> bool:
-    """True if prefix appears as a path-segment boundary substring of target.
+def _project_dir() -> str:
+    """Return the logical Claude project dir used for root-anchored policy."""
+    return os.path.abspath(os.environ.get("CLAUDE_PROJECT_DIR", "/root"))
 
-    Semantics: prefix starts with '/' (caller guarantees), so the leading
-    '/' is itself a path-segment boundary marker. The prefix is a valid
-    path-segment match iff it appears as a literal substring of target —
-    the leading '/' of the prefix coincides with a real '/' character in
-    the target, which is by definition a path-component boundary.
 
-    Example: prefix '/.claude/hooks/' MATCHES target '/root/.claude/hooks/x.py'
-    because '/.claude/hooks/' appears as a substring starting at position 5,
-    where target[5] is '/' (a path boundary).
+def _path_is_prefix(prefix_path: str, target_path: str) -> bool:
+    """Boundary-aware filesystem prefix check, never substring containment."""
+    try:
+        prefix_norm = os.path.normpath(prefix_path)
+        target_norm = os.path.normpath(target_path)
+    except (TypeError, ValueError):
+        return False
+    return (
+        target_norm == prefix_norm
+        or target_norm.startswith(prefix_norm.rstrip(os.sep) + os.sep)
+    )
 
-    What this rule prevents (the B.11 substring-collision bug): the BROAD
-    prefix '/.claude/' must not be in the policy — the policy file's
-    explicit subdir list (hooks/, agents/, commands/, policies/, schemas/,
-    scripts/, settings.json) is the only correct way to express
-    'protected /.claude subdirectory'. Broad '/.claude/' would match
-    legitimate worktree artifact paths like
-    '/root/.claude/worktrees/X/docs/dev/...' — which is a policy-file
-    issue, not a matcher issue, and is enforced by the BA's policy
-    review (T1.2 implementation_notes explicitly forbids broad
-    '/.claude/').
+
+def _absolute_anchor_candidates(prefix: str) -> list[str]:
+    """Expand a policy anchor like '/.claude/hooks/' into real path prefixes.
+
+    The policy file uses leading-slash anchors as project-root-relative
+    anchors, e.g. '/src/' means '<project>/src/'. Include both logical and
+    realpath forms so /root/.claude symlinked into tmpfs remains protected.
     """
-    return prefix in target_canonical
+    project = _project_dir()
+    rel = prefix.lstrip("/")
+    logical = os.path.abspath(os.path.join(project, rel))
+    candidates = [logical]
+    try:
+        real = os.path.realpath(logical)
+        if real != logical:
+            candidates.append(real)
+    except OSError:
+        pass
+    return candidates
+
+
+def _absolute_anchor_match(prefix: str, target_canonical: str) -> bool:
+    """True iff target is under the project-root anchored prefix."""
+    return any(
+        _path_is_prefix(candidate, target_canonical)
+        for candidate in _absolute_anchor_candidates(prefix)
+    )
 
 
 def _prefix_matches(prefix: str, target_canonical: str) -> bool:
@@ -164,10 +185,9 @@ def _prefix_matches(prefix: str, target_canonical: str) -> bool:
     if "*" in prefix:
         return _glob_match(prefix, target_canonical)
     if prefix.startswith("/"):
-        return _boundary_substring_match(prefix, target_canonical)
-    # Relative prefix — fall back to substring containment for legacy
-    # entries. New policies should always anchor with '/' or '*'.
-    return prefix in target_canonical
+        return _absolute_anchor_match(prefix, target_canonical)
+    # Relative prefix — interpret as project-root anchored legacy path.
+    return _absolute_anchor_match("/" + prefix, target_canonical)
 
 
 def _candidate_targets(target: str) -> list:
@@ -246,6 +266,8 @@ def is_allowed(
         if not policy:
             return _fail_open_or_closed(role, "policy-unavailable")
         role_pol = get_role_policy(role)
+        if role_pol.get("_unknown_role"):
+            return (False, f"unknown role {role}")
         tool_check = _check_tool_lists(role_pol, tool_name)
         if tool_check is not None:
             return tool_check

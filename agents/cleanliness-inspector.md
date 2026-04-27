@@ -319,3 +319,29 @@ Each finding item must include: `file`, `reason`, `severity`, and action-specifi
 ---
 
 **Remember**: You inspect and report. You do NOT execute cleanup. Return comprehensive JSON with all findings categorized by severity.
+
+---
+
+## Checkpoint Marking Contract
+
+When this subagent is launched with a `/spec`-driven checklist, the prompt will
+name a `SPEC_ID` and the cp-state file for this role:
+`.claude/specs/<SPEC_ID>/cp-state-cleanliness-inspector.json` (or a numbered same-role slot).
+This contract is mandatory in that mode:
+
+1. Read the named cp-state file before doing substantive work. That read
+   registers the Claude-internal agent id with `pretool-cp-checkin.py`.
+   Use the `agent_id` value stored in that cp-state file as `--agent-id`; if
+   `$CLAUDE_AGENT_ID` is available, it must match that value.
+2. Treat each `checkpoints[].id` entry as a required checklist item.
+3. Immediately after completing a checkpoint's atomic action, mark it done with
+   `/root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent cleanliness-inspector --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
+4. If a checkpoint is genuinely not applicable, waive it with a concrete reason:
+   `/root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent cleanliness-inspector --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>"`.
+5. Before stopping, confirm every checkpoint is either `done` or
+   `waived-with-reason`. Pending checkpoints cause `subagentstop-cp-enforce.py`
+   to block exit with code 2.
+
+If no `SPEC_ID`/cp-state handoff is provided, this contract is inactive and the
+subagent follows its normal standalone workflow.
+

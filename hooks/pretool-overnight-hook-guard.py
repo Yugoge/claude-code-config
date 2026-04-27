@@ -389,7 +389,7 @@ def _block_global_worktree(tool_name: str, target: str, worktree_paths: list[str
 
 def _enforce_write_edit_all_sessions(tool_name: str, tool_input: dict, worktree_paths: list[str]) -> None:
     """Block Write/Edit outside active overnight worktrees for all sessions (T2.4-aware)."""
-    if tool_name not in ('Write', 'Edit'):
+    if tool_name not in ('Write', 'Edit', 'MultiEdit'):
         return
     fp = tool_input.get('file_path', '')
     if not fp or _is_path_allowed_during_overnight(fp, worktree_paths) or _grant_skips_block(fp):
@@ -635,7 +635,8 @@ def _maybe_block_bash(command: str, predicate, message: str, grantable: bool) ->
 
 def _check_bash_security(command: str) -> None:
     """Block Bash commands targeting hooks, commands, or state files (T2.4-aware)."""
-    if 'update-overnight-state.sh' in command:
+    stripped = command_without_heredoc_bodies(command)
+    if 'update-overnight-state.sh' in stripped:
         return
     _maybe_block_bash(command, check_bash_targets_hooks,
                       '\nOVERNIGHT HOOK PROTECTION: Writing to .claude/hooks/ '
@@ -650,7 +651,7 @@ def _check_bash_security(command: str) -> None:
 
 def apply_global_security_checks(tool_name: str, tool_input: dict) -> None:
     """Block hooks/state modifications for ALL sessions during any overnight."""
-    if tool_name in ('Write', 'Edit'):
+    if tool_name in ('Write', 'Edit', 'MultiEdit'):
         _check_write_edit_security(tool_name, tool_input.get('file_path', ''))
     if tool_name == 'Bash':
         _check_bash_security(tool_input.get('command', ''))
@@ -729,7 +730,7 @@ def _check_bash_string(tool_input: dict, worktree_path: str) -> None:
 
 def apply_worktree_string_check(tool_name: str, tool_input: dict, worktree_path: str = '') -> None:
     """Block when overnight session writes outside worktree_path (or lacks 'worktree' string as fallback)."""
-    if tool_name in ('Write', 'Edit'):
+    if tool_name in ('Write', 'Edit', 'MultiEdit'):
         _check_write_edit_string(tool_name, tool_input, worktree_path)
     if tool_name == 'Bash':
         _check_bash_string(tool_input, worktree_path)
@@ -737,7 +738,7 @@ def apply_worktree_string_check(tool_name: str, tool_input: dict, worktree_path:
 
 def apply_worktree_enforcement(tool_name: str, tool_input: dict, wt: str) -> None:
     """Hard-block when overnight session writes outside its worktree."""
-    if tool_name in ('Write', 'Edit'):
+    if tool_name in ('Write', 'Edit', 'MultiEdit'):
         _enforce_write_edit_worktree(tool_name, tool_input, wt)
     if tool_name == 'Bash':
         _enforce_bash_worktree(tool_input.get('command', ''), wt)

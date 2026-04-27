@@ -36,13 +36,25 @@ The `/spec` command passes you:
 ### Step 1: Read the monolith
 
 Read `docs/dev/specs/<spec-id>.md` in full. Identify:
-- What roles/agents does the spec mention? (e.g., "UI设计师", "BA", "dev", "QA", "architect", "product-owner")
+- What roles/agents does the spec mention? (e.g., "UI设计师", "BA", "dev", "QA", "architect", "product-owner", "cleaner", "test-executor")
 - What is the workflow? (e.g., "UI → BA → Dev → QA" means only those 4 agents)
 - What kind of work is this? (design-only? full-stack? docs-only?)
 
 ### Step 2: Decide which agents get views
 
-For each of the 8 consumer agents, decide: relevant or not?
+For each consumer subagent in this configuration, decide: relevant or not.
+The current consumer set is:
+
+`architect`, `ba`, `cleaner`, `cleanliness-inspector`, `dev`,
+`git-edge-case-analyst`, `pm`, `product-owner`, `prompt-inspector`, `qa`,
+`rule-inspector`, `style-inspector`, `test-executor`, `test-validator`,
+`ui-specialist`, `user`.
+
+Do not limit checkpoint/view generation to the historical 8 core roles. If the
+spec names or clearly requires a root dev-harness specialist, it gets a view and a
+cp-state checklist exactly like BA/Dev/QA. Project-local agents from unrelated
+applications (for example project-local domain agents)
+MUST NOT be selected by the global root dev workflow.
 
 **Priority order** (first matching rule wins):
 
@@ -201,6 +213,34 @@ For each relevant agent, scan the full monolith and select content blocks that m
 - INCLUDE: end-user scenarios, expected behavior descriptions, interaction flows, acceptance criteria from user perspective, scope definitions that affect what users see, review gates
 - SKIP: technical implementation, design-execution instructions, code-level details
 
+**cleaner** (approved cleanup execution):
+- INCLUDE: explicit cleanup actions, archive/move/delete decisions, retention rules, cleanup execution scope
+- SKIP: exploratory quality inspection without approved cleanup actions
+
+**cleanliness-inspector** (file organization inspection):
+- INCLUDE: misplaced docs, duplicate/temp/build artifacts, archive candidates, folder hygiene criteria
+- SKIP: implementation tasks unrelated to file organization
+
+**git-edge-case-analyst** (git history edge cases):
+- INCLUDE: commit history analysis, branch/rebase/merge risks, workflow violation patterns
+- SKIP: non-git implementation details
+
+**rule-inspector** (folder rule discovery):
+- INCLUDE: Git-history-derived folder conventions, INDEX/README rule generation, organization rules
+- SKIP: cleanup execution without rule discovery
+
+**style-inspector** (development standards audit):
+- INCLUDE: hardcoding, naming, venv, step numbering, documentation concision, coding-standard violations
+- SKIP: acceptance testing unrelated to standards
+
+**test-executor** (test execution):
+- INCLUDE: explicit tests to run, execution instructions, result collection
+- SKIP: test design/validation without execution
+
+**test-validator** (test syntax/dependency validation):
+- INCLUDE: test file syntax, dependency checks, test quality before execution
+- SKIP: running tests as the primary task
+
 #### For monoliths <= 200 lines
 
 The spec is small enough that fine-grained extraction is less critical. Still decompose into content blocks and apply INCLUDE/SKIP criteria, but you MAY include broader blocks (heading+body units rather than individual sub-blocks). Do not dump the entire monolith into every view.
@@ -344,6 +384,14 @@ Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with the sections below i
 | architect | yes/no | <reason> |
 | product-owner | yes/no | <reason> |
 | user | yes/no | <reason> |
+| cleaner | yes/no | <reason> |
+| cleanliness-inspector | yes/no | <reason> |
+| git-edge-case-analyst | yes/no | <reason> |
+| prompt-inspector | yes/no | <reason> |
+| rule-inspector | yes/no | <reason> |
+| style-inspector | yes/no | <reason> |
+| test-executor | yes/no | <reason> |
+| test-validator | yes/no | <reason> |
 
 ## Views Created
 
@@ -674,46 +722,31 @@ Checkpoint count bounds:
 - Maximum: 10 per agent (prevents unbounded generation)
 - If you cannot produce at least 1 checkpoint for an agent, log a warning and add a single placeholder checkpoint `cp-00` with action `"Review <agent>.md view for work items"`.
 
-### Per-agent checkpoint templates
+### Dynamic checkpoint derivation (NO hardcoded role checklist)
 
-These are starter templates. Adapt them to the spec's specific content. Only generate checkpoints for agents that received views.
+There is no fixed per-agent checklist. Generate checkpoints from the actual
+monolith/view content for this spec. For every selected agent:
 
-**ba**:
-- cp-01: `"Read ba.md view and identify requirements"`
-- cp-02: `"Write docs/dev/ba-spec-<ts>.md and docs/dev/context-<ts>.json"`
-- cp-03: `"Verify context.requirement.success_criteria is non-empty"`
+1. Read that agent's generated view.
+2. Extract the concrete obligations, artifacts, measurements, reports, gates, or
+   decisions assigned to that agent by the spec.
+3. Convert each obligation into one atomic, binary, action-verb-first checkpoint.
+4. Preserve traceability: every checkpoint action must be justified by content in
+   the view/monolith, not by a reusable role template.
+5. If the spec gives no concrete obligation for a selected agent, do not invent a
+   role-default checklist. Either exclude the agent in Phase 0 or create exactly
+   one placeholder checkpoint `cp-00` stating `Review <agent>.md view for work
+   items`, and emit a warning explaining why the view had no actionable item.
 
-**dev**:
-- cp-01: `"Read dev.md view and identify implementation tasks"`
-- cp-02: `"Write docs/dev/dev-report-<ts>.json with status=completed|blocked"`
-- cp-03: `"Run project build verification and record result"`
+Forbidden:
 
-**qa**:
-- cp-01: `"Read qa.md view and identify acceptance criteria"`
-- cp-02: `"Write docs/dev/qa-report-<ts>.json with verdict=pass|fail|warning"`
-- cp-03: `"Populate Section 4 (Current State) of monolith with measured values"`
+- Copying fixed BA/Dev/QA/PM/etc. template checklists across unrelated specs.
+- Generating project-specific checkpoints in the global root dev workflow.
+- Selecting project-local domain agents unless the workflow is run
+  inside that project with its own project-local `.claude/agents`.
 
-**pm**:
-- cp-01: `"Read pm.md view and identify priority rankings"`
-- cp-02: `"Write triage.json or retro.json with tier rankings"`
-
-**architect**:
-- cp-01: `"Read architect.md view and identify structural concerns"`
-- cp-02: `"Write architect report JSON with concerns[] and mitigations[]"`
-
-**product-owner**:
-- cp-01: `"Read product-owner.md view and verify acceptance criteria alignment"`
-- cp-02: `"Write PO report JSON with concerns referencing user's acceptance criterion"`
-
-**ui-specialist**:
-- cp-01: `"Read ui-specialist.md view and identify visual design tasks"`
-- cp-02: `"Write UI specialist report JSON with visual-state observations"`
-
-**user**:
-- cp-01: `"Read user.md view and confirm acceptance criterion understood"`
-- cp-02: `"Write user report JSON"`
-
-Adapt the action text to the spec's content. Never omit a template checkpoint without replacing it with an equivalent action.
+Adapt the action text to the spec's actual content. Never omit a required
+spec-derived checkpoint without replacing it with an equivalent atomic action.
 
 ---
 
@@ -741,7 +774,7 @@ After all three phases complete, emit a JSON summary to stdout:
   "spec_id": "<spec-id>",
   "phase0": {
     "agents_selected": ["ui-specialist", "ba", "dev", "qa"],
-    "agents_excluded": ["pm", "architect", "product-owner", "user"],
+    "agents_excluded": ["pm", "architect", "product-owner", "user", "...other non-relevant subagents"],
     "reasoning": "Spec defines UI→BA→Dev→QA workflow per Hard Rule 14"
   },
   "phase1": {
@@ -765,7 +798,8 @@ After all three phases complete, emit a JSON summary to stdout:
       "ba": ".claude/specs/<spec-id>/cp-state-ba.json",
       "dev": ".claude/specs/<spec-id>/cp-state-dev.json",
       "qa": ".claude/specs/<spec-id>/cp-state-qa.json",
-      "ui-specialist": ".claude/specs/<spec-id>/cp-state-ui-specialist.json"
+      "ui-specialist": ".claude/specs/<spec-id>/cp-state-ui-specialist.json",
+      "<any-selected-non-core-agent>": ".claude/specs/<spec-id>/cp-state-<agent>.json"
     },
     "checkpoint_counts": {
       "ba": 3,
@@ -790,3 +824,28 @@ python3 /root/bin/spec-check.py status --spec-id <spec-id> --agent <agent>
 The status should show N checkpoints, all in `pending` state, with a timestamp matching your run.
 
 If the status command prints "no cp-state files", your writes failed — investigate and retry.
+
+---
+
+## Checkpoint Marking Contract
+
+When this subagent is launched with a `/spec`-driven checklist, the prompt will
+name a `SPEC_ID` and the cp-state file for this role:
+`.claude/specs/<SPEC_ID>/cp-state-spec.json` (or a numbered same-role slot).
+This contract is mandatory in that mode:
+
+1. Read the named cp-state file before doing substantive work. That read
+   registers the Claude-internal agent id with `pretool-cp-checkin.py`.
+   Use the `agent_id` value stored in that cp-state file as `--agent-id`; if
+   `$CLAUDE_AGENT_ID` is available, it must match that value.
+2. Treat each `checkpoints[].id` entry as a required checklist item.
+3. Immediately after completing a checkpoint's atomic action, mark it done with
+   `/root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent spec --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
+4. If a checkpoint is genuinely not applicable, waive it with a concrete reason:
+   `/root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent spec --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>"`.
+5. Before stopping, confirm every checkpoint is either `done` or
+   `waived-with-reason`. Pending checkpoints cause `subagentstop-cp-enforce.py`
+   to block exit with code 2.
+
+If no `SPEC_ID`/cp-state handoff is provided, this contract is inactive and the
+subagent follows its normal standalone workflow.

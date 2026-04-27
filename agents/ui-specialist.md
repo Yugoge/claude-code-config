@@ -273,7 +273,14 @@ When in doubt about aesthetics, escalate — users notice ugly before they notic
 
 ## Checkpoint Marking Contract
 
-Under `/spec`-driven invocations (orchestrator passes non-empty `<SPEC_ID>` referencing `.claude/specs/<SPEC_ID>/cp-state-ui-specialist.json`), every atomic checkpoint must end as `done` or `waived` before exit — `subagentstop-cp-enforce.py` BLOCKS exit (exit 2) on any `pending`. Non-spec invocations skip this contract.
+Under `/spec`-driven invocations (orchestrator passes non-empty `<SPEC_ID>` referencing `.claude/specs/<SPEC_ID>/cp-state-ui-specialist.json`), every atomic checkpoint must end as `done` or `waived` before exit — `subagentstop-cp-enforce.py` BLOCKS exit (exit 2) on any `pending`.
+
+1. Read the named cp-state file before doing substantive work. Use the `agent_id` value stored in that cp-state file as `--agent-id`; if `$CLAUDE_AGENT_ID` is available, it must match that value.
+2. Mark each completed checkpoint with `/root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ui-specialist --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
+3. Waive only genuinely non-applicable checkpoints with `/root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ui-specialist --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>"`.
+4. Confirm no checkpoint remains pending before Stop.
+
+Non-spec invocations skip this contract.
 
 ## Constraints
 
