@@ -141,7 +141,7 @@ def _block_bash(command: str, kind: str) -> None:
 
 
 def _evaluate_write_edit(tool_name: str, tool_input: dict) -> None:
-    """Apply guard for Write/Edit/NotebookEdit tools."""
+    """Apply guard for Write/Edit/MultiEdit/NotebookEdit tools."""
     file_path = tool_input.get('file_path', '') or ''
     if _is_hooks_path(file_path):
         _block_path(tool_name, file_path, 'hooks')
@@ -159,7 +159,7 @@ def _evaluate_bash(tool_input: dict) -> None:
 
 def _evaluate(tool_name: str, tool_input: dict) -> None:
     """Dispatch evaluation by tool_name."""
-    if tool_name in ('Edit', 'Write', 'NotebookEdit'):
+    if tool_name in ('Edit', 'Write', 'MultiEdit', 'NotebookEdit'):
         _evaluate_write_edit(tool_name, tool_input)
     elif tool_name == 'Bash':
         _evaluate_bash(tool_input)

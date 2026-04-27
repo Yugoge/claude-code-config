@@ -207,16 +207,37 @@ DEV_SESSION_ID="$session_id"  # from overnight state file
 REGISTRY_DIR="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID"
 mkdir -p "$REGISTRY_DIR"
 for agent in \
-    ba qa dev pm architect product-owner ui-specialist user \
-    cleaner rule-inspector style-inspector prompt-inspector \
-    cleanliness-inspector git-edge-case-analyst \
-    test-executor test-validator; do
+    architect ba cleaner cleanliness-inspector dev git-edge-case-analyst \
+    pm product-owner prompt-inspector qa rule-inspector style-inspector \
+    test-executor test-validator ui-specialist user; do
   printf '{"agent_type": "%s", "session_id": "%s"}\n' "$agent" "$DEV_SESSION_ID" \
     > "$REGISTRY_DIR/$agent.json"
 done
 ```
 
 Every Agent launch prompt in this orchestrator MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent. In continuation mode (after a hook-induced context reset), re-run the `mkdir -p` + sentinel loop above — it's idempotent, so re-running is safe and guarantees sentinels exist even if a cleanup step removed them.
+
+**Initialize cp-state handoff when a user-provided `/spec` exists** (MANDATORY in `spec_mode == "user-provided"` when cp-state files exist):
+
+If `user_spec_path` points at `docs/dev/specs/<SPEC_ID>.md` and the sibling
+directory `.claude/specs/<SPEC_ID>/` contains cp-state files, bind:
+
+```bash
+SPEC_ID="<SPEC_ID from user_spec_path basename>"
+```
+
+If no spec/cp-state directory exists, set `SPEC_ID=""` and skip the `SECOND ACTION`
+lines below. If a particular agent has no cp-state file under that SPEC_ID, omit that
+agent's `SECOND ACTION` for this launch. When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a
+cp-state file MUST include a `SECOND ACTION` line immediately after the dev-registry `FIRST ACTION`:
+
+```text
+SECOND ACTION: Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json to load your mandatory checklist before doing substantive work. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
+```
+
+This gives overnight specialists the same checklist-stop semantics as BA/Dev/QA:
+check-in happens on the cp-state read, and Stop is blocked until the checklist is
+fully done or waived.
 
 ---
 
@@ -347,6 +368,7 @@ Use Agent tool with:
 - description: "Build test plan from project docs and session history"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/pm.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-pm.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   You are the PM subagent. Follow agents/pm.md instructions precisely.
 
@@ -521,6 +543,7 @@ Available specialists:
 
 Each subagent receives, at the TOP of its prompt before any other content:
 - FIRST ACTION line: "Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/<specialist.type>.json to register with the enforcement system. Do this BEFORE any other tool call."
+- SECOND ACTION line when SPEC_ID is non-empty and that specialist cp-state file exists: "Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<specialist.type>.json to load the mandatory checklist; mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent <specialist.type> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent <specialist.type> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason <reason>. Stop is blocked while pending checkpoints remain."
 - Project path: <worktree_path from state file if set, otherwise project_path>
 - Already addressed: <addressed_issues array from state file>
 - Focus: <focus string from state file, or "none">
@@ -632,6 +655,7 @@ Use Agent tool with:
 - description: "PM triage: classify and prioritize all specialist findings"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/pm.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-pm.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   PM_MODE: TRIAGE
 
@@ -856,6 +880,7 @@ Agent(subagent_type: "ba")
   description: "BA analysis for pipeline {i}: {pipeline.description}"
   prompt: "
     FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+    SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
     You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -937,6 +962,7 @@ Agent(subagent_type: "qa")
   description: "Validate BA analysis quality for pipeline {i} (not code)"
   prompt: "
     FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+    SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
     You are the QA subagent in BA-VALIDATION MODE. This is NOT code verification.
     You are verifying the QUALITY OF BA's ANALYSIS, not any implementation.
@@ -1033,6 +1059,7 @@ Use Agent tool with:
 - description: "Re-investigate: address QA objections on analysis quality"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -1079,6 +1106,7 @@ Agent(subagent_type: "dev")
   description: "Dev implementation for pipeline {i}: {pipeline.description}"
   prompt: "
     FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/dev.json to register with the enforcement system. Do this BEFORE any other tool call.
+    SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-dev.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent dev --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent dev --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
     You are the dev subagent. Follow agents/dev.md instructions precisely.
 
@@ -1163,6 +1191,7 @@ Agent(subagent_type: "qa")
   description: "QA verification for pipeline {i}: {pipeline.description}"
   prompt: "
     FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+    SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
     You are the QA subagent. Follow agents/qa.md instructions precisely.
 
@@ -1454,6 +1483,7 @@ Use Agent tool with:
 - description: "PM retrospective: cycle {N} summary and next-cycle handoff"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/pm.json to register with the enforcement system. Do this BEFORE any other tool call.
+  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-pm.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
 
   PM_MODE: RETRO
   FINAL_CYCLE: <true|false>

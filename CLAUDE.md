@@ -9,7 +9,7 @@
 
 > Personal global settings for all projects
 <!-- AUTO:last-updated -->
-> Last updated: 2026-04-24
+> Last updated: 2026-04-27
 <!-- /AUTO:last-updated -->
 
 ---
