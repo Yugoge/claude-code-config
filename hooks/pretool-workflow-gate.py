@@ -154,6 +154,130 @@ def codex_plan_matches_canonical(plan: list, canonical: list) -> bool:
     return completed == 0 and (not in_progress or in_progress == [0])
 
 
+def codex_plan_to_todos(plan: list, canonical: list) -> tuple[list, list]:
+    """Convert a Codex update_plan payload to canonical TodoWrite-shaped todos."""
+    violations = []
+    todos = []
+    if not canonical:
+        return [], ['Canonical workflow definition is unavailable']
+    if not isinstance(plan, list):
+        return [], ['Codex plan payload is not a list']
+    if len(plan) != len(canonical):
+        return [], [f'Expected {len(canonical)} steps, got {len(plan)}']
+    for idx, (item, expected) in enumerate(zip(plan, canonical)):
+        if not isinstance(item, dict):
+            violations.append(f'Step {idx}: plan item is not an object')
+            continue
+        status = item.get('status', 'pending')
+        if status not in {'pending', 'in_progress', 'completed'}:
+            violations.append(f'Step {idx}: invalid status "{status}"')
+        step_text = item.get('step') or item.get('content') or item.get('title') or ''
+        actual = normalize_step_text(str(step_text))
+        expected_texts = {
+            normalize_step_text(str(expected.get('content', ''))),
+            normalize_step_text(str(expected.get('activeForm', ''))),
+        }
+        if actual not in expected_texts:
+            violations.append(
+                f'Step {idx}: content does not match canonical '
+                f'("{step_text}" != "{expected.get("content", "")}")'
+            )
+        todo_item = expected.copy()
+        todo_item['status'] = status
+        todos.append(todo_item)
+    return todos, violations
+
+
+def _completed_indices(todos: list) -> set:
+    return {i for i, todo in enumerate(todos) if todo.get('status') == 'completed'}
+
+
+def _in_progress_indices(todos: list) -> list:
+    return [i for i, todo in enumerate(todos) if todo.get('status') == 'in_progress']
+
+
+def validate_initial_codex_todos(new_todos: list) -> list:
+    """First Codex plan call must initialize, not skip into later workflow steps."""
+    violations = []
+    completed = sorted(_completed_indices(new_todos))
+    in_progress = _in_progress_indices(new_todos)
+    if completed:
+        violations.append(
+            'Initial Codex update_plan cannot contain completed steps: '
+            + ', '.join(str(i) for i in completed)
+        )
+    if len(in_progress) > 1:
+        violations.append(f'Initial Codex update_plan has {len(in_progress)} in_progress steps')
+    if in_progress and in_progress != [0]:
+        violations.append(f'Initial in_progress must be Step 0, not Step {in_progress[0]}')
+    return violations
+
+
+def validate_codex_transition(state: dict, old_todos: list, new_todos: list) -> list:
+    """Mirror TodoWrite sequence rules for Codex update_plan payloads."""
+    violations = []
+    if len(old_todos) != len(new_todos):
+        violations.append(f'Step count changed from {len(old_todos)} to {len(new_todos)}')
+        return violations
+
+    old_completed = _completed_indices(old_todos)
+    new_completed = _completed_indices(new_todos)
+    newly_completed = new_completed - old_completed
+    if len(newly_completed) > 1:
+        violations.append(
+            'Completed more than one step in one update: '
+            + ', '.join(str(i) for i in sorted(newly_completed))
+        )
+    for idx in sorted(newly_completed):
+        if old_todos[idx].get('status') == 'pending':
+            violations.append(f'Step {idx}: pending -> completed without in_progress')
+
+    in_progress = _in_progress_indices(new_todos)
+    if len(in_progress) > 1:
+        violations.append(
+            'Multiple in_progress steps: ' + ', '.join(str(i) for i in in_progress)
+        )
+
+    for idx, (old, new) in enumerate(zip(old_todos, new_todos)):
+        if old.get('status') != 'pending' or new.get('status') != 'in_progress':
+            continue
+        for prev_idx in range(idx):
+            if new_todos[prev_idx].get('status') != 'completed':
+                violations.append(
+                    f'Step {idx}: cannot start before Step {prev_idx} is completed'
+                )
+                break
+
+    for idx, (old, new) in enumerate(zip(old_todos, new_todos)):
+        if old.get('status') != 'in_progress' or new.get('status') != 'completed':
+            continue
+        subagent_call = new.get('subagent_call')
+        if subagent_call and not state.get('subagent_calls', {}).get(str(idx), False):
+            violations.append(f'Step {idx}: subagent step completed before required subagent call')
+    return violations
+
+
+def emit_codex_plan_block(cmd_name: str, violations: list, last_todos: list) -> None:
+    numbered = '\n'.join(f'  [{idx + 1}] {value}' for idx, value in enumerate(violations))
+    next_json = build_sequence_fix_call(last_todos) if last_todos else ''
+    plan_hint = codex_plan_hint(next_json) if next_json else ''
+    hint = (
+        '\nNext valid Codex update_plan payload:\n' + plan_hint + '\n'
+        if plan_hint else ''
+    )
+    sys.stderr.write(
+        f'\nBLOCKED Codex update_plan for /{cmd_name}:\n'
+        + numbered
+        + '\n\nRULES: (1) one completion per update '
+        '(2) must pass through in_progress '
+        '(3) one in_progress at a time '
+        '(4) no step skipping '
+        '(5) required subagent steps need matching subagent evidence.\n'
+        + hint
+    )
+    sys.exit(2)
+
+
 def persist_codex_initialization(
     session_id: str,
     bookmark_path: Path,
@@ -210,10 +334,17 @@ def codex_plan_hint(todo_json: str) -> str:
 
 
 def acknowledge_codex_plan(data: dict, session_id: str, bookmark_path: Path, project_dir: Path) -> bool:
-    """Accept a Codex-native plan as the TodoWrite equivalent for initialization.
+    """Accept a Codex-native plan as the TodoWrite equivalent.
 
     This path is gated behind CLAUDE_COMPAT_RUNTIME=codex, which is set only by
     the Codex legacy-hook wrapper. Claude Code still requires TodoWrite.
+
+    Earlier compatibility only accepted update_plan as an initial bootstrap. That
+    left a hole: once initialized, a Codex agent could visually skip workflow
+    steps with update_plan while the legacy TodoWrite validators never saw the
+    transition. Treat update_plan as the full TodoWrite-equivalent here: validate
+    canonical shape, enforce one-step-at-a-time progression, persist last_todos,
+    and block invalid transitions before the plan UI is updated.
     """
     if not is_codex_runtime(data):
         return False
@@ -235,14 +366,23 @@ def acknowledge_codex_plan(data: dict, session_id: str, bookmark_path: Path, pro
 
     cmd_name = state.get('command', '')
     canonical = run_canonical_todos(cmd_name, project_dir)
-    if not codex_plan_matches_canonical(plan, canonical):
-        return False
+    todos, violations = codex_plan_to_todos(plan, canonical)
+    if violations:
+        emit_codex_plan_block(cmd_name, violations, state.get('last_todos') or [])
 
-    todos = []
-    for item, expected in zip(plan, canonical):
-        todo_item = expected.copy()
-        todo_item['status'] = item.get('status', 'pending')
-        todos.append(todo_item)
+    last_todos = state.get('last_todos')
+    if last_todos is None:
+        violations = validate_initial_codex_todos(todos)
+    else:
+        violations = validate_codex_transition(state, last_todos, todos)
+    if violations:
+        try:
+            state['todo_acknowledged'] = False
+            state['lock_reason'] = 'sequence_violation'
+            bookmark_path.write_text(json.dumps(state, ensure_ascii=False))
+        except Exception:
+            pass
+        emit_codex_plan_block(cmd_name, violations, last_todos or todos)
 
     if not persist_codex_initialization(session_id, bookmark_path, state, todos, implicit=False):
         return False

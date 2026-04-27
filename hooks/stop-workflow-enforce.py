@@ -9,7 +9,8 @@ Logic:
   4. Run todo script fresh to get canonical blocking_count
   5. Read ~/.claude/todos/{sid}-agent-{sid}.json for actual len(todos)
   6. If len(todos) < blocking_count → exit 2 (Claude dropped steps)
-  7. Otherwise → exit 0
+  7. If any required step is not completed → exit 2
+  8. Otherwise → exit 0
 
 blocking_count always computed from todo script — never from cache.
 
@@ -49,6 +50,52 @@ def run_todo_script(cmd_name: str, project_dir: Path) -> list:
         return []
 
 
+def _step_label(todo: dict, index: int) -> str:
+    return todo.get('content') or todo.get('step') or f'Step {index}'
+
+
+def _load_actual_todos(session_id: str) -> tuple[list, str]:
+    todos_file = official_todos_path(session_id)
+    if not todos_file.exists():
+        return [], 'missing'
+    try:
+        payload = json.loads(todos_file.read_text())
+    except Exception:
+        return [], 'unreadable'
+    if not isinstance(payload, list):
+        return [], 'invalid'
+    return payload, ''
+
+
+def _canonical_shape_violations(actual: list, canonical: list) -> list:
+    violations = []
+    for idx, expected in enumerate(canonical):
+        if idx >= len(actual):
+            break
+        actual_item = actual[idx] if isinstance(actual[idx], dict) else {}
+        if actual_item.get('content') != expected.get('content'):
+            violations.append(
+                f'Step {idx} content mismatch: '
+                f'"{actual_item.get("content", "")}" != "{expected.get("content", "")}"'
+            )
+        if actual_item.get('activeForm') != expected.get('activeForm'):
+            violations.append(f'Step {idx} activeForm mismatch')
+    return violations
+
+
+def _incomplete_steps(actual: list, blocking_count: int) -> list:
+    return [
+        (idx, item)
+        for idx, item in enumerate(actual[:blocking_count])
+        if not isinstance(item, dict) or item.get('status') != 'completed'
+    ]
+
+
+def _emit_block(cmd_name: str, message: str) -> None:
+    sys.stderr.write(f'\n⛔ WORKFLOW ENFORCEMENT: /{cmd_name} cannot stop.\n{message}\n')
+    sys.exit(2)
+
+
 def main():
     stop_hook_active = False
     session_id = 'default'
@@ -85,24 +132,47 @@ def main():
 
     blocking_count = len(canonical)
 
-    # Read actual todos
-    todos_file = official_todos_path(session_id)
-    if not todos_file.exists():
-        actual_count = 0
-    else:
-        try:
-            actual_count = len(json.loads(todos_file.read_text()))
-        except Exception:
-            sys.exit(0)
+    actual, load_error = _load_actual_todos(session_id)
+    actual_count = len(actual)
+    if load_error:
+        _emit_block(
+            cmd_name,
+            f'Checklist file is {load_error}. Re-initialize and complete all '
+            f'{blocking_count} required steps.',
+        )
 
     if actual_count < blocking_count:
-        sys.stderr.write(
-            f'\n⛔ WORKFLOW ENFORCEMENT: /{cmd_name} requires {blocking_count} steps '
-            f'but only {actual_count} found in checklist ({blocking_count - actual_count} missing).\n'
-            f'Claude must not drop steps from the canonical workflow.\n'
-            f'Re-initialize the checklist with all {blocking_count} steps.\n'
+        _emit_block(
+            cmd_name,
+            f'/{cmd_name} requires {blocking_count} steps but only {actual_count} '
+            f'were found in the checklist ({blocking_count - actual_count} missing).\n'
+            f'The agent must not drop steps from the canonical workflow.\n'
+            f'Re-initialize the checklist with all {blocking_count} steps.',
         )
-        sys.exit(2)
+
+    shape_violations = _canonical_shape_violations(actual, canonical)
+    if shape_violations:
+        _emit_block(
+            cmd_name,
+            'Checklist no longer matches the canonical workflow:\n'
+            + '\n'.join(f'  - {value}' for value in shape_violations[:10]),
+        )
+
+    incomplete = _incomplete_steps(actual, blocking_count)
+    if incomplete:
+        sample = '\n'.join(
+            f'  - Step {idx}: {_step_label(item if isinstance(item, dict) else {}, idx)} '
+            f'[{item.get("status", "invalid") if isinstance(item, dict) else "invalid"}]'
+            for idx, item in incomplete[:10]
+        )
+        remaining = '' if len(incomplete) <= 10 else f'\n  ... {len(incomplete) - 10} more'
+        _emit_block(
+            cmd_name,
+            f'{len(incomplete)} required step(s) are not completed:\n'
+            + sample
+            + remaining
+            + '\nComplete the workflow checklist before stopping.',
+        )
 
     sys.exit(0)
 
