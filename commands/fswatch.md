@@ -70,10 +70,6 @@ The watcher automatically handles:
 4. **Diverged Branches**: Auto-pulls before push
 5. **Detached HEAD**: Stops with clear message
 
-## Full Documentation
-
-See: `~/.claude/docs/git-fswatch.md`
-
 ## Comparison with Smart Checkpoint
 
 | Feature | Smart Checkpoint | FSWatch |
@@ -84,9 +80,3 @@ See: `~/.claude/docs/git-fswatch.md`
 | Delay | Instant | 5s debounce |
 
 **Best practice**: Use both for maximum protection!
-
----
-
-**Related**:
-- Smart checkpoint: `~/.claude/docs/auto-sync-analysis.md`
-- Lock handling: `~/.claude/docs/lock-file-handling.md`

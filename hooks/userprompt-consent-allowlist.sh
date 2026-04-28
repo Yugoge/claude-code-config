@@ -34,38 +34,83 @@ SID=$(echo "$INPUT" | python3 -c \
 # Only fire on `/allow ` prefix (case-sensitive). Trailing space required so
 # `/allow-something-else` does not trigger.
 case "$PROMPT" in
-  "/allow "*) ;;
+  "/allow "*|"/allow") ;;
   *) exit 0 ;;
 esac
 
-# ── Step 2: parse pattern ──────────────────────────────────────────
-# Everything after the leading `/allow ` (python handles trim + re: prefix safely).
-PATTERN=$(PROMPT="$PROMPT" python3 -c "
-import os
+# ── Step 2: parse flags + optional comment (flag-style aligned with /close) ──
+# Syntax:
+#   /allow                                  -> wildcard, no comment
+#   /allow --tool rm                        -> literal pattern "rm"
+#   /allow --tool rm 删冗余文件             -> literal "rm" + comment
+#   /allow --regex ^git\s+stash             -> regex pattern
+#   /allow --regex ^git cleanup             -> regex + comment
+# Backward-compat: /allow rm and /allow re:^git still parse as legacy bare pattern.
+# Resolution: --tool/--regex WINS (all bare tokens become comment); else first bare
+# token is the pattern; else wildcard.
+PARSED=$(PROMPT="$PROMPT" python3 -c "
+import os, shlex
 p = os.environ.get('PROMPT','')
+body = ''
 if p.startswith('/allow '):
-    print(p[len('/allow '):].strip())
+    body = p[len('/allow '):]
+elif p == '/allow':
+    body = ''
+try:
+    raw_tokens = shlex.split(body, posix=False) if body else []
+except ValueError:
+    raw_tokens = body.split() if body else []
+tokens = []
+for t in raw_tokens:
+    if len(t) >= 2 and t[0] == t[-1] and t[0] in (chr(0x22), chr(0x27)):
+        t = t[1:-1]
+    tokens.append(t)
+flag_pattern, flag_is_regex = None, None
+bare = []
+i = 0
+while i < len(tokens):
+    t = tokens[i]
+    if t == '--tool' and i+1 < len(tokens):
+        flag_pattern, flag_is_regex = tokens[i+1], False
+        i += 2
+    # --regex flag intentionally removed: hook auto-detects regex from
+    # presence of regex metacharacters in the pattern.
+    else:
+        bare.append(t)
+        i += 1
+import re as _re
+def _looks_regex(s):
+    # Heuristic: contains regex metacharacter (excluding plain alphanumerics + space + - / .)
+    return bool(_re.search(r'[\^$\\.*+?\[\]\(\){}|]', s))
+
+if flag_pattern is not None:
+    pattern = flag_pattern
+    is_regex = _looks_regex(flag_pattern)
+    comment = ' '.join(bare)
+elif bare:
+    first = bare[0]
+    if first.startswith('re:'):
+        pattern, is_regex = first[3:], True
+    else:
+        pattern = first
+        is_regex = _looks_regex(first)
+    comment = ' '.join(bare[1:])
 else:
-    print('')
-")
+    pattern, is_regex = '.*', True
+    comment = ''
+print(pattern)
+print('true' if is_regex else 'false')
+print(comment.strip())
+" 2>/dev/null)
+PATTERN=$(echo "$PARSED" | sed -n '1p')
+PARSED_IS_REGEX=$(echo "$PARSED" | sed -n '2p')
+COMMENT=$(echo "$PARSED" | sed -n '3p')
 
+# Python parser already resolved PATTERN + IS_REGEX. Just adopt them.
+IS_REGEX="$PARSED_IS_REGEX"
 if [ -z "$PATTERN" ]; then
-  echo "[allow] ERROR: empty pattern. Usage: /allow <substring> or /allow re:<regex>" >&2
-  exit 0
-fi
-
-# Determine regex vs literal. If user typed `re:<body>`, strip the prefix.
-IS_REGEX="false"
-case "$PATTERN" in
-  "re:"*)
-    IS_REGEX="true"
-    PATTERN="${PATTERN#re:}"
-    ;;
-esac
-
-if [ -z "$PATTERN" ]; then
-  echo "[allow] ERROR: empty regex body after 're:'. Usage: /allow re:<regex>" >&2
-  exit 0
+  PATTERN=".*"
+  IS_REGEX="true"
 fi
 
 # ── V1b: structural rejection of catastrophic-backtracking regex shapes ──
@@ -105,7 +150,15 @@ with open(os.environ['FLAG_PATH'], 'w') as f:
 # ── Audit log ───────────────────────────────────────────────────────
 CONSENT_LOG="$HOME/.claude/logs/bash-consent.log"
 mkdir -p "$(dirname "$CONSENT_LOG")"
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$SID GRANTED pattern='$PATTERN' is_regex=$IS_REGEX" >> "$CONSENT_LOG"
+if [ -n "$COMMENT" ]; then
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$SID GRANTED pattern='$PATTERN' is_regex=$IS_REGEX comment='$COMMENT'" >> "$CONSENT_LOG"
+else
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$SID GRANTED pattern='$PATTERN' is_regex=$IS_REGEX" >> "$CONSENT_LOG"
+fi
 
-echo "[allow] Grant recorded: pattern='$PATTERN' is_regex=$IS_REGEX. Valid for ONE matching developer-class bash call this turn."
+if [ -n "$COMMENT" ]; then
+  echo "[allow] Grant recorded: pattern='$PATTERN' is_regex=$IS_REGEX comment='$COMMENT'. Valid for ONE matching bash call this turn."
+else
+  echo "[allow] Grant recorded: pattern='$PATTERN' is_regex=$IS_REGEX. Valid for ONE matching bash call this turn."
+fi
 exit 0

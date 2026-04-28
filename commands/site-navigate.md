@@ -14,25 +14,21 @@ Simulate intelligent site navigation without actual browser interaction.
 
 ⚠️ **CRITICAL**: WebFetch is DISABLED (timeout risk). Use Playwright MCP instead.
 
-Navigate to starting URL ($1) using Playwright:
-```
-1. Use mcp__playwright__navigate to open $1
-2. Extract page structure using mcp__playwright__evaluate:
-   - Navigation menus: document.querySelectorAll('nav a, .menu a')
-   - All links: document.querySelectorAll('a[href]')
-   - Main content: document.querySelector('main, article, .content')
-3. Analyze structure to find information about "$2":
-   - Navigation Structure: All menu items, categories, sections
-   - Key Links: URLs that might lead to "$2"
-   - Search Functionality: input[type="search"], .search-box
-   - Direct Matches: Any content directly related to "$2"
-4. For each relevant link, provide:
-   - Link text
-   - Complete URL
-   - Estimated relevance to goal (High/Medium/Low)
-   - Why it might contain the target information
-5. Organize by estimated relevance
-```
+Navigate to the starting URL ($1) using Playwright, then extract the page structure and analyze it to find information about "$2":
+- Navigation menus and all visible links (anchor href values)
+- Main content region (article / main / content body)
+- Categories, sections, and the navigation tree
+- Key links whose text or URL suggests they lead to "$2"
+- Search functionality (search input, search box)
+- Direct matches: content directly related to "$2"
+
+For each relevant link, return:
+- Link text
+- Complete URL
+- Estimated relevance to goal (High / Medium / Low)
+- Why it might contain the target information
+
+Organize the result by estimated relevance.
 
 ### Phase 2: Path Selection
 From Phase 1 analysis, select the top 3 most promising links.
@@ -43,19 +39,9 @@ Selection criteria:
 - Description indicates authoritative/official content
 
 ### Phase 3: Parallel Exploration
-Navigate to the top 3 links **in parallel** using Playwright:
-```
-For each link:
-1. Use mcp__playwright__navigate
-2. Search page for information about "$2" using mcp__playwright__evaluate
-3. If found:
-   - Extract complete information from main content area
-   - Find downloadable resources: a[href$=".pdf"], a[href*="download"]
-   - Identify deeper links in content
-4. If not found:
-   - Identify which links on this page might lead to "$2"
-   - Extract URLs of up to 3 most relevant next steps
-```
+Navigate to the top 3 links **in parallel** using Playwright. For each link, search the page for information about "$2":
+- If found: extract the complete information from the main content area, list any downloadable resources (PDFs, download links), and identify deeper links worth following.
+- If not found: identify which links on this page might lead to "$2", and return the URLs of up to 3 most relevant next steps.
 
 ### Phase 4: Depth Navigation (if needed)
 If Phase 3 found promising deeper links but not final target:

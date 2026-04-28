@@ -5,7 +5,7 @@ Organization and usage documentation for `commands/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 35
+- **Total files**: 34
 - **Subdirectories**: 0
 - **Naming convention**: lower
 
@@ -20,7 +20,6 @@ Organization and usage documentation for `commands/`.
 - `deep-search.md` - Deep website exploration with iterative search strategy
 - `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 - `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
-- `dev-overnight.md.bak` - bak file
 - `dev.md` - Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification
 - `do.md` - Grant the main agent consent to perform direct operations in this session. This is a one-time consent flag.
 - `doc-gen.md` - Generate comprehensive documentation for code

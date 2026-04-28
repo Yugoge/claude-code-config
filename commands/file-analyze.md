@@ -33,13 +33,16 @@ Check the file extension to determine the analysis approach.
 #### Option 1: Quick CLI Analysis (Fastest - Recommended for developers)
 ```bash
 # Use the professional excel-analyzer tool
-node /root/excel-analyzer/analyze-excel.js "$1"
+# Resolves via $EXCEL_ANALYZER env var, falls back to $HOME/excel-analyzer
+ANALYZER="${EXCEL_ANALYZER:-$HOME/excel-analyzer/analyze-excel.js}"
+
+node "$ANALYZER" "$1"
 
 # For specific analysis:
-node /root/excel-analyzer/analyze-excel.js "$1" --formulas  # Extract all formulas
-node /root/excel-analyzer/analyze-excel.js "$1" --all       # Analyze all sheets
-node /root/excel-analyzer/analyze-excel.js "$1" --sheet "SheetName"  # Specific sheet
-node /root/excel-analyzer/analyze-excel.js "$1" --export output.json  # Export to JSON
+node "$ANALYZER" "$1" --formulas  # Extract all formulas
+node "$ANALYZER" "$1" --all       # Analyze all sheets
+node "$ANALYZER" "$1" --sheet "SheetName"  # Specific sheet
+node "$ANALYZER" "$1" --export output.json  # Export to JSON
 ```
 
 **Benefits:**

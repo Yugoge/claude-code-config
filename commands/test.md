@@ -552,13 +552,7 @@ Format and display failures:
 **Recommendation**: Use `source ~/.claude/venv/bin/activate && python3` pattern for all Python invocations
 
 **Fix Command**:
-```bash
-# Option 1: Manual fix
-# Edit each file and update venv usage
-
-# Option 2: Automated fix (if available)
-./tests/scripts/fix-venv-usage.sh --project-root .
-```
+Manual fix: edit each affected file and update venv usage to match the project's activation pattern.
 
 ---
 

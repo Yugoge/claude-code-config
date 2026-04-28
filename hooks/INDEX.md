@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-04-27T13:18:32Z*
-**Total entries**: 110
+*Last updated: 2026-04-28T10:17:55Z*
+**Total entries**: 111
 **Convention**: kebab
 
 ## Tree
@@ -31,6 +31,8 @@ hooks/
 │   ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
 │   ├── `specialist_yield.py` - Public API:
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
+├── tests/
+│   └── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
 ├── `audit-slashcommand.sh` - audit-slashcommand.sh
 ├── `auto-commit.sh` - ============================================================================
 ├── `check-todo-md-sync.py` - check-todo-md-sync.py — Session-start drift detector for todo scripts
@@ -73,7 +75,7 @@ hooks/
 ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
 ├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 2.
 ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
-├── `pretool-cp-checkin.py` - Triggers when a subagent's `Read` tool call targets a file whose path matches:
+├── `pretool-cp-checkin.py` - cp-state file read
 ├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
 ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
@@ -108,7 +110,6 @@ hooks/
 ├── `smart-checkpoint.sh` - smart-checkpoint.sh - DEPRECATED, scheduled for deletion
 ├── `start-fswatch-all.sh` - start-fswatch-all.sh - Start fswatch monitoring for all important repositories
 ├── `stop-cleanup-allowlist.sh` - Stop Hook: Wipe any unconsumed /allow grant at turn end.
-├── `stop-git-commit.sh` - ============================================================================
 ├── `stop-overnight-timelock.py` - Stop Hook: Block conversation termination until overnight end-time
 ├── `stop-spec-coverage-enforce.py` - Stop Hook: Block spec agent from exiting with < 100% monolith coverage
 ├── `stop-workflow-enforce.py` - Stop Hook: Enforce workflow structural integrity before allowing Claude to stop

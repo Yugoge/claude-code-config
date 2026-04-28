@@ -18,7 +18,7 @@
     "PLAYWRIGHT_MCP_SANDBOX": "false",
     "PLAYWRIGHT_RUNCODE_TIMEOUT": "120",
     "ENABLE_TOOL_SEARCH": "false",
-    "_comment_anthropic": "以下为可选配置（已禁用）",
+    "_comment_anthropic": "\u4ee5\u4e0b\u4e3a\u53ef\u9009\u914d\u7f6e\uff08\u5df2\u7981\u7528\uff09",
     "_disabled_anthropic": "[object Object]"
   },
   "includeCoAuthoredBy": true,
@@ -159,7 +159,7 @@
       "mcp__playwright__*",
       "Bash(source venv/bin/activate && python scripts/analyze/analyze_spending.py:*)",
       "Bash(source venv/bin/activate && python scripts/add-status-field.py:*)",
-      "Bash(python3 /root/bin/spec-check.py:*)",
+      "Bash(python3 /root/.claude/scripts/spec-check.py:*)",
       "Bash(python3 /root/bin/spec-verify-views.py:*)",
       "Bash(scripts/validate-dev-registry-enforcement.sh:*)",
       "Bash(/root/scripts/validate-dev-registry-enforcement.sh:*)",
@@ -589,10 +589,6 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/stop-spec-coverage-enforce.py\""
-          },
-          {
-            "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/stop-git-commit.sh\""
           },
           {
             "type": "command",

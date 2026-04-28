@@ -49,21 +49,14 @@ the guard.
    without writing a grant or contacting the remote.
 5. **Scheme 6 grant emission**: when there is real work to push, the wrapper
    writes a single-use grant manifest at
-   `/tmp/claude-push-grant-${CLAUDE_SESSION_ID:-default}-${NONCE}.json`
-   (per-nonce filename so two concurrent wrappers under the same SID cannot
-   collide; close-report-20260425-push-commit-debate.md §1-2). The manifest
-   contains:
-   - `branch` — current branch name
-   - `expected_head` — output of `git rev-parse HEAD` at grant time
-   - `remote` — `"origin"`
-   - `nonce` — 32-hex-char value from `secrets.token_hex(16)`
-   - `sid` — session id
-   - `ppid` — wrapper's PID
-   - `created_at` — ISO-8601 timestamp
+   `/tmp/claude-push-grant-${CLAUDE_SESSION_ID:-default}-${NONCE}.json`. The
+   push-specific bound fields are `branch` (current branch), `expected_head`
+   (`git rev-parse HEAD` at grant time), and `remote` (the cmd-line remote
+   token). Generic Scheme 6 fields (`nonce`, `sid`, `ppid`, `created_at`) and
+   the per-nonce-filename rationale are documented in `/root/docs/scheme6.md`.
 6. **Env-var export**: the wrapper exports `CLAUDE_PUSH_COMMAND_ACTIVE=1`
-   into the `git push` child's environment. The privilege-guard requires
-   BOTH the env-var AND a matching grant file on disk before admitting the
-   push. The env-var alone is insufficient; the grant alone is insufficient.
+   into the `git push` child's environment. Both the env-var AND a matching
+   grant file are required to admit the push (see `/root/docs/scheme6.md`).
 7. **Push**: invokes `git push` (with `-u` if no upstream is set). The
    privilege-guard validates the grant against the branch and HEAD on the
    live repo, then unlinks the grant on first consumption (single-use).
@@ -73,23 +66,9 @@ the guard.
 
 ## Scheme 6 mechanism (why this works)
 
-The privilege-guard `pretool-git-privilege-guard.py` is always-on and ships
-with two defenses against agent-issued pushes:
+See `/root/docs/scheme6.md` for the unified env-var + grant-manifest + privilege-guard validation + literal-substring rejection + single-use unlink protocol.
 
-- **Literal-substring rejection**: the raw command string is searched for
-  the substring `CLAUDE_PUSH_COMMAND_ACTIVE=`. If present (i.e., the agent
-  typed `CLAUDE_PUSH_COMMAND_ACTIVE=1 git push origin master` on a single
-  Bash call), the push is rejected before any other check. This neutralizes
-  the inline-env injection vector that reproduced the b5d447e attack shape.
-- **Wrapper-set env + grant**: only `CLAUDE_PUSH_COMMAND_ACTIVE=1` set by a
-  parent process (this wrapper, via `export`) combined with a valid grant
-  manifest on disk admits the push. The grant binds the push to a specific
-  branch + HEAD + remote + sid + ppid; a forged or stale grant is rejected.
-
-This means the agent cannot push by manipulating env vars in command text,
-cannot replay an old grant, and cannot push a different branch or HEAD than
-the wrapper observed when it wrote the grant. The wrapper is the only
-authorized path; everything else exits 2 from the guard.
+`/push`-specific bindings: env-var `CLAUDE_PUSH_COMMAND_ACTIVE=1`; grant path `/tmp/claude-push-grant-<sid>-<nonce>.json`; manifest fields bind the push to a specific `branch + expected_head + remote + sid + ppid`. The guard's `_validate_push_grant_remote` check confirms `grant.remote` matches the cmd-line remote token, so a forged or stale grant — or a grant for a different branch/HEAD/remote — is rejected. The literal-substring rejection on the raw command string targets the literal `CLAUDE_PUSH_COMMAND_ACTIVE=`, neutralizing inline-env injection of the b5d447e attack shape.
 
 ## Pre-conditions for a successful push
 
@@ -144,9 +123,8 @@ through `SlashCommand`.
   auto-staging env var and an auto-staging prompt. That behavior was
   removed when `b5d447e` ratified the snapshots-off-HEAD design; the
   wrapper no longer auto-stages or auto-commits.
-- The grant file lives in `/tmp` and is single-use: the privilege-guard
-  unlinks it on first valid consumption. A second `git push` in the same
-  session needs a new grant (i.e., a new `/push` invocation).
+- Grant file is single-use; a second `git push` in the same session
+  needs a new grant via a new `/push` invocation (see `/root/docs/scheme6.md`).
 - **redev7 removed the dirty-tree hard gate**. The gate was a leftover from
   the earlier auto-staging design (pre-`b5d447e`). Since `/push` no longer
   auto-commits, working-tree state cannot leak to HEAD via `/push`, and the

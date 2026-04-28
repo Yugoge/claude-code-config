@@ -1,7 +1,7 @@
 # .claude
 
-*Last updated: 2026-04-27T09:36:28Z*
-**Total entries**: 16520
+*Last updated: 2026-04-28T05:45:57Z*
+**Total entries**: 16613
 **Convention**: kebab
 
 ## Tree
@@ -12,18 +12,12 @@
 │   ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
 │   ├── `cleaner.md` - Cleanup execution specialist. Executes approved cleanup actions from cleanliness-inspector and style-inspector reports. Returns structured JSON execution report with results.
 │   ├── `cleanliness-inspector.md` - File organization inspector for cleanup tasks. Detects misplaced docs, duplicates, temp files, build artifacts. Returns structured JSON report with cleanup recommendations.
-│   ├── `cover-letter-writer.md` - Cover letter writing expert that generates concise, impactful, and humanized personalized cover letters
 │   ├── `dev.md` - Implementation specialist for development tasks. Receives rich JSON context from orchestrator, creates parameterized scripts, implements changes based on git root cause analysis. Returns structured execution report.
 │   ├── `git-edge-case-analyst.md` - Git history analysis specialist. Discovers development edge cases by analyzing commits, violations, and patterns. Returns structured edge case report with prevention recommendations.
-│   ├── `job-parser.md` - Job information extraction expert that parses unstructured job descriptions into structured data
-│   ├── `layout-optimizer.md` - Intelligent layout optimization expert that optimizes resume/cover letter page layout while preserving critical information
 │   ├── `pm.md` - >-
 │   ├── `product-owner.md` - Product-level analysis specialist for overnight exploration. Examines logical consistency, feature completeness, user flows, missing features, and business logic bugs. Returns structured JSON report.
 │   ├── `prompt-inspector.md` - Prompt optimization inspector. Detects verbose non-functional content in command/agent documentation following 'rules not stories' principle. Returns structured JSON report with verbosity violations.
 │   ├── `qa.md` - Quality assurance specialist for verification tasks. Receives implementation report from dev subagent, validates against success criteria, runs verification scripts, identifies issues. Returns structured verification report with pass/fail status.
-│   ├── `resume-critique.md` - Resume and cover letter critique expert conducting rigorous review from HR and technical interviewer perspectives
-│   ├── `resume-refiner.md` - Resume optimization expert that iteratively optimizes resumes based on quality feedback (ATS coverage, page height)
-│   ├── `resume-tailor.md` - Elite resume customization expert that tailors personalized resume content based on job descriptions
 │   ├── `rule-inspector.md` - Folder rule discovery agent. Analyzes Git history to discover file creation patterns, extracts folder organization rules, generates INDEX.md and README.md documentation. Returns structured JSON with discovered rules.
 │   ├── `spec.md` - Three-phase spec subagent. Phase 0 = read spec, decide which agents need views (free judgment). Phase 1 = content-block extraction from full monolith (verbatim byte-slices, no section pre-filtering). Phase 2 = Gawande-style checkpoint generation. Invoked by /spec command with monolith path.
 │   ├── `style-inspector.md` - Development standards auditor. Enforces /dev quality standards: no hardcoding, naming conventions, venv usage, step numbering, language, script merging, documentation conciseness. Returns structured JSON report with violations.
@@ -60,7 +54,6 @@
 │   ├── `deep-search.md` - Deep website exploration with iterative search strategy
 │   ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 │   ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
-│   ├── `dev-overnight.md.bak` - bak file
 │   ├── `dev.md` - Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification
 │   ├── `do.md` - Grant the main agent consent to perform direct operations in this session. This is a one-time consent flag.
 │   ├── `doc-gen.md` - Generate comprehensive documentation for code
@@ -579,6 +572,15 @@
 │   │   ├── `qa.json` - json config
 │   │   ├── `ui-specialist.json` - json config
 │   │   └── `user.json` - json config
+│   ├── dev-20260427-010000/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
 │   ├── dev-20260427-071432/
 │   │   ├── `architect.json` - json config
 │   │   ├── `ba.json` - json config
@@ -586,6 +588,59 @@
 │   │   ├── `pm.json` - json config
 │   │   ├── `product-owner.json` - json config
 │   │   ├── `qa.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
+│   ├── dev-20260427-194324/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `cleaner.json` - json config
+│   │   ├── `cleanliness-inspector.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `git-edge-case-analyst.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `prompt-inspector.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `rule-inspector.json` - json config
+│   │   ├── `spec.json` - json config
+│   │   ├── `style-inspector.json` - json config
+│   │   ├── `test-executor.json` - json config
+│   │   ├── `test-validator.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
+│   ├── dev-20260427-201221/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `cleaner.json` - json config
+│   │   ├── `cleanliness-inspector.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `git-edge-case-analyst.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `prompt-inspector.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `rule-inspector.json` - json config
+│   │   ├── `style-inspector.json` - json config
+│   │   ├── `test-executor.json` - json config
+│   │   ├── `test-validator.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
+│   ├── dev-20260427-214103/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `cleaner.json` - json config
+│   │   ├── `cleanliness-inspector.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `git-edge-case-analyst.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `prompt-inspector.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `rule-inspector.json` - json config
+│   │   ├── `spec.json` - json config
+│   │   ├── `style-inspector.json` - json config
+│   │   ├── `test-executor.json` - json config
+│   │   ├── `test-validator.json` - json config
 │   │   ├── `ui-specialist.json` - json config
 │   │   └── `user.json` - json config
 │   ├── dev-command-20260424-094824/
@@ -733,18 +788,12 @@
 │   │   ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
 │   │   ├── `cleaner.md` - Cleanup execution specialist. Executes approved cleanup actions from cleanliness-inspector and style-inspector reports. Returns structured JSON execution report with results.
 │   │   ├── `cleanliness-inspector.md` - File organization inspector for cleanup tasks. Detects misplaced docs, duplicates, temp files, build artifacts. Returns structured JSON report with cleanup recommendations.
-│   │   ├── `cover-letter-writer.md` - Cover letter writing expert that generates concise, impactful, and humanized personalized cover letters
 │   │   ├── `dev.md` - Implementation specialist for development tasks. Receives rich JSON context from orchestrator, creates parameterized scripts, implements changes based on git root cause analysis. Returns structured execution report.
 │   │   ├── `git-edge-case-analyst.md` - Git history analysis specialist. Discovers development edge cases by analyzing commits, violations, and patterns. Returns structured edge case report with prevention recommendations.
-│   │   ├── `job-parser.md` - Job information extraction expert that parses unstructured job descriptions into structured data
-│   │   ├── `layout-optimizer.md` - Intelligent layout optimization expert that optimizes resume/cover letter page layout while preserving critical information
 │   │   ├── `pm.md` - >-
 │   │   ├── `product-owner.md` - Product-level analysis specialist for overnight exploration. Examines logical consistency, feature completeness, user flows, missing features, and business logic bugs. Returns structured JSON report.
 │   │   ├── `prompt-inspector.md` - Prompt optimization inspector. Detects verbose non-functional content in command/agent documentation following 'rules not stories' principle. Returns structured JSON report with verbosity violations.
 │   │   ├── `qa.md` - Quality assurance specialist for verification tasks. Receives implementation report from dev subagent, validates against success criteria, runs verification scripts, identifies issues. Returns structured verification report with pass/fail status.
-│   │   ├── `resume-critique.md` - Resume and cover letter critique expert conducting rigorous review from HR and technical interviewer perspectives
-│   │   ├── `resume-refiner.md` - Resume optimization expert that iteratively optimizes resumes based on quality feedback (ATS coverage, page height)
-│   │   ├── `resume-tailor.md` - Elite resume customization expert that tailors personalized resume content based on job descriptions
 │   │   ├── `rule-inspector.md` - Folder rule discovery agent. Analyzes Git history to discover file creation patterns, extracts folder organization rules, generates INDEX.md and README.md documentation. Returns structured JSON with discovered rules.
 │   │   ├── `spec.md` - Three-phase spec subagent. Phase 0 = read spec, decide which agents need views (free judgment). Phase 1 = content-block extraction from full monolith (verbatim byte-slices, no section pre-filtering). Phase 2 = Gawande-style checkpoint generation. Invoked by /spec command with monolith path.
 │   │   ├── `style-inspector.md` - Development standards auditor. Enforces /dev quality standards: no hardcoding, naming conventions, venv usage, step numbering, language, script merging, documentation conciseness. Returns structured JSON report with violations.
@@ -769,7 +818,6 @@
 │   │   ├── `deep-search.md` - Deep website exploration with iterative search strategy
 │   │   ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 │   │   ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
-│   │   ├── `dev-overnight.md.bak` - bak file
 │   │   ├── `dev.md` - Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification
 │   │   ├── `do.md` - Grant the main agent consent to perform direct operations in this session. This is a one-time consent flag.
 │   │   ├── `doc-gen.md` - Generate comprehensive documentation for code
@@ -1111,7 +1159,11 @@
 │   │   ├── dev-20260426-163146/
 │   │   ├── dev-20260426-170000/
 │   │   ├── dev-20260427-001500/
+│   │   ├── dev-20260427-010000/
 │   │   ├── dev-20260427-071432/
+│   │   ├── dev-20260427-194324/
+│   │   ├── dev-20260427-201221/
+│   │   ├── dev-20260427-214103/
 │   │   ├── dev-command-20260424-094824/
 │   │   ├── dev-hostile-ac1-20260424-123824/
 │   │   ├── redev-20260426-192522/
@@ -1179,16 +1231,17 @@
 │   │   ├── `push.sh` - 
 │   │   ├── `session.log` - log file
 │   │   ├── `settings.json` - json config
+│   │   ├── `settings.json.bak-multiedit-fix` - bak-multiedit-fix file
 │   │   ├── `settings.json.bak-pre-r4-hooks-20260425` - bak-pre-r4-hooks-20260425 file
 │   │   ├── `settings.json.bak.20260421-114348` - 20260421-114348 file
 │   │   ├── `settings.local.json` - json config
 │   │   ├── `stats-cache.json` - json config
+│   │   ├── `workflow-11d0da00-24f0-4e23-bbe0-bc15d31b993b.json` - json config
 │   │   ├── `workflow-1f9f0472-7a89-4cfa-87f2-c85616fed777.json` - json config
 │   │   ├── `workflow-215eec0e-0e9c-4f81-bd52-b73036e3d33a.json` - json config
 │   │   ├── `workflow-30b4bbbc-a873-4ba8-b8fd-804dc05492bc.json` - json config
 │   │   ├── `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 │   │   ├── `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
-│   │   ├── `workflow-5ed0d8f4-041a-4fe3-9938-135c793ac046.json` - json config
 │   │   ├── `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
 │   │   ├── `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
 │   │   ├── `workflow-dd3a870c-9440-4274-896f-462dfe972646.json` - json config
@@ -1230,6 +1283,7 @@
 │   │   ├── doc_sync/
 │   │   ├── git-hooks/
 │   │   ├── lib/
+│   │   ├── tests/
 │   │   ├── `audit-slashcommand.sh` - audit-slashcommand.sh
 │   │   ├── `auto-commit.sh` - ============================================================================
 │   │   ├── `check-todo-md-sync.py` - check-todo-md-sync.py — Session-start drift detector for todo scripts
@@ -1272,7 +1326,7 @@
 │   │   ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
 │   │   ├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 2.
 │   │   ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
-│   │   ├── `pretool-cp-checkin.py` - Triggers when a subagent's `Read` tool call targets a file whose path matches:
+│   │   ├── `pretool-cp-checkin.py` - cp-state file read
 │   │   ├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
 │   │   ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 │   │   ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
@@ -1350,7 +1404,8 @@
 │   │   ├── `git-fswatch-multi-asset-portfolio.log` - log file
 │   │   ├── `git-fswatch.log` - log file
 │   │   ├── `git-privilege-grants.log` - log file
-│   │   └── `overnight-idle.jsonl` - jsonl file
+│   │   ├── `overnight-idle.jsonl` - jsonl file
+│   │   └── `overnight-self-repair.jsonl` - jsonl file
 │   ├── paste-cache/
 │   │   ├── `0fa8d2e3233787ad.txt` - txt file
 │   │   ├── `167f5ee8112a0e98.txt` - txt file
@@ -1443,6 +1498,7 @@
 │   │   ├── -root-knowledge-system-qijie/
 │   │   ├── -root-multi-asset-portfolio/
 │   │   ├── -root-orchestra/
+│   │   ├── -root-rednote-mcp/
 │   │   ├── -root-travel-planner/
 │   │   ├── -tmp-dev-verify-131502/
 │   │   ├── -tmp-qa-fresh-20260426/
@@ -1485,6 +1541,7 @@
 │   │   ├── `quick-excel` - unknown file
 │   │   ├── `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 │   │   ├── `scan-project.sh` - Description: Scan project structure and detect project type
+│   │   ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 │   │   ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 │   │   └── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 │   ├── session-env/
@@ -1590,6 +1647,7 @@
 │   │   ├── 0d6ffebe-5414-4e05-ab50-178e33e037fc/
 │   │   ├── 0d871916-08f8-4f0f-9bff-4bd6f6ae2f33/
 │   │   ├── 0d96d6d8-0f79-42b4-98b7-654ff4753f69/
+│   │   ├── 0d9b1aa1-a61f-4587-be35-758f1451e096/
 │   │   ├── 0d9cc645-0fcb-4650-9a03-823098edf2e0/
 │   │   ├── 0dad2960-33ee-4d0d-b6c0-0f1393a0f029/
 │   │   ├── 0dbf2d65-9cff-4121-a6f8-bbfbf20f9c2c/
@@ -1625,6 +1683,7 @@
 │   │   ├── 1188a921-7143-42cc-9ff3-0cff571169c7/
 │   │   ├── 1192d4e9-3a71-4b65-bf9c-5f0af427cad8/
 │   │   ├── 119f4e35-390e-4dad-9278-4cabef27c39d/
+│   │   ├── 11d0da00-24f0-4e23-bbe0-bc15d31b993b/
 │   │   ├── 11df4f77-5620-4957-b99b-31748e361aa5/
 │   │   ├── 11ee99c4-ee4f-4c4e-bac5-f35984d424cd/
 │   │   ├── 11fffa70-cf49-4e28-a84f-99f47a47f518/
@@ -1670,6 +1729,7 @@
 │   │   ├── 179f41c5-28b9-4708-94fc-f1c35141b218/
 │   │   ├── 17df0a26-12b0-45d4-9631-3a078b8beb25/
 │   │   ├── 17f1a59e-7d8c-467e-bb40-811eb133910a/
+│   │   ├── 180fb796-30ee-4a55-abf3-d55f3431a6df/
 │   │   ├── 181c2817-26e2-4ac3-88ee-0ea360d6aa42/
 │   │   ├── 18241354-b808-4d78-8162-2f7c5954798f/
 │   │   ├── 182d13db-7053-4b18-8a3d-d090df2f1cd4/
@@ -1761,6 +1821,7 @@
 │   │   ├── 2370d90b-4d2a-4a95-ab18-94390aa88346/
 │   │   ├── 237cb9af-b0a0-455d-843d-ca5ee865dc3a/
 │   │   ├── 23b3a8e8-589e-4830-aa08-fd60ccf0ee5f/
+│   │   ├── 23b439b3-be72-45cb-b952-bef9e59895bf/
 │   │   ├── 23d1d874-b4f7-44ec-92a5-f2d77082a3c2/
 │   │   ├── 23eb4e93-76b7-425f-966d-bc58bcf55614/
 │   │   ├── 23ebabd1-8f39-4c03-9647-3fa547281e57/
@@ -2028,6 +2089,8 @@
 │   │   ├── 4886d9f7-5207-4a5f-8efd-b486906d749e/
 │   │   ├── 48b7c54a-7593-4d1e-98a9-57e0b492b8f2/
 │   │   ├── 48df58e5-321f-4710-8b1c-713f1d6bd48a/
+│   │   ├── 48e9fdd9-3724-47a2-9f11-4b2698700a4a/
+│   │   ├── 48eb0034-fedd-46ee-922a-b2b0cf07a4f7/
 │   │   ├── 49049ffc-6f52-47d8-a3ad-33fb868c306c/
 │   │   ├── 49141795-c497-4d91-b961-807db887040b/
 │   │   ├── 4926a127-86cf-4674-bf18-026f090d1c74/
@@ -2062,6 +2125,7 @@
 │   │   ├── 4ce11398-ad47-472d-afba-d6f24e3d3702/
 │   │   ├── 4cf9e066-8ec0-4367-9a8c-6dc9d8d635c0/
 │   │   ├── 4d27d80a-958c-4f84-95a1-a8598d5e445f/
+│   │   ├── 4d5ec861-87aa-4533-b971-c36c68ca8636/
 │   │   ├── 4d89f1c2-cef7-4884-8ce2-e9db2a988c1e/
 │   │   ├── 4dd2a4f2-6f67-49ce-9d55-60303ed9f951/
 │   │   ├── 4dd32721-7554-4719-befd-4279605efe33/
@@ -2298,6 +2362,7 @@
 │   │   ├── 6db3e7ea-9fe2-402c-9f02-1d63ef6a8cfd/
 │   │   ├── 6dc5deb6-e398-438d-acc3-e8ea06ecc7bf/
 │   │   ├── 6de03905-059c-49c2-aa25-e270489e150d/
+│   │   ├── 6def6122-72e4-4d0e-831f-3d38ed82ab08/
 │   │   ├── 6df6049a-1bee-4502-88d2-f6a961c63b6b/
 │   │   ├── 6e139c37-3066-4936-9b82-91f72402bcd8/
 │   │   ├── 6e7c7b64-c222-48ee-adaf-2da8ae0177db/
@@ -2445,6 +2510,7 @@
 │   │   ├── 84346009-de24-4379-8cd1-c703c34010fe/
 │   │   ├── 843b6d61-a0c8-4090-9f65-6b29372603df/
 │   │   ├── 844da4ba-0d68-4957-b32e-c8bbe5c2b401/
+│   │   ├── 8452ca1c-75d8-407b-acb3-e3f1b6d8b777/
 │   │   ├── 84eaa795-7c3d-4fa4-8e37-96eef509fc70/
 │   │   ├── 8562d79e-75b0-41f8-9711-67dc82f2a666/
 │   │   ├── 8596c61c-e3f2-4bc6-abe6-c4ccdf628400/
@@ -2813,6 +2879,7 @@
 │   │   ├── b9ad6709-cdd0-4870-b7ac-adc281a1e6b5/
 │   │   ├── b9d10b43-048f-4949-be36-0d26cb3401df/
 │   │   ├── b9fb5e27-9ba1-4e3e-b542-e4dcf97d5c53/
+│   │   ├── ba1a85b5-5783-498d-8da6-33061a44289d/
 │   │   ├── ba2d51e4-4086-4722-96c4-def648c998ae/
 │   │   ├── ba4184b6-8d0b-40c4-842d-b62701c0371f/
 │   │   ├── ba59c1b4-f208-4a49-baaf-99e244935fcd/
@@ -2828,6 +2895,7 @@
 │   │   ├── baecf898-4535-4adb-b9f6-ee8c9da5dd26/
 │   │   ├── bb0a9786-bf6e-4285-a8d3-5935080fd122/
 │   │   ├── bb116319-189e-4816-858c-d8820d5fce4a/
+│   │   ├── bb59cbca-7502-4451-90c9-c9fe98e39aa6/
 │   │   ├── bb6b2ecb-97d3-4370-929d-995a6d2e485f/
 │   │   ├── bb6ce1c4-1091-4b9c-8921-ac75d6103084/
 │   │   ├── bb973771-c351-420a-9412-f3887a783a4d/
@@ -2896,6 +2964,7 @@
 │   │   ├── c3b8271b-9f70-4807-a230-8f52d922a4df/
 │   │   ├── c3c1fb04-f8a0-4989-940d-e7d2eaf9b87d/
 │   │   ├── c4130049-752d-4516-ae06-1434a1604bb5/
+│   │   ├── c4258b8e-a206-4cf9-aeb5-0d9debcb5d82/
 │   │   ├── c4340e45-7bb2-4b51-bee6-972189d2fc7e/
 │   │   ├── c4524eea-2714-42ed-ba28-f3a52b4cad6d/
 │   │   ├── c4593831-6d0c-4bbe-8d11-92192f01ff97/
@@ -2982,6 +3051,7 @@
 │   │   ├── d08e09f4-76cf-4cbe-abea-2cd89e32ddf0/
 │   │   ├── d0b0ee2c-dc47-4725-b119-f6eeac701c60/
 │   │   ├── d0cde407-98dd-4ee2-8ae5-f86d5703aaf7/
+│   │   ├── d0ec784d-c321-41f6-ba24-65537efac311/
 │   │   ├── d0fa4fc2-9b54-46d7-a132-8b56e488e921/
 │   │   ├── d111f493-5ba1-42f9-b28b-f59d0d8a800e/
 │   │   ├── d122991a-2839-4aad-b3ec-4243226d95e0/
@@ -3064,8 +3134,10 @@
 │   │   ├── dbf851d2-af13-4428-98b5-c58ac631bcb2/
 │   │   ├── dc01c418-872d-411b-965b-447b22721cd6/
 │   │   ├── dc3575a4-edef-4ecf-b8e3-e8b32b9db4a8/
+│   │   ├── dc51b22b-d7df-4bb7-a0e3-4e56342f1436/
 │   │   ├── dc553694-77a0-43db-9bc2-a26ac59b5673/
 │   │   ├── dcbf5f62-f7c3-4635-a582-8264b6e91b33/
+│   │   ├── dccb8a21-47d0-4dde-8c26-8b185f947309/
 │   │   ├── dd3a870c-9440-4274-896f-462dfe972646/
 │   │   ├── dd4b0254-166d-4984-8bd2-f28003fb1251/
 │   │   ├── ddbd037c-010a-4302-9930-d3ca2c95cbfb/
@@ -3153,8 +3225,10 @@
 │   │   ├── eaa1077b-49ad-4697-8e01-e4a923d2b116/
 │   │   ├── ead13a95-4ac0-452a-966c-7e089953dd41/
 │   │   ├── eaf9456e-734c-4c5b-b673-aafda2a48638/
+│   │   ├── eb313d8e-f815-4ff8-9f8f-a54cf3de1c64/
 │   │   ├── eb5e1b43-7385-4891-af9c-5da8c5bfbc8b/
 │   │   ├── eb73e089-1948-43a0-b6e1-d77be4ce06fa/
+│   │   ├── eb89a065-0b72-43f4-8818-dbc43da6b79c/
 │   │   ├── eba0dfe5-c86a-4cc8-88ec-569ab78f1533/
 │   │   ├── ebf69b63-8f70-4ef7-913f-e4e349a429fc/
 │   │   ├── ec01ca92-024f-4d54-8de5-2612eedb57a0/
@@ -3313,6 +3387,7 @@
 │   │   ├── ff1e136b-2534-4035-8866-9c0984f2a001/
 │   │   ├── ff319861-a78a-4f71-b315-7f051558331d/
 │   │   ├── ff409a92-1bef-44db-9d1d-981bb41284f5/
+│   │   ├── ff41c30b-cd6b-48d0-bf6a-d2375a1bb18c/
 │   │   ├── ff5356df-88a3-4c83-a2c3-a14890f615ca/
 │   │   ├── ffba83fb-e8fc-473c-b56a-a36bf88eef61/
 │   │   ├── ffc9169f-df48-4649-81d2-3a3e532c72a1/
@@ -3321,20 +3396,12 @@
 │   │   ├── ffe64e22-c32b-4da6-84b9-322d271fe33b/
 │   │   └── ffea436f-2b6b-40d3-8196-a484178e0bf6/
 │   ├── sessions/
+│   │   ├── `1013041.json` - json config
 │   │   ├── `1123030.json` - json config
-│   │   ├── `1916213.json` - json config
-│   │   ├── `1969955.json` - json config
-│   │   ├── `2016165.json` - json config
-│   │   ├── `2125284.json` - json config
-│   │   ├── `2467700.json` - json config
-│   │   ├── `2472442.json` - json config
-│   │   ├── `2514369.json` - json config
-│   │   ├── `2518123.json` - json config
+│   │   ├── `2054660.json` - json config
 │   │   ├── `2638660.json` - json config
-│   │   ├── `3010003.json` - json config
-│   │   ├── `3022052.json` - json config
-│   │   ├── `3297171.json` - json config
-│   │   └── `3737183.json` - json config
+│   │   ├── `3737183.json` - json config
+│   │   └── `668175.json` - json config
 │   ├── shell-snapshots/
 │   │   ├── `snapshot-bash-1757635174638-jx5vwd.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1757635860163-e24qqz.sh` - Snapshot file
@@ -3566,15 +3633,7 @@
 │   │   ├── `snapshot-bash-1776627740271-zv95mp.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1776672653324-t3vmb1.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1776702170123-dvx7bx.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1777241475307-gmzg7t.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1777241661986-dyu275.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1777242178800-6fb2w9.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1777244127213-dmk6te.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1777249299263-rl7mt1.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1777250254010-twmu7c.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1777250423771-8bb79e.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1777274398501-4pnggy.sh` - Snapshot file
-│   │   └── `snapshot-bash-1777279128145-oka2tz.sh` - Snapshot file
+│   │   └── `snapshot-bash-1777328707660-2n38i0.sh` - Snapshot file
 │   ├── skills/
 │   │   ├── docx/
 │   │   ├── frontend-design/
@@ -3660,6 +3719,8 @@
 │   │   ├── `018e88a5-50c9-4aca-8ffd-382a94ee2168-agent-018e88a5-50c9-4aca-8ffd-382a94ee2168.json` - json config
 │   │   ├── `01919142-fb9d-48e4-9916-306210868683-agent-01919142-fb9d-48e4-9916-306210868683.json` - json config
 │   │   ├── `0195d78c-6cf3-4c85-ac8d-7abb60867c56-agent-0195d78c-6cf3-4c85-ac8d-7abb60867c56.json` - json config
+│   │   ├── `019dd077-6d3c-7de1-bd6d-145b8ee35a45-agent-019dd077-6d3c-7de1-bd6d-145b8ee35a45.json` - json config
+│   │   ├── `019dd0f1-dc85-70f0-9ca2-c789c3578c31-agent-019dd0f1-dc85-70f0-9ca2-c789c3578c31.json` - json config
 │   │   ├── `01afd65c-3376-4c63-b59c-0f7c25239622-agent-01afd65c-3376-4c63-b59c-0f7c25239622.json` - json config
 │   │   ├── `01b92452-9b08-4fb2-a1c1-56de6710d9c0-agent-01b92452-9b08-4fb2-a1c1-56de6710d9c0.json` - json config
 │   │   ├── `01cbb3e1-b16a-4c7b-bd31-ffb4be4f7656-agent-01cbb3e1-b16a-4c7b-bd31-ffb4be4f7656.json` - json config
@@ -3938,6 +3999,7 @@
 │   │   ├── `11a6440b-5529-41a5-9bd8-5093b63fd1cd-agent-11a6440b-5529-41a5-9bd8-5093b63fd1cd.json` - json config
 │   │   ├── `11b0edc3-3cf9-4e8c-9b4a-ba804d15ca58-agent-11b0edc3-3cf9-4e8c-9b4a-ba804d15ca58.json` - json config
 │   │   ├── `11c43408-e575-46a6-b97e-a3c65950c94e-agent-11c43408-e575-46a6-b97e-a3c65950c94e.json` - json config
+│   │   ├── `11d0da00-24f0-4e23-bbe0-bc15d31b993b-agent-11d0da00-24f0-4e23-bbe0-bc15d31b993b.json` - json config
 │   │   ├── `11db7de1-c29c-453a-8de8-83ee55ad478f-agent-11db7de1-c29c-453a-8de8-83ee55ad478f.json` - json config
 │   │   ├── `11dc1f45-283a-4e7e-9bc8-7099f1a334eb-agent-11dc1f45-283a-4e7e-9bc8-7099f1a334eb.json` - json config
 │   │   ├── `11e26dd8-3541-4748-abc9-ffcdae7cd59f-agent-11e26dd8-3541-4748-abc9-ffcdae7cd59f.json` - json config
@@ -5223,7 +5285,6 @@
 │   │   ├── `5e819d58-f231-4712-9c73-136c73f67817-agent-5e819d58-f231-4712-9c73-136c73f67817.json` - json config
 │   │   ├── `5ea529c7-d534-4329-9e00-2e96129d468f-agent-5ea529c7-d534-4329-9e00-2e96129d468f.json` - json config
 │   │   ├── `5eaeb571-5366-4dda-994e-b884000af432-agent-5eaeb571-5366-4dda-994e-b884000af432.json` - json config
-│   │   ├── `5ed0d8f4-041a-4fe3-9938-135c793ac046-agent-5ed0d8f4-041a-4fe3-9938-135c793ac046.json` - json config
 │   │   ├── `5ed225ad-19ef-4d38-8d75-9a26ddd0a3ad-agent-5ed225ad-19ef-4d38-8d75-9a26ddd0a3ad.json` - json config
 │   │   ├── `5ed8c7b9-118d-4582-be9f-89e82cc36a53-agent-5ed8c7b9-118d-4582-be9f-89e82cc36a53.json` - json config
 │   │   ├── `5ed972dc-43d6-4983-9a18-ee5efbbc2466-agent-5ed972dc-43d6-4983-9a18-ee5efbbc2466.json` - json config
@@ -5839,7 +5900,6 @@
 │   │   ├── `82b03dc6-7490-49d0-bd3c-c81c4825641f-agent-82b03dc6-7490-49d0-bd3c-c81c4825641f.json` - json config
 │   │   ├── `82b7d7c1-5e93-4802-90ce-c8c882c3ea5e-agent-82b7d7c1-5e93-4802-90ce-c8c882c3ea5e.json` - json config
 │   │   ├── `82c1f0ac-07e2-458b-a417-c0a71717185d-agent-82c1f0ac-07e2-458b-a417-c0a71717185d.json` - json config
-│   │   ├── `82cc2457-4543-487c-b06a-e3f6c07331b4-agent-82cc2457-4543-487c-b06a-e3f6c07331b4.json` - json config
 │   │   ├── `82d0901e-3a4c-47f7-b46f-0909b92f2815-agent-82d0901e-3a4c-47f7-b46f-0909b92f2815.json` - json config
 │   │   ├── `82f16bd7-88f0-42c7-88ee-aab9f42d0e3d-agent-82f16bd7-88f0-42c7-88ee-aab9f42d0e3d.json` - json config
 │   │   ├── `82faaf3a-fe36-4779-9ba3-6e365887947f-agent-82faaf3a-fe36-4779-9ba3-6e365887947f.json` - json config
@@ -6654,6 +6714,7 @@
 │   │   ├── `afd2d19d-007a-44dc-8c7e-1d58c89b2097-agent-afd2d19d-007a-44dc-8c7e-1d58c89b2097.json` - json config
 │   │   ├── `afd494eb-ed8e-47ea-a49b-dd1e76de64fa-agent-afd494eb-ed8e-47ea-a49b-dd1e76de64fa.json` - json config
 │   │   ├── `aff712ac-3a92-4db8-86e6-cc9f00f0025a-agent-aff712ac-3a92-4db8-86e6-cc9f00f0025a.json` - json config
+│   │   ├── `alignment-probe-agent-alignment-probe.json` - json config
 │   │   ├── `b00c3798-9257-4957-a02a-9367a5fd1d45-agent-b00c3798-9257-4957-a02a-9367a5fd1d45.json` - json config
 │   │   ├── `b016d0ca-3b6c-4101-865d-c8e950e396e1-agent-b016d0ca-3b6c-4101-865d-c8e950e396e1.json` - json config
 │   │   ├── `b02ba4db-e6b6-4b7a-aaf3-db8d90fa7411-agent-b02ba4db-e6b6-4b7a-aaf3-db8d90fa7411.json` - json config
@@ -6836,6 +6897,7 @@
 │   │   ├── `b9df402f-39bc-4783-853f-2e490849e990-agent-b9df402f-39bc-4783-853f-2e490849e990.json` - json config
 │   │   ├── `b9fe6d96-ce0f-4c75-a6ab-16c252dd2ff9-agent-b9fe6d96-ce0f-4c75-a6ab-16c252dd2ff9.json` - json config
 │   │   ├── `ba070ea4-bf84-485b-9b11-01c90f125ce9-agent-ba070ea4-bf84-485b-9b11-01c90f125ce9.json` - json config
+│   │   ├── `ba1a85b5-5783-498d-8da6-33061a44289d-agent-ba1a85b5-5783-498d-8da6-33061a44289d.json` - json config
 │   │   ├── `ba1e10f9-c865-4478-984e-cf903e78ec3d-agent-ba1e10f9-c865-4478-984e-cf903e78ec3d.json` - json config
 │   │   ├── `ba2a2773-b959-4c38-a66b-8fe92b54eb0b-agent-ba2a2773-b959-4c38-a66b-8fe92b54eb0b.json` - json config
 │   │   ├── `ba2f1107-c4b2-4616-a6a0-eaf1d37846fb-agent-ba2f1107-c4b2-4616-a6a0-eaf1d37846fb.json` - json config
@@ -7179,6 +7241,9 @@
 │   │   ├── `cfd2f554-9a01-4bae-b16d-4daec20a4f34-agent-cfd2f554-9a01-4bae-b16d-4daec20a4f34.json` - json config
 │   │   ├── `cfd3dd23-4ab1-423f-b31d-ede941c99227-agent-cfd3dd23-4ab1-423f-b31d-ede941c99227.json` - json config
 │   │   ├── `cfea82a9-2adc-4ee8-9cb8-973e975bca8f-agent-cfea82a9-2adc-4ee8-9cb8-973e975bca8f.json` - json config
+│   │   ├── `codex-plan-test-484b8ded-agent-codex-plan-test-484b8ded.json` - json config
+│   │   ├── `codex-test-implicit-agent-codex-test-implicit.json` - json config
+│   │   ├── `codex-test-visible-agent-codex-test-visible.json` - json config
 │   │   ├── `d02054c9-fdf8-42a2-836e-c75a1bd35be8-agent-d02054c9-fdf8-42a2-836e-c75a1bd35be8.json` - json config
 │   │   ├── `d04dfd4c-4b5a-4701-921f-3ae85f8cfde3-agent-d04dfd4c-4b5a-4701-921f-3ae85f8cfde3.json` - json config
 │   │   ├── `d05097b5-79af-4876-8067-1f1d6b72fffd-agent-d05097b5-79af-4876-8067-1f1d6b72fffd.json` - json config
@@ -8037,7 +8102,9 @@
 │   │   ├── `ffee96de-32b4-490c-b251-c72555b109de-agent-ffee96de-32b4-490c-b251-c72555b109de.json` - json config
 │   │   ├── `fff60ac9-77b0-436c-9473-8d8b8f4d79f6-agent-fff60ac9-77b0-436c-9473-8d8b8f4d79f6.json` - json config
 │   │   ├── `fff70ba7-da69-456a-8ba0-6bd730acc871-agent-fff70ba7-da69-456a-8ba0-6bd730acc871.json` - json config
-│   │   └── `test123-agent-test123.json` - json config
+│   │   ├── `implicit-agent-implicit.json` - json config
+│   │   ├── `test123-agent-test123.json` - json config
+│   │   └── `visible-agent-visible.json` - json config
 │   ├── worktrees/
 │   ├── `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
 │   ├── `AUTOMATED_CLEANUP_SETUP.md` - 自动化清理系统配置文档
@@ -8052,16 +8119,17 @@
 │   ├── `push.sh` - 
 │   ├── `session.log` - log file
 │   ├── `settings.json` - json config
+│   ├── `settings.json.bak-multiedit-fix` - bak-multiedit-fix file
 │   ├── `settings.json.bak-pre-r4-hooks-20260425` - bak-pre-r4-hooks-20260425 file
 │   ├── `settings.json.bak.20260421-114348` - 20260421-114348 file
 │   ├── `settings.local.json` - json config
 │   ├── `stats-cache.json` - json config
+│   ├── `workflow-11d0da00-24f0-4e23-bbe0-bc15d31b993b.json` - json config
 │   ├── `workflow-1f9f0472-7a89-4cfa-87f2-c85616fed777.json` - json config
 │   ├── `workflow-215eec0e-0e9c-4f81-bd52-b73036e3d33a.json` - json config
 │   ├── `workflow-30b4bbbc-a873-4ba8-b8fd-804dc05492bc.json` - json config
 │   ├── `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 │   ├── `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
-│   ├── `workflow-5ed0d8f4-041a-4fe3-9938-135c793ac046.json` - json config
 │   ├── `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
 │   ├── `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
 │   ├── `workflow-dd3a870c-9440-4274-896f-462dfe972646.json` - json config
@@ -8470,6 +8538,8 @@
 │   │   ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
 │   │   ├── `specialist_yield.py` - Public API:
 │   │   └── `todo_canonical.py` - Shared canonical todo validation utilities
+│   ├── tests/
+│   │   └── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
 │   ├── `audit-slashcommand.sh` - audit-slashcommand.sh
 │   ├── `auto-commit.sh` - ============================================================================
 │   ├── `check-todo-md-sync.py` - check-todo-md-sync.py — Session-start drift detector for todo scripts
@@ -8512,7 +8582,7 @@
 │   ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
 │   ├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 2.
 │   ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
-│   ├── `pretool-cp-checkin.py` - Triggers when a subagent's `Read` tool call targets a file whose path matches:
+│   ├── `pretool-cp-checkin.py` - cp-state file read
 │   ├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
 │   ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 │   ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
@@ -8590,7 +8660,8 @@
 │   ├── `git-fswatch-multi-asset-portfolio.log` - log file
 │   ├── `git-fswatch.log` - log file
 │   ├── `git-privilege-grants.log` - log file
-│   └── `overnight-idle.jsonl` - jsonl file
+│   ├── `overnight-idle.jsonl` - jsonl file
+│   └── `overnight-self-repair.jsonl` - jsonl file
 ├── paste-cache/
 │   ├── `0fa8d2e3233787ad.txt` - txt file
 │   ├── `167f5ee8112a0e98.txt` - txt file
@@ -8905,11 +8976,13 @@
 │   │   ├── ab6c5dc5-56d7-4f99-a7a3-c4455ca573a9/
 │   │   ├── b028e172-8c37-4d7c-a9ea-962e0478934c/
 │   │   ├── b275b127-ee39-4341-99fe-355fd57be19e/
+│   │   ├── ba1a85b5-5783-498d-8da6-33061a44289d/
 │   │   ├── bfbc5f54-b231-4b52-b3bc-de01aeac0ccd/
 │   │   ├── c4b2cd9b-1fa7-4617-9c95-7c86f30b6eab/
 │   │   ├── c7a3b416-4d8d-4d3b-9b32-e8af0fed78dc/
 │   │   ├── cf81ebd2-35a5-4d94-828a-25eeb75fb93b/
 │   │   ├── d12e561c-040d-484b-9e82-66c46dd5c95b/
+│   │   ├── dc51b22b-d7df-4bb7-a0e3-4e56342f1436/
 │   │   ├── f5726ada-5cd3-4fef-8b44-4fee09eb266e/
 │   │   ├── memory/
 │   │   ├── `090b5f50-effd-4e1c-a62d-19fa9c580375.jsonl` - jsonl file
@@ -8933,6 +9006,7 @@
 │   │   ├── `ab6c5dc5-56d7-4f99-a7a3-c4455ca573a9.jsonl` - jsonl file
 │   │   ├── `b028e172-8c37-4d7c-a9ea-962e0478934c.jsonl` - jsonl file
 │   │   ├── `b275b127-ee39-4341-99fe-355fd57be19e.jsonl` - jsonl file
+│   │   ├── `ba1a85b5-5783-498d-8da6-33061a44289d.jsonl` - jsonl file
 │   │   ├── `bfbc5f54-b231-4b52-b3bc-de01aeac0ccd.jsonl` - jsonl file
 │   │   ├── `c4b2cd9b-1fa7-4617-9c95-7c86f30b6eab.jsonl` - jsonl file
 │   │   ├── `c7a3b416-4d8d-4d3b-9b32-e8af0fed78dc.jsonl` - jsonl file
@@ -8940,6 +9014,7 @@
 │   │   ├── `cf81ebd2-35a5-4d94-828a-25eeb75fb93b.jsonl` - jsonl file
 │   │   ├── `d12e561c-040d-484b-9e82-66c46dd5c95b.jsonl` - jsonl file
 │   │   ├── `d4e847fe-7f04-4b80-ac16-00f073dd4bab.jsonl` - jsonl file
+│   │   ├── `dc51b22b-d7df-4bb7-a0e3-4e56342f1436.jsonl` - jsonl file
 │   │   ├── `f51379aa-416b-46aa-a3b2-934713b4f424.jsonl` - jsonl file
 │   │   └── `f5726ada-5cd3-4fef-8b44-4fee09eb266e.jsonl` - jsonl file
 │   ├── -dev-shm-dev-workspace-happy-dev--claude-worktrees-overnight-20260327-3bea7801/
@@ -8995,6 +9070,7 @@
 │   │   ├── 05174558-3246-4d0d-9db0-bc9753d5a9c0/
 │   │   ├── 05dd71c2-06ce-4a2a-adac-fb31e2521d61/
 │   │   ├── 0f18a8c8-b24c-4a92-a55f-08763cc3d2e9/
+│   │   ├── 11d0da00-24f0-4e23-bbe0-bc15d31b993b/
 │   │   ├── 15c64310-fe33-4b5d-bf9d-000c73c2253d/
 │   │   ├── 19510fe1-5f09-4d5d-8d2b-86af1711743b/
 │   │   ├── 1b330625-de64-49a6-969d-632b076ea732/
@@ -9059,6 +9135,7 @@
 │   │   ├── ca016f08-8a86-48de-ada9-e359f84a2616/
 │   │   ├── cee28889-fc21-4aaa-80f3-c67c851e380e/
 │   │   ├── d0479fad-1809-4119-bfc1-0103b9fe25a4/
+│   │   ├── d0ec784d-c321-41f6-ba24-65537efac311/
 │   │   ├── d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3/
 │   │   ├── e5a009ba-35a5-40f6-a75d-b65e9a03c328/
 │   │   ├── e5b8dc11-250b-489c-8f1a-561508642e9a/
@@ -9082,6 +9159,7 @@
 │   │   ├── `05dd71c2-06ce-4a2a-adac-fb31e2521d61.jsonl` - jsonl file
 │   │   ├── `0e99bcdf-3877-4ca9-a2f5-bb3775d6fcfa.jsonl.bak` - bak file
 │   │   ├── `0f18a8c8-b24c-4a92-a55f-08763cc3d2e9.jsonl` - jsonl file
+│   │   ├── `11d0da00-24f0-4e23-bbe0-bc15d31b993b.jsonl` - jsonl file
 │   │   ├── `15c64310-fe33-4b5d-bf9d-000c73c2253d.jsonl` - jsonl file
 │   │   ├── `19510fe1-5f09-4d5d-8d2b-86af1711743b.jsonl` - jsonl file
 │   │   ├── `1f9f0472-7a89-4cfa-87f2-c85616fed777.jsonl` - jsonl file
@@ -9159,6 +9237,7 @@
 │   │   ├── `ca016f08-8a86-48de-ada9-e359f84a2616.jsonl` - jsonl file
 │   │   ├── `cebbe84b-1d79-4e84-af86-3ceab6f445f3.jsonl` - jsonl file
 │   │   ├── `d0479fad-1809-4119-bfc1-0103b9fe25a4.jsonl` - jsonl file
+│   │   ├── `d0ec784d-c321-41f6-ba24-65537efac311.jsonl` - jsonl file
 │   │   ├── `d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.jsonl` - jsonl file
 │   │   ├── `e5b8dc11-250b-489c-8f1a-561508642e9a.jsonl` - jsonl file
 │   │   ├── `e724616d-25b8-45d2-a8c8-1d1417dcff44.jsonl` - jsonl file
@@ -9606,6 +9685,8 @@
 │   │   ├── `894809e0-a0e9-4c9e-a42d-1d4291e2c78e.jsonl` - jsonl file
 │   │   ├── `cb78e1ec-602b-4f03-95f8-63aeae0b1ac1.jsonl` - jsonl file
 │   │   └── `e2efe510-f8ef-47e5-8952-d693b3f2e94e.jsonl` - jsonl file
+│   ├── -root-rednote-mcp/
+│   │   └── `4d5ec861-87aa-4533-b971-c36c68ca8636.jsonl` - jsonl file
 │   ├── -root-travel-planner/
 │   │   ├── 03cc1674-a913-4fd1-be71-af363490ece2/
 │   │   ├── 06cf0634-bee9-4fcc-9692-56768b3bc1b9/
@@ -9750,6 +9831,7 @@
 │   ├── `quick-excel` - unknown file
 │   ├── `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 │   ├── `scan-project.sh` - Description: Scan project structure and detect project type
+│   ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 │   ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 │   └── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 ├── session-env/
@@ -9855,6 +9937,7 @@
 │   ├── 0d6ffebe-5414-4e05-ab50-178e33e037fc/
 │   ├── 0d871916-08f8-4f0f-9bff-4bd6f6ae2f33/
 │   ├── 0d96d6d8-0f79-42b4-98b7-654ff4753f69/
+│   ├── 0d9b1aa1-a61f-4587-be35-758f1451e096/
 │   ├── 0d9cc645-0fcb-4650-9a03-823098edf2e0/
 │   ├── 0dad2960-33ee-4d0d-b6c0-0f1393a0f029/
 │   ├── 0dbf2d65-9cff-4121-a6f8-bbfbf20f9c2c/
@@ -9890,6 +9973,7 @@
 │   ├── 1188a921-7143-42cc-9ff3-0cff571169c7/
 │   ├── 1192d4e9-3a71-4b65-bf9c-5f0af427cad8/
 │   ├── 119f4e35-390e-4dad-9278-4cabef27c39d/
+│   ├── 11d0da00-24f0-4e23-bbe0-bc15d31b993b/
 │   ├── 11df4f77-5620-4957-b99b-31748e361aa5/
 │   ├── 11ee99c4-ee4f-4c4e-bac5-f35984d424cd/
 │   ├── 11fffa70-cf49-4e28-a84f-99f47a47f518/
@@ -9935,6 +10019,7 @@
 │   ├── 179f41c5-28b9-4708-94fc-f1c35141b218/
 │   ├── 17df0a26-12b0-45d4-9631-3a078b8beb25/
 │   ├── 17f1a59e-7d8c-467e-bb40-811eb133910a/
+│   ├── 180fb796-30ee-4a55-abf3-d55f3431a6df/
 │   ├── 181c2817-26e2-4ac3-88ee-0ea360d6aa42/
 │   ├── 18241354-b808-4d78-8162-2f7c5954798f/
 │   ├── 182d13db-7053-4b18-8a3d-d090df2f1cd4/
@@ -10026,6 +10111,7 @@
 │   ├── 2370d90b-4d2a-4a95-ab18-94390aa88346/
 │   ├── 237cb9af-b0a0-455d-843d-ca5ee865dc3a/
 │   ├── 23b3a8e8-589e-4830-aa08-fd60ccf0ee5f/
+│   ├── 23b439b3-be72-45cb-b952-bef9e59895bf/
 │   ├── 23d1d874-b4f7-44ec-92a5-f2d77082a3c2/
 │   ├── 23eb4e93-76b7-425f-966d-bc58bcf55614/
 │   ├── 23ebabd1-8f39-4c03-9647-3fa547281e57/
@@ -10293,6 +10379,8 @@
 │   ├── 4886d9f7-5207-4a5f-8efd-b486906d749e/
 │   ├── 48b7c54a-7593-4d1e-98a9-57e0b492b8f2/
 │   ├── 48df58e5-321f-4710-8b1c-713f1d6bd48a/
+│   ├── 48e9fdd9-3724-47a2-9f11-4b2698700a4a/
+│   ├── 48eb0034-fedd-46ee-922a-b2b0cf07a4f7/
 │   ├── 49049ffc-6f52-47d8-a3ad-33fb868c306c/
 │   ├── 49141795-c497-4d91-b961-807db887040b/
 │   ├── 4926a127-86cf-4674-bf18-026f090d1c74/
@@ -10327,6 +10415,7 @@
 │   ├── 4ce11398-ad47-472d-afba-d6f24e3d3702/
 │   ├── 4cf9e066-8ec0-4367-9a8c-6dc9d8d635c0/
 │   ├── 4d27d80a-958c-4f84-95a1-a8598d5e445f/
+│   ├── 4d5ec861-87aa-4533-b971-c36c68ca8636/
 │   ├── 4d89f1c2-cef7-4884-8ce2-e9db2a988c1e/
 │   ├── 4dd2a4f2-6f67-49ce-9d55-60303ed9f951/
 │   ├── 4dd32721-7554-4719-befd-4279605efe33/
@@ -10563,6 +10652,7 @@
 │   ├── 6db3e7ea-9fe2-402c-9f02-1d63ef6a8cfd/
 │   ├── 6dc5deb6-e398-438d-acc3-e8ea06ecc7bf/
 │   ├── 6de03905-059c-49c2-aa25-e270489e150d/
+│   ├── 6def6122-72e4-4d0e-831f-3d38ed82ab08/
 │   ├── 6df6049a-1bee-4502-88d2-f6a961c63b6b/
 │   ├── 6e139c37-3066-4936-9b82-91f72402bcd8/
 │   ├── 6e7c7b64-c222-48ee-adaf-2da8ae0177db/
@@ -10710,6 +10800,7 @@
 │   ├── 84346009-de24-4379-8cd1-c703c34010fe/
 │   ├── 843b6d61-a0c8-4090-9f65-6b29372603df/
 │   ├── 844da4ba-0d68-4957-b32e-c8bbe5c2b401/
+│   ├── 8452ca1c-75d8-407b-acb3-e3f1b6d8b777/
 │   ├── 84eaa795-7c3d-4fa4-8e37-96eef509fc70/
 │   ├── 8562d79e-75b0-41f8-9711-67dc82f2a666/
 │   ├── 8596c61c-e3f2-4bc6-abe6-c4ccdf628400/
@@ -11078,6 +11169,7 @@
 │   ├── b9ad6709-cdd0-4870-b7ac-adc281a1e6b5/
 │   ├── b9d10b43-048f-4949-be36-0d26cb3401df/
 │   ├── b9fb5e27-9ba1-4e3e-b542-e4dcf97d5c53/
+│   ├── ba1a85b5-5783-498d-8da6-33061a44289d/
 │   ├── ba2d51e4-4086-4722-96c4-def648c998ae/
 │   ├── ba4184b6-8d0b-40c4-842d-b62701c0371f/
 │   ├── ba59c1b4-f208-4a49-baaf-99e244935fcd/
@@ -11093,6 +11185,7 @@
 │   ├── baecf898-4535-4adb-b9f6-ee8c9da5dd26/
 │   ├── bb0a9786-bf6e-4285-a8d3-5935080fd122/
 │   ├── bb116319-189e-4816-858c-d8820d5fce4a/
+│   ├── bb59cbca-7502-4451-90c9-c9fe98e39aa6/
 │   ├── bb6b2ecb-97d3-4370-929d-995a6d2e485f/
 │   ├── bb6ce1c4-1091-4b9c-8921-ac75d6103084/
 │   ├── bb973771-c351-420a-9412-f3887a783a4d/
@@ -11161,6 +11254,7 @@
 │   ├── c3b8271b-9f70-4807-a230-8f52d922a4df/
 │   ├── c3c1fb04-f8a0-4989-940d-e7d2eaf9b87d/
 │   ├── c4130049-752d-4516-ae06-1434a1604bb5/
+│   ├── c4258b8e-a206-4cf9-aeb5-0d9debcb5d82/
 │   ├── c4340e45-7bb2-4b51-bee6-972189d2fc7e/
 │   ├── c4524eea-2714-42ed-ba28-f3a52b4cad6d/
 │   ├── c4593831-6d0c-4bbe-8d11-92192f01ff97/
@@ -11247,6 +11341,7 @@
 │   ├── d08e09f4-76cf-4cbe-abea-2cd89e32ddf0/
 │   ├── d0b0ee2c-dc47-4725-b119-f6eeac701c60/
 │   ├── d0cde407-98dd-4ee2-8ae5-f86d5703aaf7/
+│   ├── d0ec784d-c321-41f6-ba24-65537efac311/
 │   ├── d0fa4fc2-9b54-46d7-a132-8b56e488e921/
 │   ├── d111f493-5ba1-42f9-b28b-f59d0d8a800e/
 │   ├── d122991a-2839-4aad-b3ec-4243226d95e0/
@@ -11329,8 +11424,10 @@
 │   ├── dbf851d2-af13-4428-98b5-c58ac631bcb2/
 │   ├── dc01c418-872d-411b-965b-447b22721cd6/
 │   ├── dc3575a4-edef-4ecf-b8e3-e8b32b9db4a8/
+│   ├── dc51b22b-d7df-4bb7-a0e3-4e56342f1436/
 │   ├── dc553694-77a0-43db-9bc2-a26ac59b5673/
 │   ├── dcbf5f62-f7c3-4635-a582-8264b6e91b33/
+│   ├── dccb8a21-47d0-4dde-8c26-8b185f947309/
 │   ├── dd3a870c-9440-4274-896f-462dfe972646/
 │   ├── dd4b0254-166d-4984-8bd2-f28003fb1251/
 │   ├── ddbd037c-010a-4302-9930-d3ca2c95cbfb/
@@ -11418,8 +11515,10 @@
 │   ├── eaa1077b-49ad-4697-8e01-e4a923d2b116/
 │   ├── ead13a95-4ac0-452a-966c-7e089953dd41/
 │   ├── eaf9456e-734c-4c5b-b673-aafda2a48638/
+│   ├── eb313d8e-f815-4ff8-9f8f-a54cf3de1c64/
 │   ├── eb5e1b43-7385-4891-af9c-5da8c5bfbc8b/
 │   ├── eb73e089-1948-43a0-b6e1-d77be4ce06fa/
+│   ├── eb89a065-0b72-43f4-8818-dbc43da6b79c/
 │   ├── eba0dfe5-c86a-4cc8-88ec-569ab78f1533/
 │   ├── ebf69b63-8f70-4ef7-913f-e4e349a429fc/
 │   ├── ec01ca92-024f-4d54-8de5-2612eedb57a0/
@@ -11578,6 +11677,7 @@
 │   ├── ff1e136b-2534-4035-8866-9c0984f2a001/
 │   ├── ff319861-a78a-4f71-b315-7f051558331d/
 │   ├── ff409a92-1bef-44db-9d1d-981bb41284f5/
+│   ├── ff41c30b-cd6b-48d0-bf6a-d2375a1bb18c/
 │   ├── ff5356df-88a3-4c83-a2c3-a14890f615ca/
 │   ├── ffba83fb-e8fc-473c-b56a-a36bf88eef61/
 │   ├── ffc9169f-df48-4649-81d2-3a3e532c72a1/
@@ -11586,20 +11686,12 @@
 │   ├── ffe64e22-c32b-4da6-84b9-322d271fe33b/
 │   └── ffea436f-2b6b-40d3-8196-a484178e0bf6/
 ├── sessions/
+│   ├── `1013041.json` - json config
 │   ├── `1123030.json` - json config
-│   ├── `1916213.json` - json config
-│   ├── `1969955.json` - json config
-│   ├── `2016165.json` - json config
-│   ├── `2125284.json` - json config
-│   ├── `2467700.json` - json config
-│   ├── `2472442.json` - json config
-│   ├── `2514369.json` - json config
-│   ├── `2518123.json` - json config
+│   ├── `2054660.json` - json config
 │   ├── `2638660.json` - json config
-│   ├── `3010003.json` - json config
-│   ├── `3022052.json` - json config
-│   ├── `3297171.json` - json config
-│   └── `3737183.json` - json config
+│   ├── `3737183.json` - json config
+│   └── `668175.json` - json config
 ├── shell-snapshots/
 │   ├── `snapshot-bash-1757635174638-jx5vwd.sh` - Snapshot file
 │   ├── `snapshot-bash-1757635860163-e24qqz.sh` - Snapshot file
@@ -11831,15 +11923,7 @@
 │   ├── `snapshot-bash-1776627740271-zv95mp.sh` - Snapshot file
 │   ├── `snapshot-bash-1776672653324-t3vmb1.sh` - Snapshot file
 │   ├── `snapshot-bash-1776702170123-dvx7bx.sh` - Snapshot file
-│   ├── `snapshot-bash-1777241475307-gmzg7t.sh` - Snapshot file
-│   ├── `snapshot-bash-1777241661986-dyu275.sh` - Snapshot file
-│   ├── `snapshot-bash-1777242178800-6fb2w9.sh` - Snapshot file
-│   ├── `snapshot-bash-1777244127213-dmk6te.sh` - Snapshot file
-│   ├── `snapshot-bash-1777249299263-rl7mt1.sh` - Snapshot file
-│   ├── `snapshot-bash-1777250254010-twmu7c.sh` - Snapshot file
-│   ├── `snapshot-bash-1777250423771-8bb79e.sh` - Snapshot file
-│   ├── `snapshot-bash-1777274398501-4pnggy.sh` - Snapshot file
-│   └── `snapshot-bash-1777279128145-oka2tz.sh` - Snapshot file
+│   └── `snapshot-bash-1777328707660-2n38i0.sh` - Snapshot file
 ├── skills/
 │   ├── docx/
 │   │   ├── `docx-js.md` - DOCX Library Tutorial
@@ -12119,6 +12203,8 @@
 │   ├── `018e88a5-50c9-4aca-8ffd-382a94ee2168-agent-018e88a5-50c9-4aca-8ffd-382a94ee2168.json` - json config
 │   ├── `01919142-fb9d-48e4-9916-306210868683-agent-01919142-fb9d-48e4-9916-306210868683.json` - json config
 │   ├── `0195d78c-6cf3-4c85-ac8d-7abb60867c56-agent-0195d78c-6cf3-4c85-ac8d-7abb60867c56.json` - json config
+│   ├── `019dd077-6d3c-7de1-bd6d-145b8ee35a45-agent-019dd077-6d3c-7de1-bd6d-145b8ee35a45.json` - json config
+│   ├── `019dd0f1-dc85-70f0-9ca2-c789c3578c31-agent-019dd0f1-dc85-70f0-9ca2-c789c3578c31.json` - json config
 │   ├── `01afd65c-3376-4c63-b59c-0f7c25239622-agent-01afd65c-3376-4c63-b59c-0f7c25239622.json` - json config
 │   ├── `01b92452-9b08-4fb2-a1c1-56de6710d9c0-agent-01b92452-9b08-4fb2-a1c1-56de6710d9c0.json` - json config
 │   ├── `01cbb3e1-b16a-4c7b-bd31-ffb4be4f7656-agent-01cbb3e1-b16a-4c7b-bd31-ffb4be4f7656.json` - json config
@@ -12397,6 +12483,7 @@
 │   ├── `11a6440b-5529-41a5-9bd8-5093b63fd1cd-agent-11a6440b-5529-41a5-9bd8-5093b63fd1cd.json` - json config
 │   ├── `11b0edc3-3cf9-4e8c-9b4a-ba804d15ca58-agent-11b0edc3-3cf9-4e8c-9b4a-ba804d15ca58.json` - json config
 │   ├── `11c43408-e575-46a6-b97e-a3c65950c94e-agent-11c43408-e575-46a6-b97e-a3c65950c94e.json` - json config
+│   ├── `11d0da00-24f0-4e23-bbe0-bc15d31b993b-agent-11d0da00-24f0-4e23-bbe0-bc15d31b993b.json` - json config
 │   ├── `11db7de1-c29c-453a-8de8-83ee55ad478f-agent-11db7de1-c29c-453a-8de8-83ee55ad478f.json` - json config
 │   ├── `11dc1f45-283a-4e7e-9bc8-7099f1a334eb-agent-11dc1f45-283a-4e7e-9bc8-7099f1a334eb.json` - json config
 │   ├── `11e26dd8-3541-4748-abc9-ffcdae7cd59f-agent-11e26dd8-3541-4748-abc9-ffcdae7cd59f.json` - json config
@@ -13682,7 +13769,6 @@
 │   ├── `5e819d58-f231-4712-9c73-136c73f67817-agent-5e819d58-f231-4712-9c73-136c73f67817.json` - json config
 │   ├── `5ea529c7-d534-4329-9e00-2e96129d468f-agent-5ea529c7-d534-4329-9e00-2e96129d468f.json` - json config
 │   ├── `5eaeb571-5366-4dda-994e-b884000af432-agent-5eaeb571-5366-4dda-994e-b884000af432.json` - json config
-│   ├── `5ed0d8f4-041a-4fe3-9938-135c793ac046-agent-5ed0d8f4-041a-4fe3-9938-135c793ac046.json` - json config
 │   ├── `5ed225ad-19ef-4d38-8d75-9a26ddd0a3ad-agent-5ed225ad-19ef-4d38-8d75-9a26ddd0a3ad.json` - json config
 │   ├── `5ed8c7b9-118d-4582-be9f-89e82cc36a53-agent-5ed8c7b9-118d-4582-be9f-89e82cc36a53.json` - json config
 │   ├── `5ed972dc-43d6-4983-9a18-ee5efbbc2466-agent-5ed972dc-43d6-4983-9a18-ee5efbbc2466.json` - json config
@@ -14298,7 +14384,6 @@
 │   ├── `82b03dc6-7490-49d0-bd3c-c81c4825641f-agent-82b03dc6-7490-49d0-bd3c-c81c4825641f.json` - json config
 │   ├── `82b7d7c1-5e93-4802-90ce-c8c882c3ea5e-agent-82b7d7c1-5e93-4802-90ce-c8c882c3ea5e.json` - json config
 │   ├── `82c1f0ac-07e2-458b-a417-c0a71717185d-agent-82c1f0ac-07e2-458b-a417-c0a71717185d.json` - json config
-│   ├── `82cc2457-4543-487c-b06a-e3f6c07331b4-agent-82cc2457-4543-487c-b06a-e3f6c07331b4.json` - json config
 │   ├── `82d0901e-3a4c-47f7-b46f-0909b92f2815-agent-82d0901e-3a4c-47f7-b46f-0909b92f2815.json` - json config
 │   ├── `82f16bd7-88f0-42c7-88ee-aab9f42d0e3d-agent-82f16bd7-88f0-42c7-88ee-aab9f42d0e3d.json` - json config
 │   ├── `82faaf3a-fe36-4779-9ba3-6e365887947f-agent-82faaf3a-fe36-4779-9ba3-6e365887947f.json` - json config
@@ -15113,6 +15198,7 @@
 │   ├── `afd2d19d-007a-44dc-8c7e-1d58c89b2097-agent-afd2d19d-007a-44dc-8c7e-1d58c89b2097.json` - json config
 │   ├── `afd494eb-ed8e-47ea-a49b-dd1e76de64fa-agent-afd494eb-ed8e-47ea-a49b-dd1e76de64fa.json` - json config
 │   ├── `aff712ac-3a92-4db8-86e6-cc9f00f0025a-agent-aff712ac-3a92-4db8-86e6-cc9f00f0025a.json` - json config
+│   ├── `alignment-probe-agent-alignment-probe.json` - json config
 │   ├── `b00c3798-9257-4957-a02a-9367a5fd1d45-agent-b00c3798-9257-4957-a02a-9367a5fd1d45.json` - json config
 │   ├── `b016d0ca-3b6c-4101-865d-c8e950e396e1-agent-b016d0ca-3b6c-4101-865d-c8e950e396e1.json` - json config
 │   ├── `b02ba4db-e6b6-4b7a-aaf3-db8d90fa7411-agent-b02ba4db-e6b6-4b7a-aaf3-db8d90fa7411.json` - json config
@@ -15295,6 +15381,7 @@
 │   ├── `b9df402f-39bc-4783-853f-2e490849e990-agent-b9df402f-39bc-4783-853f-2e490849e990.json` - json config
 │   ├── `b9fe6d96-ce0f-4c75-a6ab-16c252dd2ff9-agent-b9fe6d96-ce0f-4c75-a6ab-16c252dd2ff9.json` - json config
 │   ├── `ba070ea4-bf84-485b-9b11-01c90f125ce9-agent-ba070ea4-bf84-485b-9b11-01c90f125ce9.json` - json config
+│   ├── `ba1a85b5-5783-498d-8da6-33061a44289d-agent-ba1a85b5-5783-498d-8da6-33061a44289d.json` - json config
 │   ├── `ba1e10f9-c865-4478-984e-cf903e78ec3d-agent-ba1e10f9-c865-4478-984e-cf903e78ec3d.json` - json config
 │   ├── `ba2a2773-b959-4c38-a66b-8fe92b54eb0b-agent-ba2a2773-b959-4c38-a66b-8fe92b54eb0b.json` - json config
 │   ├── `ba2f1107-c4b2-4616-a6a0-eaf1d37846fb-agent-ba2f1107-c4b2-4616-a6a0-eaf1d37846fb.json` - json config
@@ -15638,6 +15725,9 @@
 │   ├── `cfd2f554-9a01-4bae-b16d-4daec20a4f34-agent-cfd2f554-9a01-4bae-b16d-4daec20a4f34.json` - json config
 │   ├── `cfd3dd23-4ab1-423f-b31d-ede941c99227-agent-cfd3dd23-4ab1-423f-b31d-ede941c99227.json` - json config
 │   ├── `cfea82a9-2adc-4ee8-9cb8-973e975bca8f-agent-cfea82a9-2adc-4ee8-9cb8-973e975bca8f.json` - json config
+│   ├── `codex-plan-test-484b8ded-agent-codex-plan-test-484b8ded.json` - json config
+│   ├── `codex-test-implicit-agent-codex-test-implicit.json` - json config
+│   ├── `codex-test-visible-agent-codex-test-visible.json` - json config
 │   ├── `d02054c9-fdf8-42a2-836e-c75a1bd35be8-agent-d02054c9-fdf8-42a2-836e-c75a1bd35be8.json` - json config
 │   ├── `d04dfd4c-4b5a-4701-921f-3ae85f8cfde3-agent-d04dfd4c-4b5a-4701-921f-3ae85f8cfde3.json` - json config
 │   ├── `d05097b5-79af-4876-8067-1f1d6b72fffd-agent-d05097b5-79af-4876-8067-1f1d6b72fffd.json` - json config
@@ -16496,7 +16586,9 @@
 │   ├── `ffee96de-32b4-490c-b251-c72555b109de-agent-ffee96de-32b4-490c-b251-c72555b109de.json` - json config
 │   ├── `fff60ac9-77b0-436c-9473-8d8b8f4d79f6-agent-fff60ac9-77b0-436c-9473-8d8b8f4d79f6.json` - json config
 │   ├── `fff70ba7-da69-456a-8ba0-6bd730acc871-agent-fff70ba7-da69-456a-8ba0-6bd730acc871.json` - json config
-│   └── `test123-agent-test123.json` - json config
+│   ├── `implicit-agent-implicit.json` - json config
+│   ├── `test123-agent-test123.json` - json config
+│   └── `visible-agent-visible.json` - json config
 ├── worktrees/
 ├── `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
 ├── `AUTOMATED_CLEANUP_SETUP.md` - 自动化清理系统配置文档
@@ -16511,16 +16603,17 @@
 ├── `push.sh` - 
 ├── `session.log` - log file
 ├── `settings.json` - json config
+├── `settings.json.bak-multiedit-fix` - bak-multiedit-fix file
 ├── `settings.json.bak-pre-r4-hooks-20260425` - bak-pre-r4-hooks-20260425 file
 ├── `settings.json.bak.20260421-114348` - 20260421-114348 file
 ├── `settings.local.json` - json config
 ├── `stats-cache.json` - json config
+├── `workflow-11d0da00-24f0-4e23-bbe0-bc15d31b993b.json` - json config
 ├── `workflow-1f9f0472-7a89-4cfa-87f2-c85616fed777.json` - json config
 ├── `workflow-215eec0e-0e9c-4f81-bd52-b73036e3d33a.json` - json config
 ├── `workflow-30b4bbbc-a873-4ba8-b8fd-804dc05492bc.json` - json config
 ├── `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 ├── `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
-├── `workflow-5ed0d8f4-041a-4fe3-9938-135c793ac046.json` - json config
 ├── `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
 ├── `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
 ├── `workflow-dd3a870c-9440-4274-896f-462dfe972646.json` - json config

@@ -21,7 +21,7 @@ Enforce strict organization standards through systematic inspection and selectiv
 
 The orchestrator (the LLM executing this command) MUST NOT:
 
-1. **DO NOT use Edit, Write, or Bash tools to execute cleanup actions.** All file modifications during cleanup execution (Step 11) MUST be performed by the cleaner subagent, invoked via the Agent tool. The orchestrator coordinates; it does not execute.
+1. **DO NOT use Edit, Write, or Bash tools to execute cleanup actions.** All file modifications during cleanup execution (Step 15) MUST be performed by the cleaner subagent, invoked via the Agent tool. The orchestrator coordinates; it does not execute.
 
 2. **DO NOT subjectively filter or narrow scope when the user selects "Execute all".** "Execute all" means every finding from the combined report becomes an approved action. The orchestrator has zero discretion to classify findings as "not in scope", "minor", or "not worth doing". If the inspectors found it, it gets approved.
 
@@ -288,7 +288,7 @@ The style-inspector uses a **budget protocol** to avoid context overflow. Instea
 **Partial reports**: `docs/clean/style-partial-{REQUEST_ID}-group{N}.json`
 **Final report**: `docs/clean/style-report-{REQUEST_ID}.json`
 
-#### Step 6a: Plan Style Inspection
+#### Step 7: Plan Style Inspection
 
 Run the planner script to discover all auditable files and split them into groups:
 
@@ -301,9 +301,9 @@ TOTAL_FILES=$(echo "$STYLE_PLAN" | jq -r '.total_files')
 
 Log: "Style inspection planned: {AGENT_COUNT} agents for {TOTAL_FILES} files"
 
-If AGENT_COUNT is 0, skip to Step 7 (no files to audit).
+If AGENT_COUNT is 0, skip to Step 11 (no files to audit).
 
-#### Step 6b: Launch Parallel Style Inspectors
+#### Step 8: Launch Parallel Style Inspectors
 
 For EACH group in the plan JSON, launch a style-inspector agent using the **Agent tool** with `run_in_background: true`. All agents MUST be launched in a SINGLE message (parallel, not sequential).
 
@@ -348,7 +348,7 @@ You MUST read each file fully before auditing it. Check all 11 standards against
 
 After launching all agents, log: "Launched {AGENT_COUNT} style-inspector agents in parallel"
 
-#### Step 6c: Collect and Merge Results
+#### Step 9: Collect and Merge Results
 
 After ALL agents complete, read each partial report file:
 
@@ -361,19 +361,19 @@ docs/clean/style-partial-{REQUEST_ID}-group{N}.json
 
 Merge all violations from every partial report into a single combined list. Merge all files_audited lists into a single deduplicated list. Write the final merged report to `docs/clean/style-report-{REQUEST_ID}.json`.
 
-#### Step 6d: Coverage Verification (MANDATORY GATE)
+#### Step 10: Coverage Verification (MANDATORY GATE)
 
-Read the plan file `docs/clean/style-plan-{REQUEST_ID}.json` and extract the `all_files` array. Compare it against the merged `files_audited` list from Step 6c.
+Read the plan file `docs/clean/style-plan-{REQUEST_ID}.json` and extract the `all_files` array. Compare it against the merged `files_audited` list from Step 9.
 
 If ANY file from `all_files` is missing from the merged `files_audited`:
 
 1. Log which files were missed and their count
 2. Build a new group containing ONLY the missed files
-3. Launch a targeted style-inspector agent for the missed files (same prompt format as Step 6b)
+3. Launch a targeted style-inspector agent for the missed files (same prompt format as Step 8)
 4. After the targeted agent completes, merge its results into the final report
 5. Repeat coverage check -- if files are still missing after one retry, log an error and proceed
 
-**BLOCK Step 7 until coverage verification passes** (all files in the plan appear in files_audited) OR the retry has been attempted.
+**BLOCK Step 11 until coverage verification passes** (all files in the plan appear in files_audited) OR the retry has been attempted.
 
 ---
 
@@ -404,7 +404,7 @@ Expected final output structure:
 }
 ```
 
-### Step 7: Merge Inspection Reports
+### Step 11: Merge Inspection Reports
 
 Combine both reports using orchestrator:
 
@@ -416,7 +416,7 @@ Combine both reports using orchestrator:
 Orchestrator merges and writes:
 - `docs/clean/combined-report-{REQUEST_ID}.json`
 
-### Step 8: Present Combined Report to User
+### Step 12: Present Combined Report to User
 
 Format and display findings:
 
@@ -467,7 +467,7 @@ Format and display findings:
 5. Cancel and generate report only
 ```
 
-### Step 9: Collect User Approval
+### Step 13: Collect User Approval
 
 Based on user selection, build approval context:
 
@@ -520,19 +520,19 @@ For Options 2-4, the orchestrator may apply the stated filter (by report type, s
 
 Save to: `docs/clean/user-approvals-{REQUEST_ID}.json`
 
-### Step 9b: Completeness Verification Gate (Option 1 Only)
+### Step 13b: Completeness Verification Gate (Option 1 Only)
 
 **This gate is MANDATORY when the user selected Option 1 (Execute all). Skip for Options 2-5.**
 
-Before proceeding to Step 10, the orchestrator MUST verify that the approvals JSON is complete:
+Before proceeding to Step 14, the orchestrator MUST verify that the approvals JSON is complete:
 
 1. Read `total_issues` from `docs/clean/combined-report-{REQUEST_ID}.json` summary section
 2. Read `total_approved_actions` from `docs/clean/user-approvals-{REQUEST_ID}.json`
 3. Compare the two counts
 
-**If counts match**: Log "Completeness gate PASSED: {total_approved_actions} approved actions match {total_issues} combined report findings" and proceed to Step 10.
+**If counts match**: Log "Completeness gate PASSED: {total_approved_actions} approved actions match {total_issues} combined report findings" and proceed to Step 14.
 
-**If counts do NOT match**: BLOCK execution immediately. Do NOT proceed to Step 10 or Step 11. Log the following error:
+**If counts do NOT match**: BLOCK execution immediately. Do NOT proceed to Step 14 or Step 15. Log the following error:
 
 ```
 COMPLETENESS GATE FAILED
@@ -543,13 +543,13 @@ Discrepancy: {N - M} findings missing from approvals
 ACTION: Regenerate approvals JSON from combined report. Every finding must have a corresponding approved_action.
 ```
 
-The orchestrator MUST regenerate the approvals JSON (return to Step 9 Option 1 procedure) and re-run this gate. Do NOT bypass the gate or proceed with mismatched counts.
+The orchestrator MUST regenerate the approvals JSON (return to Step 13 Option 1 procedure) and re-run this gate. Do NOT bypass the gate or proceed with mismatched counts.
 
 **Root cause reference**: On 2026-04-05, the orchestrator generated 32 approved actions from 92 combined findings. This gate would have blocked execution and forced regeneration.
 
 ---
 
-### Step 10: Create Safety Checkpoint
+### Step 14: Create Safety Checkpoint
 
 Before execution, create a safety checkpoint on `refs/checkpoints/<branch>`
 (NOT on HEAD — preserves git blame hygiene). The checkpoint-core library
@@ -576,11 +576,11 @@ ancestor. To recover individual files:
 For a full-tree reset (destructive, prefer file-level):
 `git reset --hard refs/checkpoints/$(git branch --show-current)`
 
-### Step 11: Invoke Cleaner with Approvals (DELEGATION ONLY)
+### Step 15: Invoke Cleaner with Approvals (DELEGATION ONLY)
 
 **The orchestrator MUST delegate ALL cleanup execution to the cleaner subagent via the Agent tool. The orchestrator does NOT execute any file modifications itself.**
 
-**DO NOT -- the following are FORBIDDEN during Step 11:**
+**DO NOT -- the following are FORBIDDEN during Step 15:**
 - **DO NOT use the Edit tool** to modify any project files
 - **DO NOT use the Write tool** to create or overwrite any project files
 - **DO NOT use the Bash tool** to run commands that modify files (mv, cp, rm, sed, etc.)
@@ -653,7 +653,7 @@ Expected output structure:
 }
 ```
 
-### Step 12: Verify Cleanup Results
+### Step 16: Verify Cleanup Results
 
 Review git changes:
 
@@ -693,7 +693,7 @@ Present verification summary:
 4. See detailed report: docs/clean/completion-{REQUEST_ID}.md
 ```
 
-### Step 13: Generate Completion Report
+### Step 17: Generate Completion Report
 
 Create comprehensive completion report:
 

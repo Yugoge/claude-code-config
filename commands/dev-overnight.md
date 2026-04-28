@@ -2,17 +2,53 @@
 description: Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
 ---
 
-> Code-writing tasks (.svg/.css/.html/.js/.ts/.py/...) go to `dev`. Specialists, BA, and QA produce .md/.json only.
-
-**CRITICAL**: Use TodoWrite to track workflow phases. Mark in_progress before each step, completed immediately after.
-
 # Dev-Overnight: Autonomous Continuous Development
+
+**Scope**: Code-writing tasks (.svg/.css/.html/.js/.ts/.py/...) go to `dev`. Specialists, BA, and QA produce .md/.json only. TodoWrite tracking discipline is codified in Hard Rule 6 below.
 
 **Philosophy**: Explore autonomously, discover real issues, fix them systematically, loop until time expires, then summarize everything.
 
 This command runs an unattended development loop. When `spec_mode == "autonomous"`, you are fully autonomous -- no user input is needed or expected. When `spec_mode == "user-provided"`, honor the orchestrator view's Hard Rule 10 user-pause gate; do not auto-loop past it. You discover issues yourself by scanning the codebase, fix each one through a simplified dev cycle, and keep going until the specified end time (autonomous mode) or until the next user-gate pause (user-provided spec mode).
 
 **Quick status utility**: Use `bash ~/.claude/scripts/overnight-status.sh` for instant session status (zero LLM cost). Use this instead of reading/parsing the state JSON manually. Optionally pass session_id as argument.
+
+---
+
+## Standard Dispatch Envelope
+
+> **Status**: reference material for the dispatch templates in Steps 2a/2b/2c/3-14. The per-dispatch templates in this file are NOT yet rewritten to reference this envelope — that compression is deferred to Cycle 2 (per architect Section D ordering: envelope MUST exist before templates can point at it). This section captures the truly-invariant prose so the next cycle can replace per-template duplicates with `<<envelope>>` references.
+
+Every Agent dispatch from this orchestrator shares the following invariant prelude. The variant per-dispatch text (Requirement, Context file, Output path, role-specific instructions) is composed AFTER this prelude and remains in each step.
+
+**Common prelude (invariant across all overnight dispatches)**:
+
+1. **FIRST ACTION (sentinel registration, dev-registry enforcement)**:
+   `FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/<role>.json to register with the enforcement system. Do this BEFORE any other tool call.`
+   Substitute `<role>` with the dispatched subagent type (`pm`, `ba`, `dev`, `qa`, `architect`, `product-owner`, `user`, `ui-specialist`, …). Without this Read, `pretool-cp-checkin.py` cannot map the subagent UUID to its `agent_type` and `pretool-subagent-code-block.py` falls open. The Step 1 sentinel-fanout loop creates the JSON files for every agent type before any dispatch runs.
+
+2. **CHECKPOINT MARKING (cp-state checklist contract, only when `SPEC_ID` is non-empty AND that role's cp-state file exists)**:
+   `CHECKPOINT MARKING: see agents/<role>.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.`
+   The full SECOND ACTION semantics — read `cp-state-<role>.json`, mark checkpoints with `/root/.claude/scripts/spec-check.py mark`, waive with the `waive` subcommand, satisfy `subagentstop-cp-enforce.py` before Stop — are documented once in the Step 1 cp-state handoff section above and inside `agents/<role>.md` itself. The pointer keeps each dispatch one line wide while preserving the contract.
+
+3. **Role declaration**:
+   `You are the <role> subagent. Follow agents/<role>.md instructions precisely.` (For BA the file is `.claude/agents/ba.md`. For PM with explicit mode the line becomes `You are the PM subagent in <PM_MODE> mode. Follow agents/pm.md <Mode> Protocol.`)
+
+4. **Project root**:
+   `Project path: <worktree_path from state file if set, otherwise project_path>` — every subagent's file reads/writes/git ops MUST stay inside this root.
+
+5. **Standard Return-JSON contract**:
+   The dispatched subagent returns a JSON object whose required keys are `status`, `<role>_report_path` (or equivalent artifact path[s]), and `summary`. Subagents extend this shape per `agents/<role>.md`; this orchestrator does not redeclare per-role schemas inline.
+
+**Variant per-dispatch text** (kept inline in each Step 2a/2b/2c/3-14 dispatch template, NOT covered by this envelope):
+
+- Requirement / clarified statement
+- Spec file paths (overnight spec, BA spec, context JSON, view file, test-plan, route-map)
+- Pipeline-specific timestamp suffix and pipeline_id
+- Mode flags (e.g., `PM_MODE: TRIAGE`, `RETRO`, `BA-VALIDATION MODE`, `UI_MODE`)
+- Iteration count, prior_attempt_signals, QA objections (when re-invoking after failure)
+- Output report path (`docs/dev/<artifact>-<timestamp>.json` or per-cycle directory)
+
+**Cycle 2 work (deferred)**: per-dispatch templates are rewritten to reference `<<envelope>>` and contain only the variant text. Spec compliance for that cycle: each dispatch template ≤ 12 lines (variant only), envelope expands at orchestrator-injection time.
 
 ---
 
@@ -82,7 +118,7 @@ Step 1: Read state file + enter worktree (first run only)
 3. **Keep cycles comprehensive and priority-driven**. PM triage determines pipeline ordering -- the main agent follows PM's authority. In Focus Mode (Tier 1 blockers exist), only blocker pipelines are created. In Normal Mode, all issues get pipelines ordered by tier: Tier 1 (blockers) first, then Tier 2 (major), then Tier 3 (minor/cosmetic). Within each tier, issues flagged by more agents rank higher.
 4. **ALL exploration and fixes via subagents**. Use Agent tool for ALL scanning, analysis, and implementation work. Main context only handles TodoWrite and loop control.
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
-6. **Track everything**. Use TodoWrite to track per-cycle workflow progress in your own todo list. Do NOT write to `.claude/overnight-state-<sid>.json` from the main agent — that file is owned and updated by the orchestrator hooks (`posttool-overnight-loop.py` increments `cycle_count`, resets `current_phase`/`current_issues`/`unresolved_issues`, preserves `pm_triage_reports`/`pm_retro_reports`; `posttool-overnight-loop.py:_mark_session_complete` flips `current_phase` to `complete` at end-time). See `docs/dev/state-file-write-policy.md` for the full per-field write matrix.
+6. **Track everything**. Use TodoWrite for per-cycle progress. Do NOT write to `.claude/overnight-state-<sid>.json` from the main agent — that file is owned by the orchestrator hooks. See `docs/dev/state-file-write-policy.md` for the full per-field write matrix.
 7. **The Stop hook prevents premature exit**. The time-lock hook will block conversation termination until end-time. Do not try to circumvent it.
 8. **Git checkpoint vs HEAD commit are distinct semantic layers**. The existing posttool-git-checkpoint.sh hook writes mid-cycle Write/Edit snapshots to `refs/checkpoints/*` only — these are NOT merge-ready commits and they do NOT advance any branch HEAD. They exist for crash recovery and audit, not for shipping. End-of-cycle Step 13 lands a real HEAD commit on the worktree branch via `commit.sh --auto-bulk-bridge <branch>` — that HEAD commit IS merge-ready and is the only artifact `/merge` consumes. See `/root/.claude/CLAUDE.md` (Auto-Commit Mechanism section) for the full checkpoint-ref vs HEAD-commit contract. Do NOT conflate "checkpoint after fix" (refs/checkpoints/*, recovery-only) with "ship upstream" (HEAD commit + `/merge`, distribution).
 9. **Cycle-end deploy is autonomous-mode only** (canonical overnight Hard Rule 9). When `spec_mode == "autonomous"`, every cycle MUST end with QA rebuilding and redeploying via `docker compose build` and `docker compose up -d` for the project's own services (identified from `docker-compose.yml`); deploy verification is REQUIRED in this mode. When `spec_mode == "user-provided"`, deploy is NOT mandatory at the engine level — the user spec dictates whether to deploy (the orchestrator view's Pipeline Workflow may instruct deploy, may instruct skip, or may defer to a user gate). Regular `/dev` (single-pass, NOT `/dev-overnight`) MUST NOT auto-deploy regardless of spec_mode — `/dev` is a single-feature implementation pass, not an overnight cycle. Do NOT touch unrelated services or infrastructure.
@@ -93,25 +129,10 @@ Step 1: Read state file + enter worktree (first run only)
 
 ## Overnight Incident Lessons (2026-03-28)
 
-**NON-NEGOTIABLE.** Full stories: `docs/incidents-2026-03-28.md`.
-
-### Rule 1: Never weaken checks to "fix" failures
-If validation rejects output, fix the upstream code producing the output. Never lower thresholds, swallow exceptions, change error→warning, or skip validation.
-
-### Rule 2: PM only prioritizes — PM never proposes solutions
-PM ranks issues by severity and orders pipelines. Solutions are BA's and Dev's job.
+**NON-NEGOTIABLE.** Full stories: `docs/incidents-2026-03-28.md`. Rules 1, 2, 4, 5, 6 are general dev hygiene already covered by `~/.claude/CLAUDE.md` (never weaken checks; PM prioritizes only; compare against reference before fixing; output quality > absence of errors; no unsolicited improvements). The overnight-specific rules below are load-bearing:
 
 ### Rule 3: Specialists report symptoms only — no root cause, no fix suggestions
 Specialists observe and report. Root cause analysis is exclusively BA's job.
-
-### Rule 4: Always compare with reference implementation BEFORE fixing
-When the user says "align with X", every fix must be validated against X's behavior.
-
-### Rule 5: Output quality > no errors
-QA passing means HIGH QUALITY output, not just "no exceptions".
-
-### Rule 6: Never make "improvements" the user didn't ask for
-If the user didn't report it as broken, don't change it. Don't add features, rename, or fill empty space.
 
 ### Rule 7: Global agent files must be project-agnostic
 Files in `~/.claude/agents/` and `~/.claude/commands/` apply to ALL projects. No project-specific examples.
@@ -146,11 +167,7 @@ If `--spec` is NOT provided, the session operates in **autonomous mode** (defaul
 - After PM TRIAGE creates pipelines, the orchestrator creates spec files from the template at `~/.claude/templates/overnight-spec.md`
 - Each pipeline gets its own spec file at `docs/dev/overnight/<session_id>/spec-pipeline-<index>.md`
 
-**Spec mode detection**: Argument parsing and spec mode detection are handled by `create-overnight-state.sh` at session creation. The state file already contains `user_spec_path` and `spec_mode` fields. Read them from the state file in Step 1.
-
-**Detect views folder**: View detection is handled by `create-overnight-state.sh` at session creation. The state file's `view_paths` field contains the manifest.views dict (or null if no views exist). Each subagent receives its per-agent view path alongside the monolith spec path. If `view_paths` is null, views are not available and subagents receive only the monolith path -- legacy specs are fully supported.
-
-**Auto-detect default spec**: Auto-detection of specs in `docs/dev/specs/` is handled by `create-overnight-state.sh` at session creation. If a spec was auto-detected, the state file will have `spec_mode: "user-provided"` and `user_spec_path` populated. The session announces this in Step 1 when reading the state file.
+**Argument parsing, spec auto-detection, and view detection are all performed by `create-overnight-state.sh` during session creation.** Read the resulting state file in Step 1 — it contains `user_spec_path`, `spec_mode`, and `view_paths` (manifest.views dict, or null when no views exist). Subagents receive their per-agent view path alongside the monolith spec path; null `view_paths` means legacy spec-only mode (still supported). When a spec was auto-detected from `docs/dev/specs/`, Step 1 announces it.
 
 The `focus` string is stored in the state file and passed to all 4 specialist subagents as a discovery hint. It helps specialists focus their scans but does not affect pipeline creation -- all discovered issues get pipelines regardless of focus match. Additionally, in Step 3a, the orchestrator converts the focus into quantitative QA verification criteria that are passed to QA subagents in Step 9 as mandatory pass/fail checks.
 
@@ -160,11 +177,7 @@ The `focus` string is stored in the state file and passed to all 4 specialist su
 
 ### Step 1: Read State File and Enter Worktree
 
-The state file has already been created by the UserPromptSubmit hook at `.claude/overnight-state-<session_id>.json`, including `worktree_path`, `worktree_branch`, `view_paths`, `user_spec_path`, `spec_mode`, and `current_phase: "exploring"`. Find and read it:
-
-```bash
-ls .claude/overnight-state-*.json
-```
+The state file has already been created by the UserPromptSubmit hook at `.claude/overnight-state-<session_id>.json`, including `worktree_path`, `worktree_branch`, `view_paths`, `user_spec_path`, `spec_mode`, and `current_phase: "exploring"`. List `.claude/overnight-state-*.json` and read the file matching the current session.
 
 **Read the state file** to get the end_time, session_id, worktree_path, spec_mode, user_spec_path, view_paths, and confirm initialization. If multiple state files exist, use the one matching the current session.
 
@@ -220,11 +233,8 @@ Every Agent launch prompt in this orchestrator MUST begin with a `FIRST ACTION` 
 **Initialize cp-state handoff when a user-provided `/spec` exists** (MANDATORY in `spec_mode == "user-provided"` when cp-state files exist):
 
 If `user_spec_path` points at `docs/dev/specs/<SPEC_ID>.md` and the sibling
-directory `.claude/specs/<SPEC_ID>/` contains cp-state files, bind:
-
-```bash
-SPEC_ID="<SPEC_ID from user_spec_path basename>"
-```
+directory `.claude/specs/<SPEC_ID>/` contains cp-state files, bind `SPEC_ID` to
+the basename (without extension) of `user_spec_path`.
 
 If no spec/cp-state directory exists, set `SPEC_ID=""` and skip the `SECOND ACTION`
 lines below. If a particular agent has no cp-state file under that SPEC_ID, omit that
@@ -232,7 +242,7 @@ agent's `SECOND ACTION` for this launch. When `SPEC_ID` is non-empty, every Agen
 cp-state file MUST include a `SECOND ACTION` line immediately after the dev-registry `FIRST ACTION`:
 
 ```text
-SECOND ACTION: Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json to load your mandatory checklist before doing substantive work. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
+SECOND ACTION: Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json to load your mandatory checklist before doing substantive work. Mark each completed checkpoint with /root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
 ```
 
 This gives overnight specialists the same checklist-stop semantics as BA/Dev/QA:
@@ -259,10 +269,6 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
    - `retrospective` -> Step 14 (PM Retro)
 4. The hook has already injected the command specification and state summary into this prompt
 
-**Do NOT**:
-- Create the state file (it already exists)
-- Re-create the worktree (it already exists -- just `cd` into `worktree_path` from the state file)
-
 ---
 
 ## Four Contracts Awareness (Orchestrator Role)
@@ -284,8 +290,7 @@ for retry signals:
 
 - **Retry phrasing** in the iteration prompt or triage report: "again",
   "still", "didn't fix", "Nth time", "又", "还是", "没修好"
-- **Recent related commits from this overnight run**:
-  `git log --oneline --grep="<keyword>" HEAD~30..HEAD`
+- **Recent related commits from this overnight run** (example query: `git log --oneline --grep="<keyword>" HEAD~30..HEAD`)
 - **Existing BA specs from earlier iterations**: files matching
   `docs/dev/ba-spec-*.md` with keywords from the current issue
 - **Prior-cycle failure reports**: any QA report flagged as failed in an
@@ -340,7 +345,7 @@ The PM subagent MUST record the layer in its per-issue triage output so
 the orchestrator can detect "same-layer retry" patterns across iterations.
 When dev reports back, verify implementation layer matches BA's spec layer.
 
-### Step 1.5: UI Mode Detection
+### Step 1a: UI Mode Detection
 
 Parse the invocation flags:
 - If invoked as `/dev-overnight --ui-spec <path>`, this is a UI Development workflow:
@@ -368,7 +373,7 @@ Use Agent tool with:
 - description: "Build test plan from project docs and session history"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/pm.json to register with the enforcement system. Do this BEFORE any other tool call.
-  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-pm.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
+  CHECKPOINT MARKING: see agents/pm.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the PM subagent. Follow agents/pm.md instructions precisely.
 
@@ -436,24 +441,11 @@ If the test plan has no `priority_tiers` (first cycle, no history), set the prio
 
 ### CRITICAL: Specialists run SERIALLY, not in parallel
 
-Launch specialists ONE AT A TIME (ui-specialist, architect, product-owner, user).
-Wait for each to complete before launching the next. Do NOT put multiple
-specialists in a single Agent tool call. This is non-negotiable — parallel
-specialists violate spec design contracts.
-
-Exception: BA/Dev/QA may still be parallelized (they have instance-isolated state
-via spec-check.py --instance-id). Specialists do NOT have instance-isolated state.
+Launch specialists ONE AT A TIME (ui-specialist, architect, product-owner, user) — one Agent call per specialist, wait for each to complete before launching the next. NEVER put multiple specialists in a single Agent tool call and NEVER launch 2+ specialists in parallel. Specialists are expensive, one-at-a-time consultations; parallelizing them corrupts evidence ordering and wastes context budget. BA/Dev/QA may still be parallelized — they have instance-isolated state via `spec-check.py --instance-id`; specialists do not.
 
 ### Step 2b Specialist Calling Rule
 
 This step is EXPLORATION — the goal is to discover unknown issues. In exploration, cast a wide net.
-
-**SERIAL SPECIALIST CONSTRAINT**: Launch ONE specialist at a time in a single Agent call.
-NEVER launch 2+ specialists in parallel. If 4 specialists are RELEVANT, launch them
-sequentially across 4 Agent calls, not in one parallel batch. Specialists are expensive,
-one-at-a-time consultations — parallelizing them corrupts evidence ordering and wastes
-context budget. Only BA/Dev/QA may run in parallel (and even those typically run
-sequentially per item in supervisor/pipeline mode).
 
 **SUPERVISOR MODE (user-provided spec)**: Specialist routing is determined by the
 orchestrator view manifest (Agent Relevance table). If the manifest marks N
@@ -464,15 +456,10 @@ anomaly in the cycle log so the user can fix the view). When the manifest IS
 present and explicitly assigns specialists, ignoring it is a contract violation —
 the spec's Pipeline Workflow is the authoritative routing source.
 
-**Exploration mode (user did NOT provide a spec)**: Call all 4 specialists by default. Broad coverage is the point. PM's `recommended_specialists` field may narrow the list if PM has strong signal, but the DEFAULT is all 4. Even in exploration mode, launch them SEQUENTIALLY (one Agent call per specialist), not in parallel.
+**Routing rule** (decide at runtime from the state file):
 
-**Supervisor mode (user PROVIDED a spec)**: Issues are pre-known. Apply the evaluate-then-call rule (same as dev.md): assess relevance per issue, call only relevant specialists.
-
-Do NOT use "evaluate then call" in exploration mode — you cannot evaluate relevance to an issue you haven't discovered yet. Discovery needs all perspectives.
-
-**How to decide at runtime**:
-- If state file / cycle context indicates NO user spec → exploration mode → launch all 4 (or the PM-narrowed subset if PM supplied `recommended_specialists` with a strong rationale)
-- If state file / cycle context indicates a user spec is present → supervisor mode → apply the dev.md unified rule: for each of the 4 specialists produce `RELEVANT — <reason>` or `SKIP — <concrete reason>`, launch each RELEVANT specialist sequentially (one at a time, never in parallel). Record the assessment in the orchestrator's reasoning as:
+- **Exploration mode** (no user spec): launch all 4 specialists by default; broad coverage is the point. If PM's `recommended_specialists` field is present and non-empty (test plan), launch that narrowed subset instead. Do NOT use "evaluate then call" here — you cannot evaluate relevance to issues you haven't discovered yet.
+- **Supervisor mode** (user-provided spec): issues are pre-known. Apply the dev.md evaluate-then-call rule — for each of the 4 specialists produce `RELEVANT — <reason>` or `SKIP — <concrete reason>`, launch each RELEVANT one sequentially. PM's `recommended_specialists` is advisory only; the assessment is authoritative. Record the assessment in the orchestrator's reasoning as:
 
 ```json
 "specialists_assessed": {
@@ -482,13 +469,6 @@ Do NOT use "evaluate then call" in exploration mode — you cannot evaluate rele
   "user": "..."
 }
 ```
-
-**Read `recommended_specialists` from the test plan.** PM decides which specialists are relevant for this cycle based on the project type, focus hint, and issue context.
-
-- Exploration mode: if `recommended_specialists` is present and non-empty, launch that narrowed subset; if missing or null, launch all 4.
-- Supervisor mode: treat `recommended_specialists` as advisory only; the evaluate-then-call assessment is authoritative.
-
-Launch the recommended Agent calls SEQUENTIALLY (one Agent call per specialist, one at a time — not in a single parallel batch). This supersedes any earlier parallel-launch guidance. Specialists are one-at-a-time consultations; parallelizing them corrupts evidence ordering and wastes context budget.
 
 **Supervisor-mode specialist prompts** (when `spec_mode == "user-provided"` AND `view_paths` is non-null):
 
@@ -543,7 +523,7 @@ Available specialists:
 
 Each subagent receives, at the TOP of its prompt before any other content:
 - FIRST ACTION line: "Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/<specialist.type>.json to register with the enforcement system. Do this BEFORE any other tool call."
-- SECOND ACTION line when SPEC_ID is non-empty and that specialist cp-state file exists: "Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<specialist.type>.json to load the mandatory checklist; mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent <specialist.type> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent <specialist.type> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason <reason>. Stop is blocked while pending checkpoints remain."
+- CHECKPOINT MARKING line: "see agents/<specialist.type>.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit." (full SECOND ACTION SPEC_ID/cp-state semantics are defined once in the Step 1 cp-state handoff section above and need not be repeated per dispatch.)
 - Project path: <worktree_path from state file if set, otherwise project_path>
 - Already addressed: <addressed_issues array from state file>
 - Focus: <focus string from state file, or "none">
@@ -553,20 +533,11 @@ Each subagent receives, at the TOP of its prompt before any other content:
 - Priority context: <the priority context block built in the step above>
 - Output report to: <path above>
 
-**ENFORCEMENT**: Every specialist prompt MUST include the test plan path.
-Specialists have a MANDATORY Step 0 that reads this file -- it is not optional.
-The test plan contains PM's `pm_experience` (firsthand browser evidence) that
-specialists use as ground truth. Additionally, each specialist has a MANDATORY
-Step 0.5 that executes the core E2E flow via Playwright before their specialized
-analysis begins.
-
-**NOTE**: The priority context block is appended directly to each specialist's prompt
-so they see PM's priorities immediately. Specialists also read the full test plan via
-their Step 0 protocol -- the inline context provides redundancy.
-
-**NOTE**: Always use `worktree_path` as the project path when it is set in the state file. Subagents must scan and report on files inside the worktree, not the main project directory.
-
-**IMPORTANT**: Do NOT include application context, credentials, flow steps, or sample data in the specialist prompts. The test plan file contains all of this. Specialists read it themselves via their Step 0 protocol.
+**Specialist prompt rules** (enforced):
+- Every specialist prompt MUST include the test plan path. Specialists have a mandatory Step 0 (read test plan — PM's `pm_experience` is ground truth) and Step 0.5 (execute the core E2E flow via Playwright) before specialized analysis.
+- The priority context block is appended directly so specialists see PM's priorities immediately; their Step 0 read provides redundancy.
+- Always use `worktree_path` as the project path when set; specialists must scan files inside the worktree, not the main project directory.
+- Do NOT inline application context, credentials, flow steps, or sample data in the prompt — those live in the test plan file.
 ```
 
 **Announce specialist selection**:
@@ -578,11 +549,7 @@ Launching specialist subagents...
 
 **Wait for all recommended subagents to complete** before proceeding.
 
-**Validate reports** (main agent does NOT read project files, only validates report existence and structure):
-
-```bash
-~/.claude/scripts/check-overnight-reports.sh docs/dev/overnight/<session_id>
-```
+**Validate reports** (main agent does NOT read project files, only validates report existence and structure): run `~/.claude/scripts/check-overnight-reports.sh docs/dev/overnight/<session_id>`.
 
 **Sanity checks on each report** (only for specialists that were launched):
 - [ ] File exists and is valid JSON
@@ -655,7 +622,7 @@ Use Agent tool with:
 - description: "PM triage: classify and prioritize all specialist findings"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/pm.json to register with the enforcement system. Do this BEFORE any other tool call.
-  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-pm.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
+  CHECKPOINT MARKING: see agents/pm.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   PM_MODE: TRIAGE
 
@@ -850,12 +817,11 @@ The focus string is a qualitative directive from the user (e.g., "high quality o
 3. Convert the qualitative focus into a `focus_verification_criteria` array of measurable criteria
 4. Store the array in memory for use in Step 9 (QA prompt)
 
-**Conversion examples**:
+**Conversion example** (illustrative only — derive criteria from the focus and project context, not from this template):
+
 | Focus string | QA verification criteria |
 |---|---|
-| "high quality output" | ["generated content fills >80% of target area (content_coverage >= 0.85)", "all output sections contain substantive content (not placeholder)", "generated documents have properly structured body content", "no template artifacts or raw markup visible in output"] |
-| "fix UI bugs" | ["all pages load without console errors", "no layout breakage on mobile (375px) or desktop (1440px)", "all interactive elements respond to clicks within 200ms"] |
-| "improve API performance" | ["all API endpoints respond within 1000ms", "no 5xx errors on standard requests", "response payloads contain all expected fields"] |
+| `<qualitative focus>` | `["<measurable threshold #1 with number>", "<binary check #2>", "<observable assertion #3>"]` |
 
 **Rules**:
 - Each criterion must be measurable (includes a number, threshold, or binary check)
@@ -880,7 +846,7 @@ Agent(subagent_type: "ba")
   description: "BA analysis for pipeline {i}: {pipeline.description}"
   prompt: "
     FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
-    SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
+    CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
     You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -962,7 +928,7 @@ Agent(subagent_type: "qa")
   description: "Validate BA analysis quality for pipeline {i} (not code)"
   prompt: "
     FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
-    SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
+    CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
     You are the QA subagent in BA-VALIDATION MODE. This is NOT code verification.
     You are verifying the QUALITY OF BA's ANALYSIS, not any implementation.
@@ -1059,7 +1025,7 @@ Use Agent tool with:
 - description: "Re-investigate: address QA objections on analysis quality"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
-  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
+  CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -1106,7 +1072,7 @@ Agent(subagent_type: "dev")
   description: "Dev implementation for pipeline {i}: {pipeline.description}"
   prompt: "
     FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/dev.json to register with the enforcement system. Do this BEFORE any other tool call.
-    SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-dev.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent dev --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent dev --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
+    CHECKPOINT MARKING: see agents/dev.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
     You are the dev subagent. Follow agents/dev.md instructions precisely.
 
@@ -1191,7 +1157,7 @@ Agent(subagent_type: "qa")
   description: "QA verification for pipeline {i}: {pipeline.description}"
   prompt: "
     FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
-    SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
+    CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
     You are the QA subagent. Follow agents/qa.md instructions precisely.
 
@@ -1374,17 +1340,7 @@ Read current settings:
 cat .claude/settings.json
 ```
 
-For each validated permission:
-
-```json
-{
-  "pattern": "Bash(scripts/new-script.sh:*)",
-  "section": "allow",
-  "reason": "Allow execution of..."
-}
-```
-
-**Add to appropriate section in settings.json**:
+**Add each validated permission to the appropriate section in `.claude/settings.json`**:
 
 ```bash
 # Use jq to add permission (for each unique permission)
@@ -1433,38 +1389,11 @@ mv .claude/settings.json.tmp .claude/settings.json
 **Time**: <timestamp>
 ```
 
-**TIME CHECK**:
-
-```python
-now = datetime.now()
-end_time = datetime.fromisoformat(state['end_time'])
-if now >= end_time:
-    # Proceed to Step 15 -- session is ending
-else:
-    remaining = end_time - now
-    print(f"Time remaining: {remaining} -- marking Step 15 complete to trigger loop")
-```
+**TIME CHECK**: invoke `~/.claude/scripts/overnight-status.sh` against the state file; it reports remaining wall-time relative to `end_time` and exits non-zero if the session has expired. If expired, proceed to Step 15 (session ending). Otherwise, mark Step 15 as completed via TodoWrite to trigger the loop reset.
 
 **Per-cycle commit (bridge mode)**:
 
-After the time check, land a HEAD commit on the worktree branch covering this cycle's accumulated changes. Use the bridge-mode invocation of the `/commit` wrapper so the cycle commit picks up grant-manifest defense-in-depth while still emitting the `auto-bulk:` message format that `/merge` consumes:
-
-```bash
-# Stage only the files modified during this cycle (or `git add -A` if the whole
-# worktree state should be committed; bridge mode commits the pre-staged set
-# verbatim).  Then invoke commit.sh in bridge mode with the worktree branch
-# from overnight-state-<session_id>.json.
-git add <files-modified-this-cycle>
-bash ~/.claude/hooks/commit.sh --auto-bulk-bridge "<worktree_branch>"
-```
-
-The wrapper:
-1. Reads `git diff --cached --name-only` as the file set.
-2. Emits message `auto-bulk: end-of-cycle commit for <worktree_branch>` (matches `BLESSED_BRIDGE_RE` in `pretool-git-privilege-guard.py:92`, preserving compatibility with the existing privilege-guard early-return; AC-P3-4).
-3. Writes a per-nonce grant manifest with `allowed_files` + `expected_message_sha256` + `branch` so the guard's defense-in-depth path can observe staged-set / hash drift (warning-only this cycle; AC-P3-2 in `ba-spec-20260426-redev3.md`).
-4. Runs the blessed `git commit`, unlinks the grant on success, appends a `mode=auto-bulk-bridge` audit-log line at `/root/.claude/logs/git-privilege-grants.log`.
-
-If `commit.sh --auto-bulk-bridge` exits non-zero (e.g., empty staged set, branch arg invalid), log the failure to the cycle log and continue — the cycle's per-fix `refs/checkpoints/*` snapshots remain intact and the operator can promote them manually.
+After the time check, land a HEAD commit on the worktree branch covering this cycle's accumulated changes via the `/commit` wrapper in bridge mode (`commit.sh --auto-bulk-bridge "<worktree_branch>"`). The wrapper handles staged-set discovery, the `auto-bulk: end-of-cycle commit for <worktree_branch>` message format that `/merge` consumes, grant-manifest defense-in-depth (per-nonce manifest with `allowed_files` + `expected_message_sha256` + `branch`), and the `mode=auto-bulk-bridge` audit-log entry. Full mechanism + privilege-guard contract live in `commands/commit.md` and `~/.claude/hooks/commit.sh`. If the bridge invocation exits non-zero (empty staged set, invalid branch arg), log the failure to the cycle log and continue — per-fix `refs/checkpoints/*` snapshots remain intact and the operator can promote them manually.
 
 If time expired: proceed to Step 14 (PM Retro) then Step 15 for final summary.
 If time remains: proceed to Step 14 (PM Retro), then mark Step 15 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 16 steps completed, reset todos to pending, and inject continuation instructions.
@@ -1483,7 +1412,7 @@ Use Agent tool with:
 - description: "PM retrospective: cycle {N} summary and next-cycle handoff"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/pm.json to register with the enforcement system. Do this BEFORE any other tool call.
-  SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-pm.json to load your mandatory checklist. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>; waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent pm --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". Stop is blocked while any checkpoint remains pending.
+  CHECKPOINT MARKING: see agents/pm.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   PM_MODE: RETRO
   FINAL_CYCLE: <true|false>
@@ -1603,7 +1532,7 @@ DO NOT squash merge. DO NOT manually copy files. DO NOT create a single commit o
 
 The overnight session does NOT merge anything. It preserves the worktree for user review.
 
-**State file cleanup**: Automatic. The `pretool-overnight-hook-guard` auto-cleans expired state files on next hook invocation. No manual deletion needed.
+**State file cleanup**: Automatic, owned by the orchestrator hooks listed under "Integration with Hooks" below. No manual deletion needed.
 
 **Default-branch resolver** (run BEFORE producing the announcement):
 
@@ -1763,23 +1692,11 @@ The state file is created by `create-overnight-state.sh` during session initiali
 
 ## Edge Cases
 
-### No issues found
-After 2 consecutive clean sweeps: treat as "codebase is clean", generate summary and delete state file.
-
-### Unfixable issue (5 failed iterations per pipeline)
-Mark pipeline as skipped, add to addressed_issues. Other pipelines in the same cycle are unaffected.
-
-### Very short time remaining (< 5 minutes)
-In Step 3 pipeline creation, skip issues with medium/large effort. If zero small-effort issues remain, go directly to summary.
-
-### State file corruption
-Create a fresh state file preserving end_time from $ARGUMENTS. Continue operation.
-
-### Worktree creation failure
-Log warning, continue on current branch. All changes still tracked via TodoWrite and cycle log.
-
-### Missing worktree in continuation mode
-If state file has `worktree_path=null` on continuation, log a warning and continue on the current branch.
+- **No issues found** — see Step 2c (clean-sweep handling, 2 consecutive sweeps end the session).
+- **Unfixable issue (5 failed iterations per pipeline)** — see Step 11 (per-pipeline iteration cap).
+- **Very short time remaining (< 5 minutes)** — see Step 3 (severity-aware time guard).
+- **State file corruption** — create a fresh state file preserving `end_time`, continue.
+- **Worktree creation failure / missing on continuation** — see Step 1 worktree guard (log warning, continue on current branch).
 
 ---
 
@@ -1803,114 +1720,15 @@ If state file has `worktree_path=null` on continuation, log a warning and contin
 
 ---
 
-## Quick Reference: The Loop
-
-After completing Steps 2-15, the loop is automatic:
-
-```
-TodoWrite marks Step 15 as completed
-  |
-posttool-overnight-loop.py fires
-  |
-IF end_time > now:
-    Reset all todos to pending (except Step 1 which stays completed)
-    Increment cycle_count
-    Print "OVERNIGHT LOOP: Starting cycle N+1"
-    Agent resumes from Step 2
-  |
-IF end_time <= now:
-    No reset (allow natural completion)
-    Agent proceeds with summary generation
-```
-
-The loop MUST continue until end-time. Only break for:
-1. End-time reached
-2. Two consecutive clean sweeps
-3. Unrecoverable error
-
----
-
 ## JSON Storage Policy
 
-**All JSON files stored in**: `docs/dev/`
-
-**File naming convention**:
-- Context: `context-<timestamp>-<pipeline_index>.json` or `context-iter<N>-<timestamp>-<pipeline_index>.json`
-- BA spec: `ba-spec-<timestamp>-<pipeline_index>.md`
-- Dev report: `dev-report-<timestamp>-<pipeline_index>.json`
-- QA report: `qa-report-<timestamp>-<pipeline_index>.json`
-- Refined context: `refined-context-<timestamp>-<pipeline_index>.json`
-- Overnight reports: `docs/dev/overnight/<session_id>/product-owner-report.json`, etc.
-- Running log: `overnight-log-<session_id>.md`
-- Summary: `overnight-summary-<session_id>.md`
-
-**Timestamp format**: `YYYYMMDD-HHMMSS`
-
-**Retention**:
-- Keep all files for current session
-- Archive to `docs/dev/archive/YYYY-MM/` after 30 days (via /clean)
-
----
-
-## Integration with /clean
-
-The `/clean` command supports `docs/dev/`:
-- Preserves active development contexts (< 7 days old)
-- Archives completed contexts to `docs/dev/archive/YYYY-MM/`
-- Removes contexts > 90 days old
-
-See `/clean` command documentation for details.
+All artifact filenames are defined inline in their owning steps (Steps 4-13). Timestamp format: `YYYYMMDD-HHMMSS`. Storage root: `docs/dev/`. Retention/archive rules are owned by `commands/clean.md` — see that file for the active retention policy.
 
 ---
 
 ## Quality Standards Enforcement
 
-**PM subagent plans** (Step 2a):
-- Uses Playwright to explore the running app (Phase 0) before writing the test plan
-- Writes `pm_experience` section with firsthand browser evidence (URLs visited, actions taken, screenshots)
-- `core_flow_steps` are derived from actual browser navigation, not documentation alone
-- Falls back to doc-based planning only when app is not running (`app_not_running: true`)
-
-**Specialist subagents discover** (Step 2b, serial — launched ONE at a time, each reads PM's test plan as Step 0, each executes E2E flow as Step 0.5):
-- **product-owner** (see `agents/product-owner.md`): Logical inconsistencies, feature gaps, broken user flows, missing features, business logic bugs. Executes E2E flow before feature inventory.
-- **architect** (see `agents/architect.md`): Structural issues, technical debt, optimization opportunities, dependency problems, pattern inconsistencies. Collects console/network errors during E2E flow execution.
-- **user** (see `agents/user.md`): UX friction, broken flows, confusing behavior, workflow gaps, real-world usage issues. Already has the most complete E2E protocol (Phase 4).
-- **ui-specialist** (see `agents/ui-specialist.md`): Styling consistency, responsive design, accessibility, visual bugs, component quality, design system compliance. Executes E2E flow on both mobile and desktop viewports.
-
-**BA subagent analyzes** (see `agents/ba.md`):
-- Requirement decomposition from self-discovered issues
-- Git root cause analysis
-- MoSCoW requirements and BDD acceptance criteria
-- Context JSON generation for dev subagent
-
-**Dev subagent implements** (see `agents/dev.md`):
-- Parameterized scripts (no hardcoded values)
-- `source venv` (not `python3`)
-- Meaningful naming (no `enhance`, `fast`)
-- Git root cause analysis
-
-**QA subagent verifies** (see `agents/qa.md`):
-- Reads test plan and PM experience as Step 0
-- Success criteria met
-- Root cause addressed
-- No regressions
-- Dynamic Playwright verification mandatory for web-facing changes (Step 5c)
-- Executes core E2E flow as baseline before specific fix verification (Step 5c.0)
-- Quality standards compliance
-- Integer step numbering
-
-**Orchestrator ensures**:
-- PM explores app via Playwright before writing test plan
-- Test plan contains `pm_experience` with browser evidence (validated in Step 2a)
-- All specialist prompts include test plan path (enforced, not optional)
-- All specialists execute E2E flow before specialized analysis
-- Issues fully explored by 4 specialist subagents before fixing
-- ALL issues get parallel pipelines, ordered by PM triage (tier 1 blockers first, then tier 2, then tier 3)
-- Comprehensive context via BA (one per pipeline)
-- Iterative quality improvement (max 5 iterations per pipeline, independent)
-- Proper JSON storage with pipeline-scoped naming (timestamp-index suffix)
-- Cycle deduplication via addressed_issues tracking
-- Multi-session isolation via session_id-keyed state files
+Per-agent responsibilities are owned by `agents/<name>.md` (pm, product-owner, architect, user, ui-specialist, ba, dev, qa) — see those files for current contracts. Orchestrator-only obligations: PM explores via Playwright before writing the test plan; specialist prompts always include the test-plan path; all RELEVANT specialists execute the E2E flow before specialized analysis; ALL issues become parallel pipelines ordered by PM triage; cycle deduplication via `addressed_issues`; multi-session isolation via `session_id`-keyed state files.
 
 ---
 
@@ -1938,7 +1756,7 @@ See `/clean` command documentation for details.
 
 ## UI Development Workflow
 
-**Trigger**: `/dev-overnight --ui-spec <path>` (parsed in Step 1.5 above).
+**Trigger**: `/dev-overnight --ui-spec <path>` (parsed in Step 1a above).
 
 When `workflow_type="ui_development"` is set in cycle-contract.json, the cycle skips autonomous discovery and runs a focused UI build pipeline:
 
@@ -1951,18 +1769,3 @@ When `workflow_type="ui_development"` is set in cycle-contract.json, the cycle s
 In UI Development workflow, autonomous specialist discovery (architect / product-owner / user) is skipped — only `ui-specialist` runs, and only in DESIGN_MODE. The BA→dev→qa pipeline is otherwise unchanged from the standard cycle.
 
 ---
-
-## Success Metrics
-
-- ✅ All issues discovered autonomously via specialist subagents
-- ✅ Root cause identified and addressed for each issue
-- ✅ Zero hardcoded values in scripts
-- ✅ QA passes within 5 iterations per issue
-- ✅ All quality standards enforced
-- ✅ Complete audit trail in JSON files
-- ✅ Continuous loop until end-time
-- ✅ Worktree isolation protects main branch
-
----
-
-**Remember**: You are autonomous. You explore, discover, fix, and loop. No user input needed. ALL exploration and fix work goes through Agent subagents. Main context only manages TodoWrite and the loop. Keep going until the clock says stop.

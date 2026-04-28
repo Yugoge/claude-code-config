@@ -40,12 +40,9 @@ If the orchestrator cannot identify the task-id from context AND `$ARGUMENTS` is
 
 ## Scheme 6 mechanism
 
-The git-privilege-guard (`pretool-git-privilege-guard.py`) ships always-on per spec-20260424-233926 §5.2.4 R4.3. It rejects every agent-issued `git commit` except:
+See `/root/docs/scheme6.md` for the unified env-var + grant-manifest + privilege-guard validation + literal-substring rejection + single-use unlink protocol.
 
-1. The `/merge` blessed-bridge regex (`^auto-bulk: end-of-cycle commit for `) — reserved for `/merge`.
-2. **`/commit`** — env-var (set by wrapper, never inline) + single-use grant manifest at `/tmp/claude-commit-grant-<sid>-<nonce>.json` with `{nonce, sid, task_id, allowed_files, expected_message_sha256, created_at, ppid}` (per-nonce filename so two concurrent wrapper invocations under the same SID cannot collide on a shared file; close-report-20260425-push-commit-debate.md §1-2).
-
-The guard validates: env=`CLAUDE_COMMIT_COMMAND_ACTIVE=1` AND grant exists AND `sha256(message) == grant.expected_message_sha256` AND `set(git diff --cached --name-only) == set(grant.allowed_files)`. On success it unlinks the grant and admits the commit; on failure it leaves the grant for forensics and blocks.
+`/commit`-specific bindings: env-var `CLAUDE_COMMIT_COMMAND_ACTIVE=1`; grant path `/tmp/claude-commit-grant-<sid>-<nonce>.json`; manifest fields `{nonce, sid, task_id, allowed_files, expected_message_sha256, created_at, ppid}` (per spec-20260424-233926 §5.2.4 R4.3 + close-report-20260425-push-commit-debate.md §1-2). The guard admits the commit only when `sha256(message) == grant.expected_message_sha256` AND `set(git diff --cached --name-only) == set(grant.allowed_files)`. The `/merge` blessed-bridge regex (`^auto-bulk: end-of-cycle commit for `) is the only other admit path on the commit surface.
 
 ## Closed-task detection
 
@@ -65,10 +62,7 @@ The closure check is **necessary but not sufficient** — even if forged, the bu
 
 ## Defense-in-depth
 
-- `disable-model-invocation: true` — the model cannot self-invoke this slash command (AV-5 mitigation).
-- Literal-substring rejection in privilege-guard catches inline injection (`CLAUDE_COMMIT_COMMAND_ACTIVE=1 git commit ...`).
-- Single-use grant: unlinked on first valid consumption; replay blocked.
-- Bulk-commit-detector is downstream and not bypassable by this wrapper.
+See `/root/docs/scheme6.md` for the unified defense-in-depth contract (env-var, single-use grant, literal-substring rejection, downstream bulk-commit-detector, `disable-model-invocation: true` AV-5 mitigation).
 
 ## Implementation
 
@@ -107,7 +101,7 @@ What bridge mode does differently:
 - Skips closure detection entirely (no PRIMARY/SECONDARY check; no close-report or completion+qa-pass evidence required).
 - Reads the pre-staged file set via `git diff --cached --name-only` (caller is responsible for `git add` before invoking).
 - Emits commit message `auto-bulk: end-of-cycle commit for <branch>` — this format matches `BLESSED_BRIDGE_RE` in `pretool-git-privilege-guard.py:92`, so the privilege-guard's existing early-return continues to admit the commit (preserving in-flight overnight compatibility; AC-P3-4 in `ba-spec-20260426-redev3.md`).
-- STILL writes a per-nonce grant manifest with `allowed_files` + `expected_message_sha256` + `branch`. The privilege-guard observes this manifest and warns on staged-set / hash drift (defense-in-depth, observation-only this cycle; AC-P3-2).
+- STILL emits a Scheme 6 grant manifest (`allowed_files` + `expected_message_sha256` + `branch`); the privilege-guard observes this manifest and warns on staged-set / hash drift (observation-only this cycle; AC-P3-2). See `/root/docs/scheme6.md` for the unified manifest contract.
 - Audit-log entries carry `mode=auto-bulk-bridge branch=<branch>` so post-hoc forensics can distinguish bridge-mode commits from closed-task commits.
 
 Bridge mode and closed-task mode are mutually exclusive — `commit.sh` parses `$1` to decide which flow runs and exits early once it returns.
@@ -132,12 +126,7 @@ What `--force` does differently from closed-task mode:
 - **Skips P-H1 / P-TASKID / P-NESTED** — no closure-evidence chain is walked.
 - **Empty staged set rejects** — exits 2 with `commit.sh --force: no files staged; run 'git add' first`.
 
-What `--force` keeps (the FOUR ALWAYS-ON SECURITY LAYERS, all engaged):
-
-1. **`disable-model-invocation: true`** on this `commit.md` frontmatter — the model cannot self-invoke `/commit`. Only a human can issue the slash command. This makes `--force` a human-driven escape hatch, not a model-driven foot-gun (AV-5 mitigation).
-2. **Inline-env literal-substring rejection** in `pretool-git-privilege-guard.py` — agents cannot inline-prefix `CLAUDE_COMMIT_COMMAND_ACTIVE=1 git commit ...` to forge the env. The wrapper sets the env via `subprocess + os.environ`, which the guard accepts.
-3. **`pretool-bulk-commit-detector.py`** — independent downstream gate that blocks the b5d447e shape (3+ subsystem prefixes + `chore(claude): sync ...` subject). `--force` does NOT bypass this gate (AC-FORCE-3): a `--force` invocation that happens to look like a sync-everything sweep is still rejected.
-4. **Grant manifest emission** — `--force` writes `/tmp/claude-commit-grant-<sid>-<nonce>.json` with `mode=force`, `task_id="__force__"`, `allowed_files=<staged-set>`, `expected_message_sha256=sha256(<msg>)`, `created_at`, `ppid`. The privilege-guard validates env + sha256(message) + allowed_files = staged set. Grant is unlinked on success (single-use; replay defense).
+What `--force` keeps (all four always-on security layers — see `/root/docs/scheme6.md`): `disable-model-invocation: true` (AV-5), inline-env literal-substring rejection, `pretool-bulk-commit-detector.py` (AC-FORCE-3 — `--force` does NOT bypass the b5d447e-shape downstream gate), and the per-call grant manifest. `--force`-specific manifest fields: `mode=force`, `task_id="__force__"`, `allowed_files=<staged-set>`, `expected_message_sha256=sha256(<msg>)`, `created_at`, `ppid`.
 
 When to use `--force` (irregular path):
 
@@ -174,7 +163,7 @@ The `-m "<message>"` flag has different semantics in each mode:
 - **`--auto-bulk-bridge` mode** (`commit.sh --auto-bulk-bridge <branch>`):
   - `-m` is **FORBIDDEN** (redev6 P-MSG / M-MSG-3). Bridge-mode message format is fixed: `auto-bulk: end-of-cycle commit for <branch>`. This format is required by `BLESSED_BRIDGE_RE` in `pretool-git-privilege-guard.py:92`. Passing `-m` → exit 2 with `commit.sh --auto-bulk-bridge: -m not allowed (bridge mode uses fixed BLESSED message format)`.
 
-In all three modes, the grant manifest's `expected_message_sha256` is the sha256 of the actual message used (caller-supplied in closed-task and force, hard-coded BLESSED format in bridge). The privilege-guard validates this hash matches `sha256(commit -m "<msg>")` at the boundary.
+In all three modes the grant manifest's `expected_message_sha256` binds the actual message used (per `/root/docs/scheme6.md`): caller-supplied in closed-task and force, hard-coded BLESSED format in bridge.
 
 `--force` and `--auto-bulk-bridge` are mutually exclusive — passing both flags exits 2 with usage. The wrapper's first-pass dispatch consumes exactly one mode flag; the second-pass loop rejects a second mode flag explicitly.
 
