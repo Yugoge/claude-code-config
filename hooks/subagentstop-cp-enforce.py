@@ -187,10 +187,10 @@ def _emit_block_message(cp_file, payload, pending):
         f"SUBAGENT STOP BLOCKED: {len(pending)} checkpoint(s) still pending: {names}\n"
         f"cp-state: {cp_file}\n"
         "Mark them done via:\n"
-        f"  python3 /root/bin/spec-check.py mark --spec-id {spec_id} "
+        f"  python3 /root/.claude/scripts/spec-check.py mark --spec-id {spec_id} "
         f"--agent {agent}{instance}{agent_id} --cp-id <CP>\n"
         "Or waive with a reason:\n"
-        f"  python3 /root/bin/spec-check.py waive --spec-id {spec_id} "
+        f"  python3 /root/.claude/scripts/spec-check.py waive --spec-id {spec_id} "
         f"--agent {agent}{instance}{agent_id} --cp-id <CP> --reason <TEXT>\n"
     )
 

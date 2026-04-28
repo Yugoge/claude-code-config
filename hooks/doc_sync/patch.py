@@ -29,7 +29,7 @@ def _replace_section(content: str, marker_id: str, new_body: str) -> str:
 def _count_entries(subdir_path: Path, is_skills: bool) -> int:
     if is_skills:
         return len([dd for dd in subdir_path.iterdir() if dd.is_dir() and not dd.name.startswith('.')])
-    return len([f for f in subdir_path.iterdir() if f.is_file()])
+    return len([f for f in subdir_path.iterdir() if f.is_file() and f.name not in ('INDEX.md', 'README.md', '__init__.py', '.DS_Store')])
 
 
 def _format_inventory_line(subdir: str, count: int) -> str:

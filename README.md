@@ -5,7 +5,7 @@ Organization and usage documentation for `.claude/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 63
+- **Total files**: 64
 - **Subdirectories**: 34
 - **Naming convention**: lower
 
@@ -23,16 +23,17 @@ Organization and usage documentation for `.claude/`.
 - `push.sh` - 
 - `session.log` - log file
 - `settings.json` - json config
+- `settings.json.bak-multiedit-fix` - bak-multiedit-fix file
 - `settings.json.bak-pre-r4-hooks-20260425` - bak-pre-r4-hooks-20260425 file
 - `settings.json.bak.20260421-114348` - 20260421-114348 file
 - `settings.local.json` - json config
 - `stats-cache.json` - json config
+- `workflow-11d0da00-24f0-4e23-bbe0-bc15d31b993b.json` - json config
 - `workflow-1f9f0472-7a89-4cfa-87f2-c85616fed777.json` - json config
 - `workflow-215eec0e-0e9c-4f81-bd52-b73036e3d33a.json` - json config
 - `workflow-30b4bbbc-a873-4ba8-b8fd-804dc05492bc.json` - json config
 - `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 - `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
-- `workflow-5ed0d8f4-041a-4fe3-9938-135c793ac046.json` - json config
 - `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
 - `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
 - `workflow-dd3a870c-9440-4274-896f-462dfe972646.json` - json config

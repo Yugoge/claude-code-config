@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 33
+- **Total files**: 35
 - **Subdirectories**: 2
 - **Naming convention**: kebab
 
@@ -20,6 +20,7 @@ Organization and usage documentation for `scripts/`.
 - `cleanup-tests-folder.sh` - Description: Remove validators that don't match git edge cases, preserving reports/
 - `create-overnight-state.sh` - create-overnight-state.sh — Create overnight state file (v7 schema)
 - `create-worktree.sh` - Create a git worktree from local HEAD (not origin/main).
+- `derive-default-branch.sh` - Description: Resolve the repository's default branch name dynamically (handles main/master/any other).
 - `detect-dead-functions.sh` - Shell script
 - `detect-duplicate-content.sh` - Shell script
 - `detect-hardcoded-paths.sh` - Shell script
@@ -39,6 +40,7 @@ Organization and usage documentation for `scripts/`.
 - `quick-excel` - unknown file
 - `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 - `scan-project.sh` - Description: Scan project structure and detect project type
+- `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 - `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 - `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 

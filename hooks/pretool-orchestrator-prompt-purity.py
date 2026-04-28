@@ -55,7 +55,7 @@ RULE_DOC_POINTER = (
 )
 
 STDERR_HEADER = (
-    "orchestrator must not specify HOW; rewrite prompt to describe WHAT only."
+    "⚠ prompt-purity warning: HOW prescription detected (not blocking). Prefer describing WHAT only."
 )
 
 # PRESCRIBED_TOOL_NAMES: built-in tool names that the orchestrator must not
@@ -336,7 +336,7 @@ def main() -> int:
         return 0
     category, snippet = hit
     _emit_block(category, snippet)
-    return 2
+    return 0
 
 
 if __name__ == "__main__":

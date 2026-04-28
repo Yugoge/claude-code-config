@@ -30,7 +30,13 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Parse args: optional [<remote>], [--auto], [--force-with-lease], [--delete <branch>]
-REMOTE="origin"
+# Default remote: prefer "fork" if configured locally (typical fork-based workflow),
+# else fall back to "origin". Explicit /push <remote> overrides via the case below.
+if git remote get-url fork >/dev/null 2>&1; then
+  REMOTE="fork"
+else
+  REMOTE="origin"
+fi
 AUTO_MODE=0
 FORCE_WITH_LEASE=0
 DELETE_MODE=0

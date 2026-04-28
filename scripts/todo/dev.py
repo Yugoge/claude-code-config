@@ -22,13 +22,13 @@ def get_todos():
         {"content": "Step 5a: QA validates BA conclusions", "activeForm": "Step 5a: QA validating BA conclusions", "status": "pending", "subagent_call": {"agent": "qa", "subagent_type": "qa"}},
         {"content": "Step 5b: BA-QA iteration loop (if QA rejects BA)", "activeForm": "Step 5b: Iterating BA analysis based on QA objections", "status": "pending"},
         {"content": "Step 6: Delegate to dev subagent", "activeForm": "Step 6: Delegating to dev subagent", "status": "pending", "subagent_call": {"agent": "dev", "subagent_type": "dev"}},
-        {"content": "Step 6.5: Write canonical aggregate dev-report (parallel-dev only; single-dev waives)", "activeForm": "Step 6.5: Writing canonical aggregate dev-report", "status": "pending"},
-        {"content": "Step 7: Validate dev implementation", "activeForm": "Step 7: Validating dev implementation", "status": "pending"},
-        {"content": "Step 8: Delegate to QA subagent", "activeForm": "Step 8: Delegating to QA subagent", "status": "pending", "subagent_call": {"agent": "qa", "subagent_type": "qa"}},
-        {"content": "Step 9: Process QA results", "activeForm": "Step 9: Processing QA results", "status": "pending"},
-        {"content": "Step 10: Update settings.json permissions", "activeForm": "Step 10: Updating settings.json permissions", "status": "pending"},
-        {"content": "Step 11: Iteration loop (if QA fails)", "activeForm": "Step 11: Iterating based on QA feedback", "status": "pending"},
-        {"content": "Step 12: Generate completion report", "activeForm": "Step 12: Generating completion report", "status": "pending"}
+        {"content": "Step 7: Write canonical aggregate dev-report (parallel-dev only; single-dev waives)", "activeForm": "Step 7: Writing canonical aggregate dev-report", "status": "pending"},
+        {"content": "Step 8: Validate dev implementation", "activeForm": "Step 8: Validating dev implementation", "status": "pending"},
+        {"content": "Step 9: Delegate to QA subagent", "activeForm": "Step 9: Delegating to QA subagent", "status": "pending", "subagent_call": {"agent": "qa", "subagent_type": "qa"}},
+        {"content": "Step 10: Process QA results", "activeForm": "Step 10: Processing QA results", "status": "pending"},
+        {"content": "Step 11: Update settings.json permissions", "activeForm": "Step 11: Updating settings.json permissions", "status": "pending"},
+        {"content": "Step 12: Iteration loop (if QA fails)", "activeForm": "Step 12: Iterating based on QA feedback", "status": "pending"},
+        {"content": "Step 13: Generate completion report", "activeForm": "Step 13: Generating completion report", "status": "pending"}
     ]
 
 

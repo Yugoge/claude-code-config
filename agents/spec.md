@@ -626,7 +626,7 @@ For each agent selected in Phase 0 (excluding orchestrator), read the view file 
 
 ### Writing cp-state files
 
-Write cp-state files via `bin/spec-check.py`. Do not write cp-state JSON directly.
+Write cp-state files via `.claude/scripts/spec-check.py`. Do not write cp-state JSON directly.
 
 ```bash
 # 1. Register agent (creates cp-state file). spec-check.py AUTO-ALLOCATES
@@ -639,7 +639,7 @@ Write cp-state files via `bin/spec-check.py`. Do not write cp-state JSON directl
 #    disambiguates slots, but agent_id disambiguates the LOGICAL caller
 #    when multiple same-type instances run concurrently. Without it,
 #    Phase 2 cannot reliably pin to the correct slot.
-python3 /root/bin/spec-check.py check-in \
+python3 /root/.claude/scripts/spec-check.py check-in \
     --spec-id <spec-id> \
     --agent <agent> \
     --agent-id <agent-id> \
@@ -752,7 +752,7 @@ spec-derived checkpoint without replacing it with an equivalent atomic action.
 
 ## Tool usage
 
-You may use: `Read`, `Write`, `Bash` (for `bin/spec-check.py`, `bin/spec-verify-views.py`, `bin/spec-verify.py`, `python3 -c` stanzas, and `mkdir -p`).
+You may use: `Read`, `Write`, `Bash` (for `.claude/scripts/spec-check.py`, `bin/spec-verify-views.py`, `bin/spec-verify.py`, `python3 -c` stanzas, and `mkdir -p`).
 
 You must NOT:
 - Modify the monolith spec (read-only)
@@ -818,7 +818,7 @@ After all three phases complete, emit a JSON summary to stdout:
 Before exiting, verify for each agent that received checkpoints:
 
 ```bash
-python3 /root/bin/spec-check.py status --spec-id <spec-id> --agent <agent>
+python3 /root/.claude/scripts/spec-check.py status --spec-id <spec-id> --agent <agent>
 ```
 
 The status should show N checkpoints, all in `pending` state, with a timestamp matching your run.
@@ -840,9 +840,9 @@ This contract is mandatory in that mode:
    `$CLAUDE_AGENT_ID` is available, it must match that value.
 2. Treat each `checkpoints[].id` entry as a required checklist item.
 3. Immediately after completing a checkpoint's atomic action, mark it done with
-   `/root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent spec --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
+   `/root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent spec --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
 4. If a checkpoint is genuinely not applicable, waive it with a concrete reason:
-   `/root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent spec --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>"`.
+   `/root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent spec --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>"`.
 5. Before stopping, confirm every checkpoint is either `done` or
    `waived-with-reason`. Pending checkpoints cause `subagentstop-cp-enforce.py`
    to block exit with code 2.

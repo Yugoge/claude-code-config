@@ -49,12 +49,92 @@ BASH_MAX_CONSECUTIVE = 3
 NON_WHITELIST_MAX_CONSECUTIVE = 1
 
 
+SUBAGENT_ID_KEYS = (
+    "agent_id",
+    # Codex compatibility runtimes may not preserve Claude's exact
+    # `agent_id` field name in PreToolUse stdin.  Treat these as identity
+    # aliases so the orchestrator-only gate remains main-agent-only.
+    "subagent_id",
+    "agent_path",
+    "parent_agent_id",
+)
+
+SUBAGENT_ENV_KEYS = (
+    "CLAUDE_AGENT_ID",
+    # Codex/native agent runners use their own naming in some builds.
+    "CODEX_AGENT_ID",
+    "CODEX_AGENT_PATH",
+    "OPENAI_AGENT_ID",
+)
+
 def get_session_id(data: dict) -> str:
     sid = data.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "")
     if sid:
         return sid
     sys.stderr.write("[Orchestrator Gate] WARNING: session_id unavailable, using shared default\n")
     return "default"
+
+
+def _truthy(value) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip() not in {"", "0", "false", "False", "null", "None"}
+    return bool(value)
+
+
+def _transcript_meta_says_subagent(transcript_path: str) -> bool:
+    """Detect Codex spawned-agent transcripts from their session metadata."""
+    if not transcript_path:
+        return False
+    path = Path(transcript_path)
+    try:
+        with path.open(errors="ignore") as fh:
+            for _ in range(20):
+                line = fh.readline()
+                if not line:
+                    break
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if event.get("type") != "session_meta":
+                    continue
+                payload = event.get("payload", {})
+                source = payload.get("source")
+                return isinstance(source, dict) and isinstance(source.get("subagent"), dict)
+    except OSError:
+        return False
+    return False
+
+
+def is_subagent_context(data: dict) -> bool:
+    """Return True when this hook is running inside a subagent.
+
+    The canonical Claude hook payload contains top-level `agent_id`.  Codex
+    compatibility can run the same hook without that exact field even though
+    the call is inside a spawned agent.  This helper accepts equivalent
+    top-level identity aliases and environment aliases, but deliberately does
+    not inspect `tool_input.subagent_type`: that field belongs to main-agent
+    Agent dispatch calls and would incorrectly exempt the orchestrator.
+    """
+    if any(_truthy(data.get(key)) for key in SUBAGENT_ID_KEYS):
+        return True
+    if any(_truthy(os.environ.get(key)) for key in SUBAGENT_ENV_KEYS):
+        return True
+
+    # Codex compatibility note:
+    # Spawned agents may arrive without `agent_id` or agent-specific env vars.
+    # Their transcript's session_meta source is structured as
+    # {"subagent": {"thread_spawn": ...}}. Use that as the authoritative
+    # fallback instead of text-searching parent transcripts, because subagent
+    # transcripts often mention the parent/root id in prompts.
+    if _transcript_meta_says_subagent(str(data.get("transcript_path") or "").strip()):
+        return True
+
+    return False
 
 
 def has_consent(session_id: str) -> bool:
@@ -140,7 +220,7 @@ def main():
 
     tool_name = data.get("tool_name", "")
 
-    if bool(data.get("agent_id")):
+    if is_subagent_context(data):
         sys.exit(0)
 
     if tool_name in PERMANENTLY_BLOCKED:

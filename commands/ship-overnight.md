@@ -14,12 +14,7 @@ Authority:
 - `/root/docs/dev/ba-spec-20260426-redev6.md` (P-SHIP, work item B)
 - `/root/docs/dev/context-20260426-redev6.json`
 
-`disable-model-invocation: true` mirrors `/commit` and `/push` - this surface
-is human-only. The model cannot self-invoke `/ship-overnight` to obtain
-unilateral commit + merge + push authority. The four always-on security
-layers (disable-model-invocation, inline-env literal-substring rejection,
-bulk-commit-detector, per-call grant manifest) all remain engaged because
-each underlying wrapper invocation passes through them unchanged.
+`disable-model-invocation: true` mirrors `/commit` and `/push` — this surface is human-only. The model cannot self-invoke `/ship-overnight` to obtain unilateral commit + merge + push authority. The four always-on security layers remain engaged because each underlying wrapper passes through them unchanged; see `/root/docs/scheme6.md`.
 
 ## Usage
 
@@ -144,21 +139,6 @@ resolution, the three sequential steps, and audit logging.
 
 ## Security model (unchanged)
 
-ship-overnight does not extend or weaken the four always-on security
-layers. Each underlying wrapper retains its full guard contract:
+See `/root/docs/scheme6.md` for the unified Scheme 6 protocol shared by every step.
 
-1. **disable-model-invocation: true** on `/commit`, `/push`, and now
-   `/ship-overnight` - all four are human-only invocation surfaces.
-2. **Inline-env literal-substring rejection** in
-   `pretool-git-privilege-guard.py` - blocks
-   `CLAUDE_*_COMMAND_ACTIVE=1 git ...` injection.
-3. **bulk-commit-detector** - independent downstream gate; bridge-mode
-   commits go through it just like any other commit.
-4. **Per-call grant manifest** - commit.sh writes a fresh nonce-bound
-   grant; push.sh writes a fresh nonce-bound grant. ship-overnight does
-   NOT share or replay grants between steps.
-
-The merge step in Step 2 runs `git merge --no-ff` directly (not through a
-wrapper) but exports `CLAUDE_MERGE_COMMAND_ACTIVE=1` first - the same env
-contract `/merge` uses today, so the privilege guard treats it
-identically.
+ship-overnight-specific binding: each step (`commit.sh --auto-bulk-bridge`, `git merge --no-ff` under `CLAUDE_MERGE_COMMAND_ACTIVE=1`, `push.sh`) emits its OWN per-call grant manifest; ship-overnight does NOT share or replay grants between steps. The four always-on security layers (disable-model-invocation, inline-env literal-substring rejection, bulk-commit-detector, per-call grant manifest) remain engaged because each underlying wrapper invocation passes through them unchanged. The merge step runs `git merge --no-ff` directly (not through a wrapper) but exports `CLAUDE_MERGE_COMMAND_ACTIVE=1` first — the same env contract `/merge` uses today, so the privilege guard treats it identically.
