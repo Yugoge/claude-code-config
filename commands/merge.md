@@ -28,14 +28,11 @@ Run this resolver block FIRST, before any other step. It detects the repository'
 Rationale: a hardcoded `master` literal regressed at commit `b5d447e` (2026-04-21) and earlier never tracked the project's `main` migration. Per spec-20260424-233926 Section 5.2.1.1, all command-execution paths must derive the default branch dynamically.
 
 ```bash
-# Detect default branch dynamically (handles main/master/any other)
-DEFAULT_BRANCH="$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')"
-if [ -z "$DEFAULT_BRANCH" ]; then
-  DEFAULT_BRANCH="$(git remote show origin 2>/dev/null | sed -n 's/.*HEAD branch: //p')"
-fi
-if [ -z "$DEFAULT_BRANCH" ]; then
-  DEFAULT_BRANCH="master"  # final fallback
-fi
+# Detect default branch dynamically (handles main/master/any other).
+# The resolver lives in /root/.claude/scripts/derive-default-branch.sh and
+# implements a three-tier fallback: refs/remotes/origin/HEAD →
+# `git remote show origin` → literal "master".
+DEFAULT_BRANCH="$(/root/.claude/scripts/derive-default-branch.sh)"
 echo "target=$DEFAULT_BRANCH"
 ```
 

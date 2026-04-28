@@ -1673,7 +1673,7 @@ If you are invoked under a `/spec`-driven workflow (the orchestrator passes a no
 
 **During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it:
 ```bash
-python3 /root/bin/spec-check.py mark \
+python3 /root/.claude/scripts/spec-check.py mark \
   --spec-id <SPEC_ID> \
   --agent qa \
   --agent-id "$CLAUDE_AGENT_ID" \
@@ -1682,7 +1682,7 @@ python3 /root/bin/spec-check.py mark \
 
 If a checkpoint legitimately does not apply to this run, waive it with a justification:
 ```bash
-python3 /root/bin/spec-check.py waive \
+python3 /root/.claude/scripts/spec-check.py waive \
   --spec-id <SPEC_ID> \
   --agent qa \
   --agent-id "$CLAUDE_AGENT_ID" \

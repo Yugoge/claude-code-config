@@ -18,4 +18,13 @@ if [ -f "$FLAG" ]; then
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$SID EXPIRED (turn ended without consumption)" >> "$CONSENT_LOG"
   rm -f "$FLAG"
 fi
+
+# Also clear /do consent flag - single-turn scope per 2026-04-28 boundary update.
+# /do unlocks tool combinations the main agent normally avoids (context-saving);
+# it must be re-granted explicitly each turn.
+DO_FLAG="/tmp/claude-orchestrator-consent-${SID}.flag"
+if [ -f "$DO_FLAG" ]; then
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$SID DO_CONSENT_EXPIRED (turn ended)" >> "$CONSENT_LOG"
+  rm -f "$DO_FLAG"
+fi
 exit 0

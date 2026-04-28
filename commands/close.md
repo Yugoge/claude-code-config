@@ -1,5 +1,5 @@
 ---
-description: Wrapper - ask QA agent to debate with codex and return CLOSE YES/NO verdict
+description: Close the current dev cycle (agent infers task-id from conversation). QA debates with codex internally, returns CLOSE YES/NO. Append --force to skip the debate.
 disable-model-invocation: true
 ---
 
@@ -15,14 +15,11 @@ The orchestration of rounds, the calls to codex, the evaluation of agreement, an
 ## Invocation
 
 ```
-/close 20260424-074346                       # timestamp token -> docs/dev/ba-spec-<ts>.md + qa-report-<ts>.json
-/close docs/dev/ba-spec-20260424.md          # explicit path
-/close 20260424-074346 --force               # forced close, skip debate, audit-logged (escape hatch — see Step 0)
-/close 20260424-074346 --force --reason "<text>"   # forced close with rationale recorded in audit
-/close --force 20260424-074346               # equivalent — flag position is flexible
+/close                                       # agent infers task-id from current /dev cycle (typical use)
+/close --force                               # skip debate, audit-logged (escape hatch — see Step 0)
 ```
 
-When invoked mid-conversation without an argument, the orchestrator identifies the current dev cycle's spec from conversation context (it just ran /dev in the same session) and embeds those paths directly into Step 2's QA prompt. No filesystem scan, no default-to-newest.
+Power users may also pass an explicit task-id or path: `/close <task-id>` or `/close docs/dev/ba-spec-<ts>.md`. The orchestrator parses these forms but the typical invocation is bare `/close` and lets the agent resolve the task-id from conversation context. No filesystem scan, no default-to-newest.
 
 <!-- Cross-reference: BA spec /root/docs/dev/ba-spec-20260426-redev8.md § AC-CLOSE-FORCE-1..6 govern --force / --reason behavior. -->
 
@@ -41,9 +38,6 @@ If `$ARGUMENTS` contains the literal token `--force` (in any position), this sho
 Argument parsing order (orchestrator parses at the slash-command layer):
 
 ```
-/close <task-id> --force [--reason "<text>"]
-/close --force <task-id> [--reason "<text>"]
-/close <task-id> --force --reason "<text>"
 ```
 
 Procedure when `--force` is present:
@@ -156,7 +150,7 @@ Use the Agent tool with `subagent_type: qa` ONCE. The entire debate happens insi
 
 ```
 FIRST ACTION: if a dev-registry sentinel for this session exists at $CLAUDE_PROJECT_DIR/.claude/dev-registry/<SESSION_ID>/qa.json, read it to register.
-SECOND ACTION (only if SPEC_ID is non-empty): read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist before the debate. Mark each completed checkpoint with /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
+SECOND ACTION (only if SPEC_ID is non-empty): read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist before the debate. Mark each completed checkpoint with /root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
 
 You are the QA gatekeeper evaluating whether a completed development can be closed. You will run a MULTI-ROUND INTERNAL DEBATE with OpenAI Codex (via the Skill tool) yourself. The caller will NOT orchestrate rounds; you own the loop.
 

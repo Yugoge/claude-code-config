@@ -244,7 +244,9 @@ try:
         # Both conditions must hold on the SAME subcommand:
         # (a) subcommand matches the user's allow-pattern
         # (b) subcommand matches at least one dev-class block rule
-        if safe_search(pattern, sub, is_regex) and matches_any_block_rule(sub):
+        # 2026-04-28: cross-check against BLOCK_RULES removed — /allow is now a true
+        # break-glass over ALL safety blocks. User grants the exact pattern, accepts risk.
+        if safe_search(pattern, sub, is_regex):
             matched_subcmd = sub
             break
 
@@ -301,6 +303,11 @@ PYEOF
       ;;
   esac
 }
+
+# ── Global /allow short-circuit ─────────────────────────────────────────────
+# Any user-granted /allow pattern bypasses every BLOCKED rule below,
+# making /allow a single-use break-glass covering all safety checks.
+check_and_consume_allowlist "$COMMAND" && exit 0
 
 # ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
 # On 2026-04-09, editing session_dirs.txt triggered full restore and killed all sessions.

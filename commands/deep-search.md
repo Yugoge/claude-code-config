@@ -19,48 +19,30 @@ Execute these searches **in parallel**:
 
 ⚠️ **CRITICAL**: WebFetch is DISABLED (timeout risk). Use Playwright MCP instead.
 
-Use Playwright MCP to navigate the main homepage:
-```
-1. Navigate to $1 using mcp__playwright__navigate
-2. Extract navigation using mcp__playwright__evaluate:
-   - Get all links: document.querySelectorAll('a')
-   - Filter for navigation menus and relevant sections
-3. Identify links related to "$2":
-   - Menu category and submenu name
-   - Complete URL
-   - Brief description
-4. Also identify:
-   - Search functionality or search box
-   - Document repository or download sections
-   - Sitemap or directory pages
-```
+Use Playwright MCP to load the main homepage at $1, then extract:
+- All links from the page, filtered to navigation menus and relevant sections
+- Links related to "$2" (menu category, submenu name, complete URL, brief description)
+- Search functionality / search box
+- Document repository or download sections
+- Sitemap or directory pages
 
 ### Phase 3: Breadth Exploration
 From Phase 2 results, identify the top 3-5 most promising URLs.
 
-Use Playwright MCP **in parallel** to explore each URL:
-```
-For each URL:
-1. Navigate using mcp__playwright__navigate
-2. Extract using mcp__playwright__evaluate:
-   - Find downloadable documents, guides, PDFs, or deep links related to "$2"
-   - Document title and type (PDF, DOC, etc.)
-   - Direct download URL or access link (href attributes)
-   - Description/summary from surrounding text
-   - Last updated date if shown
-```
+Use Playwright MCP **in parallel** to explore each URL. For each URL, extract:
+- Downloadable documents, guides, PDFs, or deep links related to "$2"
+- Document title and type (PDF, DOC, etc.)
+- Direct download URL or access link (href attribute)
+- Description/summary from surrounding text
+- Last-updated date if shown
 
 ### Phase 4: Depth Targeting
-Based on Phase 3 findings, use Playwright MCP for the most specific/relevant page:
-```
-1. Navigate to the target page using mcp__playwright__navigate
-2. Extract complete information using mcp__playwright__evaluate:
-   - Main content and key sections (article, main tags)
-   - Required steps or procedures (ordered/unordered lists)
-   - Important requirements or documents needed
-   - Contact information or support links
-   - Any referenced sub-pages or related documents (all hrefs)
-```
+Based on Phase 3 findings, use Playwright MCP to load the most specific/relevant page and extract:
+- Main content and key sections (article / main regions)
+- Required steps or procedures (ordered or unordered lists)
+- Important requirements or documents needed
+- Contact information or support links
+- Any referenced sub-pages or related documents (all hrefs)
 
 ### Phase 5: Fallback Recovery
 If Playwright fails at any stage:

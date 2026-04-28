@@ -32,15 +32,10 @@ Identify the top 5-7 most authoritative URLs from all previous results.
 
 ⚠️ **CRITICAL**: WebFetch is DISABLED (timeout risk). Use Playwright MCP instead.
 
-Use Playwright MCP **in parallel** to extract content:
-```
-For each authoritative URL:
-1. Navigate using mcp__playwright__navigate
-2. Extract using mcp__playwright__evaluate with script:
-   "document.body.innerText"
-3. Analyze for: facts, data, expert opinions, recent developments
-4. Include: publication date, author/organization, main arguments
-```
+Use Playwright MCP **in parallel** to extract content. For each authoritative URL, capture the page main text and analyze it for:
+- Facts, data, expert opinions, recent developments
+- Publication date, author / organization
+- Main arguments
 
 **Fallback**: If Playwright unavailable, synthesize from WebSearch results only.
 

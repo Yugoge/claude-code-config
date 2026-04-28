@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
-"""PreToolUse Hook (Read): Auto-register subagent into cp-state on view-file read.
+"""PreToolUse Hook (Read): Auto-register subagent into cp-state on direct
+cp-state file read.
 
-Triggers when a subagent's `Read` tool call targets a file whose path matches:
+Triggers when a subagent's `Read` tool call targets either of:
 
-    <project>/docs/dev/specs/<spec-id>/views/<agent>.md
+    <project>/.claude/specs/<spec-id>/cp-state-<agent>(-N).json
+    <project>/.claude/dev-registry/<sid>/<agent>.json
 
-If a cp-state file already exists for this spec+agent AND agent_id is present
-in the hook stdin data, set is_running=true with flock serialization. This
-avoids the arch-1 race window where a subagent reads the view file but exits
-before the cp-enforce hook could find any state.
+The first pattern is the SECOND ACTION protocol mandated by /spec, /dev,
+/dev-command, /dev-overnight, and /close. The second pattern is the
+dev-registry sentinel for /dev workflows (no spec views).
 
-If no cp-state file exists yet (e.g., spec subagent did not run or this is a
-legacy spec without a manifest), exit 0 quietly -- the cp system is simply
-not in effect for this invocation.
+P1 tombstone (ba-spec-20260427-194324, dev cycle 20260427-194324):
+The legacy view-file trigger (VIEW_PATH_PATTERN matching
+docs/dev/specs/<spec-id>/views/<agent>.md + _handle_spec_view +
+_extract_target) was REMOVED on 2026-04-27 because Anthropic built-in
+Explore subagents incidentally read view files for codebase research and
+were getting falsely registered into cp-state. The SECOND ACTION protocol
+already covers all legitimate registration via direct cp-state Read; the
+view-file trigger was structurally redundant AND structurally unsafe. DO
+NOT REINTRODUCE IT under any guise (Codex Q7).
 
 Fail-open: any error -> exit 0. Never block on unexpected input.
 """
@@ -25,10 +32,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-
-VIEW_PATH_PATTERN = re.compile(
-    r".*/docs/dev/specs/(?P<spec_id>[^/]+)/views/(?P<agent>[^/]+)\.md$"
-)
 
 # Dev-registry sentinel: sibling mechanism for /dev, /dev-command, /dev-overnight
 # workflows. These workflows produce no spec views, so VIEW_PATH_PATTERN never
@@ -49,7 +52,7 @@ DEV_SENTINEL_PATTERN = re.compile(
 # never triggered check-in. This pattern covers BOTH primary slot files
 # (cp-state-<agent>.json) and numbered instance slots
 # (cp-state-<agent>-<N>.json, N>=2). Mirrors _CP_STATE_FILENAME_RE in
-# /root/bin/spec-check.py (which is the writer).
+# /root/.claude/scripts/spec-check.py (which is the writer).
 CP_STATE_PATH_PATTERN = re.compile(
     r".*/\.claude/specs/(?P<spec_id>[^/]+)/cp-state-(?P<agent>[A-Za-z0-9_-]+?)(?:-\d+)?\.json$"
 )
@@ -75,7 +78,7 @@ DEV_REGISTRY_AGENTS = CP_AGENTS
 # Slot filename pattern: cp-state-<agent>.json (primary)
 #                    or  cp-state-<agent>-<N>.json (numbered, N>=2, auto-allocated
 #                        by spec-check.py when the primary is held by a running
-#                        instance). See /root/bin/spec-check.py for the writer.
+#                        instance). See /root/.claude/scripts/spec-check.py for the writer.
 
 
 def _now_iso_z():
@@ -87,19 +90,6 @@ def _load_stdin():
         return json.load(sys.stdin)
     except Exception:
         return None
-
-
-def _extract_target(data):
-    if not isinstance(data, dict):
-        return None, None
-    if data.get("tool_name") != "Read":
-        return None, None
-    tool_input = data.get("tool_input") or {}
-    file_path = tool_input.get("file_path") or ""
-    m = VIEW_PATH_PATTERN.match(file_path)
-    if not m:
-        return None, None
-    return m.group("spec_id"), m.group("agent")
 
 
 def _extract_cp_state_target(data):
@@ -197,7 +187,7 @@ def _all_cp_files(project_dir, spec_id, agent):
 
     Primary (cp-state-<agent>.json) first, then numbered slots in ascending
     integer order (cp-state-<agent>-2.json, -3.json, ...). Mirrors the
-    allocation policy in /root/bin/spec-check.py.
+    allocation policy in /root/.claude/scripts/spec-check.py.
     """
     cp_dir = _cp_dir(project_dir, spec_id)
     if not cp_dir.exists():
@@ -273,21 +263,25 @@ def _write_payload(path, payload):
 
 
 def _update_payload(payload, agent_id):
-    fresh_start = not payload.get("is_running")
+    """Restamp ONLY runtime ownership fields. Never reset checkpoint state.
+
+    P2 contract (ba-spec-20260427-194324): the hook is a takeover-stamper,
+    not a generation gate. Default takeover preserves every existing
+    `state` and `waived_reason` on every checkpoint. The ONLY path that
+    resets checkpoints is the explicit writer path
+    `spec-check.py check-in --bump-generation` (Codex Q2: PreToolUse
+    payloads are not authoritative enough to drive a generation reset).
+
+    Legacy back-fill: if the on-disk file lacks the `generation` field, do
+    NOT silently introduce it here -- that would obscure migration intent.
+    Newly-created cp-state files initialize `generation=1` via
+    spec-check.py's _default_payload.
+    """
     payload["is_running"] = True
     if agent_id:
         payload["agent_id"] = agent_id
     payload["checked_in_at"] = _now_iso_z()
     payload["checked_out_at"] = None
-    # Mirror /root/bin/spec-check.py check-in semantics for re-entry:
-    # when a new subagent starts from an idle slot, all checklist signatures
-    # must be earned again. Do NOT reset if the same running subagent rereads
-    # cp-state mid-run; that would erase marks it has already made.
-    if fresh_start:
-        for cp in payload.get("checkpoints", []):
-            cp["state"] = "pending"
-            cp["waived_reason"] = None
-            cp["updated_at"] = _now_iso_z()
     return payload
 
 
@@ -406,40 +400,22 @@ def _checkin_under_lock(project_dir, spec_id, agent, data):
         _release_dir_lock(lh)
 
 
-def _handle_spec_view(data, project_dir):
-    """Process a VIEW_PATH_PATTERN Read; update the matching cp-state slot.
-
-    Returns True when handled (matched), False when the Read does not target a
-    /spec view file or no cp-state exists for the (spec_id, agent) pair.
-
-    FINDING-6: the read-pick-write window is held under a dir-level
-    fcntl.LOCK_EX on .cp-checkin.lock so two parallel reads (one VIEW_PATH,
-    one CP_STATE_PATH) against the same (spec, agent) pair cannot race
-    into picking the same idle slot and clobbering each other.
-    """
-    spec_id, agent = _extract_target(data)
-    if spec_id is None or agent not in CP_AGENTS:
-        return False
-    return _checkin_under_lock(project_dir, spec_id, agent, data)
-
-
 def _handle_cp_state_direct_read(data, project_dir):
     """Process a CP_STATE_PATH_PATTERN Read; update the matching cp-state slot.
 
     Treats a direct Read of .claude/specs/<spec-id>/cp-state-<agent>(-N).json
-    as a view-equivalent registration trigger -- same internal handling as
-    _handle_spec_view (slot pick by agent_id, mark is_running=true, write
-    locked). Returns True when handled, False when the Read does not target
-    a cp-state file or no cp-state exists for the (spec_id, agent) pair.
+    as the SECOND ACTION registration trigger: slot pick by agent_id, mark
+    is_running=true, write locked. Returns True when handled, False when the
+    Read does not target a cp-state file or no cp-state exists for the
+    (spec_id, agent) pair.
 
     BUG-CPSTATE-1: the SECOND ACTION blocks in /root/.claude/commands/dev.md
     instruct subagents to Read cp-state files directly; without this handler
     the agent_id was never registered.
 
-    FINDING-6: read-pick-write window is held under a dir-level fcntl.LOCK_EX
-    (same lock as _handle_spec_view) so a parallel VIEW_PATH read and a
-    CP_STATE_PATH read for the same (spec, agent) pair cannot pick the same
-    idle slot and clobber.
+    FINDING-6: the read-pick-write window is held under a dir-level
+    fcntl.LOCK_EX on .cp-checkin.lock so two parallel cp-state reads against
+    the same (spec, agent) pair cannot pick the same idle slot and clobber.
     """
     spec_id, agent = _extract_cp_state_target(data)
     if spec_id is None or agent not in CP_AGENTS:
@@ -468,11 +444,11 @@ def main():
     if data is None:
         sys.exit(0)
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
-    # Try /spec view first (existing behavior untouched), then cp-state
-    # direct read (BUG-CPSTATE-1), then /dev sentinel. All handlers are
-    # fail-open: any miss or error -> exit 0.
-    if _handle_spec_view(data, project_dir):
-        sys.exit(0)
+    # SECOND ACTION direct cp-state read (the legitimate registration trigger
+    # mandated by /spec, /dev, /dev-command, /dev-overnight, /close), then
+    # /dev sentinel for /dev workflows without spec views. Both handlers are
+    # fail-open: any miss or error -> exit 0. The legacy view-file trigger
+    # was removed (see module docstring P1 tombstone).
     if _handle_cp_state_direct_read(data, project_dir):
         sys.exit(0)
     _handle_dev_sentinel(data, project_dir)

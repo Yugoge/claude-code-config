@@ -116,7 +116,7 @@ Playwright is now the PRIMARY tool for page content extraction in:
 
 **Installed via**: `claude mcp add playwright @modelcontextprotocol/server-playwright`
 
-**Configuration**: `/root/.claude.json` (project-level)
+**Configuration**: `$HOME/.claude.json` (project-level)
 
 **Transport**: stdio (local process)
 

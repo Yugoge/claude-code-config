@@ -136,7 +136,7 @@ else
 fi
 ```
 
-When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a cp-state file MUST include a `SECOND ACTION` block (template under each Step's prompt below) instructing the subagent to read `$CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json` and to mark each checkpoint via `python3 /root/bin/spec-check.py mark` (or `waive` with a reason) before Stop. When `SPEC_ID` is empty (non-`/spec` invocation), or a particular agent has no cp-state file under that SPEC_ID, the SECOND ACTION block is omitted — there are no checkpoints to mark for that launch.
+When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a cp-state file MUST include a `SECOND ACTION` block (template under each Step's prompt below) instructing the subagent to read `$CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json` and to mark each checkpoint via `python3 /root/.claude/scripts/spec-check.py mark` (or `waive` with a reason) before Stop. When `SPEC_ID` is empty (non-`/spec` invocation), or a particular agent has no cp-state file under that SPEC_ID, the SECOND ACTION block is omitted — there are no checkpoints to mark for that launch.
 
 **Regression guard**: do NOT change the `subagentstop-cp-enforce.py` matcher in `settings.json` back to a custom string like `"cp-enforce"`. Per <https://code.claude.com/docs/en/hooks>, `SubagentStop` matchers match subagent type names, not hook roles; the wildcard `"*"` is the canonical form and is what causes the hook to actually fire.
 
@@ -187,14 +187,7 @@ Use Agent tool with:
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<specialist-name>.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
-  CHECKPOINT MARKING CONTRACT:
-  As you complete each atomic action listed in cp-state-<specialist-name>.json, mark it via:
-    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent <specialist-name> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
-  If a checkpoint genuinely does not apply to this run, waive it with a reason:
-    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent <specialist-name> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
-  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
-
-  If SPEC_ID is empty (no /spec was used) or your cp-state file does not exist, skip this entire SECOND ACTION block — there are no checkpoints to mark.
+  CHECKPOINT MARKING: see agents/<specialist-name>.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the <specialist-name> specialist. Follow .claude/agents/<specialist-name>.md.
 
@@ -223,7 +216,7 @@ signals. BA will independently check these, but the orchestrator must
 provide them explicitly so BA starts with ground truth:
 
 - **Retry phrasing** in user text: "again", "still", "didn't fix",
-  "Nth time", "又", "还是", "没修好", "第 N 次"
+  "Nth time", <USER_VERBATIM>"又", "还是", "没修好", "第 N 次"</USER_VERBATIM>
 - **Recent related commits**: `git log --oneline --grep="<keyword>" -20`
 - **Existing BA specs**: files matching `docs/dev/ba-spec-*.md` with
   keywords from the current request
@@ -318,14 +311,7 @@ Use Task tool with:
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
-  CHECKPOINT MARKING CONTRACT:
-  As you complete each atomic action listed in cp-state-ba.json, mark it via:
-    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
-  If a checkpoint genuinely does not apply to this run, waive it with a reason:
-    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
-  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
-
-  If SPEC_ID is empty (no /spec was used) or your cp-state file does not exist, skip this entire SECOND ACTION block — there are no checkpoints to mark.
+  CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -373,14 +359,7 @@ Use Task tool with:
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
-  CHECKPOINT MARKING CONTRACT:
-  As you complete each atomic action listed in cp-state-ba.json, mark it via:
-    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
-  If a checkpoint genuinely does not apply to this run, waive it with a reason:
-    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
-  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
-
-  If SPEC_ID is empty (no /spec was used) or your cp-state file does not exist, skip this entire SECOND ACTION block — there are no checkpoints to mark.
+  CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -437,14 +416,7 @@ Use Agent tool with:
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
-  CHECKPOINT MARKING CONTRACT:
-  As you complete each atomic action listed in cp-state-qa.json, mark it via:
-    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
-  If a checkpoint genuinely does not apply to this run, waive it with a reason:
-    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
-  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
-
-  If SPEC_ID is empty (no /spec was used) or your cp-state file does not exist, skip this entire SECOND ACTION block — there are no checkpoints to mark.
+  CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the QA subagent in BA-VALIDATION MODE. This is NOT code verification.
   You are verifying the QUALITY OF BA's ANALYSIS, not any implementation.
@@ -538,14 +510,7 @@ Use Agent tool with:
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
-  CHECKPOINT MARKING CONTRACT:
-  As you complete each atomic action listed in cp-state-ba.json, mark it via:
-    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
-  If a checkpoint genuinely does not apply to this run, waive it with a reason:
-    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent ba --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
-  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
-
-  If SPEC_ID is empty (no /spec was used) or your cp-state file does not exist, skip this entire SECOND ACTION block — there are no checkpoints to mark.
+  CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
@@ -589,14 +554,7 @@ Use Task tool with:
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-dev.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
-  CHECKPOINT MARKING CONTRACT:
-  As you complete each atomic action listed in cp-state-dev.json, mark it via:
-    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent dev --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
-  If a checkpoint genuinely does not apply to this run, waive it with a reason:
-    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent dev --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
-  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
-
-  If SPEC_ID is empty (no /spec was used) or your cp-state file does not exist, skip this entire SECOND ACTION block — there are no checkpoints to mark.
+  CHECKPOINT MARKING: see agents/dev.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
@@ -613,17 +571,17 @@ Use Task tool with:
 
 **Wait for dev subagent completion** before proceeding.
 
-### Step 6.5: Write Canonical Aggregate Dev-Report (Parallel-Dev Only)
+### Step 7: Write Canonical Aggregate Dev-Report (Parallel-Dev Only)
 
 **Applies ONLY when N>1 parallel dev subagents were dispatched in Step 6.** Single-dev cycles SKIP this step entirely (the lone dev subagent writes `dev-report-<task-id>.json` directly).
 
-**Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files matching `dev-report-<role>-<task-id>.json` for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 8 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate.
+**Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files matching `dev-report-<role>-<task-id>.json` for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 9 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate.
 
-**Authoritative construction rule**: see lines 613-670 below for the full aggregate JSON schema and union semantics. Summary:
+**Authoritative construction rule**: see the "Parallel Dev Aggregate" subsection below (Aggregate construction rule + Example aggregate JSON) for the full schema and union semantics. Summary:
 - `request_id` = `<task-id>`; `dev_report_path` = canonical singular path
 - `parallel_workers` = list of per-worker ids
 - `dev.status`, `dev.tasks_completed`, `dev.scripts_created`, `dev.permissions_to_add`, `dev.files_modified`, `dev.files_created`, `blocking_issues`, `recommendations` = unions of per-worker reports
-- The orchestrator writes the aggregate inline via `jq` or `python3` in a single Bash call — do NOT modify `commit.sh`, do NOT add a separate script
+- The orchestrator writes the aggregate inline via `jq` or `python3` in a single Bash call — do NOT modify the `/commit` command implementation (`/root/.claude/commands/commit.md`), do NOT add a separate script
 
 **Single-dev cycles**: mark this todo step waived (skip). The aggregate-check hook does not fire for single-dev cycles because only one per-worker file pattern can match.
 
@@ -632,15 +590,16 @@ Use Task tool with:
 When the orchestrator dispatches N parallel `dev` subagents (one per file-disjoint
 work item), EACH dev writes its own report to
 `docs/dev/dev-report-<task-id>-<worker-id>.json`. Downstream `/commit`
-(`commit.sh:690`) reads ONLY the canonical singular path
+(`/root/.claude/commands/commit.md`) reads ONLY the canonical singular path
 `docs/dev/dev-report-<task-id>.json` and fails closed if it is missing
 (redev7 cycle could not self-deploy for this exact reason).
 
 **After ALL parallel devs return, the orchestrator MUST write a canonical
 aggregate `dev-report-<task-id>.json`** that unions the per-worker reports
 into a single artifact consumable by downstream `/commit`. This is an
-orchestrator-side rule; do NOT modify `commit.sh`, the singular-filename
-consumer contract stays as-is.
+orchestrator-side rule; do NOT modify the `/commit` command implementation
+(`/root/.claude/commands/commit.md`), the singular-filename consumer contract
+stays as-is.
 
 **Aggregate construction rule**:
 - `request_id` = `<task-id>` (literal, matches the cycle task-id)
@@ -687,7 +646,7 @@ when only one dev was dispatched, that dev writes
 additional aggregate (that would clobber). The aggregate rule applies ONLY
 when N>1 parallel devs were dispatched.
 
-### Step 7: Validate Dev Implementation
+### Step 8: Validate Dev Implementation
 
 **Quick validation before QA**:
 
@@ -706,9 +665,9 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 - Refine context JSON with additional information
 - Re-invoke dev subagent (maximum 3 attempts)
 
-**If dev completed**: Proceed to Step 8
+**If dev completed**: Proceed to Step 9
 
-### Step 8: Delegate to QA Subagent
+### Step 9: Delegate to QA Subagent
 
 **Use Task tool to invoke QA subagent with file paths only**:
 
@@ -720,14 +679,7 @@ Use Task tool with:
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
-  CHECKPOINT MARKING CONTRACT:
-  As you complete each atomic action listed in cp-state-qa.json, mark it via:
-    python3 /root/bin/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>
-  If a checkpoint genuinely does not apply to this run, waive it with a reason:
-    python3 /root/bin/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<text>"
-  You MUST mark every checkpoint as either "done" or "waived" before you Stop. Otherwise the SubagentStop hook (subagentstop-cp-enforce.py) will BLOCK your exit (exit 2) and force you to re-run with corrections.
-
-  If SPEC_ID is empty (no /spec was used) or your cp-state file does not exist, skip this entire SECOND ACTION block — there are no checkpoints to mark.
+  CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the QA subagent. Follow agents/qa.md instructions precisely.
 
@@ -744,7 +696,7 @@ Use Task tool with:
 
 **Wait for QA subagent completion** before proceeding.
 
-### Step 9: Process QA Results
+### Step 10: Process QA Results
 
 Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
@@ -752,18 +704,18 @@ Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
 ```
 IF qa.status == "pass":
-  → Proceed to Step 10 (Update Permissions)
+  → Proceed to Step 11 (Update Permissions)
 
 ELIF qa.status == "warning":
   → Check if minor issues acceptable
-  → If yes: Proceed to Step 10 (Update Permissions)
-  → If no: Proceed to Step 11 (Iteration)
+  → If yes: Proceed to Step 11 (Update Permissions)
+  → If no: Proceed to Step 12 (Iteration)
 
 ELIF qa.status == "fail":
-  → Proceed to Step 11 (Iteration)
+  → Proceed to Step 12 (Iteration)
 ```
 
-### Step 10: Update Settings.json Permissions
+### Step 11: Update Settings.json Permissions
 
 **CRITICAL**: Auto-update permissions for new functionality.
 
@@ -836,7 +788,7 @@ You can now use these scripts without permission prompts.
 - If permission already exists → Skip, don't duplicate
 - If user denies update → Log to completion report
 
-### Step 11: Iteration Loop (if QA fails)
+### Step 12: Iteration Loop (if QA fails)
 
 #### Layer-escalation gate (mandatory)
 
@@ -918,7 +870,7 @@ jq -s '.[0] * {
 
 **Iteration tracking**: Update TodoWrite with iteration number
 
-### Step 12: Generate Completion Report
+### Step 13: Generate Completion Report
 
 **QA passed! Generate final report.**
 
@@ -1229,16 +1181,16 @@ if __name__ == "__main__":
 - Modified: `config/api.json`
 - Saved report: `docs/dev/dev-report-20251226-114500.json`
 
-**Step 7-8**: QA subagent
+**Step 9**: QA subagent
 - Verified all scripts work
 - Confirmed root cause addressed
 - Status: PASS
 - Saved report: `docs/dev/qa-report-20251226-114500.json`
 
-**Step 9**: Process results
+**Step 10**: Process results
 - QA passed → proceed to completion
 
-**Step 12**: Completion report
+**Step 13**: Completion report
 - Generated: `docs/dev/completion-20251226-114500.md`
 - Presented summary to user
 
@@ -1319,9 +1271,9 @@ Self-test fixtures live at `/root/docs/dev/redev-prompt-purity-20260426-self-tes
 
 The rule originates from the user's explicit instruction (Chinese, preserved verbatim from the redev parent prompt):
 
+<USER_VERBATIM>
 > 修改 /root/.claude/commands/dev.md（/dev orchestrator 命令），在 prompt 主体加入强制规则：orchestrator 给 BA/dev/QA 派单时只能描述 WHAT （要解决什么问题、约束、acceptance criteria），不允许提示 HOW（不能写 "Use Write tool"、"use sed -i"、"use jq"、"call curl with"、"run python3 -c" 等任何工具名 / 命令片段 / 具体方法论 / shell 语法）。subagent 自己根据 agent.md 决定用什么工具。
 
 > 设计并部署 hook：PreToolUse 拦截 Agent 工具调用，扫描 prompt 字段，匹配工具名黑名单（Write/Edit/Read/Bash/Glob/Grep/sed/curl/jq/python3/node/npm/git/...）+ shell 语法（`bash` fenced block, `$(...)`, `cat <<EOF`, `>`, `>>`, `&&`, `|`, `mkdir`, `chmod`...）→ 命中即 exit 2 阻断派单。
+</USER_VERBATIM>
 
-
-If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.

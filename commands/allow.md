@@ -1,5 +1,5 @@
 ---
-description: Grant the main agent one-shot consent to run a developer-class bash command that would otherwise be blocked by pretool-bash-safety.sh. Usage: /allow <pattern> (literal substring match, or re:<regex> for regex).
+description: Single-use break-glass — bypass all safety blocks for the next matching bash command this turn. /allow = anything; /allow --tool <pattern> = explicit pattern (regex auto-detected). Trailing tokens become an audit-log comment. Auto-expires at stop.
 disable-model-invocation: true
 ---
 

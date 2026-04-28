@@ -91,7 +91,7 @@ GRANT_FILE=""
 #   rests on the four always-on layers, all of which stay engaged in --force mode.
 if [ $# -lt 1 ] || [ -z "${1:-}" ]; then
   echo "Usage:" >&2
-  echo "  commit.sh <task-id> -m \"<msg>\"             # closed-task commit (-m required)" >&2
+  echo "  commit.sh <task-id> [-m \"<msg>\"]           # closed-task commit (-m optional, auto-fills from closure artifacts)" >&2
   echo "  commit.sh --auto-bulk-bridge <branch>      # overnight per-cycle commit (-m forbidden)" >&2
   echo "  commit.sh --force -m \"<msg>\"                # irregular-path escape hatch (-m required)" >&2
   echo "Example: commit.sh dev-20260425-145411 -m \"real session summary describing the fix\"" >&2
@@ -192,7 +192,7 @@ while [ $# -gt 0 ]; do
     --force|--auto-bulk-bridge)
       echo "commit.sh: --force and --auto-bulk-bridge are mutually exclusive" >&2
       echo "Usage:" >&2
-      echo "  commit.sh <task-id> -m \"<msg>\"             # closed-task commit (-m required)" >&2
+      echo "  commit.sh <task-id> [-m \"<msg>\"]           # closed-task commit (-m optional, auto-fills from closure artifacts)" >&2
       echo "  commit.sh --auto-bulk-bridge <branch>      # overnight per-cycle commit (-m forbidden)" >&2
       echo "  commit.sh --force -m \"<msg>\"                # irregular-path escape hatch (-m required)" >&2
       exit 2
@@ -224,12 +224,24 @@ elif [ "$MODE" = "auto-bulk-bridge" ]; then
     exit 2
   fi
 elif [ "$MODE" = "closed-task" ]; then
-  # M-MSG-1: -m is now REQUIRED in closed-task mode (auto-derive REMOVED).
+  # 2026-04-28: -m is OPTIONAL in closed-task mode. If caller did not pass -m,
+  # auto-generate from closure artifacts via helper script.
   if [ "$HAS_CALLER_MESSAGE" -eq 0 ] || [ -z "$CALLER_MESSAGE" ]; then
-    echo "commit message required (-m); agent must summarize session intent" >&2
+    HELPER="/root/.claude/scripts/auto-commit-message.sh"
+    if [ -x "$HELPER" ]; then
+      CALLER_MESSAGE="$("$HELPER" "$TASK_ID")"
+      if [ -n "$CALLER_MESSAGE" ]; then
+        HAS_CALLER_MESSAGE=1
+        MESSAGE_SOURCE="auto"
+      fi
+    fi
+  else
+    MESSAGE_SOURCE="caller"
+  fi
+  if [ "$HAS_CALLER_MESSAGE" -eq 0 ] || [ -z "$CALLER_MESSAGE" ]; then
+    echo "commit message could not be auto-generated (no closure artifacts for $TASK_ID); pass -m manually" >&2
     exit 2
   fi
-  MESSAGE_SOURCE="caller"
 fi
 
 # S-FORCE-WARNING: emit a one-line stderr warning for --force mode so the
