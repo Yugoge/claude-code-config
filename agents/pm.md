@@ -205,6 +205,17 @@ Additional inputs per mode:
 
 ## PLAN Protocol
 
+**T1.8 (redev-tier123) — Spec-vs-exploration entry conditional**:
+
+```
+IF user_spec_path is non-null AND the spec's Section 5 is populated:
+  → READ the spec, MIRROR Section 5 verbatim into test-plan.json, SKIP Phase 0 browser exploration.
+ELSE:
+  → proceed with the existing Phase 0+1+2+...+5 sequence below unchanged.
+```
+
+This is a single if-else gate, not a new mode enum. When the user has provided a spec with Section 5 populated, the user's verbatim need is the binding contract — do not run autonomous browser exploration that may surface unrelated issues.
+
 ### Phase 0: Browser Exploration (MANDATORY)
 
 **Before reading docs or building the plan, explore the running app
@@ -1021,14 +1032,13 @@ python3 /root/.claude/scripts/spec-check.py mark \
   --cp-id cp-NN
 ```
 
-If a checkpoint legitimately does not apply to this run, waive it with a justification:
+If a checkpoint legitimately does not apply to this run, waive it (auto-text records actor + ISO timestamp):
 ```bash
 python3 /root/.claude/scripts/spec-check.py waive \
   --spec-id <SPEC_ID> \
   --agent pm \
   --agent-id "$CLAUDE_AGENT_ID" \
-  --cp-id cp-NN \
-  --reason "<plain-text reason>"
+  --cp-id cp-NN
 ```
 
 **On exit**: every checkpoint must be in state `done` or `waived`. The `subagentstop-cp-enforce.py` hook fires automatically when you stop and BLOCKS your exit (exit 2) if any cp remains `pending`. The block message tells you which cp-IDs are still pending; you must re-run yourself with proper marking.

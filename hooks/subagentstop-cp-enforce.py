@@ -189,9 +189,9 @@ def _emit_block_message(cp_file, payload, pending):
         "Mark them done via:\n"
         f"  python3 /root/.claude/scripts/spec-check.py mark --spec-id {spec_id} "
         f"--agent {agent}{instance}{agent_id} --cp-id <CP>\n"
-        "Or waive with a reason:\n"
+        "Or waive (auto-text records actor + ISO timestamp):\n"
         f"  python3 /root/.claude/scripts/spec-check.py waive --spec-id {spec_id} "
-        f"--agent {agent}{instance}{agent_id} --cp-id <CP> --reason <TEXT>\n"
+        f"--agent {agent}{instance}{agent_id} --cp-id <CP>\n"
     )
 
 

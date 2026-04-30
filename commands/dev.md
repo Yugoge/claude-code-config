@@ -1,5 +1,6 @@
 ---
 description: Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification
+disable-model-invocation: true
 ---
 
 > Code-writing tasks (.svg/.css/.html/.js/.ts/.py/...) go to `dev`. Specialists, BA, and QA produce .md/.json only.
@@ -136,7 +137,9 @@ else
 fi
 ```
 
-When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a cp-state file MUST include a `SECOND ACTION` block (template under each Step's prompt below) instructing the subagent to read `$CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json` and to mark each checkpoint via `python3 /root/.claude/scripts/spec-check.py mark` (or `waive` with a reason) before Stop. When `SPEC_ID` is empty (non-`/spec` invocation), or a particular agent has no cp-state file under that SPEC_ID, the SECOND ACTION block is omitted — there are no checkpoints to mark for that launch.
+When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a cp-state file MUST include a `SECOND ACTION` block (template under each Step's prompt below) instructing the subagent to read `$CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json` and to mark each checkpoint via `python3 /root/.claude/scripts/spec-check.py mark` (or `waive` — auto-text records actor + ISO timestamp) before Stop. When `SPEC_ID` is empty (non-`/spec` invocation), or a particular agent has no cp-state file under that SPEC_ID, the SECOND ACTION block is omitted — there are no checkpoints to mark for that launch.
+
+**T1.7 (redev-tier123) — Orchestrator-view + Section 5 read MANDATE**: When `SPEC_ID` is non-empty, BEFORE composing any subagent dispatch prompt, you MUST read `$CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/views/orchestrator.md` AND the spec's Section 5 (User's Acceptance Criterion) verbatim from `$spec_path`. Quote the user's words from Section 5 directly into every dispatch prompt; do not paraphrase or summarize. The user's verbatim need is the binding contract — every subagent must see the user's literal request, not your reformulation.
 
 **Regression guard**: do NOT change the `subagentstop-cp-enforce.py` matcher in `settings.json` back to a custom string like `"cp-enforce"`. Per <https://code.claude.com/docs/en/hooks>, `SubagentStop` matchers match subagent type names, not hook roles; the wildcard `"*"` is the canonical form and is what causes the hook to actually fire.
 

@@ -415,14 +415,13 @@ python3 /root/.claude/scripts/spec-check.py mark \
   --cp-id cp-NN
 ```
 
-If a checkpoint legitimately does not apply to this run, waive it with a justification:
+If a checkpoint legitimately does not apply to this run, waive it (auto-text records actor + ISO timestamp):
 ```bash
 python3 /root/.claude/scripts/spec-check.py waive \
   --spec-id <SPEC_ID> \
   --agent product-owner \
   --agent-id "$CLAUDE_AGENT_ID" \
-  --cp-id cp-NN \
-  --reason "<plain-text reason>"
+  --cp-id cp-NN
 ```
 
 **On exit**: every checkpoint must be in state `done` or `waived`. The `subagentstop-cp-enforce.py` hook fires automatically when you stop and BLOCKS your exit (exit 2) if any cp remains `pending`. The block message tells you which cp-IDs are still pending; you must re-run yourself with proper marking.

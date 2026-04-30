@@ -24,7 +24,7 @@ stderr warning. All timestamps are ISO-8601 UTC.
 Usage:
   spec-check.py check-in   --spec-id SID --agent AGENT --agent-id AID [--artifact PATH]
   spec-check.py mark       --spec-id SID --agent AGENT [--instance-id N] [--agent-id AID] --cp-id CP_ID
-  spec-check.py waive      --spec-id SID --agent AGENT [--instance-id N] [--agent-id AID] --cp-id CP_ID --reason TEXT
+  spec-check.py waive      --spec-id SID --agent AGENT [--instance-id N] [--agent-id AID] --cp-id CP_ID
   spec-check.py status     --spec-id SID [--agent AGENT] [--instance-id N]
   spec-check.py check-out  --spec-id SID --agent AGENT [--instance-id N] [--agent-id AID]
   spec-check.py unlock     --spec-id SID
@@ -357,6 +357,20 @@ def _resolve_payload_for_actor(spec_id, agent, instance_id, agent_id, op_label):
     return None, _read_payload(spec_id, agent, None)
 
 
+def _all_cps_terminal(payload):
+    """C7: True iff every cp is in a terminal state (done/waived-with-reason)."""
+    cps = payload.get("checkpoints") or []
+    return bool(cps) and all(cp.get("state") in ("done", "waived-with-reason") for cp in cps)
+
+
+def _write_payload_with_auto_checkout(spec_id, agent, payload, iid):
+    """C7: write payload, auto-flipping is_running to False if all cps terminal."""
+    if payload.get("is_running") and _all_cps_terminal(payload):
+        payload["is_running"] = False
+        payload["checked_out_at"] = _now_iso_z()
+    _write_payload(spec_id, agent, payload, iid)
+
+
 def _cmd_mark(args):
     if not _validate_agent(args.agent):
         return 1
@@ -378,16 +392,13 @@ def _cmd_mark(args):
     cp["state"] = "done"
     cp["waived_reason"] = None
     cp["updated_at"] = _now_iso_z()
-    _write_payload(args.spec_id, args.agent, payload, iid)
+    _write_payload_with_auto_checkout(args.spec_id, args.agent, payload, iid)
     print(f"marked done: {args.cp_id}")
     return 0
 
 
 def _cmd_waive(args):
     if not _validate_agent(args.agent):
-        return 1
-    if not args.reason or not args.reason.strip():
-        sys.stderr.write("ERROR: --reason is required and must be non-empty\n")
         return 1
     if _enforce_cross_role_scope(args.spec_id, args.agent, args.cp_id, "waive") != 0:
         return 1
@@ -404,11 +415,13 @@ def _cmd_waive(args):
     if cp is None:
         sys.stderr.write(f"ERROR: cp-id '{args.cp_id}' not found\n")
         return 1
+    actor = getattr(args, "agent_id", None) or "unknown"
+    auto_reason = f"waived by {actor} at {_now_iso_z()}"
     cp["state"] = "waived-with-reason"
-    cp["waived_reason"] = args.reason.strip()
+    cp["waived_reason"] = auto_reason
     cp["updated_at"] = _now_iso_z()
-    _write_payload(args.spec_id, args.agent, payload, iid)
-    print(f"waived: {args.cp_id} ({args.reason.strip()})")
+    _write_payload_with_auto_checkout(args.spec_id, args.agent, payload, iid)
+    print(f"waived: {args.cp_id} ({auto_reason})")
     return 0
 
 
@@ -539,13 +552,12 @@ def _add_mark_cmd(sub):
 
 
 def _add_waive_cmd(sub):
-    sp = sub.add_parser("waive", help="Waive a checkpoint with a reason")
+    sp = sub.add_parser("waive", help="Waive a checkpoint (auto-text records actor + ISO timestamp)")
     sp.add_argument("--spec-id", required=True)
     sp.add_argument("--agent", required=True)
     sp.add_argument("--instance-id", type=int, default=None)
     sp.add_argument("--agent-id", default=None)
     sp.add_argument("--cp-id", required=True)
-    sp.add_argument("--reason", required=True)
 
 
 def _add_status_cmd(sub):

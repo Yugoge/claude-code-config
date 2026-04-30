@@ -30,14 +30,40 @@
 
 set -euo pipefail
 
+# ─── User-intent sentinel ────────────────────────────────────────────────────
+# Enforcement lives in pretool-wrapper-userintent.py (PreToolUse hook). The
+# hook checks /tmp/claude-commit-userintent-<sid>.flag (written by
+# prompt-workflow.py on /commit) before this script runs. Mirrors /allow:
+# both writer and reader are hooks, so sid-keying round-trips correctly.
+
+
 # -----------------------------------------------------------------------------
 # Config
 # -----------------------------------------------------------------------------
-# Smart fallback chain (redev7 P-CWD-FALLBACK):
-#   1. CLAUDE_PROJECT_DIR set → use it (redev4 explicit override behavior preserved)
-#   2. cwd inside a git repo → use repo toplevel (handles real-world cross-project use)
-#   3. cwd not in a repo → use cwd (last resort; never blindly /root)
-DOCS_DIR_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# Permanent DOCS_DIR resolution (P-DOCS-MULTI):
+#   Walk an ordered candidate list, pick the FIRST one where docs/dev/ exists.
+#   This makes commit.sh robust against subprocess-env-var-stripping (the
+#   parent shell's CLAUDE_PROJECT_DIR may not propagate into bash subprocs)
+#   and against orchestrator cwd choice.
+#   Candidate order:
+#     1. $CLAUDE_DOCS_DIR  (new dedicated override)
+#     2. $CLAUDE_PROJECT_DIR  (back-compat)
+#     3. /root  (canonical harness root per CLAUDE.md)
+#     4. cwd's git toplevel
+#     5. pwd
+DOCS_DIR_ROOT=""
+for _cand in "${CLAUDE_DOCS_DIR:-}" "${CLAUDE_PROJECT_DIR:-}" "/root" "$(git rev-parse --show-toplevel 2>/dev/null || true)" "$(pwd)"; do
+  [ -z "$_cand" ] && continue
+  if [ -d "${_cand}/docs/dev" ]; then
+    DOCS_DIR_ROOT="$_cand"
+    break
+  fi
+done
+# Last-resort fallback: keep redev7 P-CWD-FALLBACK behavior so dev-report
+# lookup at least produces a useful error path.
+if [ -z "$DOCS_DIR_ROOT" ]; then
+  DOCS_DIR_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+fi
 DOCS_DIR="${DOCS_DIR_ROOT}/docs/dev"
 # LOG_PATH is intentionally user-home-anchored (audit log lives where Claude
 # infrastructure lives, not where the project lives). Do NOT parameterize via
@@ -793,9 +819,36 @@ ALLOWED_FULL_RAW="$ALLOWED_RAW"
 # Empty filtered set → exit 2 with "wrong repo" message; the FULL set was
 # non-empty (we'd have exited above otherwise), so this distinguishes
 # "wrong repo" from "no files modified".
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+# Permanent REPO_ROOT resolution (P-REPO-SNIFF):
+#   Sniff the target repo from the dev-report's own file paths — realpath
+#   the first absolute entry and walk up to the enclosing .git dir. This
+#   makes the wrapper independent of orchestrator cwd / env-var setup;
+#   commit.sh determines which repo to commit to from the dev-report itself.
+#   Fall back to the legacy cwd / CLAUDE_PROJECT_DIR detection only when
+#   the sniff yields nothing.
+REPO_ROOT="$(printf '%s\n' "$ALLOWED_FULL_RAW" | python3 -c '
+import os, sys
+for line in sys.stdin:
+    p = line.strip()
+    if not p or not os.path.isabs(p):
+        continue
+    real = os.path.realpath(p)
+    d = real if os.path.isdir(real) else os.path.dirname(real)
+    while d and d != "/":
+        if os.path.isdir(os.path.join(d, ".git")):
+            print(d)
+            sys.exit(0)
+        d = os.path.dirname(d)
+sys.exit(1)
+' 2>/dev/null || true)"
 if [ -z "$REPO_ROOT" ]; then
-  echo "commit.sh: not inside a git repository (git rev-parse --show-toplevel failed)" >&2
+  REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+fi
+if [ -z "$REPO_ROOT" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -d "${CLAUDE_PROJECT_DIR}/.git" ]; then
+  REPO_ROOT="$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
+fi
+if [ -z "$REPO_ROOT" ]; then
+  echo "commit.sh: cannot resolve target repo (sniff from dev-report failed; cwd/CLAUDE_PROJECT_DIR also yielded no .git)" >&2
   exit 2
 fi
 
@@ -841,7 +894,18 @@ def in_current_repo(path):
     except ValueError:
         return False
     return common == real_root
-kept = [p for p in paths if in_current_repo(p)]
+kept = []
+real_root = os.path.realpath(repo_root)
+for p in paths:
+    if not in_current_repo(p):
+        continue
+    abs_path = p if os.path.isabs(p) else os.path.join(repo_root, p)
+    real_abs = os.path.realpath(abs_path)
+    try:
+        rel = os.path.relpath(real_abs, real_root)
+    except ValueError:
+        rel = p
+    kept.append(rel)
 for p in sorted(set(kept)):
     print(p)
 PY
@@ -854,6 +918,42 @@ if [ -z "$ALLOWED_RAW" ]; then
   echo "no dev-report files belong to this repo (${REPO_ROOT}); commit from the correct repo" >&2
   echo "--- allowed_files (full union) ---" >&2
   printf '%s\n' "$ALLOWED_FULL_RAW" >&2
+  exit 2
+fi
+
+# P-GITIGNORE: drop paths excluded by this repo's .gitignore. A dev-report can
+# list paths (e.g. /root/.codex/*) that the current repo ignores; bulk `git
+# add` fails the entire commit for one ignored entry. Filter with a stderr
+# warn and continue; empty filtered set exits 2 with a distinct message.
+ALLOWED_PRE_GITIGNORE_TMP="$(mktemp /tmp/claude-commit-pre-gitignore-XXXXXX)"
+printf '%s\n' "$ALLOWED_RAW" > "$ALLOWED_PRE_GITIGNORE_TMP"
+
+ALLOWED_RAW="$(python3 - "$REPO_ROOT" "$ALLOWED_PRE_GITIGNORE_TMP" <<'PY'
+import subprocess, sys
+repo_root, list_path = sys.argv[1], sys.argv[2]
+with open(list_path) as fh:
+    paths = [l.strip() for l in fh.read().splitlines() if l.strip()]
+kept, dropped = [], []
+for p in paths:
+    rc = subprocess.run(
+        ['git', 'check-ignore', '-q', '--', p],
+        cwd=repo_root,
+        capture_output=True,
+    ).returncode
+    (dropped if rc == 0 else kept).append(p)
+if dropped:
+    print('commit.sh: dropping gitignored entries from dev-report.files_modified:', file=sys.stderr)
+    for p in dropped:
+        print(f'  - {p}', file=sys.stderr)
+for p in kept:
+    print(p)
+PY
+)"
+
+[ -f "$ALLOWED_PRE_GITIGNORE_TMP" ] && : > "$ALLOWED_PRE_GITIGNORE_TMP" 2>/dev/null || true
+
+if [ -z "$ALLOWED_RAW" ]; then
+  echo "commit.sh: all dev-report files are gitignored by ${REPO_ROOT}; nothing to commit" >&2
   exit 2
 fi
 
@@ -921,9 +1021,9 @@ PY
 # -----------------------------------------------------------------------------
 # Step 6 — stage exactly allowed_files; verify
 # -----------------------------------------------------------------------------
-git add -- "${ALLOWED_FILES[@]}"
+git -C "$REPO_ROOT" add -- "${ALLOWED_FILES[@]}"
 
-STAGED_LIST="$(git diff --cached --name-only | sort -u)"
+STAGED_LIST="$(git -C "$REPO_ROOT" diff --cached --name-only | sort -u)"
 ALLOWED_LIST="$(printf '%s\n' "${ALLOWED_FILES[@]}" | sort -u)"
 
 if [ "$STAGED_LIST" != "$ALLOWED_LIST" ]; then
@@ -941,11 +1041,18 @@ fi
 export CLAUDE_COMMIT_COMMAND_ACTIVE=1
 
 # IMPORTANT: HEAD must advance on the current branch. Do NOT touch refs/checkpoints/*.
-git commit -m "$COMMIT_MSG"
+git -C "$REPO_ROOT" commit -m "$COMMIT_MSG"
 
 # AC-iter2-9: wrapper unlinks grant on success path (guard never fires on subprocess)
 rm -f "$GRANT_FILE"
 GRANT_FILE=""
+
+# P-SENTINEL-SUCCESS: consume the user-intent sentinel ONLY on the success
+# path, so a failed-then-fixed retry within the TTL window doesn't force the
+# user to re-type /commit. The PreToolUse gate (pretool-wrapper-userintent.py)
+# stopped consuming on every entry; commit.sh owns final removal.
+_USERINTENT_SID="${CLAUDE_SESSION_ID:-default}"
+rm -f "/tmp/claude-commit-userintent-${_USERINTENT_SID}.flag"
 
 # -----------------------------------------------------------------------------
 # Step 8 — audit log

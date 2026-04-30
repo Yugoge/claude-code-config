@@ -1,5 +1,6 @@
 ---
 description: Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
+disable-model-invocation: true
 ---
 
 # Dev-Overnight: Autonomous Continuous Development
@@ -213,20 +214,37 @@ Beginning autonomous exploration...
 
 The hook `pretool-subagent-code-block.py` blocks non-`dev` subagents from writing code files, but it needs the Claude-internal subagent UUID to be registered against an `agent_type`. Root cause of the /dev gap (see commit `e086ccb`): /dev-overnight sessions produce no `.claude/specs/` cp-state files, so the hook falls open and every subagent can write code. The fix is an orchestrator-provided sentinel file that each subagent reads as its FIRST ACTION; `pretool-cp-checkin.py` then writes the UUID→agent_type mapping into `.claude/dev-registry/agent-index.json`.
 
-Reuse the overnight `session_id` from the state file (do NOT invent a new one — the same value is reused across cycles and continuations). Create sentinel files for every agent type this orchestrator can launch, including overnight-only specialists:
+Reuse the overnight `session_id` from the state file (do NOT invent a new one — the same value is reused across cycles and continuations). Bind it as `$DEV_SESSION_ID` and derive the registry directory:
 
 ```bash
-DEV_SESSION_ID="$session_id"  # from overnight state file
+DEV_SESSION_ID="<reused-from-overnight-state.json>"
 REGISTRY_DIR="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID"
-mkdir -p "$REGISTRY_DIR"
-for agent in \
-    architect ba cleaner cleanliness-inspector dev git-edge-case-analyst \
-    pm product-owner prompt-inspector qa rule-inspector style-inspector \
-    test-executor test-validator ui-specialist user; do
-  printf '{"agent_type": "%s", "session_id": "%s"}\n' "$agent" "$DEV_SESSION_ID" \
-    > "$REGISTRY_DIR/$agent.json"
-done
 ```
+
+Create sentinel files for every agent type this orchestrator can launch, including overnight-only specialists.
+
+**Sentinel-write idiom (M10 harness-fixes 20260428)**: the worktree-guard's `_extract_bash_write_paths` static scan treats `$VAR` and `${VAR}` tokens as opaque (it intentionally cannot tell legitimate from adversarial `$VAR` writes — see arch-3). The orchestrator MUST therefore use one of the two acceptable forms below. Forms that interpose a same-line-assigned shell variable into the redirect target (e.g. `REG=$CLAUDE_PROJECT_DIR/...; > "$REG/$agent.json"`) will be blocked by the worktree boundary even though the harness-state exemption is active, because the static scan cannot resolve `$REG` and the realpath check fails.
+
+**Acceptable form A — Write tool with literal absolute `file_path`** (one tool call per sentinel; the Write tool does NOT shell-expand env vars, so use a literal path):
+
+```text
+Write(file_path="/root/.claude/dev-registry/<session_id>/architect.json", content='{"agent_type": "architect", "session_id": "<session_id>"}')
+Write(file_path="/root/.claude/dev-registry/<session_id>/ba.json", content='{"agent_type": "ba", "session_id": "<session_id>"}')
+... (one Write per agent type)
+```
+
+**NOTE (C6, redev-tier123)**: Write tool does not shell-expand env vars; use the literal `/root/...` path. Form B is allowed to use `$CLAUDE_PROJECT_DIR` because Bash redirect targets ARE expanded by the static scan in `lib/bash_write_targets.py:_resolve_path`.
+
+**Acceptable form B — Bash redirect with `$CLAUDE_PROJECT_DIR`-prefixed target** (the static scan resolves `$CLAUDE_PROJECT_DIR` via `lib/bash_write_targets.py:_resolve_path`, lines 156-160). Inline the session_id literally; do NOT introduce intermediate variables in the redirect target:
+
+```bash
+mkdir -p "$CLAUDE_PROJECT_DIR/.claude/dev-registry/<session_id>"
+printf '{"agent_type": "architect", "session_id": "<session_id>"}\n' > "$CLAUDE_PROJECT_DIR/.claude/dev-registry/<session_id>/architect.json"
+printf '{"agent_type": "ba", "session_id": "<session_id>"}\n' > "$CLAUDE_PROJECT_DIR/.claude/dev-registry/<session_id>/ba.json"
+# ... (one printf per agent type; substitute the literal session_id read from the state file)
+```
+
+Either form populates the same sentinel files. Form A is more verbose but tool-policy-cleanly preserves one Write per sentinel; form B is more concise but requires the orchestrator to inline the session_id verbatim into each target path.
 
 Every Agent launch prompt in this orchestrator MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent. In continuation mode (after a hook-induced context reset), re-run the `mkdir -p` + sentinel loop above — it's idempotent, so re-running is safe and guarantees sentinels exist even if a cleanup step removed them.
 
@@ -236,13 +254,15 @@ If `user_spec_path` points at `docs/dev/specs/<SPEC_ID>.md` and the sibling
 directory `.claude/specs/<SPEC_ID>/` contains cp-state files, bind `SPEC_ID` to
 the basename (without extension) of `user_spec_path`.
 
+**T1.7 (redev-tier123) — Orchestrator-view + Section 5 read MANDATE**: When `SPEC_ID` is non-empty, BEFORE composing any subagent dispatch prompt, you MUST read `$CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/views/orchestrator.md` AND the spec's Section 5 (User's Acceptance Criterion) verbatim from `$CLAUDE_PROJECT_DIR/docs/dev/specs/<SPEC_ID>.md`. Quote the user's words from Section 5 directly into every dispatch prompt; do not paraphrase or summarize. The user's verbatim need is the binding contract — every subagent must see the user's literal request, not your reformulation.
+
 If no spec/cp-state directory exists, set `SPEC_ID=""` and skip the `SECOND ACTION`
 lines below. If a particular agent has no cp-state file under that SPEC_ID, omit that
 agent's `SECOND ACTION` for this launch. When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a
 cp-state file MUST include a `SECOND ACTION` line immediately after the dev-registry `FIRST ACTION`:
 
 ```text
-SECOND ACTION: Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json to load your mandatory checklist before doing substantive work. Mark each completed checkpoint with /root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>". You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
+SECOND ACTION: Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json to load your mandatory checklist before doing substantive work. Mark each completed checkpoint with /root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> (auto-text records actor + ISO timestamp). You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
 ```
 
 This gives overnight specialists the same checklist-stop semantics as BA/Dev/QA:
@@ -696,7 +716,7 @@ Immediately after PM Triage completes (Step 2c) and before pipeline creation (St
 - `spec_id` (e.g. the spec id when `spec_mode == "user-provided"`, or `autonomous-<sid>` otherwise)
 - `session_id`, `cycle_id` (1-indexed integer), `created_at` (ISO-8601 UTC with terminal `Z`)
 - `monolith_sha256` (sha256 of the monolithic spec file when present, else `null`)
-- `required_calls`: one entry per Agent call the orchestrator commits to making this cycle. Each entry: `{step, role, mode|null, pipeline_id|null, expected_output_path, schema_name, max_retries}`. Step ids align with the canonical todo (`2a`, `2b-<specialist>`, `2c`, `4`, `5a`, `6`, `8`, `9`, `14`).
+- `required_calls`: one entry per Agent call the orchestrator commits to making this cycle. Each entry: `{step, role, mode|null, pipeline_id|null, expected_output_path, schema_name, max_retries}`. Step ids align with the canonical todo (`2a`, `2b-<specialist>`, `2c`, `4`, `5a`, `6`, `9`, `14`). Step 8 (QA Prep) is orchestrator-direct and dispatches no subagent, so it is NOT listed here.
 - `pipelines`: keyed by pipeline id with `{ba_status, dev_status, qa_status, artifact_paths {ba, dev, qa}}` — initialise all statuses to `pending`.
 - `specialist_selection`: object keyed by specialist name with `{decision, reason, scope, budget {max_pages, max_viewports, max_minutes}}`. Specialists not chosen by PM Plan get `decision: "skip"` (or are omitted entirely — both forms are valid per AC12 variable-specialist-count).
 
@@ -766,34 +786,13 @@ failed_attempts. Prioritize by severity and impact. Every remaining issue gets a
 
 **Time guard** (severity-aware): If time remaining < 5 minutes, filter issues by severity+effort: (a) Drop cosmetic issues regardless of effort, (b) Drop minor issues with medium/large effort, (c) Keep major issues with small effort only, (d) Keep critical issues with small effort only. This ensures remaining time is spent on the highest-severity fixable issues.
 
-**Create pipeline definitions** -- one per deduplicated issue, with zero-indexed suffix:
+**Create pipeline definitions** -- one per PM-recommended `fix` issue, with zero-indexed suffix. Run:
 
-```python
-# Sort by severity (critical first), then by impact scope (more agents = higher priority)
-severity_order = {"critical": 0, "major": 1, "minor": 2, "cosmetic": 3}
-sorted_issues = sorted(
-    deduplicated_issues,
-    key=lambda x: (severity_order.get(x["severity"], 3), -len(x["agents_flagged"]))
-)
-
-pipelines = []
-for i, issue in enumerate(sorted_issues):
-    pipelines.append({
-        "index": i,
-        "description": issue["description"],
-        "location": issue["location"],
-        "severity": issue["severity"],
-        "category": issue["category"],
-        "agents_flagged": issue["agents_flagged"],  # which specialists found it
-        "phase": "pending",      # pending -> ba -> dev -> qa -> done/skipped
-        "iteration": 0,
-        "status": "active",      # active -> fixed/skipped
-        "timestamp_suffix": f"{timestamp}-{i}",  # unique file naming suffix
-        "tier": issue.get("tier", 2),  # from PM triage
-        "pm_recommended": True,        # PM triage ordered this pipeline
-        "spec_path": f"docs/dev/overnight/{session_id}/spec-pipeline-{i}.md",  # from Step 2d
-    })
+```bash
+python3 ~/.claude/scripts/build-pipelines-from-triage.py <triage-report> <addressed-issues> <timestamp> <session_id> | tee docs/dev/overnight/<session_id>/pipelines.json
 ```
+
+The script consumes the PM triage schema (`issues[]` keyed by `triage_index` + `pipeline_order[]` + `pipeline_recommendation` + `failed_attempts`). It iterates `pipeline_order`, keeps only `pipeline_recommendation == "fix"`, drops issues whose `<location>|<description>` key appears in addressed-issues, drops issues whose `failed_attempts[triage_index] >= 3`, and emits one pipeline object per remaining issue with: `index, triage_index, description, location, severity, category, agents_flagged, phase=pending, iteration=0, status=active, timestamp_suffix=<ts>-<index>, tier, pm_recommended=true, spec_path=docs/dev/overnight/<session_id>/spec-pipeline-<index>.md`.
 
 **Announce pipeline creation**:
 ```
@@ -1255,57 +1254,29 @@ overnight mode where many iterations compound silently.
 
 **Per-pipeline iteration guard**: Maximum 5 iterations per pipeline to prevent infinite loops.
 
-**Sort failed pipelines by severity before iterating** (critical first, cosmetic last):
+**Sort failed pipelines by severity before iterating** (critical first, cosmetic last). Build the iteration plan:
 
+```bash
+python3 ~/.claude/scripts/iterate-failed-pipelines.py docs/dev/overnight/<session_id>/pipelines.json 5 > docs/dev/overnight/<session_id>/iteration-plan.json
 ```
-# Sort qa_failed pipelines by severity to prioritize critical fixes
-severity_order = {"critical": 0, "major": 1, "minor": 2, "cosmetic": 3}
-qa_failed_pipelines = sorted(
-    [p for p in pipelines if p["phase"] == "qa_failed"],
-    key=lambda p: (severity_order.get(p["severity"], 3), -len(p.get("agents_flagged", [])))
-)
 
-For each failed pipeline[i] in qa_failed_pipelines:
+For each entry in `iteration_plan[]`, the orchestrator runs the Dev+QA inner loop. On every iteration, increment `pipeline.iteration` first (so the first refinement after a QA failure runs with `<new-iter> = current_iteration + 1`, starting at 1), then refine the context:
 
-WHILE pipeline[i].iteration < 5 AND pipeline[i].phase == "qa_failed":
-    pipeline[i].iteration += 1
-
-    # Refine context
-    Extract refined context from QA report:
-    jq '.qa.refined_context' docs/dev/qa-report-{pipeline.timestamp_suffix}.json \
-      > docs/dev/refined-context-{pipeline.timestamp_suffix}.json
-
-    Merge with original context:
-    jq -s '.[0] * {
-      iteration: (.[0].iteration // 0) + 1,
-      previous_attempts: [.[0].previous_attempts // [], {
-        iteration: (.[0].iteration // 0),
-        dev: .[1].dev,
-        qa: .[1].qa,
-        timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ")
-      }] | flatten,
-      refined_requirements: .[2]
-    }' \
-      docs/dev/context-{pipeline.timestamp_suffix}.json \
-      docs/dev/qa-report-{pipeline.timestamp_suffix}.json \
-      docs/dev/refined-context-{pipeline.timestamp_suffix}.json \
-      > docs/dev/context-iter{pipeline.iteration}-{pipeline.timestamp_suffix}.json
-
-    # Re-run Dev for this pipeline only
-    Agent(subagent_type: "dev") with iteration context
-    Include in Dev prompt: Overnight spec file: {pipeline.spec_path}
-    Dev reads spec first for cross-cycle context, then updates Sections 2 and 3.
-
-    # Re-run QA for this pipeline only
-    Agent(subagent_type: "qa") with new dev report
-    Include in QA prompt: Overnight spec file: {pipeline.spec_path}
-    QA reads spec first, then updates Section 4 (and Sections 6-7 if fail).
-
-    IF qa.status == "pass" or (qa.status == "warning" and minor only):
-        pipeline[i].phase = "done"
-        pipeline[i].status = "fixed"
-        BREAK
+```bash
+bash ~/.claude/scripts/refine-context.sh \
+  docs/dev/context-<timestamp_suffix>.json \
+  docs/dev/qa-report-<timestamp_suffix>.json \
+  <new-iter> \
+  > docs/dev/context-iter<new-iter>-<timestamp_suffix>.json
 ```
+
+The merged context records `iteration=<new-iter>` and appends a `previous_attempts[]` entry with `iteration=<new-iter>-1`. Then dispatch:
+- `Agent(subagent_type: "dev")` with iteration context. Include in Dev prompt: `Overnight spec file: <pipeline.spec_path>`. Dev reads spec first for cross-cycle context, then updates Sections 2 and 3.
+- `Agent(subagent_type: "qa")` with new dev report. Include in QA prompt: `Overnight spec file: <pipeline.spec_path>`. QA reads spec first, then updates Section 4 (and Sections 6-7 if fail).
+
+Loop termination:
+- `qa.status == "pass"` OR `(qa.status == "warning" AND minor only)` → set `phase=done`, `status=fixed`, BREAK.
+- `iteration >= 5` → set `phase=done`, BREAK; status is set per the "If iteration reaches 5 without passing" block below.
 
 **If iteration reaches 5 without passing**:
 ```
@@ -1319,34 +1290,14 @@ Record the failure in the cycle log.
 
 **CRITICAL**: Aggregate permissions from ALL pipelines before updating.
 
-**Collect permissions from all pipeline QA reports**:
-
-```python
-all_permissions = []
-for pipeline in current_issues:
-    if pipeline['status'] == 'fixed':
-        qa_report = load(f"docs/dev/qa-report-{pipeline['timestamp_suffix']}.json")
-        perms = qa_report.get('qa', {}).get('permissions_verification', {}).get('validated_permissions', [])
-        all_permissions.extend(perms)
-
-# Deduplicate by pattern
-unique_permissions = deduplicate(all_permissions, key='pattern')
-```
-
-**Update settings.json** with deduplicated permissions:
-
-Read current settings:
-```bash
-cat .claude/settings.json
-```
-
-**Add each validated permission to the appropriate section in `.claude/settings.json`**:
+**Collect and apply permissions from all pipeline QA reports** with two one-line invocations:
 
 ```bash
-# Use jq to add permission (for each unique permission)
-jq '.permissions.allow += ["Bash(scripts/new-script.sh:*)"]' .claude/settings.json > .claude/settings.json.tmp
-mv .claude/settings.json.tmp .claude/settings.json
+python3 ~/.claude/scripts/aggregate-permissions.py docs/dev/ docs/dev/overnight/<session_id>/pipelines.json > docs/dev/overnight/<session_id>/aggregated-permissions.json
+bash ~/.claude/scripts/apply-permissions.sh docs/dev/overnight/<session_id>/aggregated-permissions.json .claude/settings.json
 ```
+
+The aggregator filters QA reports to those whose `timestamp_suffix` matches a `status: fixed` pipeline, extracts `qa.permissions_verification.validated_permissions[]`, and emits a deduplicated list (by `pattern`). The applier merges each entry into `.permissions.<section>` (allow/ask/deny) atomically, skipping patterns already present.
 
 **Permission update rules**:
 
@@ -1583,7 +1534,6 @@ manually runs three independent commands in this order:
   /merge <worktree_branch>
   /push
 
-There is NO unified ship-overnight command. The three commands stay
 independent so the user can inspect state between each step.
 
 The time-lock has been released. The session can now end normally.
@@ -1609,7 +1559,6 @@ After all overnight cycles complete, the user is expected to review results and 
    - Requires clean working tree post-merge and commits ahead of upstream
    - The push wrapper writes its own grant manifest; no further user action required
 
-These are THREE INDEPENDENT human invocations. There is NO auto-sequenced ship-overnight command and no Bash blocks chaining them. The human inspects state between each step. The overnight loop does not auto-sequence /commit, /merge, /push — auto-sequencing them from inside the agent context would give the agent unilateral push authority, which is a deliberate non-goal per the always-on guard architecture.
 
 ---
 
