@@ -25,7 +25,50 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-PROJECT_DIR = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
+def _try_git_toplevel() -> Path | None:
+    """Tier 4: git rev-parse --show-toplevel; None on failure."""
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            capture_output=True, text=True, timeout=2, check=False,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return Path(result.stdout.strip())
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        pass
+    return None
+
+
+def resolve_project_dir(stdin_payload: dict | None = None) -> Path:
+    """Resolve project root via 5-tier fallback chain.
+
+    Tiers: env CLAUDE_PROJECT_DIR -> stdin payload cwd -> os.getcwd ->
+    git rev-parse --show-toplevel -> /root literal (final safety net).
+    Tier 4 returns the worktree path when invoked from inside a worktree;
+    this is intentional -- worktrees ARE per-project roots in /dev-overnight.
+    """
+    env_dir = os.environ.get('CLAUDE_PROJECT_DIR')
+    if env_dir:
+        return Path(env_dir)
+    if stdin_payload and isinstance(stdin_payload, dict):
+        payload_cwd = stdin_payload.get('cwd')
+        if payload_cwd:
+            return Path(payload_cwd)
+    try:
+        cwd = os.getcwd()
+        if cwd:
+            return Path(cwd)
+    except (OSError, FileNotFoundError):
+        pass
+    git_top = _try_git_toplevel()
+    if git_top is not None:
+        return git_top
+    return Path('/root')
+
+
+# Module-level binding for backward compat (env+cwd+git+literal tiers;
+# stdin-cwd tier is added inside main() after JSON parse).
+PROJECT_DIR = resolve_project_dir()
 
 
 def overnight_state_path(session_id: str = 'default') -> Path:
@@ -257,29 +300,50 @@ def format_progress(
 
 # --- Overnight helpers ---
 
+def _strip_spec_arg(args: str) -> tuple[str, str]:
+    """Pull --spec/—spec/–spec from args; return (remaining_args, spec_path)."""
+    spec_match = re.search(r'(?:--|[–—])spec\s+(\S+)', args)
+    if not spec_match:
+        return args, ''
+    spec_path = spec_match.group(1)
+    remaining = args[:spec_match.start()].rstrip() + ' ' + args[spec_match.end():].lstrip()
+    return remaining.strip(), spec_path
+
+
+def _match_end_time_token(args: str) -> tuple[str, str]:
+    """Match leading end-time token (Nh / N.Mh / Nm / +Nh / HH:MM[ AM|PM])."""
+    bare_match = re.match(r'^(\d+(?:\.\d+)?[hm])\s*(.*)', args)
+    if bare_match:
+        return f'+{bare_match.group(1).strip()}', bare_match.group(2).strip()
+    rel_match = re.match(r'^(\+\d+(?:\.\d+)?[hm])\s*(.*)', args)
+    if rel_match:
+        return rel_match.group(1).strip(), rel_match.group(2).strip()
+    if args.startswith('+'):
+        bad = args.split(None, 1)[0]
+        rest = args[len(bad):].lstrip()
+        return f'INVALID:{bad}', rest
+    time_match = re.match(r'^(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\s*(.*)', args)
+    if time_match:
+        return time_match.group(1).strip(), time_match.group(2).strip()
+    return '', args
+
+
 def parse_overnight_args(prompt_text: str) -> tuple[str, str, str]:
     """Extract end-time, focus, and spec path from /dev-overnight args.
 
-    Returns (end_time_raw, focus_string, spec_path).
+    Returns (end_time_raw, focus_string, spec_path). M4 (harness-fixes
+    20260428): now also recognizes +Nh / +N.Mh / +Nm relative-time
+    tokens; an unknown +token returns INVALID:<token> so the bash layer
+    can surface an explicit error rather than silently defaulting to +8h.
+    Spec dash-form tolerance unchanged (-- / — / –).
     """
     match = re.search(r'/dev-overnight\s+(.*)', prompt_text.strip())
     args = match.group(1).strip() if match else ''
-    spec_path = ''
-    # Accept --spec (ASCII), —spec (em-dash U+2014), –spec (en-dash U+2013).
-    # Autocorrect/smart-dash IMEs often rewrite -- to — on input.
-    spec_match = re.search(r'(?:--|[–—])spec\s+(\S+)', args)
-    if spec_match:
-        spec_path = spec_match.group(1)
-        args = args[:spec_match.start()].rstrip() + ' ' + args[spec_match.end():].lstrip()
-        args = args.strip()
+    args, spec_path = _strip_spec_arg(args)
     if not args:
         return '', '', spec_path
-    time_match = re.match(
-        r'^(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\s*(.*)', args,
-    )
-    if time_match:
-        return time_match.group(1).strip(), time_match.group(2).strip(), spec_path
-    return '', args, spec_path
+    end_time, focus = _match_end_time_token(args)
+    return end_time, focus, spec_path
 
 
 def create_overnight_state(end_time: str, focus: str = '', spec_path: str = '', session_id: str = 'default') -> bool:
@@ -476,8 +540,21 @@ def handle_do_consent(sid: str) -> None:
         sys.stderr.write(f"[/do] Failed to write consent flag: {e}\n")
 
 
+def _write_userintent_sentinel(cmd_name: str, sid: str) -> None:
+    """Write sid-keyed user-intent sentinel. Mirrors /allow pattern: both
+    writer (this hook) and reader (pretool-wrapper-userintent.py PreToolUse
+    hook) resolve sid from stdin JSON, so sid-keying round-trips correctly.
+    Single-use; consumed by the PreToolUse hook before the wrapper runs."""
+    try:
+        Path(f"/tmp/claude-{cmd_name}-userintent-{sid}.flag").write_text("true")
+    except OSError:
+        pass
+
+
 def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     """Phase A: slash command detected -- setup todos, state, inject spec."""
+    if cmd_name in ("commit", "push", "merge", "stop"):
+        _write_userintent_sentinel(cmd_name, sid)
     if cmd_name == "do":
         handle_do_consent(sid)
         return
@@ -510,6 +587,8 @@ def _write_bookmark(cmd_name: str, sid: str) -> None:
 def main():
     try:
         data = json.load(sys.stdin)
+        global PROJECT_DIR
+        PROJECT_DIR = resolve_project_dir(data)
         user_input = data.get('prompt', '')
         session_id = data.get('session_id', 'default')
         cmd_name = extract_command_name(user_input)

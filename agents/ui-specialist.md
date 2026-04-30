@@ -277,7 +277,7 @@ Under `/spec`-driven invocations (orchestrator passes non-empty `<SPEC_ID>` refe
 
 1. Read the named cp-state file before doing substantive work. Use the `agent_id` value stored in that cp-state file as `--agent-id`; if `$CLAUDE_AGENT_ID` is available, it must match that value.
 2. Mark each completed checkpoint with `/root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent ui-specialist --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
-3. Waive only genuinely non-applicable checkpoints with `/root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent ui-specialist --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>"`.
+3. Waive only genuinely non-applicable checkpoints with `/root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent ui-specialist --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
 4. Confirm no checkpoint remains pending before Stop.
 
 Non-spec invocations skip this contract.

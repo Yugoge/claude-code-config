@@ -19,7 +19,28 @@ END_TIME=""
 FOCUS=""
 SPEC_PATH=""
 SESSION_ID="${CLAUDE_SESSION_ID:-}"
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+resolve_project_dir() {
+    # 4-tier fallback: env -> pwd -> git toplevel -> /root literal.
+    # (No stdin tier; this is a CLI script, not a stdin-payload hook.)
+    if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+        printf '%s\n' "$CLAUDE_PROJECT_DIR"
+        return 0
+    fi
+    local cwd
+    cwd="$(pwd 2>/dev/null)" || cwd=""
+    if [[ -n "$cwd" ]]; then
+        printf '%s\n' "$cwd"
+        return 0
+    fi
+    local toplevel
+    toplevel="$(git rev-parse --show-toplevel 2>/dev/null)" || toplevel=""
+    if [[ -n "$toplevel" ]]; then
+        printf '%s\n' "$toplevel"
+        return 0
+    fi
+    printf '%s\n' "/root"
+}
+PROJECT_DIR="$(resolve_project_dir)"
 
 # --- Parse arguments ---
 while [[ $# -gt 0 ]]; do
@@ -56,6 +77,53 @@ parse_end_time() {
         return
     fi
 
+    # M5 (harness-fixes 20260428): the Python layer (prompt-workflow.py)
+    # forwards INVALID:<token> when it sees an unparseable +token. Surface
+    # an explicit error here rather than silent fallback to +8h.
+    if [[ "$input" == INVALID:* ]]; then
+        echo "Cannot parse end-time: ${input#INVALID:}" >&2
+        exit 1
+    fi
+
+    # T1.6 (redev-tier123): accept bare-form Nh / N.Mh / Nm by stripping
+    # an optional leading '+' before the existing match below. Per user
+    # directive (e), the '+' prefix is documented no-op compat; bare form
+    # is the primary spelling.
+    local stripped="${input#+}"
+
+    # M5: relative-time forms Nh / N.Mh / Nm (with optional leading +
+    # already stripped). GNU date does not accept fractional hours
+    # ("+0.5 hours" errors), so we always normalize to whole-minute
+    # offsets via integer arithmetic. Any token NOT matching this
+    # pattern errors loudly (no silent fallback to +8h).
+    if [[ "$stripped" =~ ^([0-9]+)(\.([0-9]+))?([hm])$ ]]; then
+        local whole="${BASH_REMATCH[1]}"
+        local frac="${BASH_REMATCH[3]}"
+        local unit="${BASH_REMATCH[4]}"
+        local minutes
+        if [[ "$unit" == "h" ]]; then
+            minutes=$((whole * 60))
+            if [[ -n "$frac" ]]; then
+                # Compute fractional-hours minutes: frac/10^len(frac) * 60
+                local pad="${#frac}"
+                local denom=$((10 ** pad))
+                minutes=$((minutes + (10#$frac * 60) / denom))
+            fi
+        else
+            if [[ -n "$frac" ]]; then
+                echo "Cannot parse end-time: $input (fractional minutes not supported)" >&2
+                exit 1
+            fi
+            minutes="$whole"
+        fi
+        date -u -d "+${minutes} minutes" +%Y-%m-%dT%H:%M:%SZ
+        return
+    fi
+    if [[ "$input" == +* ]]; then
+        echo "Cannot parse end-time: $input" >&2
+        exit 1
+    fi
+
     # Already ISO-8601 (contains T or full date pattern)
     if [[ "$input" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2} ]]; then
         date -u -d "$input" +%Y-%m-%dT%H:%M:%SZ
@@ -80,6 +148,16 @@ parse_end_time() {
 }
 
 END_TIME="$(parse_end_time "$END_TIME")"
+
+# C12 (redev-tier123): warn (do not error) when time budget is <60 min.
+target_epoch=$(date -u -d "$END_TIME" +%s 2>/dev/null || echo 0)
+now_epoch=$(date +%s)
+if [[ "$target_epoch" -gt 0 ]]; then
+    delta_min=$(( (target_epoch - now_epoch) / 60 ))
+    if [[ "$delta_min" -lt 60 ]]; then
+        echo "WARNING: time budget <1h (${delta_min}m). Recommended minimum: 1h for 1 pipeline; 2h for 2-3 pipelines; 6h+ for overnight." >&2
+    fi
+fi
 
 # --- Spec mode detection ---
 SPEC_MODE="autonomous"

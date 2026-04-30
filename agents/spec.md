@@ -716,6 +716,9 @@ Each checkpoint MUST be:
 2. **Atomic**: one artifact or one measurement per checkpoint
 3. **Binary**: observable as done / not-done without interpretation
 4. **Relevant to the agent's role**: do not ask dev to verify user-facing acceptance criteria
+5. **Action MUST anchor user's verbatim need (T1.9, redev-tier123)**: For specs with Section 5 populated, each cp's `action` field MUST quote or directly reference a phrase from Section 5. The cp anchors WHAT the user wants; the HOW (verification methodology, audit framing, fix-mode language) remains the subagent's choice and MUST NOT appear in the action text.
+
+**Forbidden cp.action patterns** (T1.9): `"verify BA didn't 降级 scope"`, `"audit dev for write-tool misuse"`, any phrasing that prescribes verification methodology rather than anchoring user intent. The user's verbatim need is the anchor; the subagent decides how to verify it.
 
 Checkpoint count bounds:
 - Minimum: 1 per agent (prevents empty checklists that pass trivially)
@@ -841,8 +844,8 @@ This contract is mandatory in that mode:
 2. Treat each `checkpoints[].id` entry as a required checklist item.
 3. Immediately after completing a checkpoint's atomic action, mark it done with
    `/root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent spec --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
-4. If a checkpoint is genuinely not applicable, waive it with a concrete reason:
-   `/root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent spec --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> --reason "<reason>"`.
+4. If a checkpoint is genuinely not applicable, waive it (auto-text records actor + ISO timestamp):
+   `/root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent spec --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
 5. Before stopping, confirm every checkpoint is either `done` or
    `waived-with-reason`. Pending checkpoints cause `subagentstop-cp-enforce.py`
    to block exit with code 2.
