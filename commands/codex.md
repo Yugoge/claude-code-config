@@ -89,7 +89,7 @@ Capture the printed path. Use it as `$CODEX_OUT` in all subsequent commands.
 ### 3. Review mode
 
 ```bash
-codex review -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' 2>&1 | tee "$CODEX_OUT"
+codex review -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' < /dev/null 2>&1 | tee "$CODEX_OUT"
 ```
 
 Use 10 minute Bash timeout. Then Read `$CODEX_OUT` with the Read tool.
@@ -98,12 +98,12 @@ Use 10 minute Bash timeout. Then Read `$CODEX_OUT` with the Read tool.
 
 **Without --model (default gpt-5.5):**
 ```bash
-codex exec -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' "$PROMPT" 2>&1 | tee "$CODEX_OUT"
+codex exec -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' "$PROMPT" < /dev/null 2>&1 | tee "$CODEX_OUT"
 ```
 
 **With --model (user-specified model, still xhigh reasoning):**
 ```bash
-codex exec -c 'model="<model>"' -c 'reasoning_effort="xhigh"' "$PROMPT" 2>&1 | tee "$CODEX_OUT"
+codex exec -c 'model="<model>"' -c 'reasoning_effort="xhigh"' "$PROMPT" < /dev/null 2>&1 | tee "$CODEX_OUT"
 ```
 
 Use 10 minute Bash timeout. Then Read `$CODEX_OUT` with the Read tool.
