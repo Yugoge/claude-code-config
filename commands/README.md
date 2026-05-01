@@ -10,10 +10,10 @@ Organization and usage documentation for `commands/`.
 - **Naming convention**: lower
 
 ## Files
-- `allow.md` - Grant the main agent one-shot consent to run a developer-class bash command that would otherwise be blocked by pretool-bash-safety.sh. Usage: /allow <pattern> (literal substring match, or re:<regex> for regex).
+- `allow.md` - Single-use break-glass — bypass all safety blocks for the next matching bash command this turn. /allow = anything; /allow --tool <pattern> = explicit pattern (regex auto-detected). Trailing tokens become an audit-log comment. Auto-expires at stop.
 - `checkpoint.md` - Checkpoint Command
 - `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
-- `close.md` - Wrapper - ask QA agent to debate with codex and return CLOSE YES/NO verdict
+- `close.md` - Close the current dev cycle (agent infers task-id from conversation). QA debates with codex internally, returns CLOSE YES/NO. Append --force to skip the debate.
 - `code-review.md` - Comprehensive code review with best practices analysis
 - `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.5, xhigh reasoning) for a second opinion or parallel coding
 - `commit.md` - Commit closed dev task to branch HEAD
@@ -21,13 +21,13 @@ Organization and usage documentation for `commands/`.
 - `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 - `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
 - `dev.md` - Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification
-- `do.md` - Grant the main agent consent to perform direct operations in this session. This is a one-time consent flag.
+- `do.md` - Allow main agent to bypass orchestrator-gate restrictions for this turn (subagent-only operations become directly allowed). Auto-clears at stop.
 - `doc-gen.md` - Generate comprehensive documentation for code
 - `doc-sync.md` - Regenerate all INDEX.md files and patch CLAUDE.md auto-sections
 - `explain-code.md` - Deep explanation of code functionality and design
 - `file-analyze.md` - Analyze PDF, Excel, Word, images and other files with deep insights
 - `fswatch.md` - FSWatch Command
-- `merge.md` - Merge an overnight worktree branch to the default branch with full commit history preservation
+- `merge.md` - Merge the current overnight worktree branch into the default branch (agent infers branch from active overnight state). Bare /merge typical; explicit /merge <branch> overrides. Auto-cleans worktree + branch + overnight-state file when merge succeeds and the diff is clean.
 - `optimize.md` - Analyze code for performance optimization opportunities
 - `playwright-helper.md` - Guide for using Playwright MCP with deep search commands
 - `pull.md` - Pull Command
@@ -40,9 +40,9 @@ Organization and usage documentation for `commands/`.
 - `research-deep.md` - Multi-source deep research with 15-20 iterative searches
 - `search-tree.md` - Tree search exploration with MCTS-inspired path evaluation
 - `security-check.md` - Security vulnerability analysis and recommendations
-- `ship-overnight.md` - Overnight cycle commit + merge + push composite
 - `site-navigate.md` - Intelligent site navigation simulating "click-through" exploration
 - `spec.md` - Create spec files for any dev workflow (/dev, /dev-overnight, or standalone reference)
+- `stop.md` - Cancel active overnight time-lock + workflow-enforce so the session can terminate normally. User-invoked only — agents cannot self-stop.
 - `test.md` - Test validation workflow with edge case detection, systematic validation, and quality enforcement
 
 ---

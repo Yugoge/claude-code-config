@@ -5,7 +5,7 @@ Organization and usage documentation for `.claude/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 64
+- **Total files**: 66
 - **Subdirectories**: 34
 - **Naming convention**: lower
 
@@ -18,6 +18,7 @@ Organization and usage documentation for `.claude/`.
 - `config.yaml` - yaml config
 - `history.jsonl` - jsonl file
 - `mcp-needs-auth-cache.json` - json config
+- `overnight-state-d0ec784d-c321-41f6-ba24-65537efac311.json` - json config
 - `playwright-config.json` - json config
 - `playwright-storage-state.json` - json config
 - `push.sh` - 
@@ -35,6 +36,7 @@ Organization and usage documentation for `.claude/`.
 - `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 - `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
 - `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
+- `workflow-d0ec784d-c321-41f6-ba24-65537efac311.json` - json config
 - `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
 - `workflow-dd3a870c-9440-4274-896f-462dfe972646.json` - json config
 - `workflow-eaa1077b-49ad-4697-8e01-e4a923d2b116.json` - json config
