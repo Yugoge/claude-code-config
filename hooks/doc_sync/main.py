@@ -26,11 +26,24 @@ IGNORE_DIRS = {
     'dist', 'build', '.next', '.cache', 'coverage',
 }
 SKIP_FILES = {'INDEX.md', 'README.md', '__init__.py', '.DS_Store'}
+EXCLUDED_PATTERNS = (
+    '.claude/commands/scripts/',
+    '.claude/worktrees/',
+    '.claude/specs/',
+    '.claude/dev-registry/',
+)
+
+
+def _is_excluded(rel: str) -> bool:
+    rel_norm = rel.replace(os.sep, '/')
+    return any(pat in rel_norm for pat in EXCLUDED_PATTERNS)
 
 
 def should_sync(file_path: Path, rel: str) -> bool:
     rel_parts = Path(rel).parts
     if any(part in IGNORE_DIRS for part in rel_parts):
+        return False
+    if _is_excluded(rel):
         return False
     in_watched = any(rel.startswith(wd + '/') or rel.startswith(wd + os.sep) for wd in WATCHED_DIRS)
     has_watched_ext = file_path.suffix.lower() in WATCHED_EXTS
