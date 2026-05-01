@@ -55,16 +55,12 @@ def _build_inventory(project_dir: Path) -> str:
 def _build_file_list(dir_path: Path) -> str:
     if not dir_path.is_dir():
         return ''
-    from .extract import extract_description
-    files = sorted([
+    files = [
         f for f in dir_path.iterdir()
         if f.is_file() and f.name not in ('INDEX.md', 'README.md', '__init__.py', '.DS_Store')
-    ])
-    lines = []
-    for f in files:
-        desc = extract_description(f)
-        lines.append(f'- `{f.name}` - {desc}')
-    return '\n'.join(lines)
+    ]
+    rel = dir_path.name
+    return f'See `.claude/{rel}/INDEX.md` ({len(files)} entries)'
 
 
 def _patch_inventory(content: str, project_dir: Path) -> str:
