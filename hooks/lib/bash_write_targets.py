@@ -165,7 +165,7 @@ def _resolve_path(token: str) -> str:
 # whitespace and a token (path). Excludes '>&' (fd duplication like '2>&1')
 # and process substitution '>(...)'. The '(?<![<>])' lookbehind prevents
 # matching the '>' inside '<<'.
-_REDIRECT_RE = re.compile(r"(?<![<>])(?:>>?)\s*(?![&\(])([^\s;|&<>]+)")
+_REDIRECT_RE = re.compile(r"(?<![<>&\'\"])(?:>>?)\s*(?![&\(])([^\s;|&<>]+)")
 
 # tee FILE / tee -a FILE  (also -ai, --append, etc — keep simple: -a flag form)
 _TEE_RE = re.compile(r"(?:^|[\s;|&])tee\b((?:\s+-[aAip]+)*)\s+([^\s;|&<>]+)")
@@ -215,9 +215,63 @@ def _split_at_redirect(rest: str) -> str:
     return re.split(r"(?:>>?|<<?)", rest, maxsplit=1)[0]
 
 
+def _strip_quoted_regions(s: str) -> str:
+    """Replace single- and double-quoted spans with same-length whitespace.
+
+    Preserves byte offsets so other regex consumers continue to align.
+    Used to prevent _CP_MV_RE from matching cp/mv tokens inside quoted
+    strings (C3) and to neutralize quoted argument payloads in general.
+    """
+    out = list(s)
+    i, n = 0, len(s)
+    while i < n:
+        ch = s[i]
+        if ch in ("'", '"'):
+            j = i + 1
+            while j < n and s[j] != ch:
+                j += 1
+            for k in range(i, min(j + 1, n)):
+                out[k] = ' '
+            i = j + 1
+        else:
+            i += 1
+    return ''.join(out)
+
+
+def _strip_reason_payload(s: str) -> str:
+    """Replace the token following '--reason' with whitespace placeholder.
+
+    Preserves byte offsets. C25: prevents `--reason "scope reduction"`
+    payloads (quoted or bare) from being treated as write targets.
+    """
+    out = list(s)
+    for m in re.finditer(r"--reason\b", s):
+        i = m.end()
+        # Skip leading whitespace
+        while i < len(s) and s[i].isspace():
+            i += 1
+        if i >= len(s):
+            continue
+        # Quoted form: erase from opening quote through matching close quote
+        if s[i] in ("'", '"'):
+            quote = s[i]
+            j = i + 1
+            while j < len(s) and s[j] != quote:
+                j += 1
+            for k in range(i, min(j + 1, len(s))):
+                out[k] = ' '
+            continue
+        # Bare-word form: erase non-whitespace token
+        while i < len(s) and not s[i].isspace():
+            out[i] = ' '
+            i += 1
+    return ''.join(out)
+
+
 def _extract_cp_mv_targets(command: str) -> List[str]:
     targets: List[str] = []
-    for m in _CP_MV_RE.finditer(command):
+    scan = _strip_quoted_regions(command)
+    for m in _CP_MV_RE.finditer(scan):
         rest = _split_at_redirect(m.group(2).strip())
         dest = _last_non_flag_token(rest.split())
         if dest:
@@ -279,6 +333,7 @@ def extract_bash_write_paths(command: str) -> List[str]:
     if not isinstance(command, str) or not command.strip():
         return []
     stripped = command_without_heredoc_bodies(command)
+    stripped = _strip_reason_payload(stripped)
     targets: List[str] = []
     targets.extend(_extract_redirect_targets(stripped))
     targets.extend(_extract_tee_targets(stripped))

@@ -363,12 +363,54 @@ def _all_cps_terminal(payload):
     return bool(cps) and all(cp.get("state") in ("done", "waived-with-reason") for cp in cps)
 
 
+def _refresh_terminal_artifact(payload):
+    """F7: refresh terminal_artifact.exists by os.path.exists; stamp validated_at."""
+    ta = payload.get("terminal_artifact")
+    if isinstance(ta, dict) and ta.get("path"):
+        ta["exists"] = os.path.exists(ta["path"])
+        ta["validated_at"] = _now_iso_z()
+
+
 def _write_payload_with_auto_checkout(spec_id, agent, payload, iid):
-    """C7: write payload, auto-flipping is_running to False if all cps terminal."""
+    """C7: write payload, auto-flipping is_running to False if all cps terminal. F7: refresh terminal_artifact."""
     if payload.get("is_running") and _all_cps_terminal(payload):
-        payload["is_running"] = False
-        payload["checked_out_at"] = _now_iso_z()
+        payload["is_running"], payload["checked_out_at"] = False, _now_iso_z()
+    _refresh_terminal_artifact(payload)
     _write_payload(spec_id, agent, payload, iid)
+
+
+def _check_lifecycle_open(payload):
+    """F8: refuse mutations on closed cp-state. AC2: lifecycle closed + Re-check-in required."""
+    if not payload.get("is_running") and payload.get("checked_out_at"):
+        sys.stderr.write(
+            f"ERROR: cp-state lifecycle closed at {payload['checked_out_at']}; "
+            f"refusing mutation. Re-check-in required to mutate.\n"
+        )
+        return False
+    return True
+
+
+def _append_waived_audit(cp, actor, now_iso):
+    """F6: preserve waiver context per AC4 minimum-keys schema."""
+    cp.setdefault("audit_history", []).append({
+        "prior_state": "waived-with-reason", "prior_waived_reason": cp.get("waived_reason"),
+        "prior_updated_at": cp.get("updated_at"), "transitioned_to": "done",
+        "transitioned_at": now_iso, "actor": actor,
+    })
+
+
+def _apply_mark_transition(cp, cp_id, actor):
+    """F5/F6: idempotent re-mark + waiver-audit preservation. Returns: 0=already-done, 1=transition."""
+    if cp.get("state") == "done":  # F5/AC3: idempotent re-mark, exact wording
+        sys.stderr.write(f"{cp_id} already done at {cp.get('updated_at')}\n")
+        return 0
+    now = _now_iso_z()
+    if cp.get("state") == "waived-with-reason":  # F6: audit before clearing (uses prior updated_at)
+        _append_waived_audit(cp, actor, now)
+    cp["state"] = "done"
+    cp["waived_reason"] = None
+    cp["updated_at"] = now
+    return 1
 
 
 def _cmd_mark(args):
@@ -383,16 +425,16 @@ def _cmd_mark(args):
         getattr(args, "agent_id", None),
         "mark",
     )
-    if payload is None:
+    if payload is None or not _check_lifecycle_open(payload):
         return 1
     cp = _find_cp(payload, args.cp_id)
     if cp is None:
         sys.stderr.write(f"ERROR: cp-id '{args.cp_id}' not found\n")
         return 1
-    cp["state"] = "done"
-    cp["waived_reason"] = None
-    cp["updated_at"] = _now_iso_z()
+    rc_t = _apply_mark_transition(cp, args.cp_id, getattr(args, "agent_id", None))
     _write_payload_with_auto_checkout(args.spec_id, args.agent, payload, iid)
+    if rc_t == 0:
+        return 0
     print(f"marked done: {args.cp_id}")
     return 0
 
@@ -409,7 +451,7 @@ def _cmd_waive(args):
         getattr(args, "agent_id", None),
         "waive",
     )
-    if payload is None:
+    if payload is None or not _check_lifecycle_open(payload):  # F8
         return 1
     cp = _find_cp(payload, args.cp_id)
     if cp is None:
