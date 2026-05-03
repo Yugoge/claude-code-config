@@ -91,6 +91,50 @@ def _find_active_state(agent_id):
     return None, None
 
 
+def _collect_slots_in_dir(spec_dir, agent_id):
+    """Return [(cp_file, payload), ...] for slots in spec_dir owned by agent_id."""
+    out = []
+    for cp_file in spec_dir.glob("cp-state-*.json"):
+        payload = _safe_read(cp_file)
+        if payload and payload.get("agent_id") == agent_id:
+            out.append((cp_file, payload))
+    return out
+
+
+def _find_all_slots_for_agent(agent_id):
+    """F15 idempotent cleanup: return ALL cp-state files owned by agent_id.
+
+    Includes slots where is_running=false (unlike _match_agent which gates on
+    is_running=true). Used to reconcile stale slots whose terminal-state was
+    set without checked_out_at, OR to clean up multi-spec slots (rare but
+    possible). Returns list of (cp_file, payload) tuples.
+    """
+    root = _cp_root()
+    if not root.exists():
+        return []
+    found = []
+    for spec_dir in root.iterdir():
+        if spec_dir.is_dir():
+            found.extend(_collect_slots_in_dir(spec_dir, agent_id))
+    return found
+
+
+def _idempotent_finalize(agent_id):
+    """F15: ensure all terminal slots owned by agent_id have checked_out_at.
+
+    No-op when is_running=false AND checked_out_at is already set. Otherwise,
+    flip is_running=false and stamp checked_out_at. NEVER touches slots with
+    pending checkpoints (M11).
+    """
+    for cp_file, payload in _find_all_slots_for_agent(agent_id):
+        if _has_pending(payload):
+            continue  # M11: pending enforcement is non-negotiable
+        if not payload.get("is_running") and payload.get("checked_out_at"):
+            continue  # already finalized: no-op
+        _clean_exit(payload)
+        _write_payload(cp_file, payload)
+
+
 def _write_payload(path, payload):
     lock_path = path.with_suffix(path.suffix + ".lock")
     with open(lock_path, "w") as lh:
@@ -235,6 +279,39 @@ def _handle_active_state(cp_file, payload, data):
     return _handle_complete(cp_file, payload)
 
 
+def _handle_no_active_state(agent_id):
+    """F15 idempotent: reconcile stale slots owned by this agent_id."""
+    _idempotent_finalize(agent_id)
+    sys.exit(0)
+
+
+def _find_blocking_pending(agent_id):
+    """M11 global preflight: ANY active, non-timed-out, pending slot blocks Stop."""
+    for sf, sp in _find_all_slots_for_agent(agent_id):
+        if sp.get("is_running") and _has_pending(sp) and not _is_timed_out(sp):
+            return sf, sp
+    return None, None
+
+
+def _finalize_with_siblings(cp_file, payload, data, agent_id):
+    """F15: handle primary active slot, then reconcile siblings on rc=0."""
+    rc = _handle_active_state(cp_file, payload, data)
+    if rc == 0:
+        _idempotent_finalize(agent_id)
+    return rc
+
+
+def _dispatch(agent_id, data):
+    """M11 preflight, then per-slot finalize."""
+    sf, sp = _find_blocking_pending(agent_id)
+    if sf is not None:
+        return _handle_pending(sf, sp)
+    cp_file, payload = _find_active_state(agent_id)
+    if cp_file is None:
+        _handle_no_active_state(agent_id)
+    return _finalize_with_siblings(cp_file, payload, data, agent_id)
+
+
 def main():
     data = _load_stdin()
     if data is None:
@@ -242,10 +319,7 @@ def main():
     agent_id = data.get("agent_id")
     if not agent_id:
         sys.exit(0)
-    cp_file, payload = _find_active_state(agent_id)
-    if cp_file is None:
-        sys.exit(0)
-    sys.exit(_handle_active_state(cp_file, payload, data))
+    sys.exit(_dispatch(agent_id, data))
 
 
 if __name__ == "__main__":
