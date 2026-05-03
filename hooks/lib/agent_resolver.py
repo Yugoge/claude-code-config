@@ -39,17 +39,53 @@ def _match_cp_state(path: str, agent_id: str) -> Optional[str]:
     return t if isinstance(t, str) else None
 
 
+def _read_match(path: str, agent_id: str) -> Optional[dict]:
+    """Return cp-state dict if agent_id matches, else None.
+
+    Unlike _match_cp_state (which returns just agent_type), this returns
+    the full payload so disambiguation in _scan_cp_state_files can inspect
+    is_running and checked_in_at without re-reading the file.
+    """
+    data = _read_json(path)
+    if not data or data.get("agent_id") != agent_id:
+        return None
+    t = data.get("agent_type")
+    if not isinstance(t, str):
+        return None
+    return data
+
+
+def _pick_active(matches: list) -> Optional[str]:
+    """Disambiguate among is_running=true matches.
+
+    Cross-role active collision -> None (fail closed).
+    Same-role active collision -> that agent_type.
+    Single active -> its agent_type.
+    """
+    types = {m.get("agent_type") for m in matches}
+    if len(types) > 1:
+        return None  # F14 M8: cross-role active collision -> fail closed
+    return next(iter(types))  # F14 M9: deterministic same-role active
+
+
 def _scan_cp_state_files(agent_id: str, project_dir: str) -> Optional[str]:
+    """F14: prefer is_running=true match; fail-closed on cross-role collision.
+
+    Active-match preference: cp-state-spec-20260428-183820 incident showed
+    stale qa cp-state could shadow a live dev subagent under first-glob bias.
+    """
     pattern = f"{project_dir}/.claude/specs/*/cp-state-*.json"
     try:
         paths = glob.glob(pattern)
     except OSError:
         return None
-    for path in paths:
-        hit = _match_cp_state(path, agent_id)
-        if hit is not None:
-            return hit
-    return None
+    matches = [d for d in (_read_match(p, agent_id) for p in paths) if d]
+    if not matches:
+        return None
+    active = [m for m in matches if m.get("is_running")]
+    if active:
+        return _pick_active(active)
+    return matches[0].get("agent_type")  # legacy fallback (single match case)
 
 
 def _lookup_dev_registry_index(agent_id: str, project_dir: str) -> Optional[str]:

@@ -38,12 +38,36 @@ def run_todo_script(cmd_name: str, project_dir: Path) -> list:
         return []
 
 
+def _emit_count_mismatch(bookmark, cmd_name, blocking_count, actual_count, canonical):
+    """Reset acknowledgment and emit count-mismatch block."""
+    try:
+        state = json.loads(bookmark.read_text())
+        state['todo_acknowledged'] = False
+        state['lock_reason'] = 'count_mismatch'
+        bookmark.write_text(json.dumps(state))
+    except Exception:
+        pass
+    sys.stderr.write(
+        f'\n⛔ TODO COUNT MISMATCH: /{cmd_name} requires {blocking_count} steps '
+        f'but TodoWrite was called with only {actual_count}.\n'
+        f'You MUST use the recommended canonical todos below — do NOT create custom or abbreviated steps.\n'
+        f'All other tools are now blocked until you re-call TodoWrite with ALL {blocking_count} canonical steps:\n\n'
+        + json.dumps(canonical, ensure_ascii=False, indent=2) + '\n'
+    )
+    sys.exit(2)
+
+
 def main():
     try:
         data = json.load(sys.stdin)
         todos = data.get('tool_input', {}).get('todos', [])
         session_id = data.get('session_id', 'default')
     except Exception:
+        sys.exit(0)
+
+    # F1: subagent bypass — subagents have their own todo schemas (one per role)
+    # and shouldn't be force-fitted to main agent's canonical schema.
+    if data.get('agent_id'):
         sys.exit(0)
 
     if not todos:
@@ -71,23 +95,7 @@ def main():
     actual_count = len(todos)
 
     if actual_count < blocking_count:
-        # Reset todo_acknowledged so PreToolUse blocks any further tools
-        # until agent re-calls TodoWrite with the correct count
-        try:
-            state = json.loads(bookmark.read_text())
-            state['todo_acknowledged'] = False
-            state['lock_reason'] = 'count_mismatch'
-            bookmark.write_text(json.dumps(state))
-        except Exception:
-            pass
-        sys.stderr.write(
-            f'\n⛔ TODO COUNT MISMATCH: /{cmd_name} requires {blocking_count} steps '
-            f'but TodoWrite was called with only {actual_count}.\n'
-            f'You MUST use the recommended canonical todos below — do NOT create custom or abbreviated steps.\n'
-            f'All other tools are now blocked until you re-call TodoWrite with ALL {blocking_count} canonical steps:\n\n'
-            + json.dumps(canonical, ensure_ascii=False, indent=2) + '\n'
-        )
-        sys.exit(2)
+        _emit_count_mismatch(bookmark, cmd_name, blocking_count, actual_count, canonical)
 
     sys.exit(0)
 

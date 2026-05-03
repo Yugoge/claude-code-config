@@ -281,6 +281,10 @@ def parse_stdin():
 def main():
     """Entry point: parse stdin, load state, validate, block or allow."""
     data = parse_stdin()
+    # F1: subagent bypass — subagents have their own todo schemas (one per
+    # role) and shouldn't be force-fitted to main agent's canonical schema.
+    if data.get('agent_id'):
+        sys.exit(0)
     if data.get('tool_name') != 'TodoWrite':
         sys.exit(0)
     new_todos = data.get('tool_input', {}).get('todos', [])

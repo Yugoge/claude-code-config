@@ -229,9 +229,16 @@ def load_state(session_id):
 
 
 def parse_stdin():
-    """Parse stdin JSON. Returns (new_todos, session_id) or exits."""
+    """Parse stdin JSON. Returns (new_todos, session_id) or exits.
+
+    F1: subagent bypass — when agent_id is present in stdin, exit 0
+    immediately. Subagents have their own todo schemas per role and
+    shouldn't be force-fitted to main agent's canonical-21 schema.
+    """
     try:
         data = json.load(sys.stdin)
+        if data.get('agent_id'):
+            sys.exit(0)
         todos = data.get('tool_input', {}).get('todos', [])
         return todos, data.get('session_id', 'default')
     except Exception:
