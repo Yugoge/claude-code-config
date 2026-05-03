@@ -66,6 +66,15 @@ Doctest examples (run via `python3 -m doctest bash_write_targets.py`):
 
 >>> extract_bash_write_paths("cat <<-'END'\\n\\techo > /tmp/inside\\n\\tEND") == []
 True
+
+>>> extract_bash_write_paths("echo 'need >=10/3 items'")
+[]
+
+>>> extract_bash_write_paths("codex 'this is a Design gap >design fix this'")
+[]
+
+>>> extract_bash_write_paths("echo 'foo > bar'")
+[]
 """
 
 from __future__ import annotations
@@ -182,11 +191,49 @@ _SED_I_RE = re.compile(r"(?:^|[\s;|&])sed\b([^;|&\n]*?-i[^\s;|&\n]*)([^;|&\n]+)"
 _INSTALL_RE = re.compile(r"(?:^|[\s;|&])install\b([^;|&\n]+)")
 
 
+def _read_path_token_from_original(original: str, start: int) -> str:
+    """Read the next path token from `original` starting at offset `start`.
+
+    Skips leading whitespace. If the next char is `'` or `"`, consumes to
+    the matching close-quote and strips the surrounding quotes (so a
+    quoted PATH like `"/tmp/y"` yields `/tmp/y`). Otherwise reads to the
+    next whitespace or shell separator (`;|&<>`).
+    """
+    i, n = start, len(original)
+    while i < n and original[i].isspace():
+        i += 1
+    if i >= n:
+        return ""
+    if original[i] in ("'", '"'):
+        quote = original[i]
+        j = i + 1
+        while j < n and original[j] != quote:
+            j += 1
+        return original[i + 1:j]
+    j = i
+    while j < n and original[j] not in " \t\n;|&<>":
+        j += 1
+    return original[i:j]
+
+
+# Operator-only patterns for masked-text scanning (no path capture; path
+# is read from the ORIGINAL text via _read_path_token_from_original).
+# Preserves the lookbehind from fae388e for adjacent-quote edge cases.
+_REDIRECT_OP_RE = re.compile(r"(?<![<>&\'\"])(?:>>?)(?![&\(])")
+_TEE_OP_RE = re.compile(r"(?:^|[\s;|&])tee\b((?:\s+-[aAip]+)*)")
+
+
 def _extract_redirect_targets(command_no_heredoc: str) -> List[str]:
-    """Extract '>' and '>>' redirect targets."""
+    """F3/F4: scan masked text for operator positions; read path from ORIGINAL.
+
+    Quoted CONTENT (e.g. `'need >=10/3 items'`) is neutralized in the masked
+    copy so the operator scan skips it. Quoted PATH (e.g. `> "/tmp/y"`) is
+    preserved because path extraction reads from the ORIGINAL byte-aligned text.
+    """
+    masked = _strip_quoted_regions(command_no_heredoc)
     targets: List[str] = []
-    for m in _REDIRECT_RE.finditer(command_no_heredoc):
-        token = m.group(1).strip()
+    for m in _REDIRECT_OP_RE.finditer(masked):
+        token = _read_path_token_from_original(command_no_heredoc, m.end()).strip()
         if not token or token.isdigit():
             continue
         targets.append(_resolve_path(token))
@@ -194,9 +241,11 @@ def _extract_redirect_targets(command_no_heredoc: str) -> List[str]:
 
 
 def _extract_tee_targets(command: str) -> List[str]:
+    """F3/F4: scan masked text for tee tokens; read path from ORIGINAL."""
+    masked = _strip_quoted_regions(command)
     targets: List[str] = []
-    for m in _TEE_RE.finditer(command):
-        path = m.group(2).strip()
+    for m in _TEE_OP_RE.finditer(masked):
+        path = _read_path_token_from_original(command, m.end()).strip()
         if path:
             targets.append(_resolve_path(path))
     return targets
