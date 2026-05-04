@@ -1172,21 +1172,17 @@ If `claims_superficial > 0` and you have time, go fix them before submitting. If
 
 ---
 
-## Codex adversarial consultation (REQUIRED before final delivery)
+## Codex adversarial consultation (OPT-IN — only when `--codex` flag set)
 
-Per redev8 F-CODEX-DEBATE rule: before issuing your final QA verdict /
-acceptance criteria evaluation, you MUST consult OpenAI Codex via the
-Skill tool to get an adversarial second opinion. This catches
-over-engineering, under-engineering, missed edge cases, and scope drift
-before /close (or the orchestrator) inherits the verdict.
+**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev`, `/redev`, or `/close` with the `--codex` flag.
 
-This is DISTINCT from the multi-round QA-codex debate that runs inside
-`/close`. The /close debate is a closure-time cycle gate. THIS rule is a
-verification-time consultation that applies to EVERY QA invocation
-(regular dev cycle verification, BA-validation mode, overnight cycle
-verification), not just /close.
+**When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to your final verdict based on self-review. Emit in your output JSON: `codex_consult: { invoked: false, status: "not_requested", feedback_summary: null, feedback_incorporated: null }`.
 
-### Procedure
+**When the dispatch DOES instruct codex** ("百年大计" mode): follow the Procedure below. This per-invocation consultation is DISTINCT from the multi-round QA-codex debate inside `/close` (the close-debate is governed separately by `commands/close.md`'s own `--codex` flag).
+
+When invoked, codex consultation catches over-engineering, under-engineering, missed edge cases, and scope drift before /close (or the orchestrator) inherits the verdict.
+
+### Procedure (only when `codex_required: true`)
 
 1. Draft your output (verification steps complete; verdict drafted: pass / fail / blocked)
 2. Invoke `Skill(skill="codex")` with:
@@ -1212,26 +1208,29 @@ Every QA verdict output MUST include a `codex_consult` field with this shape:
 ```json
 {
   "codex_consult": {
-    "invoked": true,
-    "status": "ok" | "failed_quota" | "failed_timeout" | "failed_parse",
-    "feedback_summary": "<key points or error message>",
-    "feedback_incorporated": "<what changed in draft as a result, or 'self-review substituted' on failure>"
+    "invoked": true | false,
+    "status": "ok" | "failed_quota" | "failed_timeout" | "failed_parse" | "not_requested",
+    "feedback_summary": "<key points or error message, or null when not_requested>",
+    "feedback_incorporated": "<what changed in draft as a result, or 'self-review substituted' on failure, or null when not_requested>"
   }
 }
 ```
 
 This documentation is REQUIRED — orchestrator and /close debate need to
-know whether codex actually challenged the verdict or whether
-self-review was substituted.
+know whether codex actually challenged the verdict, whether self-review
+was substituted, or whether codex was not requested at all.
 
 ### Why this matters
 
-Codex consultation is a layer of adversarial review BETWEEN drafting and
-final delivery. It's the same mechanism /close uses (multi-round QA-codex
-debate) but applied per-subagent instead of only at the end of the cycle.
-This catches issues earlier, when they're cheaper to fix.
+Codex consultation is an OPT-IN adversarial-review layer BETWEEN drafting and
+final delivery. When invoked (via `--codex` flag), it works like /close's
+multi-round QA-codex debate but applied per-subagent — catching issues
+earlier when they're cheaper to fix. When NOT invoked, self-review is
+sufficient; the cycle proceeds without codex token cost.
 
-User directive (2026-04-26): "每一个 subagent 必须要和 codex 充分讨论后才能下定论".
+User directive history:
+- 2026-04-26 (original): "每一个 subagent 必须要和 codex 充分讨论后才能下定论" — strict always-on
+- 2026-05-04 (softened): codex consultation is OPT-IN via `--codex` flag at the command level. Default cycles do NOT consult codex; "百年大计" mode does.
 
 ---
 
