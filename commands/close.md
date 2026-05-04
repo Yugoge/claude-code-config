@@ -1,5 +1,5 @@
 ---
-description: Close the current dev cycle (agent infers task-id from conversation). QA debates with codex internally, returns CLOSE YES/NO. Append --force to skip the debate.
+description: Close the current dev cycle (agent infers task-id from conversation). QA evaluates Workflow Integrity bullets and returns CLOSE YES/NO. Pass --codex to enable multi-round QA-codex debate; default is QA-only single-round assessment. Append --force to skip the debate entirely.
 disable-model-invocation: true
 ---
 
@@ -30,6 +30,20 @@ Load preloaded todo list:
 ```bash
 source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/close.py
 ```
+
+### Step 0a: --codex flag parsing (applies to non-force paths)
+
+Parse `--codex` from `$ARGUMENTS` BEFORE evaluating Step 0 / Step 1:
+
+- If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it and set `codex_required = true`.
+- Otherwise set `codex_required = false` (default).
+
+`codex_required` controls whether QA's internal multi-round debate (Step 2) consults codex via `Skill(codex)`:
+
+- **`codex_required = true`**: dispatch prompt for QA includes the full multi-round QA-codex debate protocol as documented in Step 2 below. Verdict branches 1 / 2 / 5 / 5b apply.
+- **`codex_required = false`** (default): dispatch prompt for QA SKIPS all `Skill(codex)` invocations and runs QA-only single-round assessment of the 4 Workflow Integrity bullets + 1b cleanliness preconditions. Verdict branch 7 (codex disabled) applies; branches 2 / 5 / 5b are N/A.
+
+When `--force` is also present, `--codex` is ignored (Step 0 short-circuits the entire debate path; no QA invocation, no codex consultation, no verdict-branch evaluation). The two flags are not mutually exclusive parse-wise (orchestrator strips both), but `--force` wins.
 
 ### Step 0 (optional): --force flag short-circuit
 
@@ -152,7 +166,12 @@ Use the Agent tool with `subagent_type: qa` ONCE. The entire debate happens insi
 FIRST ACTION: if a dev-registry sentinel for this session exists at $CLAUDE_PROJECT_DIR/.claude/dev-registry/<SESSION_ID>/qa.json, read it to register.
 SECOND ACTION (only if SPEC_ID is non-empty): read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist before the debate. Mark each completed checkpoint with /root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> (auto-text records actor + ISO timestamp). You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
 
-You are the QA gatekeeper evaluating whether a completed development can be closed. You will run a MULTI-ROUND INTERNAL DEBATE with OpenAI Codex (via the Skill tool) yourself. The caller will NOT orchestrate rounds; you own the loop.
+You are the QA gatekeeper evaluating whether a completed development can be closed. The orchestrator passes a `codex_required: <true|false>` flag in this dispatch:
+
+- **`codex_required: true`** (user passed `--codex` to /close): you run a MULTI-ROUND INTERNAL DEBATE with OpenAI Codex (via the Skill tool) yourself. Follow the full Debate protocol below (Round 1 + 1b + 1b' + Round 2/3 + verdict branches 1/2/5/5b/6 with branch 7 N/A).
+- **`codex_required: false`** (default — no `--codex` flag): SKIP all `Skill(codex)` invocations. Run a SINGLE-ROUND QA-ONLY ASSESSMENT covering the 4 Workflow Integrity Dimension bullets + 1b cleanliness-of-THIS-diff inspector preconditions. Apply verdict branch 7 (codex disabled by user) — see verdict rules below. Branches 2/5/5b are N/A in this mode.
+
+In both modes, the caller does NOT orchestrate rounds; you own the loop.
 
 Input artifacts (read them first):
 - BA spec:     <BA_SPEC path or "none">
@@ -264,6 +283,14 @@ Verdict branches:
 
 6. **Other ambiguity / parse failure on QA's side / unresolved disagreement after final round**: → **CLOSE: NO** (conservative default). Distinct from branch 5: the failure is on QA's reasoning side, not codex's transport.
 
+7. **Codex disabled by user (no `--codex` flag)** — `codex_required = false` from Step 0a → QA runs **single-round QA-only assessment** of the 4 Workflow Integrity bullets + 1b cleanliness preconditions; no `Skill(codex)` invocations attempted; `codex_status` is set to the literal sentinel `disabled_by_user`. Verdict logic collapses to:
+   - QA position = YES AND all four Workflow Integrity bullets PASS (or N/A-with-reason; never FAIL) AND no NEW-violation cleanliness inspector finding → **CLOSE: YES** (annotation: `codex_disabled_by_user: codex consultation skipped because --codex flag was not passed; verdict granted on QA's substantive YES + 4 bullets PASS alone`).
+   - QA position = NO at end of single round → **CLOSE: NO** (branch 4 reasoning applies; QA's substantive objection is the dissent line).
+   - Any of the four bullets FAIL → **CLOSE: NO** (branch 3 reasoning applies; the failing bullet name is the dissent line).
+   - AC-deviation-PASS branch 1b is fully applicable in the codex-disabled path — when QA verdict is YES on user-need verification AND dev report contains a valid `ac_deviation_with_user_need_satisfied: true` block satisfying clauses (a)–(d) of branch 1b, **CLOSE: YES** is granted with the deviation rationale recorded.
+   - Branches 2 / 5 / 5b / 6 are all N/A in the codex-disabled path (codex was never invoked; there is no codex dissent to weigh, no infrastructure failure to handle, no parse failure to scan).
+   - The close-report MUST record `codex_status: disabled_by_user` in the "Codex consultation" section (NOT `failed_*`), and the per-round entries record `[Codex] consultation skipped: --codex flag not passed; QA-only assessment performed`. The final verdict line MUST use the form `CLOSE: YES — codex disabled by user` (when YES) or the standard `CLOSE: NO — <reason>` (when NO); the em-dash form distinguishes branch 7 YES from branch 1 unanimous YES for downstream `/commit` consumers.
+
 The /close --force escape hatch (Step 0) is unchanged. It bypasses Step 2 entirely; none of the verdict branches above run on the forced path.
 
 Transcript file: write the full debate to `docs/dev/close-report-<task-id>.md` (substitute `<task-id>` with the value resolved in Step 1 — e.g. the source `/dev` cycle's task-id; do NOT use a fresh `date +%Y%m%d-%H%M%S` here, that would break /commit's PRIMARY-path lookup) with this structure:
@@ -279,6 +306,7 @@ Overwrite policy: if `docs/dev/close-report-<task-id>.md` already exists with a 
 Return value: print to stdout exactly ONE of these lines as the final line of your response:
   CLOSE: YES
   CLOSE: YES - degraded codex consultation: codex_status=<failed_quota|failed_timeout|failed_parse>
+  CLOSE: YES — codex disabled by user
   CLOSE: NO - <one-sentence reason naming the dissenting party and their objection>
 ```
 
