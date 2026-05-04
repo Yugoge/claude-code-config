@@ -1178,7 +1178,7 @@ If a different role's checkpoint is genuinely stuck (e.g., a `qa`-owned cp-NN th
 
 **When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to your final output based on self-review. Emit in your output JSON: `codex_consult: { invoked: false, status: "not_requested", feedback_summary: null, feedback_incorporated: null }`.
 
-**When the dispatch DOES instruct codex** ("百年大计" mode): follow the Procedure below. When invoked, codex consultation catches over-engineering, under-engineering, missed edge cases, and scope drift before downstream agents (dev, QA) inherit the mistake.
+**When the dispatch DOES instruct codex**: follow the Procedure below. When invoked, codex consultation catches over-engineering, under-engineering, missed edge cases, and scope drift before downstream agents (dev, QA) inherit the mistake.
 
 ### Procedure (only when `codex_required: true`)
 
@@ -1226,10 +1226,6 @@ final delivery. When invoked (via `--codex` flag), it works like /close's
 multi-round QA-codex debate but applied per-subagent — catching issues
 earlier when they're cheaper to fix. When NOT invoked, self-review is
 sufficient; the cycle proceeds without codex token cost.
-
-User directive history:
-- 2026-04-26 (original): "每一个 subagent 必须要和 codex 充分讨论后才能下定论" — strict always-on
-- 2026-05-04 (softened): codex consultation is OPT-IN via `--codex` flag at the command level. Default cycles do NOT consult codex; "百年大计" mode does.
 
 ---
 

@@ -1,5 +1,6 @@
 ---
-description: Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification
+description: Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification. Pass --codex to enable adversarial codex consultation on each subagent's draft; default is self-review only.
+argument-hint: "[--codex] [--spec <path>] <requirement>"
 disable-model-invocation: true
 ---
 

@@ -1,5 +1,6 @@
 ---
 description: Close the current dev cycle (agent infers task-id from conversation). QA evaluates Workflow Integrity bullets and returns CLOSE YES/NO. Pass --codex to enable multi-round QA-codex debate; default is QA-only single-round assessment. Append --force to skip the debate entirely.
+argument-hint: "[--codex | --force [--reason \"<text>\"]] [<task-id>|<path>]"
 disable-model-invocation: true
 ---
 
@@ -158,7 +159,33 @@ When `SPEC_ID` is non-empty, `/close` MUST hand the QA subagent
 `.claude/specs/<SPEC_ID>/cp-state-qa.json`; this is what makes the close gate
 participate in the same check-in/checklist/Stop-block chain as `/dev`.
 
-### Step 2: Invoke QA subagent with debate prompt
+### Step 2a: Dispatch the three inspectors in parallel (orchestrator authority — `commands/close.md` itself, NOT QA)
+
+**Authority note**: inspector subagents (`style-inspector`, `cleanliness-inspector`, `prompt-inspector`) are orchestrator-only auditors. ONLY this `/close` command may dispatch them. Subagents (including QA in Step 2b) have NO authority to dispatch inspectors. This Step 2a is the orchestrator-layer dispatch site.
+
+**Compute the cycle-diff file list** before dispatch:
+
+- **Closed-task path** (a `dev-report-<TASK_ID>.json` exists): read the `dev.files_modified` array (top-level non-null list per the dev-report contract); use that list verbatim as `<cycle-diff-file-list>`.
+- **Irregular path** (no dev-report-<TASK_ID>.json — e.g., orchestrator-direct edits under `/do`, or hand-edits): run `git diff --name-only` against the relevant repo's cycle commit range to compute the file list. For nested-`.claude` edits the relevant repo is the nested git repo at `/root/.claude` (working-tree root); for parent-repo edits use `/root`.
+- If both paths yield an empty list, record `<cycle-diff-file-list>=` (empty) and proceed with dispatch — inspectors will return findings=[] and Step 2b will treat all cleanliness branches as non-blocking.
+
+**Dispatch all three inspectors in parallel** — emit ONE message containing THREE Agent tool calls (concurrent, not sequential):
+
+- Agent tool call 1: `subagent_type: style-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/style-inspector-report-<TASK_ID>.json`.
+- Agent tool call 2: `subagent_type: cleanliness-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`.
+- Agent tool call 3: `subagent_type: prompt-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/prompt-inspector-report-<TASK_ID>.json`.
+
+**Wait** for all three Agent tool calls to return. Each inspector writes its findings JSON to its assigned report path; the orchestrator does not re-interpret or re-aggregate those findings here — Step 2b's QA dispatch passes the three concrete report paths as inputs and QA applies the AC-2.6 verdict-plumbing logic against them.
+
+The three concrete inspector report paths produced by Step 2a — for verbatim cross-reference by Step 2b's QA dispatch prompt — are:
+
+- `docs/dev/style-inspector-report-<TASK_ID>.json`
+- `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`
+- `docs/dev/prompt-inspector-report-<TASK_ID>.json`
+
+These exact path strings (with `<TASK_ID>` substituted) MUST appear verbatim inside the Step 2b QA dispatch prompt body so the cross-reference between Step 2a output and Step 2b input is mechanical, not narrative.
+
+### Step 2b: Invoke QA subagent with debate prompt
 
 Use the Agent tool with `subagent_type: qa` ONCE. The entire debate happens inside this single subagent call. Pass this prompt (substitute paths and $TS):
 
@@ -201,11 +228,11 @@ Round 1:
              (iv) **User-only physical filesystem actions** (N/A-with-reason — NEVER FAIL) — any sub-item that would require the user to perform a physical filesystem action the orchestrator structurally cannot perform itself is evaluated as N/A-with-reason, NOT FAIL. The canonical example is the user touching `.hook-refactor-allow` to authorize a hook-tree edit: human-in-the-loop is intentional anti-fabrication protection per Trap 11; orchestrator-creatable sentinels would defeat the protection's threat model. The N/A reason MUST cite Trap 11 verbatim. This clause covers ONLY user-only physical filesystem actions; it does NOT cover the bypasses listed in sub-item (iii), which remain FAIL.
            Bullet 4 is PASS when (i), (ii), and (iii) are each PASS (or N/A-with-reason where structurally inapplicable per (iv)). Any FAIL in (i)–(iii) is Bullet 4 FAIL.
 
-  1b. **Cleanliness-of-THIS-diff preconditions** (per spec-20260503-091826 Section 5.4 rule 3 + Section 5.2 verbatim "将clean用的诸如style-inspector等加入close的steps中"). Before invoking codex, run the three inspectors in `--changed-files` diff-scoped mode against THIS cycle's diff (derived from `git diff --name-only` for the cycle's commit range, or token-equivalent cycle-diff source — the cycle diff is the input). The inspector invocations are:
-      - `style-inspector --changed-files <cycle-diff-file-list>`
-      - `cleanliness-inspector --changed-files <cycle-diff-file-list>`
-      - `prompt-inspector --changed-files <cycle-diff-file-list>`
-      Each inspector is a Skill or Agent invocation; treat the returned findings as input to verdict logic at AC-2.6 below. Inspector findings DO NOT directly force the verdict — close.md's verdict-plumbing rules at AC-2.6 govern when a finding becomes a CLOSE: NO trigger.
+  1b. **Cleanliness-of-THIS-diff preconditions — inspector reports as input** (per spec-20260503-091826 Section 5.4 rule 3 + Section 5.2 verbatim "将clean用的诸如style-inspector等加入close的steps中"). Inspector reports are ALREADY GENERATED by the orchestrator (`/close` Step 2a) BEFORE this dispatch. Read them at the following exact paths:
+      - `docs/dev/style-inspector-report-<TASK_ID>.json`
+      - `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`
+      - `docs/dev/prompt-inspector-report-<TASK_ID>.json`
+      **DO NOT attempt to dispatch inspector subagents — you do not have that authority; the orchestrator already did Step 2a.** Inspector dispatch is `/close`-orchestrator-only by design (`agents/style-inspector.md` etc. are auditors invoked at the orchestrator layer). Treat the JSON contents of the three report files above as input to the AC-2.6 verdict-plumbing rules below. Inspector findings DO NOT directly force the verdict — `close.md`'s verdict-plumbing rules at AC-2.6 govern when a finding becomes a CLOSE: NO trigger. If any of the three report files is missing or unreadable, record the missing-report condition in the close-report transcript and treat the corresponding inspector's findings as empty (advisory) rather than attempting to invoke the inspector yourself.
 
   1b'. Invoke the Skill tool with skill=codex. Pass codex a prompt that includes:
       - The same input artifact paths

@@ -1,5 +1,6 @@
 ---
-description: dev workflow, skip prompt injection — for re-invocation with /dev context already loaded
+description: dev workflow, skip prompt injection — for re-invocation with /dev context already loaded. Pass --codex to enable adversarial codex consultation on each subagent's draft; default is self-review only.
+argument-hint: "[--codex]"
 disable-model-invocation: true
 ---
 
