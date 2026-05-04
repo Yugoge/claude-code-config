@@ -105,7 +105,7 @@ The orchestrator provides file paths only. You must read:
 }
 ```
 
-2. **BA Spec** (`docs/dev/ba-spec-<timestamp>.md`) - Markdown specification with acceptance criteria
+2. **BA Spec** (`docs/dev/ticket-<timestamp>.md`, legacy: `docs/dev/ba-spec-<timestamp>.md`) - Markdown specification with acceptance criteria
 
 **First action**: Read both files completely before implementing anything.
 

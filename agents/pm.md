@@ -579,6 +579,22 @@ For NON-UI issues (CLI-only, server-only, refactor, dead-code-removal): the rule
 
 **Why this rule exists**: Overnight session 21d24e89 (2026-04-25) shipped 14 Codex tool renderers across 2 cycles. Source verified, bundle verified, typecheck passed, daemon healthy — every QA report said PASS. NONE of the 14 renderers ever rendered in a real browser. The user identified this as QA摆烂 caused by a multi-layer escape chain that started with PM marking "Codex session in dev" as `skip` with `skip_reason: "manual user setup task"`. This Step 1.7 is a hard gate to prevent recurrence.
 
+### Step 1.9: User-Need Path Relevance Filter (TRIAGE only — MANDATORY per spec-20260503-091826 Section 5.5 decision #2)
+
+After Step 1.7 (Live-Evidence) and BEFORE Step 2 (Tier Classification), classify each issue's relationship to the cycle's user-need path. The user's binding directive is verbatim: "一切以用户需求为中心" — pipelines exist to land user-need; out-of-path findings are recorded but NOT pipelined.
+
+**User-need-path determination, by mode**:
+- **user-provided mode** (`spec_mode == "user-provided"`): the user-need path is the cycle's `user_spec_path` Section 5 (User's Acceptance Criterion) verbatim. Read it; treat its requirements as the user_need_map. An issue is **on-path** if it intersects the files / behaviors / acceptance criteria of Section 5.
+- **autonomous mode** (`spec_mode == "autonomous"`): there is no explicit user-spec; the proxy is **Tier 1 blocker + multi-agent consensus**. An issue is **on-path** if it would be Tier 1 (per Step 2 criteria below) OR if ≥2 specialist agents independently flagged it. Path-external findings still flow through specialists' reports — they are recorded, not silenced.
+
+**Per-issue classification — assign `pipe_category`**:
+- `pipe_category: "user_need"` — issue is on the user-need path; eligible for pipeline creation (proceed to Step 2 tiering).
+- `pipe_category: "security"` — path-external but security-relevant (Section 5.4 rule 2 verbatim "安全洞例外：即便在路径外也必修"); eligible for pipeline creation (Tier 1 by default).
+- `pipe_category: "dependency"` — path-external code that the user-need path actually depends on (utils / types / adjacent modules per Section 5.4 rule 1); eligible for pipeline creation when the dependency materially affects user-need success.
+- `pipe_category: "out_of_scope_observation"` — path-external, non-security, non-dependency. **Does NOT become a pipeline.** Routed to the triage report's `out_of_scope_observations[]` array (see triage-report schema below) for the cycle's BA / observations-ledger handoff. Tier and pipeline_recommendation fields are not applied.
+
+**Specialists' free-探索 is preserved** (per spec-20260503-091826 Section 5.7 anti-pattern #5): this filter constrains pipelines, NOT specialists' discovery. Specialists continue to scan broadly; PM Step 1.9 governs only what becomes a pipeline.
+
 ### Step 2: Classify Issues into Tiers
 
 **Tier 1 (Blockers):**
@@ -668,6 +684,7 @@ Write to output directory as
       "estimated_effort": "small|medium|large",
       "details": "Merged details from all agents",
       "observation_notes": "Merged factual observations from specialist agents",
+      "pipe_category": "user_need|security|dependency|out_of_scope_observation",
       "pipeline_recommendation": "fix|skip|defer|escalate_to_user",
       "skip_reason": null,
       "skip_validation": null,
@@ -682,6 +699,18 @@ Write to output directory as
     {
       "description": "Issue description",
       "skip_reason": "Tier 3 in focus mode"
+    }
+  ],
+  "out_of_scope_observations": [
+    {
+      "ts": "ISO-8601",
+      "task_id": "<cycle task-id or null>",
+      "file": "<relative path>",
+      "line": "<line or null>",
+      "observation": "<concise description from specialist findings>",
+      "in_user_path": false,
+      "security_relevant": false,
+      "source_agent": "ui-specialist|product-owner|architect|user"
     }
   ],
   "pm_notes": [

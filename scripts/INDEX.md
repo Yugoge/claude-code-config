@@ -1,8 +1,10 @@
 # scripts
 
-*Last updated: 2026-04-28T07:49:12Z*
-**Total entries**: 55
+*Last updated: 2026-05-03T17:00:00Z*
+**Total entries**: 62
 **Convention**: kebab
+
+> **Naming convention** (post spec-20260503-091826 M14): scripts under this folder reference the BA-spec artifact filename via dual-form `ticket-<task-id>.md (legacy: ba-spec-<task-id>.md)` for active-write site descriptions; the 90 historical `ba-spec-*.md` files in `docs/dev/` retain their legacy filenames per Section 5.5 decision #4.
 
 ## Tree
 ```
@@ -29,8 +31,13 @@ scripts/
 │   ├── `site-navigate.py` - Python script
 │   ├── `spec.py` - Mirrors /root/knowledge-system/scripts/todo/ask.py structure
 │   └── `test.py` - Preloaded TodoList for /test workflow
+├── `aggregate-permissions.py` - Usage: aggregate-permissions.py <qa-glob-or-dir> [pipelines.json]
 ├── `analyze-folder-history.sh` - Description: Analyze Git history for folder to discover file creation patterns
 ├── `analyze-git-edge-cases.sh` - Description: Analyze git history for edge cases from bug fix commits
+├── `apply-permissions.sh` - apply-permissions.sh — merge aggregated permissions JSON list into settings.json
+├── `auto-commit-message.sh` - auto-commit-message.sh: produce a commit message from cycle artifacts.
+├── `break-overnight-lock.py` - Backdates end_time on every active overnight-state-*.json so
+├── `build-pipelines-from-triage.py` - Consumes PM triage schema (issues[] keyed by triage_index + pipeline_order[] +
 ├── `check-file-references.sh` - File reference detection script - used by /clean command
 ├── `check-overnight-reports.py` - Description: Validates all overnight required outputs declared by the active
 ├── `check-overnight-reports.sh` - DEPRECATED — replaced by check-overnight-reports.py per spec-20260426-090235 P0/M5.
@@ -51,12 +58,14 @@ scripts/
 ├── `generate-folder-index.sh` - Description: Generate INDEX.md for folder (inventory of contents)
 ├── `generate-folder-readme.sh` - Description: Generate README.md for folder (purpose and organization rules)
 ├── `install-checkpoint-refspec.sh` - install-checkpoint-refspec.sh — idempotently add refs/checkpoints/* to
+├── `iterate-failed-pipelines.py` - Reads pipelines JSON path; outputs iteration plan JSON to stdout. The orchestrator
 ├── `migrate-test-to-tests.sh` - Description: Merge test/ folder into tests/ preserving all content (idempotent)
 ├── `normalize-doc-names.sh` - normalize-doc-names.sh - Detect and report non-compliant documentation file names
 ├── `orchestrator.sh` - Description: Agent orchestration coordinator for development and cleanup workflows
 ├── `overnight-status.sh` - overnight-status.sh — Zero-LLM overnight session status query
 ├── `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
 ├── `quick-excel` - unknown file
+├── `refine-context.sh` - refine-context.sh — merge QA-refined context with original context
 ├── `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 ├── `scan-project.sh` - Description: Scan project structure and detect project type
 ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
