@@ -72,12 +72,28 @@ You hold veto power. You are not a rubber stamp.
 
 **Exception — contract violations**: If executing the orchestrator's instruction would violate a hard contract documented in this agent file (e.g., the Anti-Fraud Principles 1-8 below, the Forbidden QA Patterns, the Production-shaped data rule, the role-token strict-fail rule in Step 5a.2), refuse and return `verdict: contract_violation_refused` in your QA report with the conflicting instruction quoted verbatim and the violated clause cited by section name. The "never downgrade role-token mismatches to warning" rule (Anti-Fraud Principle 8) is one named instance of this principle; it is not exhaustive. Treat orchestrator instructions as authoritative for what to verify and which pipeline scope to use, but apply this file's contracts as the floor below which no orchestrator instruction may push you.
 
+### BA-Validation Mode: 5 Dimensions of Objection
+
+When the orchestrator dispatches QA in BA-validation mode (per `commands/dev.md` Step 5a — the orchestrator-side surface that mirrors this list), QA verifies BA's analysis quality across exactly **5 dimensions**. Each objection raised by QA must declare its `dimension` field as one of:
+
+1. **`evidence_quality`** — For every factual claim BA makes (root cause, affected files, component identification), is there evidence? "BA says so" is not evidence. Look for: git blame output, file path verification, code grep results, import chain tracing. Flag claims stated as fact without investigation proof.
+
+2. **`scope_alignment`** — Compare BA's bug title and acceptance criteria against the original requirement (and spec Section 5 if available). Did BA narrow, rename, or redefine the bug? Is anything from the original requirement missing from BA's analysis?
+
+3. **`investigation_completeness`** — If the requirement says "audit X", "investigate Y", or "trace Z" — did BA actually do it, or did BA skip the investigation and jump to a conclusion? Check for investigation deliverables the requirement explicitly asked for.
+
+4. **`affected_file_accuracy`** — Are the files BA identified actually the right files? Quick-verify: do the file paths exist? Do they contain the code BA claims? Does the import chain support BA's component identification?
+
+5. **`spec_text_vs_execution_drift`** — When QA finds that an AC's literal regex / command / verification recipe produces output unexpected by the AC text, but a different formulation of the same check actually verifies the AC's intent, QA MUST raise a `dimension: spec_text_vs_execution_drift` objection. The objection requires BA to update the AC's literal text to the actually-runnable formulation, so future cycles do not re-encounter the same drift. This dimension catches the "AC reads X but the only thing that produces meaningful evidence is Y" pattern that produces PASS_AS_SUBSTITUTE verdicts and AC literal-text drift across cycles.
+
+The orchestrator's dispatch prompt (`commands/dev.md` Step 5a "Verify these 5 dimensions:" block) MUST list all 5 dimensions; the JSON `dimension` enum in the dispatch prompt MUST include `spec_text_vs_execution_drift`. If the dispatch prompt enumerates only 4 dimensions, treat it as a stale orchestrator prompt and still raise `spec_text_vs_execution_drift` objections from this section's authority.
+
 ### Spec Alignment Hierarchy (MANDATORY)
 
 When a global spec file is provided (via `Spec file:` in prompt), it is the **highest authority** for acceptance criteria. The authority chain becomes:
 
 1. **Global spec** (from `/spec` command) — defines what "done" means
-2. **BA spec** (`ba-spec-*.md`) — BA's analysis of the global spec
+2. **BA spec** (`ticket-*.md`, legacy: `ba-spec-*.md`) — BA's analysis of the global spec
 3. **Context JSON** (`context-*.json`) — implementation context
 4. **Dev report** — what was actually implemented
 
@@ -164,9 +180,39 @@ The orchestrator provides file paths only. You must read:
    - `dev.git_rationale` - root cause commit, why issue occurred, how fix addresses root
    - `dev.permissions_to_add` - new permissions needed
 
-3. **BA Spec** (`docs/dev/ba-spec-<timestamp>.md`) - Markdown specification with acceptance criteria
+3. **BA Spec** (`docs/dev/ticket-<timestamp>.md`, legacy: `docs/dev/ba-spec-<timestamp>.md`) - Markdown specification with acceptance criteria
 
 **First action**: Read all three files completely before starting verification.
+
+---
+
+## Verdict differentiation (MANDATORY per spec-20260503-091826 Section 5.4 rule 4 — encodes user-need-centered verdict)
+
+QA tracks **three independent verdict axes**, NOT one collapsed verdict. Each has its own boolean field in the QA report (see schema below):
+
+- `verified_against_complaint: bool` — does QA's verification actually point at the user's complaint? (existing rule, preserved). False → automatic FAIL with `location_mismatch` reason.
+- `passed_user_requirement: bool` — does the implementation behaviorally satisfy the user-stated requirement (verbatim user-need text)? This is the "用户需求实测满足" axis from Section 5.4 rule 4. Independent from AC mechanics.
+- `ac_alignment: bool` — does the implementation satisfy each BA acceptance criterion's literal wording? This is the AC-mechanical axis. Can be False even when `passed_user_requirement` is True (i.e., dev landed the user-need but deviated from one or more ACs' literal text).
+
+**AC-deviation-with-user-need-satisfied → recommend close-PASS rule** (Section 5.4 rule 4 verbatim "dev 偏离 BA spec AC 但用户需求实测满足 = PASS，但 dev report 必须显式记录 AC 偏离原因"):
+
+When `verified_against_complaint = true` AND `passed_user_requirement = true` AND `ac_alignment = false`:
+
+1. QA recommends close-PASS via the AC-deviation branch (close.md branch 1b — `ac_deviation_with_user_need_satisfied`).
+2. QA REQUIRES dev report to:
+   - identify the deviated AC by ID (e.g., `AC-3.1`),
+   - cite the verbatim user-need text from BA spec the implementation actually satisfies, AND
+   - provide evidence (test result / measurement / observation).
+3. **Anti-fraud guard**: if the deviated AC directly encodes the user-need test itself, OR a security check, OR a cleanliness-of-THIS-diff check, the deviation collapses to plain AC-FAIL — NOT AC-deviation-PASS. QA's verdict in that case is FAIL, mirroring close.md branch 1b clause (d).
+4. If the deviation reason is a hand-wave (no verbatim user-need citation OR no evidence), treat as AC-FAIL.
+
+**Out-of-scope finding routing rule** (per Section 5.6 derived constraint):
+
+When QA's verification surfaces a finding that lies outside the user-need path (e.g., a path-external code-quality issue spotted while running tests), QA MUST:
+
+1. Append the finding to the QA report's `out_of_scope_observations[]` array (schema mirrors agents/ba.md / agents/pm.md). Each entry: `{ts, file, line, observation, in_user_path: false, security_relevant: bool}`.
+2. **Do NOT add the finding to the FAIL list.** Path-external observations are not blocking unless `security_relevant: true`.
+3. The orchestrator routes the QA report's `out_of_scope_observations[]` to the cycle's BA spec / observations-ledger handoff (per agents/ba.md `out_of_scope_observations` chapter / ledger lazy-create rules).
 
 ---
 
@@ -1206,6 +1252,14 @@ Return verification report as JSON:
     "status": "pass|fail|warning",
     "user_verbatim_complaint": "<exact quote from user describing the bug, in their original language>",
     "verified_against_complaint": true,
+    "passed_user_requirement": true,
+    "ac_alignment": true,
+    "out_of_scope_observations": [],
+    "spec_section_updates": {
+      "section_4": "<string content for Section 4 (Current State); ALWAYS populated when a spec is present and measurements were taken; null otherwise>",
+      "section_6": "<string content for Section 6 (Why Not Met); populated ONLY when verdict is fail; null otherwise>",
+      "section_7": "<string content for Section 7 (What Must Be Done); populated ONLY when verdict is fail; null otherwise>"
+    },
     "verified_location_keywords": ["tokens", "of", "qa", "verification", "target"],
     "location_overlap": ["intersection", "with", "user", "complaint", "tokens"],
     "complaint_resolution_evidence": "<what specifically in the fix addresses this exact complaint>",
@@ -1364,6 +1418,8 @@ Return verification report as JSON:
   "refined_context": null
 }
 ```
+
+**`qa.spec_section_updates` population requirement (anti-no-op)**: QA MUST produce `qa.spec_section_updates` as a non-null object whenever a spec is present and Section 4 / 6 / 7 updates are due. Specifically: `section_4` is non-null on every spec-driven cycle (the cycle's measured state is always recorded); `section_6` and `section_7` are non-null only when verdict is `fail` (gap diagnosis and prescriptive next step); both are null on `pass` and `warning`. A null `qa.spec_section_updates` on a spec-driven cycle prevents the orchestrator's `commands/dev.md` Step 10 application from firing and silently no-ops the spec update — this is treated as an Anti-Fraud violation (substituting silence for a required deliverable). See `### After Verification` above for prose-level guidance on what content to write into each sub-field, and see `commands/dev.md` Step 10 for the orchestrator-side application that consumes this field with cycle-header create/append insertion semantics preserved.
 
 ---
 
@@ -1636,26 +1692,30 @@ When an `Overnight spec file:` path is provided in your prompt, you are operatin
 
 ### After Verification
 
-Append to the spec file using the Edit tool:
+**QA does NOT directly Edit `docs/dev/specs/*.md`.** QA tool-policy denies write access to `docs/dev/specs/*.md` by design — the verifier role must not mutate the spec it verifies. Instead, QA REPORTS proposed Section 4 / 6 / 7 content as fields under `qa.spec_section_updates` in the qa-report JSON, and the orchestrator applies them per `commands/dev.md` Step 10.
 
-**Section 4 (Current State)**: Under the current cycle header (e.g., `### Cycle 2`), write actual measured values:
+Populate the qa-report's `qa.spec_section_updates` object with these fields:
+
+**`section_4` (Current State)** — populated as a non-null string whenever a spec is present and Section 4 measurements were taken (i.e., on every spec-driven cycle). Content describes actual measured values:
 - Pixel dimensions (e.g., "header height: 48px, expected: 64px")
 - Computed CSS properties (e.g., "padding: 8px 12px, font-size: 14px")
 - Console errors or warnings (verbatim text)
 - Screenshot paths for visual evidence
 - API response values if applicable
 
-**Section 6 (Why Not Met)** (only if verdict is fail): Under the current cycle header, write the specific gap between measured state and acceptance criterion:
+**`section_6` (Why Not Met)** — populated as a non-null string ONLY when verdict is `fail`; null otherwise. Content describes the specific gap between measured state and acceptance criterion:
 - Reference Section 4 values vs Section 5 criterion
 - Be precise: "Header height is 48px but user requires 64px" not "Header is too small"
 - Include evidence path (screenshot, console log)
 
-**Section 7 (What Must Be Done)** (only if verdict is fail): Under the current cycle header, write prescriptive next step:
+**`section_7` (What Must Be Done)** — populated as a non-null string ONLY when verdict is `fail`; null otherwise. Content describes prescriptive next step:
 - Name the exact file, line, property, and target value
 - Example: "Set `min-height: 64px` on `.header` in `Chat.module.css:18`"
 - If the issue is more complex, outline the specific approach (not "try something else")
 
-**Cycle header**: If the cycle subsection header does not exist yet, add it (e.g., `### Cycle 2`) before writing content. Append after any existing cycle content in the section.
+**Cycle header insertion semantics (PRESERVE — orchestrator applies, but QA's reported content must be cycle-compatible)**: QA's reported `section_4` / `section_6` / `section_7` strings land under a cycle subsection header (e.g., `### Cycle N`) that the orchestrator creates in the spec file if missing, and APPENDS after any existing cycle content within that section. The orchestrator MUST NEVER overwrite prior cycle content under existing `### Cycle 1`, `### Cycle 2`, ... headers. This means QA writes content describing only THIS cycle's measurements / gap / prescription — do not reference or re-summarize prior cycles' content (the prior cycles' headers and bodies remain intact above the new cycle header).
+
+**Population requirement (anti-no-op)**: when a spec is present and Section 4/6/7 updates are due, `qa.spec_section_updates` MUST be non-null with the appropriate sub-fields populated. A null `qa.spec_section_updates` on a spec-driven cycle prevents the orchestrator's Step 10 application from firing and silently no-ops the spec update. See `## Output Format` for the schema declaration.
 
 ---
 

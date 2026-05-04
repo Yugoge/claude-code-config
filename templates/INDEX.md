@@ -1,13 +1,16 @@
 # templates
 
-*Last updated: 2026-04-10T13:33:39Z*
-**Total entries**: 1
+*Last updated: 2026-05-03T17:00:00Z*
+**Total entries**: 2
 **Convention**: kebab
+
+> **Naming convention** (post spec-20260503-091826 M14): the canonical spec template is `spec-template.md` (post-rename from `overnight-spec.md`); BA-produced artifacts are now `ticket-<task-id>.md` (legacy historical `ba-spec-<task-id>.md` filenames preserved in `docs/dev/` per Section 5.5 decision #4).
 
 ## Tree
 ```
 templates/
-└── `overnight-spec.md` - Spec: <issue_description>
+├── `spec-template.md` - Spec template: <issue_description> (canonical name post spec-20260503-091826 M13 rename — used by /spec, /dev-overnight, etc.)
+└── `overnight-spec.md` - Symlink → `spec-template.md` (legacy historical name preserved for backward compatibility per Section 5.5 decision #4)
 ```
 
 ---

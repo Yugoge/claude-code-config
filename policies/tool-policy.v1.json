@@ -102,9 +102,11 @@
       ],
       "allowed_write_path_prefixes": [
         "*/docs/dev/ba-spec-",
+        "*/docs/dev/ticket-",
         "*/docs/dev/context-",
         "*/docs/dev/ba-qa-report-",
         "*/docs/dev/ba-spec-iter-",
+        "*/docs/dev/ticket-iter-",
         "*/docs/dev/context-iter-",
         "*/docs/dev/specs/*/ba-",
         "*/docs/dev/specs/*/cp-state-ba.json",

@@ -221,7 +221,7 @@ provide them explicitly so BA starts with ground truth:
 - **Retry phrasing** in user text: "again", "still", "didn't fix",
   "Nth time", <USER_VERBATIM>"又", "还是", "没修好", "第 N 次"</USER_VERBATIM>
 - **Recent related commits**: `git log --oneline --grep="<keyword>" -20`
-- **Existing BA specs**: files matching `docs/dev/ba-spec-*.md` with
+- **Existing BA specs**: files matching `docs/dev/ticket-*.md` (or legacy `docs/dev/ba-spec-*.md`) with
   keywords from the current request
 
 Pass findings to BA in the delegation prompt under an explicit
@@ -230,7 +230,7 @@ Pass findings to BA in the delegation prompt under an explicit
     prior_attempt_signals:
       retry_phrase: "<matched phrase or null>"
       recent_commits: ["<hash> <subject>", ...]
-      existing_specs: ["docs/dev/ba-spec-<ts>.md", ...]
+      existing_specs: ["docs/dev/ticket-<ts>.md", ...] (legacy historical artifacts also accepted: docs/dev/ba-spec-<ts>.md)
 
 ### Post-BA: verify contract compliance
 
@@ -328,19 +328,15 @@ Use Task tool with:
   Prior attempt signals:
     retry_phrase: <matched phrase or null>
     recent_commits: [<hash> <subject>, ...]
-    existing_specs: [docs/dev/ba-spec-<ts>.md, ...]
+    existing_specs: [docs/dev/ticket-<ts>.md, ...] (legacy historical artifacts also accepted: docs/dev/ba-spec-<ts>.md)
 
   If Spec file is not null: Read the spec file FIRST. Use Section 5 (User's Acceptance Criterion) as the primary requirement source. Use Sections 1-4 as baseline context. If Section 7 (What Must Be Done) is populated, treat it as prescriptive guidance.
 
-  Perform full analysis:
-  1. Parse and decompose requirement
-  2. Perform git root cause analysis (if applicable)
-  3. Identify affected files
-  4. Generate MoSCoW requirements and BDD acceptance criteria
-  5. Write ba-spec-<timestamp>.md to docs/dev/
-  6. Write context-<timestamp>.json to docs/dev/
+  Goal: Translate the user's request into the smallest, safest, most-precise change set that lands the user-need, per spec-20260503-091826.md Section 5.1 verbatim "实现方式是最小最安全最完美最确定性地实现用户的需求，而不是扩大修复范围。一切以用户需求为中心。" Ground your analysis in the existing codebase patterns (align with current functionality rather than re-inventing). For bugs, find the root cause; for enhancements, research best practices via web search / explore / analyst agents per agents/ba.md Section 5.3 mission. Path-external observations go into the spec's `out_of_scope_observations` chapter (per agents/ba.md), not into the fix scope. Use the existing 5-dimension clarity scoring (What/Why/Where/Scope/Success) to gate `needs_clarification`. Produce both deliverables (ticket-<timestamp>.md per spec-20260503-091826 M3 ba-spec→ticket rename, plus context-<timestamp>.json) following agents/ba.md Output Formats.
 
-  Return JSON with status, file paths, and summary.
+  Explicit task-id printing: include the literal line `TASK-ID: <timestamp>` in your stdout response so close.md / commit.sh task-id-chain confirmation has an unambiguous anchor for this BA dispatch.
+
+  Return JSON with status, file paths, summary, and the task-id echo.
   "
 ```
 
@@ -388,7 +384,7 @@ Use Task tool with:
 **Check BA deliverables exist and are well-formed**:
 
 Read BA output files:
-- `docs/dev/ba-spec-<timestamp>.md` - Markdown specification
+- `docs/dev/ticket-<timestamp>.md` - Markdown specification (legacy: docs/dev/ba-spec-<timestamp>.md)
 - `docs/dev/context-<timestamp>.json` - JSON context for dev subagent
 
 **Sanity checks**:
@@ -427,12 +423,12 @@ Use Agent tool with:
   DO NOT: build, deploy, open browser, run Playwright, or test code.
   DO: read BA's deliverables and challenge every claim.
 
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Context JSON: docs/dev/context-<timestamp>.json
   Spec file: <spec_path or null>
   View file: <view_paths.qa or null — sibling views/qa.md if present>
 
-  Verify these 4 dimensions:
+  Verify these 5 dimensions:
 
   1. EVIDENCE QUALITY: For every factual claim BA makes (root cause, affected files,
      component identification), is there evidence? 'BA says so' is not evidence.
@@ -453,12 +449,23 @@ Use Agent tool with:
      Quick-verify: do the file paths exist? Do they contain the code BA claims?
      Does the import chain support BA's component identification?
 
+  5. SPEC-TEXT-VS-EXECUTION DRIFT: When QA finds that an AC's literal regex /
+     command / verification recipe produces output unexpected by the AC text,
+     but a different formulation of the same check actually verifies the AC's
+     intent, raise a 'dimension: spec_text_vs_execution_drift' objection
+     requiring BA to update the AC's literal text to the actually-runnable
+     formulation. This catches the 'AC reads X but the only thing that produces
+     meaningful evidence is Y' pattern that produces PASS_AS_SUBSTITUTE verdicts
+     and AC literal-text drift across cycles. (Mirrors agents/qa.md
+     '### BA-Validation Mode: 5 Dimensions of Objection' under
+     '## Counter-Evidence Authority'.)
+
   Return JSON:
   {
     'verdict': 'pass' or 'fail',
     'objections': [
       {
-        'dimension': 'evidence_quality|scope_alignment|investigation_completeness|affected_file_accuracy',
+        'dimension': 'evidence_quality|scope_alignment|investigation_completeness|affected_file_accuracy|spec_text_vs_execution_drift',
         'claim': 'what BA claimed',
         'problem': 'what is wrong with the claim',
         'required_evidence': 'what BA must provide to satisfy this objection'
@@ -521,7 +528,7 @@ Use Agent tool with:
   with concrete evidence. Do not argue -- investigate and provide proof.
 
   Original requirement: '<requirement>'
-  Previous BA spec: docs/dev/ba-spec-<timestamp>.md
+  Previous BA spec: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Previous context: docs/dev/context-<timestamp>.json
   Spec file: <spec_path or null>
 
@@ -562,7 +569,7 @@ Use Task tool with:
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
   Context file: docs/dev/context-<timestamp>.json
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
   View file: <view_paths.dev or null — sibling views/dev.md if present>
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
@@ -688,12 +695,14 @@ Use Task tool with:
 
   Context file: docs/dev/context-<timestamp>.json
   Dev report file: docs/dev/dev-report-<timestamp>.json
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
   View file: <view_paths.qa or null — sibling views/qa.md if present>
   Write your verification report to: docs/dev/qa-report-<timestamp>.json
 
-  If Spec file is not null: Read the spec file FIRST. After verification, update the spec: Section 4 (Current State) with measured values. If verdict is fail, also update Section 6 (Why Not Met) and Section 7 (What Must Be Done) with prescriptive next steps.
+  If Spec file is not null: Read the spec file FIRST. After verification, do NOT directly Edit docs/dev/specs/*.md (QA tool-policy denies write access by design — the verifier role must not mutate the spec it verifies). Instead, REPORT proposed Section 4/6/7 content via the qa-report JSON's 'qa.spec_section_updates' field with sub-fields 'section_4' (always populated when a spec is present and Section 4 measurements were taken; null otherwise), 'section_6' (populated only when verdict is fail; null otherwise), and 'section_7' (populated only when verdict is fail; null otherwise). The orchestrator applies these to the spec file in Step 10 with cycle-header create/append insertion semantics preserved. See agents/qa.md '### After Verification' under '## Overnight Spec Integration' for the QA-side prose, and agents/qa.md '## Output Format' for the JSON schema declaration.
+
+  INDEX-edit clarifier: future ACs targeting INDEX file edits MUST target exactly the 3 manually-managed INDEX files: '.claude/templates/INDEX.md', '.claude/scripts/INDEX.md', 'docs/dev/INDEX.md'. Do NOT target 'docs/dev/specs/INDEX.md' — that file is auto-regenerated by '.claude/hooks/posttool-doc-sync.py' (with helper '.claude/hooks/doc_sync/regen_index.py'); manual edits to it will be silently overwritten on the next doc-sync run.
   "
 ```
 
@@ -702,6 +711,30 @@ Use Task tool with:
 ### Step 10: Process QA Results
 
 Read QA report: `docs/dev/qa-report-<timestamp>.json`
+
+**Sub-step 10.0 (apply spec section updates BEFORE decision tree)**:
+
+If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec` and a global spec path was passed to Step 9), the orchestrator MUST apply QA's reported spec section updates to the spec file before processing the verdict:
+
+(a) Check whether `Spec file` was non-null this cycle. If null, skip to the decision tree below.
+
+(b) Read `qa.spec_section_updates` from the qa-report. The field is an object with shape `{section_4: string|null, section_6: string|null, section_7: string|null}`.
+
+(c) Edit the spec file's corresponding sections using the orchestrator's own write authority (orchestrator can Edit `docs/dev/specs/*.md`; QA cannot — by design). Apply each populated sub-field:
+  - `section_4` → spec file Section 4 (Current State); ALWAYS when populated.
+  - `section_6` → spec file Section 6 (Why Not Met); ONLY when verdict is `fail`.
+  - `section_7` → spec file Section 7 (What Must Be Done); ONLY when verdict is `fail`.
+
+(d) Gracefully skip if `qa.spec_section_updates` is absent or null (e.g., for non-spec cycles or cycles where QA legitimately had nothing to report). Do NOT treat missing/null as an error on non-spec cycles. On a spec-driven cycle a null value is an Anti-Fraud violation per `agents/qa.md` Output Format population requirement; flag it and continue.
+
+(e) **PRESERVE cycle-header create/append insertion semantics** (MANDATORY): for each populated sub-field, before writing into the corresponding spec section:
+  - Determine the current cycle number N (from cycle counter / spec metadata / context).
+  - Check whether the subsection header `### Cycle N` already exists within the target section (Section 4 / Section 6 / Section 7).
+  - If the `### Cycle N` header is MISSING, create it (append a new `### Cycle N` heading at the end of the section).
+  - APPEND the new content under the new (or existing) `### Cycle N` header — i.e., place the new content after any existing content already under that cycle header.
+  - **NEVER overwrite prior cycle content under existing `### Cycle 1`, `### Cycle 2`, ... headers.** Prior cycles' content is historical and immutable; only the current cycle's subsection grows. (This insertion semantics is also documented in `agents/qa.md` `### After Verification` for the QA-self side; the orchestrator-side application here mirrors it. Phrase: "preserve cycle headers; append after existing cycle content; never overwrite prior cycle content.")
+
+After Sub-step 10.0 completes (or is skipped on non-spec cycles), proceed to the decision tree.
 
 **Decision tree**:
 
