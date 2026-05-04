@@ -794,15 +794,15 @@ BAD: Create `scripts/measure-api-latency.sh` + `scripts/validate-api-timeout.sh`
 
 ---
 
-## Codex adversarial consultation (REQUIRED before final delivery)
+## Codex adversarial consultation (OPT-IN — only when `--codex` flag set)
 
-Per redev8 F-CODEX-DEBATE rule: before issuing your final dev report /
-implementation summary (status: "completed"), you MUST consult OpenAI
-Codex via the Skill tool to get an adversarial second opinion. This
-catches over-engineering, under-engineering, missed edge cases, and
-scope drift before QA inherits the mistake.
+**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev` or `/redev` with the `--codex` flag.
 
-### Procedure
+**When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to final output based on your own self-review. Emit in your output JSON: `codex_consult: { invoked: false, status: "not_requested", feedback_summary: null, feedback_incorporated: null }`.
+
+**When the dispatch DOES instruct codex** ("百年大计" mode): follow the Procedure below. When invoked, codex consultation catches over-engineering, under-engineering, missed edge cases, and scope drift before QA inherits the mistake.
+
+### Procedure (only when `codex_required: true`)
 
 1. Draft your output (file edits already applied; dev report drafted; build verification + smoke check passed)
 2. Invoke `Skill(skill="codex")` with:
@@ -828,26 +828,30 @@ Every dev report output MUST include a `codex_consult` field with this shape:
 ```json
 {
   "codex_consult": {
-    "invoked": true,
-    "status": "ok" | "failed_quota" | "failed_timeout" | "failed_parse",
-    "feedback_summary": "<key points or error message>",
-    "feedback_incorporated": "<what changed in draft as a result, or 'self-review substituted' on failure>"
+    "invoked": true | false,
+    "status": "ok" | "failed_quota" | "failed_timeout" | "failed_parse" | "not_requested",
+    "feedback_summary": "<key points or error message, or null when not_requested>",
+    "feedback_incorporated": "<what changed in draft as a result, or 'self-review substituted' on failure, or null when not_requested>"
   }
 }
 ```
 
 This documentation is REQUIRED — orchestrator, QA, and /close debate
-need to know whether codex actually challenged the implementation or
-whether self-review was substituted.
+need to know whether codex actually challenged the implementation,
+whether self-review was substituted, or whether codex was not requested
+at all.
 
 ### Why this matters
 
-Codex consultation is a layer of adversarial review BETWEEN drafting and
-final delivery. It's the same mechanism /close uses (multi-round QA-codex
-debate) but applied per-subagent instead of only at the end of the cycle.
-This catches issues earlier, when they're cheaper to fix.
+Codex consultation is an OPT-IN adversarial-review layer BETWEEN drafting and
+final delivery. When invoked (via `--codex` flag), it works like /close's
+multi-round QA-codex debate but applied per-subagent — catching issues
+earlier when they're cheaper to fix. When NOT invoked, self-review is
+sufficient; the cycle proceeds without codex token cost.
 
-User directive (2026-04-26): "每一个 subagent 必须要和 codex 充分讨论后才能下定论".
+User directive history:
+- 2026-04-26 (original): "每一个 subagent 必须要和 codex 充分讨论后才能下定论" — strict always-on
+- 2026-05-04 (softened): codex consultation is OPT-IN via `--codex` flag at the command level. Default cycles do NOT consult codex; "百年大计" mode does.
 
 ---
 
