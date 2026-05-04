@@ -1,6 +1,6 @@
 # commands
 
-*Last updated: 2026-05-01T06:08:23Z*
+*Last updated: 2026-05-04T12:39:21Z*
 **Total entries**: 34
 **Convention**: kebab
 
@@ -10,14 +10,14 @@ commands/
 ├── `allow.md` - Single-use break-glass — bypass all safety blocks for the next matching bash command this turn. /allow = anything; /allow --tool <pattern> = explicit pattern (regex auto-detected). Trailing tokens become an audit-log comment. Auto-expires at stop.
 ├── `checkpoint.md` - Checkpoint Command
 ├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
-├── `close.md` - Close the current dev cycle (agent infers task-id from conversation). QA debates with codex internally, returns CLOSE YES/NO. Append --force to skip the debate.
+├── `close.md` - Close the current dev cycle (agent infers task-id from conversation). QA evaluates Workflow Integrity bullets and returns CLOSE YES/NO. Pass --codex to enable multi-round QA-codex debate; default is QA-only single-round assessment. Append --force to skip the debate entirely.
 ├── `code-review.md` - Comprehensive code review with best practices analysis
 ├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.5, xhigh reasoning) for a second opinion or parallel coding
 ├── `commit.md` - Commit closed dev task to branch HEAD
 ├── `deep-search.md` - Deep website exploration with iterative search strategy
 ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
-├── `dev.md` - Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification
+├── `dev.md` - Orchestrated development workflow with BA subagent delegation, parallel agent execution, and iterative QA verification. Pass --codex to enable adversarial codex consultation on each subagent's draft; default is self-review only.
 ├── `do.md` - Allow main agent to bypass orchestrator-gate restrictions for this turn (subagent-only operations become directly allowed). Auto-clears at stop.
 ├── `doc-gen.md` - Generate comprehensive documentation for code
 ├── `doc-sync.md` - Regenerate all INDEX.md files and patch CLAUDE.md auto-sections
@@ -31,7 +31,7 @@ commands/
 ├── `push.md` - Push Command
 ├── `quick-commit.md` - Create a well-formatted git commit with auto-generated message
 ├── `quick-prototype.md` - Rapidly create interactive prototypes and demos combining multiple artifact capabilities
-├── `redev.md` - dev workflow, skip prompt injection — for re-invocation with /dev context already loaded
+├── `redev.md` - dev workflow, skip prompt injection — for re-invocation with /dev context already loaded. Pass --codex to enable adversarial codex consultation on each subagent's draft; default is self-review only.
 ├── `refactor.md` - Suggest refactoring improvements for code quality
 ├── `reflect-search.md` - Reflection-driven iterative search with goal evaluation
 ├── `research-deep.md` - Multi-source deep research with 15-20 iterative searches
