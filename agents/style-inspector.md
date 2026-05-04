@@ -99,8 +99,19 @@ You receive a prompt from the orchestrator containing:
 1. **Context JSON path**: `docs/clean/context-{REQUEST_ID}.json`
 2. **Progress file path**: `docs/clean/style-progress-{REQUEST_ID}.json`
 3. **Request ID**: for file naming
+4. **Optional**: `--changed-files <space-separated paths>` parameter (per spec-20260503-091826 M12 / AC-12.1) — when provided, scope the inspector to ONLY the listed files. When omitted, behavior is unchanged (full-repo scan via Step 0 file discovery).
 
 Read the context JSON to get `project_root` and `project_type`.
+
+### `--changed-files` mode (per spec-20260503-091826 M12 / AC-12.1)
+
+When the orchestrator (e.g., close.md Round-1 cleanliness preconditions) invokes the inspector with `--changed-files <list>`:
+
+- The inspector internally `git diff --name-only`-filters its scan to only the listed files (or token-equivalent: the listed files ARE the scan set).
+- Default behavior is preserved when the parameter is omitted.
+- **Scope contract**: `--changed-files` mode is ONLY for cleanliness-of-THIS-diff scoping. It MUST NOT replace regression coverage, type-check coverage, or import-graph coverage — indirect breakage in untouched files is QA's regression-gate scope, not inspector cleanliness scope.
+- For style-inspector specifically, output granularity is `file:line` (line-level), so close.md applies AC-2.6 (b) line-level rule: a finding is provably NEW when (i) its line falls within the cycle diff's changed-line range / diff-hunk overlap AND (ii) the finding is also absent from the pre-diff baseline. Overlap alone is necessary but NOT sufficient. The inspector emits findings with `file:line`; close.md performs the diff-overlap + pre-diff-baseline check.
+- Soft fallback: when pre-diff baseline comparison is impractical, the inspector documents the proxy used (e.g., "overlap-only used because <reason>"); close.md treats overlap-only findings as **advisory** unless the proxy explicitly stipulates newness.
 
 ---
 

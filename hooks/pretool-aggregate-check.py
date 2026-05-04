@@ -36,7 +36,7 @@ extracts the current cycle's task-id(s) from the QA dispatch prompt body
 by scanning ONLY pattern-anchored references in priority order:
   1. context-<task-id>.json
   2. dev-report-<task-id>.json
-  3. ba-spec-<task-id>.md
+  3. ticket-<task-id>.md (legacy: ba-spec-<task-id>.md — both prefixes accepted)
 The first task-id wins for the "primary" scope, but distinct anchored
 references for OTHER task-ids do NOT vote against it -- they ADD to the
 scope (union semantics). This resists prompt manipulation: an attacker
@@ -111,10 +111,12 @@ CANONICAL_RE = re.compile(r"^dev-report-(?P<task_id>\d{8}-\d{6})\.json$")
 
 # Task-id reference patterns inside QA dispatch prompts. Used to scope the
 # aggregate check to only the current cycle's task-id (BUG-AGGCHK-2).
+# Accepts BOTH `ba-spec-` (legacy 90 historical artifacts) and `ticket-` (new
+# active-write site, post-rename per spec-20260503-091826.md M10).
 TASK_ID_REF_PATTERNS = (
     re.compile(r"context-(?P<task_id>\d{8}-\d{6}(?:-[A-Za-z0-9.\-]+)?)\.json"),
     re.compile(r"dev-report-(?P<task_id>\d{8}-\d{6}(?:-[A-Za-z0-9.\-]+)?)\.json"),
-    re.compile(r"ba-spec-(?P<task_id>\d{8}-\d{6}(?:-[A-Za-z0-9.\-]+)?)\.md"),
+    re.compile(r"(?:ba-spec|ticket)-(?P<task_id>\d{8}-\d{6}(?:-[A-Za-z0-9.\-]+)?)\.md"),
 )
 
 # Path to dev.md construction-rule citation
@@ -226,7 +228,7 @@ def _collect_anchored_task_ids(prompt):
 
     Returns a list of distinct task-id strings ordered by
     (pattern-priority, first-character-offset). TASK_ID_REF_PATTERNS encodes
-    priority: context- first, dev-report- second, ba-spec- third.
+    priority: context- first, dev-report- second, ticket-/ba-spec- third.
 
     FINDING-1 fix: replaces the prior most-frequent heuristic. Frequency
     cannot scope away a violation any longer; all distinct pattern-anchored

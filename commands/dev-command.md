@@ -219,7 +219,7 @@ provide them explicitly so BA starts with ground truth:
 - **Retry phrasing** in user text: "again", "still", "didn't fix",
   "Nth time", "又", "还是", "没修好", "第 N 次"
 - **Recent related commits**: `git log --oneline --grep="<keyword>" -20`
-- **Existing BA specs**: files matching `docs/dev/ba-spec-*.md` with
+- **Existing BA specs**: files matching `docs/dev/ticket-*.md` (or legacy `docs/dev/ba-spec-*.md`) with
   keywords from the current request
 
 Pass findings to BA in the delegation prompt under an explicit
@@ -228,7 +228,7 @@ Pass findings to BA in the delegation prompt under an explicit
     prior_attempt_signals:
       retry_phrase: "<matched phrase or null>"
       recent_commits: ["<hash> <subject>", ...]
-      existing_specs: ["docs/dev/ba-spec-<ts>.md", ...]
+      existing_specs: ["docs/dev/ticket-<ts>.md", ...] (legacy historical artifacts also accepted: docs/dev/ba-spec-<ts>.md)
 
 ### Post-BA: verify contract compliance
 
@@ -290,19 +290,15 @@ Use Task tool with:
   Prior attempt signals:
     retry_phrase: <matched phrase or null>
     recent_commits: [<hash> <subject>, ...]
-    existing_specs: [docs/dev/ba-spec-<ts>.md, ...]
+    existing_specs: [docs/dev/ticket-<ts>.md, ...] (legacy historical artifacts also accepted: docs/dev/ba-spec-<ts>.md)
 
   If Spec file is not null: Read the spec file FIRST. Use Section 5 (User's Acceptance Criterion) as the primary requirement source. Use Sections 1-4 as baseline context. If Section 7 (What Must Be Done) is populated, treat it as prescriptive guidance.
 
-  Perform full analysis:
-  1. Parse and decompose requirement
-  2. Perform git root cause analysis (if applicable)
-  3. Identify affected files
-  4. Generate MoSCoW requirements and BDD acceptance criteria
-  5. Write ba-spec-<timestamp>.md to docs/dev/
-  6. Write context-<timestamp>.json to docs/dev/
+  Goal: Translate the user's request into the smallest, safest, most-precise change set that lands the user-need, per spec-20260503-091826.md Section 5.1 verbatim "实现方式是最小最安全最完美最确定性地实现用户的需求，而不是扩大修复范围。一切以用户需求为中心。" Ground your analysis in the existing codebase patterns (align with current functionality rather than re-inventing). For bugs, find the root cause; for enhancements, research best practices via web search / explore / analyst agents per agents/ba.md Section 5.3 mission. Path-external observations go into the spec's `out_of_scope_observations` chapter (per agents/ba.md), not into the fix scope. Use the existing 5-dimension clarity scoring (What/Why/Where/Scope/Success) to gate `needs_clarification`. Produce both deliverables (ticket-<timestamp>.md per spec-20260503-091826 M4 ba-spec→ticket rename, plus context-<timestamp>.json) following agents/ba.md Output Formats.
 
-  Return JSON with status, file paths, and summary.
+  Explicit task-id printing: include the literal line `TASK-ID: <timestamp>` in your stdout response so close.md / commit.sh task-id-chain confirmation has an unambiguous anchor for this BA dispatch.
+
+  Return JSON with status, file paths, summary, and the task-id echo.
   "
 ```
 
@@ -347,7 +343,7 @@ Use Task tool with:
 **Check BA deliverables exist and are well-formed**:
 
 Read BA output files:
-- `docs/dev/ba-spec-<timestamp>.md` - Markdown specification
+- `docs/dev/ticket-<timestamp>.md` - Markdown specification (legacy: docs/dev/ba-spec-<timestamp>.md)
 - `docs/dev/context-<timestamp>.json` - JSON context for dev subagent
 
 **Sanity checks**:
@@ -383,7 +379,7 @@ Use Agent tool with:
   DO NOT: build, deploy, open browser, run Playwright, or test code.
   DO: read BA's deliverables and challenge every claim.
 
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Context JSON: docs/dev/context-<timestamp>.json
   Spec file: <spec_path or null>
   View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
@@ -474,7 +470,7 @@ Use Agent tool with:
   with concrete evidence. Do not argue -- investigate and provide proof.
 
   Original requirement: '<requirement>'
-  Previous BA spec: docs/dev/ba-spec-<timestamp>.md
+  Previous BA spec: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Previous context: docs/dev/context-<timestamp>.json
   Spec file: <spec_path or null>
   View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
@@ -513,7 +509,7 @@ Use Task tool with:
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
   Context file: docs/dev/context-<timestamp>.json
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
   View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
@@ -560,7 +556,7 @@ Use Task tool with:
 
   Context file: docs/dev/context-<timestamp>.json
   Dev report file: docs/dev/dev-report-<timestamp>.json
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
   View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
   Write your verification report to: docs/dev/qa-report-<timestamp>.json

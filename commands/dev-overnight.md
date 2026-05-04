@@ -116,7 +116,7 @@ Step 1: Read state file + enter worktree (first run only)
    - **Clause B** — `spec_mode == "user-provided"` AND focus does NOT contain autonomy-directive tokens: honor the spec's user-gate pauses (orchestrator view Hard Rule 10) — pause the loop at every spec-defined user gate and do not auto-resume past it.
    - **Clause C (autonomy-directive override)** — `spec_mode == "user-provided"` AND focus contains any of `\b(autonomously|manual\s+interrupt|don.?t\s+ask|no\s+questions|自动|手动中断|不要问|不要打扰)\b` (case-insensitive, Unicode-safe): treat the run as autonomous regardless of spec_mode. The orchestrator MUST NOT emit `<options>` XML or interrogative endings. When genuine deadlock occurs (e.g., META-DEADLOCK where a hook blocks the very fix needed), the orchestrator MUST: (a) write a deadlock report to `docs/dev/overnight-deadlock-<ts>.md` with the situation summary; (b) skip the blocked work item; (c) continue with the next pipeline; (d) defer all user-input questions to the end-of-overnight summary. Asking the user mid-cycle is a Clause-C violation.
 2. **Loop continuously in autonomous mode**. When `spec_mode == "autonomous"`, after each fix cycle the todo completion hook handles looping; this is non-negotiable. When `spec_mode == "user-provided"`, the loop pauses at every spec-defined user gate and only resumes after the user clears the gate.
-3. **Keep cycles comprehensive and priority-driven**. PM triage determines pipeline ordering -- the main agent follows PM's authority. In Focus Mode (Tier 1 blockers exist), only blocker pipelines are created. In Normal Mode, all issues get pipelines ordered by tier: Tier 1 (blockers) first, then Tier 2 (major), then Tier 3 (minor/cosmetic). Within each tier, issues flagged by more agents rank higher.
+3. **Cycles are user-pathway-filtered and priority-driven** (per spec-20260503-091826 Section 5.5 decision #2 — same "用户需求中心" philosophy as `/dev`, with explore-mode compatibility preserved per Section 5.7 anti-pattern #5). Specialists' free exploration behavior is unchanged — they continue to discover broadly. PM triage applies the user-need path-relevance filter (agents/pm.md Step 1.9): in **user-provided mode**, the user spec's Section 5 user-need IS the path; pipelines are gated to user-pathway-relevant findings. In **autonomous mode**, only Tier 1 blockers AND multi-agent-consensus findings get pipelines; remaining findings route to the cycle's `out_of_scope_observations` array (per agents/pm.md schema). Within the gated pipeline set, ordering remains by tier: Tier 1 (blockers) first, Tier 2 (major), Tier 3 (minor/cosmetic). Specialists continue to explore broadly — the gating is purely on what becomes a pipeline, not on what specialists are allowed to discover.
 4. **ALL exploration and fixes via subagents**. Use Agent tool for ALL scanning, analysis, and implementation work. Main context only handles TodoWrite and loop control.
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
 6. **Track everything**. Use TodoWrite for per-cycle progress. Do NOT write to `.claude/overnight-state-<sid>.json` from the main agent — that file is owned by the orchestrator hooks. See `docs/dev/state-file-write-policy.md` for the full per-field write matrix.
@@ -170,7 +170,7 @@ If `--spec` is NOT provided, the session operates in **autonomous mode** (defaul
 
 **Argument parsing, spec auto-detection, and view detection are all performed by `create-overnight-state.sh` during session creation.** Read the resulting state file in Step 1 — it contains `user_spec_path`, `spec_mode`, and `view_paths` (manifest.views dict, or null when no views exist). Subagents receive their per-agent view path alongside the monolith spec path; null `view_paths` means legacy spec-only mode (still supported). When a spec was auto-detected from `docs/dev/specs/`, Step 1 announces it.
 
-The `focus` string is stored in the state file and passed to all 4 specialist subagents as a discovery hint. It helps specialists focus their scans but does not affect pipeline creation -- all discovered issues get pipelines regardless of focus match. Additionally, in Step 3a, the orchestrator converts the focus into quantitative QA verification criteria that are passed to QA subagents in Step 9 as mandatory pass/fail checks.
+The `focus` string is stored in the state file and passed to all 4 specialist subagents as a discovery hint. It helps specialists focus their scans; specialists' free-exploration behavior is preserved per spec-20260503-091826 Section 5.7 anti-pattern #5 (specialists 自由探索 must NOT be reduced). Pipeline creation, however, is gated by PM Step 1.9 User-Need Path Relevance Filter (agents/pm.md): user-pathway-relevant findings (in user-provided mode) or Tier 1 + multi-agent-consensus findings (in autonomous mode) become pipelines; the rest route to `out_of_scope_observations`. Additionally, in Step 3a, the orchestrator converts the focus into quantitative QA verification criteria that are passed to QA subagents in Step 9 as mandatory pass/fail checks.
 
 ---
 
@@ -312,7 +312,7 @@ for retry signals:
   "still", "didn't fix", "Nth time", "又", "还是", "没修好"
 - **Recent related commits from this overnight run** (example query: `git log --oneline --grep="<keyword>" HEAD~30..HEAD`)
 - **Existing BA specs from earlier iterations**: files matching
-  `docs/dev/ba-spec-*.md` with keywords from the current issue
+  `docs/dev/ticket-*.md` (or legacy `docs/dev/ba-spec-*.md`) with keywords from the current issue
 - **Prior-cycle failure reports**: any QA report flagged as failed in an
   earlier iteration that matches the current issue
 
@@ -322,7 +322,7 @@ Pass findings to BA in the delegation prompt under an explicit
     prior_attempt_signals:
       retry_phrase: "<matched phrase or null>"
       recent_commits: ["<hash> <subject>", ...]
-      existing_specs: ["docs/dev/ba-spec-<ts>.md", ...]
+      existing_specs: ["docs/dev/ticket-<ts>.md", ...] (legacy historical artifacts also accepted: docs/dev/ba-spec-<ts>.md)
       prior_qa_failures: ["docs/dev/qa-report-<ts>.md", ...]
 
 ### Post-BA: verify contract compliance
@@ -862,7 +862,7 @@ Agent(subagent_type: "ba")
     prior_attempt_signals:
       retry_phrase: <matched retry phrase or null, from triage/iteration prompt>
       recent_commits: [<hash> <subject>, ...]  # git log results for related keywords
-      existing_specs: [docs/dev/ba-spec-<ts>.md, ...]  # earlier iteration specs matching this issue
+      existing_specs: [docs/dev/ticket-<ts>.md, ...] (legacy: docs/dev/ba-spec-<ts>.md)  # earlier iteration specs matching this issue
       prior_qa_failures: [docs/dev/qa-report-<ts>.md, ...]  # prior failed QA reports on this issue
 
     This is a self-discovered issue from overnight exploration.
@@ -876,7 +876,7 @@ Agent(subagent_type: "ba")
     2. Perform git root cause analysis (if applicable)
     3. Identify affected files
     4. Generate MoSCoW requirements and BDD acceptance criteria
-    5. Write ba-spec-{pipeline.timestamp_suffix}.md to docs/dev/ (inside project root)
+    5. Write ticket-{pipeline.timestamp_suffix}.md (legacy filename: ba-spec-{pipeline.timestamp_suffix}.md) to docs/dev/ (inside project root)
     6. Write context-{pipeline.timestamp_suffix}.json to docs/dev/ (inside project root)
     7. Update the overnight spec: write Section 5 (User's Acceptance Criterion) and Section 1 (Before) if empty
 
@@ -895,7 +895,7 @@ Agent(subagent_type: "ba")
 **For each pipeline[i]**, check BA deliverables exist and are well-formed:
 
 Read BA output files:
-- `docs/dev/ba-spec-{pipeline.timestamp_suffix}.md` - Markdown specification
+- `docs/dev/ticket-{pipeline.timestamp_suffix}.md` - Markdown specification (legacy: `docs/dev/ba-spec-{pipeline.timestamp_suffix}.md`)
 - `docs/dev/context-{pipeline.timestamp_suffix}.json` - JSON context for dev subagent
 
 **Sanity checks per pipeline**:
@@ -935,7 +935,7 @@ Agent(subagent_type: "qa")
     DO NOT: build, deploy, open browser, run Playwright, or test code.
     DO: read BA's deliverables and challenge every claim.
 
-    BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+    BA spec file: docs/dev/ticket-{pipeline.timestamp_suffix}.md (legacy: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md)
     Context JSON: docs/dev/context-{pipeline.timestamp_suffix}.json
     Overnight spec file: {pipeline.spec_path}
     View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
@@ -1032,7 +1032,7 @@ Use Agent tool with:
   with concrete evidence. Do not argue -- investigate and provide proof.
 
   Original requirement: '<requirement>'
-  Previous BA spec: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+  Previous BA spec: docs/dev/ticket-{pipeline.timestamp_suffix}.md (legacy: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md)
   Previous context: docs/dev/context-{pipeline.timestamp_suffix}.json
   Spec file: {pipeline.spec_path}
 
@@ -1076,7 +1076,7 @@ Agent(subagent_type: "dev")
     You are the dev subagent. Follow agents/dev.md instructions precisely.
 
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
-    BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+    BA spec file: docs/dev/ticket-{pipeline.timestamp_suffix}.md (legacy: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md)
     Overnight spec file: {pipeline.spec_path}
     View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
     Write your implementation report to: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
@@ -1125,7 +1125,7 @@ Read dev report: `docs/dev/dev-report-{pipeline.timestamp_suffix}.json`
 
 **This step is performed by the orchestrator directly, NOT by a PM subagent.** The PM subagent only has three modes — `PLAN`, `TRIAGE`, `RETRO` — defined in `agents/pm.md`. There is no fourth PM mode for QA preparation. The orchestrator handles Step 8 inline:
 
-1. **Read dev artifacts**: For each active pipeline, read `docs/dev/dev-report-{pipeline.timestamp_suffix}.json` and the corresponding `ba-spec-*.md`.
+1. **Read dev artifacts**: For each active pipeline, read `docs/dev/dev-report-{pipeline.timestamp_suffix}.json` and the corresponding `ticket-*.md` (or legacy `ba-spec-*.md`).
 2. **Rebuild Docker (gated on `spec_mode == "autonomous"` per Hard Rule 9)**:
    - Identify affected services from `docker-compose.yml`. Backend changes require backend service rebuild; frontend changes require frontend service rebuild.
    - Verify build contexts point to the worktree, NOT the main project directory.
@@ -1162,7 +1162,7 @@ Agent(subagent_type: "qa")
 
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
     Dev report file: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
-    BA spec file: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md
+    BA spec file: docs/dev/ticket-{pipeline.timestamp_suffix}.md (legacy: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md)
     Overnight spec file: {pipeline.spec_path}
     View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
     Write your verification report to: docs/dev/qa-report-{pipeline.timestamp_suffix}.json
@@ -1695,7 +1695,7 @@ Per-agent responsibilities are owned by `agents/<name>.md` (pm, product-owner, a
 | Loop | Single pass | Continuous until end-time |
 | Termination | After QA passes | After end-time expires |
 | User interaction | Required (clarification, approval) | None (fully autonomous) |
-| Scope per cycle | One complete feature/fix | ALL discovered issues (parallel pipelines) |
+| Scope per cycle | One complete feature/fix | User-pathway-filtered findings (parallel pipelines, gated by PM Step 1.9 — Tier 1 + multi-agent-consensus in autonomous mode; user-need-relevant in user-provided mode); specialists' free exploration is preserved per Section 5.7 anti-pattern #5 |
 | Subagent usage | BA + dev + QA | product-owner + architect + user + ui-specialist + BA + dev + QA |
 | Stop hook | Workflow enforcement only | Workflow + time-lock |
 | Worktree | Not used | Created on first run, reused across cycles |

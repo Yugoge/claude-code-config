@@ -192,6 +192,19 @@ else
     exit 2
   fi
   shift 1
+  # Explicit task-id echo (spec-20260503-091826.md M11 / AC-11.1) — surfaces
+  # the resolved task-id at the top of the toolchain log so close.md / dev.md
+  # / downstream agents can re-confirm chain integrity in one glance.
+  #
+  # Forward-reference artifact filename convention for THIS toolchain:
+  #   ticket-<task-id>.md (legacy: ba-spec-<task-id>.md)
+  # The closure / completion / qa-report / dev-report lookup helpers below
+  # resolve by `${TASK_ID}` and do NOT depend on the BA-side artifact prefix;
+  # historical citations of past specs by name (e.g., references to
+  # ba-spec-20260426-redev5.md as the authority for a code block) remain
+  # preserved literal — they are documentation of which past spec defined
+  # the code, not active lookup templates.
+  echo "TASK-ID: ${TASK_ID}"
 fi
 
 # Second pass: parse trailing flags. Currently only -m "<msg>" is supported.
