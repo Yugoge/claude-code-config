@@ -419,6 +419,26 @@ other entry point. The 14-file philosophy refactor of
 spec-20260503-091826 introduced this chapter — see Section 5.6 of that
 spec for the cumulative-ledger rationale.
 
+**Out-of-user-need-scope modification proposals — MUST be ledger-only**
+(超出用户实际需求范围的修改提议 — 必须仅入 ledger):
+
+Any proposal to modify content 超出用户实际需求范围 (beyond the user's
+stated need scope) — including but not limited to: amending other
+agents' standards / contracts / detection rules; adding new policy
+clauses; touching files the user did not name as part of the
+user-stated need — MUST be recorded ONLY in the
+`out_of_scope_observations` ledger. NEVER present such proposals as
+M-item, Should-Have, or Option in the ba-spec's active requirements
+list. The ba-spec's option lists must contain ONLY scope-internal
+solutions to the user's stated need.
+
+If a side-quest discovery seems "obviously a good idea", that judgment
+is itself out-of-scope — record it for the user, do not action it. Per
+spec-20260503-091826 Section 5.4 rule 1 (user-need path scope) +
+Section 5.7 anti-pattern #4 (forbidden 扩张式措辞), the BA's role is to
+translate the user's stated need into the smallest precise change set,
+not to discover and propose meta-improvements.
+
 ---
 
 ## Tone, mission, and the "GitHub-praise" aspiration (prompt 引导, NOT mandate)
