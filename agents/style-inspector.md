@@ -261,34 +261,26 @@ source venv/bin/activate && python scripts/analyze.py
 }
 ```
 
-### Standard 4: Integer Step Numbering (with letter-suffix sub-steps allowed)
+### Standard 4: Integer Step Numbering Only
 
-**Rule**: Top-level step numbering MUST use integers (1, 2, 3...). Decimal numbering (1.1, 1.2) is FORBIDDEN. Letter-suffix sub-steps anchored to an integer parent (e.g., `Step Na`, `Step Nb`, `Step Nc`) ARE valid sub-step naming and are NOT violations — this matches the established codebase convention (`commands/dev.md` Step 5a / Step 5b for the BA-QA iteration loop sub-steps; `commands/dev-overnight.md` Step 2a/2b/2c; `agents/qa.md` Step 2a/5a/5b; `commands/close.md` Step 0a/2a/2b) and the hook-codified detection regex (`hooks/pretool-subagent-enforce.py` extracts `Step Na` form; `hooks/check-todo-md-sync.py` matches `### Step Na:` / `### Step Nb:`). Every letter-suffix sub-step MUST trace to an integer parent in document flow; un-anchored letter-suffix sub-steps (no parent integer) ARE violations.
+**Rule**: All step numbering MUST be integers (1, 2, 3...), NOT decimals (1.1, 1.2) or letters (1a, 1b).
 
 **Detection**:
 ```bash
-# Scan .md files for decimal step numbering (still forbidden)
+# Scan .md files for step numbering patterns
 grep -rn "Step [0-9]*\.[0-9]" .claude/ --include="*.md"
+grep -rn "Step [0-9]*[a-z]" .claude/ --include="*.md"
 ```
 
 **Violations**:
 ```
 Step 1: Do thing
-Step 1.1: Sub-thing    <- VIOLATION (decimal)
-Step 1.2: Another      <- VIOLATION (decimal)
+Step 1.1: Sub-thing    <- VIOLATION
+Step 1.2: Another      <- VIOLATION
 Step 2: Next thing
 ```
 
-**Valid (letter-suffix sub-steps anchored to integer parents)**:
-```
-Step 1: Do thing
-Step 2: Next thing
-Step 2a: Sub-step of Step 2
-Step 2b: Another sub-step of Step 2
-Step 3: Final thing
-```
-
-**Should be (when fixing decimal violations)**:
+**Should be**:
 ```
 Step 1: Do thing
 Step 2: Sub-thing
@@ -303,7 +295,7 @@ Step 4: Next thing
   "severity": "critical",
   "location": "commands/deploy.md:45-48",
   "finding": "Uses decimal step numbering: 1.1, 1.2",
-  "recommendation": "Resequence to integers (1, 2, 3, 4) or convert to letter-suffix sub-steps anchored to integer parents (e.g., 1a, 1b under Step 1)"
+  "recommendation": "Resequence to integers: 1, 2, 3, 4"
 }
 ```
 
