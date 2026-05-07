@@ -138,7 +138,7 @@ Use the React artifact template with:
 - Inline styles if needed
 - Clear comments
 
-### Step 5: Deliver to User
+### Step 5: Deliver Result
 1. **Save file** using Write tool as `{prototype-name}.html`
 2. **Explain** what it does and how to use it
 3. **Provide** customization suggestions

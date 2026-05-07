@@ -1,5 +1,6 @@
 ---
 description: Create spec files for any dev workflow (/dev, /dev-overnight, or standalone reference)
+disable-model-invocation: true
 ---
 
 # /spec: General-Purpose Spec Manager
@@ -159,7 +160,7 @@ Only proceed to Step 6 when a STRONG signal fires.
      "
    ```
 
-   **Split-QA auto-iteration loop** (mirrors `/dev` Step 5b; max 3 rounds, no user prompt between rounds):
+   **Split-QA auto-iteration loop** (mirrors `/dev` Step 7; max 3 rounds, no user prompt between rounds):
 
    **Iteration guard**: Maximum 3 split-QA rounds to prevent infinite loops.
 
