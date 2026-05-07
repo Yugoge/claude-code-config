@@ -6,10 +6,14 @@ disable-model-invocation: true
 
 # /close
 
-True wrapper. Three steps total:
-1. Load input (spec from `$ARGUMENTS` or from the calling conversation's context).
-2. Invoke the QA subagent ONCE with a debate prompt. QA runs the multi-round debate with codex INTERNALLY (using the Skill tool) and returns a single verdict line.
-3. Print whatever verdict line QA returned.
+True wrapper. Three TodoSteps (user-visible work):
+1. Dispatch three inspectors in parallel.
+2. Delegate close debate to QA subagent.
+3. Generate close-report (echo QA verdict + write report).
+
+Argument parsing (`--codex` / `--force`) and task-id resolution still happen
+in this command body, but are no longer TodoSteps — they are command-internal
+plumbing, not user-visible work.
 
 The orchestration of rounds, the calls to codex, the evaluation of agreement, and the writing of the transcript all live INSIDE QAs invocation. /close itself does not call codex, does not manage rounds, and does not decide the verdict.
 
@@ -17,7 +21,7 @@ The orchestration of rounds, the calls to codex, the evaluation of agreement, an
 
 ```
 /close                                       # agent infers task-id from current /dev cycle (typical use)
-/close --force                               # skip debate, audit-logged (escape hatch — see Step 2)
+/close --force                               # skip debate, audit-logged (escape hatch — see Forced override path below)
 ```
 
 Power users may also pass an explicit task-id or path: `/close <task-id>` or `/close docs/dev/ticket-<ts>.md` (legacy: `/close docs/dev/ba-spec-<ts>.md`). The orchestrator parses these forms but the typical invocation is bare `/close` and lets the agent resolve the task-id from conversation context. No filesystem scan, no default-to-newest.
@@ -32,21 +36,21 @@ Load preloaded todo list:
 source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/close.py
 ```
 
-### Step 1: --codex flag parsing (applies to non-force paths)
+### Argument parsing: `--codex` flag (applies to non-force paths)
 
-Parse `--codex` from `$ARGUMENTS` BEFORE evaluating Step 2 / Step 3:
+Parse `--codex` from `$ARGUMENTS` BEFORE evaluating the forced-override path or task-id resolution:
 
 - If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it and set `codex_required = true`.
 - Otherwise set `codex_required = false` (default).
 
-`codex_required` controls whether QA's internal multi-round debate (Step 5) consults codex via `Skill(codex)`:
+`codex_required` controls whether QA's internal multi-round debate (Step 2) consults codex via `Skill(codex)`:
 
-- **`codex_required = true`**: dispatch prompt for QA includes the full multi-round QA-codex debate protocol as documented in Step 5 below. Verdict branches 1 / 2 / 5 / 5b apply.
+- **`codex_required = true`**: dispatch prompt for QA includes the full multi-round QA-codex debate protocol as documented in Step 2 below. Verdict branches 1 / 2 / 5 / 5b apply.
 - **`codex_required = false`** (default): dispatch prompt for QA SKIPS all `Skill(codex)` invocations and runs QA-only single-round assessment of the 4 Workflow Integrity bullets + 1b cleanliness preconditions. Verdict branch 7 (codex disabled) applies; branches 2 / 5 / 5b are N/A.
 
-When `--force` is also present, `--codex` is ignored (Step 2 short-circuits the entire debate path; no QA invocation, no codex consultation, no verdict-branch evaluation). The two flags are not mutually exclusive parse-wise (orchestrator strips both), but `--force` wins.
+When `--force` is also present, `--codex` is ignored (the forced-override path short-circuits the entire debate path; no QA invocation, no codex consultation, no verdict-branch evaluation). The two flags are not mutually exclusive parse-wise (orchestrator strips both), but `--force` wins.
 
-### Step 2 (optional): --force flag short-circuit
+### Forced-override path: `--force` flag short-circuit
 
 If `$ARGUMENTS` contains the literal token `--force` (in any position), this short-circuits the entire debate path. **The model itself cannot trigger this** — `disable-model-invocation: true` (frontmatter line 3) prevents `SlashCommand`-based self-invocation regardless of arguments. Only a human invoking via the slash UI can trigger `--force`.
 
@@ -58,8 +62,8 @@ Argument parsing order (orchestrator parses at the slash-command layer):
 Procedure when `--force` is present:
 
 1. **Strip `--force` from `$ARGUMENTS`**. If `--reason "<text>"` follows, capture `<text>` (everything between the matched quotes) as `$REASON`. If absent, set `$REASON="no reason provided"`.
-2. **Resolve the task-id** from the remaining argument using the same Step 3 rules below (explicit path → derive from basename; timestamp → use directly; no argument → orchestrator infers from session context). The task-id resolution rules are reused identically; do NOT branch the resolution logic.
-3. **Skip Step 5 entirely** — no QA subagent invocation, no Skill(codex) call, no Workflow Integrity Dimension evaluation, no multi-round debate.
+2. **Resolve the task-id** from the remaining argument using the same Task-id resolution rules below (explicit path → derive from basename; timestamp → use directly; no argument → orchestrator infers from session context). The task-id resolution rules are reused identically; do NOT branch the resolution logic.
+3. **Skip Step 2 entirely** — no QA subagent invocation, no Skill(codex) call, no Workflow Integrity Dimension evaluation, no multi-round debate.
 4. **Write the forced close-report** to `docs/dev/close-report-<task-id>.md` with this exact structure:
 
    ```
@@ -109,7 +113,7 @@ Procedure when `--force` is present:
 
    The close-report's own final line remains `CLOSE: YES (FORCED)` per the template above (AC-CLOSE-FORCE-1 specifies the report's bottom line in that form). The two forms are intentional: the **stdout signal** uses the em-dash form (`CLOSE: YES — FORCED`) for downstream `/commit` / `/push` consumers; the **close-report final line** uses the parenthesized form (`CLOSE: YES (FORCED)`) so existing `grep "^CLOSE: YES$"` patterns also catch the prefix.
 
-   Stop. Do NOT proceed to Step 3 / Step 5 / Step 6.
+   Stop. Do NOT proceed to Task-id resolution / Step 1 / Step 2 / Step 3.
 
 **When to use** (escape hatch — strongly discouraged for routine use):
 - Codex hits its usage limit and Round 2 cannot complete (see redev7 close-debate stall).
@@ -122,12 +126,12 @@ Procedure when `--force` is present:
 - Audit log line (cross-task ledger of all overrides).
 
 **What it skips**:
-- Multi-round QA+codex debate (entire Step 5).
+- Multi-round QA+codex debate (entire Step 2).
 - Workflow Integrity Dimension evaluation (all four bullets recorded as `OVERRIDDEN`).
 
 Every forced override is auditable and traceable. Routine use defeats the purpose of /close as a quality gate.
 
-### Step 3: Load input
+### Task-id resolution
 
 Resolve the **task-id** for the report filename. The task-id is the SAME identifier used by the source `/dev` cycle (e.g. `20260425-145411` or `redev3-p1p2-20260426`) — NOT a fresh `date +%Y%m%d-%H%M%S` at /close invocation time. Using a fresh timestamp would break /commit's PRIMARY-path lookup, which requires `close-report-<task-id>.md` and `dev-report-<task-id>.json` under the SAME `<task-id>`.
 
@@ -159,9 +163,9 @@ When `SPEC_ID` is non-empty, `/close` MUST hand the QA subagent
 `.claude/specs/<SPEC_ID>/cp-state-qa.json`; this is what makes the close gate
 participate in the same check-in/checklist/Stop-block chain as `/dev`.
 
-### Step 4: Dispatch the three inspectors in parallel (orchestrator authority — `commands/close.md` itself, NOT QA)
+### Step 1: Dispatch three inspectors in parallel (orchestrator authority — `commands/close.md` itself, NOT QA)
 
-**Authority note**: inspector subagents (`style-inspector`, `cleanliness-inspector`, `prompt-inspector`) are orchestrator-only auditors. ONLY this `/close` command may dispatch them. Subagents (including QA in Step 5) have NO authority to dispatch inspectors. This Step 4 is the orchestrator-layer dispatch site.
+**Authority note**: inspector subagents (`style-inspector`, `cleanliness-inspector`, `prompt-inspector`) are orchestrator-only auditors. ONLY this `/close` command may dispatch them. Subagents (including QA in Step 2) have NO authority to dispatch inspectors. This Step 1 is the orchestrator-layer dispatch site.
 
 **Compute the cycle-diff file list** before dispatch:
 
@@ -175,17 +179,17 @@ participate in the same check-in/checklist/Stop-block chain as `/dev`.
 - Agent tool call 2: `subagent_type: cleanliness-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`.
 - Agent tool call 3: `subagent_type: prompt-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/prompt-inspector-report-<TASK_ID>.json`.
 
-**Wait** for all three Agent tool calls to return. Each inspector writes its findings JSON to its assigned report path; the orchestrator does not re-interpret or re-aggregate those findings here — Step 5's QA dispatch passes the three concrete report paths as inputs and QA applies the AC-2.6 verdict-plumbing logic against them.
+**Wait** for all three Agent tool calls to return. Each inspector writes its findings JSON to its assigned report path; the orchestrator does not re-interpret or re-aggregate those findings here — Step 2's QA dispatch passes the three concrete report paths as inputs and QA applies the AC-2.6 verdict-plumbing logic against them.
 
-The three concrete inspector report paths produced by Step 4 — for verbatim cross-reference by Step 5's QA dispatch prompt — are:
+The three concrete inspector report paths produced by Step 1 — for verbatim cross-reference by Step 2's QA dispatch prompt — are:
 
 - `docs/dev/style-inspector-report-<TASK_ID>.json`
 - `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`
 - `docs/dev/prompt-inspector-report-<TASK_ID>.json`
 
-These exact path strings (with `<TASK_ID>` substituted) MUST appear verbatim inside the Step 5 QA dispatch prompt body so the cross-reference between Step 4 output and Step 5 input is mechanical, not narrative.
+These exact path strings (with `<TASK_ID>` substituted) MUST appear verbatim inside the Step 2 QA dispatch prompt body so the cross-reference between Step 1 output and Step 2 input is mechanical, not narrative.
 
-### Step 5: Invoke QA subagent with debate prompt
+### Step 2: Delegate close debate to QA subagent
 
 Use the Agent tool with `subagent_type: qa` ONCE. The entire debate happens inside this single subagent call. Pass this prompt (substitute paths and $TS):
 
@@ -337,9 +341,9 @@ Return value: print to stdout exactly ONE of these lines as the final line of yo
   CLOSE: NO - <one-sentence reason naming the dissenting party and their objection>
 ```
 
-### Step 6: Print the QA verdict
+### Step 3: Generate close-report
 
-Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it to stdout as the last line of /close.
+Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it to stdout as the last line of /close. The close-report itself is written by QA inside Step 2; this step is the verdict echo + ensures the report file exists at `docs/dev/close-report-<task-id>.md`.
 
 ## Constraints
 
@@ -347,5 +351,5 @@ Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it 
 - /close does NOT manage rounds. QA does, internally.
 - /close does NOT evaluate verdict. QA does, internally.
 - QA is invoked EXACTLY ONCE (non-force path) or ZERO times (forced path).
-- **Scoped default-NO** (per spec-20260503-091826 Section 5.1 verbatim "如果对用户体验和安全性以及整体代码仓库整洁程度不造成阻碍的，都不一定是NO的原因"): Default to CLOSE: NO when error / ambiguity / tool-unavailability **blocks evaluation of user-need satisfaction OR security OR cleanliness-of-THIS-diff**. Errors / ambiguity / tool-unavailability that do NOT impede those three evaluation axes are NOT automatic NO triggers. Codex-refined: "Unknown but relevant" still defaults to NO — when the error blocks the evaluation itself (i.e., we cannot determine whether the user need is satisfied), default remains NO. Recoverable transient infrastructure failures (e.g., Codex quota / timeout) follow the existing branch-5/5b graceful-degradation logic — this clause does NOT override branches 5/5b. EXCEPT when `--force` is explicitly passed by a human user, in which case CLOSE: YES (FORCED) is the result regardless of upstream artifact state (Step 2 short-circuit).
+- **Scoped default-NO** (per spec-20260503-091826 Section 5.1 verbatim "如果对用户体验和安全性以及整体代码仓库整洁程度不造成阻碍的，都不一定是NO的原因"): Default to CLOSE: NO when error / ambiguity / tool-unavailability **blocks evaluation of user-need satisfaction OR security OR cleanliness-of-THIS-diff**. Errors / ambiguity / tool-unavailability that do NOT impede those three evaluation axes are NOT automatic NO triggers. Codex-refined: "Unknown but relevant" still defaults to NO — when the error blocks the evaluation itself (i.e., we cannot determine whether the user need is satisfied), default remains NO. Recoverable transient infrastructure failures (e.g., Codex quota / timeout) follow the existing branch-5/5b graceful-degradation logic — this clause does NOT override branches 5/5b. EXCEPT when `--force` is explicitly passed by a human user, in which case CLOSE: YES (FORCED) is the result regardless of upstream artifact state (Forced-override path short-circuit).
 - `disable-model-invocation: true` (frontmatter) means the model cannot self-invoke /close via SlashCommand — this applies equally to the forced path. Only a human can trigger `--force`.

@@ -14,11 +14,11 @@ def get_todos():
         list[dict]: Todo items with content, activeForm, status
     """
     return [
-        {"content": "Step 1: Analyze Requirements", "activeForm": "Step 1: Analyzing Requirements", "status": "pending"},
-        {"content": "Step 2: Select Libraries", "activeForm": "Step 2: Selecting Libraries", "status": "pending"},
-        {"content": "Step 3: Create Prototype Structure", "activeForm": "Step 3: Creating Prototype Structure", "status": "pending"},
-        {"content": "Step 4: Generate Complete HTML File", "activeForm": "Step 4: Generating Complete HTML File", "status": "pending"},
-        {"content": "Step 5: Deliver to User", "activeForm": "Step 5: Delivering to User", "status": "pending"}
+        {"content": "Step 1: Analyze requirements", "activeForm": "Step 1: Analyzing requirements", "status": "pending"},
+        {"content": "Step 2: Select libraries", "activeForm": "Step 2: Selecting libraries", "status": "pending"},
+        {"content": "Step 3: Create prototype structure", "activeForm": "Step 3: Creating prototype structure", "status": "pending"},
+        {"content": "Step 4: Generate complete HTML file", "activeForm": "Step 4: Generating complete HTML file", "status": "pending"},
+        {"content": "Step 5: Deliver result", "activeForm": "Step 5: Delivering result", "status": "pending"}
     ]
 
 

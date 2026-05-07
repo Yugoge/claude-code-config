@@ -510,7 +510,7 @@ Write to output directory as
 
 ### Specialist Recommendation Guidelines
 
-The `recommended_specialists` field determines which specialist subagents run in Step 2b.
+The `recommended_specialists` field determines which specialist subagents run in Step 3.
 PM should recommend specialists based on project type, focus hint, and issue context:
 
 - **`user`**: ALWAYS recommend. Core flow testing is mandatory every cycle.

@@ -357,9 +357,9 @@ Read BA output files:
 - Re-invoke BA with specific feedback about what's missing
 - Maximum 2 re-invocations for validation fixes
 
-**If validation passes**: Proceed to Step 5a
+**If validation passes**: Proceed to Step 6
 
-### Step 5a: QA Validates BA Conclusions
+### Step 6: QA Validates BA Conclusions
 
 **Purpose**: Verify BA's analysis quality BEFORE Dev starts implementation. Catches unproven claims, scope mismatches, and missing investigation evidence early -- saving a wasted Dev+QA cycle.
 
@@ -427,13 +427,13 @@ Use Agent tool with:
 
 ```
 IF verdict == "pass":
-  -> BA conclusions validated. Proceed to Step 6.
+  -> BA conclusions validated. Proceed to Step 8.
 
 ELIF verdict == "fail":
-  -> Proceed to Step 5b for BA-QA iteration.
+  -> Proceed to Step 7 for BA-QA iteration.
 ```
 
-### Step 5b: BA-QA Iteration Loop (if QA rejects BA)
+### Step 7: BA-QA Iteration Loop (if QA rejects BA)
 
 **Iteration guard**: Maximum 3 BA-QA iterations to prevent infinite loops
 
@@ -447,7 +447,7 @@ Unresolved objections:
 {summary of remaining QA objections}
 
 Appending unresolved objections to context JSON under `ba_qa_unresolved_objections`.
-Proceeding to Step 6 with documented assumptions.
+Proceeding to Step 8 with documented assumptions.
 ```
 
 **If BA-QA iteration <= 3**:
@@ -489,13 +489,13 @@ Use Agent tool with:
   "
 ```
 
-**After BA re-delivers**: Return to Step 5 (validate BA output), then Step 5a (QA re-validates).
+**After BA re-delivers**: Return to Step 5 (validate BA output), then Step 6 (QA re-validates).
 
 **Rule**: Every BA invocation MUST be followed by QA validation. No exceptions.
 
 **Iteration tracking**: Update TodoWrite with BA-QA iteration number.
 
-### Step 6: Delegate to Dev Subagent
+### Step 8: Delegate to Dev Subagent
 
 **Use Task tool to invoke dev subagent with file paths only**:
 
@@ -520,7 +520,7 @@ Use Task tool with:
 
 **Wait for dev subagent completion** before proceeding.
 
-### Step 7: Validate Dev Implementation
+### Step 9: Validate Dev Implementation
 
 **Quick validation before QA**:
 
@@ -539,9 +539,9 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 - Refine context JSON with additional information
 - Re-invoke dev subagent (maximum 3 attempts)
 
-**If dev completed**: Proceed to Step 8
+**If dev completed**: Proceed to Step 10
 
-### Step 8: Delegate to QA Subagent
+### Step 10: Delegate to QA Subagent
 
 **Use Task tool to invoke QA subagent with file paths only**:
 
@@ -567,7 +567,7 @@ Use Task tool with:
 
 **Wait for QA subagent completion** before proceeding.
 
-### Step 9: Process QA Results
+### Step 11: Process QA Results
 
 Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
@@ -575,18 +575,18 @@ Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
 ```
 IF qa.status == "pass":
-  → Proceed to Step 10 (Update Permissions)
+  → Proceed to Step 12 (Update Permissions)
 
 ELIF qa.status == "warning":
   → Check if minor issues acceptable
-  → If yes: Proceed to Step 10 (Update Permissions)
-  → If no: Proceed to Step 11 (Iteration)
+  → If yes: Proceed to Step 12 (Update Permissions)
+  → If no: Proceed to Step 13 (Iteration)
 
 ELIF qa.status == "fail":
-  → Proceed to Step 11 (Iteration)
+  → Proceed to Step 13 (Iteration)
 ```
 
-### Step 10: Update Settings.json Permissions
+### Step 12: Update Settings.json Permissions
 
 **CRITICAL**: Auto-update permissions for new functionality.
 
@@ -659,7 +659,7 @@ You can now use these scripts without permission prompts.
 - If permission already exists → Skip, don't duplicate
 - If user denies update → Log to completion report
 
-### Step 11: Iteration Loop (if QA fails)
+### Step 13: Iteration Loop (if QA fails)
 
 #### Layer-escalation gate (mandatory)
 
@@ -737,11 +737,11 @@ jq -s '.[0] * {
   > docs/dev/context-iter<N>-<timestamp>.json
 ```
 
-**Return to Step 6** with new context JSON
+**Return to Step 8** with new context JSON
 
 **Iteration tracking**: Update TodoWrite with iteration number
 
-### Step 12: Generate Completion Report
+### Step 14: Generate Completion Report
 
 **QA passed! Generate final report.**
 
@@ -1012,7 +1012,7 @@ WHEN TO SCRIPT:
 **Step 5**: Validate BA output
 - Both files exist with required sections
 
-**Step 6**: Dev subagent
+**Step 8**: Dev subagent
 - Created: `.claude/commands/analyze.md` (with YAML frontmatter)
 - Created: `.claude/agents/code-analyzer.md` (specialist)
 - Created: `.claude/scripts/todo/analyze.py` (workflow tracker)
@@ -1020,7 +1020,7 @@ WHEN TO SCRIPT:
 - Applied: Complete Automation pattern
 - Saved report: `docs/dev/dev-report-20260206-120000.json`
 
-**Step 7-8**: QA subagent
+**Step 9-10**: QA subagent
 - Verified YAML frontmatter complete
 - Verified specialist returns JSON only
 - Verified todo script works
@@ -1028,14 +1028,14 @@ WHEN TO SCRIPT:
 - Status: PASS
 - Saved report: `docs/dev/qa-report-20260206-120000.json`
 
-**Step 9**: Process results
+**Step 11**: Process results
 - QA passed → proceed to completion
 
-**Step 10**: Update permissions
+**Step 12**: Update permissions
 - Added: `SlashCommand(.claude/commands/analyze.md:*)`
 - Added: `Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/analyze.py:*)`
 
-**Step 12**: Completion report
+**Step 14**: Completion report
 - Generated: `docs/dev/completion-20260206-120000.md`
 - Presented summary to user
 
