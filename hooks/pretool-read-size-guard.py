@@ -14,7 +14,8 @@ import sys
 BINARY_EXTENSIONS = {
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".bmp", ".pdf",
 }
-LINE_LIMIT = 600
+LINE_LIMIT = 1000
+CHUNK_LIMIT = 600
 
 
 def is_exempt(data, file_path):
@@ -36,24 +37,33 @@ def count_lines(file_path):
         return -1
 
 
+def is_bounded_chunk(tool_input):
+    """Allow offset+limit Reads when chunk size <= CHUNK_LIMIT."""
+    requested_limit = tool_input.get("limit")
+    return isinstance(requested_limit, int) and 0 < requested_limit <= CHUNK_LIMIT
+
+
 def main():
     try:
         data = json.load(sys.stdin)
     except Exception:
         sys.exit(0)
 
-    file_path = data.get("tool_input", {}).get("file_path", "")
+    tool_input = data.get("tool_input", {})
+    file_path = tool_input.get("file_path", "")
     if is_exempt(data, file_path):
         sys.exit(0)
 
     line_count = count_lines(file_path)
     if line_count < 0 or line_count <= LINE_LIMIT:
         sys.exit(0)
+    if is_bounded_chunk(tool_input):
+        sys.exit(0)
 
     sys.stderr.write(
         f"[Read Size Guard] File too large: {file_path} "
         f"({line_count} lines, limit {LINE_LIMIT}).\n"
-        f"Do NOT retry with offset/limit to fetch the raw content piecewise. Choose one:\n"
+        f"To slice it, retry with offset+limit where limit <= {CHUNK_LIMIT}. Otherwise:\n"
         f"  1. Use Grep to locate the specific section you need, then Read that narrow range.\n"
         f"  2. Delegate to an Agent subagent asking it to SUMMARIZE the file (not return raw content).\n"
     )

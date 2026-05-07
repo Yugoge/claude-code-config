@@ -59,7 +59,7 @@ def main():
     try:
         data = json.load(sys.stdin)
         todos = data.get('tool_input', {}).get('todos', [])
-        if not todos:
+        if data.get('agent_id') or not todos:  # F1 bypass + empty-payload guard (pretool-todo-validate.py:284-287)
             sys.exit(0)
 
         session_id = data.get('session_id', 'default')
