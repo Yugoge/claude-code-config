@@ -652,3 +652,29 @@ python3 test/scripts/validate-xxx.py --project-root . 2>&1 | head -20
 ---
 
 **Remember**: You execute tests systematically. You capture all results. You distinguish errors from failures. You provide actionable recommendations for every failure.
+
+---
+
+## Checkpoint Marking Contract
+
+When this subagent is launched with a `/spec`-driven checklist, the prompt will
+name a `SPEC_ID` and the cp-state file for this role:
+`.claude/specs/<SPEC_ID>/cp-state-test-executor.json` (or a numbered same-role slot).
+This contract is mandatory in that mode:
+
+1. Read the named cp-state file before doing substantive work. That read
+   registers the Claude-internal agent id with `pretool-cp-checkin.py`.
+   Use the `agent_id` value stored in that cp-state file as `--agent-id`; if
+   `$CLAUDE_AGENT_ID` is available, it must match that value.
+2. Treat each `checkpoints[].id` entry as a required checklist item.
+3. Immediately after completing a checkpoint's atomic action, mark it done with
+   `/root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent test-executor --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
+4. If a checkpoint is genuinely not applicable, waive it (auto-text records actor + ISO timestamp):
+   `/root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent test-executor --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
+5. Before stopping, confirm every checkpoint is either `done` or
+   `waived-with-reason`. Pending checkpoints cause `subagentstop-cp-enforce.py`
+   to block exit with code 2.
+
+If no `SPEC_ID`/cp-state handoff is provided, this contract is inactive and the
+subagent follows its normal standalone workflow.
+

@@ -5,9 +5,24 @@
 # Read full JSON from stdin
 INPUT=$(cat)
 
+# Codex compatibility: hook payloads may pass a multi-line shell snippet with
+# strict-mode preludes such as `set -euo pipefail` before the actual command.
+# Docker compose service detection must examine compose invocations, not the
+# first shell token in the whole snippet; otherwise dev-only operations like
+# `set -euo pipefail; cd /root/deploy; docker compose up -d happy-web-dev`
+# are misclassified as service `set`.
+strip_shell_prelude_for_compose() {
+  local command="$1"
+  command="$(printf '%s\n' "$command" | sed -E \
+    -e '/^[[:space:]]*set([[:space:]]+[^;&|]+)*[[:space:]]*$/d' \
+    -e '/^[[:space:]]*cd[[:space:]]+[^;&|]+[[:space:]]*$/d')"
+  printf '%s\n' "$command"
+}
+
 # Extract tool name and command
 TOOL_NAME=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null)
 COMMAND=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+COMPOSE_COMMAND=$(strip_shell_prelude_for_compose "$COMMAND")
 
 # Only act on Bash tool
 if [ "$TOOL_NAME" != "Bash" ]; then
@@ -17,7 +32,11 @@ fi
 # ── Dev whitelist (exact names only) ──────────────────────────────
 # These are the ONLY dev resources that can be freely managed.
 DEV_CONTAINERS="happy-web-dev"
-DEV_SYSTEMD="happy-daemon-dev"
+# Per c3-20260504-223115 R1: happy-daemon-dev is REMOVED from the systemctl whitelist.
+# All happy-daemon-* targets are gated by Layer 1.A (daemon-restart-prohibition) which
+# requires an explicit user grant via /root/bin/claude-allow-restart. The systemctl block
+# at line ~700 skips happy-daemon commands entirely (Layer 1.A already adjudicated).
+DEV_SYSTEMD=""
 
 # ── Helper: split compound command into subcommands ───────────────
 # Splits on && || ; and checks each subcommand independently.
@@ -88,6 +107,499 @@ check_systemctl_targets_all_dev() {
     fi
   done
 }
+
+# ── One-shot allowlist bypass for developer-class blocks ─────────────────────
+# Reads /tmp/claude-bash-allowlist-<sid>.json (written by userprompt-consent-allowlist.sh).
+# On match: deletes the entry (single-use), logs, exits 0.
+# NEVER called for asteroid-class blocks.
+# NEVER bypasses subagent calls (agent_id check first, inline fresh parse).
+CONSENT_LOG="$HOME/.claude/logs/bash-consent.log"
+
+check_and_consume_allowlist() {
+  local cmd="$1"
+
+  # IS_SUBAGENT check: INLINE fresh parse from $INPUT.
+  # The IS_SUBAGENT variable assigned at line ~499 is NOT yet set when this function is called
+  # at upstream call sites (all before the IS_SUBAGENT assignment). Inline parse is the only
+  # correct approach.
+  local is_sub
+  is_sub=$(echo "$INPUT" | python3 -c \
+    "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
+    2>/dev/null)
+  if [ "$is_sub" = "1" ]; then
+    return 1
+  fi
+
+  local sid
+  sid=$(echo "$INPUT" | python3 -c \
+    "import json,sys,os; d=json.load(sys.stdin); print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
+    2>/dev/null)
+  [ -z "$sid" ] && sid="default"
+
+  local flag_file="/tmp/claude-bash-allowlist-${sid}.json"
+  [ ! -f "$flag_file" ] && return 1
+
+  # Consolidated consume path: V1 (SIGALRM regex timeout) + V2 (flock atomic read-match-unlink) +
+  # V3 (compound-command split on && || ; | with per-subcommand match + block-rule cross-check).
+  # Pattern and command passed via environment variables — never shell-interpolated into Python.
+  local lock_file="${flag_file}.lock"
+  local consume_result
+  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" CMD_INPUT="$cmd" SID_VAL="$sid" python3 - <<'PYEOF'
+# V1: SIGALRM-only timeout (1s) around re.search to stop catastrophic-backtracking DoS.
+#     ThreadPoolExecutor fallback is PROHIBITED — it does not interrupt a running C regex.
+# V2: flock(LOCK_EX | LOCK_NB) with 3x 100ms retry; atomic unlink while lock held; finally-unlock.
+# V3: split cmd on &&, ||, ;, | (single pipe). Process || BEFORE | via sentinel placeholder.
+#     Match per-subcommand AND cross-check against embedded block-rule list. Bypass fires only
+#     when the same subcommand matches both the user's allow-pattern and a dev-class block rule.
+# NOTE: backtick substitution, $(...), <(...) process substitution, << heredoc are OUT OF SCOPE
+#       — full shell parser required. Documented limitation.
+import fcntl, json, os, re, signal, sys, time
+
+flag_file = os.environ['FLAG_FILE']
+lock_file = os.environ['LOCK_FILE']
+cmd = os.environ['CMD_INPUT']
+
+# Dev-class block rules embedded here (must be kept in sync with the outer shell block list).
+# Each entry is a Python regex string. A subcommand is "dangerous" iff it matches ANY of these.
+BLOCK_RULES = [
+    # V4 stash forms
+    r'git\s+stash\s+(push|save|create|store|-u|--include-untracked|-a|--all)\b',
+    r'git\s+stash\s+-[ua]+\b',
+    r'git\s+stash\s*($|[;&|])',
+    # Wide-path checkout
+    r'git\s+checkout\s+\S+\s+--\s+(\.|\*|[^ ]+/)',
+    # V6 restore wide-path (two-condition joined for subcommand match).
+    # Wide-path alternative '[^ /]+/' = bare dir-segment ending in '/' — excludes src/index.ts (interior '/').
+    # Trailing boundary '\s*($|[;&|])' required only when --source/-s precedes the wide-path,
+    # so that 'src/' at end-of-token is flagged but 'src/index.ts' is not.
+    r'git\s+restore\b.*(--source\b|-s\b).*--\s+(\.|\*|[^ /]+/)\s*($|[;&|])',
+    r'git\s+restore\b.*--\s+(\.|\*|[^ /]+/)\s*($|[;&|]).*(--source\b|-s\b)',
+    # reset --hard to non-HEAD
+    r'git\s+reset\s+--hard\s+(?!HEAD(\s|$))\S+',
+    # V5 revert forms (no \b after ^/~/} — non-word chars, \b would fail at boundary)
+    r'git\s+revert\s+(\S+\s+)*[0-9a-f]{7,40}\b',
+    r'git\s+revert\s+(\S+\s+)*\S+\^+',
+    r'git\s+revert\s+(\S+\s+)*\S+~[0-9]*',
+    r'git\s+revert\s+(\S+\s+)*\S+@\{[0-9]+\}',
+]
+
+
+def _alarm_handler(signum, frame):
+    raise TimeoutError('regex timeout')
+
+
+def safe_search(pattern, text, is_regex, timeout_sec=1):
+    """Match pattern against text. Literal substring or regex with SIGALRM timeout."""
+    if not is_regex:
+        return pattern in text
+    old_handler = signal.signal(signal.SIGALRM, _alarm_handler)
+    signal.alarm(timeout_sec)
+    try:
+        return bool(re.search(pattern, text))
+    except (re.error, TimeoutError):
+        return False
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+
+def split_subcommands(raw_cmd):
+    """Split on && || ; | . Order matters: || before | so || becomes \\n\\n not \\n|\\n."""
+    s = raw_cmd.replace('||', '\n').replace('&&', '\n').replace(';', '\n').replace('|', '\n')
+    return [t.strip() for t in s.split('\n') if t.strip()]
+
+
+def matches_any_block_rule(subcmd):
+    """True iff subcmd matches at least one dev-class block rule."""
+    for rule in BLOCK_RULES:
+        try:
+            if re.search(rule, subcmd):
+                return True
+        except re.error:
+            continue
+    return False
+
+
+# V2: acquire exclusive lock with bounded retry (3x 100ms). Block on failure (no deadlock).
+lock_fd = None
+try:
+    lock_fd = os.open(lock_file, os.O_CREAT | os.O_RDWR, 0o600)
+    attempts = 0
+    while True:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except BlockingIOError:
+            attempts += 1
+            if attempts >= 3:
+                print('BLOCKED_LOCK')
+                sys.exit(0)
+            time.sleep(0.1)
+
+    # Lock held. Read-match-unlink sequence is now atomic.
+    if not os.path.exists(flag_file):
+        print('NO_FLAG')
+        sys.exit(0)
+    try:
+        with open(flag_file) as f:
+            data = json.load(f)
+    except Exception:
+        print('NO_FLAG')
+        sys.exit(0)
+
+    pattern = data.get('pattern', '')
+    is_regex = bool(data.get('is_regex', False))
+    if not pattern:
+        print('NO_MATCH')
+        sys.exit(0)
+
+    # V3: split compound command into subcommands.
+    subcmds = split_subcommands(cmd)
+    if not subcmds:
+        subcmds = [cmd]
+
+    matched_subcmd = None
+    for sub in subcmds:
+        # Both conditions must hold on the SAME subcommand:
+        # (a) subcommand matches the user's allow-pattern
+        # (b) subcommand matches at least one dev-class block rule
+        # 2026-04-28: cross-check against BLOCK_RULES removed — /allow is now a true
+        # break-glass over ALL safety blocks. User grants the exact pattern, accepts risk.
+        if safe_search(pattern, sub, is_regex):
+            matched_subcmd = sub
+            break
+
+    if matched_subcmd is None:
+        print('NO_MATCH')
+        sys.exit(0)
+
+    # Atomic consume: unlink flag while still holding the lock.
+    try:
+        os.unlink(flag_file)
+    except FileNotFoundError:
+        print('NO_FLAG')
+        sys.exit(0)
+
+    # Emit structured result for shell wrapper to parse and log.
+    # Escape single quotes in matched_subcmd for safe shell consumption.
+    print('CONSUMED\t{}\t{}\t{}'.format(
+        pattern,
+        '1' if is_regex else '0',
+        matched_subcmd,
+    ))
+except Exception as e:
+    print('ERROR: {}'.format(e))
+    sys.exit(0)
+finally:
+    if lock_fd is not None:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        except Exception:
+            pass
+        try:
+            os.close(lock_fd)
+        except Exception:
+            pass
+PYEOF
+)
+
+  # Parse structured result.
+  case "$consume_result" in
+    CONSUMED$'\t'*)
+      local rest pattern is_regex matched_sub
+      rest="${consume_result#CONSUMED$'\t'}"
+      pattern="${rest%%$'\t'*}"
+      rest="${rest#*$'\t'}"
+      is_regex="${rest%%$'\t'*}"
+      matched_sub="${rest#*$'\t'}"
+      mkdir -p "$(dirname "$CONSENT_LOG")"
+      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$sid CONSUMED pattern='$pattern' is_regex=$is_regex matched_subcmd='$matched_sub' full_cmd='$cmd'" >> "$CONSENT_LOG"
+      echo "[allow] One-shot bypass consumed for pattern='$pattern' (matched subcommand: '$matched_sub'). Command will proceed." >&2
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# ── C3: daemon-restart prohibition (BLOCK BEFORE /allow short-circuit) ─────
+# TASK-ID: c3-20260504-223115
+# Per BA spec docs/dev/ticket-c3-20260504-223115.md.
+# This block runs BEFORE the global /allow short-circuit so generic /allow
+# cannot bypass daemon-restart prohibition (R11). Daemon-restart is unblocked
+# ONLY by the dedicated sentinel /tmp/claude-allow-daemon-restart-<target>.flag
+# created by /root/bin/claude-allow-restart.
+
+DAEMON_RESTART_AUDIT_LOG="${CLAUDE_DAEMON_RESTART_AUDIT_LOG:-$HOME/.claude/logs/claude-daemon-restart-grants.log}"
+
+# Atomic consume of /tmp/claude-allow-daemon-restart-<target>.flag.
+# Reuses the same flock+SIGALRM atomic-consume design as check_and_consume_allowlist.
+# Args: $1 = bare unit name (e.g. "happy-daemon-dev"), $2 = the verb being attempted.
+# Returns 0 if a valid grant existed and was consumed (caller may proceed);
+# returns 1 otherwise (caller must block).
+check_and_consume_daemon_restart_grant() {
+  local unit="$1"
+  local verb="$2"
+
+  # Derive target suffix: strip "happy-daemon-" or "happy-daemon" prefix.
+  # happy-daemon-dev → dev; happy-daemon → default; happy-daemon-jade → jade
+  local target
+  case "$unit" in
+    happy-daemon-dev) target="dev" ;;
+    happy-daemon-jade) target="jade" ;;
+    happy-daemon-qijie) target="qijie" ;;
+    happy-daemon) target="default" ;;
+    *) target="" ;;
+  esac
+  [ -z "$target" ] && return 1
+
+  local sid
+  sid=$(echo "$INPUT" | python3 -c \
+    "import json,sys,os; d=json.load(sys.stdin); print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
+    2>/dev/null)
+  [ -z "$sid" ] && sid="default"
+
+  mkdir -p "$(dirname "$DAEMON_RESTART_AUDIT_LOG")" 2>/dev/null || true
+
+  local flag_file="/tmp/claude-allow-daemon-restart-${target}.flag"
+  local flag_all="/tmp/claude-allow-daemon-restart-all.flag"
+  local lock_file="${flag_file}.lock"
+
+  # Try target-specific flag first; if absent, try the "all" flag.
+  if [ ! -f "$flag_file" ] && [ -f "$flag_all" ]; then
+    flag_file="$flag_all"
+    lock_file="${flag_all}.lock"
+  fi
+  [ ! -f "$flag_file" ] && return 1
+
+  local consume_result
+  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" UNIT_VAL="$unit" SID_VAL="$sid" TARGET_VAL="$target" python3 - <<'PYEOF'
+# Atomic flock+SIGALRM consume for daemon-restart grant.
+# Reuses the design from check_and_consume_allowlist (lines 114-298).
+import fcntl, json, os, signal, sys, time
+from datetime import datetime, timezone
+
+flag_file = os.environ['FLAG_FILE']
+lock_file = os.environ['LOCK_FILE']
+unit_val  = os.environ['UNIT_VAL']
+sid_val   = os.environ['SID_VAL']
+target    = os.environ['TARGET_VAL']
+
+def _alarm(signum, frame):
+    raise TimeoutError('parse timeout')
+
+lock_fd = None
+try:
+    lock_fd = os.open(lock_file, os.O_CREAT | os.O_RDWR, 0o600)
+    attempts = 0
+    while True:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except BlockingIOError:
+            attempts += 1
+            if attempts >= 3:
+                print('BLOCKED_LOCK')
+                sys.exit(0)
+            time.sleep(0.1)
+
+    if not os.path.exists(flag_file):
+        print('NO_FLAG')
+        sys.exit(0)
+
+    old = signal.signal(signal.SIGALRM, _alarm)
+    signal.alarm(1)
+    try:
+        with open(flag_file) as fh:
+            data = json.load(fh)
+    except Exception:
+        signal.alarm(0); signal.signal(signal.SIGALRM, old)
+        print('NO_FLAG')
+        sys.exit(0)
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
+
+    grant_target = data.get('target', '')
+    expires_at   = data.get('expires_at', '')
+    grant_sid    = data.get('session_id', '')
+    single_shot  = bool(data.get('single_shot', True))
+
+    # Target match: either exact, or grant target is "all"
+    if grant_target != target and grant_target != 'all':
+        print('TARGET_MISMATCH\t{}\t{}'.format(grant_target, target))
+        sys.exit(0)
+
+    # Expiry check
+    try:
+        # Accept both "Z" and "+00:00" suffixes
+        norm = expires_at.replace('Z', '+00:00')
+        exp = datetime.fromisoformat(norm)
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        if exp <= now:
+            print('EXPIRED\t{}'.format(expires_at))
+            sys.exit(0)
+    except Exception:
+        print('EXPIRED\t{}'.format(expires_at))
+        sys.exit(0)
+
+    # Session match: grant_sid must equal sid_val (no-active-session never matches a real sid).
+    if grant_sid and grant_sid != 'no-active-session' and grant_sid != sid_val:
+        print('SESSION_MISMATCH\t{}\t{}'.format(grant_sid, sid_val))
+        sys.exit(0)
+
+    # All checks pass. Single-shot consume: unlink atomically while holding lock.
+    try:
+        os.unlink(flag_file)
+    except FileNotFoundError:
+        pass
+    print('CONSUMED\t{}\t{}\t{}'.format(grant_target, expires_at, grant_sid))
+except Exception as e:
+    print('ERROR\t{}'.format(e))
+    sys.exit(0)
+finally:
+    if lock_fd is not None:
+        try: fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        except Exception: pass
+        try: os.close(lock_fd)
+        except Exception: pass
+PYEOF
+)
+
+  case "$consume_result" in
+    CONSUMED$'\t'*)
+      local rest grant_target expires grant_sid
+      rest="${consume_result#CONSUMED$'\t'}"
+      grant_target="${rest%%$'\t'*}"
+      rest="${rest#*$'\t'}"
+      expires="${rest%%$'\t'*}"
+      grant_sid="${rest#*$'\t'}"
+      python3 - "$DAEMON_RESTART_AUDIT_LOG" "$sid" "$target" "$unit" "$verb" "$grant_target" "$expires" "$grant_sid" <<'PYAUDIT' >> "$DAEMON_RESTART_AUDIT_LOG"
+import json, sys
+from datetime import datetime, timezone
+log_path, sid, target, unit, verb, grant_target, expires, grant_sid = sys.argv[1:9]
+print(json.dumps({
+    "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "sid": sid,
+    "target": target,
+    "unit": unit,
+    "verb": verb,
+    "outcome": "consumed",
+    "grant_target": grant_target,
+    "grant_session_id": grant_sid,
+    "grant_expires_at": expires,
+    "source": "pretool-bash-safety",
+}, separators=(",", ":")))
+PYAUDIT
+      echo "[daemon-restart-grant] consumed grant for target=$target unit=$unit verb=$verb" >&2
+      return 0
+      ;;
+    EXPIRED$'\t'*|TARGET_MISMATCH$'\t'*|SESSION_MISMATCH$'\t'*|NO_FLAG|BLOCKED_LOCK|ERROR$'\t'*)
+      local outcome="${consume_result%%$'\t'*}"
+      python3 - "$DAEMON_RESTART_AUDIT_LOG" "$sid" "$target" "$unit" "$verb" "$outcome" <<'PYAUDIT2' >> "$DAEMON_RESTART_AUDIT_LOG"
+import json, sys
+from datetime import datetime, timezone
+log_path, sid, target, unit, verb, outcome = sys.argv[1:7]
+print(json.dumps({
+    "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "sid": sid,
+    "target": target,
+    "unit": unit,
+    "verb": verb,
+    "outcome": outcome.lower(),
+    "source": "pretool-bash-safety",
+}, separators=(",", ":")))
+PYAUDIT2
+      return 1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Layer 1.A — daemon-restart prohibition: systemctl verb gate against happy-daemon-*.
+# Verb set: stop|restart|disable|enable|reload|kill|try-restart|reload-or-restart.
+# Anchor `(\s+|\b)` so `systemctl kill -s SIGTERM happy-daemon-dev` matches (verb
+# followed by `-s` flag, not whitespace-then-target). Stable label: daemon-restart-prohibition.
+if echo "$COMMAND" | grep -qE 'systemctl\s+(stop|restart|disable|enable|reload|kill|try-restart|reload-or-restart)(\s+|\b)' \
+   && echo "$COMMAND" | grep -qE 'happy-daemon'; then
+  # Identify the bare unit name in the command. We look for happy-daemon[suffix]
+  # tokens; if multiple targets, the consume rejects unless grant covers all.
+  HAPPY_UNIT=$(echo "$COMMAND" | grep -oE 'happy-daemon(-(dev|jade|qijie))?' | head -1 | sed 's/\.service$//')
+  HAPPY_VERB=$(echo "$COMMAND" | grep -oE 'systemctl\s+(stop|restart|disable|enable|reload|kill|try-restart|reload-or-restart)' | head -1 | awk '{print $2}')
+  if [ -n "$HAPPY_UNIT" ] && check_and_consume_daemon_restart_grant "$HAPPY_UNIT" "$HAPPY_VERB"; then
+    : # grant consumed — fall through to allow the command
+  else
+    echo "BLOCKED: daemon-restart-prohibition — systemctl ${HAPPY_VERB:-<verb>} on ${HAPPY_UNIT:-happy-daemon-*} is FORBIDDEN" >&2
+    echo "Command: $COMMAND" >&2
+    echo "REASON: per c3-20260504-223115, Claude must NEVER restart any happy-daemon-* by any path." >&2
+    echo "Hint: user must run /root/bin/claude-allow-restart <target> from a real TTY first." >&2
+    exit 2
+  fi
+fi
+
+# Layer 1.B — wrapper-class block: any wrapper invocation co-occurring with
+# happy-daemon vocabulary AND daemon-state-disrupting verb. Stable label:
+# daemon-restart-wrapper.
+if echo "$COMMAND" | grep -qE 'happy-daemon' \
+   && echo "$COMMAND" | grep -qE '(restart|stop|disable|enable|reload|kill|try-restart|reload-or-restart|kick|cycle|bounce|hup|HUP)' \
+   && echo "$COMMAND" | grep -qE '(systemd-run|^|[[:space:]])((at|batch)\s|crontab\s|nohup\s|disown\s|watch\s|timeout\s|dbus-send|busctl|nc\s|ncat\s|eval\s|bash\s+-c|sh\s+-c|zsh\s+-c|python3?\s+-c|node\s+-[ce]|perl\s+-e|ruby\s+-e)'; then
+  echo "BLOCKED: daemon-restart-wrapper — wrapper invocation co-occurring with daemon-restart vocabulary is FORBIDDEN" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: per c3-20260504-223115, indirect daemon-restart paths (systemd-run/at/crontab/nohup/" >&2
+  echo "        timeout/dbus-send/nc/eval/bash -c/python -c) are all forbidden. Use the user-only" >&2
+  echo "        /root/bin/claude-allow-restart grant channel instead." >&2
+  exit 2
+fi
+
+# Layer 1.C — wrapper script on disk: bash /tmp/*.sh, /var/tmp/*.sh, /dev/shm/*.sh
+# are blocked outright regardless of body content (orchestrator AND subagents).
+# Stable label: daemon-restart-wrapper.
+if echo "$COMMAND" | grep -qE '(^|[;&|]\s*)(bash|sh|zsh)\s+(/tmp/|/var/tmp/|/dev/shm/)[^[:space:];&|]+\.sh'; then
+  echo "BLOCKED: daemon-restart-wrapper — bash invocation of disposable wrapper script is FORBIDDEN" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: per c3-20260504-223115, wrapper scripts under /tmp/, /var/tmp/, /dev/shm/ can be a" >&2
+  echo "        durable bypass surface for daemon-restart. Run commands inline or via tracked scripts." >&2
+  exit 2
+fi
+
+# Layer 1.D — daemon HTTP /stop UNCONDITIONAL block. Trigger: any
+# (curl|wget|nc|ncat|http.client|aiohttp|requests) invocation referencing
+# (localhost|127.0.0.1):PORT/stop, regardless of surrounding text. Stable
+# label: daemon-restart-http-stop. Per BA AC4 / OBJ-3-F: there is no
+# legitimate Claude reason to POST/GET to `/stop` on a localhost service.
+if echo "$COMMAND" | grep -qE '(curl|wget|nc[[:space:]]|ncat|http\.client|aiohttp|requests)' \
+   && echo "$COMMAND" | grep -qE '(localhost|127\.0\.0\.1):[0-9]+/stop'; then
+  echo "BLOCKED: daemon-restart-http-stop — HTTP /stop on a localhost port is FORBIDDEN" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: per c3-20260504-223115, the daemon HTTP /stop endpoint is the only documented" >&2
+  echo "        use of /stop on a localhost port; Claude must never trigger it. False-positive risk" >&2
+  echo "        on other localhost services is accepted per 彻底永久根本禁止." >&2
+  exit 2
+fi
+
+# Layer 1.E — sentinel-write block: any Bash that creates/edits the grant
+# sentinel is forbidden (only /root/bin/claude-allow-restart may write it).
+# Stable label: daemon-restart-sentinel-write.
+if echo "$COMMAND" | grep -qE '/tmp/claude-allow-daemon-restart-[A-Za-z0-9_-]+\.flag' \
+   && echo "$COMMAND" | grep -qE '(>|>>|tee|cp|mv|ln|touch|cat\s)'; then
+  echo "BLOCKED: daemon-restart-sentinel-write — writing to grant sentinel is FORBIDDEN" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: per c3-20260504-223115, only /root/bin/claude-allow-restart (run by user from TTY)" >&2
+  echo "        may create the grant sentinel." >&2
+  exit 2
+fi
+
+# ── Global /allow short-circuit ─────────────────────────────────────────────
+# Any user-granted /allow pattern bypasses every BLOCKED rule below,
+# making /allow a single-use break-glass covering all safety checks.
+# NOTE: daemon-restart prohibition (Layer 1.A-E above) runs BEFORE this
+# short-circuit and is NOT bypassable by generic /allow (per c3-20260504-223115 R11).
+check_and_consume_allowlist "$COMMAND" && exit 0
 
 # ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
 # On 2026-04-09, editing session_dirs.txt triggered full restore and killed all sessions.
@@ -189,12 +701,16 @@ if echo "$COMMAND" | grep -qE 'kill\s+-'; then
   exit 2
 fi
 
-# Block: systemctl stop/restart/disable/enable (unless ALL targets are dev-whitelisted)
-if echo "$COMMAND" | grep -qE 'systemctl\s+(stop|restart|disable|enable)\s+'; then
+# Block: systemctl stop/restart/disable/enable/reload/kill/try-restart/reload-or-restart
+# Verb set extended per c3-20260504-223115 R1 (8 verbs covering all daemon-state-disrupting
+# systemctl operations). Targets covering `happy-daemon` are handled by Layer 1.A above
+# (with the dedicated grant channel); this block fires for non-happy systemctl targets.
+if echo "$COMMAND" | grep -qE 'systemctl\s+(stop|restart|disable|enable|reload|kill|try-restart|reload-or-restart)(\s+|\b)' \
+   && ! echo "$COMMAND" | grep -qE 'happy-daemon'; then
   if ! check_systemctl_targets_all_dev "$COMMAND" "$DEV_SYSTEMD"; then
-    echo "BLOCKED: systemctl stop/restart/disable/enable is forbidden for production services" >&2
+    echo "BLOCKED: systemctl stop/restart/disable/enable/reload/kill/try-restart/reload-or-restart is forbidden for production services" >&2
     echo "Command: $COMMAND" >&2
-    echo "Hint: only $DEV_SYSTEMD is allowed." >&2
+    echo "Hint: only $DEV_SYSTEMD is allowed (and happy-daemon-* is gated by Layer 1.A)." >&2
     exit 2
   fi
 fi
@@ -260,9 +776,10 @@ fi
 # Block: docker compose up/build (recreates containers, causes downtime)
 # Exception: applio-* and happy-*-dev services are allowed IF no prod services mixed in
 # Whitelist approach: extract ALL service names, every one must be dev/applio
-if echo "$COMMAND" | grep -qE 'docker.compose\s+(up|build)\s'; then
+if echo "$COMPOSE_COMMAND" | grep -qE 'docker.compose\s+(up|build)\s'; then
+  compose_lines=$(echo "$COMPOSE_COMMAND" | grep -E 'docker.compose\s+(up|build)\s')
   # Extract service names (everything after up/build and flags like -d --no-deps)
-  services=$(echo "$COMMAND" | sed -E 's/.*docker.compose\s+(up|build)\s+//' | tr ' ' '\n' | grep -v '^-' | grep -v '^$')
+  services=$(echo "$compose_lines" | sed -E 's/.*docker.compose\s+(up|build)\s+//' | tr ' ' '\n' | grep -v '^-' | grep -v '^$')
   if [ -z "$services" ]; then
     # No specific services = ALL services = forbidden
     echo "BLOCKED: docker compose up/build without specific service names is forbidden" >&2
@@ -353,6 +870,150 @@ if echo "$COMMAND" | grep -q 'happy-daemon-dev' && echo "$COMMAND" | grep -qE '/
   echo "REASON: Dev daemon must use /root/happy-dev/packages/happy-cli/dist/index.mjs directly." >&2
   echo "Using /usr/bin/happy causes dev daemon to run production code, ignoring all dev fixes." >&2
   exit 2
+fi
+
+# ── Dangerous git operations (2026-04-19 incident prevention) ──────────────
+# On 2026-04-19 23:02:22, a dev subagent ran:
+#     git stash && cd packages/happy-app && git checkout 925f5960 -- .
+# The `-- .` wide-path checkout overwrote the entire happy-app directory with
+# 3-27 baseline content, erasing 17 days of UI work. The stash was treated as
+# a throwaway buffer but then failed to pop cleanly, leaving the worktree in a
+# silently-regressed state. The subagent reported "something happened" as if
+# it were an accident, concealing that it ran the destructive command itself.
+# Block these three patterns globally — main agent AND subagents.
+
+# Block: git stash (destructive forms only — list/show/pop/apply/drop/clear/branch are safe)
+# V4: extended to also cover -u/--include-untracked/-a/--all variants (which include untracked/ignored files)
+if echo "$COMMAND" | grep -qE 'git\s+stash\s+(push|save|create|store|-u|--include-untracked|-a|--all)\b' || \
+   echo "$COMMAND" | grep -qE 'git\s+stash\s+-[ua]+\b'; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
+  echo "BLOCKED: 'git stash push/save/create/store/-u/--all' requires explicit user approval" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: On 2026-04-19, a dev subagent used 'git stash' as a throwaway buffer" >&2
+  echo "before running a destructive 'git checkout <hash> -- .', silently erasing 17 days" >&2
+  echo "of UI work. Stash+checkout is a known-dangerous combo in subagent hands." >&2
+  echo "-u/--include-untracked/-a/--all forms include untracked/ignored files — more destructive." >&2
+  echo "Tell the user what you want to do and ask them to run it, or use commit/branch." >&2
+  exit 2
+fi
+if echo "$COMMAND" | grep -qE 'git\s+stash\s*($|[;&|])'; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
+  echo "BLOCKED: bare 'git stash' (implicit push) requires explicit user approval" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: See 2026-04-19 incident — stash is often paired with destructive checkout." >&2
+  echo "Safe stash subcommands are exempt: list, show, pop, apply, drop, clear, branch." >&2
+  exit 2
+fi
+
+# Block: git checkout <ref> -- . or -- * or -- <dir>/
+# Wide-path checkout from a ref overwrites the entire subtree with historical content.
+# Allowed: 'git checkout <ref> -- path/to/specific-file.ts' (single file), 'git checkout <branch>' (branch switch).
+if echo "$COMMAND" | grep -qE 'git\s+checkout\s+\S+\s+--\s+(\.|\*|[^ ]+/)\s*($|[;&|])'; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
+  echo "BLOCKED: 'git checkout <ref> -- .' / '-- *' / '-- dir/' requires explicit user approval" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: On 2026-04-19, a dev subagent ran 'git checkout 925f5960 -- .' inside" >&2
+  echo "packages/happy-app/, overwriting 17 days of UI development with 3-27 baseline." >&2
+  echo "Wide-path checkout from a commit is a blunt-force destructive operation." >&2
+  echo "Allowed: 'git checkout <ref> -- path/to/specific-file.ts' (single file)." >&2
+  echo "If you genuinely need a subtree restore, tell the user what you need and why." >&2
+  exit 2
+fi
+
+# Block: git restore --source=<ref> -- . / -- */ -- <dir>/  (V6)
+# Modern equivalent of 'git checkout <ref> -- .' (git 2.23+) — overwrites working tree with historical content.
+# Two-condition approach (order-independent): command must contain BOTH a source flag AND a wide-path.
+# Covers all four syntaxes: --source=X, --source X, -s=X, -s X.
+# Allowed: 'git restore -- myfile.ts' (no --source, no overwrite), 'git restore --staged -- file' (index-only),
+#          'git restore --source=HEAD -- specific-file.ts' (specific file, not wide-path).
+if echo "$COMMAND" | grep -qE 'git\s+restore\b' && \
+   echo "$COMMAND" | grep -qE -- '(--source\b|-s\b)' && \
+   echo "$COMMAND" | grep -qE -- '--\s+(\.|\*|[^ /]+/)\s*($|[;&|])'; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
+  echo "BLOCKED: 'git restore --source=<ref> -- .' / '-- *' / '-- dir/' requires explicit user approval" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: 'git restore --source=<ref> -- .' is the modern equivalent of" >&2
+  echo "'git checkout <ref> -- .' (git 2.23+). It overwrites the working tree with historical" >&2
+  echo "content — same blunt-force destructive operation that erased 17 days of UI work on 2026-04-19." >&2
+  echo "Allowed: 'git restore -- path/to/specific-file.ts' (no --source, or specific file)." >&2
+  echo "If you genuinely need a subtree restore, tell the user what you need and why." >&2
+  exit 2
+fi
+
+# Block: git reset --hard to a specific commit (HEAD or no-arg is fine — those are local safety reverts)
+if echo "$COMMAND" | grep -qE 'git\s+reset\s+--hard\b' && \
+   ! echo "$COMMAND" | grep -qE 'git\s+reset\s+--hard(\s+HEAD)?(\s*$|\s*[;&|])'; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
+  echo "BLOCKED: 'git reset --hard <commit>' (non-HEAD) requires explicit user approval" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: reset --hard to an older commit rewrites branch history and discards work." >&2
+  echo "Safe: 'git reset --hard' or 'git reset --hard HEAD' (no commit arg) — just resets working tree." >&2
+  echo "For recovery, prefer 'git revert HEAD' (main agent only, with user consent) or 'git checkout -b recovery <ref>'. To revert older commits, ask the user." >&2
+  exit 2
+fi
+
+# Block: subagent-initiated git history mutation (2026-04-23 incident)
+# Subagents have weak context and cannot reliably know whether the user has consented.
+# All git history changes by subagents must be surfaced to the user instead.
+# Detection: parse stdin JSON for agent_id (matches pretool-orchestrator-gate.py mechanism).
+IS_SUBAGENT=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
+if [ "$IS_SUBAGENT" = "1" ]; then
+  # /do bypass (2026-04-25): user has explicitly consented via /do — allow subagent history mutation
+  SID=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('session_id',''))" 2>/dev/null)
+  if [ -n "$SID" ] && [ -e "/tmp/claude-orchestrator-consent-${SID}.flag" ]; then
+    exit 0
+  fi
+  if echo "$COMMAND" | grep -qE 'git[[:space:]]+(revert|commit|merge|cherry-pick|rebase|push)([[:space:]]|$)'; then
+    echo "BLOCKED: Subagent-initiated git history mutation is FORBIDDEN" >&2
+    echo "Command: $COMMAND" >&2
+    echo "REASON: On 2026-04-23, a dev subagent ran 'git revert 1204d62 --no-edit' on the" >&2
+    echo "nested .claude repo, undoing a user-approved feature commit. The user had stated" >&2
+    echo "'禁止 full revert' but the subagent had no real-time access to that constraint." >&2
+    echo "Subagents must NEVER mutate git history. Tell the user what you want done" >&2
+    echo "and ask them to run the command themselves." >&2
+    echo "Allowed git verbs for subagents: status, log, show, diff, blame, ls-tree, ls-files, branch (read-only), worktree list." >&2
+    exit 2
+  fi
+  if echo "$COMMAND" | grep -qE 'git[[:space:]]+branch[[:space:]]+-D[[:space:]]'; then
+    echo "BLOCKED: Subagent-initiated branch deletion is FORBIDDEN" >&2
+    echo "Command: $COMMAND" >&2
+    exit 2
+  fi
+fi
+
+# Block: git revert <commit-hash> or git revert <ref>^ or git revert <ref>~N or git revert <ref>@{N}
+# V5: broadened from HEAD-only anchor to \S+ so any ref (HEAD, master, main, branch, tag)
+# with a modifier (caret, tilde, reflog, hash) is blocked.
+# Reverting a non-bare-HEAD commit can undo deliberate user work.
+# Safe: 'git revert HEAD' ONLY (bare — no caret, no tilde, no reflog, no branch-ref modifier).
+# All other revert forms are blocked.
+if echo "$COMMAND" | grep -qE 'git\s+revert\s+'; then
+  # Block hex hashes (7+ chars)
+  # Block caret form: <ref>^ or <ref>^^ (e.g., HEAD^, master^, HEAD^^)
+  # Block tilde form: <ref>~ or <ref>~N (e.g., HEAD~, HEAD~1, master~2)
+  # Block reflog form: <ref>@{N} (e.g., HEAD@{1})
+  # Intermediate group (\S+\s+)* allows flags-before-ref (e.g., git revert --no-edit HEAD^)
+  # Note: \b after ^/~/} is omitted because those characters are non-word — \b requires
+  # a word-char transition and would fail to match at end-of-string or before whitespace.
+  if echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*[0-9a-f]{7,40}\b' || \
+     echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*\S+\^+' || \
+     echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*\S+~[0-9]*' || \
+     echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*\S+@\{[0-9]+\}'; then
+    check_and_consume_allowlist "$COMMAND" && exit 0
+    echo "BLOCKED: 'git revert' with any ref modifier (caret/tilde/reflog/hash) requires explicit user approval" >&2
+    echo "Command: $COMMAND" >&2
+    echo "REASON: On 2026-04-23, a dev subagent ran 'git revert 1204d62' which undid a user-approved" >&2
+    echo "feature commit (the /spec simplification the user had explicitly endorsed), restoring an" >&2
+    echo "unwanted 5-step interview state. The user had explicitly forbidden full revert in chat." >&2
+    echo "Reverting historical commits without user authorization is destructive — it overrides" >&2
+    echo "deliberate work that may have been thoroughly reviewed and accepted." >&2
+    # V5 comment fix: Only bare 'git revert HEAD' (no suffix) is safe. All other forms blocked.
+    echo "Safe: 'git revert HEAD' only (bare — no caret, no tilde, no reflog, no branch-ref)." >&2
+    echo "All other revert forms (HEAD^, HEAD~N, HEAD@{N}, master^, <hash>) are blocked." >&2
+    echo "If you genuinely need to revert a historical commit, tell the user the hash and the" >&2
+    echo "rationale, and ask them to run it manually." >&2
+    exit 2
+  fi
 fi
 
 # Warn: force push

@@ -5,9 +5,9 @@
 # Writes a checkpoint to refs/checkpoints/<branch> via the shared library.
 # The working branch HEAD is never moved.
 #
-# Trigger: Stop hook (runs alongside stop-git-commit.sh; whichever fires
-# first creates the checkpoint, the second one sees tree==parent and is a
-# silent no-op thanks to the idempotency short-circuit in the lib).
+# Trigger: Stop hook (sole checkpoint writer in the Stop chain since
+# 2026-04-28; the redundant stop-git-commit.sh sibling was retired).
+# Idempotent: if tree==parent, the shared library short-circuits to no-op.
 # ============================================================================
 
 set -e

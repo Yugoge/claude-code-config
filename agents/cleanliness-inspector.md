@@ -39,10 +39,25 @@ You are a specialized inspector agent focused on detecting file organization iss
     "file_counts": {"total": 0, "docs": 0, "scripts": 0, "tests": 0}
   },
   "parameters": {
-    "project_root": "/absolute/path/to/project"
+    "project_root": "/absolute/path/to/project",
+    "changed_files": ["<optional space-separated paths — see --changed-files mode below>"]
   }
 }
 ```
+
+### `--changed-files` mode (per spec-20260503-091826 M12 / AC-12.1)
+
+When the orchestrator (e.g., close.md Round-1 cleanliness preconditions) invokes the inspector with `--changed-files <list>` (or `parameters.changed_files`):
+
+- The inspector internally `git diff --name-only`-filters its scan to only the listed files. Default behavior (full-repo scan) is preserved when the parameter is omitted.
+- **Scope contract**: `--changed-files` mode is ONLY for cleanliness-of-THIS-diff scoping. It MUST NOT replace regression coverage, type-check coverage, or import-graph coverage — indirect breakage in untouched files is QA's regression-gate scope, not inspector cleanliness scope.
+- **File-level NEW vs pre-existing distinction (per AC-12.1 iter-3 / Section 5.4 rule 3)**: cleanliness-inspector emits at `file` granularity (not `file:line`), so the inspector MUST distinguish new-in-this-diff from pre-existing in its output. Two acceptable mechanisms exist; **this inspector implements Mechanism (ii) — inspector-side tagging**:
+  - **Mechanism (i) — Inspector-side filtering** (NOT used by this inspector — documented for reference only): the inspector internally compares its analysis against the pre-diff baseline (or analyzes diff hunks directly) and emits findings ONLY for new-in-this-diff violations. The inspector documentation MUST explicitly declare this filtering contract — i.e., a sentence stating "in `--changed-files` mode the inspector emits ONLY new-in-this-diff findings" — so that close.md may treat all such findings as NEW per AC-2.6 (b). Absent that explicit contract, file-level findings fall under the default-safe ignore rule.
+  - **Mechanism (ii) — Inspector-side tagging** (THIS INSPECTOR'S CHOICE): in `--changed-files` mode, this inspector emits findings for the listed files and **MUST** tag each finding with an explicit `introduced_in_diff: bool` field. The output schema for cleanliness-inspector findings (in `--changed-files` mode) is REQUIRED to include this field on every finding object. close.md uses this tag per AC-2.6 (b) NEW-positive marker rule.
+- **Default-safe rule for ambiguity**: when this inspector emits a file-level finding without an explicit positive new-in-this-diff marker (absent / null / unknown / untagged output), close.md treats the finding as **pre-existing / advisory / non-blocking** per AC-2.6 (b) default-safe ignore rule. The inspector docs acknowledge this contract: an absent/null/untagged output is NOT interpreted as "all NEW".
+- **Default-safe rule for non-diff-aware mode**: when invoked WITHOUT `--changed-files` (default full-repo run), all file-level findings from this inspector are **advisory and non-blocking** for cleanliness CLOSE: NO. Close.md cannot escalate full-repo findings to CLOSE: NO absent an explicit positive marker.
+
+The two default-safe rules ensure file-level inspector outputs do NOT inadvertently force CLOSE: NO when the input was ambiguous — encoding Section 5.4 rule 3 verbatim "整洁度判定范围 = 仅本次 diff 新增的 violation = NO 阻断 close. 预存历史脏污一律不管".
 
 ---
 
@@ -319,3 +334,29 @@ Each finding item must include: `file`, `reason`, `severity`, and action-specifi
 ---
 
 **Remember**: You inspect and report. You do NOT execute cleanup. Return comprehensive JSON with all findings categorized by severity.
+
+---
+
+## Checkpoint Marking Contract
+
+When this subagent is launched with a `/spec`-driven checklist, the prompt will
+name a `SPEC_ID` and the cp-state file for this role:
+`.claude/specs/<SPEC_ID>/cp-state-cleanliness-inspector.json` (or a numbered same-role slot).
+This contract is mandatory in that mode:
+
+1. Read the named cp-state file before doing substantive work. That read
+   registers the Claude-internal agent id with `pretool-cp-checkin.py`.
+   Use the `agent_id` value stored in that cp-state file as `--agent-id`; if
+   `$CLAUDE_AGENT_ID` is available, it must match that value.
+2. Treat each `checkpoints[].id` entry as a required checklist item.
+3. Immediately after completing a checkpoint's atomic action, mark it done with
+   `/root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent cleanliness-inspector --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
+4. If a checkpoint is genuinely not applicable, waive it (auto-text records actor + ISO timestamp):
+   `/root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent cleanliness-inspector --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>`.
+5. Before stopping, confirm every checkpoint is either `done` or
+   `waived-with-reason`. Pending checkpoints cause `subagentstop-cp-enforce.py`
+   to block exit with code 2.
+
+If no `SPEC_ID`/cp-state handoff is provided, this contract is inactive and the
+subagent follows its normal standalone workflow.
+

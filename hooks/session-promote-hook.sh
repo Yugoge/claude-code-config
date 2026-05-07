@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Description: SessionStart hook that promotes a cold session back to ramdisk.
+# Reads hook JSON on stdin (fields: session_id, cwd, hook_event_name, ...).
+# Invokes /root/bin/session-promote.sh in the background so the hook does NOT
+# block session startup. Always exits 0.
+#
+# Input example:
+#   {"session_id":"abc-...","cwd":"/root",...}
+
+# Do NOT use `set -e` here: the hook must never fail Claude Code startup.
+
+LOG="/var/log/claude-tier.log"
+
+log_hook() {
+  local ts
+  ts="$(date -Iseconds 2>/dev/null || echo now)"
+  printf '%s [hook] %s\n' "$ts" "$1" >> "$LOG" 2>/dev/null || true
+}
+
+# Read stdin into a variable (small JSON; cap at ~1MB for safety).
+payload=""
+if [[ ! -t 0 ]]; then
+  # Non-empty stdin
+  payload="$(head -c 1048576 2>/dev/null || true)"
+fi
+
+if [[ -z "$payload" ]]; then
+  # Some SessionStart invocations may not pass stdin. Nothing to do.
+  exit 0
+fi
+
+# Extract session_id and cwd using python (robust across JSON formatting).
+# If either is missing, exit silently.
+parsed="$(
+  printf '%s' "$payload" | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+sid = d.get("session_id") or d.get("sessionId") or ""
+cwd = d.get("cwd") or d.get("workingDirectory") or ""
+# Basic sanitation: no newlines/tabs
+sid = sid.strip().replace("\n", "").replace("\t", "")
+cwd = cwd.strip().replace("\n", "").replace("\t", "")
+print(sid)
+print(cwd)
+' 2>/dev/null || true
+)"
+
+SESSION_ID="$(printf '%s\n' "$parsed" | sed -n '1p')"
+CWD="$(printf '%s\n' "$parsed" | sed -n '2p')"
+
+if [[ -z "$SESSION_ID" || -z "$CWD" ]]; then
+  exit 0
+fi
+
+# UUID sanity: require the canonical 8-4-4-4-12 shape. If the shape does not
+# match, this is almost certainly a new session (Claude Code generates a UUID
+# either way), and promote.sh itself will also validate -- but we bail early
+# to avoid forking a no-op child.
+if [[ ! "$SESSION_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+  exit 0
+fi
+
+# Claude Code maps CWD to project dir by replacing '/' with '-'.
+# e.g. /root -> -root; /dev/shm/dev-workspace/applio -> -dev-shm-dev-workspace-applio
+# Strategy: replace every '/' with '-'. A leading '/' becomes a leading '-'.
+PROJECT_NAME="$(printf '%s' "$CWD" | sed 's|/|-|g')"
+
+if [[ -z "$PROJECT_NAME" || "$PROJECT_NAME" == "-" ]]; then
+  exit 0
+fi
+
+# Only act if the on-ramdisk .jsonl is a symlink (archived). Saves a subshell
+# fork on every single session start.
+RAM_JSONL="/dev/shm/dev-workspace/dot-claude/projects/$PROJECT_NAME/$SESSION_ID.jsonl"
+if [[ ! -L "$RAM_JSONL" ]]; then
+  # Either the session is already hot, or it's brand new (file not yet created).
+  # Either way, nothing to promote.
+  exit 0
+fi
+
+log_hook "queue promote $PROJECT_NAME/$SESSION_ID"
+
+# Fire and forget. Disown to fully detach from the hook's process group so
+# Claude Code's hook pipeline doesn't wait on it.
+( /root/bin/session-promote.sh "$SESSION_ID" "$PROJECT_NAME" \
+    >> "$LOG" 2>&1 & disown ) 2>/dev/null
+
+exit 0

@@ -34,7 +34,7 @@ def _detect_convention(dir_path: Path) -> str:
 def _readme_needs_update(readme_path: Path) -> bool:
     if not readme_path.exists():
         return True
-    return '<!-- AUTO:readme-stats -->' not in readme_path.read_text()
+    return '<!-- AUTO:readme-stats -->' in readme_path.read_text()
 
 
 def _list_files(dir_path: Path) -> list[str]:

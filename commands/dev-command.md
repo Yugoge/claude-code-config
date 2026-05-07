@@ -1,6 +1,9 @@
 ---
 description: Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
+disable-model-invocation: true
 ---
+
+> Code-writing tasks (.svg/.css/.html/.js/.ts/.py/...) go to `dev`. Specialists, BA, and QA produce .md/.json only.
 
 **CRITICAL**: Use TodoWrite to track workflow phases. Mark in_progress before each step, completed immediately after.
 
@@ -58,862 +61,7 @@ IF QA passes → Generate completion report
 
 ## Command Development Best Practices
 
-**This section documents proven patterns for developing slash commands, subagents, and todo workflows.**
-
-### Overview
-
-Developing effective slash commands requires understanding several key architectural patterns:
-
-1. **Three-Party Architecture** - Orchestrator → Specialist → Orchestrator pattern
-2. **Specialist Subagent Design** - Domain-specific consultant agents
-3. **Todo Workflow Scripts** - Automated progress tracking
-4. **Three-Hook Checklist Enforcement** - Hook-based mandatory workflow compliance
-5. **YAML Frontmatter** - Command metadata and configuration
-6. **Complete Automation** - Zero user-in-the-loop design
-7. **Script Parameterization** - Flexible, reusable scripts
-
-These patterns have been validated through successful implementations like the `/update` command.
-
----
-
-### Pattern 1: Three-Party Architecture
-
-**What**: Separation of orchestration, analysis, and execution into three distinct phases.
-
-**Architecture**:
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Phase 1: Main Agent (Orchestrator)                         │
-│ - Receives user request                                     │
-│ - Clarifies requirements                                    │
-│ - Gathers context                                           │
-│ - Prepares structured input                                 │
-└─────────────────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Phase 2: Specialist Subagent (Consultant)                  │
-│ - Receives structured context                               │
-│ - Performs domain-specific analysis                         │
-│ - Returns structured recommendations (JSON)                 │
-│ - NO direct file modifications                              │
-└─────────────────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Phase 3: Main Agent (Executor)                             │
-│ - Receives specialist recommendations                       │
-│ - Implements changes based on recommendations               │
-│ - Validates results                                         │
-│ - Presents to user                                          │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**When to Use**:
-- Commands requiring domain expertise (analysis, classification, optimization)
-- Complex decision-making that benefits from specialized knowledge
-- Operations where separation of concerns improves quality
-- Reusable analysis logic across multiple commands
-
-**Benefits**:
-1. **Separation of Concerns** - Orchestration separate from domain logic
-2. **Reusable Specialists** - Same subagent can serve multiple commands
-3. **Clear Responsibilities** - Each phase has specific duties
-4. **Quality Consistency** - Specialist expertise applied uniformly
-
-**Implementation**:
-
-```markdown
-## Step N: Invoke Specialist for Analysis
-
-Use Task tool:
-- subagent_type: "general-purpose"
-- subagent_name: "<specialist-name>" (from .claude/agents/)
-- prompt: "
-  You are the <specialist-name>. Follow .claude/agents/<specialist-name>.md.
-
-  Context: <structured input>
-
-  Your task: <specific analysis request>
-
-  Output: Return JSON with recommendations:
-  {
-    \"analysis\": {...},
-    \"recommendations\": [...],
-    \"rationale\": \"...\"
-  }
-
-  DO NOT modify files. Return recommendations only.
-  "
-```
-
-**Real-World Example**: `/update` command
-- Main agent: Reads resume, prepares job posting context
-- Specialist (resume-refiner-update): Analyzes fit, recommends additions/changes
-- Main agent: Implements recommendations, saves updated resume
-
-**Anti-Patterns to Avoid**:
-- ❌ Orchestrator performing domain analysis directly
-- ❌ Specialist modifying files directly (breaks separation)
-- ❌ Skipping specialist when domain expertise needed
-- ❌ Using specialist for simple CRUD operations
-
----
-
-### Pattern 2: Specialist Subagent Design
-
-**What**: Domain-specific consultant agents that provide expertise without direct file manipulation.
-
-**Subagent Structure** (`.claude/agents/<specialist-name>.md`):
-
-```markdown
-# <Specialist Name> Subagent
-
-**Role**: <Domain expertise description>
-
-**Responsibilities**:
-- <Analysis task 1>
-- <Analysis task 2>
-- <Recommendation generation>
-
-**NOT Responsible For**:
-- File modifications (orchestrator handles)
-- User interaction (orchestrator handles)
-- Workflow coordination (orchestrator handles)
-
-## Input Format
-
-Expects structured context:
-\`\`\`json
-{
-  "context_field_1": "...",
-  "context_field_2": {...},
-  "requirements": {...}
-}
-\`\`\`
-
-## Analysis Process
-
-1. **Read Context**: Internalize all provided context
-2. **Apply Domain Expertise**: <domain-specific analysis>
-3. **Generate Recommendations**: <structured output>
-4. **Rationale**: Explain reasoning
-
-## Output Format
-
-Return JSON only:
-\`\`\`json
-{
-  "analysis": {
-    "findings": [...],
-    "assessment": "..."
-  },
-  "recommendations": [
-    {
-      "type": "add|modify|remove",
-      "target": "...",
-      "content": "...",
-      "rationale": "..."
-    }
-  ],
-  "confidence": "high|medium|low",
-  "notes": "..."
-}
-\`\`\`
-
-## Quality Standards
-
-- Recommendations must be specific and actionable
-- Rationale required for each recommendation
-- Consider edge cases and constraints
-- Output must be valid JSON
-```
-
-**When to Use**:
-- LLM-based analysis (classification, sentiment, quality assessment)
-- Domain-specific optimization (resume tailoring, code review)
-- Complex decision-making requiring expertise
-- Reusable logic across multiple workflows
-
-**Benefits**:
-1. **Domain Expertise Encapsulation** - Knowledge centralized
-2. **Reusability** - Multiple commands can use same specialist
-3. **Consistent Quality** - Expertise applied uniformly
-4. **Clear Interface** - Structured input/output contract
-
-**Output Characteristics**:
-- **Structured JSON** (not direct file modifications)
-- **Recommendations** (not commands)
-- **Rationale** (explains reasoning)
-- **Confidence levels** (indicates certainty)
-
-**Real-World Example**: `resume-refiner-update.md`
-```markdown
-# Resume Refiner Update Subagent
-
-**Role**: Analyze job postings and recommend resume enhancements
-
-**Input**: Job posting text + current resume JSON
-**Output**: Recommendations for additions/modifications
-**Does NOT**: Modify resume files directly
-```
-
-**Anti-Patterns to Avoid**:
-- ❌ Specialist using Write/Edit tools directly
-- ❌ Specialist handling user interaction
-- ❌ Returning unstructured text instead of JSON
-- ❌ Making decisions outside domain expertise
-
----
-
-### Pattern 3: Todo Workflow Script
-
-**What**: Python scripts that generate workflow checklists for consistent progress tracking.
-
-**Purpose**:
-- Agent sees current step in workflow
-- User tracks progress visually
-- Steps never forgotten or skipped
-- Workflow enforcement through TodoWrite
-
-**Script Location**: `.claude/scripts/todo/<command>.py`
-
-**Script Structure**:
-
-```python
-#!/usr/bin/env python3
-"""Preloaded TodoList for /<command> workflow."""
-
-def get_todos():
-    """Return workflow steps as TodoWrite-compatible list."""
-    return [
-        {
-            "content": "Step 1: <Imperative description>",
-            "activeForm": "Step 1: <Present continuous description>",
-            "status": "pending"
-        },
-        {
-            "content": "Step 2: <Imperative description>",
-            "activeForm": "Step 2: <Present continuous description>",
-            "status": "pending"
-        },
-        # ... more steps
-    ]
-
-if __name__ == "__main__":
-    import json
-    print(json.dumps(get_todos(), indent=2, ensure_ascii=False))
-```
-
-**When to Use**:
-- Multi-step commands (3+ steps)
-- Commands requiring progress tracking
-- Complex workflows where steps might be forgotten
-- Commands with conditional branches
-
-**Benefits**:
-1. **Agent Visibility** - Agent always knows current step
-2. **User Tracking** - User sees progress in real-time
-3. **Workflow Enforcement** - Steps cannot be skipped
-4. **Consistency** - Same workflow every execution
-
-**Todo Item Format**:
-- `content`: Imperative form ("Parse input", "Run tests")
-- `activeForm`: Present continuous ("Parsing input", "Running tests")
-- `status`: "pending" (all start as pending)
-
-**Real-World Example**: `~/.claude/scripts/todo/update.py`
-```python
-def get_todos():
-    return [
-        {"content": "Step 1: Parse arguments", "activeForm": "...", "status": "pending"},
-        {"content": "Step 2: Validate job posting", "activeForm": "...", "status": "pending"},
-        {"content": "Step 3: Invoke resume-refiner-update specialist", "activeForm": "...", "status": "pending"},
-        # ... 7 steps total
-    ]
-```
-
-**Anti-Patterns to Avoid**:
-- ❌ Hardcoding todos in command markdown
-- ❌ Not updating todos as steps complete
-- ❌ Using todos for trivial single-step commands
-
----
-
-### Pattern 4: Three-Hook Checklist Enforcement
-
-**What**: A system of three coordinated hooks that enforce mandatory, ordered, step-by-step workflow compliance. Prevents agents from ignoring the checklist, abbreviating steps, or skipping ahead.
-
-**Why**: Todo scripts alone are passive — agents can ignore them or write fewer steps. The three-hook system makes the checklist mechanically enforced, not just advisory.
-
-**Architecture**:
-
-```
-User runs /command
-       ↓
-hook-checklist-userprompt.py creates workflow bookmark
-  (todo_acknowledged = false)
-       ↓
-Agent tries any tool
-       ↓
-[GATE 1] hook-precheck-workflow.py (PreToolUse)
-  - Blocks ALL tools until TodoWrite is called first
-  - Passes TodoWrite and ToolSearch through freely
-       ↓
-Agent calls TodoWrite
-       ↓
-[GATE 2] hook-enforce-todo-count.py (PostToolUse/TodoWrite)
-  - Checks count against canonical todo script output
-  - Blocks + resets lock if count < required
-  - Shows canonical step list on violation
-       ↓
-Count is correct → todo_acknowledged = true → gates open
-       ↓
-[GATE 3] hook-enforce-step-sequence.py (PostToolUse/TodoWrite)
-  - Tracks previous todo state in bookmark
-  - Blocks if: multiple steps completed at once,
-    pending→completed without in_progress,
-    multiple in_progress simultaneously,
-    starting step N while earlier step pending
-```
-
-**The Three Hooks**:
-
-**Hook 1: `~/.claude/hooks/hook-precheck-workflow.py`** (PreToolUse)
-- Fires before every tool use
-- Reads `workflow-{session_id}.json` bookmark
-- If `todo_acknowledged == false`: blocks all tools with descriptive error
-- Different error messages per `lock_reason`: `not_started`, `count_mismatch`, `sequence_violation`
-- Passes through: `TodoWrite` (to allow fix), `ToolSearch` (to allow schema loading)
-
-**Hook 2: `~/.claude/hooks/hook-enforce-todo-count.py`** (PostToolUse, matcher: TodoWrite)
-- Fires after every TodoWrite call
-- Runs the canonical todo script (`.claude/scripts/todo/<cmd>.py`) to get `blocking_count`
-- If `len(submitted_todos) < blocking_count`: sets `todo_acknowledged = false`, `lock_reason = 'count_mismatch'`, exits 2
-- Shows full canonical step list so agent knows exactly what to submit
-- Exit 0 if count matches or exceeds required
-
-**Hook 3: `~/.claude/hooks/hook-enforce-step-sequence.py`** (PostToolUse, matcher: TodoWrite)
-- Fires after every TodoWrite call (after hook 2)
-- Stores previous state as `last_todos` in bookmark; skips validation on first call
-- Enforces four rules per call:
-  1. Max 1 step newly completed per call
-  2. No `pending → completed` without passing through `in_progress`
-  3. Max 1 step in `in_progress` at a time
-  4. Cannot start step N if any earlier step is not yet `completed`
-- On violation: sets `todo_acknowledged = false`, `lock_reason = 'sequence_violation'`, exits 2
-- On valid transition: updates `last_todos` in bookmark
-
-**Workflow Bookmark**: `.claude/workflow-{session_id}.json`
-
-```json
-{
-  "command": "dev",
-  "todo_acknowledged": false,
-  "lock_reason": "not_started",
-  "last_todos": [...]
-}
-```
-
-**Settings.json Wiring**:
-
-```json
-"PreToolUse": [
-  {
-    "hooks": [{
-      "type": "command",
-      "command": "python3 ~/.claude/hooks/hook-precheck-workflow.py",
-      "stdin_json": true,
-      "on_error": "ignore"
-    }]
-  }
-],
-"PostToolUse": [
-  {
-    "matcher": "TodoWrite",
-    "hooks": [
-      {
-        "type": "command",
-        "command": "python3 ~/.claude/hooks/hook-todo-state-tracker.py",
-        "stdin_json": true,
-        "on_error": "ignore"
-      },
-      {
-        "type": "command",
-        "stdin_json": true,
-        "command": "python3 ~/.claude/hooks/hook-enforce-todo-count.py"
-      },
-      {
-        "type": "command",
-        "stdin_json": true,
-        "command": "python3 ~/.claude/hooks/hook-enforce-step-sequence.py"
-      }
-    ]
-  }
-]
-```
-
-**Complete Enforcement Chain**:
-
-| Violation | Hook | Action |
-|-----------|------|--------|
-| Agent ignores checklist entirely | hook-precheck-workflow | Block all tools, force TodoWrite |
-| TodoWrite with too few steps | hook-enforce-todo-count | Block, reset lock, show canonical list |
-| Multiple steps completed at once | hook-enforce-step-sequence | Block, reset lock, show next required action |
-| Step skips in_progress | hook-enforce-step-sequence | Block, reset lock |
-| Multiple in_progress simultaneously | hook-enforce-step-sequence | Block, reset lock |
-| Steps completed out of order | hook-enforce-step-sequence | Block, reset lock |
-
-**Required Files for Full Enforcement**:
-1. `~/.claude/scripts/todo/<command>.py` - Canonical step list (drives count enforcement)
-2. `~/.claude/hooks/hook-checklist-userprompt.py` - Creates workflow bookmark on command invocation
-3. `~/.claude/hooks/hook-precheck-workflow.py` - Gate 1 (pre-tool)
-4. `~/.claude/hooks/hook-enforce-todo-count.py` - Gate 2 (post-TodoWrite)
-5. `~/.claude/hooks/hook-enforce-step-sequence.py` - Gate 3 (post-TodoWrite)
-
-**Expected Agent Behavior** (compliant):
-```
-TodoWrite([11 canonical steps, all pending, step 1 in_progress])
-  → Gate 2: count OK (11 == 11) → todo_acknowledged = true
-  → Gate 3: first call, no validation, saves last_todos
-  → All gates open
-
-[... does work for step 1 ...]
-
-TodoWrite([step 1 completed, step 2 in_progress, rest pending])
-  → Gate 2: count OK → pass
-  → Gate 3: 1 newly completed ✓, pending→in_progress→completed ✓, 1 in_progress ✓ → pass
-```
-
-**Anti-Patterns to Avoid**:
-- ❌ Creating commands without a matching `.claude/scripts/todo/<cmd>.py` (count enforcement silently skips)
-- ❌ Submitting abbreviated or custom step lists (count hook blocks)
-- ❌ Marking multiple steps complete in one TodoWrite call (sequence hook blocks)
-- ❌ Going from `pending` directly to `completed` (sequence hook blocks)
-
----
-
-### Pattern 5: YAML Frontmatter
-
-**What**: Structured metadata at the top of command files for configuration and discoverability.
-
-**CRITICAL RULE**: **ONLY use `description` field. Do NOT add other fields.**
-
-**Correct Frontmatter Format**:
-
-```yaml
----
-description: <One-line description of command purpose>
----
-```
-
-**Why This Format**:
-1. **System Compatibility**: Claude Code only recognizes `description` field
-2. **Command Execution**: Other fields (allowed-tools, argument-hint, model) cause command to fail silently
-3. **Proven Pattern**: All working system commands use only `description`
-
-**Field Description**:
-
-**description**:
-- One-line summary of command purpose
-- Shows in help text and command listings
-- Should be clear and actionable
-- Enclosed in quotes if contains special characters
-
-**Real-World Example**: `/update` command frontmatter
-```yaml
----
-description: "Update resume with new work experience and automatically archive conversation"
----
-```
-
-**More Examples from System Commands**:
-```yaml
-# /clean command
----
-description: Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
----
-
-# /dev command
----
-description: Orchestrated development workflow with multi-round requirement clarification, parallel agent execution, and iterative QA verification
----
-```
-
-**Critical Anti-Patterns to Avoid**:
-- ❌ **Adding `model` field** - Causes command execution to fail
-- ❌ **Adding `allowed-tools` field** - Not recognized by system
-- ❌ **Adding `argument-hint` field** - Not recognized by system
-- ❌ Omitting frontmatter entirely (acceptable but not recommended)
-- ❌ Overly verbose descriptions (keep to one line)
-
-**Root Cause Analysis**:
-When `/update` command failed silently during testing:
-- **Problem**: Frontmatter had `model: claude-sonnet-4.5` (with dot)
-- **First Fix Attempt**: Changed to `model: claude-sonnet-4-5` (with hyphen) - still failed
-- **Root Cause**: System doesn't recognize `model` field at all
-- **Correct Fix**: Remove all fields except `description`
-- **Result**: Command works perfectly
-
-**Lesson Learned**: Don't assume frontmatter fields from other systems work in Claude Code. Test commands after creation and verify execution, not just file existence.
-
----
-
-### Pattern 6: Complete Automation
-
-**What**: Design workflows that require zero user interaction during execution.
-
-**Principles**:
-
-1. **Automatic Backup**:
-   ```bash
-   # Create timestamped backup before modifications
-   cp data/resume.json data/resume.json.bak.$(date +%Y%m%d-%H%M%S)
-   ```
-
-2. **Automatic Validation**:
-   ```python
-   # Validate before and after
-   def validate_structure(data):
-       required = ["personal_info", "work_experience"]
-       return all(k in data for k in required)
-   ```
-
-3. **Automatic Archival**:
-   ```bash
-   # Archive old versions
-   mv data/resume.json.bak.* archive/$(date +%Y%m)/
-   ```
-
-4. **Error Resilience**:
-   ```python
-   # Handle failures gracefully
-   try:
-       result = process_data()
-   except Exception as e:
-       restore_backup()
-       log_error(e)
-       notify_user()
-   ```
-
-**When to Use**:
-- Production commands used frequently
-- Commands modifying critical data
-- Operations requiring consistency
-- Workflows where user interruption breaks state
-
-**Benefits**:
-1. **Efficiency** - No waiting for user confirmations
-2. **Consistency** - Same behavior every time
-3. **User Experience** - Simple, fast, reliable
-4. **Reduced Errors** - Fewer manual intervention points
-
-**Techniques**:
-
-**Backup Pattern**:
-```bash
-# Before modification
-BACKUP_FILE="${ORIGINAL_FILE}.bak.$(date +%Y%m%d-%H%M%S)"
-cp "$ORIGINAL_FILE" "$BACKUP_FILE"
-echo "Backup created: $BACKUP_FILE"
-```
-
-**Validation Pattern**:
-```python
-# Validate structure
-def validate_json_structure(data, schema):
-    errors = []
-    for field in schema["required"]:
-        if field not in data:
-            errors.append(f"Missing required field: {field}")
-    return len(errors) == 0, errors
-```
-
-**Rollback Pattern**:
-```bash
-# On error, restore backup
-if [ $? -ne 0 ]; then
-    echo "Error detected, restoring backup..."
-    cp "$BACKUP_FILE" "$ORIGINAL_FILE"
-    exit 1
-fi
-```
-
-**Real-World Example**: `/update` command
-- Automatically backs up resume before changes
-- Automatically validates JSON structure
-- Automatically archives old backups
-- No user confirmation needed during workflow
-
-**Anti-Patterns to Avoid**:
-- ❌ Requesting confirmation for every step
-- ❌ Failing without cleanup
-- ❌ Leaving partial modifications
-- ❌ Not backing up before destructive changes
-
----
-
-### Pattern 7: Script Parameterization
-
-**What**: All scripts use CLI arguments instead of hardcoded values for maximum flexibility.
-
-**Principles**:
-
-1. **No Hardcoded Paths**:
-   ```bash
-   # BAD
-   INPUT_FILE="/home/user/data.json"
-
-   # GOOD
-   INPUT_FILE="$1"
-   if [ -z "$INPUT_FILE" ]; then
-       echo "Usage: $0 <input-file>"
-       exit 1
-   fi
-   ```
-
-2. **Use argparse for Python**:
-   ```python
-   import argparse
-
-   parser = argparse.ArgumentParser(description="Process data")
-   parser.add_argument("input_file", help="Input JSON file")
-   parser.add_argument("--output", help="Output file", default="output.json")
-   parser.add_argument("--verbose", action="store_true", help="Verbose output")
-   args = parser.parse_args()
-   ```
-
-3. **Environment Variables When Appropriate**:
-   ```bash
-   # For configuration that rarely changes
-   VENV_PATH="${CLAUDE_VENV:-$HOME/.claude/venv}"
-   DATA_DIR="${CLAUDE_DATA_DIR:-./data}"
-   ```
-
-4. **Clear Usage Messages**:
-   ```bash
-   if [ $# -lt 2 ]; then
-       echo "Usage: $0 <input-file> <output-file> [options]"
-       echo "  input-file: Path to input JSON"
-       echo "  output-file: Path to output JSON"
-       echo "  options: --verbose, --dry-run"
-       exit 1
-   fi
-   ```
-
-**When to Use**:
-- **ALWAYS** - Every script should be parameterized
-- Especially important for paths, filenames, and configuration
-- Critical for scripts used in multiple contexts
-
-**Benefits**:
-1. **Reusability** - Same script, different contexts
-2. **Testability** - Easy to test with different inputs
-3. **Flexibility** - Users can customize behavior
-4. **Maintainability** - Changes in one place, not throughout code
-
-**Parameter Types**:
-
-**Positional Arguments** (bash):
-```bash
-#!/bin/bash
-INPUT_FILE="$1"
-OUTPUT_FILE="$2"
-OPTION="${3:-default_value}"
-```
-
-**Named Arguments** (Python):
-```python
-parser.add_argument("--input", required=True, help="Input file")
-parser.add_argument("--output", required=True, help="Output file")
-parser.add_argument("--mode", choices=["fast", "accurate"], default="fast")
-```
-
-**Optional Arguments**:
-```bash
-# With defaults
-VERBOSE="${VERBOSE:-false}"
-DRY_RUN="${DRY_RUN:-false}"
-
-# Parse flags
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -v|--verbose) VERBOSE=true; shift ;;
-        -n|--dry-run) DRY_RUN=true; shift ;;
-        *) break ;;
-    esac
-done
-```
-
-**Real-World Example**: Parameterized resume update script
-```bash
-#!/bin/bash
-# scripts/update-resume.sh
-
-RESUME_FILE="$1"
-JOB_POSTING="$2"
-OUTPUT_FILE="${3:-$RESUME_FILE}"
-
-if [ $# -lt 2 ]; then
-    echo "Usage: $0 <resume-file> <job-posting-file> [output-file]"
-    exit 1
-fi
-
-# Process with parameters
-process_resume "$RESUME_FILE" "$JOB_POSTING" "$OUTPUT_FILE"
-```
-
-**Anti-Patterns to Avoid**:
-- ❌ Hardcoding file paths in scripts
-- ❌ Hardcoding configuration values
-- ❌ No usage messages
-- ❌ Assuming specific directory structure
-
----
-
-### Pattern 8: Subagent Call Enforcement
-
-**What**: A fourth behavioral gate added to the three structural gates (Pattern 4) that mechanically prevents agents from marking subagent delegation steps as completed without actually calling the Agent tool.
-
-**Why**: The three-hook enforcement chain validates structural compliance (correct steps, correct order) but not behavioral compliance. Without this gate, an agent can mark "Delegate to BA subagent" as completed without ever spawning a subagent.
-
-**Schema**: Todo scripts add an optional `subagent_call` field to step dicts:
-
-```python
-# Single subagent (dev.py, dev-command.py)
-{"content": "Step 2: Delegate to BA subagent", ..., "subagent_call": {"agent": "ba", "subagent_type": "ba"}}
-
-# Multiple subagents (dev-overnight.py parallel steps)
-{"content": "Step 2: Explore codebase", ..., "subagent_call": [
-    {"agent": "pm", "subagent_type": "pm"},
-    {"agent": "specialist", "subagent_type": "architect"}
-]}
-```
-
-The `subagent_call` field lives in the todo script output only. It is NOT included in TodoWrite payloads (content/activeForm/status remain unchanged). Hooks read it via `run_todo_script()`.
-
-**How the hooks work together**:
-
-```
-Agent starts Step N (in_progress)
-       |
-[pretool-subagent-enforce.py] reads canonical todos
-  - Step N has subagent_call? → Initialize tracking in bookmark
-  - subagent_calls[N] == false? → BLOCK all tools except Agent/TodoWrite
-  - Step N-1 in_progress, Step N has subagent_call? → Advisory hint
-       |
-Agent calls Agent tool (subagent)
-       |
-[posttool-subagent-track.py] fires after Agent completes
-  - Sets subagent_calls[N] = true in bookmark
-  - Other tools now unblocked
-       |
-Agent tries TodoWrite to mark Step N completed
-       |
-[pretool-todo-validate.py] completion guard
-  - Step N has subagent_call AND subagent_calls[N] == false? → BLOCK
-  - subagent_calls[N] == true? → ALLOW completion
-```
-
-**Bookmark extension**: `subagent_calls` dict keyed by step index string:
-
-```json
-{
-  "command": "dev",
-  "todo_acknowledged": true,
-  "subagent_calls": {"1": true, "4": false, "6": false}
-}
-```
-
-**How to add subagent_call to new todo scripts**:
-
-1. Identify steps that require Agent tool invocation
-2. Add `subagent_call` field to those step dicts in `get_todos()`
-3. Use `{"agent": "<name>", "subagent_type": "<type>"}` for single calls
-4. Use a list of dicts for parallel/multi-call steps
-5. Steps without `subagent_call` are completely unaffected
-
-**Anti-Patterns to Avoid**:
-- Putting `subagent_call` in TodoWrite content/activeForm/status (canonical validation rejects it)
-- Adding `subagent_call` to non-delegation steps (only steps requiring Agent tool)
-- Manually editing the bookmark's `subagent_calls` field
-- Skipping the Agent call and expecting the gate to open
-
----
-
-### Real-World Case Study: /update Command
-
-**Context**: Need command to analyze job postings and update resumes with tailored content.
-
-**Patterns Applied**:
-
-1. **Three-Party Architecture**:
-   - Main agent: Parses job posting, prepares context
-   - Specialist (resume-refiner-update): Analyzes fit, recommends changes
-   - Main agent: Implements recommendations, saves result
-
-2. **Specialist Subagent**:
-   - Created `.claude/agents/resume-refiner-update.md`
-   - Analyzes job requirements vs current resume
-   - Returns JSON recommendations (not direct edits)
-
-3. **Todo Workflow Script**:
-   - Created `.claude/scripts/todo/update.py`
-   - 7 workflow steps tracked
-   - Progress visible to agent and user
-
-4. **YAML Frontmatter**:
-   ```yaml
-   description: Analyze job posting and intelligently update resume
-   allowed-tools: Task, Read, Write, Edit, Bash, Glob, Grep, TodoWrite
-   argument-hint: "<job-posting-url-or-text>"
-   model: claude-sonnet-4-5
-   ```
-
-5. **Complete Automation**:
-   - Automatic backup before changes
-   - Automatic validation of JSON structure
-   - Automatic archival of old backups
-   - No user confirmation needed
-
-6. **Script Parameterization**:
-   - All paths passed as arguments
-   - No hardcoded values
-   - Reusable across different resume files
-
-**Results**:
-- ✅ Clear separation of concerns
-- ✅ Reusable specialist for future resume commands
-- ✅ Consistent workflow enforcement
-- ✅ Zero user interaction required
-- ✅ Fully automated backup/restore
-
-**Command Structure**:
-```
-Step 1: Parse job posting (URL or text)
-Step 2: Read current resume
-Step 3: Invoke resume-refiner-update specialist
-Step 4: Receive recommendations (JSON)
-Step 5: Apply recommendations to resume
-Step 6: Validate updated resume
-Step 7: Archive old versions, save new resume
-```
-
-**Key Takeaways**:
-1. Specialist subagent enables reuse across commands
-2. Todo script ensures workflow never deviates
-3. Automatic backup/restore provides safety
-4. Clear architecture makes debugging easy
-5. Zero user interaction improves experience
-
-**Files Created**:
-- `.claude/commands/update.md` (11KB, 7 steps)
-- `.claude/agents/resume-refiner-update.md` (specialist)
-- `.claude/scripts/todo/update.py` (workflow tracker)
-
-**Success Metrics**:
-- 100% workflow compliance (todos enforce)
-- Zero data loss (automatic backups)
-- Reusable specialist (can serve other commands)
-- Excellent user experience (fully automated)
+The full tutorial — Three-Party Architecture, specialist subagent design, todo workflow scripts, the three-hook checklist enforcement chain, YAML frontmatter rules (including the 2026-04-25 `/redev` empty-body incident postmortem), complete automation patterns, script parameterization, the subagent-call enforcement gate, and the command-quality-audit case study — lives in `/root/docs/dev/command-development-patterns.md`. Read that document before authoring or editing slash commands, subagents, or todo scripts. The patterns there are normative for this orchestrator and any new commands it spawns.
 
 ---
 
@@ -937,11 +85,64 @@ Auto-detected spec: <path>
 
 If no spec found, set `spec_path = null`. All downstream behavior is unchanged when `spec_path` is null.
 
+**Detect views folder (sibling to spec)**:
+
+If `spec_path` is not null, check `<dirname>/<spec-id>/views/manifest.json`.
+If the manifest exists AND is valid JSON AND `schema_version == 1`, set:
+- `views_available = true`
+- `view_paths` = manifest.views (dict of agent → path)
+
+Otherwise `views_available = false` — legacy specs without views are supported, the monolith path alone is passed to subagents with no checkpoint enforcement.
+
+Pass per-agent view paths alongside (not in place of) `spec_path` to subagents so each receives only its slice of the 8-section monolith.
+
 **Edge cases**:
 - Empty `$ARGUMENTS` → Prompt user for requirement
 - Otherwise → Pass raw text (minus --spec flag) to BA subagent in Step 2
 
 **Keep this step lightweight** - BA subagent handles all analysis.
+
+**Initialize dev-registry for hard subagent enforcement** (MANDATORY — do this before ANY Agent launch):
+
+The hook `pretool-subagent-code-block.py` blocks non-`dev` subagents from writing code files, but it needs the Claude-internal subagent UUID to be registered against an `agent_type`. Root cause of the /dev gap (see commit `e086ccb`): /dev-command sessions produce no `.claude/specs/` cp-state files, so the hook falls open and every subagent can write code. The fix is an orchestrator-provided sentinel file that the subagent reads as its FIRST ACTION; `pretool-cp-checkin.py` then writes the UUID→agent_type mapping into `.claude/dev-registry/agent-index.json`.
+
+Generate a session_id and create sentinel files for every agent type this orchestrator can launch:
+
+```bash
+DEV_SESSION_ID="dev-command-$(date +%Y%m%d-%H%M%S)"
+REGISTRY_DIR="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID"
+mkdir -p "$REGISTRY_DIR"
+for agent in \
+    architect ba cleaner cleanliness-inspector dev git-edge-case-analyst \
+    pm product-owner prompt-inspector qa rule-inspector style-inspector \
+    test-executor test-validator ui-specialist user; do
+  printf '{"agent_type": "%s", "session_id": "%s"}\n' "$agent" "$DEV_SESSION_ID" \
+    > "$REGISTRY_DIR/$agent.json"
+done
+```
+
+Store `$DEV_SESSION_ID` for use in every Agent launch prompt below. Every Agent launch prompt MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent.
+
+**Initialize cp-state handoff when a `/spec` view exists** (MANDATORY when `views_available=true`):
+
+If `spec_path` points at `docs/dev/specs/<SPEC_ID>.md` and the sibling directory
+`.claude/specs/<SPEC_ID>/` contains cp-state files, bind:
+
+```bash
+SPEC_ID="<SPEC_ID from spec_path basename>"
+```
+
+If no spec/cp-state directory exists, set `SPEC_ID=""` and skip the `SECOND ACTION`
+lines below. If a particular agent has no cp-state file under that SPEC_ID, omit that
+agent's `SECOND ACTION` for this launch. When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a
+cp-state file MUST include a `SECOND ACTION` line immediately after the dev-registry `FIRST ACTION`:
+
+```text
+SECOND ACTION: Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>.json to load your mandatory checklist before doing substantive work. Mark each completed checkpoint with /root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> (auto-text records actor + ISO timestamp). You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
+```
+
+This is the checklist-stop handoff: dev-registry handles role registration for
+write-policy, while cp-state handles required atomic actions for Stop enforcement.
 
 ### Step 2: Specialist Consultation (always evaluate, never silently skip)
 
@@ -986,6 +187,9 @@ In the orchestrator's reasoning (and in BA's context JSON when BA is invoked nex
 Use Agent tool with:
 - description: "<Specialist role> consultation for: <requirement summary>"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<specialist-name>.json to register with the enforcement system. Do this BEFORE any other tool call.
+  CHECKPOINT MARKING: see agents/<specialist-name>.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
+
   You are the <specialist-name> specialist. Follow .claude/agents/<specialist-name>.md.
 
   Requirement: '<requirement from Step 1>'
@@ -1015,7 +219,7 @@ provide them explicitly so BA starts with ground truth:
 - **Retry phrasing** in user text: "again", "still", "didn't fix",
   "Nth time", "又", "还是", "没修好", "第 N 次"
 - **Recent related commits**: `git log --oneline --grep="<keyword>" -20`
-- **Existing BA specs**: files matching `docs/dev/ba-spec-*.md` with
+- **Existing BA specs**: files matching `docs/dev/ticket-*.md` (or legacy `docs/dev/ba-spec-*.md`) with
   keywords from the current request
 
 Pass findings to BA in the delegation prompt under an explicit
@@ -1024,7 +228,7 @@ Pass findings to BA in the delegation prompt under an explicit
     prior_attempt_signals:
       retry_phrase: "<matched phrase or null>"
       recent_commits: ["<hash> <subject>", ...]
-      existing_specs: ["docs/dev/ba-spec-<ts>.md", ...]
+      existing_specs: ["docs/dev/ticket-<ts>.md", ...] (legacy historical artifacts also accepted: docs/dev/ba-spec-<ts>.md)
 
 ### Post-BA: verify contract compliance
 
@@ -1071,6 +275,9 @@ If dev changed L1 when spec called for L3, treat as failed implementation.
 Use Task tool with:
 - description: "Analyze requirement and build development context"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+  CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
+
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
   Requirement: '<requirement from Step 1>'
@@ -1079,22 +286,19 @@ Use Task tool with:
   Codebase hints: <any file paths mentioned by user, or null>
   Timestamp: <YYYYMMDD-HHMMSS>
   Spec file: <spec_path or null>
+  View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
   Prior attempt signals:
     retry_phrase: <matched phrase or null>
     recent_commits: [<hash> <subject>, ...]
-    existing_specs: [docs/dev/ba-spec-<ts>.md, ...]
+    existing_specs: [docs/dev/ticket-<ts>.md, ...] (legacy historical artifacts also accepted: docs/dev/ba-spec-<ts>.md)
 
   If Spec file is not null: Read the spec file FIRST. Use Section 5 (User's Acceptance Criterion) as the primary requirement source. Use Sections 1-4 as baseline context. If Section 7 (What Must Be Done) is populated, treat it as prescriptive guidance.
 
-  Perform full analysis:
-  1. Parse and decompose requirement
-  2. Perform git root cause analysis (if applicable)
-  3. Identify affected files
-  4. Generate MoSCoW requirements and BDD acceptance criteria
-  5. Write ba-spec-<timestamp>.md to docs/dev/
-  6. Write context-<timestamp>.json to docs/dev/
+  Goal: Translate the user's request into the smallest, safest, most-precise change set that lands the user-need, per spec-20260503-091826.md Section 5.1 verbatim "实现方式是最小最安全最完美最确定性地实现用户的需求，而不是扩大修复范围。一切以用户需求为中心。" Ground your analysis in the existing codebase patterns (align with current functionality rather than re-inventing). For bugs, find the root cause; for enhancements, research best practices via web search / explore / analyst agents per agents/ba.md Section 5.3 mission. Path-external observations go into the spec's `out_of_scope_observations` chapter (per agents/ba.md), not into the fix scope. Use the existing 5-dimension clarity scoring (What/Why/Where/Scope/Success) to gate `needs_clarification`. Produce both deliverables (ticket-<timestamp>.md per spec-20260503-091826 M4 ba-spec→ticket rename, plus context-<timestamp>.json) following agents/ba.md Output Formats.
 
-  Return JSON with status, file paths, and summary.
+  Explicit task-id printing: include the literal line `TASK-ID: <timestamp>` in your stdout response so close.md / commit.sh task-id-chain confirmation has an unambiguous anchor for this BA dispatch.
+
+  Return JSON with status, file paths, summary, and the task-id echo.
   "
 ```
 
@@ -1112,6 +316,9 @@ Use Task tool with:
 Use Task tool with:
 - description: "Continue BA analysis with clarification answers"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+  CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
+
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
   Requirement: '<original requirement>'
@@ -1136,7 +343,7 @@ Use Task tool with:
 **Check BA deliverables exist and are well-formed**:
 
 Read BA output files:
-- `docs/dev/ba-spec-<timestamp>.md` - Markdown specification
+- `docs/dev/ticket-<timestamp>.md` - Markdown specification (legacy: docs/dev/ba-spec-<timestamp>.md)
 - `docs/dev/context-<timestamp>.json` - JSON context for dev subagent
 
 **Sanity checks**:
@@ -1150,9 +357,9 @@ Read BA output files:
 - Re-invoke BA with specific feedback about what's missing
 - Maximum 2 re-invocations for validation fixes
 
-**If validation passes**: Proceed to Step 5a
+**If validation passes**: Proceed to Step 6
 
-### Step 5a: QA Validates BA Conclusions
+### Step 6: QA Validates BA Conclusions
 
 **Purpose**: Verify BA's analysis quality BEFORE Dev starts implementation. Catches unproven claims, scope mismatches, and missing investigation evidence early -- saving a wasted Dev+QA cycle.
 
@@ -1163,15 +370,19 @@ Use Agent tool with:
 - subagent_type: "qa"
 - description: "Validate BA analysis quality (not code)"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+  CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
+
   You are the QA subagent in BA-VALIDATION MODE. This is NOT code verification.
   You are verifying the QUALITY OF BA's ANALYSIS, not any implementation.
 
   DO NOT: build, deploy, open browser, run Playwright, or test code.
   DO: read BA's deliverables and challenge every claim.
 
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Context JSON: docs/dev/context-<timestamp>.json
   Spec file: <spec_path or null>
+  View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
 
   Verify these 4 dimensions:
 
@@ -1216,13 +427,13 @@ Use Agent tool with:
 
 ```
 IF verdict == "pass":
-  -> BA conclusions validated. Proceed to Step 6.
+  -> BA conclusions validated. Proceed to Step 8.
 
 ELIF verdict == "fail":
-  -> Proceed to Step 5b for BA-QA iteration.
+  -> Proceed to Step 7 for BA-QA iteration.
 ```
 
-### Step 5b: BA-QA Iteration Loop (if QA rejects BA)
+### Step 7: BA-QA Iteration Loop (if QA rejects BA)
 
 **Iteration guard**: Maximum 3 BA-QA iterations to prevent infinite loops
 
@@ -1236,7 +447,7 @@ Unresolved objections:
 {summary of remaining QA objections}
 
 Appending unresolved objections to context JSON under `ba_qa_unresolved_objections`.
-Proceeding to Step 6 with documented assumptions.
+Proceeding to Step 8 with documented assumptions.
 ```
 
 **If BA-QA iteration <= 3**:
@@ -1250,15 +461,19 @@ Use Agent tool with:
 - subagent_type: "ba"
 - description: "Re-investigate: address QA objections on analysis quality"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+  CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
+
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
   Your previous analysis was REJECTED by QA. Address each objection below
   with concrete evidence. Do not argue -- investigate and provide proof.
 
   Original requirement: '<requirement>'
-  Previous BA spec: docs/dev/ba-spec-<timestamp>.md
+  Previous BA spec: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Previous context: docs/dev/context-<timestamp>.json
   Spec file: <spec_path or null>
+  View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
 
   QA objections:
   <JSON array of objections from ba-qa-report>
@@ -1274,13 +489,13 @@ Use Agent tool with:
   "
 ```
 
-**After BA re-delivers**: Return to Step 5 (validate BA output), then Step 5a (QA re-validates).
+**After BA re-delivers**: Return to Step 5 (validate BA output), then Step 6 (QA re-validates).
 
 **Rule**: Every BA invocation MUST be followed by QA validation. No exceptions.
 
 **Iteration tracking**: Update TodoWrite with BA-QA iteration number.
 
-### Step 6: Delegate to Dev Subagent
+### Step 8: Delegate to Dev Subagent
 
 **Use Task tool to invoke dev subagent with file paths only**:
 
@@ -1288,11 +503,15 @@ Use Agent tool with:
 Use Task tool with:
 - description: "Implement development changes based on BA context"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/dev.json to register with the enforcement system. Do this BEFORE any other tool call.
+  CHECKPOINT MARKING: see agents/dev.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
+
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
   Context file: docs/dev/context-<timestamp>.json
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
+  View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
@@ -1301,7 +520,7 @@ Use Task tool with:
 
 **Wait for dev subagent completion** before proceeding.
 
-### Step 7: Validate Dev Implementation
+### Step 9: Validate Dev Implementation
 
 **Quick validation before QA**:
 
@@ -1320,9 +539,9 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 - Refine context JSON with additional information
 - Re-invoke dev subagent (maximum 3 attempts)
 
-**If dev completed**: Proceed to Step 8
+**If dev completed**: Proceed to Step 10
 
-### Step 8: Delegate to QA Subagent
+### Step 10: Delegate to QA Subagent
 
 **Use Task tool to invoke QA subagent with file paths only**:
 
@@ -1330,12 +549,16 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 Use Task tool with:
 - description: "Verify implementation quality against standards"
 - prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+  CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
+
   You are the QA subagent. Follow agents/qa.md instructions precisely.
 
   Context file: docs/dev/context-<timestamp>.json
   Dev report file: docs/dev/dev-report-<timestamp>.json
-  BA spec file: docs/dev/ba-spec-<timestamp>.md
+  BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
+  View file: <view_paths[this-agent] or null — sibling views/<agent>.md if present>
   Write your verification report to: docs/dev/qa-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST. After verification, update the spec: Section 4 (Current State) with measured values. If verdict is fail, also update Section 6 (Why Not Met) and Section 7 (What Must Be Done) with prescriptive next steps.
@@ -1344,7 +567,7 @@ Use Task tool with:
 
 **Wait for QA subagent completion** before proceeding.
 
-### Step 9: Process QA Results
+### Step 11: Process QA Results
 
 Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
@@ -1352,18 +575,18 @@ Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
 ```
 IF qa.status == "pass":
-  → Proceed to Step 10 (Update Permissions)
+  → Proceed to Step 12 (Update Permissions)
 
 ELIF qa.status == "warning":
   → Check if minor issues acceptable
-  → If yes: Proceed to Step 10 (Update Permissions)
-  → If no: Proceed to Step 11 (Iteration)
+  → If yes: Proceed to Step 12 (Update Permissions)
+  → If no: Proceed to Step 13 (Iteration)
 
 ELIF qa.status == "fail":
-  → Proceed to Step 11 (Iteration)
+  → Proceed to Step 13 (Iteration)
 ```
 
-### Step 10: Update Settings.json Permissions
+### Step 12: Update Settings.json Permissions
 
 **CRITICAL**: Auto-update permissions for new functionality.
 
@@ -1405,7 +628,7 @@ mv .claude/settings.json.tmp .claude/settings.json
    - `"Bash(~/.claude/scripts/<script-name>.sh:*)"`
 
 2. **Python scripts** → Add to "allow":
-   - `"Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/<script>.py:*)"`
+   - `"Bash(source ~/.claude/venv/bin/activate && python ~/.claude/scripts/todo/<script>.py:*)"`
 
 3. **Hooks created** → Add to "allow":
    - `"Bash(~/.claude/hooks/<hook-name>.sh:*)"`
@@ -1436,7 +659,7 @@ You can now use these scripts without permission prompts.
 - If permission already exists → Skip, don't duplicate
 - If user denies update → Log to completion report
 
-### Step 11: Iteration Loop (if QA fails)
+### Step 13: Iteration Loop (if QA fails)
 
 #### Layer-escalation gate (mandatory)
 
@@ -1514,11 +737,11 @@ jq -s '.[0] * {
   > docs/dev/context-iter<N>-<timestamp>.json
 ```
 
-**Return to Step 6** with new context JSON
+**Return to Step 8** with new context JSON
 
 **Iteration tracking**: Update TodoWrite with iteration number
 
-### Step 12: Generate Completion Report
+### Step 14: Generate Completion Report
 
 **QA passed! Generate final report.**
 
@@ -1789,7 +1012,7 @@ WHEN TO SCRIPT:
 **Step 5**: Validate BA output
 - Both files exist with required sections
 
-**Step 6**: Dev subagent
+**Step 8**: Dev subagent
 - Created: `.claude/commands/analyze.md` (with YAML frontmatter)
 - Created: `.claude/agents/code-analyzer.md` (specialist)
 - Created: `.claude/scripts/todo/analyze.py` (workflow tracker)
@@ -1797,7 +1020,7 @@ WHEN TO SCRIPT:
 - Applied: Complete Automation pattern
 - Saved report: `docs/dev/dev-report-20260206-120000.json`
 
-**Step 7-8**: QA subagent
+**Step 9-10**: QA subagent
 - Verified YAML frontmatter complete
 - Verified specialist returns JSON only
 - Verified todo script works
@@ -1805,14 +1028,14 @@ WHEN TO SCRIPT:
 - Status: PASS
 - Saved report: `docs/dev/qa-report-20260206-120000.json`
 
-**Step 9**: Process results
+**Step 11**: Process results
 - QA passed → proceed to completion
 
-**Step 10**: Update permissions
+**Step 12**: Update permissions
 - Added: `SlashCommand(.claude/commands/analyze.md:*)`
 - Added: `Bash(source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/analyze.py:*)`
 
-**Step 12**: Completion report
+**Step 14**: Completion report
 - Generated: `docs/dev/completion-20260206-120000.md`
 - Presented summary to user
 

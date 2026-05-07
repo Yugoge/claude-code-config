@@ -49,3 +49,24 @@ systemd/
 
 # File history (contains session data, may include secrets)
 file-history/
+
+# doc-sync runtime cache
+.doc-sync-cache.json
+
+# MCP auth runtime cache
+mcp-needs-auth-cache.json
+
+# Live session telemetry (was previously tracked; rm --cached old ones)
+sessions/
+
+# Live workflow / dev coordination state
+workflow-*.json
+dev-registry/
+specs/*/cp-state-*.json
+.hook-refactor-allow
+
+# Spec checkpoint state, worktrees, and rotating .claude.json backups
+specs/spec-*/
+worktrees/
+backups/.claude.json.backup.*
+settings.json.bak-*

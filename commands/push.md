@@ -5,243 +5,129 @@ disable-model-invocation: true
 
 # Push Command
 
-Execute validated git push with untracked file detection and optional auto-staging.
-
-## Overview
-
-The `/push` command provides a comprehensive push workflow with:
-- Untracked file detection and warnings
-- Optional auto-staging of all files
-- Automatic commit creation if needed
-- Upstream tracking setup
-- Clear error handling and guidance
+Validated `git push` wrapper. Under the always-on git-privilege guard
+(`pretool-git-privilege-guard.py`), this wrapper is the **only** authorized
+path for an agent context to push to a remote. The guard rejects every other
+`git push` invocation, including inline-env attempts.
 
 ## Usage
 
-Simply type:
 ```
-/push
-```
-
-## Command Implementation
-
-Execute the push script in **fully automatic mode**:
-
-```bash
-bash ~/.claude/hooks/push.sh
+/push                # push current branch to "origin" (default)
+/push <remote>       # push current branch to the named remote
 ```
 
-The script automatically detects non-interactive environments (like Claude Code) and runs in auto mode without prompts.
+The optional `<remote>` argument is forwarded into both the Scheme 6 grant
+manifest's `remote` field AND the underlying `git push <remote> <branch>`
+invocation, so the privilege-guard's `_validate_push_grant_remote` check
+(grant.remote vs cmd-line remote token) admits the push. Useful for
+fork-based workflows where `origin` points at an upstream you cannot write
+to (e.g., `slopus/happy`) and a separate remote (e.g., `fork`) points at
+your own writable fork (e.g., `Yugoge/happy`).
 
-## Features
+If the named remote is not configured locally, the wrapper exits 1 with a
+helpful message and prints `git remote -v` so you can correct the typo or
+add the remote.
 
-### Comprehensive Status Check
-- Detects staged files
-- Detects modified but unstaged files
-- Detects untracked files
-- Displays color-coded summary
+The command is gated with `disable-model-invocation: true`: only the human
+user can trigger it. The model cannot self-invoke `/push` as a way around
+the guard.
 
-### Auto-Staging Option
-- Prompts to stage all files (if `GIT_PUSH_AUTO_STAGE=1`)
-- Respects `.gitignore` rules
-- Shows exactly what will be staged
-- User confirmation required
+## Behavior summary
 
-### Automatic Commit Creation
-- Only creates commit if staged changes exist
-- Follows Claude Code commit message conventions
-- Includes co-author attribution
-- Generates descriptive commit messages
+1. **Detached HEAD check**: refuses to push if not on a branch.
+2. **Status report**: prints staged / modified / untracked files for context.
+3. **Dirty-tree informational warning** (NON-BLOCKING): if
+   `git status --porcelain` is non-empty, the wrapper prints a yellow
+   informational notice with the dirty-file count and continues. Working-tree
+   drift (modified, staged, or untracked files) does NOT block `/push`. Only
+   already-committed commits get pushed — staged and unstaged working-tree
+   files are NOT pushed. To push your local changes, commit them via
+   `/commit` first.
+4. **Nothing-to-push exit**: if the tree is clean and there are zero commits
+   ahead of the upstream, the wrapper prints "Nothing to push" and exits 0
+   without writing a grant or contacting the remote.
+5. **Scheme 6 grant emission**: when there is real work to push, the wrapper
+   writes a single-use grant manifest at
+   `/tmp/claude-push-grant-${CLAUDE_SESSION_ID:-default}-${NONCE}.json`. The
+   push-specific bound fields are `branch` (current branch), `expected_head`
+   (`git rev-parse HEAD` at grant time), and `remote` (the cmd-line remote
+   token). Generic Scheme 6 fields (`nonce`, `sid`, `ppid`, `created_at`) and
+   the per-nonce-filename rationale are documented in `/root/docs/scheme6.md`.
+6. **Env-var export**: the wrapper exports `CLAUDE_PUSH_COMMAND_ACTIVE=1`
+   into the `git push` child's environment. Both the env-var AND a matching
+   grant file are required to admit the push (see `/root/docs/scheme6.md`).
+7. **Push**: invokes `git push` (with `-u` if no upstream is set). The
+   privilege-guard validates the grant against the branch and HEAD on the
+   live repo, then unlinks the grant on first consumption (single-use).
+8. **Audit log**: on success, appends a line to
+   `~/.claude/logs/git-privilege-grants.log` recording timestamp, sid,
+   `command_kind=push`, branch, head, nonce, ppid.
 
-### Upstream Tracking
-- Automatically sets upstream for new branches
-- Uses `git push -u origin <branch>` when needed
-- Handles existing upstream tracking
+## Scheme 6 mechanism (why this works)
 
-### Error Handling
-- Push rejection (remote has changes)
-- Network failures
-- No staged changes
-- Detached HEAD state
+See `/root/docs/scheme6.md` for the unified env-var + grant-manifest + privilege-guard validation + literal-substring rejection + single-use unlink protocol.
 
-## Example Scenarios
+`/push`-specific bindings: env-var `CLAUDE_PUSH_COMMAND_ACTIVE=1`; grant path `/tmp/claude-push-grant-<sid>-<nonce>.json`; manifest fields bind the push to a specific `branch + expected_head + remote + sid + ppid`. The guard's `_validate_push_grant_remote` check confirms `grant.remote` matches the cmd-line remote token, so a forged or stale grant — or a grant for a different branch/HEAD/remote — is rejected. The literal-substring rejection on the raw command string targets the literal `CLAUDE_PUSH_COMMAND_ACTIVE=`, neutralizing inline-env injection of the b5d447e attack shape.
 
-### Scenario 1: Push with Untracked Files
+## Pre-conditions for a successful push
 
-```
-User: /push
+- On a real branch (not detached HEAD).
+- Branch has commits ahead of upstream (or no upstream is set yet).
+- Working-tree drift (modified, staged, or untracked files) is **allowed** —
+  it does NOT block `/push`. Only already-committed commits get pushed.
+  Staged and unstaged working-tree files are NOT pushed; only commits
+  already on `<branch>` are pushed. If you want to ship local edits, run a
+  real semantic commit first (e.g., via `/commit <task-id>` for closed dev
+  tasks, or by hand for ad-hoc work). Automated snapshots on
+  `refs/checkpoints/<branch>` are out of scope here — `/push` never
+  advances HEAD.
 
-🚀 Starting validated push...
+## Exit codes
 
-📊 Checking repository status...
+| Exit | Meaning |
+|------|---------|
+| 0    | Push succeeded, OR nothing to push (clean tree, zero commits ahead) |
+| 1    | Detached HEAD, or `git push` failed |
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Git Status Summary
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## Failure modes
 
-Modified but not staged (1):
-   ⚠ settings.json
+- **Detached HEAD**: checkout a real branch first.
+- **Push rejected by remote** (e.g., remote ahead): pull first
+  (`git pull --rebase`).
+- **Guard rejection**: if the wrapper itself was invoked correctly but the
+  guard still refuses, inspect `~/.claude/logs/git-privilege-grants.log`,
+  the grant file matching
+  `/tmp/claude-push-grant-${CLAUDE_SESSION_ID:-default}-*.json` (per-nonce),
+  and the guard's stderr. The guard's stderr names the specific rule violated
+  (head mismatch, branch mismatch, missing env, missing grant, inline-env
+  injection).
 
-Untracked files (2):
-   ? new-file.txt
-   ? docs/README.md
+## Related
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Auto-Staging Available
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- `/commit <task-id>` — Wrapper that commits a closed dev task, also under
+  Scheme 6 (separate grant, separate env-var, same architecture).
+- `/merge <branch>` — Wrapper that merges an overnight worktree under a
+  different env-var precedent (`CLAUDE_MERGE_COMMAND_ACTIVE=1`).
+- `git push` directly — blocked by the always-on privilege-guard.
 
-Found 3 file(s) not staged for commit.
+## Script location
 
-Stage all files including untracked? (y/n)
-y
-
-📦 Staging all files...
-✅ Staged 3 file(s)
-
-📝 Creating commit...
-✅ Commit created: a1b2c3d
-
-🌐 Pushing to remote...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Successfully pushed to origin/master
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Summary:
-  • Branch: master
-  • Latest commit: a1b2c3d Update: Comprehensive changes via push script
-  • Changes: 3 files changed, 42 insertions(+), 5 deletions(-)
-```
-
-### Scenario 2: Push Already Staged Files
-
-```
-User: /push
-
-🚀 Starting validated push...
-
-📊 Checking repository status...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Git Status Summary
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Staged files (3):
-   ✓ commands/pull.md
-   ✓ commands/push.md
-   ✓ settings.json
-
-📝 Creating commit...
-✅ Commit created: e4f5g6h
-
-🌐 Pushing to remote...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Successfully pushed to origin/master
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-### Scenario 3: Nothing to Push
-
-```
-User: /push
-
-🚀 Starting validated push...
-
-📊 Checking repository status...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Git Status Summary
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-✓ Working directory clean
-
-⚠️  No staged changes to commit
-
-Nothing to commit or push.
-```
-
-## Configuration
-
-Control auto-staging behavior via environment variable in `~/.claude/settings.json`:
-
-```json
-{
-  "env": {
-    "GIT_PUSH_AUTO_STAGE": "1"  // Prompt to stage all files (default: 1)
-  }
-}
-```
-
-**Values:**
-- `"1"` - Prompt to stage all files when untracked/modified files exist
-- `"0"` - Only push already staged files, no prompt
-
-## Safety Features
-
-- **Preview before staging**: Shows exactly what files will be affected
-- **User confirmation**: Prompts before auto-staging
-- **Respects .gitignore**: Never stages ignored files
-- **Clear status display**: Always shows current state
-- **Upstream tracking**: Automatically sets up tracking for new branches
-- **Error guidance**: Provides specific suggestions for each error type
-
-## Error Scenarios
-
-### Push Rejected (Remote Has Changes)
-
-```
-❌ Push failed
-
-Possible causes:
-  • Remote has changes you don't have (pull first)
-  • Network connectivity issues
-  • Authentication failure
-
-Suggestions:
-  • Pull first: git pull --rebase
-  • Check network connection
-  • Verify remote access: git remote -v
-```
-
-### No Upstream Branch
-
-```
-Setting upstream to origin/feature-branch...
-
-To https://github.com/user/repo.git
- * [new branch]      feature-branch -> feature-branch
-Branch 'feature-branch' set up to track remote branch 'feature-branch' from 'origin'.
-
-✅ Successfully pushed to origin/feature-branch
-```
-
-### Detached HEAD
-
-```
-❌ Error: Not on a branch (detached HEAD)
-Checkout a branch first: git checkout <branch-name>
-```
-
-## Related Commands
-
-- **`/pull`** - Pull changes with stash management
-- **`git status`** - Check working directory state
-- **`git add .`** - Manually stage all files
+The implementation is `~/.claude/hooks/push.sh`. The command frontmatter
+sets `disable-model-invocation: true` so the agent cannot trigger it
+through `SlashCommand`.
 
 ## Notes
 
-- Commit messages follow Claude Code conventions
-- Co-author attribution included automatically
-- Safe to use multiple times
-- Won't push sensitive files (respects deny rules in settings.json)
-- Works with both new and existing branches
-
-## Script Location
-
-The actual implementation is in: `~/.claude/hooks/push.sh`
-
-You can also run it directly:
-```bash
-bash ~/.claude/hooks/push.sh
-```
+- This document supersedes the older description that referenced an
+  auto-staging env var and an auto-staging prompt. That behavior was
+  removed when `b5d447e` ratified the snapshots-off-HEAD design; the
+  wrapper no longer auto-stages or auto-commits.
+- Grant file is single-use; a second `git push` in the same session
+  needs a new grant via a new `/push` invocation (see `/root/docs/scheme6.md`).
+- **redev7 removed the dirty-tree hard gate**. The gate was a leftover from
+  the earlier auto-staging design (pre-`b5d447e`). Since `/push` no longer
+  auto-commits, working-tree state cannot leak to HEAD via `/push`, and the
+  gate is unnecessary. Working-tree drift (modified, staged, or untracked
+  files) does NOT block `/push`. Only already-committed commits get pushed.
+  To push your local changes, commit them via `/commit` first.

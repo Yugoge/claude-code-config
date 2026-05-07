@@ -1,20 +1,21 @@
 # doc_sync
 
-*Last updated: 2026-03-24T22:13:58Z*
-**Total entries**: 9
-**Convention**: lower
+*Last updated: 2026-05-01T06:19:51Z*
+**Total entries**: 10
+**Convention**: kebab
 
 ## Tree
 ```
 doc_sync/
 ├── `claude.py` - CLAUDE.md auto-creation and patching.
+├── `config.py` - Load doc-sync project-local config.
 ├── `docker.py` - Parse docker-compose.yml and generate markdown table.
 ├── `extract.py` - Extract description from various file types.
 ├── `main.py` - Main entry point for doc-sync hook.
 ├── `patch.py` - Patch CLAUDE.md dynamic sections using AUTO markers.
 ├── `regen_index.py` - Regenerate INDEX.md for a directory.
 ├── `regen_readme.py` - Regenerate README.md for a directory.
-├── `systemd.py` - Query systemctl for known services and generate markdown table.
+├── `systemd.py` - Query systemctl for project-configured services and generate a markdown table.
 └── `tree.py` - Build directory trees for INDEX.md.
 ```
 

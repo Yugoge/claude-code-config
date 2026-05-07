@@ -7,8 +7,16 @@ Blocks file writes that would violate quantified quality thresholds:
 - Function length: max 30 lines
 - Nesting depth: max 3 levels
 
-Hook type: PreToolUse (Write|Edit matcher)
-Exit codes: 0 = allow, 2 = block
+Option alpha (no-net-worsening): if post-edit content has violations, the hook
+ALSO computes pre-edit metrics. Edits that do not worsen any metric (file
+lines, per-function-name length, max nesting) are ALLOWED with a [grandfathered]
+stderr note. New files (no pre-state) and previously-compliant files are still
+measured against the hard thresholds.
+
+Comparators are symmetric (post <= pre). Per-function comparison is name-keyed
+so an edit that shrinks A by 10 while growing B by 10 is BLOCKED (B grew).
+
+Hook type: PreToolUse (Write|Edit matcher). Exit codes: 0 allow, 2 block.
 """
 
 import json
@@ -20,232 +28,358 @@ MAX_FILE_LINES = 800
 MAX_FUNC_LINES = 30
 MAX_NESTING = 3
 
-# Paths exempt from quality checks
 EXEMPT_PATHS = {
-    'node_modules', '.git', '__pycache__', 'vendor', 'dist', 'build',
-    '.next', 'coverage', '.venv', 'venv', 'package-lock.json',
-    'yarn.lock', 'pnpm-lock.yaml',
+    "node_modules", ".git", "__pycache__", "vendor", "dist", "build",
+    ".next", "coverage", ".venv", "venv", "package-lock.json",
+    "yarn.lock", "pnpm-lock.yaml",
 }
-
-# Only check these extensions
-CHECKABLE_EXTS = {'.py', '.ts', '.js', '.tsx', '.jsx'}
+CHECKABLE_EXTS = {".py", ".ts", ".js", ".tsx", ".jsx"}
 
 
-def is_exempt(file_path: str) -> bool:
+def is_exempt(file_path):
     """Check if file is exempt from quality checks."""
     parts = Path(file_path).parts
     for part in parts:
         if part in EXEMPT_PATHS:
             return True
-    if Path(file_path).suffix not in CHECKABLE_EXTS:
-        return True
-    return False
+    return Path(file_path).suffix not in CHECKABLE_EXTS
 
 
-def get_final_content(data: dict) -> tuple[str, str]:
-    """Get the content that would result from this operation.
-
-    For Write: returns content directly from tool_input.
-    For Edit: reads current file, applies the edit, returns result.
-
-    Returns:
-        Tuple of (resulting_content, file_path).
-    """
-    tool_name = data.get('tool_name', '')
-    tool_input = data.get('tool_input', {})
-    file_path = tool_input.get('file_path', '')
-
-    if tool_name == 'Write':
-        return tool_input.get('content', ''), file_path
-
-    if tool_name == 'Edit':
-        try:
-            current = Path(file_path).read_text()
-        except Exception:
-            return '', file_path
-        old = tool_input.get('old_string', '')
-        new = tool_input.get('new_string', '')
-        if old and old in current:
-            if tool_input.get('replace_all'):
-                result = current.replace(old, new)
-            else:
-                result = current.replace(old, new, 1)
-            return result, file_path
-        return current, file_path
-
-    return '', file_path
+def apply_edit_replace(current, tool_input):
+    """Apply an Edit's old_string/new_string replacement to current content."""
+    old = tool_input.get("old_string", "")
+    new = tool_input.get("new_string", "")
+    if not old or old not in current:
+        return current
+    if tool_input.get("replace_all"):
+        return current.replace(old, new)
+    return current.replace(old, new, 1)
 
 
-def check_file_length(lines: list[str]) -> list[str]:
+def get_final_content(data):
+    """Get the content that would result from this operation."""
+    tool_name = data.get("tool_name", "")
+    tool_input = data.get("tool_input", {})
+    file_path = tool_input.get("file_path", "")
+    if tool_name == "Write":
+        return tool_input.get("content", ""), file_path
+    if tool_name != "Edit":
+        return "", file_path
+    try:
+        current = Path(file_path).read_text()
+    except Exception:
+        return "", file_path
+    return apply_edit_replace(current, tool_input), file_path
+
+
+def check_file_length(lines):
     """Check if file exceeds max line count."""
-    if len(lines) > MAX_FILE_LINES:
-        return [f'File has {len(lines)} lines (max {MAX_FILE_LINES}). Split into modules.']
-    return []
+    if len(lines) <= MAX_FILE_LINES:
+        return []
+    msg = "File has %d lines (max %d). Split into modules." % (len(lines), MAX_FILE_LINES)
+    return [msg]
 
 
-def check_function_length_python(lines: list[str]) -> list[str]:
-    """Check Python function lengths by tracking def/async def and indentation."""
-    violations: list[str] = []
-    func_start = -1
-    func_name = ''
-    func_indent = 0
+def _record_python_func(funcs, name, start, length):
+    """Append a (name, start_line_1based, length) tuple."""
+    funcs.append((name, start + 1, length))
 
+
+def _is_python_func_end(stripped, indent, func_indent):
+    """True iff this line marks end of the currently-tracked python function."""
+    if not stripped:
+        return False
+    if indent > func_indent:
+        return False
+    return not stripped.startswith("#") and not stripped.startswith("@")
+
+
+def _start_python_func(line, stripped):
+    """Parse a def line; return (name, indent) or None."""
+    is_def = stripped.startswith("def ") or stripped.startswith("async def ")
+    if not is_def:
+        return None
+    m = re.search(r"(?:async\s+)?def\s+(\w+)", stripped)
+    name = m.group(1) if m else "?"
+    indent = len(line) - len(stripped)
+    return name, indent
+
+
+def _close_python_func(funcs, fname, fs, end):
+    """Record a closed function and return -1 to clear tracking state."""
+    if fs >= 0:
+        _record_python_func(funcs, fname, fs, end - fs)
+    return -1
+
+
+def iter_python_functions(lines):
+    """Return list of (name, start_1based, length) for every python function."""
+    funcs = []
+    fs, fname, find = -1, "", 0
     for i, line in enumerate(lines):
         stripped = line.lstrip()
         indent = len(line) - len(stripped)
+        new_func = _start_python_func(line, stripped)
+        if new_func is not None:
+            fs = _close_python_func(funcs, fname, fs, i)
+            fname, find = new_func
+            fs = i
+            continue
+        if fs >= 0 and _is_python_func_end(stripped, indent, find):
+            fs = _close_python_func(funcs, fname, fs, i)
+    _close_python_func(funcs, fname, fs, len(lines))
+    return funcs
 
-        if stripped.startswith('def ') or stripped.startswith('async def '):
-            # If we were tracking a function, check it
-            if func_start >= 0:
-                length = i - func_start
-                if length > MAX_FUNC_LINES:
-                    violations.append(
-                        f'Function `{func_name}` (line {func_start + 1}) '
-                        f'is {length} lines (max {MAX_FUNC_LINES})')
 
-            func_start = i
-            func_indent = indent
-            match = re.search(r'(?:async\s+)?def\s+(\w+)', stripped)
-            func_name = match.group(1) if match else '?'
-        elif (func_start >= 0 and stripped and indent <= func_indent
-              and not stripped.startswith('#') and not stripped.startswith('@')):
-            # Function ended — non-empty line at same or lower indent
-            length = i - func_start
-            if length > MAX_FUNC_LINES:
-                violations.append(
-                    f'Function `{func_name}` (line {func_start + 1}) '
-                    f'is {length} lines (max {MAX_FUNC_LINES})')
-            func_start = -1
-
-    # Check last function in file
-    if func_start >= 0:
-        length = len(lines) - func_start
+def check_function_length_python(lines):
+    """Report Python functions exceeding MAX_FUNC_LINES."""
+    out = []
+    for name, start_line, length in iter_python_functions(lines):
         if length > MAX_FUNC_LINES:
-            violations.append(
-                f'Function `{func_name}` (line {func_start + 1}) '
-                f'is {length} lines (max {MAX_FUNC_LINES})')
-
-    return violations
+            msg = "Function `%s` (line %d) is %d lines (max %d)"
+            out.append(msg % (name, start_line, length, MAX_FUNC_LINES))
+    return out
 
 
-def check_function_length_ts(lines: list[str]) -> list[str]:
-    """Check TypeScript/JavaScript function lengths by brace counting."""
-    violations: list[str] = []
-    func_pattern = re.compile(
-        r'(?:export\s+)?(?:async\s+)?(?:'
-        r'function\s+(\w+)'
-        r'|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\('
-        r'|(\w+)\s*\([^)]*\)\s*(?::\s*\w+)?\s*\{'
-        r')'
-    )
+def _ts_func_pattern():
+    """Compiled function-detection regex for TS/JS."""
+    pat = (r"(?:export\s+)?(?:async\s+)?(?:function\s+(\w+)"
+           r"|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\("
+           r"|(\w+)\s*\([^)]*\)\s*(?::\s*\w+)?\s*\{)")
+    return re.compile(pat)
 
+
+def _ts_brace_step(ch, bc, started):
+    """Update brace counter for one character; return (bc, started)."""
+    if ch == "{":
+        return bc + 1, True
+    if ch == "}":
+        return bc - 1, started
+    return bc, started
+
+
+def _scan_ts_func_body(lines, start):
+    """Scan from `start` until braces balance; return inclusive end-line index."""
+    bc, started = 0, False
+    for j in range(start, len(lines)):
+        for ch in lines[j]:
+            bc, started = _ts_brace_step(ch, bc, started)
+        if started and bc == 0:
+            return j
+    return len(lines) - 1
+
+
+def iter_ts_functions(lines):
+    """Return list of (name, start_1based, length) for every TS/JS function."""
+    pat = _ts_func_pattern()
+    funcs = []
     i = 0
     while i < len(lines):
-        match = func_pattern.search(lines[i])
-        if match:
-            func_name = match.group(1) or match.group(2) or match.group(3) or '?'
-            brace_count = 0
-            started = False
-            start_line = i
-            for j in range(i, len(lines)):
-                for ch in lines[j]:
-                    if ch == '{':
-                        brace_count += 1
-                        started = True
-                    elif ch == '}':
-                        brace_count -= 1
-                if started and brace_count == 0:
-                    length = j - start_line + 1
-                    if length > MAX_FUNC_LINES:
-                        violations.append(
-                            f'Function `{func_name}` (line {start_line + 1}) '
-                            f'is {length} lines (max {MAX_FUNC_LINES})')
-                    i = j
-                    break
+        m = pat.search(lines[i])
+        if m:
+            name = m.group(1) or m.group(2) or m.group(3) or "?"
+            end = _scan_ts_func_body(lines, i)
+            funcs.append((name, i + 1, end - i + 1))
+            i = end
         i += 1
+    return funcs
 
-    return violations
+
+def check_function_length_ts(lines):
+    """Report TS/JS functions exceeding MAX_FUNC_LINES."""
+    out = []
+    for name, start_line, length in iter_ts_functions(lines):
+        if length > MAX_FUNC_LINES:
+            msg = "Function `%s` (line %d) is %d lines (max %d)"
+            out.append(msg % (name, start_line, length, MAX_FUNC_LINES))
+    return out
 
 
-def check_nesting_depth(lines: list[str], ext: str) -> list[str]:
-    """Check max nesting depth. Python uses indentation, TS/JS uses braces."""
-    violations: list[str] = []
+def _py_nest_record(line, stripped, in_paren, md, ml, i):
+    """Record python nesting depth for one non-continuation line."""
+    if in_paren > 0:
+        return md, ml
+    indent = len(line) - len(stripped)
+    depth = indent // 4
+    if depth > md:
+        return depth, i + 1
+    return md, ml
 
-    if ext == '.py':
-        for i, line in enumerate(lines):
-            stripped = line.lstrip()
-            if not stripped or stripped.startswith('#'):
-                continue
-            indent = len(line) - len(stripped)
-            depth = indent // 4
-            if depth > MAX_NESTING:
-                violations.append(
-                    f'Line {i + 1}: nesting depth {depth} (max {MAX_NESTING}). '
-                    f'Extract to helper function.')
-                break  # One warning is enough
+
+def _max_nesting_py(lines):
+    """Return (max_depth, line_1based) from python indentation, ignoring continuations."""
+    md, ml, in_paren = 0, 0, 0
+    for i, line in enumerate(lines):
+        stripped = line.lstrip()
+        is_blank_or_comment = not stripped or stripped.startswith("#")
+        if not is_blank_or_comment:
+            md, ml = _py_nest_record(line, stripped, in_paren, md, ml, i)
+        in_paren += line.count("(") - line.count(")")
+        if in_paren < 0:
+            in_paren = 0
+    return md, ml
+
+
+def _ts_open_brace(depth, max_depth, max_line, line_idx):
+    """Handle a `{` token; return (depth, max_depth, max_line)."""
+    depth += 1
+    if depth > max_depth:
+        return depth, depth, line_idx + 1
+    return depth, max_depth, max_line
+
+
+def _max_nesting_ts_step(line, depth, max_depth, max_line, line_idx):
+    """Process one TS/JS line; return (new_depth, new_max_depth, new_max_line)."""
+    for ch in line:
+        if ch == "{":
+            depth, max_depth, max_line = _ts_open_brace(depth, max_depth, max_line, line_idx)
+        elif ch == "}":
+            depth -= 1
+    return depth, max_depth, max_line
+
+
+def _max_nesting_ts(lines):
+    """Return (effective_max_depth, line_1based) from TS/JS brace tracking."""
+    md, ml, depth = 0, 0, 0
+    for i, line in enumerate(lines):
+        depth, md, ml = _max_nesting_ts_step(line, depth, md, ml, i)
+    return max(md - 1, 0), ml
+
+
+def check_nesting_depth(lines, ext):
+    """Report a single violation if max nesting exceeds MAX_NESTING."""
+    if ext == ".py":
+        depth, line = _max_nesting_py(lines)
     else:
-        # TypeScript/JavaScript: count braces, subtract 1 for module level
-        max_depth = 0
-        max_line = 0
-        depth = 0
-        for i, line in enumerate(lines):
-            for ch in line:
-                if ch == '{':
-                    depth += 1
-                    if depth > max_depth:
-                        max_depth = depth
-                        max_line = i + 1
-                elif ch == '}':
-                    depth -= 1
-        effective = max_depth - 1
-        if effective > MAX_NESTING:
-            violations.append(
-                f'Line {max_line}: nesting depth {effective} (max {MAX_NESTING}). '
-                f'Extract to helper function.')
-
-    return violations
+        depth, line = _max_nesting_ts(lines)
+    if depth <= MAX_NESTING:
+        return []
+    msg = "Line %d: nesting depth %d (max %d). Extract to helper function."
+    return [msg % (line, depth, MAX_NESTING)]
 
 
-def main() -> None:
+def _functions_for_ext(lines, ext):
+    """Return per-function list and max-nesting for the given extension."""
+    if ext == ".py":
+        return iter_python_functions(lines), _max_nesting_py(lines)[0]
+    if ext in (".ts", ".js", ".tsx", ".jsx"):
+        return iter_ts_functions(lines), _max_nesting_ts(lines)[0]
+    return [], 0
+
+
+def compute_metrics(content, ext):
+    """Compute structured metrics: file_lines, per-function lengths, max_nesting."""
+    lines = content.split("\n")
+    funcs, nesting = _functions_for_ext(lines, ext)
+    per = {}
+    for name, _, length in funcs:
+        if name not in per or length > per[name]:
+            per[name] = length
+    return {"file_lines": len(lines), "per_function_lines": per, "max_nesting": nesting}
+
+
+def get_pre_content(data):
+    """Read the pre-edit content from disk; return None when no pre-state exists."""
+    fp = data.get("tool_input", {}).get("file_path", "")
+    if not fp:
+        return None
+    try:
+        return Path(fp).read_text()
+    except Exception:
+        return None
+
+
+def _check_func_worsened(pre_funcs, post_funcs):
+    """Return (False, reason) on first per-function regression, else (True, '')."""
+    for name in set(pre_funcs) | set(post_funcs):
+        post_len = post_funcs.get(name, 0)
+        if name in pre_funcs and post_len > pre_funcs[name]:
+            r = "Function '%s' grew from %d to %d lines"
+            return False, r % (name, pre_funcs[name], post_len)
+        if name not in pre_funcs and post_len > MAX_FUNC_LINES:
+            r = "New function '%s' is %d lines (max %d)"
+            return False, r % (name, post_len, MAX_FUNC_LINES)
+    return True, ""
+
+
+def metric_did_not_worsen(pre, post):
+    """Return (True, '') if no metric worsened, else (False, reason).
+
+    NOTE: file_lines NOT compared - grandfathering allows legacy file growth
+    as long as no per-function metric or nesting depth worsens. Rationale:
+    file_lines is the weakest quality signal; the user's M6 goal (unblock
+    logger.info-style instrumentation in legacy files) requires this
+    relaxation. Per-function and nesting metrics still protect the actual
+    quality intent.
+    """
+    pf, qf = pre.get("per_function_lines", {}), post.get("per_function_lines", {})
+    ok, reason = _check_func_worsened(pf, qf)
+    if not ok:
+        return False, reason
+    if post["max_nesting"] > pre["max_nesting"]:
+        r = "max nesting went from %d to %d"
+        return False, r % (pre["max_nesting"], post["max_nesting"])
+    return True, ""
+
+
+def collect_violations(content, ext):
+    """Run all three checks against post-edit content and return violations."""
+    lines = content.split("\n")
+    out = []
+    out.extend(check_file_length(lines))
+    if ext == ".py":
+        out.extend(check_function_length_python(lines))
+    elif ext in (".ts", ".js", ".tsx", ".jsx"):
+        out.extend(check_function_length_ts(lines))
+    out.extend(check_nesting_depth(lines, ext))
+    return out
+
+
+def emit_violations(file_path, violations):
+    """Print the BLOCKED message in the historical format."""
+    print("QUALITY GATE BLOCKED \u2014 %s:" % file_path, file=sys.stderr)
+    for v in violations:
+        print("  - %s" % v, file=sys.stderr)
+    print("Fix violations before writing. Split large functions into smaller ones.", file=sys.stderr)
+
+
+def _grandfather_or_block(data, file_path, ext, post_content, violations):
+    """Decide whether to allow (grandfathered) or block; return exit code."""
+    pre_content = get_pre_content(data)
+    if pre_content is None:
+        emit_violations(file_path, violations)
+        return 2
+    pre_m = compute_metrics(pre_content, ext)
+    post_m = compute_metrics(post_content, ext)
+    ok, reason = metric_did_not_worsen(pre_m, post_m)
+    if ok:
+        msg = "QUALITY GATE [grandfathered] \u2014 %s: pre-existing violations preserved, no metric worsened."
+        print(msg % file_path, file=sys.stderr)
+        return 0
+    emit_violations(file_path, violations + ["Worsened: " + reason])
+    return 2
+
+
+def main():
     """Entry point: read stdin JSON, run quality checks, block or allow."""
     try:
         data = json.load(sys.stdin)
-        tool_name = data.get('tool_name', '')
-
-        if tool_name not in ('Write', 'Edit'):
+        tool_name = data.get("tool_name", "")
+        if tool_name not in ("Write", "Edit"):
             sys.exit(0)
-
-        content, file_path = get_final_content(data)
-        if not content or not file_path:
+        post_content, file_path = get_final_content(data)
+        if not post_content or not file_path or is_exempt(file_path):
             sys.exit(0)
-
-        if is_exempt(file_path):
-            sys.exit(0)
-
         ext = Path(file_path).suffix
-        lines = content.split('\n')
-        violations: list[str] = []
-
-        violations.extend(check_file_length(lines))
-
-        if ext == '.py':
-            violations.extend(check_function_length_python(lines))
-        elif ext in ('.ts', '.js', '.tsx', '.jsx'):
-            violations.extend(check_function_length_ts(lines))
-
-        violations.extend(check_nesting_depth(lines, ext))
-
-        if violations:
-            print(f'QUALITY GATE BLOCKED \u2014 {file_path}:', file=sys.stderr)
-            for v in violations:
-                print(f'  - {v}', file=sys.stderr)
-            print('Fix violations before writing. Split large functions into smaller ones.', file=sys.stderr)
-            sys.exit(2)
-
+        violations = collect_violations(post_content, ext)
+        if not violations:
+            sys.exit(0)
+        sys.exit(_grandfather_or_block(data, file_path, ext, post_content, violations))
+    except SystemExit:
+        raise
     except Exception:
-        pass
-    sys.exit(0)
+        sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

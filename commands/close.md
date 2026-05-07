@@ -1,0 +1,355 @@
+---
+description: Close the current dev cycle (agent infers task-id from conversation). QA evaluates Workflow Integrity bullets and returns CLOSE YES/NO. Pass --codex to enable multi-round QA-codex debate; default is QA-only single-round assessment. Append --force to skip the debate entirely.
+argument-hint: "[--codex | --force [--reason \"<text>\"]] [<task-id>|<path>]"
+disable-model-invocation: true
+---
+
+# /close
+
+True wrapper. Three TodoSteps (user-visible work):
+1. Dispatch three inspectors in parallel.
+2. Delegate close debate to QA subagent.
+3. Generate close-report (echo QA verdict + write report).
+
+Argument parsing (`--codex` / `--force`) and task-id resolution still happen
+in this command body, but are no longer TodoSteps — they are command-internal
+plumbing, not user-visible work.
+
+The orchestration of rounds, the calls to codex, the evaluation of agreement, and the writing of the transcript all live INSIDE QAs invocation. /close itself does not call codex, does not manage rounds, and does not decide the verdict.
+
+## Invocation
+
+```
+/close                                       # agent infers task-id from current /dev cycle (typical use)
+/close --force                               # skip debate, audit-logged (escape hatch — see Forced override path below)
+```
+
+Power users may also pass an explicit task-id or path: `/close <task-id>` or `/close docs/dev/ticket-<ts>.md` (legacy: `/close docs/dev/ba-spec-<ts>.md`). The orchestrator parses these forms but the typical invocation is bare `/close` and lets the agent resolve the task-id from conversation context. No filesystem scan, no default-to-newest.
+
+<!-- Cross-reference: BA spec /root/docs/dev/ba-spec-20260426-redev8.md § AC-CLOSE-FORCE-1..6 govern --force / --reason behavior. -->
+
+
+## Workflow
+
+Load preloaded todo list:
+```bash
+source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/close.py
+```
+
+### Argument parsing: `--codex` flag (applies to non-force paths)
+
+Parse `--codex` from `$ARGUMENTS` BEFORE evaluating the forced-override path or task-id resolution:
+
+- If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it and set `codex_required = true`.
+- Otherwise set `codex_required = false` (default).
+
+`codex_required` controls whether QA's internal multi-round debate (Step 2) consults codex via `Skill(codex)`:
+
+- **`codex_required = true`**: dispatch prompt for QA includes the full multi-round QA-codex debate protocol as documented in Step 2 below. Verdict branches 1 / 2 / 5 / 5b apply.
+- **`codex_required = false`** (default): dispatch prompt for QA SKIPS all `Skill(codex)` invocations and runs QA-only single-round assessment of the 4 Workflow Integrity bullets + 1b cleanliness preconditions. Verdict branch 7 (codex disabled) applies; branches 2 / 5 / 5b are N/A.
+
+When `--force` is also present, `--codex` is ignored (the forced-override path short-circuits the entire debate path; no QA invocation, no codex consultation, no verdict-branch evaluation). The two flags are not mutually exclusive parse-wise (orchestrator strips both), but `--force` wins.
+
+### Forced-override path: `--force` flag short-circuit
+
+If `$ARGUMENTS` contains the literal token `--force` (in any position), this short-circuits the entire debate path. **The model itself cannot trigger this** — `disable-model-invocation: true` (frontmatter line 3) prevents `SlashCommand`-based self-invocation regardless of arguments. Only a human invoking via the slash UI can trigger `--force`.
+
+Argument parsing order (orchestrator parses at the slash-command layer):
+
+```
+```
+
+Procedure when `--force` is present:
+
+1. **Strip `--force` from `$ARGUMENTS`**. If `--reason "<text>"` follows, capture `<text>` (everything between the matched quotes) as `$REASON`. If absent, set `$REASON="no reason provided"`.
+2. **Resolve the task-id** from the remaining argument using the same Task-id resolution rules below (explicit path → derive from basename; timestamp → use directly; no argument → orchestrator infers from session context). The task-id resolution rules are reused identically; do NOT branch the resolution logic.
+3. **Skip Step 2 entirely** — no QA subagent invocation, no Skill(codex) call, no Workflow Integrity Dimension evaluation, no multi-round debate.
+4. **Write the forced close-report** to `docs/dev/close-report-<task-id>.md` with this exact structure:
+
+   ```
+   # Close Debate Report (FORCED)
+   Task-id: <task-id>
+   Mode: --force (user override)
+   Closed at: <ISO-8601 timestamp>
+   Reason: <$REASON value, or "no reason provided">
+
+   **Verdict**: **CLOSE: YES — FORCED by user override**
+
+   No multi-round debate occurred. The user explicitly invoked /close with
+   --force, accepting full responsibility for any defects this verdict masks.
+
+   ## Forced Override Audit
+   - Timestamp: <ISO-8601>
+   - Task-id: <task-id>
+   - Invoker: human user (model cannot self-invoke /close; disable-model-invocation: true)
+   - Workflow Integrity Dimension: ALL bullets OVERRIDDEN — not evaluated
+     1. Downstream consumability: OVERRIDDEN
+     2. task-id chain consistency: OVERRIDDEN
+     3. Pre-existing-defect rule: OVERRIDDEN
+     4. Self-deployability: OVERRIDDEN
+   - Rationale (from invoker): <$REASON value>
+   - User explicitly accepts the risk of closing without debate.
+
+   ---
+   CLOSE: YES (FORCED)
+   ```
+
+   This file MUST be written even if the task-id has no upstream BA spec / context / dev-report (per AC-CLOSE-FORCE-6). The close-report is itself the audit trail; absence of upstream artifacts becomes visible in the report and is intentional.
+
+5. **Append audit log entry** to `~/.claude/logs/close-overrides.log` (best-effort):
+
+   ```bash
+   mkdir -p ~/.claude/logs
+   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=<task-id> mode=force reason=\"<$REASON>\"" >> ~/.claude/logs/close-overrides.log
+   ```
+
+   If the append fails (permissions, missing dir despite mkdir, etc.), the close-report write still succeeds. The audit log is a best-effort cross-task ledger; the close-report (per-task artifact) is the authoritative record.
+
+6. **Print the final stdout line** (this is the line consumers grep for):
+
+   ```
+   CLOSE: YES — FORCED
+   ```
+
+   The close-report's own final line remains `CLOSE: YES (FORCED)` per the template above (AC-CLOSE-FORCE-1 specifies the report's bottom line in that form). The two forms are intentional: the **stdout signal** uses the em-dash form (`CLOSE: YES — FORCED`) for downstream `/commit` / `/push` consumers; the **close-report final line** uses the parenthesized form (`CLOSE: YES (FORCED)`) so existing `grep "^CLOSE: YES$"` patterns also catch the prefix.
+
+   Stop. Do NOT proceed to Task-id resolution / Step 1 / Step 2 / Step 3.
+
+**When to use** (escape hatch — strongly discouraged for routine use):
+- Codex hits its usage limit and Round 2 cannot complete (see redev7 close-debate stall).
+- Workflow Integrity Dimension bullet flags a known-acceptable artifact (e.g., parallel-dev cycle pre-F-AGGREGATE).
+- Operator has read all dissent and explicitly accepts the risk of shipping NOW.
+
+**What it preserves**:
+- `disable-model-invocation: true` — model cannot self-invoke /close (with or without --force). Only human via SlashCommand.
+- Close-report artifact (every override is auditable).
+- Audit log line (cross-task ledger of all overrides).
+
+**What it skips**:
+- Multi-round QA+codex debate (entire Step 2).
+- Workflow Integrity Dimension evaluation (all four bullets recorded as `OVERRIDDEN`).
+
+Every forced override is auditable and traceable. Routine use defeats the purpose of /close as a quality gate.
+
+### Task-id resolution
+
+Resolve the **task-id** for the report filename. The task-id is the SAME identifier used by the source `/dev` cycle (e.g. `20260425-145411` or `redev3-p1p2-20260426`) — NOT a fresh `date +%Y%m%d-%H%M%S` at /close invocation time. Using a fresh timestamp would break /commit's PRIMARY-path lookup, which requires `close-report-<task-id>.md` and `dev-report-<task-id>.json` under the SAME `<task-id>`.
+
+Resolve the spec to evaluate (in priority order):
+- If `$ARGUMENTS` is an explicit path (ends in `.md`/`.json` or contains `/`): use that path. Verify it exists; fail clearly if not. Derive the task-id by stripping the `ticket-` prefix (or legacy `ba-spec-` prefix) and `.md`/`.json` suffix from the basename (e.g. `docs/dev/ticket-X.md` → task-id `X`; `docs/dev/ba-spec-X.md` → task-id `X`).
+- Elif `$ARGUMENTS` matches a timestamp pattern (e.g. `20260424-103044`): try `docs/dev/ticket-${ARGUMENTS}.md` first; if absent, fall back to legacy `docs/dev/ba-spec-${ARGUMENTS}.md`. Also resolve `docs/dev/qa-report-${ARGUMENTS}.json`. Verify both exist. The task-id IS `$ARGUMENTS` directly (timestamp form is a valid task-id; this preserves backwards compatibility for `/close <ts>` invocations and works for both ticket- and ba-spec- artifact name conventions).
+- Else (no argument): the orchestrator invoking /close MUST already know this conversation's dev artifacts from context (it just ran /dev in the same session). It embeds those paths directly into Step 5's QA prompt and resolves the task-id from the active dev cycle's artifacts. There is NO filesystem scan and NO default-to-newest. If the orchestrator cannot identify the spec from context, exit with: `No spec identified. Either run /close within a conversation that just completed /dev, or provide an explicit path/timestamp.`
+
+If no task-id can be derived (no argument, no /dev context, no parseable filename), /close MUST exit with the same error message above. /close MUST NOT default to `date +%Y%m%d-%H%M%S` for the close-report filename — that would silently break the task-id chain.
+
+Bind the resolved value:
+```bash
+TASK_ID="<resolved task-id from rules above>"   # e.g. "$ARGUMENTS" when timestamp form, or derived from path basename
+```
+
+Also optionally note companion files if they exist at the same task-id: `context-<task-id>.json`, `dev-report-<task-id>.json`.
+
+Resolve optional cp-state handoff for the QA close gate:
+
+- If the resolved input spec path is `docs/dev/specs/<SPEC_ID>.md` and
+  `.claude/specs/<SPEC_ID>/cp-state-qa.json` exists, bind `SPEC_ID`.
+- Else if `context-<task-id>.json` contains a `spec_path`, `spec_file`, or
+  `user_spec_path` pointing at `docs/dev/specs/<SPEC_ID>.md`, bind that `SPEC_ID`
+  when `.claude/specs/<SPEC_ID>/cp-state-qa.json` exists.
+- Else if `.claude/specs/<TASK_ID>/cp-state-qa.json` exists, bind `SPEC_ID="$TASK_ID"`.
+- Else bind `SPEC_ID=""` and skip the QA cp-state `SECOND ACTION`.
+
+When `SPEC_ID` is non-empty, `/close` MUST hand the QA subagent
+`.claude/specs/<SPEC_ID>/cp-state-qa.json`; this is what makes the close gate
+participate in the same check-in/checklist/Stop-block chain as `/dev`.
+
+### Step 1: Dispatch three inspectors in parallel (orchestrator authority — `commands/close.md` itself, NOT QA)
+
+**Authority note**: inspector subagents (`style-inspector`, `cleanliness-inspector`, `prompt-inspector`) are orchestrator-only auditors. ONLY this `/close` command may dispatch them. Subagents (including QA in Step 2) have NO authority to dispatch inspectors. This Step 1 is the orchestrator-layer dispatch site.
+
+**Compute the cycle-diff file list** before dispatch:
+
+- **Closed-task path** (a `dev-report-<TASK_ID>.json` exists): read the `dev.files_modified` array (top-level non-null list per the dev-report contract); use that list verbatim as `<cycle-diff-file-list>`.
+- **Irregular path** (no dev-report-<TASK_ID>.json — e.g., orchestrator-direct edits under `/do`, or hand-edits): run `git diff --name-only` against the relevant repo's cycle commit range to compute the file list. For nested-`.claude` edits the relevant repo is the nested git repo at `/root/.claude` (working-tree root); for parent-repo edits use `/root`.
+- If both paths yield an empty list, record `<cycle-diff-file-list>=` (empty) and proceed with dispatch — inspectors will return findings=[] and Step 5 will treat all cleanliness branches as non-blocking.
+
+**Dispatch all three inspectors in parallel** — emit ONE message containing THREE Agent tool calls (concurrent, not sequential):
+
+- Agent tool call 1: `subagent_type: style-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/style-inspector-report-<TASK_ID>.json`.
+- Agent tool call 2: `subagent_type: cleanliness-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`.
+- Agent tool call 3: `subagent_type: prompt-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/prompt-inspector-report-<TASK_ID>.json`.
+
+**Wait** for all three Agent tool calls to return. Each inspector writes its findings JSON to its assigned report path; the orchestrator does not re-interpret or re-aggregate those findings here — Step 2's QA dispatch passes the three concrete report paths as inputs and QA applies the AC-2.6 verdict-plumbing logic against them.
+
+The three concrete inspector report paths produced by Step 1 — for verbatim cross-reference by Step 2's QA dispatch prompt — are:
+
+- `docs/dev/style-inspector-report-<TASK_ID>.json`
+- `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`
+- `docs/dev/prompt-inspector-report-<TASK_ID>.json`
+
+These exact path strings (with `<TASK_ID>` substituted) MUST appear verbatim inside the Step 2 QA dispatch prompt body so the cross-reference between Step 1 output and Step 2 input is mechanical, not narrative.
+
+### Step 2: Delegate close debate to QA subagent
+
+Use the Agent tool with `subagent_type: qa` ONCE. The entire debate happens inside this single subagent call. Pass this prompt (substitute paths and $TS):
+
+```
+FIRST ACTION: if a dev-registry sentinel for this session exists at $CLAUDE_PROJECT_DIR/.claude/dev-registry/<SESSION_ID>/qa.json, read it to register.
+SECOND ACTION (only if SPEC_ID is non-empty): read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to load your mandatory checklist before the debate. Mark each completed checkpoint with /root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent qa --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> (auto-text records actor + ISO timestamp). You MUST leave zero pending checkpoints before Stop; subagentstop-cp-enforce.py blocks exit otherwise. If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
+
+You are the QA gatekeeper evaluating whether a completed development can be closed. The orchestrator passes a `codex_required: <true|false>` flag in this dispatch:
+
+- **`codex_required: true`** (user passed `--codex` to /close): you run a MULTI-ROUND INTERNAL DEBATE with OpenAI Codex (via the Skill tool) yourself. Follow the full Debate protocol below (Round 1 + 1b + 1b' + Round 2/3 + verdict branches 1/2/5/5b/6 with branch 7 N/A).
+- **`codex_required: false`** (default — no `--codex` flag): SKIP all `Skill(codex)` invocations. Run a SINGLE-ROUND QA-ONLY ASSESSMENT covering the 4 Workflow Integrity Dimension bullets + 1b cleanliness-of-THIS-diff inspector preconditions. Apply verdict branch 7 (codex disabled by user) — see verdict rules below. Branches 2/5/5b are N/A in this mode.
+
+In both modes, the caller does NOT orchestrate rounds; you own the loop.
+
+Input artifacts (read them first):
+- BA spec:     <BA_SPEC path or "none">
+- QA report:   <QA_REPORT path or "none">
+- Companions:  <context-<ts>.json / dev-report-<ts>.json if present, else omit>
+
+Debate protocol (all runs INSIDE you):
+
+Round 1:
+  1a. Form your initial assessment (YES/NO) on whether the dev can close. Consider:
+      - Are all acceptance criteria measurably met (evidence, not code review)?
+      - Is the root cause addressed and the fix correct & complete?
+      - Regression risks? Scope drift? Missed edge cases?
+
+      WORKFLOW INTEGRITY DIMENSION (mandatory — evaluate ALL four bullets explicitly; report a per-bullet PASS / FAIL / N/A-with-reason in the transcript; ANY FAIL forces CLOSE: NO regardless of AC coverage):
+        1. **Downstream consumability** — Can the artifacts under evaluation be consumed by downstream commands (`/commit`, `/push`, `/merge`) without manual patching of timestamps, names, or schemas? Concretely: does `dev-report-<task-id>.json` exist with the SAME `<task-id>` as this close cycle? Does `close-report-<task-id>.md` end with `CLOSE: YES`? If a human would have to rename, copy, or hand-edit any artifact to make `/commit` succeed, this bullet is FAIL.
+        2. **task-id chain consistency** — Are predecessor artifacts (BA spec → context → dev-report → completion → qa-report → close-report) ALL present under the SAME `<task-id>`? Mismatched task-ids across the chain → FAIL.
+        3. **Pre-existing-defect rule** (rewritten per spec-20260503-091826 Section 5.4 rule 1+2 — out-of-scope-by-default UNLESS user-need-impact OR security OR cleanliness-of-THIS-diff) — If a Round-1 critique surfaces a "pre-existing architectural defect" or similar, the debate resolves as follows:
+             (a) if THIS cycle's BA spec CLAIMS to address the defect AND the claim maps to user-need / path-dependent shared infrastructure / security / cleanliness-of-THIS-diff → the defect IS in scope and must be evaluated on its merits. If the BA-spec claim does NOT map to one of those four axes (i.e., BA over-expanded into path-external scope), the claim is itself out-of-scope and falls through to (d) — pre-existing-out-of-scope, NOT NO; the AC-deviation / out_of_scope_observations path applies instead.
+             (b) if the pre-existing defect actively blocks user-need success in THIS cycle's spec (i.e., the user-stated requirement cannot be satisfied without addressing the defect) → it IS in scope; bullet evaluates on its merits and FAILS only if the defect remains;
+             (c) if the pre-existing defect is a security hole (Section 5.4 rule 2 verbatim: "安全洞例外：即便在路径外也必修") → it IS in scope and must be fixed; bullet FAILS unless addressed;
+             (d) otherwise — the pre-existing defect is OUT of scope by default. Bullet PASSES. Recording in `out_of_scope_observations` is the correct disposition; the "pre-existing / out-of-scope" walkback is the default behavior, not a forbidden one. The user's binding directive: "如果对用户体验和安全性以及整体代码仓库整洁程度不造成阻碍的，都不一定是NO的原因" — pre-existing defects that do not impact 用户需求 / 安全性 / cleanliness-of-THIS-diff are NOT NO triggers.
+        4. **Self-deployability** — Can the changes be committed and shipped via the project's own commit/push toolchain (`/commit`, `/push`, `/merge`) without out-of-band patching? Evaluate as the AND of these sub-items:
+             (i) **/commit consumability** (PASS/FAIL) — `/commit` accepts the cycle's artifacts (dev-report, qa-report, completion) without orchestrator-side jq or Edit patches to fix schema. FAIL if any manual schema patch was required.
+             (ii) **Push permission** (PASS/FAIL) — the orchestrator's git identity has write access to the target remote(s). FAIL if push was blocked by remote permissions or required a human to push from a different identity.
+             (iii) **No commit-channel bypass** (PASS/FAIL) — no manual `git commit` outside agent context, no `CLAUDE_PROJECT_DIR` override to bypass repo-rooted hook gates, no `auto-bulk:` pattern abuse to smuggle changes past `pretool-git-privilege-guard.py`. FAIL if any of these bypass channels was used.
+             (iv) **User-only physical filesystem actions** (N/A-with-reason — NEVER FAIL) — any sub-item that would require the user to perform a physical filesystem action the orchestrator structurally cannot perform itself is evaluated as N/A-with-reason, NOT FAIL. The canonical example is the user touching `.hook-refactor-allow` to authorize a hook-tree edit: human-in-the-loop is intentional anti-fabrication protection per Trap 11; orchestrator-creatable sentinels would defeat the protection's threat model. The N/A reason MUST cite Trap 11 verbatim. This clause covers ONLY user-only physical filesystem actions; it does NOT cover the bypasses listed in sub-item (iii), which remain FAIL.
+           Bullet 4 is PASS when (i), (ii), and (iii) are each PASS (or N/A-with-reason where structurally inapplicable per (iv)). Any FAIL in (i)–(iii) is Bullet 4 FAIL.
+
+  1b. **Cleanliness-of-THIS-diff preconditions — inspector reports as input** (per spec-20260503-091826 Section 5.4 rule 3 + Section 5.2 verbatim "将clean用的诸如style-inspector等加入close的steps中"). Inspector reports are ALREADY GENERATED by the orchestrator (`/close` Step 4) BEFORE this dispatch. Read them at the following exact paths:
+      - `docs/dev/style-inspector-report-<TASK_ID>.json`
+      - `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`
+      - `docs/dev/prompt-inspector-report-<TASK_ID>.json`
+      **DO NOT attempt to dispatch inspector subagents — you do not have that authority; the orchestrator already did Step 4.** Inspector dispatch is `/close`-orchestrator-only by design (`agents/style-inspector.md` etc. are auditors invoked at the orchestrator layer). Treat the JSON contents of the three report files above as input to the AC-2.6 verdict-plumbing rules below. Inspector findings DO NOT directly force the verdict — `close.md`'s verdict-plumbing rules at AC-2.6 govern when a finding becomes a CLOSE: NO trigger. If any of the three report files is missing or unreadable, record the missing-report condition in the close-report transcript and treat the corresponding inspector's findings as empty (advisory) rather than attempting to invoke the inspector yourself.
+
+  1b'. Invoke the Skill tool with skill=codex. Pass codex a prompt that includes:
+      - The same input artifact paths
+      - Your Round-1 position and rationale
+      - Inspector findings from 1b above (so codex can weigh them)
+      - Instruction (user-need + THIS-diff cleanliness scoped, per spec-20260503-091826 Section 5.4 rule 3 + 4): "Challenge whether this close grants YES on something that ACTUALLY satisfies the user-stated need (not just the BA AC's mechanical wording). Flag any cleanliness/style violations introduced by THIS diff (not pre-existing). Out-of-path observations and pre-existing technical debt are NOT grounds for CLOSE: NO under this scoping. Reply with exactly one line `CODEX: YES` or `CODEX: NO` followed by 3-8 sentences of rationale."
+  1c. Parse codexs response. If parsing ambiguous, treat as NO.
+
+  **Inspector-finding → CLOSE: NO verdict plumbing** (AC-2.6 — encodes Section 5.4 rule 3 verbatim "整洁度判定范围 = 仅本次 diff 新增的 violation = NO 阻断 close. 预存历史脏污一律不管"):
+
+  - **(a) Diff-scoped invocation**: close passes `--changed-files <cycle-diff-changed-files>` (e.g., derived from `git diff --name-only $BASE..HEAD` or token-equivalent cycle-diff source — changed-line metadata for line-level inspectors / file list for file-level inspectors) to all three inspectors at Round-1.
+  - **(b) NEW-violation → CLOSE: NO** (only **provably-new** findings; pre-existing/ambiguous/untagged default to **ignore**): an inspector finding forces `CLOSE: NO` with a cleanliness-failure reason ONLY when the finding is explicitly proven NEW (introduced by THIS cycle's diff). Findings that are pre-existing, untagged, ambiguous, or from non-diff-aware inspector runs default to **ignore** (cannot force CLOSE: NO):
+    - **Line-level inspectors** (e.g., `style-inspector` emitting `file:line`): a finding is provably NEW when **(i) its line falls within the cycle diff's changed-line range / diff-hunk overlap for that file AND (ii) the finding is also absent from the pre-diff baseline of the same file** (the violation did not exist on the corresponding pre-diff line content). Overlap alone is **necessary but NOT sufficient** — a pre-existing violation preserved on a modified line is still pre-existing. Soft fallback when pre-diff baseline comparison is impractical: dev/inspector documents the proxy used (e.g., "overlap-only used because <reason>") and close treats overlap-only findings as **advisory** unless the proxy explicitly stipulates newness.
+    - **File-level inspectors** (`cleanliness-inspector`, `prompt-inspector` — granularity = `file`, not `file:line`): the inspector's output MUST distinguish NEW vs pre-existing. Two acceptable mechanisms (dev's discretion; **may be implemented individually OR combined**):
+      - **(i) Inspector-side filtering**: the inspector itself emits findings only for NEW violations (e.g., comparing its analysis against a pre-diff baseline of the same file, or analyzing diff hunks directly). Findings emitted under mechanism (i) in `--changed-files` mode count as NEW **only when the inspector's documentation explicitly declares the filtering contract** (per AC-12.1 documentation requirement); absent that explicit contract, untagged file-level findings fall under the default-safe ignore rule below.
+      - **(ii) Inspector-side tagging**: the inspector emits findings for the listed files but tags each with an explicit `introduced_in_diff: bool` field (or token-equivalent positive marker like `is_new: true|false`). close honors that tag.
+    - **Default-safe rule for ambiguity** (covers tag absence, null, unknown, missing field, untagged output): close.md verdict logic requires an **explicit positive marker** (`introduced_in_diff: true` or token-equivalent positive value) to force CLOSE: NO on a file-level finding. Findings where the marker is `false`, absent, null, unknown, or where the inspector emitted output without a marker at all, MUST default to **ignore** — they CANNOT force CLOSE: NO. `absent/unknown -> ignore` is the encoded default. Section 5.4 rule 3 requires explicit proof of newness, not absence of evidence.
+    - **Default-safe rule for non-diff-aware mode** (covers no `--changed-files` arg / default full-repo run): file-level inspector findings produced in default/full-repo/non-diff-aware mode are **advisory and non-blocking** for cleanliness CLOSE: NO unless they carry an explicit positive new-in-this-diff marker per the rule above. Full-repo finding does not force CLOSE: NO. close.md's full-repo inspector runs (e.g., for orientation or audit) MUST NOT escalate to CLOSE: NO on file-level findings absent that marker.
+    - close.md verdict logic honors whichever mechanism the inspector chose (or the combination thereof): if (i) with explicit-contract documentation, close treats every finding emitted in `--changed-files` mode as NEW; if (ii), close reads the explicit positive marker and applies the default-safe rule above.
+  - **(c) Pre-existing-NOT → CLOSE: NO**: inspector findings whose `file:line` is **not in this diff**, OR whose file-level marker is `introduced_in_diff: false` / absent / null / untagged, OR which originate from a non-diff-aware full-repo run, MUST NOT cause `CLOSE: NO`. `pre-existing finding ignored`. `pre-existing technical debt` and `历史脏污` are out-of-scope for cleanliness verdict per Section 5.4 rule 3.
+
+  **Worked example** (the three required paths α/β/γ are walked through; verdict outputs use the existing `CLOSE: NO - <reason>` format from Step 5 final-line contract):
+
+  - Suppose `style-inspector --changed-files` returns a finding at `path/to/component.tsx:42` (line-level), and `cleanliness-inspector --changed-files` returns a file-level finding at `path/to/util.ts` with `introduced_in_diff: true`.
+  - Close evaluates each finding against the cycle diff (changed-line metadata / diff hunk ranges for line-level inspectors; honors the file-level inspector's NEW vs pre-existing marker for file-level inspectors).
+  - **diff-NEW finding (line-level)**: line 42 is within the diff's changed-line range AND was absent from the pre-diff baseline of `component.tsx` → `CLOSE: NO - new style violation introduced at component.tsx:42`.
+  - **diff-NEW finding (file-level)**: `cleanliness-inspector` returned `introduced_in_diff: true` for `util.ts` under explicit-contract mechanism (i) or tagging mechanism (ii) → `CLOSE: NO - new cleanliness violation in util.ts`.
+  - **(α) pre-existing finding in a changed file → ignore**: `style-inspector` returns a finding at `path/to/component.tsx:7` where line 7 IS within the diff's changed-line range BUT the pre-diff baseline of `component.tsx` already contained the same violation on the corresponding pre-diff line — overlap is necessary but not sufficient, and the pre-diff baseline shows the violation pre-existed. Outcome: ignore, do not block close. Continue evaluating other findings.
+  - **(β) untagged / ambiguous finding → ignore**: `cleanliness-inspector` emits a file-level finding for `path/to/legacy.ts` with NO `introduced_in_diff` field, NO token-equivalent positive marker, and the inspector documentation does not declare an explicit-contract filtering claim — under the Default-safe rule for ambiguity, `absent/unknown -> ignore`; this `untagged finding ignored`. Outcome: do NOT force CLOSE: NO. Continue evaluating other findings.
+  - **(γ) non-diff-aware mode finding → advisory / non-blocking**: `prompt-inspector` was invoked in default full-repo mode (no `--changed-files` argument) for an orientation pass; it returns a file-level finding for `path/to/agent.md`. Under the Default-safe rule for non-diff-aware mode, this is `advisory` / `non-blocking` for cleanliness CLOSE: NO. Outcome: record the finding, do NOT force CLOSE: NO; downstream cycles may address it through the `out_of_scope_observations` ledger if desired.
+
+Round 2 (skip if Round 1 ended with both QA=YES and CODEX=YES):
+  2a. Re-assess your position after reading codexs Round-1 challenge. If you still say YES, strengthen justification; if codex surfaced a real issue, update to NO.
+  2b. Invoke Skill(codex) again with your updated position + codexs prior challenge + artifact paths. Ask codex to either confirm or press further, replying again with `CODEX: YES` / `CODEX: NO` + rationale.
+
+Round 3 (skip if earlier unanimous YES):
+  3a. Final reassessment.
+  3b. Final Skill(codex) call with full history.
+
+Verdict rule (UNANIMOUS CONSENT, with infrastructure-failure escape valve):
+
+Track a single field about the codex consultation across all rounds:
+  `codex_status`: `ok` | `failed_quota` | `failed_timeout` | `failed_parse`
+
+- `ok` — at least one round received a parseable `CODEX: YES` or `CODEX: NO`.
+- `failed_quota` — every round attempted hit a usage-limit / quota error.
+- `failed_timeout` — every round attempted hung past the round's deadline.
+- `failed_parse` — every round attempted returned content that could not be parsed into `CODEX: YES` / `CODEX: NO`. Unlike `failed_quota` / `failed_timeout`, the round produced output -- it just did not match the schema. QA MUST preserve the verbatim raw output and perform a manual dissent scan before branch 5b can grant CLOSE: YES (FINDING-4).
+
+Verdict branches:
+
+1. **Unanimous YES (normal happy path)**: QA position = YES AND codex position = YES (codex_status = ok) AND all four Workflow Integrity Dimension bullets PASS (or N/A-with-reason; never FAIL) → **CLOSE: YES**.
+
+1b. **AC-deviation-PASS branch** (per spec-20260503-091826 Section 5.4 rule 4 verbatim: "dev 偏离 BA spec AC 但用户需求实测满足 = PASS，但 dev report 必须显式记录 AC 偏离原因"). When QA's verdict is YES on user-need verification (i.e., `verified_against_complaint = true` AND `passed_user_requirement = true` per agents/qa.md schema) but dev's diff deviated from one or more BA AC literal-wording → **CLOSE: YES** is allowed iff ALL of the following hold (necessary AND sufficient — codex-refined; citation alone is necessary but NOT sufficient):
+    - **(a)** Dev report explicitly identifies the deviated AC by ID (e.g., `AC-3.1`, `AC-12.1`) — `ac_deviation_with_user_need_satisfied: true` is present in the dev report and the deviated AC IDs are listed.
+    - **(b)** Dev report cites the verbatim user-need text from the BA spec that the implementation actually satisfies (the deviation is from AC mechanics, not from user need; the verbatim user-need text is reproduced).
+    - **(c)** Dev report provides evidence (test result / measurement / observation) that the implemented behavior satisfies that need. Hand-wave reasoning is rejected.
+    - **(d)** **QA SHALL reject this branch if the deviated AC directly encodes user-need / security / THIS-diff-cleanliness — for those, AC-deviation is plain AC-FAIL, NOT AC-deviation-PASS.** This prevents the branch becoming a downgrade vector. If the deviated AC's text encodes the user-need test itself, or a security check, or a cleanliness-of-THIS-diff check, deviation collapses back to AC-FAIL and the verdict follows branch 4 (QA dissent → CLOSE: NO).
+    - When (a)–(c) hold and (d) does not trigger, the verdict is **CLOSE: YES** and the close-report records the deviation rationale verbatim.
+
+2. **Substantive Codex dissent**: codex_status = ok AND any round ended with `CODEX: NO` AND the disagreement was not resolved by a later round → **CLOSE: NO**, with the dissent line citing codex's substantive objection. This branch is unchanged: a working codex saying NO still forces NO.
+
+3. **Workflow Integrity FAIL**: any of the four bullets evaluates to FAIL (not N/A-with-reason) → **CLOSE: NO** regardless of QA / codex positions, with the failing bullet named in the dissent line. Unchanged.
+
+4. **QA dissent**: QA position = NO at end of final round → **CLOSE: NO**, with QA's substantive objection in the dissent line. Unchanged.
+
+5. **Codex infrastructure failure (BUG-CLOSE-2 escape valve)**: codex_status ∈ {`failed_quota`, `failed_timeout`} AND QA position = YES AND all four Workflow Integrity Dimension bullets PASS → **CLOSE: YES (degraded codex consultation)**. The verdict is granted on QA's substantive YES alone because codex never produced a substantive opinion to disagree with. Document the codex_status value verbatim in the close-report transcript under a new "Degraded codex consultation" section. The dissent line is replaced by an annotation: `degraded codex consultation: codex_status=<value>, codex contributed no substantive position`. This branch ONLY applies when the failure mode is unambiguous mechanical / infrastructural transport failure (the request never produced any output at all); a successful CODEX: NO still falls under branch 2. `failed_quota` and `failed_timeout` are unambiguous (the round produced no body to inspect). `failed_parse` is NOT in this branch -- see branch 5b.
+
+5b. **Codex parse failure (FINDING-4 hardening for `failed_parse`)**: codex_status = `failed_parse` AND QA position = YES AND all four Workflow Integrity Dimension bullets PASS → conditional **CLOSE: YES (degraded codex consultation)**, BUT ONLY when QA also attests in the close-report:
+    - **(a)** the verbatim raw codex output text from each `failed_parse` round is recorded in the "Degraded codex consultation" section;
+    - **(b)** QA performed a manual scan of that verbatim output for substantive dissent signals -- including but not limited to: `CODEX: NO`, `Codex: NO`, the literal substring `NO`, the words `bug`, `defect`, `regression`, `wrong`, `incorrect`, `must not`, `should not`, `does not work`, `fails`, `broken`, or any prose explicitly objecting to the proposed close;
+    - **(c)** QA explicitly states the determination: `manual parse: NO substantive dissent signal found in failed_parse output` (verbatim wording required).
+
+    `failed_parse` differs from `failed_quota`/`failed_timeout` because the request DID complete and the codex CLI DID emit content -- the parser merely could not map it to the `CODEX: YES` / `CODEX: NO` schema. Skipping the manual scan would create a downgrade vector: a substantive `NO` could ride a malformed response into a YES verdict. If the manual parse finds ANY dissent signal, this branch fails over to **CLOSE: NO** (treat as substantive Codex dissent under branch 2 with the verbatim signal as the dissent line). If QA omits the verbatim attestation, fail over to branch 6 (conservative NO).
+
+6. **Other ambiguity / parse failure on QA's side / unresolved disagreement after final round**: → **CLOSE: NO** (conservative default). Distinct from branch 5: the failure is on QA's reasoning side, not codex's transport.
+
+7. **Codex disabled by user (no `--codex` flag)** — `codex_required = false` from Step 1 → QA runs **single-round QA-only assessment** of the 4 Workflow Integrity bullets + 1b cleanliness preconditions; no `Skill(codex)` invocations attempted; `codex_status` is set to the literal sentinel `disabled_by_user`. Verdict logic collapses to:
+   - QA position = YES AND all four Workflow Integrity bullets PASS (or N/A-with-reason; never FAIL) AND no NEW-violation cleanliness inspector finding → **CLOSE: YES** (annotation: `codex_disabled_by_user: codex consultation skipped because --codex flag was not passed; verdict granted on QA's substantive YES + 4 bullets PASS alone`).
+   - QA position = NO at end of single round → **CLOSE: NO** (branch 4 reasoning applies; QA's substantive objection is the dissent line).
+   - Any of the four bullets FAIL → **CLOSE: NO** (branch 3 reasoning applies; the failing bullet name is the dissent line).
+   - AC-deviation-PASS branch 1b is fully applicable in the codex-disabled path — when QA verdict is YES on user-need verification AND dev report contains a valid `ac_deviation_with_user_need_satisfied: true` block satisfying clauses (a)–(d) of branch 1b, **CLOSE: YES** is granted with the deviation rationale recorded.
+   - Branches 2 / 5 / 5b / 6 are all N/A in the codex-disabled path (codex was never invoked; there is no codex dissent to weigh, no infrastructure failure to handle, no parse failure to scan).
+   - The close-report MUST record `codex_status: disabled_by_user` in the "Codex consultation" section (NOT `failed_*`), and the per-round entries record `[Codex] consultation skipped: --codex flag not passed; QA-only assessment performed`. The final verdict line MUST use the form `CLOSE: YES — codex disabled by user` (when YES) or the standard `CLOSE: NO — <reason>` (when NO); the em-dash form distinguishes branch 7 YES from branch 1 unanimous YES for downstream `/commit` consumers.
+
+The /close --force escape hatch (Step 2) is unchanged. It bypasses Step 5 entirely; none of the verdict branches above run on the forced path.
+
+Transcript file: write the full debate to `docs/dev/close-report-<task-id>.md` (substitute `<task-id>` with the value resolved in Step 3 — e.g. the source `/dev` cycle's task-id; do NOT use a fresh `date +%Y%m%d-%H%M%S` here, that would break /commit's PRIMARY-path lookup) with this structure:
+  # Close Debate Report
+  Task-id, Input files, Rounds run, Verdict.
+  Workflow Integrity Dimension: explicit per-bullet status (1. Downstream consumability: PASS/FAIL/N/A; 2. task-id chain consistency: PASS/FAIL/N/A; 3. Pre-existing-defect rule: PASS/FAIL/N/A; 4. Self-deployability: PASS/FAIL/N/A) — with one-sentence reason for each FAIL or N/A.
+  Codex consultation: explicit `codex_status` value (`ok` | `failed_quota` | `failed_timeout` | `failed_parse`). When the value is one of the failure modes, include a "Degraded codex consultation" section that records: which rounds failed, the verbatim error / timeout / parse-issue from each attempt, and the explicit acknowledgement that the verdict was granted on QA's substantive YES alone (per Verdict rule branch 5 / 5b). For `failed_parse` specifically (FINDING-4), the section MUST additionally include: (i) the verbatim raw codex output text from EACH failed_parse round, (ii) QA's explicit per-round manual scan note, and (iii) the verbatim attestation `manual parse: NO substantive dissent signal found in failed_parse output`. Without all three, branch 5b is not satisfied and the verdict falls to branch 6 (CLOSE: NO).
+  For each round: [QA] position + rationale; [Codex] position + rationale (or "consultation failed: <reason>" when codex_status was failed-* in that round).
+  At bottom: final verdict line.
+
+Overwrite policy: if `docs/dev/close-report-<task-id>.md` already exists with a `CLOSE:` line in it (a prior closure attempt for the same task-id), do NOT silently overwrite — append a fresh debate as a new section dated by ISO timestamp, OR (if your tooling cannot append cleanly) treat the prior closure as authoritative and do not re-close.
+
+Return value: print to stdout exactly ONE of these lines as the final line of your response:
+  CLOSE: YES
+  CLOSE: YES - degraded codex consultation: codex_status=<failed_quota|failed_timeout|failed_parse>
+  CLOSE: YES — codex disabled by user
+  CLOSE: NO - <one-sentence reason naming the dissenting party and their objection>
+```
+
+### Step 3: Generate close-report
+
+Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it to stdout as the last line of /close. The close-report itself is written by QA inside Step 2; this step is the verdict echo + ensures the report file exists at `docs/dev/close-report-<task-id>.md`.
+
+## Constraints
+
+- /close does NOT call Skill(codex). QA does, internally.
+- /close does NOT manage rounds. QA does, internally.
+- /close does NOT evaluate verdict. QA does, internally.
+- QA is invoked EXACTLY ONCE (non-force path) or ZERO times (forced path).
+- **Scoped default-NO** (per spec-20260503-091826 Section 5.1 verbatim "如果对用户体验和安全性以及整体代码仓库整洁程度不造成阻碍的，都不一定是NO的原因"): Default to CLOSE: NO when error / ambiguity / tool-unavailability **blocks evaluation of user-need satisfaction OR security OR cleanliness-of-THIS-diff**. Errors / ambiguity / tool-unavailability that do NOT impede those three evaluation axes are NOT automatic NO triggers. Codex-refined: "Unknown but relevant" still defaults to NO — when the error blocks the evaluation itself (i.e., we cannot determine whether the user need is satisfied), default remains NO. Recoverable transient infrastructure failures (e.g., Codex quota / timeout) follow the existing branch-5/5b graceful-degradation logic — this clause does NOT override branches 5/5b. EXCEPT when `--force` is explicitly passed by a human user, in which case CLOSE: YES (FORCED) is the result regardless of upstream artifact state (Forced-override path short-circuit).
+- `disable-model-invocation: true` (frontmatter) means the model cannot self-invoke /close via SlashCommand — this applies equally to the forced path. Only a human can trigger `--force`.

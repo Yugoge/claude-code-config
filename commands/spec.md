@@ -1,268 +1,251 @@
 ---
-description: Create, validate, and list spec files for any dev workflow (/dev, /dev-overnight, or standalone reference)
+description: Create spec files for any dev workflow (/dev, /dev-overnight, or standalone reference)
+disable-model-invocation: true
 ---
 
 # /spec: General-Purpose Spec Manager
 
-You manage spec files based on the 8-section spec template. Parse `$ARGUMENTS` to determine the mode, then execute the appropriate workflow below.
-
-**Arguments**: `$ARGUMENTS`
+You manage spec files. `$ARGUMENTS` may be empty or hold the user's first requirement — either way, act immediately.
 
 ---
 
-## Argument Parsing
+## Spec Creation Mode
 
-Parse the arguments to determine the mode:
+**Philosophy**: Act immediately on whatever the user provides. Ask a clarification ONLY when the input is genuinely impossible to turn into a Section 5 skeleton. After writing the first spec, stay in a multi-turn loop and append any follow-up requirements to the SAME file. Exit on natural-conclusion strong signals only.
 
-1. **`--validate <path>`**: Validation mode
-2. **`--list`**: List mode
-3. **Non-empty text** (no flags): Quick creation mode (inline description)
-4. **Empty / no arguments**: **Interview mode** (recommended for complex issues)
+### Step 1: Parse $ARGUMENTS
 
----
+- **Non-empty non-flag text**: treat as the first requirement. Skip to Step 3.
+- **Empty**: ask once, briefly and naturally — one sentence, first-person, match the user's energy and language (en or zh). Do not use a fixed phrase; vary wording. Then wait for the response and use it as the first requirement.
 
-## Mode 1: Quick Creation (inline description)
+Do NOT ask multiple framing questions. No "deep-dive", no "acceptance criteria" interview, no preview-and-confirm gate.
 
-**Trigger**: `$ARGUMENTS` contains text that is NOT a flag (e.g., `/spec fix the login button styling`)
+### Step 2: Clarify if truly unclear (max 3 rounds)
 
-**Steps**:
+Adapted from `/dev` BA clarification pattern (dev.md Step 4 loop, max 3 rounds, default is to proceed).
+
+**Trigger this step ONLY when** Section 5 cannot be sketched at all — no topic, no feature, no issue identifiable, no actionable phrase. Examples of genuinely unclear input: "help", "fix it", "something's wrong", bare emoji.
+
+**If not triggered**: skip to Step 3.
+
+**If triggered**:
+1. Ask ONE targeted question at a time. Wait for user response.
+2. Re-evaluate: can Section 5 now be sketched? If yes, proceed to Step 3.
+3. Repeat max 3 rounds. After the 3rd answer, proceed regardless — write the spec with whatever Section 5 content you can extract plus an `_Assumption_` note.
+
+### Step 3: Write first spec + dispatch background Explore
 
 1. Read the template at `~/.claude/templates/overnight-spec.md`. If missing, report error and stop.
 
 2. Generate the output path:
    ```
-   docs/dev/specs/spec-<YYYYMMDD-HHMMSS>.md
+   ${CLAUDE_PROJECT_DIR:-$(pwd)}/docs/dev/specs/spec-<YYYYMMDD-HHMMSS>.md
    ```
-   Create `docs/dev/specs/` if it does not exist.
+   Specs always land in the parent project directory, never inside an overnight worktree. Create `docs/dev/specs/` if it does not exist. Store the resulting path as `spec_path` for reuse in Step 4. A fresh `/spec` invocation in a new session creates a new timestamped file; within-session follow-ups append to the same file.
 
 3. Populate the template:
-   - `<issue_description>` → user's description from `$ARGUMENTS`
-   - `<pipeline_index>` → `standalone`
-   - `<session_id>` → `manual`
+   - `<issue_description>` → short summary of the user's requirement
    - `<ISO-8601>` → current timestamp
-   - Section 5 → user's description verbatim
+   - Section 5 → user's requirement verbatim
+   - All other sections → `_Not yet populated._`
 
-4. Write the spec and display confirmation:
+4. Write the spec.
+
+5. **Background exploration (non-blocking)**: when the user mentions specific files, components, features, or technical terms, immediately dispatch an Explore agent in the background:
    ```
-   Spec created: <absolute path>
-
-   Sections populated:
-   - Section 5 (User's Acceptance Criterion): populated from your description
-
-   Usage:
-     /dev                                   ← auto-detects this spec
-     /dev --spec <path>                     ← explicit path
-     /dev-command                           ← auto-detects this spec
-     /dev-command --spec <path>             ← explicit path
-     /dev-overnight <end-time>              ← auto-detects this spec
-     /dev-overnight <end-time> --spec <path> ← explicit path
+   Agent(
+     subagent_type="Explore",
+     run_in_background=true,
+     description="Spec background exploration",
+     prompt="Find and summarize <what the user mentioned>. Report: file paths, current behavior, relevant code snippets. Thoroughness: medium."
+   )
    ```
+   Findings integrate when they arrive (see Step 4). Discrepancies may surface as a single targeted question but do NOT gate the loop.
 
----
+6. Acknowledge that the spec was written. Include the full `<spec_path>` so the user knows where it landed. Convey that more requirements can be added whenever they are ready. Keep it brief and natural — first-person, match the user's language and energy, no fixed template.
 
-## Mode 2: Interview Mode
+**Do NOT** run split / checkpoints / QA yet. Finalize happens exactly once in Step 6.
 
-**Trigger**: `$ARGUMENTS` is empty
+### Step 4: Multi-turn accumulation loop
 
-**Philosophy**: You are an interviewer. Your job is to ask questions, listen, and record. NEVER summarize, paraphrase, or omit anything the user says. Record their words verbatim. If you don't understand something, ask immediately — don't guess or fill in blanks.
+Copied from `ask.md` Step 6 (multi-turn dialogue loop architecture). One `/spec` invocation spans multiple user messages; each message lands in the SAME `spec_path`.
 
-### Interview Rules (MANDATORY)
+After Step 3, wait for the next user message and branch:
 
-1. **One question at a time.** Never ask multiple questions in one message.
-2. **Record verbatim.** User's words go into the spec exactly as spoken. No editing, no "cleaning up", no rewording.
-3. **Never omit.** If the user provides a 10-line answer, all 10 lines go into the spec. Do not condense.
-4. **Ask when confused.** If something is unclear, ambiguous, or uses unfamiliar terms — ask a follow-up immediately. Do not assume or infer.
-5. **Background exploration.** When the user mentions a file, component, feature, or technical term, immediately dispatch an Explore agent in the background to gather context. Do NOT wait for the exploration to finish before asking the next question — keep the interview flowing.
-6. **No suggestions.** Do not suggest solutions, approaches, or improvements. You are recording what the user wants, not advising them.
-7. **Confirm before writing.** After all questions are answered, show the user a complete preview of the spec content (Sections 1 and 5) and ask for confirmation before writing the file.
-
-### Interview Flow
-
-**Step 1: Open**
-
-Say exactly:
-```
-Starting spec interview. I'll ask questions one at a time to build a complete spec.
-
-What's the issue or feature you want to specify?
-```
-
-**Step 2: Deep-dive on the problem**
-
-After the user describes the issue:
-
-- If the user mentions specific files, components, or code areas → dispatch an Explore agent in the background:
+- **Strong natural-conclusion signal** (Step 5 list) → proceed to Step 6 (Finalize).
+- **Another requirement** → append to `spec_path` under Section 5 as a new sub-section:
   ```
-  Agent(subagent_type="Explore", run_in_background=true):
-    "Find and summarize <what the user mentioned>. Report: file paths, current behavior, relevant code snippets. Thoroughness: medium."
+  ### 5.N: <brief title extracted from the message>
+  <verbatim requirement text>
   ```
-- Ask the next question:
-  ```
-  What does the current behavior look like? (What's happening now that shouldn't be, or what's missing?)
-  ```
+  `N` increments from 2 (the first requirement populates Section 5; subsequent requirements become 5.2, 5.3, …). Then loop back to wait.
+- **Exploration findings arrive** → integrate into Section 1 (Before) silently. If a finding contradicts the user's description, surface one targeted question — for example, "I looked at X and found Y — does that match?" — then loop back. Never gate the loop on exploration.
+- **Mid-loop vague input** → apply Step 2 logic (max 3 rounds) to that single message before appending, then loop back.
 
-**Step 3: Acceptance criteria**
+Maintain `turn_count` internally (not user-visible), increment after each user response. No hard turn cap — termination is signal-driven.
 
-```
-What does "done" look like? How will you know this is fixed/complete?
-```
+### Step 5: Natural-conclusion detection
 
-Record the answer verbatim into Section 5. If the answer is vague (e.g., "it should work"), push back:
-```
-Can you be more specific? For example: what should the user see, what values should appear, what behavior should change?
-```
+Copied verbatim from `ask.md` Step 8 (lines 495-510).
 
-**Step 4: Context and constraints (optional)**
+**Strong signals** (trigger finalize):
+- Gratitude: "thanks", "thank you", "appreciate it"
+- Satisfaction: "perfect", "got it", "i understand now", "that's helpful"
+- Confirmation: "makes sense", "clear now", "all good"
+- Topic closure: "that answers my question"
+- Chinese equivalents: "谢谢", "好的", "明白了", "完美", "清楚了", "就这样", "好了", "写吧"
 
-```
-Anything else I should know? Constraints, edge cases, things to watch out for, related issues? (Say "no" to skip)
-```
+**Weak signals** (continue loop, do NOT finalize):
+- User asks a clarifying question
+- User says "interesting" (might want more)
+- User provides partial understanding
 
-If the user says "no" or equivalent, skip. Otherwise record into Section 8 (Attention Notes).
+Only proceed to Step 6 when a STRONG signal fires.
 
-**Step 5: Incorporate exploration results**
+### Step 6: Finalize (exactly once)
 
-If any background Explore agents have returned results by now:
-- Review findings silently
-- If the findings reveal relevant context (e.g., the file the user mentioned is at a specific path, or there's related code), incorporate file paths and factual context into Section 1 (Before)
-- If the findings raise new questions (e.g., the component the user mentioned doesn't exist, or the behavior differs from what the user described), ask the user about the discrepancy immediately:
-  ```
-  I looked at <what you mentioned> and found <factual observation>. Does this match your understanding, or is there something I'm missing?
-  ```
-
-**Step 6: Preview and confirm**
-
-Present the complete spec preview to the user:
-```
-Here's the spec I'll create:
-
-**Issue**: <issue description>
-
-**Section 1 (Before)**:
-<content or "empty — will be populated by BA">
-
-**Section 5 (Acceptance Criterion)**:
-<verbatim user content>
-
-**Section 8 (Attention Notes)**:
-<content or "empty">
-
-Write this spec? (yes/no)
-```
-
-Wait for user confirmation.
-
-**Step 7: Write the spec**
-
-1. Read the template at `~/.claude/templates/overnight-spec.md`. If missing, report error and stop.
-2. Generate the output path: `docs/dev/specs/spec-<YYYYMMDD-HHMMSS>.md`
-3. Create `docs/dev/specs/` if needed.
-4. Populate:
-   - `<issue_description>` → issue from Step 1
-   - `<pipeline_index>` → `standalone`
-   - `<session_id>` → `manual`
-   - `<ISO-8601>` → current timestamp
-   - Section 1 → Before state (if provided + exploration findings)
-   - Section 5 → Acceptance criterion verbatim
-   - Section 8 → Attention notes (if provided)
-5. Write the file and display:
-   ```
-   Spec created: <absolute path>
-
-   Sections populated:
-   - Section 1 (Before): <populated or empty>
-   - Section 5 (Acceptance Criterion): populated
-   - Section 8 (Attention Notes): <populated or empty>
-
-   Usage:
-     /dev                                   ← auto-detects this spec
-     /dev --spec <path>                     ← explicit path
-     /dev-command                           ← auto-detects this spec
-     /dev-command --spec <path>             ← explicit path
-     /dev-overnight <end-time>              ← auto-detects this spec
-     /dev-overnight <end-time> --spec <path> ← explicit path
+1. **Count monolith lines**:
+   ```bash
+   MONOLITH_LINES=$(wc -l < <spec_path>)
    ```
 
----
-
-## Mode 3: Validate Spec
-
-**Trigger**: `$ARGUMENTS` starts with `--validate`
-
-**Steps**:
-
-1. Extract the file path from `$ARGUMENTS` (the token after `--validate`).
-
-2. Read the file. If it does not exist, report an error and stop.
-
-3. Check for all 8 sections by looking for these headings:
-   - `## Section 1: Before`
-   - `## Section 2: What Was Attempted`
-   - `## Section 3: What Was Changed`
-   - `## Section 4: Current State`
-   - `## Section 5: User's Acceptance Criterion`
-   - `## Section 6: Why Not Met`
-   - `## Section 7: What Must Be Done`
-   - `## Section 8: Attention Notes`
-
-4. For each section, determine if it is:
-   - **Populated**: contains content other than `_Not yet populated._` or HTML comments
-   - **Empty**: contains only `_Not yet populated._` or HTML comments
-
-5. Display a validation report:
+2. **Invoke spec subagent for agent selection + view creation + checkpoints**:
    ```
-   Spec validation: <path>
-
-   Structure: [VALID|INVALID] (N/8 sections found)
-
-   Section status:
-     1. Before:                    [populated|empty]
-     2. What Was Attempted:        [populated|empty]
-     3. What Was Changed:          [populated|empty]
-     4. Current State:             [populated|empty]
-     5. Acceptance Criterion:      [populated|empty]
-     6. Why Not Met:               [populated|empty]
-     7. What Must Be Done:         [populated|empty]
-     8. Attention Notes:           [populated|empty]
-
-   Header fields:
-     Issue: <extracted from # heading>
-     Pipeline: <value>
-     Session: <value>
-     Created: <value>
-
-   Ready for /dev: [YES|NO] (requires Section 5 populated)
+   Use Agent tool with:
+   - description: "Spec agent: split + checkpoints for <spec-id>"
+   - prompt: "
+     You are the spec subagent. Read and follow the instructions in /dev/shm/dev-workspace/dot-claude/agents/spec.md EXACTLY.
+     Spec id: <spec-id>
+     Monolith: <spec_path>
+     Monolith lines: <MONOLITH_LINES>
+     Output folder: docs/dev/specs/<spec-id>/
+     Project dir: <$CLAUDE_PROJECT_DIR>
+     Execute Phase 0 (read spec, decide relevant agents).
+     Then Phase 1 (intelligent extraction if monolith > 200 lines).
+     Then Phase 2 (checkpoint generation).
+     Return a JSON summary."
    ```
 
----
-
-## Mode 4: List Specs
-
-**Trigger**: `$ARGUMENTS` starts with `--list`
-
-**Steps**:
-
-1. Check if `docs/dev/specs/` directory exists. If not, report "No specs directory found. Create one with /spec <description>." and stop.
-
-2. List all `.md` files in `docs/dev/specs/`.
-
-3. For each file, extract:
-   - Filename
-   - Issue description (from `# Spec: ...` heading)
-   - Created date (from `**Created**:` field)
-   - Whether Section 5 is populated
-
-4. Display as a table:
+3. **QA validation of split quality**:
    ```
-   Spec files in docs/dev/specs/:
+   Use Agent tool with:
+   - subagent_type: "qa"
+   - description: "Validate spec split quality for <spec-id>"
+   - prompt: "
+     Validate the spec split at docs/dev/specs/<spec-id>/views/.
+     Monolith: <spec_path>
 
-   | File | Issue | Created | Section 5 |
-   |------|-------|---------|-----------|
-   | spec-20260412-140000.md | fix the login button | 2026-04-12T14:00:00 | populated |
+     Check these criteria:
+     1. ROLE MANDATE: If the spec defines role responsibilities (look for 'role split',
+        'pipeline', agent-specific duties), verify each view's Role Mandate section
+        accurately reflects the spec's definition. Flag any view where the agent's
+        mandate is missing or contradicts the spec.
+     2. AGENT SELECTION: Are the selected agents consistent with the spec's defined
+        pipeline? Flag any agent that was included but isn't in the spec's pipeline,
+        or any pipeline agent that was excluded.
+     3. COVERAGE: Run `source ~/.claude/venv/bin/activate && python3 ${CLAUDE_PROJECT_DIR}/bin/spec-verify.py --monolith <spec_path> --views-dir docs/dev/specs/<spec-id>/views/`.
+        Report the result.
+     4. CONTENT RELEVANCE: Spot-check 3 random content blocks in each view.
+        Is the content relevant to that agent's role?
+     5. FUNCTIONAL COMPLETENESS: For each agent view, verify it contains enough
+        information for that agent to do its job WITHOUT reading the monolith.
+        - ui-specialist: Has design briefs, visual language rules, motion specs?
+        - ba: Has requirements, acceptance criteria, constraints?
+        - dev: Has implementation constraints, file paths, deployment steps?
+        - qa: Has acceptance criteria, verification procedures, test patterns?
+        Flag any view that is missing critical content that would force the agent
+        to fall back to the monolith (defeating the purpose of the split).
 
-   Total: N spec files
-   Most recent: <path>  ← /dev will auto-detect this
+     Return JSON: {verdict: pass|fail, issues: [...], summary: '...'}
+     "
    ```
+
+   **Split-QA auto-iteration loop** (mirrors `/dev` Step 7; max 3 rounds, no user prompt between rounds):
+
+   **Iteration guard**: Maximum 3 split-QA rounds to prevent infinite loops.
+
+   **Current split-QA round**: Track internally as `SPLIT_QA_ROUND` (starts at 1).
+
+   **If QA verdict == `pass`** (at any round): exit loop, proceed to sub-step 4 (mark split complete).
+
+   **If QA verdict == `fail` and `SPLIT_QA_ROUND` < 3**:
+
+   Announce: `Split-QA round <N>/3: QA found <count> issue(s). Re-invoking spec subagent with feedback.`
+
+   Re-invoke the spec subagent with the same Agent pattern as sub-step 2, appending the QA `issues` array verbatim under the label `qa_feedback_from_previous_round` in the prompt:
+
+   ```
+   Use Agent tool with:
+   - description: "Spec agent re-split (round <N>) addressing QA feedback for <spec-id>"
+   - prompt: "
+     You are the spec subagent. Read and follow the instructions in /dev/shm/dev-workspace/dot-claude/agents/spec.md EXACTLY.
+     Spec id: <spec-id>
+     Monolith: <spec_path>
+     Monolith lines: <MONOLITH_LINES>
+     Output folder: docs/dev/specs/<spec-id>/
+     Project dir: <$CLAUDE_PROJECT_DIR>
+
+     Your previous split was REJECTED by QA. Address each issue below with concrete
+     corrections to the views and/or checkpoints. Do not argue -- investigate and fix.
+
+     qa_feedback_from_previous_round:
+     <JSON array of issues from the previous QA verdict>
+
+     For each issue:
+     - Identify which view(s) or checkpoint(s) the issue targets
+     - Apply the specific correction QA requested
+     - If the original extraction was wrong, RE-EXTRACT it verbatim from the monolith
+     - If the agent selection was wrong, ADJUST the selected set
+
+     Re-run Phase 0 (re-decide agents if selection was flagged),
+     Phase 1 (re-extract affected views), Phase 2 (refresh checkpoints).
+     Return a JSON summary."
+   ```
+
+   Increment `SPLIT_QA_ROUND` and re-run the QA validation (sub-step 3) against the refreshed split.
+
+   **If QA verdict == `fail` and `SPLIT_QA_ROUND` == 3** (all rounds exhausted — auto-proceed, do NOT prompt the user):
+
+   1. Print to stdout (non-blocking): `Spec split QA: 3 rounds exhausted. Proceeding with best-effort split. Unresolved issues: <list of QA issues>.`
+   2. Write the round-3 `issues` array verbatim to `docs/dev/specs/<spec-id>/split-qa-unresolved.json`.
+   3. Continue to sub-step 4 (mark split complete); the caveat line is appended there.
+   4. Include the caveat in the Step 7 displayed output so reviewers are notified.
+
+   **Rule**: Every spec subagent invocation MUST be followed by QA validation. The loop exits only on `pass` or on round-3 exhaustion.
+
+4. **Mark split as complete**:
+   ```bash
+   echo "split-complete: $(date -Iseconds)" > docs/dev/specs/<spec-id>/.split-complete
+   ```
+
+   If the loop exited via round-3 exhaustion (sub-step 3), also append the caveat line so reviewers see the warning inline with the marker:
+   ```bash
+   echo "⚠ unresolved split-QA issues (<N>); see split-qa-unresolved.json" >> docs/dev/specs/<spec-id>/.split-complete
+   ```
+
+### Step 7: Display result
+
+```
+Spec created: <absolute path>
+Split marker: docs/dev/specs/<spec-id>/.split-complete
+Output folder: docs/dev/specs/<spec-id>/
+Checkpoints:  .claude/specs/<spec-id>/cp-state-*.json
+
+Sections populated:
+- Section 5 (User's Acceptance Criterion): populated (N requirements accumulated)
+- Section 1 (Before): <populated from Explore findings, or empty>
+
+<If split-QA exhausted 3 rounds, include:>
+⚠ Split-QA: 3 rounds exhausted with unresolved issues — see docs/dev/specs/<spec-id>/split-qa-unresolved.json
+
+Usage:
+  /dev                                   ← auto-detects this spec
+  /dev --spec <path>                     ← explicit path
+  /dev-command                           ← auto-detects this spec
+  /dev-command --spec <path>             ← explicit path
+  /dev-overnight <end-time>              ← auto-detects this spec
+  /dev-overnight <end-time> --spec <path> ← explicit path
+```
 
 ---
 
@@ -273,4 +256,6 @@ Wait for user confirmation.
 - **Do not modify any existing files** except the spec file being created.
 - **Create the output directory** (`docs/dev/specs/`) if it does not exist.
 - **Use absolute paths** in all output messages.
-- **Interview mode is the default** when no arguments are given. It produces higher quality specs than inline mode.
+- **Spec Creation Mode is the only mode.** It acts immediately on whatever the user provides, accumulates multiple requirements into one file per session, and finalizes only on a natural-conclusion strong signal.
+- **Output folder is created by the spec subagent** during Phase 0. The subagent decides which agents get views based on spec content. Legacy specs lacking an output folder remain valid — `/dev*` falls back gracefully.
+- **Todo script**: `/root/.claude/scripts/todo/spec.py` (symlinked to `/dev/shm/dev-workspace/dot-claude/scripts/todo/spec.py` — same inode) exposes the 7-step Spec Creation Mode todo list with `blocking_count = 3` (Steps 1-3 must complete before Claude can stop; Steps 4-7 are session-duration).

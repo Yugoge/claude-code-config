@@ -1,13 +1,14 @@
 # todo
 
-*Last updated: 2026-04-15T20:15:09Z*
-**Total entries**: 18
+*Last updated: 2026-05-07T05:50:32Z*
+**Total entries**: 21
 **Convention**: kebab
 
 ## Tree
 ```
 todo/
 ├── `clean.py` - Preloaded TodoList for /clean workflow
+├── `close.py` - Three user-visible TodoSteps (flat-integer per agents/style-inspector.md
 ├── `code-review.py` - Python script
 ├── `deep-search.py` - Python script
 ├── `dev-command.py` - This todo script generates workflow steps for the BA-delegated dev-command workflow
@@ -19,11 +20,13 @@ todo/
 ├── `optimize.py` - Python script
 ├── `playwright-helper.py` - Python script
 ├── `quick-prototype.py` - Preloaded TodoList for /quick-prototype workflow
+├── `redev.py` - Preloaded TodoList for /redev workflow. Delegates to dev.py (single source of truth).
 ├── `refactor.py` - Python script
 ├── `reflect-search.py` - Preloaded TodoList for /reflect-search workflow
 ├── `research-deep.py` - Python script
 ├── `security-check.py` - Python script
 ├── `site-navigate.py` - Python script
+├── `spec.py` - Mirrors /root/knowledge-system/scripts/todo/ask.py structure
 └── `test.py` - Preloaded TodoList for /test workflow
 ```
 

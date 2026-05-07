@@ -1,0 +1,110 @@
+# review-phases.yml
+# Phase ordering + skill-trigger registry for ui-specialist subagent.
+# Subagent reads this AT RUNTIME (not build-time inline) per spec 5.1 #3 + 5.22.3 row 4.
+#
+# Each phase declares:
+#   id          — phase identifier referenced in ui-specialist.md
+#   name        — human-readable label
+#   triggers    — list of skill names the subagent should invoke during this phase
+#   depends_on  — phases that MUST complete before this phase starts
+#   evidence_layer — deterministic | contextual | aesthetic | mixed | n/a
+#   notes       — phase-specific guidance (one-line)
+
+phase_order:
+  - phase_1_app_discovery
+  - phase_2_navigation
+  - phase_3_dual_viewport
+  - phase_4_interactive
+  - phase_4_5_nielsen
+  - phase_5_aesthetic
+  - phase_6_a11y
+  - phase_6_5_ux_writing
+  - phase_7_code_review
+  - aggregate
+
+phases:
+  phase_1_app_discovery:
+    id: phase_1_app_discovery
+    name: "Phase 1 — App Discovery"
+    triggers: []
+    depends_on: []
+    evidence_layer: n/a
+    notes: "Read CLAUDE.md / README / .env / docker-compose for app URL + ports; probe common ports if absent."
+
+  phase_2_navigation:
+    id: phase_2_navigation
+    name: "Phase 2 — Full Navigation Traversal"
+    triggers: []
+    depends_on: ["phase_1_app_discovery"]
+    evidence_layer: n/a
+    notes: "Click every nav item, build page inventory, screenshot each at desktop width."
+
+  phase_3_dual_viewport:
+    id: phase_3_dual_viewport
+    name: "Phase 3 — Dual-Viewport Testing (mobile 375 + desktop 1440)"
+    triggers: []
+    depends_on: ["phase_2_navigation"]
+    evidence_layer: deterministic
+    notes: "MANDATORY both viewports for every page. Tag findings with viewport. Also dual color-scheme (light + dark) emulation via page.emulateMedia({colorScheme:'dark'}) to seed Phase 6 dark-mode contrast."
+
+  phase_4_interactive:
+    id: phase_4_interactive
+    name: "Phase 4 — Interactive Element Visual Testing"
+    triggers: ["ui-state-matrix"]
+    depends_on: ["phase_3_dual_viewport"]
+    evidence_layer: deterministic
+    notes: "Test 7 states (default/hover/focus/active/disabled/loading/error). Form-UX anti-patterns (F1-F5) and interactive anti-patterns (I1-I4) flow into ui-anti-pattern-catalog in Phase 5."
+
+  phase_4_5_nielsen:
+    id: phase_4_5_nielsen
+    name: "Phase 4.5 — Nielsen Heuristic Quick-Check (Advisory)"
+    triggers: ["ui-anti-pattern-catalog"]
+    depends_on: ["phase_4_interactive"]
+    evidence_layer: aesthetic
+    notes: "N1-N5 advisory rules. Subagent invokes catalog skill with category filter category=hard_defect to extract Nielsen findings."
+
+  phase_5_aesthetic:
+    id: phase_5_aesthetic
+    name: "Phase 5 — Visual Design Quality Assessment"
+    triggers: ["ui-anti-pattern-catalog", "ui-token-conformance", "ui-beauty-score"]
+    depends_on: ["phase_3_dual_viewport"]
+    evidence_layer: aesthetic
+    notes: "PRIMARY phase. Run anti-pattern catalog on 55 + 8 AI rules. Run token-conformance only if a token source is detected (DTCG/tailwind/theme); else token-conformance writes capability_unavailable to unknowns[]. ui-beauty-score aggregates."
+
+  phase_6_a11y:
+    id: phase_6_a11y
+    name: "Phase 6 — Accessibility Audit"
+    triggers: ["ui-axe-injector", "ui-apca-contrast", "ui-contextual-heuristics"]
+    depends_on: ["phase_3_dual_viewport"]
+    evidence_layer: mixed
+    notes: "Order MATTERS: ui-axe-injector MUST run BEFORE ui-contextual-heuristics so contextual skill receives axe_findings_to_dedupe input. ui-apca-contrast runs dual-mode (light + dark) per 5.20."
+
+  phase_6_5_ux_writing:
+    id: phase_6_5_ux_writing
+    name: "Phase 6.5 — UX Writing Audit (Advisory)"
+    triggers: ["ui-anti-pattern-catalog"]
+    depends_on: ["phase_6_a11y"]
+    evidence_layer: aesthetic
+    notes: "W1-W4 advisory copy rules. Catalog skill filters category=taste_heuristic + dimension=accessibility_advisory."
+
+  phase_7_code_review:
+    id: phase_7_code_review
+    name: "Phase 7 — Targeted Code Review (root cause only)"
+    triggers: []
+    depends_on: ["phase_5_aesthetic", "phase_6_a11y"]
+    evidence_layer: n/a
+    notes: "Compress to 3-5 lines. ONLY locate root cause for browser-discovered issues. Code-only findings are FORBIDDEN."
+
+  aggregate:
+    id: aggregate
+    name: "Aggregate — 6-channel report write"
+    triggers: ["ui-beauty-score"]
+    depends_on:
+      - phase_4_interactive
+      - phase_4_5_nielsen
+      - phase_5_aesthetic
+      - phase_6_a11y
+      - phase_6_5_ux_writing
+      - phase_7_code_review
+    evidence_layer: mixed
+    notes: "Apply 3-rule conflict reconciliation lex (5.6). Enforce double-defense severity hard-cap on aesthetic taste_heuristic findings (5.11 #6+#7). Write 6 channels (positives / automated_findings / contextual_findings / aesthetic_findings / needs_review / unknowns) to report-schema.json."

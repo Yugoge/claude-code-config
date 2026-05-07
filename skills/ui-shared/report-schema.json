@@ -1,0 +1,276 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://claude.ai/.claude/skills/ui-shared/report-schema.json",
+  "title": "ui-specialist 6-channel structured review report",
+  "description": "Schema for the ui-specialist subagent's final JSON report. Implements spec-20260426-080555 section 5.5 (6 channels) + 5.11 (hard_defect vs taste_heuristic) + 5.15 (skill outputs) + double-defense severity hard-cap on aesthetic_findings.",
+  "type": "object",
+  "required": [
+    "agent",
+    "timestamp",
+    "plan_id",
+    "app_understanding",
+    "live_testing",
+    "positives",
+    "automated_findings",
+    "contextual_findings",
+    "aesthetic_findings",
+    "needs_review",
+    "unknowns",
+    "beauty_score",
+    "sub_scores",
+    "consistencyScore",
+    "quality_gate_results",
+    "summary"
+  ],
+  "properties": {
+    "agent": { "const": "ui-specialist" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "plan_id": { "type": "string" },
+    "scan_duration_seconds": { "type": "number", "minimum": 0 },
+    "project_path": { "type": "string" },
+    "app_understanding": {
+      "type": "object",
+      "required": ["e2e_flow_executed", "viewports_tested"],
+      "properties": {
+        "e2e_flow_executed": { "type": "boolean" },
+        "flow_steps_completed": { "type": "integer", "minimum": 0 },
+        "flow_completed_successfully": { "type": "boolean" },
+        "viewports_tested": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[0-9]+x[0-9]+$" }
+        },
+        "color_schemes_tested": {
+          "type": "array",
+          "items": { "enum": ["light", "dark", "no-preference"] }
+        },
+        "flow_evidence": { "type": "array", "items": { "type": "string" } },
+        "observations": { "type": "string" },
+        "app_not_running": { "type": "boolean" }
+      }
+    },
+    "live_testing": {
+      "type": "object",
+      "required": ["performed", "pages_visited", "breakpoints_tested"],
+      "properties": {
+        "performed": { "type": "boolean" },
+        "url": { "type": "string" },
+        "pages_visited": { "type": "integer", "minimum": 0 },
+        "breakpoints_tested": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 240 }
+        },
+        "interactions_performed": { "type": "integer", "minimum": 0 },
+        "screenshots_taken": { "type": "integer", "minimum": 0 },
+        "forms_tested": { "type": "integer", "minimum": 0 },
+        "console_errors_found": { "type": "integer", "minimum": 0 },
+        "network_failures_found": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "positives": {
+      "type": "array",
+      "description": "Channel 1: things working well; gives the app credit before the criticism.",
+      "items": {
+        "type": "object",
+        "required": ["description", "location", "evidence_mode"],
+        "properties": {
+          "description": { "type": "string" },
+          "location": { "type": "string" },
+          "evidence_mode": { "enum": ["deterministic", "contextual", "aesthetic"] },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "automated_findings": {
+      "type": "array",
+      "description": "Channel 2: deterministic L1 findings from axe / APCA / token-conformance / state-matrix. No taste judgement.",
+      "items": { "$ref": "#/definitions/finding_deterministic" }
+    },
+    "contextual_findings": {
+      "type": "array",
+      "description": "Channel 3: contextual L2 LLM insights (heading hierarchy / link text / focus order / color reliance / decorative-as-interactive). Deduplicated against automated_findings to prevent double-counting.",
+      "items": { "$ref": "#/definitions/finding_contextual" }
+    },
+    "aesthetic_findings": {
+      "type": "array",
+      "description": "Channel 4: aesthetic L3 anti-patterns + AI-slop blacklist. Each entry MUST declare category. taste_heuristic entries are HARD-CAPPED at severity=minor + advisory=true (double defense per 5.11 + 5.15.6).",
+      "items": { "$ref": "#/definitions/finding_aesthetic" }
+    },
+    "needs_review": {
+      "type": "array",
+      "description": "Channel 5: items where the subagent is not confident enough to assert a finding; requires human review.",
+      "items": {
+        "type": "object",
+        "required": ["question", "location", "false_positive_risk"],
+        "properties": {
+          "question": { "type": "string" },
+          "location": { "type": "string" },
+          "false_positive_risk": { "enum": ["low", "medium", "high", "medium-high"] },
+          "evidence": { "type": "string" },
+          "rule_id": { "type": "string" }
+        }
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "description": "Channel 6: things that could not be tested due to environmental limits (capability_unavailable for token-conformance / app down / auth blocked). Honest gaps, not findings.",
+      "items": {
+        "type": "object",
+        "required": ["thing_not_tested", "reason"],
+        "properties": {
+          "thing_not_tested": { "type": "string" },
+          "reason": { "type": "string" },
+          "rule_id": { "type": "string" }
+        }
+      }
+    },
+    "beauty_score": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Overall 1-10 beauty score (float allowed) from ui-beauty-score skill aggregator."
+    },
+    "sub_scores": {
+      "type": "object",
+      "required": [
+        "alignment_grid_discipline",
+        "color_harmony_token_adherence",
+        "typography_beauty",
+        "whitespace_rhythm",
+        "glass_morphism_quality",
+        "animation_polish",
+        "accessibility_advisory"
+      ],
+      "properties": {
+        "alignment_grid_discipline": { "type": "number", "minimum": 0, "maximum": 10 },
+        "color_harmony_token_adherence": { "type": "number", "minimum": 0, "maximum": 10 },
+        "typography_beauty": { "type": "number", "minimum": 0, "maximum": 10 },
+        "whitespace_rhythm": { "type": "number", "minimum": 0, "maximum": 10 },
+        "glass_morphism_quality": { "type": "number", "minimum": 0, "maximum": 10 },
+        "animation_polish": { "type": "number", "minimum": 0, "maximum": 10 },
+        "accessibility_advisory": { "type": "number", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "tokenConformance": {
+      "type": ["object", "null"],
+      "description": "Conditional capability output from ui-token-conformance. null when no token source detected (capability_unavailable).",
+      "properties": {
+        "color_token_match_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "spacing_token_match_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "typography_token_match_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "overall_match_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "token_source": { "type": "string" },
+        "samples_examined": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "consistencyScore": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Cross-page repeated-component variance score (1.0 = perfectly consistent, 0.0 = chaos). Aggregator computes from automated + contextual signals."
+    },
+    "quality_gate_results": {
+      "type": "object",
+      "required": ["all_gates_passed", "gate_details"],
+      "properties": {
+        "all_gates_passed": { "type": "boolean" },
+        "gate_details": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "required": { "type": "number" },
+              "actual": { "type": "number" },
+              "passed": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "design_enhancements": {
+      "type": "array",
+      "description": "Optional channel: incremental improvement opportunities (CSS/layout-only).",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "current_state", "proposed_state", "rationale"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "current_state": { "type": "string" },
+          "proposed_state": { "type": "string" },
+          "rationale": { "type": "string" },
+          "design_principle": { "type": "string" },
+          "affected_pages": { "type": "array", "items": { "type": "string" } },
+          "viewport": { "enum": ["mobile", "desktop", "both"] },
+          "estimated_effort": { "enum": ["small", "medium", "large"] },
+          "beauty_impact": { "type": "string" },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "summary": { "type": "string" }
+  },
+  "definitions": {
+    "severity": { "enum": ["critical", "major", "minor", "cosmetic"] },
+    "finding_base": {
+      "type": "object",
+      "required": ["rule_id", "description", "location", "severity", "evidence_mode"],
+      "properties": {
+        "rule_id": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "location": { "type": "string" },
+        "severity": { "$ref": "#/definitions/severity" },
+        "viewport": { "enum": ["mobile", "desktop", "both", "n/a"] },
+        "color_scheme": { "enum": ["light", "dark", "both", "n/a"] },
+        "evidence_mode": { "enum": ["deterministic", "contextual", "aesthetic"] },
+        "evidence": { "type": "string" },
+        "browser_verified": { "type": "boolean" },
+        "false_positive_risk": { "enum": ["low", "medium", "high", "medium-high"] },
+        "advisory": { "type": "boolean" },
+        "cross_reference": { "type": "string" },
+        "reasoning": { "type": "string" },
+        "estimated_effort": { "enum": ["small", "medium", "large"] },
+        "observation_notes": { "type": "string" }
+      }
+    },
+    "finding_deterministic": {
+      "allOf": [
+        { "$ref": "#/definitions/finding_base" },
+        {
+          "properties": {
+            "evidence_mode": { "const": "deterministic" },
+            "axe_impact": { "enum": ["minor", "moderate", "serious", "critical"] },
+            "computed_value": { "type": "string" },
+            "expected_value": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "finding_contextual": {
+      "allOf": [
+        { "$ref": "#/definitions/finding_base" },
+        {
+          "required": ["requires_human"],
+          "properties": {
+            "evidence_mode": { "const": "contextual" },
+            "requires_human": { "type": "boolean" },
+            "deduped_against": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "finding_aesthetic": {
+      "allOf": [
+        { "$ref": "#/definitions/finding_base" },
+        {
+          "required": ["category", "severity_capped_at", "advisory"],
+          "properties": {
+            "evidence_mode": { "const": "aesthetic" },
+            "category": { "enum": ["hard_defect", "taste_heuristic"] },
+            "severity_capped_at": { "$ref": "#/definitions/severity" },
+            "advisory": { "type": "boolean" }
+          }
+        }
+      ]
+    }
+  }
+}

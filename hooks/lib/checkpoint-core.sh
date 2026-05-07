@@ -273,16 +273,20 @@ write_checkpoint() {
     # for the expensive `git add -A` step and does not contribute to the
     # dangling-objects problem the flock fix targets.
     #
-    # Seed temp index from HEAD tree (best-effort; exact parent is re-read
-    # inside the lock for correctness). In an empty repo HEAD has no tree,
-    # so seed from --empty instead.
+    # Seed temp index from the CURRENT working branch HEAD tree, never from
+    # the checkpoint ref tree. This ensures ignored/runtime files that were
+    # accidentally captured in historical refs/checkpoints/* do not get
+    # resurrected forever by inheritance from the previous checkpoint tree.
+    #
+    # The checkpoint ref is still used later as the COMMIT PARENT so history
+    # remains linear, but the snapshot content itself must reflect today's
+    # working tree + ignore rules, not yesterday's polluted checkpoint tree.
+    #
+    # In an empty repo HEAD has no tree, so seed from --empty instead.
     # -------------------------------------------------------------------------
     local seed_parent_sha=""
     local seed_parent_tree=""
-    seed_parent_sha=$($git_cmd rev-parse --verify -q "$ref" 2>/dev/null || true)
-    if [ -z "$seed_parent_sha" ]; then
-        seed_parent_sha=$($git_cmd rev-parse --verify -q HEAD 2>/dev/null || true)
-    fi
+    seed_parent_sha=$($git_cmd rev-parse --verify -q HEAD 2>/dev/null || true)
     if [ -n "$seed_parent_sha" ]; then
         seed_parent_tree=$($git_cmd rev-parse "${seed_parent_sha}^{tree}" 2>/dev/null || true)
     fi

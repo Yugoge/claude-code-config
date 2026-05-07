@@ -1,0 +1,57 @@
+{
+  "spec_id": "spec-20260420-213508",
+  "agent_type": "pm",
+  "agent_id": "a1f98d8360b0dd26b",
+  "is_running": true,
+  "checked_in_at": "2026-04-26T12:17:49Z",
+  "checked_out_at": null,
+  "checkpoints": [
+    {
+      "id": "cp-01",
+      "action": "Read pm.md view and identify priority rankings and phase gates from S8 delivery cadence",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-02",
+      "action": "Verify PM does not collapse 3x3x3 mandate to fit time budget (rule 5: surface trade-off to user)",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-03",
+      "action": "Verify Phase 0 pilot scope: 10 high-freq icons, at least 8/10 canonical before Phase 1",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-04",
+      "action": "Write triage.json with tier rankings for current cycle icons based on S5 delivery targets",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-05",
+      "action": "Verify role split compliance: UI-specialist designs, BA specs, dev builds, QA verifies (rule 14)",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    },
+    {
+      "id": "cp-06",
+      "action": "Verify Phase 1-3 gate criteria documented: Batch 1 canonicals, 150/180 for Batch 2, 3a+80% 3b",
+      "state": "pending",
+      "waived_reason": null,
+      "updated_at": "2026-04-21T21:56:27Z"
+    }
+  ],
+  "terminal_artifact": {
+    "path": "docs/dev/pm-triage-20260420-213508.json",
+    "exists": false,
+    "validated_at": null
+  }
+}
