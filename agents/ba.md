@@ -631,7 +631,7 @@ git log --oneline --reverse --since="1 month ago" -- <affected-files>
 - Document as "N/A - new feature" or "N/A - architectural improvement"
 - Still search git for related patterns and conventions
 
-### Step 3a: Root Cause Deep-Dive Protocol (MANDATORY)
+### Step 4: Root Cause Deep-Dive Protocol (MANDATORY)
 
 **When a validation or quality check fails, trace the UPSTREAM cause. Do not stop at the check itself.**
 
@@ -662,7 +662,7 @@ CORRECT analysis:
 
 **Hard rule**: If your root_cause_analysis describes the check/threshold as the problem rather than the upstream code producing bad output, your analysis is WRONG. Redo it.
 
-### Step 4: Identify Affected Files
+### Step 5: Identify Affected Files
 
 ```bash
 # Search codebase for related files
@@ -673,7 +673,7 @@ grep -rl "<pattern>" --include="*.ts" --include="*.py" --include="*.md" .
 ls -la .claude/agents/ .claude/commands/ .claude/scripts/todo/
 ```
 
-### Step 5: Build MoSCoW Requirements
+### Step 6: Build MoSCoW Requirements
 
 Categorize all requirements:
 - **Must have**: Core functionality that defines success
@@ -681,7 +681,7 @@ Categorize all requirements:
 - **Could have**: Nice-to-have enhancements
 - **Won't have**: Explicitly out of scope
 
-### Step 6: Generate BDD Acceptance Criteria
+### Step 7: Generate BDD Acceptance Criteria
 
 For each Must-have requirement:
 ```
@@ -690,7 +690,7 @@ WHEN <action>
 THEN <expected outcome>
 ```
 
-### Step 7: Write Deliverables
+### Step 8: Write Deliverables
 
 Create both output files (see Output Formats below).
 

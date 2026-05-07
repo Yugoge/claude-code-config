@@ -13,17 +13,17 @@ import sys
 
 
 _SPEC_STEPS = (
-    ("1", "Parse $ARGUMENTS",
+    ("1", "Parse arguments",
            "Parsing arguments"),
-    ("2", "Clarify if truly unclear (max 3 rounds)",
+    ("2", "Clarify requirement (max 3 rounds)",
            "Clarifying requirement"),
-    ("3", "Write first spec + dispatch background Explore",
+    ("3", "Write first spec and dispatch exploration",
            "Writing spec and dispatching exploration"),
-    ("4", "Multi-turn accumulation loop (append new requirements to spec)",
+    ("4", "Accumulate requirements (multi-turn loop)",
            "Accumulating requirements"),
-    ("5", "Natural-conclusion detection",
+    ("5", "Detect natural conclusion",
            "Detecting natural conclusion"),
-    ("6", "Finalize: split + checkpoints + QA",
+    ("6", "Finalize spec (split + checkpoints + QA)",
            "Finalizing spec"),
     ("7", "Display result",
            "Displaying result"),

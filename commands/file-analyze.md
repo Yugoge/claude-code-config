@@ -26,7 +26,7 @@ Analyze various file types and provide deep insights.
 ### Step 1: Identify File Type
 Check the file extension to determine the analysis approach.
 
-### Step 2: For Excel Files (.xlsx, .xls)
+### Step 2: Process Excel Files (.xlsx, .xls)
 
 **IMPORTANT: You have THREE powerful options for Excel analysis:**
 
@@ -86,7 +86,7 @@ Create a Python script using Anthropic API to:
 - User is a developer → Option 1 (CLI)
 - User is non-technical → Option 2 (Web)
 
-### Step 3: For PDF Files
+### Step 3: Process PDF Files
 ```bash
 # If pdftotext is available
 pdftotext "$1" - | head -100
@@ -102,7 +102,7 @@ Note: For best results with complex PDFs, consider using the Anthropic API
 with document support (available through Python/Node.js SDK).
 ```
 
-### Step 4: For Images
+### Step 4: Process Images
 ```bash
 # Check if the image exists
 file "$1"
@@ -118,7 +118,7 @@ Note: Image analysis requires the Anthropic API.
 Would you like me to create a Python script that can analyze this image?
 ```
 
-### Step 5: For CSV Files
+### Step 5: Process CSV Files
 ```bash
 # Quick preview
 head -20 "$1"
@@ -133,7 +133,7 @@ head -20 "$1"
 I can create a React-based CSV analyzer using: /artifact-react
 ```
 
-### Step 6: For Word Documents (.docx)
+### Step 6: Process Word Documents (.docx)
 ```bash
 # Suggest analysis approach
 "For Word document analysis, I can:"

@@ -21,7 +21,7 @@ Enforce strict organization standards through systematic inspection and selectiv
 
 The orchestrator (the LLM executing this command) MUST NOT:
 
-1. **DO NOT use Edit, Write, or Bash tools to execute cleanup actions.** All file modifications during cleanup execution (Step 15) MUST be performed by the cleaner subagent, invoked via the Agent tool. The orchestrator coordinates; it does not execute.
+1. **DO NOT use Edit, Write, or Bash tools to execute cleanup actions.** All file modifications during cleanup execution (Step 16) MUST be performed by the cleaner subagent, invoked via the Agent tool. The orchestrator coordinates; it does not execute.
 
 2. **DO NOT subjectively filter or narrow scope when the user selects "Execute all".** "Execute all" means every finding from the combined report becomes an approved action. The orchestrator has zero discretion to classify findings as "not in scope", "minor", or "not worth doing". If the inspectors found it, it gets approved.
 
@@ -520,19 +520,19 @@ For Options 2-4, the orchestrator may apply the stated filter (by report type, s
 
 Save to: `docs/clean/user-approvals-{REQUEST_ID}.json`
 
-### Step 13b: Completeness Verification Gate (Option 1 Only)
+### Step 14: Verify Cleanup Completeness (Option 1 Only)
 
 **This gate is MANDATORY when the user selected Option 1 (Execute all). Skip for Options 2-5.**
 
-Before proceeding to Step 14, the orchestrator MUST verify that the approvals JSON is complete:
+Before proceeding to Step 15, the orchestrator MUST verify that the approvals JSON is complete:
 
 1. Read `total_issues` from `docs/clean/combined-report-{REQUEST_ID}.json` summary section
 2. Read `total_approved_actions` from `docs/clean/user-approvals-{REQUEST_ID}.json`
 3. Compare the two counts
 
-**If counts match**: Log "Completeness gate PASSED: {total_approved_actions} approved actions match {total_issues} combined report findings" and proceed to Step 14.
+**If counts match**: Log "Completeness gate PASSED: {total_approved_actions} approved actions match {total_issues} combined report findings" and proceed to Step 15.
 
-**If counts do NOT match**: BLOCK execution immediately. Do NOT proceed to Step 14 or Step 15. Log the following error:
+**If counts do NOT match**: BLOCK execution immediately. Do NOT proceed to Step 15 or Step 16. Log the following error:
 
 ```
 COMPLETENESS GATE FAILED
@@ -549,7 +549,7 @@ The orchestrator MUST regenerate the approvals JSON (return to Step 13 Option 1 
 
 ---
 
-### Step 14: Create Safety Checkpoint
+### Step 15: Create Safety Checkpoint
 
 Before execution, create a safety checkpoint on `refs/checkpoints/<branch>`
 (NOT on HEAD — preserves git blame hygiene). The checkpoint-core library
@@ -576,11 +576,11 @@ ancestor. To recover individual files:
 For a full-tree reset (destructive, prefer file-level):
 `git reset --hard refs/checkpoints/$(git branch --show-current)`
 
-### Step 15: Invoke Cleaner with Approvals (DELEGATION ONLY)
+### Step 16: Invoke Cleaner with Approvals (DELEGATION ONLY)
 
 **The orchestrator MUST delegate ALL cleanup execution to the cleaner subagent via the Agent tool. The orchestrator does NOT execute any file modifications itself.**
 
-**DO NOT -- the following are FORBIDDEN during Step 15:**
+**DO NOT -- the following are FORBIDDEN during Step 16:**
 - **DO NOT use the Edit tool** to modify any project files
 - **DO NOT use the Write tool** to create or overwrite any project files
 - **DO NOT use the Bash tool** to run commands that modify files (mv, cp, rm, sed, etc.)
@@ -653,7 +653,7 @@ Expected output structure:
 }
 ```
 
-### Step 16: Verify Cleanup Results
+### Step 17: Verify Cleanup Results
 
 Review git changes:
 
@@ -693,7 +693,7 @@ Present verification summary:
 4. See detailed report: docs/clean/completion-{REQUEST_ID}.md
 ```
 
-### Step 17: Generate Completion Report
+### Step 18: Generate Completion Report
 
 Create comprehensive completion report:
 

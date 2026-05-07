@@ -14,12 +14,12 @@ def get_todos():
         list[dict]: Todo items with content, activeForm, status
     """
     return [
-        {"content": "Step 1: Identify File Type", "activeForm": "Step 1: Identifying File Type", "status": "pending"},
-        {"content": "Step 2: For Excel Files", "activeForm": "Step 2: Analyzing Excel File", "status": "pending"},
-        {"content": "Step 3: For PDF Files", "activeForm": "Step 3: Analyzing PDF File", "status": "pending"},
-        {"content": "Step 4: For Images", "activeForm": "Step 4: Analyzing Image File", "status": "pending"},
-        {"content": "Step 5: For CSV Files", "activeForm": "Step 5: Analyzing CSV File", "status": "pending"},
-        {"content": "Step 6: For Word Documents", "activeForm": "Step 6: Analyzing Word Document", "status": "pending"}
+        {"content": "Step 1: Identify file type", "activeForm": "Step 1: Identifying file type", "status": "pending"},
+        {"content": "Step 2: Process Excel file (if applicable)", "activeForm": "Step 2: Processing Excel file", "status": "pending"},
+        {"content": "Step 3: Process PDF file (if applicable)", "activeForm": "Step 3: Processing PDF file", "status": "pending"},
+        {"content": "Step 4: Process image file (if applicable)", "activeForm": "Step 4: Processing image file", "status": "pending"},
+        {"content": "Step 5: Process CSV file (if applicable)", "activeForm": "Step 5: Processing CSV file", "status": "pending"},
+        {"content": "Step 6: Process Word document (if applicable)", "activeForm": "Step 6: Processing Word document", "status": "pending"}
     ]
 
 

@@ -401,9 +401,9 @@ Read BA output files:
 - Re-invoke BA with specific feedback about what's missing
 - Maximum 2 re-invocations for validation fixes
 
-**If validation passes**: Proceed to Step 5a
+**If validation passes**: Proceed to Step 6
 
-### Step 5a: QA Validates BA Conclusions
+### Step 6: QA Validates BA Conclusions
 
 **Purpose**: Verify BA's analysis quality BEFORE Dev starts implementation. Catches unproven claims, scope mismatches, and missing investigation evidence early -- saving a wasted Dev+QA cycle.
 
@@ -485,13 +485,13 @@ Use Agent tool with:
 
 ```
 IF verdict == "pass":
-  -> BA conclusions validated. Proceed to Step 6.
+  -> BA conclusions validated. Proceed to Step 8.
 
 ELIF verdict == "fail":
-  -> Proceed to Step 5b for BA-QA iteration.
+  -> Proceed to Step 7 for BA-QA iteration.
 ```
 
-### Step 5b: BA-QA Iteration Loop (if QA rejects BA)
+### Step 7: BA-QA Iteration Loop (if QA rejects BA)
 
 **Iteration guard**: Maximum 3 BA-QA iterations to prevent infinite loops
 
@@ -505,7 +505,7 @@ Unresolved objections:
 {summary of remaining QA objections}
 
 Appending unresolved objections to context JSON under `ba_qa_unresolved_objections`.
-Proceeding to Step 6 with documented assumptions.
+Proceeding to Step 8 with documented assumptions.
 ```
 
 **If BA-QA iteration <= 3**:
@@ -549,13 +549,13 @@ Use Agent tool with:
   "
 ```
 
-**After BA re-delivers**: Return to Step 5 (validate BA output), then Step 5a (QA re-validates).
+**After BA re-delivers**: Return to Step 5 (validate BA output), then Step 6 (QA re-validates).
 
 **Rule**: Every BA invocation MUST be followed by QA validation. No exceptions.
 
 **Iteration tracking**: Update TodoWrite with BA-QA iteration number.
 
-### Step 6: Delegate to Dev Subagent
+### Step 8: Delegate to Dev Subagent
 
 **Use Task tool to invoke dev subagent with file paths only**:
 
@@ -584,11 +584,11 @@ Use Task tool with:
 
 **Wait for dev subagent completion** before proceeding.
 
-### Step 7: Write Canonical Aggregate Dev-Report (Parallel-Dev Only)
+### Step 9: Write Canonical Aggregate Dev-Report (Parallel-Dev Only)
 
-**Applies ONLY when N>1 parallel dev subagents were dispatched in Step 6.** Single-dev cycles SKIP this step entirely (the lone dev subagent writes `dev-report-<task-id>.json` directly).
+**Applies ONLY when N>1 parallel dev subagents were dispatched in Step 8.** Single-dev cycles SKIP this step entirely (the lone dev subagent writes `dev-report-<task-id>.json` directly).
 
-**Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files matching `dev-report-<role>-<task-id>.json` for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 9 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate.
+**Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files matching `dev-report-<role>-<task-id>.json` for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 11 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate.
 
 **Authoritative construction rule**: see the "Parallel Dev Aggregate" subsection below (Aggregate construction rule + Example aggregate JSON) for the full schema and union semantics. Summary:
 - `request_id` = `<task-id>`; `dev_report_path` = canonical singular path
@@ -659,7 +659,7 @@ when only one dev was dispatched, that dev writes
 additional aggregate (that would clobber). The aggregate rule applies ONLY
 when N>1 parallel devs were dispatched.
 
-### Step 8: Validate Dev Implementation
+### Step 10: Validate Dev Implementation
 
 **Quick validation before QA**:
 
@@ -678,9 +678,9 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 - Refine context JSON with additional information
 - Re-invoke dev subagent (maximum 3 attempts)
 
-**If dev completed**: Proceed to Step 9
+**If dev completed**: Proceed to Step 11
 
-### Step 9: Delegate to QA Subagent
+### Step 11: Delegate to QA Subagent
 
 **Use Task tool to invoke QA subagent with file paths only**:
 
@@ -703,7 +703,7 @@ Use Task tool with:
   View file: <view_paths.qa or null — sibling views/qa.md if present>
   Write your verification report to: docs/dev/qa-report-<timestamp>.json
 
-  If Spec file is not null: Read the spec file FIRST. After verification, do NOT directly Edit docs/dev/specs/*.md (QA tool-policy denies write access by design — the verifier role must not mutate the spec it verifies). Instead, REPORT proposed Section 4/6/7 content via the qa-report JSON's 'qa.spec_section_updates' field with sub-fields 'section_4' (always populated when a spec is present and Section 4 measurements were taken; null otherwise), 'section_6' (populated only when verdict is fail; null otherwise), and 'section_7' (populated only when verdict is fail; null otherwise). The orchestrator applies these to the spec file in Step 10 with cycle-header create/append insertion semantics preserved. See agents/qa.md '### After Verification' under '## Overnight Spec Integration' for the QA-side prose, and agents/qa.md '## Output Format' for the JSON schema declaration.
+  If Spec file is not null: Read the spec file FIRST. After verification, do NOT directly Edit docs/dev/specs/*.md (QA tool-policy denies write access by design — the verifier role must not mutate the spec it verifies). Instead, REPORT proposed Section 4/6/7 content via the qa-report JSON's 'qa.spec_section_updates' field with sub-fields 'section_4' (always populated when a spec is present and Section 4 measurements were taken; null otherwise), 'section_6' (populated only when verdict is fail; null otherwise), and 'section_7' (populated only when verdict is fail; null otherwise). The orchestrator applies these to the spec file in Step 12 with cycle-header create/append insertion semantics preserved. See agents/qa.md '### After Verification' under '## Overnight Spec Integration' for the QA-side prose, and agents/qa.md '## Output Format' for the JSON schema declaration.
 
   INDEX-edit clarifier: future ACs targeting INDEX file edits MUST target exactly the 3 manually-managed INDEX files: '.claude/templates/INDEX.md', '.claude/scripts/INDEX.md', 'docs/dev/INDEX.md'. Do NOT target 'docs/dev/specs/INDEX.md' — that file is auto-regenerated by '.claude/hooks/posttool-doc-sync.py' (with helper '.claude/hooks/doc_sync/regen_index.py'); manual edits to it will be silently overwritten on the next doc-sync run.
   "
@@ -711,13 +711,13 @@ Use Task tool with:
 
 **Wait for QA subagent completion** before proceeding.
 
-### Step 10: Process QA Results
+### Step 12: Process QA Results
 
 Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
-**Sub-step 10.0 (apply spec section updates BEFORE decision tree)**:
+**Sub-step 12.0 (apply spec section updates BEFORE decision tree)**:
 
-If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec` and a global spec path was passed to Step 9), the orchestrator MUST apply QA's reported spec section updates to the spec file before processing the verdict:
+If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec` and a global spec path was passed to Step 11), the orchestrator MUST apply QA's reported spec section updates to the spec file before processing the verdict:
 
 (a) Check whether `Spec file` was non-null this cycle. If null, skip to the decision tree below.
 
@@ -737,24 +737,24 @@ If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec
   - APPEND the new content under the new (or existing) `### Cycle N` header — i.e., place the new content after any existing content already under that cycle header.
   - **NEVER overwrite prior cycle content under existing `### Cycle 1`, `### Cycle 2`, ... headers.** Prior cycles' content is historical and immutable; only the current cycle's subsection grows. (This insertion semantics is also documented in `agents/qa.md` `### After Verification` for the QA-self side; the orchestrator-side application here mirrors it. Phrase: "preserve cycle headers; append after existing cycle content; never overwrite prior cycle content.")
 
-After Sub-step 10.0 completes (or is skipped on non-spec cycles), proceed to the decision tree.
+After Sub-step 12.0 completes (or is skipped on non-spec cycles), proceed to the decision tree.
 
 **Decision tree**:
 
 ```
 IF qa.status == "pass":
-  → Proceed to Step 11 (Update Permissions)
+  → Proceed to Step 13 (Update Permissions)
 
 ELIF qa.status == "warning":
   → Check if minor issues acceptable
-  → If yes: Proceed to Step 11 (Update Permissions)
-  → If no: Proceed to Step 12 (Iteration)
+  → If yes: Proceed to Step 13 (Update Permissions)
+  → If no: Proceed to Step 14 (Iteration)
 
 ELIF qa.status == "fail":
-  → Proceed to Step 12 (Iteration)
+  → Proceed to Step 14 (Iteration)
 ```
 
-### Step 11: Update Settings.json Permissions
+### Step 13: Update Settings.json Permissions
 
 **CRITICAL**: Auto-update permissions for new functionality.
 
@@ -827,7 +827,7 @@ You can now use these scripts without permission prompts.
 - If permission already exists → Skip, don't duplicate
 - If user denies update → Log to completion report
 
-### Step 12: Iteration Loop (if QA fails)
+### Step 14: Iteration Loop (if QA fails)
 
 #### Layer-escalation gate (mandatory)
 
@@ -905,11 +905,11 @@ jq -s '.[0] * {
   > docs/dev/context-iter<N>-<timestamp>.json
 ```
 
-**Return to Step 6** with new context JSON
+**Return to Step 8** with new context JSON
 
 **Iteration tracking**: Update TodoWrite with iteration number
 
-### Step 13: Generate Completion Report
+### Step 15: Generate Completion Report
 
 **QA passed! Generate final report.**
 
@@ -1214,22 +1214,22 @@ if __name__ == "__main__":
 **Step 5**: Validate BA output
 - Both files exist with required sections
 
-**Step 6**: Dev subagent
+**Step 8**: Dev subagent
 - Created: `scripts/measure-api-latency.sh`
 - Created: `scripts/validate-api-timeout.sh`
 - Modified: `config/api.json`
 - Saved report: `docs/dev/dev-report-20251226-114500.json`
 
-**Step 9**: QA subagent
+**Step 11**: QA subagent
 - Verified all scripts work
 - Confirmed root cause addressed
 - Status: PASS
 - Saved report: `docs/dev/qa-report-20251226-114500.json`
 
-**Step 10**: Process results
+**Step 12**: Process results
 - QA passed → proceed to completion
 
-**Step 13**: Completion report
+**Step 15**: Completion report
 - Generated: `docs/dev/completion-20251226-114500.md`
 - Presented summary to user
 
