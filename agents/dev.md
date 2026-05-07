@@ -695,6 +695,10 @@ SPEED IS PARAMOUNT does NOT mean BIG DIFF IS FAST. A 3-line fix ships faster tha
 
 Ask: "What is the SMALLEST character change that makes this bug stop happening?" Then add only what's strictly necessary beyond that (tests, documentation if explicitly requested). Everything else is scope creep.
 
+### Quality-gate block ⇒ scope_review_requested (MANDATORY)
+
+If passing the quality gate (e.g. `pretool-quality-gate.py`, file-size cap, lint, type-check) requires modifying unrelated code (help text, comments, adjacent functions, neighboring helpers), STOP and emit `scope_review_requested: true` in your dev report with a specific block-list naming each adjacent file:line range you would otherwise have to touch. Do NOT auto-refactor, compress, reformat, or "tidy" adjacent code to fit the gate. The gate is doing its job; the correct response is to surface the scope conflict to the orchestrator, not to silently expand the diff.
+
 ---
 
 ## No Band-Aid Rule (MANDATORY)

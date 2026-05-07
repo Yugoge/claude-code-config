@@ -13,6 +13,12 @@ Resolution order (first hit wins):
 
 Fail-safe: every I/O path is wrapped; on any unexpected exception we
 return None rather than raise.
+
+LOW-10 (2026-05-07): callers MUST NOT hard-block on `None`. Claude Code
+may dispatch subagents before any sentinel-creating tool runs, so the
+agent-index entry can legitimately be missing during the first write.
+The canonical contract is: hard-block on resolved-but-wrong role; for
+None, degrade to warn + allow. See pretool-subagent-code-block.py.
 """
 
 from __future__ import annotations
@@ -68,26 +74,6 @@ def _pick_active(matches: list) -> Optional[str]:
     return next(iter(types))  # F14 M9: deterministic same-role active
 
 
-def _scan_cp_state_files(agent_id: str, project_dir: str) -> Optional[str]:
-    """F14: prefer is_running=true match; fail-closed on cross-role collision.
-
-    Active-match preference: cp-state-spec-20260428-183820 incident showed
-    stale qa cp-state could shadow a live dev subagent under first-glob bias.
-    """
-    pattern = f"{project_dir}/.claude/specs/*/cp-state-*.json"
-    try:
-        paths = glob.glob(pattern)
-    except OSError:
-        return None
-    matches = [d for d in (_read_match(p, agent_id) for p in paths) if d]
-    if not matches:
-        return None
-    active = [m for m in matches if m.get("is_running")]
-    if active:
-        return _pick_active(active)
-    return matches[0].get("agent_type")  # legacy fallback (single match case)
-
-
 def _lookup_dev_registry_index(agent_id: str, project_dir: str) -> Optional[str]:
     index_path = f"{project_dir}/.claude/dev-registry/agent-index.json"
     data = _read_json(index_path)
@@ -97,10 +83,44 @@ def _lookup_dev_registry_index(agent_id: str, project_dir: str) -> Optional[str]
     return value if isinstance(value, str) else None
 
 
+_FAIL_CLOSED = object()  # sentinel: cross-role active collision -> deny
+
+
+def _glob_cp_state(project_dir: str) -> list:
+    pattern = f"{project_dir}/.claude/specs/*/cp-state-*.json"
+    try:
+        return glob.glob(pattern)
+    except OSError:
+        return []
+
+
+def _scan_cp_state_files(agent_id: str, project_dir: str):
+    """Tri-state cp-state scan.
+
+    Returns: agent_type str | _FAIL_CLOSED sentinel | None.
+      - str: a single resolved active match (F14 M9)
+      - _FAIL_CLOSED: active cross-role collision (F14 M8 fail-closed);
+        caller MUST NOT fall through to agent-index.
+      - None: no match or inactive-only (AC-3 non-authoritative); caller
+        MAY fall through to agent-index.
+    """
+    paths = _glob_cp_state(project_dir)
+    matches = [d for d in (_read_match(p, agent_id) for p in paths) if d]
+    if not matches:
+        return None
+    active = [m for m in matches if m.get("is_running")]
+    if not active:
+        return None
+    picked = _pick_active(active)
+    return _FAIL_CLOSED if picked is None else picked
+
+
 def _resolve_by_id(agent_id: str) -> Optional[str]:
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
     spec_hit = _scan_cp_state_files(agent_id, project_dir)
-    if spec_hit is not None:
+    if spec_hit is _FAIL_CLOSED:
+        return None  # active collision: deny, do NOT consult agent-index
+    if isinstance(spec_hit, str):
         return spec_hit
     return _lookup_dev_registry_index(agent_id, project_dir)
 

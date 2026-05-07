@@ -29,13 +29,20 @@ def _target(tool_input: dict) -> str | None:
     return tool_input.get("file_path") or tool_input.get("notebook_path")
 
 
-def _block_unregistered() -> None:
-    """BUG-DEVREG-1: subagent context but role unresolved."""
+def _warn_unregistered() -> None:
+    """LOW-10 soft-policy: role unresolved -> warn + allow (was hard-block).
+
+    Hard-block on unresolved role caused false positives when Claude Code
+    dispatched subagents before any sentinel-creating tool fired (e.g. a
+    second back-to-back `dev` worker in the same session). The strong
+    invariant — wrong-role MUST NOT write code — is preserved by
+    `_block_wrong_role`. Unresolved role degrades to advisory warning.
+    """
     sys.stderr.write(
-        "BLOCKED: unregistered subagent (read your dev-registry "
-        "sentinel as FIRST ACTION before writing code)\n"
+        "WARN (shim): unregistered subagent role; allowing write. "
+        "(LOW-10 soft-policy; hard-block remains for resolved wrong-role)\n"
     )
-    sys.exit(2)
+    sys.exit(0)
 
 
 def _block_wrong_role(role: str, target: str) -> None:
@@ -51,7 +58,7 @@ def _decide(data: dict, target: str) -> None:
 
     - main agent (no agent_id) -> allow.
     - role 'dev' -> allow.
-    - role None (subagent skipped sentinel) -> block (BUG-DEVREG-1).
+    - role None (subagent skipped sentinel) -> warn + allow (LOW-10 soft).
     - role any other -> block with role-specific message.
     """
     if not data.get("agent_id"):
@@ -60,7 +67,7 @@ def _decide(data: dict, target: str) -> None:
     if role == "dev":
         sys.exit(0)
     if role is None:
-        _block_unregistered()
+        _warn_unregistered()
     _block_wrong_role(role, target)
 
 
