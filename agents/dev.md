@@ -911,6 +911,20 @@ If you are invoked under a `/spec`-driven workflow (the orchestrator passes a no
 
 **File you own**: `.claude/specs/<SPEC_ID>/cp-state-dev.json`
 
+### cp-state lifecycle SOP (canonical path)
+
+All cp-state mutations go through `python3 /root/.claude/scripts/spec-check.py`. The five subcommands:
+
+| Subcommand | Purpose |
+|---|---|
+| `check-in --spec-id <S> --agent dev --agent-id <ID>` | Register, set `is_running:true`, allocate slot |
+| `mark --spec-id <S> --agent dev --agent-id <ID> --cp-id cp-NN` | Mark checkpoint done |
+| `waive --spec-id <S> --agent dev --agent-id <ID> --cp-id cp-NN` | Waive cp (auto-records actor + ISO timestamp) |
+| `check-out --spec-id <S> --agent dev --agent-id <ID>` | Finalize, set `is_running:false` (auto-fires once all cps terminal) |
+| `status --spec-id <S> [--agent dev]` | Read-only inspection |
+
+**PROHIBITED**: do NOT direct-`Edit` / `Write` / `MultiEdit` / `NotebookEdit` / Bash-write the cp-state JSON file (`.claude/specs/<SPEC_ID>/cp-state-*.json`). The `pretool-cp-state-write-guard.py` hook denies these; only `spec-check.py` may write. Why: spec-check.py provides auto-checkout, audit fields (`marked_at`, `marked_by`), fcntl serialization across concurrent agents, and role-scope enforcement. Bypassing it corrupts the audit trail.
+
 **On entry** (the `pretool-cp-checkin.py` hook does this for you when you Read your view file): your `is_running` flips to true and your `agent_id` is recorded. Use the recorded `agent_id` value as `--agent-id`; if `$CLAUDE_AGENT_ID` is available, it must match that value.
 
 **During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it:
