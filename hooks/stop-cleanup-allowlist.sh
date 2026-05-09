@@ -11,10 +11,16 @@ SID=$(echo "$INPUT" | python3 -c \
   2>/dev/null)
 [ -z "$SID" ] && SID="default"
 
+# DEFECT 1 fix (task-id 20260509-113838): hoist CONSENT_LOG above both
+# cleanup branches. Previously CONSENT_LOG was bound only inside the /allow
+# branch; under `set -u` the /do branch aborted with "unbound variable"
+# whenever the /allow branch did not run, leaving /do consent flags on disk
+# across turns. Hoisting binds the variable unconditionally.
+CONSENT_LOG="$HOME/.claude/logs/bash-consent.log"
+mkdir -p "$(dirname "$CONSENT_LOG")"
+
 FLAG="/tmp/claude-bash-allowlist-${SID}.json"
 if [ -f "$FLAG" ]; then
-  CONSENT_LOG="$HOME/.claude/logs/bash-consent.log"
-  mkdir -p "$(dirname "$CONSENT_LOG")"
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$SID EXPIRED (turn ended without consumption)" >> "$CONSENT_LOG"
   rm -f "$FLAG"
 fi

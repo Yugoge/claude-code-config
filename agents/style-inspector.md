@@ -126,6 +126,8 @@ On **first invocation only** (progress file doesn't exist):
    - .claude/agents/*.md
    - scripts/*.py, scripts/*.sh
    - tests/*.py (if exists)
+   - .claude/hooks/*.sh
+   - .claude/hooks/*.py
 3. Run cheap grep-based standards (3, 4, 5, 6, 11) against ALL files
 4. Record any violations from grep-based checks
 5. Write initial progress file with all_files and files_remaining
@@ -339,17 +341,17 @@ analyze-performance.py
 
 ### Standard 6: English Only (No Chinese)
 
-**Rule**: All code, comments, and command/agent files MUST be in English.
+**Rule**: All code, comments, command/agent files, and hook scripts MUST be in English.
 
-**Scope**: Only `.claude/commands/*.md`, `.claude/agents/*.md`, `scripts/*.sh`, `scripts/*.py`. Do NOT scan `docs/` -- documentation and planning files may legitimately contain non-English content.
+**Scope**: Only `.claude/commands/*.md`, `.claude/agents/*.md`, `.claude/hooks/*.sh`, `.claude/hooks/*.py`, `scripts/*.sh`, `scripts/*.py`. Do NOT scan `docs/` -- documentation and planning files may legitimately contain non-English content.
 
 **Detection**:
 ```bash
-# Detect Chinese characters in code and command/agent files ONLY
-grep -rn '[一-龟]' scripts/ .claude/commands/ .claude/agents/ \
-  --include="*.md" --include="*.sh" --include="*.py" \
-  2>/dev/null
+# Detect Chinese characters in code, command/agent files, and hook scripts
+grep -n '[一-龟]' .claude/commands/*.md .claude/agents/*.md scripts/*.sh scripts/*.py .claude/hooks/*.sh .claude/hooks/*.py 2>/dev/null
 ```
+
+**Exemption (verbatim user-binding quotes)**: Verbatim non-English user-binding quotes belong in `docs/dev/ticket-*.md` only (already in the `docs/` scope-exclusion zone above). Code/script comments and user-visible diagnostic strings (BLOCKED stderr, REASON lines, error messages) must be English with task-id attribution citing the ticket where the verbatim text is preserved. Authoring cycle: task-id 20260509-153155. Precipitating failure: 5 violations in pretool-bash-safety.sh from cycle 20260509-113838.
 
 **Report**:
 ```json
