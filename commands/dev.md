@@ -39,6 +39,8 @@ Delegate to QA subagent (verification)
 IF QA fails → Refine context → Iterate
   ↓
 IF QA passes → Generate completion report
+  ↓
+Emit spec continuation or temp closure update
 ```
 
 **Key Principles**:
@@ -50,6 +52,8 @@ IF QA passes → Generate completion report
 - Rich JSON context stored in `docs/dev/`
 - QA verification after each dev cycle
 - Iterate until all quality standards met
+- Unfinished work is handed off into a continuation spec; only complete work
+  heading to `/close` uses a compact temp update.
 
 **No-Multitasking Rule (MANDATORY)**:
 - Each subagent invocation handles exactly ONE issue/task
@@ -90,7 +94,10 @@ views_dir = <dirname(spec_path)>/<basename(spec_path, .md)>/views/
 manifest  = <views_dir>/manifest.json
 ```
 
-If `manifest.json` exists AND is valid JSON AND `schema_version` matches (currently 1), set:
+If `manifest.json` exists AND is valid JSON AND `schema_version` matches (currently 1), first run the stale-view guard:
+- Compute `split_marker = <dirname(spec_path)>/<basename(spec_path, .md)>/.split-complete`.
+- If `split_marker` is missing OR `spec_path` is newer than `split_marker`, treat the views/checkpoints as stale: set `views_available = false`, clear `view_paths`, and announce `Spec is newer than split views/checkpoints; using monolith spec for this /dev run. Re-finalize /spec before relying on per-agent views.`
+- Otherwise, set:
 - `views_available = true`
 - `view_paths` = manifest.views (dict of agent → path)
 
@@ -879,6 +886,17 @@ Would you like to:
 3. Accept current implementation with known issues
 ```
 
+Before presenting those options, create or update a continuation spec using the
+`/update` default continuation-spec mode:
+- If this `/dev` cycle had a `spec_path`, append to that spec.
+- If there was no source spec, create a new spec from
+  `~/.claude/templates/overnight-spec.md`.
+- Populate Sections 2/3/4/6/7/8 with attempted approaches, changed-file
+  references, current QA evidence, unmet gap, concrete next plan, and traps.
+- If updating a spec that already has split views/checkpoints, record that they
+  are stale because the spec now contains a continuation update.
+- Print `Continuation spec: <path>` and `Next: /dev --spec <path>`.
+
 **If iteration <= 5**:
 
 **Refine context for next iteration**:
@@ -909,7 +927,7 @@ jq -s '.[0] * {
 
 **Iteration tracking**: Update TodoWrite with iteration number
 
-### Step 15: Generate Completion Report
+### Step 15: Generate Completion Report + Workflow Update
 
 **QA passed! Generate final report.**
 
@@ -992,6 +1010,22 @@ Development completed successfully!
 ```
 
 **Save report to**: `docs/dev/completion-<timestamp>.md`
+
+**Workflow update**:
+
+- If there is any unfinished development work (non-empty follow-up work in
+  "Next Steps", known unmet acceptance criteria, accepted AC-deviation with
+  future work, max-iteration exit, or user asks to keep improving), use
+  `/update` default continuation-spec mode. If a source spec exists, update it;
+  otherwise create a new spec. The next command is `/dev --spec <spec_path>`.
+  Do NOT hand unfinished work to `/close` or `/commit`.
+- If all requested development is complete and only closure/shipping remains,
+  create a compact temp update using `/update --temp`. Default to
+  `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless
+  the user explicitly asks. Include `Task ID: <timestamp>`,
+  ticket/spec/context/dev-report/QA-report/completion paths, QA status,
+  iteration count, and suggested next command `/close <task-id>` (or bare
+  `/close` only when the same conversation context is still active).
 
 **Present to user**: Show summary with key changes and next steps
 
@@ -1315,4 +1349,3 @@ The rule originates from the user's explicit instruction (Chinese, preserved ver
 
 > 设计并部署 hook：PreToolUse 拦截 Agent 工具调用，扫描 prompt 字段，匹配工具名黑名单（Write/Edit/Read/Bash/Glob/Grep/sed/curl/jq/python3/node/npm/git/...）+ shell 语法（`bash` fenced block, `$(...)`, `cat <<EOF`, `>`, `>>`, `&&`, `|`, `mkdir`, `chmod`...）→ 命中即 exit 2 阻断派单。
 </USER_VERBATIM>
-

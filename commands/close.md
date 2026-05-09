@@ -9,7 +9,7 @@ disable-model-invocation: true
 True wrapper. Three TodoSteps (user-visible work):
 1. Dispatch three inspectors in parallel.
 2. Delegate close debate to QA subagent.
-3. Generate close-report (echo QA verdict + write report).
+3. Generate close-report + spec/temp update (echo QA verdict + write report + emit next-step update).
 
 Argument parsing (`--codex` / `--force`) and task-id resolution still happen
 in this command body, but are no longer TodoSteps — they are command-internal
@@ -105,7 +105,14 @@ Procedure when `--force` is present:
 
    If the append fails (permissions, missing dir despite mkdir, etc.), the close-report write still succeeds. The audit log is a best-effort cross-task ledger; the close-report (per-task artifact) is the authoritative record.
 
-6. **Print the final stdout line** (this is the line consumers grep for):
+6. **Create forced-path update** using `/update --temp`. Default to
+   `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless
+   the user explicitly asks. It must state that closure was forced by the user,
+   reference `docs/dev/close-report-<task-id>.md`, and suggest `/commit
+   <task-id> -m "<summary>"` only if the user still intends to ship despite the
+   skipped debate.
+
+7. **Print the final stdout line** (this is the line consumers grep for):
 
    ```
    CLOSE: YES — FORCED
@@ -341,9 +348,23 @@ Return value: print to stdout exactly ONE of these lines as the final line of yo
   CLOSE: NO - <one-sentence reason naming the dissenting party and their objection>
 ```
 
-### Step 3: Generate close-report
+### Step 3: Generate close-report + workflow update
 
 Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it to stdout as the last line of /close. The close-report itself is written by QA inside Step 2; this step is the verdict echo + ensures the report file exists at `docs/dev/close-report-<task-id>.md`.
+
+Then branch the update:
+
+- If the final verdict is `CLOSE: YES*`, create a compact temp update using
+  `/update --temp`. The update is for the next `/commit` attempt and MUST
+  reference, not duplicate: `docs/dev/close-report-<task-id>.md`,
+  `docs/dev/dev-report-<task-id>.json`, `docs/dev/qa-report-<task-id>.json`,
+  and the three inspector report paths from Step 1. Next action: `/commit
+  <task-id> -m "<real session summary>"`.
+- If the final verdict is `CLOSE: NO`, create or update a continuation spec
+  using `/update` default continuation-spec mode. If the dev context has a
+  source spec, append the close dissent and unresolved gaps to that spec;
+  otherwise create a new spec. Next action: `/dev --spec <spec_path>`. Do NOT
+  direct a failed close to `/commit`.
 
 ## Constraints
 

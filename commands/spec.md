@@ -223,13 +223,22 @@ Only proceed to Step 6 when a STRONG signal fires.
    echo "⚠ unresolved split-QA issues (<N>); see split-qa-unresolved.json" >> docs/dev/specs/<spec-id>/.split-complete
    ```
 
-### Step 7: Display result
+### Step 7: Display result + workflow update
+
+Before the final stdout response, create a compact temp update using
+`/update --temp`. Default to `mktemp -t update-XXXXXX.md`; do not write this
+update into the repo unless the user explicitly asks. The update focuses on
+the next `/dev` session and references the spec path, split marker, views
+folder, checkpoints, and unresolved split-QA file by path instead of duplicating
+their contents. Do NOT use continuation-spec mode here because `/spec` already
+produced the spec.
 
 ```
 Spec created: <absolute path>
 Split marker: docs/dev/specs/<spec-id>/.split-complete
 Output folder: docs/dev/specs/<spec-id>/
 Checkpoints:  .claude/specs/<spec-id>/cp-state-*.json
+Update:      <temp update path for the next /dev session>
 
 Sections populated:
 - Section 5 (User's Acceptance Criterion): populated (N requirements accumulated)
@@ -259,3 +268,7 @@ Usage:
 - **Spec Creation Mode is the only mode.** It acts immediately on whatever the user provides, accumulates multiple requirements into one file per session, and finalizes only on a natural-conclusion strong signal.
 - **Output folder is created by the spec subagent** during Phase 0. The subagent decides which agents get views based on spec content. Legacy specs lacking an output folder remain valid — `/dev*` falls back gracefully.
 - **Todo script**: `/root/.claude/scripts/todo/spec.py` (symlinked to `/dev/shm/dev-workspace/dot-claude/scripts/todo/spec.py` — same inode) exposes the 7-step Spec Creation Mode todo list with `blocking_count = 3` (Steps 1-3 must complete before Claude can stop; Steps 4-7 are session-duration).
+- **Workflow update**: Step 7 emits a temp update for the next phase using
+  `/update --temp`. It must be compact, reference existing artifacts by path,
+  and suggest the exact next command (`/dev` auto-detect or `/dev --spec
+  <path>`).
