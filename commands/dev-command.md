@@ -88,7 +88,10 @@ If no spec found, set `spec_path = null`. All downstream behavior is unchanged w
 **Detect views folder (sibling to spec)**:
 
 If `spec_path` is not null, check `<dirname>/<spec-id>/views/manifest.json`.
-If the manifest exists AND is valid JSON AND `schema_version == 1`, set:
+If the manifest exists AND is valid JSON AND `schema_version == 1`, first run the stale-view guard:
+- Compute `split_marker = <dirname(spec_path)>/<spec-id>/.split-complete`.
+- If `split_marker` is missing OR `spec_path` is newer than `split_marker`, treat the views/checkpoints as stale: set `views_available = false`, clear `view_paths`, and announce `Spec is newer than split views/checkpoints; using monolith spec for this /dev-command run. Re-finalize /spec before relying on per-agent views.`
+- Otherwise, set:
 - `views_available = true`
 - `view_paths` = manifest.views (dict of agent → path)
 
