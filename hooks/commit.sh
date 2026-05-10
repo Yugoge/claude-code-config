@@ -9,12 +9,11 @@
 # Flow:
 #   1. Parse <task-id> argument (positional, required)
 #   2. Closure detection (PRIMARY close-report → SECONDARY completion+qa-report; fail-closed)
-#   3. Read dev-report; extract allowed_files (multi-schema union)
-#   4. Generate deterministic commit message; compute sha256
-#   5. Write single-use grant manifest /tmp/claude-commit-grant-<sid>-<nonce>.json
-#   6. Stage exactly allowed_files; verify staged set matches
-#   7. Export CLAUDE_COMMIT_COMMAND_ACTIVE=1; run blessed git commit
-#   8. Append audit log line to /root/.claude/logs/git-privilege-grants.log
+#   3. Build an internal semantic plan from task artifacts and repo state
+#   4. Seed a private index from current branch tip and apply only planned patches
+#   5. Create the commit object with git commit-tree
+#   6. Advance refs/heads/<branch> by expected-parent CAS
+#   7. Write backup-only recovery refs and append audit JSON/log entries
 #
 # Defense:
 #   - Closure check is necessary but not sufficient — bulk-commit-detector remains an
@@ -45,14 +44,20 @@ set -euo pipefail
 #   This makes commit.sh robust against subprocess-env-var-stripping (the
 #   parent shell's CLAUDE_PROJECT_DIR may not propagate into bash subprocs)
 #   and against orchestrator cwd choice.
+#   Project-local-first ordering (Plan A′ from QA × Codex debate
+#   2026-05-09): the cwd's git toplevel and pwd take priority so a /commit
+#   issued from /root/orchestra resolves to /root/orchestra, not the
+#   parent /root project that happens to also carry docs/dev/. /root is
+#   demoted to the last-position safety net so legacy harness-root flows
+#   still resolve when no nearer candidate matches.
 #   Candidate order:
 #     1. $CLAUDE_DOCS_DIR  (new dedicated override)
 #     2. $CLAUDE_PROJECT_DIR  (back-compat)
-#     3. /root  (canonical harness root per CLAUDE.md)
-#     4. cwd's git toplevel
-#     5. pwd
+#     3. cwd's git toplevel
+#     4. pwd
+#     5. /root  (final fallback / legacy harness-root safety net)
 DOCS_DIR_ROOT=""
-for _cand in "${CLAUDE_DOCS_DIR:-}" "${CLAUDE_PROJECT_DIR:-}" "/root" "$(git rev-parse --show-toplevel 2>/dev/null || true)" "$(pwd)"; do
+for _cand in "${CLAUDE_DOCS_DIR:-}" "${CLAUDE_PROJECT_DIR:-}" "$(git rev-parse --show-toplevel 2>/dev/null || true)" "$(pwd)" "/root"; do
   [ -z "$_cand" ] && continue
   if [ -d "${_cand}/docs/dev" ]; then
     DOCS_DIR_ROOT="$_cand"
@@ -65,10 +70,19 @@ if [ -z "$DOCS_DIR_ROOT" ]; then
   DOCS_DIR_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 fi
 DOCS_DIR="${DOCS_DIR_ROOT}/docs/dev"
-# LOG_PATH is intentionally user-home-anchored (audit log lives where Claude
-# infrastructure lives, not where the project lives). Do NOT parameterize via
-# CLAUDE_PROJECT_DIR — this is by design (AC-DOCS-4).
-LOG_PATH="/root/.claude/logs/git-privilege-grants.log"
+# Log and runtime helper paths are intentionally user-home-anchored: audit
+# artifacts live with Claude infrastructure, not the target project. Do NOT
+# derive them from CLAUDE_PROJECT_DIR — that would mix project repos and global
+# toolchain state (AC-DOCS-4). Operators may override these paths for tests.
+CLAUDE_HOME="${CLAUDE_HOME:-${HOME}/.claude}"
+CLAUDE_LOG_DIR="${CLAUDE_LOG_DIR:-${CLAUDE_HOME}/logs}"
+CLAUDE_TMPDIR="${CLAUDE_TMPDIR:-${TMPDIR:-/tmp}}"
+PYTHON_BIN="${CLAUDE_PYTHON_BIN:-${CLAUDE_HOME}/venv/bin/python}"
+if [ ! -x "$PYTHON_BIN" ]; then
+  PYTHON_BIN="${CLAUDE_PYTHON_FALLBACK:-python}"
+fi
+CLOSE_VERDICT_HELPER="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/lib/close-verdict.py"
+LOG_PATH="${CLAUDE_GIT_PRIVILEGE_LOG:-${CLAUDE_LOG_DIR}/git-privilege-grants.log}"
 GRANT_FILE=""
 
 # AC-iter2-9: Wrapper-only grant lifecycle.
@@ -83,27 +97,26 @@ GRANT_FILE=""
 # Step 1 — argument parse
 # -----------------------------------------------------------------------------
 # Three modes:
-#   commit.sh <task-id> -m "<msg>"          — closed-task commit (PRIMARY/SECONDARY)
-#                                             -m REQUIRED non-empty (redev6 P-MSG / M-MSG-1).
-#                                             Auto-derive from H1 title is REMOVED.
+#   commit.sh <task-id> [-m "<msg>"]      — closed-task semantic commit (PRIMARY/SECONDARY)
+#                                             -m optional; omitted messages are derived from artifacts.
 #   commit.sh --auto-bulk-bridge <branch>   — overnight per-cycle commit (P3 bridge mode)
 #                                             -m FORBIDDEN (BLESSED_BRIDGE_RE locks message)
-#   commit.sh --force -m "<msg>"            — irregular-path escape hatch (redev6 P-FORCE)
+#   commit.sh --force -m "<msg>"          — irregular-path escape hatch (redev6 P-FORCE)
 #                                             -m REQUIRED non-empty; bypasses closure /
 #                                             task-id / dev-report / cross-repo / P-CLOSEHONOR
 #                                             / H1 checks. The four always-on security layers
 #                                             (disable-model-invocation on commit.md,
 #                                             inline-env literal-substring rejection,
-#                                             bulk-commit-detector, grant manifest emission)
+#                                             bulk-commit-detector, grant emission)
 #                                             remain engaged.
 #
 # --force and --auto-bulk-bridge are mutually exclusive; passing both -> exit 2.
 #
-# Bridge mode (AC-P3-2 in ba-spec-20260426-redev3.md):
+# Bridge mode (AC-P3-2):
 #   Used by /dev-overnight per-cycle finalization. Stages from the already-cached
 #   set (caller pre-stages with `git add`), emits commit message
 #   `auto-bulk: end-of-cycle commit for <branch>` (matches BLESSED_BRIDGE_RE in
-#   pretool-git-privilege-guard.py:92), AND writes a grant manifest so the guard
+#   pretool-git-privilege-guard.py:92), AND writes a grant file so the guard
 #   gains defense-in-depth visibility into staged-set / message-hash. Bridge
 #   mode does NOT require close-report or dev-report — overnight cycles produce
 #   bulk commits across many small fixes; closure evidence is per-issue, not
@@ -117,9 +130,9 @@ GRANT_FILE=""
 #   rests on the four always-on layers, all of which stay engaged in --force mode.
 if [ $# -lt 1 ] || [ -z "${1:-}" ]; then
   echo "Usage:" >&2
-  echo "  commit.sh <task-id> [-m \"<msg>\"]           # closed-task commit (-m optional, auto-fills from closure artifacts)" >&2
+  echo "  commit.sh <task-id> [-m \"<msg>\"]            # closed-task semantic commit" >&2
   echo "  commit.sh --auto-bulk-bridge <branch>      # overnight per-cycle commit (-m forbidden)" >&2
-  echo "  commit.sh --force -m \"<msg>\"                # irregular-path escape hatch (-m required)" >&2
+  echo "  commit.sh --force -m \"<msg>\"                # irregular-path escape hatch" >&2
   echo "Example: commit.sh dev-20260425-145411 -m \"real session summary describing the fix\"" >&2
   echo "Example: commit.sh --auto-bulk-bridge cycle-2-redev" >&2
   echo "Example: commit.sh --force -m \"docs(notes): add foo notes — hand-written single-file\"" >&2
@@ -231,9 +244,9 @@ while [ $# -gt 0 ]; do
     --force|--auto-bulk-bridge)
       echo "commit.sh: --force and --auto-bulk-bridge are mutually exclusive" >&2
       echo "Usage:" >&2
-      echo "  commit.sh <task-id> [-m \"<msg>\"]           # closed-task commit (-m optional, auto-fills from closure artifacts)" >&2
+      echo "  commit.sh <task-id> [-m \"<msg>\"]            # closed-task semantic commit" >&2
       echo "  commit.sh --auto-bulk-bridge <branch>      # overnight per-cycle commit (-m forbidden)" >&2
-      echo "  commit.sh --force -m \"<msg>\"                # irregular-path escape hatch (-m required)" >&2
+      echo "  commit.sh --force -m \"<msg>\"                # irregular-path escape hatch" >&2
       exit 2
       ;;
     *)
@@ -268,7 +281,7 @@ elif [ "$MODE" = "closed-task" ]; then
   if [ "$HAS_CALLER_MESSAGE" -eq 0 ] || [ -z "$CALLER_MESSAGE" ]; then
     HELPER="/root/.claude/scripts/auto-commit-message.sh"
     if [ -x "$HELPER" ]; then
-      CALLER_MESSAGE="$("$HELPER" "$TASK_ID")"
+      CALLER_MESSAGE="$(CLAUDE_PROJECT_DIR="$DOCS_DIR_ROOT" "$HELPER" "$TASK_ID")"
       if [ -n "$CALLER_MESSAGE" ]; then
         HAS_CALLER_MESSAGE=1
         MESSAGE_SOURCE="auto"
@@ -278,7 +291,7 @@ elif [ "$MODE" = "closed-task" ]; then
     MESSAGE_SOURCE="caller"
   fi
   if [ "$HAS_CALLER_MESSAGE" -eq 0 ] || [ -z "$CALLER_MESSAGE" ]; then
-    echo "commit message could not be auto-generated (no closure artifacts for $TASK_ID); pass -m manually" >&2
+    echo "commit message could not be auto-generated from task artifacts for $TASK_ID" >&2
     exit 2
   fi
 fi
@@ -287,8 +300,649 @@ fi
 # operator is reminded that closure/task-id/dev-report layers are bypassed
 # but the four always-on security layers remain engaged.
 if [ "$MODE" = "force" ]; then
-  echo "commit.sh: --force bypasses closure/task-id/dev-report checks; security relies on disable-model-invocation + inline-env rejection + bulk-detector + grant manifest" >&2
+  echo "commit.sh: --force bypasses closure/task-id/dev-report checks; semantic planning still uses private-index/CAS audit" >&2
 fi
+
+# -----------------------------------------------------------------------------
+# Semantic plan helpers
+# -----------------------------------------------------------------------------
+real_index_fingerprint() {
+  local repo_root="$1"
+  local index_path
+  index_path="$(git -C "$repo_root" rev-parse --git-path index 2>/dev/null || true)"
+  if [ -n "$index_path" ] && [ -f "$index_path" ]; then
+    sha256sum "$index_path" | awk '{print $1}'
+  else
+    echo "__missing__"
+  fi
+}
+
+staged_file_list() {
+  git -C "$1" diff --cached --name-only | LC_ALL=C sort -u
+}
+
+sync_real_index_to_commit_paths() {
+  local repo_root="$1"
+  local commit_sha="$2"
+  local tmp_dir="$3"
+  shift 3
+  local index_info="${tmp_dir}/real-index-info"
+  local entry_file="${tmp_dir}/tree-entry"
+  local removals=()
+  : > "$index_info"
+  local planned_path
+  for planned_path in "$@"; do
+    git -C "$repo_root" ls-tree -z "$commit_sha" -- "$planned_path" > "$entry_file"
+    if [ -s "$entry_file" ]; then
+      cat "$entry_file" >> "$index_info"
+    else
+      removals+=("$planned_path")
+    fi
+  done
+  if [ -s "$index_info" ]; then
+    git -C "$repo_root" update-index -z --index-info < "$index_info"
+  fi
+  if [ "${#removals[@]}" -gt 0 ]; then
+    git -C "$repo_root" update-index --force-remove -- "${removals[@]}"
+  fi
+}
+
+build_semantic_plan_bundle() {
+  local task_id="$1"
+  local mode="$2"
+  local patch_path="$3"
+  local meta_path="$4"
+
+  "$PYTHON_BIN" - "$task_id" "$mode" "$DOCS_DIR_ROOT" "$DOCS_DIR" "$patch_path" "$meta_path" <<'PY'
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+task_id, mode, docs_root, docs_dir, patch_path, meta_path = sys.argv[1:7]
+docs_root = os.path.abspath(docs_root)
+docs_dir = os.path.abspath(docs_dir)
+
+if mode == "force":
+    print("commit.sh: --force cannot infer task ownership safely; use a closed task-id semantic commit", file=sys.stderr)
+    sys.exit(2)
+
+def run_git(cwd, args, check=True):
+    proc = subprocess.run(
+        ["git", "-C", cwd, *args],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if check and proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip() or "git command failed")
+    return proc
+
+def git_root_for_existing(path):
+    cur = Path(path)
+    if not cur.is_absolute():
+        cur = Path(docs_root) / cur
+    cur = Path(os.path.realpath(str(cur)))
+    if cur.exists() and cur.is_file():
+        cur = cur.parent
+    if not cur.exists():
+        for parent in [cur.parent, *cur.parents]:
+            if parent.exists():
+                cur = parent
+                break
+    proc = subprocess.run(
+        ["git", "-C", str(cur), "rev-parse", "--show-toplevel"],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    if proc.returncode != 0:
+        return ""
+    return os.path.realpath(proc.stdout.strip())
+
+def under(path, root):
+    try:
+        Path(os.path.realpath(path)).relative_to(Path(os.path.realpath(root)))
+        return True
+    except ValueError:
+        return False
+
+def rel_to_repo(path, repo_root):
+    p = Path(path)
+    if not p.is_absolute():
+        candidates = [Path(repo_root) / p, Path(docs_root) / p]
+    else:
+        candidates = [p]
+    repo_real = Path(os.path.realpath(repo_root))
+    for candidate in candidates:
+        real = Path(os.path.realpath(str(candidate)))
+        try:
+            return str(real.relative_to(repo_real))
+        except ValueError:
+            continue
+    return ""
+
+artifact_names = [
+    f"close-report-{task_id}.md",
+    f"dev-report-{task_id}.json",
+    f"qa-report-{task_id}.json",
+    f"completion-{task_id}.md",
+    f"context-{task_id}.json",
+    f"ticket-{task_id}.md",
+    f"ba-spec-{task_id}.md",
+    f"ba-qa-report-{task_id}.json",
+]
+artifacts = [os.path.join(docs_dir, name) for name in artifact_names if os.path.exists(os.path.join(docs_dir, name))]
+
+path_values = set()
+
+def maybe_add_path(value):
+    if not isinstance(value, str):
+        return
+    if value.startswith(("http://", "https://")):
+        return
+    cleaned = value.strip().strip("`'\".,;)")
+    if not cleaned:
+        return
+    if cleaned.startswith("/") or "/" in cleaned or re.match(r"^[A-Za-z0-9._-]+$", cleaned):
+        path_values.add(cleaned)
+
+unresolved_authoritative = []
+
+def add_authoritative_paths(values):
+    if not isinstance(values, list):
+        return
+    for item in values:
+        if isinstance(item, str):
+            maybe_add_path(item)
+
+dev_report_path = os.path.join(docs_dir, f"dev-report-{task_id}.json")
+if os.path.exists(dev_report_path):
+    try:
+        dev_report = json.load(open(dev_report_path, encoding="utf-8"))
+    except Exception:
+        dev_report = {}
+    dev_block = dev_report.get("dev", {}) if isinstance(dev_report, dict) else {}
+    if isinstance(dev_block, dict):
+        add_authoritative_paths(dev_block.get("files_modified"))
+        add_authoritative_paths(dev_block.get("files_created"))
+        for task in dev_block.get("tasks_completed", []) or []:
+            if isinstance(task, dict):
+                add_authoritative_paths(task.get("files_modified"))
+                add_authoritative_paths(task.get("files_created"))
+        for script in dev_block.get("scripts_created", []) or []:
+            if isinstance(script, dict):
+                maybe_add_path(script.get("path"))
+
+non_doc_repos = set()
+for value in path_values:
+    abs_value = value if os.path.isabs(value) else os.path.join(docs_root, value)
+    if under(abs_value, docs_dir):
+        continue
+    root = git_root_for_existing(abs_value)
+    if root:
+        non_doc_repos.add(root)
+
+if len(non_doc_repos) > 1:
+    print("commit.sh: task artifacts reference more than one target repository; refusing ambiguous ownership", file=sys.stderr)
+    for root in sorted(non_doc_repos):
+        print(f"  repo: {root}", file=sys.stderr)
+    sys.exit(2)
+
+if non_doc_repos:
+    repo_root = sorted(non_doc_repos)[0]
+else:
+    current_root = git_root_for_existing(os.getcwd())
+    docs_repo = git_root_for_existing(docs_root)
+    repo_root = current_root or docs_repo
+if not repo_root:
+    print("commit.sh: cannot resolve target repository for semantic plan", file=sys.stderr)
+    sys.exit(2)
+
+try:
+    base_commit = run_git(repo_root, ["rev-parse", "HEAD"]).stdout.strip()
+except Exception:
+    print("commit.sh: semantic plan requires a repository with HEAD", file=sys.stderr)
+    sys.exit(2)
+
+planned = {}
+for value in sorted(path_values):
+    rel = rel_to_repo(value, repo_root)
+    if rel and rel != ".":
+        planned.setdefault(rel, "dev report declares this implementation path")
+    else:
+        unresolved_authoritative.append(value)
+for artifact in artifacts:
+    rel = rel_to_repo(artifact, repo_root)
+    if rel and rel != ".":
+        planned.setdefault(rel, "same-task cycle artifact")
+
+def lines_from_git(args):
+    proc = run_git(repo_root, args)
+    return {line for line in proc.stdout.splitlines() if line}
+
+dirty = set()
+dirty |= lines_from_git(["diff", "--name-only", "HEAD", "--"])
+dirty |= lines_from_git(["ls-files", "--others", "--exclude-standard"])
+staged = lines_from_git(["diff", "--cached", "--name-only"])
+unstaged = lines_from_git(["diff", "--name-only"])
+
+def is_generated(path):
+    base = os.path.basename(path)
+    return (
+        "__pycache__/" in path
+        or base.endswith((".pyc", ".pyo", ".tmp", ".temp", ".bak", ".swp", "~"))
+        or path.endswith(".log")
+    )
+
+task_doc_re = re.compile(r"^docs/dev/(?:[^/]*-)?([0-9]{8}-[0-9]{6}[^/]*)")
+
+def is_other_session(path):
+    if not path.startswith("docs/dev/"):
+        return False
+    base = os.path.basename(path)
+    return bool(re.search(r"[0-9]{8}-[0-9]{6}", base)) and task_id not in base
+
+included = []
+excluded = []
+blocking = []
+for value in sorted(unresolved_authoritative):
+    record = {
+        "path": value,
+        "category": "ambiguous_overlap",
+        "reason": "dev report path could not be mapped inside the target repository",
+    }
+    excluded.append(record)
+    blocking.append(record)
+for path in sorted(dirty):
+    if path in planned and path in staged:
+        record = {
+            "path": path,
+            "category": "ambiguous_overlap",
+            "reason": "planned path already has shared-index content; refusing to mix ownership",
+        }
+        excluded.append(record)
+        blocking.append(record)
+    elif path in planned or (path.startswith("docs/dev/") and task_id in os.path.basename(path)):
+        included.append({
+            "path": path,
+            "category": "task_owned",
+            "reason": planned.get(path, "same-task artifact name"),
+        })
+    elif is_generated(path):
+        excluded.append({"path": path, "category": "garbage/generated", "reason": "generated or scratch file"})
+    elif is_other_session(path):
+        excluded.append({"path": path, "category": "other_session", "reason": "belongs to another task-id"})
+    else:
+        excluded.append({"path": path, "category": "unrelated", "reason": "not declared by same-task dev report"})
+
+if blocking:
+    print("commit.sh: ambiguous task ownership; refusing semantic commit", file=sys.stderr)
+    for item in blocking:
+        print(f"  {item['path']}: {item['reason']}", file=sys.stderr)
+    sys.exit(2)
+
+if not included:
+    print(f"commit.sh: no task-owned dirty changes found for {task_id}; unrelated work was preserved", file=sys.stderr)
+    if excluded:
+        for item in excluded[:20]:
+            print(f"  excluded {item['category']}: {item['path']} — {item['reason']}", file=sys.stderr)
+    sys.exit(2)
+
+patch_chunks = []
+tracked = lines_from_git(["ls-files"])
+for item in included:
+    path = item["path"]
+    if path in tracked:
+        proc = run_git(repo_root, ["diff", "--binary", "HEAD", "--", path])
+    else:
+        proc = subprocess.run(
+            ["git", "-C", repo_root, "diff", "--binary", "--no-index", "--", "/dev/null", path],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if proc.returncode not in (0, 1):
+            print(proc.stderr.strip() or f"commit.sh: failed to diff new file {path}", file=sys.stderr)
+            sys.exit(2)
+    if proc.stdout.strip():
+        patch_chunks.append(proc.stdout if proc.stdout.endswith("\n") else proc.stdout + "\n")
+
+patch_text = "".join(patch_chunks)
+if not patch_text.strip():
+    print("commit.sh: semantic plan produced no patch content", file=sys.stderr)
+    sys.exit(2)
+if re.search(r"(?m)^GIT binary patch$", patch_text):
+    print("commit.sh: binary patches are not supported by the semantic plan path", file=sys.stderr)
+    sys.exit(2)
+
+with open(patch_path, "w", encoding="utf-8") as fh:
+    fh.write(patch_text)
+
+plan_seed = json.dumps(
+    {"task_id": task_id, "repo_root": repo_root, "base_commit": base_commit, "included": included, "excluded": excluded},
+    sort_keys=True,
+).encode("utf-8") + patch_text.encode("utf-8")
+meta = {
+    "engine": "semantic-commit",
+    "plan_id": hashlib.sha256(plan_seed).hexdigest()[:16],
+    "plan_sha256": hashlib.sha256(plan_seed).hexdigest(),
+    "task_id": task_id,
+    "repo_root": repo_root,
+    "base_commit": base_commit,
+    "patch_count": len(patch_chunks),
+    "semantic_files": included,
+    "excluded_dirty": excluded,
+    "artifact_paths": artifacts,
+    "dirty_candidates": sorted(dirty),
+    "staged_candidates": sorted(staged),
+    "unstaged_candidates": sorted(unstaged),
+}
+with open(meta_path, "w", encoding="utf-8") as fh:
+    json.dump(meta, fh, indent=2, sort_keys=True)
+PY
+}
+
+run_backup_only_push() {
+  local repo_root="$1"
+  local branch="$2"
+  local commit_sha="$3"
+  local short_sha="${commit_sha:0:12}"
+  local backup_ref="refs/backups/claude/${branch}/${short_sha}"
+  local backup_log="${CLAUDE_BACKUP_LOG:-${CLAUDE_LOG_DIR}/post-commit-auto-push.log}"
+  local remote="${CLAUDE_BACKUP_REMOTE:-origin}"
+
+  if ! git -C "$repo_root" check-ref-format "$backup_ref" >/dev/null 2>&1; then
+    backup_ref="refs/backups/claude/detached/${short_sha}"
+  fi
+  mkdir -p "$(dirname "$backup_log")"
+  git -C "$repo_root" update-ref "$backup_ref" "$commit_sha" 2>>"$backup_log" || true
+
+  if git -C "$repo_root" remote get-url "$remote" >/dev/null 2>&1; then
+    (
+      git -C "$repo_root" push "$remote" "${commit_sha}:${backup_ref}" >>"$backup_log" 2>&1 || \
+        printf '%s backup push failed remote=%s ref=%s sha=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$remote" "$backup_ref" "$commit_sha" >>"$backup_log"
+    ) &
+  else
+    printf '%s backup push skipped remote=%s ref=%s sha=%s reason=remote-missing\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$remote" "$backup_ref" "$commit_sha" >>"$backup_log"
+  fi
+
+  printf '%s\n' "$backup_ref"
+}
+
+run_semantic_plan_commit() {
+  local task_id="$1"
+  local mode="$2"
+  local closure_kind="$3"
+  local close_verdict="$4"
+
+  local tmp_dir patch_file meta_file
+  tmp_dir="$(mktemp -d "${CLAUDE_TMPDIR%/}/claude-commit-plan-XXXXXX")"
+  patch_file="${tmp_dir}/bundle.patch"
+  meta_file="${tmp_dir}/plan-meta.json"
+  build_semantic_plan_bundle "$task_id" "$mode" "$patch_file" "$meta_file" || {
+    rm -rf "$tmp_dir"
+    return 2
+  }
+
+  local plan_repo repo_root
+  plan_repo="$("$PYTHON_BIN" - "$meta_file" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+print(data.get("repo_root", ""))
+PY
+)"
+  local plan_task_for_check
+  plan_task_for_check="$("$PYTHON_BIN" - "$meta_file" <<'PY'
+import json, sys
+value = json.load(open(sys.argv[1])).get("task_id")
+print("" if value is None else value)
+PY
+)"
+  if [ "$mode" = "closed-task" ] && [ -n "$plan_task_for_check" ] && [ "$plan_task_for_check" != "$task_id" ]; then
+    echo "commit.sh: semantic plan task_id ${plan_task_for_check} does not match requested task ${task_id}" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+  if [ -n "$plan_repo" ]; then
+    repo_root="$(git -C "$plan_repo" rev-parse --show-toplevel 2>/dev/null || true)"
+  else
+    repo_root=""
+  fi
+  if [ -z "$repo_root" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+    repo_root="$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
+  fi
+  if [ -z "$repo_root" ]; then
+    repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  fi
+  if [ -z "$repo_root" ]; then
+    echo "commit.sh: cannot resolve target repo for semantic plan" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+
+  local branch expected_parent real_index_before real_index_after private_index staged_list_before staged_list_after index_path probe_index
+  branch="$(git -C "$repo_root" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  if [ -z "$branch" ]; then
+    echo "commit.sh: semantic commit requires a branch (detached HEAD refused)" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+  expected_parent="$(git -C "$repo_root" rev-parse "refs/heads/${branch}^{commit}")"
+  real_index_before="$(real_index_fingerprint "$repo_root")"
+  staged_list_before="$(staged_file_list "$repo_root")"
+  private_index="${tmp_dir}/index"
+
+  GIT_INDEX_FILE="$private_index" git -C "$repo_root" read-tree "$expected_parent"
+  if ! GIT_INDEX_FILE="$private_index" git -C "$repo_root" apply --cached --3way "$patch_file" 2>"${tmp_dir}/apply.err"; then
+    echo "commit.sh: semantic plan conflict/overlap; branch, worktree, and real index were not mutated" >&2
+    cat "${tmp_dir}/apply.err" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+  if [ -n "$(GIT_INDEX_FILE="$private_index" git -C "$repo_root" ls-files -u)" ]; then
+    echo "commit.sh: semantic plan left unmerged private-index entries; refusing commit" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+  if [ "$(real_index_fingerprint "$repo_root")" != "$real_index_before" ]; then
+    echo "commit.sh: real shared index changed during semantic private-index preparation; refusing branch advance" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+  if ! GIT_INDEX_FILE="$private_index" git -C "$repo_root" diff --cached --check "$expected_parent" --; then
+    echo "commit.sh: private-index diff check failed; refusing commit" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+  if GIT_INDEX_FILE="$private_index" git -C "$repo_root" diff --cached --quiet --exit-code "$expected_parent" --; then
+    echo "commit.sh: semantic plan produced no commit diff" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+
+  local files_json tree new_commit backup_ref plan_sha plan_id plan_base plan_excluded plan_semantic staged_before_json staged_after_json staged_overlap
+  local plan_files=()
+  mapfile -t plan_files < <(GIT_INDEX_FILE="$private_index" git -C "$repo_root" diff --cached --name-only "$expected_parent" --)
+  files_json="$(GIT_INDEX_FILE="$private_index" git -C "$repo_root" diff --cached --name-only "$expected_parent" -- | "$PYTHON_BIN" -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))')"
+  if ! "$PYTHON_BIN" - "$meta_file" "$files_json" <<'PY'
+import json
+import sys
+
+meta = json.load(open(sys.argv[1]))
+patch_files = set(json.loads(sys.argv[2]))
+semantic_files = {item["path"] for item in meta.get("semantic_files", [])}
+missing = sorted(patch_files - semantic_files)
+if missing:
+    print("commit.sh: semantic plan missing ownership rationale for path(s): " + ", ".join(missing), file=sys.stderr)
+    sys.exit(2)
+PY
+  then
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+  if [ "${#plan_files[@]}" -gt 0 ]; then
+    staged_overlap="$(git -C "$repo_root" diff --cached --name-only -- "${plan_files[@]}" | LC_ALL=C sort -u)"
+    if [ -n "$staged_overlap" ]; then
+      echo "commit.sh: semantic plan touches path(s) already staged by another session; refusing to preserve shared index ownership" >&2
+      printf '%s\n' "$staged_overlap" >&2
+      rm -rf "$tmp_dir"
+      return 2
+    fi
+  fi
+  tree="$(GIT_INDEX_FILE="$private_index" git -C "$repo_root" write-tree)"
+  new_commit="$(printf '%s\n' "$COMMIT_MSG" | GIT_INDEX_FILE="$private_index" git -C "$repo_root" commit-tree "$tree" -p "$expected_parent")"
+
+  if [ "$(real_index_fingerprint "$repo_root")" != "$real_index_before" ]; then
+    echo "commit.sh: real shared index changed before CAS branch advance; refusing branch advance" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+  index_path="$(git -C "$repo_root" rev-parse --git-path index 2>/dev/null || true)"
+  probe_index="${tmp_dir}/real-index-probe"
+  if [ -n "$index_path" ] && [ -f "$index_path" ]; then
+    cp "$index_path" "$probe_index"
+    if ! GIT_INDEX_FILE="$probe_index" sync_real_index_to_commit_paths "$repo_root" "$new_commit" "$tmp_dir" "${plan_files[@]}"; then
+      echo "commit.sh: shared-index planned-path reconciliation preflight failed; refusing branch advance" >&2
+      rm -rf "$tmp_dir"
+      return 2
+    fi
+  fi
+  if ! git -C "$repo_root" update-ref "refs/heads/${branch}" "$new_commit" "$expected_parent"; then
+    echo "commit.sh: expected-parent CAS failed for refs/heads/${branch}; branch advanced concurrently, retry on the new HEAD" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+  if ! sync_real_index_to_commit_paths "$repo_root" "$new_commit" "$tmp_dir" "${plan_files[@]}"; then
+    echo "commit.sh: branch advanced, but shared-index planned-path reconciliation failed" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+  staged_list_after="$(staged_file_list "$repo_root")"
+  real_index_after="$(real_index_fingerprint "$repo_root")"
+  if [ "$staged_list_after" != "$staged_list_before" ]; then
+    echo "commit.sh: staged-file list changed during semantic commit; refusing because shared staged ownership was not preserved" >&2
+    printf 'before:\n%s\n' "$staged_list_before" >&2
+    printf 'after:\n%s\n' "$staged_list_after" >&2
+    rm -rf "$tmp_dir"
+    return 2
+  fi
+
+  backup_ref="$(run_backup_only_push "$repo_root" "$branch" "$new_commit")"
+
+  mkdir -p "$(dirname "$LOG_PATH")"
+  local sid nonce ppid_val msg_sha_short ts audit_json
+  sid="${CLAUDE_SESSION_ID:-$$}"
+  nonce="$("$PYTHON_BIN" -c "import secrets; print(secrets.token_hex(16))")"
+  ppid_val="$$"
+  msg_sha_short="$("$PYTHON_BIN" -c "import hashlib, sys; print(hashlib.sha256(sys.argv[1].encode('utf-8')).hexdigest()[:12])" "$COMMIT_MSG")"
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  audit_json="${CLAUDE_LOG_DIR}/commit-semantic-${sid}-${nonce}.json"
+  plan_sha="$("$PYTHON_BIN" - "$meta_file" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1])).get("plan_sha256", ""))
+PY
+)"
+  plan_id="$("$PYTHON_BIN" - "$meta_file" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1])).get("plan_id", ""))
+PY
+)"
+  plan_base="$("$PYTHON_BIN" - "$meta_file" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1])).get("base_commit", ""))
+PY
+)"
+  plan_excluded="$("$PYTHON_BIN" - "$meta_file" <<'PY'
+import json, sys
+print(json.dumps(json.load(open(sys.argv[1])).get("excluded_dirty", [])))
+PY
+)"
+  plan_semantic="$("$PYTHON_BIN" - "$meta_file" <<'PY'
+import json, sys
+print(json.dumps(json.load(open(sys.argv[1])).get("semantic_files", [])))
+PY
+)"
+  staged_before_json="$(printf '%s\n' "$staged_list_before" | "$PYTHON_BIN" -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))')"
+  staged_after_json="$(printf '%s\n' "$staged_list_after" | "$PYTHON_BIN" -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))')"
+
+  "$PYTHON_BIN" - "$audit_json" "$ts" "$sid" "$task_id" "$mode" "$branch" "$expected_parent" "$new_commit" "$plan_sha" "$plan_id" "$plan_base" "$files_json" "$plan_semantic" "$plan_excluded" "$backup_ref" "$closure_kind" "$close_verdict" "$MESSAGE_SOURCE" "$staged_before_json" "$staged_after_json" "$real_index_before" "$real_index_after" <<'PY'
+import json
+import sys
+
+(path, ts, sid, task_id, mode, branch, parent, commit, plan_sha,
+ plan_id, plan_base, files_json, semantic_json, excluded_json,
+ backup_ref, closure_kind, close_verdict, message_source, staged_before_json,
+ staged_after_json, index_before, index_after) = sys.argv[1:23]
+data = {
+    "timestamp": ts,
+    "sid": sid,
+    "command_kind": "commit",
+    "engine": "semantic-commit",
+    "mode": mode,
+    "task_id": task_id,
+    "branch": branch,
+    "parent": parent,
+    "commit": commit,
+    "plan_sha256": plan_sha,
+    "plan_id": plan_id,
+    "plan_base_commit": plan_base,
+    "files": json.loads(files_json),
+    "semantic_files": json.loads(semantic_json),
+    "excluded_dirty": json.loads(excluded_json),
+    "staged_files_before": json.loads(staged_before_json),
+    "staged_files_after": json.loads(staged_after_json),
+    "real_index_fingerprint_before": index_before,
+    "real_index_fingerprint_after": index_after,
+    "backup_ref": backup_ref,
+    "closure_kind": closure_kind,
+    "close_verdict_observed": close_verdict,
+    "message_source": message_source,
+}
+with open(path, "w") as fh:
+    json.dump(data, fh, indent=2, sort_keys=True)
+PY
+
+  "$PYTHON_BIN" - "$LOG_PATH" "$ts" "$sid" "$task_id" "$mode" "$nonce" "$ppid_val" "$msg_sha_short" "$new_commit" "$expected_parent" "$plan_sha" "$backup_ref" "$files_json" "$closure_kind" "$close_verdict" "$MESSAGE_SOURCE" "$audit_json" <<'PY'
+import json
+import sys
+
+(path, ts, sid, task_id, mode, nonce, ppid_val, msg_sha_short, head,
+ parent, plan_sha, backup_ref, files_json, closure_kind,
+ close_verdict, message_source, audit_json) = sys.argv[1:18]
+line = {
+    "timestamp": ts,
+    "sid": sid,
+    "command_kind": "commit",
+    "engine": "semantic-commit",
+    "mode": mode,
+    "task_id": task_id,
+    "sentinel_nonce": nonce,
+    "ppid": int(ppid_val),
+    "message_sha256_short": msg_sha_short,
+    "head": head,
+    "parent": parent,
+    "plan_sha256": plan_sha,
+    "backup_ref": backup_ref,
+    "files": json.loads(files_json),
+    "closure_kind": closure_kind,
+    "close_verdict_observed": close_verdict,
+    "message_source": message_source,
+    "audit_json": audit_json,
+}
+with open(path, "a") as fh:
+    fh.write(json.dumps(line) + "\n")
+PY
+
+  _USERINTENT_SID="${CLAUDE_SESSION_ID:-default}"
+  rm -f "/tmp/claude-commit-userintent-${_USERINTENT_SID}.flag"
+  rm -rf "$tmp_dir"
+  echo "commit.sh: success — semantic task=${task_id} branch=${branch} parent=${expected_parent} head=${new_commit} backup_ref=${backup_ref}"
+  return 0
+}
 
 # -----------------------------------------------------------------------------
 # Step 1b — bridge-mode short-circuit
@@ -300,9 +954,9 @@ fi
 #     stages files before invoking the bridge).
 #   - Compute commit message of the form `auto-bulk: end-of-cycle commit for <branch>`
 #     (matches BLESSED_BRIDGE_RE in pretool-git-privilege-guard.py:92).
-#   - Write a per-nonce grant manifest with allowed_files + expected_message_sha256
+#   - Write a per-nonce grant file with allowed_files + expected_message_sha256
 #     + branch (defense-in-depth: the guard's defense-in-depth path validates
-#     this manifest when it sees a bridge-mode commit with the env+grant pair).
+#     this grant when it sees a bridge-mode commit with the env+grant pair).
 #   - Export CLAUDE_COMMIT_COMMAND_ACTIVE=1; run blessed git commit.
 #   - Wrapper unlinks grant on success (preserve iter3 fix).
 #   - Audit log line carries `mode=auto-bulk-bridge branch=<branch>`.
@@ -321,8 +975,8 @@ if [ "$MODE" = "auto-bulk-bridge" ]; then
     [ -n "$line" ] && ALLOWED_FILES+=("$line")
   done <<< "$STAGED_RAW"
 
-  # JSON-encode for the grant manifest.
-  ALLOWED_JSON="$(python3 -c "
+  # JSON-encode for the grant file.
+  ALLOWED_JSON="$("$PYTHON_BIN" -c "
 import json, sys
 files = [l for l in sys.stdin.read().splitlines() if l.strip()]
 print(json.dumps(sorted(set(files))))
@@ -333,19 +987,19 @@ print(json.dumps(sorted(set(files))))
   # 440-442 of pretool-git-privilege-guard.py).
   COMMIT_MSG="auto-bulk: end-of-cycle commit for ${BRIDGE_BRANCH}"
 
-  MSG_SHA256="$(python3 -c "
+  MSG_SHA256="$("$PYTHON_BIN" -c "
 import hashlib, sys
 print(hashlib.sha256(sys.argv[1].encode('utf-8')).hexdigest())
 " "$COMMIT_MSG")"
 
-  # Grant manifest (per-nonce; mirrors the closed-task path).
+  # Grant file (per-nonce; mirrors the closed-task path).
   SID="${CLAUDE_SESSION_ID:-$$}"
-  NONCE="$(python3 -c "import secrets; print(secrets.token_hex(16))")"
+  NONCE="$("$PYTHON_BIN" -c "import secrets; print(secrets.token_hex(16))")"
   GRANT_FILE="/tmp/claude-commit-grant-${SID}-${NONCE}.json"
   CREATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   PPID_VAL="$$"
 
-  python3 - "$GRANT_FILE" "$NONCE" "$SID" "$BRIDGE_BRANCH" "$ALLOWED_JSON" "$MSG_SHA256" "$CREATED_AT" "$PPID_VAL" <<'PY'
+  "$PYTHON_BIN" - "$GRANT_FILE" "$NONCE" "$SID" "$BRIDGE_BRANCH" "$ALLOWED_JSON" "$MSG_SHA256" "$CREATED_AT" "$PPID_VAL" <<'PY'
 import json, sys
 path, nonce, sid, branch, allowed_json, msg_sha, created_at, ppid_val = sys.argv[1:9]
 grant = {
@@ -382,7 +1036,7 @@ PY
   MSG_SHA_SHORT="${MSG_SHA256:0:12}"
   TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-  python3 - "$LOG_PATH" "$TS" "$SID" "$BRIDGE_BRANCH" "$NONCE" "$PPID_VAL" "$MSG_SHA_SHORT" "$NEW_HEAD" <<'PY'
+  "$PYTHON_BIN" - "$LOG_PATH" "$TS" "$SID" "$BRIDGE_BRANCH" "$NONCE" "$PPID_VAL" "$MSG_SHA_SHORT" "$NEW_HEAD" <<'PY'
 import json, sys
 path, ts, sid, branch, nonce, ppid_val, msg_sha_short, head = sys.argv[1:9]
 line = {
@@ -413,20 +1067,12 @@ fi
 #   - Skip closure detection entirely (no PRIMARY/SECONDARY check; no close-report
 #     / completion-md / qa-report / dev-report required).
 #   - Skip task-id resolution (TASK_ID stays empty).
-#   - Skip dev-report parsing (no allowed_files extraction from dev-report).
-#   - Skip cross-repo filter (allowed_files == staged set, by definition).
+#   - Skip dev-report parsing (dev-report is not content authority here).
 #   - Skip P-CLOSEHONOR (no close-report consultation).
 #   - Skip P-H1 / P-TASKID / P-NESTED / P-CROSSREPO checks.
-#   - Read pre-staged file set via `git diff --cached --name-only` (caller stages
-#     files before invoking).
+#   - Use the semantic private-index/CAS path.
 #   - Use caller-supplied message verbatim (CALLER_MESSAGE, validated above).
-#   - Write a per-nonce grant manifest with mode="force"; allowed_files = staged
-#     set; expected_message_sha256 = sha256(CALLER_MESSAGE). The privilege-guard's
-#     existing schema admits this without modification (it validates env +
-#     sha256(message) + allowed_files = staged set; the `mode` field is
-#     metadata-only).
-#   - Export CLAUDE_COMMIT_COMMAND_ACTIVE=1; run blessed git commit.
-#   - Wrapper unlinks grant on success (matches commit.sh:666 pattern).
+#   - Create the commit object from a private index; no real-index staging.
 #   - Audit log line carries `mode=force` for forensics, with
 #     `message_source=caller` (--force requires caller-supplied -m).
 #
@@ -437,110 +1083,16 @@ fi
 #      (CLAUDE_COMMIT_COMMAND_ACTIVE=1 prefix in the raw command text rejects).
 #   3. bulk-commit-detector (independent gate; AC-FORCE-3: --force does NOT
 #      bypass the b5d447e-shape detector).
-#   4. grant manifest emission with sha256(message) + allowed_files binding +
-#      single-use unlink on success (replay defense).
+#   4. audit JSON binding message hash, plan hash, parent, commit, files,
+#      and backup recovery ref.
 if [ "$MODE" = "force" ]; then
-  # Pre-staged set required (caller is responsible for staging via `git add`).
-  # M-FORCE-2 (ba-spec-20260426-redev6.md / orchestrator-prompt verbatim):
-  # exit 2 with explicit no-staged message (mirrors bridge-mode behavior).
-  STAGED_RAW="$(git diff --cached --name-only | sort -u)"
-  if [ -z "$STAGED_RAW" ]; then
-    echo "commit.sh --force: no files staged; run 'git add' first" >&2
-    exit 2
-  fi
-
-  # Pack into a bash array (matches bridge-mode pattern at lines 129-132).
-  ALLOWED_FILES=()
-  while IFS= read -r line; do
-    [ -n "$line" ] && ALLOWED_FILES+=("$line")
-  done <<< "$STAGED_RAW"
-
-  # JSON-encode for the grant manifest.
-  ALLOWED_JSON="$(python3 -c "
-import json, sys
-files = [l for l in sys.stdin.read().splitlines() if l.strip()]
-print(json.dumps(sorted(set(files))))
-" <<< "$STAGED_RAW")"
-
-  # Caller-supplied message verbatim (validated non-empty above at the
-  # per-mode policy enforcement step).
   COMMIT_MSG="$CALLER_MESSAGE"
-
-  MSG_SHA256="$(python3 -c "
-import hashlib, sys
-print(hashlib.sha256(sys.argv[1].encode('utf-8')).hexdigest())
-" "$COMMIT_MSG")"
-
-  # Grant manifest (per-nonce; mirrors the bridge-mode + closed-task pattern).
-  SID="${CLAUDE_SESSION_ID:-$$}"
-  NONCE="$(python3 -c "import secrets; print(secrets.token_hex(16))")"
-  GRANT_FILE="/tmp/claude-commit-grant-${SID}-${NONCE}.json"
-  CREATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  PPID_VAL="$$"
-
-  # --force mode has no task-id; use the literal sentinel "__force__" as the
-  # task_id field so audit-log readers can distinguish force-mode entries.
   FORCE_TASK_SENTINEL="__force__"
-
-  python3 - "$GRANT_FILE" "$NONCE" "$SID" "$FORCE_TASK_SENTINEL" "$ALLOWED_JSON" "$MSG_SHA256" "$CREATED_AT" "$PPID_VAL" <<'PY'
-import json, sys
-path, nonce, sid, task_id, allowed_json, msg_sha, created_at, ppid_val = sys.argv[1:9]
-grant = {
-    "nonce": nonce,
-    "sid": sid,
-    "mode": "force",
-    "task_id": task_id,
-    "allowed_files": json.loads(allowed_json),
-    "expected_message_sha256": msg_sha,
-    "created_at": created_at,
-    "ppid": int(ppid_val),
-}
-with open(path, "w") as fh:
-    json.dump(grant, fh, indent=2, sort_keys=True)
-PY
-
-  # Bless the commit. The privilege-guard will validate env-var presence + grant
-  # manifest + sha256(message) + allowed_files = staged set. The bulk-commit-
-  # detector remains an independent downstream gate (AC-FORCE-3).
-  export CLAUDE_COMMIT_COMMAND_ACTIVE=1
-
-  git commit -m "$COMMIT_MSG"
-
-  # Wrapper unlinks grant on success path (guard never fires on subprocess).
-  rm -f "$GRANT_FILE"
-  GRANT_FILE=""
-
-  # Audit log line.
-  mkdir -p "$(dirname "$LOG_PATH")"
-  NEW_HEAD="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
-  MSG_SHA_SHORT="${MSG_SHA256:0:12}"
-  TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-  python3 - "$LOG_PATH" "$TS" "$SID" "$FORCE_TASK_SENTINEL" "$NONCE" "$PPID_VAL" "$MSG_SHA_SHORT" "$NEW_HEAD" "$ALLOWED_JSON" <<'PY'
-import json, sys
-path, ts, sid, task_id, nonce, ppid_val, msg_sha_short, head, allowed_json = sys.argv[1:10]
-line = {
-    "timestamp": ts,
-    "sid": sid,
-    "command_kind": "commit",
-    "mode": "force",
-    "task_id": task_id,
-    "sentinel_nonce": nonce,
-    "ppid": int(ppid_val),
-    "message_sha256_short": msg_sha_short,
-    "head": head,
-    "closure_kind": "force",
-    "allowed_files": json.loads(allowed_json),
-    "message_source": "caller",
-}
-with open(path, "a") as fh:
-    fh.write(json.dumps(line) + "\n")
-PY
-
-  echo "commit.sh: success — mode=force head=${NEW_HEAD} files=${#ALLOWED_FILES[@]}"
-  exit 0
+  CLOSURE_KIND="force"
+  CLOSE_VERDICT_OBSERVED="absent"
+  run_semantic_plan_commit "$FORCE_TASK_SENTINEL" "force" "$CLOSURE_KIND" "$CLOSE_VERDICT_OBSERVED"
+  exit $?
 fi
-
 # -----------------------------------------------------------------------------
 # Step 2 — closure detection (PRIMARY then SECONDARY, fail-closed)
 # -----------------------------------------------------------------------------
@@ -552,30 +1104,32 @@ CLOSURE_PATH=""    # path of the file that satisfied the check (used for title e
 CLOSURE_KIND=""    # "primary" | "secondary"
 CLOSE_VERDICT_OBSERVED="absent"   # "yes" | "no" | "absent" — for S2 audit log
 
-# PRIMARY: close-report exists AND last non-empty line matches '^CLOSE:\s*YES\b'.
+# PRIMARY: close-report exists AND the shared verdict contract classifies the
+# last non-empty CLOSE line as yes.
 #
 # P-CLOSEHONOR (ba-spec-20260426-redev5.md M5 / AC-CLOSEHONOR-1..4):
 # When a close-report exists for the task-id, its verdict is AUTHORITATIVE.
-#   CLOSE: YES → PRIMARY (current behavior preserved, AC-CLOSEHONOR-2)
-#   CLOSE: NO  → REFUSE the commit (AC-CLOSEHONOR-1) — do NOT fall through to SECONDARY
+#   yes → PRIMARY (current behavior preserved, AC-CLOSEHONOR-2)
+#   no  → REFUSE the commit (AC-CLOSEHONOR-1) — do NOT fall through to SECONDARY
 #   neither   → REFUSE (defensive; AC-CLOSEHONOR-4) — do NOT fall through
 # This closes the SECONDARY back-door that previously admitted commits even
 # when /close had returned a deliberate negative verdict.
 if [ -f "$CLOSE_REPORT" ]; then
   # Last non-empty line — strip CR, drop blank lines, take final survivor.
   LAST_NONEMPTY="$(tr -d '\r' < "$CLOSE_REPORT" | awk 'NF{line=$0} END{print line}')"
-  if [[ "$LAST_NONEMPTY" =~ ^CLOSE:[[:space:]]*YES([[:space:]]|$|\b) ]]; then
+  VERDICT_KIND="$("$PYTHON_BIN" "$CLOSE_VERDICT_HELPER" classify-line "$LAST_NONEMPTY" 2>/dev/null || echo unknown)"
+  if [ "$VERDICT_KIND" = "yes" ]; then
     CLOSURE_PATH="$CLOSE_REPORT"
     CLOSURE_KIND="primary"
     CLOSE_VERDICT_OBSERVED="yes"
-  elif [[ "$LAST_NONEMPTY" =~ ^CLOSE:[[:space:]]*NO([[:space:]]|$|\b) ]]; then
+  elif [ "$VERDICT_KIND" = "no" ]; then
     CLOSE_VERDICT_OBSERVED="no"
     echo "task closed with verdict NO; cannot commit until /close passes" >&2
     echo "  close-report: ${CLOSE_REPORT}" >&2
     echo "  last non-empty line: ${LAST_NONEMPTY}" >&2
     exit 2
   else
-    # close-report exists but last line is neither YES nor NO — fail closed.
+    # close-report exists but the last line is not a recognized verdict — fail closed.
     echo "close-report exists for ${TASK_ID} but verdict is unrecognized; expected CLOSE: YES or CLOSE: NO" >&2
     echo "  close-report: ${CLOSE_REPORT}" >&2
     echo "  last non-empty line: ${LAST_NONEMPTY}" >&2
@@ -595,7 +1149,7 @@ fi
 # checks must pass; ANY missing -> exit 2 (fail closed).
 if [ -z "$CLOSURE_KIND" ]; then
   if [ -f "$COMPLETION_DOC" ] && [ -f "$QA_REPORT" ]; then
-    QA_STATUS_OK="$(python3 -c "
+    QA_STATUS_OK="$("$PYTHON_BIN" -c "
 import json, sys
 try:
     with open(sys.argv[1]) as fh:
@@ -615,7 +1169,7 @@ sys.exit(0 if status == 'pass' else 1)
       #       with the task-id only in the filename + Request-ID body line).
       #   (b) Request-ID body line — case-insensitive, decoration-tolerant
       #       (e.g. '**Request ID**: dev-<task-id>', 'Request-ID: <task-id>').
-      #   (c) H1 contains task-id — kept as legacy fallback (iter2 schema).
+      #   (c) H1 contains task-id — kept as legacy fallback.
       # Pass if ANY one holds. The lookup path satisfies (a) by construction,
       # so this check is effectively a sanity confirmation; we still verify
       # explicitly so the audit trail records which source matched.
@@ -649,7 +1203,7 @@ sys.exit(0 if status == 'pass' else 1)
       # match accepts these without enumerating prefixes. Task-ids are typically
       # 15+ char timestamps (YYYYMMDD-HHMMSS), making collision risk negligible.
       DEV_REPORT_PRECHECK="${DOCS_DIR}/dev-report-${TASK_ID}.json"
-      if python3 -c "
+      if "$PYTHON_BIN" -c "
 import json, sys
 try:
     with open(sys.argv[1]) as fh:
@@ -689,7 +1243,7 @@ sys.exit(0 if any(matches(v, task_id) for v in keys_to_check) else 1)
         echo "SECONDARY closure refused: dev-report missing at ${DEV_REPORT_PRECHECK}" >&2
         exit 2
       fi
-      if python3 -c "
+      if "$PYTHON_BIN" -c "
 import json, sys
 try:
     with open(sys.argv[1]) as fh:
@@ -736,375 +1290,8 @@ if [ -z "$CLOSURE_KIND" ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# Step 3 — resolve dev-report and extract allowed_files
+# Step 3 — semantic private-index commit
 # -----------------------------------------------------------------------------
-DEV_REPORT="${DOCS_DIR}/dev-report-${TASK_ID}.json"
-if [ ! -f "$DEV_REPORT" ]; then
-  echo "dev-report missing: ${DEV_REPORT}" >&2
-  exit 2
-fi
-
-# Union from an enumerated set of paths in the dev-report JSON.
-#
-# P-NESTED (ba-spec-20260426-redev5.md M3 / AC-NESTED-1..3):
-# Real dev-reports nest files_modified/files_created under various paths.
-# We enumerate the known schemas (deterministic + auditable; no recursive walk):
-#   top.files_modified, top.files_created                             (existing)
-#   dev.files_modified, dev.files_created                             (existing)
-#   dev.tasks_completed[*].files_modified / files_created             (NEW)
-#   tasks[*].files_modified / files_created                           (NEW alt schema)
-#   deliverables[*].files_modified / files_created                    (NEW alt schema)
-#
-# Each entry is filtered to non-empty strings (defense against the list-of-dicts
-# corner case BA-QA flagged in dev-report-20260420-080000.json).
-# Empty union → fail-closed at the existing ALLOWED_RAW check below.
-# Output: newline-separated, sorted+deduped.
-ALLOWED_RAW="$(python3 - "$DEV_REPORT" <<'PY'
-import json, sys
-path = sys.argv[1]
-try:
-    with open(path) as fh:
-        data = json.load(fh)
-except Exception as e:
-    sys.stderr.write(f"dev-report parse error: {e}\n")
-    sys.exit(1)
-
-def collect(node, key):
-    if not isinstance(node, dict):
-        return []
-    val = node.get(key)
-    if isinstance(val, list):
-        return [v for v in val if isinstance(v, str) and v.strip()]
-    return []
-
-def collect_from_array(parent, array_key, file_key):
-    if not isinstance(parent, dict):
-        return []
-    arr = parent.get(array_key)
-    if not isinstance(arr, list):
-        return []
-    out = []
-    for item in arr:
-        out.extend(collect(item, file_key))
-    return out
-
-files = set()
-
-# (1) top-level + .dev (existing schemas)
-for node in (data, data.get('dev') if isinstance(data, dict) else None):
-    files.update(collect(node, 'files_modified'))
-    files.update(collect(node, 'files_created'))
-
-# (2) dev.tasks_completed[*].files_*
-dev_node = data.get('dev') if isinstance(data, dict) else None
-files.update(collect_from_array(dev_node, 'tasks_completed', 'files_modified'))
-files.update(collect_from_array(dev_node, 'tasks_completed', 'files_created'))
-
-# (3) top-level tasks[*].files_*  (alt schema)
-files.update(collect_from_array(data, 'tasks', 'files_modified'))
-files.update(collect_from_array(data, 'tasks', 'files_created'))
-
-# (4) top-level deliverables[*].files_*  (alt schema)
-files.update(collect_from_array(data, 'deliverables', 'files_modified'))
-files.update(collect_from_array(data, 'deliverables', 'files_created'))
-
-# Print one path per line, sorted + deduped.
-for f in sorted(files):
-    print(f)
-PY
-)"
-
-if [ -z "$ALLOWED_RAW" ]; then
-  echo "dev-report.files_modified/files_created union is empty for ${TASK_ID}" >&2
-  echo "  cannot derive allowed_files; refusing to commit." >&2
-  exit 2
-fi
-
-# Preserve the FULL union for the audit log (M4 / AC-CROSSREPO-3).
-ALLOWED_FULL_RAW="$ALLOWED_RAW"
-
-# P-CROSSREPO (ba-spec-20260426-redev5.md M4 / AC-CROSSREPO-1..3):
-# Filter allowed_files to current-repo membership BEFORE staging/comparison.
-# A file belongs to the current repo if EITHER:
-#   (a) `git ls-files --error-unmatch -- <path>` succeeds (tracked file), OR
-#   (b) the path exists at <repo_root>/<path> on disk (newly-created file
-#       not yet tracked, or path normalization edge cases).
-# Empty filtered set → exit 2 with "wrong repo" message; the FULL set was
-# non-empty (we'd have exited above otherwise), so this distinguishes
-# "wrong repo" from "no files modified".
-# Permanent REPO_ROOT resolution (P-REPO-SNIFF):
-#   Sniff the target repo from the dev-report's own file paths — realpath
-#   the first absolute entry and walk up to the enclosing .git dir. This
-#   makes the wrapper independent of orchestrator cwd / env-var setup;
-#   commit.sh determines which repo to commit to from the dev-report itself.
-#   Fall back to the legacy cwd / CLAUDE_PROJECT_DIR detection only when
-#   the sniff yields nothing.
-REPO_ROOT="$(printf '%s\n' "$ALLOWED_FULL_RAW" | python3 -c '
-import os, sys
-for line in sys.stdin:
-    p = line.strip()
-    if not p or not os.path.isabs(p):
-        continue
-    real = os.path.realpath(p)
-    d = real if os.path.isdir(real) else os.path.dirname(real)
-    while d and d != "/":
-        if os.path.isdir(os.path.join(d, ".git")):
-            print(d)
-            sys.exit(0)
-        d = os.path.dirname(d)
-sys.exit(1)
-' 2>/dev/null || true)"
-if [ -z "$REPO_ROOT" ]; then
-  REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-fi
-if [ -z "$REPO_ROOT" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -d "${CLAUDE_PROJECT_DIR}/.git" ]; then
-  REPO_ROOT="$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
-fi
-if [ -z "$REPO_ROOT" ]; then
-  echo "commit.sh: cannot resolve target repo (sniff from dev-report failed; cwd/CLAUDE_PROJECT_DIR also yielded no .git)" >&2
-  exit 2
-fi
-
-# Pass full-list via a temp file — heredoc-vs-herestring stdin conflicts with
-# `python3 - <<PY ... PY <<< "$VAR"` (the herestring would clobber the heredoc).
-ALLOWED_FULL_TMP="$(mktemp /tmp/claude-commit-allowed-XXXXXX)"
-printf '%s\n' "$ALLOWED_FULL_RAW" > "$ALLOWED_FULL_TMP"
-
-ALLOWED_RAW="$(python3 - "$REPO_ROOT" "$ALLOWED_FULL_TMP" <<'PY'
-import os, subprocess, sys
-repo_root = sys.argv[1]
-list_path = sys.argv[2]
-with open(list_path) as fh:
-    paths = [l.strip() for l in fh.read().splitlines() if l.strip()]
-def in_current_repo(path):
-    # (a) tracked file in current repo (cheapest authoritative check).
-    try:
-        rc = subprocess.run(
-            ['git', 'ls-files', '--error-unmatch', '--', path],
-            cwd=repo_root,
-            capture_output=True,
-        ).returncode
-    except Exception:
-        rc = 1
-    if rc == 0:
-        return True
-    # (b) exists on disk AND lives under repo_root (newly-created file).
-    # NB: a bare os.path.exists() check is wrong — an absolute path like
-    # /dev/shm/.../dot-claude/foo.sh would exist on disk but belongs to a
-    # different repo. Require the resolved path to be under repo_root.
-    abs_path = path if os.path.isabs(path) else os.path.join(repo_root, path)
-    try:
-        real_abs = os.path.realpath(abs_path)
-        real_root = os.path.realpath(repo_root)
-    except Exception:
-        return False
-    if not os.path.exists(abs_path):
-        return False
-    # Path must be under repo_root (or equal to it). Use commonpath for
-    # boundary safety (avoids '/foo' matching '/foobar' as prefix).
-    try:
-        common = os.path.commonpath([real_abs, real_root])
-    except ValueError:
-        return False
-    return common == real_root
-kept = []
-real_root = os.path.realpath(repo_root)
-for p in paths:
-    if not in_current_repo(p):
-        continue
-    abs_path = p if os.path.isabs(p) else os.path.join(repo_root, p)
-    real_abs = os.path.realpath(abs_path)
-    try:
-        rel = os.path.relpath(real_abs, real_root)
-    except ValueError:
-        rel = p
-    kept.append(rel)
-for p in sorted(set(kept)):
-    print(p)
-PY
-)"
-
-# Best-effort cleanup of the temp list (keep output regardless of rm result).
-[ -f "$ALLOWED_FULL_TMP" ] && : > "$ALLOWED_FULL_TMP" 2>/dev/null || true
-
-if [ -z "$ALLOWED_RAW" ]; then
-  echo "no dev-report files belong to this repo (${REPO_ROOT}); commit from the correct repo" >&2
-  echo "--- allowed_files (full union) ---" >&2
-  printf '%s\n' "$ALLOWED_FULL_RAW" >&2
-  exit 2
-fi
-
-# P-GITIGNORE: drop paths excluded by this repo's .gitignore. A dev-report can
-# list paths (e.g. /root/.codex/*) that the current repo ignores; bulk `git
-# add` fails the entire commit for one ignored entry. Filter with a stderr
-# warn and continue; empty filtered set exits 2 with a distinct message.
-ALLOWED_PRE_GITIGNORE_TMP="$(mktemp /tmp/claude-commit-pre-gitignore-XXXXXX)"
-printf '%s\n' "$ALLOWED_RAW" > "$ALLOWED_PRE_GITIGNORE_TMP"
-
-ALLOWED_RAW="$(python3 - "$REPO_ROOT" "$ALLOWED_PRE_GITIGNORE_TMP" <<'PY'
-import subprocess, sys
-repo_root, list_path = sys.argv[1], sys.argv[2]
-with open(list_path) as fh:
-    paths = [l.strip() for l in fh.read().splitlines() if l.strip()]
-kept, dropped = [], []
-for p in paths:
-    rc = subprocess.run(
-        ['git', 'check-ignore', '-q', '--', p],
-        cwd=repo_root,
-        capture_output=True,
-    ).returncode
-    (dropped if rc == 0 else kept).append(p)
-if dropped:
-    print('commit.sh: dropping gitignored entries from dev-report.files_modified:', file=sys.stderr)
-    for p in dropped:
-        print(f'  - {p}', file=sys.stderr)
-for p in kept:
-    print(p)
-PY
-)"
-
-[ -f "$ALLOWED_PRE_GITIGNORE_TMP" ] && : > "$ALLOWED_PRE_GITIGNORE_TMP" 2>/dev/null || true
-
-if [ -z "$ALLOWED_RAW" ]; then
-  echo "commit.sh: all dev-report files are gitignored by ${REPO_ROOT}; nothing to commit" >&2
-  exit 2
-fi
-
-# Pack the FILTERED set into a bash array (used for staging + comparison).
-ALLOWED_FILES=()
-while IFS= read -r line; do
-  [ -n "$line" ] && ALLOWED_FILES+=("$line")
-done <<< "$ALLOWED_RAW"
-
-# JSON-encode the FILTERED set for the grant manifest (W2: grant carries the
-# FILTERED set; full set goes to the audit log only).
-ALLOWED_JSON="$(python3 -c "
-import json, sys
-files = [l for l in sys.stdin.read().splitlines() if l.strip()]
-print(json.dumps(sorted(set(files))))
-" <<< "$ALLOWED_RAW")"
-
-# JSON-encode the FULL set (audit-log only, M4 / AC-CROSSREPO-3).
-ALLOWED_FULL_JSON="$(python3 -c "
-import json, sys
-files = [l for l in sys.stdin.read().splitlines() if l.strip()]
-print(json.dumps(sorted(set(files))))
-" <<< "$ALLOWED_FULL_RAW")"
-
-# -----------------------------------------------------------------------------
-# Step 4 — finalize commit message + compute sha256
-# -----------------------------------------------------------------------------
-# Closed-task mode message resolution (ba-spec-20260426-redev6.md M-MSG-1):
-# -m is REQUIRED; the caller-supplied message is used verbatim. The auto-derive
-# from CLOSURE_PATH H1 is REMOVED. Empty/missing -m has already been rejected
-# above at the per-mode policy enforcement step (exit 2 with the verbatim
-# AC-MSG-1 message). MESSAGE_SOURCE was already set to "caller" in that block.
 COMMIT_MSG="$CALLER_MESSAGE"
-
-MSG_SHA256="$(python3 -c "
-import hashlib, sys
-print(hashlib.sha256(sys.argv[1].encode('utf-8')).hexdigest())
-" "$COMMIT_MSG")"
-
-# -----------------------------------------------------------------------------
-# Step 5 — write single-use grant manifest
-# -----------------------------------------------------------------------------
-SID="${CLAUDE_SESSION_ID:-$$}"
-NONCE="$(python3 -c "import secrets; print(secrets.token_hex(16))")"
-GRANT_FILE="/tmp/claude-commit-grant-${SID}-${NONCE}.json"
-CREATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-PPID_VAL="$$"
-
-python3 - "$GRANT_FILE" "$NONCE" "$SID" "$TASK_ID" "$ALLOWED_JSON" "$MSG_SHA256" "$CREATED_AT" "$PPID_VAL" <<'PY'
-import json, sys
-path, nonce, sid, task_id, allowed_json, msg_sha, created_at, ppid_val = sys.argv[1:9]
-grant = {
-    "nonce": nonce,
-    "sid": sid,
-    "task_id": task_id,
-    "allowed_files": json.loads(allowed_json),
-    "expected_message_sha256": msg_sha,
-    "created_at": created_at,
-    "ppid": int(ppid_val),
-}
-with open(path, "w") as fh:
-    json.dump(grant, fh, indent=2, sort_keys=True)
-PY
-
-# -----------------------------------------------------------------------------
-# Step 6 — stage exactly allowed_files; verify
-# -----------------------------------------------------------------------------
-git -C "$REPO_ROOT" add -- "${ALLOWED_FILES[@]}"
-
-STAGED_LIST="$(git -C "$REPO_ROOT" diff --cached --name-only | sort -u)"
-ALLOWED_LIST="$(printf '%s\n' "${ALLOWED_FILES[@]}" | sort -u)"
-
-if [ "$STAGED_LIST" != "$ALLOWED_LIST" ]; then
-  echo "commit.sh: staged-set does not equal allowed_files (refusing to commit)" >&2
-  echo "--- staged ---" >&2
-  printf '%s\n' "$STAGED_LIST" >&2
-  echo "--- allowed ---" >&2
-  printf '%s\n' "$ALLOWED_LIST" >&2
-  exit 2
-fi
-
-# -----------------------------------------------------------------------------
-# Step 7 — export env and run blessed commit
-# -----------------------------------------------------------------------------
-export CLAUDE_COMMIT_COMMAND_ACTIVE=1
-
-# IMPORTANT: HEAD must advance on the current branch. Do NOT touch refs/checkpoints/*.
-git -C "$REPO_ROOT" commit -m "$COMMIT_MSG"
-
-# AC-iter2-9: wrapper unlinks grant on success path (guard never fires on subprocess)
-rm -f "$GRANT_FILE"
-GRANT_FILE=""
-
-# P-SENTINEL-SUCCESS: consume the user-intent sentinel ONLY on the success
-# path, so a failed-then-fixed retry within the TTL window doesn't force the
-# user to re-type /commit. The PreToolUse gate (pretool-wrapper-userintent.py)
-# stopped consuming on every entry; commit.sh owns final removal.
-_USERINTENT_SID="${CLAUDE_SESSION_ID:-default}"
-rm -f "/tmp/claude-commit-userintent-${_USERINTENT_SID}.flag"
-
-# -----------------------------------------------------------------------------
-# Step 8 — audit log
-# -----------------------------------------------------------------------------
-mkdir -p "$(dirname "$LOG_PATH")"
-NEW_HEAD="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
-MSG_SHA_SHORT="${MSG_SHA256:0:12}"
-TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-# Append a single JSON line for downstream parsing convenience.
-# M4 / AC-CROSSREPO-3: log both allowed_files_full and allowed_files_filtered.
-# S2: log close_verdict_observed ("yes" | "no" | "absent") for forensics.
-# S-MSG-AUDIT (redev6): log message_source ("caller" | "auto") so downstream
-# forensics can distinguish orchestrator-written session summaries from auto-
-# derived `commit(<task-id>): <H1>` boilerplate.
-python3 - "$LOG_PATH" "$TS" "$SID" "$TASK_ID" "$NONCE" "$PPID_VAL" "$MSG_SHA_SHORT" "$NEW_HEAD" "$CLOSURE_KIND" "$ALLOWED_FULL_JSON" "$ALLOWED_JSON" "$CLOSE_VERDICT_OBSERVED" "$MESSAGE_SOURCE" <<'PY'
-import json, sys
-(path, ts, sid, task_id, nonce, ppid_val, msg_sha_short, head,
- closure_kind, allowed_full_json, allowed_filtered_json,
- close_verdict_observed, message_source) = sys.argv[1:14]
-line = {
-    "timestamp": ts,
-    "sid": sid,
-    "command_kind": "commit",
-    "mode": "closed-task",
-    "task_id": task_id,
-    "sentinel_nonce": nonce,
-    "ppid": int(ppid_val),
-    "message_sha256_short": msg_sha_short,
-    "head": head,
-    "closure_kind": closure_kind,
-    "allowed_files_full": json.loads(allowed_full_json),
-    "allowed_files_filtered": json.loads(allowed_filtered_json),
-    "close_verdict_observed": close_verdict_observed,
-    "message_source": message_source,
-}
-with open(path, "a") as fh:
-    fh.write(json.dumps(line) + "\n")
-PY
-
-echo "commit.sh: success — task=${TASK_ID} head=${NEW_HEAD} closure=${CLOSURE_KIND} files=${#ALLOWED_FILES[@]}"
-exit 0
+run_semantic_plan_commit "$TASK_ID" "closed-task" "$CLOSURE_KIND" "$CLOSE_VERDICT_OBSERVED"
+exit $?

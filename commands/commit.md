@@ -1,123 +1,78 @@
----
-description: Commit closed dev task to branch HEAD
-disable-model-invocation: true
----
+# /commit — Automatic Semantic Commit
 
-# /commit — v3 Semantic Manifest Commit
-
-`/commit` is the only agent-authorized path, outside `/merge`, that advances
-the current branch. V3 changes commit authority from the shared real index,
-pre-staged files, and dev-report file lists to an agent-authored semantic intent
-manifest containing patch bundles or hunks.
+`/commit <task-id>` is the human-triggered wrapper for a closed development
+cycle. The wrapper derives an internal semantic plan from same-task artifacts and
+live repository state, commits only task-owned changes through a private index,
+and preserves unrelated work.
 
 ## Usage
 
 ```bash
-/commit <task-id> -m "<session-summary>"
-/commit --force -m "<session-summary>"
+/commit <task-id>
+/commit <task-id> -m "optional semantic summary"
 ```
 
-The user does not stage files, choose files, pick hunks, or provide a manifest
-path. After user intent, the agent creates the semantic manifest automatically
-from the completed session intent, writes it to the internal v3 manifest location,
-and invokes `commit.sh`; manual selection questions are forbidden.
-`commit.sh` auto-locates the agent artifact via `CLAUDE_COMMIT_MANIFEST`,
-`/tmp/claude-commit-manifest-<sid>-<task-id>.json`, or
-`docs/dev/commit-manifest-<task-id>.json`.
+`-m` is optional for the normal closed-task path. When omitted, the wrapper
+builds a Conventional-Commit-style message from the task artifacts and close
+verdict. The user and agents do not prepare plan files, choose paths, or
+hand-edit commit inputs.
 
-## V3 manifest contract
+## Inputs the wrapper reads
 
-The manifest is JSON with `version: 3` (or `schema_version: "v3"`) and inline
-patch content:
+For the supplied `<task-id>`, the wrapper resolves `docs/dev/` using the
+project-local-first lookup and reads same-task artifacts when present:
 
-```json
-{
-  "version": 3,
-  "task_id": "20260509-154133",
-  "repo_root": "/path/to/repo",
-  "base_commit": "<optional-base-sha>",
-  "semantic_files": [
-    {"path": "src/app.ts", "reason": "task-owned implementation change"}
-  ],
-  "patches": [
-    {"patch": "diff --git ..."}
-  ],
-  "excluded_dirty": [
-    {"path": "scratch.log", "reason": "debug output, not task intent"}
-  ]
-}
-```
+1. `close-report-<task-id>.md`
+2. `dev-report-<task-id>.json`
+3. `qa-report-<task-id>.json`
+4. `completion-<task-id>.md`
+5. `context-<task-id>.json`
+6. `ticket-<task-id>.md` or legacy BA spec
 
-Accepted patch containers are top-level `patch`, `diff`, or `bundle` strings,
-or arrays named `patches`, `patch_bundles`, or `hunks` whose entries contain
-inline `patch`/`diff` text. `semantic_files` entries must be objects with a
-path and semantic ownership rationale. `excluded_dirty` entries, when present,
-must be objects with a path and exclusion rationale. External patch paths,
-unexplained string-only file/exclusion entries, and Git binary patches fail
-closed in this first slice.
+Those artifacts are evidence only; commit content is derived from the target
+repository's current dirty state and task ownership signals in the artifacts.
 
-## Commit algorithm
+## Behavior summary
 
-1. Validate closed-task admission first: PRIMARY `close-report-<task-id>.md`
-   ending in `CLOSE: YES`, or SECONDARY completion + passing QA evidence.
-2. Locate the agent-created v3 manifest from the internal path and write a
-   temporary patch bundle.
-3. Resolve the target repository from `manifest.repo_root`, `CLAUDE_PROJECT_DIR`,
-   or the current working directory.
-4. Record the real shared index fingerprint and user-visible staged-file list.
-5. Create a temporary private index and seed it from the current branch tip.
-6. Apply only manifest-declared patches to that private index.
-7. Run a private-index diff check and create the commit object.
-8. Fail closed if any manifest path is already staged in the shared index.
-9. Advance `refs/heads/<branch>` with expected-parent compare-and-swap.
-10. Reconcile only manifest paths in the shared index to the new commit so
-    unrelated staged entries are preserved and no reverse manifest diff appears.
-11. Verify the user-visible staged-file list matches the pre-commit list.
-12. Create a local recovery ref and start a backup-only push to
-    `refs/backups/claude/<branch>/<short-sha>`.
-13. Write v3 audit JSON under `/root/.claude/logs/` and append
-    `git-privilege-grants.log`.
+1. Parse `<task-id>` and echo `TASK-ID: <task-id>`.
+2. Require closure evidence: PRIMARY close-report with a recognized `CLOSE: YES`
+   verdict, or SECONDARY completion plus passing QA evidence.
+3. Treat `CLOSE: NO` as authoritative and fail closed.
+4. Build an internal semantic plan that classifies dirty candidates as
+   `task_owned`, `unrelated`, `garbage/generated`, `other_session`, or
+   `ambiguous_overlap`.
+5. Include only `task_owned` changes. Preserve unrelated and other-session work.
+6. Refuse ambiguous ownership, mixed planned-path overlap, detached HEAD, empty
+   plan, cross-repo ambiguity, or conflict.
+7. Seed a private index from the expected parent and apply only planned patches.
+8. Verify the real shared index did not mutate during private-index preparation.
+9. Create the commit object from the private-index tree.
+10. Advance the branch with expected-parent compare-and-swap.
+11. Reconcile only planned paths in the shared index and verify staged-file list
+    preservation.
+12. Write audit JSON/log records and a backup-only recovery ref under
+    `refs/backups/claude/...`.
 
-The commit object is never built from `git diff --cached`, user staging, or
-`dev-report.files_modified`. Dev reports remain closure/audit evidence only.
+## Safety contract
 
-## Concurrency behavior
+- Direct low-level commits remain blocked in agent context; use this wrapper.
+- The shared index is never the content authority for closed-task commits.
+- The wrapper refuses planned paths that are already staged by another session.
+- The branch moves only through expected-parent CAS.
+- Automatic recovery uses backup-only refs and never background-publishes
+  `refs/heads/<branch>`.
+- `--auto-bulk-bridge` remains a separate end-of-cycle path with its fixed
+  `auto-bulk: end-of-cycle commit for <branch>` message.
 
-- Same-file disjoint hunks can commit sequentially: the later manifest is
-  applied with three-way patch semantics against the new branch tip, then the
-  branch advances by CAS. The wrapper updates only manifest paths in the shared
-  index so unrelated staged entries remain staged and the manifest path does not
-  appear as a staged reverse diff.
-- If any manifest path is already staged before the v3 commit, the wrapper fails
-  closed because another session owns staged content for that path.
-- Overlapping hunks fail closed with a conflict/overlap message. The wrapper
-  does not reset, clean, unstage, or otherwise destructively repair the worktree.
-- If the branch moves between parent capture and CAS, the wrapper refuses the
-  branch advance and asks the agent to retry against the new HEAD.
+## Exit codes
 
-## Force mode
+| Exit | Meaning |
+|------|---------|
+| 0    | Commit created and backup ref queued |
+| 1    | Underlying git operation failed unexpectedly |
+| 2    | Closure, ownership, overlap, conflict, or safety refusal |
 
-`--force` is still an irregular-path admission mode, but it no longer trusts
-pre-staged files. It requires the same v3 manifest and private-index/CAS commit
-path as closed-task mode, while skipping closure checks and recording
-`task_id="__force__"` in audit output.
+## Related
 
-## Backup contract
-
-Automatic post-commit backup is recovery-only. It pushes commit objects only to
-namespaced recovery refs such as:
-
-```text
-refs/backups/claude/<branch>/<short-sha>
-```
-
-It must not publish `refs/heads/<branch>` in the background. Human branch
-publication remains `/push`.
-
-## Out of scope
-
-- Per-session independent worktrees.
-- Manual staging, manual file selection, or manual hunk selection.
-- Dev-report file lists as commit content authority.
-- Binary patch ownership in this first slice.
-- Force/delete/ref-rewrite push flows.
+- `/close` writes the machine-readable `CLOSE:` verdict consumed here.
+- `/push` publishes committed branch tips only; it does not create commits.
