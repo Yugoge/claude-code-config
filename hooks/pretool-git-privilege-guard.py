@@ -29,13 +29,16 @@ Forbidden agent operations:
     set by /merge at start. Stderr literal: `BLOCKED: agent git merge`.
   - git push (any form). Stderr literal:
     `BLOCKED: agent git push`.
-  - destructive history-rewriting reset to a non-HEAD ref. Stderr
-    literal: `BLOCKED: agent git reset to non-HEAD`.
+  - every hard reset form. Stderr literal:
+    `BLOCKED: agent git reset --hard`.
+  - direct ref mutation (`git update-ref`, branch force/delete/rename,
+    or writable HEAD symbolic-ref changes).
 
 Allowed: git add, git status, git log, git diff, git show, git blame,
 git ls-files, git ls-tree, git restore (working-tree only), git branch
 (list), git rev-list, git rev-parse, git symbolic-ref, git for-each-ref,
-git stash list/show/pop (non-destructive forms), and reset to HEAD only.
+and git stash list/show/pop (non-destructive forms). Hard reset and direct
+ref mutation are not agent-accessible.
 
 Spec: spec-20260424-233926 section 5.2.4 (R4.3) line 233-249.
 
@@ -90,6 +93,15 @@ from pathlib import Path
 
 
 BLESSED_BRIDGE_RE = re.compile(r'auto-bulk:\s*end-of-cycle commit for\b')
+GIT_GLOBAL_OPTION_RE = (
+    r'(?:\s+(?:-[Cc]\s+\S+|-[Cc]\S+|'
+    r'--(?:git-dir|work-tree|namespace|exec-path|super-prefix|config-env)'
+    r'(?:=\S+|\s+\S+)|'
+    r'--(?:bare|no-pager|paginate|no-replace-objects|literal-pathspecs|'
+    r'glob-pathspecs|noglob-pathspecs|icase-pathspecs|no-optional-locks)|'
+    r'-[pP]))*'
+)
+GIT_COMMAND_RE = r'(?:^|[\s;&|()`])git' + GIT_GLOBAL_OPTION_RE + r'\s+'
 
 
 def _block(message):
@@ -239,7 +251,7 @@ def _extract_push_remote(command):
     `push` that is not a flag (does not start with `-`), or '' when
     not found (typical for plain `git push` with upstream tracking).
     """
-    m = re.search(r'(?:^|[\s;&|()`])git\s+push\b(.*)', command)
+    m = re.search(GIT_COMMAND_RE + r'push\b(.*)', command)
     if not m:
         return ''
     tail = m.group(1)
@@ -253,22 +265,49 @@ def _extract_push_remote(command):
 
 
 def _looks_like_git_commit(command):
-    return bool(re.search(r'(?:^|[\s;&|()`])git\s+commit\b', command))
+    return bool(re.search(GIT_COMMAND_RE + r'commit\b', command))
 
 
 def _looks_like_git_merge(command):
-    return bool(re.search(r'(?:^|[\s;&|()`])git\s+merge(?!-base|tool)\b', command))
+    return bool(re.search(GIT_COMMAND_RE + r'merge(?!-base|tool)\b', command))
 
 
 def _looks_like_git_push(command):
-    return bool(re.search(r'(?:^|[\s;&|()`])git\s+push\b', command))
+    return bool(re.search(GIT_COMMAND_RE + r'push\b', command))
 
 
 def _looks_like_git_reset_hard(command):
     return bool(re.search(
-        r"(?:^|[\s;&|()`])git\s+reset\s+(?:[^;|&]*\s+)?--hard\b",
+        GIT_COMMAND_RE + r"reset\s+(?:[^;|&]*\s+)?--hard\b",
         command,
     ))
+
+
+def _looks_like_git_direct_ref_mutation(command):
+    if re.search(GIT_COMMAND_RE + r'update-ref\b', command):
+        return True
+    if re.search(GIT_COMMAND_RE + r'symbolic-ref\s+(?:-m\s+\S+\s+)*HEAD\s+refs/', command):
+        return True
+    return bool(re.search(
+        GIT_COMMAND_RE + r'branch\s+(?:-[fDdMm]+\b|--delete\b|--force\b|--move\b)',
+        command,
+    ))
+
+
+def _push_has_forbidden_ref_mutation(command):
+    m = re.search(GIT_COMMAND_RE + r'push\b(.*)', command)
+    if not m:
+        return False
+    tail = re.split(r'[;&|`]', m.group(1), maxsplit=1)[0]
+    tokens = tail.strip().split()
+    for tok in tokens:
+        if tok in ('--force', '-f', '--force-with-lease', '--delete', '-d', '--mirror'):
+            return True
+        if tok.startswith('--force-with-lease='):
+            return True
+        if tok.startswith('+') or tok.startswith(':'):
+            return True
+    return False
 
 
 def _extract_commit_message(command):
@@ -290,7 +329,7 @@ def _extract_commit_message(command):
 
 def _extract_reset_target(command):
     m = re.search(
-        r"git\s+reset\s+(?:[^;|&]*?\s+)?--hard\s+([^\s;|&]+)",
+        GIT_COMMAND_RE + r"reset\s+(?:[^;|&]*?\s+)?--hard\s+([^\s;|&]+)",
         command,
     )
     return m.group(1) if m else ''
@@ -464,7 +503,7 @@ def _warn_bridge_staged_drift(grant):
 
 
 def _observe_bridge_commit(sid, msg):
-    """AC-P3-2 defense-in-depth (added 2026-04-26 in dev-redev3-p3).
+    """AC-P3-2 defense-in-depth (added 2026-04-26 bridge hardening).
 
     When the blessed-bridge regex matches AND the wrapper has set
     CLAUDE_COMMIT_COMMAND_ACTIVE=1 AND a per-nonce grant manifest is
@@ -606,6 +645,13 @@ def _evaluate_push(command, sid):
     # AC-A1: literal-substring inline-env injection (precedes env check).
     if _inline_env_present(command, 'CLAUDE_PUSH_COMMAND_ACTIVE'):
         _block_inline_env_push(command)
+    if _push_has_forbidden_ref_mutation(command):
+        _block(
+            '\nBLOCKED: agent git push - force/delete/ref-rewrite push is forbidden.\n'
+            'Command excerpt: %s\n' % command[:200]
+            + 'Safety policy allows normal /push branch publication only; '
+            'automatic backup must use namespaced recovery refs.\n'
+        )
     # AC-A5: default-deny when env unset.
     if os.environ.get('CLAUDE_PUSH_COMMAND_ACTIVE') != '1':
         _block_default_deny_push(command)
@@ -624,20 +670,29 @@ def _evaluate_push(command, sid):
 
 def _evaluate_reset_hard(command):
     target = _extract_reset_target(command)
-    if _is_head_ref(target):
-        return
     _block(
-        '\nBLOCKED: agent git reset to non-HEAD - destructive '
-        'history-mutating reset to %r is forbidden from an overnight '
-        'context.\n' % target
+        '\nBLOCKED: agent git reset --hard - hard reset is forbidden '
+        'from agent flow.\n'
         + 'Command excerpt: %s\n' % command[:200]
-        + 'Spec: spec-20260424-233926 section 5.2.4 (R4.3).\n'
+        + 'Target: %r\n' % target
+        + 'Spec: 2026-05-09 commit/push loss-prevention policy.\n'
+    )
+
+
+def _evaluate_direct_ref_mutation(command):
+    _block(
+        '\nBLOCKED: agent direct git ref mutation - update-ref and '
+        'branch force/delete/rename are forbidden.\n'
+        'Command excerpt: %s\n' % command[:200]
+        + 'Branch movement must go through expected-parent CAS wrappers.\n'
     )
 
 
 def _evaluate_command(command, sid):
     if _looks_like_git_reset_hard(command):
         _evaluate_reset_hard(command)
+    if _looks_like_git_direct_ref_mutation(command):
+        _evaluate_direct_ref_mutation(command)
     if _looks_like_git_push(command):
         _evaluate_push(command, sid)
     if _looks_like_git_merge(command):

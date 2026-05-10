@@ -5,6 +5,15 @@
 # Read full JSON from stdin
 INPUT=$(cat)
 
+CLAUDE_HOME="${CLAUDE_HOME:-${HOME}/.claude}"
+CLAUDE_TMPDIR="${CLAUDE_TMPDIR:-${TMPDIR:-/tmp}}"
+PYTHON_BIN="${CLAUDE_PYTHON_BIN:-${CLAUDE_HOME}/venv/bin/python}"
+if [ ! -x "$PYTHON_BIN" ]; then
+  PYTHON_BIN="${CLAUDE_PYTHON_FALLBACK:-python}"
+fi
+DAEMON_RESTART_GRANT_DIR="${CLAUDE_DAEMON_RESTART_GRANT_DIR:-${CLAUDE_TMPDIR}}"
+DAEMON_RESTART_SENTINEL_RE="$(printf '%s' "${DAEMON_RESTART_GRANT_DIR%/}/claude-allow-daemon-restart-" | sed 's/[][\\.^$*+?{}|()]/\\&/g')"
+
 # Codex compatibility: hook payloads may pass a multi-line shell snippet with
 # strict-mode preludes such as `set -euo pipefail` before the actual command.
 # Docker compose service detection must examine compose invocations, not the
@@ -20,8 +29,8 @@ strip_shell_prelude_for_compose() {
 }
 
 # Extract tool name and command
-TOOL_NAME=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null)
-COMMAND=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+TOOL_NAME=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null)
+COMMAND=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
 COMPOSE_COMMAND=$(strip_shell_prelude_for_compose "$COMMAND")
 
 # Only act on Bash tool
@@ -130,7 +139,7 @@ check_and_consume_allowlist() {
   # at upstream call sites (all before the IS_SUBAGENT assignment). Inline parse is the only
   # correct approach.
   local is_sub
-  is_sub=$(echo "$INPUT" | python3 -c \
+  is_sub=$(echo "$INPUT" | "$PYTHON_BIN" -c \
     "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
     2>/dev/null)
   if [ "$is_sub" = "1" ]; then
@@ -138,7 +147,7 @@ check_and_consume_allowlist() {
   fi
 
   local sid
-  sid=$(echo "$INPUT" | python3 -c \
+  sid=$(echo "$INPUT" | "$PYTHON_BIN" -c \
     "import json,sys,os; d=json.load(sys.stdin); print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
     2>/dev/null)
   [ -z "$sid" ] && sid="default"
@@ -151,7 +160,7 @@ check_and_consume_allowlist() {
   # Pattern and command passed via environment variables — never shell-interpolated into Python.
   local lock_file="${flag_file}.lock"
   local consume_result
-  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" CMD_INPUT="$cmd" SID_VAL="$sid" python3 - <<'PYEOF'
+  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" CMD_INPUT="$cmd" SID_VAL="$sid" "$PYTHON_BIN" - <<'PYEOF'
 # V1: SIGALRM-only timeout (1s) around re.search to stop catastrophic-backtracking DoS.
 #     ThreadPoolExecutor fallback is PROHIBITED — it does not interrupt a running C regex.
 # V2: flock(LOCK_EX | LOCK_NB) with 3x 100ms retry; atomic unlink while lock held; finally-unlock.
@@ -346,13 +355,13 @@ PYEOF
       # (Plan B/C/D/E per dev-report plan_a_blocker_d3b).
       #
       # iter-2 fix per qa-report finding 1: pass pattern + matched_sub via env vars
-      # so the python3 source itself is static. Shell-interpolating user-supplied
+      # so the Python source itself is static. Shell-interpolating user-supplied
       # patterns (which may contain literal single quotes, backslashes, or newlines)
-      # into a python3 -c source string causes SyntaxError. json.dumps escapes any
+      # into a Python source string causes SyntaxError. json.dumps escapes any
       # internal quote/backslash/newline correctly. This mirrors the env-var passing
       # idiom used at userprompt-consent-allowlist.sh:140-148 for the same class of
       # user-supplied strings.
-      PATTERN_VAL="$pattern" SUBCMD_VAL="$matched_sub" python3 -c '
+      PATTERN_VAL="$pattern" SUBCMD_VAL="$matched_sub" "$PYTHON_BIN" -c '
 import json, os
 reason = "/allow consumed for pattern=" + repr(os.environ["PATTERN_VAL"]) + " matched_subcmd=" + repr(os.environ["SUBCMD_VAL"])
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": reason}}))
@@ -376,7 +385,7 @@ print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permiss
 # per the user-binding directive (verbatim text preserved in
 # docs/dev/ticket-20260509-113838.md) authorizing /allow to bypass any command
 # including dangerous ones. The dedicated
-# /tmp/claude-allow-daemon-restart-<target>.flag sentinel created by
+# ${DAEMON_RESTART_GRANT_DIR}/claude-allow-daemon-restart-<target>.flag sentinel created by
 # /root/bin/claude-allow-restart is preserved per W6 as the precise-grant
 # alternative for users who prefer not to type generic /allow. The function
 # below is still invoked from Layer 1.A; it remains the consume mechanism
@@ -385,7 +394,7 @@ print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permiss
 
 DAEMON_RESTART_AUDIT_LOG="${CLAUDE_DAEMON_RESTART_AUDIT_LOG:-$HOME/.claude/logs/claude-daemon-restart-grants.log}"
 
-# Atomic consume of /tmp/claude-allow-daemon-restart-<target>.flag.
+# Atomic consume of ${DAEMON_RESTART_GRANT_DIR}/claude-allow-daemon-restart-<target>.flag.
 # Reuses the same flock+SIGALRM atomic-consume design as check_and_consume_allowlist.
 # Args: $1 = bare unit name (e.g. "happy-daemon-dev"), $2 = the verb being attempted.
 # Returns 0 if a valid grant existed and was consumed (caller may proceed);
@@ -407,15 +416,15 @@ check_and_consume_daemon_restart_grant() {
   [ -z "$target" ] && return 1
 
   local sid
-  sid=$(echo "$INPUT" | python3 -c \
+  sid=$(echo "$INPUT" | "$PYTHON_BIN" -c \
     "import json,sys,os; d=json.load(sys.stdin); print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
     2>/dev/null)
   [ -z "$sid" ] && sid="default"
 
   mkdir -p "$(dirname "$DAEMON_RESTART_AUDIT_LOG")" 2>/dev/null || true
 
-  local flag_file="/tmp/claude-allow-daemon-restart-${target}.flag"
-  local flag_all="/tmp/claude-allow-daemon-restart-all.flag"
+  local flag_file="${DAEMON_RESTART_GRANT_DIR%/}/claude-allow-daemon-restart-${target}.flag"
+  local flag_all="${DAEMON_RESTART_GRANT_DIR%/}/claude-allow-daemon-restart-all.flag"
   local lock_file="${flag_file}.lock"
 
   # Try target-specific flag first; if absent, try the "all" flag.
@@ -426,7 +435,7 @@ check_and_consume_daemon_restart_grant() {
   [ ! -f "$flag_file" ] && return 1
 
   local consume_result
-  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" UNIT_VAL="$unit" SID_VAL="$sid" TARGET_VAL="$target" python3 - <<'PYEOF'
+  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" UNIT_VAL="$unit" SID_VAL="$sid" TARGET_VAL="$target" "$PYTHON_BIN" - <<'PYEOF'
 # Atomic flock+SIGALRM consume for daemon-restart grant.
 # Reuses the design from check_and_consume_allowlist (lines 114-298).
 import fcntl, json, os, signal, sys, time
@@ -529,7 +538,7 @@ PYEOF
       rest="${rest#*$'\t'}"
       expires="${rest%%$'\t'*}"
       grant_sid="${rest#*$'\t'}"
-      python3 - "$DAEMON_RESTART_AUDIT_LOG" "$sid" "$target" "$unit" "$verb" "$grant_target" "$expires" "$grant_sid" <<'PYAUDIT' >> "$DAEMON_RESTART_AUDIT_LOG"
+      "$PYTHON_BIN" - "$DAEMON_RESTART_AUDIT_LOG" "$sid" "$target" "$unit" "$verb" "$grant_target" "$expires" "$grant_sid" <<'PYAUDIT' >> "$DAEMON_RESTART_AUDIT_LOG"
 import json, sys
 from datetime import datetime, timezone
 log_path, sid, target, unit, verb, grant_target, expires, grant_sid = sys.argv[1:9]
@@ -551,7 +560,7 @@ PYAUDIT
       ;;
     EXPIRED$'\t'*|TARGET_MISMATCH$'\t'*|SESSION_MISMATCH$'\t'*|NO_FLAG|BLOCKED_LOCK|ERROR$'\t'*)
       local outcome="${consume_result%%$'\t'*}"
-      python3 - "$DAEMON_RESTART_AUDIT_LOG" "$sid" "$target" "$unit" "$verb" "$outcome" <<'PYAUDIT2' >> "$DAEMON_RESTART_AUDIT_LOG"
+      "$PYTHON_BIN" - "$DAEMON_RESTART_AUDIT_LOG" "$sid" "$target" "$unit" "$verb" "$outcome" <<'PYAUDIT2' >> "$DAEMON_RESTART_AUDIT_LOG"
 import json, sys
 from datetime import datetime, timezone
 log_path, sid, target, unit, verb, outcome = sys.argv[1:7]
@@ -659,7 +668,7 @@ fi
 # Layer 1.E — sentinel-write block: any Bash that creates/edits the grant
 # sentinel is forbidden (only /root/bin/claude-allow-restart may write it).
 # Stable label: daemon-restart-sentinel-write.
-if echo "$COMMAND" | grep -qE '/tmp/claude-allow-daemon-restart-[A-Za-z0-9_-]+\.flag' \
+if echo "$COMMAND" | grep -qE "${DAEMON_RESTART_SENTINEL_RE}[A-Za-z0-9_-]+\.flag" \
    && echo "$COMMAND" | grep -qE '(>|>>|tee|cp|mv|ln|touch|cat\s)'; then
   echo "BLOCKED: daemon-restart-sentinel-write — writing to grant sentinel is FORBIDDEN" >&2
   echo "Command: $COMMAND" >&2
@@ -1015,14 +1024,14 @@ if echo "$COMMAND" | grep -qE 'git\s+restore\b' && \
   exit 2
 fi
 
-# Block: every git reset --hard form. V3 forbids reset-like cleanup in agent flow.
+# Block: every git reset --hard form. Shared-repo policy forbids reset-like cleanup in agent flow.
 GIT_GLOBAL_OPT_RE='([[:space:]]+(-[Cc][[:space:]]+[^[:space:];|&]+|-[Cc][^[:space:];|&]+|--(git-dir|work-tree|namespace|exec-path|super-prefix|config-env)(=[^[:space:];|&]+|[[:space:]]+[^[:space:];|&]+)|--(bare|no-pager|paginate|no-replace-objects|literal-pathspecs|glob-pathspecs|noglob-pathspecs|icase-pathspecs|no-optional-locks)|-[pP]))*'
 GIT_CMD_RE='(^|[[:space:];&|()`])git'"$GIT_GLOBAL_OPT_RE"'[[:space:]]+'
 if echo "$COMMAND" | grep -qE "${GIT_CMD_RE}reset[[:space:]]+([^;|&]*[[:space:]]+)?--hard\b"; then
   echo "BLOCKED: 'git reset --hard' is forbidden in agent flow" >&2
   echo "Command: $COMMAND" >&2
-  echo "REASON: v3 shared-repo policy requires non-destructive recovery; hard reset can discard another session's work or index state." >&2
-  echo "Use semantic manifest commits, backup recovery refs, or ask the user for a human-run recovery operation." >&2
+  echo "REASON: shared-repo policy requires non-destructive recovery; hard reset can discard another session's work or index state." >&2
+  echo "Use semantic commits, backup recovery refs, or ask the user for a human-run recovery operation." >&2
   exit 2
 fi
 
@@ -1031,13 +1040,13 @@ if echo "$COMMAND" | grep -qE "${GIT_CMD_RE}push\b" && \
    echo "$COMMAND" | grep -qE '(^|[[:space:]])(--force|-f|--force-with-lease(=[^[:space:]]+)?|--delete|-d|--mirror)([[:space:]]|$)|[[:space:]]\+[^[:space:]]|[[:space:]]:[^[:space:]]'; then
   echo "BLOCKED: force/delete/ref-rewrite push is forbidden in agent flow" >&2
   echo "Command: $COMMAND" >&2
-  echo "REASON: v3 allows normal /push branch publication and backup-only recovery refs; force/delete/ref-rewrite pushes can lose remote work." >&2
+  echo "REASON: policy allows normal /push branch publication and backup-only recovery refs; force/delete/ref-rewrite pushes can lose remote work." >&2
   exit 2
 fi
 if echo "$COMMAND" | grep -qE "${GIT_CMD_RE}(update-ref\b|branch[[:space:]]+(-[fDdMm]+|--delete|--force|--move)\b|symbolic-ref([[:space:]]+-m([[:space:]]+[^[:space:];|&]+|[^[:space:];|&]*))*[[:space:]]+HEAD[[:space:]]+refs/)"; then
   echo "BLOCKED: direct git ref mutation is forbidden in agent flow" >&2
   echo "Command: $COMMAND" >&2
-  echo "REASON: v3 branch movement must go through the expected-parent CAS wrapper; branch delete/force/update-ref is not agent-accessible." >&2
+  echo "REASON: branch movement must go through the expected-parent CAS wrapper; branch delete/force/update-ref is not agent-accessible." >&2
   exit 2
 fi
 
@@ -1045,10 +1054,10 @@ fi
 # Subagents have weak context and cannot reliably know whether the user has consented.
 # All git history changes by subagents must be surfaced to the user instead.
 # Detection: parse stdin JSON for agent_id (matches pretool-orchestrator-gate.py mechanism).
-IS_SUBAGENT=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
+IS_SUBAGENT=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
 if [ "$IS_SUBAGENT" = "1" ]; then
   # /do bypass (2026-04-25): user has explicitly consented via /do — allow subagent history mutation
-  SID=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('session_id',''))" 2>/dev/null)
+  SID=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print(d.get('session_id',''))" 2>/dev/null)
   if [ -n "$SID" ] && [ -e "/tmp/claude-orchestrator-consent-${SID}.flag" ]; then
     exit 0
   fi
