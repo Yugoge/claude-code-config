@@ -5,9 +5,22 @@ disable-model-invocation: true
 
 # Push Command
 
-`/push` is the validated human-triggered wrapper for normal branch publication.
-The always-on git privilege guard rejects direct agent `git push` calls and
-inline env-var attempts.
+`/push` is the validated wrapper for normal branch publication. Under the
+always-on git privilege guard (`pretool-git-privilege-guard.py`), the wrapper
+script `~/.claude/hooks/push.sh` is the only authorized path that produces a
+valid push grant — every other `git push` invocation (including inline-env
+attempts) is rejected by the guard.
+
+The slash entry has `disable-model-invocation: true` to prevent the model
+from autonomously self-dispatching `/push` via SlashCommand. It does NOT
+forbid agent execution of the wrapper script. When the user invokes `/push`
+in conversation and this docstring is injected into the agent's context,
+the agent's correct response is to run `~/.claude/hooks/push.sh [remote]`
+directly via Bash. push.sh internally generates the Scheme 6 grant
+manifest, exports `CLAUDE_PUSH_COMMAND_ACTIVE=1`, and runs the underlying
+push — all of which the privilege guard recognizes and admits. Do NOT
+bounce the work back to the user with "please run X manually" — that
+violates the harness's delegation design.
 
 ## Usage
 
