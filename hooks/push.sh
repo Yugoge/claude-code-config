@@ -21,6 +21,9 @@
 #             committed commits to remote. Automated snapshots live on
 #             refs/checkpoints/<branch> and must NOT be promoted to HEAD.)
 
+# ─── User-intent sentinel ────────────────────────────────────────────────────
+# Enforcement lives in pretool-wrapper-userintent.py (PreToolUse hook).
+
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -29,7 +32,7 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Parse args: optional [<remote>], [--auto], [--force-with-lease], [--delete <branch>]
+# Parse args: optional [<remote>], [--auto]
 # Default remote: prefer "fork" if configured locally (typical fork-based workflow),
 # else fall back to "origin". Explicit /push <remote> overrides via the case below.
 if git remote get-url fork >/dev/null 2>&1; then
@@ -38,38 +41,17 @@ else
   REMOTE="origin"
 fi
 AUTO_MODE=0
-FORCE_WITH_LEASE=0
-DELETE_MODE=0
-DELETE_BRANCH=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --auto) AUTO_MODE=1 ;;
-    --force-with-lease)
-      # Force-replace remote branch IF its tip is what we expect (i.e., we have its
-      # current state fetched and visible). Refuses when remote moved beyond our
-      # last fetch — strictly safer than `--force` which clobbers unconditionally.
-      # The privilege-guard's _extract_push_remote skips flags (anything starting
-      # with `-`), so this flag is invisible to the remote-binding check; env-var
-      # + grant-manifest validation still runs unchanged.
-      FORCE_WITH_LEASE=1
-      ;;
-    --delete)
-      # Delete a remote branch. The next positional arg is the branch name on the remote.
-      # Skips the working-tree status report, ahead-count check, and grant-manifest's
-      # head-binding (the manifest still binds remote+ppid+sid+nonce; head is set to
-      # the branch tip we observed locally for audit-trail completeness).
-      DELETE_MODE=1
-      shift
-      DELETE_BRANCH="$1"
-      if [ -z "$DELETE_BRANCH" ] || [ "${DELETE_BRANCH:0:1}" = "-" ]; then
-        echo -e "${RED}❌ --delete requires a remote branch name as the next positional argument${NC}" >&2
-        echo "Usage: bash ~/.claude/hooks/push.sh [<remote>] --delete <branch-name>" >&2
-        exit 2
-      fi
+    --force|--force-with-lease|-f|--delete|-d|--mirror)
+      echo -e "${RED}❌ Dangerous push mode blocked: $1${NC}" >&2
+      echo "Safety policy allows only normal branch pushes through /push; use backup recovery refs for automatic backup." >&2
+      exit 2
       ;;
     -*)
       echo -e "${RED}❌ Unknown flag: $1${NC}" >&2
-      echo "Usage: bash ~/.claude/hooks/push.sh [<remote>] [--auto] [--force-with-lease] [--delete <branch>]" >&2
+      echo "Usage: bash ~/.claude/hooks/push.sh [<remote>] [--auto]" >&2
       exit 2
       ;;
     *) REMOTE="$1" ;;
@@ -77,11 +59,6 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-# --force-with-lease and --delete are mutually exclusive
-if [ "$FORCE_WITH_LEASE" = "1" ] && [ "$DELETE_MODE" = "1" ]; then
-  echo -e "${RED}❌ --force-with-lease and --delete are mutually exclusive${NC}" >&2
-  exit 2
-fi
 # Non-interactive stdin also engages auto-mode regardless of explicit flag
 if [ ! -t 0 ]; then
   AUTO_MODE=1
@@ -103,57 +80,6 @@ if [ "$AUTO_MODE" = "1" ]; then
   echo -e "${CYAN}(Non-interactive mode)${NC}"
 fi
 echo ""
-
-# Delete-mode short-circuit: skip the working-tree report, ahead-count, and head-binding.
-# We still emit a grant manifest (for audit + privilege-guard match) but use the deleted
-# branch name as the manifest "branch" so the guard's remote-binding check passes.
-if [ "$DELETE_MODE" = "1" ]; then
-  echo -e "${CYAN}Delete mode: $REMOTE/$DELETE_BRANCH${NC}"
-  echo ""
-  SID="${CLAUDE_SESSION_ID:-default}"
-  NONCE=$(python3 -c "import secrets; print(secrets.token_hex(16))")
-  GRANT_PATH="/tmp/claude-push-grant-${SID}-${NONCE}.json"
-  CREATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  # For delete we don't have a meaningful HEAD — record the soon-to-be-deleted ref's tip on remote
-  # if knowable, else "0000000000000000000000000000000000000000" (git's null sha for delete refspec).
-  CURRENT_HEAD=$(git rev-parse "$REMOTE/$DELETE_BRANCH" 2>/dev/null || echo "0000000000000000000000000000000000000000")
-  python3 - <<PYEOF
-import json
-data = {
-    "branch": "$DELETE_BRANCH",
-    "expected_head": "$CURRENT_HEAD",
-    "remote": "$REMOTE",
-    "nonce": "$NONCE",
-    "sid": "$SID",
-    "ppid": $$,
-    "created_at": "$CREATED_AT",
-    "mode": "delete",
-}
-with open("$GRANT_PATH", "w") as f:
-    json.dump(data, f, indent=2)
-PYEOF
-  export CLAUDE_PUSH_COMMAND_ACTIVE=1
-  echo "🗑️  Deleting $REMOTE/$DELETE_BRANCH..."
-  echo ""
-  git push "$REMOTE" --delete "$DELETE_BRANCH"
-  PUSH_STATUS=$?
-  if [ $PUSH_STATUS -ne 0 ]; then
-    echo ""
-    echo -e "${RED}❌ Delete push failed${NC}"
-    exit 1
-  fi
-  rm -f "$GRANT_PATH"
-  mkdir -p ~/.claude/logs
-  AUDIT_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  printf '%s sid=%s command_kind=push remote=%s branch=%s head=%s sentinel_nonce=%s ppid=%s mode=delete\n' \
-    "$AUDIT_TS" "$SID" "$REMOTE" "$DELETE_BRANCH" "$CURRENT_HEAD" "$NONCE" "$$" \
-    >> ~/.claude/logs/git-privilege-grants.log
-  echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo -e "${GREEN}✅ Successfully deleted $REMOTE/$DELETE_BRANCH${NC}"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  exit 0
-fi
 
 # Step 1: Get current branch
 BRANCH=$(git branch --show-current)
@@ -309,21 +235,11 @@ UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
 if [ -z "$UPSTREAM" ]; then
   # No upstream set, push with -u
   echo "Setting upstream to $REMOTE/$BRANCH..."
-  if [ "$FORCE_WITH_LEASE" = "1" ]; then
-    echo -e "${YELLOW}⚠  --force-with-lease engaged on first push (refuses if remote ref already exists with diverging tip).${NC}"
-    git push --force-with-lease -u "$REMOTE" "$BRANCH"
-  else
-    git push -u "$REMOTE" "$BRANCH"
-  fi
+  git push -u "$REMOTE" "$BRANCH"
   PUSH_STATUS=$?
 else
   # Upstream exists, normal push
-  if [ "$FORCE_WITH_LEASE" = "1" ]; then
-    echo -e "${YELLOW}⚠  --force-with-lease engaged: remote ref will be replaced if its tip matches our last-fetched value.${NC}"
-    git push --force-with-lease "$REMOTE" "$BRANCH"
-  else
-    git push "$REMOTE" "$BRANCH"
-  fi
+  git push "$REMOTE" "$BRANCH"
   PUSH_STATUS=$?
 fi
 

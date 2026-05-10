@@ -31,7 +31,7 @@ accepts only an optional remote and `--auto` for non-interactive lock handling.
 7. Run a normal branch push, with `-u` only when setting an upstream.
 8. Append the push audit log on success.
 
-## V3 safety contract
+## Safety contract
 
 - `/push` never stages, commits, resets, deletes branches, force-publishes, or
   mutates refs directly.
@@ -57,5 +57,5 @@ accepts only an optional remote and `--auto` for non-interactive lock handling.
 
 ## Related
 
-- `/commit <task-id> -m "<session-summary>"` — v3 semantic commit; the agent creates the internal manifest automatically.
+- `/commit <task-id>` — automatic semantic commit for a closed task.
 - Direct `git push` — blocked by the privilege guard in agent context.

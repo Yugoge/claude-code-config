@@ -140,7 +140,7 @@ Every forced override is auditable and traceable. Routine use defeats the purpos
 
 ### Task-id resolution
 
-Resolve the **task-id** for the report filename. The task-id is the SAME identifier used by the source `/dev` cycle (e.g. `20260425-145411` or `redev3-p1p2-20260426`) — NOT a fresh `date +%Y%m%d-%H%M%S` at /close invocation time. Using a fresh timestamp would break /commit's PRIMARY-path lookup, which requires `close-report-<task-id>.md` and `dev-report-<task-id>.json` under the SAME `<task-id>`.
+Resolve the **task-id** for the report filename. The task-id is the SAME identifier used by the source `/dev` cycle (for example, a timestamp-style task id) — NOT a fresh `date +%Y%m%d-%H%M%S` at /close invocation time. Using a fresh timestamp would break /commit's PRIMARY-path lookup, which requires `close-report-<task-id>.md` and `dev-report-<task-id>.json` under the SAME `<task-id>`.
 
 Resolve the spec to evaluate (in priority order):
 - If `$ARGUMENTS` is an explicit path (ends in `.md`/`.json` or contains `/`): use that path. Verify it exists; fail clearly if not. Derive the task-id by stripping the `ticket-` prefix (or legacy `ba-spec-` prefix) and `.md`/`.json` suffix from the basename (e.g. `docs/dev/ticket-X.md` → task-id `X`; `docs/dev/ba-spec-X.md` → task-id `X`).
@@ -225,7 +225,7 @@ Round 1:
       - Regression risks? Scope drift? Missed edge cases?
 
       WORKFLOW INTEGRITY DIMENSION (mandatory — evaluate ALL four bullets explicitly; report a per-bullet PASS / FAIL / N/A-with-reason in the transcript; ANY FAIL forces CLOSE: NO regardless of AC coverage):
-        1. **Downstream consumability** — Can the artifacts under evaluation be consumed by downstream commands (`/commit`, `/push`, `/merge`) without manual patching of timestamps, names, or schemas? Concretely: does `dev-report-<task-id>.json` exist with the SAME `<task-id>` as this close cycle? Does `close-report-<task-id>.md` end with `CLOSE: YES`? If a human would have to rename, copy, or hand-edit any artifact to make `/commit` succeed, this bullet is FAIL.
+        1. **Downstream consumability** — Can the artifacts under evaluation be consumed by downstream commands (`/commit`, `/push`, `/merge`) without manual patching of timestamps, names, or artifact contracts? Concretely: does `dev-report-<task-id>.json` exist with the SAME `<task-id>` as this close cycle? Does `close-report-<task-id>.md` end with `CLOSE: YES`? If a human would have to rename, copy, or hand-edit any artifact to make `/commit` succeed, this bullet is FAIL.
         2. **task-id chain consistency** — Are predecessor artifacts (BA spec → context → dev-report → completion → qa-report → close-report) ALL present under the SAME `<task-id>`? Mismatched task-ids across the chain → FAIL.
         3. **Pre-existing-defect rule** (rewritten per spec-20260503-091826 Section 5.4 rule 1+2 — out-of-scope-by-default UNLESS user-need-impact OR security OR cleanliness-of-THIS-diff) — If a Round-1 critique surfaces a "pre-existing architectural defect" or similar, the debate resolves as follows:
              (a) if THIS cycle's BA spec CLAIMS to address the defect AND the claim maps to user-need / path-dependent shared infrastructure / security / cleanliness-of-THIS-diff → the defect IS in scope and must be evaluated on its merits. If the BA-spec claim does NOT map to one of those four axes (i.e., BA over-expanded into path-external scope), the claim is itself out-of-scope and falls through to (d) — pre-existing-out-of-scope, NOT NO; the AC-deviation / out_of_scope_observations path applies instead.
@@ -233,7 +233,7 @@ Round 1:
              (c) if the pre-existing defect is a security hole (Section 5.4 rule 2 verbatim: "安全洞例外：即便在路径外也必修") → it IS in scope and must be fixed; bullet FAILS unless addressed;
              (d) otherwise — the pre-existing defect is OUT of scope by default. Bullet PASSES. Recording in `out_of_scope_observations` is the correct disposition; the "pre-existing / out-of-scope" walkback is the default behavior, not a forbidden one. The user's binding directive: "如果对用户体验和安全性以及整体代码仓库整洁程度不造成阻碍的，都不一定是NO的原因" — pre-existing defects that do not impact 用户需求 / 安全性 / cleanliness-of-THIS-diff are NOT NO triggers.
         4. **Self-deployability** — Can the changes be committed and shipped via the project's own commit/push toolchain (`/commit`, `/push`, `/merge`) without out-of-band patching? Evaluate as the AND of these sub-items:
-             (i) **/commit consumability** (PASS/FAIL) — `/commit` accepts the cycle's artifacts (dev-report, qa-report, completion) without orchestrator-side jq or Edit patches to fix schema. FAIL if any manual schema patch was required.
+             (i) **/commit consumability** (PASS/FAIL) — `/commit` accepts the cycle's artifacts (dev-report, qa-report, completion) without orchestrator-side jq or Edit patches to fix artifact fields. FAIL if any manual artifact patch was required.
              (ii) **Push permission** (PASS/FAIL) — the orchestrator's git identity has write access to the target remote(s). FAIL if push was blocked by remote permissions or required a human to push from a different identity.
              (iii) **No commit-channel bypass** (PASS/FAIL) — no manual `git commit` outside agent context, no `CLAUDE_PROJECT_DIR` override to bypass repo-rooted hook gates, no `auto-bulk:` pattern abuse to smuggle changes past `pretool-git-privilege-guard.py`. FAIL if any of these bypass channels was used.
              (iv) **User-only physical filesystem actions** (N/A-with-reason — NEVER FAIL) — any sub-item that would require the user to perform a physical filesystem action the orchestrator structurally cannot perform itself is evaluated as N/A-with-reason, NOT FAIL. The canonical example is the user touching `.hook-refactor-allow` to authorize a hook-tree edit: human-in-the-loop is intentional anti-fabrication protection per Trap 11; orchestrator-creatable sentinels would defeat the protection's threat model. The N/A reason MUST cite Trap 11 verbatim. This clause covers ONLY user-only physical filesystem actions; it does NOT cover the bypasses listed in sub-item (iii), which remain FAIL.
@@ -291,13 +291,13 @@ Track a single field about the codex consultation across all rounds:
 - `ok` — at least one round received a parseable `CODEX: YES` or `CODEX: NO`.
 - `failed_quota` — every round attempted hit a usage-limit / quota error.
 - `failed_timeout` — every round attempted hung past the round's deadline.
-- `failed_parse` — every round attempted returned content that could not be parsed into `CODEX: YES` / `CODEX: NO`. Unlike `failed_quota` / `failed_timeout`, the round produced output -- it just did not match the schema. QA MUST preserve the verbatim raw output and perform a manual dissent scan before branch 5b can grant CLOSE: YES (FINDING-4).
+- `failed_parse` — every round attempted returned content that could not be parsed into `CODEX: YES` / `CODEX: NO`. Unlike `failed_quota` / `failed_timeout`, the round produced output -- it just did not match the required format. QA MUST preserve the verbatim raw output and perform a manual dissent scan before branch 5b can grant CLOSE: YES (FINDING-4).
 
 Verdict branches:
 
 1. **Unanimous YES (normal happy path)**: QA position = YES AND codex position = YES (codex_status = ok) AND all four Workflow Integrity Dimension bullets PASS (or N/A-with-reason; never FAIL) → **CLOSE: YES**.
 
-1b. **AC-deviation-PASS branch** (per spec-20260503-091826 Section 5.4 rule 4 verbatim: "dev 偏离 BA spec AC 但用户需求实测满足 = PASS，但 dev report 必须显式记录 AC 偏离原因"). When QA's verdict is YES on user-need verification (i.e., `verified_against_complaint = true` AND `passed_user_requirement = true` per agents/qa.md schema) but dev's diff deviated from one or more BA AC literal-wording → **CLOSE: YES** is allowed iff ALL of the following hold (necessary AND sufficient — codex-refined; citation alone is necessary but NOT sufficient):
+1b. **AC-deviation-PASS branch** (per spec-20260503-091826 Section 5.4 rule 4 verbatim: "dev 偏离 BA spec AC 但用户需求实测满足 = PASS，但 dev report 必须显式记录 AC 偏离原因"). When QA's verdict is YES on user-need verification (i.e., `verified_against_complaint = true` AND `passed_user_requirement = true` per agents/qa.md report contract) but dev's diff deviated from one or more BA AC literal-wording → **CLOSE: YES** is allowed iff ALL of the following hold (necessary AND sufficient — codex-refined; citation alone is necessary but NOT sufficient):
     - **(a)** Dev report explicitly identifies the deviated AC by ID (e.g., `AC-3.1`, `AC-12.1`) — `ac_deviation_with_user_need_satisfied: true` is present in the dev report and the deviated AC IDs are listed.
     - **(b)** Dev report cites the verbatim user-need text from the BA spec that the implementation actually satisfies (the deviation is from AC mechanics, not from user need; the verbatim user-need text is reproduced).
     - **(c)** Dev report provides evidence (test result / measurement / observation) that the implemented behavior satisfies that need. Hand-wave reasoning is rejected.
@@ -317,7 +317,7 @@ Verdict branches:
     - **(b)** QA performed a manual scan of that verbatim output for substantive dissent signals -- including but not limited to: `CODEX: NO`, `Codex: NO`, the literal substring `NO`, the words `bug`, `defect`, `regression`, `wrong`, `incorrect`, `must not`, `should not`, `does not work`, `fails`, `broken`, or any prose explicitly objecting to the proposed close;
     - **(c)** QA explicitly states the determination: `manual parse: NO substantive dissent signal found in failed_parse output` (verbatim wording required).
 
-    `failed_parse` differs from `failed_quota`/`failed_timeout` because the request DID complete and the codex CLI DID emit content -- the parser merely could not map it to the `CODEX: YES` / `CODEX: NO` schema. Skipping the manual scan would create a downgrade vector: a substantive `NO` could ride a malformed response into a YES verdict. If the manual parse finds ANY dissent signal, this branch fails over to **CLOSE: NO** (treat as substantive Codex dissent under branch 2 with the verbatim signal as the dissent line). If QA omits the verbatim attestation, fail over to branch 6 (conservative NO).
+    `failed_parse` differs from `failed_quota`/`failed_timeout` because the request DID complete and the codex CLI DID emit content -- the parser merely could not map it to the `CODEX: YES` / `CODEX: NO` format. Skipping the manual scan would create a downgrade vector: a substantive `NO` could ride a malformed response into a YES verdict. If the manual parse finds ANY dissent signal, this branch fails over to **CLOSE: NO** (treat as substantive Codex dissent under branch 2 with the verbatim signal as the dissent line). If QA omits the verbatim attestation, fail over to branch 6 (conservative NO).
 
 6. **Other ambiguity / parse failure on QA's side / unresolved disagreement after final round**: → **CLOSE: NO** (conservative default). Distinct from branch 5: the failure is on QA's reasoning side, not codex's transport.
 
@@ -341,10 +341,11 @@ Transcript file: write the full debate to `docs/dev/close-report-<task-id>.md` (
 
 Overwrite policy: if `docs/dev/close-report-<task-id>.md` already exists with a `CLOSE:` line in it (a prior closure attempt for the same task-id), do NOT silently overwrite — append a fresh debate as a new section dated by ISO timestamp, OR (if your tooling cannot append cleanly) treat the prior closure as authoritative and do not re-close.
 
-Return value: print to stdout exactly ONE of these lines as the final line of your response:
+Return value: print to stdout exactly ONE of these lines as the final line of your response. Runtime consumers classify the last non-empty `CLOSE:` line through the shared close-verdict helper: `YES`, `YES` with a suffix (including degraded consultation or codex-disabled annotations), and `YES (FORCED)` map to `yes`; `NO` with or without a reason maps to `no`; anything else maps to `unknown` and fails closed.
   CLOSE: YES
   CLOSE: YES - degraded codex consultation: codex_status=<failed_quota|failed_timeout|failed_parse>
   CLOSE: YES — codex disabled by user
+  CLOSE: YES (FORCED)
   CLOSE: NO - <one-sentence reason naming the dissenting party and their objection>
 ```
 
