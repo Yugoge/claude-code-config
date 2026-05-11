@@ -50,20 +50,76 @@ set -euo pipefail
 #   parent /root project that happens to also carry docs/dev/. /root is
 #   demoted to the last-position safety net so legacy harness-root flows
 #   still resolve when no nearer candidate matches.
-#   Candidate order:
-#     1. $CLAUDE_DOCS_DIR  (new dedicated override)
-#     2. $CLAUDE_PROJECT_DIR  (back-compat)
-#     3. cwd's git toplevel
-#     4. pwd
-#     5. /root  (final fallback / legacy harness-root safety net)
-DOCS_DIR_ROOT=""
-for _cand in "${CLAUDE_DOCS_DIR:-}" "${CLAUDE_PROJECT_DIR:-}" "$(git rev-parse --show-toplevel 2>/dev/null || true)" "$(pwd)" "/root"; do
-  [ -z "$_cand" ] && continue
-  if [ -d "${_cand}/docs/dev" ]; then
-    DOCS_DIR_ROOT="$_cand"
-    break
-  fi
+#   A1 — explicit CLI flag overrides have priority over env vars and cwd.
+#   Candidate order (after A1):
+#     1. --docs-dir <path>      (A1 explicit; routes only DOCS_DIR_ROOT)
+#     2. --repo <path>          (A1 explicit; routes BOTH repo + docs-dir if
+#                                --docs-dir not given)
+#     3. $CLAUDE_DOCS_DIR       (env override)
+#     4. $CLAUDE_PROJECT_DIR    (back-compat env)
+#     5. cwd's git toplevel
+#     6. pwd
+#     7. /root                  (legacy harness-root safety net)
+#
+# Pre-scan ONLY for --repo / --docs-dir / --plan up front so DOCS_DIR_ROOT can be
+# resolved before any artifact lookup. Other flags (-m, --manifest, --force,
+# --auto-bulk-bridge) are handled by the existing pre-scan loop later. We do NOT
+# remove these flags from $@ here — that responsibility belongs to the second
+# pre-scan + dispatch.
+EXPLICIT_REPO=""
+EXPLICIT_DOCS_DIR=""
+PLAN_MODE=0
+_repo_scan_i=0
+_repo_scan_args=("$@")
+while [ $_repo_scan_i -lt ${#_repo_scan_args[@]} ]; do
+  _scan_a="${_repo_scan_args[$_repo_scan_i]}"
+  case "$_scan_a" in
+    --repo)
+      _repo_scan_i=$((_repo_scan_i + 1))
+      if [ $_repo_scan_i -ge ${#_repo_scan_args[@]} ]; then
+        echo "commit.sh: --repo requires a path argument" >&2
+        exit 2
+      fi
+      EXPLICIT_REPO="${_repo_scan_args[$_repo_scan_i]}"
+      ;;
+    --docs-dir)
+      _repo_scan_i=$((_repo_scan_i + 1))
+      if [ $_repo_scan_i -ge ${#_repo_scan_args[@]} ]; then
+        echo "commit.sh: --docs-dir requires a path argument" >&2
+        exit 2
+      fi
+      EXPLICIT_DOCS_DIR="${_repo_scan_args[$_repo_scan_i]}"
+      ;;
+    --plan)
+      PLAN_MODE=1
+      ;;
+  esac
+  _repo_scan_i=$((_repo_scan_i + 1))
 done
+
+DOCS_DIR_ROOT=""
+if [ -n "$EXPLICIT_DOCS_DIR" ]; then
+  if [ ! -d "$EXPLICIT_DOCS_DIR/docs/dev" ] && [ ! -d "$EXPLICIT_DOCS_DIR" ]; then
+    echo "commit.sh: --docs-dir path does not exist: $EXPLICIT_DOCS_DIR" >&2
+    exit 2
+  fi
+  DOCS_DIR_ROOT="$EXPLICIT_DOCS_DIR"
+elif [ -n "$EXPLICIT_REPO" ]; then
+  if [ ! -d "$EXPLICIT_REPO" ]; then
+    echo "commit.sh: --repo path does not exist: $EXPLICIT_REPO" >&2
+    exit 2
+  fi
+  # --repo sets both: docs-dir defaults to <repo>/docs/dev parent for lookup.
+  DOCS_DIR_ROOT="$EXPLICIT_REPO"
+else
+  for _cand in "${CLAUDE_DOCS_DIR:-}" "${CLAUDE_PROJECT_DIR:-}" "$(git rev-parse --show-toplevel 2>/dev/null || true)" "$(pwd)" "/root"; do
+    [ -z "$_cand" ] && continue
+    if [ -d "${_cand}/docs/dev" ]; then
+      DOCS_DIR_ROOT="$_cand"
+      break
+    fi
+  done
+fi
 # Last-resort fallback: keep redev7 P-CWD-FALLBACK behavior so dev-report
 # lookup at least produces a useful error path.
 if [ -z "$DOCS_DIR_ROOT" ]; then
@@ -147,6 +203,10 @@ HAS_CALLER_MESSAGE=0
 MESSAGE_SOURCE="auto"   # "auto" | "caller" — recorded in audit log
 MANIFEST_PATH=""
 HAS_MANIFEST=0
+# A2: --force-rescue is a deliberate alias for --force that signals the operator
+# pre-staged content via `git add` and grants stage-then-force semantics. When 1,
+# the force-mode short-circuit reads the staged delta as the patch source.
+FORCE_RESCUE_MODE=0
 
 # Pre-scan: extract `-m "<msg>"` (or `--message "<msg>"`) and `--manifest <path>`
 # from anywhere in argv (M-MSG-5 / AC-MSG-6 — orchestrator may pass these flags
@@ -187,6 +247,21 @@ while [ $PRESCAN_I -lt $# ]; do
     fi
     MANIFEST_PATH="${!PRESCAN_I}"
     HAS_MANIFEST=1
+  elif [ "$PRESCAN_ARG" = "--repo" ]; then
+    # A1: consumed in early pre-scan above; skip value here.
+    PRESCAN_I=$((PRESCAN_I + 1))
+  elif [ "$PRESCAN_ARG" = "--docs-dir" ]; then
+    # A1: consumed in early pre-scan above; skip value here.
+    PRESCAN_I=$((PRESCAN_I + 1))
+  elif [ "$PRESCAN_ARG" = "--plan" ]; then
+    # A3: consumed in early pre-scan above; PLAN_MODE flag already set.
+    :
+  elif [ "$PRESCAN_ARG" = "--force-rescue" ]; then
+    # A2: alias for --force that authorizes the stage-then-force plan source.
+    # Set a sentinel; the dispatch below detects it and routes to the stage-then-force
+    # path inside the force-mode short-circuit.
+    FORCE_RESCUE_MODE=1
+    PRESCAN_REMAINING+=("--force")
   else
     PRESCAN_REMAINING+=("$PRESCAN_ARG")
   fi
@@ -387,6 +462,9 @@ build_semantic_plan_bundle() {
   local patch_path="$3"
   local meta_path="$4"
 
+  # A1: pass EXPLICIT_REPO (when set) so the dev-report path's repo resolver
+  # honors caller intent before falling through to artifact-derived discovery.
+  CLAUDE_COMMIT_EXPLICIT_REPO="${EXPLICIT_REPO:-}" \
   "$PYTHON_BIN" - "$task_id" "$mode" "$DOCS_DIR_ROOT" "$DOCS_DIR" "$patch_path" "$meta_path" <<'PY'
 import hashlib
 import json
@@ -401,7 +479,15 @@ docs_root = os.path.abspath(docs_root)
 docs_dir = os.path.abspath(docs_dir)
 
 if mode == "force":
-    print("commit.sh: --force cannot infer task ownership safely; use a closed task-id semantic commit", file=sys.stderr)
+    # A2: plain --force is still refused via the dev-report path because no
+    # task ownership can be inferred without artifacts. The error names the two
+    # legitimate routes: --manifest <path> (precision input) OR --force-rescue
+    # with pre-staged content via `git add` (stage-then-force semantics).
+    print(
+        "commit.sh: --force without --manifest or pre-staged content cannot infer task ownership; "
+        "use --force --manifest <path> OR --force-rescue (after `git add <files>`)",
+        file=sys.stderr,
+    )
     sys.exit(2)
 
 def run_git(cwd, args, check=True):
@@ -478,7 +564,14 @@ def maybe_add_path(value):
         return
     if value.startswith(("http://", "https://")):
         return
-    cleaned = value.strip().strip("`'\".,;)")
+    # NOTE: do NOT include '.' in the strip set. str.strip(chars) treats chars
+    # as a character class and reads from BOTH ends; including '.' eats the
+    # leading dot of dotfile paths (.claude/, .github/, .gitignore, ...),
+    # causing path_in_planned mismatch and silent fall-through to "unrelated"
+    # at the ownership classifier. Bug surfaced cycle 20260511-100000 when 6
+    # Worker-1 .claude/commands/* files were silently dropped from commit
+    # a46dc0ec despite being declared in dev-report.dev.files_modified.
+    cleaned = value.strip().strip("`'\",;)")
     if not cleaned:
         return
     if cleaned.startswith("/") or "/" in cleaned or re.match(r"^[A-Za-z0-9._-]+$", cleaned):
@@ -526,7 +619,14 @@ if len(non_doc_repos) > 1:
         print(f"  repo: {root}", file=sys.stderr)
     sys.exit(2)
 
-if non_doc_repos:
+explicit_repo = os.environ.get("CLAUDE_COMMIT_EXPLICIT_REPO", "").strip()
+if explicit_repo:
+    # A1: caller named the target repo with --repo; resolve to its git toplevel
+    # and short-circuit the discovery ladder so ambiguous artifacts don't drag
+    # the resolution elsewhere.
+    explicit_root = git_root_for_existing(explicit_repo) or os.path.realpath(explicit_repo)
+    repo_root = explicit_root
+elif non_doc_repos:
     repo_root = sorted(non_doc_repos)[0]
 else:
     current_root = git_root_for_existing(os.getcwd())
@@ -680,10 +780,113 @@ with open(meta_path, "w", encoding="utf-8") as fh:
 PY
 }
 
+# -----------------------------------------------------------------------------
+# A2 — force-rescue source-acquisition helper
+# -----------------------------------------------------------------------------
+# Produces (patch_file, meta_file) for the stage-then-force mode. The operator
+# pre-stages content via `git add`; the wrapper reads the staged delta and uses
+# it as the patch source. No manifest is required, no closure / task-id /
+# dev-report binding is enforced. All post-apply safety remains engaged
+# (real_index_fingerprint, staged_files_before/after, backup ref, expected-parent
+# CAS, plus the four always-on layers).
+#
+# Refuse when nothing is staged: force-rescue's source authority is the staged
+# set, so an empty stage is a usage error (the operator forgot `git add`).
+build_force_rescue_plan_bundle() {
+  local patch_path="$1"
+  local meta_path="$2"
+
+  local force_repo_root=""
+  for _cand_dir in "${EXPLICIT_REPO:-}" "${CLAUDE_DOCS_DIR:-}" "${CLAUDE_PROJECT_DIR:-}" "$(git rev-parse --show-toplevel 2>/dev/null || true)" "$(pwd)" "/root"; do
+    [ -z "$_cand_dir" ] && continue
+    force_repo_root="$(git -C "$_cand_dir" rev-parse --show-toplevel 2>/dev/null || true)"
+    [ -n "$force_repo_root" ] && break
+  done
+  if [ -z "$force_repo_root" ]; then
+    echo "commit.sh: cannot resolve target repo for force-rescue plan" >&2
+    return 2
+  fi
+
+  local staged_list
+  staged_list="$(git -C "$force_repo_root" diff --cached --name-only | sort -u)"
+  if [ -z "$staged_list" ]; then
+    echo "commit.sh: force-rescue requires pre-staged content via 'git add'" >&2
+    echo "  staged set is empty in repo: ${force_repo_root}" >&2
+    return 2
+  fi
+
+  # Patch source: stage diff against HEAD. --binary so binary changes survive
+  # round-trip through `git apply --cached --3way`. If HEAD is missing (root
+  # commit), bail with a clear message — root-commit support is out of scope.
+  local force_head
+  force_head="$(git -C "$force_repo_root" rev-parse HEAD 2>/dev/null || true)"
+  if [ -z "$force_head" ]; then
+    echo "commit.sh: force-rescue requires a repository with HEAD" >&2
+    return 2
+  fi
+  git -C "$force_repo_root" diff --cached --binary HEAD -- > "$patch_path" || {
+    echo "commit.sh: force-rescue could not capture staged diff" >&2
+    return 2
+  }
+  if [ ! -s "$patch_path" ]; then
+    echo "commit.sh: force-rescue produced empty patch (staged set may equal HEAD content)" >&2
+    return 2
+  fi
+
+  # Build meta file with the same shape as build_semantic_plan_bundle.
+  CLAUDE_FORCE_RESCUE_REPO="$force_repo_root" \
+  CLAUDE_FORCE_RESCUE_PATCH="$patch_path" \
+  "$PYTHON_BIN" - "$meta_path" <<'PY'
+import hashlib, json, os, subprocess, sys
+meta_path = sys.argv[1]
+repo_root = os.environ["CLAUDE_FORCE_RESCUE_REPO"]
+patch_path = os.environ["CLAUDE_FORCE_RESCUE_PATCH"]
+with open(patch_path, "rb") as fh:
+    patch_bytes = fh.read()
+staged = subprocess.run(
+    ["git", "-C", repo_root, "diff", "--cached", "--name-only"],
+    text=True, stdout=subprocess.PIPE,
+).stdout.splitlines()
+staged = sorted({l for l in staged if l})
+base_commit = subprocess.run(
+    ["git", "-C", repo_root, "rev-parse", "HEAD"],
+    text=True, stdout=subprocess.PIPE,
+).stdout.strip()
+plan_seed = json.dumps(
+    {"engine": "force-rescue-commit", "repo_root": repo_root, "base_commit": base_commit, "staged": staged},
+    sort_keys=True,
+).encode("utf-8") + patch_bytes
+included = [{"path": p, "category": "force_rescue_staged",
+             "reason": "operator-staged path via 'git add' under --force-rescue"} for p in staged]
+meta = {
+    "engine": "force-rescue-commit",
+    "plan_id": hashlib.sha256(plan_seed).hexdigest()[:16],
+    "plan_sha256": hashlib.sha256(plan_seed).hexdigest(),
+    "task_id": "",
+    "repo_root": repo_root,
+    "base_commit": base_commit,
+    "patch_count": 1,
+    "semantic_files": included,
+    "excluded_dirty": [],
+    "artifact_paths": [],
+    "dirty_candidates": [],
+    "staged_candidates": staged,
+    "unstaged_candidates": [],
+}
+with open(meta_path, "w") as fh:
+    json.dump(meta, fh, indent=2, sort_keys=True)
+PY
+}
+
 run_backup_only_push() {
+  # D2 (backup-push observability): emits the backup ref to a sentinel file
+  # (path passed as $4) instead of stdout-via-command-substitution. This lets
+  # the function MUTATE caller-scope state (BACKUP_PUSH_FAILED) without losing
+  # those mutations to a subshell. The caller reads $4 to get the backup ref.
   local repo_root="$1"
   local branch="$2"
   local commit_sha="$3"
+  local backup_ref_out="$4"
   local short_sha="${commit_sha:0:12}"
   local backup_ref="refs/backups/claude/${branch}/${short_sha}"
   local backup_log="${CLAUDE_BACKUP_LOG:-${CLAUDE_LOG_DIR}/post-commit-auto-push.log}"
@@ -695,16 +898,41 @@ run_backup_only_push() {
   mkdir -p "$(dirname "$backup_log")"
   git -C "$repo_root" update-ref "$backup_ref" "$commit_sha" 2>>"$backup_log" || true
 
+  # New behaviour:
+  #   * Always emit one stderr line on failure (regardless of env)
+  #   * When CLAUDE_BACKUP_REMOTE_REQUIRED=1, run the push SYNCHRONOUSLY and
+  #     set BACKUP_PUSH_FAILED=1 so the caller can elevate exit to 2.
+  #   * When CLAUDE_BACKUP_REMOTE_REQUIRED=1 AND the remote is missing,
+  #     emit stderr + set BACKUP_PUSH_FAILED=1 (required-remote semantics).
+  #   * Default (env unset) keeps async background push so commit latency is
+  #     unaffected; the async failure path emits one stderr line.
+  BACKUP_PUSH_FAILED=0
   if git -C "$repo_root" remote get-url "$remote" >/dev/null 2>&1; then
-    (
-      git -C "$repo_root" push "$remote" "${commit_sha}:${backup_ref}" >>"$backup_log" 2>&1 || \
-        printf '%s backup push failed remote=%s ref=%s sha=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$remote" "$backup_ref" "$commit_sha" >>"$backup_log"
-    ) &
+    if [ "${CLAUDE_BACKUP_REMOTE_REQUIRED:-0}" = "1" ]; then
+      if ! git -C "$repo_root" push "$remote" "${commit_sha}:${backup_ref}" >>"$backup_log" 2>&1; then
+        printf '%s backup push failed remote=%s ref=%s sha=%s\n' \
+          "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$remote" "$backup_ref" "$commit_sha" >>"$backup_log"
+        echo "commit.sh: backup push failed: remote=${remote} ref=${backup_ref} sha=${commit_sha} (logged to ${backup_log})" >&2
+        BACKUP_PUSH_FAILED=1
+      fi
+    else
+      (
+        if ! git -C "$repo_root" push "$remote" "${commit_sha}:${backup_ref}" >>"$backup_log" 2>&1; then
+          printf '%s backup push failed remote=%s ref=%s sha=%s\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$remote" "$backup_ref" "$commit_sha" >>"$backup_log"
+          echo "commit.sh: backup push failed: remote=${remote} ref=${backup_ref} sha=${commit_sha} (logged to ${backup_log})" >&2
+        fi
+      ) &
+    fi
   else
     printf '%s backup push skipped remote=%s ref=%s sha=%s reason=remote-missing\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$remote" "$backup_ref" "$commit_sha" >>"$backup_log"
+    if [ "${CLAUDE_BACKUP_REMOTE_REQUIRED:-0}" = "1" ]; then
+      echo "commit.sh: backup push skipped: remote=${remote} unreachable (no remote URL configured)" >&2
+      BACKUP_PUSH_FAILED=1
+    fi
   fi
 
-  printf '%s\n' "$backup_ref"
+  printf '%s\n' "$backup_ref" > "$backup_ref_out"
 }
 
 # -----------------------------------------------------------------------------
@@ -806,6 +1034,31 @@ if not isinstance(schema_version, int) or isinstance(schema_version, bool):
         file=sys.stderr,
     )
     sys.exit(2)
+
+# B2 (incompatible_after) — OPTIONAL future-major schema negotiation. When
+# present, MUST be a non-negative integer; if schema_version > incompatible_after
+# the wrapper refuses, signalling that a NEWER manifest format exists which this
+# wrapper version cannot apply. Absent → no check (default behaviour unchanged).
+# This check is ordered BEFORE the `schema_version != 3` check so that a
+# manifest with schema_version=4 + incompatible_after=3 emits the named
+# future-major error (rather than the generic "must equal 3" error).
+incompatible_after = data.get("incompatible_after")
+if incompatible_after is not None:
+    if not isinstance(incompatible_after, int) or isinstance(incompatible_after, bool) or incompatible_after < 0:
+        print(
+            "commit.sh: manifest.incompatible_after must be a non-negative integer when "
+            f"present (got {incompatible_after!r})",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    if schema_version > incompatible_after:
+        print(
+            f"commit.sh: manifest.schema_version={schema_version} exceeds "
+            f"incompatible_after={incompatible_after}; this wrapper cannot apply",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
 if schema_version != 3:
     print(
         "commit.sh: manifest.schema_version must equal integer 3 in this slice "
@@ -913,16 +1166,195 @@ if re.search(r"(?m)^GIT binary patch$", patch_text):
     )
     sys.exit(2)
 
-# Path-hygiene the header paths inside the unified-diff (M8). This scans the
-# patch text for `--- a/<path>` and `+++ b/<path>` headers and `diff --git a/<p> b/<p>`
-# lines. Any header path failing hygiene rejects the manifest before apply.
-header_re = re.compile(r"^(?:diff --git a/(\S+) b/(\S+)|--- a/(\S+)|\+\+\+ b/(\S+))$", re.MULTILINE)
-for match in header_re.finditer(patch_text):
+# Path-hygiene the header paths inside the unified-diff (M8 + B3 hygiene
+# tightening). This scans the patch text for any line that LOOKS like a diff
+# header (diff --git, ---, +++) and enforces the canonical `a/<path>`/`b/<path>`
+# prefix form. Other shapes are handled as follows:
+#   * Quoted-with-spaces form (`"a/path with spaces"`): ACCEPT after un-quoting
+#     (git emits these for paths with spaces); the un-quoted path then runs
+#     through reject_path for the usual hygiene rules.
+#   * Bare-path form (no `a/`/`b/` prefix): REJECT with specific error.
+#   * Absolute-path form (e.g. `/etc/passwd`): REJECT with specific error
+#     (also caught by reject_path for the canonical form).
+#   * `..`-segment form (e.g. `a/../etc/foo`): REJECT (also caught by
+#     reject_path).
+# The canonical regex below matches only the well-formed `a/<path>`/`b/<path>`
+# shape. A second pass enumerates ALL header-shaped lines and rejects anything
+# the canonical regex did NOT match (catching bare/absolute/`..`/garbage).
+# /dev/null is a legitimate header for new/deleted files; the canonical regex
+# requires a/ or b/ prefix so /dev/null never appears as a captured group.
+
+def _git_quoted_unquote(s):
+    # Git wraps paths containing special chars in C-style quotes (see
+    # quote.c::quote_c_style_counted). Recognise the leading and trailing `"`
+    # then decode backslash escapes: \a \b \t \n \v \f \r \\ \" and octal \NNN.
+    if not (s.startswith('"') and s.endswith('"') and len(s) >= 2):
+        return None
+    body = s[1:-1]
+    out = []
+    i = 0
+    while i < len(body):
+        c = body[i]
+        if c == "\\":
+            i += 1
+            if i >= len(body):
+                return None
+            nxt = body[i]
+            esc = {"a": "\a", "b": "\b", "t": "\t", "n": "\n", "v": "\v",
+                   "f": "\f", "r": "\r", "\\": "\\", '"': '"'}
+            if nxt in esc:
+                out.append(esc[nxt])
+                i += 1
+            elif nxt.isdigit() and i + 2 < len(body) and body[i + 1].isdigit() and body[i + 2].isdigit():
+                out.append(chr(int(body[i:i + 3], 8)))
+                i += 3
+            else:
+                return None
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+canonical_header_re = re.compile(
+    r"^(?:diff --git a/(\S+) b/(\S+)|--- a/(\S+)|\+\+\+ b/(\S+))$",
+    re.MULTILINE,
+)
+# Also accept the git-quoted shape for paths with spaces: `diff --git "a/<p>" "b/<p>"`
+# and `--- "a/<p>"`/`+++ "b/<p>"`. The captured groups are the FULL quoted token
+# including the `a/`/`b/` prefix and the surrounding quotes; we strip both layers.
+quoted_header_re = re.compile(
+    r'^(?:diff --git ("a/[^"]*") ("b/[^"]*")|--- ("a/[^"]*")|\+\+\+ ("b/[^"]*"))$',
+    re.MULTILINE,
+)
+# Path-hygiene check the canonical and quoted header captures up front. The
+# line-by-line header-region walk below then rejects any header-shaped line
+# that the canonical/quoted regex did not accept.
+for match in canonical_header_re.finditer(patch_text):
     for grp in match.groups():
         if grp:
-            # /dev/null is a legitimate header for new/deleted files but never
-            # captured here because the regex requires a/ or b/ prefix.
             reject_path(grp, "patch header")
+for match in quoted_header_re.finditer(patch_text):
+    for grp in match.groups():
+        if not grp:
+            continue
+        # grp is like '"a/<path>"' or '"b/<path>"'; un-quote, then strip prefix
+        unquoted = _git_quoted_unquote(grp)
+        if unquoted is None:
+            print(
+                f"commit.sh: manifest patch header {grp!r} is malformed git-quoted form; rejected",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        if unquoted.startswith("a/") or unquoted.startswith("b/"):
+            inner = unquoted[2:]
+        else:
+            print(
+                f"commit.sh: manifest patch header {grp!r} is missing required a/ or b/ prefix; rejected",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        reject_path(inner, "patch header")
+# Now reject any header-shaped line not covered by the canonical or quoted
+# matchers (bare paths, absolute paths, `..` segments, missing a/b prefix).
+# B3 hunk-body false-positive fix: header validation MUST be scoped to the
+# diff-header REGION of each file's diff (between `diff --git` and the first
+# `@@` hunk-marker line). Lines inside the hunk body that happen to start with
+# `+++ ` or `--- ` (legitimate added/removed content rows whose payload begins
+# with `+ `/`- `) are NOT header candidates. We walk the patch line-by-line and
+# only inspect candidate header lines while in HEADER region.
+in_header_region = False
+for line in patch_text.split("\n"):
+    if line.startswith("diff --git "):
+        in_header_region = True
+        # The diff --git line itself is a header — check it.
+        if not (canonical_header_re.match(line) or quoted_header_re.match(line)):
+            print(
+                f"commit.sh: manifest patch header form rejected (expected "
+                f"`diff --git a/<path> b/<path>` or git-quoted equivalent): {line!r}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        continue
+    if line.startswith("@@ "):
+        in_header_region = False
+        continue
+    if not in_header_region:
+        continue
+    if line.startswith("--- ") or line.startswith("+++ "):
+        # /dev/null exception preserved.
+        if line in ("--- /dev/null", "+++ /dev/null"):
+            continue
+        if canonical_header_re.match(line) or quoted_header_re.match(line):
+            continue
+        print(
+            f"commit.sh: manifest patch header form rejected (expected `a/<path>` / "
+            f"`b/<path>` prefix or git-quoted equivalent; bare/absolute/`..`/malformed "
+            f"headers refused): {line!r}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+# binary_files (B1) — OPTIONAL top-level list declaring binary blobs to stage
+# via `git update-index --add --cacheinfo <mode>,<blob_sha>,<path>` after the
+# text patch applies. The manifest does NOT carry binary content; operator must
+# pre-run `git hash-object -w <file>` so the blob exists in the repo's object
+# database. The wrapper verifies the blob's presence at apply time.
+#
+# Schema:
+#   binary_files: [
+#     {
+#       "path": "<repo-relative path>",            # path-hygiene per files
+#       "blob_sha": "<40-hex-lower>",             # git blob SHA-1
+#       "size": <int >= 0>,                        # blob size in bytes
+#       "reason": "<non-empty string>"             # rationale, mirrors semantic_files
+#     },
+#     ...
+#   ]
+# Absent or empty → no binary entries, behaviour identical to pre-B1.
+binary_files_raw = data.get("binary_files", [])
+if not isinstance(binary_files_raw, list):
+    print("commit.sh: manifest.binary_files must be a list when present", file=sys.stderr)
+    sys.exit(2)
+binary_files = []
+_blob_re = re.compile(r"^[0-9a-f]{40}$")
+for idx, entry in enumerate(binary_files_raw):
+    if not isinstance(entry, dict):
+        print(
+            f"commit.sh: manifest.binary_files[{idx}] must be an object with "
+            "{path, blob_sha, size, reason}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    bf_path = reject_path(entry.get("path"), f"binary_files[{idx}].path")
+    bf_blob = entry.get("blob_sha")
+    if not isinstance(bf_blob, str) or not _blob_re.match(bf_blob):
+        print(
+            f"commit.sh: manifest.binary_files[{idx}].blob_sha must be a 40-hex "
+            f"lower-case string (got {bf_blob!r})",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    bf_size = entry.get("size")
+    if not isinstance(bf_size, int) or isinstance(bf_size, bool) or bf_size < 0:
+        print(
+            f"commit.sh: manifest.binary_files[{idx}].size must be a non-negative "
+            f"integer (got {bf_size!r})",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    bf_reason = entry.get("reason")
+    if not isinstance(bf_reason, str) or not bf_reason.strip():
+        print(
+            f"commit.sh: manifest.binary_files[{idx}].reason must be a non-empty string",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    binary_files.append({
+        "path": bf_path,
+        "blob_sha": bf_blob,
+        "size": bf_size,
+        "reason": bf_reason,
+    })
 
 # base_commit binding (M8): when present, must equal wrapper's resolved
 # expected_parent. Mismatch refuses with both SHAs printed.
@@ -974,6 +1406,12 @@ plan_seed = json.dumps(
         "base_commit": expected_parent,
         "semantic_files": semantic_files,
         "files_declared": declared_files,
+        # B1: include binary_files in plan_seed so two manifests with the same
+        # text patch but different binary blobs hash to different plan IDs.
+        "binary_files": binary_files,
+        # B2: incompatible_after also folded so plan IDs differ when the
+        # manifest declares a future-major negotiation hint.
+        "incompatible_after": incompatible_after,
     },
     sort_keys=True,
 ).encode("utf-8") + patch_text.encode("utf-8")
@@ -997,6 +1435,8 @@ meta = {
     "patch_count": 1,
     "semantic_files": semantic_files,
     "files_declared": declared_files,
+    "binary_files": binary_files,
+    "incompatible_after": incompatible_after,
     "excluded_dirty": [],
     "artifact_paths": [],
     "dirty_candidates": [],
@@ -1027,23 +1467,33 @@ run_private_index_commit() {
   patch_file="${tmp_dir}/bundle.patch"
   meta_file="${tmp_dir}/plan-meta.json"
 
-  if [ "$plan_source" = "manifest" ]; then
+  if [ "$plan_source" = "force-rescue" ]; then
+    # A2: stage-then-force source authority is the operator's staged set. No
+    # manifest, no task-id binding, no closure. All post-apply safety still
+    # engaged via the shared core.
+    if ! build_force_rescue_plan_bundle "$patch_file" "$meta_file"; then
+      rm -rf "$tmp_dir"
+      return 2
+    fi
+  elif [ "$plan_source" = "manifest" ]; then
     # Manifest path needs expected_parent BEFORE building the plan (M8 base_commit
     # binding requires the resolved branch HEAD at apply time). Resolve repo_root +
     # expected_parent here, then call the manifest helper. This mirrors the
     # build_semantic_plan_bundle contract (plan meta carries repo_root + base_commit
     # so the shared post-build code can use the same resolution path).
-    # Repo-resolution ladder (M8): mirror the wrapper's existing
+    # Repo-resolution ladder (M8 + A1): mirror the wrapper's existing
     # DOCS_DIR_ROOT discovery ladder so manifest mode resolves to the same
-    # target repo a closed-task commit would. Order:
-    #   1. CLAUDE_DOCS_DIR (operator override; usually a docs-aware project root)
-    #   2. CLAUDE_PROJECT_DIR (back-compat env)
-    #   3. cwd-toplevel
-    #   4. pwd
-    #   5. /root (legacy harness-root safety net)
+    # target repo a closed-task commit would. A1 inserts --repo at the front
+    # of the ladder for explicit caller intent. Order:
+    #   1. --repo <path>  (A1 explicit; EXPLICIT_REPO if non-empty)
+    #   2. CLAUDE_DOCS_DIR (operator override; usually a docs-aware project root)
+    #   3. CLAUDE_PROJECT_DIR (back-compat env)
+    #   4. cwd-toplevel
+    #   5. pwd
+    #   6. /root (legacy harness-root safety net)
     # First candidate that resolves to a git toplevel wins.
     local manifest_repo_root="" manifest_branch manifest_expected_parent _cand_dir
-    for _cand_dir in "${CLAUDE_DOCS_DIR:-}" "${CLAUDE_PROJECT_DIR:-}" "$(git rev-parse --show-toplevel 2>/dev/null || true)" "$(pwd)" "/root"; do
+    for _cand_dir in "${EXPLICIT_REPO:-}" "${CLAUDE_DOCS_DIR:-}" "${CLAUDE_PROJECT_DIR:-}" "$(git rev-parse --show-toplevel 2>/dev/null || true)" "$(pwd)" "/root"; do
       [ -z "$_cand_dir" ] && continue
       manifest_repo_root="$(git -C "$_cand_dir" rev-parse --show-toplevel 2>/dev/null || true)"
       [ -n "$manifest_repo_root" ] && break
@@ -1225,12 +1675,167 @@ PY
   staged_list_before="$(staged_file_list "$repo_root")"
   private_index="${tmp_dir}/index"
 
+  # A3 (--plan dry-run): emit the resolved plan and exit 0 BEFORE any
+  # apply / commit / branch advance / audit emission. The staged_list_before
+  # vs staged_list_after invariant verifies post-run (no side effect).
+  if [ "${PLAN_MODE:-0}" -eq 1 ]; then
+    local _plan_files_preview _plan_msg_preview _plan_binary_files
+    _plan_files_preview="$("$PYTHON_BIN" - "$meta_file" <<'PY'
+import json, sys
+meta = json.load(open(sys.argv[1]))
+files = [item["path"] for item in meta.get("semantic_files", [])]
+print(json.dumps(files))
+PY
+)"
+    _plan_binary_files="$("$PYTHON_BIN" - "$meta_file" <<'PY'
+import json, sys
+meta = json.load(open(sys.argv[1]))
+print(json.dumps([entry["path"] for entry in meta.get("binary_files", [])]))
+PY
+)"
+    _plan_msg_preview="${COMMIT_MSG:0:200}"
+    local _plan_mode_label
+    case "$plan_source" in
+      manifest)     _plan_mode_label="${mode}|manifest" ;;
+      force-rescue) _plan_mode_label="force-rescue" ;;
+      *)            _plan_mode_label="${mode}|dev-report" ;;
+    esac
+    local _plan_patch_source
+    case "$plan_source" in
+      manifest)     _plan_patch_source="manifest" ;;
+      force-rescue) _plan_patch_source="staged" ;;
+      *)            _plan_patch_source="dev-report" ;;
+    esac
+    cat <<PLAN_OUT
+PLAN:
+  task_id: ${task_id}
+  mode: ${_plan_mode_label}
+  message_source: ${MESSAGE_SOURCE}
+  message_preview: ${_plan_msg_preview}
+  patch_source: ${_plan_patch_source}
+  files_planned: ${_plan_files_preview}
+  binary_files_planned: ${_plan_binary_files}
+  manifest_active: $([ "$plan_source" = "manifest" ] && echo true || echo false)
+  repo_root: ${repo_root}
+  expected_parent: ${expected_parent}
+EXIT: dry-run (no commit created)
+PLAN_OUT
+    # Verify zero side-effect by comparing staged list (should be unchanged
+    # since we only ran read-tree on the private index, which has not yet
+    # touched the real index).
+    local _staged_after_plan
+    _staged_after_plan="$(staged_file_list "$repo_root")"
+    if [ "$_staged_after_plan" != "$staged_list_before" ]; then
+      echo "commit.sh: --plan invariant violated: staged list changed during dry-run" >&2
+      rm -rf "$tmp_dir"
+      return 2
+    fi
+    rm -rf "$tmp_dir"
+    return 0
+  fi
+
   GIT_INDEX_FILE="$private_index" git -C "$repo_root" read-tree "$expected_parent"
   if ! GIT_INDEX_FILE="$private_index" git -C "$repo_root" apply --cached --3way "$patch_file" 2>"${tmp_dir}/apply.err"; then
     echo "commit.sh: semantic plan conflict/overlap; branch, worktree, and real index were not mutated" >&2
     cat "${tmp_dir}/apply.err" >&2
     rm -rf "$tmp_dir"
     return 2
+  fi
+  # B1 (binary_files apply): stage declared binary blobs via update-index
+  # --add --cacheinfo. Each blob_sha must already exist in the repo's object
+  # database (operator pre-runs `git hash-object -w <file>`). Verified via
+  # `git cat-file -e <sha>` before staging. Default file mode is 100644
+  # (regular file); B1's M5-invariant subset check below unions
+  # binary_files.path with files_declared so the post-apply diff name list
+  # may legitimately include these paths.
+  local binary_apply_count=0
+  local binary_applied_json="[]"
+  if [ "$plan_source" = "manifest" ]; then
+    local binary_entries_json
+    binary_entries_json="$("$PYTHON_BIN" - "$meta_file" <<'PY'
+import json, sys
+meta = json.load(open(sys.argv[1]))
+print(json.dumps(meta.get("binary_files", [])))
+PY
+)"
+    # Iterate using python to keep robustness against odd shell escaping.
+    binary_applied_json="$(
+      GIT_INDEX_FILE="$private_index" "$PYTHON_BIN" - "$repo_root" "$binary_entries_json" <<'PY'
+import json, os, subprocess, sys
+repo_root, entries_json = sys.argv[1:3]
+entries = json.loads(entries_json)
+applied = []
+env = os.environ.copy()
+if "GIT_INDEX_FILE" not in env:
+    print("commit.sh: GIT_INDEX_FILE not set during binary apply", file=sys.stderr)
+    sys.exit(2)
+for entry in entries:
+    path = entry["path"]
+    sha = entry["blob_sha"]
+    size = entry["size"]
+    reason = entry["reason"]
+    # Verify blob exists in the repo's object database.
+    rc = subprocess.run(
+        ["git", "-C", repo_root, "cat-file", "-e", sha],
+        env=env,
+    ).returncode
+    if rc != 0:
+        print(
+            f"commit.sh: manifest.binary_files entry references blob_sha {sha} for "
+            f"path {path!r} but the blob is not present in the repo's object database; "
+            "operator must pre-run `git hash-object -w <file>` to populate the blob",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    # Optional cross-check: size echoed in stderr only when mismatch.
+    proc = subprocess.run(
+        ["git", "-C", repo_root, "cat-file", "-s", sha],
+        env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    if proc.returncode == 0:
+        try:
+            actual_size = int(proc.stdout.strip())
+        except Exception:
+            actual_size = None
+        if actual_size is not None and actual_size != size:
+            print(
+                f"commit.sh: manifest.binary_files entry size={size} for {path!r} "
+                f"does not match actual blob size={actual_size} (sha={sha})",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+    # Stage via update-index --add --cacheinfo. Default mode 100644.
+    rc = subprocess.run(
+        ["git", "-C", repo_root, "update-index", "--add", "--cacheinfo",
+         f"100644,{sha},{path}"],
+        env=env,
+    ).returncode
+    if rc != 0:
+        print(
+            f"commit.sh: failed to stage binary entry path={path!r} sha={sha} "
+            "via update-index --add --cacheinfo",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    applied.append({"path": path, "blob_sha": sha, "size": size, "reason": reason})
+print(json.dumps(applied))
+PY
+)" || {
+      rm -rf "$tmp_dir"
+      return 2
+    }
+    # Count how many entries were applied (length of applied array).
+    binary_apply_count="$("$PYTHON_BIN" -c "import json,sys; print(len(json.loads(sys.argv[1])))" "$binary_applied_json")"
+    # Write binary_files_applied into the meta file so downstream audit emission
+    # can pick it up (same shape pattern as repo_root injection above).
+    "$PYTHON_BIN" - "$meta_file" "$binary_applied_json" <<'PY'
+import json, sys
+meta_path, applied_json = sys.argv[1:3]
+meta = json.load(open(meta_path))
+meta["binary_files_applied"] = json.loads(applied_json)
+with open(meta_path, "w") as fh:
+    json.dump(meta, fh, indent=2, sort_keys=True)
+PY
   fi
   if [ -n "$(GIT_INDEX_FILE="$private_index" git -C "$repo_root" ls-files -u)" ]; then
     echo "commit.sh: semantic plan left unmerged private-index entries; refusing commit" >&2
@@ -1269,12 +1874,16 @@ import sys
 
 meta = json.load(open(sys.argv[1]))
 patch_files = set(json.loads(sys.argv[2]))
+# B1: M6 subset assertion unions manifest.files with manifest.binary_files[].path
+# because binary files are staged outside the unified-diff text but legitimately
+# appear in the post-apply name list.
 declared = set(meta.get("files_declared", []))
+declared |= {entry["path"] for entry in meta.get("binary_files", [])}
 extras = sorted(patch_files - declared)
 if extras:
     print(
-        "commit.sh: applied patch touches path(s) not declared in manifest.files: "
-        + ", ".join(extras),
+        "commit.sh: applied patch touches path(s) not declared in manifest.files "
+        "or manifest.binary_files: " + ", ".join(extras),
         file=sys.stderr,
     )
     sys.exit(2)
@@ -1290,7 +1899,10 @@ import sys
 
 meta = json.load(open(sys.argv[1]))
 patch_files = set(json.loads(sys.argv[2]))
+# B1: a binary_files entry carries its own reason field; include its paths in
+# the rationale set so binary-only paths satisfy the ownership-rationale rule.
 semantic_files = {item["path"] for item in meta.get("semantic_files", [])}
+semantic_files |= {entry["path"] for entry in meta.get("binary_files", [])}
 missing = sorted(patch_files - semantic_files)
 if missing:
     print("commit.sh: semantic plan missing ownership rationale for path(s): " + ", ".join(missing), file=sys.stderr)
@@ -1349,7 +1961,11 @@ PY
       fi
     fi
   fi
-  if [ "${#plan_files[@]}" -gt 0 ]; then
+  # A2: force-rescue's patch source IS the staged set, so by definition the
+  # plan_files overlap with the shared staged-set. Skipping the overlap guard
+  # is intentional for plan_source=="force-rescue"; for all other plan sources
+  # the guard remains in force.
+  if [ "${#plan_files[@]}" -gt 0 ] && [ "$plan_source" != "force-rescue" ]; then
     staged_overlap="$(git -C "$repo_root" diff --cached --name-only -- "${plan_files[@]}" | LC_ALL=C sort -u)"
     if [ -n "$staged_overlap" ]; then
       echo "commit.sh: semantic plan touches path(s) already staged by another session; refusing to preserve shared index ownership" >&2
@@ -1388,7 +2004,34 @@ PY
   fi
   staged_list_after="$(staged_file_list "$repo_root")"
   real_index_after="$(real_index_fingerprint "$repo_root")"
-  if [ "$staged_list_after" != "$staged_list_before" ]; then
+  # A2: for force-rescue mode the staged set IS the patch source; after the
+  # commit lands and sync_real_index_to_commit_paths reconciles the real index,
+  # the previously-staged paths legitimately leave the staged-set (they now
+  # match HEAD). The before/after equality invariant must be relaxed for
+  # plan_source=="force-rescue" — instead verify the post-commit staged set is
+  # a SUBSET of staged_list_before (no new entries appeared from outside the
+  # plan; the only legitimate diff is REMOVALS of paths now matching HEAD).
+  if [ "$plan_source" = "force-rescue" ]; then
+    printf '%s\n' "$staged_list_before" > "${tmp_dir}/staged-before.lst"
+    printf '%s\n' "$staged_list_after"  > "${tmp_dir}/staged-after.lst"
+    if ! "$PYTHON_BIN" - "${tmp_dir}/staged-before.lst" "${tmp_dir}/staged-after.lst" <<'PY'
+import sys
+before = set(l for l in open(sys.argv[1]).read().splitlines() if l)
+after  = set(l for l in open(sys.argv[2]).read().splitlines() if l)
+extras = sorted(after - before)
+if extras:
+    print(
+        "commit.sh: force-rescue post-commit staged set gained unexpected entries: "
+        + ", ".join(extras),
+        file=sys.stderr,
+    )
+    sys.exit(2)
+PY
+    then
+      rm -rf "$tmp_dir"
+      return 2
+    fi
+  elif [ "$staged_list_after" != "$staged_list_before" ]; then
     echo "commit.sh: staged-file list changed during semantic commit; refusing because shared staged ownership was not preserved" >&2
     printf 'before:\n%s\n' "$staged_list_before" >&2
     printf 'after:\n%s\n' "$staged_list_after" >&2
@@ -1396,11 +2039,25 @@ PY
     return 2
   fi
 
-  backup_ref="$(run_backup_only_push "$repo_root" "$branch" "$new_commit")"
+  # D2: run_backup_only_push writes the backup ref to a sentinel file (not via
+  # command-substitution stdout) so it can mutate caller-scope BACKUP_PUSH_FAILED
+  # without losing the mutation to a subshell. We then read the file to recover
+  # the backup ref string.
+  local backup_ref_sentinel="${tmp_dir}/backup-ref"
+  run_backup_only_push "$repo_root" "$branch" "$new_commit" "$backup_ref_sentinel"
+  backup_ref="$(cat "$backup_ref_sentinel" 2>/dev/null || echo "")"
 
   mkdir -p "$(dirname "$LOG_PATH")"
   local sid nonce ppid_val msg_sha_short ts audit_json
   sid="${CLAUDE_SESSION_ID:-$$}"
+  # A4 (audit-filename collision-safety rationale): the audit JSON filename
+  # composes `${sid}-${nonce}` where nonce is `secrets.token_hex(16)` — a
+  # cryptographic-quality 128-bit random nonce per invocation. Concurrent runs
+  # by the same sid produce different nonces (collision probability < 2^-64
+  # per pair, astronomically rare even at fleet scale). The wrapper writes the
+  # file via Python `open(path, "w")` which is an atomic create-or-replace at
+  # the filesystem layer for the single-writer model; no rename-dance needed
+  # because nonce uniqueness already disjoins concurrent paths. No race window.
   nonce="$("$PYTHON_BIN" -c "import secrets; print(secrets.token_hex(16))")"
   ppid_val="$$"
   msg_sha_short="$("$PYTHON_BIN" -c "import hashlib, sys; print(hashlib.sha256(sys.argv[1].encode('utf-8')).hexdigest()[:12])" "$COMMIT_MSG")"
@@ -1500,6 +2157,15 @@ if engine == "manifest-commit":
         "manifest_repo_root_observed_but_ignored", ""
     )
     data["files_declared"] = meta.get("files_declared", [])
+    # B1 additive: binary_files (declared) + binary_files_applied (post-apply set)
+    # appear ONLY on manifest-path audits; dev-report-path audits never see these
+    # keys (AC-CYCLE-2 byte-identity invariant).
+    data["binary_files"] = meta.get("binary_files", [])
+    data["binary_files_applied"] = meta.get("binary_files_applied", [])
+    # B2 additive: incompatible_after (when declared by the manifest) is echoed
+    # for audit traceability; absent value (None) is preserved so log readers
+    # can distinguish "no field" from "value 0".
+    data["incompatible_after"] = meta.get("incompatible_after")
 with open(path, "w") as fh:
     json.dump(data, fh, indent=2, sort_keys=True)
 PY
@@ -1545,6 +2211,14 @@ PY
   rm -f "/tmp/claude-commit-userintent-${_USERINTENT_SID}.flag"
   rm -rf "$tmp_dir"
   echo "commit.sh: success — semantic task=${task_id} branch=${branch} parent=${expected_parent} head=${new_commit} backup_ref=${backup_ref}"
+  # D2: when CLAUDE_BACKUP_REMOTE_REQUIRED=1 and the synchronous backup push
+  # failed, return 2 so the wrapper exit code reflects the missing remote
+  # safety net. Default behaviour (env unset) remains return 0 — the async
+  # push runs in background and the operator gets a stderr surface on failure.
+  if [ "${BACKUP_PUSH_FAILED:-0}" = "1" ]; then
+    echo "commit.sh: backup push failed (CLAUDE_BACKUP_REMOTE_REQUIRED=1)" >&2
+    return 2
+  fi
   return 0
 }
 
@@ -1690,6 +2364,14 @@ fi
 #   4. audit JSON binding message hash, plan hash, parent, commit, files,
 #      and backup recovery ref.
 if [ "$MODE" = "force" ]; then
+  # A2 mutual exclusion: --force-rescue chooses staged-set as patch source;
+  # --manifest provides a different patch source. They cannot both be active
+  # for the same commit — refuse at argv-parse with a specific error so the
+  # operator does not silently route through the unintended path.
+  if [ "$FORCE_RESCUE_MODE" -eq 1 ] && [ "$HAS_MANIFEST" -eq 1 ]; then
+    echo "commit.sh: --force-rescue and --manifest are mutually exclusive (the patch source must come from exactly one authority — either the staged set or the manifest)" >&2
+    exit 2
+  fi
   COMMIT_MSG="$CALLER_MESSAGE"
   FORCE_TASK_SENTINEL="__force__"
   CLOSURE_KIND="force"
@@ -1701,6 +2383,12 @@ if [ "$MODE" = "force" ]; then
     # records mode="force-manifest" so log filtering can distinguish from plain
     # force (which today is dead-coded per W2).
     run_private_index_commit "$FORCE_TASK_SENTINEL" "force-manifest" "$CLOSURE_KIND" "$CLOSE_VERDICT_OBSERVED" "manifest"
+    exit $?
+  fi
+  if [ "$FORCE_RESCUE_MODE" -eq 1 ]; then
+    # A2: --force-rescue with pre-staged content. Patch source = staged delta.
+    # Audit records mode="force-rescue" so log filtering can distinguish.
+    run_private_index_commit "$FORCE_TASK_SENTINEL" "force-rescue" "$CLOSURE_KIND" "$CLOSE_VERDICT_OBSERVED" "force-rescue"
     exit $?
   fi
   run_private_index_commit "$FORCE_TASK_SENTINEL" "force" "$CLOSURE_KIND" "$CLOSE_VERDICT_OBSERVED"
@@ -1728,9 +2416,15 @@ CLOSE_VERDICT_OBSERVED="absent"   # "yes" | "no" | "absent" — for S2 audit log
 # This closes the SECONDARY back-door that previously admitted commits even
 # when /close had returned a deliberate negative verdict.
 if [ -f "$CLOSE_REPORT" ]; then
-  # Last non-empty line — strip CR, drop blank lines, take final survivor.
+  # Last non-empty line — kept for diagnostic messages below (audit log /
+  # exit-2 error output).  Verdict classification, however, MUST go through
+  # the tolerant `classify-file` mode (W5 C1, ticket-20260511-070000 γ.AC1):
+  # strict last-line check first, then fallback regex scan that accepts
+  # decorated forms like `**Final verdict: CLOSE: YES**`. Using the strict
+  # `classify-line` here would bypass the tolerant fallback and reject
+  # legitimately-decorated close-reports at the production gate.
   LAST_NONEMPTY="$(tr -d '\r' < "$CLOSE_REPORT" | awk 'NF{line=$0} END{print line}')"
-  VERDICT_KIND="$("$PYTHON_BIN" "$CLOSE_VERDICT_HELPER" classify-line "$LAST_NONEMPTY" 2>/dev/null || echo unknown)"
+  VERDICT_KIND="$("$PYTHON_BIN" "$CLOSE_VERDICT_HELPER" classify-file "$CLOSE_REPORT" 2>/dev/null || echo unknown)"
   if [ "$VERDICT_KIND" = "yes" ]; then
     CLOSURE_PATH="$CLOSE_REPORT"
     CLOSURE_KIND="primary"

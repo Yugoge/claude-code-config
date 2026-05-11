@@ -38,8 +38,17 @@ import sys
 SUBSYSTEM_PREFIXES = ['hooks/', 'commands/', 'scripts/', 'packages/', 'docs/']
 BULK_THRESHOLD = 3
 
+# D3 (ticket-20260511-070000): tighten the loose `sync.*uncommitted` regex to
+# word-boundary anchored form. The previous pattern false-positives on prose
+# like `synchronized` or `re-committed`. The b5d447e exact form
+# `chore(claude): sync all uncommitted ...` still matches via word-boundary
+# `\bsync\b.*\buncommitted\b` AND continues to be matched by the dedicated
+# chore(claude) pattern -- belt-and-suspenders. Subsystem fan-out (>= 3
+# subsystem prefixes) is still required for a block, so a commit whose
+# subject is JUST `sync uncommitted notes` but only touches docs/ remains
+# allowed.
 SUBJECT_PATTERNS = [
-    re.compile(r'sync.*uncommitted', re.IGNORECASE),
+    re.compile(r'\bsync\b.*\buncommitted\b', re.IGNORECASE),
     re.compile(r'chore\(claude\)\s*:\s*sync', re.IGNORECASE),
 ]
 
