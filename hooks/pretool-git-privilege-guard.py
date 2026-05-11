@@ -93,6 +93,7 @@ from pathlib import Path
 
 
 BLESSED_BRIDGE_RE = re.compile(r'auto-bulk:\s*end-of-cycle commit for\b')
+
 GIT_GLOBAL_OPTION_RE = (
     r'(?:\s+(?:-[Cc]\s+\S+|-[Cc]\S+|'
     r'--(?:git-dir|work-tree|namespace|exec-path|super-prefix|config-env)'
