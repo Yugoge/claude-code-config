@@ -131,7 +131,12 @@ DOCS_DIR="${DOCS_DIR_ROOT}/docs/dev"
 # derive them from CLAUDE_PROJECT_DIR — that would mix project repos and global
 # toolchain state (AC-DOCS-4). Operators may override these paths for tests.
 CLAUDE_HOME="${CLAUDE_HOME:-${HOME}/.claude}"
-CLAUDE_LOG_DIR="${CLAUDE_LOG_DIR:-${CLAUDE_HOME}/logs}"
+# S1 (DOC-17): persistent audit-log default — non-tmpfs, FHS-conformant. The
+# legacy ${CLAUDE_HOME}/logs default was tmpfs-resolving in this environment
+# (/root/.claude → /dev/shm/dev-workspace/dot-claude). Operators may override
+# via CLAUDE_LOG_DIR; tmpfs override requires CLAUDE_AUDIT_PERSIST_DISABLED=1
+# opt-in (enforced in run_private_index_commit preflight).
+CLAUDE_LOG_DIR="${CLAUDE_LOG_DIR:-/var/lib/claude/commit-audit}"
 CLAUDE_TMPDIR="${CLAUDE_TMPDIR:-${TMPDIR:-/tmp}}"
 PYTHON_BIN="${CLAUDE_PYTHON_BIN:-${CLAUDE_HOME}/venv/bin/python}"
 if [ ! -x "$PYTHON_BIN" ]; then
@@ -410,6 +415,37 @@ fi
 # but the four always-on security layers remain engaged.
 if [ "$MODE" = "force" ]; then
   echo "commit.sh: --force bypasses closure/task-id/dev-report checks; semantic planning still uses private-index/CAS audit" >&2
+fi
+
+# -----------------------------------------------------------------------------
+# M3 — Conventional Commits type lint (DOC-16)
+# -----------------------------------------------------------------------------
+# Whitelist: feat|fix|refactor|docs|test|chore|build|ci|perf|style|revert.
+# Applies to MESSAGE_SOURCE ∈ {caller, auto} (universal CC discipline per
+# iter-1 codex round 2 F8; auto-helper output is CC by construction).
+# Skip evaluation order (MANDATORY): bridge → env → apply.
+# Refusal path: stderr + exit 2 ONLY, NO audit JSON written.
+M3_TYPE_LINT_RESULT=""
+if [ "$MODE" = "auto-bulk-bridge" ]; then
+  M3_TYPE_LINT_RESULT="skipped (bridge)"
+elif [ "${CLAUDE_COMMIT_SKIP_TYPE_LINT:-0}" = "1" ]; then
+  M3_TYPE_LINT_RESULT="skipped (env)"
+else
+  # Apply to subject line (first line of CALLER_MESSAGE).
+  M3_SUBJECT="$(printf '%s' "$CALLER_MESSAGE" | head -n 1)"
+  M3_MATCHED_TYPE="$("$PYTHON_BIN" - <<'PY' "$M3_SUBJECT"
+import re, sys
+subject = sys.argv[1]
+m = re.match(r'^(feat|fix|refactor|docs|test|chore|build|ci|perf|style|revert)(\([^)]+\))?(!)?:\s+\S.*$', subject)
+print(m.group(1) if m else "")
+PY
+)"
+  if [ -z "$M3_MATCHED_TYPE" ]; then
+    M3_SUBJECT_PREVIEW="${M3_SUBJECT:0:80}"
+    echo "commit.sh: first-line type does not match Conventional Commits whitelist (feat|fix|refactor|docs|test|chore|build|ci|perf|style|revert); got: ${M3_SUBJECT_PREVIEW}" >&2
+    exit 2
+  fi
+  M3_TYPE_LINT_RESULT="applied (accepted ${M3_MATCHED_TYPE})"
 fi
 
 # -----------------------------------------------------------------------------
@@ -1462,6 +1498,60 @@ run_private_index_commit() {
   # global (set by argv pre-scan).
   local plan_source="${5:-dev-report}"
 
+  # S1 (iter-2 B1): audit-log directory preflight. Single chokepoint covering
+  # all 6 invocation paths (closed-task PRIMARY/SECONDARY/manifest, force,
+  # force-rescue, force-manifest). MUST run before `git commit-tree` at :1978
+  # so a tmpfs-resolving or unwritable CLAUDE_LOG_DIR exits 2 BEFORE any commit
+  # object is created. Bridge mode does NOT call this function — bridge is
+  # exempt by construction.
+  AUDIT_PERSIST_VALUE=""
+  local _resolved_log_dir _fs_type _probe_file _mkdir_err _write_err
+  _resolved_log_dir="$(readlink -f "$CLAUDE_LOG_DIR" 2>/dev/null || echo "$CLAUDE_LOG_DIR")"
+  # mkdir -p with mode 700 (no world-read) — must succeed before df -T / write-probe
+  if ! _mkdir_err="$(mkdir -p -m 700 "$CLAUDE_LOG_DIR" 2>&1)"; then
+    echo "commit.sh: cannot create or write audit-log directory ${_resolved_log_dir} (${_mkdir_err}); set CLAUDE_LOG_DIR=<writable-persistent-path>" >&2
+    return 2
+  fi
+  # Re-resolve after mkdir (path now definitely exists)
+  _resolved_log_dir="$(readlink -f "$CLAUDE_LOG_DIR" 2>/dev/null || echo "$CLAUDE_LOG_DIR")"
+  chmod 700 "$_resolved_log_dir" 2>/dev/null || true
+  # df -T to determine filesystem type
+  _fs_type="$(df -T "$_resolved_log_dir" 2>/dev/null | awk 'NR==2 {print $2}')"
+  if [ "$_fs_type" = "tmpfs" ]; then
+    if [ "${CLAUDE_AUDIT_PERSIST_DISABLED:-0}" = "1" ]; then
+      AUDIT_PERSIST_VALUE="disabled (operator-acknowledged)"
+    else
+      echo "commit.sh: refusing — CLAUDE_LOG_DIR resolves to tmpfs (${_resolved_log_dir}); set CLAUDE_LOG_DIR=<persistent-path> or export CLAUDE_AUDIT_PERSIST_DISABLED=1 to acknowledge loss-on-reboot" >&2
+      return 2
+    fi
+  fi
+  # Write-probe: create + unlink a temp file in the resolved directory.
+  _probe_file="${_resolved_log_dir}/.commit-audit-probe-$$-${RANDOM}"
+  if ! _write_err="$(: > "$_probe_file" 2>&1)"; then
+    echo "commit.sh: cannot create or write audit-log directory ${_resolved_log_dir} (${_write_err}); set CLAUDE_LOG_DIR=<writable-persistent-path>" >&2
+    return 2
+  fi
+  rm -f "$_probe_file" 2>/dev/null || true
+
+  # M2 audit-emission completeness: force-mode dispatch (commit.sh:2366-2395)
+  # exits via run_private_index_commit BEFORE reaching the M2 block at
+  # closed-task path bottom. Set the skip-value here based on the mode arg so
+  # force / force-rescue / force-manifest audits emit message_guard correctly
+  # per DOC-15 (commands/commit.md) and AC2 (ticket).
+  if [ -z "${M2_MESSAGE_GUARD_RESULT:-}" ]; then
+    case "$mode" in
+      force)
+        M2_MESSAGE_GUARD_RESULT="skipped (force)"
+        ;;
+      force-rescue)
+        M2_MESSAGE_GUARD_RESULT="skipped (force-rescue)"
+        ;;
+      force-manifest)
+        M2_MESSAGE_GUARD_RESULT="skipped (force-manifest)"
+        ;;
+    esac
+  fi
+
   local tmp_dir patch_file meta_file
   tmp_dir="$(mktemp -d "${CLAUDE_TMPDIR%/}/claude-commit-plan-XXXXXX")"
   patch_file="${tmp_dir}/bundle.patch"
@@ -1975,7 +2065,87 @@ PY
     fi
   fi
   tree="$(GIT_INDEX_FILE="$private_index" git -C "$repo_root" write-tree)"
-  new_commit="$(printf '%s\n' "$COMMIT_MSG" | GIT_INDEX_FILE="$private_index" git -C "$repo_root" commit-tree "$tree" -p "$expected_parent")"
+
+  # -----------------------------------------------------------------------
+  # M1 — Hash chain trailer (DOC-14)
+  # -----------------------------------------------------------------------
+  # Compute SHA-256 of each of the 6 cycle artifacts that EXIST on disk; emit
+  # one trailer per existing artifact in task-flow order. Use git interpret-
+  # trailers with --if-exists replace --if-missing add for idempotency, plus a
+  # pre-strip pass that drops ALL pre-existing 6-audit-token lines from the
+  # message body (handles the case of two stale Token-SHA256 lines, which
+  # `replace` alone leaves at 1 stale + 1 fresh).
+  # Skip in bridge mode (function not called there anyway) and on
+  # CLAUDE_COMMIT_SKIP_HASH_TRAILERS=1; emit a parallel `ARTIFACT_SHA256_JSON`
+  # for the audit JSON `artifact_sha256` map regardless of trailer emission.
+  # Hash computation runs UNCONDITIONALLY — CLAUDE_COMMIT_SKIP_HASH_TRAILERS=1
+  # disables ONLY the trailer emission in the commit message body; the audit
+  # JSON still records `artifact_sha256` (per DOC-14 forensic-value contract,
+  # ticket M1.operator-override line 97).
+  ARTIFACT_SHA256_JSON="{}"
+  COMMIT_MSG_FOR_TREE="$COMMIT_MSG"
+  M1_HASH_OUTPUT="$("$PYTHON_BIN" - <<'PY' "$DOCS_DIR" "$task_id"
+import hashlib, json, os, sys
+docs_dir, task_id = sys.argv[1:3]
+# task-flow order
+mapping = [
+    ("Ticket-SHA256", f"ticket-{task_id}.md", f"ba-spec-{task_id}.md"),
+    ("Context-SHA256", f"context-{task_id}.json", None),
+    ("Dev-Report-SHA256", f"dev-report-{task_id}.json", None),
+    ("QA-Report-SHA256", f"qa-report-{task_id}.json", None),
+    ("Close-Report-SHA256", f"close-report-{task_id}.md", None),
+    ("Completion-SHA256", f"completion-{task_id}.md", None),
+]
+trailers = []
+audit_map = {}
+for token, primary, legacy in mapping:
+    path = os.path.join(docs_dir, primary)
+    if not os.path.exists(path) and legacy:
+        path = os.path.join(docs_dir, legacy)
+    if not os.path.exists(path):
+        continue
+    try:
+        with open(path, 'rb') as fh:
+            digest = hashlib.sha256(fh.read()).hexdigest()
+    except Exception:
+        continue
+    trailers.append(f"{token}={digest}")
+    audit_map[os.path.basename(path)] = digest
+print("\n".join(trailers))
+print("---AUDIT-JSON-SEP---")
+print(json.dumps(audit_map, sort_keys=True))
+PY
+)"
+  M1_TRAILER_LINES="$(printf '%s' "$M1_HASH_OUTPUT" | awk '/^---AUDIT-JSON-SEP---$/{exit} {print}')"
+  M1_AUDIT_MAP="$(printf '%s' "$M1_HASH_OUTPUT" | awk 'found{print} /^---AUDIT-JSON-SEP---$/{found=1}')"
+  if [ -n "$M1_AUDIT_MAP" ]; then
+    ARTIFACT_SHA256_JSON="$M1_AUDIT_MAP"
+  fi
+  if [ "${CLAUDE_COMMIT_SKIP_HASH_TRAILERS:-0}" != "1" ] && [ -n "$M1_TRAILER_LINES" ]; then
+    M1_TRAILER_FILE="${CLAUDE_TMPDIR%/}/commit-trailer-${CLAUDE_SESSION_ID:-$$}-${RANDOM}.txt"
+    # Ensure absolute path
+    case "$M1_TRAILER_FILE" in
+      /*) : ;;
+      *) M1_TRAILER_FILE="/tmp/${M1_TRAILER_FILE#./}" ;;
+    esac
+    # Pre-strip: write COMMIT_MSG to temp file with stale audit-token lines removed.
+    printf '%s\n' "$COMMIT_MSG" | \
+      sed -E '/^(Ticket|Context|Dev-Report|QA-Report|Close-Report|Completion)-SHA256:[[:space:]]*/d' \
+      > "$M1_TRAILER_FILE"
+    # Build --trailer args. Each line is Token=<hex>.
+    M1_TRAILER_ARGS=()
+    while IFS= read -r line; do
+      [ -z "$line" ] && continue
+      M1_TRAILER_ARGS+=("--trailer" "$line")
+    done <<< "$M1_TRAILER_LINES"
+    if [ "${#M1_TRAILER_ARGS[@]}" -gt 0 ]; then
+      git interpret-trailers --in-place --if-exists replace --if-missing add "${M1_TRAILER_ARGS[@]}" "$M1_TRAILER_FILE"
+    fi
+    COMMIT_MSG_FOR_TREE="$(cat "$M1_TRAILER_FILE")"
+    rm -f "$M1_TRAILER_FILE" 2>/dev/null || true
+  fi
+
+  new_commit="$(printf '%s\n' "$COMMIT_MSG_FOR_TREE" | GIT_INDEX_FILE="$private_index" git -C "$repo_root" commit-tree "$tree" -p "$expected_parent")"
 
   if [ "$(real_index_fingerprint "$repo_root")" != "$real_index_before" ]; then
     echo "commit.sh: real shared index changed before CAS branch advance; refusing branch advance" >&2
@@ -2100,14 +2270,16 @@ PY
   staged_before_json="$(printf '%s\n' "$staged_list_before" | "$PYTHON_BIN" -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))')"
   staged_after_json="$(printf '%s\n' "$staged_list_after" | "$PYTHON_BIN" -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))')"
 
-  "$PYTHON_BIN" - "$audit_json" "$ts" "$sid" "$task_id" "$mode" "$branch" "$expected_parent" "$new_commit" "$plan_sha" "$plan_id" "$plan_base" "$files_json" "$plan_semantic" "$plan_excluded" "$backup_ref" "$closure_kind" "$close_verdict" "$MESSAGE_SOURCE" "$staged_before_json" "$staged_after_json" "$real_index_before" "$real_index_after" "$meta_file" <<'PY'
+  "$PYTHON_BIN" - "$audit_json" "$ts" "$sid" "$task_id" "$mode" "$branch" "$expected_parent" "$new_commit" "$plan_sha" "$plan_id" "$plan_base" "$files_json" "$plan_semantic" "$plan_excluded" "$backup_ref" "$closure_kind" "$close_verdict" "$MESSAGE_SOURCE" "$staged_before_json" "$staged_after_json" "$real_index_before" "$real_index_after" "$meta_file" "$ARTIFACT_SHA256_JSON" "${AUDIT_PERSIST_VALUE:-}" "${M2_MESSAGE_GUARD_RESULT:-}" "${M3_TYPE_LINT_RESULT:-}" <<'PY'
 import json
 import sys
 
 (path, ts, sid, task_id, mode, branch, parent, commit, plan_sha,
  plan_id, plan_base, files_json, semantic_json, excluded_json,
  backup_ref, closure_kind, close_verdict, message_source, staged_before_json,
- staged_after_json, index_before, index_after, meta_path) = sys.argv[1:24]
+ staged_after_json, index_before, index_after, meta_path,
+ artifact_sha256_json, audit_persist_value,
+ m2_message_guard, m3_type_lint) = sys.argv[1:28]
 # Engine + schema metadata come from the plan-meta file. Dev-report path emits
 # engine="semantic-commit" (existing baseline byte-identity invariant per AC3).
 # Manifest path emits engine="manifest-commit" + schema_name/schema_version/
@@ -2140,6 +2312,20 @@ data = {
     "close_verdict_observed": close_verdict,
     "message_source": message_source,
 }
+# M1 (DOC-14): artifact SHA-256 map mirrors the commit message body trailers.
+try:
+    data["artifact_sha256"] = json.loads(artifact_sha256_json) if artifact_sha256_json else {}
+except Exception:
+    data["artifact_sha256"] = {}
+# M2 (DOC-15): message-vs-evidence guard result.
+if m2_message_guard:
+    data["message_guard"] = m2_message_guard
+# M3 (DOC-16): Conventional Commits type-lint result.
+if m3_type_lint:
+    data["type_lint"] = m3_type_lint
+# S1 (DOC-17): operator-acknowledged tmpfs opt-in marker.
+if audit_persist_value:
+    data["audit_persist"] = audit_persist_value
 # Conditional manifest-mode audit fields: emit ONLY when the plan came from the
 # manifest helper (engine=="manifest-commit"). This preserves AC3 byte-identity
 # for the dev-report path — its meta file does not set these keys, so they do
@@ -2594,6 +2780,145 @@ if [ -z "$CLOSURE_KIND" ]; then
   echo "  looked for PRIMARY:   ${CLOSE_REPORT} (last line ^CLOSE:\\s*YES\\b)" >&2
   echo "  looked for SECONDARY: ${COMPLETION_DOC} + ${QA_REPORT} (.qa.status == 'pass')" >&2
   exit 2
+fi
+
+# -----------------------------------------------------------------------------
+# M2 — Message-vs-evidence validation (DOC-15)
+# -----------------------------------------------------------------------------
+# Scans subject + body of CALLER_MESSAGE for verification-claim regex set.
+# Resolves qa-report.qa.status from ${QA_REPORT} via Python json.load.
+# Decision matrix:
+#   "pass" → ACCEPT
+#   "warning" + same-paragraph qualifier (warning|minor) → ACCEPT
+#   "fail" / __absent__ / __invalid__ / __unknown__ → REFUSE
+# Skip evaluation order (MANDATORY): bridge → force → force-rescue →
+# force-manifest → env → MESSAGE_SOURCE → caller. Refusal: stderr + exit 2
+# ONLY, NO audit JSON written.
+# Force/force-rescue/force-manifest never reach this code (they short-circuit
+# at :2366-2395 before closure detection); but we evaluate defensively so the
+# logic is correct if the dispatch ever changes.
+M2_MESSAGE_GUARD_RESULT=""
+if [ "$MODE" = "auto-bulk-bridge" ]; then
+  M2_MESSAGE_GUARD_RESULT="skipped (bridge)"
+elif [ "$MODE" = "force" ] && [ "$FORCE_RESCUE_MODE" -eq 0 ] && [ "$HAS_MANIFEST" -eq 0 ]; then
+  M2_MESSAGE_GUARD_RESULT="skipped (force)"
+elif [ "$MODE" = "force" ] && [ "$FORCE_RESCUE_MODE" -eq 1 ]; then
+  M2_MESSAGE_GUARD_RESULT="skipped (force-rescue)"
+elif [ "$MODE" = "force" ] && [ "$HAS_MANIFEST" -eq 1 ]; then
+  M2_MESSAGE_GUARD_RESULT="skipped (force-manifest)"
+elif [ "${CLAUDE_COMMIT_SKIP_MESSAGE_GUARD:-0}" = "1" ]; then
+  M2_MESSAGE_GUARD_RESULT="skipped (env)"
+elif [ "$MESSAGE_SOURCE" = "auto" ]; then
+  M2_MESSAGE_GUARD_RESULT="skipped (auto-message)"
+else
+  # Guard ACTIVE: scan CALLER_MESSAGE for verification-claim regex set, then
+  # compare to ${QA_REPORT}.qa.status. Python heredoc does the heavy lifting.
+  M2_GUARD_OUTPUT="$("$PYTHON_BIN" - <<'PY' "$CALLER_MESSAGE" "$QA_REPORT"
+import json, os, re, sys
+
+message = sys.argv[1]
+qa_report_path = sys.argv[2]
+
+# Tightened anchored regex set (codex round 2 + iter-2 minor extensions).
+patterns = [
+    (r'\b(QA|qa-report)\s*[:=-]?\s*PASS\b', re.IGNORECASE),
+    (r'\b(QA|qa-report)\s+verdict\s*[:=-]?\s*PASS\b', re.IGNORECASE),
+    (r'\b(all|every)\s+(\d+\s+)?ACs?\s+(met|passed|satisfied)\b', re.IGNORECASE),
+    (r'\bverified\s+(by|via|against|in)\s+(QA|qa-report|tests?|ACs?)\b', re.IGNORECASE),
+    (r'\b(this\s+(change|commit|patch)|commit)\s+verifies\b[^.\n]*\b(QA|tests?|ACs?|PASS)\b', re.IGNORECASE),
+    (r'\b(QA|qa-report)\s+(cleared|approved|signed[\s-]?off)\b', re.IGNORECASE),
+    (r'\b(all\s+)?tests?\s+(are\s+)?(passed|passing|green|clear)\b', re.IGNORECASE),
+    (r'\b(everything|all)\s+(looks?|tests?|checks?)\s+(good|passed|fine)\b', re.IGNORECASE),
+]
+
+matched_substring = None
+matched_span = None
+for pat, flags in patterns:
+    m = re.search(pat, message, flags)
+    if m:
+        matched_substring = m.group(0)
+        matched_span = m.span()
+        break
+
+if matched_substring is None:
+    print("NOCLAIM")
+    sys.exit(0)
+
+# Resolve qa-report.qa.status with four-sentinel parse.
+status = None
+if not os.path.exists(qa_report_path):
+    status = "__absent__"
+else:
+    try:
+        with open(qa_report_path, encoding='utf-8') as fh:
+            data = json.load(fh)
+    except Exception:
+        status = "__invalid__"
+    else:
+        if not isinstance(data, dict):
+            status = "__invalid__"
+        else:
+            qa_node = data.get('qa')
+            if not isinstance(qa_node, dict):
+                status = "__absent__"
+            else:
+                s = qa_node.get('status')
+                if s is None:
+                    status = "__absent__"
+                elif s in ('pass', 'warning', 'fail'):
+                    status = s
+                else:
+                    status = "__unknown__"
+
+if status == "pass":
+    print(f"OK\t{matched_substring}\t{status}")
+    sys.exit(0)
+if status == "warning":
+    # Check same-paragraph proximity for warning|minor qualifier.
+    # Paragraph = double-newline-separated block containing the match.
+    paragraphs = re.split(r'\n\s*\n', message)
+    cursor = 0
+    match_para = None
+    for para in paragraphs:
+        start = message.find(para, cursor)
+        end = start + len(para)
+        if start <= matched_span[0] <= end:
+            match_para = para
+            break
+        cursor = end
+    if match_para is None:
+        match_para = message
+    if re.search(r'\b(warning|minor)\b', match_para, re.IGNORECASE):
+        print(f"OK\t{matched_substring}\t{status}")
+        sys.exit(0)
+    # Warning status but no qualifier → refuse.
+    print(f"REFUSE\t{matched_substring}\t{status}")
+    sys.exit(0)
+
+# fail | __absent__ | __invalid__ | __unknown__ → refuse
+print(f"REFUSE\t{matched_substring}\t{status}")
+PY
+)"
+  case "$M2_GUARD_OUTPUT" in
+    NOCLAIM)
+      M2_MESSAGE_GUARD_RESULT="applied (no claim found)"
+      ;;
+    OK*)
+      M2_MESSAGE_GUARD_RESULT="applied (claim matches)"
+      ;;
+    REFUSE*)
+      # Parse: REFUSE\t<matched>\t<status>
+      M2_MATCHED="$(printf '%s' "$M2_GUARD_OUTPUT" | cut -f2)"
+      M2_STATUS="$(printf '%s' "$M2_GUARD_OUTPUT" | cut -f3)"
+      echo "commit.sh: -m message claims verification (${M2_MATCHED}) but qa-report.qa.status is \"${M2_STATUS}\"" >&2
+      exit 2
+      ;;
+    *)
+      # Defensive: any unexpected output → refuse-safe.
+      echo "commit.sh: M2 guard returned unexpected output: ${M2_GUARD_OUTPUT}" >&2
+      exit 2
+      ;;
+  esac
 fi
 
 # -----------------------------------------------------------------------------

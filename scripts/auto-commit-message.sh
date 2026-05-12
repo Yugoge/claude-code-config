@@ -118,7 +118,14 @@ if any("commit" in p for p in paths) or "commit" in lower:
 elif any("close" in p for p in paths) or "close" in lower:
     scope = "close"
 elif paths:
-    scope = Path(paths[0]).stem.replace("_", "-")[:24] or "task"
+    # B2 (iter-2 codex round 3): sanitize derived scope so M3's
+    # `\([^)]+\)` regex accepts the helper-emitted subject for any
+    # filename. Strip every char outside the CC-safe set [A-Za-z0-9_-]
+    # (including `)`, `(`, `.`, `/`, whitespace) BEFORE substitution
+    # into the subject string. Empty-post-sanitization falls through
+    # to "task" via Python truthiness on the `or` chain.
+    _stem = Path(paths[0]).stem.replace("_", "-")
+    scope = re.sub(r'[^A-Za-z0-9_-]', '', _stem)[:24] or "task"
 
 subject = f"{ctype}({scope}): {summary[:72].lower()}"
 body = [f"Task-id: {task_id}"]
