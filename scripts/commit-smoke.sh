@@ -46,6 +46,9 @@
 #   (i) tolerant close-report parsing            -- real close-verdict.py (C1)
 #   (j) bare CLOSE: YES line                     -- real close-verdict.py strict
 #   (k) b5d447e-shape                            -- real bulk-detector regression (no C2 dependency)
+#   (l) M1 hash chain trailer presence           -- direct trailer-helper unit test (DOC-14)
+#   (m) M2 message-vs-evidence guard fires       -- direct M2 regex+status unit test (DOC-15)
+#   (n) M3 CC type lint fires                    -- direct M3 regex unit test (DOC-16)
 #
 # Exit per-path: line `PASS: <id> <description>` or `FAIL: <id> <reason>`.
 
@@ -576,6 +579,265 @@ if want h; then
     note_pass h "cross-repo via --repo (close-report under explicit --docs-dir is classifiable)"
   else
     note_fail h "cross-repo via --repo -- repo=$repo docs=$docs got=$got"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Wrapper-invocation helpers for paths l/m/n
+# ---------------------------------------------------------------------------
+# After QA Round 7 codex flagged paths l/m/n as Anti-Fraud Principle 5
+# substitute related-but-different verification (testing isolated Python
+# regex/hash heredoc components rather than the wrapper end-to-end), this
+# block invokes the actual wrapper `commit.sh` as a subprocess against
+# self-contained synthetic fixtures and asserts on wrapper-observable
+# state changes (exit code / git HEAD / stderr substring / audit JSON
+# file count under CLAUDE_LOG_DIR).
+#
+# Shared fixture skeleton per path:
+#   * fresh `git init` repo under $TMP/wrapper-{l,m,n}-<rand>
+#   * docs/dev/ tree under same root with the four cycle artifacts the
+#     wrapper consults: ticket-, context-, dev-report-, close-report-,
+#     completion-, qa-report- (path-specific status field).
+#   * CLAUDE_LOG_DIR points at a per-path subdir of $TMP so audit-file
+#     count can be asserted without colliding with the production log dir.
+#   * CLAUDE_AUDIT_PERSIST_DISABLED=1 acknowledges the tmpfs preflight
+#     refusal that would otherwise short-circuit the wrapper before M1/
+#     M2/M3 emit observable state.
+#
+# The wrapper invocation is `bash <commit.sh> <task-id> -m "<msg>"` from
+# cwd=$repo. `--repo` / `--docs-dir` are NOT passed; the wrapper's
+# DOCS_DIR_ROOT discovery ladder picks up the cwd-toplevel and resolves
+# both repo and docs paths from there.
+#
+# We resolve commit.sh relative to this script:
+#   $DOT_CLAUDE_ROOT/hooks/commit.sh
+COMMIT_SH="$DOT_CLAUDE_ROOT/hooks/commit.sh"
+
+_wrapper_build_fixture() {
+  # _wrapper_build_fixture <repo_dir> <task_id> <qa_status>
+  # Initializes a fixture git repo with the 6 cycle artifacts under
+  # docs/dev/ plus a working-tree file declared in dev-report.dev.files_modified
+  # so the semantic-plan helper has something to commit. qa-report.qa.status
+  # is set to the third argument (typically "pass" or "fail").
+  local repo="$1"
+  local tid="$2"
+  local qa_status="$3"
+  git init -q "$repo"
+  ( cd "$repo"
+    git config user.email "smoke@example" >/dev/null
+    git config user.name "smoke" >/dev/null
+    git commit -q --allow-empty -m "init"
+    mkdir -p "docs/dev"
+    # Cycle artifacts. ticket / context are tiny content stubs; close-report
+    # carries decorated CLOSE: YES (PRIMARY closure verdict); dev-report
+    # declares files_modified=["smoke-fixture.txt"] + task_id/request_id;
+    # qa-report carries the requested .qa.status value; completion present
+    # for SECONDARY parity (unused under PRIMARY closure, harmless).
+    printf 'ticket content for %s\n' "$tid"               > "docs/dev/ticket-${tid}.md"
+    printf '{"task_id": "%s", "ctx": 1}\n' "$tid"         > "docs/dev/context-${tid}.json"
+    printf '%s\n%s\n%s\n' \
+      "# Cycle close report" \
+      "" \
+      "**Final verdict: CLOSE: YES** -- all checks passed"  > "docs/dev/close-report-${tid}.md"
+    printf '%s\n%s\n%s\n' \
+      "# Development Completion Report" \
+      "" \
+      "Request-ID: ${tid}"                                  > "docs/dev/completion-${tid}.md"
+    cat > "docs/dev/dev-report-${tid}.json" <<DEVREPORT
+{
+  "request_id": "${tid}",
+  "task_id": "${tid}",
+  "dev": {
+    "status": "completed",
+    "task_id": "${tid}",
+    "request_id": "${tid}",
+    "files_modified": ["smoke-fixture.txt"],
+    "files_created": [],
+    "tasks_completed": [{"id": 1, "description": "smoke fixture", "files_modified": ["smoke-fixture.txt"]}]
+  }
+}
+DEVREPORT
+    cat > "docs/dev/qa-report-${tid}.json" <<QAREPORT
+{
+  "request_id": "${tid}",
+  "task_id": "${tid}",
+  "qa": {
+    "request_id": "${tid}",
+    "task_id": "${tid}",
+    "status": "${qa_status}"
+  }
+}
+QAREPORT
+    # Working-tree modification declared in dev-report.dev.files_modified so
+    # the semantic-plan helper produces a non-empty patch and the wrapper
+    # reaches its commit-tree + update-ref CAS step.
+    printf 'smoke content for %s\n' "$tid" > "smoke-fixture.txt"
+  )
+}
+
+_wrapper_invoke() {
+  # _wrapper_invoke <repo_dir> <task_id> <log_dir> <message> -> echoes
+  # "rc=<n>\tstderr_path=<path>\thead_before=<sha>\thead_after=<sha>\taudit_count=<n>"
+  # All side-effects (cwd, env) are scoped to a subshell so the smoke
+  # harness's outer state is preserved.
+  local repo="$1"
+  local tid="$2"
+  local log_dir="$3"
+  local message="$4"
+  mkdir -p "$log_dir"
+  local head_before head_after audit_count rc stderr_path
+  head_before=$(cd "$repo" && git rev-parse HEAD 2>/dev/null || echo NONE)
+  stderr_path="$log_dir/wrapper.stderr"
+  set +e
+  (
+    cd "$repo"
+    CLAUDE_LOG_DIR="$log_dir" \
+    CLAUDE_AUDIT_PERSIST_DISABLED=1 \
+    CLAUDE_PROJECT_DIR="$repo" \
+    CLAUDE_TMPDIR="$log_dir" \
+      bash "$COMMIT_SH" "$tid" -m "$message" 2>"$stderr_path" >/dev/null
+  )
+  rc=$?
+  set -e
+  head_after=$(cd "$repo" && git rev-parse HEAD 2>/dev/null || echo NONE)
+  # Count audit-emission JSON files under log_dir (commit-semantic-*.json
+  # for dev-report-driven mode; commit-manifest-*.json for manifest mode).
+  audit_count=$(find "$log_dir" -maxdepth 1 -type f \( -name 'commit-semantic-*.json' -o -name 'commit-manifest-*.json' \) 2>/dev/null | wc -l | tr -d ' ')
+  printf 'rc=%s\tstderr_path=%s\thead_before=%s\thead_after=%s\taudit_count=%s\n' \
+    "$rc" "$stderr_path" "$head_before" "$head_after" "$audit_count"
+}
+
+# ---------------------------------------------------------------------------
+# Path (l) M1 hash chain trailer presence -- end-to-end wrapper invocation
+# ---------------------------------------------------------------------------
+# AC1 mandate: closed-task commit with valid qa-report PASS produces a
+# commit message bearing every relevant *-SHA256 trailer via wrapper
+# invocation. Constructs a synthetic fixture, invokes commit.sh, and
+# asserts:
+#   * wrapper exit code == 0
+#   * branch HEAD advanced past head_before (commit landed)
+#   * `git log -1 --format='%(trailers:key=Dev-Report-SHA256,valueonly)'`
+#     returns the same hex digest as `sha256sum dev-report-<tid>.json`
+#   * Identical Ticket-SHA256 + Close-Report-SHA256 + QA-Report-SHA256
+#     matches against the on-disk artifact digests
+if want l; then
+  ts="$(date +%s%N)"
+  task_id="smoke-l-${ts}"
+  repo="$TMP/wrapper-l-${ts}"
+  log_dir="$TMP/wrapper-l-logs-${ts}"
+  _wrapper_build_fixture "$repo" "$task_id" "pass"
+  result=$(_wrapper_invoke "$repo" "$task_id" "$log_dir" "feat(commit): smoke-l test message")
+  rc=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^rc=//p')
+  stderr_path=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^stderr_path=//p')
+  head_before=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^head_before=//p')
+  head_after=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^head_after=//p')
+  audit_count=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^audit_count=//p')
+  if [[ "$rc" != "0" ]]; then
+    note_fail l "wrapper invocation failed: rc=$rc head_before=$head_before head_after=$head_after audit=$audit_count stderr=$(tr '\n' '|' < "$stderr_path" 2>/dev/null | head -c 400)"
+  elif [[ "$head_before" == "$head_after" ]] || [[ "$head_after" == "NONE" ]]; then
+    note_fail l "wrapper rc=0 but HEAD did not advance (before=$head_before after=$head_after)"
+  else
+    # Pull trailer values from the new commit message.
+    trailer_ticket=$(cd "$repo" && git log -1 --format='%(trailers:key=Ticket-SHA256,valueonly)' HEAD | tr -d '\n')
+    trailer_dev=$(cd "$repo" && git log -1 --format='%(trailers:key=Dev-Report-SHA256,valueonly)' HEAD | tr -d '\n')
+    trailer_qa=$(cd "$repo" && git log -1 --format='%(trailers:key=QA-Report-SHA256,valueonly)' HEAD | tr -d '\n')
+    trailer_close=$(cd "$repo" && git log -1 --format='%(trailers:key=Close-Report-SHA256,valueonly)' HEAD | tr -d '\n')
+    expected_ticket=$(sha256sum "$repo/docs/dev/ticket-${task_id}.md" | awk '{print $1}')
+    expected_dev=$(sha256sum "$repo/docs/dev/dev-report-${task_id}.json" | awk '{print $1}')
+    expected_qa=$(sha256sum "$repo/docs/dev/qa-report-${task_id}.json" | awk '{print $1}')
+    expected_close=$(sha256sum "$repo/docs/dev/close-report-${task_id}.md" | awk '{print $1}')
+    if [[ "$trailer_ticket" == "$expected_ticket" ]] && \
+       [[ "$trailer_dev" == "$expected_dev" ]] && \
+       [[ "$trailer_qa" == "$expected_qa" ]] && \
+       [[ "$trailer_close" == "$expected_close" ]]; then
+      note_pass l "M1 hash-chain trailers via wrapper: Ticket/Dev-Report/QA-Report/Close-Report-SHA256 match on-disk sha256sum (commit ${head_after:0:7})"
+    else
+      note_fail l "trailer mismatch: ticket=$trailer_ticket want=$expected_ticket; dev=$trailer_dev want=$expected_dev; qa=$trailer_qa want=$expected_qa; close=$trailer_close want=$expected_close"
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Path (m) M2 message-vs-evidence guard refusal -- end-to-end wrapper
+# ---------------------------------------------------------------------------
+# AC2 mandate: wrapper exits 2 with documented stderr when -m claims
+# verification but qa-report.qa.status=="fail". Constructs a fixture with
+# qa-report.status=fail and a CALLER_MESSAGE carrying the verification-
+# claim substring 'all 8 ACs met'. Asserts:
+#   * wrapper exit code == 2
+#   * stderr contains 'commit.sh: -m message claims verification' and
+#     'qa-report.qa.status is "fail"' (the verbatim refusal contract at
+#     hooks/commit.sh:2913)
+#   * HEAD unchanged from before invocation
+#   * NO audit JSON file written under CLAUDE_LOG_DIR (M2 refuses BEFORE
+#     run_private_index_commit emits its audit record)
+if want m; then
+  ts="$(date +%s%N)"
+  task_id="smoke-m-${ts}"
+  repo="$TMP/wrapper-m-${ts}"
+  log_dir="$TMP/wrapper-m-logs-${ts}"
+  _wrapper_build_fixture "$repo" "$task_id" "fail"
+  result=$(_wrapper_invoke "$repo" "$task_id" "$log_dir" "feat(commit): test message with all 8 ACs met PASS claim")
+  rc=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^rc=//p')
+  stderr_path=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^stderr_path=//p')
+  head_before=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^head_before=//p')
+  head_after=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^head_after=//p')
+  audit_count=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^audit_count=//p')
+  stderr_text=$(cat "$stderr_path" 2>/dev/null || true)
+  has_refuse_msg=0
+  has_fail_qualifier=0
+  case "$stderr_text" in
+    *"commit.sh: -m message claims verification"*) has_refuse_msg=1 ;;
+  esac
+  case "$stderr_text" in
+    *'qa-report.qa.status is "fail"'*) has_fail_qualifier=1 ;;
+  esac
+  if [[ "$rc" == "2" ]] && [[ "$has_refuse_msg" == "1" ]] && \
+     [[ "$has_fail_qualifier" == "1" ]] && \
+     [[ "$head_before" == "$head_after" ]] && \
+     [[ "$audit_count" == "0" ]]; then
+    note_pass m "M2 guard refuses: rc=2, verbatim refusal stderr present, HEAD unchanged ($head_before), zero audit emissions"
+  else
+    note_fail m "M2 guard: rc=$rc refuse_msg=$has_refuse_msg fail_qualifier=$has_fail_qualifier head_before=$head_before head_after=$head_after audit=$audit_count stderr=$(printf '%s' "$stderr_text" | tr '\n' '|' | head -c 400)"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Path (n) M3 CC type lint refusal -- end-to-end wrapper invocation
+# ---------------------------------------------------------------------------
+# AC3 mandate: wrapper exits 2 with documented stderr when -m starts with
+# a non-whitelist type. Reuses the path-l-style fixture (qa-status=pass so
+# M2 wouldn't fire even if reached). Invokes commit.sh with the offending
+# subject 'improve: foo'. Asserts:
+#   * wrapper exit code == 2
+#   * stderr contains 'commit.sh: first-line type does not match
+#     Conventional Commits whitelist' (verbatim refusal at commit.sh:445)
+#   * HEAD unchanged from before invocation
+#   * NO audit JSON file written under CLAUDE_LOG_DIR (M3 refuses BEFORE
+#     closure detection + run_private_index_commit)
+if want n; then
+  ts="$(date +%s%N)"
+  task_id="smoke-n-${ts}"
+  repo="$TMP/wrapper-n-${ts}"
+  log_dir="$TMP/wrapper-n-logs-${ts}"
+  _wrapper_build_fixture "$repo" "$task_id" "pass"
+  result=$(_wrapper_invoke "$repo" "$task_id" "$log_dir" "improve: foo")
+  rc=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^rc=//p')
+  stderr_path=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^stderr_path=//p')
+  head_before=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^head_before=//p')
+  head_after=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^head_after=//p')
+  audit_count=$(printf '%s' "$result" | tr '\t' '\n' | sed -n 's/^audit_count=//p')
+  stderr_text=$(cat "$stderr_path" 2>/dev/null || true)
+  has_refuse_msg=0
+  case "$stderr_text" in
+    *"commit.sh: first-line type does not match Conventional Commits whitelist"*) has_refuse_msg=1 ;;
+  esac
+  if [[ "$rc" == "2" ]] && [[ "$has_refuse_msg" == "1" ]] && \
+     [[ "$head_before" == "$head_after" ]] && \
+     [[ "$audit_count" == "0" ]]; then
+    note_pass n "M3 CC lint refuses: rc=2, verbatim refusal stderr present, HEAD unchanged ($head_before), zero audit emissions"
+  else
+    note_fail n "M3 CC lint: rc=$rc refuse_msg=$has_refuse_msg head_before=$head_before head_after=$head_after audit=$audit_count stderr=$(printf '%s' "$stderr_text" | tr '\n' '|' | head -c 400)"
   fi
 fi
 

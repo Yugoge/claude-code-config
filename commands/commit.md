@@ -305,6 +305,261 @@ normal case, e.g., the manifest pre-declares 5 paths but only 3 had hunks).
     `manifest_path`, `manifest_sha256`, and related descriptors; the pre-fe9c0f2
     legacy magic-string version field is no longer emitted.
 
+## Hash chain trailer (DOC-14)
+
+Every closed-task or `--force` commit appends a hash-chain trailer paragraph
+to the commit message body. Six audit tokens are emitted in task-flow order
+(omitted when the corresponding artifact is absent on disk):
+
+```
+Ticket-SHA256: <64-hex>
+Context-SHA256: <64-hex>
+Dev-Report-SHA256: <64-hex>
+QA-Report-SHA256: <64-hex>
+Close-Report-SHA256: <64-hex>
+Completion-SHA256: <64-hex>
+```
+
+Hash source: the raw bytes of each artifact file ON DISK at `git commit-tree`
+time. The wrapper hashes the worktree file the agents authored, not the
+tree-blob; this is the desired audit property — verifiers detect post-commit
+tampering by reading the worktree file and rehashing.
+
+**Verifier contract**: Verifiers MUST rehash the live artifact files on disk
+(e.g., `sha256sum docs/dev/qa-report-<task-id>.json`), NOT the tree-blob (e.g.,
+`git show <commit>:docs/dev/qa-report-<task-id>.json`). The two values diverge
+when the worktree file is mutated after `git commit-tree`; the trailer always
+reflects the file-on-disk-at-commit-tree-time bytes (per M1's hash source
+contract, ticket §M1).
+
+Format guarantees:
+
+- The trailer paragraph is the FINAL paragraph of the message body, separated
+  from preceding text by exactly ONE blank line.
+- There are ZERO blank lines BETWEEN trailer entries.
+- Token names use Title-Case-Hyphenated form per RFC-822 trailer conventions
+  (`Ticket-SHA256`, `Context-SHA256`, `Dev-Report-SHA256`, `QA-Report-SHA256`,
+  `Close-Report-SHA256`, `Completion-SHA256`).
+- Values are 64-hex lowercase SHA-256 digests.
+
+Idempotency: re-runs with an unchanged artifact set produce identical trailer
+blocks. The wrapper pre-strips ALL pre-existing 6-audit-token lines from the
+message body (canonical POSIX regex
+`^(Ticket|Context|Dev-Report|QA-Report|Close-Report|Completion)-SHA256:[[:space:]]*`)
+BEFORE invoking `git interpret-trailers --in-place --if-exists replace
+--if-missing add`. The pre-strip + replace combination guarantees
+exactly-one-per-token regardless of pre-existing duplicates.
+
+Audit JSON mirror: the audit JSON's `artifact_sha256` field is a
+`{<basename>: <digest>}` map that mirrors the trailer block byte-for-byte.
+Cross-verification between trailers and audit JSON is possible without
+parsing the commit message.
+
+Missing artifacts: when an artifact does NOT exist on disk at commit-tree time,
+the corresponding trailer is OMITTED (not zeroed); the `artifact_sha256` map
+likewise omits the key.
+
+Bridge mode (`--auto-bulk-bridge`): the bridge commit message is byte-identical
+to the existing BLESSED_BRIDGE_RE format (no trailers, no blank-line separator).
+The hash-chain trailer is a true no-op in bridge mode.
+
+Operator override: `CLAUDE_COMMIT_SKIP_HASH_TRAILERS=1` disables trailer
+emission entirely (the audit JSON still records `artifact_sha256` for
+forensic value).
+
+Known constraint: downstream tools that use
+`git log --format=%(trailers:key=Ticket-SHA256)` rely on the trailer paragraph
+being the FINAL paragraph of the message body. If a future operator pastes
+prose AFTER the trailer block, git's trailer parser will not see the audit
+trailers. This is a git-trailer constraint, not a defect of M1.
+
+## Message-vs-evidence guard (DOC-15)
+
+When the operator/agent supplies `-m "<message>"` for a closed-task commit
+(`MESSAGE_SOURCE == "caller"`), the wrapper scans the FULL commit message
+(subject + body) for verification-claim phrases and refuses the commit if
+the claim is not backed by `qa-report-<task-id>.json`.
+
+**Caller-only scope (OBJ-4)**: M2 fires ONLY on `MESSAGE_SOURCE == "caller"`.
+Auto-generated messages from `auto-commit-message.sh` are deterministic and
+cannot LLM-hallucinate; they are skipped with audit
+`message_guard: "skipped (auto-message)"`. The guard's purpose is to catch
+LLM-class hallucination in agent-authored `-m` strings, not deterministic
+helper output.
+
+Verification-claim regex set (tightened, anchored to QA/AC/tests context):
+
+- `\b(QA|qa-report)\s*[:=-]?\s*PASS\b` (case-insensitive on `qa-report`)
+- `\b(QA|qa-report)\s+verdict\s*[:=-]?\s*PASS\b`
+- `\b(all|every)\s+(\d+\s+)?ACs?\s+(met|passed|satisfied)\b`
+- `\bverified\s+(by|via|against|in)\s+(QA|qa-report|tests?|ACs?)\b`
+- `\b(this\s+(change|commit|patch)|commit)\s+verifies\b[^.\n]*\b(QA|tests?|ACs?|PASS)\b`
+- `\b(QA|qa-report)\s+(cleared|approved|signed[\s-]?off)\b`
+- `\b(all\s+)?tests?\s+(are\s+)?(passed|passing|green|clear)\b`
+- `\b(everything|all)\s+(looks?|tests?|checks?)\s+(good|passed|fine)\b`
+
+Legitimate prose like `"I PASS this baton on"`, `"verified the schema in code
+review"`, and `"PASSWORD validation"` do NOT match.
+
+Decision matrix (on first regex match):
+
+| `qa.status` | Outcome |
+|---|---|
+| `"pass"` | ACCEPT; audit `message_guard: "applied (claim matches)"` |
+| `"warning"` + same-paragraph `(warning|minor)` qualifier | ACCEPT; same audit value |
+| `"warning"` without proximity qualifier | REFUSE |
+| `"fail"` | REFUSE |
+| qa-report file missing | REFUSE with sentinel `__absent__` |
+| qa-report file unparseable JSON | REFUSE with sentinel `__invalid__` |
+| `.qa.status` key missing | REFUSE with sentinel `__absent__` |
+| `.qa.status` not in {pass,warning,fail} | REFUSE with sentinel `__unknown__` |
+
+Refusal message: `commit.sh: -m message claims verification (<matched
+substring>) but qa-report.qa.status is "<actual or sentinel>"`. Refusal is
+stderr + exit 2 ONLY; NO audit JSON is written on refusal.
+
+Mode skip matrix (evaluation order, MANDATORY top-down):
+
+1. `--auto-bulk-bridge` → `skipped (bridge)`
+2. `--force` (no manifest, no rescue) → `skipped (force)`
+3. `--force-rescue` → `skipped (force-rescue)`
+4. `--force --manifest` → `skipped (force-manifest)`
+5. `CLAUDE_COMMIT_SKIP_MESSAGE_GUARD=1` → `skipped (env)`
+6. `MESSAGE_SOURCE == "auto"` → `skipped (auto-message)`
+7. Otherwise → guard ACTIVE.
+
+Audit `message_guard` enumeration is EXACTLY:
+`{ "skipped (force)", "skipped (force-rescue)", "skipped (force-manifest)",
+"skipped (bridge)", "skipped (env)", "skipped (auto-message)",
+"applied (no claim found)", "applied (claim matches)" }`. NO `"refused"` value
+exists; refusal exits 2 before the audit JSON site.
+
+## Conventional Commits type lint (DOC-16)
+
+The wrapper enforces a Conventional Commits whitelist on the first line of
+every commit message that goes through the closed-task or `--force` path
+(MESSAGE_SOURCE ∈ {caller, auto} — universal CC discipline).
+
+Subject-line regex (case-sensitive on the type token, per CC spec):
+
+```
+^(feat|fix|refactor|docs|test|chore|build|ci|perf|style|revert)(\([^)]+\))?(!)?:\s+\S.*$
+```
+
+Allowed: scope `(name)` (e.g., `feat(commit)`), breaking-change `!` marker
+(e.g., `refactor(commit)!:`), longer descriptions. Whitelist is INTENTIONALLY
+narrow; community types `wip / merge / release / hotfix / deps / security` map
+to existing tokens via scope (`chore(deps):`, `fix(security):`,
+`chore(release):`, `fix:` for hotfix).
+
+**Helper sanitization clause (B2 propagation; iter-2 codex round 3)**:
+`scripts/auto-commit-message.sh` sanitizes the derived scope at `:115-121`
+via `scope = re.sub(r'[^A-Za-z0-9_-]', '', stem.replace('_', '-'))[:24] or
+'task'` so that helper-emitted subjects always pass M3 even for unusual
+filenames (e.g., basenames containing `)`, `(`, `.`, whitespace). Empty-
+post-sanitization falls through to `'task'` via Python truthiness. Future
+helper edits MUST preserve this contract — any future ctype/scope derivation
+change must keep ctype in the whitelist and the scope character set
+`[A-Za-z0-9_-]`.
+
+Merge-subject note: git auto-generated subjects of the form `Merge branch
+'<name>'`, `Merge tag '<name>'`, and `Merge pull request #N from ...` are
+NOT CC-format and are intentionally NOT exempted from M3. Operators landing
+a merge through `commit.sh --force` MUST either reformat the subject to
+`chore(merge): <description>` OR set `CLAUDE_COMMIT_SKIP_TYPE_LINT=1`. The
+wrapper does not invoke `git merge` directly today; this constraint affects
+operators using `commit.sh --force -m '<merge-subject>'` after a manual merge.
+
+Version-bump note: subjects like `bump: 1.2.3` are NOT CC-format. Operators
+must use the CC-mapped form `chore(deps): bump foo to 1.2.3` (or similar
+scope mapping appropriate to the change) OR set
+`CLAUDE_COMMIT_SKIP_TYPE_LINT=1`.
+
+Revert subject limitation (known constraint): `git revert <commit>` produces
+the default subject `Revert "<original subject>"`, which does NOT match the
+CC whitelist. Operators wanting an audit-trail revert MUST use the CC-form
+`revert: <description>` subject manually, or use `--force -m "revert: ..."`.
+This is NOT a defect of this lint; it is a documented constraint.
+
+No first-line length cap. CC's recommended 72-char subject limit is out of
+scope for this lint.
+
+Refusal message: `commit.sh: first-line type does not match Conventional
+Commits whitelist (feat|fix|refactor|docs|test|chore|build|ci|perf|style|
+revert); got: <first 80 chars of subject>`. Refusal is stderr + exit 2 ONLY;
+NO audit JSON is written on refusal.
+
+Mode skip matrix:
+
+- `--auto-bulk-bridge` → `skipped (bridge)` (bridge subject is the hard-
+  coded `auto-bulk: end-of-cycle commit for <branch>` which is intentionally
+  NOT CC-format)
+- `CLAUDE_COMMIT_SKIP_TYPE_LINT=1` → `skipped (env)`
+- All other modes including `--force`, `--force-rescue`, `--force --manifest`,
+  closed-task with caller -m, AND closed-task with auto-generated message
+  → lint APPLIES
+
+Audit `type_lint` enumeration is EXACTLY:
+`{ "skipped (bridge)", "skipped (env)", "applied (accepted <type>)" }`.
+NO `"refused"` value exists (refusal exits 2 before audit). NO
+`"skipped (auto-message)"` value exists (M3 always applies when not bridge /
+not env-disabled — universal CC discipline catches future helper regression).
+
+## Audit log persistent location (DOC-17)
+
+Audit JSON files (one per commit) land under `CLAUDE_LOG_DIR`, with the
+following resolution and validation:
+
+**Default**: `CLAUDE_LOG_DIR=/var/lib/claude/commit-audit`. This path is
+FHS-conformant (`/var/lib/<service>` is the canonical location for variable
+persistent state owned by a system service), filesystem-agnostic across
+operator setups (every modern Linux has `/var/lib/`), and survives reboot
+(non-tmpfs). The legacy `${CLAUDE_HOME}/logs` default has been retired —
+in this environment `/root/.claude` is a symlink into `/dev/shm/...` which
+is tmpfs and loses audit data on reboot.
+
+**Operator override**: `CLAUDE_LOG_DIR=<any path>` is honored verbatim
+provided the path passes the preflight (`readlink -f` resolves to a
+non-tmpfs filesystem AND a `mkdir -p` + write-probe succeeds).
+
+**Preflight runs PRE-COMMIT-TREE**: the directory validation runs INSIDE
+`run_private_index_commit` BEFORE `git commit-tree`. A bad
+`CLAUDE_LOG_DIR` (tmpfs without opt-in, mkdir failure, write-probe failure)
+exits 2 BEFORE any commit object is created. This covers all 6 invocation
+paths in the single chokepoint: closed-task PRIMARY (dev-report plan),
+closed-task SECONDARY (qa-report fallback), closed-task `--manifest`,
+plain `--force`, `--force-rescue`, `--force --manifest`. Bridge mode does
+NOT call `run_private_index_commit` and is exempt by construction.
+
+**tmpfs refusal**: when `readlink -f $CLAUDE_LOG_DIR` resolves to a tmpfs
+filesystem AND `CLAUDE_AUDIT_PERSIST_DISABLED` is NOT `"1"`, the wrapper
+exits 2 with stderr `commit.sh: refusing — CLAUDE_LOG_DIR resolves to
+tmpfs (<resolved-path>); set CLAUDE_LOG_DIR=<persistent-path> or export
+CLAUDE_AUDIT_PERSIST_DISABLED=1 to acknowledge loss-on-reboot`.
+
+**Operator-acknowledged tmpfs**: `CLAUDE_AUDIT_PERSIST_DISABLED=1` allows a
+tmpfs-resolving `CLAUDE_LOG_DIR`; the audit JSON itself records
+`"audit_persist": "disabled (operator-acknowledged)"` so forensic readers
+know loss-on-reboot was explicit.
+
+**mkdir / write-probe failure**: when `/var/lib/claude/commit-audit/` (or
+the operator-supplied path) cannot be created OR cannot be written (read-
+only mount, SELinux denial, permission denied, etc.), the wrapper exits 2
+with stderr `commit.sh: cannot create or write audit-log directory
+<resolved-path> (<errno-string>); set CLAUDE_LOG_DIR=<writable-persistent-
+path>`. NO silent fallback to tmpfs.
+
+**Mode 700**: the audit-log directory is created via `mkdir -p -m 700` so
+grant/audit data is not world-readable.
+
+**Container caveat (F7)**: S1's guarantee is non-tmpfs filesystem at commit
+time; long-term retention is an operator concern — operators running in
+containers or with custom systemd-tmpfiles policies SHOULD bind-mount
+`/var/lib/claude/commit-audit` to a host volume or set
+`CLAUDE_LOG_DIR=<external-persistent-path>`. `df -T` may report a non-
+tmpfs overlay filesystem yet the directory is wiped on container
+replacement; the wrapper cannot detect this and explicitly does not try.
+
 ## Recovery (DOC-13)
 
 When the private-index apply chain fails mid-step, the wrapper preserves the
