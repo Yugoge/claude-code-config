@@ -1,6 +1,6 @@
 # todo
 
-*Last updated: 2026-04-27T23:03:00Z*
+*Last updated: 2026-05-09T15:43:44Z*
 **Total entries**: 21
 **Convention**: kebab
 
@@ -8,7 +8,7 @@
 ```
 todo/
 ├── `clean.py` - Preloaded TodoList for /clean workflow
-├── `close.py` - /close is a true wrapper. It has exactly 3 orchestration steps:
+├── `close.py` - Three user-visible TodoSteps (flat-integer per agents/style-inspector.md
 ├── `code-review.py` - Python script
 ├── `deep-search.py` - Python script
 ├── `dev-command.py` - This todo script generates workflow steps for the BA-delegated dev-command workflow

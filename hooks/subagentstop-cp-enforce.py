@@ -135,6 +135,99 @@ def _idempotent_finalize(agent_id):
         _write_payload(cp_file, payload)
 
 
+def _is_orphan_slot(payload):
+    """AC-2 (spec-20260507-142952): true if slot is is_running=true with no
+    pending checkpoints AND (agent_id is null OR recorded pid is dead).
+
+    The agent_id-null case is the forensic shape from cp-state-ba.json
+    (spec-20260506-203755): a slot whose agent_id field was clobbered to
+    null while is_running was still true, leaving it invisible to
+    _find_all_slots_for_agent's exact-equality filter. Once orphaned, no
+    SubagentStop hook can finalize it via the normal agent_id-keyed path.
+
+    M11 invariant preserved: pending checkpoints still block. This routine
+    only touches slots whose checkpoints are terminal-or-empty.
+    """
+    if not payload.get("is_running"):
+        return False
+    if _has_pending(payload):
+        return False
+    if payload.get("agent_id") is None:
+        return True
+    pid = payload.get("pid")
+    if pid is not None and not _is_pid_alive(pid):
+        return True
+    return False
+
+
+def _emit_orphan_log(cp_file, prior_agent_id, prior_pid):
+    sys.stderr.write(
+        f"SUBAGENT STOP orphan-finalize: {cp_file} "
+        f"(was is_running=true, agent_id={prior_agent_id}, "
+        f"pid={prior_pid if prior_pid else 'none'})\n"
+    )
+
+
+def _try_finalize_under_lock(cp_file):
+    """Re-read + re-validate + write inside lock; return (aid,pid) or None."""
+    payload = _safe_read(cp_file)
+    if payload is None or not _is_orphan_slot(payload):
+        return None
+    prior_agent_id = payload.get("agent_id")
+    prior_pid = payload.get("pid")
+    _clean_exit(payload)
+    cp_file.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    return (prior_agent_id, prior_pid)
+
+
+def _run_under_lock(cp_file, fn):
+    """Run fn(cp_file) holding the writer flock on cp_file.lock; OSError -> None."""
+    lock_path = cp_file.with_suffix(cp_file.suffix + ".lock")
+    try:
+        with open(lock_path, "w") as lh:
+            fcntl.flock(lh.fileno(), fcntl.LOCK_EX)
+            result = fn(cp_file)
+            fcntl.flock(lh.fileno(), fcntl.LOCK_UN)
+        return result
+    except OSError:
+        return None
+
+
+def _finalize_one_orphan(cp_file):
+    """TOCTOU-safe orphan finalize. Codex AC-2 follow-up: re-read + write
+    must both happen under the writer lock to avoid clobbering a
+    concurrent spec-check.py mark/check-in landing between read & write.
+    """
+    log_args = _run_under_lock(cp_file, _try_finalize_under_lock)
+    if log_args is not None:
+        _emit_orphan_log(cp_file, *log_args)
+
+
+def _iter_cp_files(root):
+    """Yield every cp-state-*.json under root/<spec>/."""
+    for spec_dir in root.iterdir():
+        if not spec_dir.is_dir():
+            continue
+        for cp_file in spec_dir.glob("cp-state-*.json"):
+            yield cp_file
+
+
+def _finalize_orphans():
+    """AC-2 backstop: scan ALL cp-state files; finalize orphan slots.
+
+    Runs AFTER _dispatch returns 0 (clean exit) to avoid bypassing M11's
+    pending block. Out-of-band finalizations are emitted to stderr so
+    operators can see when a slot was reclaimed without a Stop owner.
+    """
+    root = _cp_root()
+    if not root.exists():
+        return
+    for cp_file in _iter_cp_files(root):
+        _finalize_one_orphan(cp_file)
+
+
 def _write_payload(path, payload):
     lock_path = path.with_suffix(path.suffix + ".lock")
     with open(lock_path, "w") as lh:
@@ -280,9 +373,9 @@ def _handle_active_state(cp_file, payload, data):
 
 
 def _handle_no_active_state(agent_id):
-    """F15 idempotent: reconcile stale slots owned by this agent_id."""
+    """F15 idempotent reconcile + AC-2 fall-through (return, do not exit)."""
     _idempotent_finalize(agent_id)
-    sys.exit(0)
+    return 0
 
 
 def _find_blocking_pending(agent_id):
@@ -308,8 +401,18 @@ def _dispatch(agent_id, data):
         return _handle_pending(sf, sp)
     cp_file, payload = _find_active_state(agent_id)
     if cp_file is None:
-        _handle_no_active_state(agent_id)
+        return _handle_no_active_state(agent_id)  # AC-2: return, not exit
     return _finalize_with_siblings(cp_file, payload, data, agent_id)
+
+
+def _run_dispatch_with_orphan_backstop(agent_id, data):
+    """AC-2: dispatch, then run orphan backstop only on clean exit (rc=0).
+    Pending-block (rc=2) preserves M11 invariant and skips reconciliation.
+    """
+    rc = _dispatch(agent_id, data)
+    if rc == 0:
+        _finalize_orphans()
+    return rc
 
 
 def main():
@@ -319,7 +422,7 @@ def main():
     agent_id = data.get("agent_id")
     if not agent_id:
         sys.exit(0)
-    sys.exit(_dispatch(agent_id, data))
+    sys.exit(_run_dispatch_with_orphan_backstop(agent_id, data))
 
 
 if __name__ == "__main__":

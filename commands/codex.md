@@ -79,9 +79,14 @@ Otherwise, proceed:
 
 ### 2. Generate unique output path
 
-Run this first to get a collision-safe output file:
+Run this first to get a collision-safe output file. Codex outputs are routed to
+`/var/tmp/codex-outputs/` (disk-backed, 601G) instead of `/tmp/` (4G tmpfs in
+RAM) to prevent ENOSPC from heavy outputs filling the tmpfs. A daily cron
+(`/etc/cron.d/tmp-cleanup-daily`) prunes files older than 7 days.
+
 ```bash
-echo "/tmp/codex-output-$$-$(date +%s).txt"
+mkdir -p /var/tmp/codex-outputs
+echo "/var/tmp/codex-outputs/codex-output-$$-$(date +%s).txt"
 ```
 
 Capture the printed path. Use it as `$CODEX_OUT` in all subsequent commands.

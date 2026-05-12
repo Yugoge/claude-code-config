@@ -82,6 +82,71 @@ def _path_under_prefix(target: str, prefix: str) -> bool:
     if abs_target == abs_prefix:
         return True
     return abs_target.startswith(abs_prefix.rstrip('/') + os.sep)
+_HARNESS_STATE_DIR_PREFIXES = (
+    '.claude/dev-registry/',
+    '.claude/specs/',
+    '.claude/todos/',
+)
+_HARNESS_STATE_FILE_PFX_REL = ('.claude/overnight-state-',)
+
+
+def _harness_state_dirs() -> list[str]:
+    """Resolved directory-prefix list (M6: 3 project dirs + project file pfx = harness-state set).
+
+    M6/M7/M8/M9 harness-fixes 20260428: worktree-boundary exemption for
+    harness-state path prefixes, gated on falsy stdin agent_id
+    (orchestrator-only). Reuses _path_under_prefix for symlink-realpath
+    symmetry. Inserted at worktree-boundary layer only;
+    apply_global_security_checks line 652 is untouched per arch-6.
+    Direct overnight-state-*.json writes remain blocked by is_state_file_path.
+    """
+    proj = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
+    home = Path.home()
+    out = []
+    for p in _HARNESS_STATE_DIR_PREFIXES:
+        out.append(str(proj / p))
+        out.append(str(home / p))
+    return out
+
+
+def _harness_state_file_pfx_resolved() -> list[str]:
+    """Realpath-resolved filename prefixes (matched via startswith)."""
+    proj = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
+    return [os.path.realpath(str(proj / p)) for p in _HARNESS_STATE_FILE_PFX_REL]
+
+
+def _harness_dir_match(target: str) -> bool:
+    """True iff target falls under a harness-state directory prefix."""
+    return any(_path_under_prefix(target, pfx) for pfx in _harness_state_dirs())
+
+
+def _harness_file_match(target: str) -> bool:
+    """True iff target's realpath starts with a harness-state filename prefix."""
+    try:
+        abs_target = os.path.realpath(os.path.abspath(target))
+    except (OSError, ValueError):
+        return False
+    return any(abs_target.startswith(pfx) for pfx in _harness_state_file_pfx_resolved())
+
+
+def _is_harness_state_path(target: str) -> bool:
+    """True iff target matches any harness-state prefix (M9 dir + file pfx)."""
+    return _harness_dir_match(target) or _harness_file_match(target)
+
+
+def _is_orchestrator_actor() -> bool:
+    """M8: True iff stdin payload's agent_id is falsy (orchestrator/main-agent)."""
+    payload = _REQUEST_CTX.get('payload') or {}
+    return not payload.get('agent_id')
+
+
+def _is_harness_state_exempt(target: str) -> bool:
+    """Combined M6+M8+M9 gate: 5-prefix match AND orchestrator actor."""
+    if not target:
+        return False
+    if not _is_orchestrator_actor():
+        return False
+    return _is_harness_state_path(target)
 
 
 def _payload_pipeline_id(payload: dict) -> str:
@@ -366,7 +431,7 @@ def _is_path_exempt(file_path: str) -> bool:
 
 def _is_path_allowed_during_overnight(file_path: str, worktree_paths: list[str]) -> bool:
     """Check if a file path is allowed during overnight (inside worktree or /tmp)."""
-    if _is_path_exempt(file_path):
+    if _is_path_exempt(file_path) or _is_harness_state_exempt(file_path):
         return True
     abs_path = os.path.realpath(os.path.abspath(file_path))
     for wt in worktree_paths:
@@ -698,21 +763,21 @@ def _block_worktree_violation(tool_name: str, path: str, wt: str) -> None:
 def _enforce_write_edit_worktree(tool_name: str, tool_input: dict, wt: str) -> None:
     """Check Write/Edit file_path against worktree boundary (T2.4-aware)."""
     file_path = tool_input.get('file_path', '')
-    if file_path and not _is_path_exempt(file_path) and is_outside_worktree(file_path, wt) and not _grant_skips_block(file_path):
+    if file_path and not _is_path_exempt(file_path) and not _is_harness_state_exempt(file_path) and is_outside_worktree(file_path, wt) and not _grant_skips_block(file_path):
         _block_worktree_violation(tool_name, file_path, wt)
 
 
 def _enforce_bash_worktree(command: str, wt: str) -> None:
     """Check Bash write targets against worktree boundary (T2.4-aware)."""
     for path in _extract_bash_write_paths(command):
-        if not _is_path_exempt(path) and is_outside_worktree(path, wt) and not _grant_skips_block(path):
+        if not _is_path_exempt(path) and not _is_harness_state_exempt(path) and is_outside_worktree(path, wt) and not _grant_skips_block(path):
             _block_worktree_violation('Bash', path, wt)
 
 
 def _check_write_edit_string(tool_name: str, tool_input: dict, worktree_path: str) -> None:
     """Emit string-fallback block for Write/Edit outside session worktree (T2.4-aware)."""
     file_path = tool_input.get('file_path', '')
-    if not file_path or _is_path_exempt(file_path) or _grant_skips_block(file_path):
+    if not file_path or _is_path_exempt(file_path) or _is_harness_state_exempt(file_path) or _grant_skips_block(file_path):
         return
     if path_outside_session_worktree(file_path, worktree_path):
         _block_worktree_string_violation(tool_name, file_path)
@@ -722,7 +787,7 @@ def _check_bash_string(tool_input: dict, worktree_path: str) -> None:
     """Emit string-fallback block for Bash writes outside session worktree (T2.4-aware)."""
     command = tool_input.get('command', '')
     for path in _extract_bash_write_paths(command):
-        if _is_path_exempt(path) or _grant_skips_block(path):
+        if _is_path_exempt(path) or _is_harness_state_exempt(path) or _grant_skips_block(path):
             continue
         if path_outside_session_worktree(path, worktree_path):
             _block_worktree_string_violation('Bash', path)
@@ -755,9 +820,9 @@ def _parse_hook_input() -> tuple[str, dict, str, dict]:
 
 
 def _is_cwd_in_worktree(worktree_paths: list[str]) -> bool:
-    """Return True if cwd realpath is inside any active overnight worktree."""
+    """C8: True if cwd is inside an overnight worktree (os.sep boundary)."""
     cwd_real = os.path.realpath(os.getcwd())
-    return any(cwd_real.startswith(os.path.realpath(wt)) for wt in worktree_paths)
+    return any(_path_under_prefix(cwd_real, wt) for wt in worktree_paths)
 
 
 def _apply_session_enforcement(state: dict, tool_name: str, tool_input: dict) -> None:
