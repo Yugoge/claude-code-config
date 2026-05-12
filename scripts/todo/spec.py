@@ -25,8 +25,8 @@ _SPEC_STEPS = (
            "Detecting natural conclusion"),
     ("6", "Finalize spec (split + checkpoints + QA)",
            "Finalizing spec"),
-    ("7", "Display result",
-           "Displaying result"),
+    ("7", "Display result and workflow update",
+           "Displaying result and writing workflow update"),
 )
 
 

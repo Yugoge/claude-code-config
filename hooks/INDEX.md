@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-04-28T10:17:55Z*
-**Total entries**: 111
+*Last updated: 2026-05-10T08:39:22Z*
+**Total entries**: 115
 **Convention**: kebab
 
 ## Tree
@@ -25,6 +25,7 @@ hooks/
 │   ├── `agent_resolver.py` - Refactored from pretool-subagent-code-block.py::_find_agent_type so that
 │   ├── `bash_write_targets.py` - Provides two public functions used by tool-policy and overnight-hook-guard:
 │   ├── `checkpoint-core.sh` - ============================================================================
+│   ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.
 │   ├── `closeout.py` - Public API:
 │   ├── `contract_runtime.py` - This module is the single shared engine consumed by every contract-aware
 │   ├── `policy_registry.py` - Reads /root/.claude/policies/tool-policy.v1.json and provides a single
@@ -38,6 +39,7 @@ hooks/
 ├── `check-todo-md-sync.py` - check-todo-md-sync.py — Session-start drift detector for todo scripts
 ├── `checkpoint.sh` - checkpoint.sh - Manual /checkpoint command
 ├── `commit.sh` - 
+├── `commit.sh.bak.1778357948` - 1778357948 file
 ├── `ensure-git-repo.sh` - ensure-git-repo.sh - DEPRECATED, scheduled for deletion
 ├── `fswatch-manager.sh` - fswatch-manager.sh - Manage git-fswatch instances
 ├── `git-fswatch.sh` - git-fswatch.sh - Comprehensive Git file watcher using fswatch
@@ -47,6 +49,7 @@ hooks/
 ├── `install-git-hooks.sh` - install-git-hooks.sh - Install pre-commit hooks into git repositories
 ├── `install-protection-all.sh` - install-protection-all.sh - Automatically install protection for all git repos
 ├── `install.sh` - ============================================================================
+├── `merge.sh` - merge.sh - wrapper for /merge slash command
 ├── `notification-idle-overnight.py` - Notification hook: Observe overnight idle events
 ├── `post-commit-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
 ├── `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
@@ -76,6 +79,7 @@ hooks/
 ├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 2.
 ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
 ├── `pretool-cp-checkin.py` - cp-state file read
+├── `pretool-cp-state-write-guard.py` - Cycle 2 hardening (spec-20260507-191743):
 ├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
 ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
@@ -93,6 +97,7 @@ hooks/
 ├── `pretool-tool-policy.py` - Single hook that consumes /root/.claude/policies/tool-policy.v1.json via
 ├── `pretool-workflow-gate.py` - PreToolUse Hook: Require TodoWrite/TodoRead acknowledgment before other tools
 ├── `pretool-worktree-guard.sh` - PreToolUse hook: Detect stale agent worktrees before ANY tool call
+├── `pretool-wrapper-userintent.py` - Mirrors the /allow pattern — both writer (UserPromptSubmit prompt-workflow.py)
 ├── `pretool-write-guard.sh` - PreToolUse Hook - Block Write tool from overwriting existing files
 ├── `project-settings-template.json` - json config
 ├── `prompt-workflow.py` - UserPromptSubmit Hook: Checklist Injection for Slash Commands
@@ -106,13 +111,12 @@ hooks/
 ├── `session-info.sh` - s-info.sh — SessionStart: display environment info + tool quick reference
 ├── `session-promote-hook.sh` - Description: SessionStart hook that promotes a cold session back to ramdisk.
 ├── `session_start.sh` - SessionStart Hook - Display working environment info
-├── `ship-overnight.sh` - 
 ├── `smart-checkpoint.sh` - smart-checkpoint.sh - DEPRECATED, scheduled for deletion
 ├── `start-fswatch-all.sh` - start-fswatch-all.sh - Start fswatch monitoring for all important repositories
 ├── `stop-cleanup-allowlist.sh` - Stop Hook: Wipe any unconsumed /allow grant at turn end.
 ├── `stop-overnight-timelock.py` - Stop Hook: Block conversation termination until overnight end-time
 ├── `stop-spec-coverage-enforce.py` - Stop Hook: Block spec agent from exiting with < 100% monolith coverage
-├── `stop-workflow-enforce.py` - Stop Hook: Enforce workflow structural integrity before allowing Claude to stop
+├── `stop.sh` - stop.sh - wrapper for /stop slash command
 ├── `subagent-stop-diff-check.sh` - SubagentStop hook: flag large diffs without minimum-diff justification
 ├── `subagent-stop-guard-integrity.sh` - subagent-stop-guard-integrity.sh
 ├── `subagentstop-cp-enforce.py` - Activation gate (NOT matcher=*): this hook exits 0 unless BOTH conditions hold:

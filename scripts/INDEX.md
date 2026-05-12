@@ -1,17 +1,15 @@
 # scripts
 
-*Last updated: 2026-05-03T17:00:00Z*
+*Last updated: 2026-05-09T15:43:44Z*
 **Total entries**: 62
 **Convention**: kebab
-
-> **Naming convention** (post spec-20260503-091826 M14): scripts under this folder reference the BA-spec artifact filename via dual-form `ticket-<task-id>.md (legacy: ba-spec-<task-id>.md)` for active-write site descriptions; the 90 historical `ba-spec-*.md` files in `docs/dev/` retain their legacy filenames per Section 5.5 decision #4.
 
 ## Tree
 ```
 scripts/
 ├── todo/
 │   ├── `clean.py` - Preloaded TodoList for /clean workflow
-│   ├── `close.py` - /close is a true wrapper. It has exactly 3 orchestration steps:
+│   ├── `close.py` - Three user-visible TodoSteps (flat-integer per agents/style-inspector.md
 │   ├── `code-review.py` - Python script
 │   ├── `deep-search.py` - Python script
 │   ├── `dev-command.py` - This todo script generates workflow steps for the BA-delegated dev-command workflow

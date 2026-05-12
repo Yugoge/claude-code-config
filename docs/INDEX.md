@@ -1,7 +1,7 @@
 # docs
 
-*Last updated: 2026-04-16T17:44:29Z*
-**Total entries**: 124
+*Last updated: 2026-05-10T08:51:27Z*
+**Total entries**: 125
 **Convention**: kebab
 
 ## Tree
@@ -128,6 +128,7 @@ docs/
 │   ├── `test-design.md` - Test Framework Design
 │   └── `test-implementation-guide.md` - Test Implementation Guide - Quick Reference
 ├── `checkpoint-mechanism.md` - Auto-Commit / Checkpoint Mechanism
+├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `incidents-2026-03-28.md` - Overnight Incident — 2026-03-28
 ├── `incidents-2026-04-04.md` - Production Catastrophe Incident — 2026-04-04
 └── `server-infra.md` - Server Infrastructure — Full Reference Tables

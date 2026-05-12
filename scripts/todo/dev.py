@@ -28,7 +28,7 @@ def get_todos():
         {"content": "Step 12: Process QA results", "activeForm": "Step 12: Processing QA results", "status": "pending"},
         {"content": "Step 13: Update settings.json permissions", "activeForm": "Step 13: Updating settings.json permissions", "status": "pending"},
         {"content": "Step 14: Iteration loop (if QA fails)", "activeForm": "Step 14: Iterating based on QA feedback", "status": "pending"},
-        {"content": "Step 15: Generate completion report", "activeForm": "Step 15: Generating completion report", "status": "pending"}
+        {"content": "Step 15: Generate completion report and spec/temp update", "activeForm": "Step 15: Generating completion report and spec/temp update", "status": "pending"}
     ]
 
 

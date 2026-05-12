@@ -34,17 +34,12 @@
       ],
       "rationale": "User simulation: Playwright/read for user-flow testing, plus report and own cp-state updates for checklist-stop enforcement; no source/protected/test edits",
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-user.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/cp-state-user.json",
-        "*/docs/dev/specs/*/user-",
         "*/docs/dev/user-",
         "*/docs/dev/user-report-",
-        "*/tmp/claude-scratch/user/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/user-",
+        "*/docs/dev/specs/*/cp-state-user.json",
+        "*/.claude/specs/*/cp-state-user.json"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -72,18 +67,13 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-ui-specialist.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/design-handoff-",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/cp-state-ui-specialist.json",
-        "*/docs/dev/ui-audit-",
-        "*/docs/dev/ui-evidence-",
         "*/docs/dev/ui-specialist-",
-        "*/tmp/claude-scratch/ui-specialist/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/design-handoff-",
+        "*/docs/dev/ui-evidence-",
+        "*/docs/dev/ui-audit-",
+        "*/docs/dev/specs/*/cp-state-ui-specialist.json",
+        "*/.claude/specs/*/cp-state-ui-specialist.json",
+        "*/docs/dev/overnight/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -111,22 +101,17 @@
         "Skill"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-ba.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/ba-qa-report-",
         "*/docs/dev/ba-spec-",
-        "*/docs/dev/ba-spec-iter-",
+        "*/docs/dev/ticket-",
         "*/docs/dev/context-",
+        "*/docs/dev/ba-qa-report-",
+        "*/docs/dev/ba-spec-iter-",
+        "*/docs/dev/ticket-iter-",
         "*/docs/dev/context-iter-",
-        "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/ba-",
         "*/docs/dev/specs/*/cp-state-ba.json",
-        "*/docs/dev/ticket-",
-        "*/docs/dev/ticket-iter-",
-        "*/tmp/claude-scratch/ba/",
-        "*/var/tmp/codex-outputs/"
+        "*/.claude/specs/*/cp-state-ba.json",
+        "*/docs/dev/overnight/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -173,22 +158,17 @@
         "Skill"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-qa.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/ba-qa-report-",
-        "*/docs/dev/close-report-",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/qa-codex-consensus-",
-        "*/docs/dev/qa-input-",
-        "*/docs/dev/qa-output-",
         "*/docs/dev/qa-report-",
+        "*/docs/dev/qa-input-",
+        "*/docs/dev/close-report-",
         "*/docs/dev/qa-spec-",
-        "*/docs/dev/specs/*/cp-state-qa.json",
+        "*/docs/dev/qa-output-",
+        "*/docs/dev/ba-qa-report-",
+        "*/docs/dev/qa-codex-consensus-",
         "*/docs/dev/specs/*/qa-",
-        "*/tmp/claude-scratch/qa/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/specs/*/cp-state-qa.json",
+        "*/.claude/specs/*/cp-state-qa.json",
+        "*/docs/dev/overnight/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -217,20 +197,15 @@
         "mcp__playwright__*"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-pm.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/overnight/",
+        "*/docs/dev/test-plan",
         "*/docs/dev/pm-",
         "*/docs/dev/pm-plan-",
-        "*/docs/dev/pm-retro-",
         "*/docs/dev/pm-triage-",
-        "*/docs/dev/specs/*/cp-state-pm.json",
+        "*/docs/dev/pm-retro-",
+        "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/pm-",
-        "*/docs/dev/test-plan",
-        "*/tmp/claude-scratch/pm/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/specs/*/cp-state-pm.json",
+        "*/.claude/specs/*/cp-state-pm.json"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -256,16 +231,11 @@
         "Write"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-architect.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
         "*/docs/dev/architect-",
-        "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/architect-",
         "*/docs/dev/specs/*/cp-state-architect.json",
-        "*/tmp/claude-scratch/architect/",
-        "*/var/tmp/codex-outputs/"
+        "*/.claude/specs/*/cp-state-architect.json",
+        "*/docs/dev/overnight/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -290,19 +260,14 @@
         "Write"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-product-owner.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/po-",
         "*/docs/dev/product-owner-",
-        "*/docs/dev/specs/*/cp-state-product-owner.json",
-        "*/docs/dev/specs/*/product-owner-",
-        "*/docs/dev/user-feedback-",
+        "*/docs/dev/po-",
         "*/docs/dev/user-report-",
-        "*/tmp/claude-scratch/product-owner/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/user-feedback-",
+        "*/docs/dev/specs/*/product-owner-",
+        "*/docs/dev/specs/*/cp-state-product-owner.json",
+        "*/.claude/specs/*/cp-state-product-owner.json",
+        "*/docs/dev/overnight/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -329,17 +294,12 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-cleaner.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
         "*/docs/dev/cleaner-",
         "*/docs/dev/cleaner_",
         "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/cleaner-",
         "*/docs/dev/specs/*/cp-state-cleaner.json",
-        "*/tmp/claude-scratch/cleaner/",
-        "*/var/tmp/codex-outputs/"
+        "*/.claude/specs/*/cp-state-cleaner.json"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -367,17 +327,12 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-cleanliness-inspector.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
         "*/docs/dev/cleanliness-inspector-",
         "*/docs/dev/cleanliness-inspector_",
         "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/cleanliness-inspector-",
         "*/docs/dev/specs/*/cp-state-cleanliness-inspector.json",
-        "*/tmp/claude-scratch/cleanliness-inspector/",
-        "*/var/tmp/codex-outputs/"
+        "*/.claude/specs/*/cp-state-cleanliness-inspector.json"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -405,17 +360,12 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-git-edge-case-analyst.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
         "*/docs/dev/git-edge-case-analyst-",
         "*/docs/dev/git-edge-case-analyst_",
         "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/cp-state-git-edge-case-analyst.json",
         "*/docs/dev/specs/*/git-edge-case-analyst-",
-        "*/tmp/claude-scratch/git-edge-case-analyst/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/specs/*/cp-state-git-edge-case-analyst.json",
+        "*/.claude/specs/*/cp-state-git-edge-case-analyst.json"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -443,17 +393,12 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-prompt-inspector.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/overnight/",
         "*/docs/dev/prompt-inspector-",
         "*/docs/dev/prompt-inspector_",
-        "*/docs/dev/specs/*/cp-state-prompt-inspector.json",
+        "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/prompt-inspector-",
-        "*/tmp/claude-scratch/prompt-inspector/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/specs/*/cp-state-prompt-inspector.json",
+        "*/.claude/specs/*/cp-state-prompt-inspector.json"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -481,17 +426,12 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-rule-inspector.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/overnight/",
         "*/docs/dev/rule-inspector-",
         "*/docs/dev/rule-inspector_",
-        "*/docs/dev/specs/*/cp-state-rule-inspector.json",
+        "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/rule-inspector-",
-        "*/tmp/claude-scratch/rule-inspector/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/specs/*/cp-state-rule-inspector.json",
+        "*/.claude/specs/*/cp-state-rule-inspector.json"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -519,17 +459,12 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-style-inspector.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/cp-state-style-inspector.json",
-        "*/docs/dev/specs/*/style-inspector-",
         "*/docs/dev/style-inspector-",
         "*/docs/dev/style-inspector_",
-        "*/tmp/claude-scratch/style-inspector/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/style-inspector-",
+        "*/docs/dev/specs/*/cp-state-style-inspector.json",
+        "*/.claude/specs/*/cp-state-style-inspector.json"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -557,17 +492,12 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-test-executor.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/cp-state-test-executor.json",
-        "*/docs/dev/specs/*/test-executor-",
         "*/docs/dev/test-executor-",
         "*/docs/dev/test-executor_",
-        "*/tmp/claude-scratch/test-executor/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/test-executor-",
+        "*/docs/dev/specs/*/cp-state-test-executor.json",
+        "*/.claude/specs/*/cp-state-test-executor.json"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -595,17 +525,12 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/*/cp-state-test-validator.json",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/cp-state-test-validator.json",
-        "*/docs/dev/specs/*/test-validator-",
         "*/docs/dev/test-validator-",
         "*/docs/dev/test-validator_",
-        "*/tmp/claude-scratch/test-validator/",
-        "*/var/tmp/codex-outputs/"
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/test-validator-",
+        "*/docs/dev/specs/*/cp-state-test-validator.json",
+        "*/.claude/specs/*/cp-state-test-validator.json"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -633,13 +558,8 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/.claude/specs/",
-        "*/dev/null",
-        "*/dev/stderr",
-        "*/dev/stdout",
         "*/docs/dev/specs/",
-        "*/tmp/claude-scratch/spec/",
-        "*/var/tmp/codex-outputs/"
+        "*/.claude/specs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -669,12 +589,12 @@
         "NotebookEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/data/*/modification-log.json",
-        "*/data/*/sync-report.json",
         "*/data/*/timeline.json",
-        "*/docs/dev/overnight/",
+        "*/data/*/sync-report.json",
+        "*/data/*/modification-log.json",
+        "*/docs/dev/timeline-",
         "*/docs/dev/specs/*/timeline-",
-        "*/docs/dev/timeline-"
+        "*/docs/dev/overnight/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -706,11 +626,11 @@
         "NotebookEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/data/*/modification-log.json",
         "*/data/*/transportation.json",
-        "*/docs/dev/overnight/",
+        "*/data/*/modification-log.json",
+        "*/docs/dev/transportation-",
         "*/docs/dev/specs/*/transportation-",
-        "*/docs/dev/transportation-"
+        "*/docs/dev/overnight/"
       ],
       "denied_write_path_prefixes": [
         "/src/",

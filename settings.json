@@ -18,7 +18,7 @@
     "PLAYWRIGHT_MCP_SANDBOX": "false",
     "PLAYWRIGHT_RUNCODE_TIMEOUT": "120",
     "ENABLE_TOOL_SEARCH": "false",
-    "_comment_anthropic": "\u4ee5\u4e0b\u4e3a\u53ef\u9009\u914d\u7f6e\uff08\u5df2\u7981\u7528\uff09",
+    "_comment_anthropic": "以下为可选配置（已禁用）",
     "_disabled_anthropic": "[object Object]"
   },
   "includeCoAuthoredBy": true,
@@ -166,7 +166,12 @@
       "Bash(/root/scripts/validate-ac6-fail-closed.sh:*)",
       "Bash(/root/scripts/validate-sentinel-lint.sh:*)",
       "Bash(/root/scripts/validate-dev-registry-cleanup.sh:*)",
-      "Bash(/root/bin/dev-registry-cleanup.sh:*)"
+      "Bash(/root/bin/dev-registry-cleanup.sh:*)",
+      "Edit(.claude/agents/**)",
+      "Edit(.claude/commands/**)",
+      "Write(.claude/agents/**)",
+      "Write(.claude/commands/**)",
+      "Bash(source /root/.claude/venv/bin/activate && python /root/.claude/hooks/lib/close-verdict.py:*)"
     ],
     "deny": [
       "Read(.env)",
@@ -194,6 +199,12 @@
       "Bash(poweroff:*)",
       "Bash(systemctl stop:*)",
       "Bash(systemctl disable:*)",
+      "Bash(systemctl restart:*)",
+      "Bash(systemctl reload:*)",
+      "Bash(systemctl kill:*)",
+      "Bash(systemctl try-restart:*)",
+      "Bash(systemctl reload-or-restart:*)",
+      "Bash(systemctl enable:*)",
       "Read(**/session_dirs.txt)",
       "Write(**/session_dirs.txt)",
       "Edit(**/session_dirs.txt)",
@@ -230,10 +241,6 @@
       "Edit(**/go.mod)",
       "Write(**/requirements.txt)",
       "Edit(**/requirements.txt)",
-      "Write(.claude/commands/**)",
-      "Edit(.claude/commands/**)",
-      "Write(.claude/agents/**)",
-      "Edit(.claude/agents/**)",
       "Write(.claude/hooks/**)",
       "Edit(.claude/hooks/**)",
       "Write(.claude/scripts/**)",
@@ -242,7 +249,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
-  "model": "opus[1m]",
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -340,6 +347,10 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-bash-views-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-wrapper-userintent.py\""
           }
         ]
       },
@@ -376,6 +387,15 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-tool-policy.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-cp-state-write-guard.py\""
           }
         ]
       },
@@ -581,10 +601,6 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/stop-overnight-timelock.py\""
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/stop-workflow-enforce.py\""
           },
           {
             "type": "command",

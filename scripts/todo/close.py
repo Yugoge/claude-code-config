@@ -5,7 +5,7 @@ Three user-visible TodoSteps (flat-integer per agents/style-inspector.md
 Standard 4):
   1. Dispatch three inspectors in parallel
   2. Delegate close debate to QA subagent
-  3. Generate close-report
+  3. Generate close-report and spec/temp update
 
 Flag handling (--codex / --force) and task-id resolution still happen in
 commands/close.md body but are no longer TodoSteps — they are script
@@ -16,7 +16,7 @@ plumbing, not user-visible work.
 _STEPS = [
     ("1", "Dispatch three inspectors in parallel", "Dispatching three inspectors in parallel", None),
     ("2", "Delegate close debate to QA subagent", "Delegating close debate to QA subagent", {"subagent_call": {"agent": "qa", "subagent_type": "qa"}}),
-    ("3", "Generate close-report", "Generating close-report", None),
+    ("3", "Generate close-report and spec/temp update", "Generating close-report and spec/temp update", None),
 ]
 
 
