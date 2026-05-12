@@ -65,6 +65,11 @@ SUBAGENT_ENV_KEYS = (
     "CODEX_AGENT_ID",
     "CODEX_AGENT_PATH",
     "OPENAI_AGENT_ID",
+    # T1.5 (redev-tier123): codex compat runtime sets CLAUDE_COMPAT_RUNTIME=codex
+    # in child Bash environments via .codex/hooks/claude_legacy_hook_wrapper.py.
+    # Treat its presence as subagent context so codex-driven Bash bursts do not
+    # increment the main-agent orchestrator-gate streak counter.
+    "CLAUDE_COMPAT_RUNTIME",
 )
 
 def get_session_id(data: dict) -> str:

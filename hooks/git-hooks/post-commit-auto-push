@@ -1,12 +1,13 @@
 #!/bin/bash
-# post-commit-auto-push - Automatically push after every commit
-# 每次 commit 后自动推送到远程（后台执行）
+# post-commit-auto-push - Automatically back up every commit to recovery refs
+# 每次 commit 后自动推送到备份 ref（后台执行）
 # Installation: cp ~/.claude/hooks/git-hooks/post-commit-auto-push .git/hooks/post-commit
 
-# Get current branch
+# Get current branch and commit
 BRANCH=$(git branch --show-current 2>/dev/null)
+COMMIT_SHA=$(git rev-parse HEAD 2>/dev/null)
 
-if [ -z "$BRANCH" ]; then
+if [ -z "$BRANCH" ] || [ -z "$COMMIT_SHA" ]; then
   # Detached HEAD, skip push
   exit 0
 fi
@@ -16,9 +17,15 @@ if [ "${GIT_AUTO_PUSH:-1}" = "0" ]; then
   exit 0
 fi
 
-# Push in background (non-blocking)
-# Using nohup to detach from current session
-nohup git push origin "$BRANCH" >/dev/null 2>&1 &
+# Push only a namespaced recovery ref in background. Never publish refs/heads/<branch>.
+SHORT_SHA="${COMMIT_SHA:0:12}"
+BACKUP_REF="refs/backups/claude/${BRANCH}/${SHORT_SHA}"
+LOG_PATH="${CLAUDE_BACKUP_LOG:-/root/.claude/logs/post-commit-auto-push.log}"
+REMOTE="${CLAUDE_BACKUP_REMOTE:-origin}"
+
+mkdir -p "$(dirname "$LOG_PATH")"
+git update-ref "$BACKUP_REF" "$COMMIT_SHA" 2>>"$LOG_PATH" || true
+nohup git push "$REMOTE" "${COMMIT_SHA}:${BACKUP_REF}" >>"$LOG_PATH" 2>&1 &
 
 # Don't wait for push to complete
 exit 0

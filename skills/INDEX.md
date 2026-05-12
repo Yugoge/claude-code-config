@@ -1,7 +1,7 @@
 # skills
 
-*Last updated: 2026-04-27T11:10:05Z*
-**Total entries**: 45
+*Last updated: 2026-05-10T13:00:12Z*
+**Total entries**: 40
 **Convention**: kebab
 
 ## Tree
@@ -11,9 +11,6 @@ skills/
 │   ├── `docx-js.md` - DOCX Library Tutorial
 │   ├── `LICENSE.txt` - txt file
 │   └── `SKILL.md` - Comprehensive document creation, editing, and analysis with support for tracked changes, comments, formatting preservation, and text extraction. When Claude needs to work with professional documents (.docx files) for: (1) Creating new documents, (2) Modifying or editing content, (3) Working with tracked changes, (4) Adding comments, or any other document tasks
-├── frontend-design/
-│   ├── `LICENSE.txt` - txt file
-│   └── `SKILL.md` - Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, or applications. Generates creative, polished code that avoids generic AI aesthetics.
 ├── pdf/
 │   ├── `FORMS.md` - Fillable fields
 │   ├── `LICENSE.txt` - txt file
@@ -25,8 +22,6 @@ skills/
 │   ├── `LICENSE.txt` - txt file
 │   ├── `ooxml.md` - Office Open XML Technical Reference for PowerPoint
 │   └── `SKILL.md` - Presentation creation, editing, and analysis. When Claude needs to work with presentations (.pptx files) for: (1) Creating new presentations, (2) Modifying or editing content, (3) Working with layouts, (4) Adding comments or speaker notes, or any other presentation tasks
-├── product-self-knowledge/
-│   └── `SKILL.md` - Authoritative reference for Anthropic products. Use when users ask about product capabilities, access, installation, pricing, limits, or features. Provides source-backed answers to prevent hallucinations about Claude.ai, Claude Code, and Claude API.
 ├── ui-anti-pattern-catalog/
 │   └── `SKILL.md` - Apply the 58-rule anti-pattern catalog (10 Color + 5 Motion + 5 Typography + 5 Spacing + 2 Glass + 5 Heuristic + 4 UX-Writing + 5 Form + 4 Interactive + 5 Nielsen + 8 AI-slop) against a Playwright page. Outputs aesthetic_findings[] with category=hard_defect|taste_heuristic, with the SCHEMA-ENFORCED severity hard-cap on taste_heuristic at minor + advisory:true. Use during ui-specialist Phases 4.5/5/6.5.
 ├── ui-apca-contrast/

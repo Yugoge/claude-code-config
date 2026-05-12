@@ -1,5 +1,5 @@
 {
-  "policy_version": 1,
+  "policy_version": 2,
   "default_action": "deny",
   "_shared_protected_path_prefixes": [
     "/.claude/hooks/",
@@ -10,7 +10,7 @@
     "/.claude/scripts/",
     "/.claude/settings.json"
   ],
-  "_note": "Path prefixes containing '*' use glob-aware matching (fnmatch-style). Use '*/docs/dev/foo-' to match the prefix 'docs/dev/foo-' anywhere under any worktree. Use '/docs/dev/foo-' to anchor at any path that ends with '/docs/dev/foo-' boundary. Shared protected list is the SOLE catch-all for /.claude/ — DO NOT add broad '/.claude/' to denied prefixes; use only the explicit subdirs above so legitimate worktree artifact paths (e.g. /root/.claude/worktrees/X/docs/dev/...) remain writable.",
+  "_note": "Path prefixes containing '*' use glob-aware matching (fnmatch-style). Use '*/docs/dev/foo-' to match the prefix 'docs/dev/foo-' anywhere under any worktree. Use '/docs/dev/foo-' to anchor at any path that ends with '/docs/dev/foo-' boundary. Shared protected list is the SOLE catch-all for /.claude/ — DO NOT add broad '/.claude/' to denied prefixes; use only the explicit subdirs above so legitimate worktree artifact paths remain writable. spec-20260507-142952 AC-1: cp-state-*.json globs are documented here AND propagated into every subagent role's denied_write_path_prefixes; spec-check.py is the only legal writer. policy_version 2 (spec-20260508-221237 cycle 4 manual reorg, 2026-05-09): adds first-class roles timeline and transportation mirroring their .md tools: [Read, Bash, Skill] declaration, with denied_tools=[Write,Edit,MultiEdit,NotebookEdit] as defense-in-depth Feb-13-2026 incident lock. These two role table entries are the ONLY residue of spec-20260508-221237 in the global tool-policy; the ga''ode-maps allowlist enforcement was moved to project-local /root/travel-planner/.claude/policies/gaode_policy.json + hooks/pretool-gaode_policy.py per user directive.",
   "roles": {
     "user": {
       "allowed_tools": [
@@ -34,12 +34,17 @@
       ],
       "rationale": "User simulation: Playwright/read for user-flow testing, plus report and own cp-state updates for checklist-stop enforcement; no source/protected/test edits",
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/*/cp-state-user.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/cp-state-user.json",
+        "*/docs/dev/specs/*/user-",
         "*/docs/dev/user-",
         "*/docs/dev/user-report-",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/user-",
-        "*/docs/dev/specs/*/cp-state-user.json",
-        "*/.claude/specs/*/cp-state-user.json"
+        "*/tmp/claude-scratch/user/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -67,13 +72,18 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
-        "*/docs/dev/ui-specialist-",
-        "*/docs/dev/design-handoff-",
-        "*/docs/dev/ui-evidence-",
-        "*/docs/dev/ui-audit-",
-        "*/docs/dev/specs/*/cp-state-ui-specialist.json",
         "*/.claude/specs/*/cp-state-ui-specialist.json",
-        "*/docs/dev/overnight/"
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/docs/dev/design-handoff-",
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/cp-state-ui-specialist.json",
+        "*/docs/dev/ui-audit-",
+        "*/docs/dev/ui-evidence-",
+        "*/docs/dev/ui-specialist-",
+        "*/tmp/claude-scratch/ui-specialist/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -101,17 +111,22 @@
         "Skill"
       ],
       "allowed_write_path_prefixes": [
-        "*/docs/dev/ba-spec-",
-        "*/docs/dev/ticket-",
-        "*/docs/dev/context-",
+        "*/.claude/specs/*/cp-state-ba.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
         "*/docs/dev/ba-qa-report-",
+        "*/docs/dev/ba-spec-",
         "*/docs/dev/ba-spec-iter-",
-        "*/docs/dev/ticket-iter-",
+        "*/docs/dev/context-",
         "*/docs/dev/context-iter-",
+        "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/ba-",
         "*/docs/dev/specs/*/cp-state-ba.json",
-        "*/.claude/specs/*/cp-state-ba.json",
-        "*/docs/dev/overnight/"
+        "*/docs/dev/ticket-",
+        "*/docs/dev/ticket-iter-",
+        "*/tmp/claude-scratch/ba/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -158,17 +173,22 @@
         "Skill"
       ],
       "allowed_write_path_prefixes": [
-        "*/docs/dev/qa-report-",
-        "*/docs/dev/qa-input-",
-        "*/docs/dev/close-report-",
-        "*/docs/dev/qa-spec-",
-        "*/docs/dev/qa-output-",
-        "*/docs/dev/ba-qa-report-",
-        "*/docs/dev/qa-codex-consensus-",
-        "*/docs/dev/specs/*/qa-",
-        "*/docs/dev/specs/*/cp-state-qa.json",
         "*/.claude/specs/*/cp-state-qa.json",
-        "*/docs/dev/overnight/"
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/docs/dev/ba-qa-report-",
+        "*/docs/dev/close-report-",
+        "*/docs/dev/overnight/",
+        "*/docs/dev/qa-codex-consensus-",
+        "*/docs/dev/qa-input-",
+        "*/docs/dev/qa-output-",
+        "*/docs/dev/qa-report-",
+        "*/docs/dev/qa-spec-",
+        "*/docs/dev/specs/*/cp-state-qa.json",
+        "*/docs/dev/specs/*/qa-",
+        "*/tmp/claude-scratch/qa/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -197,15 +217,20 @@
         "mcp__playwright__*"
       ],
       "allowed_write_path_prefixes": [
-        "*/docs/dev/test-plan",
+        "*/.claude/specs/*/cp-state-pm.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/docs/dev/overnight/",
         "*/docs/dev/pm-",
         "*/docs/dev/pm-plan-",
-        "*/docs/dev/pm-triage-",
         "*/docs/dev/pm-retro-",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/pm-",
+        "*/docs/dev/pm-triage-",
         "*/docs/dev/specs/*/cp-state-pm.json",
-        "*/.claude/specs/*/cp-state-pm.json"
+        "*/docs/dev/specs/*/pm-",
+        "*/docs/dev/test-plan",
+        "*/tmp/claude-scratch/pm/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -231,11 +256,16 @@
         "Write"
       ],
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/*/cp-state-architect.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
         "*/docs/dev/architect-",
+        "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/architect-",
         "*/docs/dev/specs/*/cp-state-architect.json",
-        "*/.claude/specs/*/cp-state-architect.json",
-        "*/docs/dev/overnight/"
+        "*/tmp/claude-scratch/architect/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -260,14 +290,19 @@
         "Write"
       ],
       "allowed_write_path_prefixes": [
-        "*/docs/dev/product-owner-",
-        "*/docs/dev/po-",
-        "*/docs/dev/user-report-",
-        "*/docs/dev/user-feedback-",
-        "*/docs/dev/specs/*/product-owner-",
-        "*/docs/dev/specs/*/cp-state-product-owner.json",
         "*/.claude/specs/*/cp-state-product-owner.json",
-        "*/docs/dev/overnight/"
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/docs/dev/overnight/",
+        "*/docs/dev/po-",
+        "*/docs/dev/product-owner-",
+        "*/docs/dev/specs/*/cp-state-product-owner.json",
+        "*/docs/dev/specs/*/product-owner-",
+        "*/docs/dev/user-feedback-",
+        "*/docs/dev/user-report-",
+        "*/tmp/claude-scratch/product-owner/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -294,12 +329,17 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/*/cp-state-cleaner.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
         "*/docs/dev/cleaner-",
         "*/docs/dev/cleaner_",
         "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/cleaner-",
         "*/docs/dev/specs/*/cp-state-cleaner.json",
-        "*/.claude/specs/*/cp-state-cleaner.json"
+        "*/tmp/claude-scratch/cleaner/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -327,12 +367,17 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/*/cp-state-cleanliness-inspector.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
         "*/docs/dev/cleanliness-inspector-",
         "*/docs/dev/cleanliness-inspector_",
         "*/docs/dev/overnight/",
         "*/docs/dev/specs/*/cleanliness-inspector-",
         "*/docs/dev/specs/*/cp-state-cleanliness-inspector.json",
-        "*/.claude/specs/*/cp-state-cleanliness-inspector.json"
+        "*/tmp/claude-scratch/cleanliness-inspector/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -360,12 +405,17 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/*/cp-state-git-edge-case-analyst.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
         "*/docs/dev/git-edge-case-analyst-",
         "*/docs/dev/git-edge-case-analyst_",
         "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/git-edge-case-analyst-",
         "*/docs/dev/specs/*/cp-state-git-edge-case-analyst.json",
-        "*/.claude/specs/*/cp-state-git-edge-case-analyst.json"
+        "*/docs/dev/specs/*/git-edge-case-analyst-",
+        "*/tmp/claude-scratch/git-edge-case-analyst/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -393,12 +443,17 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/*/cp-state-prompt-inspector.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/docs/dev/overnight/",
         "*/docs/dev/prompt-inspector-",
         "*/docs/dev/prompt-inspector_",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/prompt-inspector-",
         "*/docs/dev/specs/*/cp-state-prompt-inspector.json",
-        "*/.claude/specs/*/cp-state-prompt-inspector.json"
+        "*/docs/dev/specs/*/prompt-inspector-",
+        "*/tmp/claude-scratch/prompt-inspector/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -426,12 +481,17 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/*/cp-state-rule-inspector.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/docs/dev/overnight/",
         "*/docs/dev/rule-inspector-",
         "*/docs/dev/rule-inspector_",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/rule-inspector-",
         "*/docs/dev/specs/*/cp-state-rule-inspector.json",
-        "*/.claude/specs/*/cp-state-rule-inspector.json"
+        "*/docs/dev/specs/*/rule-inspector-",
+        "*/tmp/claude-scratch/rule-inspector/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -459,12 +519,17 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/*/cp-state-style-inspector.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/cp-state-style-inspector.json",
+        "*/docs/dev/specs/*/style-inspector-",
         "*/docs/dev/style-inspector-",
         "*/docs/dev/style-inspector_",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/style-inspector-",
-        "*/docs/dev/specs/*/cp-state-style-inspector.json",
-        "*/.claude/specs/*/cp-state-style-inspector.json"
+        "*/tmp/claude-scratch/style-inspector/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -492,12 +557,17 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/*/cp-state-test-executor.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/cp-state-test-executor.json",
+        "*/docs/dev/specs/*/test-executor-",
         "*/docs/dev/test-executor-",
         "*/docs/dev/test-executor_",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/test-executor-",
-        "*/docs/dev/specs/*/cp-state-test-executor.json",
-        "*/.claude/specs/*/cp-state-test-executor.json"
+        "*/tmp/claude-scratch/test-executor/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -525,12 +595,17 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/*/cp-state-test-validator.json",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/cp-state-test-validator.json",
+        "*/docs/dev/specs/*/test-validator-",
         "*/docs/dev/test-validator-",
         "*/docs/dev/test-validator_",
-        "*/docs/dev/overnight/",
-        "*/docs/dev/specs/*/test-validator-",
-        "*/docs/dev/specs/*/cp-state-test-validator.json",
-        "*/.claude/specs/*/cp-state-test-validator.json"
+        "*/tmp/claude-scratch/test-validator/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -558,8 +633,13 @@
         "MultiEdit"
       ],
       "allowed_write_path_prefixes": [
+        "*/.claude/specs/",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
         "*/docs/dev/specs/",
-        "*/.claude/specs/"
+        "*/tmp/claude-scratch/spec/",
+        "*/var/tmp/codex-outputs/"
       ],
       "denied_write_path_prefixes": [
         "/src/",
@@ -575,6 +655,79 @@
         "/.claude/settings.json"
       ],
       "rationale": "spec: may generate spec views and cp-state files only; no source/protected/test edits."
+    },
+    "timeline": {
+      "allowed_tools": [
+        "Read",
+        "Bash",
+        "Skill"
+      ],
+      "denied_tools": [
+        "Write",
+        "Edit",
+        "MultiEdit",
+        "NotebookEdit"
+      ],
+      "allowed_write_path_prefixes": [
+        "*/data/*/modification-log.json",
+        "*/data/*/sync-report.json",
+        "*/data/*/timeline.json",
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/timeline-",
+        "*/docs/dev/timeline-"
+      ],
+      "denied_write_path_prefixes": [
+        "/src/",
+        "/app/",
+        "/lib/",
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json",
+        "*/.claude/specs/*/cp-state-*.json",
+        "*/dot-claude/specs/*/cp-state-*.json",
+        "*/docs/dev/specs/*/cp-state-*.json"
+      ],
+      "rationale": "timeline mirrors .claude/agents/timeline.md tools: [Read, Bash, Skill] verbatim. denied_tools makes the Feb-13-2026 prompt-layer prohibition (Write corrupted timeline.json, 20 days lost) into a harness-enforced floor. Persistence flows through Bash -> scripts/save.py per timeline.md:31-34. allowed_write_path_prefixes is defense-in-depth for any Bash-spawned write (e.g. shell redirect, save.py target normalization) — narrowed to per-file fnmatch globs that mirror the timeline.md owned_files regex. Residual risk per Codex Q1: indirect Python-level writes via Bash-spawned scripts are NOT controlled by denied_tools; the boundary is 'Bash + scripts/save.py with day-guard', and that boundary is enforced by save.py's own --day N validator (not by this policy). spec-20260508-221237 M1 cycle-3 redev: closes the AC6 end-to-end positive-test gap by making timeline a first-class role; closes the QA cycle-3 OBJ-1 Feb-13 regression risk by adding denied_tools."
+    },
+    "transportation": {
+      "allowed_tools": [
+        "Read",
+        "Bash",
+        "Skill"
+      ],
+      "denied_tools": [
+        "Write",
+        "Edit",
+        "MultiEdit",
+        "NotebookEdit"
+      ],
+      "allowed_write_path_prefixes": [
+        "*/data/*/modification-log.json",
+        "*/data/*/transportation.json",
+        "*/docs/dev/overnight/",
+        "*/docs/dev/specs/*/transportation-",
+        "*/docs/dev/transportation-"
+      ],
+      "denied_write_path_prefixes": [
+        "/src/",
+        "/app/",
+        "/lib/",
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json",
+        "*/.claude/specs/*/cp-state-*.json",
+        "*/dot-claude/specs/*/cp-state-*.json",
+        "*/docs/dev/specs/*/cp-state-*.json"
+      ],
+      "rationale": "transportation mirrors .claude/agents/transportation.md tools: [Read, Bash, Skill] verbatim. denied_tools encodes the Feb-13 prohibition. Write paths narrowed to transportation.md owned_files (data/<trip>/transportation.json + modification-log.json). spec-20260508-221237 M1 cycle-3 redev: same closure as timeline."
     }
   }
 }

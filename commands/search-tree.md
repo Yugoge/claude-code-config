@@ -1,6 +1,7 @@
 ---
 description: Tree search exploration with MCTS-inspired path evaluation
 argument-hint: <question-or-problem>
+disable-model-invocation: true
 ---
 
 Explore multiple solution paths for: **$ARGUMENTS**

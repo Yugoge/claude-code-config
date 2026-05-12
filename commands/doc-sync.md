@@ -1,5 +1,6 @@
 ---
 description: "Regenerate all INDEX.md files and patch CLAUDE.md auto-sections"
+disable-model-invocation: true
 ---
 
 # /doc-sync — Full Documentation Synchronization

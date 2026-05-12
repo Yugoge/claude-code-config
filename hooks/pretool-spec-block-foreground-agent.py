@@ -72,6 +72,12 @@ def _tool_is_exempt(data: dict) -> bool:
     # arch-10: the spec subagent itself must be allowed as /spec Step 8
     if tool_input.get("subagent_type") == "spec":
         return True
+    # M1 (harness-fixes 20260428): /spec Step 6 sub-step 3 mandates a
+    # foreground qa Agent for split-validation. Exempt qa alongside spec.
+    # Activation gate (bookmark.command == "spec") is unchanged, so the
+    # exemption is bounded to the /spec interview FSM window.
+    if tool_input.get("subagent_type") == "qa":
+        return True
     if data.get("agent_id"):
         return True
     return False

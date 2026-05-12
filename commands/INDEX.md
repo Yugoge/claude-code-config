@@ -1,7 +1,7 @@
 # commands
 
-*Last updated: 2026-05-04T12:39:21Z*
-**Total entries**: 34
+*Last updated: 2026-05-10T09:28:53Z*
+**Total entries**: 35
 **Convention**: kebab
 
 ## Tree
@@ -13,7 +13,7 @@ commands/
 ├── `close.md` - Close the current dev cycle (agent infers task-id from conversation). QA evaluates Workflow Integrity bullets and returns CLOSE YES/NO. Pass --codex to enable multi-round QA-codex debate; default is QA-only single-round assessment. Append --force to skip the debate entirely.
 ├── `code-review.md` - Comprehensive code review with best practices analysis
 ├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.5, xhigh reasoning) for a second opinion or parallel coding
-├── `commit.md` - Commit closed dev task to branch HEAD
+├── `commit.md` - /commit — Automatic Semantic Commit
 ├── `deep-search.md` - Deep website exploration with iterative search strategy
 ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
@@ -40,7 +40,8 @@ commands/
 ├── `site-navigate.md` - Intelligent site navigation simulating "click-through" exploration
 ├── `spec.md` - Create spec files for any dev workflow (/dev, /dev-overnight, or standalone reference)
 ├── `stop.md` - Cancel active overnight time-lock + workflow-enforce so the session can terminate normally. User-invoked only — agents cannot self-stop.
-└── `test.md` - Test validation workflow with edge case detection, systematic validation, and quality enforcement
+├── `test.md` - Test validation workflow with edge case detection, systematic validation, and quality enforcement
+└── `update.md` - Update unfinished work into a continuation spec, or create a compact temp session update when explicitly requested
 ```
 
 ---

@@ -79,4 +79,82 @@ print(ti.get('new_string','') + ti.get('content',''))
   fi
 fi
 
+# ── C3: daemon-restart-edit — block any Edit/Write to systemd unit files,
+# admin-script siblings, hook files themselves, and the grant sentinel.
+# TASK-ID: c3-20260504-223115
+# Per BA spec docs/dev/ticket-c3-20260504-223115.md (R4, AC5, AC6).
+# Stable substring: daemon-restart-edit (or daemon-restart-sentinel-write).
+
+# Block: any file under /etc/systemd/system/happy-daemon-*.service or its drop-in dir
+# Covers happy-daemon.service, happy-daemon-jade.service, happy-daemon-dev.service,
+# happy-daemon-qijie.service, plus all .service.d/*.conf overrides.
+case "$FILE_PATH" in
+  /etc/systemd/system/happy-daemon*.service|/etc/systemd/system/happy-daemon*.service.d/*)
+    echo "BLOCKED: daemon-restart-edit — Edit/Write to happy-daemon systemd unit/drop-in is FORBIDDEN" >&2
+    echo "Path: $FILE_PATH" >&2
+    echo "REASON: per c3-20260504-223115, only the user may edit happy-daemon-* units." >&2
+    exit 2 ;;
+esac
+
+# Block: admin scripts in /root/bin that orchestrate daemon restarts.
+# Bash invocation already blocked at /root/.claude/hooks/pretool-bash-safety.sh:345
+# but Edit/Write to the script body is a separate bypass surface.
+case "$FILE_PATH" in
+  /root/bin/happy-restart.sh|\
+  /root/bin/happy-session-recovery.sh|\
+  /root/bin/safe-swap-drain.sh|\
+  /root/bin/auto-safe-swap-drain.sh|\
+  /root/bin/safe-daemon-restart.sh|\
+  /root/bin/claude-allow-restart)
+    echo "BLOCKED: daemon-restart-edit — Edit/Write to admin script is FORBIDDEN" >&2
+    echo "Path: $FILE_PATH" >&2
+    echo "REASON: per c3-20260504-223115, these scripts orchestrate or gate daemon restarts;" >&2
+    echo "        only the user may modify them." >&2
+    exit 2 ;;
+esac
+
+# Block: Edit/Write to the hook files themselves — defense in depth on top of
+# settings.json `permissions.ask` (lines 237-238). Subagent edits to hook files
+# would be a self-modification bypass; this rule fail-closes regardless of
+# whether the user is currently prompted via the ask layer.
+case "$FILE_PATH" in
+  /root/.claude/hooks/pretool-bash-safety.sh|\
+  /root/.claude/hooks/pretool-block-production-files.sh|\
+  /root/.claude/hooks/pretool-orchestrator-prompt-purity.py)
+    # Detect subagent vs orchestrator: only block subagent edits here.
+    # Orchestrator edits remain gated by settings.json permissions.ask which
+    # prompts the user. Subagents have no user prompt — block outright.
+    # Exception: .hook-refactor-allow sentinel (the same convention used by
+    # pretool-claude-config-guard.py) signals an explicit user-authorized
+    # refactor session — honor that here too.
+    IS_SUBAGENT_EDIT=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
+    if [ "$IS_SUBAGENT_EDIT" = "1" ]; then
+      PROJECT_DIR_FOR_SENTINEL="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+      if [ -f "$PROJECT_DIR_FOR_SENTINEL/.claude/.hook-refactor-allow" ] || [ -f "$HOME/.claude/.hook-refactor-allow" ]; then
+        : # user has authorized hook refactor — fall through (still subject to other rules)
+      else
+        echo "BLOCKED: hook-self-modification — subagent Edit/Write to hook file is FORBIDDEN" >&2
+        echo "Path: $FILE_PATH" >&2
+        echo "REASON: per c3-20260504-223115, hooks are the daemon-restart prohibition floor;" >&2
+        echo "        only the orchestrator (with user prompt) may modify them." >&2
+        echo "        To override: create .claude/.hook-refactor-allow at project root" >&2
+        echo "        (the same sentinel used by pretool-claude-config-guard.py)." >&2
+        exit 2
+      fi
+    fi
+    ;;
+esac
+
+# Block: Edit/Write to the grant sentinel file. Only /root/bin/claude-allow-restart
+# may write the sentinel; Claude (orchestrator AND subagents) must never create or
+# alter it via the Edit/Write tools.
+case "$FILE_PATH" in
+  /tmp/claude-allow-daemon-restart-*.flag)
+    echo "BLOCKED: daemon-restart-sentinel-write — Edit/Write to grant sentinel is FORBIDDEN" >&2
+    echo "Path: $FILE_PATH" >&2
+    echo "REASON: per c3-20260504-223115, only /root/bin/claude-allow-restart (run by user from TTY)" >&2
+    echo "        may create the grant sentinel." >&2
+    exit 2 ;;
+esac
+
 exit 0
