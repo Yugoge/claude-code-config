@@ -249,7 +249,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "SessionStart": [
       {
@@ -405,6 +405,24 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-subagent-code-block.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pretool-block-production-files.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__playwright__browser_navigate|mcp__playwright__browser_click|mcp__playwright__browser_run_code|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pretool-block-production.sh\""
           }
         ]
       },
