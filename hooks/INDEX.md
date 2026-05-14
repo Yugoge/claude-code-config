@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-10T08:39:22Z*
-**Total entries**: 115
+*Last updated: 2026-05-14T19:30:00Z*
+**Total entries**: 114
 **Convention**: kebab
 
 ## Tree
@@ -33,13 +33,13 @@ hooks/
 │   ├── `specialist_yield.py` - Public API:
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 ├── tests/
+│   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 │   └── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
 ├── `audit-slashcommand.sh` - audit-slashcommand.sh
 ├── `auto-commit.sh` - ============================================================================
 ├── `check-todo-md-sync.py` - check-todo-md-sync.py — Session-start drift detector for todo scripts
 ├── `checkpoint.sh` - checkpoint.sh - Manual /checkpoint command
 ├── `commit.sh` - 
-├── `commit.sh.bak.1778357948` - 1778357948 file
 ├── `ensure-git-repo.sh` - ensure-git-repo.sh - DEPRECATED, scheduled for deletion
 ├── `fswatch-manager.sh` - fswatch-manager.sh - Manage git-fswatch instances
 ├── `git-fswatch.sh` - git-fswatch.sh - Comprehensive Git file watcher using fswatch
@@ -76,11 +76,10 @@ hooks/
 ├── `pretool-block-enterworktree.sh` - PreToolUse hook: Block EnterWorktree tool
 ├── `pretool-block-production-files.sh` - PreToolUse hook: Block Write/Edit to production paths from dev environment
 ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
-├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 2.
+├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 0 (warn-only per user policy: no text-smell hard-blocks).
 ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
 ├── `pretool-cp-checkin.py` - cp-state file read
 ├── `pretool-cp-state-write-guard.py` - Cycle 2 hardening (spec-20260507-191743):
-├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
 ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
 ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
@@ -91,7 +90,7 @@ hooks/
 ├── `pretool-read-size-guard.py` - PreToolUse Hook: Read Size Guard
 ├── `pretool-runcode-watchdog.py` - PreToolUse Hook: Start timeout watchdog for browser_run_code
 ├── `pretool-spec-block-foreground-agent.py` - PreToolUse Hook: Block foreground Agent during an active /spec Interview
-├── `pretool-subagent-code-block.py` - Canonical enforcement: pretool-tool-policy.py + lib/policy_registry
+├── `pretool-subagent-code-block.py` - Canonical enforcement: pretool-tool-policy.py + lib/policy_registry — this
 ├── `pretool-subagent-enforce.py` - PreToolUse:Agent Hook — Contract-driven role/pipeline enforcement
 ├── `pretool-todo-validate.py` - PreToolUse Hook: Validate TodoWrite input BEFORE execution
 ├── `pretool-tool-policy.py` - Single hook that consumes /root/.claude/policies/tool-policy.v1.json via

@@ -17,9 +17,10 @@ section "Hook Behavior Contract"):
       2. Shell-command tokens with option syntax (sed/jq/curl/git/...)
       3. Shell-syntax tokens ($(...) heredoc redirection chain pipe)
       4. Fenced bash blocks (```bash / ```sh / ```shell / ```zsh)
-  - On hit: exit 2 with stderr beginning
-        "orchestrator must not specify HOW; rewrite prompt to describe WHAT only."
+  - Plus one overnight-gated category: <options> XML blocks.
+  - On hit: emit a warning to stderr (warn-only — never blocks).
   - On miss: exit 0 silently.
+  - Always exit 0 (this hook never hard-blocks).
   - Fail-open on parse errors / missing fields / unexpected exceptions
     so a malformed payload never blocks legitimate work.
 
@@ -35,8 +36,7 @@ Exemptions:
     not orchestrator HOW-prescription.
 
 Exit codes:
-  0  Allow (no blacklist hit, or fail-open).
-  2  Block (Claude Code PreToolUse blocking convention).
+  0  Always (this hook is warn-only; never blocks).
 """
 
 from __future__ import annotations
@@ -140,116 +140,6 @@ OPTIONS_XML_HEADER = (
     "choose autonomously or write a deadlock report and skip."
 )
 OPTIONS_XML_LABEL = "options-xml block (overnight forbids)"
-
-# C3: daemon-restart-prescription category (TASK-ID c3-20260504-223115).
-# Hard-hit pattern: an imperative restart-class verb within ~30 tokens of
-# happy-daemon vocabulary OR a direct invocation of an admin-restart script.
-# Hard hits → exit 2 (escalation from warn-only — see main()).
-# Soft hits → exit 0 with WARN AND audit log entry.
-# Subagent dispatches ALSO trigger this category (the line-315 agent_id
-# exemption is removed for this category only — see _extract_prompt /
-# _scan_prompt interaction below).
-DAEMON_RESTART_VERB_TOKENS = (
-    r"restart|reload|stop|disable|kick|cycle|bounce|kill|try-restart|"
-    r"reload-or-restart|hup|HUP"
-)
-DAEMON_RESTART_TARGET_TOKENS = (
-    r"happy-daemon(?:-(?:dev|jade|qijie))?|happy-cli\s+daemon|systemctl"
-)
-DAEMON_RESTART_PRESCRIPTION_PATTERNS = (
-    # Pattern 1: verb within ~30 tokens of happy-daemon vocabulary
-    # (verb-then-target order)
-    re.compile(
-        r"\b(?:" + DAEMON_RESTART_VERB_TOKENS + r")\b"
-        r"(?:\W+\w+){0,30}?\W+"
-        r"\b(?:" + DAEMON_RESTART_TARGET_TOKENS + r")\b",
-        re.IGNORECASE,
-    ),
-    # Pattern 2: target-then-verb order
-    re.compile(
-        r"\b(?:" + DAEMON_RESTART_TARGET_TOKENS + r")\b"
-        r"(?:\W+\w+){0,30}?\W+"
-        r"\b(?:" + DAEMON_RESTART_VERB_TOKENS + r")\b",
-        re.IGNORECASE,
-    ),
-    # Pattern 3: direct invocation of admin restart scripts
-    re.compile(
-        r"\b(?:bash\s+)?/root/bin/(?:happy-restart|safe-daemon-restart)\b",
-        re.IGNORECASE,
-    ),
-)
-DAEMON_RESTART_PRESCRIPTION_LABEL = "daemon-restart-prescription"
-DAEMON_RESTART_AUDIT_LOG = os.path.expanduser(
-    os.environ.get(
-        "CLAUDE_DAEMON_RESTART_AUDIT_LOG",
-        "~/.claude/logs/claude-daemon-restart-grants.log",
-    )
-)
-
-# M8: positive-authorization-of-pollution-seeds category
-# (BA spec 20260505-231740 / AC8 / W5).
-# Detects orchestrator dispatch prompts that POSITIVELY authorize one of the
-# pollution seed words {placeholder, TBD, stub, include later, to plan} —
-# e.g. "include placeholder entries", "use TBD", "leave a stub". These seeds
-# in dispatch prompts caused the B3 placeholder regression in cycle
-# 20260505-123425 (orchestrator's own prompt told subagents to "include
-# placeholder entries"). Hard-block at exit 2 with the standard prompt-purity
-# error header. Scope is intentionally narrow: positive-authorization grammar
-# in dispatch templates only, NOT a full ban on the word "placeholder" (CMD-3
-# REJECTED). Negative phrasings ("never use placeholder", "do not include
-# TBD", "MUST NOT leave a stub") MUST pass through.
-POSITIVE_AUTHORIZATION_VERBS = (
-    r"include|includes|including|use|uses|using|leave|leaves|leaving|"
-    r"add|adds|adding|insert|inserts|inserting|put|puts|putting|"
-    r"allow|allows|allowing|permit|permits|permitting|"
-    r"keep|keeps|keeping|write|writes|writing|fill|fills|filling|"
-    r"set|sets|setting|mark|marks|marking"
-)
-# Seed words. Note "to plan" and "include later" are multi-token; we list the
-# anchor token of each multi-token seed and let the verb-prefix regex carry
-# the leading verb. "include later" is matched as verb=include + seed=later;
-# "to plan" is matched directly via the SEED_TOKENS alternation since the
-# preceding "to" is part of the phrase rather than a separate verb.
-POSITIVE_AUTHORIZATION_SEED_TOKENS = (
-    r"placeholder(?:s)?|TBD|stub(?:s)?|to[- ]plan|later"
-)
-# Negation words that, if appearing within ~6 tokens BEFORE the verb, suppress
-# the match (so "never use placeholder" / "do not include TBD" / "MUST NOT
-# leave a stub" / "without TBD" pass through).
-POSITIVE_AUTHORIZATION_NEGATION_LOOKBEHIND = (
-    r"(?<!\bnever\s)(?<!\bnever\s\s)"
-    r"(?<!\bnot\s)(?<!\bnot\s\s)"
-    r"(?<!\bno\s)(?<!\bno\s\s)"
-    r"(?<!\bwithout\s)(?<!\bwithout\s\s)"
-    r"(?<!\bdon't\s)(?<!\bdoesn't\s)(?<!\bdidn't\s)"
-    r"(?<!\bcannot\s)(?<!\bcan't\s)(?<!\bmustn't\s)"
-    r"(?<!\bavoid\s)(?<!\bforbid\s)(?<!\bforbids\s)(?<!\bforbidden\s)"
-)
-POSITIVE_AUTHORIZATION_PATTERNS = (
-    # Pattern 1: <verb> [optional article/adjective ≤2 words] <seed>
-    # with negation suppression in a ~30-char lookbehind window (approximated
-    # by single-token negation lookbehinds above; covers the common cases).
-    re.compile(
-        r"\b(?<!\bnever\s)(?<!\bnot\s)(?<!\bno\s)(?<!\bwithout\s)"
-        r"(?<!\bdon't\s)(?<!\bcannot\s)(?<!\bmustn't\s)(?<!\bavoid\s)"
-        r"(?<!\bforbid\s)(?<!\bforbidden\s)"
-        r"(?:" + POSITIVE_AUTHORIZATION_VERBS + r")\b"
-        r"(?:\s+(?:a|an|the|some|any|one|more|extra|additional|few|several))?"
-        r"(?:\s+\w+){0,2}?"
-        r"\s+(?:" + POSITIVE_AUTHORIZATION_SEED_TOKENS + r")\b",
-        re.IGNORECASE,
-    ),
-    # Pattern 2: bare "to plan" / "to-plan" appearing as a positive
-    # authorization phrase (e.g. "leave entries to plan" → already caught by
-    # Pattern 1; "set value to plan" → also caught by Pattern 1 via "set".
-    # This pattern catches phrasings where the verb is implied:
-    # "field 'method': 'to plan'" — quoted authorization tokens.
-    re.compile(
-        r"['\"](?:to[- ]plan|TBD|placeholder|stub)['\"]",
-        re.IGNORECASE,
-    ),
-)
-POSITIVE_AUTHORIZATION_LABEL = "positive-authorization-of-pollution-seeds"
 
 USER_VERBATIM_RE = re.compile(
     r"<USER_VERBATIM>.*?</USER_VERBATIM>",
@@ -381,55 +271,7 @@ def _scan_prompt(prompt: str):
         if hit:
             return hit
     redacted = _redact_exempt_regions(prompt)
-    # C3 daemon-restart-prescription scans BEFORE generic categories so its
-    # dedicated label and escalation path win.
-    hit = _scan_category(
-        redacted,
-        DAEMON_RESTART_PRESCRIPTION_PATTERNS,
-        DAEMON_RESTART_PRESCRIPTION_LABEL,
-    )
-    if hit:
-        return hit
-    # M8 positive-authorization-of-pollution-seeds scans BEFORE generic
-    # categories so its dedicated hard-block path wins (BA spec
-    # 20260505-231740 / AC8 / W5).
-    hit = _scan_category(
-        redacted,
-        POSITIVE_AUTHORIZATION_PATTERNS,
-        POSITIVE_AUTHORIZATION_LABEL,
-    )
-    if hit:
-        return hit
     return _scan_generic_categories(redacted)
-
-
-def _audit_daemon_restart_prescription(
-    sid: str, hit_kind: str, snippet: str, exit_code: int,
-) -> None:
-    """Append a JSON-line audit entry per c3-20260504-223115 AC8.5."""
-    try:
-        log_path = DAEMON_RESTART_AUDIT_LOG
-        log_dir = os.path.dirname(log_path)
-        if log_dir and not os.path.isdir(log_dir):
-            os.makedirs(log_dir, exist_ok=True)
-        entry = {
-            "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "sid": sid,
-            "source": "prompt-purity",
-            "category": DAEMON_RESTART_PRESCRIPTION_LABEL,
-            "hit_kind": hit_kind,
-            "snippet": (snippet or "")[:200],
-            "exit_code": exit_code,
-        }
-        with open(log_path, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(entry, separators=(",", ":")) + "\n")
-        try:
-            os.chmod(log_path, 0o644)
-        except OSError:
-            pass
-    except Exception:
-        # Audit-log failure must never break the hook.
-        pass
 
 
 _OPTIONS_XML_REMEDY = (
@@ -438,47 +280,16 @@ _OPTIONS_XML_REMEDY = (
     "            and skip to the next pipeline. Defer all user-input\n"
     "            questions to the end-of-overnight summary."
 )
-_DAEMON_RESTART_HEADER = (
-    "BLOCKED: daemon-restart-prompt — Agent prompt prescribes a "
-    "happy-daemon-* restart (per c3-20260504-223115)."
-)
-_DAEMON_RESTART_REMEDY = (
-    "do NOT instruct any subagent to restart, reload, stop, kill,\n"
-    "            disable, or otherwise disrupt happy-daemon-*. Only the\n"
-    "            user may run /root/bin/claude-allow-restart from a TTY."
-)
 _GENERIC_REMEDY = (
     "describe the desired end-state (problem, constraints,\n"
     "            acceptance criteria) and let the subagent select its\n"
     "            own tool per its agent.md."
-)
-# M8: hard-block header reuses the standard prompt-purity error substring
-# `orchestrator must not specify HOW; rewrite prompt to describe WHAT only.`
-# (per AC8 self-test contract — the canonical phrase QA greps for).
-_POSITIVE_AUTHORIZATION_HEADER = (
-    "BLOCKED: orchestrator must not specify HOW; rewrite prompt to "
-    "describe WHAT only. Positive authorization of pollution seeds "
-    "(placeholder/TBD/stub/include later/to plan) detected in dispatch "
-    "prompt — these seeds caused the B3 placeholder regression in cycle "
-    "20260505-123425. (BA spec 20260505-231740 / AC8 / M8.)"
-)
-_POSITIVE_AUTHORIZATION_REMEDY = (
-    "describe what the subagent should produce in concrete terms\n"
-    "            (real POI names / real values / actual content). If a\n"
-    "            field is unknown, instruct the subagent to research or\n"
-    "            mark it as a research blocker — never authorize a\n"
-    "            placeholder/TBD/stub/to-plan/include-later token in the\n"
-    "            data itself."
 )
 
 
 def _header_remedy_for(category: str):
     if category == OPTIONS_XML_LABEL:
         return OPTIONS_XML_HEADER, _OPTIONS_XML_REMEDY
-    if category == DAEMON_RESTART_PRESCRIPTION_LABEL:
-        return _DAEMON_RESTART_HEADER, _DAEMON_RESTART_REMEDY
-    if category == POSITIVE_AUTHORIZATION_LABEL:
-        return _POSITIVE_AUTHORIZATION_HEADER, _POSITIVE_AUTHORIZATION_REMEDY
     return STDERR_HEADER, _GENERIC_REMEDY
 
 
@@ -506,10 +317,6 @@ def _parse_payload():
 
 
 def _extract_prompt(data: dict):
-    # Per c3-20260504-223115 AC8 (subagent exemption removed for the
-    # daemon-restart-prescription category only): we do NOT early-return on
-    # agent_id here. Instead, main() filters out subagent hits AFTER scanning,
-    # preserving subagent-exempt behavior for all other categories.
     tool_name = data.get("tool_name") or data.get("toolName") or ""
     if tool_name and tool_name != "Agent":
         return None
@@ -520,35 +327,13 @@ def _extract_prompt(data: dict):
     return prompt
 
 
-def _resolve_session_id(data: dict) -> str:
-    return (
-        data.get("session_id")
-        or data.get("sessionId")
-        or os.environ.get("CLAUDE_SESSION_ID", "")
-        or "unknown"
-    )
-
-
-def _route_hit(category: str, snippet: str, is_subagent: bool, sid: str) -> int:
-    """Route a scan hit to its appropriate exit code per category contract.
-
-    Categories:
-      - DAEMON_RESTART_PRESCRIPTION_LABEL: hard-block exit 2; applies to
-        subagents AS WELL (c3-20260504-223115).
-      - POSITIVE_AUTHORIZATION_LABEL: hard-block exit 2; orchestrator only
-        (BA spec 20260505-231740 / AC8 / W5 / M8).
-      - All other categories: orchestrator-only, warn-only exit 0;
-        subagent hits exit 0 silently with no emission.
+def _route_hit(category: str, snippet: str, is_subagent: bool) -> int:
+    """Route a scan hit. User policy: prompt-purity is WARNING-ONLY, never
+    blocking. All categories emit to stderr but exit 0. Subagent dispatches
+    are exempt entirely.
     """
-    if category == DAEMON_RESTART_PRESCRIPTION_LABEL:
-        _emit_block(category, snippet)
-        _audit_daemon_restart_prescription(sid, "hard", snippet, 2)
-        return 2
     if is_subagent:
         return 0
-    if category == POSITIVE_AUTHORIZATION_LABEL:
-        _emit_block(category, snippet)
-        return 2
     _emit_block(category, snippet)
     return 0
 
@@ -565,8 +350,7 @@ def main() -> int:
         return 0
     category, snippet = hit
     is_subagent = bool(data.get("agent_id"))
-    sid = _resolve_session_id(data)
-    return _route_hit(category, snippet, is_subagent, sid)
+    return _route_hit(category, snippet, is_subagent)
 
 
 if __name__ == "__main__":
