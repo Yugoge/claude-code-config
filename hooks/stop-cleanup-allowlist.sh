@@ -33,4 +33,5 @@ if [ -f "$DO_FLAG" ]; then
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$SID DO_CONSENT_EXPIRED (turn ended)" >> "$CONSENT_LOG"
   rm -f "$DO_FLAG"
 fi
+rm -f "/tmp/claude-tool-streak-${SID}.json"
 exit 0
