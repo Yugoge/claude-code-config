@@ -53,7 +53,6 @@
 - `start-fswatch-all.sh` - start-fswatch-all.sh - Start fswatch monitoring for all important repositories
 - `stop-git-commit.sh` - ============================================================================
 - `stop-overnight-timelock.py` - Stop Hook: Block conversation termination until overnight end-time
-- `stop-workflow-enforce.py` - Stop Hook: Enforce workflow structural integrity before allowing Claude to stop
 - `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
 
 ## Subdirectories

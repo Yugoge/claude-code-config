@@ -22,6 +22,7 @@ import os
 import re
 import subprocess
 import sys
+import importlib.util
 from datetime import datetime
 from pathlib import Path
 
@@ -392,6 +393,25 @@ def _build_worktree_instruction(state: dict) -> str:
     return 'Worktree was not created yet. Call EnterWorktree in Step 1.'
 
 
+def _load_overnight_todos() -> list[dict]:
+    todo_path = Path(
+        os.environ.get(
+            'CLAUDE_DEV_OVERNIGHT_TODO',
+            str(Path.home() / '.claude' / 'scripts' / 'todo' / 'dev-overnight.py'),
+        )
+    )
+    try:
+        spec = importlib.util.spec_from_file_location('dev_overnight_todo', todo_path)
+        if spec is None or spec.loader is None:
+            return []
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        todos = module.get_todos()
+    except Exception:
+        return []
+    return [item for item in todos if isinstance(item, dict)]
+
+
 def build_overnight_continuation(state: dict) -> str:
     """Build continuation context for overnight loop prompts."""
     cc = state.get('cycle_count', 0)
@@ -401,6 +421,9 @@ def build_overnight_continuation(state: dict) -> str:
     last = f"Cycle {last_entry.get('cycle')}: {last_entry.get('status')}" if last_entry else 'N/A'
     cmd_spec = read_command_spec('dev-overnight')
     wt_instruction = _build_worktree_instruction(state)
+    overnight_todos = _load_overnight_todos()
+    step_count = len(overnight_todos) or 21
+    step_labels = '; '.join(str(item.get('content', '')) for item in overnight_todos)
     return '\n'.join([
         f'OVERNIGHT CONTINUATION - Cycle {cc + 1}', '',
         '--- COMMAND SPECIFICATION ---', '', cmd_spec, '',
@@ -412,8 +435,9 @@ def build_overnight_continuation(state: dict) -> str:
         '--- CONTINUATION INSTRUCTIONS ---', '',
         'You are continuing an overnight session with FRESH context.',
         wt_instruction,
-        'Loop is driven by todo completion detection -- when all 13 steps complete,',
+        f'Loop is driven by todo completion detection -- when all {step_count} steps complete,',
         'the system automatically resets for a new cycle.',
+        f'Canonical steps: {step_labels}',
         'Do NOT create state file.',
         f'Read .claude/overnight-state-{state.get("session_id", "default")}.json and resume from phase="{phase}".',
         'Phase mapping: initializing/exploring->Step 2, selecting->Step 3,',
