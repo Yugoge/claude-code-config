@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""PreToolUse:Write|Edit|NotebookEdit backstop shim.
+"""PreToolUse:Write|Edit|NotebookEdit advisory shim (warn-only as of 2026-05-14).
 
-Canonical enforcement: pretool-tool-policy.py + lib/policy_registry.
-This shim remains as a backward-compat backstop for /spec /dev sessions
-where the new policy hook is not yet registered in settings.json: blocks
-code-file writes by any non-dev subagent and otherwise allows.
+Canonical enforcement: pretool-tool-policy.py + lib/policy_registry — this
+hook is now registered in settings.json and authoritative. This shim was
+originally a backstop for unregistered sessions; with tool-policy
+authoritative, the shim is downgraded to advisory (exit 0 + stderr warning)
+on every hit. Path-based denial of non-dev code writes is enforced by
+pretool-tool-policy.py; this shim only emits a warning marker.
 """
 from __future__ import annotations
 import json
@@ -47,10 +49,11 @@ def _warn_unregistered() -> None:
 
 def _block_wrong_role(role: str, target: str) -> None:
     sys.stderr.write(
-        f"BLOCKED (shim): role='{role}' cannot write code file {target}. "
-        "Only 'dev' may write source code.\n"
+        f"WARN (shim): role='{role}' attempting to write code file {target}. "
+        "Only 'dev' should write source code. "
+        "(Path-based denial is enforced by pretool-tool-policy.py; this shim is advisory.)\n"
     )
-    sys.exit(2)
+    sys.exit(0)
 
 
 def _decide(data: dict, target: str) -> None:
