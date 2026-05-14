@@ -53,10 +53,10 @@ SUBJECT_PATTERNS = [
 ]
 
 
-def _block(message: str) -> None:
-    """Write to stderr and exit 2."""
+def _warn(message: str) -> None:
+    """Write to stderr and exit 0 (warn-only per user policy: no text-smell hard-blocks)."""
     sys.stderr.write(message)
-    sys.exit(2)
+    sys.exit(0)
 
 
 def _looks_like_git_commit(command: str) -> bool:
@@ -133,9 +133,9 @@ def _classify_subsystems(files: list) -> list:
 
 
 def _emit_bulk_block(message: str, prefixes: list, files: list) -> None:
-    """Emit the formatted bulk-commit block message and exit 2."""
-    _block(
-        f'\nBLOCKED: bulk-commit detector — touched: '
+    """Emit the formatted bulk-commit warning and exit 0 (warn-only)."""
+    _warn(
+        f'\nWARN (bulk-commit-detector, not blocking): touched: '
         f'{", ".join(prefixes)}\n'
         f'Commit subject {message[:120]!r} matches AI-bulk pattern '
         f'(`sync.*uncommitted` or `chore(claude): sync`) AND staged set '
