@@ -1,6 +1,6 @@
 # hooks
 
-*Last updated: 2026-05-14T19:30:00Z*
+*Last updated: 2026-05-14T20:35:19Z*
 **Total entries**: 114
 **Convention**: kebab
 
@@ -79,7 +79,7 @@ hooks/
 ├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 0 (warn-only per user policy: no text-smell hard-blocks).
 ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
 ├── `pretool-cp-checkin.py` - cp-state file read
-├── `pretool-cp-state-write-guard.py` - Cycle 2 hardening (spec-20260507-191743):
+├── `pretool-cp-state-write-guard.py` - Cycle-3 slim form (2026-05-14): Bash-extractor removed — 22-form adversarial
 ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
 ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
