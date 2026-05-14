@@ -686,14 +686,17 @@ def _extract_bash_targets(command: str) -> list:
 
 
 def _extract_targets(tool_name: str, tool_input: dict) -> list:
+    # Cycle-3 slim form: only direct write tools are scanned. The cycle-2
+    # 22-form Bash extractor at lines 127-685 below is no longer reachable
+    # from this entry point — it remains as dead code pending follow-up
+    # cleanup. Bash-mediated writes to cp-state files were over-engineering
+    # of cooperative-threat-model defense; the L1 direct-write check below
+    # is the canonical enforcement path.
     if not isinstance(tool_input, dict):
         return []
     if tool_name in WRITE_TOOLS:
         target = tool_input.get("file_path") or tool_input.get("notebook_path")
         return [target] if target else []
-    if tool_name == "Bash":
-        command = tool_input.get("command") or ""
-        return _extract_bash_targets(command)
     return []
 
 
@@ -724,7 +727,9 @@ def _check_targets(tool_name: str, targets: list) -> None:
 
 
 def _is_in_scope(tool_name: str) -> bool:
-    return tool_name in WRITE_TOOLS or tool_name == "Bash"
+    # Cycle-3 slim form: drop Bash from scope; only direct write tools
+    # are checked. See _extract_targets comment for rationale.
+    return tool_name in WRITE_TOOLS
 
 
 def _is_subagent(data: dict) -> bool:

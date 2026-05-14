@@ -336,19 +336,19 @@ def collect_violations(content, ext):
 
 
 def emit_violations(file_path, violations):
-    """Print the BLOCKED message in the historical format."""
-    print("QUALITY GATE BLOCKED \u2014 %s:" % file_path, file=sys.stderr)
+    """Print the WARNING message (warn-only per user policy: no text-smell hard-blocks)."""
+    print("QUALITY GATE WARNING \u2014 %s:" % file_path, file=sys.stderr)
     for v in violations:
         print("  - %s" % v, file=sys.stderr)
-    print("Fix violations before writing. Split large functions into smaller ones.", file=sys.stderr)
+    print("Quality gate warns (advisory only, not blocking). Consider splitting large functions.", file=sys.stderr)
 
 
 def _grandfather_or_block(data, file_path, ext, post_content, violations):
-    """Decide whether to allow (grandfathered) or block; return exit code."""
+    """Decide whether to allow (grandfathered) or warn; always returns 0 (warn-only)."""
     pre_content = get_pre_content(data)
     if pre_content is None:
         emit_violations(file_path, violations)
-        return 2
+        return 0
     pre_m = compute_metrics(pre_content, ext)
     post_m = compute_metrics(post_content, ext)
     ok, reason = metric_did_not_worsen(pre_m, post_m)
@@ -357,7 +357,7 @@ def _grandfather_or_block(data, file_path, ext, post_content, violations):
         print(msg % file_path, file=sys.stderr)
         return 0
     emit_violations(file_path, violations + ["Worsened: " + reason])
-    return 2
+    return 0
 
 
 def main():

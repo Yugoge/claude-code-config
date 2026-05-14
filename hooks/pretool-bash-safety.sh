@@ -1061,22 +1061,21 @@ if [ "$IS_SUBAGENT" = "1" ]; then
   if [ -n "$SID" ] && [ -e "/tmp/claude-orchestrator-consent-${SID}.flag" ]; then
     exit 0
   fi
-  if echo "$COMMAND" | grep -qE 'git[[:space:]]+(revert|commit|merge|cherry-pick|rebase|push)([[:space:]]|$)'; then
-    echo "BLOCKED: Subagent-initiated git history mutation is FORBIDDEN" >&2
+  # Narrowed (2026-05-14): commit|merge|push are fully covered by
+  # pretool-git-privilege-guard.py (canonical layer). revert|cherry-pick|rebase
+  # are NOT covered there, so they remain in this layer.
+  if echo "$COMMAND" | grep -qE 'git[[:space:]]+(revert|cherry-pick|rebase)([[:space:]]|$)'; then
+    echo "BLOCKED: Subagent-initiated git history mutation is FORBIDDEN (revert|cherry-pick|rebase)" >&2
     echo "Command: $COMMAND" >&2
-    echo "REASON: On 2026-04-23, a dev subagent ran 'git revert 1204d62 --no-edit' on the" >&2
-    echo "nested .claude repo, undoing a user-approved feature commit. The user had stated" >&2
-    echo "'禁止 full revert' but the subagent had no real-time access to that constraint." >&2
     echo "Subagents must NEVER mutate git history. Tell the user what you want done" >&2
     echo "and ask them to run the command themselves." >&2
     echo "Allowed git verbs for subagents: status, log, show, diff, blame, ls-tree, ls-files, branch (read-only), worktree list." >&2
+    echo "(commit|merge|push are blocked by pretool-git-privilege-guard.py)" >&2
     exit 2
   fi
-  if echo "$COMMAND" | grep -qE 'git[[:space:]]+branch[[:space:]]+-D[[:space:]]'; then
-    echo "BLOCKED: Subagent-initiated branch deletion is FORBIDDEN" >&2
-    echo "Command: $COMMAND" >&2
-    exit 2
-  fi
+  # Branch -D / -d deletion is covered by the canonical block at line ~1046
+  # (regex -[fDdMm]+) AND by pretool-git-privilege-guard.py:287. The previous
+  # 'git branch -D ' substring check here was a duplicate and has been removed.
 fi
 
 # Block: git revert <commit-hash> or git revert <ref>^ or git revert <ref>~N or git revert <ref>@{N}
