@@ -5,8 +5,8 @@ PreToolUse Hook: Orchestrator Gate (Unified)
 Three-tier policy for the main agent:
   1. ALWAYS_ALLOWED whitelist tools pass, but Bash is capped at 3
      consecutive same-name calls (4th blocked).
-  2. Non-whitelist tools are allowed once per consecutive same-name
-     streak (2nd same-name call blocked).
+  2. Non-whitelist tools are allowed once TOTAL per tool name per turn
+     (2nd same-name call blocked regardless of intervening tool calls).
   3. PERMANENTLY_BLOCKED (EnterPlanMode, ExitPlanMode) are always
      blocked, even with /do consent.
 
@@ -16,7 +16,9 @@ the streak state.
 /do consent (Design A) bypasses streak checks AND does not update
 the streak state, preserving clean exit semantics.
 
-State file: /tmp/claude-tool-streak-<sid>.json -- {"last_tool": str, "count": int}
+State file: /tmp/claude-tool-streak-<sid>.json --
+  {"schema_version": 2, "per_tool_counts": {"Edit": 1},
+   "bash_consecutive": {"last_tool": "Bash", "count": 2}}
 """
 
 import json
@@ -154,14 +156,20 @@ def get_streak_state_file(session_id: str) -> Path:
     return Path(f"/tmp/claude-tool-streak-{session_id}.json")
 
 
+def _fresh_state() -> dict:
+    return {"schema_version": 2, "per_tool_counts": {}, "bash_consecutive": {"last_tool": "", "count": 0}}
+
+
 def _parse_streak_state(data) -> dict:
-    if not isinstance(data, dict):
-        return {"last_tool": "", "count": 0}
-    last_tool = data.get("last_tool", "")
-    count = data.get("count", 0)
-    if isinstance(last_tool, str) and isinstance(count, int):
-        return {"last_tool": last_tool, "count": count}
-    return {"last_tool": "", "count": 0}
+    if not isinstance(data, dict) or data.get("schema_version") != 2:
+        return _fresh_state()
+    per_tool = data.get("per_tool_counts")
+    bash_con = data.get("bash_consecutive")
+    if not isinstance(per_tool, dict) or not isinstance(bash_con, dict):
+        return _fresh_state()
+    if not isinstance(bash_con.get("last_tool"), str) or not isinstance(bash_con.get("count"), int):
+        return _fresh_state()
+    return {"schema_version": 2, "per_tool_counts": per_tool, "bash_consecutive": bash_con}
 
 
 def read_streak_state(state_file: Path) -> dict:
@@ -170,7 +178,7 @@ def read_streak_state(state_file: Path) -> dict:
             return _parse_streak_state(json.loads(state_file.read_text()))
     except (ValueError, OSError, json.JSONDecodeError):
         pass
-    return {"last_tool": "", "count": 0}
+    return _fresh_state()
 
 
 def write_streak_state(state_file: Path, state: dict) -> None:
@@ -182,12 +190,29 @@ def write_streak_state(state_file: Path, state: dict) -> None:
 
 def update_streak(state_file: Path, tool_name: str) -> int:
     state = read_streak_state(state_file)
-    if tool_name == state["last_tool"]:
-        state["count"] += 1
+
+    if tool_name in ALWAYS_ALLOWED:
+        if tool_name == "Bash":
+            bash = state["bash_consecutive"]
+            if bash["last_tool"] == "Bash":
+                bash["count"] += 1
+            else:
+                bash["last_tool"] = "Bash"
+                bash["count"] = 1
+            write_streak_state(state_file, state)
+            return bash["count"]
+        else:
+            # Non-Bash whitelist: reset bash consecutive counter, never blocked
+            state["bash_consecutive"] = {"last_tool": tool_name, "count": 1}
+            write_streak_state(state_file, state)
+            return 1
     else:
-        state = {"last_tool": tool_name, "count": 1}
-    write_streak_state(state_file, state)
-    return state["count"]
+        # Non-whitelist: increment total count for this tool; reset bash consecutive
+        counts = state["per_tool_counts"]
+        counts[tool_name] = counts.get(tool_name, 0) + 1
+        state["bash_consecutive"] = {"last_tool": tool_name, "count": 1}
+        write_streak_state(state_file, state)
+        return counts[tool_name]
 
 
 def block_permanent(tool_name: str) -> None:
