@@ -1708,7 +1708,6 @@
 │   │   ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
 │   │   ├── `pretool-cp-checkin.py` - cp-state file read
 │   │   ├── `pretool-cp-state-write-guard.py` - AC-1 backstop (spec-20260507-142952). The tool-policy in
-│   │   ├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
 │   │   ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 │   │   ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
 │   │   ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
@@ -9332,7 +9331,6 @@
 │   ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
 │   ├── `pretool-cp-checkin.py` - cp-state file read
 │   ├── `pretool-cp-state-write-guard.py` - AC-1 backstop (spec-20260507-142952). The tool-policy in
-│   ├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
 │   ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 │   ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
 │   ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
