@@ -813,18 +813,20 @@ The focus string is a qualitative directive from the user (e.g., "high quality o
 **Process**:
 1. Read the `focus` field from the state file
 2. If empty or null, skip this step (no focus criteria to convert)
-3. Convert the qualitative focus into a `focus_verification_criteria` array of measurable criteria
+3. Convert the qualitative focus into a `focus_verification_criteria` array of measurable criterion objects
 4. Store the array in memory for use in Step 15 (QA prompt)
 
 **Conversion example** (illustrative only — derive criteria from the focus and project context, not from this template):
 
 | Focus string | QA verification criteria |
 |---|---|
-| `<qualitative focus>` | `["<measurable threshold #1 with number>", "<binary check #2>", "<observable assertion #3>"]` |
+| `<qualitative focus>` | `[{"criterion":"<measurable threshold #1 with number>","required_evidence_level":"rendered_cached"}, {"criterion":"<fresh extraction assertion>","required_evidence_level":"extraction_verified"}]` |
 
 **Rules**:
 - Each criterion must be measurable (includes a number, threshold, or binary check)
 - Each criterion must be verifiable by QA (observable in browser, API response, or file output)
+- Each criterion must declare `required_evidence_level` as one of `rendered_cached`, `fresh_scan_triggered`, `fresh_scan_completed`, or `extraction_verified`
+- Rendered/cached evidence must not satisfy criteria that require `extraction_verified`
 - Aim for 3-5 criteria per focus string
 - When in doubt, err on the side of stricter criteria
 
@@ -1176,7 +1178,8 @@ Agent(subagent_type: "qa")
     Verify that changes were made inside the worktree, not the main project.
 
     <If focus_verification_criteria array exists from Step 7, include:>
-    Focus verification criteria (MANDATORY -- these are hard pass/fail from user's focus directive):
+    Focus verification criteria (MANDATORY -- these are hard pass/fail from user's focus directive).
+    QA must record `evidence_level` for every result; `rendered_cached` cannot satisfy `required_evidence_level: extraction_verified`:
     <list each criterion from focus_verification_criteria array>
     You MUST verify each criterion above. These are not optional hints. Failures count toward your QA verdict.
   "
@@ -1657,7 +1660,7 @@ The state file is created by `create-overnight-state.sh` during session initiali
 - **pretool-workflow-gate.py** (PreToolUse): Gates tools until TodoWrite is called
 - **posttool-todo-count.py** (PostToolUse:TodoWrite): Enforces step count
 - **posttool-todo-sequence.py** (PostToolUse:TodoWrite): Enforces step ordering
-- **stop-workflow-enforce.py** (Stop): Blocks stop if workflow steps dropped
+- **codex_native_harness.py / stop-overnight-timelock.py** (Stop): Active Stop-chain workflow enforcement; do not cite absent legacy workflow-enforce hooks as active
 - **stop-overnight-timelock.py** (Stop): Blocks stop until end_time reached
 - **posttool-git-checkpoint.sh** (PostToolUse:Write|Edit): Auto-commits changes
 

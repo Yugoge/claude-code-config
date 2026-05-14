@@ -163,6 +163,22 @@ fi
 SPEC_MODE="autonomous"
 USER_SPEC_PATH="null"
 
+ensure_detected_spec_matches_focus() {
+    local detected="$1"
+    if [[ -z "$FOCUS" ]]; then
+        echo "Error: Auto-detected spec requires explicit --spec when focus is empty." >&2
+        echo "  detected: $detected" >&2
+        return 1
+    fi
+    if grep -Fq -- "$FOCUS" "$detected"; then
+        return 0
+    fi
+    echo "Error: Auto-detected spec does not match focus; pass explicit --spec to bind it." >&2
+    echo "  focus: $FOCUS" >&2
+    echo "  detected: $detected" >&2
+    return 1
+}
+
 if [[ -n "$SPEC_PATH" ]]; then
     # Explicit --spec provided
     if [[ ! -f "$SPEC_PATH" ]]; then
@@ -178,6 +194,7 @@ elif [[ -d "$PROJECT_DIR/docs/dev/specs" ]]; then
         -printf '%T@ %p\n' 2>/dev/null \
         | sort -rn | head -1 | cut -d' ' -f2-)
     if [[ -n "$DETECTED" && -f "$DETECTED" ]]; then
+        ensure_detected_spec_matches_focus "$DETECTED"
         SPEC_MODE="user-provided"
         USER_SPEC_PATH="$DETECTED"
         echo "Auto-detected spec: $USER_SPEC_PATH" >&2
@@ -219,6 +236,14 @@ mkdir -p "$STATE_DIR"
 
 STATE_FILE="$STATE_DIR/overnight-state-${SESSION_ID}.json"
 TMP_FILE="${STATE_FILE}.tmp"
+CYCLE_ID=1
+CYCLE_DIR="$PROJECT_DIR/docs/dev/overnight/$SESSION_ID/cycle-$CYCLE_ID"
+CONTRACT_FILE="$CYCLE_DIR/cycle-contract.json"
+TRACE_LOG_PATH="$CYCLE_DIR/trace.jsonl"
+MONOLITH_SHA="null"
+if [[ "$USER_SPEC_PATH" != "null" && -n "$USER_SPEC_PATH" && -f "$USER_SPEC_PATH" ]]; then
+    MONOLITH_SHA="$(sha256sum "$USER_SPEC_PATH" | awk '{print $1}')"
+fi
 
 # --- Build JSON with jq ---
 jq -n \
@@ -230,6 +255,7 @@ jq -n \
     --arg user_spec_path "$USER_SPEC_PATH" \
     --arg worktree_path "$WORKTREE_PATH" \
     --arg worktree_branch "$WORKTREE_BRANCH" \
+    --arg cycle_contract_path "$CONTRACT_FILE" \
     --argjson view_paths "$VIEW_PATHS" \
     '{
         session_id: $session_id,
@@ -238,6 +264,8 @@ jq -n \
         focus: $focus,
         spec_mode: $spec_mode,
         user_spec_path: (if $user_spec_path == "null" then null else $user_spec_path end),
+        cycle_id: 1,
+        cycle_contract_path: $cycle_contract_path,
         cycle_count: 0,
         issues_found: 0,
         issues_fixed: 0,
@@ -259,7 +287,35 @@ jq -n \
 # Atomic move
 mv "$TMP_FILE" "$STATE_FILE"
 
+# --- Create minimal cycle contract at session creation ---
+mkdir -p "$CYCLE_DIR"
+CONTRACT_TMP="${CONTRACT_FILE}.tmp"
+jq -n \
+    --arg session_id "$SESSION_ID" \
+    --arg spec_mode "$SPEC_MODE" \
+    --arg spec_path "$USER_SPEC_PATH" \
+    --arg created_at "$START_TIME" \
+    --arg monolith_sha "$MONOLITH_SHA" \
+    --arg trace_log_path "$TRACE_LOG_PATH" \
+    '{
+        schema_version: 1,
+        spec_id: (if $spec_path == "null" then "autonomous-" + $session_id else ($spec_path | split("/")[-1] | sub("\\.md$"; "")) end),
+        session_id: $session_id,
+        cycle_id: 1,
+        spec_mode: $spec_mode,
+        spec_path: (if $spec_path == "null" then null else $spec_path end),
+        created_at: $created_at,
+        monolith_sha256: (if $monolith_sha == "null" then null else $monolith_sha end),
+        trace_log_path: $trace_log_path,
+        required_calls: [],
+        pipelines: {},
+        specialist_selection: {}
+    }' > "$CONTRACT_TMP"
+jq empty "$CONTRACT_TMP" >/dev/null
+mv "$CONTRACT_TMP" "$CONTRACT_FILE"
+
 echo "Created overnight state v7: $STATE_FILE" >&2
+echo "Created minimal cycle contract: $CONTRACT_FILE" >&2
 echo "  Session: $SESSION_ID" >&2
 echo "  End time: $END_TIME" >&2
 echo "  Spec mode: $SPEC_MODE" >&2
