@@ -877,9 +877,15 @@ These criteria are derived from the user's focus directive and represent quantit
 For each criterion in the `focus_verification_criteria` array:
 1. Design a specific verification action
 2. Execute it (browser test, file inspection, measurement)
-3. Record pass/fail with evidence
+3. Record pass/fail with evidence and an `evidence_level`
 
 **Focus criteria are mandatory, not advisory.** If any focus criterion fails, it contributes to the QA verdict like any other finding. Severity is determined by the criterion's impact on the user's stated goal.
+
+Evidence levels are mandatory when focus criteria are present:
+`rendered_cached`, `fresh_scan_triggered`, `fresh_scan_completed`, `extraction_verified`.
+If a criterion requires fresh extraction, `rendered_cached` is insufficient; use
+`required_evidence_level: "extraction_verified"` and fail the criterion unless
+the recorded `evidence_level` is exactly `extraction_verified`.
 
 Record findings in `focus_criteria_results`:
 ```json
@@ -888,7 +894,14 @@ Record findings in `focus_criteria_results`:
     "criteria_provided": true,
     "criteria_count": 3,
     "results": [
-      {"criterion": "output content fills >80% of target area", "result": "pass|fail", "evidence": "...", "severity": "major"}
+      {
+        "criterion": "fresh extraction completed",
+        "result": "pass|fail",
+        "evidence": "...",
+        "evidence_level": "rendered_cached|fresh_scan_triggered|fresh_scan_completed|extraction_verified",
+        "required_evidence_level": "extraction_verified",
+        "severity": "major"
+      }
     ],
     "all_passed": true
   }
@@ -1730,7 +1743,7 @@ If you are invoked under a `/spec`-driven workflow (the orchestrator passes a no
 
 ### cp-state lifecycle SOP (canonical path)
 
-All cp-state mutations go through `python3 /root/.claude/scripts/spec-check.py`. The five subcommands:
+All cp-state mutations go through the executable `spec-check.py` under the configured Claude home. Define `CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"`, then use `$CLAUDE_HOME/scripts/spec-check.py`. The five subcommands:
 
 | Subcommand | Purpose |
 |---|---|
@@ -1746,7 +1759,8 @@ All cp-state mutations go through `python3 /root/.claude/scripts/spec-check.py`.
 
 **During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it:
 ```bash
-python3 /root/.claude/scripts/spec-check.py mark \
+CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
+"$CLAUDE_HOME/scripts/spec-check.py" mark \
   --spec-id <SPEC_ID> \
   --agent qa \
   --agent-id "$CLAUDE_AGENT_ID" \
@@ -1755,7 +1769,8 @@ python3 /root/.claude/scripts/spec-check.py mark \
 
 If a checkpoint legitimately does not apply to this run, waive it (auto-text records actor + ISO timestamp):
 ```bash
-python3 /root/.claude/scripts/spec-check.py waive \
+CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
+"$CLAUDE_HOME/scripts/spec-check.py" waive \
   --spec-id <SPEC_ID> \
   --agent qa \
   --agent-id "$CLAUDE_AGENT_ID" \

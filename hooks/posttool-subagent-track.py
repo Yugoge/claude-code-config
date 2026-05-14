@@ -295,10 +295,20 @@ def _consult_artifact_status_sidecar(session_id: str, cycle_id: int) -> tuple[bo
 
 
 def _mark_or_pend(bm_path: Path, ip_index: int | None, step: str,
-                  ok: bool, reasons: list) -> None:
-    """T2.3: write the bookmark mark only on success; emit pending otherwise."""
+                  ok: bool, reasons: list, session_id: str = '',
+                  cycle_id: int = 0, matched: dict | None = None) -> None:
+    """Write the bookmark mark only through atomic contract reconciliation."""
     if ok and ip_index is not None:
-        _record_subagent_call_legacy(bm_path, str(ip_index))
+        try:
+            result = contract_runtime.reconcile_accepted_artifact(
+                session_id, cycle_id, bm_path, ip_index, matched or {},
+            )
+        except Exception as exc:
+            _emit_pending(step, ip_index, [f'atomic reconciliation failed: {exc}'])
+            return
+        if result.get('ok'):
+            return
+        _emit_pending(step, ip_index, [str(result.get('reason') or 'atomic reconciliation failed')])
         return
     if ip_index is not None:
         _emit_pending(step, ip_index, reasons)
@@ -317,7 +327,10 @@ def _enforce(stdin_data: dict, contract: dict, state: dict,
         return
     a_ok, a_why = _validate_artifact_for_entry(matched)
     s_ok, s_why = _consult_artifact_status_sidecar(session_id, cycle_id)
-    _mark_or_pend(bm_path, ip_index, step, a_ok and s_ok, a_why + s_why)
+    _mark_or_pend(
+        bm_path, ip_index, step, a_ok and s_ok, a_why + s_why,
+        session_id, cycle_id, matched,
+    )
 
 
 # ---------------------------------------------------------------------------
