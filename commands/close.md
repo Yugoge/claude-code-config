@@ -249,7 +249,7 @@ Round 1:
       - The same input artifact paths
       - Your Round-1 position and rationale
       - Inspector findings from 1b above (so codex can weigh them)
-      - Instruction (user-need + THIS-diff cleanliness scoped, per spec-20260503-091826 Section 5.4 rule 3 + 4): "Challenge whether this close grants YES on something that ACTUALLY satisfies the user-stated need (not just the BA AC's mechanical wording). Flag any cleanliness/style violations introduced by THIS diff (not pre-existing). Out-of-path observations and pre-existing technical debt are NOT grounds for CLOSE: NO under this scoping. Reply with exactly one line `CODEX: YES` or `CODEX: NO` followed by 3-8 sentences of rationale."
+      - Instruction (user-need + THIS-diff cleanliness scoped, per spec-20260503-091826 Section 5.4 rule 3 + 4): "Challenge whether this close grants YES on something that ACTUALLY satisfies the user-stated need (not just the BA AC's mechanical wording). Flag any cleanliness/style violations introduced by THIS diff (not pre-existing). Out-of-path observations and pre-existing technical debt are NOT grounds for CLOSE: NO under this scoping. Reply with exactly one line `CODEX: YES` or `CODEX: NO` followed by 3-8 sentences of rationale. **If CODEX: NO, you MUST also list 2–5 specific actionable items that would flip your verdict to YES — without this list, a NO verdict is incomplete and QA will treat it as an observation, not a blocker.**"
   1c. Parse codexs response. If parsing ambiguous, treat as NO.
 
   **Inspector-finding → CLOSE: NO verdict plumbing** (AC-2.6 — encodes Section 5.4 rule 3 verbatim "整洁度判定范围 = 仅本次 diff 新增的 violation = NO 阻断 close. 预存历史脏污一律不管"):
