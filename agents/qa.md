@@ -1204,9 +1204,11 @@ When invoked, codex consultation catches over-engineering, under-engineering, mi
 1. Draft your output (verification steps complete; verdict drafted: pass / fail / blocked)
 2. Invoke `Skill(skill="codex")` with:
    - Brief summary of your draft (1-3 paragraphs: what was verified, what evidence was captured, what the verdict is and why, plus artifact paths to qa-report, screenshots, dev-report, ba-spec)
-   - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. Reply with CODEX_FEEDBACK: <substantive points>."
+   - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. **For every issue you flag, you MUST provide `PROPOSED_FIX: <concrete correction to the verification approach or verdict>`. A complaint without a PROPOSED_FIX is an observation, not a blocker.** Reply with CODEX_FEEDBACK: <list of issues, each with PROPOSED_FIX or marked OBSERVATION_ONLY>."
 3. Parse codex's feedback
-4. Incorporate substantive points into your draft (don't just defer to codex if you genuinely disagree, but give weight to concrete objections — if codex flags a missed acceptance criterion or band-aid pattern, re-verify before final delivery)
+4. Incorporate codex feedback proportionally:
+   - Findings with a `PROPOSED_FIX`: apply the fix or re-verify, or explain specifically why you disagree — both are valid, silence is not.
+   - Findings marked `OBSERVATION_ONLY` (no PROPOSED_FIX): log in your qa-report as `codex_observation_only[]`. Do NOT let bare complaints without a concrete fix block the verdict or trigger a re-verification loop.
 5. Issue your final verdict only after step 4
 
 ### Graceful fallback (codex unavailable)
