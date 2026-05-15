@@ -1952,18 +1952,22 @@ PY
   local plan_files=()
   mapfile -t plan_files < <(GIT_INDEX_FILE="$private_index" git -C "$repo_root" diff --cached --name-only "$expected_parent" --)
   files_json="$(GIT_INDEX_FILE="$private_index" git -C "$repo_root" diff --cached --name-only "$expected_parent" -- | "$PYTHON_BIN" -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))')"
+  # M6: write files_json to a temp file inside $tmp_dir to avoid ARG_MAX overflow
+  # when the staged set exceeds ~100 paths; reused at all 5 call sites below.
+  _files_json_tmp="$(mktemp "${tmp_dir}/commit-files-json-XXXXXX")"
+  printf '%s' "$files_json" > "$_files_json_tmp"
   # Manifest mode: M6 subset assertion against manifest.files MUST run BEFORE the
   # semantic_files rationale check so AC4's stderr-text contract — "not declared
   # in manifest.files" naming the offending path — wins. If we ran the rationale
   # check first, the diagnostic would name the missing semantic_files rationale
   # instead of the manifest.files declaration violation.
   if [ "$plan_source" = "manifest" ]; then
-    if ! "$PYTHON_BIN" - "$meta_file" "$files_json" <<'PY'
+    if ! "$PYTHON_BIN" - "$meta_file" "$_files_json_tmp" <<'PY'
 import json
 import sys
 
 meta = json.load(open(sys.argv[1]))
-patch_files = set(json.loads(sys.argv[2]))
+patch_files = set(json.loads(open(sys.argv[2]).read()))
 # B1: M6 subset assertion unions manifest.files with manifest.binary_files[].path
 # because binary files are staged outside the unified-diff text but legitimately
 # appear in the post-apply name list.
@@ -1983,12 +1987,12 @@ PY
       return 2
     fi
   fi
-  if ! "$PYTHON_BIN" - "$meta_file" "$files_json" <<'PY'
+  if ! "$PYTHON_BIN" - "$meta_file" "$_files_json_tmp" <<'PY'
 import json
 import sys
 
 meta = json.load(open(sys.argv[1]))
-patch_files = set(json.loads(sys.argv[2]))
+patch_files = set(json.loads(open(sys.argv[2]).read()))
 # B1: a binary_files entry carries its own reason field; include its paths in
 # the rationale set so binary-only paths satisfy the ownership-rationale rule.
 semantic_files = {item["path"] for item in meta.get("semantic_files", [])}
@@ -2021,13 +2025,13 @@ PY
 )"
     fi
     if [ -n "$manifest_task_for_filter" ]; then
-      if ! "$PYTHON_BIN" - "$files_json" "$manifest_task_for_filter" <<'PY'
+      if ! "$PYTHON_BIN" - "$_files_json_tmp" "$manifest_task_for_filter" <<'PY'
 import json
 import os
 import re
 import sys
 
-patch_files = json.loads(sys.argv[1])
+patch_files = json.loads(open(sys.argv[1]).read())
 bound_task = sys.argv[2]
 ts_re = re.compile(r"[0-9]{8}-[0-9]{6}")
 offending = []
@@ -2269,15 +2273,24 @@ PY
 )"
   staged_before_json="$(printf '%s\n' "$staged_list_before" | "$PYTHON_BIN" -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))')"
   staged_after_json="$(printf '%s\n' "$staged_list_after" | "$PYTHON_BIN" -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))')"
+  # M3: write large JSON blobs to temp files inside $tmp_dir to avoid ARG_MAX overflow.
+  _staged_before_tmp="$(mktemp "${tmp_dir}/commit-staged-before-XXXXXX")"
+  _staged_after_tmp="$(mktemp "${tmp_dir}/commit-staged-after-XXXXXX")"
+  _plan_semantic_tmp="$(mktemp "${tmp_dir}/commit-plan-semantic-XXXXXX")"
+  _plan_excluded_tmp="$(mktemp "${tmp_dir}/commit-plan-excluded-XXXXXX")"
+  printf '%s' "$staged_before_json" > "$_staged_before_tmp"
+  printf '%s' "$staged_after_json" > "$_staged_after_tmp"
+  printf '%s' "$plan_semantic" > "$_plan_semantic_tmp"
+  printf '%s' "$plan_excluded" > "$_plan_excluded_tmp"
 
-  "$PYTHON_BIN" - "$audit_json" "$ts" "$sid" "$task_id" "$mode" "$branch" "$expected_parent" "$new_commit" "$plan_sha" "$plan_id" "$plan_base" "$files_json" "$plan_semantic" "$plan_excluded" "$backup_ref" "$closure_kind" "$close_verdict" "$MESSAGE_SOURCE" "$staged_before_json" "$staged_after_json" "$real_index_before" "$real_index_after" "$meta_file" "$ARTIFACT_SHA256_JSON" "${AUDIT_PERSIST_VALUE:-}" "${M2_MESSAGE_GUARD_RESULT:-}" "${M3_TYPE_LINT_RESULT:-}" <<'PY'
+  "$PYTHON_BIN" - "$audit_json" "$ts" "$sid" "$task_id" "$mode" "$branch" "$expected_parent" "$new_commit" "$plan_sha" "$plan_id" "$plan_base" "$_files_json_tmp" "$_plan_semantic_tmp" "$_plan_excluded_tmp" "$backup_ref" "$closure_kind" "$close_verdict" "$MESSAGE_SOURCE" "$_staged_before_tmp" "$_staged_after_tmp" "$real_index_before" "$real_index_after" "$meta_file" "$ARTIFACT_SHA256_JSON" "${AUDIT_PERSIST_VALUE:-}" "${M2_MESSAGE_GUARD_RESULT:-}" "${M3_TYPE_LINT_RESULT:-}" <<'PY'
 import json
 import sys
 
 (path, ts, sid, task_id, mode, branch, parent, commit, plan_sha,
- plan_id, plan_base, files_json, semantic_json, excluded_json,
- backup_ref, closure_kind, close_verdict, message_source, staged_before_json,
- staged_after_json, index_before, index_after, meta_path,
+ plan_id, plan_base, files_json_path, semantic_json_path, excluded_json_path,
+ backup_ref, closure_kind, close_verdict, message_source, staged_before_path,
+ staged_after_path, index_before, index_after, meta_path,
  artifact_sha256_json, audit_persist_value,
  m2_message_guard, m3_type_lint) = sys.argv[1:28]
 # Engine + schema metadata come from the plan-meta file. Dev-report path emits
@@ -2300,11 +2313,11 @@ data = {
     "plan_sha256": plan_sha,
     "plan_id": plan_id,
     "plan_base_commit": plan_base,
-    "files": json.loads(files_json),
-    "semantic_files": json.loads(semantic_json),
-    "excluded_dirty": json.loads(excluded_json),
-    "staged_files_before": json.loads(staged_before_json),
-    "staged_files_after": json.loads(staged_after_json),
+    "files": json.loads(open(files_json_path).read()),
+    "semantic_files": json.loads(open(semantic_json_path).read()),
+    "excluded_dirty": json.loads(open(excluded_json_path).read()),
+    "staged_files_before": json.loads(open(staged_before_path).read()),
+    "staged_files_after": json.loads(open(staged_after_path).read()),
     "real_index_fingerprint_before": index_before,
     "real_index_fingerprint_after": index_after,
     "backup_ref": backup_ref,
@@ -2362,12 +2375,13 @@ import json, sys
 print(json.load(open(sys.argv[1])).get("engine", "semantic-commit"))
 PY
 )"
-  "$PYTHON_BIN" - "$LOG_PATH" "$ts" "$sid" "$task_id" "$mode" "$nonce" "$ppid_val" "$msg_sha_short" "$new_commit" "$expected_parent" "$plan_sha" "$backup_ref" "$files_json" "$closure_kind" "$close_verdict" "$MESSAGE_SOURCE" "$audit_json" "$log_engine" <<'PY'
+  # M4: _files_json_tmp already written above; reuse it here.
+  "$PYTHON_BIN" - "$LOG_PATH" "$ts" "$sid" "$task_id" "$mode" "$nonce" "$ppid_val" "$msg_sha_short" "$new_commit" "$expected_parent" "$plan_sha" "$backup_ref" "$_files_json_tmp" "$closure_kind" "$close_verdict" "$MESSAGE_SOURCE" "$audit_json" "$log_engine" <<'PY'
 import json
 import sys
 
 (path, ts, sid, task_id, mode, nonce, ppid_val, msg_sha_short, head,
- parent, plan_sha, backup_ref, files_json, closure_kind,
+ parent, plan_sha, backup_ref, files_json_path, closure_kind,
  close_verdict, message_source, audit_json, engine) = sys.argv[1:19]
 line = {
     "timestamp": ts,
@@ -2383,7 +2397,7 @@ line = {
     "parent": parent,
     "plan_sha256": plan_sha,
     "backup_ref": backup_ref,
-    "files": json.loads(files_json),
+    "files": json.loads(open(files_json_path).read()),
     "closure_kind": closure_kind,
     "close_verdict_observed": close_verdict,
     "message_source": message_source,
@@ -2445,6 +2459,10 @@ import json, sys
 files = [l for l in sys.stdin.read().splitlines() if l.strip()]
 print(json.dumps(sorted(set(files))))
 " <<< "$STAGED_RAW")"
+  # M5: write ALLOWED_JSON to a CLAUDE_TMPDIR-rooted temp file (not $tmp_dir which
+  # is a local variable of run_private_index_commit and does not exist in bridge scope).
+  _bridge_allowed_tmp="$(mktemp "${CLAUDE_TMPDIR%/}/commit-bridge-allowed-XXXXXX")"
+  printf '%s' "$ALLOWED_JSON" > "$_bridge_allowed_tmp"
 
   # Bridge-mode commit message (matches BLESSED_BRIDGE_RE — preserves
   # backwards-compat with the existing privilege-guard early-return at line
@@ -2463,16 +2481,16 @@ print(hashlib.sha256(sys.argv[1].encode('utf-8')).hexdigest())
   CREATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   PPID_VAL="$$"
 
-  "$PYTHON_BIN" - "$GRANT_FILE" "$NONCE" "$SID" "$BRIDGE_BRANCH" "$ALLOWED_JSON" "$MSG_SHA256" "$CREATED_AT" "$PPID_VAL" <<'PY'
+  "$PYTHON_BIN" - "$GRANT_FILE" "$NONCE" "$SID" "$BRIDGE_BRANCH" "$_bridge_allowed_tmp" "$MSG_SHA256" "$CREATED_AT" "$PPID_VAL" <<'PY'
 import json, sys
-path, nonce, sid, branch, allowed_json, msg_sha, created_at, ppid_val = sys.argv[1:9]
+path, nonce, sid, branch, allowed_json_path, msg_sha, created_at, ppid_val = sys.argv[1:9]
 grant = {
     "nonce": nonce,
     "sid": sid,
     "mode": "auto-bulk-bridge",
     "branch": branch,
     "task_id": branch,
-    "allowed_files": json.loads(allowed_json),
+    "allowed_files": json.loads(open(allowed_json_path).read()),
     "expected_message_sha256": msg_sha,
     "created_at": created_at,
     "ppid": int(ppid_val),
@@ -2521,6 +2539,7 @@ with open(path, "a") as fh:
 PY
 
   echo "commit.sh: success — mode=auto-bulk-bridge branch=${BRIDGE_BRANCH} head=${NEW_HEAD} files=${#ALLOWED_FILES[@]}"
+  rm -f "$_bridge_allowed_tmp"
   exit 0
 fi
 
