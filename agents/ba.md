@@ -784,14 +784,22 @@ is permitted ONLY when the cycle's deliverables involve NONE of:
   (1) rendered UI element changes (any visual / DOM output);
   (2) browser interaction (clicks, navigation, form input);
   (3) Playwright or other browser-automation tooling;
-  (4) live screenshot evidence (any screenshot-based verification).
+  (4) live screenshot evidence (any screenshot-based verification);
+  (5) code in any user-triggered path (pipeline steps 01-12, API endpoints
+      reachable by users, services called during resume generation or job search).
 
-The `reason` field in the compact form MUST cite which of the four
+**PIPELINE CODE IS NEVER N/A.** Any change to backend/pipeline/steps/*,
+backend/pipeline/agents/*, backend/app/api/*, or any code that executes when
+a user clicks "Generate" or triggers a job search, MUST use applicability=applicable
+and QA MUST verify via E2E Playwright test that the user-facing flow completes
+successfully. "Pure backend" is NOT a valid exemption category.
+
+The `reason` field in the compact form MUST cite which of the five
 non-applicability categories applies, in this exact enumerated form:
 
 ```
 - **applicability**: N/A
-- **reason**: non-UI -- <ONE of: pure backend / hook / config / CLI / agent-prompt edit / doc-only / build-CI>; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, or (4) screenshot evidence
+- **reason**: non-UI -- <ONE of: hook / config / CLI / agent-prompt edit / doc-only / build-CI>; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths
 ```
 
 Free-form rationales like "simple bugfix", "no UI focus this round", or
@@ -1040,7 +1048,7 @@ Must be compatible with `agents/dev.md` input format:
   },
   "setup": {
     "applicability": "applicable | N/A",
-    "reason": "FINDING-5 strict form: when applicability=N/A, this MUST start with 'non-UI -- ' followed by one of {pure backend, hook, config, CLI, agent-prompt edit, doc-only, build-CI} and explicitly attest that the cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, or (4) screenshot evidence. Required when applicability=N/A; omit when applicability=applicable. Free-form rationales like 'simple bugfix' or 'no UI focus' are forbidden.",
+    "reason": "FINDING-5 strict form: when applicability=N/A, this MUST start with 'non-UI -- ' followed by one of {hook, config, CLI, agent-prompt edit, doc-only, build-CI} — 'pure backend' is NOT a valid category. Must explicitly attest that the cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths (pipeline steps, API endpoints). Pipeline/API code is NEVER N/A. Required when applicability=N/A; omit when applicability=applicable.",
     "viewport": "exact viewport/breakpoint, e.g. '375x812 mobile' or '1440x900 desktop' (required when applicability=applicable; omit or set to null when N/A)",
     "theme": "light | dark | both (required when applicability=applicable)",
     "locale": "en | zh | ... (required when applicability=applicable)",
@@ -1351,7 +1359,7 @@ Before returning output, verify:
 
 - [ ] Complexity tier declared (`Tier:` in spec header, `complexity_tier` in context JSON)
 - [ ] Requirement fully decomposed (what/why/where/scope/success)
-- [ ] `setup` section populated. For UI / browser-rendered cycles all seven fields (viewport, theme, locale, auth_state, data_state, browser, url_path) are present in both spec and JSON. For non-UI cycles (pure backend, hooks, config, CLI, build/CI, agent-prompt edits, doc-only) the compact form is allowed: `applicability: N/A` plus a `reason` string; the seven detail fields may be omitted from the Markdown Setup section and set to null in the JSON. Mixed cycles use the full form.
+- [ ] `setup` section populated. For UI / browser-rendered cycles all seven fields (viewport, theme, locale, auth_state, data_state, browser, url_path) are present in both spec and JSON. For non-UI cycles (hooks, config, CLI, agent-prompt edits, doc-only, build-CI — NOT "pure backend") the compact form is allowed: `applicability: N/A` plus a `reason` string; the seven detail fields may be omitted. Pipeline steps, API endpoints, and any user-triggered code path are NEVER non-UI — use full form. Mixed cycles use the full form.
 - [ ] **(STANDARD/COMPLEX only)** For regression bugs ("used to work"), git bisect + global CSS/middleware ruled out before component-local code
 - [ ] **(STANDARD/COMPLEX only)** Best practices research performed or skip documented with reason
 - [ ] **(STANDARD/COMPLEX only)** Git analysis performed (or documented as N/A)
