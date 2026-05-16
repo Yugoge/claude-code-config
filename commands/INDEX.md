@@ -1,7 +1,7 @@
 # commands
 
-*Last updated: 2026-05-16T19:06:31Z*
-**Total entries**: 35
+*Last updated: 2026-05-16T20:10:56Z*
+**Total entries**: 34
 **Convention**: kebab
 
 ## Tree
@@ -13,7 +13,6 @@ commands/
 ├── `close.md` - Close the current dev cycle (agent infers task-id from conversation). QA evaluates Workflow Integrity bullets and returns CLOSE YES/NO. Pass --codex to enable multi-round QA-codex debate; default is QA-only single-round assessment. Append --force to skip the debate entirely.
 ├── `code-review.md` - Comprehensive code review with best practices analysis
 ├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.5, xhigh reasoning) for a second opinion or parallel coding
-├── `commit.md` - Create a content-bound commit from session ledger
 ├── `deep-search.md` - Deep website exploration with iterative search strategy
 ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
