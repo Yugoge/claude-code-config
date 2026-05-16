@@ -44,6 +44,49 @@ def _parse_stdin() -> dict:
         return {}
 
 
+def _is_subagent(data: dict) -> bool:
+    return bool(data.get('agent_id'))
+
+
+def _has_consent(session_id: str) -> bool:
+    try:
+        flag = Path(f'/tmp/claude-orchestrator-consent-{session_id}.flag')
+        return flag.exists() and flag.read_text().strip() == 'true'
+    except Exception:
+        return False
+
+
+def _check_and_consume_allowlist(session_id: str) -> bool:
+    """Check and consume /allow grant for Agent tool calls."""
+    try:
+        import fcntl
+        import json as _json
+        flag_path = Path(f'/tmp/claude-bash-allowlist-{session_id}.json')
+        with open(flag_path, 'r+') as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+            try:
+                grant = _json.load(fh)
+            except Exception:
+                return False
+            pattern = grant.get('pattern', '')
+            if not isinstance(pattern, str) or not pattern:
+                return False
+            is_regex = grant.get('is_regex', False)
+            if is_regex:
+                import re as _re
+                matched = bool(_re.search(pattern, 'Agent'))
+            else:
+                matched = pattern == 'Agent' or pattern in 'Agent'
+            if matched:
+                os.unlink(flag_path)
+                return True
+            return False
+    except (FileNotFoundError, OSError):
+        return False
+    except Exception:
+        return False
+
+
 def _load_bookmark(session_id: str) -> dict | None:
     project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
     path = project_dir / '.claude' / f'workflow-{session_id}.json'
@@ -195,6 +238,15 @@ def _main() -> None:
     if not stdin_data or stdin_data.get('tool_name') != 'Agent':
         sys.exit(0)
     session_id, cycle_id, state = _resolve_session_and_cycle(stdin_data)
+
+    # /do bypass: main-agent-only
+    if not _is_subagent(stdin_data) and _has_consent(session_id):
+        sys.exit(0)
+
+    # /allow bypass: main-agent-only
+    if not _is_subagent(stdin_data) and _check_and_consume_allowlist(session_id):
+        sys.exit(0)
+
     contract = contract_runtime.load_contract(session_id, cycle_id)
     if contract is None:
         # Hard cutover: legacy session — silent passthrough.

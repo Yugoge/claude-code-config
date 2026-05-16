@@ -1,12 +1,13 @@
 # tests
 
-*Last updated: 2026-04-27T22:56:25Z*
-**Total entries**: 1
+*Last updated: 2026-05-15T22:31:31Z*
+**Total entries**: 2
 **Convention**: kebab
 
 ## Tree
 ```
 tests/
+├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 └── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
 ```
 

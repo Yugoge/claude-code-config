@@ -4,7 +4,7 @@ commit-cas.py -- CAS commit engine for /commit slash command.
 
 Called by commit.sh after arg parse and M3 lint.
 Reads environment: SID, LEDGER_FILE, CONSUMED_FILE, AUDIT_BASE, MSG.
-Performs steps 4b through 19 of the commit algorithm.
+Performs steps 5 through 20 of the commit algorithm.
 
 No flags. No modes. No helpers. Content-bound authority via ledger blob SHAs.
 """
@@ -46,22 +46,43 @@ def die(msg: str) -> None:
     sys.exit(2)
 
 
-# Step 4b: Filter unconsumed ledger entries
-consumed_seqs: set[int] = set()
-try:
-    data = json.loads(open(CONSUMED_FILE).read())
-    for entry in data:
-        # New format: explicit list
-        if "consumed_seqs" in entry:
-            consumed_seqs.update(entry["consumed_seqs"])
-        # Legacy format: min/max range (backward compat)
-        elif "consumed_seq_range" in entry:
-            lo, hi = entry.get("consumed_seq_range", [0, 0])
-            consumed_seqs.update(range(lo, hi + 1))
-except Exception:
-    pass
+# Step 5: Always-aggregate entry loading across all *.jsonl files.
+# Backward-compatible consumed decoder: handles three formats from *.consumed.json:
+#   (a) new dict:  {"source_sid": "...", "seq": N}  -> (source_sid, seq)
+#   (b) legacy int in consumed_seqs list: N          -> (file_sid, N)
+#   (c) legacy consumed_seq_range: [lo, hi]          -> (file_sid, n) for n in range
+# consumed_pairs is a set of (source_sid, seq) tuples — namespace-scoped to prevent
+# session B's own seq=1 from being falsely matched against session A's consumed seq=1.
+consumed_pairs: set[tuple[str, int]] = set()
+for cf in glob.glob(os.path.join(LEDGER_BASE, "*.consumed.json")):
+    file_sid = os.path.basename(cf).replace(".consumed.json", "")
+    try:
+        data = json.loads(open(cf).read())
+        for item in data:
+            if isinstance(item, dict):
+                if "source_sid" in item and "seq" in item:
+                    # (a) new tuple format
+                    consumed_pairs.add((item["source_sid"], int(item["seq"])))
+                elif "consumed_seqs" in item:
+                    for v in item["consumed_seqs"]:
+                        if isinstance(v, dict) and "source_sid" in v and "seq" in v:
+                            # (a) new format nested inside consumed_seqs list
+                            consumed_pairs.add((v["source_sid"], int(v["seq"])))
+                        elif isinstance(v, int):
+                            # (b) legacy bare integer
+                            consumed_pairs.add((file_sid, v))
+                elif "consumed_seq_range" in item:
+                    # (c) legacy range
+                    lo, hi = item["consumed_seq_range"]
+                    for n in range(int(lo), int(hi) + 1):
+                        consumed_pairs.add((file_sid, n))
+    except Exception:
+        pass
 
-entries: list[dict] = []
+# Scan ALL *.jsonl files; primary SID file opened first (FileNotFoundError = empty).
+# Aggregate mode is always-on: entries from every SID with matching repo_root are included.
+all_raw_entries: list[dict] = []
+primary_loaded = False
 try:
     with open(LEDGER_FILE) as f:
         for line in f:
@@ -70,20 +91,49 @@ try:
                 continue
             try:
                 e = json.loads(line)
+                all_raw_entries.append(e)
             except json.JSONDecodeError:
                 continue
-            if e.get("sid") != SID:
-                continue
-            if e.get("seq", 0) in consumed_seqs:
-                continue
-            entries.append(e)
+    primary_loaded = True
+except FileNotFoundError:
+    primary_loaded = False  # missing primary SID ledger is not fatal in aggregate mode
 except Exception as exc:
-    die(f"nothing to commit -- cannot read ledger: {exc}")
+    die(f"nothing to commit -- cannot read primary ledger: {exc}")
+
+# Load all other *.jsonl files (skip primary to avoid double-loading).
+for lf in glob.glob(os.path.join(LEDGER_BASE, "*.jsonl")):
+    if lf == LEDGER_FILE:
+        continue
+    try:
+        with open(lf) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    e = json.loads(line)
+                    all_raw_entries.append(e)
+                except json.JSONDecodeError:
+                    continue
+    except Exception:
+        pass
+
+# Emit aggregate summary for debuggability (R6).
+contributing_sids = sorted({e.get("sid", "") for e in all_raw_entries if e.get("sid")})
+sys.stderr.write(f"INFO: aggregate mode: found entries from SIDs {contributing_sids}\n")
+
+# Apply repo_root filter and consumed filter to get unconsumed_entries.
+rroot_pre = repo_root()  # needed for repo_root filter before Step 8 re-checks
+entries: list[dict] = [
+    e for e in all_raw_entries
+    if e.get("repo_root") == rroot_pre
+    and (e.get("sid"), e.get("seq", 0)) not in consumed_pairs
+]
 
 if not entries:
-    die("nothing to commit -- ledger is empty for this session")
+    die("nothing to commit -- no unconsumed ledger entries for this repo")
 
-# Step 5: Recovery scan
+# Step 6: Recovery scan
 audit_sid_dir = os.path.join(AUDIT_BASE, SID)
 os.makedirs(audit_sid_dir, mode=0o700, exist_ok=True)
 
@@ -107,46 +157,91 @@ for pre_cas in glob.glob(os.path.join(audit_sid_dir, "pre-cas-*.json")):
     except Exception:
         pass
 
-# Step 6: Corruption check
+# Step 7: Corruption check
 corrupted = [e["path"] for e in entries if e.get("corruption_flag")]
 if corrupted:
     die("BLOCKED: corrupted ledger entries for paths:\n  " + "\n  ".join(corrupted))
 
-# Step 7: Repo identity check
+# Step 8: Repo identity check
 rroot = repo_root()
 entries = [e for e in entries if e.get("repo_root") == rroot]
 if not entries:
     die("nothing to commit -- no ledger entries match current repo root")
 
-# Step 8: Group by path, max seq per path per current epoch.
-# Carry forward the epoch's first-touch preimage so multiple edits to the
-# same file in one epoch don't falsely look like "new file vs tracked HEAD".
-epoch = 0
-try:
-    epoch = len(json.loads(open(CONSUMED_FILE).read()))
-except Exception:
-    pass
+# Step 9: Two-phase deduplication by path.
+# Epoch filter is BYPASSED in aggregate mode — consumed-pair check is the sole
+# "already committed" gate. Using all unconsumed entries regardless of epoch field.
+#
+# Phase 1 (within-SID): per-SID max-seq entry per path + first-touch tracking.
+# Phase 2 (cross-SID): select winner by ledger ts tiebreaker (later ts wins).
+# first_touch_preimage_sha is ALWAYS taken from the same SID as the winner entry.
 
-epoch_entries = [e for e in entries if e.get("epoch") == epoch]
-if not epoch_entries:
-    epoch_entries = entries  # use all unconsumed if no epoch match
+by_path_for_sid: dict[str, dict[str, dict]] = {}   # sid -> path -> max-seq entry
+first_touch_for_sid: dict[str, dict[str, str | None]] = {}  # sid -> path -> first_touch
+# Also track all same-SID same-path superseded (lower-seq) entries for consumed marking.
+superseded_by_sid: dict[str, list[dict]] = {}  # sid -> list of superseded entries
 
-# Build by_path with max seq per path, but carry first_touch from earliest entry.
-by_path: dict[str, dict] = {}
-first_touch_by_path: dict[str, str | None] = {}
-for e in sorted(epoch_entries, key=lambda x: x.get("seq", 0)):
+for e in sorted(entries, key=lambda x: x.get("seq", 0)):
+    sid_e = e.get("sid", "")
     p = e["path"]
     ft = e.get("first_touch_preimage_sha")
-    if p not in first_touch_by_path:
-        first_touch_by_path[p] = ft  # earliest entry's first_touch (may be None)
-    by_path[p] = e  # later seq wins for action/blob_sha
+    if sid_e not in by_path_for_sid:
+        by_path_for_sid[sid_e] = {}
+        first_touch_for_sid[sid_e] = {}
+        superseded_by_sid[sid_e] = []
+    if p not in first_touch_for_sid[sid_e]:
+        first_touch_for_sid[sid_e][p] = ft  # lowest-seq entry's first_touch for this SID
+    if p in by_path_for_sid[sid_e]:
+        # Current entry supersedes the previous one for this path within this SID.
+        superseded_by_sid[sid_e].append(by_path_for_sid[sid_e][p])
+    by_path_for_sid[sid_e][p] = e  # later seq wins within this SID
 
-# Patch first_touch into the by_path entries using the earliest non-None value.
+# Phase 2: cross-SID winner by ts tiebreaker.
+by_path: dict[str, dict] = {}
+for sid_e, path_map in by_path_for_sid.items():
+    for p, e in path_map.items():
+        if p not in by_path:
+            by_path[p] = e
+        else:
+            existing_ts = by_path[p].get("ts", "")
+            candidate_ts = e.get("ts", "")
+            if candidate_ts > existing_ts:
+                by_path[p] = e
+
+# Patch first_touch_preimage_sha from the SAME SID as the winning entry (not cross-SID).
 for p, e in by_path.items():
-    e["first_touch_preimage_sha"] = first_touch_by_path.get(p)
+    winner_sid = e.get("sid", "")
+    e["first_touch_preimage_sha"] = first_touch_for_sid.get(winner_sid, {}).get(p)
 
 if not by_path:
-    die("nothing to commit -- ledger is empty for this session")
+    die("nothing to commit -- no entries after deduplication")
+
+# Step 9b: Filter out paths whose first component is a symlink in the repo tree.
+# Example: if .claude is tracked as a symlink (mode 120000) in the parent repo,
+# git cannot stage paths like .claude/scripts/foo.sh inside it.
+def _first_component(path: str) -> str:
+    return path.split("/")[0]
+
+_symlink_prefixes: set[str] = set()
+_checked_prefixes: set[str] = set()
+_unstageable_paths: list[str] = []
+for _p in list(by_path.keys()):
+    _first = _first_component(_p)
+    if _first not in _checked_prefixes:
+        _checked_prefixes.add(_first)
+        _ls = run(["git", "ls-tree", "HEAD", "--", _first])
+        if _ls.stdout.strip().startswith("120000"):
+            _symlink_prefixes.add(_first)
+    if _first in _symlink_prefixes:
+        _unstageable_paths.append(_p)
+
+if _unstageable_paths:
+    for _p in _unstageable_paths:
+        sys.stderr.write(f"WARNING: skipping {_p} — inside symlinked directory '{_first_component(_p)}'\n")
+        del by_path[_p]
+
+if not by_path:
+    die("nothing to commit -- all entries are inside symlinked directories")
 
 # Pin parent SHA now; all validation and tree ops use this exact commit.
 branch = current_branch()
@@ -155,7 +250,7 @@ if not parent:
     die("BLOCKED: cannot resolve HEAD")
 
 
-# Step 9: Triple validation
+# Step 10: Triple validation
 def ls_tree_blob(path: str, ref: str = parent) -> str | None:
     ls = run(["git", "ls-tree", ref, path])
     if not ls.stdout.strip():
@@ -178,19 +273,53 @@ for path, e in by_path.items():
             die(f"BLOCKED: blob {blob_sha} not in object store for {path}"
                 " -- gc may have pruned it")
 
-        # (b) disk-freshness: file must exist and match ledger blob
+        # (b) disk-freshness: file must exist and match ledger blob.
+        # In aggregate mode spanning multiple sessions, blob_sha may be stale
+        # (a later session modified the file). Auto-rehash from disk instead of
+        # blocking — the CAS ref update (Step 16) remains the commit-level guard.
         abs_path = os.path.join(rroot, path)
-        if not os.path.exists(abs_path):
-            die(f"BLOCKED: disk content has changed since last Edit for {path}"
-                " (file no longer exists)")
-        disk = run(["git", "hash-object", abs_path])
-        if disk.returncode != 0 or disk.stdout.strip() != blob_sha:
-            die(f"BLOCKED: disk content has changed since last Edit for {path}")
+        entry_mode = e.get("mode")
+        if entry_mode == 120000:
+            # Symlink: use lexists (does NOT follow the link) so dangling symlinks
+            # are not prematurely rejected; the link-file itself must exist
+            if not os.path.lexists(abs_path):
+                die(f"BLOCKED: disk content has changed since last Edit for {path}"
+                    " (symlink no longer exists)")
+            link_target = os.readlink(abs_path)
+            disk_result = subprocess.run(
+                ["git", "hash-object", "--stdin"],
+                input=link_target.encode(),
+                capture_output=True
+            )
+            disk_sha = disk_result.stdout.strip().decode() if disk_result.returncode == 0 else ""
+            if disk_sha != blob_sha:
+                sys.stderr.write(f"WARNING: aggregate re-hash {path}: "
+                                 f"{blob_sha[:8]} → {disk_sha[:8]}\n")
+                e["blob_sha"] = disk_sha
+                blob_sha = disk_sha
+        else:
+            # Regular file: os.path.exists follows symlinks (correct — actual file must exist)
+            if not os.path.exists(abs_path):
+                die(f"BLOCKED: disk content has changed since last Edit for {path}"
+                    " (file no longer exists)")
+            disk = run(["git", "hash-object", "-w", abs_path])
+            if disk.returncode != 0:
+                die(f"BLOCKED: cannot hash {path}: {disk.stderr.strip()}")
+            disk_sha = disk.stdout.strip()
+            if disk_sha != blob_sha:
+                sys.stderr.write(f"WARNING: aggregate re-hash {path}: "
+                                 f"{blob_sha[:8]} → {disk_sha[:8]}\n")
+                e["blob_sha"] = disk_sha
+                blob_sha = disk_sha
 
-        # (c) branch-base CAS preimage (against pinned parent)
+        # (c) branch-base CAS preimage (against pinned parent).
+        # Relaxation for aggregate mode: if first_touch is None (new file) and
+        # parent_blob already matches blob_sha, the file is already correctly
+        # committed (e.g., via auto-bulk). Step 11 will detect no net change.
+        # Only block when parent_blob has DIFFERENT content from what we want to commit.
         first_touch = e.get("first_touch_preimage_sha")
         parent_blob = ls_tree_blob(path)
-        if first_touch is None and parent_blob is not None:
+        if first_touch is None and parent_blob is not None and parent_blob != blob_sha:
             die(f"BLOCKED: another commit has changed {path} since session start")
         if first_touch is not None and parent_blob != first_touch:
             die(f"BLOCKED: another commit has changed {path} since session start")
@@ -206,7 +335,7 @@ for path, e in by_path.items():
         if first_touch is not None and parent_blob != first_touch:
             die(f"BLOCKED: another commit has changed {path} since session start")
 
-# Step 10: Empty commit check
+# Step 11: Empty commit check
 all_no_change = all(
     (e.get("action") == "delete" and ls_tree_blob(p) is None) or
     (e.get("action") != "delete" and e.get("blob_sha") == ls_tree_blob(p))
@@ -215,7 +344,7 @@ all_no_change = all(
 if all_no_change:
     die("no net changes -- edit reverted to parent content")
 
-# Step 11: Nonce + grant manifest
+# Step 12: Nonce + grant manifest
 nonce = secrets.token_hex(16)
 grant_path = f"/tmp/claude-commit-grant-{SID}-{nonce}.json"
 
@@ -225,7 +354,7 @@ open(grant_path, "w").write(json.dumps({
 }))
 os.environ["CLAUDE_COMMIT_COMMAND_ACTIVE"] = "1"
 
-# Step 12: Temp index construction
+# Step 13: Temp index construction
 idx_path = f"/tmp/claude-idx-{SID}-{nonce}"
 env = os.environ.copy()
 env["GIT_INDEX_FILE"] = idx_path
@@ -262,7 +391,7 @@ for path, e in by_path.items():
             env=env, capture_output=True
         )
 
-# Step 13: Tree + commit
+# Step 14: Tree + commit
 r = subprocess.run(["git", "write-tree"], env=env, capture_output=True, text=True)
 if r.returncode != 0:
     _cleanup_temps()
@@ -278,12 +407,46 @@ if r.returncode != 0:
     die(f"BLOCKED: git commit-tree failed: {r.stderr.strip()}")
 commit_sha = r.stdout.strip()
 
-# Step 14: Pre-CAS audit
-# Consume ALL unconsumed entries for committed paths in this epoch (not just max-seq),
-# so earlier superseded edits don't linger as unconsumed and cause stale future commits.
-all_epoch_seqs = sorted(
-    e["seq"] for e in epoch_entries if e["path"] in by_path
-)
+# Step 15: Pre-CAS audit + build consumed_by_sid.
+# consumed_by_sid: dict[source_sid -> list of {source_sid, seq} dicts] for entries to mark.
+# Rules:
+#   (a) winning by_path entry for each path -> add to consumed_by_sid[winner_sid]
+#   (b) same-SID same-path superseded (lower-seq) entries -> also add to consumed_by_sid
+#   (c) cross-SID losing entries with different blob_sha -> NOT added (other session can still commit)
+consumed_by_sid: dict[str, list[dict]] = {}
+
+for p, winner_e in by_path.items():
+    winner_sid = winner_e.get("sid", "")
+    winner_blob = winner_e.get("blob_sha")
+    # (a) winning entry
+    if winner_sid not in consumed_by_sid:
+        consumed_by_sid[winner_sid] = []
+    consumed_by_sid[winner_sid].append({"source_sid": winner_sid, "seq": winner_e["seq"]})
+    # (b) within-SID superseded entries for this path
+    for sup_e in superseded_by_sid.get(winner_sid, []):
+        if sup_e["path"] == p:
+            consumed_by_sid[winner_sid].append({"source_sid": winner_sid, "seq": sup_e["seq"]})
+
+# Cross-SID losers: check each SID's by_path_for_sid entry for this path.
+# If the losing SID's entry has the SAME blob_sha as winner, mark it consumed too
+# (both sessions wrote the same content — safe to mark consumed for both).
+# If different blob_sha, skip (other session's version should remain committable).
+for p, winner_e in by_path.items():
+    winner_sid = winner_e.get("sid", "")
+    winner_blob = winner_e.get("blob_sha")
+    for sid_e, path_map in by_path_for_sid.items():
+        if sid_e == winner_sid:
+            continue
+        if p not in path_map:
+            continue
+        loser_e = path_map[p]
+        if loser_e.get("blob_sha") == winner_blob:
+            # Same content: safe to mark consumed for the losing SID too.
+            if sid_e not in consumed_by_sid:
+                consumed_by_sid[sid_e] = []
+            consumed_by_sid[sid_e].append({"source_sid": sid_e, "seq": loser_e["seq"]})
+        # Different blob_sha: do NOT add — other session must still be able to commit.
+
 pre_cas_path = os.path.join(audit_sid_dir, f"pre-cas-{nonce}.json")
 pre_cas_data = {
     "status": "pre-cas",
@@ -294,12 +457,12 @@ pre_cas_data = {
     "tree_sha": tree_sha,
     "commit_sha": commit_sha,
     "msg_sha256": hashlib.sha256(MSG.encode()).hexdigest(),
-    "consumed_seq": all_epoch_seqs,
+    "consumed_by_sid": {k: v for k, v in consumed_by_sid.items()},
     "ts": datetime.now(timezone.utc).isoformat(),
 }
 open(pre_cas_path, "w").write(json.dumps(pre_cas_data, indent=2))
 
-# Step 15: CAS ref update
+# Step 16: CAS ref update
 r = subprocess.run(
     ["git", "update-ref", f"refs/heads/{branch}", commit_sha, parent],
     capture_output=True, text=True
@@ -312,7 +475,7 @@ if r.returncode != 0:
     _cleanup_temps()
     die("branch moved during commit -- retry /commit")
 
-# Step 16: Audit finalize
+# Step 17: Audit finalize
 final_data = dict(pre_cas_data, status="committed")
 open(os.path.join(audit_sid_dir, f"{commit_sha}.json"), "w").write(
     json.dumps(final_data, indent=2)
@@ -322,28 +485,39 @@ try:
 except Exception:
     pass
 
-# Step 17: Mark consumed (this IS the epoch increment)
-lock_path = os.path.join(LEDGER_BASE, f"{SID}.jsonl.lock")
-with open(lock_path, "w") as lf:
-    fcntl.flock(lf, fcntl.LOCK_EX)
-    try:
-        existing: list[dict] = []
-        if os.path.exists(CONSUMED_FILE):
-            try:
-                existing = json.loads(open(CONSUMED_FILE).read())
-            except Exception:
-                existing = []
-        existing.append({
-            "consumed_seqs": all_epoch_seqs,
-            "commit_sha": commit_sha,
-            "ts": datetime.now(timezone.utc).isoformat(),
-        })
-        open(CONSUMED_FILE, "w").write(json.dumps(existing, indent=2))
-    finally:
-        fcntl.flock(lf, fcntl.LOCK_UN)
+# Step 18: Mark consumed per source SID.
+# Each source SID's entries are written to that SID's own <source_sid>.consumed.json,
+# not only to the primary SID's file. This ensures cross-session aggregate mode
+# correctly excludes already-committed entries from future scans.
+commit_ts = datetime.now(timezone.utc).isoformat()
+for source_sid, sid_consumed_list in consumed_by_sid.items():
+    if not sid_consumed_list:
+        continue
+    source_consumed_file = os.path.join(LEDGER_BASE, f"{source_sid}.consumed.json")
+    source_lock_path = os.path.join(LEDGER_BASE, f"{source_sid}.jsonl.lock")
+    with open(source_lock_path, "w") as lf:
+        fcntl.flock(lf, fcntl.LOCK_EX)
+        try:
+            existing: list[dict] = []
+            if os.path.exists(source_consumed_file):
+                try:
+                    existing = json.loads(open(source_consumed_file).read())
+                except Exception:
+                    existing = []
+            # Append one record per {source_sid, seq} tuple (new tuple format).
+            for consumed_item in sid_consumed_list:
+                existing.append({
+                    "source_sid": consumed_item["source_sid"],
+                    "seq": consumed_item["seq"],
+                    "commit_sha": commit_sha,
+                    "ts": commit_ts,
+                })
+            open(source_consumed_file, "w").write(json.dumps(existing, indent=2))
+        finally:
+            fcntl.flock(lf, fcntl.LOCK_UN)
 
-# Step 18: Cleanup
+# Step 19: Cleanup
 _cleanup_temps()
 
-# Step 19: Report
+# Step 20: Report
 print(f"committed {commit_sha} to refs/heads/{branch}")

@@ -707,3 +707,60 @@ This contract is mandatory in that mode:
 If no `SPEC_ID`/cp-state handoff is provided, this contract is inactive and the
 subagent follows its normal standalone workflow.
 
+---
+
+## Codex adversarial consultation (OPT-IN — only when `--codex` flag set)
+
+**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`; the invoking command is responsible for adding that line when its `--codex` flag applies.
+
+**When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to writing your final report. Emit in the JSON report artifact: `codex_consult: { invoked: false, status: "not_requested", findings: [], feedback_summary: null, feedback_incorporated: null }`.
+
+**When the dispatch DOES instruct codex**: follow the Procedure below. Codex runs ONLY on the STATUS: complete invocation (after all files have been audited and the complete violations list is ready). STATUS: incomplete invocations do NOT invoke Codex.
+
+### Procedure (only when `codex_required: true` AND STATUS: complete)
+
+1. Complete the full audit and draft the violations list in memory (do NOT write the report file yet)
+2. Invoke `Skill(skill="codex")` with:
+   - Brief inline summary of your draft violations (pass as text in the prompt, NOT as a file path — do not write a draft file)
+   - Explicit instruction (style-inspector-role-scoped): "Challenge whether this draft violations list correctly identifies standard violations. Flag any false positive (correctly-formatted content flagged as a violation), any missed critical violation, any severity mis-classification, any finding that is a pre-existing violation outside the changed-files scope. **For every issue you flag, you MUST provide `PROPOSED_FIX: <corrected wording or concrete change>`. A complaint without a PROPOSED_FIX is an observation, not a blocker.** Reply with CODEX_FEEDBACK: <list of issues, each with PROPOSED_FIX or marked OBSERVATION_ONLY>."
+3. Parse codex's feedback
+4. Incorporate codex feedback proportionally:
+   - Findings with a `PROPOSED_FIX`: apply the fix or explain specifically why you disagree — both positions are valid, but silence is not.
+   - Findings marked `OBSERVATION_ONLY` (no PROPOSED_FIX): log in `codex_consult.findings[]` with `classification: "observation_only"` and `disposition: "logged"`. Do NOT let bare complaints without a constructive alternative block the cycle.
+5. Write the final JSON report artifact with `codex_consult` included — only after step 4
+
+### Graceful fallback (codex unavailable)
+
+If `Skill(codex)` returns:
+- **Quota error** (e.g. "usage limit", "try again at..."): document `codex_consult: { invoked: true, status: "failed_quota", findings: [], feedback_summary: "<verbatim error message or summary>", feedback_incorporated: "self-review substituted" }` in the JSON report artifact. Proceed with self-review covering 5+ adversarial questions (false positives, missed violations, severity calibration, changed-files scope, wording accuracy).
+- **Hang/timeout** (no response within reasonable time): document `codex_consult: { invoked: true, status: "failed_timeout", findings: [], feedback_summary: "<verbatim error or timeout description>", feedback_incorporated: "self-review substituted" }` in the JSON report artifact. Proceed with self-review as above.
+- **Parse error** (codex output unparseable): document `codex_consult: { invoked: true, status: "failed_parse", findings: [], feedback_summary: "<verbatim error or parse failure description>", feedback_incorporated: "self-review substituted" }` in the JSON report artifact. Proceed with self-review as above.
+
+In all fallback cases, do NOT block the cycle indefinitely. Self-review is acceptable substitute.
+
+### Output documentation
+
+The `codex_consult` field is written into the assigned JSON report artifact (path provided by the dispatch prompt; e.g. `docs/clean/style-report-*.json`) — NOT appended to chat output after the STATUS line. The STATUS line convention (`STATUS: complete` / `STATUS: incomplete`) is not altered. Shape:
+
+```json
+{
+  "codex_consult": {
+    "invoked": true | false,
+    "status": "ok" | "failed_quota" | "failed_timeout" | "failed_parse" | "not_requested",
+    "feedback_summary": "<overall summary, or null when not_requested>",
+    "findings": [
+      {
+        "issue": "<what codex flagged>",
+        "proposed_fix": "<codex's PROPOSED_FIX text, or null if OBSERVATION_ONLY>",
+        "classification": "blocker | major | observation_only",
+        "disposition": "applied | rejected | logged",
+        "rationale": "<why applied or rejected>"
+      }
+    ],
+    "feedback_incorporated": "<summary of what changed, or 'self-review substituted' on failure, or null when not_requested>"
+  }
+}
+```
+
+The `codex_consult` field MUST be present in all outputs.
+

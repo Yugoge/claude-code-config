@@ -366,6 +366,48 @@ def main():
         sys.exit(0)
     if not _is_qa_dispatch(data):
         sys.exit(0)
+
+    # /do bypass: main-agent-only
+    try:
+        if not data.get('agent_id'):
+            sid = (data.get('session_id') or
+                   os.environ.get('CLAUDE_SESSION_ID', '') or 'default')
+            flag = Path(f'/tmp/claude-orchestrator-consent-{sid}.flag')
+            if flag.exists() and flag.read_text().strip() == 'true':
+                sys.exit(0)
+    except Exception:
+        pass
+
+    # /allow bypass: if allowlist pattern matches "Agent" dispatch, consume and pass
+    try:
+        if not data.get('agent_id'):
+            sid = (data.get('session_id') or
+                   os.environ.get('CLAUDE_SESSION_ID', '') or 'default')
+            flag_path = Path(f'/tmp/claude-bash-allowlist-{sid}.json')
+            import fcntl
+            if flag_path.exists():
+                with open(flag_path, 'r+') as fh:
+                    fcntl.flock(fh, fcntl.LOCK_EX)
+                    try:
+                        import json as _json
+                        grant = _json.load(fh)
+                        pattern = grant.get('pattern', '')
+                        if not isinstance(pattern, str) or not pattern:
+                            raise ValueError('empty pattern')
+                        is_regex = grant.get('is_regex', False)
+                        if is_regex:
+                            import re as _re
+                            matched = bool(_re.search(pattern, 'Agent'))
+                        else:
+                            matched = pattern == 'Agent' or pattern in 'Agent'
+                        if matched:
+                            os.unlink(flag_path)
+                            sys.exit(0)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
     dev_dir = _resolve_dev_dir()
     per_worker, canonical_present = _scan_dev_dir(dev_dir)
     # FINDING-1: extract the LIST of pattern-anchored task-ids. None = no

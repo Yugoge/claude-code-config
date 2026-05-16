@@ -61,9 +61,7 @@ Revision history:
   raw command text BEFORE the env-var check, defeating the b5d447e
   attack class even if the agent learns the env name. The grant file
   is unlinked on first valid consumption (single-use); validation
-  failures DO NOT consume the grant (forensics + brute-force
-  resistance).  /do-consent is intentionally NOT honored — the git
-  guard never consults `/tmp/claude-orchestrator-consent-<sid>.flag`.
+  failures DO NOT consume the grant (forensics + brute-force resistance).
   Cross-bypass is blocked: the push env name does NOT bypass commit,
   and vice versa.  Authority: spec ba-spec-20260425-redev2.md §4.1
   (AC-A1..AC-A17), close-report-20260425-push-commit-debate.md
@@ -125,6 +123,59 @@ def _get_session_id(data):
         return str(sid)
     except Exception:
         return ''
+
+
+def _has_do_consent(data: dict) -> bool:
+    """Return True if main agent has /do consent for this turn."""
+    if data.get('agent_id'):  # subagents cannot use /do
+        return False
+    sid = _get_session_id(data)
+    if not sid:
+        return False
+    try:
+        flag = Path(f'/tmp/claude-orchestrator-consent-{sid}.flag')
+        return flag.exists() and flag.read_text().strip() == 'true'
+    except Exception:
+        return False
+
+
+def _check_and_consume_git_allowlist(command: str, data: dict) -> bool:
+    """Check and consume /allow grant for non-commit/non-push git operations.
+
+    Main-agent only. Returns True if grant was found and consumed.
+    """
+    if data.get('agent_id'):
+        return False
+    sid = _get_session_id(data)
+    if not sid:
+        return False
+    flag_path = Path(f'/tmp/claude-bash-allowlist-{sid}.json')
+    try:
+        import fcntl
+        import json as _json
+        with open(flag_path, 'r+') as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+            try:
+                grant = _json.load(fh)
+            except Exception:
+                return False
+            pattern = grant.get('pattern', '')
+            if not isinstance(pattern, str) or not pattern:
+                return False
+            is_regex = grant.get('is_regex', False)
+            if is_regex:
+                import re as _re
+                matched = bool(_re.search(pattern, command))
+            else:
+                matched = pattern in command
+            if matched:
+                os.unlink(flag_path)
+                return True
+            return False
+    except (FileNotFoundError, OSError):
+        return False
+    except Exception:
+        return False
 
 
 def _inline_env_present(command, var_name):
@@ -550,8 +601,10 @@ def _evaluate_commit(command, sid):
     _unlink_grant(grant_path)
 
 
-def _evaluate_merge(command):
+def _evaluate_merge(command, data):
     if os.environ.get('CLAUDE_MERGE_COMMAND_ACTIVE') == '1':
+        return
+    if _check_and_consume_git_allowlist(command, data):
         return
     _block(
         '\nBLOCKED: agent git merge - only the /merge slash command '
@@ -669,7 +722,9 @@ def _evaluate_push(command, sid):
     _unlink_grant(grant_path)
 
 
-def _evaluate_reset_hard(command):
+def _evaluate_reset_hard(command, data):
+    if _check_and_consume_git_allowlist(command, data):
+        return
     target = _extract_reset_target(command)
     _block(
         '\nBLOCKED: agent git reset --hard - hard reset is forbidden '
@@ -680,7 +735,9 @@ def _evaluate_reset_hard(command):
     )
 
 
-def _evaluate_direct_ref_mutation(command):
+def _evaluate_direct_ref_mutation(command, data):
+    if _check_and_consume_git_allowlist(command, data):
+        return
     _block(
         '\nBLOCKED: agent direct git ref mutation - update-ref and '
         'branch force/delete/rename are forbidden.\n'
@@ -689,15 +746,52 @@ def _evaluate_direct_ref_mutation(command):
     )
 
 
-def _evaluate_command(command, sid):
+def _looks_like_git_forbidden_plumbing(command):
+    """R6: Ban agent direct invocation of git plumbing that creates commit objects.
+
+    Defense-in-depth: most are already indirectly blocked (they call git commit
+    or git update-ref internally). These explicit bans close the gap for R6.
+    Uses GIT_COMMAND_RE anchor so string literals in python -c code are not matched.
+    Note: git commit-tree / git update-ref called AS SUBPROCESSES from within
+    commit.sh are NOT agent Bash tool calls and are NOT intercepted here.
+    """
+    forbidden_suffixes = [
+        r'commit-tree\b',
+        r'cherry-pick\b',
+        r'rebase\b',
+        r'pull\b',
+        r'filter-branch\b',
+        r'filter-repo\b',
+        r'replace\s+(-e|--edit)\b',
+        r'fast-import\b',
+        r'revert\b',
+        r'am\b',
+    ]
+    return any(re.search(GIT_COMMAND_RE + s, command) for s in forbidden_suffixes)
+
+
+def _evaluate_forbidden_plumbing(command, data):
+    if _check_and_consume_git_allowlist(command, data):
+        return
+    _block(
+        '\nBLOCKED: agent direct git plumbing is forbidden (R6).\n'
+        'Command excerpt: %s\n' % command[:200]
+        + 'Commit creation must go through the /commit slash command.\n'
+    )
+
+
+def _evaluate_command(command, data):
+    sid = _get_session_id(data)
+    if _looks_like_git_forbidden_plumbing(command):
+        _evaluate_forbidden_plumbing(command, data)
     if _looks_like_git_reset_hard(command):
-        _evaluate_reset_hard(command)
+        _evaluate_reset_hard(command, data)
     if _looks_like_git_direct_ref_mutation(command):
-        _evaluate_direct_ref_mutation(command)
+        _evaluate_direct_ref_mutation(command, data)
     if _looks_like_git_push(command):
         _evaluate_push(command, sid)
     if _looks_like_git_merge(command):
-        _evaluate_merge(command)
+        _evaluate_merge(command, data)
     if _looks_like_git_commit(command):
         _evaluate_commit(command, sid)
 
@@ -713,17 +807,13 @@ def main():
         # Always-on per spec 5.2.4 line 240-241; overnight gate removed
         # 2026-04-25 (Option alpha) after b5d447e proved interactive
         # sessions need this guard too.
-        #
-        # AC-A17: /do consent is intentionally NOT honored here.  This
-        # guard MUST NOT consult /tmp/claude-orchestrator-consent-<sid>.flag
-        # under any circumstances; the boundary is frozen by design.
-        # Any future maintainer reading this: do not add a has_consent
-        # check.  See ba-spec-20260425-redev2.md R-4 for the rationale.
         command = (data.get('tool_input', {}) or {}).get('command', '') or ''
         if not command:
             sys.exit(0)
-        sid = _get_session_id(data)
-        _evaluate_command(command, sid)
+        # /do bypass: main-agent-only; subagents never benefit from consent flag.
+        if _has_do_consent(data):
+            sys.exit(0)
+        _evaluate_command(command, data)
     except SystemExit:
         raise
     except Exception:

@@ -690,10 +690,32 @@ changes, or hook/agent definition files. If there is ANY doubt, run Playwright.
 
 **Process**:
 
+#### Step 5c.0a: Project E2E Script Discovery (BEFORE Playwright)
+
+**Before opening a browser, check whether the project provides its own E2E test scripts.**
+
+1. Glob for `*-e2e-test.py` files in `$CLAUDE_PROJECT_DIR` (or `$CWD` if unset).
+   Example: `ls $CLAUDE_PROJECT_DIR/*-e2e-test.py 2>/dev/null || true`
+2. If one or more scripts are found:
+   a. Run each script: `python3 <script-path>` (or `source venv/bin/activate && python <script-path>` if a venv is present)
+   b. Record stdout, stderr, and exit code in `e2e_script_results[]`
+   c. If any script exits non-zero, record it as a QA finding (severity: major)
+   d. Set `e2e_enforcement.script_discovered: true`, `e2e_enforcement.script_path: "<path>"`
+3. If no scripts are found: set `e2e_enforcement.script_discovered: false` and proceed to Step 5c.0 (Playwright).
+4. After running all found scripts, continue to Step 5c.0 for Playwright browser verification.
+
+**Note**: Discovering and running project E2E scripts does NOT replace Playwright verification for user-facing changes. Both must complete unless a legitimate skip condition applies.
+
 #### Step 5c.0: App Understanding Flow (MANDATORY before specific fix verification)
 
-**Before verifying specific fixes, execute the core E2E flow to establish
-baseline understanding of the running application.**
+**Before verifying specific fixes, attempt a health check and then execute the core E2E flow.**
+
+**Health check (MANDATORY before setting app_not_running: true)**:
+- `pm_experience.app_not_running` from the test plan is ADVISORY ONLY. You MUST attempt a live health check before accepting it.
+- Attempt: `curl -sf http://localhost:<port>/health` (or `/`, `/api/health`, or equivalent derived from `app_context.url` or `context.environment.web_services`). Record the exact URL, HTTP status, and timestamp in `e2e_enforcement.health_check_url` and `e2e_enforcement.health_check_result`.
+- If the health check SUCCEEDS: `app_not_running` MUST be `false`. Proceed with the full E2E flow below.
+- If the health check FAILS: set `app_not_running: true`, `e2e_enforcement.status: "blocked_app_unavailable"`, and `e2e_enforcement.blocking_reason` to the exact failure (URL + response). Proceed to Step 5d.
+- If the URL is completely unknown (no `app_context.url`, no `web_services`, no port info): set `health_check_url: null` and apply the skip carve-out if it legitimately applies; otherwise set `status: "skipped_without_justification"`.
 
 1. Navigate to the app URL (from test plan `app_context.url` if available,
    or from dev report context)
@@ -707,8 +729,7 @@ baseline understanding of the running application.**
 4. Note the app's current state -- does the core flow work? Any errors?
 5. This establishes your baseline before you verify specific dev changes
 
-**Fallback**: If the app is not reachable, set all Step 5c scenarios to
-`skipped` with reason `service unavailable` and proceed to Step 5d.
+**Fallback**: If the health check above confirmed the app is not reachable, all Step 5c scenarios are already set to `skipped` with `e2e_enforcement.status: "blocked_app_unavailable"`. Proceed to Step 5d.
 
 #### Phase 1: Plan Test Scenarios
 
@@ -1191,7 +1212,7 @@ If `claims_superficial > 0` and you have time, go fix them before submitting. If
 
 ## Codex adversarial consultation (OPT-IN — only when `--codex` flag set)
 
-**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev`, `/redev`, or `/close` with the `--codex` flag.
+**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev`, `/dev-command`, `/dev-overnight`, `/redev`, or `/close` with the `--codex` flag.
 
 **When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to your final verdict based on self-review. Emit in your output JSON: `codex_consult: { invoked: false, status: "not_requested", feedback_summary: null, feedback_incorporated: null }`.
 
@@ -1380,6 +1401,24 @@ Return verification report as JSON:
       "errors_found_during_flow": [],
       "app_not_running": false
     },
+    "e2e_enforcement": {
+      "required": true,
+      "attempted": true,
+      "script_discovered": false,
+      "script_path": null,
+      "health_check_url": "http://localhost:7897/health",
+      "health_check_result": "HTTP 200 OK",
+      "status": "performed",
+      "blocking_reason": null
+    },
+    "e2e_script_results": [
+      {
+        "script_path": "/root/applio-e2e-test.py",
+        "exit_code": 0,
+        "stdout": "...",
+        "stderr": ""
+      }
+    ],
     "ui_test_results": [
       {
         "scenario": "description of what was tested",

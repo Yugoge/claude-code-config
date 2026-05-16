@@ -25,7 +25,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-LEDGER_BASE = Path("/var/lib/claude/ledger")
+LEDGER_BASE = Path(os.environ.get("CLAUDE_LEDGER_BASE", "/var/lib/claude/ledger"))
 
 
 def _ensure_dirs() -> None:
@@ -73,7 +73,7 @@ def _resolve_path(tool_name: str, tool_input: dict) -> str | None:
         raw = tool_input.get("file_path", "")
     if not raw:
         return None
-    return str(Path(raw).resolve())
+    return os.path.abspath(raw)
 
 
 def _get_mode(abs_path: str) -> tuple[int, bool]:
