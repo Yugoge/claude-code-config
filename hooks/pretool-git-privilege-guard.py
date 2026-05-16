@@ -80,7 +80,6 @@ Exit codes:
 """
 
 import glob
-import hashlib
 import json
 import os
 import re
@@ -194,17 +193,6 @@ def _inline_env_present(command, var_name):
     return needle in command
 
 
-def _grant_path_for(kind, sid):
-    """Return /tmp/claude-{kind}-grant-<sid>.json for kind in {push, commit}.
-
-    Retained for backward compat / readability; the live consumers use
-    `_find_grant` so they discover per-nonce filenames written by the
-    wrappers (close-report-20260425-push-commit-debate.md ratified the
-    `<sid>-<nonce>.json` pattern in §1-2).
-    """
-    return '/tmp/claude-%s-grant-%s.json' % (kind, sid)
-
-
 def _find_grant(kind, sid):
     """Return (resolved_path, grant_dict) or (None, None) on miss/invalid.
 
@@ -285,14 +273,6 @@ def _git_output(args):
         if result.returncode != 0:
             return ''
         return (result.stdout or '').strip()
-    except Exception:
-        return ''
-
-
-def _sha256_text(text):
-    """Return lowercase hex sha256 of the UTF-8 bytes of `text`."""
-    try:
-        return hashlib.sha256((text or '').encode('utf-8')).hexdigest()
     except Exception:
         return ''
 
@@ -427,19 +407,6 @@ def _is_overnight_active():
         return False
 
 
-def _block_inline_env_commit(command):
-    """AC-A2: literal-substring inline-env injection block for commit."""
-    _block(
-        '\nBLOCKED: agent git commit - inline-env injection blocked.\n'
-        'Detected literal substring `CLAUDE_COMMIT_COMMAND_ACTIVE=` in '
-        'the raw command text; agents are not permitted to set this '
-        'env var inline.  Only the /commit wrapper may set it via '
-        'subprocess + os.environ.\n'
-        'Command excerpt: %s\n' % command[:200]
-        + 'Spec: ba-spec-20260425-redev2.md AC-A2.\n'
-    )
-
-
 def _block_default_deny_commit(msg):
     """AC-A13: default-deny block when commit env is unset."""
     _block(
@@ -456,149 +423,13 @@ def _block_default_deny_commit(msg):
     )
 
 
-def _validate_commit_grant_message(grant, msg):
-    """AC-A11: message sha256 must match grant.expected_message_sha256."""
-    expected_hash = (grant.get('expected_message_sha256') or '').lower()
-    actual_hash = _sha256_text(msg)
-    if not expected_hash or expected_hash != actual_hash:
-        _block(
-            '\nBLOCKED: agent git commit - message hash mismatch.\n'
-            'Expected sha256: %s\n' % (expected_hash or '<missing>')
-            + 'Actual   sha256: %s\n' % actual_hash
-            + 'Commit message excerpt: %r\n' % msg[:200]
-            + 'Grant did NOT authorize this exact commit message.\n'
-            'Spec: ba-spec-20260425-redev2.md AC-A11.\n'
-        )
-
-
-def _block_staged_superset(allowed_set, staged_set):
-    """AC-A9: staged set has files outside the grant's allowed_files."""
-    _block(
-        '\nBLOCKED: agent git commit - staged-set superset of '
-        'allowed_files.\n'
-        'Allowed: %s\n' % sorted(allowed_set)
-        + 'Staged : %s\n' % sorted(staged_set)
-        + 'Extras : %s\n' % sorted(staged_set - allowed_set)
-        + 'Spec: ba-spec-20260425-redev2.md AC-A9.\n'
-    )
-
-
-def _block_staged_subset(allowed_set, staged_set):
-    """AC-A10: staged set is missing files declared in allowed_files."""
-    _block(
-        '\nBLOCKED: agent git commit - staged-set subset of '
-        'allowed_files.\n'
-        'Allowed: %s\n' % sorted(allowed_set)
-        + 'Staged : %s\n' % sorted(staged_set)
-        + 'Missing: %s\n' % sorted(allowed_set - staged_set)
-        + 'Spec: ba-spec-20260425-redev2.md AC-A10.\n'
-    )
-
-
-def _validate_commit_grant_files(grant):
-    """AC-A9 / AC-A10: staged set must equal grant.allowed_files exactly."""
-    allowed_raw = grant.get('allowed_files') or []
-    if not isinstance(allowed_raw, list):
-        _block(
-            '\nBLOCKED: agent git commit - grant.allowed_files is not a list.\n'
-            'Spec: ba-spec-20260425-redev2.md AC-A9/A10.\n'
-        )
-    allowed_set = set(str(p) for p in allowed_raw if p)
-    staged_raw = _git_output(['diff', '--cached', '--name-only'])
-    staged_set = set(p for p in staged_raw.splitlines() if p)
-    if staged_set - allowed_set:
-        _block_staged_superset(allowed_set, staged_set)
-    if allowed_set - staged_set:
-        _block_staged_subset(allowed_set, staged_set)
-
-
-def _block_missing_commit_grant(sid):
-    """AC-A4 / AC-A16: env present but no on-disk grant for this SID."""
-    pattern = '/tmp/claude-commit-grant-%s-*.json' % sid
-    _block(
-        '\nBLOCKED: agent git commit - CLAUDE_COMMIT_COMMAND_ACTIVE=1 '
-        'is set but no valid grant manifest matching %s.\n' % pattern
-        + 'Single-use grants are unlinked on first valid consumption; '
-        'a missing grant means it was already used or never written.\n'
-        'Spec: ba-spec-20260425-redev2.md AC-A16; '
-        'close-report-20260425-push-commit-debate.md §1-2.\n'
-    )
-
-
-def _warn_bridge_message_drift(grant, msg):
-    """Emit warning if bridge-mode message hash differs from grant.expected."""
-    expected_hash = (grant.get('expected_message_sha256') or '').lower()
-    actual_hash = _sha256_text(msg)
-    if expected_hash and expected_hash != actual_hash:
-        sys.stderr.write(
-            'WARN: bridge-mode commit message hash mismatch '
-            '(expected=%s actual=%s); allowed under AC-P3-4 transition.\n'
-            % (expected_hash[:12], actual_hash[:12])
-        )
-
-
-def _warn_bridge_staged_drift(grant):
-    """Emit warning if bridge-mode staged-set differs from grant.allowed_files."""
-    allowed_raw = grant.get('allowed_files') or []
-    if not isinstance(allowed_raw, list):
-        return
-    allowed_set = set(str(p) for p in allowed_raw if p)
-    staged_raw = _git_output(['diff', '--cached', '--name-only'])
-    staged_set = set(p for p in staged_raw.splitlines() if p)
-    if staged_set != allowed_set:
-        sys.stderr.write(
-            'WARN: bridge-mode commit staged-set drift '
-            '(extras=%s missing=%s); allowed under AC-P3-4 transition.\n'
-            % (sorted(staged_set - allowed_set),
-               sorted(allowed_set - staged_set))
-        )
-
-
-def _observe_bridge_commit(sid, msg):
-    """AC-P3-2 defense-in-depth (added 2026-04-26 bridge hardening).
-
-    When the blessed-bridge regex matches AND the wrapper has set
-    CLAUDE_COMMIT_COMMAND_ACTIVE=1 AND a per-nonce grant manifest is
-    on disk, validate message hash + staged set against the grant.
-    Drift is logged (warning) but does NOT block — promotion to
-    hard-block is deferred to a future cycle (AC-P3-5).  Manifest
-    absence is allowed, preserving AC-P3-4 in-flight compatibility.
-    """
-    if os.environ.get('CLAUDE_COMMIT_COMMAND_ACTIVE') != '1':
-        return
-    grant_path, grant = _find_grant('commit', sid)
-    if grant is None:
-        return
-    _warn_bridge_message_drift(grant, msg)
-    _warn_bridge_staged_drift(grant)
-    _unlink_grant(grant_path)
-
-
 def _evaluate_commit(command, sid):
     # AC-A12: blessed-bridge regex commit STILL ALLOWED (regression).
     msg = _extract_commit_message(command)
     if msg and BLESSED_BRIDGE_RE.search(msg):
-        # AC-P3-2 defense-in-depth: observe-only validation when a
-        # bridge-mode grant accompanies the commit.  Plain blessed-bridge
-        # commits with no env/grant continue to be allowed (AC-P3-4).
-        _observe_bridge_commit(sid, msg)
         return
-    # AC-A2: literal-substring inline-env injection (precedes env check).
-    if _inline_env_present(command, 'CLAUDE_COMMIT_COMMAND_ACTIVE'):
-        _block_inline_env_commit(command)
-    # AC-A13: only the matching env name carries (cross-bypass blocked).
-    if os.environ.get('CLAUDE_COMMIT_COMMAND_ACTIVE') != '1':
-        _block_default_deny_commit(msg)
-    # AC-A4 / AC-A16: env present -> require single-use grant manifest.
-    # Per close-report §1-2, on-disk file is `<sid>-<nonce>.json`; glob+match.
-    grant_path, grant = _find_grant('commit', sid)
-    if grant is None:
-        _block_missing_commit_grant(sid)
-    # AC-A11 + AC-A9/A10: validate message hash and staged-set equality.
-    _validate_commit_grant_message(grant, msg)
-    _validate_commit_grant_files(grant)
-    # All validations passed.  Consume grant (single-use), then allow.
-    _unlink_grant(grant_path)
+    # AC-A13: default-deny all other agent git commit calls.
+    _block_default_deny_commit(msg)
 
 
 def _evaluate_merge(command, data):
@@ -752,8 +583,6 @@ def _looks_like_git_forbidden_plumbing(command):
     Defense-in-depth: most are already indirectly blocked (they call git commit
     or git update-ref internally). These explicit bans close the gap for R6.
     Uses GIT_COMMAND_RE anchor so string literals in python -c code are not matched.
-    Note: git commit-tree / git update-ref called AS SUBPROCESSES from within
-    commit.sh are NOT agent Bash tool calls and are NOT intercepted here.
     """
     forbidden_suffixes = [
         r'commit-tree\b',
