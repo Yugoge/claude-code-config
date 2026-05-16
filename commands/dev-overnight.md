@@ -121,7 +121,7 @@ Step 1: Read state file + enter worktree (first run only)
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
 6. **Track everything**. Use TodoWrite for per-cycle progress. Do NOT write to `.claude/overnight-state-<sid>.json` from the main agent — that file is owned by the orchestrator hooks. See `docs/dev/state-file-write-policy.md` for the full per-field write matrix.
 7. **The Stop hook prevents premature exit**. The time-lock hook will block conversation termination until end-time. Do not try to circumvent it.
-8. **Git checkpoint vs HEAD commit are distinct semantic layers**. The existing posttool-git-checkpoint.sh hook writes mid-cycle Write/Edit snapshots to `refs/checkpoints/*` only — these are NOT merge-ready commits and they do NOT advance any branch HEAD. They exist for crash recovery and audit, not for shipping. End-of-cycle Step 19 lands a real HEAD commit on the worktree branch via `commit.sh --auto-bulk-bridge <branch>` — that HEAD commit IS merge-ready and is the only artifact `/merge` consumes. See `/root/.claude/CLAUDE.md` (Auto-Commit Mechanism section) for the full checkpoint-ref vs HEAD-commit contract. Do NOT conflate "checkpoint after fix" (refs/checkpoints/*, recovery-only) with "ship upstream" (HEAD commit + `/merge`, distribution).
+8. **Git checkpoint vs HEAD commit are distinct semantic layers**. The existing posttool-git-checkpoint.sh hook writes mid-cycle Write/Edit snapshots to `refs/checkpoints/*` only — these are NOT merge-ready commits and they do NOT advance any branch HEAD. They exist for crash recovery and audit, not for shipping. End-of-cycle Step 19 lands a real HEAD commit on the worktree branch by calling `commit.sh "chore(overnight): end-of-cycle commit for <branch>"` directly via Bash (single positional arg, CC-valid `chore` type, `(overnight)` scope identifies automated context) — that HEAD commit IS merge-ready and is the only artifact `/merge` consumes. See `/root/.claude/CLAUDE.md` (Auto-Commit Mechanism section) for the full checkpoint-ref vs HEAD-commit contract. Do NOT conflate "checkpoint after fix" (refs/checkpoints/*, recovery-only) with "ship upstream" (HEAD commit + `/merge`, distribution).
 9. **Cycle-end deploy is autonomous-mode only** (canonical overnight Hard Rule 9). When `spec_mode == "autonomous"`, every cycle MUST end with QA rebuilding and redeploying via `docker compose build` and `docker compose up -d` for the project's own services (identified from `docker-compose.yml`); deploy verification is REQUIRED in this mode. When `spec_mode == "user-provided"`, deploy is NOT mandatory at the engine level — the user spec dictates whether to deploy (the orchestrator view's Pipeline Workflow may instruct deploy, may instruct skip, or may defer to a user gate). Regular `/dev` (single-pass, NOT `/dev-overnight`) MUST NOT auto-deploy regardless of spec_mode — `/dev` is a single-feature implementation pass, not an overnight cycle. Do NOT touch unrelated services or infrastructure.
 10. **Deduplicate**. Check the state file's cycle_log before starting a fix -- do not re-fix issues already addressed.
 11. **One issue per subagent, no exceptions**. Each BA subagent analyzes exactly ONE pipeline issue. Each Dev subagent implements exactly ONE pipeline fix. Each QA subagent verifies exactly ONE pipeline fix. The orchestrator launches N parallel subagents for N pipelines -- but each individual subagent handles only its own single pipeline. NEVER bundle multiple pipeline issues into one subagent prompt.
@@ -146,7 +146,7 @@ When `spec_mode == "user-provided"` is auto-detected from a spec but the user's 
 ## Arguments
 
 ```
-/dev-overnight [end-time] [focus] [--spec path/to/spec.md]
+/dev-overnight [end-time] [focus] [--spec path/to/spec.md] [--codex]
 ```
 
 **Examples**:
@@ -156,6 +156,9 @@ When `spec_mode == "user-provided"` is auto-detected from a spec but the user's 
 - `/dev-overnight` — default 8h, no focus
 - `/dev-overnight 6:00 --spec docs/my-spec.md` — run until 6:00, use user-provided spec
 - `/dev-overnight 6:00 fix UI --spec docs/ui-spec.md` — focus + user spec
+- `/dev-overnight 6:00 --codex` — run until 6:00 with Codex adversarial review enabled for PM
+
+**Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it from the argument string and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every PM dispatch prompt MUST include the literal line `codex_required: true` so PM's OPT-IN Codex consultation block (`agents/pm.md` § Codex adversarial consultation) activates. When `codex_required = false`, do NOT include that line.
 
 **`--spec` argument**: If provided, the session operates in **user-spec mode**:
 - The spec file is read by PM in PLAN mode (PM acts as supervisor, not full explorer)
@@ -210,6 +213,15 @@ Time-lock hook is active -- session will not terminate until end-time.
 Beginning autonomous exploration...
 ```
 
+**Codex enforcement flag** (only when `codex_required` field in state file is `true`): Read `codex_required` with `jq -r '.codex_required // false'` (defaults safely for old state files). When `true`, after binding `$DEV_SESSION_ID`, run `scripts/write-codex-enforce.sh`. If it exits non-zero, abort. When `codex_required = true`, every BA / QA / dev dispatch prompt below MUST include the literal line `codex_required: true`.
+
+```
+CODEX_REQUIRED=$(jq -r '.codex_required // false' "$STATE_FILE")
+# ... (bind DEV_SESSION_ID from state file first, then) ...
+[[ "$CODEX_REQUIRED" == "true" ]] && \
+  scripts/write-codex-enforce.sh --source-command dev-overnight --session-id "$DEV_SESSION_ID"
+```
+
 **Initialize dev-registry for hard subagent enforcement** (MANDATORY — do this before ANY Agent launch):
 
 The hook `pretool-subagent-code-block.py` blocks non-`dev` subagents from writing code files, but it needs the Claude-internal subagent UUID to be registered against an `agent_type`. Root cause of the /dev gap (see commit `e086ccb`): /dev-overnight sessions produce no `.claude/specs/` cp-state files, so the hook falls open and every subagent can write code. The fix is an orchestrator-provided sentinel file that each subagent reads as its FIRST ACTION; `pretool-cp-checkin.py` then writes the UUID→agent_type mapping into `.claude/dev-registry/agent-index.json`.
@@ -219,6 +231,12 @@ Reuse the overnight `session_id` from the state file (do NOT invent a new one �
 ```bash
 DEV_SESSION_ID="<reused-from-overnight-state.json>"
 REGISTRY_DIR="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID"
+```
+
+**E2E enforcement flag** (unconditional — always-on): Now that `$DEV_SESSION_ID` is bound, run `scripts/write-e2e-enforce.sh` to activate the E2E gate for QA. If it exits non-zero, abort.
+
+```bash
+scripts/write-e2e-enforce.sh --source-command dev-overnight --session-id "$DEV_SESSION_ID"
 ```
 
 Create sentinel files for every agent type this orchestrator can launch, including overnight-only specialists.
@@ -416,6 +434,9 @@ Use Agent tool with:
   Read the orchestrator view FIRST. It contains the project's Role Mandate,
   Pipeline Workflow, Anti-Patterns, and Hard Rules you must enforce as supervisor.
   Incorporate these into your test plan's priority_tiers and recommended_specialists.
+
+  <If codex_required == true, include:>
+  codex_required: true
   "
 ```
 
@@ -676,6 +697,9 @@ Use Agent tool with:
   Pipeline Workflow, Anti-Patterns, and Hard Rules you must enforce as supervisor.
   Incorporate these into your triage decisions (tier assignments, pipeline_order,
   recommended_specialists) so specialist invocations comply with the spec's constraints.
+
+  <If codex_required == true, include:>
+  codex_required: true
 
   Write triage report to: docs/dev/overnight/<session_id>/triage-report-cycle<N>.json
   "
@@ -1345,9 +1369,9 @@ The aggregator filters QA reports to those whose `timestamp_suffix` matches a `s
 
 **TIME CHECK**: invoke `~/.claude/scripts/overnight-status.sh` against the state file; it reports remaining wall-time relative to `end_time` and exits non-zero if the session has expired. If expired, proceed to Step 21 (session ending). Otherwise, mark Step 21 as completed via TodoWrite to trigger the loop reset.
 
-**Per-cycle commit (bridge mode)**:
+**Per-cycle commit**:
 
-After the time check, land a HEAD commit on the worktree branch covering this cycle's accumulated changes via the `/commit` wrapper in bridge mode (`commit.sh --auto-bulk-bridge "<worktree_branch>"`). The wrapper handles staged-set discovery, the `auto-bulk: end-of-cycle commit for <worktree_branch>` message format that `/merge` consumes, grant-manifest defense-in-depth (per-nonce manifest with `allowed_files` + `expected_message_sha256` + `branch`), and the `mode=auto-bulk-bridge` audit-log entry. Full mechanism + privilege-guard contract live in `commands/commit.md` and `~/.claude/hooks/commit.sh`. If the bridge invocation exits non-zero (empty staged set, invalid branch arg), log the failure to the cycle log and continue — per-fix `refs/checkpoints/*` snapshots remain intact and the operator can promote them manually.
+After the time check, land a HEAD commit on the worktree branch covering this cycle's accumulated changes. Call `commit.sh "chore(overnight): end-of-cycle commit for <worktree_branch>"` directly via Bash (single positional arg; `chore` is a valid CC type so M3 lint passes; `(overnight)` scope identifies the automated context). The CAS engine and content-bound ledger still apply. If the invocation exits non-zero (empty ledger for this session, disk content changed, or other CAS refusal), log the failure to the cycle log and continue — per-fix `refs/checkpoints/*` snapshots remain intact and the operator can promote them manually.
 
 If time expired: proceed to Step 20 (PM Retro) then Step 21 for final summary.
 If time remains: proceed to Step 20 (PM Retro), then mark Step 21 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 21 steps completed, reset todos to pending, and inject continuation instructions.
@@ -1400,6 +1424,9 @@ Use Agent tool with:
   Use these constraints to shape Section 7 (What Must Be Done) and Section 8
   (Attention Notes) for each unresolved pipeline, and to evaluate whether
   specialist invocations in this cycle complied with the spec.
+
+  <If codex_required == true, include:>
+  codex_required: true
 
   Write retro report to: docs/dev/overnight/<session_id>/retro-report-cycle<N>.json
   "
