@@ -150,13 +150,13 @@ def _read_index(index_path):
     return existing if isinstance(existing, dict) else {}
 
 
-def _write_index_locked(index_path, agent_id, agent_type):
+def _write_index_locked(index_path, agent_id, agent_type, dev_session_id=None):
     """Write the merged mapping while holding fcntl.LOCK_EX on a sibling lock."""
     lock_path = index_path.with_suffix(index_path.suffix + ".lock")
     with open(lock_path, "w") as lh:
         fcntl.flock(lh.fileno(), fcntl.LOCK_EX)
         existing = _read_index(index_path)
-        existing[agent_id] = agent_type
+        existing[agent_id] = {"agent_type": agent_type, "dev_session_id": dev_session_id} if dev_session_id else agent_type
         index_path.write_text(
             json.dumps(existing, indent=2, ensure_ascii=False),
             encoding="utf-8",
@@ -164,7 +164,7 @@ def _write_index_locked(index_path, agent_id, agent_type):
         fcntl.flock(lh.fileno(), fcntl.LOCK_UN)
 
 
-def _update_dev_registry_index(project_dir, agent_id, agent_type):
+def _update_dev_registry_index(project_dir, agent_id, agent_type, dev_session_id=None):
     """Append {agent_id: agent_type} to agent-index.json under fcntl.LOCK_EX.
 
     Fails silent (returns False) on I/O errors so the hook remains fail-open.
@@ -172,7 +172,7 @@ def _update_dev_registry_index(project_dir, agent_id, agent_type):
     index_path = _dev_registry_index_path(project_dir)
     try:
         index_path.parent.mkdir(parents=True, exist_ok=True)
-        _write_index_locked(index_path, agent_id, agent_type)
+        _write_index_locked(index_path, agent_id, agent_type, dev_session_id)
     except OSError:
         return False
     return True
@@ -435,7 +435,7 @@ def _handle_dev_sentinel(data, project_dir):
     agent_id = data.get("agent_id")
     if not agent_id:
         return False
-    _update_dev_registry_index(project_dir, agent_id, agent)
+    _update_dev_registry_index(project_dir, agent_id, agent, session_id)
     return True
 
 

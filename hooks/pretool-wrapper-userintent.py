@@ -10,6 +10,7 @@ themselves — they're pure git workers, gated at the hook entrance.
 """
 import json
 import os
+import re
 import shlex
 import sys
 import time
@@ -18,6 +19,11 @@ from pathlib import Path
 WRAPPERS = ("commit", "push", "merge", "stop")
 LAUNCHERS = ("bash", "sh", "exec", "source", ".")
 SENTINEL_TTL_SECONDS = 1800  # 30min — covers debug-iterate cycles + session-resume edge cases; expires multi-hour-stale intent
+
+# Overnight per-cycle commits: /dev-overnight orchestrator calls commit.sh via Bash;
+# no UserPromptSubmit sentinel is written in that path. Authorization is
+# carried by the message pattern; commit.sh M3 lint + CAS engine still apply.
+OVERNIGHT_COMMIT_RE = re.compile(r'chore\(overnight\):\s*end-of-cycle commit for ')
 
 
 def _is_invocation(tokens: list, i: int) -> bool:
@@ -82,10 +88,10 @@ def main() -> int:
     wrapper = _detect_wrapper(cmd)
     if not wrapper:
         return 0
-    # Bridge mode is internal to /dev-overnight (auto-bulk per-cycle commits) —
-    # /dev-overnight has its own user-intent gate (the slash invocation), so
-    # the per-Bash sentinel does not apply. Recognize the flag and let through.
-    if "--auto-bulk-bridge" in cmd:
+    # Overnight per-cycle commits: /dev-overnight orchestrator calls commit.sh via Bash;
+    # no UserPromptSubmit sentinel is written in this path. Recognize the message pattern
+    # and let through — commit.sh M3 lint + CAS engine still apply for authorization.
+    if wrapper == "commit" and OVERNIGHT_COMMIT_RE.search(cmd):
         return 0
     sid = data.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "default")
     return _check(wrapper, sid)

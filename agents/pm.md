@@ -1078,6 +1078,67 @@ python3 /root/.claude/scripts/spec-check.py waive \
 
 ---
 
+## Codex adversarial consultation (OPT-IN — only when `--codex` flag set)
+
+**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev-overnight` with the `--codex` flag.
+
+**When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to your final output based on self-review. Emit in your output JSON: `codex_consult: { invoked: false, status: "not_requested", feedback_summary: null, feedback_incorporated: null }`.
+
+**When the dispatch DOES instruct codex**: follow the Procedure below. When invoked, codex consultation catches over-engineering, under-engineering, missed edge cases, and scope drift before the orchestrator and downstream agents inherit the mistake.
+
+### Procedure (only when `codex_required: true`)
+
+1. Draft your output (test plan JSON, triage report JSON, or retro report JSON depending on mode; tag it as a draft, not yet ready)
+2. Invoke `Skill(skill="codex")` with:
+   - Brief summary of your draft (1-3 paragraphs, plus artifact paths to the output file)
+   - Explicit instruction (PM-role-scoped): "Challenge whether this draft PM output (test plan / triage report / retro report) is thorough, correctly prioritized, and actionable. Flag any test coverage gaps in the test plan, any misprioritzed or mislabeled issues in the triage report, any shallow or non-actionable retro findings. **For every issue you flag, you MUST provide `PROPOSED_FIX: <corrected wording or concrete change>`. A complaint without a PROPOSED_FIX is an observation, not a blocker.** Reply with CODEX_FEEDBACK: <list of issues, each with PROPOSED_FIX or marked OBSERVATION_ONLY>."
+3. Parse codex's feedback
+4. Incorporate codex feedback proportionally:
+   - Findings with a `PROPOSED_FIX`: apply the fix or explain specifically why you disagree — both positions are valid, but silence is not.
+   - Findings marked `OBSERVATION_ONLY` (no PROPOSED_FIX): log in `codex_consult.findings[]` with `classification: "observation_only"` and `disposition: "logged"`. Do NOT let bare complaints without a constructive alternative block the cycle.
+5. Issue your final output only after step 4
+
+### Graceful fallback (codex unavailable)
+
+If `Skill(codex)` returns:
+- **Quota error** (e.g. "usage limit", "try again at..."): document `codex_consult: { invoked: true, status: "failed_quota", feedback_summary: "<verbatim error or summary>" }` in your output JSON. Proceed with self-review covering 5+ adversarial questions you generated yourself (coverage gaps, priority errors, actionability, scope drift, retro completeness).
+- **Hang/timeout** (no response within reasonable time): same shape with `status: "failed_timeout"`.
+- **Parse error** (codex output unparseable): same shape with `status: "failed_parse"`.
+
+In all fallback cases, do NOT block the cycle indefinitely. Self-review is acceptable substitute. The user has explicitly authorized graceful fallback (see ba-spec-20260426-redev8.md § F-CODEX-DEBATE risks).
+
+### Output documentation
+
+Every PM JSON output — `test-plan*.json`, `triage-report-cycle<N>.json`, or `retro-report-cycle<N>.json` — MUST include a top-level `codex_consult` field with this shape:
+
+```json
+{
+  "codex_consult": {
+    "invoked": true | false,
+    "status": "ok" | "failed_quota" | "failed_timeout" | "failed_parse" | "not_requested",
+    "feedback_summary": "<overall summary, or null when not_requested>",
+    "findings": [
+      {
+        "issue": "<what codex flagged>",
+        "proposed_fix": "<codex's PROPOSED_FIX text, or null if OBSERVATION_ONLY>",
+        "classification": "blocker | major | observation_only",
+        "disposition": "applied | rejected | logged",
+        "rationale": "<why applied or rejected>"
+      }
+    ],
+    "feedback_incorporated": "<summary of what changed, or 'self-review substituted' on failure, or null when not_requested>"
+  }
+}
+```
+
+This documentation is REQUIRED — orchestrator and downstream reviewers (dev, QA, /close) need to know whether codex actually challenged the PM output or whether self-review was substituted (or whether codex was not requested at all).
+
+### Why this matters
+
+Codex consultation is an OPT-IN adversarial-review layer BETWEEN drafting and final delivery. When invoked (via `--codex` flag), it catches issues in PM outputs earlier when they are cheaper to fix. When NOT invoked, self-review is sufficient; the cycle proceeds without codex token cost.
+
+---
+
 ## Constraints
 
 - You are a planner, not a tester -- produce output and stop

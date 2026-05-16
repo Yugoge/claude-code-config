@@ -152,6 +152,37 @@ def has_consent(session_id: str) -> bool:
         return False
 
 
+def _check_and_consume_allowlist(tool_name: str, sid: str) -> bool:
+    """Check and atomically consume /allow grant if it matches tool_name."""
+    import fcntl
+    flag_path = Path(f"/tmp/claude-bash-allowlist-{sid}.json")
+    try:
+        with open(flag_path, "r+") as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+            try:
+                import json as _json
+                grant = _json.load(fh)
+            except Exception:
+                return False
+            pattern = grant.get("pattern", "")
+            if not isinstance(pattern, str) or not pattern:
+                return False
+            is_regex = grant.get("is_regex", False)
+            if is_regex:
+                import re as _re
+                matched = bool(_re.search(pattern, tool_name))
+            else:
+                matched = pattern == tool_name or pattern in tool_name
+            if matched:
+                os.unlink(flag_path)
+                return True
+            return False
+    except (FileNotFoundError, OSError):
+        return False
+    except Exception:
+        return False
+
+
 def get_streak_state_file(session_id: str) -> Path:
     return Path(f"/tmp/claude-tool-streak-{session_id}.json")
 
@@ -253,10 +284,23 @@ def main():
     if is_subagent_context(data):
         sys.exit(0)
 
+    sid = get_session_id(data)
+
+    # /allow bypass: explicit user grant for a specific tool (checked BEFORE
+    # PERMANENTLY_BLOCKED — intentional asymmetry: /allow is a true break-glass
+    # that the local user explicitly granted; /do bypasses only streak limits
+    # and fires AFTER perm-blocked, so /do cannot rescue perm-blocked tools).
+    # Note: /allow CAN rescue even perm-blocked tools (e.g., EnterPlanMode) if
+    # the user explicitly /allow-ed that tool name. This is by design.
+    try:
+        if _check_and_consume_allowlist(tool_name, sid):
+            sys.exit(0)
+    except Exception:
+        pass
+
     if tool_name in PERMANENTLY_BLOCKED:
         block_permanent(tool_name)
 
-    sid = get_session_id(data)
     if has_consent(sid):
         sys.exit(0)
 

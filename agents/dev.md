@@ -800,7 +800,7 @@ BAD: Create `scripts/measure-api-latency.sh` + `scripts/validate-api-timeout.sh`
 
 ## Codex adversarial consultation (OPT-IN — only when `--codex` flag set)
 
-**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev` or `/redev` with the `--codex` flag.
+**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev`, `/dev-command`, `/dev-overnight`, `/redev`, or `/close` with the `--codex` flag.
 
 **When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to final output based on your own self-review. Emit in your output JSON: `codex_consult: { invoked: false, status: "not_requested", feedback_summary: null, feedback_incorporated: null }`.
 

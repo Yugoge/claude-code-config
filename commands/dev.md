@@ -76,6 +76,8 @@ Requirement: "$ARGUMENTS"
 
 **Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it from the requirement text and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every BA / QA / dev dispatch prompt below MUST include the literal line `codex_required: true` so the subagent's opt-in codex consultation block (`agents/<role>.md` § Codex adversarial consultation) activates. When `codex_required = false`, do NOT include that line — subagents skip codex consultation and emit `codex_consult: { invoked: false, status: "not_requested" }` in their output.
 
+**Codex suppression guardrail**: When `codex_required: true` is included in any subagent dispatch prompt, the orchestrator MUST NOT include any pre-populated `codex_consult` field or object in that same prompt. `codex_consult` is output authored by the subagent — not by the orchestrator. In particular, do not include `codex_consult: { invoked: false, status: "not_requested" }` or any other suppression shape. Setting `codex_required: true` and simultaneously pre-answering `codex_consult` contradicts the flag and silently suppresses Codex consultation. Set the flag and let the agent's own spec decide whether to invoke Codex.
+
 **Parse `--spec`**: If `$ARGUMENTS` contains `--spec <path>`, extract the path and remove the flag from the requirement text. Store as `spec_path`.
 
 **Auto-detect spec**: If `--spec` is NOT provided, scan `docs/dev/specs/*.md` sorted by modification time (newest first). If a file exists, set `spec_path` to that path and announce:
@@ -128,6 +130,18 @@ for agent in \
   printf '{"agent_type": "%s", "session_id": "%s"}\n' "$agent" "$DEV_SESSION_ID" \
     > "$REGISTRY_DIR/$agent.json"
 done
+```
+
+**Codex enforcement flag** (only when `codex_required = true`): Now that `$DEV_SESSION_ID` is defined above, run `scripts/write-codex-enforce.sh` to write the flag so the SubagentStop hook can physically block ba/dev/qa agents that did not call codex. If it exits non-zero, the orchestrator MUST abort — do NOT silently proceed without the flag.
+
+```
+scripts/write-codex-enforce.sh --source-command dev --session-id $DEV_SESSION_ID
+```
+
+**E2E enforcement flag** (unconditional — always-on): After `$DEV_SESSION_ID` and the registry directory are initialized, run `scripts/write-e2e-enforce.sh` to activate the E2E gate for QA. If it exits non-zero, the orchestrator MUST abort.
+
+```bash
+scripts/write-e2e-enforce.sh --source-command dev --session-id $DEV_SESSION_ID
 ```
 
 Store `$DEV_SESSION_ID` for use in every Agent launch prompt below. Every Agent launch prompt MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent.
@@ -1010,6 +1024,17 @@ Development completed successfully!
 ```
 
 **Save report to**: `docs/dev/completion-<timestamp>.md`
+
+**Codex-native artifact postcondition (hard check before completion)**:
+
+Before `/dev` or `/redev` may be treated as complete, the Codex harness MUST validate the resolved `<task-id>` against the canonical same-task artifacts on disk:
+- `docs/dev/ticket-<task-id>.md`, `context-<task-id>.json`, `dev-report-<task-id>.json`, `qa-report-<task-id>.json`, and `completion-<task-id>.md` all exist and are non-empty where applicable.
+- JSON artifacts have top-level `request_id` and `task_id` exactly equal to `<task-id>`.
+- `dev-report-<task-id>.json` contains nested `dev.status == "completed"` plus nested `dev.files_modified` and `dev.files_created` arrays; top-level `status` alone does not count.
+- `qa-report-<task-id>.json` contains nested `qa.status == "pass"`; top-level `status` or `verdict` alone does not count.
+- If `claude_code_required = true`, context/report metadata must record that flag or a structured `claude_code_consult` failure/unavailable status.
+
+Subagent final messages, lifecycle records, and JSON-like stdout are not completion artifacts. Missing or malformed artifacts block completion with exact paths and reasons.
 
 **Workflow update**:
 

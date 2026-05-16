@@ -1268,7 +1268,7 @@ If a different role's checkpoint is genuinely stuck (e.g., a `qa`-owned cp-NN th
 
 ## Codex adversarial consultation (OPT-IN — only when `--codex` flag set)
 
-**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev`, `/redev`, or `/close` with the `--codex` flag.
+**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev`, `/dev-command`, `/dev-overnight`, `/redev`, or `/close` with the `--codex` flag.
 
 **When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to your final output based on self-review. Emit in your output JSON: `codex_consult: { invoked: false, status: "not_requested", feedback_summary: null, feedback_incorporated: null }`.
 
