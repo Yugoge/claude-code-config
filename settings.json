@@ -525,6 +525,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-content-preimage-guard.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -563,6 +573,11 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/posttool-command-frontmatter-validate.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-ledger-writer.py\"",
+            "timeout": 10
           }
         ]
       },
@@ -598,6 +613,15 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/posttool-runcode-watchdog.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-codex-skill-ledger.py\""
           }
         ]
       }
@@ -659,6 +683,24 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/subagentstop-cp-enforce.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/subagentstop-codex-enforce.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/subagentstop-e2e-enforce.py\""
           }
         ]
       }

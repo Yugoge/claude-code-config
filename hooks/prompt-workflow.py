@@ -329,25 +329,29 @@ def _match_end_time_token(args: str) -> tuple[str, str]:
     return '', args
 
 
-def parse_overnight_args(prompt_text: str) -> tuple[str, str, str]:
-    """Extract end-time, focus, and spec path from /dev-overnight args.
+def parse_overnight_args(prompt_text: str) -> tuple[str, str, str, bool]:
+    """Extract end-time, focus, spec path, and codex flag from /dev-overnight args.
 
-    Returns (end_time_raw, focus_string, spec_path). M4 (harness-fixes
+    Returns (end_time_raw, focus_string, spec_path, codex_required). M4 (harness-fixes
     20260428): now also recognizes +Nh / +N.Mh / +Nm relative-time
     tokens; an unknown +token returns INVALID:<token> so the bash layer
     can surface an explicit error rather than silently defaulting to +8h.
     Spec dash-form tolerance unchanged (-- / — / –).
+    M5 (2026-05-15): extracts --codex boolean flag and returns it as 4th element.
     """
     match = re.search(r'/dev-overnight\s+(.*)', prompt_text.strip())
     args = match.group(1).strip() if match else ''
+    # Extract --codex flag (boolean toggle, no value)
+    codex_required = '--codex' in args.split()
+    args = re.sub(r'\s*--codex\b', '', args).strip()
     args, spec_path = _strip_spec_arg(args)
     if not args:
-        return '', '', spec_path
+        return '', '', spec_path, codex_required
     end_time, focus = _match_end_time_token(args)
-    return end_time, focus, spec_path
+    return end_time, focus, spec_path, codex_required
 
 
-def create_overnight_state(end_time: str, focus: str = '', spec_path: str = '', session_id: str = 'default') -> bool:
+def create_overnight_state(end_time: str, focus: str = '', spec_path: str = '', session_id: str = 'default', codex_required: bool = False) -> bool:
     """Create overnight state file by calling the bash script."""
     script = Path.home() / '.claude' / 'scripts' / 'create-overnight-state.sh'
     cmd = [str(script)]
@@ -357,6 +361,8 @@ def create_overnight_state(end_time: str, focus: str = '', spec_path: str = '', 
         cmd += ['--focus', focus]
     if spec_path:
         cmd += ['--spec', spec_path]
+    if codex_required:
+        cmd += ['--codex']
     cmd += ['--session-id', session_id]
     cmd += ['--project-dir', str(PROJECT_DIR)]
     try:
@@ -591,8 +597,8 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     tf.write_text(json.dumps(todos, ensure_ascii=False))
     _write_bookmark(cmd_name, sid)
     if cmd_name == 'dev-overnight':
-        end_time, focus, spec_path = parse_overnight_args(user_input)
-        create_overnight_state(end_time, focus, spec_path=spec_path, session_id=sid)
+        end_time, focus, spec_path, codex_required = parse_overnight_args(user_input)
+        create_overnight_state(end_time, focus, spec_path=spec_path, session_id=sid, codex_required=codex_required)
     emit_checklist_message(cmd_name, todos)
 
 

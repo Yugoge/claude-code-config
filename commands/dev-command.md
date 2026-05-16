@@ -75,6 +75,10 @@ Extract requirement from `$ARGUMENTS`:
 Requirement: "$ARGUMENTS"
 ```
 
+**Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it from the requirement text and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every BA / QA / dev dispatch prompt below MUST include the literal line `codex_required: true` so the subagent's opt-in codex consultation block (`agents/<role>.md` § Codex adversarial consultation) activates. When `codex_required = false`, do NOT include that line — subagents skip codex consultation and emit `codex_consult: { invoked: false, status: "not_requested" }` in their output.
+
+**Codex suppression guardrail**: When `codex_required: true` is included in any subagent dispatch prompt, the orchestrator MUST NOT include any pre-populated `codex_consult` field or object in that same prompt. Setting `codex_required: true` and simultaneously pre-answering `codex_consult` contradicts the flag and silently suppresses Codex consultation.
+
 **Parse `--spec`**: If `$ARGUMENTS` contains `--spec <path>`, extract the path and remove the flag from the requirement text. Store as `spec_path`.
 
 **Auto-detect spec**: If `--spec` is NOT provided, scan `docs/dev/specs/*.md` sorted by modification time (newest first). If a file exists, set `spec_path` to that path and announce:
@@ -123,6 +127,26 @@ for agent in \
     > "$REGISTRY_DIR/$agent.json"
 done
 ```
+
+**Codex enforcement flag** (only when `codex_required = true`): Now that `$DEV_SESSION_ID` is defined above, write the enforcement flag so the SubagentStop hook can physically block ba/dev/qa agents that did not call codex:
+
+```bash
+# Must run AFTER DEV_SESSION_ID is generated above.
+ENFORCE_FLAG="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/codex-enforce.json"
+printf '{
+  "schema_version": 1,
+  "enabled": true,
+  "source_command": "dev-command",
+  "dev_session_id": "%s",
+  "claude_session_id": "%s",
+  "enforced_agent_types": ["ba", "dev", "qa"],
+  "created_at": "%s"
+}\n' "$DEV_SESSION_ID" "${CLAUDE_SESSION_ID:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  > "$ENFORCE_FLAG" \
+  || { echo "ERROR: Failed to write codex-enforce.json at $ENFORCE_FLAG — aborting. Cannot proceed without enforcement flag." >&2; exit 1; }
+```
+
+If the write fails, the orchestrator MUST abort with the error message above and NOT silently proceed. Continuing without the flag would create a false impression that enforcement is active.
 
 Store `$DEV_SESSION_ID` for use in every Agent launch prompt below. Every Agent launch prompt MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent.
 

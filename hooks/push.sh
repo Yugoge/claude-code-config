@@ -192,6 +192,32 @@ if [ "$STAGED_COUNT" = "0" ]; then
   fi
 fi
 
+# Step 6: Audit-range validation — every commit introduced by this push must
+# have an audit JSON at /var/lib/claude/audit/*/<sha>.json (written by /commit).
+# Uses $REMOTE/$BRANCH as the base, not @{u}, so first-push and fork flows are covered.
+REMOTE_TRACKING="refs/remotes/${REMOTE}/${BRANCH}"
+REMOTE_TIP=$(git rev-parse "$REMOTE_TRACKING" 2>/dev/null || true)
+if [ -n "$REMOTE_TIP" ]; then
+  PUSH_RANGE="${REMOTE_TRACKING}..refs/heads/${BRANCH}"
+else
+  # No remote tracking ref yet (first push). Validate all commits on this branch.
+  PUSH_RANGE="refs/heads/${BRANCH}"
+fi
+COMMITS_TO_CHECK=$(git log --pretty=format:"%H" "$PUSH_RANGE" 2>/dev/null || true)
+if [ -n "$COMMITS_TO_CHECK" ]; then
+  while IFS= read -r sha; do
+    [ -z "$sha" ] && continue
+    AUDIT_MATCH=$(ls /var/lib/claude/audit/*/"${sha}.json" 2>/dev/null | head -1 || true)
+    if [ -z "$AUDIT_MATCH" ]; then
+      echo -e "${RED}BLOCKED: commit ${sha} has no audit record -- was it created outside /commit?${NC}" >&2
+      echo "All commits pushed via /push must originate from /commit." >&2
+      exit 2
+    fi
+  done <<< "$COMMITS_TO_CHECK"
+  echo "Audit-range check passed for $(echo "$COMMITS_TO_CHECK" | wc -l | tr -d ' ') commit(s)."
+  echo ""
+fi
+
 # Step 8.5: Write Scheme 6 grant manifest for guard validation
 # The privilege-guard (pretool-git-privilege-guard.py) is always-on and rejects
 # every agent-issued `git push`. This wrapper emits a single-use grant file

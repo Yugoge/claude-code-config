@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-14T20:35:19Z*
-**Total entries**: 114
+*Last updated: 2026-05-16T18:21:33Z*
+**Total entries**: 121
 **Convention**: kebab
 
 ## Tree
@@ -39,7 +39,9 @@ hooks/
 ├── `auto-commit.sh` - ============================================================================
 ├── `check-todo-md-sync.py` - check-todo-md-sync.py — Session-start drift detector for todo scripts
 ├── `checkpoint.sh` - checkpoint.sh - Manual /checkpoint command
-├── `commit.sh` - 
+├── `commit-cas.py` - commit-cas.py -- CAS commit engine for /commit slash command
+├── `commit-register.py` - commit-register.py -- Manually register a Bash-written file into the session ledger
+├── `commit.sh` - commit.sh -- /commit slash command executor
 ├── `ensure-git-repo.sh` - ensure-git-repo.sh - DEPRECATED, scheduled for deletion
 ├── `fswatch-manager.sh` - fswatch-manager.sh - Manage git-fswatch instances
 ├── `git-fswatch.sh` - git-fswatch.sh - Comprehensive Git file watcher using fswatch
@@ -53,10 +55,12 @@ hooks/
 ├── `notification-idle-overnight.py` - Notification hook: Observe overnight idle events
 ├── `post-commit-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
 ├── `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
+├── `posttool-codex-skill-ledger.py` - Fires on every PostToolUse for the Skill tool. When tool_input.skill == "codex",
 ├── `posttool-command-frontmatter-validate.py` - PostToolUse Hook: Validate .claude/commands/*.md frontmatter structure
 ├── `posttool-doc-sync.py` - PostToolUse Hook: Auto-sync INDEX.md and CLAUDE.md when structural files change
 ├── `posttool-git-checkpoint.sh` - posttool-git-checkpoint.sh - PostToolUse checkpoint trigger
 ├── `posttool-git-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
+├── `posttool-ledger-writer.py` - PostToolUse Hook: Session-scoped staging ledger writer
 ├── `posttool-overnight-file-check.py` - PostToolUse:Agent Hook — Contract-driven overnight file check
 ├── `posttool-overnight-loop.py` - PostToolUse:TodoWrite Hook: Overnight Loop Detection
 ├── `posttool-overnight-trace.py` - Writes one JSONL trace record per Agent invocation to:
@@ -78,6 +82,7 @@ hooks/
 ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
 ├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 0 (warn-only per user policy: no text-smell hard-blocks).
 ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
+├── `pretool-content-preimage-guard.py` - PreToolUse Hook: Content preimage verification guard
 ├── `pretool-cp-checkin.py` - cp-state file read
 ├── `pretool-cp-state-write-guard.py` - Cycle-3 slim form (2026-05-14): Bash-extractor removed — 22-form adversarial
 ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
@@ -118,7 +123,9 @@ hooks/
 ├── `stop.sh` - stop.sh - wrapper for /stop slash command
 ├── `subagent-stop-diff-check.sh` - SubagentStop hook: flag large diffs without minimum-diff justification
 ├── `subagent-stop-guard-integrity.sh` - subagent-stop-guard-integrity.sh
+├── `subagentstop-codex-enforce.py` - Activation logic:
 ├── `subagentstop-cp-enforce.py` - Activation gate (NOT matcher=*): this hook exits 0 unless BOTH conditions hold:
+├── `subagentstop-e2e-enforce.py` - Activation logic:
 ├── `userprompt-consent-allowlist.sh` - UserPromptSubmit Hook: parse `/allow <pattern>` and write a single-use
 └── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
 ```

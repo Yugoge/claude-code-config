@@ -602,6 +602,22 @@ PYAUDIT2
 # settings.json hooks still run in parallel and a project-local deny still
 # wins per documented "deny > defer > ask > allow" precedence (D3b is a
 # Plan-A-blocker; see dev-report plan_a_blocker_d3b for alternatives).
+# ── Main-agent /do bypass ────────────────────────────────────────────────────
+_DO_IS_SUB=$(echo "$INPUT" | "$PYTHON_BIN" -c \
+  "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
+  2>/dev/null)
+if [ "$_DO_IS_SUB" != "1" ]; then
+  _DO_SID=$(echo "$INPUT" | "$PYTHON_BIN" -c \
+    "import json,sys,os; d=json.load(sys.stdin); \
+print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
+    2>/dev/null)
+  [ -z "$_DO_SID" ] && _DO_SID="default"
+  _DO_FLAG="/tmp/claude-orchestrator-consent-${_DO_SID}.flag"
+  if [ -f "$_DO_FLAG" ] && [ "$(cat "$_DO_FLAG" 2>/dev/null)" = "true" ]; then
+    exit 0
+  fi
+fi
+# ────────────────────────────────────────────────────────────────────────────
 check_and_consume_allowlist "$COMMAND" && exit 0
 
 # Layer 1.A — daemon-restart prohibition: systemctl verb gate against happy-daemon-*.

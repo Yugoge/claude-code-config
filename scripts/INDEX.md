@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-09T15:43:44Z*
-**Total entries**: 62
+*Last updated: 2026-05-16T06:43:42Z*
+**Total entries**: 63
 **Convention**: kebab
 
 ## Tree
@@ -33,13 +33,13 @@ scripts/
 ├── `analyze-folder-history.sh` - Description: Analyze Git history for folder to discover file creation patterns
 ├── `analyze-git-edge-cases.sh` - Description: Analyze git history for edge cases from bug fix commits
 ├── `apply-permissions.sh` - apply-permissions.sh — merge aggregated permissions JSON list into settings.json
-├── `auto-commit-message.sh` - auto-commit-message.sh: produce a commit message from cycle artifacts.
 ├── `break-overnight-lock.py` - Backdates end_time on every active overnight-state-*.json so
 ├── `build-pipelines-from-triage.py` - Consumes PM triage schema (issues[] keyed by triage_index + pipeline_order[] +
 ├── `check-file-references.sh` - File reference detection script - used by /clean command
 ├── `check-overnight-reports.py` - Description: Validates all overnight required outputs declared by the active
 ├── `check-overnight-reports.sh` - DEPRECATED — replaced by check-overnight-reports.py per spec-20260426-090235 P0/M5.
 ├── `check-readme-freshness.sh` - Check README.md freshness for all major folders
+├── `check-security-hook-drift.sh` - Description: Audit always-on security-critical hook files against a cycle baseline SHA
 ├── `checkpoint-prune.sh` - checkpoint-prune.sh — trim refs/checkpoints/* to the most recent N commits
 ├── `cleanup-tests-folder.sh` - Description: Remove validators that don't match git edge cases, preserving reports/
 ├── `create-overnight-state.sh` - create-overnight-state.sh — Create overnight state file (v7 schema)
@@ -68,7 +68,8 @@ scripts/
 ├── `scan-project.sh` - Description: Scan project structure and detect project type
 ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
-└── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
+├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
+└── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
 ```
 
 ---

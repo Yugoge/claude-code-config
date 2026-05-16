@@ -156,6 +156,14 @@ TASK_ID="<resolved task-id from rules above>"   # e.g. "$ARGUMENTS" when timesta
 
 Also optionally note companion files if they exist at the same task-id: `context-<task-id>.json`, `dev-report-<task-id>.json`.
 
+### Normal-path artifact preflight (non-force)
+
+After `TASK_ID` is resolved and before Step 1 dispatches inspectors, `/close` MUST run the same Codex-native artifact contract used by `/dev` completion. This preflight applies to `/close <task-id>`, `/close <task-id> --claude-code`, and bare `/close` only when active workflow state/context already resolved `<task-id>`. Bare `/close` with no active task-id keeps the `No spec identified...` failure and MUST NOT scan/default-to-newest.
+
+The preflight validates these exact same-task files: `docs/dev/ticket-<task-id>.md`, `context-<task-id>.json`, `dev-report-<task-id>.json`, `qa-report-<task-id>.json`, and `completion-<task-id>.md`. JSON artifacts must have top-level `request_id` and `task_id` equal to `<task-id>`; the dev report must have nested `dev.status == "completed"` plus `dev.files_modified` and `dev.files_created` arrays; the QA report must have nested `qa.status == "pass"`. Top-level-only `status` / `verdict` fields and subagent final messages are rejected.
+
+Any missing, malformed, mismatched, status-only, or non-passing artifact blocks before inspector dispatch / QA debate and reports the exact path and reason. The forced path is unchanged: `/close --force` short-circuits before this normal-path preflight.
+
 Resolve optional cp-state handoff for the QA close gate:
 
 - If the resolved input spec path is `docs/dev/specs/<SPEC_ID>.md` and

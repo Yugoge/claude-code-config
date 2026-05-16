@@ -43,6 +43,7 @@ resolve_project_dir() {
 PROJECT_DIR="$(resolve_project_dir)"
 
 # --- Parse arguments ---
+CODEX_REQUIRED=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --end-time)  END_TIME="$2"; shift 2 ;;
@@ -50,9 +51,10 @@ while [[ $# -gt 0 ]]; do
         --spec)      SPEC_PATH="$2"; shift 2 ;;
         --session-id) SESSION_ID="$2"; shift 2 ;;
         --project-dir) PROJECT_DIR="$2"; shift 2 ;;
+        --codex)     CODEX_REQUIRED=true; shift ;;
         *)
             echo "Unknown option: $1" >&2
-            echo "Usage: create-overnight-state.sh [--end-time <time>] [--focus <str>] [--spec <path>] [--session-id <uuid>] [--project-dir <path>]" >&2
+            echo "Usage: create-overnight-state.sh [--end-time <time>] [--focus <str>] [--spec <path>] [--session-id <uuid>] [--project-dir <path>] [--codex]" >&2
             exit 1
             ;;
     esac
@@ -257,6 +259,7 @@ jq -n \
     --arg worktree_branch "$WORKTREE_BRANCH" \
     --arg cycle_contract_path "$CONTRACT_FILE" \
     --argjson view_paths "$VIEW_PATHS" \
+    --argjson codex_required "$CODEX_REQUIRED" \
     '{
         session_id: $session_id,
         end_time: $end_time,
@@ -281,7 +284,8 @@ jq -n \
         view_paths: $view_paths,
         pm_triage_reports: [],
         pm_retro_reports: [],
-        unresolved_issues: []
+        unresolved_issues: [],
+        codex_required: $codex_required
     }' > "$TMP_FILE"
 
 # Atomic move

@@ -163,7 +163,10 @@ def test_ac3_dev_sentinel_updates_index(td):
     expect("AC3.index-exists", idx.exists(), "agent-index.json missing")
     if idx.exists():
         m = json.loads(idx.read_text(encoding="utf-8"))
-        expect("AC3.mapping", m.get("abc-real") == agent, str(m))
+        entry = m.get("abc-real")
+        expect("AC3.mapping",
+               isinstance(entry, dict) and entry.get("agent_type") == agent and entry.get("dev_session_id") == sid,
+               str(m))
 
 
 # -------------------- AC4: SECOND ACTION protocol still works ---------------------
