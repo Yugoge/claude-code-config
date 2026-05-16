@@ -18,7 +18,7 @@
     "PLAYWRIGHT_MCP_SANDBOX": "false",
     "PLAYWRIGHT_RUNCODE_TIMEOUT": "120",
     "ENABLE_TOOL_SEARCH": "false",
-    "_comment_anthropic": "以下为可选配置（已禁用）",
+    "_comment_anthropic": "\u4ee5\u4e0b\u4e3a\u53ef\u9009\u914d\u7f6e\uff08\u5df2\u7981\u7528\uff09",
     "_disabled_anthropic": "[object Object]"
   },
   "includeCoAuthoredBy": true,
@@ -347,10 +347,6 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-bash-views-guard.py\""
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/pretool-wrapper-userintent.py\""
           }
         ]
       },
@@ -525,16 +521,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "matcher": "Edit|Write|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/pretool-content-preimage-guard.py\"",
-            "timeout": 10
-          }
-        ]
       }
     ],
     "PostToolUse": [
@@ -573,11 +559,6 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/posttool-command-frontmatter-validate.py\""
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/posttool-ledger-writer.py\"",
-            "timeout": 10
           }
         ]
       },
@@ -674,15 +655,6 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/subagent-stop-guard-integrity.sh\""
-          }
-        ]
-      },
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/subagentstop-cp-enforce.py\""
           }
         ]
       },
