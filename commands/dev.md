@@ -138,6 +138,12 @@ done
 scripts/write-codex-enforce.sh --source-command dev --session-id $DEV_SESSION_ID
 ```
 
+**E2E enforcement flag** (unconditional — always-on): After `$DEV_SESSION_ID` and the registry directory are initialized, run `scripts/write-e2e-enforce.sh` to activate the E2E gate for QA. If it exits non-zero, the orchestrator MUST abort.
+
+```bash
+scripts/write-e2e-enforce.sh --source-command dev --session-id $DEV_SESSION_ID
+```
+
 Store `$DEV_SESSION_ID` for use in every Agent launch prompt below. Every Agent launch prompt MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent.
 
 **Also derive `<SPEC_ID>` for cp-state checkpoint propagation.** `/spec` writes per-agent `cp-state-<agent>.json` files into `.claude/specs/<SPEC_ID>/`, and `subagentstop-cp-enforce.py` will BLOCK any subagent that exits without marking every checkpoint as `done` or `waived`. The orchestrator must compute `<SPEC_ID>` from the `spec_path` detected in Step 1 and pass it into every Agent launch prompt below alongside `<DEV_SESSION_ID>`.

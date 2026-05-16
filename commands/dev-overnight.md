@@ -233,6 +233,12 @@ DEV_SESSION_ID="<reused-from-overnight-state.json>"
 REGISTRY_DIR="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID"
 ```
 
+**E2E enforcement flag** (unconditional — always-on): Now that `$DEV_SESSION_ID` is bound, run `scripts/write-e2e-enforce.sh` to activate the E2E gate for QA. If it exits non-zero, abort.
+
+```bash
+scripts/write-e2e-enforce.sh --source-command dev-overnight --session-id "$DEV_SESSION_ID"
+```
+
 Create sentinel files for every agent type this orchestrator can launch, including overnight-only specialists.
 
 **Sentinel-write idiom (M10 harness-fixes 20260428)**: the worktree-guard's `_extract_bash_write_paths` static scan treats `$VAR` and `${VAR}` tokens as opaque (it intentionally cannot tell legitimate from adversarial `$VAR` writes — see arch-3). The orchestrator MUST therefore use one of the two acceptable forms below. Forms that interpose a same-line-assigned shell variable into the redirect target (e.g. `REG=$CLAUDE_PROJECT_DIR/...; > "$REG/$agent.json"`) will be blocked by the worktree boundary even though the harness-state exemption is active, because the static scan cannot resolve `$REG` and the realpath check fails.

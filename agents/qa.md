@@ -255,12 +255,23 @@ an overnight session), read it first:
 2. If valid JSON:
    - Extract `app_context` (url, test_email, test_password, core_flow_steps)
    - Extract `pm_experience` -- PM's actual browser navigation evidence
-   - Note `pm_experience.app_not_running` -- if true, skip dynamic verification
+   - Note `pm_experience.app_not_running` -- ADVISORY ONLY; Step 5c.0 live health check is authoritative and overrides this field.
    - Note `pm_experience.core_flow_verified_in_browser` -- use as baseline
    - Store `core_flow_steps` for use in Step 5c.0
 3. If the file does not exist, is invalid, or no test plan path was provided:
    - Log a note and proceed without test plan context
    - Dynamic verification (Step 5c) still applies based on dev report content
+
+#### Fallback: Self-generate test context (only when no valid plan was loaded in item 3)
+
+Only execute this fallback when no valid test plan was loaded; otherwise preserve the PM test plan.
+
+Synthesize a minimal in-memory test context (set `test_plan_source: "qa_self_generated"` in your QA report):
+- `app_context.url`: derive from context JSON `environment.web_services` or dev report URL fields; set `null` if unknown
+- `pm_experience.app_not_running`: set `false` as default (Step 5c.0 health check is authoritative)
+- `core_flow_steps`: derive from BA spec acceptance criteria or set empty array
+- Record `test_plan_source: "qa_self_generated"` in the `e2e_enforcement` object for audit trail
+- Do NOT write this plan to disk — this is an in-memory object only
 
 ### Step 1: Success Criteria Validation
 
