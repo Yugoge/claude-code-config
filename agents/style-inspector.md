@@ -254,12 +254,7 @@ template_path = sys.argv[1] if len(sys.argv) > 1 else "template/resume/harvard.h
 
 **Rule**: All step numbering MUST be integers (1, 2, 3...), NOT decimals (1.1, 1.2) or letters (1a, 1b).
 
-**Detection**:
-```bash
-# Scan .md files for step numbering patterns
-grep -rn "Step [0-9]*\.[0-9]" .claude/ --include="*.md"
-grep -rn "Step [0-9]*[a-z]" .claude/ --include="*.md"
-```
+**Detection**: Scan `.md` files in `.claude/` for decimal step patterns (`Step N.M`) and lettered step patterns (`Step Na`).
 
 **Violations**:
 ```
