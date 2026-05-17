@@ -31,7 +31,7 @@
     "success_criteria": [
       "push-analyst is dispatched before push.sh; verdict=blocked prevents push; commits-to-push range uses refs/remotes/<resolved_remote>/<branch>..HEAD (not @{u}..HEAD)",
       "merge-analyst is dispatched before merge.sh; verdict=blocked prevents merge; grant expires in 60s",
-      "pull-analyst is dispatched whenever HEAD changed (even on pull.sh non-0 exit due to stash-pop failure); report is advisory only",
+      "pull-analyst is dispatched when pull_exit_phase is 'success' or 'stash_restoration_failed' (HEAD changed AND no rebase state dir on non-0 exit); NOT dispatched on 'rebase_conflict'; report is advisory only",
       "All three analyst agents have explicit DO NOT sections forbidding git write ops",
       "Grant tokens are nonce-keyed, session-scoped, state-bound, and single-use",
       "hooks/push.sh, hooks/merge.sh, hooks/pull.sh are byte-for-byte unchanged",
