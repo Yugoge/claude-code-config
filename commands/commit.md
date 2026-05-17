@@ -135,7 +135,7 @@ print(f"Dispatch manifest written: {manifest_path}")
 
 Best-effort; proceed even if manifest write fails. In bulk mode: skip the manifest write entirely.
 
-### Step 5: Dispatch changelog-analyst
+### Step 6: Dispatch changelog-analyst
 
 Use the Agent tool with `subagent_type: changelog-analyst`. Pass a structured prompt:
 
