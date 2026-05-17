@@ -128,6 +128,18 @@ for agent in \
 done
 ```
 
+**Write verbatim user requirement document** (MANDATORY — do this before any Agent dispatch):
+
+```bash
+mkdir -p "$CLAUDE_PROJECT_DIR/docs/dev"
+REQUIREMENT_DOC="$CLAUDE_PROJECT_DIR/docs/dev/user-requirement-${DEV_SESSION_ID}.md"
+cat <<'REQEOF' > "$REQUIREMENT_DOC" || { echo "ERROR: Failed to write user requirement document — aborting." >&2; exit 1; }
+<verbatim stripped $ARGUMENTS text from Step 1 — paste literal text here, no shell variables inside heredoc>
+REQEOF
+```
+
+This document is the source-of-truth anchor for the entire session. Every subagent reads it before interpreting any derived context or spec. Use a single-quoted heredoc delimiter (`'REQEOF'`) so `$`, backticks, and shell metacharacters are never expanded. When including this path in dispatch prompts, always substitute the resolved value of `$REQUIREMENT_DOC` — MUST NOT pass literal `<DEV_SESSION_ID>` or `<REQUIREMENT_DOC>` placeholders to subagents.
+
 **E2E enforcement activation** (unconditional — always runs regardless of --codex flag):
 ```bash
 scripts/write-e2e-enforce.sh --source-command dev-command --session-id $DEV_SESSION_ID
@@ -225,6 +237,9 @@ Use Agent tool with:
 
   You are the <specialist-name> specialist. Follow .claude/agents/<specialist-name>.md.
 
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
   Requirement: '<requirement from Step 1>'
 
   Provide your observations and analysis relevant to this requirement.
@@ -313,6 +328,9 @@ Use Task tool with:
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
   Requirement: '<requirement from Step 1>'
   Clarification round: 0
   Previous answers: null
@@ -353,6 +371,9 @@ Use Task tool with:
   CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   Requirement: '<original requirement>'
   Clarification round: <N>
@@ -418,6 +439,9 @@ Use Agent tool with:
 
   DO NOT: build, deploy, open browser, run Playwright, or test code.
   DO: read BA's deliverables and challenge every claim.
+
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Context JSON: docs/dev/context-<timestamp>.json
@@ -506,6 +530,9 @@ Use Agent tool with:
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
   Your previous analysis was REJECTED by QA. Address each objection below
   with concrete evidence. Do not argue -- investigate and provide proof.
 
@@ -547,6 +574,9 @@ Use Task tool with:
   CHECKPOINT MARKING: see agents/dev.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the dev subagent. Follow agents/dev.md instructions precisely.
+
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   Context file: docs/dev/context-<timestamp>.json
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
@@ -600,6 +630,9 @@ Use Task tool with:
   CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the QA subagent. Follow agents/qa.md instructions precisely.
+
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   Context file: docs/dev/context-<timestamp>.json
   Dev report file: docs/dev/dev-report-<timestamp>.json

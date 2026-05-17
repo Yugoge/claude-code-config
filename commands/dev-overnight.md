@@ -287,6 +287,29 @@ This gives overnight specialists the same checklist-stop semantics as BA/Dev/QA:
 check-in happens on the cp-state read, and Stop is blocked until the checklist is
 fully done or waived.
 
+**Write verbatim user requirement document** (MANDATORY — do this once in Step 1, before any Agent dispatch):
+
+```bash
+PROJECT_ROOT="${WORKTREE_PATH:-$CLAUDE_PROJECT_DIR}"
+mkdir -p "$PROJECT_ROOT/docs/dev"
+REQUIREMENT_DOC="$PROJECT_ROOT/docs/dev/user-requirement-${DEV_SESSION_ID}.md"
+cat <<'REQEOF' > "$REQUIREMENT_DOC" || { echo "ERROR: Failed to write user requirement document — aborting." >&2; exit 1; }
+<verbatim focus / requirement text from state file — paste literal text here, no shell variables inside heredoc>
+REQEOF
+```
+
+When `user_spec_path` is non-null, also append the spec path and Section 5 verbatim to the same document (do not summarize):
+
+```bash
+if [ -n "$USER_SPEC_PATH" ]; then
+  printf '\nUser spec path: %s\n' "$USER_SPEC_PATH" >> "$REQUIREMENT_DOC"
+  printf '\nSection 5 (User Acceptance Criterion):\n' >> "$REQUIREMENT_DOC"
+  # Read Section 5 verbatim from the spec file and append — do not paraphrase
+fi
+```
+
+This document is the source-of-truth anchor for the entire overnight session. Every subagent reads it before interpreting any derived context or spec. Use a single-quoted heredoc delimiter (`'REQEOF'`) so `$`, backticks, and shell metacharacters are never expanded. This write is idempotent across continuation cycles (same `DEV_SESSION_ID` reused). When including this path in dispatch prompts, always substitute the resolved value of `$REQUIREMENT_DOC` — MUST NOT pass literal `<PROJECT_ROOT>` or `<DEV_SESSION_ID>` placeholders to subagents; expand them to actual values at dispatch time.
+
 ---
 
 ### Continuation Mode
@@ -414,6 +437,9 @@ Use Agent tool with:
   CHECKPOINT MARKING: see agents/pm.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the PM subagent. Follow agents/pm.md instructions precisely.
+
+  User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   Project path: <worktree_path from state file if set, otherwise project_path>
   State file path: <path to overnight-state-*.json>
@@ -565,6 +591,7 @@ Available specialists:
 Each subagent receives, at the TOP of its prompt before any other content:
 - FIRST ACTION line: "Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/<specialist.type>.json to register with the enforcement system. Do this BEFORE any other tool call."
 - CHECKPOINT MARKING line: "see agents/<specialist.type>.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit." (full SECOND ACTION SPEC_ID/cp-state semantics are defined once in the Step 1 cp-state handoff section above and need not be repeated per dispatch.)
+- User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 - Project path: <worktree_path from state file if set, otherwise project_path>
 - Already addressed: <addressed_issues array from state file>
 - Focus: <focus string from state file, or "none">
@@ -668,6 +695,9 @@ Use Agent tool with:
   PM_MODE: TRIAGE
 
   You are the PM subagent in TRIAGE mode. Follow agents/pm.md Triage Protocol.
+
+  User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   Project path: <worktree_path from state file if set, otherwise project_path>
   Session ID: <session_id>
@@ -875,6 +905,9 @@ Agent(subagent_type: "ba")
 
     You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
+    User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+    (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
     Requirement: '{pipeline.description}'
     Clarification round: 3
     Previous answers: null
@@ -964,6 +997,9 @@ Agent(subagent_type: "qa")
 
     DO NOT: build, deploy, open browser, run Playwright, or test code.
     DO: read BA's deliverables and challenge every claim.
+
+    User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+    (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
     BA spec file: docs/dev/ticket-{pipeline.timestamp_suffix}.md (legacy: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md)
     Context JSON: docs/dev/context-{pipeline.timestamp_suffix}.json
@@ -1058,6 +1094,9 @@ Use Agent tool with:
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
+  User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
   Your previous analysis was REJECTED by QA. Address each objection below
   with concrete evidence. Do not argue -- investigate and provide proof.
 
@@ -1104,6 +1143,9 @@ Agent(subagent_type: "dev")
     CHECKPOINT MARKING: see agents/dev.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
     You are the dev subagent. Follow agents/dev.md instructions precisely.
+
+    User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+    (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
     BA spec file: docs/dev/ticket-{pipeline.timestamp_suffix}.md (legacy: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md)
@@ -1193,6 +1235,9 @@ Agent(subagent_type: "qa")
     CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
     You are the QA subagent. Follow agents/qa.md instructions precisely.
+
+    User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+    (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
     Dev report file: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
@@ -1306,9 +1351,9 @@ bash ~/.claude/scripts/refine-context.sh \
 ```
 
 The merged context records `iteration=<new-iter>` and appends a `previous_attempts[]` entry with `iteration=<new-iter>-1`. Then dispatch:
-- `Agent(subagent_type: "dev")` with iteration context. Include in Dev prompt: `Overnight spec file: <pipeline.spec_path>`. Dev reads spec first for cross-cycle context, then updates Sections 2 and 3.
+- `Agent(subagent_type: "dev")` with iteration context. Include in Dev prompt: `Overnight spec file: <pipeline.spec_path>`. Also include: `User requirement document: <resolved $REQUIREMENT_DOC path>`. Dev reads spec first for cross-cycle context, then updates Sections 2 and 3.
 - Before dispatching QA, write qa_mode sentinel: `bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode final_verification || { echo 'ERROR: Failed to set qa_mode=final_verification — aborting' >&2; exit 1; }`
-- `Agent(subagent_type: "qa")` with new dev report. Include in QA prompt: `Overnight spec file: <pipeline.spec_path>`. QA reads spec first, then updates Section 4 (and Sections 6-7 if fail).
+- `Agent(subagent_type: "qa")` with new dev report. Include in QA prompt: `Overnight spec file: <pipeline.spec_path>`. Also include: `User requirement document: <resolved $REQUIREMENT_DOC path>`. QA reads spec first, then updates Section 4 (and Sections 6-7 if fail).
 
 Loop termination:
 - `qa.status == "pass"` OR `(qa.status == "warning" AND minor only)` → set `phase=done`, `status=fixed`, BREAK.
@@ -1405,6 +1450,9 @@ Use Agent tool with:
   FINAL_CYCLE: <true|false>
 
   You are the PM subagent in RETRO mode. Follow agents/pm.md Retrospective Protocol.
+
+  User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   Project path: <worktree_path from state file if set, otherwise project_path>
   Session ID: <session_id>
