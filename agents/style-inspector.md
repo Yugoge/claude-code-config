@@ -290,25 +290,9 @@ Step 4: Next thing
 **Forbidden patterns**:
 - `enhance-*`, `fast-*`, `optimize-*`, `*-v2`, `*-v3`, `improved-*`, `better-*`, `new-*`
 
-**Detection**:
-```bash
-# Scan for forbidden patterns
-find . -name "enhance-*.sh" -o -name "*-v2.*" -o -name "fast-*.py" \
-  -o -name "optimize-*.sh" -o -name "improved-*"
-```
+**Detection**: Scan for files matching forbidden patterns: `enhance-*.sh`, `*-v2.*`, `fast-*.py`, `optimize-*.sh`, `improved-*`.
 
-**Violations**:
-```bash
-# BAD
-enhance-system.sh
-fast-check.sh
-optimize-v2.py
-
-# GOOD
-validate-api-endpoints.sh
-check-file-references.sh
-analyze-performance.py
-```
+**Violations**: BAD: `enhance-system.sh`, `fast-check.sh`, `optimize-v2.py`. GOOD: `validate-api-endpoints.sh`, `check-file-references.sh`, `analyze-performance.py`.
 
 **Report**:
 ```json
