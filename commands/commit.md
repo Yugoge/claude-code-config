@@ -76,7 +76,7 @@ Best-effort; proceed even if log append fails.
 
 Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/logs/commit-overrides.log.`
 
-### Step 4.5: Write commit grant and dispatch-snapshot manifest
+### Step 5: Write commit grant and dispatch-snapshot manifest
 
 Before dispatching changelog-analyst, write a single-use commit grant and a dispatch-snapshot manifest:
 

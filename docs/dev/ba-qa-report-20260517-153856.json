@@ -1,0 +1,132 @@
+{
+  "request_id": "20260517-153856",
+  "task_id": "20260517-153856",
+  "timestamp": "2026-05-17T16:15:00Z",
+  "mode": "ba_validation",
+  "qa": {
+    "status": "fail",
+    "verdict": "fail",
+    "overall_assessment": "BA spec for handoff contract establishment is well-structured and its affected-file accuracy, scope alignment, investigation completeness, and evidence quality all pass. However, a blocking spec_text_vs_execution_drift objection prevents PASS: BA's AC1 targets a non-canonical issues[] channel in ui-specialist.md while the actual machine-enforceable output contract (report-schema.json) uses automated_findings/contextual_findings/aesthetic_findings. Dev satisfying AC1 as written would add fields to prose that is not validated by any runtime schema, leaving the 'machine-enforceable' goal unmet. Codex confirmed: 'drift objection is valid; draft PASS is not correct.'",
+    "dimensions_checked": [
+      "evidence_quality",
+      "scope_alignment",
+      "investigation_completeness",
+      "affected_file_accuracy",
+      "spec_text_vs_execution_drift"
+    ]
+  },
+  "objections": [
+    {
+      "id": "OBJ-1",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "blocker",
+      "title": "AC1 targets non-canonical issues[] channel; canonical output contract uses automated_findings/contextual_findings/aesthetic_findings",
+      "description": "BA's AC1 states: 'WHEN dev reads the issues[] schema THEN it contains location.url, location.selector, location.file, location.line, measured, expected, downstream_agent'. However, skills/ui-shared/report-schema.json — the canonical machine-enforced JSON schema for ui-specialist output — does NOT have an issues[] property at all. The schema's required channels are: automated_findings, contextual_findings, aesthetic_findings, needs_review, unknowns. The issues[] appearing in agents/ui-specialist.md line 255 is only in an illustrative example JSON shape block, not in the canonical schema. The finding_base definition in report-schema.json lines 214-227 defines location as a flat string — NOT a structured object. Dev satisfying AC1 as written would add an inline prose illustration of issues[] but would leave the actual runtime schema contract (report-schema.json) unchanged, making the 'machine-enforceable' goal in BA's Goal section unmet. AC1's literal verification recipe ('dev reads the issues[] schema') produces no meaningful evidence about whether BA's downstream-agent handoff will actually be enforced at runtime.",
+      "evidence": {
+        "canonical_schema_path": "skills/ui-shared/report-schema.json",
+        "canonical_schema_required_channels": ["automated_findings", "contextual_findings", "aesthetic_findings", "needs_review", "unknowns"],
+        "issues_array_not_in_schema": "Grep for 'issues' in skills/ui-shared/report-schema.json returns zero matches",
+        "issues_array_location_in_ui_specialist": "agents/ui-specialist.md:255 — inside a prose example JSON block only",
+        "finding_base_location_type": "skills/ui-shared/report-schema.json:220 — location is type: string (flat string, not object)",
+        "ba_goal_claim": "ticket-20260517-153856.md line 9: 'machine-enforceable bidirectional handoff contracts'",
+        "ba_ac1_verification_recipe": "ticket-20260517-153856.md line 101: 'WHEN dev reads the issues[] schema'",
+        "codex_verdict": "Codex (gpt-5.5, xhigh): 'drift objection is valid; draft PASS is not correct. The canonical schema has required automated_findings, contextual_findings, and aesthetic_findings, not issues. The schema finding base currently has location as a string, not location.url/selector/file/line.'"
+      },
+      "proposed_fix": "BA must revise AC1 (and R1) to target the canonical finding channels. Revised AC1 should read: 'GIVEN skills/ui-shared/report-schema.json and agents/ui-specialist.md Output Format — WHEN dev updates the ui-specialist report contract — THEN every emitted finding in automated_findings[], contextual_findings[], and aesthetic_findings[] has BA-actionable handoff metadata: location_detail.url, location_detail.selector, location_detail.file, location_detail.line, measured, expected, downstream_agent: ba — AND agents/ui-specialist.md no longer describes issues[] as a canonical top-level channel.' Additionally BA must decide: either include skills/ui-shared/report-schema.json in the files_to_modify list (AC6) to make the contract machine-enforceable at the schema layer, or explicitly downgrade the goal from 'machine-enforceable' to 'agent-prose convention' in the Goal section and remove the machine-enforcement claim.",
+      "blocks_merge": true
+    },
+    {
+      "id": "OBJ-2",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "blocker",
+      "title": "report-schema.json excluded from scope but required for machine-enforceability claim",
+      "description": "BA's Technical Hints (ticket line 137) explicitly states: 'Out of scope (do not touch): commands/dev.md, agents/pm.md, ~/.claude/skills/ui-shared/report-schema.json'. However, the Goal states the contracts must be 'machine-enforceable'. For ui-specialist specifically, the only machine-enforced contract is report-schema.json. If report-schema.json is excluded, the ui-specialist changes are agent-prose additions only — not machine-enforced. BA cannot simultaneously claim machine-enforceability AND exclude the schema file that provides the enforcement. This is an internal contradiction in the spec that dev would inherit.",
+      "evidence": {
+        "out_of_scope_declaration": "ticket-20260517-153856.md line 137: '~/.claude/skills/ui-shared/report-schema.json' listed as out of scope",
+        "machine_enforceability_claim": "ticket-20260517-153856.md line 9: 'machine-enforceable bidirectional handoff contracts'",
+        "schema_is_the_enforcer": "skills/ui-shared/report-schema.json is the JSON Schema Draft-07 document that validates ui-specialist output; adding prose in ui-specialist.md alone has no enforcement effect",
+        "codex_finding": "Codex PROPOSED_FIX #2: 'Either include skills/ui-shared/report-schema.json in scope/AC6, or downgrade the goal from machine-enforceable to agent-prose convention.'"
+      },
+      "proposed_fix": "BA must either (a) add skills/ui-shared/report-schema.json to files_to_modify and update AC6 to include it, or (b) revise the Goal section to remove 'machine-enforceable' and replace with 'agent-documented' or 'prose-convention'. The other 4 specialist agents (architect, product-owner, user) and ba.md are agent-prompt files without a separate JSON schema enforcer, so those changes remain valid as prose-convention additions. Only ui-specialist has a separate schema file requiring explicit treatment.",
+      "blocks_merge": true
+    }
+  ],
+  "dimension_verdicts": {
+    "evidence_quality": {
+      "verdict": "pass",
+      "assessment": "BA's factual claims are backed by direct Read tool invocations at specific line numbers. All 5 affected files are identified with precise line ranges. The observed deficiencies (flat string location, missing fields, no intake protocol) are confirmed by QA's independent Read of those exact locations. BA's evidence_type is correctly marked 'inferred' (appropriate for agent-spec files where runtime observation is not applicable). No unproven claims stated as facts.",
+      "verified_claims": [
+        "agents/ui-specialist.md:255 — issues: [] with no inline per-issue schema — CONFIRMED",
+        "agents/architect.md:306-318 — location is flat string 'file:line or module/component name' — CONFIRMED",
+        "agents/product-owner.md:327-340 — no observed_behavior/expected_behavior fields — CONFIRMED",
+        "agents/user.md:427-442 — no observed_behavior/expected_behavior fields — CONFIRMED",
+        "agents/ba.md — no 'Specialist Findings Intake Protocol' section — CONFIRMED via grep"
+      ]
+    },
+    "scope_alignment": {
+      "verdict": "pass",
+      "assessment": "BA's bug title and ACs match the original requirement. The user's verbatim request names exactly the 4 specialist agents plus BA as targets. BA's Must Have items R1-R5 map directly to the 5-file requirement. BA correctly excludes agents/pm.md and commands/dev.md with documented rationale. The universalist claim in the original requirement ('所有 specialist 与 BA 之间', meaning 'all specialists and BA') is fully satisfied by BA's scope covering all 4 specialists plus ba.md. No narrowing detected.",
+      "notes": "BA's R1-R4 decomposition covers all 4 specialists independently; R5 covers ba.md. No original requirement element is missing."
+    },
+    "investigation_completeness": {
+      "verdict": "pass",
+      "assessment": "BA investigated each of the 5 files at specific line numbers and documented the exact deficiencies. The grep for 'Specialist Findings Intake Protocol' in ba.md confirming absence is documented. The scope expansion search ('issues': [] and 'downstream_agent' across agents/*.md) was performed and no additional files were found. Research into SARIF v2.1.0 and axe-core schemas provides the authoritative expected state. BA's codex_consult shows independent confirmation of schema deficiencies.",
+      "caveat": "BA did not investigate skills/ui-shared/report-schema.json as part of the ui-specialist deficiency assessment. Had BA done so, OBJ-1 and OBJ-2 would have been caught at BA stage. However this omission is itself what OBJ-1/OBJ-2 flag — this is a spec-text-vs-execution-drift objection, not an investigation_completeness objection."
+    },
+    "affected_file_accuracy": {
+      "verdict": "pass",
+      "assessment": "All 5 file paths exist and contain the schema deficiencies BA claims at the cited line ranges. QA independently verified each file. No false file path claims detected.",
+      "verified_files": [
+        {"file": "agents/ui-specialist.md", "exists": true, "claim_verified": "issues:[] at line 255 in example block"},
+        {"file": "agents/architect.md", "exists": true, "claim_verified": "location as flat string at lines 306-318"},
+        {"file": "agents/product-owner.md", "exists": true, "claim_verified": "no observed_behavior/expected_behavior at lines 327-340"},
+        {"file": "agents/user.md", "exists": true, "claim_verified": "no observed_behavior/expected_behavior at lines 427-442"},
+        {"file": "agents/ba.md", "exists": true, "claim_verified": "no Specialist Findings Intake Protocol section"}
+      ]
+    },
+    "spec_text_vs_execution_drift": {
+      "verdict": "fail",
+      "assessment": "Two blocking drift issues found. See OBJ-1 and OBJ-2. BA's AC1 verification recipe targets a non-canonical channel (issues[]) while the actual enforced output contract is automated_findings/contextual_findings/aesthetic_findings in report-schema.json. The 'machine-enforceable' goal claim is contradicted by excluding report-schema.json from scope.",
+      "objection_ids": ["OBJ-1", "OBJ-2"]
+    }
+  },
+  "passing_items": [
+    "All 5 affected file paths exist and contain the deficiencies BA claims",
+    "Line-number citations for all 5 files are accurate",
+    "Scope correctly covers all 4 specialists + ba.md with no missing agents",
+    "commands/dev.md and agents/pm.md correctly excluded with documented rationale",
+    "SARIF v2.1.0 is appropriate tier_1_external reference for field naming",
+    "BA's edge cases (user agent browser-only, architect breaking change, inline schema additive) are valid and well-documented",
+    "The BA intake protocol requirements for ba.md (R5) are complete and verifiable",
+    "architect.md breaking change flagged prominently in Technical Hints",
+    "user.md location.file nullable constraint documented"
+  ],
+  "failing_items": [
+    "AC1 targets non-canonical issues[] channel instead of report-schema.json canonical channels (automated_findings/contextual_findings/aesthetic_findings)",
+    "report-schema.json excluded from scope while 'machine-enforceable' goal claims enforcement it cannot provide",
+    "finding_base.location in report-schema.json is a flat string — not addressed by any AC or R requirement",
+    "Dev satisfying AC1 as written would leave the actual JSON Schema contract unchanged"
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex (gpt-5.5, xhigh reasoning) independently confirmed the drift objection is valid and concluded 'draft PASS is not correct.' Codex found: (1) BA AC1 targets non-canonical issues[] channel; dev could satisfy AC1 by adding prose while leaving the actual UI report contract (report-schema.json) unchanged; (2) BA scope explicitly excludes report-schema.json yet claims machine-enforceability; both are contradictions that must be resolved. Codex PROPOSED_FIX for issue 1: revise AC1 to target automated_findings/contextual_findings/aesthetic_findings in report-schema.json. Codex PROPOSED_FIX for issue 2: either include report-schema.json in scope/AC6 or downgrade goal to agent-prose convention.",
+    "feedback_incorporated": "Both Codex PROPOSED_FIX items are incorporated as OBJ-1 and OBJ-2 in the objections array, each with blocker severity and blocks_merge: true. Verdict changed from draft PASS to FAIL based on Codex confirmation."
+  },
+  "iteration_needed": true,
+  "refined_context": {
+    "required_ba_changes": [
+      "Revise AC1/R1 to target canonical finding channels: automated_findings[], contextual_findings[], aesthetic_findings[] in report-schema.json (not issues[])",
+      "Either add skills/ui-shared/report-schema.json to files_to_modify and AC6 file list, OR revise Goal section to replace 'machine-enforceable' with 'agent-prose convention'",
+      "If report-schema.json is included in scope: update finding_base.location from type:string to structured object with file/line/selector/url (aligning with SARIF physicalLocation)",
+      "If report-schema.json is excluded from scope: remove all 'machine-enforceable' language from Goal, Context, and any implied enforcement claims"
+    ],
+    "items_not_requiring_change": [
+      "R2 (architect.md) — valid, affected file verified, breaking change documented",
+      "R3 (product-owner.md) — valid, affected file verified",
+      "R4 (user.md) — valid, nullable location.file documented",
+      "R5 (ba.md Specialist Findings Intake Protocol) — valid, grep confirmed absence",
+      "AC2 through AC6 — valid as written (AC6 file list may need update if report-schema.json added to scope)"
+    ]
+  }
+}
