@@ -566,7 +566,7 @@ All specialist observations proceed to Step 5 for tier classification. PM's job 
 - Order pipelines by priority
 - Pass raw observations to BA — BA determines root cause and approach
 
-### Step 1.7: Live-Evidence Mandate Check (TRIAGE only — MANDATORY)
+### Step 3: Live-Evidence Mandate Check (TRIAGE only — MANDATORY)
 
 For every issue you are about to triage, ask: **"Does this issue produce a UI surface a user would see?"**
 
