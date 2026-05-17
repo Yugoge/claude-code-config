@@ -153,8 +153,8 @@
       "release_recommendation": "approve"
     },
     "self_verification": {
-      "claims_total": 8,
-      "claims_with_evidence": 8,
+      "claims_total": 9,
+      "claims_with_evidence": 9,
       "claims_superficial": 0,
       "superficial_details": [],
       "confidence": "high"
