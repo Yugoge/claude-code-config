@@ -32,7 +32,7 @@ print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" 
   _WG_ALLOW_FILE="/tmp/claude-bash-allowlist-${_WG_SID}.json"
   if [ -f "$_WG_ALLOW_FILE" ]; then
     _WG_MATCHED=$(python3 -c "
-import json, sys, re, fcntl, os
+import json, sys, re, fcntl
 path = sys.argv[1]
 try:
     with open(path, 'r+') as fh:
@@ -44,7 +44,6 @@ try:
         is_regex = grant.get('is_regex', False)
         matched = bool(re.search(pattern, 'Write')) if is_regex else (pattern == 'Write' or pattern in 'Write')
         if matched:
-            os.unlink(path)
             print('1')
 except Exception:
     pass

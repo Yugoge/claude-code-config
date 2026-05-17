@@ -26,6 +26,10 @@ import os
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from lib.subagent import is_subagent_context  # noqa: E402
+from lib.allowlist import read_grant          # noqa: E402
+
 ALWAYS_ALLOWED = {
     "Agent",
     "TodoWrite",
@@ -51,29 +55,6 @@ BASH_MAX_CONSECUTIVE = 3
 NON_WHITELIST_MAX_CONSECUTIVE = 1
 
 
-SUBAGENT_ID_KEYS = (
-    "agent_id",
-    # Codex compatibility runtimes may not preserve Claude's exact
-    # `agent_id` field name in PreToolUse stdin.  Treat these as identity
-    # aliases so the orchestrator-only gate remains main-agent-only.
-    "subagent_id",
-    "agent_path",
-    "parent_agent_id",
-)
-
-SUBAGENT_ENV_KEYS = (
-    "CLAUDE_AGENT_ID",
-    # Codex/native agent runners use their own naming in some builds.
-    "CODEX_AGENT_ID",
-    "CODEX_AGENT_PATH",
-    "OPENAI_AGENT_ID",
-    # T1.5 (redev-tier123): codex compat runtime sets CLAUDE_COMPAT_RUNTIME=codex
-    # in child Bash environments via .codex/hooks/claude_legacy_hook_wrapper.py.
-    # Treat its presence as subagent context so codex-driven Bash bursts do not
-    # increment the main-agent orchestrator-gate streak counter.
-    "CLAUDE_COMPAT_RUNTIME",
-)
-
 def get_session_id(data: dict) -> str:
     sid = data.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "")
     if sid:
@@ -82,103 +63,10 @@ def get_session_id(data: dict) -> str:
     return "default"
 
 
-def _truthy(value) -> bool:
-    if value is None:
-        return False
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.strip() not in {"", "0", "false", "False", "null", "None"}
-    return bool(value)
-
-
-def _transcript_meta_says_subagent(transcript_path: str) -> bool:
-    """Detect Codex spawned-agent transcripts from their session metadata."""
-    if not transcript_path:
-        return False
-    path = Path(transcript_path)
-    try:
-        with path.open(errors="ignore") as fh:
-            for _ in range(20):
-                line = fh.readline()
-                if not line:
-                    break
-                try:
-                    event = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if event.get("type") != "session_meta":
-                    continue
-                payload = event.get("payload", {})
-                source = payload.get("source")
-                return isinstance(source, dict) and isinstance(source.get("subagent"), dict)
-    except OSError:
-        return False
-    return False
-
-
-def is_subagent_context(data: dict) -> bool:
-    """Return True when this hook is running inside a subagent.
-
-    The canonical Claude hook payload contains top-level `agent_id`.  Codex
-    compatibility can run the same hook without that exact field even though
-    the call is inside a spawned agent.  This helper accepts equivalent
-    top-level identity aliases and environment aliases, but deliberately does
-    not inspect `tool_input.subagent_type`: that field belongs to main-agent
-    Agent dispatch calls and would incorrectly exempt the orchestrator.
-    """
-    if any(_truthy(data.get(key)) for key in SUBAGENT_ID_KEYS):
-        return True
-    if any(_truthy(os.environ.get(key)) for key in SUBAGENT_ENV_KEYS):
-        return True
-
-    # Codex compatibility note:
-    # Spawned agents may arrive without `agent_id` or agent-specific env vars.
-    # Their transcript's session_meta source is structured as
-    # {"subagent": {"thread_spawn": ...}}. Use that as the authoritative
-    # fallback instead of text-searching parent transcripts, because subagent
-    # transcripts often mention the parent/root id in prompts.
-    if _transcript_meta_says_subagent(str(data.get("transcript_path") or "").strip()):
-        return True
-
-    return False
-
-
 def has_consent(session_id: str) -> bool:
     flag = Path(f"/tmp/claude-orchestrator-consent-{session_id}.flag")
     try:
         return flag.exists() and flag.read_text().strip() == "true"
-    except Exception:
-        return False
-
-
-def _check_and_consume_allowlist(tool_name: str, sid: str) -> bool:
-    """Check and atomically consume /allow grant if it matches tool_name."""
-    import fcntl
-    flag_path = Path(f"/tmp/claude-bash-allowlist-{sid}.json")
-    try:
-        with open(flag_path, "r+") as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
-            try:
-                import json as _json
-                grant = _json.load(fh)
-            except Exception:
-                return False
-            pattern = grant.get("pattern", "")
-            if not isinstance(pattern, str) or not pattern:
-                return False
-            is_regex = grant.get("is_regex", False)
-            if is_regex:
-                import re as _re
-                matched = bool(_re.search(pattern, tool_name))
-            else:
-                matched = pattern == tool_name or pattern in tool_name
-            if matched:
-                os.unlink(flag_path)
-                return True
-            return False
-    except (FileNotFoundError, OSError):
-        return False
     except Exception:
         return False
 
@@ -293,7 +181,7 @@ def main():
     # Note: /allow CAN rescue even perm-blocked tools (e.g., EnterPlanMode) if
     # the user explicitly /allow-ed that tool name. This is by design.
     try:
-        if _check_and_consume_allowlist(tool_name, sid):
+        if read_grant(tool_name, sid):
             sys.exit(0)
     except Exception:
         pass

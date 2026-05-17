@@ -81,6 +81,71 @@ if [ "$AUTO_MODE" = "1" ]; then
 fi
 echo ""
 
+# --- Push-gate: verify a valid session commit token exists ---
+_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo /root)"
+_REPO_HASH="$(python3 -c "import hashlib,os; print(hashlib.sha256(os.path.realpath('${_REPO_ROOT}').encode()).hexdigest()[:16])")"
+_BRANCH_RAW="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+_BRANCH="$(python3 -c "print('${_BRANCH_RAW}'.replace('/', '__'))")"
+_TOKEN_PATH="/tmp/agentic-commit/push/${_REPO_HASH}/${_BRANCH}.json"
+if [ -f "$_TOKEN_PATH" ]; then
+  _HEAD_SHA="$(git rev-parse HEAD 2>/dev/null)"
+  _GATE_RESULT="$(python3 - <<PYEOF 2>/dev/null
+import json, sys
+from datetime import datetime, timezone
+
+try:
+    d = json.load(open('${_TOKEN_PATH}'))
+except Exception as e:
+    print(f"parse_error: {e}")
+    sys.exit(0)
+
+commit_sha = d.get('commit_sha', '')
+expires_at_str = d.get('expires_at', '')
+
+# Validate expiry (must be present, parsable, and strictly in the future)
+try:
+    ea = expires_at_str.rstrip('Z')
+    expires_dt = datetime.fromisoformat(ea).replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    if expires_dt <= now:
+        print(f"expired: {expires_at_str}")
+        sys.exit(0)
+except Exception as e:
+    print(f"expiry_invalid: {expires_at_str!r} ({e})")
+    sys.exit(0)
+
+if commit_sha != '${_HEAD_SHA}':
+    print(f"sha_mismatch: token={commit_sha} HEAD=${_HEAD_SHA}")
+    sys.exit(0)
+
+print("ok")
+PYEOF
+)"
+  case "$_GATE_RESULT" in
+    ok) ;;
+    expired:*)
+      echo "❌ Push gate: session commit token expired (${_GATE_RESULT#expired: }). Run /commit to refresh." >&2
+      exit 3
+      ;;
+    expiry_invalid:*)
+      echo "❌ Push gate: token has unparsable expires_at (${_GATE_RESULT#expiry_invalid: }). Run /commit to refresh." >&2
+      exit 3
+      ;;
+    sha_mismatch:*)
+      echo "❌ Push gate: ${_GATE_RESULT#sha_mismatch: }. Run /commit to refresh." >&2
+      exit 3
+      ;;
+    parse_error:*|"")
+      echo "❌ Push gate: could not read token at ${_TOKEN_PATH} (${_GATE_RESULT}). Run /commit to refresh." >&2
+      exit 3
+      ;;
+  esac
+else
+  echo "❌ Push gate: no session commit token found at ${_TOKEN_PATH}." >&2
+  echo "   Run /commit first to create the push-gate token." >&2
+  exit 3
+fi
+
 # Step 1: Get current branch
 BRANCH=$(git branch --show-current)
 if [ -z "$BRANCH" ]; then
@@ -264,6 +329,9 @@ fi
 
 # AC-iter2-9: wrapper unlinks grant on success path (guard never fires on subprocess)
 rm -f "$GRANT_PATH"
+
+# Delete push-gate token after successful push
+rm -f "$_TOKEN_PATH"
 
 # Step 10.5: Append audit log line (AC-B6 / AC-AUDIT-1)
 # Records every successful /push invocation for forensic review. Append-only.

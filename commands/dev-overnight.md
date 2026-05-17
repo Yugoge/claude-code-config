@@ -949,6 +949,13 @@ Read BA output files:
 ```
 For each active pipeline[i]:
 
+# Write qa_mode sentinel immediately before each QA dispatch (preserve existing fields)
+python3 -c "
+import json
+p = '$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/qa.json'
+d = json.load(open(p)); d['qa_mode'] = 'ba_validation'; json.dump(d, open(p, 'w'))
+" || { echo 'ERROR: Failed to set qa_mode=ba_validation in qa.json — aborting' >&2; exit 1; }
+
 Agent(subagent_type: "qa")
   description: "Validate BA analysis quality for pipeline {i} (not code)"
   prompt: "
@@ -1178,6 +1185,13 @@ Do NOT proceed to QA with stale containers.
 ```
 For each active pipeline[i]:
 
+# Write qa_mode sentinel immediately before each QA dispatch (preserve existing fields)
+python3 -c "
+import json
+p = '$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/qa.json'
+d = json.load(open(p)); d['qa_mode'] = 'final_verification'; json.dump(d, open(p, 'w'))
+" || { echo 'ERROR: Failed to set qa_mode=final_verification in qa.json — aborting' >&2; exit 1; }
+
 Agent(subagent_type: "qa")
   description: "QA verification for pipeline {i}: {pipeline.description}"
   prompt: "
@@ -1299,6 +1313,7 @@ bash ~/.claude/scripts/refine-context.sh \
 
 The merged context records `iteration=<new-iter>` and appends a `previous_attempts[]` entry with `iteration=<new-iter>-1`. Then dispatch:
 - `Agent(subagent_type: "dev")` with iteration context. Include in Dev prompt: `Overnight spec file: <pipeline.spec_path>`. Dev reads spec first for cross-cycle context, then updates Sections 2 and 3.
+- Before dispatching QA, write qa_mode sentinel: `python3 -c "import json; p='$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/qa.json'; d=json.load(open(p)); d['qa_mode']='final_verification'; json.dump(d,open(p,'w'))" || { echo 'ERROR: Failed to set qa_mode=final_verification — aborting' >&2; exit 1; }`
 - `Agent(subagent_type: "qa")` with new dev report. Include in QA prompt: `Overnight spec file: <pipeline.spec_path>`. QA reads spec first, then updates Section 4 (and Sections 6-7 if fail).
 
 Loop termination:
@@ -1444,7 +1459,7 @@ Use Agent tool with:
 If validation fails, log warning and proceed (retro is informational, not blocking).
 
 **Check qa_rerun_required**: Read the retro report's `qa_rerun_required` field.
-- If `qa_rerun_required: true`: re-invoke QA for the pipelines listed in `qa_rerun_reasons`. Use the same QA invocation pattern as Step 14-16, but pass additional context: `"This is a PM-requested QA re-run. Reasons: <qa_rerun_reasons>. Focus on the specific concerns raised."` After QA re-run completes, proceed to Step 21 (do NOT re-invoke RETRO — avoid infinite loops).
+- If `qa_rerun_required: true`: For each pipeline to be re-run, write qa_mode sentinel before dispatch: `python3 -c "import json; p='$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/qa.json'; d=json.load(open(p)); d['qa_mode']='final_verification'; json.dump(d,open(p,'w'))" || { echo 'ERROR: Failed to set qa_mode=final_verification — aborting' >&2; exit 1; }`. Then re-invoke QA for the pipelines listed in `qa_rerun_reasons`. Use the same QA invocation pattern as Step 14-16, but pass additional context: `"This is a PM-requested QA re-run. Reasons: <qa_rerun_reasons>. Focus on the specific concerns raised."` After QA re-run completes, proceed to Step 21 (do NOT re-invoke RETRO — avoid infinite loops).
 - If `qa_rerun_required: false` or field absent: proceed normally to Step 21.
 
 ---
