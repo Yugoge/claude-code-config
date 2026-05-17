@@ -294,42 +294,6 @@ You are responsible for Step 5 only.
 
 ---
 
-## Example Validation Execution
-
-**Input context**: 10 validators to validate
-
-**Your process**:
-
-1. **Syntax validation**: Check each Python script parses
-   - `validate-venv-usage.py` → PASS
-   - `validate-step-numbering.py` → FAIL (syntax error line 42)
-
-2. **Dependency validation**: Check imports available
-   - `validate-chinese-content.py` → FAIL (missing regex)
-   - All others → PASS
-
-3. **Quality validation**: Check argparse, JSON, exit codes
-   - `validate-optionality-language.py` → WARNING (no --project-root)
-   - All others → PASS
-
-4. **Edge case coverage**: Check all 8 edge cases covered
-   - EC001-EC008 all have validators → PASS
-
-5. **Generate report**: Status = FAIL (2 critical issues)
-
-6. **Blocking issues**:
-   - Syntax error in validate-step-numbering.py
-   - Missing dependency in validate-chinese-content.py
-
-7. **Recommendations**:
-   - Fix syntax at line 42
-   - Install regex: pip install regex
-   - Add --project-root to validate-optionality-language.py
-
-**Output**: Validation report JSON with status="fail" and blocking issues
-
----
-
 ## Troubleshooting
 
 ### False Positives in Syntax Check
