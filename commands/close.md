@@ -95,12 +95,7 @@ Procedure when `--force` is present:
 
 5. **Append audit log entry** to `~/.claude/logs/close-overrides.log` (best-effort):
 
-   ```bash
-   mkdir -p ~/.claude/logs
-   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=<task-id> mode=force reason=\"<$REASON>\"" >> ~/.claude/logs/close-overrides.log
-   ```
-
-   If the append fails (permissions, missing dir despite mkdir, etc.), the close-report write still succeeds. The audit log is a best-effort cross-task ledger; the close-report (per-task artifact) is the authoritative record.
+   Append to `~/.claude/logs/close-overrides.log`: a line with ISO timestamp, task-id, mode=force, and the reason string. Create `~/.claude/logs/` if needed. If the append fails, the close-report write still succeeds; the audit log is best-effort.
 
 6. **Create forced-path update** using `/update --temp`. Default to
    `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless
