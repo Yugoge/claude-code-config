@@ -330,7 +330,11 @@ Write a JSON report to the specified output path:
       "title": "Short descriptive title",
       "description": "What's wrong from a product perspective",
       "severity": "critical|major|minor|cosmetic",
-      "location": "URL path + file:line",
+      "location": {
+        "url": "/path/to/page",
+        "file": "path/to/source.ts or null",
+        "line": 123
+      },
       "observed_behavior": "What actually happened (concrete, not natural-language summary)",
       "expected_behavior": "What should have happened per spec or design intent",
       "downstream_agent": "ba",
