@@ -86,13 +86,19 @@
     "why_introduced": "N/A — original commands pre-date the changelog-analyst pattern",
     "why_problematic": "Without agentic review, push/merge/pull execute with no semantic risk assessment: sensitive files in commits-to-push are not flagged; branch divergence anomalies are not surfaced before merge; post-pull semantic risk (schema changes, API surface changes) is invisible",
     "timeline": "Feature request — no regression timeline",
-    "affected_files": ["commands/push.md", "commands/merge.md", "commands/pull.md"],
+    "affected_files": ["commands/push.md", "commands/merge.md", "commands/pull.md", "policies/tool-policy.v1.json", "hooks/pretool-cp-checkin.py"],
     "evidence_type": "inferred",
     "observations": [
       "commands/push.md lines 1-93: no analyst dispatch found (inferred: Read tool)",
       "commands/merge.md lines 1-51: no analyst dispatch found (inferred: Read tool)",
       "commands/pull.md lines 1-45: no analyst dispatch found (inferred: Read tool; wc -l confirmed 45 lines)",
-      "agents/ directory listing: no push-analyst.md, merge-analyst.md, pull-analyst.md present (inferred: Glob tool)"
+      "agents/ directory listing: no push-analyst.md, merge-analyst.md, pull-analyst.md present (inferred: Glob tool)",
+      "policies/tool-policy.v1.json:792-818: changelog-analyst role entry present; push-analyst, merge-analyst, pull-analyst role entries absent (inferred: Read tool)",
+      "hooks/lib/policy_registry.py:72-81: get_role_policy returns {_unknown_role: True, default_action: deny} for absent roles (inferred: Read tool)",
+      "hooks/lib/policy_registry.py:269-270: is_allowed returns (False, 'unknown role <role>') for unknown roles — hard deny (inferred: Read tool)",
+      "hooks/pretool-cp-checkin.py:60-72: CP_AGENTS set contains changelog-analyst but not push-analyst, merge-analyst, pull-analyst (inferred: Read tool)",
+      "hooks/push.sh:38-42: remote resolution is fork-prefer-origin — 'fork' if git remote get-url fork succeeds, else 'origin'; explicit arg overrides (inferred: Read tool)",
+      "hooks/pull.sh:120-175: git pull --rebase at line 120; success message at line 154; stash pop at lines 158-176; stash pop failure exits 1 at line 175; HEAD already changed before stash pop runs (inferred: Read tool)"
     ],
     "diagnosis_completeness": "incomplete (inferred only — this is a new-feature request, not a bug)",
     "complaint_location_keywords": ["push", "merge", "pull", "commit", "agentic", "智能判断"],
@@ -517,7 +523,7 @@
         "rationale": "This matches the existing commit grant model (same /tmp approach). Goal is workflow discipline, not cryptographic enforcement. Documented in spec but not actioned."
       }
     ],
-    "feedback_incorporated": "All 12 in-scope findings (4 blockers, 8 majors) were applied: state binding, nonce-keyed paths, single-use consumption, remote resolution, commits-to-push range, branch resolution discipline, tip revalidation, pull advisory clarification, pre_pull_head capture, exit-0 no-op detection. Observation_only finding logged."
+    "feedback_incorporated": "All 12 in-scope findings (4 blockers, 8 majors) were applied: state binding, nonce-keyed paths, single-use consumption, remote resolution, commits-to-push range, branch resolution discipline, tip revalidation, pull advisory clarification, pre_pull_head capture, exit-0 no-op detection. Observation_only finding logged. QA retry (2026-05-17): 5 additional objections addressed in this revision — (1) M10/AC11 policy_registry registration added; (2) M1/M2 reworded as git-read-only with write restricted to /tmp/agentic-commit/<kind>/; (3) push range corrected from @{u}..HEAD to refs/remotes/<resolved_remote>/<branch>..HEAD; (4) pull-analyst trigger corrected to dispatch on HEAD change regardless of exit code (stash-pop-failure scenario); (5) pull.md corrected to 45 lines."
   },
   "context": {
     "codebase_state": "Working tree has modifications to CLAUDE.md, INDEX.md, agents/INDEX.md, agents/dev.md, commands/INDEX.md, commands/dev-command.md, commands/dev.md, commands/update.md, docs/dev/INDEX.md, settings.json; one untracked file docs/dev/close-report-20260517-211508.md",
