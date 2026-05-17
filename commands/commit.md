@@ -170,23 +170,21 @@ nested-repo handling, push-gate write) are delegated entirely to `changelog-anal
 
 ## Privilege guard compatibility note
 
-`pretool-git-privilege-guard.py` is currently UNREGISTERED from `settings.json`. When it is
-re-registered in a future cycle:
+`pretool-git-privilege-guard.py` is REGISTERED in `settings.json` (PreToolUse, Bash matcher).
 
-1. `/commit` writes `/tmp/claude-commit-grant-<SID>-<nonce>.json` before dispatching changelog-analyst (Step 4.5 — already implemented).
-2. `_evaluate_commit(command, data)` calls `_find_grant('commit', sid)` (already implemented in the guard per M1 of task 20260517-064431).
-3. Grant validates: SID, nonce, expires_at, single-use unlink. No message-hash validation needed.
+Authorization flow for changelog-analyst commits:
+
+1. `/commit` writes `/tmp/claude-commit-grant-<SID>-<nonce>.json` before dispatching changelog-analyst (Step 4.5).
+2. `_evaluate_commit(command, data)` calls `_find_grant('commit', sid)` using the subagent's session_id from the PreToolUse payload.
+3. If SID-specific grant not found (subagent session_id differs from orchestrator's CLAUDE_SESSION_ID), falls back to `_find_grant_any('commit')` — any valid unexpired commit grant is accepted.
+4. Grant validates: expires_at (10 min window), single-use unlink. No message-hash validation.
 
 **DO NOT extend `BLESSED_BRIDGE_RE` with conventional commit patterns** (e.g. `^feat\(`, `^fix\(`).
 This would allow any agent that learns the commit format to bypass the guard — destroying the
 security model. The grant-file mechanism provides the correct narrow authorization.
 
-**Re-registration prerequisite**: verify that `_evaluate_commit` preserves the
-blessed-bridge allow-path (BLESSED_BRIDGE_RE check comes first) and then checks
-`_find_grant('commit', sid)` for non-bridge commits. This ordering is intentional:
-auto-bulk bridge commits (matching BLESSED_BRIDGE_RE) do NOT need a grant; only
-changelog-analyst commits need one. If the ordering is wrong, implement M1 of task
-20260517-064431 first.
+auto-bulk bridge commits (matching BLESSED_BRIDGE_RE) do NOT need a grant. changelog-analyst
+commits use the grant-file path. The BLESSED_BRIDGE_RE check runs first in `_evaluate_commit`.
 
 ## Related
 
