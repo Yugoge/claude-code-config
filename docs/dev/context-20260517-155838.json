@@ -218,7 +218,7 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex identified 5 actionable issues and 1 observation: (1) edit target should be close.md, not only do.md since do.md body is not injected; (2) example command must include explicit path not bare --force; (3) timestamp form may still fail because forced path inherits qa-report verification — safest is path form or fix close.md; (4) root cause wording was too absolute; (5) 'undocumented' was imprecise. All 5 issues had PROPOSED_FIX and were incorporated into the spec.",
+    "feedback_summary": "Round 1 (original spec): Codex identified 5 actionable issues and 1 observation — edit target, example command, forced-path qa-report inheritance, root cause wording, 'undocumented' precision. All 5 applied. Round 2 (QA-rejection response): Codex identified 6 findings on proposed two-location fix for 'do NOT branch' contradiction — (1) replace rather than append to avoid 'identically' vs 'exception' conflict; (2) reference mode not raw arg after --force is stripped; (3) preserve legacy ba-spec lookup wording; (4) scope the ac1 relaxation explicitly; (5) state normal-path unchanged; (6) AC2 not addressed (observation). Findings 1-5 applied, finding 6 is observation_only.",
     "findings": [
       {
         "issue": "Proposed edit location is weak — commands/do.md body is not injected due to disable-model-invocation; close.md is the primary fix target",
@@ -256,13 +256,55 @@
         "rationale": "Context and Evidence sections now use precise wording about what is and isn't documented"
       },
       {
-        "issue": "OBSERVATION_ONLY: The draft correctly avoids synthetic /dev artifacts and fake QA/dev reports",
+        "issue": "OBSERVATION_ONLY (round 1): The draft correctly avoids synthetic /dev artifacts and fake QA/dev reports",
         "proposed_fix": null,
         "classification": "observation_only",
         "disposition": "logged",
         "rationale": "Won't Have section confirms this restraint is intentional"
+      },
+      {
+        "issue": "Round 2, Finding 1: 'rules reused identically' still conflicts with an 'Exception' parenthetical — sentence says reused identically then immediately creates exception",
+        "proposed_fix": "Replace the sentence rather than appending. Suggested: 'Reuse the same task-id form-detection and TASK_ID derivation rules below; do NOT create a separate path/timestamp/no-argument resolution algorithm for --force. Artifact existence checks are path-specific: when this resolution is invoked from the Forced-override path, skip qa-report-<task-id>.json verification.'",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "AC1 THEN clause now specifies 'replace' rather than 'append'; Technical Hints specify 'replace' with suggested wording. Eliminates internally contradictory document state."
+      },
+      {
+        "issue": "Round 2, Finding 2: 'when --force is also present' is ambiguous after --force is stripped in step 1",
+        "proposed_fix": "Refer to mode not raw arguments: 'When this resolution is invoked from the Forced-override path...'",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "AC1 and Technical Hints now use 'invoked from the Forced-override path' wording, not 'when --force is present' after strip."
+      },
+      {
+        "issue": "Round 2, Finding 3: 'ticket .md check still applies' underspecified — could accidentally drop legacy ba-spec support",
+        "proposed_fix": "Say: 'The ticket-<task-id>.md / legacy ba-spec-<task-id>.md resolution remains unchanged; only qa-report-<task-id>.json verification is skipped in forced mode.'",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "AC1 THEN clause and Technical Hints now explicitly mention 'ticket-<task-id>.md / legacy ba-spec-<task-id>.md resolution remains unchanged'."
+      },
+      {
+        "issue": "Round 2, Finding 4: Forced-path artifact-skip scope ambiguous — ticket check status unclear given close.md line 94 says forced path must write report even if upstream artifacts absent",
+        "proposed_fix": "Add clarifying sentence: 'This AC only relaxes the qa-report requirement for timestamp form; it does not change the existing ticket/legacy-ba-spec lookup requirement.'",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "AC1 NOTE clause added stating this AC only relaxes qa-report; ticket lookup unchanged."
+      },
+      {
+        "issue": "Round 2, Finding 5: Normal-path preservation not stated — dev could over-apply exception to normal /close <ts>",
+        "proposed_fix": "Add: 'Non-force timestamp resolution is unchanged: /close <task-id> without --force must still require qa-report-<task-id>.json and must still run the normal artifact preflight.'",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "AC1 THEN clause and Technical Hints now contain explicit normal-path-unchanged statement."
+      },
+      {
+        "issue": "Round 2, Finding 6 (OBSERVATION_ONLY): AC2 (commands/do.md documentation) not addressed by QA-rejection response — original spec already contains AC2",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "AC2 was already in the original spec and was not the subject of QA objection. No change needed."
       }
     ],
-    "feedback_incorporated": "All 5 actionable findings applied: (1) close.md added as R1 Must Have logic fix; (2) path-form example used throughout; (3) forced-path timestamp logic fix added as R1; (4) root cause wording refined; (5) 'undocumented' language corrected in evidence and context"
+    "feedback_incorporated": "Round 1: all 5 actionable findings applied (edit target, example command, forced-path fix, root cause wording, precision). Round 2: all 5 actionable findings applied — (1) replace rather than append to avoid 'identically' contradiction; (2) mode-reference wording not raw arg; (3) legacy ba-spec preservation explicit; (4) scope relaxation stated; (5) normal-path unchanged stated."
   }
 }
