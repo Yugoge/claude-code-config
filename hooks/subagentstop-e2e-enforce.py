@@ -147,7 +147,7 @@ def main() -> None:
         Path(project_dir) / ".claude" / "dev-registry" / dev_session_id / "qa.json"
     )
     qa_sentinel = _read_json(qa_sentinel_path)
-    if (qa_sentinel or {}).get("qa_mode") == "ba_validation":
+    if qa_sentinel.get("qa_mode") == "ba_validation":
         sys.exit(0)  # BA-validation QA: no E2E obligation; role confirmed by sentinel
 
     # Find QA report to check e2e_enforcement field (prefer session-correlated)
