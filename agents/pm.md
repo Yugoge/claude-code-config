@@ -1176,7 +1176,7 @@ PM does NOT convert specialist findings to implementation tasks directly. For ta
 PM MUST NOT generate a test scenario or pipeline with a concrete pass/fail criterion based solely on a tainted finding. Apply the following by case:
 
 - **In PLAN mode**: do not create a pipeline or set `pipeline_recommendation`. Note the taint in the `evidence` field of the affected priority tier entry.
-- **In TRIAGE mode — on-path UI finding (`pipe_category: user_need`, `security`, or `dependency`; AND Step 3 applies)**: PM MUST NOT defer. Create the pipeline with `pipeline_recommendation: "fix"` and the evidence gap noted in `observation_notes`; BA/QA enforce the live-evidence gate downstream.
+- **In TRIAGE mode — pipeline-eligible UI finding (`pipe_category: user_need`, `security`, or `dependency`; AND Step 3 applies)**: PM MUST NOT defer. Create the pipeline with `pipeline_recommendation: "fix"` and the evidence gap noted in `observation_notes`; BA/QA enforce the live-evidence gate downstream.
 - **In TRIAGE mode — pipeline-eligible non-UI finding (`pipe_category: user_need`, `security`, or `dependency`; AND Step 3 does NOT apply)**: note the gap in `observation_notes` and use `pipeline_recommendation: "defer"` with the gap description.
 - **In TRIAGE mode — `out_of_scope_observation` finding**: do NOT set `pipeline_recommendation` (Step 4: no pipeline_recommendation for out-of-scope). Record the taint gap in `out_of_scope_observations[].observation` or `pm_notes[]`.
 
