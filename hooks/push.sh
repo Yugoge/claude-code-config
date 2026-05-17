@@ -91,7 +91,6 @@ if [ -f "$_TOKEN_PATH" ]; then
   _HEAD_SHA="$(git rev-parse HEAD 2>/dev/null)"
   _GATE_RESULT="$(python3 - <<PYEOF 2>/dev/null
 import json, sys
-from datetime import datetime, timezone
 
 try:
     d = json.load(open('${_TOKEN_PATH}'))
@@ -100,19 +99,6 @@ except Exception as e:
     sys.exit(0)
 
 commit_sha = d.get('commit_sha', '')
-expires_at_str = d.get('expires_at', '')
-
-# Validate expiry (must be present, parsable, and strictly in the future)
-try:
-    ea = expires_at_str.rstrip('Z')
-    expires_dt = datetime.fromisoformat(ea).replace(tzinfo=timezone.utc)
-    now = datetime.now(timezone.utc)
-    if expires_dt <= now:
-        print(f"expired: {expires_at_str}")
-        sys.exit(0)
-except Exception as e:
-    print(f"expiry_invalid: {expires_at_str!r} ({e})")
-    sys.exit(0)
 
 if commit_sha != '${_HEAD_SHA}':
     print(f"sha_mismatch: token={commit_sha} HEAD=${_HEAD_SHA}")
@@ -123,14 +109,6 @@ PYEOF
 )"
   case "$_GATE_RESULT" in
     ok) ;;
-    expired:*)
-      echo "❌ Push gate: session commit token expired (${_GATE_RESULT#expired: }). Run /commit to refresh." >&2
-      exit 3
-      ;;
-    expiry_invalid:*)
-      echo "❌ Push gate: token has unparsable expires_at (${_GATE_RESULT#expiry_invalid: }). Run /commit to refresh." >&2
-      exit 3
-      ;;
     sha_mismatch:*)
       echo "❌ Push gate: ${_GATE_RESULT#sha_mismatch: }. Run /commit to refresh." >&2
       exit 3

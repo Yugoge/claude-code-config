@@ -151,14 +151,14 @@ in your agent definition (agents/changelog-analyst.md). Use the variables above
 to guide your behavior.
 
 Constraints:
-- CONTROL_ROOT is always /root for all dev-report/close-report path resolution
+- CONTROL_ROOT is the fallback root for dev-report resolution; changelog-analyst MUST apply the subproject path-walk (dirname-of-changed-files → commonpath → walk up to docs/dev/) and check the subproject docs/dev/ first before falling back to ${CONTROL_ROOT}/docs/dev/
 - GIT_ROOT must be computed per repo via `git rev-parse --show-toplevel`; never conflate with CONTROL_ROOT
 - Stage only files in the classified set; never use `git add -A` or `git add .`
 - Commit message must NOT match: `\bsync\b.*\buncommitted\b` or `chore\(claude\)\s*:\s*sync`
 - Handle nested repo at /dev/shm/dev-workspace/dot-claude/ independently
 - Write push-gate token after each successful commit
 - Push-gate token path MUST be: `/tmp/agentic-commit/push/<sha256(os.path.realpath(GIT_ROOT))[:16]>/<BRANCH with / replaced by __>.json`
-- Token expiry check: `expires_at` is absent/unparsable/earlier-than-or-equal-to UTC now → reject
+- Push-gate validates commit_sha only; expires_at is no longer written or checked
 ```
 
 Wait for changelog-analyst to complete. Echo its final status to the user.

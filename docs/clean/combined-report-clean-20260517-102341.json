@@ -1,0 +1,381 @@
+{
+  "request_id": "clean-20260517-102341",
+  "timestamp": "2026-05-17T10:23:41Z",
+  "findings": [
+    {
+      "category": "misplaced_doc",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/AUTOMATED_CLEANUP_SETUP.md",
+      "issue": "Old setup doc in project root — completed 55+ days ago, 1 commit only",
+      "recommendation": "Archive to docs/archive/2026-03/AUTOMATED_CLEANUP_SETUP.md; content is historical setup notes",
+      "action": "archive"
+    },
+    {
+      "category": "misplaced_doc",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/docs/checkpoint-mechanism.md",
+      "issue": "Reference doc in docs/ root, not in subdirectory. Should be in docs/reference/. NOTE: CLAUDE.md:35 links to this file — update link atomically with move.",
+      "recommendation": "Move to docs/reference/checkpoint-mechanism.md AND update CLAUDE.md reference in same action",
+      "action": "move",
+      "move_to": "docs/reference/checkpoint-mechanism.md",
+      "cross_references_to_update": ["CLAUDE.md:35"]
+    },
+    {
+      "category": "misplaced_doc",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/docs/incidents-2026-03-28.md",
+      "issue": "Incident report in docs/ root, not in subdirectory. Should be in docs/reference/ (active safety reference).",
+      "recommendation": "Move to docs/reference/incidents-2026-03-28.md",
+      "action": "move",
+      "move_to": "docs/reference/incidents-2026-03-28.md"
+    },
+    {
+      "category": "misplaced_doc",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/docs/incidents-2026-04-04.md",
+      "issue": "Incident report in docs/ root, not in subdirectory. Should be in docs/reference/ (CLAUDE.md:18 directly references April incident).",
+      "recommendation": "Move to docs/reference/incidents-2026-04-04.md AND update CLAUDE.md:18 reference atomically",
+      "action": "move",
+      "move_to": "docs/reference/incidents-2026-04-04.md",
+      "cross_references_to_update": ["CLAUDE.md:18"]
+    },
+    {
+      "category": "misplaced_doc",
+      "severity": "major",
+      "file": "/dev/shm/dev-workspace/dot-claude/docs/server-infra.md",
+      "issue": "SENSITIVE DOCUMENT: server-infra.md in docs/ root contains credentials/passwords (lines 17-22). Also misplaced — should be in docs/reference/. Security review required before move.",
+      "recommendation": "SECURITY ACTION FIRST: redact or externalize credentials at lines 17-22, rotate secrets if needed. Then move to docs/reference/server-infra.md AND update CLAUDE.md:94 reference.",
+      "action": "security_review_then_move",
+      "move_to": "docs/reference/server-infra.md",
+      "cross_references_to_update": ["CLAUDE.md:94"],
+      "security_flag": true
+    },
+    {
+      "category": "misplaced_doc",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/docs/commit-manifest-20260509-114002-cycle4.json",
+      "issue": "Orphaned commit-manifest JSON in docs/ root — should be in docs/dev/ where other cycle manifests live",
+      "recommendation": "Move to docs/dev/commit-manifest-20260509-114002-cycle4.json",
+      "action": "move",
+      "move_to": "docs/dev/commit-manifest-20260509-114002-cycle4.json"
+    },
+    {
+      "category": "misplaced_doc",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/docs/dev/completion-dev-20260107-091716.md",
+      "issue": "Old completion doc in docs/dev/ — from 2026-01-07, >130 days old. Part of 7 completion-dev-* files from January 2026.",
+      "recommendation": "Archive to docs/dev/archive/2026-01/ (7 completion-dev-* files from early January)",
+      "action": "archive",
+      "archive_to": "docs/dev/archive/2026-01/",
+      "group": "completion-dev-20260107-series",
+      "file_pattern": "completion-dev-202601*.md"
+    },
+    {
+      "category": "misplaced_doc",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/docs/dev/ba-spec-20260416-063500.md",
+      "issue": "Legacy BA spec in docs/dev/ — 31 days old. Note: docs/dev/ retains .md files by active command contract; this is flagged only for age-based archiving review.",
+      "recommendation": "Archive to docs/dev/archive/2026-04/ if no active task references this task-id (20260416-063500)",
+      "action": "archive_if_inactive",
+      "archive_to": "docs/dev/archive/2026-04/"
+    },
+    {
+      "category": "misplaced_doc",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/docs/dev/ba-spec-20260416-073000.md",
+      "issue": "Legacy BA spec in docs/dev/ — 31 days old. Archive candidate if task is complete.",
+      "recommendation": "Archive to docs/dev/archive/2026-04/ if no active task references this task-id (20260416-073000)",
+      "action": "archive_if_inactive",
+      "archive_to": "docs/dev/archive/2026-04/"
+    },
+    {
+      "category": "archive_candidate",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/overnight-state-d0ec784d-c321-41f6-ba24-65537efac311.json",
+      "issue": "Overnight session state file at project root — tracked in git, session completed on 2026-05-03 (14 days ago)",
+      "recommendation": "Remove from git tracking (git rm --cached), add pattern overnight-state-*.json to .gitignore, keep local file",
+      "action": "untrack_from_git"
+    },
+    {
+      "category": "dev_context_file",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/docs/dev/completion-dev-20260107-091716.md (+ 6 siblings)",
+      "issue": "7 completion-dev-* .md files from January 2026 in docs/dev/ — 130+ days old, no active task dependency",
+      "recommendation": "Archive all 7 files to docs/dev/archive/2026-01/",
+      "action": "archive",
+      "archive_to": "docs/dev/archive/2026-01/",
+      "file_pattern": "docs/dev/completion-dev-202601*.md",
+      "file_count": 7
+    },
+    {
+      "category": "non_functional_file",
+      "severity": "major",
+      "file": "/dev/shm/dev-workspace/dot-claude/workflow-30b4bbbc-a873-4ba8-b8fd-804dc05492bc.json",
+      "issue": "Workflow session artifact tracked in git — 53 days old (2026-03-25). Runtime state should not be version-controlled.",
+      "recommendation": "Remove from git tracking with git rm --cached; ensure workflow-*.json is in .gitignore",
+      "action": "untrack_from_git"
+    },
+    {
+      "category": "non_functional_file",
+      "severity": "major",
+      "file": "/dev/shm/dev-workspace/dot-claude/workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json",
+      "issue": "Workflow session artifact tracked in git — 31 days old (2026-04-16).",
+      "recommendation": "Remove from git tracking with git rm --cached",
+      "action": "untrack_from_git"
+    },
+    {
+      "category": "non_functional_file",
+      "severity": "major",
+      "file": "/dev/shm/dev-workspace/dot-claude/workflow-dd3a870c-9440-4274-896f-462dfe972646.json",
+      "issue": "Workflow session artifact tracked in git — 52 days old (2026-03-26).",
+      "recommendation": "Remove from git tracking with git rm --cached",
+      "action": "untrack_from_git"
+    },
+    {
+      "category": "non_functional_file",
+      "severity": "major",
+      "file": "/dev/shm/dev-workspace/dot-claude/workflow-eaa1077b-49ad-4697-8e01-e4a923d2b116.json",
+      "issue": "Workflow session artifact tracked in git — 28 days old (2026-04-19).",
+      "recommendation": "Remove from git tracking with git rm --cached",
+      "action": "untrack_from_git"
+    },
+    {
+      "category": "non_functional_file",
+      "severity": "major",
+      "file": "/dev/shm/dev-workspace/dot-claude/stats-cache.json",
+      "issue": "Stats cache file tracked in git — 54 days old (2026-03-24). Runtime cache should not be version-controlled.",
+      "recommendation": "Remove from git tracking with git rm --cached; add stats-cache.json to .gitignore",
+      "action": "untrack_from_git"
+    },
+    {
+      "category": "non_functional_file",
+      "severity": "minor",
+      "file": "/dev/shm/dev-workspace/dot-claude/playwright-config.json",
+      "issue": "Playwright config tracked in git — 53 days old (2026-03-25). Review whether this is intentional functional config or stale runtime artifact.",
+      "recommendation": "Needs user confirmation: is playwright-config.json intentionally version-controlled? If yes, keep; if runtime-only, run git rm --cached and add to .gitignore.",
+      "action": "needs_user_confirmation"
+    },
+    {
+      "category": "non_functional_file",
+      "severity": "critical",
+      "file": "/dev/shm/dev-workspace/dot-claude/playwright-storage-state.json",
+      "issue": "CRITICAL SECURITY: Auth state/token material tracked in git — contains browser session/auth tokens (2026-03-29, 49 days ago). Tokens may be stale but pattern is unsafe.",
+      "recommendation": "IMMEDIATE ACTION: (1) Remove from git tracking with git rm --cached, (2) Add playwright-storage-state.json to .gitignore, (3) Review tokens for rotation/revocation. Do NOT archive — security artifact.",
+      "action": "untrack_from_git_security",
+      "security_flag": true
+    }
+  ],
+  "violations": [
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/build-pipelines-from-triage.py:27",
+      "finding": "Hardcoded project-relative output path prefix 'docs/dev/overnight/' embedded in spec_path field of output JSON. The sid variable is parameterized but the base output directory is not.",
+      "recommendation": "Accept base output directory as a CLI parameter with a default, e.g., sys.argv[5] with default 'docs/dev/overnight', and use it: f\"{base_dir}/{sid}/spec-pipeline-{j}.md\". Update the usage docstring accordingly."
+    },
+    {
+      "standard": "parameterized-scripts",
+      "severity": "critical",
+      "location": "scripts/build-pipelines-from-triage.py:27",
+      "finding": "spec_path base output directory is hardcoded as 'docs/dev/overnight'; only sid is parameterized. The output root directory should be a CLI/env/config parameter.",
+      "recommendation": "Accept base output directory via CLI arg (e.g., sys.argv[5]) or env var with default 'docs/dev/overnight', and update usage text."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/check-overnight-reports.py:22",
+      "finding": "Hardcoded absolute path '/root/.claude/hooks' inserted into sys.path. This breaks portability on any system where the hooks directory is not at /root/.claude/hooks.",
+      "recommendation": "Derive the hooks path from an environment variable or the script's own location: e.g., HOOKS_DIR = Path(os.environ.get('CLAUDE_HOOKS_DIR', Path(__file__).parent.parent / 'hooks')); sys.path.insert(0, str(HOOKS_DIR))"
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/check-overnight-reports.py:45",
+      "finding": "Hardcoded fallback path '/root/docs/dev/overnight' used as a candidate base directory. Breaks portability on any system where the project root is not /root.",
+      "recommendation": "Remove the hardcoded /root fallback or derive it from CLAUDE_PROJECT_DIR: e.g., Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())) / 'docs' / 'dev' / 'overnight'"
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/iterate-failed-pipelines.py:19",
+      "finding": "Hardcoded fallback path '/root' used when CLAUDE_PROJECT_DIR and os.getcwd() both fail. Any environment where the project is not under /root will silently use an incorrect project_dir.",
+      "recommendation": "Remove the '/root' fallback; fail explicitly instead: project_dir = os.environ.get('CLAUDE_PROJECT_DIR') or os.getcwd() — if neither is available, exit with an error rather than silently defaulting to a hardcoded path."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/todo/spec.py:4",
+      "finding": "Docstring contains environment-specific absolute path: 'Mirrors /root/knowledge-system/scripts/todo/ask.py structure.' — the /root/ prefix is machine-specific and will be wrong on any non-root environment.",
+      "recommendation": "Replace with non-environment-specific wording, e.g. 'Mirrors the ask.py todo-list structure.' or remove the line entirely."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "scripts/check-overnight-reports.sh:31",
+      "finding": "Direct python3 call without venv activation: exec python3 \"$PY_SCRIPT\" --session-id \"$SESSION_ID\"",
+      "recommendation": "Activate venv before calling python: source \"$SCRIPT_DIR/../venv/bin/activate\" 2>/dev/null || source \"$SCRIPT_DIR/../.venv/bin/activate\" 2>/dev/null; then use 'python' instead of 'python3'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "scripts/check-overnight-reports.sh:34",
+      "finding": "Direct python3 call without venv activation: exec python3 \"$PY_SCRIPT\" \"$@\"",
+      "recommendation": "Activate venv before calling python: source \"$SCRIPT_DIR/../venv/bin/activate\" 2>/dev/null || source \"$SCRIPT_DIR/../.venv/bin/activate\" 2>/dev/null; then use 'python' instead of 'python3'"
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/check-readme-freshness.sh:34,36",
+      "finding": "Hardcoded staleness thresholds: 7 days (FULL_UPDATE_REQUIRED) and 3 days (INCREMENTAL_UPDATE) with no CLI parameter or environment variable override. These thresholds could reasonably differ between projects.",
+      "recommendation": "Add env-var overrides: FULL_UPDATE_THRESHOLD_DAYS=\"${FULL_UPDATE_THRESHOLD_DAYS:-7}\" and INCREMENTAL_THRESHOLD_DAYS=\"${INCREMENTAL_THRESHOLD_DAYS:-3}\", then use the variables in the conditionals."
+    },
+    {
+      "standard": "parameterized-scripts",
+      "severity": "critical",
+      "location": "scripts/check-readme-freshness.sh:12",
+      "finding": "FOLDERS array is hardcoded (\".\", \"scripts\", \"data\", \"docs\", \"tests\", \"config\", \"tmp\", \"backups\", \"output\") with no CLI parameter to override or extend the list for different project layouts.",
+      "recommendation": "Accept optional --folders parameter or CSV env var README_FRESHNESS_FOLDERS; keep the current list as default when the parameter is absent."
+    },
+    {
+      "standard": "parameterized-scripts",
+      "severity": "critical",
+      "location": "scripts/check-readme-freshness.sh:24,52,55",
+      "finding": "find -maxdepth 2 is hardcoded in three places with no parameter override. Scan depth could reasonably differ between projects or folder types.",
+      "recommendation": "Add MAX_DEPTH=\"${README_FRESHNESS_MAX_DEPTH:-2}\" and replace all three occurrences of -maxdepth 2 with -maxdepth \"$MAX_DEPTH\"."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/check-security-hook-drift.sh:137,138,139",
+      "finding": "Frontmatter slice length is hardcoded as '1,5p' (first 5 lines) in the FRONTMATTER mode sed command with no parameter override. If the protected frontmatter block changes length, the hardcoded slice will silently miss drift.",
+      "recommendation": "Encode slice bounds in the TRACKED_FILES entry (e.g., FRONTMATTER:commands/commit.md:1:5) or add a --frontmatter-lines N flag with default 5."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/create-overnight-state.sh:41",
+      "finding": "Hardcoded /root as the final fallback path in resolve_project_dir(). This is an environment-specific path that silently fails on non-root Linux users and all macOS/Windows environments.",
+      "recommendation": "Replace the /root literal fallback with $HOME, or exit with an error: echo 'Error: cannot determine project directory' >&2; exit 1."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/create-overnight-state.sh:236,242",
+      "finding": "Directory path segments \".claude\" (STATE_DIR) and \"docs/dev/overnight\" (CYCLE_DIR) are hardcoded with no CLI parameter or environment variable override. These project-specific paths break portability to differently-structured projects.",
+      "recommendation": "Accept --state-dir and --cycle-dir-root parameters with the current paths as defaults, e.g., STATE_DIR=\"${OVERNIGHT_STATE_DIR:-$PROJECT_DIR/.claude}\"."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/create-overnight-state.sh:192",
+      "finding": "The spec auto-detection directory \"docs/dev/specs\" is hardcoded with no parameter override, identical in nature to the flagged \"docs/dev/overnight\" path on line 242.",
+      "recommendation": "Add --spec-dir parameter or SPEC_DIR_ROOT=\"${SPEC_DIR_ROOT:-$PROJECT_DIR/docs/dev/specs}\" with the current path as default."
+    },
+    {
+      "standard": "parameterized-scripts",
+      "severity": "critical",
+      "location": "scripts/cleanup-tests-folder.sh:112",
+      "finding": "Bash syntax error: 'for instruction in \"$TESTS_DIR/instructions\"/*.md 2>/dev/null; do' is invalid bash — I/O redirection is not allowed in the glob expansion of a for-loop header. bash -n confirms the script fails syntax check and will not execute on strict-mode bash.",
+      "recommendation": "Replace with nullglob pattern: 'shopt -s nullglob; for instruction in \"$TESTS_DIR/instructions\"/*.md; do' — or use find and a while-read loop to avoid the glob-redirection issue entirely."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/detect-dead-functions.sh:43",
+      "finding": "Hardcoded paths ~/.claude/commands/*.md and ~/.claude/agents/*.md used for command/agent reference checking with no parameter override. The script accepts PROJECT_ROOT as $1 but the commands/agents search path is unconditionally hardcoded to ~/.claude/ regardless of where the .claude directory actually lives.",
+      "recommendation": "Add a second parameter: CLAUDE_DIR=\"${2:-${CLAUDE_DIR:-${PROJECT_ROOT}/.claude}}\". Use that variable for the grep paths: grep -rl \"\\b${name}\\b\" \"$CLAUDE_DIR\"/commands/*.md \"$CLAUDE_DIR\"/agents/*.md."
+    },
+    {
+      "standard": "parameterized-scripts",
+      "severity": "critical",
+      "location": "scripts/detect-dead-functions.sh:43",
+      "finding": "The ~/.claude/commands and ~/.claude/agents paths are not parameterized and cannot be overridden via CLI argument or environment variable. Same root cause as no-hardcoded-values finding above; recorded separately because it fails two distinct standards.",
+      "recommendation": "Same remediation as no-hardcoded-values: add CLAUDE_DIR parameter with PROJECT_ROOT-relative default fallback."
+    },
+    {
+      "standard": "parameterized-scripts",
+      "severity": "critical",
+      "location": "scripts/derive-default-branch.sh:23",
+      "finding": "Final fallback branch name \"master\" is hardcoded with no CLI argument or environment variable override. The script's explicit purpose is dynamic branch discovery (rationale: hardcoded 'master' regressed in commit b5d447e), yet the fallback re-introduces the same hardcode. A repo whose default branch is neither 'main' nor 'master' (e.g. 'develop', 'trunk') will silently receive 'master' with no override path.",
+      "recommendation": "Accept the fallback via env var or positional arg: DEFAULT_BRANCH_FALLBACK=\"${1:-${DEFAULT_BRANCH_FALLBACK:-master}}\" and assign DEFAULT_BRANCH=\"$DEFAULT_BRANCH_FALLBACK\" when both discovery tiers fail. This preserves the existing default behavior while making the fallback overrideable."
+    },
+    {
+      "standard": "merge-similar-scripts",
+      "severity": "critical",
+      "location": "scripts/detect-orphan-agents.sh, scripts/detect-orphan-commands.sh, scripts/detect-orphan-scripts.sh",
+      "finding": "All three orphan-detection scripts duplicate get_last_modified() and share structurally identical local/global scanning loops, JSON assembly patterns, and orphan-detection logic. detect-orphan-agents.sh and detect-orphan-scripts.sh also duplicate get_commit_count(). detect-orphan-commands.sh duplicates get_last_modified(), age-threshold logic, local/global scanning, and JSON assembly structure.",
+      "recommendation": "Extract shared utilities (get_last_modified, get_commit_count, JSON assembly) into a sourced lib script (e.g., scripts/lib/orphan-utils.sh), or merge into a unified detect-orphans.sh with a mode parameter (--mode agents|commands|scripts)."
+    },
+    {
+      "standard": "parameterized-scripts",
+      "severity": "critical",
+      "location": "scripts/detect-orphan-agents.sh:128-130, scripts/detect-orphan-scripts.sh:223-225",
+      "finding": "Severity-classification thresholds are hardcoded in get_severity() functions: detect-orphan-agents.sh uses hardcoded 60 (major if commit_count<=2 and days>60) and 90 (major if days>90); detect-orphan-scripts.sh uses hardcoded 30 (one-time fix threshold) and 60 (general orphan threshold). These threshold values could reasonably differ between projects or policy configurations.",
+      "recommendation": "Accept threshold overrides via environment variables with defaults: ORPHAN_MAJOR_COMMIT_DAYS=\"${ORPHAN_MAJOR_COMMIT_DAYS:-60}\", ORPHAN_MAJOR_DAYS=\"${ORPHAN_MAJOR_DAYS:-90}\", ONE_TIME_DAYS=\"${ONE_TIME_DAYS:-30}\"."
+    },
+    {
+      "standard": "integer-step-numbering",
+      "severity": "critical",
+      "location": "scripts/orchestrator.sh:198",
+      "finding": "Comment references decimal step number 'Step 3.5' in: '# Step 3.5 MUST complete before clean-inspect (Step 4)'",
+      "recommendation": "Remove decimal step reference or update to integer form: '# Rule inspection MUST complete before clean-inspect' or '# Step 4 MUST complete before clean-inspect (Step 5)' — whichever matches the current step numbering in commands/clean.md"
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/orchestrator.sh:195",
+      "finding": "Hardcoded relative directory path 'docs/clean/rule-context-${REQUEST_ID}.json' — the 'docs/clean' subdirectory is not derived from PROJECT_ROOT (which is extracted from the context JSON at line 190) or any script parameter.",
+      "recommendation": "Derive path from PROJECT_ROOT: RULE_CONTEXT_FILE=\"${PROJECT_ROOT}/docs/clean/rule-context-${REQUEST_ID}.json\""
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/orchestrator.sh:140,145",
+      "finding": "Hardcoded numeric constant MAX_ITERATIONS=5 with no parameter override mechanism (same literal value is also emitted in the JSON output at line 145: max_iterations: 5).",
+      "recommendation": "Use environment variable with default: MAX_ITERATIONS=\"${MAX_ITERATIONS:-5}\"; then pass it to jq via --argjson max_iterations \"$MAX_ITERATIONS\" so the JSON output stays consistent."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/orchestrator.sh:202",
+      "finding": "Hardcoded folder list KEY_FOLDERS=(\"agents\" \"scripts\" \"docs\" \"hooks\" \"commands\") — the set of key folders is a project-specific configuration value that is not derived from the context JSON's full_context.discovered_folders field, even though PROJECT_ROOT is already read from that same context file.",
+      "recommendation": "Derive folder list from context: KEY_FOLDERS=($(jq -r '.full_context.discovered_folders // [] | .[]' \"$CONTEXT_FILE\")), or accept KEY_FOLDERS as an environment variable override."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/overnight-status.sh:11-13",
+      "finding": "Hardcoded directory path 'docs/dev/overnight/' — script only accepts optional [session_id] argument and has no mechanism to specify a different project root or state directory, making it only usable from one specific working directory.",
+      "recommendation": "Derive state directory from environment or git root: STATE_DIR=\"${OVERNIGHT_STATE_DIR:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/docs/dev/overnight}\"; then use find \"$STATE_DIR\" ..."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/refine-context.sh:10",
+      "finding": "Hardcoded environment-specific absolute fallback path '/root' in resolve_project_dir() — this path is host-specific and will silently produce a wrong project dir on any non-root deployment.",
+      "recommendation": "Remove the '/root' fallback; the function already tries CLAUDE_PROJECT_DIR and pwd before reaching it. Use: git rev-parse --show-toplevel 2>/dev/null || pwd (fail with cwd rather than a wrong absolute path)."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "scripts/write-qa-mode.sh:26",
+      "finding": "Direct python3 call without venv activation: 'python3 - \"$QA_PATH\" \"$MODE\" <<'PYEOF''. Although the embedded Python code only uses stdlib (json, os, sys), Standard 3 requires all Python invocations to use 'source venv' or 'source .venv' with no stdlib-only exception.",
+      "recommendation": "Activate venv before calling python3: 'source venv/bin/activate || source .venv/bin/activate && python - \"$QA_PATH\" \"$MODE\" <<'PYEOF'', or extract the inline Python to a dedicated script in scripts/ and invoke it through venv."
+    }
+  ],
+  "summary": {
+    "total_issues": 45,
+    "cleanliness_issues": 17,
+    "style_violations": 28,
+    "critical": 29,
+    "major": 7,
+    "minor": 9,
+    "notes": [
+      "cleanliness critical (1): playwright-storage-state.json auth tokens tracked in git",
+      "cleanliness major (6): 4x workflow-*.json + stats-cache.json + overnight-state tracked in git, plus server-infra.md credentials",
+      "cleanliness minor (10): misplaced docs, archive candidates, old completion files",
+      "style critical (28): all style violations are critical per spec — no major/minor classifications",
+      "style breakdown by standard: no-hardcoded-values (17), parameterized-scripts (8), use-source-venv (3), merge-similar-scripts (1), integer-step-numbering (1), no-inline-code (0), english-only (0), meaningful-naming (0), concise-documentation (0), dangling-references (0), merge-conflicts (0)"
+    ]
+  }
+}
