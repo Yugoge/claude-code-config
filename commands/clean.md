@@ -333,12 +333,7 @@ Expected final output structure:
 
 ### Step 11: Merge Inspection Reports
 
-Combine both reports using orchestrator:
-
-```bash
-~/.claude/scripts/orchestrator.sh clean-merge-reports \
-  docs/clean/context-with-reports-{REQUEST_ID}.json
-```
+Combine both reports using orchestrator: `~/.claude/scripts/orchestrator.sh clean-merge-reports docs/clean/context-with-reports-{REQUEST_ID}.json`
 
 Orchestrator merges and writes:
 - `docs/clean/combined-report-{REQUEST_ID}.json`
