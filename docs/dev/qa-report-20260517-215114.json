@@ -215,7 +215,7 @@
       "script_path": null,
       "health_check_url": null,
       "health_check_result": "N/A — no web service affected by this change",
-      "status": "skipped_legitimate",
+      "status": "legitimately_skipped",
       "blocking_reason": null
     },
     "e2e_script_results": [],
