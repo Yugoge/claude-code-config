@@ -214,14 +214,7 @@ The style-inspector uses a **budget protocol** to avoid context overflow. Instea
 
 #### Step 7: Plan Style Inspection
 
-Run the planner script to discover all auditable files and split them into groups:
-
-```bash
-STYLE_PLAN=$(~/.claude/scripts/plan-style-inspection.sh "$PROJECT_ROOT")
-echo "$STYLE_PLAN" > "docs/clean/style-plan-${REQUEST_ID}.json"
-AGENT_COUNT=$(echo "$STYLE_PLAN" | jq -r '.agent_count')
-TOTAL_FILES=$(echo "$STYLE_PLAN" | jq -r '.total_files')
-```
+Run the planner script to discover all auditable files and split them into groups: `~/.claude/scripts/plan-style-inspection.sh "$PROJECT_ROOT"`. Save to `docs/clean/style-plan-${REQUEST_ID}.json`. Extract `agent_count` and `total_files` from the output.
 
 Log: "Style inspection planned: {AGENT_COUNT} agents for {TOTAL_FILES} files"
 
