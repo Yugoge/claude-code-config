@@ -54,19 +54,9 @@ All agents communicate via JSON in `docs/clean/`.
 
 **Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex`, strip it from the arguments and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every cleanliness-inspector and style-inspector dispatch prompt below MUST include the literal line `codex_required: true` so the subagent's opt-in codex consultation block activates. When `codex_required = false`, omit that line.
 
-Load TodoList checklist:
+Load TodoList checklist: activate venv and run `~/.claude/scripts/todo/clean.py`.
 
-```bash
-source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/clean.py
-```
-
-Set up working directory:
-
-```bash
-mkdir -p docs/clean/
-REQUEST_ID="clean-$(date +%Y%m%d-%H%M%S)"
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-```
+Set up working directory: create `docs/clean/`, generate `REQUEST_ID="clean-$(date +%Y%m%d-%H%M%S)"` and `TIMESTAMP` in ISO-8601 format.
 
 **Documentation Structure Rules**:
 
@@ -86,17 +76,7 @@ docs/ subdirectory structure:
 
 ### Step 2: Scan Project Structure
 
-Detect project type and gather baseline info:
-
-```bash
-PROJECT_ROOT=$(pwd)
-SCAN_RESULT=$(~/.claude/scripts/scan-project.sh "$PROJECT_ROOT")
-PROJECT_TYPE=$(echo "$SCAN_RESULT" | jq -r '.project_type')
-TOTAL_FILES=$(echo "$SCAN_RESULT" | jq -r '.file_counts.total')
-DOC_FILES=$(echo "$SCAN_RESULT" | jq -r '.file_counts.docs')
-SCRIPT_FILES=$(echo "$SCAN_RESULT" | jq -r '.file_counts.scripts')
-TEST_FILES=$(echo "$SCAN_RESULT" | jq -r '.file_counts.tests')
-```
+Detect project type and gather baseline info: run `~/.claude/scripts/scan-project.sh "$PROJECT_ROOT"` and extract `project_type`, `file_counts.total`, `.docs`, `.scripts`, `.tests` from the JSON output.
 
 ### Step 3: Build Inspection Context
 
@@ -148,77 +128,12 @@ Save to: `docs/clean/context-{REQUEST_ID}.json`
 
 Run rule-inspector to update folder documentation with recent changes:
 
-```bash
-# Discover all folders dynamically
-FOLDERS=$(~/.claude/scripts/discover-folders.sh "$PROJECT_ROOT")
-
-# MANDATORY: Run freshness check BEFORE invoking agent
-FRESHNESS=$(~/.claude/scripts/check-readme-freshness.sh "$PROJECT_ROOT")
-echo "$FRESHNESS" > "docs/clean/freshness-${REQUEST_ID}.json"
-echo "Freshness data collected:" >&2
-echo "$FRESHNESS" | jq -r '.[] | "\(.folder): \(.action) (stale \(.stale_days) days, \(.file_count) files)"' >&2
-
-# Create context for rule-inspector (includes freshness data)
-RULE_CONTEXT="docs/clean/rule-context-${REQUEST_ID}.json"
-
-jq -n \
-  --arg request_id "$REQUEST_ID" \
-  --arg timestamp "$TIMESTAMP" \
-  --arg project_root "$PROJECT_ROOT" \
-  --argjson folders "$(echo "$FOLDERS" | jq -R . | jq -s .)" \
-  --argjson freshness "$FRESHNESS" \
-  '{
-    request_id: $request_id,
-    timestamp: $timestamp,
-    orchestrator: {
-      requirement: "Discover and document folder organization rules with freshness check",
-      analysis: {
-        project_root: $project_root,
-        folders_to_analyze: $folders,
-        freshness_check: true
-      }
-    },
-    full_context: {
-      codebase_state: {
-        git_status: "output of git status",
-        current_branch: "branch name"
-      },
-      discovered_folders: $folders
-    },
-    parameters: {
-      freshness_check: true,
-      update_stale_readmes: true
-    },
-    readme_freshness: $freshness
-  }' > "$RULE_CONTEXT"
-
-# Invoke rule-inspector subagent with freshness data
-~/.claude/scripts/orchestrator.sh rule-inspect "$RULE_CONTEXT"
-
-echo "✅ Rule inspection completed - READMEs updated with recent changes" >&2
-
-# VERIFICATION CHECKPOINT: Ensure rule inspection completed
-if [[ ! -f "docs/clean/rule-context-${REQUEST_ID}.json" ]]; then
-  echo "❌ ERROR: Rule inspection failed! Cannot proceed to cleanliness inspection." >&2
-  exit 1
-fi
-
-# VERIFICATION: Check that stale READMEs were actually modified
-STALE_FOLDERS=$(echo "$FRESHNESS" | jq -r '.[] | select(.action != "FRESH") | .folder')
-if [[ -n "$STALE_FOLDERS" ]]; then
-  for folder in $STALE_FOLDERS; do
-    README_PATH="$PROJECT_ROOT/$folder/README.md"
-    [[ "$folder" == "." ]] && README_PATH="$PROJECT_ROOT/README.md"
-    if [[ -f "$README_PATH" ]]; then
-      MODIFIED_AFTER=$(stat -c %Y "$README_PATH")
-      SCRIPT_START=$(date -d "$TIMESTAMP" +%s 2>/dev/null || echo 0)
-      if [[ $MODIFIED_AFTER -lt $SCRIPT_START ]]; then
-        echo "⚠️  WARNING: $folder/README.md was marked $( echo "$FRESHNESS" | jq -r --arg f "$folder" '.[] | select(.folder==$f) | .action') but was NOT updated by agent" >&2
-      fi
-    fi
-  done
-fi
-```
+1. Discover all folders: `~/.claude/scripts/discover-folders.sh "$PROJECT_ROOT"`
+2. Run freshness check: `~/.claude/scripts/check-readme-freshness.sh "$PROJECT_ROOT"` and save to `docs/clean/freshness-${REQUEST_ID}.json`
+3. Build rule-inspector context JSON at `docs/clean/rule-context-${REQUEST_ID}.json` including request_id, timestamp, project_root, folders, freshness data, and parameters `freshness_check: true`, `update_stale_readmes: true`
+4. Invoke: `~/.claude/scripts/orchestrator.sh rule-inspect "$RULE_CONTEXT"`
+5. Verify `docs/clean/rule-context-${REQUEST_ID}.json` exists; abort with error if not
+6. For each stale folder, verify the README was actually modified after the script start time; warn if not
 
 **What this step does**:
 - Analyzes Git history for ALL folders (including root directory)
@@ -299,14 +214,7 @@ The style-inspector uses a **budget protocol** to avoid context overflow. Instea
 
 #### Step 7: Plan Style Inspection
 
-Run the planner script to discover all auditable files and split them into groups:
-
-```bash
-STYLE_PLAN=$(~/.claude/scripts/plan-style-inspection.sh "$PROJECT_ROOT")
-echo "$STYLE_PLAN" > "docs/clean/style-plan-${REQUEST_ID}.json"
-AGENT_COUNT=$(echo "$STYLE_PLAN" | jq -r '.agent_count')
-TOTAL_FILES=$(echo "$STYLE_PLAN" | jq -r '.total_files')
-```
+Run the planner script to discover all auditable files and split them into groups: `~/.claude/scripts/plan-style-inspection.sh "$PROJECT_ROOT"`. Save to `docs/clean/style-plan-${REQUEST_ID}.json`. Extract `agent_count` and `total_files` from the output.
 
 Log: "Style inspection planned: {AGENT_COUNT} agents for {TOTAL_FILES} files"
 
@@ -418,12 +326,7 @@ Expected final output structure:
 
 ### Step 11: Merge Inspection Reports
 
-Combine both reports using orchestrator:
-
-```bash
-~/.claude/scripts/orchestrator.sh clean-merge-reports \
-  docs/clean/context-with-reports-{REQUEST_ID}.json
-```
+Combine both reports using orchestrator: `~/.claude/scripts/orchestrator.sh clean-merge-reports docs/clean/context-with-reports-{REQUEST_ID}.json`
 
 Orchestrator merges and writes:
 - `docs/clean/combined-report-{REQUEST_ID}.json`
@@ -568,19 +471,7 @@ Before execution, create a safety checkpoint on `refs/checkpoints/<branch>`
 handles the no-changes case (exit 0) and uses an isolated temp index so
 your real staged area is untouched.
 
-```bash
-bash ~/.claude/hooks/checkpoint.sh "Before /clean aggressive cleanup"
-
-# Record checkpoint ref in context (refs/checkpoints/<branch>, not HEAD)
-CURRENT_BRANCH=$(git branch --show-current)
-CHECKPOINT_REF="refs/checkpoints/${CURRENT_BRANCH}"
-CHECKPOINT_COMMIT=$(git rev-parse "$CHECKPOINT_REF" 2>/dev/null || echo "none")
-echo "Checkpoint ref: ${CHECKPOINT_REF} @ ${CHECKPOINT_COMMIT}"
-
-~/.claude/scripts/orchestrator.sh record-checkpoint \
-  docs/clean/context-with-reports-{REQUEST_ID}.json \
-  "$CHECKPOINT_COMMIT"
-```
+Run `bash ~/.claude/hooks/checkpoint.sh "Before /clean aggressive cleanup"`. Then read `refs/checkpoints/<branch>` and record the checkpoint commit via `~/.claude/scripts/orchestrator.sh record-checkpoint docs/clean/context-with-reports-{REQUEST_ID}.json "$CHECKPOINT_COMMIT"`.
 
 **Rollback**: The checkpoint lives on a detached ref, not as a HEAD
 ancestor. To recover individual files:
@@ -667,12 +558,7 @@ Expected output structure:
 
 ### Step 17: Verify Cleanup Results
 
-Review git changes:
-
-```bash
-git status
-git diff --stat HEAD~1
-```
+Review git changes: check `git status` and `git diff --stat HEAD~1` to confirm expected files were staged and committed.
 
 Present verification summary:
 

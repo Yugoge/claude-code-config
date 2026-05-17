@@ -1,6 +1,6 @@
 # ui-shared
 
-*Last updated: 2026-04-26T18:03:08Z*
+*Last updated: 2026-05-17T16:47:43Z*
 **Total entries**: 4
 **Convention**: kebab
 

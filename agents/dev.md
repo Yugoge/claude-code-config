@@ -576,7 +576,7 @@ Before returning execution report, verify:
     - role_table says `body = ink-800` — diff uses `ink-700` → **FAIL** (in-family sibling, still wrong role)
     - role_table says `neutral = ink-500` — diff uses `slate-500` → **FAIL** (different scale entirely)
   - "In palette / in hue family / close enough / same brand scale" are NOT sufficient justifications. Only the exact `expected_token` for the bound role passes.
-  - If the BA context JSON has no `reference_source.role_table` (CLAUDE.md absent or BA skipped Step 0.5), log this in `implementation_notes` and proceed without role-token enforcement. Do NOT invent a role table; do NOT default to "in palette".
+  - If the BA context JSON has no `reference_source.role_table` (CLAUDE.md absent or BA skipped Step 1 role-grounding), log this in `implementation_notes` and proceed without role-token enforcement. Do NOT invent a role table; do NOT default to "in palette".
   - If the role table is present and a mismatch exists, you MUST either (a) fix the diff to use `expected_token`, or (b) return `status: blocked` with the role conflict described. Silent shipping of a mismatch is forbidden.
 
 ---
@@ -934,23 +934,9 @@ All cp-state mutations go through `python3 /root/.claude/scripts/spec-check.py`.
 
 **On entry** (the `pretool-cp-checkin.py` hook does this for you when you Read your view file): your `is_running` flips to true and your `agent_id` is recorded. Use the recorded `agent_id` value as `--agent-id`; if `$CLAUDE_AGENT_ID` is available, it must match that value.
 
-**During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it:
-```bash
-python3 /root/.claude/scripts/spec-check.py mark \
-  --spec-id <SPEC_ID> \
-  --agent dev \
-  --agent-id "$CLAUDE_AGENT_ID" \
-  --cp-id cp-NN
-```
+**During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it done using `spec-check.py mark` with `--spec-id <SPEC_ID>`, `--agent dev`, `--agent-id "$CLAUDE_AGENT_ID"`, and `--cp-id cp-NN`. Activate the venv before invoking (see SOP above).
 
-If a checkpoint legitimately does not apply to this run, waive it (auto-text records actor + ISO timestamp):
-```bash
-python3 /root/.claude/scripts/spec-check.py waive \
-  --spec-id <SPEC_ID> \
-  --agent dev \
-  --agent-id "$CLAUDE_AGENT_ID" \
-  --cp-id cp-NN
-```
+If a checkpoint legitimately does not apply to this run, waive it using `spec-check.py waive` with the same arguments (auto-text records actor + ISO timestamp).
 
 **On exit**: every checkpoint must be in state `done` or `waived`. The `subagentstop-cp-enforce.py` hook fires automatically when you stop and BLOCKS your exit (exit 2) if any cp remains `pending`. The block message tells you which cp-IDs are still pending; you must re-run yourself with proper marking.
 

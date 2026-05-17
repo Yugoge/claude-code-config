@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-17T15:49:54Z*
-**Total entries**: 65
+*Last updated: 2026-05-17T15:59:34Z*
+**Total entries**: 66
 **Convention**: kebab
 
 ## Tree
@@ -71,6 +71,7 @@ scripts/
 ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 ├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 ├── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+├── `write-e2e-enforce.sh` - Writes e2e-enforce.json into the dev-registry for the given session.
 └── `write-qa-mode.sh` - Write or update qa_mode field in the QA sentinel file for a dev-registry session.
 ```
 

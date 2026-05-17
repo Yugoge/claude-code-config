@@ -235,23 +235,9 @@ template_path = sys.argv[1] if len(sys.argv) > 1 else "template/resume/harvard.h
 
 **Rule**: All Python script invocations MUST use `source venv` or `source .venv`, NOT direct `python3`.
 
-**Detection**:
-```bash
-# Scan all .sh and .md files for python3 calls
-grep -rn "python3 " . \
-  --include="*.sh" --include="*.md" \
-  | grep -v "# python3 is available" \
-  | grep -v "Example:"
-```
+**Detection**: Scan all `.sh` and `.md` files for `python3 ` calls, excluding lines with `# python3 is available` or `Example:`. Report each bare `python3` invocation as a violation.
 
-**Violations**:
-```bash
-# BAD
-python3 scripts/analyze.py
-
-# GOOD
-source venv/bin/activate && python scripts/analyze.py
-```
+**Violations**: BAD: direct `python3 scripts/analyze.py`; GOOD: `source venv/bin/activate && python scripts/analyze.py`.
 
 **Report**:
 ```json
@@ -268,12 +254,7 @@ source venv/bin/activate && python scripts/analyze.py
 
 **Rule**: All step numbering MUST be integers (1, 2, 3...), NOT decimals (1.1, 1.2) or letters (1a, 1b).
 
-**Detection**:
-```bash
-# Scan .md files for step numbering patterns
-grep -rn "Step [0-9]*\.[0-9]" .claude/ --include="*.md"
-grep -rn "Step [0-9]*[a-z]" .claude/ --include="*.md"
-```
+**Detection**: Scan `.md` files in `.claude/` for decimal step patterns (`Step N.M`) and lettered step patterns (`Step Na`).
 
 **Violations**:
 ```
@@ -309,25 +290,9 @@ Step 4: Next thing
 **Forbidden patterns**:
 - `enhance-*`, `fast-*`, `optimize-*`, `*-v2`, `*-v3`, `improved-*`, `better-*`, `new-*`
 
-**Detection**:
-```bash
-# Scan for forbidden patterns
-find . -name "enhance-*.sh" -o -name "*-v2.*" -o -name "fast-*.py" \
-  -o -name "optimize-*.sh" -o -name "improved-*"
-```
+**Detection**: Scan for files matching forbidden patterns: `enhance-*.sh`, `*-v2.*`, `fast-*.py`, `optimize-*.sh`, `improved-*`.
 
-**Violations**:
-```bash
-# BAD
-enhance-system.sh
-fast-check.sh
-optimize-v2.py
-
-# GOOD
-validate-api-endpoints.sh
-check-file-references.sh
-analyze-performance.py
-```
+**Violations**: BAD: `enhance-system.sh`, `fast-check.sh`, `optimize-v2.py`. GOOD: `validate-api-endpoints.sh`, `check-file-references.sh`, `analyze-performance.py`.
 
 **Report**:
 ```json
@@ -346,11 +311,7 @@ analyze-performance.py
 
 **Scope**: `agents/*.md`, `commands/*.md`, `.claude/commands/*.md`, `.claude/agents/*.md`, `.claude/hooks/*.sh`, `.claude/hooks/*.py`, `scripts/*.sh`, `scripts/*.py`. Do NOT scan `docs/` -- documentation and planning files may legitimately contain non-English content.
 
-**Detection**:
-```bash
-# Detect Chinese characters in code, command/agent files, and hook scripts
-grep -n '[一-龟]' agents/*.md commands/*.md .claude/commands/*.md .claude/agents/*.md scripts/*.sh scripts/*.py .claude/hooks/*.sh .claude/hooks/*.py 2>/dev/null
-```
+**Detection**: Grep for Chinese characters (Unicode range U+4E00–U+9FFF) in `agents/*.md`, `commands/*.md`, `.claude/commands/*.md`, `.claude/agents/*.md`, `scripts/*.sh`, `scripts/*.py`, `.claude/hooks/*.sh`, and `.claude/hooks/*.py`. Suppress file-not-found errors.
 
 **Unconditional scan (exception to --changed-files scoping)**: Standard 6 runs against the full agents and commands directories on every invocation, including `--changed-files` mode. Rationale: agent/command prompt files can receive non-English text via chore commits or post-cycle sync commits that bypass the /dev pipeline entirely (observed: ba.md incident task-id 20260517-121150). A changed-files-only check cannot catch such introductions. This exception is scoped to Standard 6 only and does not affect Standards 1-5 or 7-11.
 
@@ -362,8 +323,8 @@ grep -n '[一-龟]' agents/*.md commands/*.md .claude/commands/*.md .claude/agen
   "standard": "english-only",
   "severity": "critical",
   "location": "commands/clean.md:8",
-  "finding": "Contains Chinese text: 核心清理目标",
-  "recommendation": "Translate to English: Core Cleanup Targets"
+  "finding": "Contains Chinese text: <example-chinese-phrase>",
+  "recommendation": "Translate to English"
 }
 ```
 
@@ -420,23 +381,7 @@ scripts/validate-api.sh <mode> <args>
 
 **Detection method**: For each .md file in `.claude/commands/` and `.claude/agents/`, run cheap grep checks first, then read flagged files to look for:
 
-**Grep patterns (first-pass)**:
-```bash
-# Marketing/enhancement language
-grep -rn "This amazing\|is designed to enhance\|provides a fast and optimized\|powerful tool\|cutting-edge" \
-  .claude/ --include="*.md"
-
-# Story-style descriptive text (not rules)
-grep -rn "When you\|Imagine that\|Let's say\|For example, suppose" \
-  .claude/ --include="*.md"
-
-# Excessive explanation markers
-grep -rn "In other words\|To put it another way\|What this means is\|Basically" \
-  .claude/ --include="*.md"
-
-# Repetitive example markers (multiple "Example:" sections)
-grep -c "Example:" .claude/**/*.md | grep -v ":0$\|:1$"
-```
+**Grep patterns (first-pass)**: Grep `.claude/**/*.md` for marketing language ("This amazing", "is designed to enhance", "provides a fast and optimized", "powerful tool", "cutting-edge"), story-style text ("When you", "Imagine that", "Let's say", "For example, suppose"), excessive explanation markers ("In other words", "To put it another way", "What this means is", "Basically"), and files with more than one "Example:" marker.
 
 **LLM-based judgment (deep analysis)**: Read each flagged file and check for:
 

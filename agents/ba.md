@@ -625,7 +625,7 @@ Before parsing the requirement, read the project's `CLAUDE.md` (at the project r
 3. **Multi-authority conflict detection**: if CLAUDE.md, the user's spec, and a referenced design system disagree on the same role (e.g., CLAUDE.md says `CTA = brand-500` but the spec says `CTA = brand-300`), return `status: needs_clarification` with the conflicting role enumerated. Do NOT silently pick one — multi-authority disagreement is a user-decision, not a BA-decision.
 4. Sequencing rule: **CLAUDE.md → spec → analysis**. Step 1 (CLAUDE.md) precedes Step 1 (Parse Requirement) precedes any spec read for overnight cycles. See also the "Overnight Spec Integration" section below.
 
-The role table flows into BA's acceptance criteria (Contract A evidence MUST cite `expected = role_table[role]`), Dev's Quality Checklist (role-token compliance check), and QA's Standards Compliance check (`Step 5a.2`). If you skip Step 1, the entire downstream audit chain degrades to loose palette membership.
+The role table flows into BA's acceptance criteria (Contract A evidence MUST cite `expected = role_table[role]`), Dev's Quality Checklist (role-token compliance check), and QA's Standards Compliance check (`Step 8`). If you skip Step 1, the entire downstream audit chain degrades to loose palette membership.
 
 ### Step 1: Parse and Decompose Requirement
 
@@ -682,21 +682,7 @@ Extract from requirement text:
 
 ### Step 3: Git Root Cause Analysis
 
-**When applicable** (bug fixes, modifications to existing functionality):
-
-```bash
-# Find related commits
-git log --oneline --all --grep="<keyword>" -20
-
-# Check recent changes to suspected files
-git log --oneline -10 -- <suspected-file>
-
-# Trace changes
-git show <commit-hash> -- <file>
-
-# Build timeline
-git log --oneline --reverse --since="1 month ago" -- <affected-files>
-```
+**When applicable** (bug fixes, modifications to existing functionality): search git log for related commits by keyword, check recent changes to suspected files, trace the exact commit with `git show`, and build a timeline of changes over the past month for affected files.
 
 **When not applicable** (new features, architectural changes):
 - Document as "N/A - new feature" or "N/A - architectural improvement"
@@ -735,14 +721,7 @@ CORRECT analysis:
 
 ### Step 5: Identify Affected Files
 
-```bash
-# Search codebase for related files
-find . -name "*.md" -path "*/<keyword>*" 2>/dev/null
-grep -rl "<pattern>" --include="*.ts" --include="*.py" --include="*.md" .
-
-# Check existing patterns
-ls -la .claude/agents/ .claude/commands/ .claude/scripts/todo/
-```
+Search the codebase for related files by name pattern and content. Check existing patterns in `.claude/agents/`, `.claude/commands/`, and `.claude/scripts/todo/`.
 
 ### Step 6: Build MoSCoW Requirements
 
@@ -1145,6 +1124,53 @@ Must be compatible with `agents/dev.md` input format:
 
 ---
 
+## Specialist Findings Intake Protocol
+
+When BA receives specialist findings (from ui-specialist, architect, product-owner, or user agents) via the dev.md Step 2 routing, the following protocol applies before findings are used as Contract A evidence.
+
+### Mandatory Fields Per Specialist Type
+
+| Specialist | Required for Contract A use | Notes |
+|---|---|---|
+| ui-specialist | `location.selector`, `measured`, `expected`, `downstream_agent: "ba"` | All three canonical channels (automated_findings, contextual_findings, aesthetic_findings) inherit these from finding_base via allOf |
+| architect | `location.file`, `location.line`, `measured`, `expected`, `downstream_agent: "ba"` | `location.url` is optional; `measured` distills `runtime_evidence` into a scalar |
+| product-owner | `observed_behavior`, `expected_behavior`, `downstream_agent: "ba"` | `location.file` acceptable as string (not browser-only) |
+| user | `location.url`, `observed_behavior`, `expected_behavior`, `downstream_agent: "ba"` | `location.file` MUST be null — user agent is browser-only. `location.url` is required so the finding is reproducible. |
+
+### tier_3_tainted Classification
+
+A finding is classified `tier_3_tainted` when it is a natural-language-only claim that lacks any required evidence field: for ui-specialist/architect this means `measured` OR `expected` is absent; for product-owner/user this means `observed_behavior` OR `expected_behavior` is absent. Missing any one of the pair is sufficient to taint — a finding with `measured` but no `expected` cannot be verified. Tainted findings:
+
+- Cannot be used as primary Contract A evidence without independent BA measurement
+- MUST be flagged in BA's context JSON under `root_cause_analysis.observations[]` with a note indicating the taint
+- May still inform BA's investigation direction, but BA must independently verify before citing
+
+### Measurement Fallback
+
+When a specialist finding lacks `measured` or `expected` (or their prose equivalents for architect/product-owner/user), BA MUST measure independently before using that finding as Contract A evidence:
+
+1. Read the relevant source file or query the runtime directly
+2. Record the independently-measured value as BA's own `measured` data point
+3. Note in the spec that the specialist finding lacked the field and BA measured independently
+
+This fallback does NOT exempt the specialist from the requirement — BA must report the gap to the orchestrator as an observation.
+
+### downstream_agent Routing Rule
+
+Every specialist finding with `downstream_agent: "ba"` is routed to BA for root-cause analysis and spec generation. BA is the exclusive first-stage consumer. BA does NOT forward raw specialist findings to dev — BA translates them into a BA spec with root-cause analysis, development_approach, and acceptance criteria.
+
+### Fast-Fail Rule
+
+BA MUST reject findings used as primary evidence if they lack the required fields for their specialist type (see table above). Rejection means:
+
+- The finding is NOT cited in the BA spec as a Contract A measurement
+- The finding is logged in `out_of_scope_observations` or as a tainted observation with the missing fields noted
+- BA proceeds with independent measurement (see Measurement Fallback above) or reports the gap to the orchestrator if independent measurement is impossible
+
+Findings used only as investigation leads (not primary evidence) are exempt from the fast-fail rule, but must still be flagged as tainted if they lack required fields.
+
+---
+
 ## Forbidden BA Patterns (MANDATORY)
 
 **Added 2026-04-25 after overnight session 21d24e89 post-mortem.**
@@ -1252,23 +1278,9 @@ All cp-state mutations go through `source "${CLAUDE_HOME:-$HOME/.claude}/venv/bi
 
 **On entry** (the `pretool-cp-checkin.py` hook does this for you when you Read your view file): your `is_running` flips to true and your `agent_id` is recorded. Use the recorded `agent_id` value as `--agent-id`; if `$CLAUDE_AGENT_ID` is available, it must match that value.
 
-**During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it:
-```bash
-source "${CLAUDE_HOME:-$HOME/.claude}/venv/bin/activate" && python3 "${CLAUDE_HOME:-$HOME/.claude}/scripts/spec-check.py" mark \
-  --spec-id <SPEC_ID> \
-  --agent ba \
-  --agent-id "$CLAUDE_AGENT_ID" \
-  --cp-id cp-NN
-```
+**During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it done using `spec-check.py mark` with `--spec-id <SPEC_ID>`, `--agent ba`, `--agent-id "$CLAUDE_AGENT_ID"`, and `--cp-id cp-NN`. Activate the venv before invoking (see SOP above).
 
-If a checkpoint legitimately does not apply to this run, waive it (auto-text records actor + ISO timestamp):
-```bash
-source "${CLAUDE_HOME:-$HOME/.claude}/venv/bin/activate" && python3 "${CLAUDE_HOME:-$HOME/.claude}/scripts/spec-check.py" waive \
-  --spec-id <SPEC_ID> \
-  --agent ba \
-  --agent-id "$CLAUDE_AGENT_ID" \
-  --cp-id cp-NN
-```
+If a checkpoint legitimately does not apply to this run, waive it using `spec-check.py waive` with the same arguments (auto-text records actor + ISO timestamp).
 
 **On exit**: every checkpoint must be in state `done` or `waived`. The `subagentstop-cp-enforce.py` hook fires automatically when you stop and BLOCKS your exit (exit 2) if any cp remains `pending`. The block message tells you which cp-IDs are still pending; you must re-run yourself with proper marking.
 

@@ -68,23 +68,7 @@ every status code (`M`, `A`, `D`, `R`, `C`, `??`) is included as a candidate.
 
 **Dispatch-snapshot check (M3 — warn-only)**:
 After running git status in both repos, read the dispatch manifest if it exists (non-bulk mode only).
-Set `SID` from the environment FIRST (matching what `/commit` writes):
-
-```bash
-SID="${CLAUDE_SESSION_ID:-unknown}"
-if [ "${BULK}" != "true" ]; then
-    MANIFEST_FILE="/tmp/claude-commit-manifest-${SID}.json"
-    if [ -f "${MANIFEST_FILE}" ]; then
-        DISPATCH_FILES=$(python3 -c "
-import json, sys
-d = json.load(open('${MANIFEST_FILE}'))
-print('\n'.join(d.get('files_at_dispatch', [])))
-" 2>/dev/null || echo "")
-    else
-        DISPATCH_FILES=""
-    fi
-fi
-```
+Set `SID="${CLAUDE_SESSION_ID:-unknown}"`. In non-bulk mode, check for `/tmp/claude-commit-manifest-${SID}.json`. If it exists, activate the venv and parse it with Python to extract `files_at_dispatch` as a newline-separated list. If missing, treat DISPATCH_FILES as empty. Skip this check entirely when `BULK=true`.
 
 For each file in the current git status that is NOT in `DISPATCH_FILES` (and `DISPATCH_FILES` is non-empty):
 Print: `WARNING: file <path> appeared after dispatch (possible foreign session); staging anyway.`
@@ -309,46 +293,7 @@ NEVER silently skip nested repo changes.
 
 After each successful commit (main and nested repo independently):
 
-Export shell variables before calling Python (shell variables are not Python variables):
-```bash
-export GIT_ROOT BRANCH COMMIT_SHA
-python3 - <<'PYEOF'
-import hashlib, json, os
-
-git_root = os.environ["GIT_ROOT"]
-branch = os.environ["BRANCH"]
-commit_sha = os.environ["COMMIT_SHA"]
-
-repo_root = os.path.realpath(git_root)
-repo_hash = hashlib.sha256(repo_root.encode()).hexdigest()[:16]
-branch_encoded = branch.replace('/', '__')
-
-token_dir = f"/tmp/agentic-commit/push/{repo_hash}"
-os.makedirs(token_dir, exist_ok=True)
-
-token = {
-    "commit_sha": commit_sha,
-    "branch": branch,
-    "repo_root": repo_root,
-    "session_id": os.environ.get("CLAUDE_SESSION_ID", ""),
-}
-token_path = f"{token_dir}/{branch_encoded}.json"
-# DO NOT item 7: check existing token before overwriting
-if os.path.exists(token_path):
-    try:
-        existing = json.load(open(token_path))
-        existing_sid = existing.get("session_id", "")
-        current_sid = os.environ.get("CLAUDE_SESSION_ID", "")
-        if existing_sid and current_sid and existing_sid != current_sid:
-            print(f"WARNING: push-gate token at {token_path} belongs to session {existing_sid!r}; current session is {current_sid!r}. Skipping token write.")
-            import sys; sys.exit(0)
-    except Exception:
-        pass  # on any read/parse error, proceed to overwrite
-with open(token_path, 'w') as f:
-    json.dump(token, f)
-print(f"Push-gate token written: {token_path}")
-PYEOF
-```
+Export `GIT_ROOT`, `BRANCH`, `COMMIT_SHA` as shell env vars, then activate the venv and run a Python script to write the push-gate token. The script: computes `repo_hash = sha256(realpath(GIT_ROOT))[:16]`; sets `token_dir = /tmp/agentic-commit/push/<repo_hash>`; creates `token_dir`; writes a JSON token `{commit_sha, branch, repo_root, session_id}` to `{token_dir}/{branch.replace('/','__')}.json`. Before overwriting, if an existing token belongs to a different session_id, print a WARNING and skip the write. Print the final token path on success.
 
 **Algorithm is canonical**: `sha256(os.path.realpath(repo_root)).hexdigest()[:16]`. Both
 `/commit` and `/push` must use this identical algorithm for the repo-hash derivation.
