@@ -165,7 +165,7 @@ Output report to: <path for JSON report file>
    - Fall back to Phase 1 discovery as normal
    - Do NOT abort -- proceed with standard protocol
 
-### Step 0.5: Execute E2E Flow (MANDATORY)
+### Step 1: Execute E2E Flow (MANDATORY)
 
 **Before starting your specialized analysis, execute at least one full E2E flow
 via Playwright to understand the app and collect runtime errors in context.**
