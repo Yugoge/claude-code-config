@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-17T17:25:45Z*
-**Total entries**: 101
+*Last updated: 2026-05-17T17:33:13Z*
+**Total entries**: 102
 **Convention**: kebab
 
 ## Tree
@@ -107,7 +107,8 @@ dev/
 ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence
 ├── `ticket-20260517-153856.md` - BA Specification: Establish Bidirectional Handoff Contracts Between Specialist Agents and BA
-└── `ticket-20260517-155838.md` - BA Specification: /do direct-development cannot be closed via /close normal path
+├── `ticket-20260517-155838.md` - BA Specification: /do direct-development cannot be closed via /close normal path
+└── `ticket-20260517-172600.md` - BA Specification: Add close→commit/push Ending Workflow Adaptation to clean.md + Enumerate Other Commands
 ```
 
 ---
