@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 46
+- **Total files**: 47
 - **Subdirectories**: 2
 - **Naming convention**: kebab
 
@@ -22,6 +22,7 @@ Organization and usage documentation for `scripts/`.
 - `check-readme-freshness.sh` - Check README.md freshness for all major folders
 - `check-security-hook-drift.sh` - Description: Audit always-on security-critical hook files against a cycle baseline SHA
 - `checkpoint-prune.sh` - checkpoint-prune.sh — trim refs/checkpoints/* to the most recent N commits
+- `cleanup-close-force-sentinel.sh` - Removes the force-close sentinel file for a given dev session.
 - `cleanup-tests-folder.sh` - Description: Remove validators that don't match git edge cases, preserving reports/
 - `create-overnight-state.sh` - create-overnight-state.sh — Create overnight state file (v7 schema)
 - `create-worktree.sh` - Create a git worktree from local HEAD (not origin/main).
