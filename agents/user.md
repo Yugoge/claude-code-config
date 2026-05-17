@@ -430,7 +430,13 @@ Write a JSON report to the specified output path:
       "title": "Short descriptive title",
       "description": "What happened from the user's perspective",
       "severity": "critical|major|minor|cosmetic",
-      "location": "URL path or page name",
+      "location": {
+        "url": "URL path or page name",
+        "file": null
+      },
+      "observed_behavior": "What the user actually experienced (concrete description)",
+      "expected_behavior": "What the user expected to happen based on UI affordances or prior experience",
+      "downstream_agent": "ba",
       "category": "broken-flow|ux-friction|missing-feedback|confusing-behavior|data-loss-risk|accessibility",
       "viewport": "mobile|desktop|both",
       "estimated_effort": "small|medium|large",
