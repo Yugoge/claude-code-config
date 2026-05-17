@@ -190,9 +190,9 @@ participate in the same check-in/checklist/Stop-block chain as `/dev`.
 
 **Dispatch all three inspectors in parallel** — emit ONE message containing THREE Agent tool calls (concurrent, not sequential):
 
-- Agent tool call 1: `subagent_type: style-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/style-inspector-report-<TASK_ID>.json`.
-- Agent tool call 2: `subagent_type: cleanliness-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`.
-- Agent tool call 3: `subagent_type: prompt-inspector`, prompt includes `--changed-files <cycle-diff-file-list>` and instructs the inspector to write its report to `docs/dev/prompt-inspector-report-<TASK_ID>.json`.
+- Agent tool call 1: `subagent_type: style-inspector`, prompt includes `--changed-files <cycle-diff-file-list>`, instructs the inspector to write its report to `docs/dev/style-inspector-report-<TASK_ID>.json`, and (if `codex_required = true`) includes the literal line `codex_required: true`.
+- Agent tool call 2: `subagent_type: cleanliness-inspector`, prompt includes `--changed-files <cycle-diff-file-list>`, instructs the inspector to write its report to `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`, and (if `codex_required = true`) includes the literal line `codex_required: true`.
+- Agent tool call 3: `subagent_type: prompt-inspector`, prompt includes `--changed-files <cycle-diff-file-list>`, instructs the inspector to write its report to `docs/dev/prompt-inspector-report-<TASK_ID>.json`, and (if `codex_required = true`) includes the literal line `codex_required: true`.
 
 **Wait** for all three Agent tool calls to return. Each inspector writes its findings JSON to its assigned report path; the orchestrator does not re-interpret or re-aggregate those findings here — Step 2's QA dispatch passes the three concrete report paths as inputs and QA applies the AC-2.6 verdict-plumbing logic against them.
 
