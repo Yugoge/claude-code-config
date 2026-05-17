@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-17T12:09:26Z*
-**Total entries**: 64
+*Last updated: 2026-05-17T15:15:00Z*
+**Total entries**: 65
 **Convention**: kebab
 
 ## Tree
@@ -64,6 +64,7 @@ scripts/
 ├── `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
 ├── `quick-excel` - unknown file
 ├── `refine-context.sh` - refine-context.sh — merge QA-refined context with original context
+├── `resolve-dev-report.py` - Usage:
 ├── `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 ├── `scan-project.sh` - Description: Scan project structure and detect project type
 ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
