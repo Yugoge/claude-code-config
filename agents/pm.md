@@ -344,7 +344,7 @@ When writing the test plan, assess whether the target environment has sufficient
 - Include in `agent_assignments` a note that specialists must create test data before testing
 - In TRIAGE mode: if specialists report "cannot verify" issues, check whether they attempted to create test data first. Demote issues that were not actually browser-tested.
 
-### Step 4-bis (S4-bis): Specialist Auto-Degradation Check
+### Step 5: Specialist Auto-Degradation Check
 
 **MANDATORY before emitting `recommended_specialists`.** PM consults the rolling specialist-yield log to decide whether each candidate specialist should be called at full budget, called at reduced budget, skipped this cycle, or escalated to the user.
 
