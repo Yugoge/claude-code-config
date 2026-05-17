@@ -513,6 +513,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-git-privilege-guard.py\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
