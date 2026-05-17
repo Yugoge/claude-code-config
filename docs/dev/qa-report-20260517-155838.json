@@ -143,7 +143,7 @@
         "scenario": "Playwright E2E",
         "url": null,
         "status": "skipped",
-        "reason": "doc-only change — context.setup.applicability is N/A; no rendered UI changes, no browser interaction, no Playwright invocation, no user-triggered code paths affected. Only slash-command documentation files modified.",
+        "reason": "legitimately_skipped: doc-only change — context.setup.applicability is N/A per BA spec; no rendered UI changes, no browser interaction, no Playwright invocation, no user-triggered code paths affected. Only slash-command documentation files modified.",
         "steps_performed": [],
         "assertions": [],
         "evidence": null,
