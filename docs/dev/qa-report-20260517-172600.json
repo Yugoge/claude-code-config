@@ -97,15 +97,7 @@
         "details": "Grep for '/close' in commands/clean.md returned zero matches. The /close command does not appear anywhere in the file."
       }
     ],
-    "code_quality_findings": [
-      {
-        "severity": "minor",
-        "category": "other",
-        "location": "docs/dev/context-20260517-172600.json (requirement.success_criteria[1])",
-        "issue": "BA spec and context JSON claim 'All 33 commands/*.md files are classified' but filesystem has 35 actual commands. Count is off by 2 (missing: doc-gen.md, security-check.md). Both missing commands are Tier C read-only tools; actionable coverage is complete.",
-        "recommendation": "Correct count to 35 in next iteration or note the two missing files explicitly as Tier C in the enumeration for complete accuracy."
-      }
-    ],
+    "code_quality_findings": [],
     "permissions_verification": {
       "status": "pass",
       "permissions_count": 0,
