@@ -381,23 +381,7 @@ scripts/validate-api.sh <mode> <args>
 
 **Detection method**: For each .md file in `.claude/commands/` and `.claude/agents/`, run cheap grep checks first, then read flagged files to look for:
 
-**Grep patterns (first-pass)**:
-```bash
-# Marketing/enhancement language
-grep -rn "This amazing\|is designed to enhance\|provides a fast and optimized\|powerful tool\|cutting-edge" \
-  .claude/ --include="*.md"
-
-# Story-style descriptive text (not rules)
-grep -rn "When you\|Imagine that\|Let's say\|For example, suppose" \
-  .claude/ --include="*.md"
-
-# Excessive explanation markers
-grep -rn "In other words\|To put it another way\|What this means is\|Basically" \
-  .claude/ --include="*.md"
-
-# Repetitive example markers (multiple "Example:" sections)
-grep -c "Example:" .claude/**/*.md | grep -v ":0$\|:1$"
-```
+**Grep patterns (first-pass)**: Grep `.claude/**/*.md` for marketing language ("This amazing", "is designed to enhance", "provides a fast and optimized", "powerful tool", "cutting-edge"), story-style text ("When you", "Imagine that", "Let's say", "For example, suppose"), excessive explanation markers ("In other words", "To put it another way", "What this means is", "Basically"), and files with more than one "Example:" marker.
 
 **LLM-based judgment (deep analysis)**: Read each flagged file and check for:
 
