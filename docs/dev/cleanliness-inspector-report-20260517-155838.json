@@ -32,7 +32,7 @@
     "major": 0,
     "minor": 0,
     "estimated_space_saved": "0 MB",
-    "notes": "Zero new-in-diff cleanliness violations. b7ea9ed changed only 3 inspector dispatch lines in commands/close.md to propagate codex_required: true. commands/do.md was changed by orphan commit 07d6e32 and is clean. All 5 prior-report findings resolved by commit 400cd4b; see resolved_findings. Three advisory observations about pre-existing stale step/branch references tagged introduced_in_diff: false are non-blocking."
+    "notes": "Zero new-in-diff cleanliness violations. f79255f completed the branch renumbering by correcting 'Distinct from branch 5' -> 'Distinct from branch 6' (line 330) and 'branch 4 reasoning applies' -> 'branch 5 reasoning applies' in the codex-disabled QA-NO sub-bullet (line 334). commands/do.md is clean. All 7 prior-report findings (5 from first run resolved by 400cd4b, 2 from second run now resolved by f79255f) are in resolved_findings. Three advisory observations about pre-existing stale Step/branch references tagged introduced_in_diff: false remain non-blocking."
   },
   "advisory_observations": [
     {
