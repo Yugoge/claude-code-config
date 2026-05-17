@@ -596,7 +596,7 @@ After Step 3 (Live-Evidence) and BEFORE Step 5 (Tier Classification), classify e
 - `pipe_category: "dependency"` — path-external code that the user-need path actually depends on (utils / types / adjacent modules per Section 5.4 rule 1); eligible for pipeline creation when the dependency materially affects user-need success.
 - `pipe_category: "out_of_scope_observation"` — path-external, non-security, non-dependency. **Does NOT become a pipeline.** Routed to the triage report's `out_of_scope_observations[]` array (see triage-report schema below) for the cycle's BA / observations-ledger handoff. Tier and pipeline_recommendation fields are not applied.
 
-**Specialists' free exploration is preserved** (per spec-20260503-091826 Section 5.7 anti-pattern #5): this filter constrains pipelines, NOT specialists' discovery. Specialists continue to scan broadly; PM Step 1.9 governs only what becomes a pipeline.
+**Specialists' free exploration is preserved** (per spec-20260503-091826 Section 5.7 anti-pattern #5): this filter constrains pipelines, NOT specialists' discovery. Specialists continue to scan broadly; PM Step 4 governs only what becomes a pipeline.
 
 ### Step 2: Classify Issues into Tiers
 
