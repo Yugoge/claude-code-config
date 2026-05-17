@@ -370,10 +370,7 @@ python3 -c "import sys; print(sys.prefix)"
 
 **Symptoms**: "Invalid JSON output" in execution result
 
-**Diagnosis**: Check raw output
-```bash
-python3 tests/scripts/validate-xxx.py --project-root . 2>&1 | head -20
-```
+**Diagnosis**: Check raw output: `source ~/.claude/venv/bin/activate && python3 tests/scripts/validate-xxx.py --project-root . 2>&1 | head -20`
 
 **Fix**:
 - Ensure validator prints ONLY JSON to stdout
