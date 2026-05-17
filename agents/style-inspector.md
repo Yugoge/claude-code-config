@@ -311,11 +311,7 @@ Step 4: Next thing
 
 **Scope**: `agents/*.md`, `commands/*.md`, `.claude/commands/*.md`, `.claude/agents/*.md`, `.claude/hooks/*.sh`, `.claude/hooks/*.py`, `scripts/*.sh`, `scripts/*.py`. Do NOT scan `docs/` -- documentation and planning files may legitimately contain non-English content.
 
-**Detection**:
-```bash
-# Detect Chinese characters in code, command/agent files, and hook scripts
-grep -n '[一-龟]' agents/*.md commands/*.md .claude/commands/*.md .claude/agents/*.md scripts/*.sh scripts/*.py .claude/hooks/*.sh .claude/hooks/*.py 2>/dev/null
-```
+**Detection**: Grep for Chinese characters (Unicode range U+4E00–U+9FFF) in `agents/*.md`, `commands/*.md`, `.claude/commands/*.md`, `.claude/agents/*.md`, `scripts/*.sh`, `scripts/*.py`, `.claude/hooks/*.sh`, and `.claude/hooks/*.py`. Suppress file-not-found errors.
 
 **Unconditional scan (exception to --changed-files scoping)**: Standard 6 runs against the full agents and commands directories on every invocation, including `--changed-files` mode. Rationale: agent/command prompt files can receive non-English text via chore commits or post-cycle sync commits that bypass the /dev pipeline entirely (observed: ba.md incident task-id 20260517-121150). A changed-files-only check cannot catch such introductions. This exception is scoped to Standard 6 only and does not affect Standards 1-5 or 7-11.
 
