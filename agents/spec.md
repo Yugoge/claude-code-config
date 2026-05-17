@@ -548,7 +548,7 @@ Write cp-state files via `.claude/scripts/spec-check.py`. Do not write cp-state 
 #    disambiguates slots, but agent_id disambiguates the LOGICAL caller
 #    when multiple same-type instances run concurrently. Without it,
 #    Phase 2 cannot reliably pin to the correct slot.
-python3 /root/.claude/scripts/spec-check.py check-in \
+source ~/.claude/venv/bin/activate && python3 /root/.claude/scripts/spec-check.py check-in \
     --spec-id <spec-id> \
     --agent <agent> \
     --agent-id <agent-id> \
