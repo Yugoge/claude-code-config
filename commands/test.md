@@ -226,63 +226,11 @@ Save to: `tests/reports/validation-context-{REQUEST_ID}.json`
 
 ### Step 8: Invoke Test Validator
 
-Delegate to test-validator subagent:
-
-```bash
-# Validator reads context, checks all validators, writes validation report
-# This is conceptual - in practice, the agent performs validation inline
-```
-
-Test validator performs:
-
-1. **Syntax validation**: Python scripts parse correctly, no syntax errors
-2. **Dependency check**: All imports available in venv
-3. **Quality check**: Exit codes documented, JSON output format, error handling
-4. **Edge case verification**: Validator prevents documented edge case from analysis
-
-Expected output: `tests/reports/validation-report-{REQUEST_ID}.json`
-
-```json
-{
-  "request_id": "test-YYYYMMDD-HHMMSS",
-  "timestamp": "ISO-8601",
-  "validator": {
-    "status": "pass|fail",
-    "validators_checked": 10,
-    "syntax_errors": [],
-    "dependency_errors": [],
-    "quality_issues": [],
-    "edge_case_coverage": {
-      "total_edge_cases": 8,
-      "covered_by_validators": 8,
-      "uncovered": []
-    },
-    "summary": {
-      "valid": 10,
-      "invalid": 0,
-      "warnings": 0
-    }
-  }
-}
-```
+Delegate to test-validator subagent. The validator performs syntax validation, dependency checks, quality checks, and edge case coverage verification. Expected output: `tests/reports/validation-report-{REQUEST_ID}.json` with fields: `status`, `validators_checked`, `syntax_errors`, `dependency_errors`, `quality_issues`, `edge_case_coverage`, `summary`.
 
 ### Step 9: Process Validation Results
 
-Check validation report status:
-
-```bash
-VALIDATION_STATUS=$(jq -r '.validator.status' tests/reports/validation-report-${REQUEST_ID}.json)
-
-if [[ "$VALIDATION_STATUS" == "fail" ]]; then
-  echo "❌ Validation failed. Fix issues before execution:" >&2
-  jq -r '.validator.syntax_errors[]' tests/reports/validation-report-${REQUEST_ID}.json
-  jq -r '.validator.dependency_errors[]' tests/reports/validation-report-${REQUEST_ID}.json
-  jq -r '.validator.quality_issues[]' tests/reports/validation-report-${REQUEST_ID}.json
-  exit 1
-fi
-
-echo "✅ Validation passed. Proceeding to execution..."
-```
+Read the validation report status. If `fail`, present errors and stop. If `pass`, proceed.
 
 **Decision tree**:
 
