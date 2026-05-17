@@ -23,6 +23,12 @@ done
 REGISTRY_DIR="${CLAUDE_PROJECT_DIR:?CLAUDE_PROJECT_DIR not set}/.claude/dev-registry/$SESSION_ID"
 QA_PATH="$REGISTRY_DIR/qa.json"
 
+# Activate venv so python3 runs in the project's managed environment.
+# shellcheck disable=SC1091
+source "${CLAUDE_PROJECT_DIR}/.venv/bin/activate" 2>/dev/null \
+  || source "${CLAUDE_PROJECT_DIR}/venv/bin/activate" 2>/dev/null \
+  || true
+
 python3 - "$QA_PATH" "$MODE" <<'PYEOF'
 import json, os, sys
 path = sys.argv[1]
