@@ -548,11 +548,11 @@ classify, deduplicate, prioritize, and produce a pipeline order.
 2. Read your own test-plan.json for this cycle
 3. Read previous retro reports for `unresolved_issues` context
 
-### Step 1.5: PM Role Boundary (MANDATORY)
+### Step 2: PM Role Boundary (MANDATORY)
 
 **PM prioritizes and classifies. PM NEVER proposes solutions.**
 
-All specialist observations proceed to Step 2 for tier classification. PM's job is to decide PRIORITY (which issues matter most), not HOW to fix them. Solutions are exclusively BA's and Dev's responsibility.
+All specialist observations proceed to Step 5 for tier classification. PM's job is to decide PRIORITY (which issues matter most), not HOW to fix them. Solutions are exclusively BA's and Dev's responsibility.
 
 **PM MUST NOT:**
 - Suggest what component to add ("add a TipsBox to fill the space")
