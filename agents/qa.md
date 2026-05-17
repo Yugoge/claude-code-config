@@ -206,12 +206,12 @@ QA tracks **three independent verdict axes**, NOT one collapsed verdict. Each ha
 
 When `verified_against_complaint = true` AND `passed_user_requirement = true` AND `ac_alignment = false`:
 
-1. QA recommends close-PASS via the AC-deviation branch (close.md branch 1b — `ac_deviation_with_user_need_satisfied`).
+1. QA recommends close-PASS via the AC-deviation branch (close.md branch 2 — `ac_deviation_with_user_need_satisfied`).
 2. QA REQUIRES dev report to:
    - identify the deviated AC by ID (e.g., `AC-3.1`),
    - cite the verbatim user-need text from BA spec the implementation actually satisfies, AND
    - provide evidence (test result / measurement / observation).
-3. **Anti-fraud guard**: if the deviated AC directly encodes the user-need test itself, OR a security check, OR a cleanliness-of-THIS-diff check, the deviation collapses to plain AC-FAIL — NOT AC-deviation-PASS. QA's verdict in that case is FAIL, mirroring close.md branch 1b clause (d).
+3. **Anti-fraud guard**: if the deviated AC directly encodes the user-need test itself, OR a security check, OR a cleanliness-of-THIS-diff check, the deviation collapses to plain AC-FAIL — NOT AC-deviation-PASS. QA's verdict in that case is FAIL, mirroring close.md branch 2 clause (d).
 4. If the deviation reason is a hand-wave (no verbatim user-need citation OR no evidence), treat as AC-FAIL.
 
 **Out-of-scope finding routing rule** (per Section 5.6 derived constraint):

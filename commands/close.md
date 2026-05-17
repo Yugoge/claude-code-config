@@ -206,8 +206,8 @@ SECOND ACTION (only if SPEC_ID is non-empty): read $CLAUDE_PROJECT_DIR/.claude/s
 
 You are the QA gatekeeper evaluating whether a completed development can be closed. The orchestrator passes a `codex_required: <true|false>` flag in this dispatch:
 
-- **`codex_required: true`** (user passed `--codex` to /close): you run a MULTI-ROUND INTERNAL DEBATE with OpenAI Codex (via the Skill tool) yourself. Follow the full Debate protocol below (Round 1 + 1b + 1b' + Round 2/3 + verdict branches 1/2/3/6/7/6 with branch 7 N/A).
-- **`codex_required: false`** (default — no `--codex` flag): SKIP all `Skill(codex)` invocations. Run a SINGLE-ROUND QA-ONLY ASSESSMENT covering the 4 Workflow Integrity Dimension bullets + 1b cleanliness-of-THIS-diff inspector preconditions. Apply verdict branch 7 (codex disabled by user) — see verdict rules below. Branches 3/6/7 are N/A in this mode.
+- **`codex_required: true`** (user passed `--codex` to /close): you run a MULTI-ROUND INTERNAL DEBATE with OpenAI Codex (via the Skill tool) yourself. Follow the full Debate protocol below (Round 1 + 1b + 1b' + Round 2/3 + verdict branches 1/2/3/4/5/6/7 with branch 9 N/A).
+- **`codex_required: false`** (default — no `--codex` flag): SKIP all `Skill(codex)` invocations. Run a SINGLE-ROUND QA-ONLY ASSESSMENT covering the 4 Workflow Integrity Dimension bullets + 1b cleanliness-of-THIS-diff inspector preconditions. Apply verdict branch 9 (codex disabled by user) — see verdict rules below. Branches 3/6/7 are N/A in this mode.
 
 In both modes, the caller does NOT orchestrate rounds; you own the loop.
 
@@ -317,7 +317,7 @@ Verdict branches:
     - **(b)** QA performed a manual scan of that verbatim output for substantive dissent signals -- including but not limited to: `CODEX: NO`, `Codex: NO`, the literal substring `NO`, the words `bug`, `defect`, `regression`, `wrong`, `incorrect`, `must not`, `should not`, `does not work`, `fails`, `broken`, or any prose explicitly objecting to the proposed close;
     - **(c)** QA explicitly states the determination: `manual parse: NO substantive dissent signal found in failed_parse output` (verbatim wording required).
 
-    `failed_parse` differs from `failed_quota`/`failed_timeout` because the request DID complete and the codex CLI DID emit content -- the parser merely could not map it to the `CODEX: YES` / `CODEX: NO` format. Skipping the manual scan would create a downgrade vector: a substantive `NO` could ride a malformed response into a YES verdict. If the manual parse finds ANY dissent signal, this branch fails over to **CLOSE: NO** (treat as substantive Codex dissent under branch 2 with the verbatim signal as the dissent line). If QA omits the verbatim attestation, fail over to branch 8 (conservative NO).
+    `failed_parse` differs from `failed_quota`/`failed_timeout` because the request DID complete and the codex CLI DID emit content -- the parser merely could not map it to the `CODEX: YES` / `CODEX: NO` format. Skipping the manual scan would create a downgrade vector: a substantive `NO` could ride a malformed response into a YES verdict. If the manual parse finds ANY dissent signal, this branch fails over to **CLOSE: NO** (treat as substantive Codex dissent under branch 3 with the verbatim signal as the dissent line). If QA omits the verbatim attestation, fail over to branch 8 (conservative NO).
 
 8. **Other ambiguity / parse failure on QA's side / unresolved disagreement after final round**: → **CLOSE: NO** (conservative default). Distinct from branch 5: the failure is on QA's reasoning side, not codex's transport.
 
@@ -327,7 +327,7 @@ Verdict branches:
    - Any of the four bullets FAIL → **CLOSE: NO** (branch 4 reasoning applies; the failing bullet name is the dissent line).
    - AC-deviation-PASS branch 2 is fully applicable in the codex-disabled path — when QA verdict is YES on user-need verification AND dev report contains a valid `ac_deviation_with_user_need_satisfied: true` block satisfying clauses (a)–(d) of branch 2, **CLOSE: YES** is granted with the deviation rationale recorded.
    - Branches 3 / 6 / 7 / 8 are all N/A in the codex-disabled path (codex was never invoked; there is no codex dissent to weigh, no infrastructure failure to handle, no parse failure to scan).
-   - The close-report MUST record `codex_status: disabled_by_user` in the "Codex consultation" section (NOT `failed_*`), and the per-round entries record `[Codex] consultation skipped: --codex flag not passed; QA-only assessment performed`. The final verdict line MUST use the form `CLOSE: YES — codex disabled by user` (when YES) or the standard `CLOSE: NO — <reason>` (when NO); the em-dash form distinguishes branch 7 YES from branch 1 unanimous YES for downstream `/commit` consumers.
+   - The close-report MUST record `codex_status: disabled_by_user` in the "Codex consultation" section (NOT `failed_*`), and the per-round entries record `[Codex] consultation skipped: --codex flag not passed; QA-only assessment performed`. The final verdict line MUST use the form `CLOSE: YES — codex disabled by user` (when YES) or the standard `CLOSE: NO — <reason>` (when NO); the em-dash form distinguishes branch 9 YES from branch 1 unanimous YES for downstream `/commit` consumers.
 
 The /close --force escape hatch (Step 2) is unchanged. It bypasses Step 5 entirely; none of the verdict branches above run on the forced path.
 
