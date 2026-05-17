@@ -940,10 +940,7 @@ mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
 
 **Every test you write MUST be executed immediately. Writing without running is not acceptable.**
 
-6. **Execute each generated test script**:
-```bash
-python3 tests/scripts/validate-<feature-name>.py --project-root .
-```
+6. **Execute each generated test script**: `source ~/.claude/venv/bin/activate && python3 tests/scripts/validate-<feature-name>.py --project-root .`
 
 7. **Capture and analyze results**:
    - Parse the JSON stdout from each script
