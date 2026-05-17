@@ -12,12 +12,12 @@ The slash entry has `disable-model-invocation: true` to prevent the model
 from autonomously self-dispatching `/push` via SlashCommand. It does NOT
 forbid agent execution of the wrapper script. When the user invokes
 `/push` in conversation and this docstring is injected into the agent's
-context, the agent's correct response is to run `~/.claude/hooks/push.sh
-[remote]` directly via Bash. push.sh internally generates the grant
-manifest, exports `CLAUDE_PUSH_COMMAND_ACTIVE=1`, and runs the underlying
-push — all of which the privilege guard recognizes and admits. Do NOT
-bounce the work back to the user with "please run X manually" — that
-violates the harness's delegation design.
+context, the agent's correct response is to execute the **Agentic dispatch
+protocol** documented below (Steps 0-5), then call `push.sh` ONLY after
+push-analyst grant validation passes. Do NOT call `push.sh` directly
+without first dispatching `push-analyst` — the analyst gate is mandatory.
+Do NOT bounce the work back to the user with "please run X manually" —
+that violates the harness's delegation design.
 
 ## Usage
 
