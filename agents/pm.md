@@ -847,7 +847,7 @@ When you detect a false-PASS, set:
 If this is the last cycle, add `final_summary` with aggregate
 stats across all cycles.
 
-### Step 7: Write Retro Report
+### Step 9: Write Retro Report
 
 Write to output directory as
 `retro-report-cycle<N>.json`.
