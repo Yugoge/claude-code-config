@@ -1,0 +1,145 @@
+{
+  "request_id": "20260517-172600",
+  "task_id": "20260517-172600",
+  "timestamp": "2026-05-17T18:00:00Z",
+  "dev_report_path": "docs/dev/dev-report-20260517-172600.json",
+  "dev": {
+    "status": "completed",
+    "files_modified": ["commands/clean.md"],
+    "files_created": [],
+    "tasks_completed": [
+      {
+        "id": 1,
+        "description": "Add /push ending-workflow adaptation to commands/clean.md Step 17 Next Steps block",
+        "type": "docs",
+        "files_modified": ["commands/clean.md"],
+        "changes": "Line 589: 'If satisfied: Changes already committed' → 'If satisfied: Changes already committed — next step is `/push` to publish to remote (push-gate note: the cleaner commits inline without writing a push-gate token; run `bash ~/.claude/hooks/push.sh` directly, or run `/commit` then `/push` if you need the full gate chain)'",
+        "rationale": "Gap exists from initial clean.md authoring; dev-series commands already have explicit ending-workflow guidance toward /push. clean.md Step 17 Next Steps had no publishing guidance at all. The push-gate caveat is included because /push requires a push-gate token that the cleaner subagent does not write (confirmed by codex review of hooks/push.sh:84-125 and agents/cleaner.md:93-101)."
+      }
+    ],
+    "scripts_created": [],
+    "git_rationale": {
+      "root_cause_commit": "N/A — architectural gap, not a regression",
+      "why_issue_occurred": "clean.md was authored with a different architecture (cleaner commits inline, no dev-cycle artifact chain). The /push ending-workflow pattern from dev.md was never propagated to clean.md or other file-modifying commands outside the dev-cycle architecture.",
+      "how_fix_addresses_root": "Adds the missing next-step direction to /push in Step 17's Next Steps block, mirroring dev.md Step 15's 'complete work path' branch pattern. Also documents the push-gate workaround since the cleaner's inline commit does not produce a push-gate token."
+    },
+    "diff_stats": {
+      "files_changed": 1,
+      "lines_added": 1,
+      "lines_removed": 1,
+      "new_symbols_introduced": [],
+      "minimum_possible_lines_estimate": 1,
+      "justification_for_overage": null
+    },
+    "fix_layer": "L4",
+    "scope_review_requested": true,
+    "scope_review_reason": "Codex identified that /push requires a push-gate token which the cleaner subagent does not write. The current wording includes `bash ~/.claude/hooks/push.sh` as a workaround — this is an inline bash invocation, which the BA spec said to avoid ('direction toward next command, not inline git invocations'). The correct resolution is a separate dev cycle to have the cleaner subagent write the push-gate token after its inline commit. Until then, the workaround wording is the most honest guidance available.",
+    "qa_ready": true,
+    "qa_notes": "Verify: (1) /push appears in commands/clean.md line ~589 Step 17 next-step block. (2) /close does NOT appear as a required step in that block. (3) The existing cleaner subagent commit behavior in agents/cleaner.md is unchanged. (4) The enumeration table below matches the BA spec tier classification.",
+    "permissions_to_add": [],
+    "blast_radius": [
+      {
+        "modified": "commands/clean.md",
+        "imported_by": ["commands/README.md", "commands/INDEX.md", "commands/dev-overnight.md", "commands/test.md"],
+        "impact": "all cross-reference/index files only; no functional callers broken"
+      }
+    ],
+    "self_verification": {
+      "build": "pass",
+      "smoke_check": "pass",
+      "notes": "Verified via `git diff -- commands/clean.md`: single line modified at line 589. Pre-existing guards at lines 468 and 479 (checkpoint and cleaner-subagent delegation guards) are untouched. No compile step needed for .md files."
+    },
+    "command_enumeration_finding": {
+      "description": "Exhaustive enumeration of all commands/*.md files by ending-workflow adaptation tier. This is deliverable R2 — the answer to the user question 'which other commands also need ending-workflow adaptation'.",
+      "tier_A_full_devchain_needed": [
+        {
+          "command": "commands/dev-command.md",
+          "current_state": "Step 14 says 'Offer git commit (if requested)' — vague, no /close reference",
+          "gap": "Should mirror dev.md Step 15: explicit /close → /commit → /push chain with /update --temp",
+          "priority": "HIGH",
+          "rationale": "dev-command.md is a dev-series command (full BA→dev→QA pipeline) but its ending workflow is weaker than dev.md. User expects identical behavior."
+        }
+      ],
+      "tier_B_push_only_needed": [
+        {
+          "command": "commands/clean.md",
+          "current_state": "Step 17 Next Steps now has /push guidance (this cycle's fix)",
+          "gap": "FIXED in this cycle — push-gate workaround documented",
+          "priority": "HIGH (user-stated)",
+          "status": "fixed"
+        },
+        {
+          "command": "commands/doc-sync.md",
+          "current_state": "Ends with 'Report changes made' — no /commit or /push mention after editing INDEX.md and CLAUDE.md auto-sections",
+          "gap": "doc-sync modifies files via Edit/Write in orchestrator context; should note that changes may be uncommitted edits needing /push",
+          "priority": "MEDIUM",
+          "adaptation": "Add conditional note: 'if changes were made, review with git diff, then commit and publish with /push'"
+        },
+        {
+          "command": "commands/quick-commit.md",
+          "current_state": "Ends after git commit — no /push mention",
+          "gap": "Should note that after the commit, /push is the next step to publish to remote",
+          "priority": "LOW",
+          "adaptation": "Add one-line note: 'After the commit, run /push to publish to remote'"
+        },
+        {
+          "command": "commands/quick-prototype.md",
+          "current_state": "Creates HTML prototype files; ends with 'Save as {name}.html' — no /commit or /push mention",
+          "gap": "As a quick-prototyping tool, lowest priority; a note about /commit + /push could be added",
+          "priority": "LOW",
+          "adaptation": "Add one-line note: 'To version-control: commit the file then /push'"
+        }
+      ],
+      "tier_C_no_adaptation_needed": [
+        {"command": "commands/refactor.md", "reason": "Read-only analysis; produces suggestions only, modifies no files"},
+        {"command": "commands/optimize.md", "reason": "Read-only analysis; modifies no files"},
+        {"command": "commands/code-review.md", "reason": "Read-only analysis; modifies no files"},
+        {"command": "commands/test.md", "reason": "Primary output is reports; test-executor fix-script path is secondary and user-driven"},
+        {"command": "commands/spec.md", "reason": "Creates spec files under user control; already directs to /dev as next step"},
+        {"command": "commands/update.md", "reason": "Next-step guidance IS its purpose; creates temp notes or continuation specs"},
+        {"command": "commands/checkpoint.md", "reason": "Creates refs/checkpoints/* recovery refs — NOT merge-ready HEAD commits; /push would be semantically wrong"},
+        {"command": "commands/stop.md", "reason": "Emergency lock release only; no file modifications"},
+        {"command": "commands/redev.md", "reason": "Inherits /dev workflow from session context; same chain as /dev"},
+        {"command": "commands/dev-overnight.md", "reason": "Has its own ending workflow: commit.sh → /merge → /push; correctly specified in Hard Rule 8"},
+        {"command": "commands/close.md", "reason": "Part of the chain itself; is the gate between /dev and /commit"},
+        {"command": "commands/commit.md", "reason": "Part of the chain itself; points to /push in Related section"},
+        {"command": "commands/push.md", "reason": "Terminal step of the chain; no further publishing needed"},
+        {"command": "commands/merge.md", "reason": "Part of the overnight chain; followed by /push (documented as separate step)"},
+        {"command": "commands/do.md", "reason": "Documents /close --force → /commit escape hatch; correctly specified"},
+        {"command": "commands/explain-code.md", "reason": "Read-only explanation; modifies no files"},
+        {"command": "commands/file-analyze.md", "reason": "Read-only analysis; modifies no files"},
+        {"command": "commands/search-tree.md", "reason": "Read-only search; modifies no files"},
+        {"command": "commands/reflect-search.md", "reason": "Read-only search; modifies no files"},
+        {"command": "commands/deep-search.md", "reason": "Read-only search; modifies no files"},
+        {"command": "commands/research-deep.md", "reason": "Read-only research; modifies no files"},
+        {"command": "commands/site-navigate.md", "reason": "Read-only web navigation; modifies no project files"},
+        {"command": "commands/playwright-helper.md", "reason": "Browser automation helper; modifies no project files"},
+        {"command": "commands/pull.md", "reason": "Fetch/pull operation; no outbound publishing needed"},
+        {"command": "commands/codex.md", "reason": "Delegates to Codex CLI; any file changes are user-reviewed; no forced push"},
+        {"command": "commands/allow.md", "reason": "Permission management via settings.json; update-config skill handles its own ending"},
+        {"command": "commands/fswatch.md", "reason": "File watcher utility; no direct file modifications"},
+        {"command": "commands/dev.md", "reason": "REFERENCE pattern — already has /close → /commit → /push chain"},
+        {"command": "commands/INDEX.md", "reason": "Auto-generated index; not a slash command"},
+        {"command": "commands/README.md", "reason": "Documentation; not a slash command"}
+      ]
+    }
+  },
+  "blocking_issues": [],
+  "out_of_scope_finding": {
+    "finding": "push-gate token gap",
+    "description": "The cleaner subagent commits inline (via direct Bash git commit) without writing the push-gate token that /push requires. This means /push will fail after /clean with 'no session commit token found'. The workaround (bash ~/.claude/hooks/push.sh directly) is documented in the clean.md guidance but is an inline bash invocation — contrary to BA spec's 'direction toward next command, not inline git invocations' principle.",
+    "recommended_resolution": "Separate dev cycle: have agents/cleaner.md write the canonical push-gate token (same format as changelog-analyst Phase 10) after its inline commit succeeds. This would allow /push to work normally after /clean.",
+    "in_scope_for_this_cycle": false
+  },
+  "recommendations": [
+    "Open a follow-up cycle to have agents/cleaner.md write the push-gate token after its inline commit, enabling bare /push usage after /clean",
+    "Consider adding /push guidance to commands/dev-command.md (Tier A — HIGH priority) in a separate cycle",
+    "Consider adding /push guidance to commands/doc-sync.md (Tier B — MEDIUM priority) in a separate cycle"
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Two findings: (1) BLOCKER — /push requires push-gate token which cleaner does not write; advised either adding push-gate write to cleaner or accepting bash/.claude/hooks/push.sh workaround. (2) MAJOR — dev report artifact missing from filesystem at time of review; enumeration was only in ticket/context.",
+    "feedback_incorporated": "Finding 1: Updated clean.md wording to include push-gate caveat and bash push.sh workaround. Set scope_review_requested=true noting the inline-bash-invocation tension with BA spec's 'no inline invocations' constraint. Documented as out_of_scope_finding with recommended_resolution for follow-up cycle. Finding 2: Dev report now written with full enumeration table in command_enumeration_finding section."
+  }
+}
