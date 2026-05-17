@@ -1,0 +1,69 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": "C1",
+  "files_audited": [
+    "commands/pull.md",
+    "commands/checkpoint.md",
+    "commands/code-review.md",
+    "commands/explain-code.md",
+    "commands/doc-gen.md"
+  ],
+  "violations": [
+    {
+      "standard": "concise-documentation",
+      "severity": "critical",
+      "location": "commands/pull.md:33-169",
+      "finding": "Three verbose mock-terminal scenario blocks (Scenario 1, 2, 3) spanning ~80 lines simulate complete terminal output with decorative emoji separators. The scenarios are highly repetitive: all three show identical pull flow with only minor variation (no changes, stashed changes, conflict). The Features section (lines 33-55) and Safety Features section (lines 141-147) duplicate the same 4 bullet categories. The Notes section (155-160) repeats content from Features. The script invocation is duplicated at lines 29-31 and again at lines 162-169. This constitutes significant documentation bloat across the entire file.",
+      "recommendation": "Remove the mock terminal output scenarios entirely or reduce to a single minimal example. Collapse the duplicated Features/Safety Features sections into one concise list. Remove the duplicate script invocation and redundant Notes/Related boilerplate. Target: ~30 lines total for this file."
+    }
+  ],
+  "standards_passed": [
+    "no-inline-code",
+    "no-hardcoded-values (no Standard 2 script hardcoding violations apply; markdown hook references in pull.md and checkpoint.md were checked under dangling-references and resolve to existing files)",
+    "use-source-venv",
+    "integer-step-numbering",
+    "meaningful-naming",
+    "english-only",
+    "merge-similar-scripts",
+    "parameterized-scripts",
+    "dangling-references",
+    "merge-conflicts"
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex raised 4 issues: (1) alleged missed english-only violation for emoji/box-drawing in pull.md mock terminal examples; (2) scope/pre-existing concern since pull.md has no diff vs origin/master; (3) concise-documentation finding under-scoped, missing duplicate invocation at lines 162-169; (4) inaccurate evidence wording 'no hardcoded paths found' when hook path references exist.",
+    "findings": [
+      {
+        "issue": "Missed english-only violation: commands/pull.md:64-127 contains emoji and box-drawing separators (🔄, ✅, 📦, ━━━, •, ⚠️) which are non-ASCII characters.",
+        "proposed_fix": "Add a critical finding: standard: english-only, location: commands/pull.md:64-127, finding: mock terminal examples contain non-English decorative glyphs, recommendation: remove scenario blocks or replace glyphs with plain ASCII.",
+        "classification": "out_of_scope",
+        "disposition": "rejected",
+        "rationale": "Standard 6 (english-only) targets non-English language text. The detection rule explicitly scans for Chinese Unicode range [一-龟]. Emoji and box-drawing characters are decorative UI elements, not language text. The standard's intent per the spec is language exclusivity (preventing Chinese/non-English language in code/comments), not prohibition of decorative Unicode. These glyphs also appear inside mock terminal output examples (not in code or comments), and they are already captured in the concise-documentation violation which recommends removing the scenario blocks entirely."
+      },
+      {
+        "issue": "Scope/pre-existing concern: commands/pull.md has no diff vs origin/master, so the concise-documentation violation is pre-existing and may be out of scope for a changed-files audit.",
+        "proposed_fix": "If changed-files scoped, remove the commands/pull.md violation or mark it pre_existing_advisory. If full audit, state scope explicitly.",
+        "classification": "observation_only",
+        "disposition": "rejected",
+        "rationale": "The orchestrator dispatched this as an explicit 5-file full audit with no --changed-files parameter. The dispatch prompt states 'audit EVERY file in this list' with no diff-scoping constraint. Pre-existing findings are in scope for a full audit. The changed-files scoping contract (AC-12.1) only applies when the orchestrator passes --changed-files explicitly, which it did not here."
+      },
+      {
+        "issue": "concise-documentation finding under-scoped: omits duplicated invocation text at commands/pull.md:162-169 (same 'bash ~/.claude/hooks/pull.sh' block already present at lines 29-31).",
+        "proposed_fix": "Change location to commands/pull.md:33-169 and extend finding to include duplicate script invocation.",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Valid amplification. The duplicate invocation block is real documentation bloat. Location updated to 33-169 and finding text expanded to include this duplication."
+      },
+      {
+        "issue": "Evidence wording inaccurate: 'no hardcoded paths found' is false since commands/pull.md and commands/checkpoint.md contain ~/.claude/hooks/... path references.",
+        "proposed_fix": "Replace with: 'No Standard 2 script hardcoding violations apply; markdown hook references were checked under dangling-references and resolve to existing files.'",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Wording correction accepted. The references do exist and are not Standard 2 violations (Standard 2 applies to scripts, not markdown files), but the original evidence statement was factually incorrect. Updated in standards_passed."
+      }
+    ],
+    "feedback_incorporated": "Applied Codex's amplification of the concise-documentation location (now 33-169) and extended finding text. Applied Codex's correction of evidence wording for no-hardcoded-values. Rejected emoji/glyph english-only finding as out of scope for Standard 6 (which targets language text, not decorative Unicode). Rejected pre-existing scope concern because the orchestrator dispatched a full explicit 5-file audit without --changed-files scoping."
+  },
+  "status": "complete"
+}
