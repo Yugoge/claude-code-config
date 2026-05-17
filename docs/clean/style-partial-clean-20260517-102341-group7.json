@@ -1,0 +1,47 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": 7,
+  "files_audited": [
+    "scripts/analyze-folder-history.sh",
+    "scripts/analyze-git-edge-cases.sh",
+    "scripts/apply-permissions.sh",
+    "scripts/check-file-references.sh",
+    "scripts/check-overnight-reports.sh"
+  ],
+  "violations": [
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "scripts/check-overnight-reports.sh:31",
+      "finding": "Direct python3 call without venv activation: exec python3 \"$PY_SCRIPT\" --session-id \"$SESSION_ID\"",
+      "recommendation": "Activate venv before calling python: source \"$SCRIPT_DIR/../venv/bin/activate\" 2>/dev/null || source \"$SCRIPT_DIR/../.venv/bin/activate\" 2>/dev/null; then use 'python' instead of 'python3'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "scripts/check-overnight-reports.sh:34",
+      "finding": "Direct python3 call without venv activation: exec python3 \"$PY_SCRIPT\" \"$@\"",
+      "recommendation": "Activate venv before calling python: source \"$SCRIPT_DIR/../venv/bin/activate\" 2>/dev/null || source \"$SCRIPT_DIR/../.venv/bin/activate\" 2>/dev/null; then use 'python' instead of 'python3'"
+    }
+  ],
+  "standards_passed": [
+    "no-inline-code",
+    "no-hardcoded-values",
+    "integer-step-numbering",
+    "meaningful-naming",
+    "english-only",
+    "merge-similar-scripts",
+    "concise-documentation",
+    "parameterized-scripts",
+    "dangling-references",
+    "merge-conflicts"
+  ],
+  "codex_consult": {
+    "invoked": false,
+    "status": "not_requested",
+    "feedback_summary": null,
+    "findings": [],
+    "feedback_incorporated": null
+  },
+  "status": "complete"
+}
