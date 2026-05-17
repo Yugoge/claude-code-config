@@ -1,23 +1,27 @@
 {
   "request_id": "20260517-153856",
   "task_id": "20260517-153856",
-  "timestamp": "2026-05-17T16:20:00Z",
-  "iteration": 2,
+  "timestamp": "2026-05-17T16:55:00Z",
+  "iteration": 3,
   "mode": "ba_validation",
   "qa": {
     "status": "fail",
-    "verdict": "fail",
-    "overall_assessment": "BA addressed both prior objections (OBJ-1 wrong channel, OBJ-2 report-schema.json excluded). Dimensions 1-4 now pass. Two new blocking defects in dimension 5: (A) context-20260517-153856.json is invalid JSON (unescaped CJK curly-quote characters at line 7, python3 -m json.tool fails); (B) AC1 line 120 instructs direct $ref to finding_base which would strip finding_deterministic/contextual/aesthetic channel-specific constraints if followed literally. Minor non-blocking: AC6 lacks file-scoped verification recipe for dirty working tree.",
+    "overall_assessment": "Iteration 3 resolved OBJ-3 (JSON validity), OBJ-4 (allOf inheritance model), and OBJ-5 (AC6 two explicit git diff commands). Codex adversarial review (gpt-5.5, xhigh) surfaced three new blocking defects: (A) AC1 line 121 incorrectly claims finding_deterministic has additional required fields - the actual schema has NO required list in finding_deterministic allOf[1]; (B) AC1b WHEN clause only targets lines 243 and 255 but issues[] is also described as a canonical channel at line 316; (C) AC6 second check (git diff --quiet HEAD -- commands/dev.md agents/pm.md exits 0) will fail on a correct implementation because both files already have pre-existing working-tree modifications (exit code 1 confirmed).",
     "prior_objections_resolved": {
-      "OBJ-1": {
-        "original": "AC1 was targeting the wrong channel (prose example issues[] instead of report-schema.json). BA now targets skills/ui-shared/report-schema.json definitions.finding_base.",
+      "OBJ-3": {
+        "original": "context JSON invalid (CJK curly-quote characters at line 7).",
         "status": "resolved",
-        "verification": "AC1 now reads: 'GIVEN skills/ui-shared/report-schema.json definitions.finding_base / WHEN dev reads the finding_base schema / THEN location is a structured object...' — confirmed targeting finding_base in report-schema.json."
+        "verification": "python3 -m json.tool exits 0. CONFIRMED VALID."
       },
-      "OBJ-2": {
-        "original": "report-schema.json was excluded from scope while claiming machine-enforceability. BA now includes it in scope.",
+      "OBJ-4": {
+        "original": "AC1 line 120 instructed direct ref to finding_base which would strip channel-specific constraints.",
         "status": "resolved",
-        "verification": "report-schema.json is now listed as file 1 of 6 in scope (ticket:43-44), in affected_files, in files_to_modify, and in AC6 (ticket:155). R0 explicitly covers it as a prerequisite clause."
+        "verification": "AC1 line 120 now correctly describes allOf inheritance: new fields added ONLY to finding_base.properties/required; channel ref pointers NOT changed; typed definitions inherit via allOf. CONFIRMED."
+      },
+      "OBJ-5": {
+        "original": "AC6 had ambiguous diff recipe in dirty working tree.",
+        "status": "resolved",
+        "verification": "AC6 now has two explicit git diff commands. Check (2) has new defect -- see OBJ-6C."
       }
     },
     "dimensions_checked": [
@@ -26,161 +30,253 @@
       "investigation_completeness",
       "affected_file_accuracy",
       "spec_text_vs_execution_drift"
+    ],
+    "verified_against_complaint": true,
+    "passed_user_requirement": false,
+    "ac_alignment": false,
+    "out_of_scope_observations": [
+      {
+        "ts": "2026-05-17T16:55:00Z",
+        "file": "docs/dev/ticket-20260517-153856.md",
+        "line": null,
+        "observation": "Codex C5: AC3/AC4 do not add structured location to product-owner/user. Browser-only agents by design; accepted constraint per Edge Cases. Not a spec gap.",
+        "in_user_path": false,
+        "security_relevant": false
+      },
+      {
+        "ts": "2026-05-17T16:55:00Z",
+        "file": "docs/dev/ticket-20260517-153856.md",
+        "line": 51,
+        "observation": "Codex C6: SARIF v2.1.0 does not define location.selector as a literal field; selector is from axe-core. BA Contract C slightly overclaims field provenance. Minor accuracy issue in reference documentation only; does not affect ACs.",
+        "in_user_path": false,
+        "security_relevant": false
+      }
     ]
   },
   "objections": [
     {
-      "id": "OBJ-3",
+      "id": "OBJ-6A",
       "dimension": "spec_text_vs_execution_drift",
       "severity": "blocker",
-      "title": "context-20260517-153856.json is invalid JSON — dev cannot parse BA deliverable",
-      "claim": "BA produced a valid JSON context file consumable by the dev workflow",
-      "problem": "python3 -m json.tool docs/dev/context-20260517-153856.json fails: Expecting ',' delimiter: line 7 column 187. The requirement.original string at line 7 contains CJK curly-quote characters (U+201C U+201D) around the Chinese phrase inside a JSON string. These are not valid JSON and are not escaped. Dev workflow reads this file as structured input — parse failure blocks the cycle.",
-      "required_evidence": "BA must regenerate context-20260517-153856.json with valid JSON. Verify with: python3 -m json.tool docs/dev/context-20260517-153856.json && echo VALID.",
+      "title": "AC1 line 121 incorrectly asserts finding_deterministic has additional required fields",
+      "claim": "ticket:121: finding_deterministic typed definitions remain fully intact with their own additional required fields (axe_impact/computed_value/expected_value for deterministic; requires_human for contextual; category/severity_capped_at/advisory for aesthetic)",
+      "problem": "Confirmed via skills/ui-shared/report-schema.json inspection: finding_deterministic allOf[1] has a 'properties' key ONLY -- NO 'required' key. axe_impact, computed_value, expected_value are optional properties. finding_contextual allOf[1] DOES have required: [requires_human] and finding_aesthetic allOf[1] DOES have required: [category, severity_capped_at, advisory]. AC1 parenthetical incorrectly frames deterministic fields as required, contradicting the actual schema.",
+      "required_evidence": "BA must correct AC1 line 121 to accurately reflect that finding_deterministic allOf[1] has NO required list (optional properties only), while finding_contextual requires [requires_human] and finding_aesthetic requires [category, severity_capped_at, advisory].",
       "blocks_merge": true,
       "codex_confirmed": true,
       "evidence": {
-        "command": "python3 -m json.tool /dev/shm/dev-workspace/dot-claude/docs/dev/context-20260517-153856.json",
-        "output": "Expecting ',' delimiter: line 7 column 187 (char 346)",
-        "cause": "line 7 requirement.original string contains unescaped CJK curly quotes around the Chinese phrase"
+        "verification_result": "python3 json.load inspection: finding_deterministic allOf[0] keys=['$ref'], allOf[1] keys=['properties'] (no 'required' key in allOf[1])",
+        "contrast": "finding_contextual allOf[1] has required=['requires_human']; finding_aesthetic allOf[1] has required=['category','severity_capped_at','advisory']"
       }
     },
     {
-      "id": "OBJ-4",
+      "id": "OBJ-6B",
       "dimension": "spec_text_vs_execution_drift",
       "severity": "blocker",
-      "title": "AC1 line 120: direct $ref to finding_base would strip channel-specific schema constraints",
-      "claim": "AC1 ticket:120 says: 'all three canonical channels use $ref: \"#/definitions/finding_base\" so they inherit these fields'",
-      "problem": "Current schema routes channel arrays to finding_deterministic, finding_contextual, finding_aesthetic (each uses allOf to include finding_base). These channel-specific definitions enforce: finding_deterministic requires axe_impact, evidence_mode const 'deterministic', computed_value, expected_value; finding_contextual requires requires_human; finding_aesthetic requires category, severity_capped_at, advisory (the double-defense severity hard-cap). If dev follows AC1 literally and changes channel items to directly reference finding_base, all channel-specific required fields and constraints are removed. This is a regression that breaks schema-enforced quality gates. The intent (inherit new base fields) is correct; the mechanism (replace channel $refs) is wrong. The correct mechanism is adding fields to finding_base, which all three channel definitions already include via allOf.",
-      "required_evidence": "BA must reword AC1 line 120 to: 'AND the three canonical channel definitions (finding_deterministic, finding_contextual, finding_aesthetic) continue to reference finding_base via allOf — DO NOT replace channel $refs with direct $ref to finding_base. New base fields are inherited automatically via the existing allOf pattern.' The Technical Hints (ticket:163) already correctly state the approach — AC1 must be consistent with those hints.",
+      "title": "AC1b WHEN clause targets only lines 243 and 255 but issues[] canonical-channel language also appears at line 316",
+      "claim": "AC1b WHEN: WHEN dev reads line 243 and the example JSON block at line 255",
+      "problem": "agents/ui-specialist.md:316 also describes issues[] as one of the 6 canonical channels (in codex_consult output documentation section): 'The codex_consult field MUST appear inside the required single json fenced block as a top-level metadata sibling of the 6 canonical channels (app_understanding, live_testing, design_quality, quality_gate_results, issues[], design_enhancements[])'. A dev following the WHEN clause literally will fix lines 243 and 255 but not line 316. The THEN clause broadly says does NOT describe issues[] as a canonical top-level findings channel -- but WHEN anchors to only two lines. Line 316 will remain stale, causing AC1b THEN to fail during QA verification.",
+      "required_evidence": "BA must expand AC1b WHEN clause to include line 316, or broaden to cover all Output Format section and codex_consult documentation section occurrences.",
       "blocks_merge": true,
       "codex_confirmed": true,
       "evidence": {
-        "current_channel_items": {
-          "automated_findings": "skills/ui-shared/report-schema.json:86 — items: $ref finding_deterministic",
-          "contextual_findings": "skills/ui-shared/report-schema.json:91 — items: $ref finding_contextual",
-          "aesthetic_findings": "skills/ui-shared/report-schema.json:96 — items: $ref finding_aesthetic"
-        },
-        "channel_constraints_at_risk": {
-          "finding_deterministic": "lines 235-246: allOf includes axe_impact, computed_value, expected_value, evidence_mode const",
-          "finding_contextual": "lines 248-259: allOf requires requires_human",
-          "finding_aesthetic": "lines 261-274: allOf requires category, severity_capped_at, advisory — double-defense hard-cap"
-        },
-        "technical_hints_correct": "ticket:163: 'change location from type:string to structured object...add measured, expected, downstream_agent to finding_base.properties' — implies finding_base modification, not channel $ref replacement",
-        "ac1_conflicting_line": "ticket:120: 'use $ref: \"#/definitions/finding_base\" so they inherit these fields' — contradicts hints"
+        "line_316_text": "The codex_consult field MUST appear inside the required single json fenced block as a top-level metadata sibling of the 6 canonical channels (app_understanding, live_testing, design_quality, quality_gate_results, issues[], design_enhancements[])",
+        "grep_result": "grep -n 'canonical channels' agents/ui-specialist.md hits lines 243, 316 (plus issues[] at 255)"
       }
     },
     {
-      "id": "OBJ-5",
+      "id": "OBJ-6C",
       "dimension": "spec_text_vs_execution_drift",
-      "severity": "minor",
-      "title": "AC6 verification recipe ambiguous in dirty working tree",
-      "claim": "AC6 ticket:152-157: 'GIVEN git diff for this cycle / WHEN reviewed / THEN exactly these 6 files show changes'",
-      "problem": "Working tree has 31 pre-existing modified/untracked files (git status --short confirmed). Raw git diff will include all pre-existing changes, making 'exactly 6 files' unverifiable with that recipe. QA would need a file-scoped command to confirm the cycle only touched the 6 named files.",
-      "required_evidence": "BA should reword AC6 to: 'WHEN dev-introduced changes are verified by checking git diff HEAD -- <each of the 6 named files>, THEN each shows a diff AND git diff HEAD -- commands/dev.md returns empty AND git diff HEAD -- agents/pm.md returns empty'.",
-      "blocks_merge": false,
-      "codex_confirmed": true
+      "severity": "blocker",
+      "title": "AC6 second git diff check is a false-fail gate due to pre-existing working-tree changes",
+      "claim": "AC6: AND git diff --quiet HEAD -- commands/dev.md agents/pm.md exits 0",
+      "problem": "Both commands/dev.md and agents/pm.md already have pre-existing modifications in the working tree (git status shows both as M). Confirmed: git diff --quiet HEAD -- commands/dev.md agents/pm.md exits 1. If dev correctly does NOT touch these files during this cycle, AC6 second check still exits 1. False-fail gate on a correct implementation.",
+      "required_evidence": "BA must rewrite AC6 second check as commit-scoped verification: WHEN dev applies changes as an atomic commit, git show --name-only HEAD confirms neither commands/dev.md nor agents/pm.md was included in the commit.",
+      "blocks_merge": true,
+      "codex_confirmed": true,
+      "evidence": {
+        "command": "git diff --quiet HEAD -- commands/dev.md agents/pm.md; echo EXIT_CODE=$?",
+        "output": "EXIT_CODE=1",
+        "git_status": "Both M commands/dev.md and M agents/pm.md shown as modified in working tree"
+      }
     }
   ],
   "dimension_verdicts": {
     "evidence_quality": {
       "verdict": "pass",
       "verified_claims": [
-        "skills/ui-shared/report-schema.json:220 — location type:string (flat) — CONFIRMED via Read",
-        "finding_deterministic:242-243 retains computed_value/expected_value — CONFIRMED via Read",
-        "agents/ba.md no Specialist Findings Intake Protocol — CONFIRMED via grep (no files found)",
-        "agents/architect.md:312 location is flat string — CONFIRMED via Read",
-        "agents/product-owner.md:327-340 no observed_behavior/expected_behavior — CONFIRMED via Read",
-        "agents/user.md:427-442 no observed_behavior/expected_behavior — CONFIRMED via Read"
+        "skills/ui-shared/report-schema.json:220 location type:string confirmed via Read",
+        "finding_deterministic allOf[1] has no required list (optional properties only) confirmed via python3",
+        "context-20260517-153856.json valid JSON confirmed via python3 -m json.tool",
+        "agents/ba.md no Specialist Findings Intake Protocol confirmed via grep",
+        "agents/architect.md:312 location flat string confirmed via Read",
+        "agents/product-owner.md:327-340 no observed_behavior/expected_behavior confirmed via Read",
+        "agents/user.md:427-442 no observed_behavior/expected_behavior confirmed via Read"
       ]
     },
     "scope_alignment": {
       "verdict": "pass",
       "universal_scope_claims": [
-        "所有 specialist 与 BA: 4 specialists covered (report-schema.json + ui-specialist.md + architect.md + product-owner.md + user.md)",
-        "BA 消费侧: ba.md intake protocol included",
-        "同时建立 handoff contract: all 6 files in same cycle per AC6"
+        "all 4 specialists covered + report-schema.json as machine-enforcer",
+        "ba.md intake protocol included",
+        "all 6 files in same cycle per AC6",
+        "report-schema.json correctly derived as R0 prerequisite"
       ],
-      "codex_finding_2_disposition": "out_of_scope — commands/dev.md:232 already routes findings to BA; BA dispatch template is a template and orchestrators add context. Routing mechanism exists.",
-      "assessment": "Scope aligns with user universalist claim. No narrowing without authorization."
+      "assessment": "Scope covers all universalist user claims. commands/dev.md and agents/pm.md correctly excluded. No scope narrowing."
     },
     "investigation_completeness": {
-      "verdict": "pass",
-      "assessment": "BA verified all 6 file locations with direct Read and grep. SARIF v2.1.0 and axe-core provide authoritative expected state. No investigation deliverable was requested but skipped."
+      "verdict": "fail",
+      "reason": "BA identified issues[] stale wording at lines 243 and 255 but not at line 316 (codex_consult documentation section). AC1b WHEN clause was anchored to only two specific lines.",
+      "objection_ids": [
+        "OBJ-6B"
+      ]
     },
     "affected_file_accuracy": {
       "verdict": "pass",
       "files_verified": [
-        {"file": "skills/ui-shared/report-schema.json", "exists": true, "verified": "finding_base at lines 214-233, location type:string at line 220"},
-        {"file": "agents/ui-specialist.md", "exists": true, "verified": "line 243 prose + line 255 example confirmed"},
-        {"file": "agents/architect.md", "exists": true, "verified": "location flat string at line 312"},
-        {"file": "agents/product-owner.md", "exists": true, "verified": "no observed_behavior/expected_behavior at 327-340"},
-        {"file": "agents/user.md", "exists": true, "verified": "no observed_behavior/expected_behavior at 427-442"},
-        {"file": "agents/ba.md", "exists": true, "verified": "no Specialist Findings Intake Protocol — grep empty"}
+        {
+          "file": "skills/ui-shared/report-schema.json",
+          "exists": true,
+          "verified": "finding_base 214-233; finding_deterministic allOf[1] no required list confirmed"
+        },
+        {
+          "file": "agents/ui-specialist.md",
+          "exists": true,
+          "verified": "lines 243, 255, 316 all confirmed; line 316 stale wording not covered by AC1b"
+        },
+        {
+          "file": "agents/architect.md",
+          "exists": true,
+          "verified": "location flat string at line 312"
+        },
+        {
+          "file": "agents/product-owner.md",
+          "exists": true,
+          "verified": "no observed_behavior/expected_behavior at 327-340"
+        },
+        {
+          "file": "agents/user.md",
+          "exists": true,
+          "verified": "no observed_behavior/expected_behavior at 427-442"
+        },
+        {
+          "file": "agents/ba.md",
+          "exists": true,
+          "verified": "no Specialist Findings Intake Protocol grep empty"
+        }
       ]
     },
     "spec_text_vs_execution_drift": {
       "verdict": "fail",
-      "objection_ids": ["OBJ-3", "OBJ-4", "OBJ-5"],
-      "blocking_objections": ["OBJ-3", "OBJ-4"],
-      "non_blocking_objections": ["OBJ-5"]
+      "objection_ids": [
+        "OBJ-6A",
+        "OBJ-6C"
+      ],
+      "details": [
+        "OBJ-6A: AC1 line 121 incorrectly states finding_deterministic has additional required fields -- allOf[1] has no required key",
+        "OBJ-6C: AC6 second check is false-fail gate due to pre-existing working-tree changes to commands/dev.md and agents/pm.md"
+      ]
     }
   },
   "passing_items": [
-    "OBJ-1 resolved: AC1 now targets report-schema.json finding_base",
-    "OBJ-2 resolved: report-schema.json now in scope as R0 and in AC6",
-    "All 6 file paths verified with accurate line numbers",
-    "Scope covers all 4 specialists + ba.md — no missing agents",
-    "commands/dev.md and agents/pm.md correctly excluded",
-    "SARIF v2.1.0 appropriate tier_1_external reference",
-    "Edge cases documented: user agent browser-only nullable, architect breaking change, additive-only for prose files",
-    "Technical Hints correctly describe allOf inheritance approach"
+    "OBJ-3 resolved: context JSON valid",
+    "OBJ-4 resolved: AC1 allOf inheritance model correct",
+    "OBJ-5 resolved in principle: two explicit git diff commands in AC6",
+    "All 6 files exist with accurate line numbers and content",
+    "Scope: 4 specialists + ba.md + report-schema.json -- no missing agents",
+    "Edge cases documented: user agent nullable file, architect BREAKING change, additive-only",
+    "Technical Hints correctly describe allOf inheritance and measured vs computed_value",
+    "AC2 through AC5 well-formed and independently verifiable",
+    "R0-R4 requirements decomposition maps cleanly to verbatim user need clauses",
+    "context JSON fully valid and parseable"
   ],
   "failing_items": [
-    "context-20260517-153856.json is not valid JSON (CJK curly quotes at line 7 column 187)",
-    "AC1 line 120 $ref instruction would strip channel-specific schema constraints if followed literally",
-    "AC6 verification recipe ambiguous in dirty working tree (minor)"
+    "AC1 line 121: incorrectly claims finding_deterministic has required fields (axe_impact/computed_value/expected_value) -- allOf[1] has no required key (optional properties only)",
+    "AC1b WHEN clause: only covers lines 243 and 255 -- misses stale canonical-channel language at line 316",
+    "AC6 second check: git diff --quiet exits 1 due to pre-existing changes to commands/dev.md and agents/pm.md -- false-fail gate"
   ],
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex (gpt-5.5, xhigh) returned 5 findings: (1) BLOCKER context JSON invalid; (2) BLOCKER commands/dev.md dispatch template missing specialist_findings; (3) MAJOR AC1 $ref wording breaks channel schemas; (4) MAJOR nullable location fields non-actionable; (5) MAJOR AC6 dirty tree. QA incorporated findings 1, 3, 5 as OBJ-3, OBJ-4, OBJ-5. Findings 2, 4 classified out_of_scope.",
-    "feedback_incorporated": "OBJ-3, OBJ-4, OBJ-5 from codex findings 1, 3, 5. Findings 2 and 4 logged as observations only.",
-    "codex_observations_out_of_scope": [
+    "model": "gpt-5.5",
+    "reasoning_effort": "xhigh",
+    "feedback_summary": "Codex returned 7 findings. 3 incorporated as blockers: (C1) AC1 line 121 falsely claims finding_deterministic has additional required fields -- confirmed no required list; (C2) AC1b WHEN clause misses line 316; (C4) AC6 second check exits 1 due to pre-existing changes. 1 logged as observation (C3: location subfields not explicitly required -- acceptable). 1 out_of_scope (C5: PO/user location shape -- accepted design). 2 observation_only (C6: SARIF overclaims; C7: BA-QA FAIL artifact -- updated by this report).",
+    "findings_classified": [
       {
-        "codex_finding": "2 — commands/dev.md dispatch template missing specialist_findings payload",
-        "reason": "Routing mechanism already documented at commands/dev.md:232. Expanding scope to commands/dev.md exceeds user-stated requirement."
+        "codex_id": "C1",
+        "codex_severity": "BLOCKER",
+        "classification": "in_scope_real_bug",
+        "qa_objection_id": "OBJ-6A",
+        "disposition": "incorporated as OBJ-6A"
       },
       {
-        "codex_finding": "4 — nullable location subfields non-actionable without location_unavailable_reason",
-        "reason": "User requirement is to establish fields. Nullability for browser-only agents is documented edge case. BA fast-fail (AC5/R5) handles intake validation. Adding location_unavailable_reason is beyond stated scope."
+        "codex_id": "C2",
+        "codex_severity": "BLOCKER",
+        "classification": "in_scope_real_bug",
+        "qa_objection_id": "OBJ-6B",
+        "disposition": "incorporated as OBJ-6B"
+      },
+      {
+        "codex_id": "C3",
+        "codex_severity": "MAJOR",
+        "classification": "in_scope_minor",
+        "qa_objection_id": null,
+        "disposition": "logged as observation -- not blocking. All location sub-fields nullable by design; spec intent is unambiguous from prose."
+      },
+      {
+        "codex_id": "C4",
+        "codex_severity": "MAJOR",
+        "classification": "in_scope_real_bug",
+        "qa_objection_id": "OBJ-6C",
+        "disposition": "incorporated as OBJ-6C"
+      },
+      {
+        "codex_id": "C5",
+        "codex_severity": "MAJOR",
+        "classification": "out_of_scope",
+        "qa_objection_id": null,
+        "disposition": "logged in out_of_scope_observations. PO/user browser-only by design; accepted constraint."
+      },
+      {
+        "codex_id": "C6",
+        "codex_severity": "MINOR",
+        "classification": "observation_only",
+        "qa_objection_id": null,
+        "disposition": "logged in out_of_scope_observations"
+      },
+      {
+        "codex_id": "C7",
+        "codex_severity": "MINOR",
+        "classification": "not_a_bug",
+        "qa_objection_id": null,
+        "disposition": "resolved by this report iteration"
       }
-    ]
+    ],
+    "feedback_incorporated": "OBJ-6A from C1, OBJ-6B from C2, OBJ-6C from C4. C3 logged as observation. C5/C6 in out_of_scope_observations. C7 resolved."
   },
   "iteration_needed": true,
   "refined_context": {
     "required_ba_changes": [
-      "CRITICAL: Regenerate context-20260517-153856.json as valid JSON — escape CJK curly quotes at line 7. Verify with python3 -m json.tool.",
-      "CRITICAL: Reword AC1 line 120 — change 'use $ref: finding_base directly' to 'retain channel $refs to finding_deterministic/contextual/aesthetic; these allOf-include finding_base so new base fields are inherited without removing channel-specific constraints'.",
-      "MINOR: Reword AC6 to use file-scoped git diff recipe: 'git diff HEAD -- <each of 6 files>' rather than 'git diff for this cycle'."
+      "CRITICAL (OBJ-6A): Fix AC1 line 121 -- change parenthetical to accurately reflect that finding_deterministic allOf[1] has NO required list. Accurate: AND finding_deterministic typed definition remains fully intact with axe_impact/computed_value/expected_value as optional properties in allOf[1] (no additional required list); finding_contextual allOf[1] retains required:[requires_human]; finding_aesthetic allOf[1] retains required:[category,severity_capped_at,advisory]",
+      "CRITICAL (OBJ-6B): Expand AC1b WHEN clause to include line 316. Change 'WHEN dev reads line 243 and the example JSON block at line 255' to also cover the codex_consult output documentation section (around line 316) so all three stale issues[]-as-canonical-channel occurrences are in scope.",
+      "CRITICAL (OBJ-6C): Rewrite AC6 second check as commit-scoped verification: WHEN dev applies this cycle changes as an atomic commit, git show --name-only HEAD confirms neither commands/dev.md nor agents/pm.md was included in the commit. Replace the git diff --quiet check which is a false-fail gate in a dirty working tree."
     ],
     "items_not_requiring_change": [
-      "R0 (report-schema.json in scope) — correct",
-      "R1 (ui-specialist.md prose) — correct",
-      "R2 (architect.md) — correct, breaking change documented",
-      "R3 (product-owner.md) — correct",
-      "R4 (user.md nullable file) — correct",
-      "R5 (ba.md intake protocol) — correct",
-      "AC2 through AC5 — correct as written",
-      "Technical Hints section — correctly describes allOf inheritance approach"
+      "OBJ-3 fix confirmed valid",
+      "OBJ-4 fix confirmed correct",
+      "OBJ-5 fix correct in principle; AC6 recipe needs rewrite only (OBJ-6C)",
+      "R0-R4 requirements decomposition -- all correct",
+      "AC2 through AC5 -- all well-formed",
+      "Technical Hints section -- correct",
+      "Edge Cases section -- correct"
     ]
   },
   "summary": {
-    "critical_issues": 1,
-    "major_issues": 1,
-    "minor_issues": 1,
-    "blocking_objections": 2,
-    "non_blocking_objections": 1,
-    "release_recommendation": "reject — fix invalid JSON deliverable and AC1 $ref wording before dev starts"
+    "critical_issues": 0,
+    "major_issues": 3,
+    "minor_issues": 0,
+    "blocking_objections": 3,
+    "non_blocking_objections": 0,
+    "release_recommendation": "reject -- fix three blocking defects (AC1 line 121, AC1b line 316 coverage, AC6 dirty-tree false-fail) before dev starts"
   }
 }
