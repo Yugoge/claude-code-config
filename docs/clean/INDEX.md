@@ -1,7 +1,7 @@
 # clean
 
-*Last updated: 2026-05-17T15:20:29Z*
-**Total entries**: 57
+*Last updated: 2026-05-17T15:25:56Z*
+**Total entries**: 58
 **Convention**: kebab
 
 ## Tree
@@ -63,6 +63,7 @@ clean/
 ├── `style-report-clean-20260107-101825.json` - json config
 ├── `style-report-clean-20260108-130050.json` - json config
 ├── `style-report-clean-20260517-102341.json` - json config
+├── `style-report-extended-clean-20260517-102341.json` - json config
 └── `user-approvals-clean-20260107-101825.json` - json config
 ```
 
