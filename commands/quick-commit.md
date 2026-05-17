@@ -106,5 +106,6 @@ Co-Authored-By: Happy <yesreply@happy.engineering>
 3. Stage files with `git add`
 4. Commit with generated message using heredoc format
 5. Confirm success with `git status`
+6. To publish to remote: run `/push`
 
 If user provided $ARGUMENTS, use as message prefix or type.

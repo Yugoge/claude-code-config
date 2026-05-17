@@ -58,3 +58,4 @@ This command helps you rapidly create functional prototypes by:
 2. Select libraries from: React + Tailwind (essential); SheetJS/PapaParse/Math.js (data); Recharts/Plotly/D3 (charts); TensorFlow.js/Three.js/Tone.js (special).
 3. Generate a complete HTML file using the React artifact template with all required CDN libraries, full component code, inline styles, and clear comments.
 4. Save as `{prototype-name}.html` and explain file location, key features, usage, customization points, and possible extensions.
+5. To commit and publish: `git add {prototype-name}.html && git commit -m "feat: add {prototype-name} prototype"`, then run `/push`.
