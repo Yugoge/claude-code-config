@@ -1137,10 +1137,10 @@ When PM receives specialist findings (from ui-specialist, architect, product-own
 
 | Specialist | Required for triage/test-plan use | Notes |
 |---|---|---|
-| ui-specialist | `location.url` OR `location.selector`, `measured`, `expected` | `location.selector` enables targeted browser test; `measured`/`expected` define the pass/fail criterion |
-| architect | `location.file`, `measured`, `expected` | Structural findings without file + measured/expected cannot be assigned a concrete test scenario |
-| product-owner | `observed_behavior`, `expected_behavior` | `location.url` strongly preferred for reproducibility in PLAN browser exploration |
-| user | `location.url`, `observed_behavior`, `expected_behavior` | `location.file` MUST be null (browser-only); `location.url` is required so PM can reproduce the scenario during PLAN mode |
+| ui-specialist | `location.url` OR `location.selector`, `measured`, `expected`, `downstream_agent: "ba"` | `location.selector` enables targeted browser test; `measured`/`expected` define the pass/fail criterion |
+| architect | `location.file`, `location.line`, `measured`, `expected`, `downstream_agent: "ba"` | `location.url` optional; `location.line` needed for precise test scenario linkage to source |
+| product-owner | `observed_behavior`, `expected_behavior`, `downstream_agent: "ba"` | `location.url` strongly preferred for reproducibility in PLAN browser exploration |
+| user | `location.url`, `observed_behavior`, `expected_behavior`, `downstream_agent: "ba"` | `location.file` MUST be null (browser-only); `location.url` is required so PM can reproduce the scenario during PLAN mode |
 
 ### tier_3_tainted Classification
 
