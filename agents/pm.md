@@ -622,7 +622,7 @@ After Step 3 (Live-Evidence) and BEFORE Step 5 (Tier Classification), classify e
 **Skip:**
 - Previously failed 3+ times (from state file `failed_attempts`)
 
-### Step 3: Deduplicate Across Agents
+### Step 6: Deduplicate Across Agents
 
 Same file + same description = single entry. Merge into one
 canonical issue with an `agents_flagged` array listing all agents
