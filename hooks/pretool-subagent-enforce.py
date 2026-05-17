@@ -35,6 +35,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from lib import contract_runtime  # noqa: E402
+from lib.subagent import is_subagent_context  # noqa: E402
+from lib.allowlist import read_grant          # noqa: E402
 
 
 def _parse_stdin() -> dict:
@@ -44,45 +46,10 @@ def _parse_stdin() -> dict:
         return {}
 
 
-def _is_subagent(data: dict) -> bool:
-    return bool(data.get('agent_id'))
-
-
 def _has_consent(session_id: str) -> bool:
     try:
         flag = Path(f'/tmp/claude-orchestrator-consent-{session_id}.flag')
         return flag.exists() and flag.read_text().strip() == 'true'
-    except Exception:
-        return False
-
-
-def _check_and_consume_allowlist(session_id: str) -> bool:
-    """Check and consume /allow grant for Agent tool calls."""
-    try:
-        import fcntl
-        import json as _json
-        flag_path = Path(f'/tmp/claude-bash-allowlist-{session_id}.json')
-        with open(flag_path, 'r+') as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
-            try:
-                grant = _json.load(fh)
-            except Exception:
-                return False
-            pattern = grant.get('pattern', '')
-            if not isinstance(pattern, str) or not pattern:
-                return False
-            is_regex = grant.get('is_regex', False)
-            if is_regex:
-                import re as _re
-                matched = bool(_re.search(pattern, 'Agent'))
-            else:
-                matched = pattern == 'Agent' or pattern in 'Agent'
-            if matched:
-                os.unlink(flag_path)
-                return True
-            return False
-    except (FileNotFoundError, OSError):
-        return False
     except Exception:
         return False
 
@@ -240,11 +207,11 @@ def _main() -> None:
     session_id, cycle_id, state = _resolve_session_and_cycle(stdin_data)
 
     # /do bypass: main-agent-only
-    if not _is_subagent(stdin_data) and _has_consent(session_id):
+    if not is_subagent_context(stdin_data) and _has_consent(session_id):
         sys.exit(0)
 
     # /allow bypass: main-agent-only
-    if not _is_subagent(stdin_data) and _check_and_consume_allowlist(session_id):
+    if not is_subagent_context(stdin_data) and read_grant("Agent", session_id):
         sys.exit(0)
 
     contract = contract_runtime.load_contract(session_id, cycle_id)

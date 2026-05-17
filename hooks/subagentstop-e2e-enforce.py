@@ -27,6 +27,7 @@ Exit codes:
 import glob
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -57,9 +58,9 @@ def _read_json(path: Path) -> dict:
 def _find_latest_qa_report(project_dir: str, dev_session_id: str | None = None) -> Path | None:
     """Find the most relevant QA report for the current session.
 
-    If dev_session_id is provided (e.g. "dev-20260516-161724"), prefer reports
-    whose internal task_id/request_id matches the session timestamp portion.
-    Falls back to latest lexicographic match when no session-correlated report found.
+    If dev_session_id is provided (e.g. "dev-20260516-161724"), return only a
+    session-correlated report. Returns None if no correlated report is found or
+    if session_ts cannot be extracted. No global fallback when session ID is present.
     """
     pattern = os.path.join(project_dir, "docs", "dev", "qa-report-*.json")
     matches = glob.glob(pattern)
@@ -68,12 +69,14 @@ def _find_latest_qa_report(project_dir: str, dev_session_id: str | None = None) 
     # Sort by filename (timestamp-based names sort chronologically)
     matches.sort()
 
-    # Try to find a session-correlated report first
     if dev_session_id:
         # dev_session_id format: "dev-YYYYMMDD-HHMMSS"
-        # qa-report names: "qa-report-YYYYMMDD-HHMMSS.json"
-        # Strip "dev-" prefix to get the timestamp portion for correlation
-        session_ts = dev_session_id.removeprefix("dev-")
+        # Extract YYYYMMDD-HHMMSS portion from any session ID format
+        _m = re.search(r'\d{8}-\d{6}', dev_session_id)
+        if not _m:
+            # Cannot correlate without a timestamp; fail closed — do not guess
+            return None
+        session_ts = _m.group()
         # Check by filename match first (fastest)
         for p in reversed(matches):
             fname = os.path.basename(p)
@@ -88,9 +91,10 @@ def _find_latest_qa_report(project_dir: str, dev_session_id: str | None = None) 
                     return Path(p)
             except Exception:
                 continue
-
-    # Fallback: latest by filename
-    return Path(matches[-1])
+        # No correlated report found; do not fall back to unrelated sessions
+        return None
+    # dev_session_id is None — legacy/direct-call mode (dead code in enforcement path)
+    return Path(matches[-1]) if matches else None
 
 
 def main() -> None:
@@ -136,6 +140,14 @@ def main() -> None:
     if not enforce_data.get("enabled"):
         # Enforcement explicitly disabled
         sys.exit(0)
+
+    # Read qa_mode from authoritative sentinel (set by orchestrator before dispatch)
+    qa_sentinel_path = (
+        Path(project_dir) / ".claude" / "dev-registry" / dev_session_id / "qa.json"
+    )
+    qa_sentinel = _read_json(qa_sentinel_path)
+    if (qa_sentinel or {}).get("qa_mode") == "ba_validation":
+        sys.exit(0)  # BA-validation QA: no E2E obligation; role confirmed by sentinel
 
     # Find QA report to check e2e_enforcement field (prefer session-correlated)
     qa_report_path = _find_latest_qa_report(project_dir, dev_session_id)

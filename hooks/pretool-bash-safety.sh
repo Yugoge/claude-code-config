@@ -299,14 +299,8 @@ try:
         print('NO_MATCH')
         sys.exit(0)
 
-    # Atomic consume: unlink flag while still holding the lock.
-    try:
-        os.unlink(flag_file)
-    except FileNotFoundError:
-        print('NO_FLAG')
-        sys.exit(0)
-
     # Emit structured result for shell wrapper to parse and log.
+    # Consume is deferred to posttool-allowlist-consume.py (PostToolUse).
     # Escape single quotes in matched_subcmd for safe shell consumption.
     print('CONSUMED\t{}\t{}\t{}'.format(
         pattern,
@@ -340,7 +334,7 @@ PYEOF
       matched_sub="${rest#*$'\t'}"
       mkdir -p "$(dirname "$CONSENT_LOG")"
       echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$sid CONSUMED pattern='$pattern' is_regex=$is_regex matched_subcmd='$matched_sub' full_cmd='$cmd'" >> "$CONSENT_LOG"
-      echo "[allow] One-shot bypass consumed for pattern='$pattern' (matched subcommand: '$matched_sub'). Command will proceed." >&2
+      echo "[allow] Grant matched for pattern='$pattern' (matched subcommand: '$matched_sub'). consume deferred to PostToolUse. Command will proceed." >&2
       # DEFECT 3a fix iter-2 (task-id 20260509-113838): emit the canonical Claude
       # Code PreToolUse approval JSON to stdout. Field shape verified locally at
       # /root/.claude-cold.backup/2026-05-06/projects/-dev-shm-dev-workspace-dot-claude/

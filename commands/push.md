@@ -5,11 +5,9 @@ disable-model-invocation: true
 
 # Push Command
 
-`/push` is the validated wrapper for normal branch publication. Under the
-always-on git privilege guard (`pretool-git-privilege-guard.py`), the wrapper
-script `~/.claude/hooks/push.sh` is the only authorized path that produces a
-valid push grant — every other `git push` invocation (including inline-env
-attempts) is rejected by the guard.
+`/push` is the validated wrapper for normal branch publication. Note: pretool-git-privilege-guard.py is currently UNREGISTERED from settings.json — agents may freely git commit. The guard file exists at 655 lines but has no hook registration. Re-registration requires a separate cycle. The wrapper
+script `~/.claude/hooks/push.sh` produces a valid push grant for use when
+the guard is eventually re-registered.
 
 The slash entry has `disable-model-invocation: true` to prevent the model
 from autonomously self-dispatching `/push` via SlashCommand. It does NOT
@@ -54,11 +52,36 @@ accepts only an optional remote and `--auto` for non-interactive lock handling.
   `refs/backups/claude/<branch>/<short-sha>` recovery refs. It never publishes
   `refs/heads/<branch>` in the background.
 
+## Session commit prerequisite (push-gate)
+
+`/push` requires a valid push-gate token written by a prior `/commit` in this session.
+
+Token location: `/tmp/agentic-commit/push/<repo-hash>/<branch-encoded>.json`
+
+- `repo-hash` = `sha256(os.path.realpath(repo_root)).hexdigest()[:16]`
+- `branch-encoded` = branch name with `/` replaced by `__`
+- Token content: `{"commit_sha": "<sha>", "branch": "<branch>", "repo_root": "<root>", "expires_at": "<ISO+24h>"}`
+
+**Rejection conditions** (push is blocked if any hold):
+- Token file is absent (no `/commit` ran in this session)
+- Token `expires_at` field is absent, unparsable, or earlier than or equal to current UTC time
+- Token `commit_sha` does not match current `git rev-parse HEAD` (HEAD moved since commit)
+
+**Resolution**: run `/commit [<task-id>]` first. The `changelog-analyst` subagent writes
+the token after a successful real-branch commit. The token is consumed (deleted) after
+a successful push.
+
+**Forward compatibility note**: `pretool-git-privilege-guard.py` is currently UNREGISTERED
+from `settings.json`. When it is eventually re-registered (separate future cycle), that
+cycle MUST first extend `BLESSED_BRIDGE_RE` to include the agentic commit message patterns
+before re-registering, or all changelog-analyst commits will be silently blocked.
+
 ## Pre-conditions for success
 
 - On a real branch.
 - Branch has commits ahead of upstream, or has no upstream yet.
 - The selected remote exists locally.
+- A valid push-gate token exists at the path above (see Session commit prerequisite).
 
 ## Exit codes
 
@@ -71,4 +94,4 @@ accepts only an optional remote and `--auto` for non-interactive lock handling.
 ## Related
 
 - `/commit <task-id>` — automatic semantic commit for a closed task.
-- Direct `git push` — blocked by the privilege guard in agent context.
+- Direct `git push` — not currently blocked (privilege guard is unregistered); use `/push` via the wrapper script as the conventional path.

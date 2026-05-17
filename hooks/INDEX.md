@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-16T20:22:19Z*
-**Total entries**: 114
+*Last updated: 2026-05-17T08:03:14Z*
+**Total entries**: 117
 **Convention**: kebab
 
 ## Tree
@@ -23,6 +23,7 @@ hooks/
 │   └── `pre-commit` - unknown file
 ├── lib/
 │   ├── `agent_resolver.py` - Refactored from pretool-subagent-code-block.py::_find_agent_type so that
+│   ├── `allowlist.py` - Single source of truth for read_grant() — the check-only (no delete)
 │   ├── `bash_write_targets.py` - Provides two public functions used by tool-policy and overnight-hook-guard:
 │   ├── `checkpoint-core.sh` - ============================================================================
 │   ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.
@@ -31,6 +32,7 @@ hooks/
 │   ├── `policy_registry.py` - Reads /root/.claude/policies/tool-policy.v1.json and provides a single
 │   ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
 │   ├── `specialist_yield.py` - Public API:
+│   ├── `subagent.py` - Single source of truth for is_subagent_context() and its supporting
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 ├── tests/
 │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
@@ -52,6 +54,7 @@ hooks/
 ├── `notification-idle-overnight.py` - Notification hook: Observe overnight idle events
 ├── `post-commit-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
 ├── `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
+├── `posttool-allowlist-consume.py` - PostToolUse Hook: /allow grant consumption
 ├── `posttool-codex-skill-ledger.py` - Fires on every PostToolUse for the Skill tool. When tool_input.skill == "codex",
 ├── `posttool-command-frontmatter-validate.py` - PostToolUse Hook: Validate .claude/commands/*.md frontmatter structure
 ├── `posttool-doc-sync.py` - PostToolUse Hook: Auto-sync INDEX.md and CLAUDE.md when structural files change

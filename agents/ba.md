@@ -1228,7 +1228,7 @@ If you are invoked under a `/spec`-driven workflow (the orchestrator passes a no
 
 ### cp-state lifecycle SOP (canonical path)
 
-All cp-state mutations go through `python3 /root/.claude/scripts/spec-check.py`. The five subcommands:
+All cp-state mutations go through `source "${CLAUDE_HOME:-$HOME/.claude}/venv/bin/activate" && python3 "${CLAUDE_HOME:-$HOME/.claude}/scripts/spec-check.py"`. The five subcommands:
 
 | Subcommand | Purpose |
 |---|---|
@@ -1244,7 +1244,7 @@ All cp-state mutations go through `python3 /root/.claude/scripts/spec-check.py`.
 
 **During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it:
 ```bash
-python3 /root/.claude/scripts/spec-check.py mark \
+source "${CLAUDE_HOME:-$HOME/.claude}/venv/bin/activate" && python3 "${CLAUDE_HOME:-$HOME/.claude}/scripts/spec-check.py" mark \
   --spec-id <SPEC_ID> \
   --agent ba \
   --agent-id "$CLAUDE_AGENT_ID" \
@@ -1253,7 +1253,7 @@ python3 /root/.claude/scripts/spec-check.py mark \
 
 If a checkpoint legitimately does not apply to this run, waive it (auto-text records actor + ISO timestamp):
 ```bash
-python3 /root/.claude/scripts/spec-check.py waive \
+source "${CLAUDE_HOME:-$HOME/.claude}/venv/bin/activate" && python3 "${CLAUDE_HOME:-$HOME/.claude}/scripts/spec-check.py" waive \
   --spec-id <SPEC_ID> \
   --agent ba \
   --agent-id "$CLAUDE_AGENT_ID" \

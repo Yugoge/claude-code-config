@@ -168,7 +168,7 @@ def _check_and_consume_git_allowlist(command: str, data: dict) -> bool:
             else:
                 matched = pattern in command
             if matched:
-                os.unlink(flag_path)
+                sys.stderr.write(f"[ALLOW] grant matched, consume deferred to PostToolUse\n")
                 return True
             return False
     except (FileNotFoundError, OSError):
@@ -423,11 +423,21 @@ def _block_default_deny_commit(msg):
     )
 
 
-def _evaluate_commit(command, sid):
+def _evaluate_commit(command, data):
     # AC-A12: blessed-bridge regex commit STILL ALLOWED (regression).
     msg = _extract_commit_message(command)
     if msg and BLESSED_BRIDGE_RE.search(msg):
         return
+    # Grant-file mechanism (Option C — guard UNREGISTERED; runs when re-registered):
+    # M1 of task 20260517-064431: sid extracted from data, matching _evaluate_merge pattern.
+    sid = _get_session_id(data)
+    if sid:
+        grant_path, grant = _find_grant('commit', sid)
+        if grant is not None:
+            # Validate expiry; allow and consume on valid grant.
+            if not _end_time_passed(grant.get('expires_at', '')):
+                _unlink_grant(grant_path)
+                return
     # AC-A13: default-deny all other agent git commit calls.
     _block_default_deny_commit(msg)
 
@@ -622,7 +632,7 @@ def _evaluate_command(command, data):
     if _looks_like_git_merge(command):
         _evaluate_merge(command, data)
     if _looks_like_git_commit(command):
-        _evaluate_commit(command, sid)
+        _evaluate_commit(command, data)
 
 
 def main():
