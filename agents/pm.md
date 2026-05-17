@@ -842,7 +842,7 @@ When you detect a false-PASS, set:
 
 **Reference precedent (do not repeat)**: Session 21d24e89 cycles 1+2 had 5 PASS / 1 WARNING verdicts across 5 pipelines with cumulative 14 UI renderers shipped — yet 0 live screenshots of those renderers were captured. This was the false-PASS pattern at its worst. RETRO must catch this BEFORE it carries forward.
 
-### Step 6: Final Summary (if FINAL_CYCLE: true)
+### Step 8: Final Summary (if FINAL_CYCLE: true)
 
 If this is the last cycle, add `final_summary` with aggregate
 stats across all cycles.
