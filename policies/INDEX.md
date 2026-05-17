@@ -1,14 +1,15 @@
 # policies
 
-*Last updated: 2026-05-09T17:45:00Z*
-**Total entries**: 2
+*Last updated: 2026-05-17T21:51:46Z*
+**Total entries**: 3
 **Convention**: kebab
 
 ## Tree
 ```
 policies/
 ├── `specialist-degradation.v1.json` - json config
-└── `tool-policy.v1.json` - json config
+├── `tool-policy.v1.json` - json config
+└── `tool-policy.v1.json.bak.1778564751` - 1778564751 file
 ```
 
 ---

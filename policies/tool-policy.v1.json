@@ -788,6 +788,33 @@
         "*/docs/dev/*",
         "*/tmp/claude-scratch/general-purpose/"
       ]
+    },
+    "changelog-analyst": {
+      "allowed_tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Write"
+      ],
+      "allowed_write_path_prefixes": [
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/tmp/claude-scratch/changelog-analyst/",
+        "/tmp/*",
+        "/var/tmp/*"
+      ],
+      "denied_write_path_prefixes": [
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json"
+      ],
+      "rationale": "changelog-analyst: git commit operations; reads dev-artifacts, stages and commits source changes via Bash (git add/commit); writes push-gate token to /tmp/agentic-commit/push/; no write access to protected infra"
     }
   }
 }

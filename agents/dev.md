@@ -107,7 +107,7 @@ The orchestrator provides file paths only. You must read:
 
 2. **BA Spec** (`docs/dev/ticket-<timestamp>.md`, legacy: `docs/dev/ba-spec-<timestamp>.md`) - Markdown specification with acceptance criteria
 
-3. **User requirement document** (`docs/dev/user-requirement-<DEV_SESSION_ID>.md`) - Verbatim user need (optional field; present when dispatched via /dev-command or /dev-overnight)
+3. **User requirement document** (`docs/dev/user-requirement-<DEV_SESSION_ID>.md`) - Verbatim user need (present for all /dev-family commands (/dev, /dev-command, /dev-overnight))
 
 If `User requirement document:` is present in your dispatch prompt and non-null, read this file before relying on derived context or spec summaries; treat it as the authoritative verbatim user need. The orchestrator may have paraphrased the requirement — this document is the source-of-truth fallback.
 
