@@ -79,18 +79,29 @@ Note large diffs (>500 lines changed) as an informational warning.
 
 ### Phase 4: Conflict marker pre-check
 
+Use `git diff --check` which is designed to detect conflict markers and other whitespace issues:
+
 ```bash
-git diff -U0 "${DEFAULT_BRANCH}...${RESOLVED_BRANCH}" | grep -c "^[<>|=]\{7\}" || true
+git diff --check "${DEFAULT_BRANCH}...${RESOLVED_BRANCH}" 2>&1 || CONFLICT_MARKER_FOUND=true
 ```
 
-If conflict markers are detected in the diff content, add RISK: "Possible pre-existing conflict markers detected in diff — review before merging".
+If `git diff --check` exits non-zero: add RISK "Conflict markers or whitespace errors detected in diff — review before merging" and set `verdict=blocked`.
+
+As a secondary check, also scan raw diff for conflict marker patterns in content lines (which start with `+` or `-` in diff output):
+
+```bash
+git diff "${DEFAULT_BRANCH}...${RESOLVED_BRANCH}" | grep -E "^[+-][<>|=]{7}" | grep -v "^---\|^+++\|^@@" || true
+```
+
+If matches found: set `verdict=blocked`.
 
 Check for unresolved merge state:
 ```bash
-test -f ".git/MERGE_HEAD" && echo "MERGE_HEAD_EXISTS"
+MERGE_HEAD_PATH=$(git rev-parse --git-path MERGE_HEAD 2>/dev/null || echo ".git/MERGE_HEAD")
+test -f "${MERGE_HEAD_PATH}" && echo "MERGE_HEAD_EXISTS"
 ```
 
-If MERGE_HEAD exists: add RISK "Unresolved merge state detected (.git/MERGE_HEAD exists) — complete or abort the current merge before running /merge" and set `verdict=blocked`.
+If MERGE_HEAD exists: add RISK "Unresolved merge state detected (MERGE_HEAD exists) — complete or abort the current merge before running /merge" and set `verdict=blocked`.
 
 ### Phase 5: Overnight-state consistency check (read-only validation)
 
