@@ -18,7 +18,7 @@ No arguments. Operates on every `overnight-state-*.json` under `.claude/`.
 ## What it does
 
 1. Backdates `end_time` on every active overnight-state file so `stop-overnight-timelock.py` releases.
-2. Marks every todo in `~/.claude/todos/<sid>-agent-<sid>.json` as `completed` so `stop-workflow-enforce.py` releases.
+2. Marks every todo in `~/.claude/todos/<sid>-agent-<sid>.json` as `completed` so the workflow-enforce hook releases.
 3. Sets `current_phase: completed` on each state file.
 
 After this, the next stop attempt succeeds.
