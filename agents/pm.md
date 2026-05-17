@@ -818,7 +818,7 @@ Set `qa_rerun_required: true` and populate `qa_rerun_reasons` when ANY of:
 
 When `qa_rerun_required: true`, the orchestrator will re-invoke QA for the affected pipelines before proceeding to the next cycle.
 
-### Step 5.7: False-PASS Audit (MANDATORY — applies to RETRO)
+### Step 7: False-PASS Audit (MANDATORY — applies to RETRO)
 
 **Added 2026-04-25 after overnight session 21d24e89 post-mortem.**
 
