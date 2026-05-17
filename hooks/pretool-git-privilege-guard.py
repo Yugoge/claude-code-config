@@ -139,7 +139,7 @@ def _has_do_consent(data: dict) -> bool:
 
 
 def _check_git_allowlist(command: str, data: dict) -> bool:
-    """Check /allow grant for non-commit/non-push git operations. Read-only.
+    """Check /allow grant for non-push git operations. Read-only.
 
     Main-agent only. Returns True if grant matched (consume deferred to PostToolUse).
     """

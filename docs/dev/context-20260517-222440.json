@@ -6,13 +6,14 @@
   "requirement": {
     "original": "阅读我最近的allow和do开发的dev文档，告诉我我不是已经彻底允许allow允许任何指令了吗？为什么仍然出现：The /allow bypass cleared the orchestrator gate but pretool-git-privilege-guard.py is a separate hook that independently blocks git commit from any agent/Claude context. It can't be bypassed from inside the session.",
     "clarified": "Add _check_git_allowlist() call to _evaluate_commit() in pretool-git-privilege-guard.py so that the main agent can bypass git commit via /allow, consistent with how /allow already bypasses git merge in the same file.",
-    "what": "Add one _check_git_allowlist(command, data) call inside _evaluate_commit() in hooks/pretool-git-privilege-guard.py, and update the block error message to reflect that /allow now works for main agent",
+    "what": "Three changes to hooks/pretool-git-privilege-guard.py: (1) add _check_git_allowlist(command, data) call inside _evaluate_commit(); (2) add /allow mention to _block_default_deny_commit() error message (additive only — the phrase 'It can\\'t be bypassed from inside the session' does NOT exist in the file, confirmed by Read+grep); (3) remove 'non-commit/' from _check_git_allowlist() docstring at line 142 (one-token correctness fix)",
     "why": "The user fixed /allow to bypass pretool-bash-safety.sh (commit c6653c0), but pretool-git-privilege-guard.py is a second independent PreToolUse hook. _evaluate_commit() never calls _check_git_allowlist(), making git commit unbypassable via /allow even though every other evaluate-* function in the same file already has this call.",
     "where": ["hooks/pretool-git-privilege-guard.py"],
     "scope": {
       "included": [
         "hooks/pretool-git-privilege-guard.py:_evaluate_commit() — add _check_git_allowlist call",
-        "hooks/pretool-git-privilege-guard.py:_block_default_deny_commit() — update error message"
+        "hooks/pretool-git-privilege-guard.py:_block_default_deny_commit() — add /allow mention to error message (additive; phrase 'can\\'t be bypassed from inside the session' never present in file)",
+        "hooks/pretool-git-privilege-guard.py:_check_git_allowlist():142 — remove 'non-commit/' from docstring (one-token correctness fix)"
       ],
       "excluded": [
         "pretool-bash-safety.sh — already fixed in c6653c0",
@@ -27,7 +28,7 @@
       "Main agent can run git commit after /allow with a matching pattern, without being blocked by pretool-git-privilege-guard.py",
       "Subagents are still blocked (no change to subagent behavior)",
       "Blessed-bridge auto-bulk commits are unaffected",
-      "Error message no longer claims git commit cannot be bypassed from inside the session"
+      "Error message positively mentions /allow as a bypass path for the main agent (the phrase 'can\\'t be bypassed from inside the session' was never in the hook file — confirmed by Read+grep)"
     ],
     "constraints": [
       "_check_git_allowlist() call must come AFTER BLESSED_BRIDGE_RE check (preserve fast-path for auto-bulk commits)",
@@ -65,7 +66,7 @@
     ],
     "diagnosis_completeness": "incomplete (inferred from source; no Playwright/runtime observation possible for hook execution path)",
     "complaint_location_keywords": ["pretool-git-privilege-guard.py", "git commit", "bypass", "separate hook"],
-    "localization_evidence": "User quoted verbatim error message containing 'pretool-git-privilege-guard.py is a separate hook'. Error message text in _block_default_deny_commit() was grep-matched to the file at lines 433-446. Confirmed by reading the full function.",
+    "localization_evidence": "User quoted verbatim error message containing 'pretool-git-privilege-guard.py is a separate hook'. The phrase 'It can\\'t be bypassed from inside the session' (present in the user's quote and in the prior BA spec) does NOT appear in _block_default_deny_commit() — Read at lines 433-446 shows only BLOCKED/Commit-message-excerpt/Allowed-pattern/For-closed-dev-tasks/For-human-driven-commits/Spec lines; grep across all of hooks/ returns zero matches. The phrase originated in the BA session explanation to the user, not in hook output. _evaluate_commit() localization confirmed at lines 449-471 by Read. _check_git_allowlist() docstring confirmed at line 142 by Read.",
     "located_source": "hooks/pretool-git-privilege-guard.py:_evaluate_commit():449-471",
     "localization_blocked": null,
     "git_bisect_result": {
@@ -82,7 +83,7 @@
     {
       "id": "R1",
       "source_phrase": "我不是已经彻底允许allow允许任何指令了吗",
-      "acceptance_criterion": "After fix: main agent can run git commit following /allow with a matching pattern"
+      "acceptance_criterion": "After fix: main agent can run git commit following /allow with a matching pattern; error message adds /allow mention; docstring corrected"
     }
   ],
   "component_chain": [
@@ -208,10 +209,10 @@
     "environment": {}
   },
   "development_approach": {
-    "strategy": "Add the missing _check_git_allowlist(command, data) call to _evaluate_commit() after the BLESSED_BRIDGE_RE check. Update the error message in _block_default_deny_commit() to remove the false 'can't be bypassed' claim.",
+    "strategy": "Three additive/corrective changes to hooks/pretool-git-privilege-guard.py: (1) add _check_git_allowlist call to _evaluate_commit() after BLESSED_BRIDGE_RE check; (2) add /allow mention to _block_default_deny_commit() error message (the phrase 'can\\'t be bypassed from inside the session' does NOT exist in the file — confirmed by Read lines 433-446 and grep returning zero matches; change is additive only); (3) remove 'non-commit/' from _check_git_allowlist() docstring at line 142.",
     "files_to_create": [],
     "files_to_modify": ["hooks/pretool-git-privilege-guard.py"],
-    "validation_approach": "Read the modified file and confirm: (1) _evaluate_commit() calls _check_git_allowlist after line 453 and before line 457; (2) _block_default_deny_commit() no longer contains 'can't be bypassed from inside the session'; (3) no other functions are modified"
+    "validation_approach": "Read the modified file and confirm: (1) _evaluate_commit() calls _check_git_allowlist after line 453 and before line 457; (2) _block_default_deny_commit() message contains '/allow' or 'Main agent may bypass'; (3) _check_git_allowlist() docstring at line 142 no longer contains 'non-commit/'; (4) no other functions are modified"
   },
   "standards_to_enforce": {
     "no_hardcoded_values": true,
@@ -223,8 +224,8 @@
   "codex_consult": {
     "invoked": true,
     "status": "failed_timeout",
-    "feedback_summary": "Codex exec invocation was blocked by pretool-git-privilege-guard.py itself — the word 'commit' in the prompt text triggered the guard's _looks_like_git_commit() regex on the full Bash command string. This is live observational evidence that the guard matches 'commit' anywhere in the command, not just as a git verb. Three invocation attempts all failed. Self-review substituted.",
+    "feedback_summary": "QA-revision cycle: codex exec blocked by pretool-git-privilege-guard.py itself (word 'commit' in prompt triggers _looks_like_git_commit() regex). Same failure mode as prior cycle. Self-review substituted per graceful fallback protocol.",
     "findings": [],
-    "feedback_incorporated": "Self-review performed covering: (1) grant double-consumption risk — confirmed safe because _check_git_allowlist is read-only (refactor aaf3c44); (2) insertion order — BLESSED_BRIDGE_RE check must remain first; (3) subagent exclusion — handled inside _check_git_allowlist itself; (4) push path exemption — _evaluate_push intentionally uses Scheme 6 grants, not allowlist; (5) error message update scope — narrow to _block_default_deny_commit() only. No scope expansion identified."
+    "feedback_incorporated": "Self-review of three corrected requirements: (1) M1 unchanged — correct. (2) M2 corrected to positive assertion — the phrase 'It can\\'t be bypassed from inside the session' does NOT exist in _block_default_deny_commit() (Read lines 433-446 + grep zero-match confirmed); change is additive-only, adding '/allow' mention; AC4 rewritten as positive assertion that fails on unmodified file. (3) M3 added — docstring 'non-commit/' prefix at line 142 becomes false after M1; removing it is a one-token correctness fix; no behavioral change; AC5 added. Adversarial checks: no scope expansion; no behavioral risk from docstring edit; no double-consume risk (read-only function); no insertion-order risk (BLESSED_BRIDGE_RE remains first)."
   }
 }
