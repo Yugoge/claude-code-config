@@ -200,7 +200,7 @@
     "environment": {}
   },
   "development_approach": {
-    "strategy": "Two-file fix: (1) In commands/close.md, add a one-sentence exception to the timestamp-form resolution section — when --force is present, skip qa-report verification and accept the timestamp as TASK_ID directly. (2) In commands/do.md, add a '## Closing /do-developed work' section documenting the /close path-form escape hatch.",
+    "strategy": "Two-file fix with two-location change in close.md: (1a) In commands/close.md forced-path step 2 (line 62), REPLACE 'The task-id resolution rules are reused identically; do NOT branch the resolution logic.' with language separating form-detection from artifact verification — this eliminates the 'identically' vs 'exception' contradiction. (1b) In commands/close.md timestamp-form resolution (line 139), add a sentence conditioning the qa-report check on non-force mode, preserving the ticket/ba-spec lookup, and stating normal-path unchanged. Both changes at (1a) and (1b) are required together. (2) In commands/do.md, add a '## Closing /do-developed work' section documenting the /close path-form escape hatch.",
     "files_to_create": [],
     "files_to_modify": [
       "commands/close.md — task-id resolution section, timestamp branch: add forced-path exception",
