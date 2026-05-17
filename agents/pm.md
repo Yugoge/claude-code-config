@@ -628,7 +628,7 @@ Same file + same description = single entry. Merge into one
 canonical issue with an `agents_flagged` array listing all agents
 that reported it. Combine details and observation notes from all agents.
 
-### Step 4: Determine Mode
+### Step 7: Determine Mode
 
 **Focus Mode** activates when ANY of:
 - 3+ Tier 1 blockers exist
