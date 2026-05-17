@@ -1,0 +1,95 @@
+{
+  "request_id": "20260517-215114",
+  "task_id": "20260517-215114",
+  "timestamp": "2026-05-17T22:10:00Z",
+  "mode": "ba_validation",
+  "verdict": "fail",
+  "objections": [
+    {
+      "id": "OBJ-1",
+      "dimension": "investigation_completeness",
+      "severity": "critical",
+      "title": "New analyst agent types are unregistered in the policy enforcement system — BA omits this as a binding requirement",
+      "description": "BA spec Technical Hints state 'Three new agent types (push-analyst, merge-analyst, pull-analyst) must be added to the subagent allow list so the Agent tool can dispatch them.' This is listed only in Technical Hints, NOT in any Must Have (M1-M9) or Acceptance Criterion (AC1-AC10). The actual enforcement mechanism is NOT settings.json (the allow list there has no agent-name entries). The real enforcer is the tool-policy system: hooks/lib/policy_registry.py:72-81 implements get_role_policy() which returns {allowed_tools:[], default_action:deny, _unknown_role:True} for any role not registered in policies/tool-policy.v1.json. hooks/lib/policy_registry.py:269-270 then returns (False, 'unknown role {role}') for unregistered agents — a hard deny. policies/tool-policy.v1.json:792-818 shows changelog-analyst has a registered entry; push-analyst, merge-analyst, pull-analyst have none. Additionally, hooks/pretool-cp-checkin.py:60-72 defines CP_AGENTS (the recognized role set) and DEV_REGISTRY_AGENTS = CP_AGENTS. None of the three new analyst types appear in CP_AGENTS. Dev can deliver all M1-M9 and AC1-AC10 and still ship analyst agents that are completely blocked by the policy system when commands/push.md attempts to dispatch them via the Agent tool.",
+      "evidence": [
+        "hooks/lib/policy_registry.py:72-81: get_role_policy() returns deny-all for unknown roles",
+        "hooks/lib/policy_registry.py:269-270: unknown role causes is_allowed() to return (False, 'unknown role {role}')",
+        "policies/tool-policy.v1.json:792-818: changelog-analyst has a registered entry; no entry exists for push-analyst, merge-analyst, or pull-analyst",
+        "hooks/pretool-cp-checkin.py:60-72: CP_AGENTS set does not include push-analyst, merge-analyst, or pull-analyst",
+        "BA Technical Hints line 324: mentions settings.json must be updated but does not cite policies/tool-policy.v1.json",
+        "BA Must Have M1-M9: no requirement for policy registration",
+        "BA AC1-AC10: no acceptance criterion for policy registration"
+      ],
+      "required_fix": "Add M10: 'Update policies/tool-policy.v1.json to register push-analyst, merge-analyst, and pull-analyst roles with allowed_tools limited to read operations + Write(/tmp/agentic-commit/push-analyst/...) for push-analyst and merge-analyst, and read-only for pull-analyst.' Add AC11: 'GIVEN the three new analyst agent files exist WHEN the orchestrator dispatches them via the Agent tool THEN the tool-policy system permits them to execute (policy_registry.is_allowed returns True for their required tools).' Also add policies/tool-policy.v1.json to the affected files list."
+    },
+    {
+      "id": "OBJ-2",
+      "dimension": "investigation_completeness",
+      "severity": "major",
+      "title": "M1 and M2 label analysts as 'read-only' while also requiring filesystem grant writes — contradictory classification",
+      "description": "M1 says 'Create agents/push-analyst.md — read-only analyst subagent that inspects the commits-to-push range and writes a nonce-keyed push-analyst grant token.' M2 similarly says 'read-only analyst subagent... writes a nonce-keyed merge-analyst grant token.' The label 'read-only' directly contradicts the 'writes a nonce-keyed grant token' clause. This ambiguity risks dev implementing the analyst as truly read-only (no Write tool permission) and then being unable to write the grant, OR dev implementing it with broad write access (no restriction to /tmp/agentic-commit/ path prefix). The policy registration omission (OBJ-1) compounds this: without an explicit policy entry, the write path restriction is unspecified anywhere.",
+      "evidence": [
+        "BA spec M1 line 69: 'read-only analyst subagent that... writes a nonce-keyed push-analyst grant token'",
+        "BA spec M2 line 70: 'read-only analyst subagent that... writes a nonce-keyed merge-analyst grant token'",
+        "agents/changelog-analyst.md: the reference pattern explicitly says the analyst writes push-gate tokens but is git-read-only, not filesystem-read-only"
+      ],
+      "required_fix": "Reword M1/M2: replace 'read-only analyst subagent' with 'git-read-only analyst subagent (filesystem writes restricted to its own /tmp/agentic-commit/<kind>/ grant path and optional audit log under ~/.claude/logs/)'. This matches changelog-analyst's actual permission model."
+    },
+    {
+      "id": "OBJ-3",
+      "dimension": "investigation_completeness",
+      "severity": "major",
+      "title": "Push analysis range 'upstream..HEAD' does not reliably match the actual commits being pushed when upstream remote differs from push target remote",
+      "description": "The spec states push-analyst reads 'commits-to-push range: upstream..HEAD (or all commits for first push)' (spec line 137) and 'First push (no upstream): use all commits in git log HEAD' (spec line 227). However, push.sh uses @{u} (git tracking upstream) only to decide the -u flag, while the actual push target is always $REMOTE/$BRANCH (push.sh:275-286). In a fork-based workflow where @{u} tracks origin/main (upstream project) but push.sh pushes to fork/main, the range @{u}..HEAD yields commits already pushed to origin/main but not yet on fork/main, which may be correct. But if @{u} is set to fork/main while the user pushes to origin, the inverse problem occurs. More critically: the correct range to analyze is refs/remotes/<resolved_remote>/<branch>..HEAD, not @{u}..HEAD. The spec does not specify this distinction, so push-analyst may inspect the wrong commit range and fail to flag sensitive files in commits that are actually being pushed.",
+      "evidence": [
+        "BA spec line 137: 'Read commits-to-push range: upstream..HEAD (or all commits for first push)'",
+        "hooks/push.sh:38-41: remote resolution (fork-prefer-origin) determines push target",
+        "hooks/push.sh:275-286: git push '$REMOTE' '$BRANCH' — push target is resolved remote, not @{u}",
+        "BA spec line 155: orchestrator Step 3 passes remote_name and remote_url to push-analyst, so the analyst knows the target — but the analysis range is still specified as 'upstream..HEAD' which may use a different tracking remote"
+      ],
+      "required_fix": "Update the push-analyst analysis scope to: 'Read commits-to-push range: refs/remotes/<resolved_remote>/<branch>..HEAD if that ref exists; else all commits in git log HEAD (first push). Do NOT use @{u}..HEAD — the tracking upstream may differ from the push target remote.' Update AC1 to add: 'AND push-analyst reads the commits-to-push range relative to the resolved remote (<remote_name>/<branch>), not the git tracking upstream (@{u}).'"
+    },
+    {
+      "id": "OBJ-4",
+      "dimension": "investigation_completeness",
+      "severity": "major",
+      "title": "Pull-analyst is skipped when pull.sh changes HEAD but then exits non-0 due to stash-pop failure",
+      "description": "The spec's pull flow (commands/pull.md orchestrator steps) says: 'Step 2: If pull.sh exits non-0: display error, stop (no analyst dispatch)'. However, pull.sh emits 'Pull completed successfully' at line 154 and changes HEAD BEFORE the stash pop at lines 157-174. If the stash pop fails (lines 163-174), pull.sh exits 1 — but HEAD has already changed. In this case, the spec's Step 2 causes pull-analyst to be skipped even though semantic changes (new commits including potentially schema changes, API surface changes, CI/CD changes) have entered the working tree. The advisory report the user wants to see never arrives for this exact scenario where it is most needed (pull succeeded but restoration of local work failed — user is in a conflict-stressed state).",
+      "evidence": [
+        "BA spec pull flow Step 2: 'If pull.sh exits non-0: display error, stop'",
+        "hooks/pull.sh:154: 'Pull completed successfully' printed before stash pop",
+        "hooks/pull.sh:157-174: stash pop runs after pull; exits 1 on pop failure",
+        "BA context JSON out_of_scope_observations[0]: BA observed the stale-lock exit-0 ambiguity but correctly noted AC7's HEAD-change check handles it; BA did NOT identify the stash-pop-failure exit-1 scenario where HEAD DID change"
+      ],
+      "required_fix": "Update commands/pull.md Step 2 and Step 3 to: 'Capture post_pull_head REGARDLESS of pull.sh exit code. If pull.sh exits non-0 AND pre_pull_head == post_pull_head: display error, stop. If pull.sh exits non-0 AND pre_pull_head != post_pull_head: dispatch pull-analyst with pre_pull_head, post_pull_head, branch AND label the report header with WARNING: pull changed HEAD but exited non-0 (stash restoration may have failed).' Update AC7 to cover this case."
+    },
+    {
+      "id": "OBJ-5",
+      "dimension": "affected_file_accuracy",
+      "severity": "minor",
+      "title": "BA reports pull.md as 46 lines; actual line count is 45",
+      "description": "Context JSON evidence.measured.location states 'commands/pull.md:1-46'. The actual file has 45 lines (verified via wc -l). This is a minor off-by-one inaccuracy. The file content is correctly described (no analyst dispatch present).",
+      "evidence": [
+        "wc -l /dev/shm/dev-workspace/dot-claude/commands/pull.md: 45",
+        "Context JSON evidence.measured.location: 'commands/pull.md:1-46'"
+      ],
+      "required_fix": "Update context JSON evidence.measured.location from 'commands/pull.md:1-46' to 'commands/pull.md:1-45'. Minor — does not block the spec."
+    }
+  ],
+  "dimension_verdicts": {
+    "evidence_quality": "pass",
+    "scope_alignment": "pass",
+    "investigation_completeness": "fail",
+    "affected_file_accuracy": "pass_with_minor_issue",
+    "spec_text_vs_execution_drift": "pass"
+  },
+  "evidence_quality_detail": "BA verified all three command files (read confirmed), the changelog-analyst reference pattern (read confirmed), all three hook scripts (read confirmed), and pretool-git-privilege-guard.py (read confirmed, line numbers 474/568/619 verified accurate). The fork-prefer-origin logic at push.sh:38-41 is confirmed. Component chain entries include evidence_type and verified_via fields. Codex consultation confirmed the overall evidence quality as acceptable.",
+  "scope_alignment_detail": "User requirement in Chinese: give me a plan (方案). BA correctly scoped R2 as a design-plan output cycle (BA spec + context JSON as deliverable; implementation in a separate dev cycle). All three commands (push/merge/pull) are addressed. The MoSCoW requirements cover the three new agent files (M1-M3) and the three command body updates (M4-M6). Grant token properties (M7-M8) and DO NOT sections (M9) are included. The architect specialist constraints (no wrapper script changes, dedicated agents, independent chains) are faithfully encoded.",
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex identified 4 issues: (1) Policy registration gap — the enforcement is in policies/tool-policy.v1.json + policy_registry.py (deny-all for unknown roles), not settings.json; new analyst types are absent and will be hard-denied; (2) 'read-only' label contradiction with grant-writing; (3) Push analysis range upstream..HEAD may not match actual push remote target; (4) Pull stash-pop failure path allows HEAD-changed scenario to skip pull-analyst. Codex also noted that FAIL verdict is correct but the settings.json framing is imprecise — the stronger framing is tool-policy/policy_registry enforcement.",
+    "feedback_incorporated": "All 4 Codex findings incorporated: OBJ-1 reframed from settings.json to tool-policy.v1.json + policy_registry.py with verified evidence; OBJ-2 added for read-only contradiction; OBJ-3 added for push range discrepancy; OBJ-4 added for stash-pop failure path. The verdict remains FAIL for the same substantive reason but with a more precise enforcement-mechanism citation."
+  },
+  "summary": "BA spec FAIL: spec lets dev complete all M1-M9 and AC1-AC10 while shipping analyst agents that are hard-denied by the tool-policy enforcement system (policy_registry.py returns deny-all for unregistered roles; push-analyst/merge-analyst/pull-analyst are absent from policies/tool-policy.v1.json and CP_AGENTS); additionally, push analysis range may inspect wrong commits in fork-remote workflows, pull-analyst is skipped on stash-pop-failure despite HEAD having changed, and the 'read-only' agent label contradicts the grant-write requirement."
+}
