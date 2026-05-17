@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 44
+- **Total files**: 45
 - **Subdirectories**: 2
 - **Naming convention**: kebab
 
@@ -45,6 +45,7 @@ Organization and usage documentation for `scripts/`.
 - `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
 - `quick-excel` - unknown file
 - `refine-context.sh` - refine-context.sh — merge QA-refined context with original context
+- `resolve-dev-report.py` - Usage:
 - `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 - `scan-project.sh` - Description: Scan project structure and detect project type
 - `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
