@@ -170,20 +170,10 @@
     "codex_consult": {
       "invoked": true,
       "status": "failed_quota",
-      "feedback_summary": "Codex exec blocked by pretool-tool-policy.py hook (QA agent write restriction prevents codex from writing output to /var/tmp/codex-outputs/). Same hook pattern as BA's codex attempt in session context. Self-review substituted.",
-      "feedback_incorporated": "Self-review covered 5 adversarial questions: (1) Is FAIL on AC1 too strict given push-gate reality? — FAIL maintained; inline bash is clearly stated as prohibited by BA spec; the /commit→/push path is available and should be primary. (2) Is FAIL on AC2 appropriate for 2 missing Tier C commands? — Downgraded to minor/pass because AC2's literal wording gates on file-modifying commands missing from Tiers A/B; both absent commands are read-only. (3) Regression risk from single-line edit? — Low; guards at lines 468/479 confirmed intact. (4) Both branches present per AC1? — Yes; lines 589 and 590 cover satisfied→/push and unsatisfied→rollback. (5) Does /commit→/push alternative satisfy AC1 spirit? — Yes, but the primary offered path is the inline bash invocation, which violates the AC1 constraint."
+      "feedback_summary": "Codex exec blocked by pretool-tool-policy.py hook: QA agent role not permitted to write to /var/tmp/codex-outputs/ (BLOCKED by tool-policy.v1). Identical failure mode as BA agent and dev agent codex attempts in this session.",
+      "feedback_incorporated": "Self-review substituted. Five adversarial questions reviewed: (1) Over-engineering — exactly 1 line changed, minimum possible diff per dev report diff_stats, no scope creep; (2) Under-engineering / missed scope — lines 588 (git diff HEAD~1) and 590 (git reset --hard) are user-facing code examples in backtick notation; iteration 1 QA rejection and orchestrator dispatch both scoped AC1 to line 589 only; (3) Regression risk — doc-only change; agents/cleaner.md untouched; guards at lines 468/479 confirmed intact; (4) Scope drift — git diff shows single-file single-line change; no other file modified; (5) /close debate readiness — /commit architectural question (push-gate token gap) classified out_of_scope by orchestrator accepted end-state, documented in dev report; AC1 requires only: no inline bash, /push present, /close not imposed — all three hold."
     }
   },
-  "iteration_needed": true,
-  "refined_context": {
-    "failed_criteria": [
-      "R1 / AC1: clean.md Step 17 adaptation violates BA spec AC1 wording constraint — 'direction toward next command, not inline git invocations'; current line 589 leads with 'bash ~/.claude/hooks/push.sh directly'"
-    ],
-    "critical_issues": [],
-    "major_issues": [
-      "commands/clean.md:589 — Remove inline bash invocation 'bash ~/.claude/hooks/push.sh directly'. Replace with /commit→/push command-chain guidance as the primary path. Add parenthetical note: '(note: the cleaner's inline commit does not write a push-gate token; /commit will create one)'. The push-gate token writing by agents/cleaner.md should be addressed in a follow-up cycle."
-    ],
-    "recommended_approach": "Dev must update line 589 of commands/clean.md to remove the 'run bash ~/.claude/hooks/push.sh directly' workaround text. The correct guidance is '/commit then /push' as the primary path. The parenthetical note about push-gate token can remain to explain WHY /commit is needed first, but the inline bash invocation must be removed. Separately, a follow-up cycle should modify agents/cleaner.md to write the push-gate token after its inline commit (same format as changelog-analyst Phase 10), which would eventually enable bare /push after /clean.",
-    "additional_context": "hooks/push.sh lines 84-125 confirmed: push-gate token path is /tmp/agentic-commit/push/<sha256-of-repo-root-16chars>/<branch-with-slashes-as-doublunderscores>.json. The cleaner's inline git commit does not create this file. agents/cleaner.md (full read, 148 lines) confirms no push-gate writing. The /commit command (commands/commit.md) is the correct mechanism to create the push-gate token."
-  }
+  "iteration_needed": false,
+  "refined_context": null
 }
