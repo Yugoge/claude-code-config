@@ -314,7 +314,7 @@ In all fallback cases, do NOT block the cycle indefinitely. Self-review is accep
 
 ### Output documentation
 
-The `codex_consult` field MUST appear inside the required single `\`\`\`json` fenced block as a top-level metadata sibling of the 6 canonical channels (`app_understanding`, `live_testing`, `design_quality`, `quality_gate_results`, `issues[]`, `design_enhancements[]`) — NOT as a 7th canonical channel, NOT as extra chat prose outside the fenced block. Shape:
+The `codex_consult` field MUST appear inside the required single `\`\`\`json` fenced block as a top-level metadata sibling of the canonical channels (`app_understanding`, `live_testing`, `automated_findings[]`, `contextual_findings[]`, `aesthetic_findings[]`, `quality_gate_results`, `design_enhancements[]`) — NOT as a 7th canonical channel, NOT as extra chat prose outside the fenced block. Shape:
 
 ```json
 {
