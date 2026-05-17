@@ -334,7 +334,7 @@
       "agents/user.md — add observed_behavior, expected_behavior, downstream_agent (location.file nullable)",
       "agents/ba.md — add Specialist Findings Intake Protocol section after Four Contracts, before Forbidden BA Patterns"
     ],
-    "validation_approach": "QA verifies: (1) grep for 'selector' and 'downstream_agent' and 'measured' in report-schema.json finding_base section, (2) grep for 'automated_findings' and 'contextual_findings' in ui-specialist.md prose context (not in schema ref), (3) grep for new field names in architect/product-owner/user.md, (4) grep for 'Specialist Findings Intake Protocol' in ba.md, (5) confirm commands/dev.md and agents/pm.md are unchanged, (6) confirm report-schema.json finding_deterministic still has computed_value and expected_value, (7) git diff HEAD -- agents/ui-specialist.md agents/architect.md agents/product-owner.md agents/user.md agents/ba.md skills/ui-shared/report-schema.json shows exactly 6 files changed"
+    "validation_approach": "QA verifies: (1) grep for 'selector' and 'downstream_agent' and 'measured' in report-schema.json finding_base section, (2) grep for 'automated_findings' and 'contextual_findings' in ui-specialist.md prose context (not in schema ref), (3) grep for new field names in architect/product-owner/user.md, (4) grep for 'Specialist Findings Intake Protocol' in ba.md, (5) confirm commands/dev.md and agents/pm.md are unchanged via: git diff --quiet HEAD -- commands/dev.md agents/pm.md (must exit 0), (6) confirm report-schema.json finding_deterministic still has computed_value and expected_value, (7) verify six target files show diffs via: git diff HEAD -- agents/ui-specialist.md agents/architect.md agents/product-owner.md agents/user.md agents/ba.md skills/ui-shared/report-schema.json"
   },
   "standards_to_enforce": {
     "no_hardcoded_values": true,
@@ -372,7 +372,7 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex (gpt-5.5, xhigh reasoning) challenged the revised scope decision and AC1/AC6 draft. Confirmed: scope decision to include report-schema.json is correct. Identified 5 issues with the revised AC1 draft. All 5 findings have PROPOSED_FIX. All applied.",
+    "feedback_summary": "Codex iteration-3 consultation: OBJ-3 fix (JSON validity) confirmed. OBJ-4 fix (allOf inheritance model) confirmed. OBJ-5 fix was partially correct but had residual issue: AC6 'no other files outside the above 6' clause was unverifiable in dirty tree. Applied fix: separate into two git diff checks, remove unverifiable clause.",
     "findings": [
       {
         "issue": "Scope decision correct: report-schema.json is the enforced contract for ui-specialist, not issues[] prose",
@@ -415,8 +415,15 @@
         "classification": "minor",
         "disposition": "applied",
         "rationale": "AC6 updated to use 'exactly' and explicit exclusion clause"
+      },
+      {
+        "issue": "OBJ-5 partially fixed: AC6 'no other files outside the above 6 are modified' clause is unverifiable in dirty working tree; file-scoped diff cannot prove no other files changed",
+        "proposed_fix": "Separate AC6 into two checks: (1) git diff HEAD -- <6 files> for target files, (2) git diff --quiet HEAD -- commands/dev.md agents/pm.md for out-of-scope verification. Remove unverifiable 'no other files' clause.",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "AC6 updated to two explicit checks; unverifiable clause removed"
       }
     ],
-    "feedback_incorporated": "All 6 findings applied: report-schema.json added to scope as R0; AC1 revised to target finding_base with required list, const constraint, structured location, measured/expected as strings; AC1b added for prose anti-drift; AC6 uses 'exactly' and explicit exclusion. Prior cycle codex_consult (which incorrectly confirmed issues[] approach) is superseded by this consultation."
+    "feedback_incorporated": "OBJ-3, OBJ-4 confirmed resolved. OBJ-5 further improved: AC6 now uses two separate git diff commands (scoped for target files + --quiet for out-of-scope files); unverifiable broad clause removed."
   }
 }
