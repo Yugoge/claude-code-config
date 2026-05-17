@@ -398,34 +398,11 @@ For each script in `dev.scripts_created`:
 
 **Check related functionality not broken**:
 
-1. **Git diff analysis**:
-```bash
-git diff HEAD~1  # What changed?
-# Look for:
-# - Modified files beyond expected scope
-# - Deleted functions still referenced
-# - Changed API signatures
-```
+1. **Git diff analysis**: Run `git diff HEAD~1` to see what changed. Look for modified files beyond expected scope, deleted functions still referenced, and changed API signatures.
 
-2. **Dependency check**:
-```bash
-# For Python
-source venv/bin/activate
-python -m py_compile <modified-files>  # Syntax check
-# Check imports still resolve
+2. **Dependency check**: For Python, activate the venv and run `python -m py_compile` on modified files; verify imports still resolve. For Node.js, run `npm run build` and `npm test`.
 
-# For Node.js
-npm run build  # Check build still works
-npm test  # Run test suite
-```
-
-3. **Reference integrity**:
-```bash
-# Use existing script
-~/.claude/scripts/check-file-references.sh <modified-file>
-
-# Check nothing broken by removal/rename
-```
+3. **Reference integrity**: Run `~/.claude/scripts/check-file-references.sh <modified-file>` to verify nothing is broken by removal or rename.
 
 **Document findings**:
 ```json
