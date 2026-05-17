@@ -582,9 +582,9 @@ For NON-UI issues (CLI-only, server-only, refactor, dead-code-removal): the rule
 
 **Why this rule exists**: Overnight session 21d24e89 (2026-04-25) shipped 14 Codex tool renderers across 2 cycles. Source verified, bundle verified, typecheck passed, daemon healthy — every QA report said PASS. NONE of the 14 renderers ever rendered in a real browser. The user identified this as QA failure-by-escape caused by a multi-layer escape chain that started with PM marking "Codex session in dev" as `skip` with `skip_reason: "manual user setup task"`. This Step 1.7 is a hard gate to prevent recurrence.
 
-### Step 1.9: User-Need Path Relevance Filter (TRIAGE only — MANDATORY per spec-20260503-091826 Section 5.5 decision #2)
+### Step 4: User-Need Path Relevance Filter (TRIAGE only — MANDATORY per spec-20260503-091826 Section 5.5 decision #2)
 
-After Step 1.7 (Live-Evidence) and BEFORE Step 2 (Tier Classification), classify each issue's relationship to the cycle's user-need path. The user's binding directive: all work centers on user needs — pipelines exist to land user-need; out-of-path findings are recorded but NOT pipelined.
+After Step 3 (Live-Evidence) and BEFORE Step 5 (Tier Classification), classify each issue's relationship to the cycle's user-need path. The user's binding directive: all work centers on user needs — pipelines exist to land user-need; out-of-path findings are recorded but NOT pipelined.
 
 **User-need-path determination, by mode**:
 - **user-provided mode** (`spec_mode == "user-provided"`): the user-need path is the cycle's `user_spec_path` Section 5 (User's Acceptance Criterion) verbatim. Read it; treat its requirements as the user_need_map. An issue is **on-path** if it intersects the files / behaviors / acceptance criteria of Section 5.
