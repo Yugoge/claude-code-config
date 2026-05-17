@@ -67,16 +67,21 @@ Read the grant at:
 
 Validate the following fields:
 - File exists (if absent: abort with "merge-analyst did not write a grant — aborting merge")
+- Grant is valid JSON (if not: abort with "merge-analyst grant is not valid JSON — aborting merge")
 - `nonce` field matches `REQUEST_ID`
 - `branch` field matches `RESOLVED_BRANCH`
 - `source_tip` field matches `SOURCE_TIP`
 - `default_tip` field matches `DEFAULT_TIP`
+- `default_branch` field matches `DEFAULT_BRANCH`
+- `session_id` field matches `SESSION_ID`
+- `verdict` field is one of: `"approved"`, `"blocked"` (reject unknown verdicts)
+- `risks` field is a JSON array (even if empty)
 - `expires_at` is in the future (60s expiry — parse ISO-8601, compare to current UTC time)
 
 If expired: re-dispatch merge-analyst (return to Step 2 with a fresh REQUEST_ID). Report
 to the user that the grant expired and a fresh analysis is running.
 
-If any non-expiry field mismatches: abort with a descriptive error.
+If any non-expiry field mismatches, is absent, or has wrong type: abort with a descriptive error naming the failing field.
 
 Consume (unlink) the grant:
 ```bash
