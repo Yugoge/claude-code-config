@@ -119,8 +119,11 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 REMOTE_URL=$(git remote get-url "${RESOLVED_REMOTE}" 2>/dev/null || echo "unknown")
 REPO_HASH=$(python3 -c "import hashlib, os; print(hashlib.sha256(os.path.realpath('$(git rev-parse --show-toplevel)').encode()).hexdigest()[:16])")
 REQUEST_ID=$(python3 -c "import secrets; print(secrets.token_hex(16))")
-SESSION_ID="${CLAUDE_SESSION_ID:-unknown}"
+SESSION_ID="${CLAUDE_SESSION_ID}"
 ```
+
+If `SESSION_ID` is empty or unset, abort immediately with:
+"Cannot dispatch push-analyst: CLAUDE_SESSION_ID not set. Invoke /push from within a Claude Code session."
 
 **Step 3: Dispatch push-analyst subagent**
 
