@@ -346,95 +346,11 @@ Use Task tool with:
   "
 ```
 
-Test executor performs:
-
-1. **Script-based tests**: Execute each `tests/scripts/validate-*.py` with `--project-root`
-2. **AI instruction-based tests**: Read instruction, gather context, perform validation
-3. **Capture results**: Exit codes, JSON output, execution time
-4. **Aggregate summary**: Total/passed/failed/errors, edge cases prevented
-
-Expected output: `tests/reports/execution-report-{REQUEST_ID}.json`
-
-```json
-{
-  "request_id": "test-YYYYMMDD-HHMMSS",
-  "timestamp": "ISO-8601",
-  "executor": {
-    "status": "completed|partial|blocked",
-    "execution_started": "ISO-8601",
-    "execution_completed": "ISO-8601",
-    "total_duration_seconds": 10.5,
-    "results": [
-      {
-        "validator": "validate-venv-usage",
-        "type": "script",
-        "edge_case": "EC002",
-        "priority": "critical",
-        "execution": {
-          "started_at": "ISO-8601",
-          "completed_at": "ISO-8601",
-          "duration_seconds": 1.23,
-          "exit_code": 0,
-          "status": "pass"
-        },
-        "result": {
-          "status": "pass",
-          "violations": [],
-          "summary": {
-            "total_files_checked": 10,
-            "violations_found": 0
-          }
-        }
-      }
-    ],
-    "summary": {
-      "total_tests": 10,
-      "passed": 8,
-      "failed": 2,
-      "errors": 0,
-      "pass_rate": 80.0,
-      "edge_cases_prevented": 8,
-      "priority_breakdown": {
-        "critical": {"passed": 3, "failed": 2},
-        "high": {"passed": 2, "failed": 0},
-        "medium": {"passed": 3, "failed": 0}
-      }
-    },
-    "failed_tests": [
-      {
-        "validator": "validate-venv-usage",
-        "edge_case": "EC002",
-        "violations_count": 3,
-        "severity": "critical",
-        "files_affected": ["settings.json", "commands/clean.md"],
-        "recommendation": "Fix venv usage: use 'source ~/.claude/venv/bin/activate && python3' pattern"
-      }
-    ]
-  }
-}
-```
+Test executor performs script-based and AI instruction-based validation, captures exit codes/timing/JSON output, aggregates summary statistics. Expected output: `tests/reports/execution-report-{REQUEST_ID}.json` with `executor.status`, `executor.results[]`, `executor.summary` (total/passed/failed/errors, pass_rate, edge_cases_prevented, priority_breakdown), and `executor.failed_tests[]`.
 
 ### Step 13: Process Execution Results
 
-Read execution report and determine next action:
-
-```bash
-EXEC_STATUS=$(jq -r '.executor.status' tests/reports/execution-report-${REQUEST_ID}.json)
-TOTAL_TESTS=$(jq -r '.executor.summary.total_tests' tests/reports/execution-report-${REQUEST_ID}.json)
-PASSED=$(jq -r '.executor.summary.passed' tests/reports/execution-report-${REQUEST_ID}.json)
-FAILED=$(jq -r '.executor.summary.failed' tests/reports/execution-report-${REQUEST_ID}.json)
-ERRORS=$(jq -r '.executor.summary.errors' tests/reports/execution-report-${REQUEST_ID}.json)
-
-echo "Test execution completed: $PASSED/$TOTAL_TESTS passed"
-
-if [[ $FAILED -gt 0 ]]; then
-  echo "⚠️  $FAILED tests failed"
-fi
-
-if [[ $ERRORS -gt 0 ]]; then
-  echo "❌ $ERRORS tests had errors"
-fi
-```
+Read `executor.status`, `executor.summary.total_tests`, `.passed`, `.failed`, and `.errors` from the execution report.
 
 **Decision tree**:
 
