@@ -1,7 +1,7 @@
 {
   "request_id": "20260517-172600",
   "task_id": "20260517-172600",
-  "timestamp": "2026-05-17T18:00:00Z",
+  "timestamp": "2026-05-17T18:30:00Z",
   "dev_report_path": "docs/dev/dev-report-20260517-172600.json",
   "dev": {
     "status": "completed",
@@ -10,11 +10,11 @@
     "tasks_completed": [
       {
         "id": 1,
-        "description": "Add /push ending-workflow adaptation to commands/clean.md Step 17 Next Steps block",
+        "description": "Iteration 2: Remove inline bash invocation from commands/clean.md line 589; replace with slash-command-only direction (/commit then /push)",
         "type": "docs",
         "files_modified": ["commands/clean.md"],
-        "changes": "Line 589: 'If satisfied: Changes already committed' → 'If satisfied: Changes already committed — next step is `/push` to publish to remote (push-gate note: the cleaner commits inline without writing a push-gate token; run `bash ~/.claude/hooks/push.sh` directly, or run `/commit` then `/push` if you need the full gate chain)'",
-        "rationale": "Gap exists from initial clean.md authoring; dev-series commands already have explicit ending-workflow guidance toward /push. clean.md Step 17 Next Steps had no publishing guidance at all. The push-gate caveat is included because /push requires a push-gate token that the cleaner subagent does not write (confirmed by codex review of hooks/push.sh:84-125 and agents/cleaner.md:93-101)."
+        "changes": "Line 589: removed 'run bash ~/.claude/hooks/push.sh directly' (inline bash invocation violating AC1). New text: 'If satisfied: Changes already committed — to publish to remote: run `/commit` (to register the commit and write the push token), then `/push`'",
+        "rationale": "QA iteration 1 rejection: line 589 included an inline bash invocation ('bash ~/.claude/hooks/push.sh directly') as primary workaround, violating BA spec AC1 requirement for 'direction toward next command (slash command), not inline git invocations'. The /commit then /push slash-command chain is the correct resolution per orchestrator's accepted end-state."
       }
     ],
     "scripts_created": [],
