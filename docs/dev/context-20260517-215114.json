@@ -27,12 +27,13 @@
       ]
     },
     "success_criteria": [
-      "push-analyst is dispatched before push.sh; verdict=blocked prevents push",
+      "push-analyst is dispatched before push.sh; verdict=blocked prevents push; commits-to-push range uses refs/remotes/<resolved_remote>/<branch>..HEAD (not @{u}..HEAD)",
       "merge-analyst is dispatched before merge.sh; verdict=blocked prevents merge; grant expires in 60s",
-      "pull-analyst is dispatched after pull.sh only when HEAD changed; report is advisory only",
+      "pull-analyst is dispatched whenever HEAD changed (even on pull.sh non-0 exit due to stash-pop failure); report is advisory only",
       "All three analyst agents have explicit DO NOT sections forbidding git write ops",
       "Grant tokens are nonce-keyed, session-scoped, state-bound, and single-use",
-      "hooks/push.sh, hooks/merge.sh, hooks/pull.sh are byte-for-byte unchanged"
+      "hooks/push.sh, hooks/merge.sh, hooks/pull.sh are byte-for-byte unchanged",
+      "push-analyst, merge-analyst, pull-analyst registered as named roles in policies/tool-policy.v1.json and added to CP_AGENTS in hooks/pretool-cp-checkin.py (M10)"
     ],
     "constraints": [
       "Gates live in command body .md files, not in wrapper scripts (architect constraint)",
@@ -40,7 +41,8 @@
       "pretool-git-privilege-guard.py must not be modified (architect constraint)",
       "push-analyst grant is Chain B; push-gate token is Chain A — both must pass independently",
       "merge-analyst grant must expire in 60s (merge state freshness)",
-      "pull-analyst produces no grant and blocks nothing — pure advisory"
+      "pull-analyst produces no grant and blocks nothing — pure advisory",
+      "policy_registry.py:72-81 hard-denies any role not in policies/tool-policy.v1.json — all three analyst roles MUST be registered there before dispatch"
     ]
   },
   "scope_boundary": {
@@ -50,14 +52,17 @@
       "commands/pull.md",
       "agents/push-analyst.md (to create)",
       "agents/merge-analyst.md (to create)",
-      "agents/pull-analyst.md (to create)"
+      "agents/pull-analyst.md (to create)",
+      "policies/tool-policy.v1.json (to modify — add push-analyst, merge-analyst, pull-analyst role entries per M10)",
+      "hooks/pretool-cp-checkin.py (to modify — add three role names to CP_AGENTS set per M10)"
     ],
     "path_dependent_shared_infra": [
-      "hooks/push.sh (read for context; architecture understanding; not modified)",
+      "hooks/push.sh (read for context; architecture understanding; remote resolution logic at lines 38-42 is the reference for push-analyst; not modified)",
       "hooks/merge.sh (read for context; architecture understanding; not modified)",
-      "hooks/pull.sh (read for context; architecture understanding; not modified)",
+      "hooks/pull.sh (read for context; architecture understanding; stash-pop-after-HEAD-change sequence at lines 154-175 is the reference for pull-analyst trigger logic; not modified)",
       "hooks/pretool-git-privilege-guard.py (read for context; not modified)",
-      "agents/changelog-analyst.md (read as pattern reference; not modified)"
+      "agents/changelog-analyst.md (read as pattern reference; not modified)",
+      "hooks/lib/policy_registry.py (read for context; lines 72-81 get_role_policy returns hard-deny for unknown roles; lines 269-270 return (False, 'unknown role <role>'); not modified)"
     ],
     "out_of_path_observed_but_not_touched": []
   },
