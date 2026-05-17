@@ -229,22 +229,23 @@
   "evidence": {
     "observed": "UI specialist 报告使用自然语言描述视觉问题，但不包含 CSS selector、measured vs expected 值、源代码位置等 BA/dev 可操作的字段。所有 specialist 与 BA 之间没有 handoff contract。BA 收到 specialist findings 后没有规范化的消费协议。",
     "measured": {
-      "value": "agents/ui-specialist.md:255 issues:[], agents/architect.md:306-318 location is string, agents/product-owner.md:327-340 no observed/expected, agents/user.md:427-442 no observed/expected, agents/ba.md no Specialist Findings Intake Protocol section",
-      "location": "agents/ui-specialist.md:255, agents/architect.md:306-318, agents/product-owner.md:327-340, agents/user.md:427-442, agents/ba.md"
+      "value": "skills/ui-shared/report-schema.json finding_base:220 location is type:string (flat); no selector/measured/expected/downstream_agent fields anywhere in schema. agents/ui-specialist.md:255 issues:[] is prose example only — not a report-schema.json channel. agents/architect.md:306-318 location is string. agents/product-owner.md:327-340 no observed/expected. agents/user.md:427-442 no observed/expected. agents/ba.md no Specialist Findings Intake Protocol section.",
+      "location": "skills/ui-shared/report-schema.json:214-233, agents/ui-specialist.md:243-257, agents/architect.md:306-318, agents/product-owner.md:327-340, agents/user.md:427-442, agents/ba.md"
     },
     "expected": {
-      "value": "issues[] schema with location.{file,line,selector?}, measured, expected, downstream_agent per SARIF v2.1.0 standard; BA Specialist Findings Intake Protocol section in agents/ba.md",
-      "source": "SARIF v2.1.0 https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html; axe-core API https://www.deque.com/axe/core-documentation/api-documentation/"
+      "value": "report-schema.json finding_base with location structured object {url,selector,file,line} (nullable), measured string, expected string, downstream_agent const:ba; all three canonical channels inherit via $ref; architect/product-owner/user prose schemas with BA-actionable fields; ba.md Specialist Findings Intake Protocol",
+      "source": "SARIF v2.1.0 https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html (physicalLocation); axe-core API https://www.deque.com/axe/core-documentation/api-documentation/ (selector field)"
     },
-    "gap": "5 files missing at least one of: structured location object, measured field, expected field, downstream_agent field, intake protocol. All gaps are additive (nothing to remove, only to add)."
+    "gap": "6 artifacts missing at least one of: structured location object, measured field, expected field, downstream_agent field, intake protocol. report-schema.json finding_base is the highest-priority gap because it is machine-enforced. All other gaps are in prose conventions. All gaps are additive (nothing to remove, only to add — except architect location type change which is breaking)."
   },
   "scope_expansion": {
-    "search_pattern": "\"issues\": \\[\\]|downstream_agent",
-    "search_scope": "agents/*.md",
+    "search_pattern": "\"issues\": \\[\\]|downstream_agent|finding_base",
+    "search_scope": "agents/*.md, skills/ui-shared/report-schema.json",
     "user_reported": ["agents/ui-specialist.md", "agents/ba.md", "agents/architect.md", "agents/product-owner.md", "agents/user.md"],
-    "additional_found": [],
+    "additional_found": ["skills/ui-shared/report-schema.json — required for machine-enforceability of ui-specialist channel; lies on user-need path"],
     "all_occurrences": [
-      "agents/ui-specialist.md:255",
+      "skills/ui-shared/report-schema.json:214-233 (finding_base — machine-enforced layer)",
+      "agents/ui-specialist.md:255 (prose example only)",
       "agents/architect.md:306-318",
       "agents/product-owner.md:327-340",
       "agents/user.md:427-442"
