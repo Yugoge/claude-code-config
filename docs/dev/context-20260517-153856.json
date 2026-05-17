@@ -11,16 +11,16 @@
     "where": ["agents/ui-specialist.md", "agents/architect.md", "agents/product-owner.md", "agents/user.md", "agents/ba.md"],
     "scope": {
       "included": [
-        "Additive schema fields in all 4 specialist agents' issues[] schemas: measured, expected, downstream_agent",
-        "Structured location object in ui-specialist and architect (currently flat strings in architect)",
-        "location.selector in ui-specialist (CSS selector already mentioned in prose, now formalized in schema)",
-        "observed_behavior + expected_behavior in product-owner and user",
-        "Specialist Findings Intake Protocol section in agents/ba.md"
+        "skills/ui-shared/report-schema.json — finding_base: location changed from flat string to structured object {url,selector,file,line} with nullable fields; measured, expected, downstream_agent added to base; required list updated",
+        "agents/ui-specialist.md — prose updated: references canonical channels (automated_findings, contextual_findings, aesthetic_findings); issues[] no longer described as canonical finding channel",
+        "agents/architect.md — issues[] location changes from string to structured object {file, line, url?}; gains measured, expected, downstream_agent",
+        "agents/product-owner.md — issues[] gains observed_behavior, expected_behavior, downstream_agent",
+        "agents/user.md — issues[] gains observed_behavior, expected_behavior, downstream_agent; location.file documented as nullable",
+        "agents/ba.md — new Specialist Findings Intake Protocol section"
       ],
       "excluded": [
         "agents/pm.md — PM triage uses specialist reports but user did not request PM changes",
         "commands/dev.md — orchestrator routing already passes specialist findings to BA; no changes needed",
-        "~/.claude/skills/ui-shared/report-schema.json — inline schema is additive alongside this file",
         "QA verification protocol changes",
         "New skills or tools",
         "Schema versioning (Won't Have)"
