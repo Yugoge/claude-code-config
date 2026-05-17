@@ -426,34 +426,13 @@ For each script in `dev.scripts_created`:
 
 **Quick quality checks**:
 
-1. **No hardcoded values in wrong places**:
-```bash
-# Check for common hardcoding patterns in scripts
-grep -E "(https?://[^ ]+|localhost|127\.0\.0\.1)" scripts/*.sh
-# Should be parameters, not hardcoded
-```
+1. **No hardcoded values in wrong places**: Grep `scripts/*.sh` for URLs, localhost, and IP addresses — these should be parameters, not hardcoded.
 
-2. **Python venv usage**:
-```bash
-# Check scripts use source venv, not python3
-grep -n "python3 " scripts/*.sh
-# Should be: source venv/bin/activate && python
-```
+2. **Python venv usage**: Grep `scripts/*.sh` for bare `python3` calls — these should use `source venv/bin/activate && python`.
 
-3. **Naming conventions**:
-```bash
-# Check for meaningless names
-ls scripts/ | grep -E "(enhance|fast|optimize-v[0-9]|temp|tmp)"
-# Should use descriptive verb-noun pattern
-```
+3. **Naming conventions**: Check `scripts/` for meaningless names like `enhance`, `fast`, `optimize-v2`, `temp`, `tmp` — use descriptive verb-noun pattern.
 
-4. **No decimal/letter step numbering**:
-```bash
-# Check documentation and comments
-grep -rn "Step [0-9]\+\.[0-9]" .
-grep -rn "Step [0-9]\+[a-z]" .
-# Should be resequenced to integers
-```
+4. **No decimal/letter step numbering**: Grep docs and comments for `Step N.M` and `Step Na` patterns — these should be resequenced to integers.
 
 ### Step 7: Automated Hardcode Scanning
 
