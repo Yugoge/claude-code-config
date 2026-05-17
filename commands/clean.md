@@ -54,19 +54,9 @@ All agents communicate via JSON in `docs/clean/`.
 
 **Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex`, strip it from the arguments and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every cleanliness-inspector and style-inspector dispatch prompt below MUST include the literal line `codex_required: true` so the subagent's opt-in codex consultation block activates. When `codex_required = false`, omit that line.
 
-Load TodoList checklist:
+Load TodoList checklist: activate venv and run `~/.claude/scripts/todo/clean.py`.
 
-```bash
-source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/clean.py
-```
-
-Set up working directory:
-
-```bash
-mkdir -p docs/clean/
-REQUEST_ID="clean-$(date +%Y%m%d-%H%M%S)"
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-```
+Set up working directory: create `docs/clean/`, generate `REQUEST_ID="clean-$(date +%Y%m%d-%H%M%S)"` and `TIMESTAMP` in ISO-8601 format.
 
 **Documentation Structure Rules**:
 
