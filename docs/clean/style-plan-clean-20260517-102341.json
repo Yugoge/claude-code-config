@@ -1,0 +1,203 @@
+{
+  "request_id": "clean-20260517-102341",
+  "timestamp": "2026-05-17T10:23:41Z",
+  "agent_count": 13,
+  "total_files": 64,
+  "all_files": [
+    "/dev/shm/dev-workspace/dot-claude/.claude/commands/INDEX.md",
+    "/dev/shm/dev-workspace/dot-claude/.claude/commands/README.md",
+    "/dev/shm/dev-workspace/dot-claude/scripts/aggregate-permissions.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/break-overnight-lock.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/build-pipelines-from-triage.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/check-overnight-reports.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/iterate-failed-pipelines.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/runcode-watchdog.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/spec-check.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/clean.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/close.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/code-review.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/deep-search.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/dev-command.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/dev-overnight.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/dev.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/doc-gen.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/explain-code.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/file-analyze.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/optimize.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/playwright-helper.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/quick-prototype.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/redev.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/refactor.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/reflect-search.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/research-deep.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/security-check.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/site-navigate.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/spec.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/todo/test.py",
+    "/dev/shm/dev-workspace/dot-claude/scripts/analyze-folder-history.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/analyze-git-edge-cases.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/apply-permissions.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/check-file-references.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/check-overnight-reports.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/checkpoint-prune.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/check-readme-freshness.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/check-security-hook-drift.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/cleanup-tests-folder.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/create-overnight-state.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/create-worktree.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/derive-default-branch.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/detect-dead-functions.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/detect-duplicate-content.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/detect-hardcoded-paths.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/detect-merge-conflicts.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/detect-orphan-agents.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/detect-orphan-commands.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/detect-orphan-scripts.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/discover-folders.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/generate-folder-index.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/generate-folder-readme.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/install-checkpoint-refspec.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/migrate-test-to-tests.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/normalize-doc-names.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/orchestrator.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/overnight-status.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/plan-style-inspection.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/refine-context.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/scan-project.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/update-gitignore.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/update-overnight-state.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/write-codex-enforce.sh",
+    "/dev/shm/dev-workspace/dot-claude/scripts/write-qa-mode.sh"
+  ],
+  "groups": [
+    {
+      "group_id": 1,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/.claude/commands/INDEX.md",
+        "/dev/shm/dev-workspace/dot-claude/.claude/commands/README.md",
+        "/dev/shm/dev-workspace/dot-claude/scripts/aggregate-permissions.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/break-overnight-lock.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/build-pipelines-from-triage.py"
+      ]
+    },
+    {
+      "group_id": 2,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/check-overnight-reports.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/iterate-failed-pipelines.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/runcode-watchdog.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/spec-check.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/clean.py"
+      ]
+    },
+    {
+      "group_id": 3,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/close.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/code-review.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/deep-search.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/dev-command.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/dev-overnight.py"
+      ]
+    },
+    {
+      "group_id": 4,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/dev.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/doc-gen.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/explain-code.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/file-analyze.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/optimize.py"
+      ]
+    },
+    {
+      "group_id": 5,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/playwright-helper.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/quick-prototype.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/redev.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/refactor.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/reflect-search.py"
+      ]
+    },
+    {
+      "group_id": 6,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/research-deep.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/security-check.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/site-navigate.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/spec.py",
+        "/dev/shm/dev-workspace/dot-claude/scripts/todo/test.py"
+      ]
+    },
+    {
+      "group_id": 7,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/analyze-folder-history.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/analyze-git-edge-cases.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/apply-permissions.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/check-file-references.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/check-overnight-reports.sh"
+      ]
+    },
+    {
+      "group_id": 8,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/checkpoint-prune.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/check-readme-freshness.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/check-security-hook-drift.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/cleanup-tests-folder.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/create-overnight-state.sh"
+      ]
+    },
+    {
+      "group_id": 9,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/create-worktree.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/derive-default-branch.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/detect-dead-functions.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/detect-duplicate-content.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/detect-hardcoded-paths.sh"
+      ]
+    },
+    {
+      "group_id": 10,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/detect-merge-conflicts.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/detect-orphan-agents.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/detect-orphan-commands.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/detect-orphan-scripts.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/discover-folders.sh"
+      ]
+    },
+    {
+      "group_id": 11,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/generate-folder-index.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/generate-folder-readme.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/install-checkpoint-refspec.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/migrate-test-to-tests.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/normalize-doc-names.sh"
+      ]
+    },
+    {
+      "group_id": 12,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/orchestrator.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/overnight-status.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/plan-style-inspection.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/refine-context.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/scan-project.sh"
+      ]
+    },
+    {
+      "group_id": 13,
+      "files": [
+        "/dev/shm/dev-workspace/dot-claude/scripts/update-gitignore.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/update-overnight-state.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/write-codex-enforce.sh",
+        "/dev/shm/dev-workspace/dot-claude/scripts/write-qa-mode.sh"
+      ]
+    }
+  ]
+}
