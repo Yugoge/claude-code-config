@@ -111,9 +111,9 @@
       "script_discovered": false,
       "script_path": null,
       "health_check_url": null,
-      "health_check_result": "skipped — non-UI hook change per BA spec setup.applicability = N/A",
-      "status": "skipped_non_ui",
-      "blocking_reason": null
+      "health_check_result": "not applicable — no web service involved",
+      "status": "legitimately_skipped",
+      "blocking_reason": "Change is confined to hooks/pretool-git-privilege-guard.py, a Python PreToolUse hook with no web-facing interface. BA spec explicitly marks setup.applicability = N/A: 'non-UI -- hook; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths'. There is no URL, no service port, and no browser-exercisable path. E2E browser testing is structurally inapplicable to this change."
     },
     "e2e_script_results": [],
     "ui_test_results": [],
