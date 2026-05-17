@@ -221,15 +221,9 @@ Only proceed to Step 6 when a STRONG signal fires.
 
    **Rule**: Every spec subagent invocation MUST be followed by QA validation. The loop exits only on `pass` or on round-3 exhaustion.
 
-4. **Mark split as complete**:
-   ```bash
-   echo "split-complete: $(date -Iseconds)" > docs/dev/specs/<spec-id>/.split-complete
-   ```
+4. **Mark split as complete**: Write `"split-complete: $(date -Iseconds)"` to `docs/dev/specs/<spec-id>/.split-complete`.
 
-   If the loop exited via round-3 exhaustion (sub-step 3), also append the caveat line so reviewers see the warning inline with the marker:
-   ```bash
-   echo "⚠ unresolved split-QA issues (<N>); see split-qa-unresolved.json" >> docs/dev/specs/<spec-id>/.split-complete
-   ```
+   If the loop exited via round-3 exhaustion (sub-step 3), also append `"warning: unresolved split-QA issues (<N>); see split-qa-unresolved.json"` so reviewers see the warning inline with the marker.
 
 ### Step 7: Display result + workflow update
 
