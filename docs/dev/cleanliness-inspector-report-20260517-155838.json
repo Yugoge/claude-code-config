@@ -1,11 +1,11 @@
 {
   "request_id": "cleanliness-inspector-20260517-155838",
-  "timestamp": "2026-05-17T18:10:00Z",
+  "timestamp": "2026-05-17T21:00:00Z",
   "inspector": "cleanliness-inspector",
   "mode": "changed-files",
   "changed_files": ["commands/close.md", "commands/do.md"],
-  "task_diff_commit": "b7ea9ed",
-  "task_diff_commit_note": "b7ea9ed changed commands/close.md inspector dispatch lines, commands/dev.md specialist dispatch prompt lines, and the auto-generated commands/INDEX.md timestamp. commands/do.md was changed by the separate orphan session commit 07d6e32, not by b7ea9ed. Both are included in the cycle changed_files list per the dev-report.",
+  "task_diff_commit": "f79255f",
+  "task_diff_commit_note": "f79255f applied 3 changes to commands/close.md: (1) sentinel cleanup changed from python3 -c unlink to rm -f shell form; (2) line 330 'Distinct from branch 5' corrected to 'Distinct from branch 6'; (3) line 334 'branch 4 reasoning applies' (QA-NO sub-bullet) corrected to 'branch 5 reasoning applies'. commands/do.md was not changed by f79255f. The cycle changed_files list [commands/close.md, commands/do.md] covers the full set of files modified by this dev task (task-id 20260517-155838) across all contributing commits (b7ea9ed, 07d6e32, 400cd4b, f79255f).",
   "findings": {
     "misplaced_docs": [],
     "naming_violations": [],
