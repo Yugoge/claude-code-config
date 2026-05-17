@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-17T17:16:55Z*
-**Total entries**: 101
+*Last updated: 2026-05-17T18:14:30Z*
+**Total entries**: 107
 **Convention**: kebab
 
 ## Tree
@@ -19,6 +19,7 @@ dev/
 ├── `ba-qa-report-20260416-073000.json` - json config
 ├── `ba-qa-report-20260517-153856.json` - json config
 ├── `ba-qa-report-20260517-155838.json` - json config
+├── `ba-qa-report-20260517-172600.json` - json config
 ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 ├── `cleanliness-inspector-report-20260517-155838.json` - json config
 ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
@@ -33,6 +34,7 @@ dev/
 ├── `completion-20260511-180000.md` - Development Completion Report — 20260511-180000
 ├── `completion-20260517-153856.md` - Development Completion Report — 20260517-153856
 ├── `completion-20260517-155838.md` - Development Completion Report — 20260517-155838
+├── `completion-20260517-172600.md` - Development Completion Report — 20260517-172600
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
 ├── `context-20260510-191533.json` - json config
@@ -40,6 +42,7 @@ dev/
 ├── `context-20260511-180000.json` - json config
 ├── `context-20260517-153856.json` - json config
 ├── `context-20260517-155838.json` - json config
+├── `context-20260517-172600.json` - json config
 ├── `context-dev-20260107-091716.json` - json config
 ├── `context-dev-20260107-100221.json` - json config
 ├── `context-dev-20260107-104430.json` - json config
@@ -61,6 +64,7 @@ dev/
 ├── `dev-report-20260511-180000.json` - json config
 ├── `dev-report-20260517-153856.json` - json config
 ├── `dev-report-20260517-155838.json` - json config
+├── `dev-report-20260517-172600.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
 ├── `dev-report-dev-20260107-104430.json` - json config
@@ -91,6 +95,7 @@ dev/
 ├── `qa-report-20260511-180000.json` - json config
 ├── `qa-report-20260517-153856.json` - json config
 ├── `qa-report-20260517-155838.json` - json config
+├── `qa-report-20260517-172600.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
 ├── `qa-report-dev-20260107-100221.json` - json config
 ├── `qa-report-dev-20260107-104430.json` - json config
@@ -107,7 +112,8 @@ dev/
 ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence
 ├── `ticket-20260517-153856.md` - BA Specification: Establish Bidirectional Handoff Contracts Between Specialist Agents and BA
-└── `ticket-20260517-155838.md` - BA Specification: /do direct-development cannot be closed via /close normal path
+├── `ticket-20260517-155838.md` - BA Specification: /do direct-development cannot be closed via /close normal path
+└── `ticket-20260517-172600.md` - BA Specification: Add close→commit/push Ending Workflow Adaptation to clean.md + Enumerate Other Commands
 ```
 
 ---

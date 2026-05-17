@@ -110,7 +110,7 @@ The forced-override todo list has exactly **2 steps** (no Step 2 / QA dispatch):
 
 6. **Create forced-path update and clean up sentinel**: Create the update using `/update --temp`. Default to `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless the user explicitly asks. It must state that closure was forced by the user, reference `docs/dev/close-report-<task-id>.md`, and suggest `/commit <task-id> -m "<summary>"` only if the user still intends to ship despite the skipped debate.
 
-   After the update is created, remove the sentinel file `/tmp/claude-close-force-<DEV_SESSION_ID>.flag` by running `python3 -c "import os, pathlib; pathlib.Path('/tmp/claude-close-force-<DEV_SESSION_ID>.flag').unlink(missing_ok=True)"` (suppress any errors). This cleanup is mandatory, not best-effort — but errors are swallowed so the close still completes.
+   After the update is created, remove the sentinel file: `rm -f '/tmp/claude-close-force-<DEV_SESSION_ID>.flag' 2>/dev/null || true` (swallows all cleanup errors including missing-file). This cleanup is mandatory, not best-effort — but errors are swallowed so the close still completes.
 
 7. **Print the final stdout line** (this is the line consumers grep for):
 
@@ -327,11 +327,11 @@ Verdict branches:
 
     `failed_parse` differs from `failed_quota`/`failed_timeout` because the request DID complete and the codex CLI DID emit content -- the parser merely could not map it to the `CODEX: YES` / `CODEX: NO` format. Skipping the manual scan would create a downgrade vector: a substantive `NO` could ride a malformed response into a YES verdict. If the manual parse finds ANY dissent signal, this branch fails over to **CLOSE: NO** (treat as substantive Codex dissent under branch 3 with the verbatim signal as the dissent line). If QA omits the verbatim attestation, fail over to branch 8 (conservative NO).
 
-8. **Other ambiguity / parse failure on QA's side / unresolved disagreement after final round**: → **CLOSE: NO** (conservative default). Distinct from branch 5: the failure is on QA's reasoning side, not codex's transport.
+8. **Other ambiguity / parse failure on QA's side / unresolved disagreement after final round**: → **CLOSE: NO** (conservative default). Distinct from branch 6: the failure is on QA's reasoning side, not codex's transport.
 
 9. **Codex disabled by user (no `--codex` flag)** — `codex_required = false` from Step 1 → QA runs **single-round QA-only assessment** of the 4 Workflow Integrity bullets + 1b cleanliness preconditions; no `Skill(codex)` invocations attempted; `codex_status` is set to the literal sentinel `disabled_by_user`. Verdict logic collapses to:
    - QA position = YES AND all four Workflow Integrity bullets PASS (or N/A-with-reason; never FAIL) AND no NEW-violation cleanliness inspector finding → **CLOSE: YES** (annotation: `codex_disabled_by_user: codex consultation skipped because --codex flag was not passed; verdict granted on QA's substantive YES + 4 bullets PASS alone`).
-   - QA position = NO at end of single round → **CLOSE: NO** (branch 4 reasoning applies; QA's substantive objection is the dissent line).
+   - QA position = NO at end of single round → **CLOSE: NO** (branch 5 reasoning applies; QA's substantive objection is the dissent line).
    - Any of the four bullets FAIL → **CLOSE: NO** (branch 4 reasoning applies; the failing bullet name is the dissent line).
    - AC-deviation-PASS branch 2 is fully applicable in the codex-disabled path — when QA verdict is YES on user-need verification AND dev report contains a valid `ac_deviation_with_user_need_satisfied: true` block satisfying clauses (a)–(d) of branch 2, **CLOSE: YES** is granted with the deviation rationale recorded.
    - Branches 3 / 6 / 7 / 8 are all N/A in the codex-disabled path (codex was never invoked; there is no codex dissent to weigh, no infrastructure failure to handle, no parse failure to scan).
