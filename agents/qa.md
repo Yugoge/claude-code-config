@@ -381,15 +381,7 @@ For each script in `dev.scripts_created`:
 - [ ] Error handling (`set -euo pipefail`)
 - [ ] Meaningful name (`{verb}-{noun}.sh`)
 
-**Test script execution**:
-```bash
-# Run script with test parameters
-bash -n scripts/validate-api-timeout.sh  # Syntax check
-./scripts/validate-api-timeout.sh <test-params>  # Actual run
-
-# Verify exit codes match documentation
-echo $?  # Should match documented behavior
-```
+**Test script execution**: Run `bash -n` for syntax check, then execute with test parameters. Verify the actual exit code matches the documented behavior.
 
 **Document findings**:
 ```json
