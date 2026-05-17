@@ -580,7 +580,7 @@ If YES → the pipeline MUST end with live screenshot evidence on dev.life-ai.ap
 
 For NON-UI issues (CLI-only, server-only, refactor, dead-code-removal): the rule is relaxed; source + typecheck + functional smoke is acceptable. But these are the exception, not the default.
 
-**Why this rule exists**: Overnight session 21d24e89 (2026-04-25) shipped 14 Codex tool renderers across 2 cycles. Source verified, bundle verified, typecheck passed, daemon healthy — every QA report said PASS. NONE of the 14 renderers ever rendered in a real browser. The user identified this as QA failure-by-escape caused by a multi-layer escape chain that started with PM marking "Codex session in dev" as `skip` with `skip_reason: "manual user setup task"`. This Step 1.7 is a hard gate to prevent recurrence.
+**Why this rule exists**: Overnight session 21d24e89 (2026-04-25) shipped 14 Codex tool renderers across 2 cycles. Source verified, bundle verified, typecheck passed, daemon healthy — every QA report said PASS. NONE of the 14 renderers ever rendered in a real browser. The user identified this as QA failure-by-escape caused by a multi-layer escape chain that started with PM marking "Codex session in dev" as `skip` with `skip_reason: "manual user setup task"`. This Step 3 (Live-Evidence Mandate Check) is a hard gate to prevent recurrence.
 
 ### Step 4: User-Need Path Relevance Filter (TRIAGE only — MANDATORY per spec-20260503-091826 Section 5.5 decision #2)
 
@@ -1055,23 +1055,9 @@ If you are invoked under a `/spec`-driven workflow (the orchestrator passes a no
 
 **On entry** (the `pretool-cp-checkin.py` hook does this for you when you Read your view file): your `is_running` flips to true and your `agent_id` is recorded. Use the recorded `agent_id` value as `--agent-id`; if `$CLAUDE_AGENT_ID` is available, it must match that value.
 
-**During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it:
-```bash
-python3 /root/.claude/scripts/spec-check.py mark \
-  --spec-id <SPEC_ID> \
-  --agent pm \
-  --agent-id "$CLAUDE_AGENT_ID" \
-  --cp-id cp-NN
-```
+**During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it done using `spec-check.py mark` with `--spec-id <SPEC_ID>`, `--agent pm`, `--agent-id "$CLAUDE_AGENT_ID"`, and `--cp-id cp-NN`. Activate the venv before invoking (`source ~/.claude/venv/bin/activate`).
 
-If a checkpoint legitimately does not apply to this run, waive it (auto-text records actor + ISO timestamp):
-```bash
-python3 /root/.claude/scripts/spec-check.py waive \
-  --spec-id <SPEC_ID> \
-  --agent pm \
-  --agent-id "$CLAUDE_AGENT_ID" \
-  --cp-id cp-NN
-```
+If a checkpoint legitimately does not apply to this run, waive it using `spec-check.py waive` with the same arguments (auto-text records actor + ISO timestamp).
 
 **On exit**: every checkpoint must be in state `done` or `waived`. The `subagentstop-cp-enforce.py` hook fires automatically when you stop and BLOCKS your exit (exit 2) if any cp remains `pending`. The block message tells you which cp-IDs are still pending; you must re-run yourself with proper marking.
 
