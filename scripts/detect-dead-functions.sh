@@ -46,7 +46,7 @@ for pyfile in "$SCRIPTS_DIR"/*.py; do
 
         # Not called internally — check if called from OTHER files
         ref_count=$(grep -rl "\b${name}\b" "$SCRIPTS_DIR"/*.py 2>/dev/null | grep -v "$basename" | wc -l)
-        cmd_refs=$(grep -rl "\b${name}\b" ~/.claude/commands/*.md ~/.claude/agents/*.md 2>/dev/null | wc -l)
+        cmd_refs=$(grep -rl "\b${name}\b" "$COMMANDS_DIR"/*.md "$AGENTS_DIR"/*.md 2>/dev/null | wc -l)
 
         total_refs=$((ref_count + cmd_refs))
 
