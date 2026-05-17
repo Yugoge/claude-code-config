@@ -14,7 +14,7 @@ your job is to classify, stage, commit, and write the push-gate token.
 ## Constants
 
 ```
-CONTROL_ROOT=/root          # always — all dev-report / close-report / ticket I/O
+CONTROL_ROOT=/root          # fallback for dev-report lookup when subproject search yields nothing; close-report and ticket I/O always use CONTROL_ROOT
 NESTED_REPO=/dev/shm/dev-workspace/dot-claude
 ```
 
@@ -109,8 +109,55 @@ a matching dev-report entry. The dev-report is attribution enrichment only.
   must be realpath-resolved to check repo membership.
 
 **Dev-report enrichment** (attribution only, not authority):
-If `TASK_ID` is non-empty, read `${CONTROL_ROOT}/docs/dev/dev-report-${TASK_ID}.json`.
-Extract `dev.files_modified[]` and `dev.files_created[]` arrays. These paths are
+If `TASK_ID` is non-empty, resolve the dev-report path using the subproject path-walk:
+
+```python
+import os
+
+# changed_paths: repo-relative paths parsed from git status --porcelain=v1 output.
+# For rename/copy (R/C) records, use the destination path (field after " -> " or second field).
+# GIT_ROOT: absolute path from `git rev-parse --show-toplevel` for the repo being committed.
+
+# Guard: if no changed paths, skip enrichment entirely
+if not changed_paths:
+    dev_report_path = None  # fall through to CONTROL_ROOT fallback below
+else:
+    abs_paths = [os.path.realpath(os.path.join(GIT_ROOT, p)) for p in changed_paths]
+    parent_dirs = [os.path.dirname(p) for p in abs_paths]
+
+    # Filter out CONTROL_ROOT workflow artifacts (docs/dev/*.json, docs/dev/*.md) before
+    # computing commonpath — they collapse the common ancestor to /root when a task
+    # touches both subproject files and workflow artifacts simultaneously.
+    control_docs_dev = os.path.realpath(os.path.join(CONTROL_ROOT, "docs", "dev"))
+    filtered_dirs = [d for d in parent_dirs if not d.startswith(control_docs_dev)]
+    # If filtering removed everything (e.g. only workflow artifacts changed), fall back
+    # to all parent dirs to avoid ValueError from commonpath([]).
+    search_dirs = filtered_dirs if filtered_dirs else parent_dirs
+
+    common = os.path.commonpath(search_dirs)  # always a directory (dirname applied first)
+
+    # Walk upward from common toward filesystem root, looking for docs/dev/
+    candidate = common
+    dev_report_path = None
+    while True:
+        if os.path.isdir(os.path.join(candidate, "docs", "dev")):
+            path = os.path.join(candidate, "docs", "dev", f"dev-report-{TASK_ID}.json")
+            if os.path.isfile(path):
+                dev_report_path = path
+                break
+        parent = os.path.dirname(candidate)
+        if parent == candidate:  # reached filesystem root
+            break
+        candidate = parent
+
+# Fallback to CONTROL_ROOT if walk found nothing (also handles empty changed_paths case)
+if dev_report_path is None:
+    fallback = os.path.join(CONTROL_ROOT, "docs", "dev", f"dev-report-{TASK_ID}.json")
+    if os.path.isfile(fallback):
+        dev_report_path = fallback
+```
+
+Extract `dev.files_modified[]` and `dev.files_created[]` arrays from the resolved path. These paths are
 used for commit message enrichment (deriving type/scope/summary). They do NOT
 add files to the commit that are not already in git status output.
 
@@ -299,7 +346,7 @@ Export shell variables before calling Python (shell variables are not Python var
 ```bash
 export GIT_ROOT BRANCH COMMIT_SHA
 python3 - <<'PYEOF'
-import hashlib, json, os, datetime
+import hashlib, json, os
 
 git_root = os.environ["GIT_ROOT"]
 branch = os.environ["BRANCH"]
@@ -312,12 +359,10 @@ branch_encoded = branch.replace('/', '__')
 token_dir = f"/tmp/agentic-commit/push/{repo_hash}"
 os.makedirs(token_dir, exist_ok=True)
 
-expires_at = (datetime.datetime.utcnow() + datetime.timedelta(hours=24)).isoformat() + 'Z'
 token = {
     "commit_sha": commit_sha,
     "branch": branch,
     "repo_root": repo_root,
-    "expires_at": expires_at,
     "session_id": os.environ.get("CLAUDE_SESSION_ID", ""),
 }
 token_path = f"{token_dir}/{branch_encoded}.json"

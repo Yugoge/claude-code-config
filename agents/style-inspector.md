@@ -110,6 +110,7 @@ When the orchestrator (e.g., close.md Round-1 cleanliness preconditions) invokes
 - The inspector internally `git diff --name-only`-filters its scan to only the listed files (or token-equivalent: the listed files ARE the scan set).
 - Default behavior is preserved when the parameter is omitted.
 - **Scope contract**: `--changed-files` mode is ONLY for cleanliness-of-THIS-diff scoping. It MUST NOT replace regression coverage, type-check coverage, or import-graph coverage — indirect breakage in untouched files is QA's regression-gate scope, not inspector cleanliness scope.
+- **Exception — Standard 6 (unconditional scan)**: Even when `--changed-files` is provided, the inspector MUST run the Standard 6 Chinese-character grep against the full command/agent prompt directories. Scan all existing paths among: `agents/*.md`, `commands/*.md`, `.claude/agents/*.md`, `.claude/commands/*.md`. This exception applies ONLY to Standard 6 and does NOT widen Standards 1-5 or 7-11.
 - For style-inspector specifically, output granularity is `file:line` (line-level), so close.md applies AC-2.6 (b) line-level rule: a finding is provably NEW when (i) its line falls within the cycle diff's changed-line range / diff-hunk overlap AND (ii) the finding is also absent from the pre-diff baseline. Overlap alone is necessary but NOT sufficient. The inspector emits findings with `file:line`; close.md performs the diff-overlap + pre-diff-baseline check.
 - Soft fallback: when pre-diff baseline comparison is impractical, the inspector documents the proxy used (e.g., "overlap-only used because <reason>"); close.md treats overlap-only findings as **advisory** unless the proxy explicitly stipulates newness.
 
@@ -343,13 +344,15 @@ analyze-performance.py
 
 **Rule**: All code, comments, command/agent files, and hook scripts MUST be in English.
 
-**Scope**: Only `.claude/commands/*.md`, `.claude/agents/*.md`, `.claude/hooks/*.sh`, `.claude/hooks/*.py`, `scripts/*.sh`, `scripts/*.py`. Do NOT scan `docs/` -- documentation and planning files may legitimately contain non-English content.
+**Scope**: `agents/*.md`, `commands/*.md`, `.claude/commands/*.md`, `.claude/agents/*.md`, `.claude/hooks/*.sh`, `.claude/hooks/*.py`, `scripts/*.sh`, `scripts/*.py`. Do NOT scan `docs/` -- documentation and planning files may legitimately contain non-English content.
 
 **Detection**:
 ```bash
 # Detect Chinese characters in code, command/agent files, and hook scripts
-grep -n '[一-龟]' .claude/commands/*.md .claude/agents/*.md scripts/*.sh scripts/*.py .claude/hooks/*.sh .claude/hooks/*.py 2>/dev/null
+grep -n '[一-龟]' agents/*.md commands/*.md .claude/commands/*.md .claude/agents/*.md scripts/*.sh scripts/*.py .claude/hooks/*.sh .claude/hooks/*.py 2>/dev/null
 ```
+
+**Unconditional scan (exception to --changed-files scoping)**: Standard 6 runs against the full agents and commands directories on every invocation, including `--changed-files` mode. Rationale: agent/command prompt files can receive non-English text via chore commits or post-cycle sync commits that bypass the /dev pipeline entirely (observed: ba.md incident task-id 20260517-121150). A changed-files-only check cannot catch such introductions. This exception is scoped to Standard 6 only and does not affect Standards 1-5 or 7-11.
 
 **Exemption (verbatim user-binding quotes)**: Verbatim non-English user-binding quotes belong in `docs/dev/ticket-*.md` only (already in the `docs/` scope-exclusion zone above). Code/script comments and user-visible diagnostic strings (BLOCKED stderr, REASON lines, error messages) must be English with task-id attribution citing the ticket where the verbatim text is preserved. Authoring cycle: task-id 20260509-153155. Precipitating failure: 5 violations in pretool-bash-safety.sh from cycle 20260509-113838.
 

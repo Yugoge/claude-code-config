@@ -1,7 +1,7 @@
 # clean
 
-*Last updated: 2026-05-17T10:32:18Z*
-**Total entries**: 34
+*Last updated: 2026-05-17T10:44:40Z*
+**Total entries**: 46
 **Convention**: kebab
 
 ## Tree
@@ -16,8 +16,10 @@ clean/
 │       └── `workflow-fix-20251228-rule-inspector-enforcement.md` - Workflow Fix: Enforce rule-inspector Step 3.5
 ├── `cleanliness-report-clean-20260107-101825.json` - json config
 ├── `cleanliness-report-clean-20260108-130050.json` - json config
+├── `cleanliness-report-clean-20260517-102341.json` - json config
 ├── `cleanup-execution-clean-20260107-101825.json` - json config
 ├── `combined-report-clean-20260107-101825.json` - json config
+├── `combined-report-clean-20260517-102341.json` - json config
 ├── `completion-20251226-115500.md` - Development Completion Report
 ├── `completion-clean-20260107-101825.md` - Cleanup Completion Report
 ├── `completion-clean-20260108-130050.md` - Cleanup Completion Report
@@ -33,13 +35,23 @@ clean/
 ├── `rule-inspector-summary.md` - Rule Inspector Summary
 ├── `rule-report-clean-20260108-130050.json` - json config
 ├── `rule-report-clean-20260517-102341.json` - json config
+├── `style-partial-clean-20260517-102341-group1.json` - json config
+├── `style-partial-clean-20260517-102341-group10.json` - json config
 ├── `style-partial-clean-20260517-102341-group11.json` - json config
+├── `style-partial-clean-20260517-102341-group12.json` - json config
+├── `style-partial-clean-20260517-102341-group13.json` - json config
+├── `style-partial-clean-20260517-102341-group2.json` - json config
+├── `style-partial-clean-20260517-102341-group3.json` - json config
 ├── `style-partial-clean-20260517-102341-group4.json` - json config
 ├── `style-partial-clean-20260517-102341-group5.json` - json config
+├── `style-partial-clean-20260517-102341-group6.json` - json config
 ├── `style-partial-clean-20260517-102341-group7.json` - json config
+├── `style-partial-clean-20260517-102341-group8.json` - json config
+├── `style-partial-clean-20260517-102341-group9.json` - json config
 ├── `style-plan-clean-20260517-102341.json` - json config
 ├── `style-report-clean-20260107-101825.json` - json config
 ├── `style-report-clean-20260108-130050.json` - json config
+├── `style-report-clean-20260517-102341.json` - json config
 └── `user-approvals-clean-20260107-101825.json` - json config
 ```
 
