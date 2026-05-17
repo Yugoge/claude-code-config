@@ -241,13 +241,13 @@ if [[ "$USER_SPEC_PATH" != "null" && -n "$USER_SPEC_PATH" ]]; then
 fi
 
 # --- Ensure output directory exists ---
-STATE_DIR="$PROJECT_DIR/.claude"
+STATE_DIR="$PROJECT_DIR/$STATE_SUBDIR"
 mkdir -p "$STATE_DIR"
 
 STATE_FILE="$STATE_DIR/overnight-state-${SESSION_ID}.json"
 TMP_FILE="${STATE_FILE}.tmp"
 CYCLE_ID=1
-CYCLE_DIR="$PROJECT_DIR/docs/dev/overnight/$SESSION_ID/cycle-$CYCLE_ID"
+CYCLE_DIR="$PROJECT_DIR/$CYCLE_SUBDIR/$SESSION_ID/cycle-$CYCLE_ID"
 CONTRACT_FILE="$CYCLE_DIR/cycle-contract.json"
 TRACE_LOG_PATH="$CYCLE_DIR/trace.jsonl"
 MONOLITH_SHA="null"
