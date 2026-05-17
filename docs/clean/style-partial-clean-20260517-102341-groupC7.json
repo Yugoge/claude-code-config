@@ -1,0 +1,193 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": "C7",
+  "status": "complete",
+  "files_audited": [
+    "commands/dev.md",
+    "commands/dev-command.md",
+    "commands/dev-overnight.md",
+    "commands/commit.md",
+    "commands/push.md"
+  ],
+  "violations": [
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "commands/commit.md:71-74",
+      "finding": "Inline bash code block in command file executes audit log write: `mkdir -p ~/.claude/logs` and `echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) task=${TASK_ID} mode=force\" >> ~/.claude/logs/commit-overrides.log`. This is actual executable logic, not an example.",
+      "recommendation": "Extract to scripts/write-commit-override-log.sh accepting task_id as parameter. Reference the script path in the command file instead."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "commands/commit.md:83-100",
+      "finding": "Python code block executes actual grant creation logic: imports json, os, secrets, datetime; constructs grant dict; calls Path(grant_path).write_text(...). This is inline Python implementation in a command file, not in an example section.",
+      "recommendation": "Extract to scripts/write-commit-grant.py accepting task_id, sid as CLI parameters. Reference the script in the command file."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "commands/commit.md:106-134",
+      "finding": "Python code block executes dispatch-snapshot manifest logic: imports json, os, datetime, subprocess; calls subprocess.run([\"git\", \"-C\", repo, \"status\", ...]) for two repos; writes manifest JSON file. This is inline Python implementation with real file operations and subprocess calls.",
+      "recommendation": "Extract to scripts/write-commit-manifest.py accepting session_id and task_id as CLI parameters. Reference the script in the command file."
+    },
+    {
+      "standard": "integer-step-numbering",
+      "severity": "critical",
+      "location": "commands/commit.md:79",
+      "finding": "Decimal step numbering used: \"Step 4.5: Write commit grant and dispatch-snapshot manifest\". Steps must use integers only.",
+      "recommendation": "Renumber the sequence: rename Step 4.5 to Step 5, then renumber the subsequent Step 5 (Dispatch changelog-analyst) to Step 6, and update any cross-references."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/dev.md:362",
+      "finding": "Chinese text inline in BA dispatch prompt Goal field without USER_VERBATIM wrapping: \"实现方式是最小最安全最完美最确定性地实现用户的需求，而不是扩大修复范围。一切以用户需求为中心。\"",
+      "recommendation": "Translate to English: \"The implementation approach is the minimal, safest, most complete, and most deterministic fulfillment of the user requirement — do not expand the fix scope. Everything centers on the user requirement.\" and update the Goal field."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/dev-command.md:268",
+      "finding": "Chinese retry-signal phrases appear without USER_VERBATIM wrapping: \"又\", \"还是\", \"没修好\", \"第 N 次\". These same phrases appear wrapped in USER_VERBATIM in dev.md:249 but are unwrapped here.",
+      "recommendation": "Either wrap in USER_VERBATIM tags matching dev.md:249 treatment, or replace with English equivalents: \"again\", \"still\", \"not fixed\", \"Nth attempt\"."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/dev-command.md:348",
+      "finding": "Chinese text inline in BA dispatch prompt Goal field without USER_VERBATIM wrapping: \"实现方式是最小最安全最完美最确定性地实现用户的需求，而不是扩大修复范围。一切以用户需求为中心。\" (identical to dev.md:362).",
+      "recommendation": "Translate to English (same as recommendation for dev.md:362): \"The implementation approach is the minimal, safest, most complete, and most deterministic fulfillment of the user requirement — do not expand the fix scope. Everything centers on the user requirement.\""
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/dev-overnight.md:117",
+      "finding": "Clause C regex pattern contains Chinese tokens without USER_VERBATIM wrapping: 自动|手动中断|不要问|不要打扰. These are Chinese-language autonomy directive tokens embedded directly in an instruction clause.",
+      "recommendation": "Replace Chinese tokens with English equivalents in the regex: auto|manual-interrupt|do-not-ask|do-not-disturb. If verbatim preservation is required for user-binding reasons, move the verbatim text to docs/dev/ticket-*.md and cite the ticket-id here."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/dev-overnight.md:119",
+      "finding": "Chinese phrase \"用户需求中心\" (user-requirement-centric) embedded in prose paragraph without any wrapper.",
+      "recommendation": "Translate to English: \"user-requirement-centric\" or \"user requirement focus\"."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/dev-overnight.md:142",
+      "finding": "Rule 8 prose repeats Chinese autonomy-directive tokens without wrapping: 手动中断, 自动, 不要问, 不要打扰 appear in an explanatory sentence.",
+      "recommendation": "Replace with English equivalents: manual-interrupt, auto, do-not-ask, do-not-disturb."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/dev-overnight.md:176",
+      "finding": "Chinese parenthetical \"自由探索\" (free exploration) embedded inline: \"specialists 自由探索 must NOT be reduced\".",
+      "recommendation": "Translate to English: \"specialists' free exploration must NOT be reduced\" or \"specialists must NOT have their exploratory scope reduced\"."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/dev-overnight.md:353",
+      "finding": "Chinese retry-signal phrases in list without USER_VERBATIM wrapping: \"又\", \"还是\", \"没修好\".",
+      "recommendation": "Replace with English equivalents: \"again\", \"still\", \"not fixed\", or wrap in USER_VERBATIM if verbatim user-binding preservation is required and move originals to docs/dev/ticket-*.md."
+    },
+    {
+      "standard": "dangling-references",
+      "severity": "critical",
+      "location": "commands/dev.md:141-144",
+      "finding": "References scripts/write-e2e-enforce.sh which does not exist in the scripts/ directory. The file was verified absent via directory listing.",
+      "recommendation": "Either create the missing script with the expected interface, or update the reference to the actual replacement script name."
+    },
+    {
+      "standard": "dangling-references",
+      "severity": "critical",
+      "location": "commands/dev-command.md:145",
+      "finding": "References scripts/write-e2e-enforce.sh which does not exist in the scripts/ directory (same missing file as dev.md:141-144).",
+      "recommendation": "Same fix as dev.md: create the missing script or update the reference to the actual replacement."
+    },
+    {
+      "standard": "dangling-references",
+      "severity": "critical",
+      "location": "commands/dev-overnight.md:236-239",
+      "finding": "References scripts/write-e2e-enforce.sh which does not exist in the scripts/ directory (same missing file as dev.md and dev-command.md).",
+      "recommendation": "Same fix as dev.md: create the missing script or update all three references consistently to the actual replacement script."
+    }
+  ],
+  "standards_passed": [
+    "no-hardcoded-values",
+    "use-source-venv",
+    "meaningful-naming",
+    "merge-similar-scripts",
+    "concise-documentation",
+    "parameterized-scripts",
+    "merge-conflicts"
+  ],
+  "summary": {
+    "standards_checked": 11,
+    "violations_found": 15,
+    "critical": 15,
+    "files_audited": 5,
+    "files_total": 5,
+    "rounds_completed": 1
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex confirmed all violations. Key findings: (1) Standard 6 was under-applied to non-USER_VERBATIM-wrapped Chinese text — confirmed all instances flagged. (2) Codex suggested dev.md:249 and dev.md:1390-1392 (USER_VERBATIM-wrapped) should also be flagged as Standard 6 violations — rejected because the dispatch prompt explicitly instructs 'flag any Chinese NOT explicitly wrapped in USER_VERBATIM tags', making USER_VERBATIM a valid exemption per the dispatch authority. (3) Codex confirmed Standard 1 violations at commit.md:71-74 (bash audit log) in addition to the Python blocks. (4) Standard 4 decimal step numbering confirmed. (5) Standard 10 dangling reference confirmed. (6) Observation about placeholder names in violation recommendations — logged only.",
+    "findings": [
+      {
+        "issue": "Standard 6 under-application: non-USER_VERBATIM-wrapped Chinese instances not fully enumerated in draft",
+        "proposed_fix": "Flag all Chinese text in command files not wrapped in USER_VERBATIM tags: dev.md:362, dev-command.md:268, dev-command.md:348, dev-overnight.md:117, dev-overnight.md:119, dev-overnight.md:142, dev-overnight.md:176, dev-overnight.md:353",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "All listed instances confirmed in final violations list."
+      },
+      {
+        "issue": "Codex suggested dev.md:249 (USER_VERBATIM-wrapped) and dev.md:1390-1392 (USER_VERBATIM-wrapped) should also be Standard 6 violations per strict reading of the spec",
+        "proposed_fix": "Flag dev.md:249 and dev.md:1390-1392 as Standard 6 violations regardless of USER_VERBATIM wrapping",
+        "classification": "blocker",
+        "disposition": "rejected",
+        "rationale": "Dispatch prompt explicitly instructs: 'flag any Chinese or non-English characters that are NOT explicitly wrapped in USER_VERBATIM tags'. The dispatch authority takes precedence over Codex's independent spec reading. USER_VERBATIM-wrapped instances are exempt per dispatch."
+      },
+      {
+        "issue": "Location accuracy: dev-overnight.md Chinese tokens appear at both line 117 (regex) and line 142 (prose explanation) — draft initially cited only one",
+        "proposed_fix": "Cite both dev-overnight.md:117 and dev-overnight.md:142 as separate violations",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Both lines confirmed and separately documented in final violations list."
+      },
+      {
+        "issue": "Standard 1 also applies to commit.md:71-74 (inline bash audit log write), not only the Python blocks",
+        "proposed_fix": "Add commit.md:71-74 as a no-inline-code violation for the bash block",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Bash code block at lines 71-74 executes real logic (mkdir + echo to log file). Added as first Standard 1 violation entry."
+      },
+      {
+        "issue": "Standard 4 decimal step numbering at commit.md:79 is correctly flagged",
+        "proposed_fix": "Already in draft violations list",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Confirmed in final violations list."
+      },
+      {
+        "issue": "Standard 10 dangling reference to scripts/write-e2e-enforce.sh confirmed across three files",
+        "proposed_fix": "Already in draft violations list",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "All three dangling references confirmed in final violations list."
+      },
+      {
+        "issue": "Recommendation text uses generic placeholder names (e.g. 'scripts/write-commit-grant.py') that may not match the actual intended replacement — these are inspector suggestions, not authoritative script names",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Recommendations are advisory. Inspector cannot know the actual intended script names. Logged for awareness; no change to violation entries."
+      }
+    ],
+    "feedback_incorporated": "Applied findings #1, #3, #4, #5, #6. Rejected finding #2 (USER_VERBATIM exemption per dispatch authority). Logged finding #7 as observation_only."
+  }
+}
