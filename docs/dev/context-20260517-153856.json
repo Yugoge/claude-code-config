@@ -271,7 +271,9 @@
     "codebase_state": "master branch, 39 uncommitted files",
     "recent_commits": "766b194 auto-bulk: end-of-cycle commit for master — docs/clean style partial results and INDEX",
     "file_contents": {
-      "agents/ui-specialist.md:255": "\"issues\": []",
+      "skills/ui-shared/report-schema.json:214-233": "finding_base: required=[rule_id,description,location,severity,evidence_mode]; location is type:string (CURRENT — must become structured object); no measured, expected, downstream_agent, selector fields",
+      "skills/ui-shared/report-schema.json:235-246": "finding_deterministic: allOf[finding_base, {computed_value:string, expected_value:string}] — RETAIN these fields",
+      "agents/ui-specialist.md:255": "\"issues\": [] — prose example only, NOT a channel in report-schema.json",
       "agents/architect.md:306-318": "{id, title, description, severity, location (string), category, estimated_effort, runtime_evidence, observation_notes, pm_tier}",
       "agents/product-owner.md:327-340": "{id, title, description, severity, location (string), category, viewport, estimated_effort, evidence, browser_verified, pm_tier}",
       "agents/user.md:427-442": "{id, title, description, severity, location (string), category, viewport, estimated_effort, evidence, steps_to_reproduce, affected_personas, frustration_signal, pm_tier}"

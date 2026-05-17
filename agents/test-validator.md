@@ -80,36 +80,7 @@ For script-based validators (`validate-*.py`):
 
 ### 2. Dependency Validation
 
-**Check imports available**:
-```python
-import ast
-import sys
-from pathlib import Path
-
-def check_imports(script_path: Path, venv_path: Path) -> list:
-    """Check if all imports in script are available in venv."""
-    with open(script_path) as f:
-        tree = ast.parse(f.read())
-
-    imports = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imports.extend(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom):
-            imports.append(node.module)
-
-    # Activate venv and check each import
-    missing = []
-    for imp in imports:
-        result = subprocess.run(
-            f"source {venv_path}/bin/activate && python3 -c 'import {imp}'",
-            shell=True, capture_output=True
-        )
-        if result.returncode != 0:
-            missing.append(imp)
-
-    return missing
-```
+**Check imports available**: Parse the script with ast to extract all import names. For each import, activate the venv and attempt to import it. Return a list of missing (unavailable) imports.
 
 **Checks**:
 - [ ] All imports available in venv
