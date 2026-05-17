@@ -141,10 +141,7 @@ Resolve the spec to evaluate (in priority order):
 
 If no task-id can be derived (no argument, no /dev context, no parseable filename), /close MUST exit with the same error message above. /close MUST NOT default to `date +%Y%m%d-%H%M%S` for the close-report filename — that would silently break the task-id chain.
 
-Bind the resolved value:
-```bash
-TASK_ID="<resolved task-id from rules above>"   # e.g. "$ARGUMENTS" when timestamp form, or derived from path basename
-```
+Bind the resolved value as `TASK_ID` (e.g. `"$ARGUMENTS"` when timestamp form, or derived from path basename).
 
 Also optionally note companion files if they exist at the same task-id: `context-<task-id>.json`, `dev-report-<task-id>.json`.
 
