@@ -581,6 +581,92 @@ def _write_userintent_sentinel(cmd_name: str, sid: str) -> None:
         pass
 
 
+def _init_dev_registry(cmd_name: str, user_input: str, claude_session_id: str, project_dir: Path) -> str:
+    """Initialize dev registry directory and sentinel files for a /dev or /dev-command invocation.
+
+    Creates .claude/dev-registry/<dev_session_id>/ with per-agent sentinel JSON files,
+    writes docs/dev/user-requirement-<dev_session_id>.md with the cleaned requirement,
+    and calls write-e2e-enforce.sh (and optionally write-codex-enforce.sh) as subprocesses.
+    Returns the generated dev_session_id string.
+    """
+    import datetime as _dt
+    prefix = 'dev-command' if cmd_name == 'dev-command' else 'dev'
+    dev_session_id = f"{prefix}-{_dt.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
+    # Create registry directory and write per-agent sentinel files
+    registry_dir = project_dir / '.claude' / 'dev-registry' / dev_session_id
+    agent_types = [
+        'architect', 'ba', 'cleaner', 'cleanliness-inspector', 'dev',
+        'git-edge-case-analyst', 'pm', 'product-owner', 'prompt-inspector',
+        'qa', 'rule-inspector', 'style-inspector', 'test-executor',
+        'test-validator', 'ui-specialist', 'user',
+    ]
+    try:
+        registry_dir.mkdir(parents=True, exist_ok=True)
+        for agent in agent_types:
+            sentinel = registry_dir / f'{agent}.json'
+            sentinel.write_text(
+                json.dumps({'agent_type': agent, 'session_id': dev_session_id}) + '\n'
+            )
+    except Exception as e:
+        print(f'_init_dev_registry: registry write error: {e}', file=sys.stderr)
+
+    # Strip --codex and --spec <path> tokens to get clean requirement
+    tokens = user_input.split()
+    clean_tokens = []
+    skip_next = False
+    for tok in tokens:
+        if skip_next:
+            skip_next = False
+            continue
+        if tok == '--codex':
+            continue
+        if tok in ('--spec', '-spec', '—spec', '–spec'):
+            skip_next = True
+            continue
+        clean_tokens.append(tok)
+    # Also strip inline --spec=<path> form
+    clean_requirement = re.sub(r'(?:--|[–—])spec\s+\S+', '', ' '.join(clean_tokens)).strip()
+
+    # Write user requirement document
+    try:
+        req_path = project_dir / 'docs' / 'dev' / f'user-requirement-{dev_session_id}.md'
+        req_path.parent.mkdir(parents=True, exist_ok=True)
+        req_path.write_text(clean_requirement)
+    except Exception as e:
+        print(f'_init_dev_registry: requirement write error: {e}', file=sys.stderr)
+
+    scripts_dir = Path(__file__).parent.parent / 'scripts'
+    base_env = {**os.environ, 'CLAUDE_PROJECT_DIR': str(project_dir), 'CLAUDE_SESSION_ID': claude_session_id}
+
+    # Call write-e2e-enforce.sh (fail-open)
+    try:
+        e2e_script = scripts_dir / 'write-e2e-enforce.sh'
+        result = subprocess.run(
+            [str(e2e_script), '--source-command', cmd_name, '--session-id', dev_session_id],
+            capture_output=True, text=True, timeout=15, env=base_env,
+        )
+        if result.returncode != 0:
+            print(f'_init_dev_registry: write-e2e-enforce.sh error: {result.stderr}', file=sys.stderr)
+    except Exception as e:
+        print(f'_init_dev_registry: write-e2e-enforce.sh exception: {e}', file=sys.stderr)
+
+    # Call write-codex-enforce.sh if --codex flag present (fail-open)
+    if '--codex' in user_input.split():
+        try:
+            codex_script = scripts_dir / 'write-codex-enforce.sh'
+            result = subprocess.run(
+                [str(codex_script), '--source-command', cmd_name, '--session-id', dev_session_id],
+                capture_output=True, text=True, timeout=15, env=base_env,
+            )
+            if result.returncode != 0:
+                print(f'_init_dev_registry: write-codex-enforce.sh error: {result.stderr}', file=sys.stderr)
+        except Exception as e:
+            print(f'_init_dev_registry: write-codex-enforce.sh exception: {e}', file=sys.stderr)
+
+    return dev_session_id
+
+
 def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     """Phase A: slash command detected -- setup todos, state, inject spec."""
     if cmd_name in ("commit", "push", "merge", "stop"):
@@ -599,6 +685,14 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     if cmd_name == 'dev-overnight':
         end_time, focus, spec_path, codex_required = parse_overnight_args(user_input)
         create_overnight_state(end_time, focus, spec_path=spec_path, session_id=sid, codex_required=codex_required)
+    if cmd_name in ('dev', 'dev-command'):
+        dev_session_id = _init_dev_registry(cmd_name, user_input, sid, PROJECT_DIR)
+        codex_active = '--codex' in user_input.split()
+        req_doc = f'docs/dev/user-requirement-{dev_session_id}.md'
+        print(f'DEV_SESSION_ID pre-initialized by hook: {dev_session_id}')
+        print(f'User requirement document: {req_doc}')
+        print(f'E2E enforcement: ACTIVE')
+        print(f'Codex enforcement: {"ACTIVE (--codex)" if codex_active else "inactive"}')
     emit_checklist_message(cmd_name, todos)
 
 
