@@ -156,9 +156,9 @@ When `spec_mode == "user-provided"` is auto-detected from a spec but the user's 
 - `/dev-overnight` — default 8h, no focus
 - `/dev-overnight 6:00 --spec docs/my-spec.md` — run until 6:00, use user-provided spec
 - `/dev-overnight 6:00 fix UI --spec docs/ui-spec.md` — focus + user spec
-- `/dev-overnight 6:00 --codex` — run until 6:00 with Codex adversarial review enabled for PM
+- `/dev-overnight 6:00 --codex` — run until 6:00 with Codex adversarial review enabled for all subagents
 
-**Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it from the argument string and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every PM dispatch prompt MUST include the literal line `codex_required: true` so PM's OPT-IN Codex consultation block (`agents/pm.md` § Codex adversarial consultation) activates. When `codex_required = false`, do NOT include that line.
+**Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it from the argument string and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every BA / QA / dev / PM dispatch prompt MUST include the literal line `codex_required: true` so each subagent's OPT-IN Codex consultation block activates. When `codex_required = false`, do NOT include that line.
 
 **`--spec` argument**: If provided, the session operates in **user-spec mode**:
 - The spec file is read by PM in PLAN mode (PM acts as supervisor, not full explorer)
