@@ -1,7 +1,7 @@
 # clean
 
-*Last updated: 2026-05-17T10:34:35Z*
-**Total entries**: 37
+*Last updated: 2026-05-17T10:35:47Z*
+**Total entries**: 38
 **Convention**: kebab
 
 ## Tree
@@ -33,6 +33,7 @@ clean/
 ├── `rule-inspector-summary.md` - Rule Inspector Summary
 ├── `rule-report-clean-20260108-130050.json` - json config
 ├── `rule-report-clean-20260517-102341.json` - json config
+├── `style-partial-clean-20260517-102341-group10.json` - json config
 ├── `style-partial-clean-20260517-102341-group11.json` - json config
 ├── `style-partial-clean-20260517-102341-group13.json` - json config
 ├── `style-partial-clean-20260517-102341-group2.json` - json config
