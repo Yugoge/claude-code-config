@@ -1,0 +1,330 @@
+{
+  "request_id": "20260517-153856",
+  "task_id": "20260517-153856",
+  "timestamp": "2026-05-17T15:38:56Z",
+  "complexity_tier": "STANDARD",
+  "requirement": {
+    "original": "现在所有 specialist agents（ui-specialist、architect、product-owner、user）给出的报告在 dev 工作流中与 BA/dev/QA 的 context 传递不连贯，且缺乏 handoff contract。具体表现：1. UI specialist 报告使用自然语言描述视觉问题（如"按钮间距不一致"），但不包含 CSS selector、measured vs expected 值、源代码位置等 BA/dev 可操作的字段。2. 所有 specialist 与 BA 之间没有 handoff contract，BA 收到 specialist findings 后没有规范化的消费协议（哪些字段必须提取、哪些 claim 需要自行验证、遇到模糊描述如何处理）。3. 结果：BA 和 dev 只能盲人摸象，无法根据 specialist 报告做出确定性的实现决策。目标：修改相关 agent spec 文件，在所有 specialist 输出和 BA 消费侧同时建立 handoff contract。",
+    "clarified": "Modify agents/ui-specialist.md, agents/architect.md, agents/product-owner.md, agents/user.md, and agents/ba.md to: (1) enrich each specialist's issues[] JSON schema with BA-actionable fields (measured, expected, structured location, downstream_agent), and (2) add a Specialist Findings Intake Protocol section to agents/ba.md documenting the consumption protocol.",
+    "what": "Bidirectional handoff contract establishment: specialist output schema enrichment + BA intake protocol",
+    "why": "BA and dev cannot make deterministic implementation decisions from current specialist reports — schemas lack measured/expected values, CSS selectors, source file locations, and routing metadata",
+    "where": ["agents/ui-specialist.md", "agents/architect.md", "agents/product-owner.md", "agents/user.md", "agents/ba.md"],
+    "scope": {
+      "included": [
+        "Additive schema fields in all 4 specialist agents' issues[] schemas: measured, expected, downstream_agent",
+        "Structured location object in ui-specialist and architect (currently flat strings in architect)",
+        "location.selector in ui-specialist (CSS selector already mentioned in prose, now formalized in schema)",
+        "observed_behavior + expected_behavior in product-owner and user",
+        "Specialist Findings Intake Protocol section in agents/ba.md"
+      ],
+      "excluded": [
+        "agents/pm.md — PM triage uses specialist reports but user did not request PM changes",
+        "commands/dev.md — orchestrator routing already passes specialist findings to BA; no changes needed",
+        "~/.claude/skills/ui-shared/report-schema.json — inline schema is additive alongside this file",
+        "QA verification protocol changes",
+        "New skills or tools",
+        "Schema versioning (Won't Have)"
+      ]
+    },
+    "success_criteria": [
+      "ui-specialist issues[] schema contains location.selector, measured, expected, downstream_agent",
+      "architect issues[] location is a structured object {file, line, url?} not a flat string; gains measured, expected, downstream_agent",
+      "product-owner issues[] contains observed_behavior, expected_behavior, downstream_agent",
+      "user issues[] contains observed_behavior, expected_behavior, downstream_agent with nullable location.file",
+      "agents/ba.md contains 'Specialist Findings Intake Protocol' section with mandatory fields, tier_3_tainted handling, measurement fallback, fast-fail rule",
+      "commands/dev.md and agents/pm.md are NOT changed"
+    ],
+    "constraints": [
+      "user agent is browser-only — location.file MUST be nullable",
+      "ui-specialist inline schema MUST coexist with (not replace) report-schema.json delegation",
+      "architect location change from string to object is a BREAKING schema change — flag in implementation",
+      "All existing fields in each specialist's issues[] must be preserved (additive only)"
+    ]
+  },
+  "scope_boundary": {
+    "in_user_path": [
+      "agents/ui-specialist.md",
+      "agents/architect.md",
+      "agents/product-owner.md",
+      "agents/user.md",
+      "agents/ba.md"
+    ],
+    "path_dependent_shared_infra": [],
+    "out_of_path_observed_but_not_touched": [
+      "commands/dev.md",
+      "agents/pm.md"
+    ]
+  },
+  "out_of_scope_observations": [
+    {
+      "ts": "2026-05-17T15:45:00Z",
+      "task_id": "20260517-153856",
+      "file": "commands/dev.md",
+      "line": null,
+      "observation": "Step 2 already routes specialist findings to BA — no changes needed; correctly out of scope",
+      "in_user_path": false,
+      "security_relevant": false
+    },
+    {
+      "ts": "2026-05-17T15:45:00Z",
+      "task_id": "20260517-153856",
+      "file": "agents/pm.md",
+      "line": null,
+      "observation": "PM triage consumes specialist reports; a parallel enrichment of PM consumption protocol could benefit from this same schema change but user did not request it",
+      "in_user_path": false,
+      "security_relevant": false
+    }
+  ],
+  "root_cause_analysis": {
+    "symptom": "BA and dev receive natural-language specialist findings ('button spacing inconsistent') but lack CSS selector, measured vs. expected values, and source file locations needed to make deterministic implementation decisions",
+    "root_cause": "Specialist agents' issues[] schemas were designed for PM triage (severity, category) not BA root-cause analysis. The schemas lack: structured location (SARIF-aligned), measured/expected value fields, and downstream_agent routing. BA has no documented intake protocol for consuming specialist findings.",
+    "root_cause_commit": "N/A — architectural gap, not introduced by a specific commit",
+    "why_introduced": "Specialist agents were designed with PM-first output in mind; BA consumption protocol was never formalized",
+    "why_problematic": "BA cannot apply Contract A (Evidence) without measured/expected values; cannot perform targeted grep without file:line:selector; cannot deterministically route findings without downstream_agent",
+    "timeline": "Present from initial specialist agent design; no regression",
+    "affected_files": ["agents/ui-specialist.md", "agents/architect.md", "agents/product-owner.md", "agents/user.md", "agents/ba.md"],
+    "evidence_type": "inferred",
+    "observations": [
+      "agents/ui-specialist.md line 255: issues[] schema is just `'issues': []` with no inline per-issue fields — schema delegated to report-schema.json only (inferred: Read)",
+      "agents/architect.md lines 306-318: location field is a flat string 'file:line or module/component name' — no structured object, no measured, no expected (inferred: Read)",
+      "agents/product-owner.md lines 327-340: no observed_behavior, no expected_behavior fields present (inferred: Read)",
+      "agents/user.md lines 427-442: no observed_behavior, no expected_behavior fields present (inferred: Read)",
+      "agents/ba.md: grep for 'Specialist Findings Intake Protocol' returns empty (inferred: grep)"
+    ],
+    "diagnosis_completeness": "incomplete (inferred only — these are agent spec files, not running systems; runtime observation is not applicable)",
+    "complaint_location_keywords": ["specialist agents", "ui-specialist", "architect", "product-owner", "handoff contract", "BA", "measured vs expected", "CSS selector"],
+    "localization_evidence": "Direct Read of each agent spec file confirmed schema deficiencies at specific line numbers",
+    "located_source": "agents/ui-specialist.md:255, agents/architect.md:306-318, agents/product-owner.md:327-340, agents/user.md:427-442, agents/ba.md (no intake protocol section)",
+    "localization_blocked": null,
+    "git_bisect_result": {
+      "triggered": false,
+      "suspect_commit": null,
+      "commit_message": null,
+      "confirmed_by": null,
+      "bisect_blocked": "N/A — not a regression, no prior working state",
+      "reproducibility_verified": false
+    }
+  },
+  "diagnosis_layer": "L3",
+  "requirements_decomposition": [
+    {
+      "id": "R1",
+      "source_phrase": "UI specialist 报告使用自然语言描述视觉问题（如"按钮间距不一致"），但不包含 CSS selector、measured vs expected 值、源代码位置等 BA/dev 可操作的字段",
+      "classification": "user-need clause",
+      "acceptance_criterion": "agents/ui-specialist.md issues[] schema contains location.selector, measured, expected, downstream_agent fields"
+    },
+    {
+      "id": "R2",
+      "source_phrase": "所有 specialist 与 BA 之间没有 handoff contract",
+      "classification": "user-need clause",
+      "acceptance_criterion": "All 4 specialist agents' issues[] schemas contain downstream_agent field plus BA-actionable fields (structured location, measured/expected or observed/expected)"
+    },
+    {
+      "id": "R3",
+      "source_phrase": "BA 收到 specialist findings 后没有规范化的消费协议（哪些字段必须提取、哪些 claim 需要自行验证、遇到模糊描述如何处理）",
+      "classification": "user-need clause",
+      "acceptance_criterion": "agents/ba.md contains Specialist Findings Intake Protocol section with mandatory fields, tier_3_tainted handling, measurement fallback, fast-fail rule"
+    },
+    {
+      "id": "R4",
+      "source_phrase": "修改相关 agent spec 文件，在所有 specialist 输出和 BA 消费侧同时建立 handoff contract",
+      "classification": "user-need clause",
+      "acceptance_criterion": "Changes to all 5 files (4 specialists + ba.md) are present in the same cycle"
+    }
+  ],
+  "component_chain": [
+    {
+      "file": "agents/ui-specialist.md",
+      "line_range": "250-260",
+      "role": "Specialist output schema — issues[] currently lacks inline per-issue shape",
+      "imports_from": ["~/.claude/skills/ui-shared/report-schema.json"],
+      "evidence": "Read agents/ui-specialist.md line 255: `'issues': []`",
+      "verified_via": "Read"
+    },
+    {
+      "file": "agents/architect.md",
+      "line_range": "306-318",
+      "role": "Specialist output schema — location is flat string, missing measured/expected/downstream_agent",
+      "imports_from": ["leaf"],
+      "evidence": "Read agents/architect.md lines 306-318: location field is string 'file:line or module/component name'",
+      "verified_via": "Read"
+    },
+    {
+      "file": "agents/product-owner.md",
+      "line_range": "327-340",
+      "role": "Specialist output schema — missing observed_behavior/expected_behavior/downstream_agent",
+      "imports_from": ["leaf"],
+      "evidence": "Read agents/product-owner.md lines 327-340: no observed_behavior or expected_behavior fields",
+      "verified_via": "Read"
+    },
+    {
+      "file": "agents/user.md",
+      "line_range": "427-442",
+      "role": "Specialist output schema (browser-only agent) — missing observed_behavior/expected_behavior/downstream_agent, location.file must be nullable",
+      "imports_from": ["leaf"],
+      "evidence": "Read agents/user.md lines 427-442: no observed_behavior, expected_behavior; location is 'URL path or page name' only",
+      "verified_via": "Read"
+    },
+    {
+      "file": "agents/ba.md",
+      "line_range": "N/A",
+      "role": "BA consumer side — no Specialist Findings Intake Protocol section exists",
+      "imports_from": ["leaf"],
+      "evidence": "grep 'Specialist Findings Intake Protocol' agents/ba.md returned empty",
+      "verified_via": "grep"
+    }
+  ],
+  "pre_existing_guards": [
+    {
+      "file": "agents/ui-specialist.md",
+      "line": 342,
+      "type": "if",
+      "code_snippet": "Every issue MUST have `browser_verified: true` AND a screenshot AND a measurement (px / ratio / ms)",
+      "purpose": "Ensures ui-specialist findings have runtime evidence before reporting",
+      "removal_authorized": false
+    },
+    {
+      "file": "agents/ui-specialist.md",
+      "line": 344,
+      "type": "if",
+      "code_snippet": "You report WHAT you observe and WHERE. You do NOT diagnose WHY or suggest HOW to fix.",
+      "purpose": "Symptom-Only Reporting constraint — prevents root cause speculation by specialist",
+      "removal_authorized": false
+    },
+    {
+      "file": "agents/architect.md",
+      "line": 488,
+      "type": "if",
+      "code_snippet": "Report the observable symptom with measurements (e.g., 'GET /api/data returns 2340ms')",
+      "purpose": "Symptom-Only Reporting constraint for architect",
+      "removal_authorized": false
+    }
+  ],
+  "regression_investigation_checklist": {
+    "triggered": false,
+    "items": []
+  },
+  "setup": {
+    "applicability": "N/A",
+    "reason": "non-UI -- agent-prompt edit; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths"
+  },
+  "evidence": {
+    "observed": "UI specialist 报告使用自然语言描述视觉问题，但不包含 CSS selector、measured vs expected 值、源代码位置等 BA/dev 可操作的字段。所有 specialist 与 BA 之间没有 handoff contract。BA 收到 specialist findings 后没有规范化的消费协议。",
+    "measured": {
+      "value": "agents/ui-specialist.md:255 issues:[], agents/architect.md:306-318 location is string, agents/product-owner.md:327-340 no observed/expected, agents/user.md:427-442 no observed/expected, agents/ba.md no Specialist Findings Intake Protocol section",
+      "location": "agents/ui-specialist.md:255, agents/architect.md:306-318, agents/product-owner.md:327-340, agents/user.md:427-442, agents/ba.md"
+    },
+    "expected": {
+      "value": "issues[] schema with location.{file,line,selector?}, measured, expected, downstream_agent per SARIF v2.1.0 standard; BA Specialist Findings Intake Protocol section in agents/ba.md",
+      "source": "SARIF v2.1.0 https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html; axe-core API https://www.deque.com/axe/core-documentation/api-documentation/"
+    },
+    "gap": "5 files missing at least one of: structured location object, measured field, expected field, downstream_agent field, intake protocol. All gaps are additive (nothing to remove, only to add)."
+  },
+  "scope_expansion": {
+    "search_pattern": "\"issues\": \\[\\]|downstream_agent",
+    "search_scope": "agents/*.md",
+    "user_reported": ["agents/ui-specialist.md", "agents/ba.md", "agents/architect.md", "agents/product-owner.md", "agents/user.md"],
+    "additional_found": [],
+    "all_occurrences": [
+      "agents/ui-specialist.md:255",
+      "agents/architect.md:306-318",
+      "agents/product-owner.md:327-340",
+      "agents/user.md:427-442"
+    ]
+  },
+  "reference_source": {
+    "tier": "tier_1_external",
+    "description": "SARIF v2.1.0 (OASIS Standard) — industry standard for findings interchange between analysis tools and downstream consumers. Defines location.file, location.selector (physicalLocation), severity, title, description, remediation schemas.",
+    "url_or_location": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html",
+    "copy_allowed": true
+  },
+  "prior_attempts": {
+    "triggered": false,
+    "trigger_source": null,
+    "attempts": [],
+    "novelty_check": {
+      "this_attempt_layer": "L3",
+      "differs_from_all_priors": true,
+      "rationale": "No prior attempts — first cycle for this requirement"
+    }
+  },
+  "context": {
+    "codebase_state": "master branch, 39 uncommitted files",
+    "recent_commits": "766b194 auto-bulk: end-of-cycle commit for master — docs/clean style partial results and INDEX",
+    "file_contents": {
+      "agents/ui-specialist.md:255": "\"issues\": []",
+      "agents/architect.md:306-318": "{id, title, description, severity, location (string), category, estimated_effort, runtime_evidence, observation_notes, pm_tier}",
+      "agents/product-owner.md:327-340": "{id, title, description, severity, location (string), category, viewport, estimated_effort, evidence, browser_verified, pm_tier}",
+      "agents/user.md:427-442": "{id, title, description, severity, location (string), category, viewport, estimated_effort, evidence, steps_to_reproduce, affected_personas, frustration_signal, pm_tier}"
+    },
+    "dependencies": {},
+    "environment": {}
+  },
+  "development_approach": {
+    "strategy": "Additive schema enrichment across 4 specialist agent files; new intake protocol section in ba.md. No existing fields removed. architect location field type change from string to object is the only breaking change — flag prominently.",
+    "files_to_create": [],
+    "files_to_modify": [
+      "agents/ui-specialist.md — add inline issues[] per-issue schema with location.{url,selector,file,line}, measured, expected, downstream_agent",
+      "agents/architect.md — change location from string to {file,line,url?} object; add measured, expected, downstream_agent",
+      "agents/product-owner.md — add observed_behavior, expected_behavior, downstream_agent",
+      "agents/user.md — add observed_behavior, expected_behavior, downstream_agent (location.file nullable)",
+      "agents/ba.md — add Specialist Findings Intake Protocol section after Four Contracts, before Forbidden BA Patterns"
+    ],
+    "validation_approach": "QA verifies: (1) grep for new field names in each file, (2) grep for 'Specialist Findings Intake Protocol' in ba.md, (3) confirm commands/dev.md and agents/pm.md are unchanged, (4) confirm ui-specialist.md still references report-schema.json (not replaced)"
+  },
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": true,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": false
+  },
+  "research_findings": {
+    "searched": true,
+    "queries": [
+      "CrewAI LangGraph multi-agent message contracts inter-agent communication schema",
+      "AutoGen Semantic Kernel agent-to-agent handoff structured output format",
+      "SARIF security findings schema agent report contract standards",
+      "multi-agent system findings format mandatory fields actionable downstream",
+      "agent orchestrator worker agent context passing schema JSON contract",
+      "accessibility audit findings schema WCAG axe-core JSON format mandatory fields"
+    ],
+    "key_insights": [
+      "SARIF v2.1.0 (OASIS standard) is the authoritative format for findings interchange — defines location.file, location.selector (physicalLocation), severity, title, description, remediation; tier_1_external reference for field names",
+      "axe-core raw finding schema defines selector, impact, wcagTags, findingType per-DOM-node — confirms selector as a mandatory field for UI findings",
+      "Industry consensus from CrewAI/LangGraph/AutoGen/Semantic Kernel: agents pass typed JSON schemas not free-form text; invalid messages fail fast (fast-fail semantics)",
+      "Bidirectional contract requirement: upstream agent documents what it produces; downstream agent declares what it accepts — both must match before deployment (GitHub blog on multi-agent failures)",
+      "downstreamAgent field pattern used in orchestrator-worker architectures to route findings to correct consuming agent without ambiguity"
+    ],
+    "sources": [
+      "https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html",
+      "https://github.com/dequelabs/axe-core",
+      "https://github.blog/ai-and-ml/generative-ai/multi-agent-workflows-often-fail-heres-how-to-engineer-ones-that-dont/",
+      "https://arize.com/blog/orchestrator-worker-agents-a-practical-comparison-of-common-agent-frameworks/",
+      "https://devblogs.microsoft.com/semantic-kernel/semantic-kernel-multi-agent-orchestration/"
+    ],
+    "how_applied": "SARIF field names (location.file, location.selector, title, description, severity, remediation) adopted as tier_1_external reference for the proposed issues[] schema enrichment. Fast-fail semantics from industry consensus directly shaped the BA intake protocol's mandatory-field rejection rule. downstreamAgent routing field pattern adopted from orchestrator-worker literature."
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex confirmed schema deficiencies by reading actual agent files. Key findings: (1) ui-specialist.md Output Format section at line 255 shows issues:[] with no inline schema; (2) architect.md location field confirmed as flat string; (3) No 'Specialist Findings Intake Protocol' in ba.md. Codex noted the inline schema approach (additive to report-schema.json) is correct. No expansionist scope was flagged.",
+    "findings": [
+      {
+        "issue": "ui-specialist issues[] has no inline schema in Output Format — only external delegation to report-schema.json",
+        "proposed_fix": "Add inline issues[] per-issue schema to Output Format section of ui-specialist.md alongside (not replacing) report-schema.json reference",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed by Read of agents/ui-specialist.md:255; inline schema required by R1"
+      },
+      {
+        "issue": "architect.md location is flat string — not actionable for file:line navigation",
+        "proposed_fix": "Change location from string to structured object {file, line, url?}; flag as breaking change",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed by Read of agents/architect.md:306-318; SARIF physicalLocation is structured object"
+      }
+    ],
+    "feedback_incorporated": "Both Codex findings are directly encoded in the spec requirements and technical hints. The breaking-change flag for architect.md location type change is explicitly documented."
+  }
+}
