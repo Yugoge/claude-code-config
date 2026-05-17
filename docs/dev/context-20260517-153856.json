@@ -27,7 +27,8 @@
       ]
     },
     "success_criteria": [
-      "ui-specialist issues[] schema contains location.selector, measured, expected, downstream_agent",
+      "skills/ui-shared/report-schema.json finding_base has structured location {url,selector,file,line} (all nullable), measured, expected, downstream_agent='ba' — all three canonical channels inherit via $ref",
+      "agents/ui-specialist.md prose references automated_findings/contextual_findings/aesthetic_findings as canonical channels; does not describe issues[] as a canonical JSON schema channel",
       "architect issues[] location is a structured object {file, line, url?} not a flat string; gains measured, expected, downstream_agent",
       "product-owner issues[] contains observed_behavior, expected_behavior, downstream_agent",
       "user issues[] contains observed_behavior, expected_behavior, downstream_agent with nullable location.file",
@@ -36,7 +37,7 @@
     ],
     "constraints": [
       "user agent is browser-only — location.file MUST be nullable",
-      "ui-specialist inline schema MUST coexist with (not replace) report-schema.json delegation",
+      "report-schema.json: finding_deterministic computed_value/expected_value MUST be retained (not removed); they are raw tool-output fields complementary to the new base measured/expected string fields",
       "architect location change from string to object is a BREAKING schema change — flag in implementation",
       "All existing fields in each specialist's issues[] must be preserved (additive only)"
     ]
