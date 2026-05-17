@@ -1147,18 +1147,20 @@ When PM receives specialist findings in **TRIAGE mode** (routing findings to BA 
 A finding is `tier_3_tainted` when it lacks ANY of the required evidence fields for its specialist type (see table above). Missing either side of an evidence pair is sufficient to taint — a finding with `measured` but no `expected` cannot be verified. Tainted findings:
 
 - Cannot form the sole basis for a test scenario or pipeline creation
-- MUST be flagged by naming the missing fields: in `observation_notes` for `issues[]` entries; in `out_of_scope_observations[].observation` or `pm_notes[]` (TRIAGE mode only) for findings classified as `out_of_scope_observation` (which have no `observation_notes` field)
-- May still inform priority ordering, but the gap MUST be noted in `observation_notes`
-- In TRIAGE mode only: MAY still contribute to `pipe_category` assessment when other evidence supports it; PM records the gap in `pm_notes[]` (TRIAGE-only schema field) and recommends BA independent measurement before dev dispatch
+- MUST be flagged by naming the missing fields:
+  - **In TRIAGE mode** — in `observation_notes` (for `issues[]` entries) or in `out_of_scope_observations[].observation` / `pm_notes[]` (for `out_of_scope_observation` findings, which have no `observation_notes` field)
+  - **In PLAN mode** — in the `evidence` field of the affected priority tier entry (e.g. `"evidence": "TAINTED — missing measured/expected: treat as tentative"`)
+- May still inform priority ordering; the gap MUST be noted in whichever field is appropriate for the current mode (see bullet above)
+- In TRIAGE mode only: during Step 4 assessment (before finalization), MAY still contribute to `pipe_category` determination when other evidence supports it — tainted findings may NOT reopen or override a finalized Step 4 classification; PM records the gap in `pm_notes[]` (TRIAGE-only schema field) and recommends BA independent measurement before dev dispatch
 
-**PM does not perform BA Measurement Fallback.** PM marks the gap via `observation_notes` and defers to BA; BA performs independent measurement per ba.md § Measurement Fallback.
+**PM does not perform BA Measurement Fallback.** PM marks the gap in the mode-appropriate field and defers to BA; BA performs independent measurement per ba.md § Measurement Fallback.
 
 ### Triage Confidence Mapping
 
 | Evidence completeness | Triage impact |
 |---|---|
 | All required fields present | Eligible for test scenario (PLAN) or pipeline creation after Step 3 and Step 4 pass (TRIAGE) |
-| ANY required evidence field absent (tainted) | Note gap in `observation_notes`; in TRIAGE use `pipeline_recommendation: "defer"` if independent measurement is impossible; in PLAN mark priority tier as tentative |
+| ANY required evidence field absent (tainted) | In PLAN: note taint in tier `evidence` field, treat as tentative; in TRIAGE: apply Fast-Fail Rule case table below |
 
 ### Routing Rule (TRIAGE mode only)
 
@@ -1167,18 +1169,20 @@ Findings with `downstream_agent: "ba"` route to BA pipelines **only after passin
 - `pipe_category: "user_need"`, `"security"`, or `"dependency"` → eligible for BA pipeline creation
 - `pipe_category: "out_of_scope_observation"` → routed to `out_of_scope_observations[]`; no BA pipeline regardless of `downstream_agent` value
 
-PM does NOT convert specialist findings to implementation tasks directly. For tainted findings on-path, record the evidence gap in `pm_notes[]` with `description: "Evidence gap: [missing fields]. BA measurement recommended before dev dispatch."` and `source_agent`.
+PM does NOT convert specialist findings to implementation tasks directly. For tainted on-path findings, record the evidence gap in `pm_notes[]` with `description: "Evidence gap: [missing fields]. BA measurement recommended before dev dispatch."` and `source_agent`.
 
 ### Fast-Fail Rule
 
-PM MUST NOT generate a test scenario or pipeline with a concrete pass/fail criterion based solely on a tainted finding. If the finding lacks the required evidence fields, apply the following by case:
+PM MUST NOT generate a test scenario or pipeline with a concrete pass/fail criterion based solely on a tainted finding. Apply the following by case:
 
-- **EXCEPTION — on-path UI finding (Step 3 applies)**: if the finding is on the user-need path AND produces a UI surface, PM MUST NOT defer. Create the pipeline with the evidence gap noted in `observation_notes`; BA/QA enforce the live-evidence gate downstream.
-- **All other tainted findings**: note the gap in `observation_notes` and use `pipeline_recommendation: "defer"` with the gap description.
+- **In PLAN mode**: do not create a pipeline or set `pipeline_recommendation`. Note the taint in the `evidence` field of the affected priority tier entry.
+- **In TRIAGE mode — on-path UI finding (`pipe_category: user_need` AND Step 3 applies)**: PM MUST NOT defer. Create the pipeline with `pipeline_recommendation: "fix"` and the evidence gap noted in `observation_notes`; BA/QA enforce the live-evidence gate downstream.
+- **In TRIAGE mode — pipeline-eligible non-UI finding (`pipe_category: user_need`, `security`, or `dependency`)**: note the gap in `observation_notes` and use `pipeline_recommendation: "defer"` with the gap description.
+- **In TRIAGE mode — `out_of_scope_observation` finding**: do NOT set `pipeline_recommendation` (Step 4: no pipeline_recommendation for out-of-scope). Record the taint gap in `out_of_scope_observations[].observation` or `pm_notes[]`.
 
 **This rule does NOT override Step 3 (Live-Evidence Mandate).** On-path UI findings that produce a UI surface must go through the live-evidence gate regardless of evidence completeness.
 
-**This rule does NOT override Step 4 (User-Need Path Relevance Filter).** Step 4 applies before this rule; findings classified as `out_of_scope_observation` do not become pipelines regardless of evidence completeness.
+**This rule does NOT override Step 4 (User-Need Path Relevance Filter).** Step 4 applies before this rule; `out_of_scope_observation` findings do not become pipelines regardless of evidence completeness.
 
 ---
 
