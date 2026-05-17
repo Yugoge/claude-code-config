@@ -408,58 +408,7 @@ Only the `## Agent Relevance Analysis` table, `## Views Created` list, and `## M
 
 ### Step 5: Write manifest.json
 
-Write `docs/dev/specs/<spec-id>/views/manifest.json` using a Python stanza with fcntl.LOCK_EX:
-
-```bash
-python3 - <<'PY'
-import json, os, fcntl, hashlib
-from datetime import datetime, timezone
-
-spec_id = "<spec-id>"
-monolith_path = "<monolith-path>"
-
-with open(monolith_path, "rb") as f:
-    content = f.read()
-    sha = hashlib.sha256(content).hexdigest()
-    byte_count = len(content)
-    line_count = content.count(b"\n")
-
-# Detect sections present
-text = content.decode("utf-8", errors="replace")
-import re
-sections = {}
-for m in re.finditer(r'^## (?:Section |S\s*)(\d+)', text, re.MULTILINE):
-    sections[f"S{m.group(1)}"] = True
-
-manifest = {
-    "schema_version": 1,
-    "spec_id": spec_id,
-    "monolith_path": monolith_path,
-    "monolith_sha256": sha,
-    "monolith_bytes": byte_count,
-    "monolith_lines": line_count,
-    "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
-    "agent_relevance": <AGENT_RELEVANCE_DICT>,
-    "views": {
-        # Only include agents that got views
-        # e.g. "ba": "spec-xxx/views/ba.md",
-        <VIEWS_DICT>
-    },
-    "sections_present": sections
-}
-
-manifest_path = f"docs/dev/specs/{spec_id}/views/manifest.json"
-lock_path = manifest_path + ".lock"
-with open(lock_path, "w") as lh:
-    fcntl.flock(lh.fileno(), fcntl.LOCK_EX)
-    with open(manifest_path, "w") as f:
-        json.dump(manifest, f, indent=2)
-    fcntl.flock(lh.fileno(), fcntl.LOCK_UN)
-print(f"Manifest written: {manifest_path}")
-PY
-```
-
-Replace `<AGENT_RELEVANCE_DICT>` with the actual dict from Phase 0, and `<VIEWS_DICT>` with only the agents that received views plus orchestrator.
+Write `docs/dev/specs/<spec-id>/views/manifest.json`. Use fcntl.LOCK_EX for atomic write. The manifest includes: schema_version, spec_id, monolith_path, sha256 hash of the monolith, byte count, line count, created_at timestamp, agent_relevance dict from Phase 0, views dict (only agents that received views), and sections_present dict detected by scanning for `## Section N` / `## SN` headings in the monolith. Activate the venv before running Python (`source ~/.claude/venv/bin/activate`).
 
 ### Step 6: Verbatim self-verification
 
