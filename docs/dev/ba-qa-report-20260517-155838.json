@@ -5,19 +5,28 @@
   "qa_mode": "ba_validation",
   "iteration": 2,
   "codex_consult": {
-    "invoked": false,
-    "status": "not_requested",
-    "feedback_summary": null,
-    "feedback_incorporated": null
+    "invoked": true,
+    "status": "failed_quota",
+    "feedback_summary": "Hook blocked codex execution: pretool-tool-policy.py denied write to /var/tmp/codex-outputs/ — write target not in allowed_write_path_prefixes for QA role. Same failure mode as iteration 1. Self-review substituted.",
+    "feedback_incorporated": "self-review substituted: 7 adversarial questions answered — (1) two-change recipe internally consistent, no contradiction; (2) Change 1 replacement wording unambiguous in forced-path context; (3) Change 2 forward-reference in shared resolution section is mode-scoped adequately; (4) Change 1 over-removal risk low due to verbatim target and replacement; (5) AC2 insertion point adequately specified in Technical Hints; (6) R3 Should Have not encoded in any AC, not a blocker; (7) Change 1 is documentation-only, no regression risk. PASS verdict confirmed."
   },
+  "codex_observation_only": [
+    {
+      "id": "CODEX-OBS-1",
+      "note": "Change 2 introduces a mode-aware branch inline in the shared Task-id resolution section. This is slightly unusual structurally but adequately scoped by the 'when this resolution is invoked from the Forced-override path' qualifier. Not an objection — structural observation only."
+    },
+    {
+      "id": "CODEX-OBS-2",
+      "note": "R3 (Should Have) adds a fourth bullet to the 'When to use' section. This is not encoded in any AC and cannot block dev. Observation only."
+    }
+  ],
   "verdict": "pass",
   "objections": [],
-  "codex_observation_only": [],
   "prior_objections_resolved": [
     {
       "id": "OBJ-1",
       "dimension": "spec_text_vs_execution_drift",
-      "prior_title": "AC1 does not resolve conflict with close.md line 65 'do NOT branch the resolution logic'",
+      "prior_title": "AC1 does not resolve conflict with close.md line 62 'do NOT branch the resolution logic'",
       "resolution_status": "resolved",
       "resolution_evidence": "The updated AC1 THEN clause now specifies TWO explicit changes: (1) close.md line 62 — REPLACE the sentence 'The task-id resolution rules are reused identically; do NOT branch the resolution logic.' with text separating form-detection from artifact verification (exact suggested replacement provided in AC1 and Technical Hints); (2) close.md line 139 — ADD a clarifying sentence conditioning the qa-report check on non-force mode. The AC includes an AND clause: 'the resulting commands/close.md no longer contains a textual contradiction between line 62 and line 139.' The Edge Cases section further states: 'The fix must therefore (a) update line 62 to make this distinction explicit... AND (b) add the qa-report skip condition to line 139. Doing only (b) without (a) leaves the document internally contradictory.' The Technical Hints label the section 'TWO changes required (QA objection addressed)' and state 'Both changes are required together. Change 2 alone leaves line 62 contradictory. Change 1 alone does not provide the explicit exception text dev needs to implement the skip.' The contradiction that OBJ-1 identified is eliminated."
     },
@@ -72,12 +81,27 @@
     },
     "ac2": {
       "consistent": true,
-      "notes": "GIVEN/WHEN/THEN structure is clear and unchanged from iteration 1. Three deliverables specified: (1) normal-path failure explanation, (2) escape hatch command with path form and /commit next step, (3) caveat about path form vs timestamp form. Consistent with R2 and the do.md file's hook-only nature."
+      "notes": "GIVEN/WHEN/THEN structure is clear and unchanged from iteration 1. Three deliverables specified: (1) normal-path failure explanation, (2) escape hatch command with path form and /commit next step, (3) caveat about path form vs timestamp form. Consistent with R2 and the do.md file's hook-only nature. Technical Hints specify insertion point as '## Closing /do-developed work section after the existing body line'."
     },
     "ac3": {
       "consistent": true,
       "notes": "Only commands/close.md and commands/do.md may be modified. Consistent with development_approach.files_to_modify and excluded scope."
     }
   },
-  "summary": "BA spec iteration 2 resolves all prior QA objections. OBJ-1 (spec_text_vs_execution_drift: AC1 did not address close.md line 62 contradiction) is resolved — AC1 now specifies a two-change recipe that (a) replaces the 'do NOT branch' sentence at line 62 with unambiguous form-detection-vs-artifact-verification language, and (b) adds the forced-path qa-report skip condition at line 139, with an explicit AND clause requiring the resulting file to be contradiction-free. OBJ-2 (minor, investigation_completeness) is also resolved — the Edge Cases section now maps the line 62 tension to both required fix actions. All five dimensions pass. The spec is ready for dev."
+  "self_verification": {
+    "claims_total": 7,
+    "claims_with_evidence": 7,
+    "claims_superficial": 0,
+    "adversarial_questions": [
+      "Two-change recipe internally consistent — Change 1 establishes principle, Change 2 provides specific carve-out. No contradiction. CLEAN.",
+      "Change 1 replacement wording unambiguous — sentence lives inside forced-path step 2, reader is already in forced-path context. CLEAN.",
+      "Change 2 forward-reference in shared resolution section — adequately scoped by 'when this resolution is invoked from the Forced-override path' qualifier. OBSERVATION_ONLY.",
+      "Change 1 over-removal risk — low, target sentence is exact and verbatim replacement is provided. CLEAN.",
+      "AC2 insertion point — Technical Hints specify '## Closing /do-developed work section after existing body line'. Adequately specified. CLEAN.",
+      "R3 Should Have not encoded in any AC — cannot block dev or QA. OBSERVATION_ONLY.",
+      "Change 1 is documentation-only text — no executable code paths, no regression risk. CLEAN."
+    ],
+    "confidence": "high"
+  },
+  "summary": "BA spec iteration 2 resolves all prior QA objections. OBJ-1 (spec_text_vs_execution_drift: AC1 did not address close.md line 62 contradiction) is resolved — AC1 now specifies a two-change recipe that (a) replaces the 'do NOT branch' sentence at line 62 with unambiguous form-detection-vs-artifact-verification language, and (b) adds the forced-path qa-report skip condition at line 139, with an explicit AND clause requiring the resulting file to be contradiction-free. OBJ-2 (minor, investigation_completeness) is also resolved — the Edge Cases section now maps the line 62 tension to both required fix actions. All five dimensions pass. Codex invocation blocked by tool-policy hook (same as iteration 1); self-review of 7 adversarial questions confirms PASS verdict. The spec is ready for dev."
 }

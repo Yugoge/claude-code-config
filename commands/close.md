@@ -59,7 +59,7 @@ Argument parsing order (orchestrator parses at the slash-command layer):
 Procedure when `--force` is present:
 
 1. **Strip `--force` from `$ARGUMENTS`**. If `--reason "<text>"` follows, capture `<text>` (everything between the matched quotes) as `$REASON`. If absent, set `$REASON="no reason provided"`.
-2. **Resolve the task-id** from the remaining argument using the same Task-id resolution rules below (explicit path → derive from basename; timestamp → use directly; no argument → orchestrator infers from session context). The task-id resolution rules are reused identically; do NOT branch the resolution logic.
+2. **Resolve the task-id** from the remaining argument using the same Task-id resolution rules below (explicit path → derive from basename; timestamp → use directly; no argument → orchestrator infers from session context). Reuse the same task-id form-detection and TASK_ID derivation rules below; do NOT create a separate path/timestamp/no-argument resolution algorithm for `--force`. Artifact existence checks are path-specific: when this resolution is invoked from the Forced-override path, skip `qa-report-<task-id>.json` verification.
 3. **Skip Step 2 entirely** — no QA subagent invocation, no Skill(codex) call, no Workflow Integrity Dimension evaluation, no multi-round debate.
 4. **Write the forced close-report** to `docs/dev/close-report-<task-id>.md` with this exact structure:
 
