@@ -17,7 +17,7 @@ branch commit. Handles nested repo (`/dev/shm/dev-workspace/dot-claude/`) automa
 
 | Flag | Meaning |
 |------|---------|
-| `<task-id>` | Optional. Task-id of the completed `/dev` cycle (e.g. `20260516-212024`). If omitted, auto-detected from most recent close-report. |
+| `<task-id>` | Required unless `--force` or `--bulk`. Task-id from the completed `/dev` cycle (e.g. `20260516-212024`). |
 | `--force` | Bypass close-gate check. Human-only (enforced by `disable-model-invocation: true`). Audited. |
 | `--bulk` | Batch mode — explore full diff, group by subsystem, commit until zero diff. |
 | `--dry-run` | Print what would be staged/committed; do not execute. |
@@ -36,10 +36,7 @@ Parse `$ARGUMENTS`:
 
 If `BULK=false`:
 - If `TASK_ID` was supplied, use it directly.
-- If `TASK_ID` is empty: scan `docs/dev/close-report-*.md` in `/root/docs/dev/` sorted
-  by mtime descending; use the task-id embedded in the most-recent filename
-  (`close-report-<task-id>.md` → strip prefix and `.md` suffix). If no file found,
-  exit with: `No close-report found. Run /close first, or supply an explicit task-id.`
+- If `TASK_ID` is empty: exit with: `No task-id provided. Supply an explicit task-id (/commit <task-id>), use --force to bypass close-gate, or use --bulk for batch mode.` Do NOT scan close-reports by mtime — mtime-scan picks up unrelated reports from other sessions and causes close-gate failures on unrelated tasks.
 
 If `BULK=true`: `TASK_ID` may remain empty; changelog-analyst operates in bulk mode.
 
