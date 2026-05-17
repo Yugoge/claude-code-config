@@ -327,11 +327,11 @@ Verdict branches:
 
     `failed_parse` differs from `failed_quota`/`failed_timeout` because the request DID complete and the codex CLI DID emit content -- the parser merely could not map it to the `CODEX: YES` / `CODEX: NO` format. Skipping the manual scan would create a downgrade vector: a substantive `NO` could ride a malformed response into a YES verdict. If the manual parse finds ANY dissent signal, this branch fails over to **CLOSE: NO** (treat as substantive Codex dissent under branch 3 with the verbatim signal as the dissent line). If QA omits the verbatim attestation, fail over to branch 8 (conservative NO).
 
-8. **Other ambiguity / parse failure on QA's side / unresolved disagreement after final round**: → **CLOSE: NO** (conservative default). Distinct from branch 5: the failure is on QA's reasoning side, not codex's transport.
+8. **Other ambiguity / parse failure on QA's side / unresolved disagreement after final round**: → **CLOSE: NO** (conservative default). Distinct from branch 6: the failure is on QA's reasoning side, not codex's transport.
 
 9. **Codex disabled by user (no `--codex` flag)** — `codex_required = false` from Step 1 → QA runs **single-round QA-only assessment** of the 4 Workflow Integrity bullets + 1b cleanliness preconditions; no `Skill(codex)` invocations attempted; `codex_status` is set to the literal sentinel `disabled_by_user`. Verdict logic collapses to:
    - QA position = YES AND all four Workflow Integrity bullets PASS (or N/A-with-reason; never FAIL) AND no NEW-violation cleanliness inspector finding → **CLOSE: YES** (annotation: `codex_disabled_by_user: codex consultation skipped because --codex flag was not passed; verdict granted on QA's substantive YES + 4 bullets PASS alone`).
-   - QA position = NO at end of single round → **CLOSE: NO** (branch 4 reasoning applies; QA's substantive objection is the dissent line).
+   - QA position = NO at end of single round → **CLOSE: NO** (branch 5 reasoning applies; QA's substantive objection is the dissent line).
    - Any of the four bullets FAIL → **CLOSE: NO** (branch 4 reasoning applies; the failing bullet name is the dissent line).
    - AC-deviation-PASS branch 2 is fully applicable in the codex-disabled path — when QA verdict is YES on user-need verification AND dev report contains a valid `ac_deviation_with_user_need_satisfied: true` block satisfying clauses (a)–(d) of branch 2, **CLOSE: YES** is granted with the deviation rationale recorded.
    - Branches 3 / 6 / 7 / 8 are all N/A in the codex-disabled path (codex was never invoked; there is no codex dissent to weigh, no infrastructure failure to handle, no parse failure to scan).
