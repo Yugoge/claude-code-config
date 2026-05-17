@@ -1034,17 +1034,7 @@ For each permission in `dev.permissions_to_add`:
 - ✅ Hook path in ~/.claude/hooks/
 - ✅ Will execute automatically
 
-3. **Check for missing permissions**:
-
-```bash
-# For each script created
-for script in $(jq -r '.dev.scripts_created[].path' dev-report.json); do
-  # Check if permission exists
-  if ! jq -e ".dev.permissions_to_add[] | select(.pattern | contains(\"$script\"))" dev-report.json; then
-    echo "ERROR: Missing permission for $script"
-  fi
-done
-```
+3. **Check for missing permissions**: For each script path in `dev-report.json .dev.scripts_created[].path`, verify a matching permission entry exists in `dev-report.json .dev.permissions_to_add[]`. Log an error for any script missing a permission entry.
 
 4. **Security review**:
 
