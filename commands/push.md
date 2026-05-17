@@ -10,15 +10,13 @@ script `~/.claude/hooks/push.sh` produces a valid push grant for use when
 the guard is eventually re-registered.
 
 The slash entry has `disable-model-invocation: true` to prevent the model
-from autonomously self-dispatching `/push` via SlashCommand. It does NOT
-forbid agent execution of the wrapper script. When the user invokes `/push`
-in conversation and this docstring is injected into the agent's context,
-the agent's correct response is to run `~/.claude/hooks/push.sh [remote]`
-directly via Bash. push.sh internally generates the Scheme 6 grant
-manifest, exports `CLAUDE_PUSH_COMMAND_ACTIVE=1`, and runs the underlying
-push — all of which the privilege guard recognizes and admits. Do NOT
-bounce the work back to the user with "please run X manually" — that
-violates the harness's delegation design.
+from autonomously self-dispatching `/push` via SlashCommand. It also
+forbids agent execution of the wrapper script — `~/.claude/hooks/push.sh`
+and `git push` are in the settings deny list. When the user invokes
+`/push`, the agent's correct response is to print the command for the
+human to run manually: `~/.claude/hooks/push.sh [remote]`. Do NOT attempt
+to run push.sh or git push via Bash — both are blocked and require human
+execution.
 
 ## Usage
 
