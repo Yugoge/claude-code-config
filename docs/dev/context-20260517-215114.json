@@ -16,7 +16,7 @@
         "agents/pull-analyst.md — new git-read-only advisory analyst (no filesystem write; advisory stdout report only)",
         "commands/push.md — add pre-execution dispatch steps + grant validation; commits-to-push range must use refs/remotes/<resolved_remote>/<branch>..HEAD",
         "commands/merge.md — add pre-execution dispatch steps + grant validation + tip revalidation",
-        "commands/pull.md — add pre_pull_head capture + post-execution conditional dispatch; dispatch pull-analyst whenever HEAD changed (even on stash-pop failure exit 1)",
+        "commands/pull.md — add pre_pull_head capture + post-execution conditional dispatch; derive pull_exit_phase using rebase-state-directory presence as primary discriminant; dispatch pull-analyst only for pull_exit_phase 'success' (exit 0, HEAD changed) or 'stash_restoration_failed' (exit non-0, no rebase state dir, HEAD changed)",
         "policies/tool-policy.v1.json — add push-analyst, merge-analyst, pull-analyst role entries (M10; required for policy_registry to permit dispatch)",
         "hooks/pretool-cp-checkin.py — add three role names to CP_AGENTS set (M10)"
       ],
