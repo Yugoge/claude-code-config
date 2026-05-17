@@ -586,7 +586,7 @@ Present verification summary:
 ## Next Steps
 
 1. Review changes: `git diff HEAD~1`
-2. If satisfied: Changes already committed — to publish to remote: run `/commit` (to register the commit and write the push token), then `/push`
+2. If satisfied: Changes already committed — to publish to remote: run `/push`
 3. If not satisfied: `git reset --hard <checkpoint_commit>`
 4. See detailed report: docs/clean/completion-{REQUEST_ID}.md
 ```
