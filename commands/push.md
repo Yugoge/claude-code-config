@@ -60,11 +60,10 @@ Token location: `/tmp/agentic-commit/push/<repo-hash>/<branch-encoded>.json`
 
 - `repo-hash` = `sha256(os.path.realpath(repo_root)).hexdigest()[:16]`
 - `branch-encoded` = branch name with `/` replaced by `__`
-- Token content: `{"commit_sha": "<sha>", "branch": "<branch>", "repo_root": "<root>", "expires_at": "<ISO+24h>"}`
+- Token content: `{"commit_sha": "<sha>", "branch": "<branch>", "repo_root": "<root>"}`
 
 **Rejection conditions** (push is blocked if any hold):
 - Token file is absent (no `/commit` ran in this session)
-- Token `expires_at` field is absent, unparsable, or earlier than or equal to current UTC time
 - Token `commit_sha` does not match current `git rev-parse HEAD` (HEAD moved since commit)
 
 **Resolution**: run `/commit [<task-id>]` first. The `changelog-analyst` subagent writes
