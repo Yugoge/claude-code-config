@@ -2,7 +2,7 @@
 # Description: Audit always-on security-critical hook files against a cycle baseline SHA
 #              and flag any drift. Drift is allowed only when explicitly listed via
 #              --allow <path> for the current cycle.
-# Usage: check-security-hook-drift.sh [--baseline <sha>] [--allow <path>]...
+# Usage: check-security-hook-drift.sh [--baseline <sha>] [--allow <path>]... [--frontmatter-lines <N>]
 # Exit codes:
 #   0  All security hooks match the baseline (or any drift is on an --allow list)
 #   1  At least one tracked file diverged from baseline and was not on --allow list
@@ -40,6 +40,8 @@ USAGE
 
 BASELINE=""
 declare -a ALLOWED_PATHS=()
+# Number of frontmatter lines to compare; override via --frontmatter-lines or env var
+FRONTMATTER_LINES="${CHECK_SECURITY_FRONTMATTER_LINES:-5}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -57,6 +59,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --allow=*)
       ALLOWED_PATHS+=("${1#--allow=}")
+      shift
+      ;;
+    --frontmatter-lines)
+      FRONTMATTER_LINES="${2:?--frontmatter-lines requires a number}"
+      shift 2
+      ;;
+    --frontmatter-lines=*)
+      FRONTMATTER_LINES="${1#--frontmatter-lines=}"
       shift
       ;;
     -h|--help)
@@ -134,9 +144,9 @@ for entry in "${TRACKED_FILES[@]}"; do
       diff_output="$(git -C "$REPO_ROOT" diff "$BASELINE" -- "$path" 2>/dev/null || true)"
       ;;
     FRONTMATTER)
-      # Capture only the first-5-line slice from each side.
-      baseline_slice="$(git -C "$REPO_ROOT" show "$BASELINE:$path" 2>/dev/null | sed -n '1,5p' || true)"
-      head_slice="$(sed -n '1,5p' "$REPO_ROOT/$path" 2>/dev/null || true)"
+      # Capture only the first N lines (configurable via --frontmatter-lines) from each side.
+      baseline_slice="$(git -C "$REPO_ROOT" show "$BASELINE:$path" 2>/dev/null | sed -n "1,${FRONTMATTER_LINES}p" || true)"
+      head_slice="$(sed -n "1,${FRONTMATTER_LINES}p" "$REPO_ROOT/$path" 2>/dev/null || true)"
       if [[ "$baseline_slice" != "$head_slice" ]]; then
         diff_output="$(diff <(printf '%s' "$baseline_slice") <(printf '%s' "$head_slice") || true)"
       fi

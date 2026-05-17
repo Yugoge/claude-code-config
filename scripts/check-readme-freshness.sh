@@ -1,15 +1,26 @@
 #!/bin/bash
 # Check README.md freshness for all major folders
 # Outputs JSON array with stale days and required action
-# Usage: check-readme-freshness.sh /path/to/project
+# Usage: check-readme-freshness.sh /path/to/project [max_depth] [full_threshold_days] [incremental_threshold_days] [folders...]
 
 set -euo pipefail
 
 PROJECT_ROOT="${1:-.}"
+# Override via CLI: max directory depth for find commands (default 2)
+MAX_DEPTH="${2:-${README_MAX_DEPTH:-2}}"
+# Override via CLI: days before a README is considered fully stale (default 7)
+FULL_THRESHOLD="${3:-${README_FULL_THRESHOLD:-7}}"
+# Override via CLI: days before a README needs incremental update (default 3)
+INCREMENTAL_THRESHOLD="${4:-${README_INCREMENTAL_THRESHOLD:-3}}"
 NOW=$(date +%s)
 
-# Major folders to check (root + top-level)
-FOLDERS=("." "scripts" "data" "docs" "tests" "config" "tmp" "backups" "output")
+# Major folders to check (root + top-level); override via CLI args 5+
+if [[ $# -ge 5 ]]; then
+    shift 4
+    FOLDERS=("$@")
+else
+    FOLDERS=(${README_FOLDERS:-". scripts data docs tests config tmp backups output"})
+fi
 
 echo "["
 FIRST=true
@@ -21,7 +32,7 @@ for folder in "${FOLDERS[@]}"; do
   README_PATH="$FOLDER_PATH/README.md"
 
   # Get latest content modification time in folder (excluding README itself)
-  CONTENT_MTIME=$(find "$FOLDER_PATH" -maxdepth 2 -type f ! -name "README.md" ! -name "INDEX.md" ! -path "*/.git/*" ! -path "*/venv/*" ! -path "*/__pycache__/*" -printf '%T@\n' 2>/dev/null | sort -rn | head -1)
+  CONTENT_MTIME=$(find "$FOLDER_PATH" -maxdepth "$MAX_DEPTH" -type f ! -name "README.md" ! -name "INDEX.md" ! -path "*/.git/*" ! -path "*/venv/*" ! -path "*/__pycache__/*" -printf '%T@\n' 2>/dev/null | sort -rn | head -1)
   CONTENT_MTIME=${CONTENT_MTIME%.*}
   CONTENT_MTIME=${CONTENT_MTIME:-$NOW}
 
@@ -31,9 +42,9 @@ for folder in "${FOLDERS[@]}"; do
     STALE_DAYS=$((STALE_SECONDS / 86400))
     [[ $STALE_DAYS -lt 0 ]] && STALE_DAYS=0
 
-    if [[ $STALE_DAYS -gt 7 ]]; then
+    if [[ $STALE_DAYS -gt $FULL_THRESHOLD ]]; then
       ACTION="FULL_UPDATE_REQUIRED"
-    elif [[ $STALE_DAYS -gt 3 ]]; then
+    elif [[ $STALE_DAYS -gt $INCREMENTAL_THRESHOLD ]]; then
       ACTION="INCREMENTAL_UPDATE"
     else
       ACTION="FRESH"
@@ -49,7 +60,7 @@ for folder in "${FOLDERS[@]}"; do
   fi
 
   # Get file counts in folder
-  FILE_COUNT=$(find "$FOLDER_PATH" -maxdepth 2 -type f ! -path "*/.git/*" ! -path "*/venv/*" ! -path "*/__pycache__/*" 2>/dev/null | wc -l)
+  FILE_COUNT=$(find "$FOLDER_PATH" -maxdepth "$MAX_DEPTH" -type f ! -path "*/.git/*" ! -path "*/venv/*" ! -path "*/__pycache__/*" 2>/dev/null | wc -l)
 
   # Get subfolder count
   SUBFOLDER_COUNT=$(find "$FOLDER_PATH" -mindepth 1 -maxdepth 1 -type d ! -name ".git" ! -name "venv" ! -name "__pycache__" 2>/dev/null | wc -l)

@@ -23,6 +23,14 @@ if [[ ! -f "$PY_SCRIPT" ]]; then
     exit 1
 fi
 
+# Activate venv if available
+VENV_DIR="${SCRIPT_DIR}/../venv"
+if [[ -f "${VENV_DIR}/bin/activate" ]]; then
+    source "${VENV_DIR}/bin/activate"
+elif [[ -f "${SCRIPT_DIR}/../.venv/bin/activate" ]]; then
+    source "${SCRIPT_DIR}/../.venv/bin/activate"
+fi
+
 # Best-effort: if a single positional argument is supplied (legacy
 # <report_dir>), try to derive a session id from the directory name. Any
 # caller that needs full control should switch to the .py directly.

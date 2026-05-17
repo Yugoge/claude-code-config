@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Preloaded TodoList for /spec workflow.
 
-Mirrors /root/knowledge-system/scripts/todo/ask.py structure.
+Mirrors the ask.py structure in the knowledge-system scripts/todo directory.
 
 /spec has a single mode: Spec Creation Mode. It acts immediately on whatever
 the user provides, accumulates multiple requirements into one spec file per

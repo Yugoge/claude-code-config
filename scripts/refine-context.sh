@@ -7,7 +7,7 @@ resolve_project_dir() {
   for v in "${CLAUDE_PROJECT_DIR:-}" "$(pwd)"; do
     [ -n "$v" ] && [ -d "$v" ] && { echo "$v"; return; }
   done
-  git rev-parse --show-toplevel 2>/dev/null || echo "/root"
+  git rev-parse --show-toplevel 2>/dev/null || { echo "Error: cannot determine project directory; set CLAUDE_PROJECT_DIR" >&2; exit 1; }
 }
 
 ORIG="${1:?Missing original context}"

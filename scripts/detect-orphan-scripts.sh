@@ -211,6 +211,12 @@ get_commit_count() {
     fi
 }
 
+# Severity thresholds (override via env vars)
+ORPHAN_ONE_TIME_COMMIT_THRESHOLD="${ORPHAN_ONE_TIME_COMMIT_THRESHOLD:-3}"
+ORPHAN_ONE_TIME_DAYS_THRESHOLD="${ORPHAN_ONE_TIME_DAYS_THRESHOLD:-30}"
+ORPHAN_MAJOR_COMMIT_THRESHOLD="${ORPHAN_MAJOR_COMMIT_THRESHOLD:-2}"
+ORPHAN_MAJOR_DAYS_THRESHOLD="${ORPHAN_MAJOR_DAYS_THRESHOLD:-60}"
+
 # Function to determine severity
 get_severity() {
     local is_one_time="$1"
@@ -220,9 +226,9 @@ get_severity() {
     # Extract numeric value from "X days ago"
     local days=${days_ago%% *}
 
-    if [[ "$is_one_time" == "true" ]] && [[ $commit_count -le 3 ]] && [[ $days -gt 30 ]]; then
+    if [[ "$is_one_time" == "true" ]] && [[ $commit_count -le $ORPHAN_ONE_TIME_COMMIT_THRESHOLD ]] && [[ $days -gt $ORPHAN_ONE_TIME_DAYS_THRESHOLD ]]; then
         echo "major"
-    elif [[ $commit_count -le 2 ]] && [[ $days -gt 60 ]]; then
+    elif [[ $commit_count -le $ORPHAN_MAJOR_COMMIT_THRESHOLD ]] && [[ $days -gt $ORPHAN_MAJOR_DAYS_THRESHOLD ]]; then
         echo "major"
     else
         echo "minor"
