@@ -214,7 +214,7 @@
     "expiry_rationale": "60s because merge state changes rapidly — another commit or push in that window invalidates the analysis"
   },
   "pull_analyst_design": {
-    "trigger": "Post-execution, dispatched from commands/pull.md after pull.sh returns (regardless of exit code) when pre_pull_head != post_pull_head",
+    "trigger": "Post-execution, dispatched from commands/pull.md after pull.sh returns when pull_exit_phase is 'success' (exit 0, HEAD changed) OR 'stash_restoration_failed' (exit non-0, no rebase state dir, HEAD changed). NOT dispatched when pull_exit_phase is 'rebase_conflict' (rebase state dir present, or no HEAD change).",
     "advisory_only": true,
     "no_grant": true,
     "analysis_scope": [
