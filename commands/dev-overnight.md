@@ -602,7 +602,7 @@ Each subagent receives, at the TOP of its prompt before any other content:
 - Output report to: <path above>
 
 **Specialist prompt rules** (enforced):
-- Every specialist prompt MUST include the test plan path. Specialists have a mandatory Step 0 (read test plan — PM's `pm_experience` is ground truth) and Step 0.5 (execute the core E2E flow via Playwright) before specialized analysis.
+- Every specialist prompt MUST include the test plan path. Specialists have a mandatory Step 0 (read test plan — PM's `pm_experience` is ground truth) and Step 1 (execute the core E2E flow via Playwright) before specialized analysis.
 - The priority context block is appended directly so specialists see PM's priorities immediately; their Step 0 read provides redundancy.
 - Always use `worktree_path` as the project path when set; specialists must scan files inside the worktree, not the main project directory.
 - Do NOT inline application context, credentials, flow steps, or sample data in the prompt — those live in the test plan file.
