@@ -31,10 +31,7 @@ Power users may also pass an explicit task-id or path: `/close <task-id>` or `/c
 
 ## Workflow
 
-Load preloaded todo list:
-```bash
-source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/close.py
-```
+Load preloaded todo list: activate venv and run `~/.claude/scripts/todo/close.py`.
 
 ### Argument parsing: `--codex` flag (applies to non-force paths)
 
