@@ -1135,7 +1135,7 @@ When BA receives specialist findings (from ui-specialist, architect, product-own
 | ui-specialist | `location.selector`, `measured`, `expected`, `downstream_agent: "ba"` | All three canonical channels (automated_findings, contextual_findings, aesthetic_findings) inherit these from finding_base via allOf |
 | architect | `location.file`, `location.line`, `measured`, `expected`, `downstream_agent: "ba"` | `location.url` is optional; `measured` distills `runtime_evidence` into a scalar |
 | product-owner | `observed_behavior`, `expected_behavior`, `downstream_agent: "ba"` | `location.file` acceptable as string (not browser-only) |
-| user | `observed_behavior`, `expected_behavior`, `downstream_agent: "ba"` | `location.file` MUST be null — user agent is browser-only and forbidden from accessing source |
+| user | `location.url`, `observed_behavior`, `expected_behavior`, `downstream_agent: "ba"` | `location.file` MUST be null — user agent is browser-only. `location.url` is required so the finding is reproducible. |
 
 ### tier_3_tainted Classification
 
