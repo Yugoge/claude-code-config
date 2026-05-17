@@ -192,32 +192,7 @@ For validators with `type: "instruction"`:
    }
    ```
 
-**Error handling**:
-
-```python
-try:
-    # Read instruction
-    instruction = parse_instruction(instruction_path)
-
-    # Gather context
-    context_data = gather_context_files(instruction["context_files"], project_root)
-
-    # Validate criteria
-    findings = []
-    for criterion in instruction["validation_criteria"]:
-        result = validate_criterion(criterion, context_data)
-        findings.extend(result["violations"])
-
-    status = "pass" if not findings else "fail"
-
-except FileNotFoundError as e:
-    findings = [{"error": f"Context file not found: {e}"}]
-    status = "error"
-
-except Exception as e:
-    findings = [{"error": f"Execution error: {e}"}]
-    status = "error"
-```
+**Error handling**: On FileNotFoundError, record the missing context file as an error. On any other exception, record the error message. Set status to "error" in both cases.
 
 ### 3. Result Aggregation
 
