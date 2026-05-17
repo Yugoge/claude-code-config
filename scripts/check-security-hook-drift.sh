@@ -40,6 +40,8 @@ USAGE
 
 BASELINE=""
 declare -a ALLOWED_PATHS=()
+# Number of frontmatter lines to compare; override via --frontmatter-lines or env var
+FRONTMATTER_LINES="${CHECK_SECURITY_FRONTMATTER_LINES:-5}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -57,6 +59,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --allow=*)
       ALLOWED_PATHS+=("${1#--allow=}")
+      shift
+      ;;
+    --frontmatter-lines)
+      FRONTMATTER_LINES="${2:?--frontmatter-lines requires a number}"
+      shift 2
+      ;;
+    --frontmatter-lines=*)
+      FRONTMATTER_LINES="${1#--frontmatter-lines=}"
       shift
       ;;
     -h|--help)
