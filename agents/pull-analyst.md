@@ -109,8 +109,11 @@ If any match: flag "CI/CD or container configuration changed: <files> — review
 
 ### Phase 8: Hook and agent file changes
 
+Match both bare paths (`hooks/`, `agents/`, `commands/`) used in the dot-claude repo AND
+`.claude/`-prefixed paths used in project-embedded harness files:
+
 ```bash
-git diff --name-only "${PRE_PULL_HEAD}..${POST_PULL_HEAD}" | grep -E "(\.claude/hooks/|\.claude/agents/|\.claude/commands/)" || true
+git diff --name-only "${PRE_PULL_HEAD}..${POST_PULL_HEAD}" | grep -E "(^|/)(\.claude/)?(hooks|agents|commands)/" || true
 ```
 
 If any match: flag "Agent/hook/command files changed: <files> — these affect Claude Code harness behavior; review before next session".
