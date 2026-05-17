@@ -264,8 +264,7 @@ Before delegating to BA, scan the user's request and repo state for retry
 signals. BA will independently check these, but the orchestrator must
 provide them explicitly so BA starts with ground truth:
 
-- **Retry phrasing** in user text: "again", "still", "didn't fix",
-  "Nth time", "又", "还是", "没修好", "第 N 次"
+- **Retry phrasing** in user text: "again", "still", "didn't fix", "Nth time"
 - **Recent related commits**: `git log --oneline --grep="<keyword>" -20`
 - **Existing BA specs**: files matching `docs/dev/ticket-*.md` (or legacy `docs/dev/ba-spec-*.md`) with
   keywords from the current request

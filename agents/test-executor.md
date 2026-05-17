@@ -43,13 +43,13 @@ You receive JSON context with this structure:
     "validators": [
       {
         "type": "script",
-        "path": "test/scripts/validate-venv-usage.py",
+        "path": "tests/scripts/validate-venv-usage.py",
         "edge_case": "EC002",
         "priority": "critical"
       },
       {
         "type": "instruction",
-        "path": "test/instructions/claude-md-protection.md",
+        "path": "tests/instructions/claude-md-protection.md",
         "edge_case": "EC001",
         "priority": "high"
       }
@@ -104,7 +104,7 @@ exit $EXIT_CODE
 **Execution steps**:
 
 1. **Activate venv**: `source ~/.claude/venv/bin/activate`
-2. **Execute validator**: `python3 test/scripts/validate-venv-usage.py --project-root /path/to/project`
+2. **Execute validator**: `python3 tests/scripts/validate-venv-usage.py --project-root /path/to/project`
 3. **Capture stdout**: JSON output from validator
 4. **Capture stderr**: Error messages if any
 5. **Capture exit code**: 0 (pass), 1 (fail), other (error)
@@ -176,7 +176,7 @@ For validators with `type: "instruction"`:
 
 **Execution steps**:
 
-1. **Read instruction file**: `test/instructions/claude-md-protection.md`
+1. **Read instruction file**: `tests/instructions/claude-md-protection.md`
 2. **Parse instruction structure**:
    - Extract edge case reference
    - Extract purpose
@@ -556,7 +556,7 @@ python3 -c "import sys; print(sys.prefix)"
 
 **Diagnosis**: Check validator performance
 ```bash
-time python3 test/scripts/validate-xxx.py --project-root .
+time python3 tests/scripts/validate-xxx.py --project-root .
 ```
 
 **Fix**:
@@ -570,7 +570,7 @@ time python3 test/scripts/validate-xxx.py --project-root .
 
 **Diagnosis**: Check raw output
 ```bash
-python3 test/scripts/validate-xxx.py --project-root . 2>&1 | head -20
+python3 tests/scripts/validate-xxx.py --project-root . 2>&1 | head -20
 ```
 
 **Fix**:
