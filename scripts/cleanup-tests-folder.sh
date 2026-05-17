@@ -109,7 +109,7 @@ if [[ -d "$TESTS_DIR/instructions" ]]; then
   echo "Scanning tests/instructions/ for validator instructions..." >&2
 
   # Find all instruction files (excluding guides)
-  for instruction in "$TESTS_DIR/instructions"/*.md 2>/dev/null; do
+  for instruction in "$TESTS_DIR/instructions"/*.md; do
     if [[ ! -e "$instruction" ]]; then
       continue
     fi
