@@ -1,6 +1,7 @@
 ---
 description: Update unfinished work into a continuation spec, or create a compact temp session update when explicitly requested
 argument-hint: "[--temp] [--spec <path>] [what the next session should focus on]"
+disable-model-invocation: true
 ---
 
 # /update — Continuation Spec Update
