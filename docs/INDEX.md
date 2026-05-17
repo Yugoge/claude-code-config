@@ -1,138 +1,263 @@
-# docs
+# docs Index
 
-*Last updated: 2026-05-10T08:51:27Z*
-**Total entries**: 125
-**Convention**: kebab
+Auto-generated folder inventory. Last updated: 2026-05-17 10:27:01 UTC
 
-## Tree
-```
-docs/
-├── archive/
-│   ├── 2024-10/
-│   │   ├── `auto-sync-analysis.md` - 自动同步深度分析报告
-│   │   ├── `git-tracking-solution-plan.md` - Git Tracking Solution - Complete Implementation Plan
-│   │   └── `qa-improvements-summary.md` - QA Improvements Summary
-│   ├── editor-configs/
-│   ├── legacy/
-│   │   └── skills_package/
-│   ├── legacy-chinese/
-│   │   ├── `claude-code-office-skills-best-practices-2025.md` - Claude Code PPT/Word 文档 Skills 配置最佳实践 (2025)
-│   │   └── `skills-package-readme-zh.md` - Claude Skills Package for Claude Code
-│   └── orphaned-agents/
-├── clean/
-│   ├── archive/
-│   │   └── 2025-12/
-│   ├── `cleanliness-report-clean-20260107-101825.json` - json config
-│   ├── `cleanliness-report-clean-20260108-130050.json` - json config
-│   ├── `cleanup-execution-clean-20260107-101825.json` - json config
-│   ├── `combined-report-clean-20260107-101825.json` - json config
-│   ├── `completion-20251226-115500.md` - Development Completion Report
-│   ├── `completion-clean-20260107-101825.md` - Cleanup Completion Report
-│   ├── `completion-clean-20260108-130050.md` - Cleanup Completion Report
-│   ├── `context-clean-20260107-101825.json` - json config
-│   ├── `context-clean-20260108-130050.json` - json config
-│   ├── `dev-subagent-violations-fix-20251228.md` - Dev Subagent Quality Standard Violations - Fixed
-│   ├── `freshness-analysis-20260108-130050.json` - json config
-│   ├── `readme-generation-20260108-130050.json` - json config
-│   ├── `rule-context-clean-20260108-130050.json` - json config
-│   ├── `rule-inspector-summary.md` - Rule Inspector Summary
-│   ├── `rule-report-clean-20260108-130050.json` - json config
-│   ├── `style-report-clean-20260107-101825.json` - json config
-│   ├── `style-report-clean-20260108-130050.json` - json config
-│   └── `user-approvals-clean-20260107-101825.json` - json config
-├── dev/
-│   ├── archive/
-│   │   └── 2025-12/
-│   ├── `ba-qa-report-20260416-063500.json` - json config
-│   ├── `ba-qa-report-20260416-073000.json` - json config
-│   ├── `ba-spec-20260416-063500.md` - BA Specification: Auto-Commit/Checkpoint System v2 — refs/checkpoints Migration
-│   ├── `ba-spec-20260416-073000.md` - BA Specification: SaaS-Grade git blame — 5 Leak Paths + Ops Gaps (Iter 3)
-│   ├── `completion-dev-20260107-091716.md` - Development Completion Report
-│   ├── `completion-dev-20260107-100221.md` - Development Completion Report
-│   ├── `completion-dev-20260108-111618.md` - Development Completion Report
-│   ├── `completion-dev-20260108-153719.md` - Development Completion Report
-│   ├── `completion-dev-20260108-163807.md` - Development Completion Report
-│   ├── `completion-dev-20260108-164641.md` - Development Completion Report
-│   ├── `completion-dev-20260110-001044.md` - Development Completion Report
-│   ├── `context-20260416-063500.json` - json config
-│   ├── `context-20260416-073000.json` - json config
-│   ├── `context-dev-20260107-091716.json` - json config
-│   ├── `context-dev-20260107-100221.json` - json config
-│   ├── `context-dev-20260107-104430.json` - json config
-│   ├── `context-dev-20260108-111618.json` - json config
-│   ├── `context-dev-20260108-153719.json` - json config
-│   ├── `context-dev-20260108-163807.json` - json config
-│   ├── `context-dev-20260108-164915.json` - json config
-│   ├── `context-dev-20260110-001044.json` - json config
-│   ├── `context-dev-20260111-193314.json` - json config
-│   ├── `context-iter2-dev-20260111-193314.json` - json config
-│   ├── `dev-report-20260110-001044.json` - json config
-│   ├── `dev-report-20260416-063500-iter2.json` - json config
-│   ├── `dev-report-20260416-063500.json` - json config
-│   ├── `dev-report-20260416-073000-iter2.json` - json config
-│   ├── `dev-report-20260416-073000.json` - json config
-│   ├── `dev-report-dev-20260107-091716.json` - json config
-│   ├── `dev-report-dev-20260107-100221.json` - json config
-│   ├── `dev-report-dev-20260107-104430.json` - json config
-│   ├── `dev-report-dev-20260108-111618.json` - json config
-│   ├── `dev-report-dev-20260108-153719.json` - json config
-│   ├── `dev-report-dev-20260108-163807.json` - json config
-│   ├── `dev-report-dev-20260108-164641.json` - json config
-│   ├── `dev-report-dev-20260111-193314.json` - json config
-│   ├── `qa-final-blame-audit-20260416-063500.json` - json config
-│   ├── `qa-input-20260110-001044.json` - json config
-│   ├── `qa-input-dev-20260107-091716.json` - json config
-│   ├── `qa-input-dev-20260107-100221.json` - json config
-│   ├── `qa-input-dev-20260107-104430.json` - json config
-│   ├── `qa-input-dev-20260108-111618.json` - json config
-│   ├── `qa-input-dev-20260108-153719.json` - json config
-│   ├── `qa-input-dev-20260108-163807.json` - json config
-│   ├── `qa-input-dev-20260108-164641.json` - json config
-│   ├── `qa-input-dev-20260111-193314.json` - json config
-│   ├── `qa-report-20260110-001044.json` - json config
-│   ├── `qa-report-20260416-063500-iter2.json` - json config
-│   ├── `qa-report-20260416-063500.json` - json config
-│   ├── `qa-report-20260416-073000-iter2.json` - json config
-│   ├── `qa-report-20260416-073000.json` - json config
-│   ├── `qa-report-dev-20260107-091716.json` - json config
-│   ├── `qa-report-dev-20260107-100221.json` - json config
-│   ├── `qa-report-dev-20260107-104430.json` - json config
-│   ├── `qa-report-dev-20260108-111618.json` - json config
-│   ├── `qa-report-dev-20260108-153719.json` - json config
-│   ├── `qa-report-dev-20260108-163807.json` - json config
-│   ├── `qa-report-dev-20260108-164641.json` - json config
-│   ├── `qa-report-dev-20260111-193314.json` - json config
-│   ├── `qa-report-iter2-dev-20260107-091716.json` - json config
-│   └── `refined-context-dev-20260111-193314.json` - json config
-├── examples/
-│   └── `settings-with-checkpoint.json` - json config
-├── guides/
-│   ├── `auto-sync-quickstart.md` - 自动同步快速开始指南
-│   ├── `integration-guide.md` - 📊 Excel Analyzer 深度集成指南
-│   ├── `project-settings-template.md` - Project Settings Template Guide
-│   └── `skills-test-guide.md` - Claude Code Office Skills 测试指南
-├── planning/
-├── reference/
-│   ├── `configuration-summary.md` - Claude Code 全局配置总结
-│   ├── `fswatch-quickref.md` - FSWatch 快速参考卡片
-│   ├── `git-fswatch.md` - Git File Watcher (fswatch) 使用文档
-│   ├── `lock-file-handling.md` - Git Lock File Handling
-│   └── `slashcommand-quick-reference.md` - Slash Command Quick Reference
-├── reports/
-│   └── `slashcommand-rollout-summary.md` - SlashCommand Permission Rollout Summary
-├── templates/
-│   └── `settings.json.template` - template file
-├── test/
-│   ├── `edge-case-analysis-qa.json` - json config
-│   ├── `edge-case-analysis-summary.md` - Edge Case Analysis Summary - Git History Deep Dive
-│   ├── `test-design.md` - Test Framework Design
-│   └── `test-implementation-guide.md` - Test Implementation Guide - Quick Reference
-├── `checkpoint-mechanism.md` - Auto-Commit / Checkpoint Mechanism
-├── `commit-manifest-20260509-114002-cycle4.json` - json config
-├── `incidents-2026-03-28.md` - Overnight Incident — 2026-03-28
-├── `incidents-2026-04-04.md` - Production Catastrophe Incident — 2026-04-04
-└── `server-infra.md` - Server Infrastructure — Full Reference Tables
-```
+## Structure
+
+Total files: 248
+Total subdirectories: 36
+
+## Contents
+
+- `archive/2024-10/auto-sync-analysis.md`
+- `archive/2024-10/git-tracking-solution-plan.md`
+- `archive/2024-10/INDEX.md`
+- `archive/2024-10/qa-improvements-summary.md`
+- `archive/2024-10/README.md`
+- `archive/editor-configs/.cursor/INDEX.md`
+- `archive/editor-configs/.cursor/README.md`
+- `archive/editor-configs/.cursor/rules/bmad/analyst.mdc`
+- `archive/editor-configs/.cursor/rules/bmad/architect.mdc`
+- `archive/editor-configs/.cursor/rules/bmad/bmad-master.mdc`
+- `archive/editor-configs/.cursor/rules/bmad/bmad-orchestrator.mdc`
+- `archive/editor-configs/.cursor/rules/bmad/dev.mdc`
+- `archive/editor-configs/.cursor/rules/bmad/INDEX.md`
+- `archive/editor-configs/.cursor/rules/bmad/pm.mdc`
+- `archive/editor-configs/.cursor/rules/bmad/po.mdc`
+- `archive/editor-configs/.cursor/rules/bmad/qa.mdc`
+- `archive/editor-configs/.cursor/rules/bmad/README.md`
+- `archive/editor-configs/.cursor/rules/bmad/sm.mdc`
+- `archive/editor-configs/.cursor/rules/bmad/ux-expert.mdc`
+- `archive/editor-configs/.cursor/rules/INDEX.md`
+- `archive/editor-configs/.cursor/rules/README.md`
+- `archive/editor-configs/README.md`
+- `archive/INDEX.md`
+- `archive/legacy-chinese/claude-code-office-skills-best-practices-2025.md`
+- `archive/legacy-chinese/INDEX.md`
+- `archive/legacy-chinese/README.md`
+- `archive/legacy-chinese/skills-package-readme-zh.md`
+- `archive/legacy/README.md`
+- `archive/legacy/skills_package/docx/docx-js.md`
+- `archive/legacy/skills_package/docx/LICENSE.txt`
+- `archive/legacy/skills_package/docx/SKILL.md`
+- `archive/legacy/skills_package/frontend-design/LICENSE.txt`
+- `archive/legacy/skills_package/frontend-design/SKILL.md`
+- `archive/legacy/skills_package/pdf/FORMS.md`
+- `archive/legacy/skills_package/pdf/LICENSE.txt`
+- `archive/legacy/skills_package/pdf/REFERENCE.md`
+- `archive/legacy/skills_package/pdf/SKILL.md`
+- `archive/legacy/skills_package/pptx/css.md`
+- `archive/legacy/skills_package/pptx/html2pptx.md`
+- `archive/legacy/skills_package/pptx/LICENSE.txt`
+- `archive/legacy/skills_package/pptx/ooxml.md`
+- `archive/legacy/skills_package/pptx/SKILL.md`
+- `archive/legacy/skills_package/product-self-knowledge/SKILL.md`
+- `archive/legacy/skills_package/xlsx/LICENSE.txt`
+- `archive/legacy/skills_package/xlsx/recalc.py`
+- `archive/legacy/skills_package/xlsx/SKILL.md`
+- `archive/orphaned-agents/README.md`
+- `archive/README.md`
+- `checkpoint-mechanism.md`
+- `clean/archive/2025-12/20251226-115500/context-20251226-115500.json`
+- `clean/archive/2025-12/20251226-115500/context-iter2-20251226-115500.json`
+- `clean/archive/2025-12/20251226-115500/dev-report-20251226-115500.json`
+- `clean/archive/2025-12/20251226-115500/dev-report-iter2-20251226-115500.json`
+- `clean/archive/2025-12/20251226-115500/INDEX.md`
+- `clean/archive/2025-12/20251226-115500/qa-input-20251226-115500.json`
+- `clean/archive/2025-12/20251226-115500/qa-report-20251226-115500.json`
+- `clean/archive/2025-12/20251226-115500/README.md`
+- `clean/archive/2025-12/clean-20251228-145537/context-clean-20251228-145537.json`
+- `clean/archive/2025-12/clean-20251228-145537/INDEX.md`
+- `clean/archive/2025-12/clean-20251228-145537/README.md`
+- `clean/archive/2025-12/clean-20251228-145537/test-results-20251228-145537.md`
+- `clean/archive/2025-12/clean-20251228-150046/cleanliness-report-clean-20251228-150046.json`
+- `clean/archive/2025-12/clean-20251228-150046/context-clean-20251228-150046.json`
+- `clean/archive/2025-12/clean-20251228-150046/INDEX.md`
+- `clean/archive/2025-12/clean-20251228-150046/README.md`
+- `clean/archive/2025-12/clean-20251228-150046/rule-context-clean-20251228-150046.json`
+- `clean/archive/2025-12/clean-20251228-155527/cleanliness-report-clean-20251228-155527.json`
+- `clean/archive/2025-12/clean-20251228-155527/cleanup-execution-clean-20251228-155527.json`
+- `clean/archive/2025-12/clean-20251228-155527/combined-report-clean-20251228-155527.json`
+- `clean/archive/2025-12/clean-20251228-155527/completion-clean-20251228-155527.md`
+- `clean/archive/2025-12/clean-20251228-155527/context-clean-20251228-155527.json`
+- `clean/archive/2025-12/clean-20251228-155527/final-summary-clean-20251228-155527.md`
+- `clean/archive/2025-12/clean-20251228-155527/INDEX.md`
+- `clean/archive/2025-12/clean-20251228-155527/README.md`
+- `clean/archive/2025-12/clean-20251228-155527/rule-context-clean-20251228-155527.json`
+- `clean/archive/2025-12/clean-20251228-155527/rule-report-clean-20251228-155527.json`
+- `clean/archive/2025-12/clean-20251228-155527/style-report-clean-20251228-155527.json`
+- `clean/archive/2025-12/clean-20251228-155527/user-approvals-clean-20251228-155527.json`
+- `clean/archive/2025-12/INDEX.md`
+- `clean/archive/2025-12/README.md`
+- `clean/archive/2025-12/workflow-fix-20251228-rule-inspector-enforcement.md`
+- `clean/archive/INDEX.md`
+- `clean/archive/README.md`
+- `clean/cleanliness-report-clean-20260107-101825.json`
+- `clean/cleanliness-report-clean-20260108-130050.json`
+- `clean/cleanup-execution-clean-20260107-101825.json`
+- `clean/combined-report-clean-20260107-101825.json`
+- `clean/completion-20251226-115500.md`
+- `clean/completion-clean-20260107-101825.md`
+- `clean/completion-clean-20260108-130050.md`
+- `clean/context-clean-20260107-101825.json`
+- `clean/context-clean-20260108-130050.json`
+- `clean/context-clean-20260517-102341.json`
+- `clean/dev-subagent-violations-fix-20251228.md`
+- `clean/freshness-analysis-20260108-130050.json`
+- `clean/freshness-clean-20260517-102341.json`
+- `clean/INDEX.md`
+- `clean/readme-generation-20260108-130050.json`
+- `clean/README.md`
+- `clean/rule-context-clean-20260108-130050.json`
+- `clean/rule-context-clean-20260517-102341.json`
+- `clean/rule-inspector-summary.md`
+- `clean/rule-report-clean-20260108-130050.json`
+- `clean/style-report-clean-20260107-101825.json`
+- `clean/style-report-clean-20260108-130050.json`
+- `clean/user-approvals-clean-20260107-101825.json`
+- `commit-manifest-20260509-114002-cycle4.json`
+- `dev/archive/2025-12/20251226-160000/context-20251226-160000.json`
+- `dev/archive/2025-12/20251226-160000/dev-report-20251226-160000.json`
+- `dev/archive/2025-12/20251226-160000/INDEX.md`
+- `dev/archive/2025-12/20251226-160000/qa-input-20251226-160000.json`
+- `dev/archive/2025-12/20251226-160000/qa-report-20251226-160000.json`
+- `dev/archive/2025-12/20251226-160000/README.md`
+- `dev/archive/2025-12/20251228-143334/context-20251228-143334.json`
+- `dev/archive/2025-12/20251228-143334/dev-report-20251228-143334.json`
+- `dev/archive/2025-12/20251228-143334/INDEX.md`
+- `dev/archive/2025-12/20251228-143334/qa-input-20251228-143334.json`
+- `dev/archive/2025-12/20251228-143334/qa-report-20251228-143334.json`
+- `dev/archive/2025-12/20251228-143334/README.md`
+- `dev/archive/2025-12/completion-20251226-160000.md`
+- `dev/archive/2025-12/completion-dev-20251228-143334.md`
+- `dev/archive/2025-12/dev-20251228-154511/context-dev-20251228-154511.json`
+- `dev/archive/2025-12/dev-20251228-154511/dev-report-dev-20251228-154511.json`
+- `dev/archive/2025-12/dev-20251228-154511/INDEX.md`
+- `dev/archive/2025-12/dev-20251228-154511/qa-input-dev-20251228-154511.json`
+- `dev/archive/2025-12/dev-20251228-154511/qa-report-dev-20251228-154511.json`
+- `dev/archive/2025-12/dev-20251228-154511/README.md`
+- `dev/archive/2025-12/INDEX.md`
+- `dev/archive/2025-12/README.md`
+- `dev/archive/INDEX.md`
+- `dev/archive/README.md`
+- `dev/ba-qa-report-20260416-063500.json`
+- `dev/ba-qa-report-20260416-073000.json`
+- `dev/ba-spec-20260416-063500.md`
+- `dev/ba-spec-20260416-073000.md`
+- `dev/close-report-20260510-115954.md`
+- `dev/close-report-20260510-191533.md`
+- `dev/close-report-20260511-094500.md`
+- `dev/close-report-20260511-180000.md`
+- `dev/completion-20260510-191533.md`
+- `dev/completion-20260511-094500.md`
+- `dev/completion-20260511-180000.md`
+- `dev/completion-dev-20260107-091716.md`
+- `dev/completion-dev-20260107-100221.md`
+- `dev/completion-dev-20260108-111618.md`
+- `dev/completion-dev-20260108-153719.md`
+- `dev/completion-dev-20260108-163807.md`
+- `dev/completion-dev-20260108-164641.md`
+- `dev/completion-dev-20260110-001044.md`
+- `dev/context-20260416-063500.json`
+- `dev/context-20260416-073000.json`
+- `dev/context-20260510-191533.json`
+- `dev/context-20260511-094500.json`
+- `dev/context-20260511-180000.json`
+- `dev/context-dev-20260107-091716.json`
+- `dev/context-dev-20260107-100221.json`
+- `dev/context-dev-20260107-104430.json`
+- `dev/context-dev-20260108-111618.json`
+- `dev/context-dev-20260108-153719.json`
+- `dev/context-dev-20260108-163807.json`
+- `dev/context-dev-20260108-164915.json`
+- `dev/context-dev-20260110-001044.json`
+- `dev/context-dev-20260111-193314.json`
+- `dev/context-iter2-dev-20260111-193314.json`
+- `dev/dev-report-20260110-001044.json`
+- `dev/dev-report-20260416-063500-iter2.json`
+- `dev/dev-report-20260416-063500.json`
+- `dev/dev-report-20260416-073000-iter2.json`
+- `dev/dev-report-20260416-073000.json`
+- `dev/dev-report-20260510-115954.json`
+- `dev/dev-report-20260510-191533.json`
+- `dev/dev-report-20260511-094500.json`
+- `dev/dev-report-20260511-180000.json`
+- `dev/dev-report-dev-20260107-091716.json`
+- `dev/dev-report-dev-20260107-100221.json`
+- `dev/dev-report-dev-20260107-104430.json`
+- `dev/dev-report-dev-20260108-111618.json`
+- `dev/dev-report-dev-20260108-153719.json`
+- `dev/dev-report-dev-20260108-163807.json`
+- `dev/dev-report-dev-20260108-164641.json`
+- `dev/dev-report-dev-20260111-193314.json`
+- `dev/INDEX.md`
+- `dev/qa-final-blame-audit-20260416-063500.json`
+- `dev/qa-input-20260110-001044.json`
+- `dev/qa-input-dev-20260107-091716.json`
+- `dev/qa-input-dev-20260107-100221.json`
+- `dev/qa-input-dev-20260107-104430.json`
+- `dev/qa-input-dev-20260108-111618.json`
+- `dev/qa-input-dev-20260108-153719.json`
+- `dev/qa-input-dev-20260108-163807.json`
+- `dev/qa-input-dev-20260108-164641.json`
+- `dev/qa-input-dev-20260111-193314.json`
+- `dev/qa-report-20260110-001044.json`
+- `dev/qa-report-20260416-063500-iter2.json`
+- `dev/qa-report-20260416-063500.json`
+- `dev/qa-report-20260416-073000-iter2.json`
+- `dev/qa-report-20260416-073000.json`
+- `dev/qa-report-20260510-191533.json`
+- `dev/qa-report-20260511-094500.json`
+- `dev/qa-report-20260511-180000.json`
+- `dev/qa-report-dev-20260107-091716.json`
+- `dev/qa-report-dev-20260107-100221.json`
+- `dev/qa-report-dev-20260107-104430.json`
+- `dev/qa-report-dev-20260108-111618.json`
+- `dev/qa-report-dev-20260108-153719.json`
+- `dev/qa-report-dev-20260108-163807.json`
+- `dev/qa-report-dev-20260108-164641.json`
+- `dev/qa-report-dev-20260111-193314.json`
+- `dev/qa-report-iter2-dev-20260107-091716.json`
+- `dev/README.md`
+- `dev/refined-context-dev-20260111-193314.json`
+- `dev/ticket-20260510-191533.md`
+- `dev/ticket-20260511-094500.md`
+- `dev/ticket-20260511-180000.md`
+- `examples/INDEX.md`
+- `examples/README.md`
+- `examples/settings-with-checkpoint.json`
+- `guides/auto-sync-quickstart.md`
+- `guides/INDEX.md`
+- `guides/integration-guide.md`
+- `guides/project-settings-template.md`
+- `guides/README.md`
+- `guides/skills-test-guide.md`
+- `incidents-2026-03-28.md`
+- `incidents-2026-04-04.md`
+- `INDEX.md`
+- `planning/INDEX.md`
+- `planning/README.md`
+- `README.md`
+- `reference/configuration-summary.md`
+- `reference/fswatch-quickref.md`
+- `reference/git-fswatch.md`
+- `reference/INDEX.md`
+- `reference/lock-file-handling.md`
+- `reference/README.md`
+- `reference/slashcommand-quick-reference.md`
+- `reports/INDEX.md`
+- `reports/README.md`
+- `reports/slashcommand-rollout-summary.md`
+- `server-infra.md`
+- `templates/README.md`
+- `templates/settings.json.template`
+- `test/edge-case-analysis-qa.json`
+- `test/edge-case-analysis-summary.md`
+- `test/INDEX.md`
+- `test/README.md`
+- `test/test-design.md`
+- `test/test-implementation-guide.md`
 
 ---
-*Auto-generated by doc-sync hook.*
+
+*This file is auto-generated by rule-inspector. Do not edit manually.*

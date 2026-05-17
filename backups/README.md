@@ -1,20 +1,20 @@
-# docs
+# backups
 
-Project documentation, incident reports, and reference materials
+Backup files for settings and configuration state
 
 ---
 
 ## Purpose
 
-This folder contains docs files organized according to project standards.
+This folder contains backups files organized according to project standards.
 
 ## Allowed File Types
 
-.md, .json
+.json, .backup, .corrupted
 
 ## Naming Convention
 
-kebab-case
+timestamp-suffixed
 
 ## Organization Rules
 
@@ -34,9 +34,9 @@ Files in this folder should follow these rules:
 
 ## Git Analysis
 
-First created: 2025-12-27
-Last significant update: 2026-05-12
-Generated: 2026-05-17 10:27:08 UTC
+First created: 2026-03-24
+Last significant update: 2026-04-25
+Generated: 2026-05-17 10:26:53 UTC
 
 ---
 
