@@ -24,11 +24,90 @@ Simply type:
 
 ## Command Implementation
 
-Execute the pull script:
+### Step 0: Capture pre-pull HEAD
+
+```bash
+PRE_PULL_HEAD=$(git rev-parse HEAD)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+```
+
+### Step 1: Execute the pull script
 
 ```bash
 bash ~/.claude/hooks/pull.sh
+PULL_EXIT_CODE=$?
 ```
+
+### Step 2: Capture post-pull HEAD
+
+Always capture, regardless of exit code — pull.sh may change HEAD during a partial
+rebase before a conflict (line 151 exit), or after a fully successful rebase before
+stash pop fails (line 174 exit):
+
+```bash
+POST_PULL_HEAD=$(git rev-parse HEAD)
+```
+
+### Step 3: No-op check (exit 0, HEAD unchanged)
+
+```
+if PULL_EXIT_CODE == 0 AND PRE_PULL_HEAD == POST_PULL_HEAD:
+    Print: "No HEAD change (pull was no-op or cancelled). Skipping pull-analyst."
+    Stop.
+```
+
+### Step 4: Determine pull_exit_phase
+
+```
+if PULL_EXIT_CODE == 0:
+    pull_exit_phase = "success"
+    proceed to Step 5
+
+else (PULL_EXIT_CODE != 0):
+    Check for rebase state directories:
+        rebase_state_exists = test -d ".git/rebase-merge" OR test -d ".git/rebase-apply"
+
+    if rebase_state_exists:
+        pull_exit_phase = "rebase_conflict"
+        # Rebase stopped mid-operation; HEAD may have changed but rebase is in progress.
+        # The rebase-state-directory is the primary discriminant.
+        Display pull.sh error output.
+        Print guidance: "Resolve conflicts, then run: git rebase --continue"
+        Print guidance: "Or abort the rebase: git rebase --abort"
+        STOP — do NOT dispatch pull-analyst.
+
+    else if NOT rebase_state_exists AND PRE_PULL_HEAD != POST_PULL_HEAD:
+        pull_exit_phase = "stash_restoration_failed"
+        # Rebase fully succeeded (HEAD advanced past line 154 success message);
+        # then stash pop failed at pull.sh line 174.
+        # No rebase state remains because rebase completed cleanly.
+        proceed to Step 5
+
+    else (NOT rebase_state_exists AND PRE_PULL_HEAD == POST_PULL_HEAD):
+        pull_exit_phase = "rebase_conflict"
+        # Unknown pre-rebase failure; HEAD unchanged; classify conservatively.
+        Display pull.sh error output.
+        STOP — do NOT dispatch pull-analyst.
+```
+
+### Step 5: Dispatch pull-analyst subagent
+
+Dispatch the `pull-analyst` subagent with the following context (only reached for
+`pull_exit_phase = "success"` or `pull_exit_phase = "stash_restoration_failed"`):
+
+```
+PRE_PULL_HEAD=<PRE_PULL_HEAD>
+POST_PULL_HEAD=<POST_PULL_HEAD>
+BRANCH=<BRANCH>
+PULL_EXIT_PHASE=<pull_exit_phase>
+```
+
+Wait for the subagent to complete.
+
+### Step 6: Display pull-analyst report
+
+Display the pull-analyst advisory report to the user. The report is informational only —
+it does not gate any future command.
 
 ## Features
 
@@ -36,6 +115,7 @@ bash ~/.claude/hooks/pull.sh
 - Uses `git pull --rebase` for clean linear history
 - Detects conflicts during rebase and lists conflicted files with resolution steps
 - Handles detached HEAD, network failures, and no upstream branch
+- Post-pull semantic risk analysis via pull-analyst (advisory, never blocking)
 
 ## Related Commands
 
