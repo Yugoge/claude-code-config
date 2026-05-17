@@ -359,10 +359,7 @@ python3 -c "import sys; print(sys.prefix)"
 
 **Symptoms**: Validator killed after 30 seconds
 
-**Diagnosis**: Check validator performance
-```bash
-time python3 tests/scripts/validate-xxx.py --project-root .
-```
+**Diagnosis**: Check validator performance: `source ~/.claude/venv/bin/activate && time python3 tests/scripts/validate-xxx.py --project-root .`
 
 **Fix**:
 - Optimize validator (reduce file scanning)
