@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 45
+- **Total files**: 46
 - **Subdirectories**: 2
 - **Naming convention**: kebab
 
@@ -52,6 +52,7 @@ Organization and usage documentation for `scripts/`.
 - `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 - `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 - `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+- `write-e2e-enforce.sh` - Writes e2e-enforce.json into the dev-registry for the given session.
 - `write-qa-mode.sh` - Write or update qa_mode field in the QA sentinel file for a dev-registry session.
 
 ## Subdirectories

@@ -625,7 +625,7 @@ Before parsing the requirement, read the project's `CLAUDE.md` (at the project r
 3. **Multi-authority conflict detection**: if CLAUDE.md, the user's spec, and a referenced design system disagree on the same role (e.g., CLAUDE.md says `CTA = brand-500` but the spec says `CTA = brand-300`), return `status: needs_clarification` with the conflicting role enumerated. Do NOT silently pick one — multi-authority disagreement is a user-decision, not a BA-decision.
 4. Sequencing rule: **CLAUDE.md → spec → analysis**. Step 1 (CLAUDE.md) precedes Step 1 (Parse Requirement) precedes any spec read for overnight cycles. See also the "Overnight Spec Integration" section below.
 
-The role table flows into BA's acceptance criteria (Contract A evidence MUST cite `expected = role_table[role]`), Dev's Quality Checklist (role-token compliance check), and QA's Standards Compliance check (`Step 5a.2`). If you skip Step 1, the entire downstream audit chain degrades to loose palette membership.
+The role table flows into BA's acceptance criteria (Contract A evidence MUST cite `expected = role_table[role]`), Dev's Quality Checklist (role-token compliance check), and QA's Standards Compliance check (`Step 8`). If you skip Step 1, the entire downstream audit chain degrades to loose palette membership.
 
 ### Step 1: Parse and Decompose Requirement
 
