@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-17T16:49:12Z*
-**Total entries**: 91
+*Last updated: 2026-05-17T16:56:12Z*
+**Total entries**: 92
 **Convention**: kebab
 
 ## Tree
@@ -19,6 +19,7 @@ dev/
 ├── `ba-qa-report-20260416-073000.json` - json config
 ├── `ba-qa-report-20260517-153856.json` - json config
 ├── `ba-qa-report-20260517-155838.json` - json config
+├── `cleanliness-inspector-report-20260517-155838.json` - json config
 ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
 ├── `close-report-20260510-191533.md` - Close Debate Report
 ├── `close-report-20260511-094500.md` - Close Report — 20260511-094500
