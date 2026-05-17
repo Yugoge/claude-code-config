@@ -114,9 +114,9 @@ Step 1: Read state file + enter worktree (first run only)
 1. **Autonomy is gated by `spec_mode`**, with a third clause for autonomy-directive override.
    - **Clause A** — `spec_mode == "autonomous"`: do NOT ask the user anything; make decisions yourself.
    - **Clause B** — `spec_mode == "user-provided"` AND focus does NOT contain autonomy-directive tokens: honor the spec's user-gate pauses (orchestrator view Hard Rule 10) — pause the loop at every spec-defined user gate and do not auto-resume past it.
-   - **Clause C (autonomy-directive override)** — `spec_mode == "user-provided"` AND focus contains any of `\b(autonomously|manual\s+interrupt|don.?t\s+ask|no\s+questions|自动|手动中断|不要问|不要打扰)\b` (case-insensitive, Unicode-safe): treat the run as autonomous regardless of spec_mode. The orchestrator MUST NOT emit `<options>` XML or interrogative endings. When genuine deadlock occurs (e.g., META-DEADLOCK where a hook blocks the very fix needed), the orchestrator MUST: (a) write a deadlock report to `docs/dev/overnight-deadlock-<ts>.md` with the situation summary; (b) skip the blocked work item; (c) continue with the next pipeline; (d) defer all user-input questions to the end-of-overnight summary. Asking the user mid-cycle is a Clause-C violation.
+   - **Clause C (autonomy-directive override)** — `spec_mode == "user-provided"` AND focus contains any of `\b(autonomously|manual\s+interrupt|don.?t\s+ask|no\s+questions)\b` (case-insensitive): treat the run as autonomous regardless of spec_mode. The orchestrator MUST NOT emit `<options>` XML or interrogative endings. When genuine deadlock occurs (e.g., META-DEADLOCK where a hook blocks the very fix needed), the orchestrator MUST: (a) write a deadlock report to `docs/dev/overnight-deadlock-<ts>.md` with the situation summary; (b) skip the blocked work item; (c) continue with the next pipeline; (d) defer all user-input questions to the end-of-overnight summary. Asking the user mid-cycle is a Clause-C violation.
 2. **Loop continuously in autonomous mode**. When `spec_mode == "autonomous"`, after each fix cycle the todo completion hook handles looping; this is non-negotiable. When `spec_mode == "user-provided"`, the loop pauses at every spec-defined user gate and only resumes after the user clears the gate.
-3. **Cycles are user-pathway-filtered and priority-driven** (per spec-20260503-091826 Section 5.5 decision #2 — same "用户需求中心" philosophy as `/dev`, with explore-mode compatibility preserved per Section 5.7 anti-pattern #5). Specialists' free exploration behavior is unchanged — they continue to discover broadly. PM triage applies the user-need path-relevance filter (agents/pm.md Step 1.9): in **user-provided mode**, the user spec's Section 5 user-need IS the path; pipelines are gated to user-pathway-relevant findings. In **autonomous mode**, only Tier 1 blockers AND multi-agent-consensus findings get pipelines; remaining findings route to the cycle's `out_of_scope_observations` array (per agents/pm.md schema). Within the gated pipeline set, ordering remains by tier: Tier 1 (blockers) first, Tier 2 (major), Tier 3 (minor/cosmetic). Specialists continue to explore broadly — the gating is purely on what becomes a pipeline, not on what specialists are allowed to discover.
+3. **Cycles are user-pathway-filtered and priority-driven** (per spec-20260503-091826 Section 5.5 decision #2 — same user-need-centric philosophy as `/dev`, with explore-mode compatibility preserved per Section 5.7 anti-pattern #5). Specialists' free exploration behavior is unchanged — they continue to discover broadly. PM triage applies the user-need path-relevance filter (agents/pm.md Step 4): in **user-provided mode**, the user spec's Section 5 user-need IS the path; pipelines are gated to user-pathway-relevant findings. In **autonomous mode**, only Tier 1 blockers AND multi-agent-consensus findings get pipelines; remaining findings route to the cycle's `out_of_scope_observations` array (per agents/pm.md schema). Within the gated pipeline set, ordering remains by tier: Tier 1 (blockers) first, Tier 2 (major), Tier 3 (minor/cosmetic). Specialists continue to explore broadly — the gating is purely on what becomes a pipeline, not on what specialists are allowed to discover.
 4. **ALL exploration and fixes via subagents**. Use Agent tool for ALL scanning, analysis, and implementation work. Main context only handles TodoWrite and loop control.
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
 6. **Track everything**. Use TodoWrite for per-cycle progress. Do NOT write to `.claude/overnight-state-<sid>.json` from the main agent — that file is owned by the orchestrator hooks. See `docs/dev/state-file-write-policy.md` for the full per-field write matrix.
@@ -139,7 +139,7 @@ Specialists observe and report. Root cause analysis is exclusively BA's job.
 Files in `~/.claude/agents/` and `~/.claude/commands/` apply to ALL projects. No project-specific examples.
 
 ### Rule 8: Autonomy-directive in focus overrides spec_mode (2026-04-26 incident)
-When `spec_mode == "user-provided"` is auto-detected from a spec but the user's focus string explicitly demands autonomy (`手动中断`, `自动`, `不要问`, `不要打扰`, `autonomously`, `manual interrupt`, `don't ask`, `no questions`), Hard Rule 1 Clause C applies: behave as autonomous. Emitting `<options>` XML or interrogative endings under autonomy-directive override is a critical violation — it causes the chat UI to go idle awaiting user input even though the Stop hook is blocking termination. Source: BA spec `docs/dev/ba-spec-stop-hook-gap-20260426-2250.md` + architect report `docs/dev/architect-stop-hook-gap-20260426-2245.json`. Enforcement: `pretool-orchestrator-prompt-purity.py` rejects subagent dispatches containing `<options>` when overnight is active; main-agent text emission is unhookable, so this rule is the primary defense.
+When `spec_mode == "user-provided"` is auto-detected from a spec but the user's focus string explicitly demands autonomy (`autonomously`, `manual interrupt`, `don't ask`, `no questions`), Hard Rule 1 Clause C applies: behave as autonomous. Emitting `<options>` XML or interrogative endings under autonomy-directive override is a critical violation — it causes the chat UI to go idle awaiting user input even though the Stop hook is blocking termination. Source: BA spec `docs/dev/ba-spec-stop-hook-gap-20260426-2250.md` + architect report `docs/dev/architect-stop-hook-gap-20260426-2245.json`. Enforcement: `pretool-orchestrator-prompt-purity.py` rejects subagent dispatches containing `<options>` when overnight is active; main-agent text emission is unhookable, so this rule is the primary defense.
 
 ---
 
@@ -173,7 +173,7 @@ If `--spec` is NOT provided, the session operates in **autonomous mode** (defaul
 
 **Argument parsing, spec auto-detection, and view detection are all performed by `create-overnight-state.sh` during session creation.** Read the resulting state file in Step 1 — it contains `user_spec_path`, `spec_mode`, and `view_paths` (manifest.views dict, or null when no views exist). Subagents receive their per-agent view path alongside the monolith spec path; null `view_paths` means legacy spec-only mode (still supported). When a spec was auto-detected from `docs/dev/specs/`, Step 1 announces it.
 
-The `focus` string is stored in the state file and passed to all 4 specialist subagents as a discovery hint. It helps specialists focus their scans; specialists' free-exploration behavior is preserved per spec-20260503-091826 Section 5.7 anti-pattern #5 (specialists 自由探索 must NOT be reduced). Pipeline creation, however, is gated by PM Step 1.9 User-Need Path Relevance Filter (agents/pm.md): user-pathway-relevant findings (in user-provided mode) or Tier 1 + multi-agent-consensus findings (in autonomous mode) become pipelines; the rest route to `out_of_scope_observations`. Additionally, in Step 7, the orchestrator converts the focus into quantitative QA verification criteria that are passed to QA subagents in Step 15 as mandatory pass/fail checks.
+The `focus` string is stored in the state file and passed to all 4 specialist subagents as a discovery hint. It helps specialists focus their scans; specialists' free-exploration behavior is preserved per spec-20260503-091826 Section 5.7 anti-pattern #5 (specialists' free exploration must NOT be reduced). Pipeline creation, however, is gated by PM Step 4 User-Need Path Relevance Filter (agents/pm.md): user-pathway-relevant findings (in user-provided mode) or Tier 1 + multi-agent-consensus findings (in autonomous mode) become pipelines; the rest route to `out_of_scope_observations`. Additionally, in Step 7, the orchestrator converts the focus into quantitative QA verification criteria that are passed to QA subagents in Step 15 as mandatory pass/fail checks.
 
 ---
 
@@ -350,7 +350,7 @@ Before delegating to BA, scan the current iteration's input and repo state
 for retry signals:
 
 - **Retry phrasing** in the iteration prompt or triage report: "again",
-  "still", "didn't fix", "Nth time", "又", "还是", "没修好"
+  "still", "didn't fix", "Nth time", "again", "still broken", "not fixed"
 - **Recent related commits from this overnight run** (example query: `git log --oneline --grep="<keyword>" HEAD~30..HEAD`)
 - **Existing BA specs from earlier iterations**: files matching
   `docs/dev/ticket-*.md` (or legacy `docs/dev/ba-spec-*.md`) with keywords from the current issue
@@ -602,7 +602,7 @@ Each subagent receives, at the TOP of its prompt before any other content:
 - Output report to: <path above>
 
 **Specialist prompt rules** (enforced):
-- Every specialist prompt MUST include the test plan path. Specialists have a mandatory Step 0 (read test plan — PM's `pm_experience` is ground truth) and Step 0.5 (execute the core E2E flow via Playwright) before specialized analysis.
+- Every specialist prompt MUST include the test plan path. Specialists have a mandatory Step 0 (read test plan — PM's `pm_experience` is ground truth) and Step 1 (execute the core E2E flow via Playwright) before specialized analysis.
 - The priority context block is appended directly so specialists see PM's priorities immediately; their Step 0 read provides redundancy.
 - Always use `worktree_path` as the project path when set; specialists must scan files inside the worktree, not the main project directory.
 - Do NOT inline application context, credentials, flow steps, or sample data in the prompt — those live in the test plan file.
@@ -812,7 +812,7 @@ Read specialist reports. For each pipeline, if a specialist provided screenshots
 
 **If triage report exists and is valid** (primary path):
 
-**NOTE**: The PM triage report has already filtered out subjective improvements via the Improvement Quality Filter (Step 1.5 of PM triage protocol). Only findings with objective justification (code errors, specification violations, regressions, data loss risks, measurable performance degradation) remain in the `issues` array. Rejected subjective suggestions are logged in the `rejected_improvements` array for audit purposes. The orchestrator trusts PM's filtering -- do NOT second-guess or re-add filtered items.
+**NOTE**: The PM triage report has already filtered out subjective improvements via the Improvement Quality Filter (PM triage Step 4). Only findings with objective justification (code errors, specification violations, regressions, data loss risks, measurable performance degradation) remain in the `issues` array. Rejected subjective suggestions are logged in the `rejected_improvements` array for audit purposes. The orchestrator trusts PM's filtering -- do NOT second-guess or re-add filtered items.
 
 1. Use `pipeline_order` from triage report as the authoritative ordering
 2. For each issue in `pipeline_order`:
@@ -1782,7 +1782,7 @@ Per-agent responsibilities are owned by `agents/<name>.md` (pm, product-owner, a
 | Loop | Single pass | Continuous until end-time |
 | Termination | After QA passes | After end-time expires |
 | User interaction | Required (clarification, approval) | None (fully autonomous) |
-| Scope per cycle | One complete feature/fix | User-pathway-filtered findings (parallel pipelines, gated by PM Step 1.9 — Tier 1 + multi-agent-consensus in autonomous mode; user-need-relevant in user-provided mode); specialists' free exploration is preserved per Section 5.7 anti-pattern #5 |
+| Scope per cycle | One complete feature/fix | User-pathway-filtered findings (parallel pipelines, gated by PM Step 4 — Tier 1 + multi-agent-consensus in autonomous mode; user-need-relevant in user-provided mode); specialists' free exploration is preserved per Section 5.7 anti-pattern #5 |
 | Subagent usage | BA + dev + QA | product-owner + architect + user + ui-specialist + BA + dev + QA |
 | Stop hook | Workflow enforcement only | Workflow + time-lock |
 | Worktree | Not used | Created on first run, reused across cycles |

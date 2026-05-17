@@ -67,75 +67,17 @@ Run these checks (abort on first failure with a clear error message):
 
 ### Step 4: Force-bypass audit (only when FORCE=true)
 
-If `FORCE=true`:
-```bash
-mkdir -p ~/.claude/logs
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=${TASK_ID} mode=force" >> ~/.claude/logs/commit-overrides.log
-```
-Best-effort; proceed even if log append fails.
+If `FORCE=true`: create `~/.claude/logs/` and append a line with ISO timestamp, task-id, and mode=force to `~/.claude/logs/commit-overrides.log`. Best-effort; proceed even if log append fails.
 
 Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/logs/commit-overrides.log.`
 
-### Step 4.5: Write commit grant and dispatch-snapshot manifest
+### Step 5: Write commit grant and dispatch-snapshot manifest
 
-Before dispatching changelog-analyst, write a single-use commit grant and a dispatch-snapshot manifest:
+Before dispatching changelog-analyst, write a single-use commit grant: activate venv and run Python to generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at` (10 minutes), and `created_at`. Best-effort; proceed even if grant write fails (guard is currently UNREGISTERED).
 
-```python
-import json, os, secrets, datetime
-from pathlib import Path
+Also write the dispatch-snapshot manifest (non-bulk mode only): activate venv and run Python to capture `git status --porcelain=v1` from both repos, then write `manifest_path = /tmp/claude-commit-manifest-{sid}.json` containing `session_id`, `task_id`, `dispatched_at`, and `files_at_dispatch`. Best-effort; skip entirely in bulk mode.
 
-sid = os.environ.get("CLAUDE_SESSION_ID", "default")
-nonce = secrets.token_hex(16)
-grant_path = f"/tmp/claude-commit-grant-{sid}-{nonce}.json"
-expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).isoformat() + 'Z'
-grant = {
-    "task_id": TASK_ID or "bulk",
-    "sid": sid,
-    "nonce": nonce,
-    "expires_at": expires_at,
-    "created_at": datetime.datetime.utcnow().isoformat() + 'Z',
-}
-Path(grant_path).write_text(json.dumps(grant))
-print(f"Commit grant written: {grant_path}")
-```
-
-Best-effort; proceed even if grant write fails (guard is currently UNREGISTERED, so grant absence does not block).
-
-Also write the dispatch-snapshot manifest (non-bulk mode only):
-
-```python
-import json, os, datetime, subprocess
-
-sid = os.environ.get("CLAUDE_SESSION_ID", "unknown")
-# Capture files dirty at dispatch time from both repos
-files_at_dispatch = []
-for repo in ["/root", "/dev/shm/dev-workspace/dot-claude"]:
-    try:
-        result = subprocess.run(
-            ["git", "-C", repo, "status", "--porcelain=v1"],
-            capture_output=True, text=True, timeout=10
-        )
-        for line in result.stdout.splitlines():
-            if line.strip():
-                files_at_dispatch.append(line[3:].strip())
-    except Exception:
-        pass
-
-manifest = {
-    "session_id": sid,
-    "task_id": TASK_ID or "",
-    "dispatched_at": datetime.datetime.utcnow().isoformat() + 'Z',
-    "files_at_dispatch": files_at_dispatch,
-}
-manifest_path = f"/tmp/claude-commit-manifest-{sid}.json"
-with open(manifest_path, 'w') as f:
-    json.dump(manifest, f)
-print(f"Dispatch manifest written: {manifest_path}")
-```
-
-Best-effort; proceed even if manifest write fails. In bulk mode: skip the manifest write entirely.
-
-### Step 5: Dispatch changelog-analyst
+### Step 6: Dispatch changelog-analyst
 
 Use the Agent tool with `subagent_type: changelog-analyst`. Pass a structured prompt:
 
@@ -174,7 +116,7 @@ nested-repo handling, push-gate write) are delegated entirely to `changelog-anal
 
 Authorization flow for changelog-analyst commits:
 
-1. `/commit` writes `/tmp/claude-commit-grant-<SID>-<nonce>.json` before dispatching changelog-analyst (Step 4.5).
+1. `/commit` writes `/tmp/claude-commit-grant-<SID>-<nonce>.json` before dispatching changelog-analyst (Step 5).
 2. `_evaluate_commit(command, data)` calls `_find_grant('commit', sid)` using the subagent's session_id from the PreToolUse payload.
 3. If SID-specific grant not found (subagent session_id differs from orchestrator's CLAUDE_SESSION_ID), falls back to `_find_grant_any('commit')` — any valid unexpired commit grant is accepted.
 4. Grant validates: expires_at (10 min window), single-use unlink. No message-hash validation.

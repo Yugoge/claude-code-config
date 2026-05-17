@@ -98,7 +98,7 @@ Copied verbatim from `ask.md` Step 8 (lines 495-510).
 - Satisfaction: "perfect", "got it", "i understand now", "that's helpful"
 - Confirmation: "makes sense", "clear now", "all good"
 - Topic closure: "that answers my question"
-- Chinese equivalents: "谢谢", "好的", "明白了", "完美", "清楚了", "就这样", "好了", "写吧"
+- Equivalents in other languages meaning thanks / understood / perfect / clear / let's go
 
 **Weak signals** (continue loop, do NOT finalize):
 - User asks a clarifying question
@@ -109,10 +109,7 @@ Only proceed to Step 6 when a STRONG signal fires.
 
 ### Step 6: Finalize (exactly once)
 
-1. **Count monolith lines**:
-   ```bash
-   MONOLITH_LINES=$(wc -l < <spec_path>)
-   ```
+1. **Count monolith lines**: `MONOLITH_LINES=$(wc -l < <spec_path>)`
 
 2. **Invoke spec subagent for agent selection + view creation + checkpoints**:
    ```
@@ -152,7 +149,7 @@ Only proceed to Step 6 when a STRONG signal fires.
      2. AGENT SELECTION: Are the selected agents consistent with the spec's defined
         pipeline? Flag any agent that was included but isn't in the spec's pipeline,
         or any pipeline agent that was excluded.
-     3. COVERAGE: Run `source ~/.claude/venv/bin/activate && python3 ${CLAUDE_PROJECT_DIR}/bin/spec-verify.py --monolith <spec_path> --views-dir docs/dev/specs/<spec-id>/views/`.
+     3. COVERAGE: If `${CLAUDE_PROJECT_DIR}/bin/spec-verify.py` exists, run `source ~/.claude/venv/bin/activate && python3 ${CLAUDE_PROJECT_DIR}/bin/spec-verify.py --monolith <spec_path> --views-dir docs/dev/specs/<spec-id>/views/`. If the script is absent, skip and note "spec-verify.py not found — manual coverage check required".
         Report the result.
      4. CONTENT RELEVANCE: Spot-check 3 random content blocks in each view.
         Is the content relevant to that agent's role?
@@ -224,15 +221,9 @@ Only proceed to Step 6 when a STRONG signal fires.
 
    **Rule**: Every spec subagent invocation MUST be followed by QA validation. The loop exits only on `pass` or on round-3 exhaustion.
 
-4. **Mark split as complete**:
-   ```bash
-   echo "split-complete: $(date -Iseconds)" > docs/dev/specs/<spec-id>/.split-complete
-   ```
+4. **Mark split as complete**: Write `"split-complete: $(date -Iseconds)"` to `docs/dev/specs/<spec-id>/.split-complete`.
 
-   If the loop exited via round-3 exhaustion (sub-step 3), also append the caveat line so reviewers see the warning inline with the marker:
-   ```bash
-   echo "⚠ unresolved split-QA issues (<N>); see split-qa-unresolved.json" >> docs/dev/specs/<spec-id>/.split-complete
-   ```
+   If the loop exited via round-3 exhaustion (sub-step 3), also append `"warning: unresolved split-QA issues (<N>); see split-qa-unresolved.json"` so reviewers see the warning inline with the marker.
 
 ### Step 7: Display result + workflow update
 
@@ -277,7 +268,7 @@ Usage:
 - **Create the output directory** (`docs/dev/specs/`) if it does not exist.
 - **Use absolute paths** in all output messages.
 - **Spec Creation Mode is the only mode.** It acts immediately on whatever the user provides, accumulates multiple requirements into one file per session, and finalizes only on a natural-conclusion strong signal.
-- **Section 5 verbatim — DO NOT invent nested sub-section structure.** Section 5 holds the user's requirement text verbatim. The only structure the /spec orchestrator may ADD beneath Section 5 is the `### 5.N: <title>` accumulation header defined in Step 4 (one per follow-up turn); any other bullets, headings, or sub-headings must come verbatim from the user, not be invented. DO NOT decompose the user's natural-language paragraph into invented `#### A.`, `#### B.`, `#### C.` (or any `5.X.A`, `5.X.B`-style) sub-headings, machine-voice checklist bullets, or parallel "应/不应" AC ladders below a `§5.N` block. This prohibition governs both Step 3 (first-write of Section 5) and Step 4 (multi-turn append of `### 5.N`). If the user's paragraph contains multiple ideas, leave them as one paragraph; downstream agents (BA, dev, QA) will decompose during their own phases — not the /spec orchestrator.
+- **Section 5 verbatim — DO NOT invent nested sub-section structure.** Section 5 holds the user's requirement text verbatim. The only structure the /spec orchestrator may ADD beneath Section 5 is the `### 5.N: <title>` accumulation header defined in Step 4 (one per follow-up turn); any other bullets, headings, or sub-headings must come verbatim from the user, not be invented. DO NOT decompose the user's natural-language paragraph into invented `#### A.`, `#### B.`, `#### C.` (or any `5.X.A`, `5.X.B`-style) sub-headings, machine-voice checklist bullets, or parallel "should/should-not" AC ladders below a `§5.N` block. This prohibition governs both Step 3 (first-write of Section 5) and Step 4 (multi-turn append of `### 5.N`). If the user's paragraph contains multiple ideas, leave them as one paragraph; downstream agents (BA, dev, QA) will decompose during their own phases — not the /spec orchestrator.
 - **Output folder is created by the spec subagent** during Phase 0. The subagent decides which agents get views based on spec content. Legacy specs lacking an output folder remain valid — `/dev*` falls back gracefully.
 - **Todo script**: `/root/.claude/scripts/todo/spec.py` (symlinked to `/dev/shm/dev-workspace/dot-claude/scripts/todo/spec.py` — same inode) exposes the 7-step Spec Creation Mode todo list with `blocking_count = 3` (Steps 1-3 must complete before Claude can stop; Steps 4-7 are session-duration).
 - **Workflow update**: Step 7 emits a temp update for the next phase using

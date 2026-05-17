@@ -430,7 +430,13 @@ Write a JSON report to the specified output path:
       "title": "Short descriptive title",
       "description": "What happened from the user's perspective",
       "severity": "critical|major|minor|cosmetic",
-      "location": "URL path or page name",
+      "location": {
+        "url": "URL path or page name",
+        "file": null
+      },
+      "observed_behavior": "What the user actually experienced (concrete description)",
+      "expected_behavior": "What the user expected to happen based on UI affordances or prior experience",
+      "downstream_agent": "ba",
       "category": "broken-flow|ux-friction|missing-feedback|confusing-behavior|data-loss-risk|accessibility",
       "viewport": "mobile|desktop|both",
       "estimated_effort": "small|medium|large",
@@ -513,23 +519,9 @@ If you are invoked under a `/spec`-driven workflow (the orchestrator passes a no
 
 **On entry** (the `pretool-cp-checkin.py` hook does this for you when you Read your view file): your `is_running` flips to true and your `agent_id` is recorded. Use the recorded `agent_id` value as `--agent-id`; if `$CLAUDE_AGENT_ID` is available, it must match that value.
 
-**During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it:
-```bash
-python3 /root/.claude/scripts/spec-check.py mark \
-  --spec-id <SPEC_ID> \
-  --agent user \
-  --agent-id "$CLAUDE_AGENT_ID" \
-  --cp-id cp-NN
-```
+**During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it done using `spec-check.py mark` with `--spec-id <SPEC_ID>`, `--agent user`, `--agent-id "$CLAUDE_AGENT_ID"`, and `--cp-id cp-NN`. Activate the venv before invoking (`source ~/.claude/venv/bin/activate`).
 
-If a checkpoint legitimately does not apply to this run, waive it (auto-text records actor + ISO timestamp):
-```bash
-python3 /root/.claude/scripts/spec-check.py waive \
-  --spec-id <SPEC_ID> \
-  --agent user \
-  --agent-id "$CLAUDE_AGENT_ID" \
-  --cp-id cp-NN
-```
+If a checkpoint legitimately does not apply to this run, waive it using `spec-check.py waive` with the same arguments (auto-text records actor + ISO timestamp).
 
 **On exit**: every checkpoint must be in state `done` or `waived`. The `subagentstop-cp-enforce.py` hook fires automatically when you stop and BLOCKS your exit (exit 2) if any cp remains `pending`. The block message tells you which cp-IDs are still pending; you must re-run yourself with proper marking.
 

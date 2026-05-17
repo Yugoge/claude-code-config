@@ -105,14 +105,8 @@ Root-level README.md and ARCHITECTURE.md require FULL content updates when stale
 3. **Footer stats block** (`Last Updated`, `Total Transactions Processed`, `Merchant Cache`, `Documentation`) -- Update all numbers.
 
 **How to get accurate data for updates:**
-```bash
-# File counts per directory
-find data/raw -type f -name "*.pdf" | wc -l          # PDF statements
-find data/cache -type f | wc -l                       # cache entries
-find scripts -type f -name "*.py" -o -name "*.sh" | wc -l  # scripts
-find . -maxdepth 2 -name "README.md" | wc -l          # READMEs
-ls data/processed/*_converted.json | wc -l            # processed statements
-```
+
+Use shell tools to count files per directory: PDF statements in data/raw, cache entries in data/cache, scripts in scripts/, READMEs up to depth 2, and processed JSON statements in data/processed/.
 
 **Preserve these user-written sections** (do NOT modify):
 - Problem Statement, Core Features, Transaction Categories, Usage, AI-Powered Classification, Technical Details, Research Foundation, Acknowledgments, License

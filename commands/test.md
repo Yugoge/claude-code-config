@@ -36,31 +36,9 @@ Load TodoList checklist:
 source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/test.py
 ```
 
-Set up working directory:
+Set up working directory: create `tests/reports/`, generate `REQUEST_ID="test-$(date +%Y%m%d-%H%M%S)"` and `TIMESTAMP` in ISO-8601 format.
 
-```bash
-mkdir -p tests/reports/
-REQUEST_ID="test-$(date +%Y%m%d-%H%M%S)"
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-```
-
-**Test folder structure**:
-
-If `tests/` directory doesn't exist, initialize it:
-
-```bash
-if [[ ! -d "tests" ]]; then
-  echo "Test directory not found. Initializing tests folder structure..."
-  mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
-
-  # Copy template README
-  cp ~/.claude/tests/README.md tests/README.md
-  cp ~/.claude/tests/INDEX.md tests/INDEX.md
-  cp ~/.claude/tests/instructions/*.md tests/instructions/
-
-  echo "✅ Test folder initialized. Add validators to tests/scripts/"
-fi
-```
+**Test folder structure**: If `tests/` does not exist, initialize it by creating subdirectories `tests/{scripts,instructions,data/fixtures,data/mocks,reports}` and copying template files from `~/.claude/tests/` (README.md, INDEX.md, and instructions/*.md).
 
 ### Step 2: Analyze Git History for Edge Cases
 
@@ -248,63 +226,11 @@ Save to: `tests/reports/validation-context-{REQUEST_ID}.json`
 
 ### Step 8: Invoke Test Validator
 
-Delegate to test-validator subagent:
-
-```bash
-# Validator reads context, checks all validators, writes validation report
-# This is conceptual - in practice, the agent performs validation inline
-```
-
-Test validator performs:
-
-1. **Syntax validation**: Python scripts parse correctly, no syntax errors
-2. **Dependency check**: All imports available in venv
-3. **Quality check**: Exit codes documented, JSON output format, error handling
-4. **Edge case verification**: Validator prevents documented edge case from analysis
-
-Expected output: `tests/reports/validation-report-{REQUEST_ID}.json`
-
-```json
-{
-  "request_id": "test-YYYYMMDD-HHMMSS",
-  "timestamp": "ISO-8601",
-  "validator": {
-    "status": "pass|fail",
-    "validators_checked": 10,
-    "syntax_errors": [],
-    "dependency_errors": [],
-    "quality_issues": [],
-    "edge_case_coverage": {
-      "total_edge_cases": 8,
-      "covered_by_validators": 8,
-      "uncovered": []
-    },
-    "summary": {
-      "valid": 10,
-      "invalid": 0,
-      "warnings": 0
-    }
-  }
-}
-```
+Delegate to test-validator subagent. The validator performs syntax validation, dependency checks, quality checks, and edge case coverage verification. Expected output: `tests/reports/validation-report-{REQUEST_ID}.json` with fields: `status`, `validators_checked`, `syntax_errors`, `dependency_errors`, `quality_issues`, `edge_case_coverage`, `summary`.
 
 ### Step 9: Process Validation Results
 
-Check validation report status:
-
-```bash
-VALIDATION_STATUS=$(jq -r '.validator.status' tests/reports/validation-report-${REQUEST_ID}.json)
-
-if [[ "$VALIDATION_STATUS" == "fail" ]]; then
-  echo "❌ Validation failed. Fix issues before execution:" >&2
-  jq -r '.validator.syntax_errors[]' tests/reports/validation-report-${REQUEST_ID}.json
-  jq -r '.validator.dependency_errors[]' tests/reports/validation-report-${REQUEST_ID}.json
-  jq -r '.validator.quality_issues[]' tests/reports/validation-report-${REQUEST_ID}.json
-  exit 1
-fi
-
-echo "✅ Validation passed. Proceeding to execution..."
-```
+Read the validation report status. If `fail`, present errors and stop. If `pass`, proceed.
 
 **Decision tree**:
 
@@ -420,95 +346,11 @@ Use Task tool with:
   "
 ```
 
-Test executor performs:
-
-1. **Script-based tests**: Execute each `tests/scripts/validate-*.py` with `--project-root`
-2. **AI instruction-based tests**: Read instruction, gather context, perform validation
-3. **Capture results**: Exit codes, JSON output, execution time
-4. **Aggregate summary**: Total/passed/failed/errors, edge cases prevented
-
-Expected output: `tests/reports/execution-report-{REQUEST_ID}.json`
-
-```json
-{
-  "request_id": "test-YYYYMMDD-HHMMSS",
-  "timestamp": "ISO-8601",
-  "executor": {
-    "status": "completed|partial|blocked",
-    "execution_started": "ISO-8601",
-    "execution_completed": "ISO-8601",
-    "total_duration_seconds": 10.5,
-    "results": [
-      {
-        "validator": "validate-venv-usage",
-        "type": "script",
-        "edge_case": "EC002",
-        "priority": "critical",
-        "execution": {
-          "started_at": "ISO-8601",
-          "completed_at": "ISO-8601",
-          "duration_seconds": 1.23,
-          "exit_code": 0,
-          "status": "pass"
-        },
-        "result": {
-          "status": "pass",
-          "violations": [],
-          "summary": {
-            "total_files_checked": 10,
-            "violations_found": 0
-          }
-        }
-      }
-    ],
-    "summary": {
-      "total_tests": 10,
-      "passed": 8,
-      "failed": 2,
-      "errors": 0,
-      "pass_rate": 80.0,
-      "edge_cases_prevented": 8,
-      "priority_breakdown": {
-        "critical": {"passed": 3, "failed": 2},
-        "high": {"passed": 2, "failed": 0},
-        "medium": {"passed": 3, "failed": 0}
-      }
-    },
-    "failed_tests": [
-      {
-        "validator": "validate-venv-usage",
-        "edge_case": "EC002",
-        "violations_count": 3,
-        "severity": "critical",
-        "files_affected": ["settings.json", "commands/clean.md"],
-        "recommendation": "Fix venv usage: use 'source ~/.claude/venv/bin/activate && python3' pattern"
-      }
-    ]
-  }
-}
-```
+Test executor performs script-based and AI instruction-based validation, captures exit codes/timing/JSON output, aggregates summary statistics. Expected output: `tests/reports/execution-report-{REQUEST_ID}.json` with `executor.status`, `executor.results[]`, `executor.summary` (total/passed/failed/errors, pass_rate, edge_cases_prevented, priority_breakdown), and `executor.failed_tests[]`.
 
 ### Step 13: Process Execution Results
 
-Read execution report and determine next action:
-
-```bash
-EXEC_STATUS=$(jq -r '.executor.status' tests/reports/execution-report-${REQUEST_ID}.json)
-TOTAL_TESTS=$(jq -r '.executor.summary.total_tests' tests/reports/execution-report-${REQUEST_ID}.json)
-PASSED=$(jq -r '.executor.summary.passed' tests/reports/execution-report-${REQUEST_ID}.json)
-FAILED=$(jq -r '.executor.summary.failed' tests/reports/execution-report-${REQUEST_ID}.json)
-ERRORS=$(jq -r '.executor.summary.errors' tests/reports/execution-report-${REQUEST_ID}.json)
-
-echo "Test execution completed: $PASSED/$TOTAL_TESTS passed"
-
-if [[ $FAILED -gt 0 ]]; then
-  echo "⚠️  $FAILED tests failed"
-fi
-
-if [[ $ERRORS -gt 0 ]]; then
-  echo "❌ $ERRORS tests had errors"
-fi
-```
+Read `executor.status`, `executor.summary.total_tests`, `.passed`, `.failed`, and `.errors` from the execution report.
 
 **Decision tree**:
 
@@ -643,248 +485,17 @@ Select option [1-5]:
 
 ### Step 16: Generate Completion Report
 
-Create comprehensive completion report:
-
-Save to: `tests/reports/completion-{REQUEST_ID}.md`
-
-```markdown
-# Test Execution Completion Report
-
-**Request ID**: test-YYYYMMDD-HHMMSS
-**Project**: <project_path>
-**Executed**: <timestamp>
-**Status**: <pass|fail>
-
----
-
-## Execution Summary
-
-### Validation Phase
-- **Status**: PASS
-- **Validators Checked**: 10
-- **Syntax Errors**: 0
-- **Dependency Errors**: 0
-- **Quality Issues**: 0
-
-### Execution Phase
-- **Status**: <completed|partial>
-- **Total Tests**: 10
-- **Passed**: 8
-- **Failed**: 2
-- **Errors**: 0
-- **Pass Rate**: 80%
-- **Execution Time**: 10.5 seconds
-
----
-
-## Edge Case Prevention
-
-**Total Edge Cases**: 8 (from git history analysis)
-**Covered by Validators**: 8
-**Prevented Today**: 6
-
-### Prevented Edge Cases
-
-- ✅ EC002: Venv usage violations (FAIL - 3 violations found)
-- ✅ EC003: TodoWrite requirement (PASS)
-- ✅ EC004: Decimal step numbering (PASS)
-- ✅ EC005: Ambiguous optionality (PASS)
-- ✅ EC006: Chinese content (PASS)
-- ✅ EC007: File naming (PASS)
-- ✅ EC008: Debug file accumulation (PASS)
-- ❌ EC001: CLAUDE.md protection (FAIL - 1 violation found)
-
----
-
-## Failed Tests (2)
-
-### Critical: EC002 - Venv Usage Violations
-**Files Affected**: 3
-- settings.json:42
-- commands/clean.md:36
-- commands/dev.md:23
-
-**Recommendation**: Update to use `source ~/.claude/venv/bin/activate && python3` pattern
-
-**Fix Applied**: <Yes|No|Partial>
-
----
-
-### High: EC001 - CLAUDE.md Protection
-**Files Affected**: 1
-- agents/cleanliness-inspector.md:1050
-
-**Recommendation**: Add CLAUDE.md to official file allow-list
-
-**Fix Applied**: <Yes|No>
-
----
-
-## Passed Tests (8)
-
-All validators passed for edge cases:
-- EC003: TodoWrite requirement enforced
-- EC004: No decimal step numbering
-- EC005: No ambiguous optionality
-- EC006: No Chinese content in functional code
-- EC007: Consistent file naming (kebab-case)
-- EC008: No old debug files (< 30 days)
-
----
-
-## Git Information
-
-- **Checkpoint Commit**: <hash>
-- **Branch**: <branch>
-- **Rollback Command**: `git reset --hard <checkpoint_commit>`
-
----
-
-## Related Files
-
-- Validation Context: tests/reports/validation-context-{REQUEST_ID}.json
-- Validation Report: tests/reports/validation-report-{REQUEST_ID}.json
-- Execution Context: tests/reports/execution-context-{REQUEST_ID}.json
-- Execution Report: tests/reports/execution-report-{REQUEST_ID}.json
-- Validator Registry: tests/reports/validator-registry-{REQUEST_ID}.json
-
----
-
-## Root Cause
-
-**Problem**: Missing enforcement layer. Standards documented in CLAUDE.md and agents/* but no automated validation. 8 edge cases accumulated over 70 days (Oct 25, 2025 - Jan 3, 2026).
-
-**Solution**: Systematic validation framework with 10 validators informed by git history analysis. Each documented standard now has corresponding enforcement mechanism.
-
-**Prevention**: Every new standard must have corresponding validator created in same commit. Use `/test` command regularly to catch violations early.
-
----
-
-## Next Steps
-
-1. ✅ Fix failed tests (2 remaining)
-2. ✅ Re-run `/test` until all pass
-3. ✅ Integrate into CI/CD pipeline
-4. ✅ Run `/test` before every commit
-5. ✅ Create validators for new standards immediately
-
----
-
-**Test execution completed!**
-```
+Create `tests/reports/completion-{REQUEST_ID}.md` summarizing: request ID, project path, timestamp, overall status; validation phase results (validators checked, syntax/dependency/quality issues); execution phase results (total/passed/failed/errors, pass rate, execution time); edge case prevention summary; per-failed-test details with recommendations; git checkpoint hash and rollback command; and paths to all related report files.
 
 ---
 
 ## Test Folder Initialization
 
-If project has no `tests/` directory, initialize it:
+If project has no `tests/` directory, initialize it: create subdirectories `{scripts,instructions,data/fixtures,data/mocks,reports}`, copy template README.md and INDEX.md from `~/.claude/tests/`, and copy instruction templates from `~/.claude/tests/instructions/`. Implement validators per `docs/test/edge-case-analysis.json`.
 
-```bash
-mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
+## Scripts
 
-# Copy templates from ~/.claude/tests/
-cp ~/.claude/tests/README.md tests/
-cp ~/.claude/tests/INDEX.md tests/
-cp ~/.claude/tests/instructions/*.md tests/instructions/
-
-# Create initial validator set based on edge cases
-# (User must implement validators based on docs/test/edge-case-analysis.json)
-```
-
-**Initial validators to create** (based on 8 edge cases):
-
-1. `tests/scripts/validate-venv-usage.py` - EC002
-2. `tests/scripts/validate-todowrite-requirement.py` - EC003
-3. `tests/scripts/validate-step-numbering.py` - EC004
-4. `tests/scripts/validate-chinese-content.py` - EC006
-5. `tests/scripts/validate-claude-md-protection.py` - EC001
-6. `tests/scripts/validate-file-naming.py` - EC007
-7. `tests/scripts/validate-debug-file-age.py` - EC008
-8. `tests/scripts/validate-optionality-language.py` - EC005
-9. `tests/scripts/validate-workflow-json-cleanup.py` - General
-10. `tests/scripts/validate-checklist-completeness.py` - General
-
----
-
-## Safety Features
-
-### Git Checkpoint
-- Automatic commit before test execution
-- Easy rollback with `git reset --hard <checkpoint>`
-- No data loss risk
-
-### Fail-Safe Validation
-- Syntax validation before execution
-- Dependency check before running scripts
-- Quality verification of validators themselves
-
-### Incremental Execution
-- Tests run independently
-- Failure in one test doesn't block others
-- Detailed per-test results
-
----
-
-## Quality Standards
-
-### Agent Communication
-- All via JSON in tests/reports/
-- Structured schemas enforced
-- Clear request_id tracking
-
-### Documentation
-- Comprehensive reports generated
-- Git rationale included
-- Easy to audit and review
-
-### Orchestration Pattern
-- Follows /dev and /clean workflow model
-- Specialized subagents (validator, executor)
-- Clear separation of concerns
-
----
-
-## Helper Scripts Used
-
-- `~/.claude/scripts/todo/test.py` - Workflow checklist
-- `~/.claude/scripts/analyze-git-edge-cases.sh` - Git history edge case analyzer
-- `~/.claude/scripts/cleanup-tests-folder.sh` - Remove non-git validators
-- `~/.claude/scripts/migrate-test-to-tests.sh` - Migrate test/ to tests/
-- Test validators in `tests/scripts/validate-*.py`
-- AI instructions in `tests/instructions/*.md`
-
----
-
-## Integration with Other Commands
-
-### /clean
-- Archives old test reports to `tests/reports/archive/YYYY-MM/`
-- Removes reports > 90 days old
-- Preserves validator scripts
-
-### /dev
-- Create new validators during development
-- Update validators when standards change
-- Add validators to `/test` execution list
-
-### CI/CD
-- Run `/test` in pre-commit hook
-- Block commits if critical tests fail
-- Generate test reports for pull requests
-
----
-
-## Usage
-
-Execute in project directory:
-
-```bash
-cd /path/to/project
-# In Claude Code, invoke: /test
-```
-
-The orchestrator will guide you through all steps interactively.
-
----
-
-**Remember**: Tests enforce standards automatically. Standards without tests will be violated. Create validators immediately when documenting new standards.
+- `~/.claude/scripts/todo/test.py` — Workflow checklist
+- `~/.claude/scripts/analyze-git-edge-cases.sh` — Git history edge case analyzer
+- `~/.claude/scripts/cleanup-tests-folder.sh` — Remove non-git validators
+- `~/.claude/scripts/migrate-test-to-tests.sh` — Migrate test/ to tests/
