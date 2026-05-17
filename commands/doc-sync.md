@@ -26,6 +26,7 @@ Run a full sweep of the documentation auto-sync system across the current projec
    - `systemd-services` — query systemctl for services listed in `<project>/.claude/doc-sync.json` (never patched into the global `~/.claude/CLAUDE.md`)
    - `last-updated` — set today's date
 4. Report changes made
+5. After reviewing: if satisfied with the updated files, commit them (`git add` the changed INDEX.md and CLAUDE.md files, then `git commit`) and run `/push` to publish to remote
 
 ## Usage
 

@@ -883,17 +883,19 @@ Development completed successfully!
 
 **Save report to**: `docs/dev/completion-<timestamp>.md`
 
-**Present to user**: Show summary with key changes and next steps
+**Workflow update**:
 
-**Offer git commit** (if requested):
-```
-Would you like me to create a git commit for these changes?
+- If there is any unfinished development work (non-empty follow-up work in
+  "Next Steps", known unmet acceptance criteria, or max-iteration exit), use
+  `/update` default continuation-spec mode. If a source spec exists, update it;
+  otherwise create a new spec. The next command is `/dev --spec <spec_path>`.
+  Do NOT hand unfinished work to `/close` or `/commit`.
+- If all requested development is complete and only closure/shipping remains,
+  create a compact temp update using `/update --temp`. Include `Task ID: <timestamp>`,
+  artifact paths (ticket, context, dev-report, QA-report, completion), QA status,
+  iteration count, and suggested next commands: `/close <task-id>` → `/commit <task-id>` → `/push`.
 
-I'll include:
-- Clear commit message with root cause reference
-- All modified files
-- Link to completion report
-```
+**Present to user**: Show summary with key changes and next steps. Suggest `/close <task-id>` as the next action.
 
 ---
 

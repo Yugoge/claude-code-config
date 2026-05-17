@@ -667,6 +667,48 @@ def _init_dev_registry(cmd_name: str, user_input: str, claude_session_id: str, p
     return dev_session_id
 
 
+def _activate_codex_for_redev(claude_session_id: str, project_dir: Path) -> None:
+    """Activate codex enforcement for /redev --codex by writing to the most recent dev session.
+
+    /redev reuses an existing DEV_SESSION_ID from the prior /dev run. The hook cannot
+    know that ID without scanning the registry, so we find the newest dev-* directory
+    (excluding dev-command-*) and call write-codex-enforce.sh on it.
+    Fail-open: if no session found or script errors, print to stderr and continue.
+    """
+    registry_root = project_dir / '.claude' / 'dev-registry'
+    if not registry_root.is_dir():
+        print('_activate_codex_for_redev: no dev-registry found', file=sys.stderr)
+        return
+
+    # Find the most recently modified dev-* session (not dev-command-*)
+    dev_sessions = sorted(
+        (d for d in registry_root.iterdir()
+         if d.is_dir() and d.name.startswith('dev-') and not d.name.startswith('dev-command-')),
+        key=lambda d: d.stat().st_mtime,
+        reverse=True,
+    )
+    if not dev_sessions:
+        print('_activate_codex_for_redev: no dev-* session found in registry', file=sys.stderr)
+        return
+
+    dev_session_id = dev_sessions[0].name
+    scripts_dir = Path(__file__).parent.parent / 'scripts'
+    base_env = {**os.environ, 'CLAUDE_PROJECT_DIR': str(project_dir), 'CLAUDE_SESSION_ID': claude_session_id}
+
+    try:
+        result = subprocess.run(
+            [str(scripts_dir / 'write-codex-enforce.sh'),
+             '--source-command', 'redev', '--session-id', dev_session_id],
+            capture_output=True, text=True, timeout=15, env=base_env,
+        )
+        if result.returncode != 0:
+            print(f'_activate_codex_for_redev: write-codex-enforce.sh error: {result.stderr}', file=sys.stderr)
+        else:
+            print(f'Codex enforcement activated for redev session: {dev_session_id}')
+    except Exception as e:
+        print(f'_activate_codex_for_redev: exception: {e}', file=sys.stderr)
+
+
 def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     """Phase A: slash command detected -- setup todos, state, inject spec."""
     if cmd_name in ("commit", "push", "merge", "stop"):
@@ -693,6 +735,8 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
         print(f'User requirement document: {req_doc}')
         print(f'E2E enforcement: ACTIVE')
         print(f'Codex enforcement: {"ACTIVE (--codex)" if codex_active else "inactive"}')
+    if cmd_name == 'redev' and '--codex' in user_input.split():
+        _activate_codex_for_redev(sid, PROJECT_DIR)
     emit_checklist_message(cmd_name, todos)
 
 
