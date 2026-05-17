@@ -1,7 +1,7 @@
 # .claude
 
-*Last updated: 2026-05-17T21:40:33Z*
-**Total entries**: 21232
+*Last updated: 2026-05-17T21:44:32Z*
+**Total entries**: 21237
 **Convention**: kebab
 
 ## Tree
@@ -1951,6 +1951,7 @@
 │   │   ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260517-155838.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260517-172600.json` - json config
+│   │   ├── `cleanliness-inspector-report-20260517-211508.json` - json config
 │   │   ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
 │   │   ├── `close-report-20260510-191533.md` - Close Debate Report
 │   │   ├── `close-report-20260511-094500.md` - Close Report — 20260511-094500
@@ -2009,6 +2010,7 @@
 │   │   ├── `prompt-inspector-report-20260517-153856.json` - json config
 │   │   ├── `prompt-inspector-report-20260517-155838.json` - json config
 │   │   ├── `prompt-inspector-report-20260517-172600.json` - json config
+│   │   ├── `prompt-inspector-report-20260517-211508.json` - json config
 │   │   ├── `qa-final-blame-audit-20260416-063500.json` - json config
 │   │   ├── `qa-input-20260110-001044.json` - json config
 │   │   ├── `qa-input-dev-20260107-091716.json` - json config
@@ -2044,6 +2046,7 @@
 │   │   ├── `style-inspector-report-20260517-153856.json` - json config
 │   │   ├── `style-inspector-report-20260517-155838.json` - json config
 │   │   ├── `style-inspector-report-20260517-172600.json` - json config
+│   │   ├── `style-inspector-report-20260517-211508.json` - json config
 │   │   ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 │   │   ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 │   │   ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence
@@ -6779,6 +6782,7 @@
 │   │   ├── `002647ea-886c-46f4-929e-146c68d88fcf-agent-002647ea-886c-46f4-929e-146c68d88fcf.json` - json config
 │   │   ├── `005b4521-16b0-4876-a4bb-ca41e6437899-agent-005b4521-16b0-4876-a4bb-ca41e6437899.json` - json config
 │   │   ├── `0063064d-d366-4826-b9f3-c5aba5027a56-agent-0063064d-d366-4826-b9f3-c5aba5027a56.json` - json config
+│   │   ├── `008141e0-ea7e-4642-9241-ef99c4100811-agent-008141e0-ea7e-4642-9241-ef99c4100811.json` - json config
 │   │   ├── `009781b2-bafa-48b0-ace7-1f0d2cce2f1f-agent-009781b2-bafa-48b0-ace7-1f0d2cce2f1f.json` - json config
 │   │   ├── `00b35170-3664-4bee-9346-b79b9db61102-agent-00b35170-3664-4bee-9346-b79b9db61102.json` - json config
 │   │   ├── `00bf8803-ea81-4af2-8a42-0761c4379f25-agent-00bf8803-ea81-4af2-8a42-0761c4379f25.json` - json config
@@ -9561,6 +9565,7 @@
 │   │   ├── `9f28dfd5-75f4-4669-b369-6707e94ab963-agent-9f28dfd5-75f4-4669-b369-6707e94ab963.json` - json config
 │   │   ├── `9f457725-c5d9-46dd-9976-8c6aa4ce7163-agent-9f457725-c5d9-46dd-9976-8c6aa4ce7163.json` - json config
 │   │   ├── `9f489c01-1386-4b58-bd51-38e8d864c084-agent-9f489c01-1386-4b58-bd51-38e8d864c084.json` - json config
+│   │   ├── `9f49dc8d-df1d-43e4-bdea-0f05cb5a4e29-agent-9f49dc8d-df1d-43e4-bdea-0f05cb5a4e29.json` - json config
 │   │   ├── `9f53483d-193f-4b17-a2c5-f94ada9e48c4-agent-9f53483d-193f-4b17-a2c5-f94ada9e48c4.json` - json config
 │   │   ├── `9f5b6635-ccc6-4ea3-90b2-9c4b49db847f-agent-9f5b6635-ccc6-4ea3-90b2-9c4b49db847f.json` - json config
 │   │   ├── `9f7f82cc-9e98-4584-b0c3-c5969088f062-agent-9f7f82cc-9e98-4584-b0c3-c5969088f062.json` - json config
@@ -11029,7 +11034,6 @@
 │   │   ├── `f4e30d98-a870-4474-92ca-9c91c11d75b6-agent-f4e30d98-a870-4474-92ca-9c91c11d75b6.json` - json config
 │   │   ├── `f4e3b590-4b1c-4265-ac31-79f92a12768f-agent-f4e3b590-4b1c-4265-ac31-79f92a12768f.json` - json config
 │   │   ├── `f4ec126b-bdd5-4ce4-bc6c-1e72fd53bd64-agent-f4ec126b-bdd5-4ce4-bc6c-1e72fd53bd64.json` - json config
-│   │   ├── `f4f48b38-39e5-431b-abde-27304a0befdd-agent-f4f48b38-39e5-431b-abde-27304a0befdd.json` - json config
 │   │   ├── `f4f6d4a4-8055-47a3-b35c-74daefe6491b-agent-f4f6d4a4-8055-47a3-b35c-74daefe6491b.json` - json config
 │   │   ├── `f4f97d4f-9b5a-4d0f-8be5-762cdfe854f7-agent-f4f97d4f-9b5a-4d0f-8be5-762cdfe854f7.json` - json config
 │   │   ├── `f5192127-3491-4f2d-9f60-fcd9b7b58fcb-agent-f5192127-3491-4f2d-9f60-fcd9b7b58fcb.json` - json config
@@ -16683,6 +16687,7 @@
 │   ├── `002647ea-886c-46f4-929e-146c68d88fcf-agent-002647ea-886c-46f4-929e-146c68d88fcf.json` - json config
 │   ├── `005b4521-16b0-4876-a4bb-ca41e6437899-agent-005b4521-16b0-4876-a4bb-ca41e6437899.json` - json config
 │   ├── `0063064d-d366-4826-b9f3-c5aba5027a56-agent-0063064d-d366-4826-b9f3-c5aba5027a56.json` - json config
+│   ├── `008141e0-ea7e-4642-9241-ef99c4100811-agent-008141e0-ea7e-4642-9241-ef99c4100811.json` - json config
 │   ├── `009781b2-bafa-48b0-ace7-1f0d2cce2f1f-agent-009781b2-bafa-48b0-ace7-1f0d2cce2f1f.json` - json config
 │   ├── `00b35170-3664-4bee-9346-b79b9db61102-agent-00b35170-3664-4bee-9346-b79b9db61102.json` - json config
 │   ├── `00bf8803-ea81-4af2-8a42-0761c4379f25-agent-00bf8803-ea81-4af2-8a42-0761c4379f25.json` - json config
@@ -19465,6 +19470,7 @@
 │   ├── `9f28dfd5-75f4-4669-b369-6707e94ab963-agent-9f28dfd5-75f4-4669-b369-6707e94ab963.json` - json config
 │   ├── `9f457725-c5d9-46dd-9976-8c6aa4ce7163-agent-9f457725-c5d9-46dd-9976-8c6aa4ce7163.json` - json config
 │   ├── `9f489c01-1386-4b58-bd51-38e8d864c084-agent-9f489c01-1386-4b58-bd51-38e8d864c084.json` - json config
+│   ├── `9f49dc8d-df1d-43e4-bdea-0f05cb5a4e29-agent-9f49dc8d-df1d-43e4-bdea-0f05cb5a4e29.json` - json config
 │   ├── `9f53483d-193f-4b17-a2c5-f94ada9e48c4-agent-9f53483d-193f-4b17-a2c5-f94ada9e48c4.json` - json config
 │   ├── `9f5b6635-ccc6-4ea3-90b2-9c4b49db847f-agent-9f5b6635-ccc6-4ea3-90b2-9c4b49db847f.json` - json config
 │   ├── `9f7f82cc-9e98-4584-b0c3-c5969088f062-agent-9f7f82cc-9e98-4584-b0c3-c5969088f062.json` - json config
@@ -20933,7 +20939,6 @@
 │   ├── `f4e30d98-a870-4474-92ca-9c91c11d75b6-agent-f4e30d98-a870-4474-92ca-9c91c11d75b6.json` - json config
 │   ├── `f4e3b590-4b1c-4265-ac31-79f92a12768f-agent-f4e3b590-4b1c-4265-ac31-79f92a12768f.json` - json config
 │   ├── `f4ec126b-bdd5-4ce4-bc6c-1e72fd53bd64-agent-f4ec126b-bdd5-4ce4-bc6c-1e72fd53bd64.json` - json config
-│   ├── `f4f48b38-39e5-431b-abde-27304a0befdd-agent-f4f48b38-39e5-431b-abde-27304a0befdd.json` - json config
 │   ├── `f4f6d4a4-8055-47a3-b35c-74daefe6491b-agent-f4f6d4a4-8055-47a3-b35c-74daefe6491b.json` - json config
 │   ├── `f4f97d4f-9b5a-4d0f-8be5-762cdfe854f7-agent-f4f97d4f-9b5a-4d0f-8be5-762cdfe854f7.json` - json config
 │   ├── `f5192127-3491-4f2d-9f60-fcd9b7b58fcb-agent-f5192127-3491-4f2d-9f60-fcd9b7b58fcb.json` - json config
