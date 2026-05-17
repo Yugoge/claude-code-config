@@ -214,7 +214,7 @@
     "expiry_rationale": "60s because merge state changes rapidly — another commit or push in that window invalidates the analysis"
   },
   "pull_analyst_design": {
-    "trigger": "Post-execution, dispatched from commands/pull.md after pull.sh exits 0 AND HEAD changed",
+    "trigger": "Post-execution, dispatched from commands/pull.md after pull.sh returns (regardless of exit code) when pre_pull_head != post_pull_head",
     "advisory_only": true,
     "no_grant": true,
     "analysis_scope": [
@@ -231,11 +231,17 @@
       "Step 0: Capture pre_pull_head = git rev-parse HEAD",
       "Step 1: Run pull.sh (unchanged); capture exit_code",
       "Step 2: Capture post_pull_head = git rev-parse HEAD (ALWAYS — pull.sh prints 'Pull completed successfully' at line 154 and advances HEAD BEFORE stash pop at lines 157-174; stash pop failure exits 1 at line 175 but HEAD already changed)",
-      "Step 3: If pre_pull_head == post_pull_head: if exit_code != 0 display pull.sh error; else print 'no HEAD change (no-op pull)'; stop (no analyst dispatch)",
-      "Step 4: Dispatch pull-analyst subagent with pre_pull_head, post_pull_head, branch, stash_restoration_failed=(exit_code != 0 AND pre_pull_head != post_pull_head)",
-      "Step 5: Display pull-analyst report to user (report includes stash-restoration-failure warning when stash_restoration_failed=true)"
+      "Step 3: Determine pull_exit_phase: exit 0 -> 'success'; exit non-0 AND HEAD unchanged -> 'rebase_conflict'; exit non-0 AND HEAD changed -> 'stash_restoration_failed'",
+      "Step 4: If pre_pull_head == post_pull_head: if exit_code != 0 display pull.sh error; else print 'no HEAD change (no-op pull)'; stop (no analyst dispatch)",
+      "Step 5: Dispatch pull-analyst subagent with pre_pull_head, post_pull_head, branch, pull_exit_phase",
+      "Step 6: Display pull-analyst report to user (report includes stash-restoration-failure warning when pull_exit_phase='stash_restoration_failed')"
     ],
-    "stash_pop_failure_rationale": "pull.sh verified sequence (lines 119-175): git pull --rebase runs at line 120; on success, 'Pull completed successfully' printed at line 154; stash pop runs at lines 158-176; stash pop failure exits 1 at line 175. HEAD has advanced before the stash pop. Skipping pull-analyst on non-0 exit would fail to analyze exactly the scenario where the user most needs it: a successful remote integration followed by a local conflict.",
+    "pull_exit_phase_enum": {
+      "success": "exit 0 — git pull --rebase succeeded and stash pop (if any) succeeded",
+      "rebase_conflict": "exit non-0, HEAD unchanged — git rebase itself failed mid-operation; no new commits landed",
+      "stash_restoration_failed": "exit non-0, HEAD changed — git pull --rebase succeeded (HEAD advanced), stash pop subsequently failed; local changes remain in stash@{0}"
+    },
+    "stash_pop_failure_rationale": "pull.sh verified sequence (lines 119-175): git pull --rebase runs at line 120; on success, 'Pull completed successfully' printed at line 154; stash pop runs at lines 158-176; stash pop failure exits 1 at line 175. HEAD has advanced before the stash pop. Using exit_code + HEAD-change to infer pull_exit_phase correctly distinguishes the stash-pop failure case (HEAD changed, exit non-0) from a mid-rebase conflict (HEAD unchanged, exit non-0).",
     "toctou_rationale": "Pre-analysis is inherently stale because the pull itself changes what is incoming. Post-execution advisory satisfies the user requirement for 'intelligent judgment' without introducing false gates on stale pre-fetch analysis."
   },
   "agent_file_structure": {
@@ -409,21 +415,24 @@
     "new_entries_required": {
       "push-analyst": {
         "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
-        "allowed_write_path_prefixes": ["*/dev/null", "*/dev/stderr", "*/dev/stdout", "*/tmp/claude-scratch/push-analyst/", "/tmp/agentic-commit/push-analyst/", "/tmp/*", "/var/tmp/*"],
+        "allowed_write_path_prefixes": ["*/dev/null", "*/dev/stderr", "*/dev/stdout", "*/tmp/claude-scratch/push-analyst/", "/tmp/agentic-commit/push-analyst/*"],
+        "note": "No broad /tmp/* or /var/tmp/* — write access restricted to role-specific grant directory only. /tmp/agentic-commit/push-analyst/* covers the nonce-keyed grant files.",
         "denied_write_path_prefixes_inherits_shared_protected": true
       },
       "merge-analyst": {
         "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
-        "allowed_write_path_prefixes": ["*/dev/null", "*/dev/stderr", "*/dev/stdout", "*/tmp/claude-scratch/merge-analyst/", "/tmp/agentic-commit/merge-analyst/", "/tmp/*", "/var/tmp/*"],
+        "allowed_write_path_prefixes": ["*/dev/null", "*/dev/stderr", "*/dev/stdout", "*/tmp/claude-scratch/merge-analyst/", "/tmp/agentic-commit/merge-analyst/*"],
+        "note": "No broad /tmp/* or /var/tmp/* — write access restricted to role-specific grant directory only.",
         "denied_write_path_prefixes_inherits_shared_protected": true
       },
       "pull-analyst": {
         "allowed_tools": ["Read", "Glob", "Grep", "Bash"],
-        "allowed_write_path_prefixes": ["*/dev/null", "*/dev/stderr", "*/dev/stdout", "*/tmp/claude-scratch/pull-analyst/", "/tmp/*", "/var/tmp/*"],
-        "note": "pull-analyst writes no grant; Write tool may be omitted or can be kept for audit log writes to ~/.claude/logs/",
+        "allowed_write_path_prefixes": [],
+        "note": "pull-analyst writes no grant and is advisory-only. Write tool EXCLUDED to enforce this contract — prevents any accidental grant writes. No allowed_write_path_prefixes needed.",
         "denied_write_path_prefixes_inherits_shared_protected": true
       }
     },
+    "negative_ac": "policy_registry.is_allowed('push-analyst','Write','/tmp/other/x.json') must return (False,...). policy_registry.is_allowed('pull-analyst','Write','/tmp/agentic-commit/pull-analyst/x.json') must return (False,...) because Write not in allowed_tools.",
     "cp_agents_additions": ["push-analyst", "merge-analyst", "pull-analyst"]
   },
   "codex_consult": {
@@ -523,7 +532,7 @@
         "rationale": "This matches the existing commit grant model (same /tmp approach). Goal is workflow discipline, not cryptographic enforcement. Documented in spec but not actioned."
       }
     ],
-    "feedback_incorporated": "All 12 in-scope findings (4 blockers, 8 majors) were applied: state binding, nonce-keyed paths, single-use consumption, remote resolution, commits-to-push range, branch resolution discipline, tip revalidation, pull advisory clarification, pre_pull_head capture, exit-0 no-op detection. Observation_only finding logged. QA retry (2026-05-17): 5 additional objections addressed in this revision — (1) M10/AC11 policy_registry registration added; (2) M1/M2 reworded as git-read-only with write restricted to /tmp/agentic-commit/<kind>/; (3) push range corrected from @{u}..HEAD to refs/remotes/<resolved_remote>/<branch>..HEAD; (4) pull-analyst trigger corrected to dispatch on HEAD change regardless of exit code (stash-pop-failure scenario); (5) pull.md corrected to 45 lines."
+    "feedback_incorporated": "All 12 in-scope findings (4 blockers, 8 majors) were applied in the original cycle. QA retry (2026-05-17): 5 QA objections addressed. Codex adversarial review (2026-05-17): 5 Codex findings processed — (1) pull-analyst Write tool removed from role entry + negative ACs added + broad /tmp/* narrowed to role-specific /tmp/agentic-commit/<role>/* (applied: in_scope_real_bug); (2) grant path session_id/repo_hash orchestrator-pass noted — already in Architecture Design dispatch inputs, no spec change needed (in_scope_minor, existing spec adequate); (3) context JSON pull_analyst_design.trigger corrected from 'exits 0 AND HEAD changed' to 'regardless of exit code, if HEAD changed' (applied: in_scope_real_bug); (4) stash_restoration_failed boolean replaced with pull_exit_phase enum: success/rebase_conflict/stash_restoration_failed (applied: in_scope_minor, improves precision); (5) settings.json hint corrected — no settings.json agent allow-list change required (applied: in_scope_real_bug)."
   },
   "context": {
     "codebase_state": "Working tree has modifications to CLAUDE.md, INDEX.md, agents/INDEX.md, agents/dev.md, commands/INDEX.md, commands/dev-command.md, commands/dev.md, commands/update.md, docs/dev/INDEX.md, settings.json; one untracked file docs/dev/close-report-20260517-211508.md",

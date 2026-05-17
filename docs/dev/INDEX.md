@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-17T22:28:52Z*
-**Total entries**: 133
+*Last updated: 2026-05-17T22:40:57Z*
+**Total entries**: 136
 **Convention**: kebab
 
 ## Tree
@@ -25,6 +25,7 @@ dev/
 ├── `ba-qa-report-20260517-172600.json` - json config
 ├── `ba-qa-report-20260517-211508.json` - json config
 ├── `ba-qa-report-20260517-215114.json` - json config
+├── `ba-qa-report-20260517-222440.json` - json config
 ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 ├── `cleanliness-inspector-report-20260517-155838.json` - json config
 ├── `cleanliness-inspector-report-20260517-172600.json` - json config
@@ -57,6 +58,7 @@ dev/
 ├── `context-20260517-172600.json` - json config
 ├── `context-20260517-211508.json` - json config
 ├── `context-20260517-215114.json` - json config
+├── `context-20260517-222440.json` - json config
 ├── `context-dev-20260107-091716.json` - json config
 ├── `context-dev-20260107-100221.json` - json config
 ├── `context-dev-20260107-104430.json` - json config
@@ -138,6 +140,7 @@ dev/
 ├── `ticket-20260517-172600.md` - BA Specification: Add close→commit/push Ending Workflow Adaptation to clean.md + Enumerate Other Commands
 ├── `ticket-20260517-211508.md` - BA Specification: Fix broken ending-workflow in clean.md (Cycle 2)
 ├── `ticket-20260517-215114.md` - BA Specification: Agentic Analyst Mechanism for /push, /merge, /pull
+├── `ticket-20260517-222440.md` - BA Specification: /allow bypass does not extend to git commit in pretool-git-privilege-guard.py
 ├── `user-requirement-dev-20260517-215114.md` - No description
 └── `user-requirement-dev-20260517-222440.md` - No description
 ```

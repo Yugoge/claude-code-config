@@ -1,0 +1,103 @@
+{
+  "request_id": "20260517-222440",
+  "task_id": "20260517-222440",
+  "timestamp": "2026-05-17T22:44:00Z",
+  "qa_mode": "ba_validation",
+  "verdict": "fail",
+  "summary": "BA correctly identifies the core M1 gap (_evaluate_commit missing _check_git_allowlist call), but M2/AC4 are based on a false factual claim — the phrase 'It can't be bypassed from inside the session' does not exist in _block_default_deny_commit(), and the _check_git_allowlist() docstring scope discrepancy is unaddressed.",
+  "objections": [
+    {
+      "id": "OBJ-1",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "major",
+      "title": "AC4 is a no-op: the removal target does not exist in the current file",
+      "claim_by_ba": "BA states in both ticket-20260517-222440.md and context-20260517-222440.json: '_block_default_deny_commit() at lines 433-446 says \"It can't be bypassed from inside the session\"' and prescribes removing it. AC4 reads: 'the message does NOT contain \"It can\\'t be bypassed from inside the session\" (or equivalent)'.",
+      "actual_state": "Verified by direct Read of hooks/pretool-git-privilege-guard.py lines 433-446 AND confirmed by Codex exec: the string 'It can\\'t be bypassed from inside the session' does NOT appear in _block_default_deny_commit(). The function's current message contains no such phrase. The phrase existed only in the user's verbatim session complaint — it was an agent-generated explanation, not hook output.",
+      "impact": "AC4 is a no-op verification criterion. A dev can leave _block_default_deny_commit() completely unmodified and AC4 auto-passes on the unchanged file. M2 ('update the error message to remove the false claim') instructs dev to remove text that is already absent, causing confusion and wasted effort. There is no positive requirement for what dev must ADD to the message.",
+      "evidence": [
+        "Read hooks/pretool-git-privilege-guard.py:433-446 — message contains: 'BLOCKED: agent git commit - only the blessed /merge auto-bulk bridge or the /commit wrapper may commit from an agent context.' No bypass-from-inside-session text.",
+        "Bash grep 'can\\'t be bypassed from inside' across entire repo: zero matches outside the BA ticket file itself.",
+        "Codex exec confirmation: 'No. The string does not appear in hooks/pretool-git-privilege-guard.py:433-446.'",
+        "Git log search: the phrase has never appeared in the file's history (git log -p grep returns empty)."
+      ],
+      "required_ba_fix": "Rewrite M2 and AC4 as POSITIVE assertions: (M2) '_block_default_deny_commit() error message is updated to indicate that the main agent may bypass with /allow matching pattern'; (AC4) GIVEN _block_default_deny_commit() after the change, WHEN read, THEN the message CONTAINS text equivalent to 'Main agent may bypass with /allow <pattern> before this command.' The negative formulation ('does NOT contain X') is unverifiable when X is already absent."
+    },
+    {
+      "id": "OBJ-2",
+      "dimension": "evidence_quality",
+      "severity": "major",
+      "title": "_check_git_allowlist() docstring explicitly excludes 'commit' — BA does not address scope expansion",
+      "claim_by_ba": "BA instructs dev to add 'if _check_git_allowlist(command, data): return' to _evaluate_commit() with no mention of updating the _check_git_allowlist() docstring.",
+      "actual_state": "Verified by Read of hooks/pretool-git-privilege-guard.py:141-145 and confirmed by Codex: the docstring reads 'Check /allow grant for non-commit/non-push git operations. Read-only.' After BA's proposed change, the function WILL be called from _evaluate_commit(), directly contradicting its stated 'non-commit' scope. The docstring becomes a false statement about the function's actual behavior.",
+      "impact": "A future developer reading the docstring will believe _check_git_allowlist() is NOT used for commit operations. This is incorrect after the fix. The inaccurate docstring is a maintenance hazard and violates internal consistency of the hook. BA's 'Do not modify: _check_git_allowlist() itself' instruction in Technical Hints actively blocks the docstring fix.",
+      "evidence": [
+        "Read hooks/pretool-git-privilege-guard.py:141-145: docstring line 142 reads '\"\"\"Check /allow grant for non-commit/non-push git operations. Read-only.'",
+        "Codex exec confirmation: '_check_git_allowlist docstring at line 141-145 says it checks /allow grants for non-commit/non-push git operations.'",
+        "BA Technical Hints: 'Do not modify: _check_git_allowlist() itself' — this instruction would prevent the docstring update."
+      ],
+      "required_ba_fix": "Add to Technical Hints: 'Also update the _check_git_allowlist() docstring (line 142) to remove \"non-commit/\" so it reads: \"Check /allow grant for non-push git operations.\"' Remove or qualify the 'Do not modify: _check_git_allowlist() itself' prohibition to allow docstring-only update."
+    },
+    {
+      "id": "OBJ-3",
+      "dimension": "evidence_quality",
+      "severity": "minor",
+      "title": "BA's evidence_type is 'inferred' but the context JSON also includes one live observational claim",
+      "claim_by_ba": "context-20260517-222440.json sets 'evidence_type': 'inferred' for the root_cause_analysis but then in observations lists: 'Live evidence: running codex exec with the word commit in the prompt triggered pretool-git-privilege-guard.py blocking (observed during this BA session — confirms the guard matches commit anywhere in the Bash command, not just as a git verb)'.",
+      "actual_state": "The live evidence claim is accurate — QA independently reproduced this: codex exec invocations with 'commit' in the prompt were blocked by the guard during this QA session. However, the context JSON's evidence_type field contradicts the live observation claim. Minor inconsistency.",
+      "impact": "No material impact on correctness of M1. Minor: future tooling that reads evidence_type='inferred' to gate certain checks would incorrectly exclude the live evidence.",
+      "evidence": [
+        "QA session: codex exec with 'commit' in prompt blocked by pretool-git-privilege-guard.py: 'BLOCKED: agent git commit' — confirmed live.",
+        "context-20260517-222440.json line: evidence_type: 'inferred' conflicts with the live observation in the same JSON."
+      ],
+      "required_ba_fix": "Update context-20260517-222440.json: set 'evidence_type': 'partially_observed' or split into 'evidence_type_root_cause': 'inferred' and 'evidence_type_side_effect': 'observed'. Minor; can be deferred."
+    }
+  ],
+  "dimensions_assessed": {
+    "evidence_quality": {
+      "verdict": "fail",
+      "rationale": "M2/AC4 cite a factual claim about file content that is false — the text to be removed does not exist in the current file. The docstring scope discrepancy is an unaddressed evidence gap. M1 root cause evidence is strong and verified."
+    },
+    "scope_alignment": {
+      "verdict": "pass",
+      "rationale": "BA correctly captures R1 (user's core need: /allow should permit git commit). Won't Have items are appropriate. No scope narrowing or renaming detected. The user's universalist claim ('allow any command') is scoped to git commit in the privilege guard, which is the specific complaint context — appropriate."
+    },
+    "investigation_completeness": {
+      "verdict": "pass",
+      "rationale": "BA read the full file (693 lines), grep-confirmed _check_git_allowlist call sites across all evaluate-* functions, verified the grant double-consumption risk, confirmed the insertion order constraint. Investigation is thorough for M1."
+    },
+    "affected_file_accuracy": {
+      "verdict": "pass",
+      "rationale": "hooks/pretool-git-privilege-guard.py exists and contains the code BA claims. All cited line numbers verified: _evaluate_commit (449-471), _evaluate_merge (474-485), _evaluate_reset_hard (595-596), _evaluate_direct_ref_mutation (608-609), _evaluate_forbidden_plumbing (641-642), _check_git_allowlist (141-177). _block_default_deny_commit (433-446) exists but its content contradicts BA's claim."
+    },
+    "spec_text_vs_execution_drift": {
+      "verdict": "fail",
+      "rationale": "AC4 literal text ('message does NOT contain X') passes on the UNMODIFIED file because X was never in the file. The AC must be reformulated as a positive assertion about what text must be PRESENT after the change."
+    }
+  },
+  "passing_elements": [
+    "M1 root cause identification is correct and well-evidenced: _evaluate_commit() genuinely lacks the _check_git_allowlist() call",
+    "All line number references for _evaluate_merge, _evaluate_reset_hard, _evaluate_direct_ref_mutation, _evaluate_forbidden_plumbing are accurate",
+    "Scope boundary is correct: only hooks/pretool-git-privilege-guard.py needs modification",
+    "Prior attempt analysis (commit c6653c0, wrong_scope failure category) is accurate — verified by git show",
+    "Grant double-consumption analysis is correct: _check_git_allowlist is read-only, PostToolUse handles deletion",
+    "Insertion order constraint (BLESSED_BRIDGE_RE check must remain first) is correct",
+    "Subagent exclusion analysis is correct: _check_git_allowlist returns False for subagents via data.get('agent_id') at line 146",
+    "AC1, AC2, AC3 are well-formed and verifiable",
+    "W1-W4 Won't Have items are appropriate and internally consistent"
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex confirmed: (1) 'It can't be bypassed from inside the session' does NOT appear in _block_default_deny_commit() at lines 433-446; (2) _check_git_allowlist() docstring at line 142 says 'non-commit/non-push git operations'. Both findings 1 and 2 in QA draft are accurate. Note: initial codex invocations were blocked by pretool-git-privilege-guard.py itself due to 'commit' appearing in the prompt text — this is live confirmation of BA's side-observation about the guard's broad pattern matching.",
+    "feedback_incorporated": "Codex confirmed both draft findings. No changes needed to findings 1 or 2. Finding 3 (OBJ-3, minor) was added by QA self-review after Codex session."
+  },
+  "iteration_needed": true,
+  "refined_context": {
+    "failed_criteria": [
+      "OBJ-1: M2 and AC4 reference non-existent text in _block_default_deny_commit(); must be rewritten as positive assertions",
+      "OBJ-2: _check_git_allowlist() docstring says 'non-commit' which contradicts the proposed change; BA must add docstring update to Technical Hints and relax the 'Do not modify _check_git_allowlist() itself' prohibition"
+    ],
+    "recommended_approach": "BA should: (1) rewrite M2 to 'update _block_default_deny_commit() to ADD text indicating main agent may bypass with /allow <pattern>'; (2) rewrite AC4 as positive THEN assertion: message CONTAINS bypass-hint text for main agent; (3) add to Technical Hints: update _check_git_allowlist() docstring line 142 to remove 'non-commit/'; (4) narrow 'Do not modify: _check_git_allowlist() itself' to 'Do not modify _check_git_allowlist() logic — docstring update is permitted'.",
+    "additional_context": "M1 is solid. The core fix (adding _check_git_allowlist call to _evaluate_commit after BLESSED_BRIDGE_RE check) is correct and well-specified. Only M2/AC4 and the docstring gap need BA rework."
+  }
+}
