@@ -95,32 +95,11 @@ For script-based validators (`validate-*.py`):
 
 ### 3. Quality Validation
 
-**Argparse check**:
-```python
-def has_argparse(script_path: Path) -> bool:
-    """Check if script uses argparse for CLI."""
-    with open(script_path) as f:
-        content = f.read()
-    return "argparse" in content and "--project-root" in content
-```
+**Argparse check**: Read script source; verify it contains both "argparse" and "--project-root".
 
-**JSON output check**:
-```python
-def has_json_output(script_path: Path) -> bool:
-    """Check if script outputs JSON."""
-    with open(script_path) as f:
-        content = f.read()
-    return "json.dumps" in content or "json.dump" in content
-```
+**JSON output check**: Read script source; verify it contains "json.dumps" or "json.dump".
 
-**Exit code check**:
-```python
-def has_exit_codes(script_path: Path) -> bool:
-    """Check if script uses proper exit codes."""
-    with open(script_path) as f:
-        content = f.read()
-    return "sys.exit(0)" in content and "sys.exit(1)" in content
-```
+**Exit code check**: Read script source; verify it contains both "sys.exit(0)" and "sys.exit(1)".
 
 **Checks**:
 - [ ] Uses argparse with `--project-root` parameter
