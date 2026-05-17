@@ -279,16 +279,17 @@
     "environment": {}
   },
   "development_approach": {
-    "strategy": "Additive schema enrichment across 4 specialist agent files; new intake protocol section in ba.md. No existing fields removed. architect location field type change from string to object is the only breaking change — flag prominently.",
+    "strategy": "Two-layer change: (1) Machine-enforced layer: enrich report-schema.json finding_base with structured location, measured, expected, downstream_agent. (2) Prose-convention layer: update ui-specialist.md prose to match canonical channels; add BA-actionable fields to architect/product-owner/user prose schemas; add intake protocol to ba.md. No existing fields removed anywhere. architect location field type change from string to object is a BREAKING schema change — flag prominently.",
     "files_to_create": [],
     "files_to_modify": [
-      "agents/ui-specialist.md — add inline issues[] per-issue schema with location.{url,selector,file,line}, measured, expected, downstream_agent",
+      "skills/ui-shared/report-schema.json — in definitions.finding_base: change location from type:string to structured object {url,selector,file,line} with all nullable; add measured (string), expected (string), downstream_agent (const:'ba') to properties; add location/downstream_agent/measured/expected to required array. RETAIN finding_deterministic computed_value/expected_value.",
+      "agents/ui-specialist.md — update Output Format section to reference canonical channels (automated_findings, contextual_findings, aesthetic_findings); correct or remove issues[] as canonical channel name",
       "agents/architect.md — change location from string to {file,line,url?} object; add measured, expected, downstream_agent",
       "agents/product-owner.md — add observed_behavior, expected_behavior, downstream_agent",
       "agents/user.md — add observed_behavior, expected_behavior, downstream_agent (location.file nullable)",
       "agents/ba.md — add Specialist Findings Intake Protocol section after Four Contracts, before Forbidden BA Patterns"
     ],
-    "validation_approach": "QA verifies: (1) grep for new field names in each file, (2) grep for 'Specialist Findings Intake Protocol' in ba.md, (3) confirm commands/dev.md and agents/pm.md are unchanged, (4) confirm ui-specialist.md still references report-schema.json (not replaced)"
+    "validation_approach": "QA verifies: (1) grep for 'selector' and 'downstream_agent' and 'measured' in report-schema.json finding_base section, (2) grep for 'automated_findings' and 'contextual_findings' in ui-specialist.md prose context (not in schema ref), (3) grep for new field names in architect/product-owner/user.md, (4) grep for 'Specialist Findings Intake Protocol' in ba.md, (5) confirm commands/dev.md and agents/pm.md are unchanged, (6) confirm report-schema.json finding_deterministic still has computed_value and expected_value"
   },
   "standards_to_enforce": {
     "no_hardcoded_values": true,
