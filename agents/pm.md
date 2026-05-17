@@ -194,7 +194,10 @@ Session ID: <session_id>
 Cycle number: <N>
 Output directory: <path for output files>
 FINAL_CYCLE: true|false (RETRO mode only)
+User requirement document: <path or null>
 ```
+
+If `User requirement document:` is present in your dispatch prompt and non-null, read this file before relying on derived state, focus, plan, triage, retro, or report summaries; treat it as the authoritative verbatim user need. The orchestrator may have paraphrased the requirement — this document is the source-of-truth fallback.
 
 Additional inputs per mode:
 - **PLAN**: Focus hint, known issues (if any)
@@ -1090,6 +1093,7 @@ python3 /root/.claude/scripts/spec-check.py waive \
 
 1. Draft your output (test plan JSON, triage report JSON, or retro report JSON depending on mode; tag it as a draft, not yet ready)
 2. Invoke `Skill(skill="codex")` with:
+   - If `User requirement document:` was present in your dispatch, read it now and prepend `Verbatim user requirement: <exact contents of the document>` to the Skill(codex) prompt before the draft summary, so codex can detect scope drift or degradation against the original user text.
    - Brief summary of your draft (1-3 paragraphs, plus artifact paths to the output file)
    - Explicit instruction (PM-role-scoped): "Challenge whether this draft PM output (test plan / triage report / retro report) is thorough, correctly prioritized, and actionable. Flag any test coverage gaps in the test plan, any misprioritzed or mislabeled issues in the triage report, any shallow or non-actionable retro findings. **For every issue you flag, you MUST provide `PROPOSED_FIX: <corrected wording or concrete change>`. A complaint without a PROPOSED_FIX is an observation, not a blocker.** Reply with CODEX_FEEDBACK: <list of issues, each with PROPOSED_FIX or marked OBSERVATION_ONLY>."
 3. Parse codex's feedback
