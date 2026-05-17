@@ -236,9 +236,10 @@ greppable, is NOT automatically in scope — it goes to the
 The greedy-grep rule that previously read "`affected_files` MUST be ≥ grep
 result set" has been **retracted**. Grep is a *discovery aid*, not a *scope
 mandate*. A grep hit in a file that lies outside the user-need path is an
-observation, not an in-scope obligation. The user's binding directive is
-verbatim: "实现方式是最小最安全最完美最确定性地实现用户的需求，而不是扩大修复
-范围。一切以用户需求为中心。"
+observation, not an in-scope obligation. Scope decisions must stay centered
+on the user-stated need: implement the smallest, safest, deterministic change
+that satisfies that need. Record path-external observations in
+out_of_scope_observations without widening the fix.
 
 Mandatory actions:
 
@@ -260,6 +261,21 @@ Mandatory actions:
    hit that is a security hole IS in scope and MUST be fixed. Mark such an
    entry `security_relevant: true` in `out_of_scope_observations` with a
    cross-link to where in `affected_files` it has been promoted.
+
+7. **Prerequisite-gap escalation (universalist scope claims)**: If the verbatim
+   user requirement contains a universal scope claim ("all X", "every X",
+   "any X", "entire X", "whole X", "always", or equivalent), BA MUST extract
+   it as `universal_scope_claim`. If satisfying that claim requires prerequisite
+   infrastructure that does not currently exist, BA MUST return
+   `status: needs_clarification` presenting the prerequisite choice to the user
+   — NOT silently classify affected instances as Won't Have or
+   out_of_scope_observations. This triggers only when ALL THREE conditions hold:
+   (1) the universal phrase maps to a concrete entity class (e.g., "all
+   commands", "every subagent"), (2) the requested "all/every" behavior cannot
+   be delivered with existing infrastructure, and (3) the user has not
+   explicitly authorized narrowing. Does NOT trigger for rhetorical/intensifier
+   uses of "all" where no concrete entity set exists (e.g., "make sure all edge
+   cases are handled").
 
 Cross-link: see the `out_of_scope_observations` chapter below for the schema,
 the ledger lazy-create rules, and the path-external observation template.
@@ -396,10 +412,10 @@ measure more.
 
 This chapter complements Contract B. When grep / investigation surfaces issues
 that lie outside the user-need path, those observations are recorded here —
-visible to the user but **not** widened into the fix. The user's binding
-directive is verbatim: "BA 的原则应该是尽可能和现有功能对齐，而不是所有问题都要
-重新造轮子，并且实现方式是最小最安全最完美最确定性地实现用户的需求，而不是
-扩大修复范围。"
+visible to the user but **not** widened into the fix. The guiding principle is:
+align with existing functionality where possible, avoid
+reinventing wheels, and implement the user's need in the smallest, safest,
+most deterministic way. Do not widen the fix scope.
 
 ### Schema (JSON, embedded in context.json under `out_of_scope_observations`)
 

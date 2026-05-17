@@ -1,0 +1,40 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": 13,
+  "files_audited": [
+    "scripts/update-gitignore.sh",
+    "scripts/update-overnight-state.sh",
+    "scripts/write-codex-enforce.sh",
+    "scripts/write-qa-mode.sh"
+  ],
+  "violations": [
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "scripts/write-qa-mode.sh:26",
+      "finding": "Direct python3 call without venv activation: 'python3 - \"$QA_PATH\" \"$MODE\" <<'PYEOF''. Although the embedded Python code only uses stdlib (json, os, sys), Standard 3 requires all Python invocations to use 'source venv' or 'source .venv' with no stdlib-only exception.",
+      "recommendation": "Activate venv before calling python3: 'source venv/bin/activate || source .venv/bin/activate && python - \"$QA_PATH\" \"$MODE\" <<'PYEOF'', or extract the inline Python to a dedicated script in scripts/ and invoke it through venv."
+    }
+  ],
+  "standards_checked": {
+    "no-inline-code": "pass — these are .sh scripts, not command/agent .md files; standard does not apply",
+    "no-hardcoded-values": "pass — all scripts parameterize variable values via CLI args (--session-id, --mode, --source-command, positional $1) and env vars (CLAUDE_PROJECT_DIR, CLAUDE_SESSION_ID) with no hardcoded paths or URLs",
+    "use-source-venv": "VIOLATION — scripts/write-qa-mode.sh:26 calls python3 directly",
+    "integer-step-numbering": "pass — no decimal or letter-based step numbering found in any file",
+    "meaningful-naming": "pass — all four filenames describe their function clearly (update-gitignore, update-overnight-state, write-codex-enforce, write-qa-mode)",
+    "english-only": "pass — no Chinese or non-English characters found",
+    "merge-similar-scripts": "pass — write-codex-enforce.sh and write-qa-mode.sh have distinct purposes (codex enforcement flag vs QA mode sentinel); no merge warranted",
+    "concise-documentation": "pass — scripts have concise header comments, not verbose markdown",
+    "parameterized-scripts": "pass — all variable values accept parameters; update-gitignore.sh uses ${1:-.}, update-overnight-state.sh uses --session-id/--project-dir, write-codex-enforce.sh uses --source-command/--session-id, write-qa-mode.sh uses --session-id/--mode",
+    "dangling-references": "pass — all four scripts exist on disk and are correctly referenced from commands/dev.md, commands/dev-overnight.md, commands/dev-command.md, commands/clean.md, agents/cleaner.md",
+    "merge-conflicts": "pass — no unresolved merge conflict markers found"
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex confirmed the draft violation is accurate: write-qa-mode.sh:26 directly invokes python3; use-source-venv requires all Python invocations to use source venv/source .venv with no stdlib-only exception; critical severity is correct; no missed critical violations found for the other three scripts. CODEX_FEEDBACK was empty (no issues flagged).",
+    "findings": [],
+    "feedback_incorporated": "No changes made — Codex confirmed all findings and found no false positives, missed violations, or severity mis-classifications."
+  },
+  "status": "complete"
+}

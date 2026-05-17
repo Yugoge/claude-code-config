@@ -1,0 +1,127 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": 8,
+  "files_audited": [
+    "scripts/checkpoint-prune.sh",
+    "scripts/check-readme-freshness.sh",
+    "scripts/check-security-hook-drift.sh",
+    "scripts/cleanup-tests-folder.sh",
+    "scripts/create-overnight-state.sh"
+  ],
+  "violations": [
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/check-readme-freshness.sh:34,36",
+      "finding": "Hardcoded staleness thresholds: 7 days (FULL_UPDATE_REQUIRED) and 3 days (INCREMENTAL_UPDATE) with no CLI parameter or environment variable override. These thresholds could reasonably differ between projects.",
+      "recommendation": "Add env-var overrides: FULL_UPDATE_THRESHOLD_DAYS=\"${FULL_UPDATE_THRESHOLD_DAYS:-7}\" and INCREMENTAL_THRESHOLD_DAYS=\"${INCREMENTAL_THRESHOLD_DAYS:-3}\", then use the variables in the conditionals."
+    },
+    {
+      "standard": "parameterized-scripts",
+      "severity": "critical",
+      "location": "scripts/check-readme-freshness.sh:12",
+      "finding": "FOLDERS array is hardcoded (\".\", \"scripts\", \"data\", \"docs\", \"tests\", \"config\", \"tmp\", \"backups\", \"output\") with no CLI parameter to override or extend the list for different project layouts.",
+      "recommendation": "Accept optional --folders parameter or CSV env var README_FRESHNESS_FOLDERS; keep the current list as default when the parameter is absent."
+    },
+    {
+      "standard": "parameterized-scripts",
+      "severity": "critical",
+      "location": "scripts/check-readme-freshness.sh:24,52,55",
+      "finding": "find -maxdepth 2 is hardcoded in three places with no parameter override. Scan depth could reasonably differ between projects or folder types.",
+      "recommendation": "Add MAX_DEPTH=\"${README_FRESHNESS_MAX_DEPTH:-2}\" and replace all three occurrences of -maxdepth 2 with -maxdepth \"$MAX_DEPTH\"."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/check-security-hook-drift.sh:137,138,139",
+      "finding": "Frontmatter slice length is hardcoded as '1,5p' (first 5 lines) in the FRONTMATTER mode sed command with no parameter override. If the protected frontmatter block changes length, the hardcoded slice will silently miss drift.",
+      "recommendation": "Encode slice bounds in the TRACKED_FILES entry (e.g., FRONTMATTER:commands/commit.md:1:5) or add a --frontmatter-lines N flag with default 5."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/create-overnight-state.sh:41",
+      "finding": "Hardcoded /root as the final fallback path in resolve_project_dir(). This is an environment-specific path that silently fails on non-root Linux users and all macOS/Windows environments.",
+      "recommendation": "Replace the /root literal fallback with $HOME, or exit with an error: echo 'Error: cannot determine project directory' >&2; exit 1."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/create-overnight-state.sh:236,242",
+      "finding": "Directory path segments \".claude\" (STATE_DIR) and \"docs/dev/overnight\" (CYCLE_DIR) are hardcoded with no CLI parameter or environment variable override. These project-specific paths break portability to differently-structured projects.",
+      "recommendation": "Accept --state-dir and --cycle-dir-root parameters with the current paths as defaults, e.g., STATE_DIR=\"${OVERNIGHT_STATE_DIR:-$PROJECT_DIR/.claude}\"."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/create-overnight-state.sh:192",
+      "finding": "The spec auto-detection directory \"docs/dev/specs\" is hardcoded with no parameter override, identical in nature to the flagged \"docs/dev/overnight\" path on line 242.",
+      "recommendation": "Add --spec-dir parameter or SPEC_DIR_ROOT=\"${SPEC_DIR_ROOT:-$PROJECT_DIR/docs/dev/specs}\" with the current path as default."
+    },
+    {
+      "standard": "parameterized-scripts",
+      "severity": "critical",
+      "location": "scripts/cleanup-tests-folder.sh:112",
+      "finding": "Bash syntax error: 'for instruction in \"$TESTS_DIR/instructions\"/*.md 2>/dev/null; do' is invalid bash — I/O redirection is not allowed in the glob expansion of a for-loop header. bash -n confirms the script fails syntax check and will not execute on strict-mode bash.",
+      "recommendation": "Replace with nullglob pattern: 'shopt -s nullglob; for instruction in \"$TESTS_DIR/instructions\"/*.md; do' — or use find and a while-read loop to avoid the glob-redirection issue entirely."
+    }
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex confirmed Violations 1-4 as valid. It identified Violation 5 (CYCLE_ID=1) as a false positive (schema constant, not runtime variable) which was removed. It flagged four additional missed violations: hardcoded -maxdepth 2 in check-readme-freshness.sh, hardcoded frontmatter slice length in check-security-hook-drift.sh, hardcoded docs/dev/specs auto-detection path in create-overnight-state.sh, and a bash syntax error in cleanup-tests-folder.sh:112. One codex finding (hardcoded TRACKED_FILES security manifest in check-security-hook-drift.sh) was rejected as an out-of-scope design expansion: the tracked file list IS the security contract for that tool, not a runtime-variable value.",
+    "findings": [
+      {
+        "issue": "VIOLATION 5 (CYCLE_ID=1) is a false positive — it is an initial-state schema constant, not a runtime-variable value",
+        "proposed_fix": "Remove VIOLATION 5. Optional: rename to INITIAL_CYCLE_ID=1 for clarity but do not require CLI parameter.",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "CYCLE_ID=1 represents the starting cycle number for a brand-new overnight session, equivalent to a schema version constant. It is not a value that differs between runs or environments. Removed from final violations list."
+      },
+      {
+        "issue": "Missed violation: check-readme-freshness.sh hardcodes -maxdepth 2 in three places with no parameter override",
+        "proposed_fix": "MAX_DEPTH=\"${README_FRESHNESS_MAX_DEPTH:-2}\" and replace -maxdepth 2 occurrences",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Scan depth is a runtime-configurable value. Added as new violation."
+      },
+      {
+        "issue": "Missed violation: check-security-hook-drift.sh hardcodes TRACKED_FILES security file set with no override mechanism",
+        "proposed_fix": "Add --tracked-file <MODE:path> repeatable flag or --tracked-config file",
+        "classification": "major",
+        "disposition": "rejected",
+        "rationale": "The TRACKED_FILES array is the security contract for this specific tool — it defines which files constitute always-on safety layers. Adding/replacing tracked files requires a deliberate security decision, not runtime parameterization. This is analogous to hardcoded security policy, not a variable value. Out-of-scope design expansion."
+      },
+      {
+        "issue": "Missed violation: check-security-hook-drift.sh hardcodes frontmatter slice length '1,5p'",
+        "proposed_fix": "Encode slice bounds in config or add --frontmatter-lines N flag",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "The line range for frontmatter comparison is a value that could change if the protected block grows. Added as new violation."
+      },
+      {
+        "issue": "Missed violation: create-overnight-state.sh hardcodes docs/dev/specs auto-detection directory",
+        "proposed_fix": "SPEC_DIR_ROOT=\"${SPEC_DIR_ROOT:-$PROJECT_DIR/docs/dev/specs}\"",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Identical in nature to the already-flagged docs/dev/overnight path. Added as new violation."
+      },
+      {
+        "issue": "Missed critical: cleanup-tests-folder.sh:112 has a bash syntax error (I/O redirection in for-loop glob expansion)",
+        "proposed_fix": "Use nullglob shopt or find instead of for glob with 2>/dev/null redirect",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "bash -n confirms script fails syntax check. Script will not execute. Added as critical violation."
+      },
+      {
+        "issue": "VIOLATION 1 should be reported under both Standard 2 and Standard 9",
+        "proposed_fix": "Report as Standard 2 + Standard 9 with FULL_UPDATE_THRESHOLD_DAYS and INCREMENTAL_THRESHOLD_DAYS env vars",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "The finding correctly spans both standards. Updated recommendation to include env-var pattern."
+      }
+    ],
+    "feedback_incorporated": "Removed false-positive Violation 5 (CYCLE_ID=1). Added 4 new violations: hardcoded -maxdepth 2 in check-readme-freshness.sh, hardcoded frontmatter slice in check-security-hook-drift.sh, hardcoded docs/dev/specs path in create-overnight-state.sh, bash syntax error in cleanup-tests-folder.sh. Rejected TRACKED_FILES finding as out-of-scope security policy. Updated Violation 1 recommendation to include env-var pattern."
+  },
+  "status": "complete"
+}
