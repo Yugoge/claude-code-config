@@ -1,9 +1,11 @@
 {
   "request_id": "cleanliness-inspector-20260517-155838",
-  "timestamp": "2026-05-17T16:55:32Z",
+  "timestamp": "2026-05-17T18:10:00Z",
   "inspector": "cleanliness-inspector",
   "mode": "changed-files",
   "changed_files": ["commands/close.md", "commands/do.md"],
+  "task_diff_commit": "b7ea9ed",
+  "task_diff_commit_note": "b7ea9ed changed commands/close.md inspector dispatch lines, commands/dev.md specialist dispatch prompt lines, and the auto-generated commands/INDEX.md timestamp. commands/do.md was changed by the separate orphan session commit 07d6e32, not by b7ea9ed. Both are included in the cycle changed_files list per the dev-report.",
   "findings": {
     "misplaced_docs": [],
     "naming_violations": [],
@@ -19,86 +21,160 @@
     "orphaned_tests": [],
     "historical_docs": [],
     "docs_categorization": [],
-    "obsolete_functionality": [
-      {
-        "file": "commands/close.md",
-        "location": "commands/close.md:209",
-        "reason": "Garbled branch list in QA dispatch prompt: 'verdict branches 1/2/3/6/7/6 with branch 7 N/A' contains a duplicate '6' and incorrectly states 'branch 7 N/A'. In the new numbering scheme (renumbered by this diff), branch 7 is 'Codex parse failure (failed_parse)' — a valid reachable branch — and branch 9 is 'Codex disabled by user' (the N/A branch in codex_required=true path). The N/A annotation should reference branch 9.",
-        "severity": "major",
-        "introduced_in_diff": true,
-        "confidence": "high",
-        "recommendation": "Replace 'verdict branches 1/2/3/6/7/6 with branch 7 N/A' with 'verdict branches 1/2/3/4/5/6/7 with branch 9 N/A'"
-      },
-      {
-        "file": "commands/close.md",
-        "location": "commands/close.md:210",
-        "reason": "Stale branch number in QA dispatch prompt: 'Apply verdict branch 7 (codex disabled by user)' is incorrect. The diff renumbered branches — branch 7 is now 'Codex parse failure (failed_parse)' (line 315). Branch 9 is 'Codex disabled by user' (line 324). This misdirects the QA subagent to the wrong verdict branch.",
-        "severity": "major",
-        "introduced_in_diff": true,
-        "confidence": "high",
-        "recommendation": "Replace 'Apply verdict branch 7 (codex disabled by user)' with 'Apply verdict branch 9 (codex disabled by user)'"
-      },
-      {
-        "file": "commands/close.md",
-        "location": "commands/close.md:320",
-        "reason": "Stale branch cross-reference inside branch 7 body: 'treat as substantive Codex dissent under branch 2 with the verbatim signal as the dissent line'. In the new numbering branch 2 is 'AC-deviation-PASS branch'; substantive Codex dissent is branch 3. This would route a failed_parse dissent signal to the wrong verdict.",
-        "severity": "major",
-        "introduced_in_diff": true,
-        "confidence": "high",
-        "recommendation": "Replace 'substantive Codex dissent under branch 2' with 'substantive Codex dissent under branch 3'"
-      },
-      {
-        "file": "commands/close.md",
-        "location": "commands/close.md:330",
-        "reason": "Stale branch number in branch 9 annotation: 'the em-dash form distinguishes branch 7 YES from branch 1 unanimous YES for downstream /commit consumers'. Branch 7 in the new scheme yields CLOSE: YES (degraded) for failed_parse; codex-disabled YES is branch 9. The comment should say 'branch 9 YES' to correctly identify what the em-dash form signals.",
-        "severity": "minor",
-        "introduced_in_diff": true,
-        "confidence": "high",
-        "recommendation": "Replace 'em-dash form distinguishes branch 7 YES from branch 1 unanimous YES' with 'em-dash form distinguishes branch 9 YES from branch 1 unanimous YES'"
-      },
-      {
-        "file": "agents/qa.md",
-        "location": "agents/qa.md:209,214",
-        "reason": "Stale cross-reference to 'close.md branch 1b'. The diff in commands/close.md renumbered the AC-deviation-PASS verdict branch from '1b' to '2'. agents/qa.md:209 still says 'close.md branch 1b — ac_deviation_with_user_need_satisfied' and agents/qa.md:214 says 'mirroring close.md branch 1b clause (d)'. Both are now incorrect — the branch is '2' and clause (d) is 'branch 2 clause (d)'.",
-        "severity": "major",
-        "introduced_in_diff": true,
-        "confidence": "high",
-        "recommendation": "In agents/qa.md: update line 209 from 'close.md branch 1b' to 'close.md branch 2'; update line 214 from 'close.md branch 1b clause (d)' to 'close.md branch 2 clause (d)'",
-        "note": "agents/qa.md is NOT in this diff but is a fix target created by the renumbering in commands/close.md"
-      }
-    ],
+    "obsolete_functionality": [],
     "orphan_commands": [],
     "dead_functions": [],
     "duplicate_content": []
   },
   "summary": {
-    "total_issues": 5,
+    "total_issues": 0,
     "critical": 0,
-    "major": 4,
-    "minor": 1,
+    "major": 0,
+    "minor": 0,
     "estimated_space_saved": "0 MB",
-    "notes": "All 5 findings are documentation structural consistency violations introduced by the branch renumbering in commands/close.md. commands/do.md has zero cleanliness violations — the added content is appropriately placed and follows existing project conventions. Pre-existing orphan scripts (scripts/todo/dev-overnight.py, etc.) and orphaned agent (agents/product-owner.md) are NOT tagged introduced_in_diff: true as they are pre-existing."
+    "notes": "Zero new-in-diff cleanliness violations. b7ea9ed changed only 3 inspector dispatch lines in commands/close.md to propagate codex_required: true. commands/do.md was changed by orphan commit 07d6e32 and is clean. All 5 prior-report findings resolved by commit 400cd4b; see resolved_findings. Three advisory observations about pre-existing stale step/branch references tagged introduced_in_diff: false are non-blocking."
   },
+  "advisory_observations": [
+    {
+      "file": "commands/close.md",
+      "location": "commands/close.md:45",
+      "reason": "Incomplete branch list in codex_required=true summary: 'Verdict branches 1 / 2 / 3 / 6 / 7 apply' omits branches 4 (Workflow Integrity FAIL), 5 (QA dissent), and 8 (Other ambiguity/parse failure), which also apply in codex_required=true path. Correct text: 'Verdict branches 1 / 2 / 3 / 4 / 5 / 6 / 7 / 8 apply; branch 9 N/A.'",
+      "severity": "minor",
+      "introduced_in_diff": false,
+      "origin_commit": "07d6e32",
+      "origin_note": "Line read 'branches 1 / 2 / 5 / 5b apply' at b7ea9ed; changed to 'branches 1 / 2 / 3 / 6 / 7 apply' by orphan session commit 07d6e32. Not in task diff b7ea9ed; advisory only, non-blocking.",
+      "recommendation": "Replace 'Verdict branches 1 / 2 / 3 / 6 / 7 apply' with 'Verdict branches 1 / 2 / 3 / 4 / 5 / 6 / 7 / 8 apply; branch 9 N/A.'"
+    },
+    {
+      "file": "commands/close.md",
+      "location": "commands/close.md:242,246",
+      "reason": "Inside the QA dispatch prompt text, two references to '/close Step 4' for inspector dispatch. /close now has only Steps 1/2/3 with Step 1 being inspector dispatch. Pre-existing before b7ea9ed.",
+      "severity": "minor",
+      "introduced_in_diff": false,
+      "origin_note": "Present at b7ea9ed^ and b7ea9ed. Pre-existing before task diff.",
+      "recommendation": "Replace '/close Step 4' with '/close Step 1' at lines 242 and 246."
+    },
+    {
+      "file": "commands/close.md",
+      "location": "commands/close.md:143,181,268,332",
+      "reason": "Four stale 'Step 5' references. /close now has only Steps 1/2/3. Pre-existing before b7ea9ed.",
+      "severity": "minor",
+      "introduced_in_diff": false,
+      "origin_note": "Present at b7ea9ed^ and b7ea9ed. Pre-existing before task diff.",
+      "recommendation": "Line 143: 'Step 5 QA prompt' -> 'Step 2 QA prompt'. Line 181: 'Step 5 will treat' -> 'Step 2 will treat'. Line 268: 'Step 5 final-line contract' -> 'Step 3 final-line contract'. Line 332: 'bypasses Step 5 entirely' -> 'bypasses Step 3 entirely'."
+    },
+    {
+      "file": "commands/do.md",
+      "location": "commands/do.md",
+      "reason": "Clean. The escape-hatch documentation added in 07d6e32 correctly describes the /close --force path for /do-developed work. No cleanliness violations. Note: not part of task diff b7ea9ed; changed by orphan session commit 07d6e32.",
+      "severity": null,
+      "introduced_in_diff": false,
+      "origin_note": "do.md changes are in 07d6e32, not b7ea9ed."
+    }
+  ],
+  "resolved_findings": [
+    {
+      "file": "commands/close.md",
+      "location": "commands/close.md:209",
+      "reason": "Garbled branch list in QA dispatch prompt: 'verdict branches 1/2/3/6/7/6 with branch 7 N/A' had a duplicate '6' and incorrectly annotated 'branch 7 N/A'. Branch 7 is 'Codex parse failure (failed_parse)'; branch 9 is 'Codex disabled by user'.",
+      "severity": "major",
+      "introduced_in_diff": true,
+      "status": "resolved",
+      "resolved_by_commit": "400cd4b"
+    },
+    {
+      "file": "commands/close.md",
+      "location": "commands/close.md:210",
+      "reason": "Stale branch number in QA dispatch prompt: 'Apply verdict branch 7 (codex disabled by user)' — branch 7 is failed_parse; branch 9 is codex-disabled.",
+      "severity": "major",
+      "introduced_in_diff": true,
+      "status": "resolved",
+      "resolved_by_commit": "400cd4b"
+    },
+    {
+      "file": "commands/close.md",
+      "location": "commands/close.md:320",
+      "reason": "Stale branch cross-reference inside branch 7 body: 'treat as substantive Codex dissent under branch 2' — branch 2 is AC-deviation-PASS; substantive dissent is branch 3.",
+      "severity": "major",
+      "introduced_in_diff": true,
+      "status": "resolved",
+      "resolved_by_commit": "400cd4b"
+    },
+    {
+      "file": "commands/close.md",
+      "location": "commands/close.md:330",
+      "reason": "Stale em-dash annotation: 'em-dash form distinguishes branch 7 YES from branch 1' — codex-disabled YES is branch 9, not branch 7.",
+      "severity": "minor",
+      "introduced_in_diff": true,
+      "status": "resolved",
+      "resolved_by_commit": "400cd4b"
+    },
+    {
+      "file": "agents/qa.md",
+      "location": "agents/qa.md:209,214",
+      "reason": "Stale cross-references to 'close.md branch 1b' — renumbered to branch 2 by the task diff.",
+      "severity": "major",
+      "introduced_in_diff": true,
+      "status": "resolved",
+      "resolved_by_commit": "400cd4b",
+      "note": "agents/qa.md is NOT in this diff but was a fix target created by the renumbering in commands/close.md"
+    }
+  ],
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex raised two issues: (1) attribution of Finding 1 should note that the inconsistency is caused by close.md with agents/qa.md being the fix target, not the origin; (2) the draft missed additional internal stale branch references inside close.md itself at lines 209, 210, 320, and 330 where old branch numbers were introduced by the incomplete renumbering. Codex provided PROPOSED_FIX for both.",
+    "feedback_summary": "Codex raised 3 actionable issues and 4 observations. Issues: (1) b7ea9ed scope misstated — it also changed commands/dev.md and commands/INDEX.md; commands/do.md was changed by 07d6e32; (2) do.md should be noted as out-of-scope for b7ea9ed; (3) line 45 was introduced by 07d6e32 not b7ea9ed, and the correct branch list should include branch 8; (6) prior 5 findings should be moved to resolved_findings section.",
     "findings": [
       {
-        "issue": "Finding 1 attribution was 'file: agents/qa.md' but the inconsistency originates in commands/close.md (the diff file) — agents/qa.md is the downstream fix target",
-        "proposed_fix": "Reword as: 'FINDING 1 (commands/close.md; related locations: agents/qa.md:209, agents/qa.md:214): commands/close.md renumbers AC-deviation branch 1b to branch 2, making existing QA cross-references stale.'",
+        "issue": "b7ea9ed scope misstated — it also changed commands/dev.md and commands/INDEX.md; commands/do.md changed by 07d6e32, not b7ea9ed",
+        "proposed_fix": "Document b7ea9ed true scope and note commands/do.md origin as 07d6e32",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Valid attribution correction. The finding is correctly attributed to commands/close.md as the source of the inconsistency. agents/qa.md is retained as a related fix location."
+        "rationale": "Applied via task_diff_commit_note field and do.md advisory observation origin_note"
       },
       {
-        "issue": "Draft missed additional internal stale branch references inside commands/close.md at lines 209 (garbled branch list), 210 (branch 7 vs branch 9 for codex-disabled), 320 (branch 2 vs branch 3 for substantive codex dissent), and 330 (branch 7 vs branch 9 for em-dash annotation)",
-        "proposed_fix": "Add major finding for incomplete internal renumbering in close.md at lines 209, 210, 320, and 330.",
+        "issue": "commands/do.md is clean but should be noted as out-of-scope for b7ea9ed",
+        "proposed_fix": "Mark do.md as changed by 07d6e32 not b7ea9ed in the report",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Verified against the current commands/close.md. All four locations confirmed: line 209 has 'branches 1/2/3/6/7/6 with branch 7 N/A' (garbled), line 210 says 'branch 7 (codex disabled)' but branch 7 is now failed_parse and branch 9 is codex-disabled, line 320 cross-references 'branch 2' for substantive dissent but branch 2 is AC-deviation-PASS in new scheme, line 330 says 'branch 7 YES' for em-dash annotation but should say 'branch 9 YES'."
+        "rationale": "Applied in do.md advisory observation"
+      },
+      {
+        "issue": "Line 45 incomplete branch list was introduced by 07d6e32 not b7ea9ed; correct text should include branch 8",
+        "proposed_fix": "Attribute line 45 to 07d6e32; recommend correction including branch 8 in the list",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Applied: advisory observation for line 45 now attributes to 07d6e32 and includes branch 8 in recommendation"
+      },
+      {
+        "issue": "Step 4 / Step 5 references are genuinely pre-existing relative to b7ea9ed",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirmed: present at b7ea9ed^ and b7ea9ed"
+      },
+      {
+        "issue": "No new cleanliness violations found in the three close.md inspector-dispatch lines from b7ea9ed",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirmed: codex_required propagation is consistent with inspector agent opt-in contracts"
+      },
+      {
+        "issue": "Prior 5 findings should not remain active after 400cd4b; retain in resolved_findings for audit trail",
+        "proposed_fix": "Move to resolved_findings[] with status: resolved and resolved_by_commit: 400cd4b; set findings[] to empty",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Applied: findings[] is now empty; all 5 prior findings moved to resolved_findings[]"
+      },
+      {
+        "issue": "No Safety Rules deletion problem found",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirmed: no protected files proposed for deletion"
       }
     ],
-    "feedback_incorporated": "Applied both codex proposed fixes: (1) attribution reframing for the agents/qa.md finding; (2) added 4 internal stale reference findings in commands/close.md at lines 209, 210, 320, and 330. Total violations increased from 1 to 5."
+    "feedback_incorporated": "Applied all 3 codex PROPOSED_FIX items: task_diff_commit_note added; do.md advisory observation updated with origin commit; line 45 advisory observation updated with 07d6e32 attribution and branch 8 inclusion; prior 5 findings restructured into resolved_findings[]. 4 OBSERVATION_ONLY items logged."
   }
 }
