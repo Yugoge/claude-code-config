@@ -163,6 +163,7 @@
       "Bash(python3 /root/.claude/scripts/spec-check.py:*)",
       "Bash(python3 /root/bin/spec-verify-views.py:*)",
       "Bash(scripts/validate-dev-registry-enforcement.sh:*)",
+      "Bash(~/.claude/scripts/write-qa-mode.sh:*)",
       "Bash(/root/scripts/validate-dev-registry-enforcement.sh:*)",
       "Bash(/root/scripts/validate-ac6-fail-closed.sh:*)",
       "Bash(/root/scripts/validate-sentinel-lint.sh:*)",
