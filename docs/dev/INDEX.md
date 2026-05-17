@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-17T21:45:45Z*
-**Total entries**: 123
+*Last updated: 2026-05-17T21:51:18Z*
+**Total entries**: 125
 **Convention**: kebab
 
 ## Tree
@@ -87,6 +87,7 @@ dev/
 ├── `prompt-inspector-report-20260517-155838.json` - json config
 ├── `prompt-inspector-report-20260517-172600.json` - json config
 ├── `prompt-inspector-report-20260517-211508.json` - json config
+├── `prompt-inspector-report-20260517-214922.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
 ├── `qa-input-dev-20260107-091716.json` - json config
@@ -129,7 +130,8 @@ dev/
 ├── `ticket-20260517-153856.md` - BA Specification: Establish Bidirectional Handoff Contracts Between Specialist Agents and BA
 ├── `ticket-20260517-155838.md` - BA Specification: /do direct-development cannot be closed via /close normal path
 ├── `ticket-20260517-172600.md` - BA Specification: Add close→commit/push Ending Workflow Adaptation to clean.md + Enumerate Other Commands
-└── `ticket-20260517-211508.md` - BA Specification: Fix broken ending-workflow in clean.md (Cycle 2)
+├── `ticket-20260517-211508.md` - BA Specification: Fix broken ending-workflow in clean.md (Cycle 2)
+└── `user-requirement-dev-20260517-215114.md` - No description
 ```
 
 ---

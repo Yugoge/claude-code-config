@@ -1,0 +1,1 @@
+/dev 现在的push和merge以及pull没有像commit一样的agentic智能判断机制，给我方案
