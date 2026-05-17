@@ -231,7 +231,7 @@
       "Step 0: Capture pre_pull_head = git rev-parse HEAD",
       "Step 1: Run pull.sh (unchanged); capture exit_code",
       "Step 2: Capture post_pull_head = git rev-parse HEAD (ALWAYS — pull.sh prints 'Pull completed successfully' at line 154 and advances HEAD BEFORE stash pop at lines 157-174; stash pop failure exits 1 at line 175 but HEAD already changed)",
-      "Step 3: Determine pull_exit_phase: exit 0 -> 'success'; exit non-0 AND HEAD unchanged -> 'rebase_conflict'; exit non-0 AND HEAD changed -> 'stash_restoration_failed'",
+      "Step 3: Determine pull_exit_phase: exit 0 -> 'success'. If exit non-0: check for .git/rebase-merge or .git/rebase-apply directory. If rebase state dir exists -> 'rebase_conflict' (git rebase partially applied commits before conflict; HEAD may have changed; stash pop was never reached). If no rebase state dir AND pre_pull_head != post_pull_head -> 'stash_restoration_failed' (rebase fully succeeded, HEAD advanced, then stash pop failed at line 174). If no rebase state dir AND pre_pull_head == post_pull_head -> 'rebase_conflict' (conservative fallback for unknown pre-rebase failure).",
       "Step 4: If pre_pull_head == post_pull_head: if exit_code != 0 display pull.sh error; else print 'no HEAD change (no-op pull)'; stop (no analyst dispatch)",
       "Step 5: Dispatch pull-analyst subagent with pre_pull_head, post_pull_head, branch, pull_exit_phase",
       "Step 6: Display pull-analyst report to user (report includes stash-restoration-failure warning when pull_exit_phase='stash_restoration_failed')"
