@@ -34,8 +34,11 @@ DEFAULT_BRANCH=$(bash ~/.claude/scripts/derive-default-branch.sh)
 DEFAULT_TIP=$(git rev-parse "refs/heads/${DEFAULT_BRANCH}" 2>/dev/null || echo "MISSING")
 REPO_HASH=$(python3 -c "import hashlib, os; print(hashlib.sha256(os.path.realpath('$(git rev-parse --show-toplevel)').encode()).hexdigest()[:16])")
 REQUEST_ID=$(python3 -c "import secrets; print(secrets.token_hex(16))")
-SESSION_ID="${CLAUDE_SESSION_ID:-unknown}"
+SESSION_ID="${CLAUDE_SESSION_ID}"
 ```
+
+If `SESSION_ID` is empty or unset, abort immediately with:
+"Cannot dispatch merge-analyst: CLAUDE_SESSION_ID not set. Invoke /merge from within a Claude Code session."
 
 If either tip is "MISSING", abort with an error describing which branch was not found.
 
