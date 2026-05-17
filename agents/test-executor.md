@@ -93,34 +93,7 @@ Activate the venv, run the validator script with `--project-root`, capture stdou
 
 **Error handling**:
 
-```python
-try:
-    result = subprocess.run(
-        f"source {venv_path}/bin/activate && python3 {validator_path} --project-root {project_root}",
-        shell=True,
-        capture_output=True,
-        text=True,
-        timeout=30  # 30 second timeout
-    )
-
-    # Try to parse JSON output
-    try:
-        output_json = json.loads(result.stdout)
-        status = "pass" if result.returncode == 0 else "fail"
-    except json.JSONDecodeError:
-        output_json = {"error": "Invalid JSON output", "raw_output": result.stdout}
-        status = "error"
-
-except subprocess.TimeoutExpired:
-    output_json = {"error": "Validator timed out after 30 seconds"}
-    status = "error"
-    result.returncode = 2
-
-except Exception as e:
-    output_json = {"error": str(e)}
-    status = "error"
-    result.returncode = 2
-```
+Run the validator via subprocess with a 30-second timeout. Parse JSON from stdout; on timeout or exception, set status to "error". On JSON decode failure, capture raw output.
 
 **Result format**:
 ```json
