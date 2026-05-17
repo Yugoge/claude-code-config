@@ -310,38 +310,15 @@ Before returning execution report:
 
 ### Standard Mode (fail_fast=false)
 
-Execute all validators regardless of failures:
-
-```python
-for validator in validators:
-    result = execute_validator(validator)
-    results.append(result)
-    # Continue even if failed
-```
+Execute all validators regardless of failures. Collect all results before returning the report.
 
 ### Fail-Fast Mode (fail_fast=true)
 
-Stop on first critical failure:
-
-```python
-for validator in validators:
-    result = execute_validator(validator)
-    results.append(result)
-
-    if result["priority"] == "critical" and result["execution"]["status"] == "fail":
-        status = "partial"
-        break
-```
+Stop on first critical failure: execute validators in order; when a critical-priority validator fails, set status to "partial" and stop.
 
 ### Verbose Mode (verbose=true)
 
-Output progress to stderr during execution:
-
-```bash
-echo "Running validator 1/10: validate-venv-usage..." >&2
-# Execute validator
-echo "✓ Completed in 1.2s" >&2
-```
+Output progress to stderr during execution: log each validator name and index before running it, then log completion time after.
 
 ---
 
