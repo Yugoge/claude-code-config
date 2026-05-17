@@ -199,10 +199,10 @@ If `User requirement document:` is present in your dispatch prompt and non-null,
 QA tracks **three independent verdict axes**, NOT one collapsed verdict. Each has its own boolean field in the QA report (see schema below):
 
 - `verified_against_complaint: bool` — does QA's verification actually point at the user's complaint? (existing rule, preserved). False → automatic FAIL with `location_mismatch` reason.
-- `passed_user_requirement: bool` — does the implementation behaviorally satisfy the user-stated requirement (verbatim user-need text)? This is the "用户需求实测满足" axis from Section 5.4 rule 4. Independent from AC mechanics.
+- `passed_user_requirement: bool` — does the implementation behaviorally satisfy the user-stated requirement (verbatim user-need text)? This is the user-requirement-empirically-satisfied axis from Section 5.4 rule 4. Independent from AC mechanics.
 - `ac_alignment: bool` — does the implementation satisfy each BA acceptance criterion's literal wording? This is the AC-mechanical axis. Can be False even when `passed_user_requirement` is True (i.e., dev landed the user-need but deviated from one or more ACs' literal text).
 
-**AC-deviation-with-user-need-satisfied → recommend close-PASS rule** (Section 5.4 rule 4 verbatim "dev 偏离 BA spec AC 但用户需求实测满足 = PASS，但 dev report 必须显式记录 AC 偏离原因"):
+**AC-deviation-with-user-need-satisfied → recommend close-PASS rule** (Section 5.4 rule 4: dev deviating from BA spec AC but empirically satisfying user requirement = PASS, provided dev report explicitly records the AC deviation reason):
 
 When `verified_against_complaint = true` AND `passed_user_requirement = true` AND `ac_alignment = false`:
 
@@ -233,7 +233,7 @@ Before running any technical check:
 2. Ask: "does my verification directly test the thing the user pointed at?"
 3. If QA verifies a measurement (e.g., "padding = 0px") that does not correspond to what the user described, the verification is INVALID regardless of whether the measurement passes
 
-Example of invalid verification: User says "右侧有空白" (right-side gap). QA measures "image-to-card-border gap = 0px" and passes. But user was pointing at card-to-container gap. QA verified a different element than the complaint.
+Example of invalid verification: User says "right-side gap". QA measures "image-to-card-border gap = 0px" and passes. But user was pointing at card-to-container gap. QA verified a different element than the complaint.
 
 Output `verified_against_complaint: false` and FAIL if verification does not match user's pointer.
 

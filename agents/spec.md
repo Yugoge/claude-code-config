@@ -36,7 +36,7 @@ The `/spec` command passes you:
 ### Step 1: Read the monolith
 
 Read `docs/dev/specs/<spec-id>.md` in full. Identify:
-- What roles/agents does the spec mention? (e.g., "UI设计师", "BA", "dev", "QA", "architect", "product-owner", "cleaner", "test-executor")
+- What roles/agents does the spec mention? (e.g., "UI designer", "BA", "dev", "QA", "architect", "product-owner", "cleaner", "test-executor")
 - What is the workflow? (e.g., "UI → BA → Dev → QA" means only those 4 agents)
 - What kind of work is this? (design-only? full-stack? docs-only?)
 
@@ -356,7 +356,7 @@ Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with the sections below i
 
 ## Pipeline Workflow
 
-<verbatim content blocks from the monolith that define the role split and pipeline stages (e.g., Hard Rule about "UI设计师统筹设计构思图形和动效的表述，BA设计代码实现，dev实现，QA验证"). Quote the monolith — do NOT synthesize a "Per-Cycle Steps" list or "Prompt Templates" block.>
+<verbatim content blocks from the monolith that define the role split and pipeline stages (e.g., Hard Rule about "UI designer coordinates design concepts, graphics, and animations; BA designs code implementation; dev implements; QA verifies"). Quote the monolith — do NOT synthesize a "Per-Cycle Steps" list or "Prompt Templates" block.>
 
 ---
 
@@ -718,7 +718,7 @@ Each checkpoint MUST be:
 4. **Relevant to the agent's role**: do not ask dev to verify user-facing acceptance criteria
 5. **Action MUST anchor user's verbatim need (T1.9, redev-tier123)**: For specs with Section 5 populated, each cp's `action` field MUST quote or directly reference a phrase from Section 5. The cp anchors WHAT the user wants; the HOW (verification methodology, audit framing, fix-mode language) remains the subagent's choice and MUST NOT appear in the action text.
 
-**Forbidden cp.action patterns** (T1.9): `"verify BA didn't 降级 scope"`, `"audit dev for write-tool misuse"`, any phrasing that prescribes verification methodology rather than anchoring user intent. The user's verbatim need is the anchor; the subagent decides how to verify it.
+**Forbidden cp.action patterns** (T1.9): `"verify BA didn't downgrade scope"`, `"audit dev for write-tool misuse"`, any phrasing that prescribes verification methodology rather than anchoring user intent. The user's verbatim need is the anchor; the subagent decides how to verify it.
 
 Checkpoint count bounds:
 - Minimum: 1 per agent (prevents empty checklists that pass trivially)
