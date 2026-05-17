@@ -100,6 +100,12 @@ cleanup: Execute approved cleanup actions
 - Moved X files, Archived Y files, Deleted Z files, Fixed W violations
 ```
 
+After each successful commit (exit code 0), write the push-gate token so `/push` can proceed:
+
+Export `GIT_ROOT`, `BRANCH`, `COMMIT_SHA` as shell env vars, then activate the venv and run a Python script to write the push-gate token. The script: computes `repo_hash = sha256(realpath(GIT_ROOT))[:16]`; sets `token_dir = /tmp/agentic-commit/push/<repo_hash>`; creates `token_dir`; writes a JSON token `{commit_sha, branch, repo_root, session_id}` to `{token_dir}/{branch.replace('/','__')}.json`. Before overwriting, if an existing token belongs to a different session_id, print a WARNING and skip the write. Print the final token path on success.
+
+If the commit fails (nothing staged, or git error), do NOT write the token.
+
 ---
 
 ## Output Format
