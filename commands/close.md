@@ -43,7 +43,7 @@ Parse `--codex` from `$ARGUMENTS` BEFORE evaluating the forced-override path or 
 `codex_required` controls whether QA's internal multi-round debate (Step 2) consults codex via `Skill(codex)`:
 
 - **`codex_required = true`**: dispatch prompt for QA includes the full multi-round QA-codex debate protocol as documented in Step 2 below. Verdict branches 1 / 2 / 3 / 6 / 7 apply.
-- **`codex_required = false`** (default): dispatch prompt for QA SKIPS all `Skill(codex)` invocations and runs QA-only single-round assessment of the 4 Workflow Integrity bullets + 1b cleanliness preconditions. Verdict branch 7 (codex disabled) applies; branches 2 / 5 / 5b are N/A.
+- **`codex_required = false`** (default): dispatch prompt for QA SKIPS all `Skill(codex)` invocations and runs QA-only single-round assessment of the 4 Workflow Integrity bullets + step 1b cleanliness preconditions. Verdict branch 9 (codex disabled) applies; branches 3 / 6 / 7 are N/A.
 
 When `--force` is also present, `--codex` is ignored (the forced-override path short-circuits the entire debate path; no QA invocation, no codex consultation, no verdict-branch evaluation). The two flags are not mutually exclusive parse-wise (orchestrator strips both), but `--force` wins.
 
