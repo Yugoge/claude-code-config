@@ -312,10 +312,10 @@ Write a JSON report to the specified output path:
       "location": {
         "file": "path/to/file.ts",
         "line": 123,
-        "url": "/api/endpoint or null"
+        "url": null
       },
-      "measured": "scalar extracted from evidence, e.g. 2340ms or null (distills runtime_evidence into a single value)",
-      "expected": "design constraint or SLA being violated, e.g. <500ms per p95 target",
+      "measured": "2340ms",
+      "expected": "<500ms per p95 target",
       "downstream_agent": "ba",
       "category": "pattern-inconsistency|technical-debt|dependency-issue|performance|security|dead-code|config-issue|runtime-error",
       "estimated_effort": "small|medium|large",
