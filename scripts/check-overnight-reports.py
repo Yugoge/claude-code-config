@@ -43,7 +43,6 @@ def _resolve_cycle(session_id: str, requested: int | None) -> int | None:
     project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
     candidates = [
         project_dir / 'docs' / 'dev' / 'overnight' / session_id,
-        Path('/root/docs/dev/overnight') / session_id,
     ]
     for base in candidates:
         cycles = _list_cycle_dirs(base)
