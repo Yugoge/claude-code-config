@@ -390,6 +390,36 @@
     "meaningful_naming": true,
     "git_root_cause_reference": false
   },
+  "policy_registration": {
+    "enforcer": "hooks/lib/policy_registry.py",
+    "enforcer_hard_deny_lines": "72-81 (get_role_policy returns {_unknown_role: True} for absent roles); 269-270 (is_allowed returns (False, 'unknown role <role>'))",
+    "cp_agents_enforcer": "hooks/pretool-cp-checkin.py:60-72",
+    "changelog_analyst_template_lines": "policies/tool-policy.v1.json:792-818",
+    "changelog_analyst_entry": {
+      "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+      "allowed_write_path_prefixes": ["*/dev/null", "*/dev/stderr", "*/dev/stdout", "*/tmp/claude-scratch/changelog-analyst/", "/tmp/*", "/var/tmp/*"],
+      "denied_write_path_prefixes": ["/.claude/hooks/", "/.claude/agents/", "/.claude/commands/", "/.claude/policies/", "/.claude/schemas/", "/.claude/scripts/", "/.claude/settings.json"]
+    },
+    "new_entries_required": {
+      "push-analyst": {
+        "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+        "allowed_write_path_prefixes": ["*/dev/null", "*/dev/stderr", "*/dev/stdout", "*/tmp/claude-scratch/push-analyst/", "/tmp/agentic-commit/push-analyst/", "/tmp/*", "/var/tmp/*"],
+        "denied_write_path_prefixes_inherits_shared_protected": true
+      },
+      "merge-analyst": {
+        "allowed_tools": ["Read", "Glob", "Grep", "Bash", "Write"],
+        "allowed_write_path_prefixes": ["*/dev/null", "*/dev/stderr", "*/dev/stdout", "*/tmp/claude-scratch/merge-analyst/", "/tmp/agentic-commit/merge-analyst/", "/tmp/*", "/var/tmp/*"],
+        "denied_write_path_prefixes_inherits_shared_protected": true
+      },
+      "pull-analyst": {
+        "allowed_tools": ["Read", "Glob", "Grep", "Bash"],
+        "allowed_write_path_prefixes": ["*/dev/null", "*/dev/stderr", "*/dev/stdout", "*/tmp/claude-scratch/pull-analyst/", "/tmp/*", "/var/tmp/*"],
+        "note": "pull-analyst writes no grant; Write tool may be omitted or can be kept for audit log writes to ~/.claude/logs/",
+        "denied_write_path_prefixes_inherits_shared_protected": true
+      }
+    },
+    "cp_agents_additions": ["push-analyst", "merge-analyst", "pull-analyst"]
+  },
   "codex_consult": {
     "invoked": true,
     "status": "ok",
