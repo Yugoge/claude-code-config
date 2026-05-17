@@ -117,6 +117,11 @@ get_commit_count() {
     fi
 }
 
+# Severity thresholds (override via env vars)
+ORPHAN_MAJOR_COMMIT_THRESHOLD="${ORPHAN_MAJOR_COMMIT_THRESHOLD:-2}"
+ORPHAN_MAJOR_DAYS_THRESHOLD="${ORPHAN_MAJOR_DAYS_THRESHOLD:-60}"
+ORPHAN_MAJOR_AGE_THRESHOLD="${ORPHAN_MAJOR_AGE_THRESHOLD:-90}"
+
 # Function to determine severity
 get_severity() {
     local commit_count="$1"
@@ -125,9 +130,9 @@ get_severity() {
     # Extract numeric value from "X days ago"
     local days=${days_ago%% *}
 
-    if [[ $commit_count -le 2 ]] && [[ $days -gt 60 ]]; then
+    if [[ $commit_count -le $ORPHAN_MAJOR_COMMIT_THRESHOLD ]] && [[ $days -gt $ORPHAN_MAJOR_DAYS_THRESHOLD ]]; then
         echo "major"
-    elif [[ $days -gt 90 ]]; then
+    elif [[ $days -gt $ORPHAN_MAJOR_AGE_THRESHOLD ]]; then
         echo "major"
     else
         echo "minor"

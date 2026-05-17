@@ -1,6 +1,6 @@
 # scripts
 
-*Last updated: 2026-05-17T15:15:00Z*
+*Last updated: 2026-05-17T15:49:54Z*
 **Total entries**: 65
 **Convention**: kebab
 
@@ -27,7 +27,7 @@ scripts/
 │   ├── `research-deep.py` - Python script
 │   ├── `security-check.py` - Python script
 │   ├── `site-navigate.py` - Python script
-│   ├── `spec.py` - Mirrors /root/knowledge-system/scripts/todo/ask.py structure
+│   ├── `spec.py` - Mirrors the ask.py structure in the knowledge-system scripts/todo directory
 │   └── `test.py` - Preloaded TodoList for /test workflow
 ├── `aggregate-permissions.py` - Usage: aggregate-permissions.py <qa-glob-or-dir> [pipelines.json]
 ├── `analyze-folder-history.sh` - Description: Analyze Git history for folder to discover file creation patterns

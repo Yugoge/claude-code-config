@@ -4,6 +4,12 @@ set -e
 PROJECT_ROOT="${1:-.}"
 cd "$PROJECT_ROOT"
 
+# Override paths via CLI args or environment variables
+# Arg 2: commands directory (default: ~/.claude/commands)
+COMMANDS_DIR="${2:-${CLAUDE_COMMANDS_DIR:-${HOME}/.claude/commands}}"
+# Arg 3: agents directory (default: ~/.claude/agents)
+AGENTS_DIR="${3:-${CLAUDE_AGENTS_DIR:-${HOME}/.claude/agents}}"
+
 # Only scan Python files in scripts/ directory (the active codebase)
 SCRIPTS_DIR="${PROJECT_ROOT}/scripts"
 if [ ! -d "$SCRIPTS_DIR" ]; then
@@ -40,7 +46,7 @@ for pyfile in "$SCRIPTS_DIR"/*.py; do
 
         # Not called internally — check if called from OTHER files
         ref_count=$(grep -rl "\b${name}\b" "$SCRIPTS_DIR"/*.py 2>/dev/null | grep -v "$basename" | wc -l)
-        cmd_refs=$(grep -rl "\b${name}\b" ~/.claude/commands/*.md ~/.claude/agents/*.md 2>/dev/null | wc -l)
+        cmd_refs=$(grep -rl "\b${name}\b" "$COMMANDS_DIR"/*.md "$AGENTS_DIR"/*.md 2>/dev/null | wc -l)
 
         total_refs=$((ref_count + cmd_refs))
 
