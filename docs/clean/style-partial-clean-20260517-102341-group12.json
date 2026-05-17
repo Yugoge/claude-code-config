@@ -1,0 +1,123 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": 12,
+  "files_audited": [
+    "scripts/orchestrator.sh",
+    "scripts/overnight-status.sh",
+    "scripts/plan-style-inspection.sh",
+    "scripts/refine-context.sh",
+    "scripts/scan-project.sh"
+  ],
+  "violations": [
+    {
+      "standard": "integer-step-numbering",
+      "severity": "critical",
+      "location": "scripts/orchestrator.sh:198",
+      "finding": "Comment references decimal step number 'Step 3.5' in: '# Step 3.5 MUST complete before clean-inspect (Step 4)'",
+      "recommendation": "Remove decimal step reference or update to integer form: '# Rule inspection MUST complete before clean-inspect' or '# Step 4 MUST complete before clean-inspect (Step 5)' — whichever matches the current step numbering in commands/clean.md"
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/orchestrator.sh:195",
+      "finding": "Hardcoded relative directory path 'docs/clean/rule-context-${REQUEST_ID}.json' — the 'docs/clean' subdirectory is not derived from PROJECT_ROOT (which is extracted from the context JSON at line 190) or any script parameter",
+      "recommendation": "Derive path from PROJECT_ROOT: RULE_CONTEXT_FILE=\"${PROJECT_ROOT}/docs/clean/rule-context-${REQUEST_ID}.json\""
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/orchestrator.sh:140,145",
+      "finding": "Hardcoded numeric constant MAX_ITERATIONS=5 with no parameter override mechanism (same literal value is also emitted in the JSON output at line 145: max_iterations: 5)",
+      "recommendation": "Use environment variable with default: MAX_ITERATIONS=\"${MAX_ITERATIONS:-5}\"; then pass it to jq via --argjson max_iterations \"$MAX_ITERATIONS\" so the JSON output stays consistent"
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/orchestrator.sh:202",
+      "finding": "Hardcoded folder list KEY_FOLDERS=(\"agents\" \"scripts\" \"docs\" \"hooks\" \"commands\") — the set of key folders is a project-specific configuration value that is not derived from the context JSON's full_context.discovered_folders field, even though PROJECT_ROOT is already read from that same context file",
+      "recommendation": "Derive folder list from context: KEY_FOLDERS=($(jq -r '.full_context.discovered_folders // [] | .[]' \"$CONTEXT_FILE\")), or accept KEY_FOLDERS as an environment variable override"
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/overnight-status.sh:11-13",
+      "finding": "Hardcoded directory path 'docs/dev/overnight/' — script only accepts optional [session_id] argument and has no mechanism to specify a different project root or state directory, making it only usable from one specific working directory",
+      "recommendation": "Derive state directory from environment or git root: STATE_DIR=\"${OVERNIGHT_STATE_DIR:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/docs/dev/overnight}\"; then use find \"$STATE_DIR\" ..."
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/refine-context.sh:10",
+      "finding": "Hardcoded environment-specific absolute fallback path '/root' in resolve_project_dir() — this path is host-specific and will silently produce a wrong project dir on any non-root deployment",
+      "recommendation": "Remove the '/root' fallback; the function already tries CLAUDE_PROJECT_DIR and pwd before reaching it. Use: git rev-parse --show-toplevel 2>/dev/null || pwd (fail with cwd rather than a wrong absolute path)"
+    }
+  ],
+  "standards_passed": [
+    "no-inline-code (all 5 files are shell scripts, not .md command/agent files)",
+    "use-source-venv (no python3 direct calls found in any file)",
+    "meaningful-naming (no enhance-*, fast-*, optimize-*, -v2, -v3, improved-*, better-*, new-* patterns)",
+    "english-only (no Chinese characters found in any file)",
+    "merge-similar-scripts (refine-context.sh and orchestrator.sh iterate() serve different callers and interfaces; plan-style-inspection.sh has no near-duplicate)",
+    "concise-documentation (all 5 files are shell scripts with lean comments, no verbose markdown)",
+    "dangling-references (no cross-script references to non-existent scripts found)",
+    "merge-conflicts (no conflict markers found in any file)"
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex identified 4 actionable issues: (1) Finding 1 recommendation was imprecise about step number mapping — applied improved wording; (2) Finding 3 location was incomplete (line 145 also hardcodes the value 5) — extended location; (3) Findings 4 and 5 were duplicative with conflicting fixes — consolidated into one finding with unified recommendation; (4) Missed violation: KEY_FOLDERS hardcoded at line 202 — added as new finding. Codex also flagged /tmp paths at lines 25-27 etc. as a potential violation — rejected as out-of-scope: /tmp with timestamp-derived names is standard system temp file practice, not a project-specific hardcoded path. Codex raised a scope concern about changed-files-only vs full audit — rejected: the dispatch prompt explicitly requests full audit of the listed files with no --changed-files parameter.",
+    "findings": [
+      {
+        "issue": "Finding 1 recommendation imprecise — 'Step 4' may conflict with numbering in commands/clean.md",
+        "proposed_fix": "Change recommendation to: 'Change line 198 to # Step 4 MUST complete before clean-inspect (Step 5) or remove step numbers entirely: # Rule inspection MUST complete before clean-inspect'",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Recommendation updated to be more precise and cross-reference aware"
+      },
+      {
+        "issue": "Finding 3 incomplete — hardcoded value 5 also appears in JSON output at line 145",
+        "proposed_fix": "Extend location to scripts/orchestrator.sh:140,145 and extend fix to cover the jq JSON output",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Both occurrences of the hardcoded literal should be fixed together"
+      },
+      {
+        "issue": "Missed critical violation: KEY_FOLDERS hardcoded at orchestrator.sh:202",
+        "proposed_fix": "Add no-hardcoded-values finding for KEY_FOLDERS array",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Valid new finding — folder list is project-specific config that should be derived from context JSON"
+      },
+      {
+        "issue": "Findings 4 and 5 are duplicative with conflicting fix suggestions (different positional arg strategies)",
+        "proposed_fix": "Consolidate into one finding using env-var derivation approach: STATE_DIR derived from OVERNIGHT_STATE_DIR or CLAUDE_PROJECT_DIR or git root",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Single consolidated finding is clearer and avoids interface-breaking recommendation"
+      },
+      {
+        "issue": "Finding 6 recommendation weak — pwd is already tried before /root fallback",
+        "proposed_fix": "Recommend removing /root fallback entirely: use git root or cwd, not a host-specific absolute path",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Stronger recommendation makes the intent clearer"
+      },
+      {
+        "issue": "/tmp hardcoded paths at orchestrator.sh:25-27 etc. flagged as potential no-hardcoded-values violations",
+        "proposed_fix": "N/A — Codex proposed TMP_DIR env var override",
+        "classification": "observation_only",
+        "disposition": "rejected",
+        "rationale": "/tmp with timestamp-derived unique suffixes is standard POSIX temp file practice, not a project-specific configurable path. Standard 2 targets paths like data/plain_text_resume.yaml or docs/dev/overnight/ — not system temp dirs."
+      },
+      {
+        "issue": "Scope concern: none of the 5 scripts appear in current git diff, so all findings may be pre-existing",
+        "proposed_fix": "Move findings to pre-existing/out-of-scope section or explicitly define scope as full audit",
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Dispatch prompt explicitly orders full audit of listed files with no --changed-files parameter; pre-existing violations are in scope for this invocation type"
+      }
+    ],
+    "feedback_incorporated": "Applied 5 of 7 codex findings: improved finding 1 recommendation, extended finding 3 location to include line 145, added new finding for KEY_FOLDERS hardcoded array, consolidated overnight-status.sh findings 4+5 into one, strengthened finding 6 recommendation. Rejected /tmp-as-hardcoded-path (system temp dir pattern is not Standard 2 violation) and the changed-files scope restriction (not applicable to this full-audit invocation)."
+  },
+  "status": "complete"
+}
