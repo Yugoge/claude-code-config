@@ -58,7 +58,7 @@ You receive JSON context with this structure:
   "parameters": {
     "fail_fast": false,
     "verbose": true,
-    "report_path": "test/reports/execution-report-{REQUEST_ID}.json"
+    "report_path": "tests/reports/execution-report-{REQUEST_ID}.json"
   },
   "validation_report": {
     "status": "pass",
@@ -168,7 +168,7 @@ For validators with `type: "instruction"`:
    }
    ```
 
-7. **Write report to file**: `test/reports/claude-md-protection-report-{timestamp}.json`
+7. **Write report to file**: `tests/reports/claude-md-protection-report-{timestamp}.json`
 
 8. **Record execution result**:
    ```json
@@ -286,7 +286,7 @@ Return execution report as JSON:
 }
 ```
 
-Save to: `test/reports/execution-report-{REQUEST_ID}.json`
+Save to: `tests/reports/execution-report-{REQUEST_ID}.json`
 
 ---
 
