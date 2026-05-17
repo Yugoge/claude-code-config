@@ -9,27 +9,27 @@
     "verified_against_complaint": true,
     "passed_user_requirement": true,
     "ac_alignment": true,
-    "out_of_scope_observations": [
-      {
-        "ts": "2026-05-17T21:20:00Z",
-        "file": "commands/push.md:62",
-        "line": 62,
-        "observation": "push.md documents token content as {commit_sha, branch, repo_root} (3 fields) but changelog-analyst.md Phase 10 and BA spec both specify 4 fields including session_id. push.md documentation is a simplified/incomplete description of the actual token schema.",
-        "in_user_path": false,
-        "security_relevant": false
-      },
-      {
-        "ts": "2026-05-17T21:20:00Z",
-        "file": "hooks/push.sh:89",
-        "line": 89,
-        "observation": "hooks/push.sh is a token reader/validator but was not listed in BA's scope_expansion.all_occurrences. Not a writer; not modified by this cycle.",
-        "in_user_path": false,
-        "security_relevant": false
-      }
-    ],
-    "setup": {
-      "applicability": "N/A",
-      "reason": "BA-validation mode invocation. This QA cycle validates the BA analysis quality, not a dev implementation. No UI, no browser, no deployed artifacts. The underlying change (agents/cleaner.md + clean.md) is a non-UI doc/agent-prompt edit with no rendered UI changes, no browser interaction, and no user-triggered code path changes."
+    "user_verbatim_complaint": "将这个结尾工作流也加入到clean的适配。同时告诉我还有哪些command 也需要加收尾工作流的适配",
+    "verified_location_keywords": ["clean.md", "ending-workflow", "push"],
+    "location_overlap": ["clean.md", "push"],
+    "complaint_element_pointer": {
+      "selector": "commands/clean.md line 589 (Step 17 Next Steps block item 2)",
+      "how_located": "Direct file read at stated line number",
+      "found_in_dom": true,
+      "page_url": "N/A — non-UI doc change"
+    },
+    "element_screenshots": {
+      "before_selector": "N/A",
+      "before_path": null,
+      "after_path": null,
+      "same_element_verified": false
+    },
+    "complaint_resolution_evidence": "commands/clean.md:589 now reads 'run /push' (no /commit). agents/cleaner.md Section 5 now contains push-gate token write block after the cleanup commit, using the identical algorithm as changelog-analyst.md Phase 10. The documented path '/push after /clean' is now architecturally sound.",
+    "out_of_scope_observations": [],
+    "spec_section_updates": {
+      "section_4": "### Cycle 2\n\nagents/cleaner.md Section 5 'Git Operations' now contains a push-gate token write block at lines 103-107. Line 103 introduces the block: 'After each successful commit (exit code 0), write the push-gate token so /push can proceed:'. Line 105 contains the full token-write algorithm (verbatim from changelog-analyst.md Phase 10): sha256(realpath(GIT_ROOT))[:16] repo-hash, JSON fields {commit_sha, branch, repo_root, session_id}, session_id collision guard. Line 107 contains the commit-failure guard: 'If the commit fails (nothing staged, or git error), do NOT write the token.'\n\ncommands/clean.md:589 reads: '2. If satisfied: Changes already committed — to publish to remote: run `/push`'. grep for '/commit' across the entire file returns zero matches.",
+      "section_6": null,
+      "section_7": null
     },
     "build_verification": {
       "status": "skipped",
@@ -38,7 +38,7 @@
       "build_output_summary": null,
       "service_healthy": null,
       "changes_verified_live": null,
-      "skip_reason": "BA-validation mode — no dev implementation exists yet. No build artifact to verify."
+      "skip_reason": "Non-UI doc/agent-prompt edit only. No compiled artifacts, no deployed services, no rendered UI. Per BA spec setup.applicability: N/A."
     },
     "e2e_enforcement": {
       "required": false,
@@ -46,9 +46,9 @@
       "script_discovered": false,
       "script_path": null,
       "health_check_url": null,
-      "health_check_result": "skipped — BA-validation mode; no deployed service under test",
-      "status": "skipped_not_applicable",
-      "blocking_reason": "This QA invocation is in BA-validation mode (validating BA analysis quality prior to dev implementation). The underlying change is classified non-UI (doc-only / agent-prompt edit, no rendered UI changes, no browser interaction, no Playwright invocation). E2E is inapplicable until dev produces an implementation artifact."
+      "health_check_result": "N/A — non-UI change, no web service involved",
+      "status": "legitimately_skipped",
+      "blocking_reason": "Change is doc/agent-prompt only: agents/cleaner.md and commands/clean.md are markdown instruction files with no compiled artifacts, no deployed web service, no rendered UI, and no user-triggered code path changes. BA spec explicitly classifies setup.applicability as N/A for this cycle. There is no URL, port, or service to health-check. E2E browser verification is inapplicable by definition — the changed files are read by Claude subagents at prompt time, not by any running web application."
     },
     "app_understanding_flow": {
       "executed": false,
@@ -56,74 +56,83 @@
       "steps_completed": 0,
       "baseline_screenshots": [],
       "errors_found_during_flow": [],
-      "app_not_running": null
+      "app_not_running": true
     },
     "ui_test_results": [],
-    "ba_validation_dimensions": [
-      {
-        "dimension": "evidence_quality",
-        "verdict": "pass",
-        "assessment": "BA's measured.value cites concrete artifact references with file paths and line numbers: agents/cleaner.md:95-105 (git commit, no token write), agents/changelog-analyst.md:451 (Nothing to commit after exclusions exit), commands/push.md:53-59 (push-gate token required), commands/clean.md:589 (broken text). QA independently verified all four. Evidence is not vague; all claims are backed by direct file reads at stated line numbers."
-      },
-      {
-        "dimension": "scope_alignment",
-        "verdict": "pass",
-        "assessment": "User verbatim requirement: '将这个结尾工作流也加入到clean的适配'. BA's Must Have correctly identifies agents/cleaner.md (token write) and commands/clean.md:589 (text simplification). R2 correctly classified N/A. No universal scope claim silently dropped. Won't Have list correctly bounded."
-      },
-      {
-        "dimension": "investigation_completeness",
-        "verdict": "pass",
-        "assessment": "Failure chain fully traced (commit.md:39 → changelog-analyst.md:451 → push.md:63-66). Insertion point correctly identified. Canonical algorithm located and read. diagnosis_completeness honestly notes 'inferred only' — appropriate for a non-UI doc change."
-      },
-      {
-        "dimension": "affected_file_accuracy",
-        "verdict": "pass",
-        "assessment": "Both modification targets verified: agents/cleaner.md exists with Git Operations section at lines 93-103 (no token write). clean.md:589 contains exact broken text. changelog-analyst.md Phase 10 at lines 292-303 confirmed as the canonical algorithm. No phantom files listed."
-      },
-      {
-        "dimension": "spec_text_vs_execution_drift",
-        "verdict": "pass",
-        "assessment": "No drift. Technical Hints algorithm is directly derived from and matches the canonical source. AC verification recipes (static file reads/greps) are executable as written and appropriate for a non-UI cycle."
-      }
-    ],
+    "e2e_script_results": [],
     "success_criteria_results": [
       {
-        "requirement_id": "R1",
+        "requirement_id": "R1-SC1",
         "source_phrase": "将这个结尾工作流也加入到clean的适配",
-        "criterion": "After /clean completes, user can run /push without missing-token rejection; commands/clean.md:589 reads 'run /push'; agents/cleaner.md writes push-gate token JSON at canonical path after cleanup commit",
-        "verification_method": "BA-validation: verified BA's root cause analysis, evidence citations, reference source, scope, novelty check, and token schema against actual files via direct reads",
+        "criterion": "After /clean completes, user can run /push without missing-token rejection",
+        "verification_method": "Read agents/cleaner.md Section 5 (lines 93-107) to confirm push-gate token write block is present after the git commit instruction, conditional on exit code 0. Verified algorithm matches changelog-analyst.md Phase 10 canonical token-write (verbatim comparison). Verified commit-failure guard prevents token write on failed commits.",
         "status": "pass",
         "result": "pass",
-        "details": "BA analysis correctly identifies the fix required. AC1 (token write in cleaner), AC2 (clean.md:589 text), and AC3 (integration path) are well-specified and verifiable. Evidence citations confirmed accurate.",
-        "evidence": "Direct reads of agents/cleaner.md:95-103, agents/changelog-analyst.md:292-303 and :451, commands/push.md:54-66, commands/clean.md:589, hooks/push.sh:84-108"
+        "details": "agents/cleaner.md lines 103-107: after the cleanup commit block, a token write block instructs the agent to activate venv and run Python that writes the push-gate token JSON at /tmp/agentic-commit/push/<sha256(realpath(GIT_ROOT))[:16]>/<branch_encoded>.json. Session_id collision guard and commit-failure guard are both present as required.",
+        "evidence": "agents/cleaner.md line 103: 'After each successful commit (exit code 0), write the push-gate token so /push can proceed:'. Line 105 contains verbatim algorithm matching changelog-analyst.md Phase 10 line 296. Line 107: 'If the commit fails (nothing staged, or git error), do NOT write the token.'"
+      },
+      {
+        "requirement_id": "R1-SC2",
+        "source_phrase": "将这个结尾工作流也加入到clean的适配",
+        "criterion": "commands/clean.md:589 reads 'run /push' with no mention of /commit",
+        "verification_method": "Direct file read at line 589. Grep for /commit across entire file.",
+        "status": "pass",
+        "result": "pass",
+        "details": "Line 589 reads exactly: '2. If satisfied: Changes already committed — to publish to remote: run `/push`'. Grep for '/commit' across entire commands/clean.md returns zero matches.",
+        "evidence": "commands/clean.md:589 confirmed by direct read. grep '/commit' commands/clean.md returned: No matches found."
+      },
+      {
+        "requirement_id": "R1-SC3",
+        "source_phrase": "将这个结尾工作流也加入到clean的适配",
+        "criterion": "agents/cleaner.md writes push-gate token JSON at canonical path after cleanup commit",
+        "verification_method": "Read agents/cleaner.md Section 5 and compare token-write algorithm to changelog-analyst.md Phase 10 verbatim.",
+        "status": "pass",
+        "result": "pass",
+        "details": "Token write algorithm in cleaner.md line 105 is character-for-character identical to changelog-analyst.md Phase 10 line 296. Token JSON fields {commit_sha, branch, repo_root, session_id} are all present. Path format /tmp/agentic-commit/push/<repo_hash>/<branch_encoded>.json matches canonical specification.",
+        "evidence": "changelog-analyst.md line 296 and cleaner.md line 105 produce identical prose when read. Both specify the 4-field JSON, sha256(realpath(GIT_ROOT))[:16] repo-hash, session_id collision warning, and success print."
       },
       {
         "requirement_id": "R2",
         "source_phrase": "同时告诉我还有哪些command也需要加收尾工作流的适配",
         "criterion": "N/A — fully answered in Cycle 1 completion report; not a change request for this cycle",
-        "verification_method": "Confirmed via BA spec classification and continuation spec Section 5.1",
+        "verification_method": "N/A per BA spec classification",
         "status": "pass",
         "result": "pass",
-        "details": "BA correctly classifies R2 as N/A for Cycle 2. Enumeration was completed in Cycle 1.",
-        "evidence": "docs/dev/specs/spec-20260517-210806.md Section 5.1 and ticket-20260517-211508.md R2 row"
+        "details": "R2 was satisfied in Cycle 1 (completion report enumerated commands requiring adaptation). This cycle has no R2 deliverable.",
+        "evidence": "N/A"
       }
     ],
     "root_cause_verification": {
       "addressed": true,
       "confidence": "high",
-      "rationale": "BA correctly identifies agents/cleaner.md Section 5 Git Operations as the location missing the push-gate token write. QA verified by direct read: lines 95-103 contain only a plain git commit instruction with no token write step. The causal chain (cleaner commits → changelog-analyst finds nothing to commit → Phase 10 never runs → token absent → /push rejects) is accurate and confirmed by file reads."
+      "rationale": "Root cause was: agents/cleaner.md's inline git commit never wrote the push-gate token, making any subsequent /push invocation fail with token-absent rejection. Fix adds the token write immediately after the successful commit in Section 5 Git Operations (line 103). The token is now written before /clean completes, so /push finds it at the canonical path. Root cause commit c7f7afc is superseded by this change."
     },
     "script_quality_results": [],
-    "regression_test_results": [],
+    "regression_test_results": [
+      {
+        "test": "clean.md Step 17 Next Steps bash invocation regression (Trap 4)",
+        "result": "pass",
+        "details": "Step 17 Next Steps block (lines 586-591) contains no agent-invoked bash invocations. Trap 4 not triggered."
+      },
+      {
+        "test": "grep /commit in commands/clean.md",
+        "result": "pass",
+        "details": "Grep for '/commit' (slash-command form) across entire commands/clean.md returns zero matches. No /commit reference introduced or remaining."
+      },
+      {
+        "test": "algorithm consistency: cleaner.md vs changelog-analyst.md Phase 10",
+        "result": "pass",
+        "details": "Token-write prose in cleaner.md line 105 is verbatim identical to changelog-analyst.md Phase 10 line 296. Both specify sha256(realpath(GIT_ROOT))[:16] repo-hash, 4-field JSON {commit_sha, branch, repo_root, session_id}, session_id collision guard, and token path print. No algorithmic drift."
+      }
+    ],
     "code_quality_findings": [],
-    "permissions_verification": {
-      "status": "pass",
-      "permissions_count": 0,
-      "validated_permissions": [],
-      "issues": []
+    "band_aid_detection": {
+      "checked": true,
+      "patterns_found": [],
+      "verdict": "none — the change adds a new capability (token write) rather than weakening any existing check"
     },
     "hardcode_scan_results": {
-      "files_scanned": 0,
+      "files_scanned": 2,
       "violations": [],
       "summary": {
         "critical": 0,
@@ -131,7 +140,77 @@
         "minor": 0
       }
     },
+    "standards_compliance": {
+      "checked": true,
+      "role_table_source": "N/A — no role table in CLAUDE.md applicable to doc/agent-prompt files",
+      "violations": []
+    },
+    "permissions_verification": {
+      "status": "pass",
+      "permissions_count": 0,
+      "validated_permissions": [],
+      "issues": []
+    },
     "generated_tests": [],
+    "verification_detail": {
+      "task_1_cleaner_md_section_5": {
+        "a_token_write_block_present": {
+          "result": "pass",
+          "location": "agents/cleaner.md lines 103-107",
+          "evidence": "Line 103: 'After each successful commit (exit code 0), write the push-gate token so /push can proceed:' introduces the block."
+        },
+        "b_sha256_realpath_repo_hash": {
+          "result": "pass",
+          "location": "agents/cleaner.md line 105",
+          "evidence": "Text reads: 'computes repo_hash = sha256(realpath(GIT_ROOT))[:16]'"
+        },
+        "c_session_id_collision_guard": {
+          "result": "pass",
+          "location": "agents/cleaner.md line 105",
+          "evidence": "Text reads: 'Before overwriting, if an existing token belongs to a different session_id, print a WARNING and skip the write.'"
+        },
+        "d_commit_failure_guard": {
+          "result": "pass",
+          "location": "agents/cleaner.md line 107",
+          "evidence": "Text reads: 'If the commit fails (nothing staged, or git error), do NOT write the token.'"
+        },
+        "e_venv_activation_mentioned": {
+          "result": "pass",
+          "location": "agents/cleaner.md line 105",
+          "evidence": "Text reads: '...activate the venv and run a Python script to write the push-gate token.'"
+        }
+      },
+      "task_2_clean_md_line_589": {
+        "a_line_589_reads_run_push": {
+          "result": "pass",
+          "exact_text": "2. If satisfied: Changes already committed — to publish to remote: run `/push`",
+          "location": "commands/clean.md:589"
+        },
+        "b_no_commit_in_step_17_next_steps": {
+          "result": "pass",
+          "evidence": "Grep for '/commit' across entire commands/clean.md returns zero matches."
+        },
+        "c_no_bash_invocations": {
+          "result": "pass",
+          "evidence": "Step 17 Next Steps block (lines 586-592) contains no agent-invoked bash invocations. No ~/.claude/hooks/* style calls. Block contains only slash-command and git-command user instructions in markdown."
+        }
+      },
+      "task_3_algorithm_comparison": {
+        "result": "pass",
+        "changelog_analyst_phase_10_line": 296,
+        "cleaner_md_line": 105,
+        "match": "verbatim — character-for-character identical prose",
+        "fields_verified": ["commit_sha", "branch", "repo_root", "session_id"],
+        "path_format_verified": "/tmp/agentic-commit/push/<repo_hash>/<branch.replace('/','__')>.json"
+      },
+      "task_4_grep_commit_in_clean_md": {
+        "result": "pass",
+        "pattern": "/commit",
+        "file": "commands/clean.md",
+        "matches": 0,
+        "evidence": "Grep for '/commit' in commands/clean.md returned: No matches found."
+      }
+    },
     "all_findings": [],
     "summary": {
       "critical_issues": 0,
@@ -141,8 +220,8 @@
       "release_recommendation": "approve"
     },
     "self_verification": {
-      "claims_total": 7,
-      "claims_with_evidence": 7,
+      "claims_total": 9,
+      "claims_with_evidence": 9,
       "claims_superficial": 0,
       "superficial_details": [],
       "confidence": "high"
