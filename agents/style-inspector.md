@@ -235,23 +235,9 @@ template_path = sys.argv[1] if len(sys.argv) > 1 else "template/resume/harvard.h
 
 **Rule**: All Python script invocations MUST use `source venv` or `source .venv`, NOT direct `python3`.
 
-**Detection**:
-```bash
-# Scan all .sh and .md files for python3 calls
-grep -rn "python3 " . \
-  --include="*.sh" --include="*.md" \
-  | grep -v "# python3 is available" \
-  | grep -v "Example:"
-```
+**Detection**: Scan all `.sh` and `.md` files for `python3 ` calls, excluding lines with `# python3 is available` or `Example:`. Report each bare `python3` invocation as a violation.
 
-**Violations**:
-```bash
-# BAD
-python3 scripts/analyze.py
-
-# GOOD
-source venv/bin/activate && python scripts/analyze.py
-```
+**Violations**: BAD: direct `python3 scripts/analyze.py`; GOOD: `source venv/bin/activate && python scripts/analyze.py`.
 
 **Report**:
 ```json
