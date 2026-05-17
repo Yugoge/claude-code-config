@@ -592,7 +592,7 @@ After Step 1.7 (Live-Evidence) and BEFORE Step 2 (Tier Classification), classify
 
 **Per-issue classification — assign `pipe_category`**:
 - `pipe_category: "user_need"` — issue is on the user-need path; eligible for pipeline creation (proceed to Step 2 tiering).
-- `pipe_category: "security"` — path-external but security-relevant (Section 5.4 rule 2 verbatim "安全洞例外：即便在路径外也必修"); eligible for pipeline creation (Tier 1 by default).
+- `pipe_category: "security"` — path-external but security-relevant (Section 5.4 rule 2: security holes are exceptions — must be fixed even when outside the user-need path); eligible for pipeline creation (Tier 1 by default).
 - `pipe_category: "dependency"` — path-external code that the user-need path actually depends on (utils / types / adjacent modules per Section 5.4 rule 1); eligible for pipeline creation when the dependency materially affects user-need success.
 - `pipe_category: "out_of_scope_observation"` — path-external, non-security, non-dependency. **Does NOT become a pipeline.** Routed to the triage report's `out_of_scope_observations[]` array (see triage-report schema below) for the cycle's BA / observations-ledger handoff. Tier and pipeline_recommendation fields are not applied.
 
