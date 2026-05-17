@@ -1,12 +1,13 @@
 {
   "request_id": "20260517-153856",
   "task_id": "20260517-153856",
-  "timestamp": "2026-05-17T16:15:00Z",
+  "timestamp": "2026-05-17T16:20:00Z",
+  "iteration": 2,
   "mode": "ba_validation",
   "qa": {
     "status": "fail",
     "verdict": "fail",
-    "overall_assessment": "BA spec for handoff contract establishment is well-structured and its affected-file accuracy, scope alignment, investigation completeness, and evidence quality all pass. However, a blocking spec_text_vs_execution_drift objection prevents PASS: BA's AC1 targets a non-canonical issues[] channel in ui-specialist.md while the actual machine-enforceable output contract (report-schema.json) uses automated_findings/contextual_findings/aesthetic_findings. Dev satisfying AC1 as written would add fields to prose that is not validated by any runtime schema, leaving the 'machine-enforceable' goal unmet. Codex confirmed: 'drift objection is valid; draft PASS is not correct.'",
+    "overall_assessment": "BA addressed both prior objections (OBJ-1 wrong channel, OBJ-2 report-schema.json excluded). Dimensions 1-4 now pass. Two new blocking defects in dimension 5: (A) context-20260517-153856.json is invalid JSON (unescaped CJK curly-quote characters at line 7, python3 -m json.tool fails); (B) AC1 line 120 instructs direct $ref to finding_base which would strip finding_deterministic/contextual/aesthetic channel-specific constraints if followed literally. Minor non-blocking: AC6 lacks file-scoped verification recipe for dirty working tree.",
     "dimensions_checked": [
       "evidence_quality",
       "scope_alignment",
