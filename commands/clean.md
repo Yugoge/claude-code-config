@@ -558,12 +558,7 @@ Expected output structure:
 
 ### Step 17: Verify Cleanup Results
 
-Review git changes:
-
-```bash
-git status
-git diff --stat HEAD~1
-```
+Review git changes: check `git status` and `git diff --stat HEAD~1` to confirm expected files were staged and committed.
 
 Present verification summary:
 
