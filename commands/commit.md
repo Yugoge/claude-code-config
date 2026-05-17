@@ -174,7 +174,7 @@ nested-repo handling, push-gate write) are delegated entirely to `changelog-anal
 
 Authorization flow for changelog-analyst commits:
 
-1. `/commit` writes `/tmp/claude-commit-grant-<SID>-<nonce>.json` before dispatching changelog-analyst (Step 4.5).
+1. `/commit` writes `/tmp/claude-commit-grant-<SID>-<nonce>.json` before dispatching changelog-analyst (Step 5).
 2. `_evaluate_commit(command, data)` calls `_find_grant('commit', sid)` using the subagent's session_id from the PreToolUse payload.
 3. If SID-specific grant not found (subagent session_id differs from orchestrator's CLAUDE_SESSION_ID), falls back to `_find_grant_any('commit')` — any valid unexpired commit grant is accepted.
 4. Grant validates: expires_at (10 min window), single-use unlink. No message-hash validation.
