@@ -369,7 +369,7 @@ The policy file is `/root/.claude/policies/specialist-degradation.v1.json` (Draf
 
 This is a HARD requirement: omitting `degradation_check` from any `recommended_specialists[]` entry is a defective test plan and will be rejected by the orchestrator's plan-validation gate.
 
-### Step 5: Write Test Plan
+### Step 6: Write Test Plan
 
 Generate `plan_id` using current UTC time:
 `tp-YYYYMMDD-HHMMSS`.
