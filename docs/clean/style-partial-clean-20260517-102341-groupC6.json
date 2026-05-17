@@ -1,0 +1,219 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": "C6",
+  "files_audited": [
+    "commands/quick-prototype.md",
+    "commands/update.md",
+    "commands/spec.md",
+    "commands/clean.md",
+    "commands/close.md"
+  ],
+  "violations": [
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/spec.md:101",
+      "finding": "Contains Chinese characters: 谢谢, 好的, 明白了, 完美, 清楚了, 就这样, 好了, 写吧 — these are listed as natural-conclusion detection signals but are not wrapped in USER_VERBATIM tags and do not appear in docs/dev/ticket-*.md.",
+      "recommendation": "Replace the Chinese literals with: '- Non-English equivalents: equivalent gratitude, confirmation, satisfaction, or closure phrases in the user's language; do not enumerate non-English literals in this command file.' Move any verbatim preservation to docs/dev/ticket-*.md."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/spec.md:280",
+      "finding": "Contains Chinese characters: 应/不应 — appears in a rule prohibition (DO NOT use 应/不应 AC ladders) without USER_VERBATIM tag or docs/dev/ticket-*.md reference.",
+      "recommendation": "Replace with English equivalent: 'should/should-not' (i.e., 'parallel should/should-not AC ladders')."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/close.md:241",
+      "finding": "Contains Chinese text: 安全洞例外：即便在路径外也必修 — cited as 'Section 5.4 rule 2 verbatim' but not in docs/dev/ticket-*.md and not wrapped in USER_VERBATIM tags.",
+      "recommendation": "Remove the Chinese quote from the command file. Record the verbatim text in docs/dev/ticket-*.md and replace in close.md with English-only prose: 'security exceptions: fix even when outside the path-external scope.'"
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/close.md:242",
+      "finding": "Contains Chinese text: 如果对用户体验和安全性以及整体代码仓库整洁程度不造成阻碍的，都不一定是NO的原因 and 用户需求 / 安全性 — cited as 'user's binding directive' without docs/dev/ticket-*.md reference or USER_VERBATIM tag.",
+      "recommendation": "Move the verbatim Chinese to docs/dev/ticket-*.md and reference by path. Replace in close.md with English-only paraphrase: 'pre-existing defects that do not obstruct user-need satisfaction, security, or cleanliness-of-THIS-diff are not NO triggers.'"
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/close.md:250",
+      "finding": "Contains Chinese text: 将clean用的诸如style-inspector等加入close的steps中 — cited as 'Section 5.2 verbatim' without docs/dev/ticket-*.md reference.",
+      "recommendation": "Move verbatim Chinese to docs/dev/ticket-*.md and reference by path. Replace in close.md with English-only text: 'add /clean-style inspectors to /close steps.'"
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/close.md:263",
+      "finding": "Contains Chinese text: 整洁度判定范围 = 仅本次 diff 新增的 violation = NO 阻断 close. 预存历史脏污一律不管 — cited as 'Section 5.4 rule 3 verbatim' without docs/dev/ticket-*.md reference.",
+      "recommendation": "Move verbatim Chinese to docs/dev/ticket-*.md and reference by path. Replace in close.md with English-only: 'cleanliness scope = only violations newly introduced in this diff; pre-existing historical violations are ignored entirely.'"
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/close.md:274",
+      "finding": "Contains Chinese text: 历史脏污 — used as a technical term without USER_VERBATIM tag or docs/dev/ticket-*.md reference.",
+      "recommendation": "Replace 历史脏污 with English translation: 'historical technical debt' or 'pre-existing violations'."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/close.md:308",
+      "finding": "Contains Chinese text: dev 偏离 BA spec AC 但用户需求实测满足 = PASS，但 dev report 必须显式记录 AC 偏离原因 — cited as 'Section 5.4 rule 4 verbatim' without docs/dev/ticket-*.md reference.",
+      "recommendation": "Move verbatim Chinese to docs/dev/ticket-*.md and reference by path. Replace in close.md with English-only: 'dev deviated from BA spec AC but user requirement verified as satisfied = PASS, provided dev report explicitly records the AC deviation reason.'"
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/close.md:384",
+      "finding": "Contains Chinese text: 如果对用户体验和安全性以及整体代码仓库整洁程度不造成阻碍的，都不一定是NO的原因 — cited as 'Section 5.1 verbatim' without docs/dev/ticket-*.md reference.",
+      "recommendation": "Move verbatim Chinese to docs/dev/ticket-*.md and reference by path. Replace in close.md with English-only paraphrase already present in the same line: the English explanation that follows the Chinese quote is sufficient."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "commands/clean.md:59-61,65-69,91-99,151-221",
+      "finding": "Multiple bash code blocks contain executable multi-line scripts: (a) lines 59-61: venv+python3 call; (b) lines 65-69: mkdir + REQUEST_ID/TIMESTAMP variable assignments; (c) lines 91-99: scan-project.sh invocation with jq pipeline parsing; (d) lines 151-221: large bash block with discover-folders, check-readme-freshness, jq JSON construction, orchestrator.sh call, conditional for-loops with stat calls and date calculations. These are implementation logic, not documentation examples.",
+      "recommendation": "Extract the orchestration logic at lines 65-69 and 91-99 into a setup step description without bash blocks. Extract lines 151-221 into a dedicated script (e.g., ~/.claude/scripts/run-rule-inspection.sh) and reference it by path. The venv+python3 call at 59-61 can remain as a single-line invocation reference."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "commands/clean.md:258-260,304-309,423-426,571-583,606-611,672-675",
+      "finding": "Additional executable bash blocks throughout clean.md: lines 258-260 (orchestrator.sh call), lines 304-309 (plan-style-inspection.sh + jq pipeline), lines 423-426 (orchestrator.sh merge call), lines 571-583 (checkpoint.sh + git rev-parse + orchestrator record-checkpoint), lines 606-611 (jq -s merge command), lines 672-675 (git status + git diff). These are all workflow execution commands.",
+      "recommendation": "Replace executable bash blocks with prose instructions referencing the appropriate helper scripts. Where a single-line script invocation is unavoidable, consider wrapping it in an orchestrator.sh subcommand."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "commands/spec.md:113-115,228-230,233-235",
+      "finding": "Bash code blocks contain executable logic: lines 113-115 (wc -l command to count spec lines), lines 228-230 (echo to .split-complete file), lines 233-235 (echo warning to .split-complete). These are actual file-writing and counting operations.",
+      "recommendation": "Extract into a helper script (e.g., scripts/spec-finalize.sh <spec_path> <spec_id> [unresolved_count]) and replace the bash blocks with prose referencing the script."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "commands/close.md:35-37,101-104,153-155",
+      "finding": "Bash code blocks contain executable logic: lines 35-37 (venv activation + python3 close.py); lines 101-104 (mkdir -p + echo audit log append with date expansion); lines 153-155 (TASK_ID variable binding). All are runtime execution, not documentation.",
+      "recommendation": "For lines 101-104, extract the audit log append into scripts/record-close-override.sh <task-id> <reason>. For line 153-155, express the TASK_ID binding as prose. The single-line venv+python3 at 35-37 may remain as an invocation reference."
+    },
+    {
+      "standard": "integer-step-numbering",
+      "severity": "critical",
+      "location": "commands/close.md:308,323",
+      "finding": "Top-level verdict branch identifiers use lettered sub-numbering: '1b.' (line 308, AC-deviation-PASS branch) and '5b.' (line 323, Codex parse failure branch). These are primary section identifiers, not sub-items within a numbered step.",
+      "recommendation": "Resequence to integer-only: rename branch '1b' to a distinct integer (e.g., branch 2 or 'AC-deviation branch') and '5b' to a distinct integer (e.g., branch 6), updating all cross-references in the file."
+    },
+    {
+      "standard": "dangling-references",
+      "severity": "critical",
+      "location": "commands/spec.md:155",
+      "finding": "References ${CLAUDE_PROJECT_DIR}/bin/spec-verify.py but the file /dev/shm/dev-workspace/dot-claude/bin/spec-verify.py does not exist (only found inside git worktrees, not in the main repo tree).",
+      "recommendation": "Either add bin/spec-verify.py to the main repo, or update the reference to an existing path such as ~/.claude/scripts/spec-verify.py if that exists, or remove the coverage step if the script is not maintained."
+    },
+    {
+      "standard": "concise-documentation",
+      "severity": "critical",
+      "location": "commands/quick-prototype.md:45-70,88-132,147-218",
+      "finding": "File contains: (a) 5 repetitive 'Common Prototype Patterns' sections (lines 47-70), each following an identical When/Libraries/Features 3-bullet structure — these repeat the same information in a table-like but verbose format; (b) a 44-line JSX scaffold template at lines 88-132 with placeholder comments throughout (Standard 8 pseudocode pattern); (c) 4 repetitive 'Example Prototypes' sections (lines 147-190) each with identical User:/Result: structure; (d) verbose emoji-heavy quality checklist (lines 192-201); (e) marketing/non-functional closing line at line 218: 'Remember: The goal is to create something immediately useful that the user can run right away without any setup!'",
+      "recommendation": "Replace the 5 prototype patterns with a concise 2-column table (Pattern | Key Libraries). Remove the JSX scaffold or reduce to a 5-line structural skeleton. Collapse the 4 example prototypes to a single representative example. Remove the marketing closing line. Target reduction: from 218 lines to under 60 lines."
+    }
+  ],
+  "standards_passed": [
+    "no-hardcoded-values (Standard 2): no hardcoded paths or URLs without parameter fallback found in script invocations",
+    "use-source-venv (Standard 3): all python3 calls are preceded by source ~/.claude/venv/bin/activate",
+    "meaningful-naming (Standard 5): no forbidden naming patterns (enhance-*, fast-*, *-v2, etc.) found",
+    "merge-similar-scripts (Standard 7): no overlapping functionality between scripts detected",
+    "parameterized-scripts (Standard 9): not applicable to command .md files",
+    "merge-conflicts (Standard 11): no merge conflict markers found in any of the 5 files"
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex identified 11 issues: (1) a scope-blocker claiming findings are pre-existing/not in current diff (rejected — this is a full-scan pass, not changed-files mode); (2) recommendation wording should be English-only replace, not add translation alongside; (3-4) specific fix wording for spec.md Chinese lines; (5) integer-step-numbering violation for 1b./5b. verdict branches; (6-8) missed no-inline-code violations in spec.md, close.md, and additional clean.md blocks; (9) dangling reference for bin/spec-verify.py; (10-11) location range corrections for findings #12 and #10.",
+    "findings": [
+      {
+        "issue": "All findings are pre-existing/outside current changed-files scope and should not be close-blocking",
+        "proposed_fix": "Mark all findings as introduced_in_diff:false / advisory",
+        "classification": "observation_only",
+        "disposition": "rejected",
+        "rationale": "This is a full-scan style-inspector invocation (no --changed-files parameter). All full-scan findings are valid. The introduced_in_diff determination is handled at the close.md AC-2.6 layer, not by the inspector. Standard 6 additionally has an unconditional-scan exception that applies here."
+      },
+      {
+        "issue": "Recommendation wording for Chinese findings allows 'English translation alongside Chinese quote' which is not Standard 6 compliant",
+        "proposed_fix": "Recommendations should specify English-only replacement, not translation-alongside",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Codex is correct. Standard 6 requires English-only in command/agent files. Recommendations updated to specify removal and English-only replacement."
+      },
+      {
+        "issue": "Specific fix wording for spec.md:101 Chinese equivalents",
+        "proposed_fix": "Replace with: 'Non-English equivalents: equivalent gratitude, confirmation, satisfaction, or closure phrases in the user's language; do not enumerate non-English literals in this command file.'",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Good proposed fix incorporated into recommendation."
+      },
+      {
+        "issue": "Specific fix wording for spec.md:280 应/不应",
+        "proposed_fix": "Replace 'parallel 应/不应 AC ladders' with 'parallel should/should-not AC ladders'",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Good proposed fix incorporated into recommendation."
+      },
+      {
+        "issue": "Missed integer-step-numbering violation: close.md uses 1a., 1b., 1b'., 2a., 3a., 3b., 5b. sub-items",
+        "proposed_fix": "Resequence to integer-only, renaming 5b to a distinct integer branch",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Sub-items 1a./1b./2a./3a./3b. within rounds are round-internal sub-steps, not top-level Step identifiers — these fall below the Standard 4 detection threshold (Standard 4 pattern targets 'Step N[letter]'). However, top-level verdict branch identifiers 1b. (line 308) and 5b. (line 323) are primary section identifiers using letter sub-numbering and are valid violations. Added as a finding."
+      },
+      {
+        "issue": "Missed no-inline-code violations in commands/spec.md at lines 113-115, 228-230, 233-235",
+        "proposed_fix": "Extract into scripts/spec-finalize.sh",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Valid missed violations. Added as a new finding."
+      },
+      {
+        "issue": "Missed no-inline-code violations in commands/close.md at lines 35-37, 101-104, 153-155",
+        "proposed_fix": "Extract audit log append into scripts/record-close-override.sh",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Valid missed violations. Added as a new finding."
+      },
+      {
+        "issue": "Missed no-inline-code violations in additional clean.md bash blocks at 258-260, 304-309, 423-426, 606-611, 672-675",
+        "proposed_fix": "Extend the no-inline-code finding to cover all non-example bash blocks",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Valid. Added as a second clean.md no-inline-code finding."
+      },
+      {
+        "issue": "Dangling reference: commands/spec.md:155 references ${CLAUDE_PROJECT_DIR}/bin/spec-verify.py which does not exist in the main repo tree",
+        "proposed_fix": "Restore bin/spec-verify.py or update reference to an existing path",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed: /dev/shm/dev-workspace/dot-claude/bin/spec-verify.py does not exist; only found inside worktrees. Added as a new finding."
+      },
+      {
+        "issue": "Finding for quick-prototype.md has inaccurate location range — JSX skeleton at 88-132 omitted and closing line at 218 not included",
+        "proposed_fix": "Change location to 45-218 or split into precise ranges",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Correct. Location range updated to include JSX skeleton and closing line."
+      },
+      {
+        "issue": "Finding #10 location too broad — includes non-bash JSON template content in lines 59-221",
+        "proposed_fix": "Change location to exact bash ranges: 59-61, 65-69, 91-99, and 151-221",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Correct. Location updated to specific bash block ranges."
+      }
+    ],
+    "feedback_incorporated": "Applied 9 of 11 Codex findings: recommendation wording for English-only standard corrected; 3 missed no-inline-code violations added (spec.md, close.md, additional clean.md blocks); integer-step-numbering violation for 1b./5b. verdict branches added; dangling reference for bin/spec-verify.py added; location ranges for quick-prototype.md and clean.md findings corrected. Rejected Codex finding 1 (scope blocker) as this is a full-scan pass where all findings are valid."
+  },
+  "status": "complete"
+}

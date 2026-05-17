@@ -1,7 +1,7 @@
 # clean
 
-*Last updated: 2026-05-17T15:19:41Z*
-**Total entries**: 55
+*Last updated: 2026-05-17T15:20:06Z*
+**Total entries**: 56
 **Convention**: kebab
 
 ## Tree
@@ -55,6 +55,7 @@ clean/
 ├── `style-partial-clean-20260517-102341-groupC2.json` - json config
 ├── `style-partial-clean-20260517-102341-groupC3.json` - json config
 ├── `style-partial-clean-20260517-102341-groupC4.json` - json config
+├── `style-partial-clean-20260517-102341-groupC6.json` - json config
 ├── `style-partial-clean-20260517-102341-groupC7.json` - json config
 ├── `style-partial-clean-20260517-102341-groupC8.json` - json config
 ├── `style-plan-clean-20260517-102341.json` - json config
