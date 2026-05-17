@@ -76,17 +76,7 @@ docs/ subdirectory structure:
 
 ### Step 2: Scan Project Structure
 
-Detect project type and gather baseline info:
-
-```bash
-PROJECT_ROOT=$(pwd)
-SCAN_RESULT=$(~/.claude/scripts/scan-project.sh "$PROJECT_ROOT")
-PROJECT_TYPE=$(echo "$SCAN_RESULT" | jq -r '.project_type')
-TOTAL_FILES=$(echo "$SCAN_RESULT" | jq -r '.file_counts.total')
-DOC_FILES=$(echo "$SCAN_RESULT" | jq -r '.file_counts.docs')
-SCRIPT_FILES=$(echo "$SCAN_RESULT" | jq -r '.file_counts.scripts')
-TEST_FILES=$(echo "$SCAN_RESULT" | jq -r '.file_counts.tests')
-```
+Detect project type and gather baseline info: run `~/.claude/scripts/scan-project.sh "$PROJECT_ROOT"` and extract `project_type`, `file_counts.total`, `.docs`, `.scripts`, `.tests` from the JSON output.
 
 ### Step 3: Build Inspection Context
 
