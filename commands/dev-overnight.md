@@ -308,7 +308,7 @@ if [ -n "$USER_SPEC_PATH" ]; then
 fi
 ```
 
-This document is the source-of-truth anchor for the entire overnight session. Every subagent reads it before interpreting any derived context or spec. Use a single-quoted heredoc delimiter (`'REQEOF'`) so `$`, backticks, and shell metacharacters are never expanded. This write is idempotent across continuation cycles (same `DEV_SESSION_ID` reused).
+This document is the source-of-truth anchor for the entire overnight session. Every subagent reads it before interpreting any derived context or spec. Use a single-quoted heredoc delimiter (`'REQEOF'`) so `$`, backticks, and shell metacharacters are never expanded. This write is idempotent across continuation cycles (same `DEV_SESSION_ID` reused). When including this path in dispatch prompts, always substitute the resolved value of `$REQUIREMENT_DOC` — MUST NOT pass literal `<PROJECT_ROOT>` or `<DEV_SESSION_ID>` placeholders to subagents; expand them to actual values at dispatch time.
 
 ---
 
@@ -1351,9 +1351,9 @@ bash ~/.claude/scripts/refine-context.sh \
 ```
 
 The merged context records `iteration=<new-iter>` and appends a `previous_attempts[]` entry with `iteration=<new-iter>-1`. Then dispatch:
-- `Agent(subagent_type: "dev")` with iteration context. Include in Dev prompt: `Overnight spec file: <pipeline.spec_path>`. Dev reads spec first for cross-cycle context, then updates Sections 2 and 3.
+- `Agent(subagent_type: "dev")` with iteration context. Include in Dev prompt: `Overnight spec file: <pipeline.spec_path>`. Also include: `User requirement document: <resolved $REQUIREMENT_DOC path>`. Dev reads spec first for cross-cycle context, then updates Sections 2 and 3.
 - Before dispatching QA, write qa_mode sentinel: `bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode final_verification || { echo 'ERROR: Failed to set qa_mode=final_verification — aborting' >&2; exit 1; }`
-- `Agent(subagent_type: "qa")` with new dev report. Include in QA prompt: `Overnight spec file: <pipeline.spec_path>`. QA reads spec first, then updates Section 4 (and Sections 6-7 if fail).
+- `Agent(subagent_type: "qa")` with new dev report. Include in QA prompt: `Overnight spec file: <pipeline.spec_path>`. Also include: `User requirement document: <resolved $REQUIREMENT_DOC path>`. QA reads spec first, then updates Section 4 (and Sections 6-7 if fail).
 
 Loop termination:
 - `qa.status == "pass"` OR `(qa.status == "warning" AND minor only)` → set `phase=done`, `status=fixed`, BREAK.

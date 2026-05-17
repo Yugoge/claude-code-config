@@ -138,7 +138,7 @@ cat <<'REQEOF' > "$REQUIREMENT_DOC" || { echo "ERROR: Failed to write user requi
 REQEOF
 ```
 
-This document is the source-of-truth anchor for the entire session. Every subagent reads it before interpreting any derived context or spec. Use a single-quoted heredoc delimiter (`'REQEOF'`) so `$`, backticks, and shell metacharacters are never expanded.
+This document is the source-of-truth anchor for the entire session. Every subagent reads it before interpreting any derived context or spec. Use a single-quoted heredoc delimiter (`'REQEOF'`) so `$`, backticks, and shell metacharacters are never expanded. When including this path in dispatch prompts, always substitute the resolved value of `$REQUIREMENT_DOC` — MUST NOT pass literal `<DEV_SESSION_ID>` or `<REQUIREMENT_DOC>` placeholders to subagents.
 
 **E2E enforcement activation** (unconditional — always runs regardless of --codex flag):
 ```bash
