@@ -112,16 +112,22 @@
   "diagnosis_layer": "L3",
   "requirements_decomposition": [
     {
+      "id": "R0",
+      "source_phrase": "(derived: machine-enforceability for ui-specialist requires touching the JSON schema enforcer)",
+      "classification": "prerequisite clause",
+      "acceptance_criterion": "skills/ui-shared/report-schema.json finding_base has structured location {url,selector,file,line} (all nullable), measured, expected, downstream_agent='ba' — all three canonical channels inherit via $ref"
+    },
+    {
       "id": "R1",
-      "source_phrase": "UI specialist 报告使用自然语言描述视觉问题（如"按钮间距不一致"），但不包含 CSS selector、measured vs expected 值、源代码位置等 BA/dev 可操作的字段",
+      "source_phrase": "UI specialist 报告使用自然语言描述视觉问题（如'按钮间距不一致'），但不包含 CSS selector、measured vs expected 值、源代码位置等 BA/dev 可操作的字段",
       "classification": "user-need clause",
-      "acceptance_criterion": "agents/ui-specialist.md issues[] schema contains location.selector, measured, expected, downstream_agent fields"
+      "acceptance_criterion": "skills/ui-shared/report-schema.json finding_base gains location.selector, measured, expected, downstream_agent; agents/ui-specialist.md prose references canonical channels not issues[]"
     },
     {
       "id": "R2",
       "source_phrase": "所有 specialist 与 BA 之间没有 handoff contract",
       "classification": "user-need clause",
-      "acceptance_criterion": "All 4 specialist agents' issues[] schemas contain downstream_agent field plus BA-actionable fields (structured location, measured/expected or observed/expected)"
+      "acceptance_criterion": "All 4 specialist agents' output schemas contain downstream_agent field plus BA-actionable fields"
     },
     {
       "id": "R3",
@@ -133,7 +139,7 @@
       "id": "R4",
       "source_phrase": "修改相关 agent spec 文件，在所有 specialist 输出和 BA 消费侧同时建立 handoff contract",
       "classification": "user-need clause",
-      "acceptance_criterion": "Changes to all 5 files (4 specialists + ba.md) are present in the same cycle"
+      "acceptance_criterion": "Changes to all 6 files (report-schema.json + 4 specialist .md files + ba.md) are present in the same cycle"
     }
   ],
   "component_chain": [
