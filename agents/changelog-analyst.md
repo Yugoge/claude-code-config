@@ -111,51 +111,18 @@ a matching dev-report entry. The dev-report is attribution enrichment only.
 **Dev-report enrichment** (attribution only, not authority):
 If `TASK_ID` is non-empty, resolve the dev-report path using the subproject path-walk:
 
-```python
-import os
-
-# changed_paths: repo-relative paths parsed from git status --porcelain=v1 output.
-# For rename/copy (R/C) records, use the destination path (field after " -> " or second field).
-# GIT_ROOT: absolute path from `git rev-parse --show-toplevel` for the repo being committed.
-
-# Guard: if no changed paths, skip enrichment entirely
-if not changed_paths:
-    dev_report_path = None  # fall through to CONTROL_ROOT fallback below
-else:
-    abs_paths = [os.path.realpath(os.path.join(GIT_ROOT, p)) for p in changed_paths]
-    parent_dirs = [os.path.dirname(p) for p in abs_paths]
-
-    # Filter out CONTROL_ROOT workflow artifacts (docs/dev/*.json, docs/dev/*.md) before
-    # computing commonpath — they collapse the common ancestor to /root when a task
-    # touches both subproject files and workflow artifacts simultaneously.
-    control_docs_dev = os.path.realpath(os.path.join(CONTROL_ROOT, "docs", "dev"))
-    filtered_dirs = [d for d in parent_dirs if not d.startswith(control_docs_dev)]
-    # If filtering removed everything (e.g. only workflow artifacts changed), fall back
-    # to all parent dirs to avoid ValueError from commonpath([]).
-    search_dirs = filtered_dirs if filtered_dirs else parent_dirs
-
-    common = os.path.commonpath(search_dirs)  # always a directory (dirname applied first)
-
-    # Walk upward from common toward filesystem root, looking for docs/dev/
-    candidate = common
-    dev_report_path = None
-    while True:
-        if os.path.isdir(os.path.join(candidate, "docs", "dev")):
-            path = os.path.join(candidate, "docs", "dev", f"dev-report-{TASK_ID}.json")
-            if os.path.isfile(path):
-                dev_report_path = path
-                break
-        parent = os.path.dirname(candidate)
-        if parent == candidate:  # reached filesystem root
-            break
-        candidate = parent
-
-# Fallback to CONTROL_ROOT if walk found nothing (also handles empty changed_paths case)
-if dev_report_path is None:
-    fallback = os.path.join(CONTROL_ROOT, "docs", "dev", f"dev-report-{TASK_ID}.json")
-    if os.path.isfile(fallback):
-        dev_report_path = fallback
-```
+Pipe the `git status --porcelain=v1` output for the repo being committed into
+`${CLAUDE_PROJECT_DIR}/.claude/scripts/resolve-dev-report.py` with three required
+flags: `--task-id ${TASK_ID}`, `--git-root ${GIT_ROOT}` (absolute path from
+`git rev-parse --show-toplevel`), and `--control-root ${CONTROL_ROOT}`. The
+script normalizes each changed path relative to `GIT_ROOT`, strips workflow
+artifacts under `CONTROL_ROOT/docs/dev/` before computing the common ancestor
+(preventing collapse when a task touches both subproject files and workflow
+artifacts), then walks upward from that ancestor until it finds a `docs/dev/`
+directory containing `dev-report-${TASK_ID}.json`. If the walk finds nothing,
+it falls back to `CONTROL_ROOT/docs/dev/dev-report-${TASK_ID}.json`. The script
+prints the resolved path to stdout (empty if not found). Assign the output to
+`dev_report_path`.
 
 Extract `dev.files_modified[]` and `dev.files_created[]` arrays from the resolved path. These paths are
 used for commit message enrichment (deriving type/scope/summary). They do NOT
