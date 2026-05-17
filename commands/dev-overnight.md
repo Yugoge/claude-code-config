@@ -350,7 +350,7 @@ Before delegating to BA, scan the current iteration's input and repo state
 for retry signals:
 
 - **Retry phrasing** in the iteration prompt or triage report: "again",
-  "still", "didn't fix", "Nth time", "又", "还是", "没修好"
+  "still", "didn't fix", "Nth time", "again", "still broken", "not fixed"
 - **Recent related commits from this overnight run** (example query: `git log --oneline --grep="<keyword>" HEAD~30..HEAD`)
 - **Existing BA specs from earlier iterations**: files matching
   `docs/dev/ticket-*.md` (or legacy `docs/dev/ba-spec-*.md`) with keywords from the current issue
