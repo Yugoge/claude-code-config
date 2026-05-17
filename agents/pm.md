@@ -580,7 +580,7 @@ If YES → the pipeline MUST end with live screenshot evidence on dev.life-ai.ap
 
 For NON-UI issues (CLI-only, server-only, refactor, dead-code-removal): the rule is relaxed; source + typecheck + functional smoke is acceptable. But these are the exception, not the default.
 
-**Why this rule exists**: Overnight session 21d24e89 (2026-04-25) shipped 14 Codex tool renderers across 2 cycles. Source verified, bundle verified, typecheck passed, daemon healthy — every QA report said PASS. NONE of the 14 renderers ever rendered in a real browser. The user identified this as QA摆烂 caused by a multi-layer escape chain that started with PM marking "Codex session in dev" as `skip` with `skip_reason: "manual user setup task"`. This Step 1.7 is a hard gate to prevent recurrence.
+**Why this rule exists**: Overnight session 21d24e89 (2026-04-25) shipped 14 Codex tool renderers across 2 cycles. Source verified, bundle verified, typecheck passed, daemon healthy — every QA report said PASS. NONE of the 14 renderers ever rendered in a real browser. The user identified this as QA failure-by-escape caused by a multi-layer escape chain that started with PM marking "Codex session in dev" as `skip` with `skip_reason: "manual user setup task"`. This Step 1.7 is a hard gate to prevent recurrence.
 
 ### Step 1.9: User-Need Path Relevance Filter (TRIAGE only — MANDATORY per spec-20260503-091826 Section 5.5 decision #2)
 
