@@ -8,7 +8,13 @@
     "clarified": "Modify skills/ui-shared/report-schema.json (finding_base: structured location, measured, expected, downstream_agent), agents/ui-specialist.md (prose alignment to canonical channels), agents/architect.md (structured location + measured/expected/downstream_agent), agents/product-owner.md (observed_behavior + expected_behavior + downstream_agent), agents/user.md (same as product-owner, location.file nullable), and agents/ba.md (Specialist Findings Intake Protocol section). The machine-enforced ui-specialist contract is report-schema.json; the other 4 files are agent-prose convention.",
     "what": "Bidirectional handoff contract establishment: report-schema.json finding_base enrichment (machine-enforced, ui-specialist) + prose schema enrichment for architect/product-owner/user + BA intake protocol",
     "why": "BA and dev cannot make deterministic implementation decisions from current specialist reports — schemas lack measured/expected values, CSS selectors, source file locations, and routing metadata",
-    "where": ["agents/ui-specialist.md", "agents/architect.md", "agents/product-owner.md", "agents/user.md", "agents/ba.md"],
+    "where": [
+      "agents/ui-specialist.md",
+      "agents/architect.md",
+      "agents/product-owner.md",
+      "agents/user.md",
+      "agents/ba.md"
+    ],
     "scope": {
       "included": [
         "skills/ui-shared/report-schema.json — finding_base: location changed from flat string to structured object {url,selector,file,line} with nullable fields; measured, expected, downstream_agent added to base; required list updated",
@@ -27,7 +33,7 @@
       ]
     },
     "success_criteria": [
-      "skills/ui-shared/report-schema.json finding_base has structured location {url,selector,file,line} (all nullable), measured, expected, downstream_agent='ba' — all three canonical channels inherit via $ref",
+      "skills/ui-shared/report-schema.json finding_base.properties gains structured location object {url,selector,file,line} (all nullable), measured, expected, downstream_agent='ba'; these are added to finding_base.required ONLY — channel item $refs (finding_deterministic, finding_contextual, finding_aesthetic) are NOT changed; those typed definitions inherit via allOf[$ref finding_base] automatically",
       "agents/ui-specialist.md prose references automated_findings/contextual_findings/aesthetic_findings as canonical channels; does not describe issues[] as a canonical JSON schema channel",
       "architect issues[] location is a structured object {file, line, url?} not a flat string; gains measured, expected, downstream_agent",
       "product-owner issues[] contains observed_behavior, expected_behavior, downstream_agent",
@@ -84,7 +90,14 @@
     "why_introduced": "Specialist agents were designed with PM-first output in mind; the ui-specialist JSON schema was not extended to include BA-actionable routing fields; BA consumption protocol was never formalized",
     "why_problematic": "BA cannot apply Contract A (Evidence) without measured/expected values; cannot perform targeted grep without file:line:selector; cannot deterministically route findings without downstream_agent. The issues[] prose in ui-specialist.md misled prior BA analysis to target a non-enforced channel.",
     "timeline": "Present from initial specialist agent design; no regression",
-    "affected_files": ["skills/ui-shared/report-schema.json", "agents/ui-specialist.md", "agents/architect.md", "agents/product-owner.md", "agents/user.md", "agents/ba.md"],
+    "affected_files": [
+      "skills/ui-shared/report-schema.json",
+      "agents/ui-specialist.md",
+      "agents/architect.md",
+      "agents/product-owner.md",
+      "agents/user.md",
+      "agents/ba.md"
+    ],
     "evidence_type": "inferred",
     "observations": [
       "skills/ui-shared/report-schema.json definitions.finding_base lines 214-233: location is type:string (flat string); no measured, expected, downstream_agent, selector fields at any level (inferred: Read)",
@@ -96,7 +109,16 @@
       "agents/ba.md: grep for 'Specialist Findings Intake Protocol' returns empty (inferred: grep)"
     ],
     "diagnosis_completeness": "incomplete (inferred only — these are agent spec files and JSON schema files, not running systems; runtime observation is not applicable for this change type)",
-    "complaint_location_keywords": ["specialist agents", "ui-specialist", "architect", "product-owner", "handoff contract", "BA", "measured vs expected", "CSS selector"],
+    "complaint_location_keywords": [
+      "specialist agents",
+      "ui-specialist",
+      "architect",
+      "product-owner",
+      "handoff contract",
+      "BA",
+      "measured vs expected",
+      "CSS selector"
+    ],
     "localization_evidence": "Direct Read of each agent spec file and report-schema.json confirmed schema deficiencies at specific line numbers",
     "located_source": "skills/ui-shared/report-schema.json:214-233 (finding_base), agents/ui-specialist.md:255 (prose example only), agents/architect.md:306-318, agents/product-owner.md:327-340, agents/user.md:427-442, agents/ba.md (no intake protocol section)",
     "localization_blocked": null,
@@ -115,7 +137,7 @@
       "id": "R0",
       "source_phrase": "(derived: machine-enforceability for ui-specialist requires touching the JSON schema enforcer)",
       "classification": "prerequisite clause",
-      "acceptance_criterion": "skills/ui-shared/report-schema.json finding_base has structured location {url,selector,file,line} (all nullable), measured, expected, downstream_agent='ba' — all three canonical channels inherit via $ref"
+      "acceptance_criterion": "skills/ui-shared/report-schema.json finding_base.properties gains structured location object, measured, expected, downstream_agent — new fields added to finding_base.required ONLY; channel items ($ref finding_deterministic/contextual/aesthetic) unchanged; allOf inheritance propagates new fields automatically"
     },
     {
       "id": "R1",
@@ -147,7 +169,9 @@
       "file": "skills/ui-shared/report-schema.json",
       "line_range": "212-275",
       "role": "Machine-enforced JSON Schema for ui-specialist output. finding_base (lines 214-233) defines the base shape for all three canonical finding channels. Currently: location is flat string, no measured/expected/downstream_agent at any level.",
-      "imports_from": ["leaf"],
+      "imports_from": [
+        "leaf"
+      ],
       "evidence": "Read skills/ui-shared/report-schema.json lines 212-275: finding_base.location type:string; no selector, measured, expected, downstream_agent",
       "verified_via": "Read"
     },
@@ -155,7 +179,9 @@
       "file": "agents/ui-specialist.md",
       "line_range": "243-257",
       "role": "Prose spec for ui-specialist agent. Output Format section references report-schema.json as canonical contract but also shows an example JSON at line 255 with issues:[] which is NOT a channel in the canonical schema — this prose must be corrected to reference canonical channels.",
-      "imports_from": ["skills/ui-shared/report-schema.json"],
+      "imports_from": [
+        "skills/ui-shared/report-schema.json"
+      ],
       "evidence": "Read agents/ui-specialist.md lines 243-257: line 243 references 6-channel contract at report-schema.json; line 255 shows `'issues': []` in example JSON",
       "verified_via": "Read"
     },
@@ -163,7 +189,9 @@
       "file": "agents/architect.md",
       "line_range": "306-318",
       "role": "Specialist output schema — location is flat string, missing measured/expected/downstream_agent",
-      "imports_from": ["leaf"],
+      "imports_from": [
+        "leaf"
+      ],
       "evidence": "Read agents/architect.md lines 306-318: location field is string 'file:line or module/component name'",
       "verified_via": "Read"
     },
@@ -171,7 +199,9 @@
       "file": "agents/product-owner.md",
       "line_range": "327-340",
       "role": "Specialist output schema — missing observed_behavior/expected_behavior/downstream_agent",
-      "imports_from": ["leaf"],
+      "imports_from": [
+        "leaf"
+      ],
       "evidence": "Read agents/product-owner.md lines 327-340: no observed_behavior or expected_behavior fields",
       "verified_via": "Read"
     },
@@ -179,7 +209,9 @@
       "file": "agents/user.md",
       "line_range": "427-442",
       "role": "Specialist output schema (browser-only agent) — missing observed_behavior/expected_behavior/downstream_agent, location.file must be nullable",
-      "imports_from": ["leaf"],
+      "imports_from": [
+        "leaf"
+      ],
       "evidence": "Read agents/user.md lines 427-442: no observed_behavior, expected_behavior; location is 'URL path or page name' only",
       "verified_via": "Read"
     },
@@ -187,7 +219,9 @@
       "file": "agents/ba.md",
       "line_range": "N/A",
       "role": "BA consumer side — no Specialist Findings Intake Protocol section exists",
-      "imports_from": ["leaf"],
+      "imports_from": [
+        "leaf"
+      ],
       "evidence": "grep 'Specialist Findings Intake Protocol' agents/ba.md returned empty",
       "verified_via": "grep"
     }
@@ -241,8 +275,16 @@
   "scope_expansion": {
     "search_pattern": "\"issues\": \\[\\]|downstream_agent|finding_base",
     "search_scope": "agents/*.md, skills/ui-shared/report-schema.json",
-    "user_reported": ["agents/ui-specialist.md", "agents/ba.md", "agents/architect.md", "agents/product-owner.md", "agents/user.md"],
-    "additional_found": ["skills/ui-shared/report-schema.json — required for machine-enforceability of ui-specialist channel; lies on user-need path"],
+    "user_reported": [
+      "agents/ui-specialist.md",
+      "agents/ba.md",
+      "agents/architect.md",
+      "agents/product-owner.md",
+      "agents/user.md"
+    ],
+    "additional_found": [
+      "skills/ui-shared/report-schema.json — required for machine-enforceability of ui-specialist channel; lies on user-need path"
+    ],
     "all_occurrences": [
       "skills/ui-shared/report-schema.json:214-233 (finding_base — machine-enforced layer)",
       "agents/ui-specialist.md:255 (prose example only)",
@@ -285,14 +327,14 @@
     "strategy": "Two-layer change: (1) Machine-enforced layer: enrich report-schema.json finding_base with structured location, measured, expected, downstream_agent. (2) Prose-convention layer: update ui-specialist.md prose to match canonical channels; add BA-actionable fields to architect/product-owner/user prose schemas; add intake protocol to ba.md. No existing fields removed anywhere. architect location field type change from string to object is a BREAKING schema change — flag prominently.",
     "files_to_create": [],
     "files_to_modify": [
-      "skills/ui-shared/report-schema.json — in definitions.finding_base: change location from type:string to structured object {url,selector,file,line} with all nullable; add measured (string), expected (string), downstream_agent (const:'ba') to properties; add location/downstream_agent/measured/expected to required array. RETAIN finding_deterministic computed_value/expected_value.",
+      "skills/ui-shared/report-schema.json — in definitions.finding_base: change location from type:string to structured object {url,selector,file,line} with all nullable; add measured (type: string), expected (type: string), downstream_agent (const:'ba') to finding_base.properties; add location/downstream_agent/measured/expected to finding_base.required. DO NOT change finding_deterministic, finding_contextual, finding_aesthetic definitions — they inherit automatically via allOf[$ref finding_base]. RETAIN finding_deterministic computed_value/expected_value.",
       "agents/ui-specialist.md — update Output Format section to reference canonical channels (automated_findings, contextual_findings, aesthetic_findings); correct or remove issues[] as canonical channel name",
       "agents/architect.md — change location from string to {file,line,url?} object; add measured, expected, downstream_agent",
       "agents/product-owner.md — add observed_behavior, expected_behavior, downstream_agent",
       "agents/user.md — add observed_behavior, expected_behavior, downstream_agent (location.file nullable)",
       "agents/ba.md — add Specialist Findings Intake Protocol section after Four Contracts, before Forbidden BA Patterns"
     ],
-    "validation_approach": "QA verifies: (1) grep for 'selector' and 'downstream_agent' and 'measured' in report-schema.json finding_base section, (2) grep for 'automated_findings' and 'contextual_findings' in ui-specialist.md prose context (not in schema ref), (3) grep for new field names in architect/product-owner/user.md, (4) grep for 'Specialist Findings Intake Protocol' in ba.md, (5) confirm commands/dev.md and agents/pm.md are unchanged, (6) confirm report-schema.json finding_deterministic still has computed_value and expected_value"
+    "validation_approach": "QA verifies: (1) grep for 'selector' and 'downstream_agent' and 'measured' in report-schema.json finding_base section, (2) grep for 'automated_findings' and 'contextual_findings' in ui-specialist.md prose context (not in schema ref), (3) grep for new field names in architect/product-owner/user.md, (4) grep for 'Specialist Findings Intake Protocol' in ba.md, (5) confirm commands/dev.md and agents/pm.md are unchanged, (6) confirm report-schema.json finding_deterministic still has computed_value and expected_value, (7) git diff HEAD -- agents/ui-specialist.md agents/architect.md agents/product-owner.md agents/user.md agents/ba.md skills/ui-shared/report-schema.json shows exactly 6 files changed"
   },
   "standards_to_enforce": {
     "no_hardcoded_values": true,
