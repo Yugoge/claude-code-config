@@ -141,7 +141,7 @@
       "policies/tool-policy.v1.json (M10: add push-analyst, merge-analyst, pull-analyst role entries following changelog-analyst format at lines 792-818)",
       "hooks/pretool-cp-checkin.py (M10: add push-analyst, merge-analyst, pull-analyst to CP_AGENTS set at lines 60-72)"
     ],
-    "validation_approach": "QA verifies: (1) analyst dispatch step present in each command body; (2) grant paths and validation logic correct; (3) wrapper scripts byte-for-byte unchanged; (4) DO NOT sections present in each analyst agent; (5) policies/tool-policy.v1.json has all three new role entries; (6) policy_registry.is_allowed('push-analyst', 'Write', '/tmp/agentic-commit/push-analyst/x') returns (True, 'ok'); (7) push-analyst uses refs/remotes/<resolved_remote>/<branch>..HEAD not @{u}..HEAD; (8) pull-analyst dispatched on HEAD change regardless of pull.sh exit code"
+    "validation_approach": "QA verifies: (1) analyst dispatch step present in each command body; (2) grant paths and validation logic correct; (3) wrapper scripts byte-for-byte unchanged; (4) DO NOT sections present in each analyst agent; (5) policies/tool-policy.v1.json has all three new role entries; (6) policy_registry.is_allowed('push-analyst', 'Write', '/tmp/agentic-commit/push-analyst/x') returns (True, 'ok'); (7) push-analyst uses refs/remotes/<resolved_remote>/<branch>..HEAD not @{u}..HEAD; (8) pull-analyst dispatched only for pull_exit_phase 'success' (exit 0 + HEAD changed) or 'stash_restoration_failed' (exit non-0 + no rebase state dir + HEAD changed); NOT dispatched on 'rebase_conflict'"
   },
   "push_analyst_design": {
     "trigger": "Pre-execution, dispatched from commands/push.md before calling push.sh",
