@@ -36,31 +36,9 @@ Load TodoList checklist:
 source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/todo/test.py
 ```
 
-Set up working directory:
+Set up working directory: create `tests/reports/`, generate `REQUEST_ID="test-$(date +%Y%m%d-%H%M%S)"` and `TIMESTAMP` in ISO-8601 format.
 
-```bash
-mkdir -p tests/reports/
-REQUEST_ID="test-$(date +%Y%m%d-%H%M%S)"
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-```
-
-**Test folder structure**:
-
-If `tests/` directory doesn't exist, initialize it:
-
-```bash
-if [[ ! -d "tests" ]]; then
-  echo "Test directory not found. Initializing tests folder structure..."
-  mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
-
-  # Copy template README
-  cp ~/.claude/tests/README.md tests/README.md
-  cp ~/.claude/tests/INDEX.md tests/INDEX.md
-  cp ~/.claude/tests/instructions/*.md tests/instructions/
-
-  echo "✅ Test folder initialized. Add validators to tests/scripts/"
-fi
-```
+**Test folder structure**: If `tests/` does not exist, initialize it by creating subdirectories `tests/{scripts,instructions,data/fixtures,data/mocks,reports}` and copying template files from `~/.claude/tests/` (README.md, INDEX.md, and instructions/*.md).
 
 ### Step 2: Analyze Git History for Edge Cases
 
