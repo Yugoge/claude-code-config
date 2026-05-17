@@ -143,58 +143,37 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex raised 3 actionable issues and 4 observations. Issues: (1) b7ea9ed scope misstated — it also changed commands/dev.md and commands/INDEX.md; commands/do.md was changed by 07d6e32; (2) do.md should be noted as out-of-scope for b7ea9ed; (3) line 45 was introduced by 07d6e32 not b7ea9ed, and the correct branch list should include branch 8; (6) prior 5 findings should be moved to resolved_findings section.",
+    "feedback_summary": "Codex performed comprehensive analysis of the f79255f diff against commands/close.md and commands/do.md. All 4 findings were OBSERVATION_ONLY with no PROPOSED_FIX. (1) Confirmed both targeted fixes are correctly applied: 'Distinct from branch 6' at line 330 and 'branch 5 reasoning applies' at line 334. (2) Confirmed commands/do.md is clean and unchanged by f79255f. (3) Confirmed the 3 advisory observations (Step 4/5 stale references at lines 151/189/250/254/276/340, incomplete branch list at line 47) remain pre-existing (introduced_in_diff: false). (4) Noted that the sentinel cleanup change (python3 -c unlink -> rm -f shell form) in f79255f is correct.",
     "findings": [
       {
-        "issue": "b7ea9ed scope misstated — it also changed commands/dev.md and commands/INDEX.md; commands/do.md changed by 07d6e32, not b7ea9ed",
-        "proposed_fix": "Document b7ea9ed true scope and note commands/do.md origin as 07d6e32",
-        "classification": "major",
-        "disposition": "applied",
-        "rationale": "Applied via task_diff_commit_note field and do.md advisory observation origin_note"
-      },
-      {
-        "issue": "commands/do.md is clean but should be noted as out-of-scope for b7ea9ed",
-        "proposed_fix": "Mark do.md as changed by 07d6e32 not b7ea9ed in the report",
-        "classification": "major",
-        "disposition": "applied",
-        "rationale": "Applied in do.md advisory observation"
-      },
-      {
-        "issue": "Line 45 incomplete branch list was introduced by 07d6e32 not b7ea9ed; correct text should include branch 8",
-        "proposed_fix": "Attribute line 45 to 07d6e32; recommend correction including branch 8 in the list",
-        "classification": "major",
-        "disposition": "applied",
-        "rationale": "Applied: advisory observation for line 45 now attributes to 07d6e32 and includes branch 8 in recommendation"
-      },
-      {
-        "issue": "Step 4 / Step 5 references are genuinely pre-existing relative to b7ea9ed",
+        "issue": "Both targeted branch-renumbering fixes in f79255f are correctly applied and introduce no new cleanliness violations",
         "proposed_fix": null,
         "classification": "observation_only",
         "disposition": "logged",
-        "rationale": "Confirmed: present at b7ea9ed^ and b7ea9ed"
+        "rationale": "Confirmed: 'Distinct from branch 6' at line 330 and 'branch 5 reasoning applies' at line 334 are the correct values per the 9-branch numbering scheme."
       },
       {
-        "issue": "No new cleanliness violations found in the three close.md inspector-dispatch lines from b7ea9ed",
+        "issue": "Sentinel cleanup change from python3 -c unlink to rm -f shell form is correct and consistent with existing patterns",
         "proposed_fix": null,
         "classification": "observation_only",
         "disposition": "logged",
-        "rationale": "Confirmed: codex_required propagation is consistent with inspector agent opt-in contracts"
+        "rationale": "Confirmed clean. The rm -f form is simpler and more idiomatic; the bash-safety hook's rm block does not apply to sentinel cleanup patterns inside close.md prose."
       },
       {
-        "issue": "Prior 5 findings should not remain active after 400cd4b; retain in resolved_findings for audit trail",
-        "proposed_fix": "Move to resolved_findings[] with status: resolved and resolved_by_commit: 400cd4b; set findings[] to empty",
-        "classification": "major",
-        "disposition": "applied",
-        "rationale": "Applied: findings[] is now empty; all 5 prior findings moved to resolved_findings[]"
-      },
-      {
-        "issue": "No Safety Rules deletion problem found",
+        "issue": "Advisory observations about Step 4/5 stale references and incomplete branch list at line 47 remain pre-existing (introduced_in_diff: false)",
         "proposed_fix": null,
         "classification": "observation_only",
         "disposition": "logged",
-        "rationale": "Confirmed: no protected files proposed for deletion"
+        "rationale": "Confirmed: all three advisory observations are pre-existing relative to the f79255f diff. Non-blocking per default-safe rule."
+      },
+      {
+        "issue": "commands/do.md is clean; f79255f did not change it",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirmed: git show f79255f --stat shows only commands/close.md (6 lines) was changed."
       }
     ],
-    "feedback_incorporated": "Applied all 3 codex PROPOSED_FIX items: task_diff_commit_note added; do.md advisory observation updated with origin commit; line 45 advisory observation updated with 07d6e32 attribution and branch 8 inclusion; prior 5 findings restructured into resolved_findings[]. 4 OBSERVATION_ONLY items logged."
+    "feedback_incorporated": "All 4 codex findings were OBSERVATION_ONLY with no PROPOSED_FIX. Zero new-in-diff violations confirmed. Report updated: task_diff_commit changed to f79255f; advisory observation line numbers corrected to current file state; two new resolved_findings added (f79255f fixes at lines 330 and 334)."
   }
 }
