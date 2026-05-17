@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-17T21:06:38Z*
-**Total entries**: 111
+*Last updated: 2026-05-17T21:14:37Z*
+**Total entries**: 113
 **Convention**: kebab
 
 ## Tree
@@ -14,6 +14,8 @@ dev/
 │       ├── dev-20251228-154511/
 │       ├── `completion-20251226-160000.md` - /dev Workflow Completion Report
 │       └── `completion-dev-20251228-143334.md` - Development Completion Report
+├── specs/
+│   └── `spec-20260517-210806.md` - Spec: Add working /push ending-workflow to clean.md (cleaner push-gate fix)
 ├── `architect-report-20260517-155838.json` - json config
 ├── `ba-qa-report-20260416-063500.json` - json config
 ├── `ba-qa-report-20260416-073000.json` - json config
