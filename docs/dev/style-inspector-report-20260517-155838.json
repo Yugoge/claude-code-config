@@ -1,7 +1,7 @@
 {
   "task_id": "20260517-155838",
   "request_id": "20260517-155838",
-  "timestamp": "2026-05-17T17:10:00Z",
+  "timestamp": "2026-05-17T18:45:00Z",
   "inspector": "style-inspector",
   "scope": "changed-files",
   "changed_files": [
@@ -9,94 +9,103 @@
     "commands/do.md"
   ],
   "diff_summary": {
-    "commands/do.md": "no changes in this diff (git diff HEAD~1 confirmed 0 lines changed)",
-    "commands/close.md": "4 lines changed: lines 209, 210, 320, 330 — internal branch-number corrections only"
+    "commands/close.md": "4 lines changed across multiple commits: line 113 (sentinel cleanup method: python3 -c -> rm -f inline), line 330 (branch 8 description: 'Distinct from branch 5' -> 'Distinct from branch 6'), line 334 (branch 9 QA-NO sub-rule: 'branch 4 reasoning applies' -> 'branch 5 reasoning applies'). The sentinel cleanup at line 113 and the sentinel concept itself (step 1 sentinel write, step 6 sentinel cleanup) were all introduced by this diff cycle — not present in the pre-diff baseline.",
+    "commands/do.md": "Added new section 'Closing /do-developed work' (lines 8-27) with escape-hatch instructions and fenced code block examples."
   },
   "standards_checked": [
     {
       "id": 1,
       "name": "no-inline-code",
-      "result": "PASS",
-      "notes": "Code blocks in close.md are command usage examples and verbatim QA dispatch prompts, not executable logic"
+      "result": "VIOLATION",
+      "notes": "close.md:113 contains an inline backtick bash command `rm -f '/tmp/claude-close-force-<DEV_SESSION_ID>.flag' 2>/dev/null || true` in prose — executable shell logic in a command .md file, not a user-facing example. This was introduced by this diff (the sentinel cleanup concept did not exist in the pre-diff baseline; the python3 -c version was introduced mid-cycle and replaced by rm -f in f79255f). do.md code blocks are usage examples the user runs directly — assessed as PASS."
     },
     {
       "id": 2,
       "name": "no-hardcoded-values",
       "result": "PASS",
-      "notes": "No hardcoded paths or values in the diff lines"
+      "notes": "No hardcoded paths or values in the diff lines. The /tmp path template uses <DEV_SESSION_ID> placeholder, not a hardcoded value."
     },
     {
       "id": 3,
       "name": "use-source-venv",
       "result": "PASS",
-      "notes": "No python3 calls in changed lines"
+      "notes": "The python3 -c version was REMOVED by this diff. No python3 calls remain in either changed file."
     },
     {
       "id": 4,
       "name": "integer-step-numbering",
       "result": "PASS",
-      "notes": "No decimal step numbering in diff"
+      "notes": "No decimal or letter step numbering introduced in the diff."
     },
     {
       "id": 5,
       "name": "meaningful-naming",
       "result": "PASS",
-      "notes": "No naming violations"
+      "notes": "No naming violations."
     },
     {
       "id": 6,
       "name": "english-only",
       "result": "PASS",
-      "notes": "No non-English characters in either file"
+      "notes": "No non-English characters found in either file."
     },
     {
       "id": 7,
       "name": "merge-similar-scripts",
       "result": "N/A",
-      "notes": "Audited files are .md command files, not scripts"
+      "notes": "Audited files are .md command files, not scripts."
     },
     {
       "id": 8,
       "name": "concise-documentation",
       "result": "PASS",
-      "notes": "Changes are targeted branch-number corrections; no verbose bloat added"
+      "notes": "Changes are targeted branch-number corrections and a concise escape-hatch section. No verbose bloat, marketing language, or repetitive examples added."
     },
     {
       "id": 9,
       "name": "parameterized-scripts",
       "result": "N/A",
-      "notes": "Audited files are .md command files, not scripts"
+      "notes": "Audited files are .md command files, not scripts."
     },
     {
       "id": 10,
       "name": "dangling-references",
       "result": "PASS",
-      "notes": "scripts/spec-check.py and scripts/todo/close.py referenced in close.md both confirmed to exist on disk"
+      "notes": "scripts/todo/close.py and scripts/spec-check.py referenced in close.md both confirmed to exist on disk. No new script references added by do.md."
     },
     {
       "id": 11,
       "name": "merge-conflicts",
       "result": "PASS",
-      "notes": "No merge conflict markers found"
+      "notes": "No merge conflict markers found."
     }
   ],
-  "violations": [],
+  "violations": [
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "commands/close.md:113",
+      "finding": "Inline bash command in command .md file: `rm -f '/tmp/claude-close-force-<DEV_SESSION_ID>.flag' 2>/dev/null || true` embedded as backtick prose in step 6 of the forced-override procedure. This is executable shell logic, not a user-facing example. Introduced by this diff cycle (sentinel concept did not exist in the pre-diff baseline; this line is on a changed line in commit f79255f, replacing the prior python3 -c form with rm -f).",
+      "recommendation": "Extract to a parameterized script, e.g., `scripts/cleanup-close-force-sentinel.sh --sentinel-path <resolved-path>`, and replace the inline command with a prose reference to invoking that script. Missing-file cleanup errors should be swallowed inside the script.",
+      "introduced_in_diff": true
+    }
+  ],
   "pre_existing_observations": [
     {
-      "location": "commands/close.md:45",
-      "observation": "Pre-existing (present in HEAD~1): lists 'Verdict branches 1 / 2 / 3 / 6 / 7 apply' for codex_required=true path, omitting branches 4, 5, and 8. Not introduced by this diff.",
+      "location": "commands/close.md:47",
+      "observation": "Pre-existing (present in HEAD before task 20260517-155838): codex_required=true branch list reads 'Verdict branches 1 / 2 / 3 / 6 / 7 apply', omitting branches 4, 5, and 8. Not introduced by this diff.",
       "introduced_in_diff": false
     },
     {
-      "location": "commands/close.md:46",
-      "observation": "Pre-existing (present in HEAD~1): codex_required=false summary omits branch 8 from N/A list ('branches 3 / 6 / 7 are N/A'). Not introduced by this diff.",
+      "location": "commands/close.md:48",
+      "observation": "Pre-existing (present in HEAD before task 20260517-155838): codex_required=false summary reads 'branches 3 / 6 / 7 are N/A', omitting branch 8. Not introduced by this diff.",
       "introduced_in_diff": false
     }
   ],
   "summary": {
     "standards_checked": 11,
-    "violations_found": 0,
-    "critical": 0,
+    "violations_found": 1,
+    "critical": 1,
     "files_audited": 2,
     "files_total": 2,
     "rounds_completed": 1
@@ -104,30 +113,30 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex flagged two MISSED_CRITICAL items and one OBSERVATION_ONLY item. The two MISSED_CRITICAL items concern branch list completeness in specification logic (omission of branch 8 from the codex_required=true and codex-disabled N/A enumerations at lines 209 and 210). These are content-correctness observations about protocol specification accuracy, not style standard violations under any of the 11 defined style standards. The OBSERVATION_ONLY item correctly confirmed that the line 45/46 omissions are pre-existing, consistent with the inspector's own pre-diff analysis.",
+    "feedback_summary": "Codex identified one missed critical violation at commands/close.md:113 (Standard 1 no-inline-code): the inline `rm -f ... 2>/dev/null || true` bash command in prose is executable shell logic in a command .md file, not a user-facing example. Codex provided a PROPOSED_FIX (extract to scripts/cleanup-close-force-sentinel.sh with --sentinel-path parameter). Codex also noted no false positives and flagged pre-existing step-label observations as out-of-scope for this diff.",
     "findings": [
       {
-        "issue": "commands/close.md:209 omits branch 8 from the codex_required=true verdict branch list. Branch 8 (QA-side ambiguity fallback) applies when codex is enabled.",
-        "proposed_fix": "Replace 'verdict branches 1/2/3/4/5/6/7 with branch 9 N/A' with 'verdict branches 1/2/3/4/5/6/7/8 with branch 9 N/A'.",
-        "classification": "observation_only",
-        "disposition": "logged",
-        "rationale": "Branch list completeness in a protocol specification is a content-correctness issue, not a style standard violation. None of the 11 style standards (no-inline-code, no-hardcoded-values, use-source-venv, integer-step-numbering, meaningful-naming, english-only, merge-similar-scripts, concise-documentation, parameterized-scripts, dangling-references, merge-conflicts) govern specification logic accuracy or protocol enumeration completeness. The finding is substantively interesting but is out-of-scope for the style inspector mandate. Logged for downstream awareness."
+        "issue": "commands/close.md:113 — inline `rm -f '/tmp/claude-close-force-<DEV_SESSION_ID>.flag' 2>/dev/null || true` is executable bash logic in a command .md file, not a user-facing example. Violates Standard 1 (no-inline-code). Draft incorrectly assessed this as PASS.",
+        "proposed_fix": "Add parameterized helper script `scripts/cleanup-close-force-sentinel.sh --sentinel-path <resolved-sentinel-path>` and replace line 113 with a prose reference to invoking that script. Missing-file cleanup should be handled inside the script (ignored/swallowed).",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "The finding is within the diff's changed-line range (line 113 was modified in commit f79255f, replacing python3 -c with rm -f). The violation is NEW to this diff: the pre-diff baseline had no sentinel cleanup command at this location. Both the inline shell form and the prior inline python form are violations of Standard 1 — the fix merely replaced one inline code form with another. Finding applied to violations list with introduced_in_diff: true."
       },
       {
-        "issue": "commands/close.md:210 says 'Branches 3/6/7 are N/A in this mode' for codex-disabled path, omitting branch 8 which is also N/A when codex was never invoked.",
-        "proposed_fix": "Replace 'Branches 3/6/7 are N/A in this mode.' with 'Branches 3/6/7/8 are N/A in this mode.'",
-        "classification": "observation_only",
-        "disposition": "logged",
-        "rationale": "Same rationale as the previous finding: specification logic completeness is out-of-scope for the style inspector. Note also that line 210 was in-scope for this diff (the change from 'branch 7' to 'branch 9' was made here), so the branch 8 omission is technically on a changed line. However, the omission itself is not a style standard violation under any of the 11 defined standards. Logged for downstream awareness."
-      },
-      {
-        "issue": "OBSERVATION_ONLY from codex: line 45/46 pre-existing omissions also miss branch 8, not only branches 4 and 5. Consistent with the inspector's pre-diff analysis.",
+        "issue": "OBSERVATION_ONLY: No false positives identified by codex.",
         "proposed_fix": null,
         "classification": "observation_only",
         "disposition": "logged",
-        "rationale": "Confirms pre-existing status. Not newly introduced by this diff. Consistent with inspector's own analysis."
+        "rationale": "Draft reported zero violations; codex confirmed no false positives in that zero set."
+      },
+      {
+        "issue": "OBSERVATION_ONLY: Any existing integer-letter step labels elsewhere in commands/close.md are pre-existing and not part of the new diff lines.",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirmed pre-existing. Not newly introduced by this diff. Consistent with inspector's own analysis."
       }
     ],
-    "feedback_incorporated": "Both MISSED_CRITICAL findings reclassified as observation_only: they are content-correctness observations about specification branch enumeration, outside the style-inspector's 11-standard mandate. No violations added to the violations list as a result. All three findings logged in findings[] for downstream awareness."
+    "feedback_incorporated": "The missed critical violation at commands/close.md:113 (no-inline-code) was added to the violations list with introduced_in_diff: true and severity: critical. Standard 1 result changed from PASS to VIOLATION. The PROPOSED_FIX from codex is recorded in the recommendation field."
   }
 }
