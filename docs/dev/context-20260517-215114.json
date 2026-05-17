@@ -11,8 +11,8 @@
     "where": ["commands/push.md", "commands/merge.md", "commands/pull.md", "agents/push-analyst.md (new)", "agents/merge-analyst.md (new)", "agents/pull-analyst.md (new)", "policies/tool-policy.v1.json (modify)", "hooks/pretool-cp-checkin.py (modify)"],
     "scope": {
       "included": [
-        "agents/push-analyst.md — new git-read-only analyst (filesystem writes restricted to /tmp/agentic-commit/push-analyst/ and optional ~/.claude/logs/ audit entry) with grant-write capability",
-        "agents/merge-analyst.md — new git-read-only analyst (filesystem writes restricted to /tmp/agentic-commit/merge-analyst/ and optional ~/.claude/logs/ audit entry) with grant-write capability",
+        "agents/push-analyst.md — new git-read-only analyst (filesystem writes restricted to /tmp/agentic-commit/push-analyst/) with grant-write capability",
+        "agents/merge-analyst.md — new git-read-only analyst (filesystem writes restricted to /tmp/agentic-commit/merge-analyst/) with grant-write capability",
         "agents/pull-analyst.md — new git-read-only advisory analyst (no filesystem write; advisory stdout report only)",
         "commands/push.md — add pre-execution dispatch steps + grant validation; commits-to-push range must use refs/remotes/<resolved_remote>/<branch>..HEAD",
         "commands/merge.md — add pre-execution dispatch steps + grant validation + tip revalidation",
