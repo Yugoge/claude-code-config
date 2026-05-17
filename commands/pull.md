@@ -64,8 +64,10 @@ if PULL_EXIT_CODE == 0:
     proceed to Step 5
 
 else (PULL_EXIT_CODE != 0):
-    Check for rebase state directories:
-        rebase_state_exists = test -d ".git/rebase-merge" OR test -d ".git/rebase-apply"
+    Check for rebase state directories (worktree-aware paths):
+        REBASE_MERGE=$(git rev-parse --git-path rebase-merge 2>/dev/null || echo ".git/rebase-merge")
+        REBASE_APPLY=$(git rev-parse --git-path rebase-apply 2>/dev/null || echo ".git/rebase-apply")
+        rebase_state_exists = test -d "${REBASE_MERGE}" OR test -d "${REBASE_APPLY}"
 
     if rebase_state_exists:
         pull_exit_phase = "rebase_conflict"
