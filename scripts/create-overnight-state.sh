@@ -197,9 +197,9 @@ if [[ -n "$SPEC_PATH" ]]; then
     fi
     SPEC_MODE="user-provided"
     USER_SPEC_PATH="$SPEC_PATH"
-elif [[ -d "$PROJECT_DIR/docs/dev/specs" ]]; then
-    # Auto-detect: newest .md in docs/dev/specs/, excluding INDEX.md and README.md
-    DETECTED=$(find "$PROJECT_DIR/docs/dev/specs" -maxdepth 1 -name '*.md' \
+elif [[ -d "$PROJECT_DIR/$SPECS_SUBDIR" ]]; then
+    # Auto-detect: newest .md in the specs directory, excluding INDEX.md and README.md
+    DETECTED=$(find "$PROJECT_DIR/$SPECS_SUBDIR" -maxdepth 1 -name '*.md' \
         ! -name 'INDEX.md' ! -name 'README.md' \
         -printf '%T@ %p\n' 2>/dev/null \
         | sort -rn | head -1 | cut -d' ' -f2-)
