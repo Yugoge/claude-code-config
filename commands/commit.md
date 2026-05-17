@@ -73,62 +73,9 @@ Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/l
 
 ### Step 5: Write commit grant and dispatch-snapshot manifest
 
-Before dispatching changelog-analyst, write a single-use commit grant and a dispatch-snapshot manifest:
+Before dispatching changelog-analyst, write a single-use commit grant: activate venv and run Python to generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at` (10 minutes), and `created_at`. Best-effort; proceed even if grant write fails (guard is currently UNREGISTERED).
 
-```python
-import json, os, secrets, datetime
-from pathlib import Path
-
-sid = os.environ.get("CLAUDE_SESSION_ID", "default")
-nonce = secrets.token_hex(16)
-grant_path = f"/tmp/claude-commit-grant-{sid}-{nonce}.json"
-expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).isoformat() + 'Z'
-grant = {
-    "task_id": TASK_ID or "bulk",
-    "sid": sid,
-    "nonce": nonce,
-    "expires_at": expires_at,
-    "created_at": datetime.datetime.utcnow().isoformat() + 'Z',
-}
-Path(grant_path).write_text(json.dumps(grant))
-print(f"Commit grant written: {grant_path}")
-```
-
-Best-effort; proceed even if grant write fails (guard is currently UNREGISTERED, so grant absence does not block).
-
-Also write the dispatch-snapshot manifest (non-bulk mode only):
-
-```python
-import json, os, datetime, subprocess
-
-sid = os.environ.get("CLAUDE_SESSION_ID", "unknown")
-# Capture files dirty at dispatch time from both repos
-files_at_dispatch = []
-for repo in ["/root", "/dev/shm/dev-workspace/dot-claude"]:
-    try:
-        result = subprocess.run(
-            ["git", "-C", repo, "status", "--porcelain=v1"],
-            capture_output=True, text=True, timeout=10
-        )
-        for line in result.stdout.splitlines():
-            if line.strip():
-                files_at_dispatch.append(line[3:].strip())
-    except Exception:
-        pass
-
-manifest = {
-    "session_id": sid,
-    "task_id": TASK_ID or "",
-    "dispatched_at": datetime.datetime.utcnow().isoformat() + 'Z',
-    "files_at_dispatch": files_at_dispatch,
-}
-manifest_path = f"/tmp/claude-commit-manifest-{sid}.json"
-with open(manifest_path, 'w') as f:
-    json.dump(manifest, f)
-print(f"Dispatch manifest written: {manifest_path}")
-```
-
-Best-effort; proceed even if manifest write fails. In bulk mode: skip the manifest write entirely.
+Also write the dispatch-snapshot manifest (non-bulk mode only): activate venv and run Python to capture `git status --porcelain=v1` from both repos, then write `manifest_path = /tmp/claude-commit-manifest-{sid}.json` containing `session_id`, `task_id`, `dispatched_at`, and `files_at_dispatch`. Best-effort; skip entirely in bulk mode.
 
 ### Step 6: Dispatch changelog-analyst
 
