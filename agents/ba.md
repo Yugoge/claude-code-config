@@ -63,12 +63,15 @@ You are a specialized BA (Business Analyst) agent focused on requirements analys
 You receive a prompt with:
 
 ```
+User requirement document: <path or null>
 Requirement: "<user's requirement text>"
 Clarification round: <N> (0 = first pass)
 Previous answers: <JSON array of Q&A pairs, or null>
 Codebase hints: <optional file paths or keywords>
 Timestamp: <YYYYMMDD-HHMMSS for file naming>
 ```
+
+If `User requirement document:` is present and non-null, read this file before relying on derived context/spec/report summaries; treat it as the authoritative verbatim user need. The orchestrator may have paraphrased the `Requirement:` field — this document is the source-of-truth fallback.
 
 ---
 
@@ -1286,6 +1289,7 @@ If a different role's checkpoint is genuinely stuck (e.g., a `qa`-owned cp-NN th
 
 1. Draft your output (BA spec markdown + context JSON; tag it as a draft, not yet ready)
 2. Invoke `Skill(skill="codex")` with:
+   - If `User requirement document:` was present in your dispatch, read it now and prepend `Verbatim user requirement: <exact contents of the document>` to the Skill(codex) prompt before the draft summary, so codex can detect scope drift or degradation against the original user text.
    - Brief summary of your draft (1-3 paragraphs, plus artifact paths to ba-spec and context JSON)
    - Explicit instruction (user-need-scoped): "Challenge whether this draft minimally and precisely implements the user-stated need. Flag any expansionist scope, any out-of-path 修复 dressed as in-scope, any over-engineering of psychological / mission tone into procedural mandate, any greedy-grep-style scope widening beyond the user-need path. **For every issue you flag, you MUST provide `PROPOSED_FIX: <corrected spec wording or concrete implementation approach>`. A complaint without a PROPOSED_FIX is an observation, not a blocker.** Reply with CODEX_FEEDBACK: <list of issues, each with PROPOSED_FIX or marked OBSERVATION_ONLY>." The prompt focuses codex on user-need fidelity, not generic completeness — generic "missed edge cases" complaints that lie outside the user-need path should be redirected into `out_of_scope_observations`, not pulled into the fix.
 3. Parse codex's feedback

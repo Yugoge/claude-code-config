@@ -1,0 +1,41 @@
+{
+  "request_id": "clean-20260517-102341",
+  "timestamp": "2026-05-17T10:23:41Z",
+  "orchestrator": {
+    "requirement": "Inspect project for file organization issues and development standards violations",
+    "analysis": {
+      "project_root": "/dev/shm/dev-workspace/dot-claude",
+      "project_type": "Generic",
+      "constraints": [
+        "preserve functional files",
+        "safety first - never delete without confirmation",
+        "archive docs rather than delete"
+      ]
+    }
+  },
+  "full_context": {
+    "codebase_state": {
+      "git_status": " M .last-cleanup\n M agents/INDEX.md\n M agents/ba.md\n M agents/dev.md\n M agents/qa.md\n M commands/INDEX.md\n M commands/dev-command.md\n M commands/dev-overnight.md",
+      "current_branch": "master",
+      "recent_commits": [
+        "2c87cba chore(orphan): unattributed session changes — settings, cache, cleanup marker",
+        "ac88484 chore(hooks,scripts): session updates to e2e enforce hook and qa-mode script",
+        "b7ea9ed feat(commands): propagate --codex flag to inspector and specialist subagents",
+        "144de2b chore(claude): session changes [inferred — no dev-report]",
+        "aaf3c44 refactor(hooks): extract shared lib/subagent.py and lib/allowlist.py; fix git-privilege-guard read-only"
+      ]
+    },
+    "directory_structure": "agents/ archive/ backups/ cache/ commands/ config.yaml debug/ dev-registry/ docs/ eval/ file-history/ history.jsonl hooks/ INDEX.md logs/ mcp-needs-auth-cache.json NESTED-REPO.md overnight-state-*.json paste-cache/ plans/ playwright-config.json playwright-storage-state.json plugins/ policies/ projects/ push.sh README.md schemas/ scripts/ session-env/ session.log sessions/ settings.json settings.local.json shell-snapshots/ skills/ specs/ state/ stats-cache.json statsig/ subagents/ tasks/ templates/ tests/ todos/ venv/ workflow-*.json worktrees/",
+    "file_counts": {
+      "total": 39880,
+      "docs": 3340,
+      "scripts": 594,
+      "tests": 1862
+    }
+  },
+  "parameters": {
+    "docs_directory": "docs/",
+    "scripts_directory": "scripts/",
+    "tests_directory": "tests/"
+  }
+}

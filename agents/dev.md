@@ -107,7 +107,11 @@ The orchestrator provides file paths only. You must read:
 
 2. **BA Spec** (`docs/dev/ticket-<timestamp>.md`, legacy: `docs/dev/ba-spec-<timestamp>.md`) - Markdown specification with acceptance criteria
 
-**First action**: Read both files completely before implementing anything.
+3. **User requirement document** (`docs/dev/user-requirement-<DEV_SESSION_ID>.md`) - Verbatim user need (optional field; present when dispatched via /dev-command or /dev-overnight)
+
+If `User requirement document:` is present in your dispatch prompt and non-null, read this file before relying on derived context or spec summaries; treat it as the authoritative verbatim user need. The orchestrator may have paraphrased the requirement — this document is the source-of-truth fallback.
+
+**First action**: Read the context JSON and BA spec (and the requirement document if present) completely before implementing anything.
 
 ---
 
@@ -810,6 +814,7 @@ BAD: Create `scripts/measure-api-latency.sh` + `scripts/validate-api-timeout.sh`
 
 1. Draft your output (file edits already applied; dev report drafted; build verification + smoke check passed)
 2. Invoke `Skill(skill="codex")` with:
+   - If `User requirement document:` was present in your dispatch, read it now and prepend `Verbatim user requirement: <exact contents of the document>` to the Skill(codex) prompt before the draft summary, so codex can detect scope drift or degradation against the original user text.
    - Brief summary of your draft (1-3 paragraphs: what changed, diff size, acceptance criteria addressed, plus artifact paths to dev-report and modified files)
    - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. **For every issue you flag, you MUST provide `PROPOSED_FIX: <concrete correction to the implementation or approach>`. A complaint without a PROPOSED_FIX is an observation, not a blocker.** Reply with CODEX_FEEDBACK: <list of issues, each with PROPOSED_FIX or marked OBSERVATION_ONLY>."
 3. Parse codex's feedback
