@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-17T16:04:15Z*
-**Total entries**: 83
+*Last updated: 2026-05-17T16:04:16Z*
+**Total entries**: 84
 **Convention**: kebab
 
 ## Tree
@@ -14,6 +14,7 @@ dev/
 │       ├── dev-20251228-154511/
 │       ├── `completion-20251226-160000.md` - /dev Workflow Completion Report
 │       └── `completion-dev-20251228-143334.md` - Development Completion Report
+├── `architect-report-20260517-155838.json` - json config
 ├── `ba-qa-report-20260416-063500.json` - json config
 ├── `ba-qa-report-20260416-073000.json` - json config
 ├── `ba-qa-report-20260517-153856.json` - json config
