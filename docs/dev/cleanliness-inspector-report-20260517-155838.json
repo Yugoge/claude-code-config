@@ -118,6 +118,26 @@
       "status": "resolved",
       "resolved_by_commit": "400cd4b",
       "note": "agents/qa.md is NOT in this diff but was a fix target created by the renumbering in commands/close.md"
+    },
+    {
+      "file": "commands/close.md",
+      "location": "commands/close.md:330",
+      "reason": "Stale branch reference in branch 8 body: 'Distinct from branch 5: the failure is on QA's reasoning side, not codex's transport.' Branch 8 distinguishes from branch 6 (codex infrastructure failure), not branch 5 (QA dissent). Corrected to 'Distinct from branch 6'.",
+      "severity": "major",
+      "introduced_in_diff": true,
+      "status": "resolved",
+      "resolved_by_commit": "f79255f",
+      "note": "This finding was identified by codex during the close-report Round 1b consultation but was not included in the prior inspector report. f79255f applied the fix."
+    },
+    {
+      "file": "commands/close.md",
+      "location": "commands/close.md:334",
+      "reason": "Stale branch reference in branch 9 (codex-disabled) QA-NO sub-bullet: 'branch 4 reasoning applies; QA's substantive objection is the dissent line' — branch 4 is Workflow Integrity FAIL; QA dissent is branch 5. Corrected to 'branch 5 reasoning applies'.",
+      "severity": "major",
+      "introduced_in_diff": true,
+      "status": "resolved",
+      "resolved_by_commit": "f79255f",
+      "note": "This finding was identified by codex during the close-report Round 1b consultation but was not included in the prior inspector report. f79255f applied the fix."
     }
   ],
   "codex_consult": {
