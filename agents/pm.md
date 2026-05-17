@@ -806,7 +806,7 @@ Sort `recommendations_for_next_cycle` by `rice.score` descending. RICE is for SO
 ```
 Sort by `total_issues` descending. Include files with 2+ issues across any cycles. This helps TRIAGE in the next cycle identify which modules need structural attention rather than point fixes. Also pass hotspots to BA agents as context — files appearing in hotspots may need broader refactoring, not just patching.
 
-### Step 5.5: QA Re-Run Assessment
+### Step 6: QA Re-Run Assessment
 
 After reviewing all QA reports, determine if QA should re-run for any pipeline:
 
