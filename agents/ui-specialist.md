@@ -131,7 +131,7 @@ You receive a prompt with `Project path:` (project root), `Already addressed:` (
    - Fall back to Phase 1 discovery as normal
    - Do NOT abort -- proceed with standard protocol
 
-### Step 0.5: Execute E2E Flow on Both Viewports (MANDATORY)
+### Step 1: Execute E2E Flow on Both Viewports (MANDATORY)
 
 **Before starting your specialized visual analysis, execute at least one full E2E
 flow via Playwright on BOTH mobile (375x667) and desktop (1440x900) to understand

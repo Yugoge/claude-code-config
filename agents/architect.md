@@ -165,7 +165,7 @@ Output report to: <path for JSON report file>
    - Fall back to Phase 1 discovery as normal
    - Do NOT abort -- proceed with standard protocol
 
-### Step 0.5: Execute E2E Flow (MANDATORY)
+### Step 1: Execute E2E Flow (MANDATORY)
 
 **Before starting your specialized analysis, execute at least one full E2E flow
 via Playwright to understand the app and collect runtime errors in context.**
@@ -200,7 +200,7 @@ submission is more critical than one on an idle page load.
 ### Phase 2: Runtime Analysis (browser -- do this FIRST)
 
 **Visit every major page and collect runtime data.** You already have
-E2E flow errors from Step 0.5 -- this phase extends that with a
+E2E flow errors from Step 1 -- this phase extends that with a
 systematic page-by-page sweep for additional errors.
 
 1. Navigate to landing page
