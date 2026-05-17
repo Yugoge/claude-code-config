@@ -219,7 +219,8 @@
         "description": { "type": "string" },
         "location": {
           "type": "object",
-          "description": "Structured source location for this finding. All sub-fields are nullable to accommodate findings where some coordinates are unavailable.",
+          "description": "Structured source location for this finding. Sub-fields are nullable when the coordinate is unavailable, but all four keys must be present.",
+          "required": ["url", "selector", "file", "line"],
           "properties": {
             "url": { "type": ["string", "null"], "description": "Page URL or route where the finding was observed" },
             "selector": { "type": ["string", "null"], "description": "CSS selector identifying the affected element" },
@@ -227,8 +228,8 @@
             "line": { "type": ["integer", "null"], "description": "Line number within the source file. Null when file is null or line not determinable." }
           }
         },
-        "measured": { "type": "string", "description": "Concrete observed state/evidence from the finding (e.g., computed px value, rendered text, measured ratio). Broader than computed_value — applies to all finding types." },
-        "expected": { "type": "string", "description": "Applicable rule, design-system spec, or UX expectation (e.g., WCAG 1.4.3, brand-500 token, 8px grid). Broader than expected_value — applies to all finding types." },
+        "measured": { "type": "string", "minLength": 1, "description": "Concrete observed state/evidence from the finding (e.g., computed px value, rendered text, measured ratio). Broader than computed_value — applies to all finding types. Must be non-empty." },
+        "expected": { "type": "string", "minLength": 1, "description": "Applicable rule, design-system spec, or UX expectation (e.g., WCAG 1.4.3, brand-500 token, 8px grid). Broader than expected_value — applies to all finding types. Must be non-empty." },
         "downstream_agent": { "const": "ba", "description": "Routes all findings to BA for root-cause analysis and spec generation." },
         "severity": { "$ref": "#/definitions/severity" },
         "viewport": { "enum": ["mobile", "desktop", "both", "n/a"] },
