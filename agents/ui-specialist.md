@@ -250,9 +250,10 @@ Write a single JSON report whose schema is the canonical 6-channel contract publ
   "task_id": "<task-id>",
   "app_understanding": { "...": "..." },
   "live_testing": { "...": "..." },
-  "design_quality": { "...": "..." },
+  "automated_findings": [],
+  "contextual_findings": [],
+  "aesthetic_findings": [],
   "quality_gate_results": { "...": "..." },
-  "issues": [],
   "design_enhancements": []
 }
 ```
