@@ -241,6 +241,29 @@ def _load_grant(grant_path):
         return None
 
 
+def _find_grant_any(kind):
+    """Fallback grant search ignoring SID.
+
+    Used when the subagent's session_id (from PreToolUse payload) differs
+    from the orchestrator's CLAUDE_SESSION_ID used when writing the grant.
+    Searches all grants of the given kind, returns the most recent valid one.
+    """
+    pattern = '/tmp/claude-%s-grant-*-*.json' % kind
+    try:
+        candidates = glob.glob(pattern)
+    except Exception:
+        return (None, None)
+    try:
+        candidates.sort(key=lambda p: os.stat(p).st_mtime, reverse=True)
+    except Exception:
+        candidates.sort(reverse=True)
+    for path in candidates:
+        grant = _load_grant(path)
+        if grant is not None:
+            return (path, grant)
+    return (None, None)
+
+
 def _unlink_grant(grant_path):
     """Remove the grant file, swallowing all errors.
 
@@ -428,16 +451,22 @@ def _evaluate_commit(command, data):
     msg = _extract_commit_message(command)
     if msg and BLESSED_BRIDGE_RE.search(msg):
         return
-    # Grant-file mechanism (Option C — guard UNREGISTERED; runs when re-registered):
-    # M1 of task 20260517-064431: sid extracted from data, matching _evaluate_merge pattern.
+    # Grant-file mechanism: SID-specific search first, then any-SID fallback.
+    # Fallback handles subagent SID propagation gaps where changelog-analyst's
+    # session_id (PreToolUse payload) differs from orchestrator's CLAUDE_SESSION_ID.
     sid = _get_session_id(data)
     if sid:
         grant_path, grant = _find_grant('commit', sid)
         if grant is not None:
-            # Validate expiry; allow and consume on valid grant.
             if not _end_time_passed(grant.get('expires_at', '')):
                 _unlink_grant(grant_path)
                 return
+    # Fallback: any valid unexpired commit grant (written by /commit close-gate).
+    grant_path, grant = _find_grant_any('commit')
+    if grant is not None:
+        if not _end_time_passed(grant.get('expires_at', '')):
+            _unlink_grant(grant_path)
+            return
     # AC-A13: default-deny all other agent git commit calls.
     _block_default_deny_commit(msg)
 
