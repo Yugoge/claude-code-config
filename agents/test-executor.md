@@ -136,42 +136,11 @@ For validators with `type: "instruction"`:
    - Extract validation criteria
    - Extract output format
 
-3. **Gather context files**:
-   ```python
-   context_files = instruction["context_files"]
-   context_data = {}
-   for file in context_files:
-       with open(project_root / file) as f:
-           context_data[file] = f.read()
-   ```
+3. **Gather context files**: Read each file listed in `instruction["context_files"]` from the project root into a context dictionary.
 
-4. **Apply validation criteria**:
-   ```markdown
-   ## Validation Criteria
-   - [ ] CLAUDE.md explicitly listed in official files allow-list
-   - [ ] README.md explicitly listed in official files allow-list
-   - [ ] ARCHITECTURE.md explicitly listed in official files allow-list
-   ```
+4. **Apply validation criteria**: Check each criterion from the instruction against the context data. Collect pass/fail and violations per criterion.
 
-   Check each criterion systematically:
-   ```python
-   criteria_results = []
-   for criterion in instruction["validation_criteria"]:
-       result = check_criterion(criterion, context_data)
-       criteria_results.append({
-           "criterion": criterion,
-           "passed": result["passed"],
-           "violations": result["violations"]
-       })
-   ```
-
-5. **Identify violations**:
-   ```python
-   violations = []
-   for criterion_result in criteria_results:
-       if not criterion_result["passed"]:
-           violations.extend(criterion_result["violations"])
-   ```
+5. **Identify violations**: Collect all violations from failed criteria.
 
 6. **Generate report**:
    ```json
