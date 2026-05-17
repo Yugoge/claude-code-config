@@ -1,0 +1,62 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": "C2",
+  "files_audited": [
+    "commands/optimize.md",
+    "commands/quick-commit.md",
+    "commands/refactor.md",
+    "commands/reflect-search.md",
+    "commands/security-check.md"
+  ],
+  "violations": [],
+  "standards_checked": [
+    "no-inline-code",
+    "no-hardcoded-values",
+    "use-source-venv",
+    "integer-step-numbering",
+    "meaningful-naming",
+    "english-only",
+    "merge-similar-scripts",
+    "concise-documentation",
+    "parameterized-scripts",
+    "dangling-references",
+    "merge-conflicts"
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex raised 1 finding with PROPOSED_FIX and 3 OBSERVATION_ONLY items. Finding #1 (MISSED_CRITICAL): reflect-search.md fenced template blocks are documentation bloat under Standard 8. Finding #2 (OBSERVATION_ONLY): quick-commit.md two examples are distinct enough not to be repetitive. Finding #3 (OBSERVATION_ONLY): security-check.md emoji severity markers are not a listed violation. Finding #4 (OBSERVATION_ONLY): quick-commit.md vs commit.md overlap is outside Standard 7 scope (scripts only).",
+    "findings": [
+      {
+        "issue": "commands/reflect-search.md lines 24-137 contain multiple fenced pseudocode/output-template blocks that constitute documentation bloat under Standard 8",
+        "proposed_fix": "Add violation: standard: concise-documentation, severity: critical, location: commands/reflect-search.md:24-137, finding: Multiple fenced pseudocode/output-template blocks with placeholders create documentation bloat under Standard 8, recommendation: Collapse to concise bullet rules/output fields; keep at most one short example/template if essential.",
+        "classification": "blocker",
+        "disposition": "rejected",
+        "rationale": "Standard 8 targets marketing fluff, narrative verbosity, and pseudocode that should be real scripts. The fenced blocks in reflect-search.md are operational output-format specifications — they define the required schema the agent must produce during each iteration and in the final synthesis. This is analogous to a structured output format table. Standard 8 explicitly exempts 'Tables or structured data (not prose)' and 'Necessary background for understanding constraints.' The templates ARE the methodology — collapsing them would destroy the command's functional specification. The pseudocode violation in Standard 8 specifically targets placeholder-only blocks like '# Run validation here' that should be real scripts. These templates are not executable at all — they are human-facing output schema. No violation."
+      },
+      {
+        "issue": "commands/quick-commit.md has two example commit message blocks (lines 71-100) — are these repetitive?",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "The two examples show genuinely different commit types (feat vs fix) with different structural patterns, not the same concept repeated. Not a violation."
+      },
+      {
+        "issue": "commands/security-check.md uses emoji (🔴 🟡 🟢) for section severity headers",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "No style standard prohibits emoji in section headers. Standard 6 is English-only (not emoji-free). Not a violation."
+      },
+      {
+        "issue": "commands/quick-commit.md may overlap with commands/commit.md — potential Standard 7 violation",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Standard 7 (merge-similar-scripts) explicitly covers scripts in scripts/, not command .md files. Outside Standard 7 scope."
+      }
+    ],
+    "feedback_incorporated": "Codex finding #1 reviewed and rejected with specific rationale. OBSERVATION_ONLY findings logged, none constitute violations."
+  },
+  "status": "complete"
+}
