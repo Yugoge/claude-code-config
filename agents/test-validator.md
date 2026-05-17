@@ -118,28 +118,9 @@ For script-based validators (`validate-*.py`):
 
 ### 4. Edge Case Coverage Validation
 
-**Read edge case analysis**:
-```bash
-cat docs/test/edge-case-analysis.json | jq '.edge_cases[] | {id, title, root_cause}'
-```
+**Read edge case analysis**: Read `docs/test/edge-case-analysis.json` and extract edge case IDs, titles, and root causes.
 
-**Verify validator maps to edge case**:
-```python
-def validate_edge_case_coverage(validators: list, edge_cases: list) -> dict:
-    """Check if validators cover all edge cases."""
-    edge_case_ids = {ec["id"] for ec in edge_cases}
-    covered_ids = {v["edge_case"] for v in validators if v.get("edge_case")}
-
-    uncovered = edge_case_ids - covered_ids
-    extra = covered_ids - edge_case_ids
-
-    return {
-        "total_edge_cases": len(edge_case_ids),
-        "covered": len(covered_ids),
-        "uncovered": list(uncovered),
-        "extra_validators": list(extra)
-    }
-```
+**Verify validator maps to edge case**: Compare the set of edge case IDs from the analysis against the set of edge cases covered by validators. Report uncovered edge cases and any validators referencing non-existent edge cases.
 
 **Checks**:
 - [ ] Validator header documents edge case ID (EC001-EC008)
