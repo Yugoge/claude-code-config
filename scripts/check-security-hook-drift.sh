@@ -144,9 +144,9 @@ for entry in "${TRACKED_FILES[@]}"; do
       diff_output="$(git -C "$REPO_ROOT" diff "$BASELINE" -- "$path" 2>/dev/null || true)"
       ;;
     FRONTMATTER)
-      # Capture only the first-5-line slice from each side.
-      baseline_slice="$(git -C "$REPO_ROOT" show "$BASELINE:$path" 2>/dev/null | sed -n '1,5p' || true)"
-      head_slice="$(sed -n '1,5p' "$REPO_ROOT/$path" 2>/dev/null || true)"
+      # Capture only the first N lines (configurable via --frontmatter-lines) from each side.
+      baseline_slice="$(git -C "$REPO_ROOT" show "$BASELINE:$path" 2>/dev/null | sed -n "1,${FRONTMATTER_LINES}p" || true)"
+      head_slice="$(sed -n "1,${FRONTMATTER_LINES}p" "$REPO_ROOT/$path" 2>/dev/null || true)"
       if [[ "$baseline_slice" != "$head_slice" ]]; then
         diff_output="$(diff <(printf '%s' "$baseline_slice") <(printf '%s' "$head_slice") || true)"
       fi
