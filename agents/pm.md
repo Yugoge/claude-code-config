@@ -660,7 +660,7 @@ Set `pipeline_blocked: true` and populate `block_reasons` when ANY of:
 
 `pipeline_blocked` means: DO NOT create any pipelines this cycle. The orchestrator will skip to RETRO and loop.
 
-### Step 5: Write Triage Report
+### Step 9: Write Triage Report
 
 Write to output directory as
 `triage-report-cycle<N>.json`.
