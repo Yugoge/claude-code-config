@@ -441,6 +441,7 @@ def _block_default_deny_commit(msg):
         'For closed dev tasks, use /commit <task-id>.\n'
         'For human-driven commits, exit the agent context and run '
         'git commit directly.\n'
+        'Main agent may bypass with /allow <pattern> before the git commit command.\n'
         'Spec: spec-20260424-233926 section 5.2.4 (R4.3); '
         'ba-spec-20260425-redev2.md AC-A13.\n'
     )
