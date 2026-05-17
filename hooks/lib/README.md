@@ -2,11 +2,13 @@
 
 <!-- AUTO:readme-stats -->
 ## Overview
-- **Total files**: 2
+- **Total files**: 4
 - **Subdirectories**: 1
 - **Naming convention**: lower
 
 ## Files
+- `allowlist.py` - Read-only /allow grant check (read_grant); no deletion
+- `subagent.py` - Subagent detection (is_subagent_context) for all hooks
 - `todo_canonical.py` - Shared canonical todo validation utilities
 
 ---
