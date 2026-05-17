@@ -5,13 +5,12 @@ Organization and usage documentation for `.claude/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 69
+- **Total files**: 67
 - **Subdirectories**: 34
 - **Naming convention**: lower
 
 ## Files
 - `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
-- `AUTOMATED_CLEANUP_SETUP.md` - 自动化清理系统配置文档
 - `CLAUDE.md` - CLAUDE.md
 - `NESTED-REPO.md` - Nested Repo Sentinel
 - `config.yaml` - yaml config
@@ -37,11 +36,10 @@ Organization and usage documentation for `.claude/`.
 - `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 - `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
 - `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
-- `workflow-820c1397-5298-4a25-953e-ec7433518c07.json` - json config
-- `workflow-8f30d29d-eb46-41a1-bc4b-45629a61cd4c.json` - json config
 - `workflow-be481a24-b459-4323-82a2-94a853be17ce.json` - json config
 - `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
 - `workflow-dd3a870c-9440-4274-896f-462dfe972646.json` - json config
+- `workflow-ddc65730-7eed-4de1-9dfd-4c042f3fea0a.json` - json config
 - `workflow-eaa1077b-49ad-4697-8e01-e4a923d2b116.json` - json config
 - `workflow-edfda281-beb8-434f-a45b-2a8053975db8.json` - json config
 - `workflow-fe05ca9a-7892-40ea-a3ba-660db57180b9.json` - json config

@@ -57,7 +57,7 @@ When the orchestrator (e.g., close.md Round-1 cleanliness preconditions) invokes
 - **Default-safe rule for ambiguity**: when this inspector emits a file-level finding without an explicit positive new-in-this-diff marker (absent / null / unknown / untagged output), close.md treats the finding as **pre-existing / advisory / non-blocking** per AC-2.6 (b) default-safe ignore rule. The inspector docs acknowledge this contract: an absent/null/untagged output is NOT interpreted as "all NEW".
 - **Default-safe rule for non-diff-aware mode**: when invoked WITHOUT `--changed-files` (default full-repo run), all file-level findings from this inspector are **advisory and non-blocking** for cleanliness CLOSE: NO. Close.md cannot escalate full-repo findings to CLOSE: NO absent an explicit positive marker.
 
-The two default-safe rules ensure file-level inspector outputs do NOT inadvertently force CLOSE: NO when the input was ambiguous — encoding Section 5.4 rule 3 verbatim "整洁度判定范围 = 仅本次 diff 新增的 violation = NO 阻断 close. 预存历史脏污一律不管".
+The two default-safe rules ensure file-level inspector outputs do NOT inadvertently force CLOSE: NO when the input was ambiguous — encoding Section 5.4 rule 3: cleanliness scope = only violations newly introduced in this diff = NO blocking close; pre-existing historical dirt is entirely ignored.
 
 ---
 
