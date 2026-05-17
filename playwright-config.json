@@ -1,0 +1,7 @@
+{
+  "browser": {
+    "contextOptions": {
+      "storageState": "/root/.claude/playwright-storage-state.json"
+    }
+  }
+}
