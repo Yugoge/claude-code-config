@@ -37,17 +37,21 @@
         "security_relevant": false
       }
     ],
-    "spec_section_updates": null,
+    "spec_section_updates": {
+      "section_4": "commands/clean.md line 589 (iteration 2 measured state): '2. If satisfied: Changes already committed — to publish to remote: run `/commit` (to register the commit and write the push token), then `/push`'. No inline bash/shell invocations in the Next Steps block (lines 586-591). `/close` does not appear in clean.md (grep zero matches). `agents/cleaner.md` unchanged (empty git diff). Git diff HEAD confirms exactly 1 line changed vs HEAD.",
+      "section_6": null,
+      "section_7": null
+    },
     "success_criteria_results": [
       {
         "requirement_id": "R1",
         "source_phrase": "将这个结尾工作流也加入到clean的适配",
-        "criterion": "clean.md Step 17/18 gains a next-step block directing user to /push when satisfied and checkpoint rollback when not; /close gate is NOT imposed",
-        "verification_method": "Read commands/clean.md lines 580-595; grep for /close in entire file; grep for /push in Step 17 block",
-        "status": "fail",
-        "result": "fail",
-        "details": "BRANCH COVERAGE: Both satisfied and unsatisfied branches are present (lines 589 and 590). /close does NOT appear anywhere in clean.md (grep confirmed zero matches). /push IS present in line 589. HOWEVER: BA spec AC1 requires 'direction toward next command, not inline git invocations.' Line 589 offers 'run bash ~/.claude/hooks/push.sh directly' as the primary workaround — this is an inline bash invocation. The secondary option '/commit then /push' IS proper command-chain guidance. The push-gate architectural constraint makes bare /push non-functional without either the inline bash or the /commit detour, but the BA spec forbids inline bash as the documented resolution.",
-        "evidence": "commands/clean.md:589 — 'If satisfied: Changes already committed — next step is /push to publish to remote (push-gate note: the cleaner commits inline without writing a push-gate token; run bash ~/.claude/hooks/push.sh directly, or run /commit then /push if you need the full gate chain)'. BA spec AC1: 'consistent with how dev.md Step 15 phrases its chain pointer (direction toward next command, not inline git invocation)'. hooks/push.sh:84-125 confirms push-gate token required at /tmp/agentic-commit/push/<repo_hash>/<branch>.json. agents/cleaner.md: no push-gate token writing found anywhere."
+        "criterion": "clean.md Step 17/18 gains a next-step block directing user to /push when satisfied and checkpoint rollback when not; /close gate is NOT imposed; direction toward next command, not inline git invocation",
+        "verification_method": "Direct read of commands/clean.md lines 580-610; grep for inline bash patterns (bash ~/.claude, bash.*push.sh, bash.*hooks); grep for /close in entire file; grep for /push and /commit; git diff HEAD -- commands/clean.md",
+        "status": "pass",
+        "result": "pass",
+        "details": "Line 589 text (iteration 2): '2. If satisfied: Changes already committed — to publish to remote: run `/commit` (to register the commit and write the push token), then `/push`'. Line 590: '3. If not satisfied: `git reset --hard <checkpoint_commit>`'. Both branches present. Zero inline bash invocations in Next Steps block (lines 586-591). `/close` does not appear anywhere in clean.md. `/commit` and `/push` appear as slash commands at line 589. The inline bash invocation present in iteration 1 (`bash ~/.claude/hooks/push.sh directly`) is confirmed absent. AC1 constraint fully met.",
+        "evidence": "Read commands/clean.md offset=580 limit=30: line 589 confirmed slash-command-only text. grep 'bash ~/.claude|bash.*push\\.sh|bash.*hooks' → match only at line 474 (pre-existing checkpoint creation step outside Next Steps block scope). grep '/close' → zero matches in entire file. grep '/push|/commit' → match at line 589. git diff HEAD -- commands/clean.md: exactly 1 line changed ('-2. If satisfied: Changes already committed' → '+2. If satisfied: Changes already committed — to publish to remote: run `/commit` (to register the commit and write the push token), then `/push`')."
       },
       {
         "requirement_id": "R2",
