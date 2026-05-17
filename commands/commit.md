@@ -67,12 +67,7 @@ Run these checks (abort on first failure with a clear error message):
 
 ### Step 4: Force-bypass audit (only when FORCE=true)
 
-If `FORCE=true`:
-```bash
-mkdir -p ~/.claude/logs
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=${TASK_ID} mode=force" >> ~/.claude/logs/commit-overrides.log
-```
-Best-effort; proceed even if log append fails.
+If `FORCE=true`: create `~/.claude/logs/` and append a line with ISO timestamp, task-id, and mode=force to `~/.claude/logs/commit-overrides.log`. Best-effort; proceed even if log append fails.
 
 Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/logs/commit-overrides.log.`
 
