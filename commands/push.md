@@ -6,8 +6,7 @@ disable-model-invocation: true
 # Push Command
 
 `/push` is the validated wrapper for normal branch publication. Note: pretool-git-privilege-guard.py is REGISTERED in settings.json (PreToolUse, Bash matcher) and enforces commit authorization — agents must hold a valid commit grant or use the `auto-bulk:` bridge prefix to commit. The wrapper
-script `~/.claude/hooks/push.sh` produces a valid push grant for use when
-the guard is eventually re-registered.
+script `~/.claude/hooks/push.sh` produces a valid push grant recognized by the guard.
 
 The slash entry has `disable-model-invocation: true` to prevent the model
 from autonomously self-dispatching `/push` via SlashCommand. It also
