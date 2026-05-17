@@ -1,7 +1,7 @@
 # clean
 
-*Last updated: 2026-05-17T10:44:40Z*
-**Total entries**: 46
+*Last updated: 2026-05-17T15:20:29Z*
+**Total entries**: 57
 **Convention**: kebab
 
 ## Tree
@@ -48,6 +48,17 @@ clean/
 ├── `style-partial-clean-20260517-102341-group7.json` - json config
 ├── `style-partial-clean-20260517-102341-group8.json` - json config
 ├── `style-partial-clean-20260517-102341-group9.json` - json config
+├── `style-partial-clean-20260517-102341-groupA1.json` - json config
+├── `style-partial-clean-20260517-102341-groupA2.json` - json config
+├── `style-partial-clean-20260517-102341-groupA3.json` - json config
+├── `style-partial-clean-20260517-102341-groupA4.json` - json config
+├── `style-partial-clean-20260517-102341-groupC1.json` - json config
+├── `style-partial-clean-20260517-102341-groupC2.json` - json config
+├── `style-partial-clean-20260517-102341-groupC3.json` - json config
+├── `style-partial-clean-20260517-102341-groupC4.json` - json config
+├── `style-partial-clean-20260517-102341-groupC6.json` - json config
+├── `style-partial-clean-20260517-102341-groupC7.json` - json config
+├── `style-partial-clean-20260517-102341-groupC8.json` - json config
 ├── `style-plan-clean-20260517-102341.json` - json config
 ├── `style-report-clean-20260107-101825.json` - json config
 ├── `style-report-clean-20260108-130050.json` - json config
