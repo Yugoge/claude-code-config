@@ -323,8 +323,8 @@ Step 4: Next thing
   "standard": "english-only",
   "severity": "critical",
   "location": "commands/clean.md:8",
-  "finding": "Contains Chinese text: 核心清理目标",
-  "recommendation": "Translate to English: Core Cleanup Targets"
+  "finding": "Contains Chinese text: <example-chinese-phrase>",
+  "recommendation": "Translate to English"
 }
 ```
 
