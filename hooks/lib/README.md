@@ -2,7 +2,7 @@
 
 <!-- AUTO:readme-stats -->
 ## Overview
-- **Total files**: 4
+- **Total files**: 12
 - **Subdirectories**: 1
 - **Naming convention**: lower
 
