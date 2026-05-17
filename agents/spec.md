@@ -432,7 +432,7 @@ exiting if coverage < 100%. You cannot skip this -- fix the coverage first.
 After ALL views are written, run the coverage verification script:
 
 ```bash
-python3 "${CLAUDE_PROJECT_DIR}/bin/spec-verify.py" --monolith "$MONOLITH_PATH" --views-dir "docs/dev/specs/<spec-id>/views/"
+source ~/.claude/venv/bin/activate && python3 "${CLAUDE_PROJECT_DIR}/bin/spec-verify.py" --monolith "$MONOLITH_PATH" --views-dir "docs/dev/specs/<spec-id>/views/"
 ```
 
 This checks that every non-blank, non-separator line from the monolith appears in at least one view file. If it exits non-zero (coverage < 100%):
