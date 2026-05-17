@@ -648,7 +648,7 @@ All tiers get pipelines. Order: Tier 1 first, then Tier 2,
 then Tier 3. Within a tier: more `agents_flagged` = higher
 priority.
 
-### Step 4.5: Pipeline Block Assessment
+### Step 8: Pipeline Block Assessment
 
 Before writing the triage report, evaluate whether the pipeline should be blocked entirely:
 
