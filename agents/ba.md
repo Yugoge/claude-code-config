@@ -682,21 +682,7 @@ Extract from requirement text:
 
 ### Step 3: Git Root Cause Analysis
 
-**When applicable** (bug fixes, modifications to existing functionality):
-
-```bash
-# Find related commits
-git log --oneline --all --grep="<keyword>" -20
-
-# Check recent changes to suspected files
-git log --oneline -10 -- <suspected-file>
-
-# Trace changes
-git show <commit-hash> -- <file>
-
-# Build timeline
-git log --oneline --reverse --since="1 month ago" -- <affected-files>
-```
+**When applicable** (bug fixes, modifications to existing functionality): search git log for related commits by keyword, check recent changes to suspected files, trace the exact commit with `git show`, and build a timeline of changes over the past month for affected files.
 
 **When not applicable** (new features, architectural changes):
 - Document as "N/A - new feature" or "N/A - architectural improvement"
