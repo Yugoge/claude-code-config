@@ -68,23 +68,7 @@ every status code (`M`, `A`, `D`, `R`, `C`, `??`) is included as a candidate.
 
 **Dispatch-snapshot check (M3 — warn-only)**:
 After running git status in both repos, read the dispatch manifest if it exists (non-bulk mode only).
-Set `SID` from the environment FIRST (matching what `/commit` writes):
-
-```bash
-SID="${CLAUDE_SESSION_ID:-unknown}"
-if [ "${BULK}" != "true" ]; then
-    MANIFEST_FILE="/tmp/claude-commit-manifest-${SID}.json"
-    if [ -f "${MANIFEST_FILE}" ]; then
-        DISPATCH_FILES=$(python3 -c "
-import json, sys
-d = json.load(open('${MANIFEST_FILE}'))
-print('\n'.join(d.get('files_at_dispatch', [])))
-" 2>/dev/null || echo "")
-    else
-        DISPATCH_FILES=""
-    fi
-fi
-```
+Set `SID="${CLAUDE_SESSION_ID:-unknown}"`. In non-bulk mode, check for `/tmp/claude-commit-manifest-${SID}.json`. If it exists, activate the venv and parse it with Python to extract `files_at_dispatch` as a newline-separated list. If missing, treat DISPATCH_FILES as empty. Skip this check entirely when `BULK=true`.
 
 For each file in the current git status that is NOT in `DISPATCH_FILES` (and `DISPATCH_FILES` is non-empty):
 Print: `WARNING: file <path> appeared after dispatch (possible foreign session); staging anyway.`
