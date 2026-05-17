@@ -4,6 +4,12 @@ set -e
 PROJECT_ROOT="${1:-.}"
 cd "$PROJECT_ROOT"
 
+# Override paths via CLI args or environment variables
+# Arg 2: commands directory (default: ~/.claude/commands)
+COMMANDS_DIR="${2:-${CLAUDE_COMMANDS_DIR:-${HOME}/.claude/commands}}"
+# Arg 3: agents directory (default: ~/.claude/agents)
+AGENTS_DIR="${3:-${CLAUDE_AGENTS_DIR:-${HOME}/.claude/agents}}"
+
 # Only scan Python files in scripts/ directory (the active codebase)
 SCRIPTS_DIR="${PROJECT_ROOT}/scripts"
 if [ ! -d "$SCRIPTS_DIR" ]; then
