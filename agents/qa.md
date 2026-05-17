@@ -186,7 +186,11 @@ The orchestrator provides file paths only. You must read:
 
 3. **BA Spec** (`docs/dev/ticket-<timestamp>.md`, legacy: `docs/dev/ba-spec-<timestamp>.md`) - Markdown specification with acceptance criteria
 
-**First action**: Read all three files completely before starting verification.
+4. **User requirement document** (`docs/dev/user-requirement-<DEV_SESSION_ID>.md`) - Verbatim user need (optional field; present when dispatched via /dev-command or /dev-overnight)
+
+If `User requirement document:` is present in your dispatch prompt and non-null, read this file before relying on derived context, spec, or dev-report summaries; treat it as the authoritative verbatim user need. The orchestrator may have paraphrased the requirement — this document is the source-of-truth fallback.
+
+**First action**: Read all three files completely (and the requirement document if present) before starting verification.
 
 ---
 
@@ -1235,6 +1239,7 @@ When invoked, codex consultation catches over-engineering, under-engineering, mi
 
 1. Draft your output (verification steps complete; verdict drafted: pass / fail / blocked)
 2. Invoke `Skill(skill="codex")` with:
+   - If `User requirement document:` was present in your dispatch, read it now and prepend `Verbatim user requirement: <exact contents of the document>` to the Skill(codex) prompt before the draft summary, so codex can detect verdict drift against the original user text.
    - Brief summary of your draft (1-3 paragraphs: what was verified, what evidence was captured, what the verdict is and why, plus artifact paths to qa-report, screenshots, dev-report, ba-spec)
    - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. **For every issue you flag, you MUST provide `PROPOSED_FIX: <concrete correction to the verification approach or verdict>`. A complaint without a PROPOSED_FIX is an observation, not a blocker.** Reply with CODEX_FEEDBACK: <list of issues, each with PROPOSED_FIX or marked OBSERVATION_ONLY>."
 3. Parse codex's feedback
