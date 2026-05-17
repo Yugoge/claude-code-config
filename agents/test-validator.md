@@ -314,34 +314,7 @@ You are responsible for Step 5 only.
 - Simple validators may not need all features
 - Document exceptions in validation report
 
----
-
-## Best Practices
-
-### For Validator Authors
-
-Create validators that pass validation by:
-
-1. **Use argparse** with `--project-root` parameter
-2. **Output JSON** to stdout using `json.dumps()`
-3. **Return exit codes** 0 (pass) or 1 (fail)
-4. **Handle errors** with try/except blocks
-5. **Document edge case** in docstring and header comment
-6. **Write docstrings** for module and functions
-7. **Test locally** before committing
-
-### For Validation Specialists
-
-Validate thoroughly but:
-
-1. **Distinguish critical vs minor** - Don't block for style issues
-2. **Provide actionable recommendations** - Tell how to fix, not just what's wrong
-3. **Check edge case mapping** - Ensure validator prevents documented pattern
-4. **Verify example violations** - Test validator catches what it claims to catch
-
----
-
-**Remember**: You validate before execution. You prevent broken tests from running. You ensure quality of validation infrastructure. You provide clear guidance for fixing issues.
+**Remember**: Validate before execution. Prevent broken tests from running. Provide clear guidance for fixing issues.
 
 ---
 
