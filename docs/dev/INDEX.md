@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-17T21:52:03Z*
-**Total entries**: 127
+*Last updated: 2026-05-17T22:08:04Z*
+**Total entries**: 130
 **Convention**: kebab
 
 ## Tree
@@ -17,6 +17,7 @@ dev/
 ├── specs/
 │   └── `spec-20260517-210806.md` - Spec: Add working /push ending-workflow to clean.md (cleaner push-gate fix)
 ├── `architect-report-20260517-155838.json` - json config
+├── `architect-report-dev-20260517-215114.json` - json config
 ├── `ba-qa-report-20260416-063500.json` - json config
 ├── `ba-qa-report-20260416-073000.json` - json config
 ├── `ba-qa-report-20260517-153856.json` - json config
@@ -36,6 +37,7 @@ dev/
 ├── `close-report-20260517-155838.md` - Close Debate Report
 ├── `close-report-20260517-172600.md` - Close Debate Report
 ├── `close-report-20260517-211508.md` - Close Report — 20260517-211508
+├── `close-report-20260517-214922.md` - Close Debate Report — 20260517-214922
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
@@ -133,6 +135,7 @@ dev/
 ├── `ticket-20260517-155838.md` - BA Specification: /do direct-development cannot be closed via /close normal path
 ├── `ticket-20260517-172600.md` - BA Specification: Add close→commit/push Ending Workflow Adaptation to clean.md + Enumerate Other Commands
 ├── `ticket-20260517-211508.md` - BA Specification: Fix broken ending-workflow in clean.md (Cycle 2)
+├── `ticket-20260517-215114.md` - BA Specification: Agentic Analyst Mechanism for /push, /merge, /pull
 └── `user-requirement-dev-20260517-215114.md` - No description
 ```
 
