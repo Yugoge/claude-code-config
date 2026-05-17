@@ -77,29 +77,8 @@ You receive JSON context with this structure:
 For validators with `type: "script"`:
 
 **Execution command**:
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
 
-VALIDATOR_PATH="$1"
-PROJECT_ROOT="$2"
-VENV_PATH="$3"
-
-# Activate venv
-source "$VENV_PATH/bin/activate"
-
-# Execute validator and capture output
-OUTPUT=$(python3 "$VALIDATOR_PATH" --project-root "$PROJECT_ROOT" 2>&1)
-EXIT_CODE=$?
-
-# Deactivate venv
-deactivate
-
-# Parse JSON output
-echo "$OUTPUT" | jq .
-
-exit $EXIT_CODE
-```
+Activate the venv, run the validator script with `--project-root`, capture stdout (JSON) and stderr (errors), then deactivate. Parse the JSON output to determine pass/fail status.
 
 **Execution steps**:
 
