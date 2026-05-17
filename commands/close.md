@@ -110,7 +110,7 @@ The forced-override todo list has exactly **2 steps** (no Step 2 / QA dispatch):
 
 6. **Create forced-path update and clean up sentinel**: Create the update using `/update --temp`. Default to `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless the user explicitly asks. It must state that closure was forced by the user, reference `docs/dev/close-report-<task-id>.md`, and suggest `/commit <task-id> -m "<summary>"` only if the user still intends to ship despite the skipped debate.
 
-   After the update is created, remove the sentinel file: `rm -f /tmp/claude-close-force-<DEV_SESSION_ID>.flag` (the -f flag suppresses errors if missing). This cleanup is mandatory, not best-effort — but errors are swallowed so the close still completes.
+   After the update is created, remove the sentinel file: `rm -f '/tmp/claude-close-force-<DEV_SESSION_ID>.flag' 2>/dev/null || true` (swallows all cleanup errors including missing-file). This cleanup is mandatory, not best-effort — but errors are swallowed so the close still completes.
 
 7. **Print the final stdout line** (this is the line consumers grep for):
 
