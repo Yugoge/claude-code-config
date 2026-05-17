@@ -1139,7 +1139,7 @@ When BA receives specialist findings (from ui-specialist, architect, product-own
 
 ### tier_3_tainted Classification
 
-A finding is classified `tier_3_tainted` when it is a natural-language-only claim that lacks both `measured` and `expected` (or both `observed_behavior` and `expected_behavior` for non-ui specialists). Tainted findings:
+A finding is classified `tier_3_tainted` when it is a natural-language-only claim that lacks any required evidence field: for ui-specialist/architect this means `measured` OR `expected` is absent; for product-owner/user this means `observed_behavior` OR `expected_behavior` is absent. Missing any one of the pair is sufficient to taint — a finding with `measured` but no `expected` cannot be verified. Tainted findings:
 
 - Cannot be used as primary Contract A evidence without independent BA measurement
 - MUST be flagged in BA's context JSON under `root_cause_analysis.observations[]` with a note indicating the taint
