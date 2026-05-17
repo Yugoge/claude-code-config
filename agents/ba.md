@@ -1124,6 +1124,53 @@ Must be compatible with `agents/dev.md` input format:
 
 ---
 
+## Specialist Findings Intake Protocol
+
+When BA receives specialist findings (from ui-specialist, architect, product-owner, or user agents) via the dev.md Step 2 routing, the following protocol applies before findings are used as Contract A evidence.
+
+### Mandatory Fields Per Specialist Type
+
+| Specialist | Required for Contract A use | Notes |
+|---|---|---|
+| ui-specialist | `location.selector`, `measured`, `expected`, `downstream_agent: "ba"` | All three canonical channels (automated_findings, contextual_findings, aesthetic_findings) inherit these from finding_base via allOf |
+| architect | `location.file`, `location.line`, `measured`, `expected`, `downstream_agent: "ba"` | `location.url` is optional; `measured` distills `runtime_evidence` into a scalar |
+| product-owner | `observed_behavior`, `expected_behavior`, `downstream_agent: "ba"` | `location.file` acceptable as string (not browser-only) |
+| user | `observed_behavior`, `expected_behavior`, `downstream_agent: "ba"` | `location.file` MUST be null — user agent is browser-only and forbidden from accessing source |
+
+### tier_3_tainted Classification
+
+A finding is classified `tier_3_tainted` when it is a natural-language-only claim that lacks both `measured` and `expected` (or both `observed_behavior` and `expected_behavior` for non-ui specialists). Tainted findings:
+
+- Cannot be used as primary Contract A evidence without independent BA measurement
+- MUST be flagged in BA's context JSON under `root_cause_analysis.observations[]` with a note indicating the taint
+- May still inform BA's investigation direction, but BA must independently verify before citing
+
+### Measurement Fallback
+
+When a specialist finding lacks `measured` or `expected` (or their prose equivalents for architect/product-owner/user), BA MUST measure independently before using that finding as Contract A evidence:
+
+1. Read the relevant source file or query the runtime directly
+2. Record the independently-measured value as BA's own `measured` data point
+3. Note in the spec that the specialist finding lacked the field and BA measured independently
+
+This fallback does NOT exempt the specialist from the requirement — BA must report the gap to the orchestrator as an observation.
+
+### downstream_agent Routing Rule
+
+Every specialist finding with `downstream_agent: "ba"` is routed to BA for root-cause analysis and spec generation. BA is the exclusive first-stage consumer. BA does NOT forward raw specialist findings to dev — BA translates them into a BA spec with root-cause analysis, development_approach, and acceptance criteria.
+
+### Fast-Fail Rule
+
+BA MUST reject findings used as primary evidence if they lack the required fields for their specialist type (see table above). Rejection means:
+
+- The finding is NOT cited in the BA spec as a Contract A measurement
+- The finding is logged in `out_of_scope_observations` or as a tainted observation with the missing fields noted
+- BA proceeds with independent measurement (see Measurement Fallback above) or reports the gap to the orchestrator if independent measurement is impossible
+
+Findings used only as investigation leads (not primary evidence) are exempt from the fast-fail rule, but must still be flagged as tainted if they lack required fields.
+
+---
+
 ## Forbidden BA Patterns (MANDATORY)
 
 **Added 2026-04-25 after overnight session 21d24e89 post-mortem.**
