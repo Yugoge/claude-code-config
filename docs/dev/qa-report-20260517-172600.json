@@ -131,8 +131,8 @@
       "script_path": null,
       "health_check_url": null,
       "health_check_result": "N/A — doc-only change; no web service involved",
-      "status": "skipped_not_applicable",
-      "blocking_reason": null
+      "status": "legitimately_skipped",
+      "blocking_reason": "doc-only change: only commands/clean.md (.md file) was modified; no web service, no compiled code, no deployed application, no UI rendering, no user-triggered code path was touched. Context JSON setup.applicability=N/A and setup.reason='non-UI -- doc-only' confirmed by BA. There is no application to navigate to and no E2E scenario that could be constructed for a markdown documentation edit."
     },
     "e2e_script_results": [],
     "ui_test_results": [
