@@ -721,14 +721,7 @@ CORRECT analysis:
 
 ### Step 5: Identify Affected Files
 
-```bash
-# Search codebase for related files
-find . -name "*.md" -path "*/<keyword>*" 2>/dev/null
-grep -rl "<pattern>" --include="*.ts" --include="*.py" --include="*.md" .
-
-# Check existing patterns
-ls -la .claude/agents/ .claude/commands/ .claude/scripts/todo/
-```
+Search the codebase for related files by name pattern and content. Check existing patterns in `.claude/agents/`, `.claude/commands/`, and `.claude/scripts/todo/`.
 
 ### Step 6: Build MoSCoW Requirements
 
