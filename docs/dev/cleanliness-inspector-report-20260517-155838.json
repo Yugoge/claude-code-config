@@ -37,39 +37,39 @@
   "advisory_observations": [
     {
       "file": "commands/close.md",
-      "location": "commands/close.md:45",
+      "location": "commands/close.md:47",
       "reason": "Incomplete branch list in codex_required=true summary: 'Verdict branches 1 / 2 / 3 / 6 / 7 apply' omits branches 4 (Workflow Integrity FAIL), 5 (QA dissent), and 8 (Other ambiguity/parse failure), which also apply in codex_required=true path. Correct text: 'Verdict branches 1 / 2 / 3 / 4 / 5 / 6 / 7 / 8 apply; branch 9 N/A.'",
       "severity": "minor",
       "introduced_in_diff": false,
       "origin_commit": "07d6e32",
-      "origin_note": "Line read 'branches 1 / 2 / 5 / 5b apply' at b7ea9ed; changed to 'branches 1 / 2 / 3 / 6 / 7 apply' by orphan session commit 07d6e32. Not in task diff b7ea9ed; advisory only, non-blocking.",
+      "origin_note": "Present at f79255f. Not introduced by f79255f; advisory only, non-blocking.",
       "recommendation": "Replace 'Verdict branches 1 / 2 / 3 / 6 / 7 apply' with 'Verdict branches 1 / 2 / 3 / 4 / 5 / 6 / 7 / 8 apply; branch 9 N/A.'"
     },
     {
       "file": "commands/close.md",
-      "location": "commands/close.md:242,246",
+      "location": "commands/close.md:250,254",
       "reason": "Inside the QA dispatch prompt text, two references to '/close Step 4' for inspector dispatch. /close now has only Steps 1/2/3 with Step 1 being inspector dispatch. Pre-existing before b7ea9ed.",
       "severity": "minor",
       "introduced_in_diff": false,
-      "origin_note": "Present at b7ea9ed^ and b7ea9ed. Pre-existing before task diff.",
-      "recommendation": "Replace '/close Step 4' with '/close Step 1' at lines 242 and 246."
+      "origin_note": "Present at f79255f. Pre-existing before task diff.",
+      "recommendation": "Replace '/close Step 4' with '/close Step 1' at lines 250 and 254."
     },
     {
       "file": "commands/close.md",
-      "location": "commands/close.md:143,181,268,332",
+      "location": "commands/close.md:151,189,276,340",
       "reason": "Four stale 'Step 5' references. /close now has only Steps 1/2/3. Pre-existing before b7ea9ed.",
       "severity": "minor",
       "introduced_in_diff": false,
-      "origin_note": "Present at b7ea9ed^ and b7ea9ed. Pre-existing before task diff.",
-      "recommendation": "Line 143: 'Step 5 QA prompt' -> 'Step 2 QA prompt'. Line 181: 'Step 5 will treat' -> 'Step 2 will treat'. Line 268: 'Step 5 final-line contract' -> 'Step 3 final-line contract'. Line 332: 'bypasses Step 5 entirely' -> 'bypasses Step 3 entirely'."
+      "origin_note": "Present at f79255f. Pre-existing before task diff.",
+      "recommendation": "Line 151: 'Step 5's QA prompt' -> 'Step 2's QA prompt'. Line 189: 'Step 5 will treat' -> 'Step 2 will treat'. Line 276: 'Step 5 final-line contract' -> 'Step 3 final-line contract'. Line 340: 'bypasses Step 5 entirely' -> 'bypasses Step 3 entirely'."
     },
     {
       "file": "commands/do.md",
       "location": "commands/do.md",
-      "reason": "Clean. The escape-hatch documentation added in 07d6e32 correctly describes the /close --force path for /do-developed work. No cleanliness violations. Note: not part of task diff b7ea9ed; changed by orphan session commit 07d6e32.",
+      "reason": "Clean. The escape-hatch documentation section '## Closing /do-developed work' correctly describes the /close --force path for /do-developed work. No cleanliness violations.",
       "severity": null,
       "introduced_in_diff": false,
-      "origin_note": "do.md changes are in 07d6e32, not b7ea9ed."
+      "origin_note": "do.md changes are from 07d6e32; f79255f did not change do.md."
     }
   ],
   "resolved_findings": [
