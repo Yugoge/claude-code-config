@@ -1,0 +1,104 @@
+{
+  "request_id": "cleanliness-inspector-20260517-155838",
+  "timestamp": "2026-05-17T16:55:32Z",
+  "inspector": "cleanliness-inspector",
+  "mode": "changed-files",
+  "changed_files": ["commands/close.md", "commands/do.md"],
+  "findings": {
+    "misplaced_docs": [],
+    "naming_violations": [],
+    "archive_candidates": [],
+    "dev_context_files": [],
+    "temp_files": [],
+    "duplicate_scripts": [],
+    "duplicate_tests": [],
+    "non_functional_files": [],
+    "non_functional_folders": [],
+    "orphaned_subagents": [],
+    "unreferenced_scripts": [],
+    "orphaned_tests": [],
+    "historical_docs": [],
+    "docs_categorization": [],
+    "obsolete_functionality": [
+      {
+        "file": "commands/close.md",
+        "location": "commands/close.md:209",
+        "reason": "Garbled branch list in QA dispatch prompt: 'verdict branches 1/2/3/6/7/6 with branch 7 N/A' contains a duplicate '6' and incorrectly states 'branch 7 N/A'. In the new numbering scheme (renumbered by this diff), branch 7 is 'Codex parse failure (failed_parse)' — a valid reachable branch — and branch 9 is 'Codex disabled by user' (the N/A branch in codex_required=true path). The N/A annotation should reference branch 9.",
+        "severity": "major",
+        "introduced_in_diff": true,
+        "confidence": "high",
+        "recommendation": "Replace 'verdict branches 1/2/3/6/7/6 with branch 7 N/A' with 'verdict branches 1/2/3/4/5/6/7 with branch 9 N/A'"
+      },
+      {
+        "file": "commands/close.md",
+        "location": "commands/close.md:210",
+        "reason": "Stale branch number in QA dispatch prompt: 'Apply verdict branch 7 (codex disabled by user)' is incorrect. The diff renumbered branches — branch 7 is now 'Codex parse failure (failed_parse)' (line 315). Branch 9 is 'Codex disabled by user' (line 324). This misdirects the QA subagent to the wrong verdict branch.",
+        "severity": "major",
+        "introduced_in_diff": true,
+        "confidence": "high",
+        "recommendation": "Replace 'Apply verdict branch 7 (codex disabled by user)' with 'Apply verdict branch 9 (codex disabled by user)'"
+      },
+      {
+        "file": "commands/close.md",
+        "location": "commands/close.md:320",
+        "reason": "Stale branch cross-reference inside branch 7 body: 'treat as substantive Codex dissent under branch 2 with the verbatim signal as the dissent line'. In the new numbering branch 2 is 'AC-deviation-PASS branch'; substantive Codex dissent is branch 3. This would route a failed_parse dissent signal to the wrong verdict.",
+        "severity": "major",
+        "introduced_in_diff": true,
+        "confidence": "high",
+        "recommendation": "Replace 'substantive Codex dissent under branch 2' with 'substantive Codex dissent under branch 3'"
+      },
+      {
+        "file": "commands/close.md",
+        "location": "commands/close.md:330",
+        "reason": "Stale branch number in branch 9 annotation: 'the em-dash form distinguishes branch 7 YES from branch 1 unanimous YES for downstream /commit consumers'. Branch 7 in the new scheme yields CLOSE: YES (degraded) for failed_parse; codex-disabled YES is branch 9. The comment should say 'branch 9 YES' to correctly identify what the em-dash form signals.",
+        "severity": "minor",
+        "introduced_in_diff": true,
+        "confidence": "high",
+        "recommendation": "Replace 'em-dash form distinguishes branch 7 YES from branch 1 unanimous YES' with 'em-dash form distinguishes branch 9 YES from branch 1 unanimous YES'"
+      },
+      {
+        "file": "agents/qa.md",
+        "location": "agents/qa.md:209,214",
+        "reason": "Stale cross-reference to 'close.md branch 1b'. The diff in commands/close.md renumbered the AC-deviation-PASS verdict branch from '1b' to '2'. agents/qa.md:209 still says 'close.md branch 1b — ac_deviation_with_user_need_satisfied' and agents/qa.md:214 says 'mirroring close.md branch 1b clause (d)'. Both are now incorrect — the branch is '2' and clause (d) is 'branch 2 clause (d)'.",
+        "severity": "major",
+        "introduced_in_diff": true,
+        "confidence": "high",
+        "recommendation": "In agents/qa.md: update line 209 from 'close.md branch 1b' to 'close.md branch 2'; update line 214 from 'close.md branch 1b clause (d)' to 'close.md branch 2 clause (d)'",
+        "note": "agents/qa.md is NOT in this diff but is a fix target created by the renumbering in commands/close.md"
+      }
+    ],
+    "orphan_commands": [],
+    "dead_functions": [],
+    "duplicate_content": []
+  },
+  "summary": {
+    "total_issues": 5,
+    "critical": 0,
+    "major": 4,
+    "minor": 1,
+    "estimated_space_saved": "0 MB",
+    "notes": "All 5 findings are documentation structural consistency violations introduced by the branch renumbering in commands/close.md. commands/do.md has zero cleanliness violations — the added content is appropriately placed and follows existing project conventions. Pre-existing orphan scripts (scripts/todo/dev-overnight.py, etc.) and orphaned agent (agents/product-owner.md) are NOT tagged introduced_in_diff: true as they are pre-existing."
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex raised two issues: (1) attribution of Finding 1 should note that the inconsistency is caused by close.md with agents/qa.md being the fix target, not the origin; (2) the draft missed additional internal stale branch references inside close.md itself at lines 209, 210, 320, and 330 where old branch numbers were introduced by the incomplete renumbering. Codex provided PROPOSED_FIX for both.",
+    "findings": [
+      {
+        "issue": "Finding 1 attribution was 'file: agents/qa.md' but the inconsistency originates in commands/close.md (the diff file) — agents/qa.md is the downstream fix target",
+        "proposed_fix": "Reword as: 'FINDING 1 (commands/close.md; related locations: agents/qa.md:209, agents/qa.md:214): commands/close.md renumbers AC-deviation branch 1b to branch 2, making existing QA cross-references stale.'",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Valid attribution correction. The finding is correctly attributed to commands/close.md as the source of the inconsistency. agents/qa.md is retained as a related fix location."
+      },
+      {
+        "issue": "Draft missed additional internal stale branch references inside commands/close.md at lines 209 (garbled branch list), 210 (branch 7 vs branch 9 for codex-disabled), 320 (branch 2 vs branch 3 for substantive codex dissent), and 330 (branch 7 vs branch 9 for em-dash annotation)",
+        "proposed_fix": "Add major finding for incomplete internal renumbering in close.md at lines 209, 210, 320, and 330.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Verified against the current commands/close.md. All four locations confirmed: line 209 has 'branches 1/2/3/6/7/6 with branch 7 N/A' (garbled), line 210 says 'branch 7 (codex disabled)' but branch 7 is now failed_parse and branch 9 is codex-disabled, line 320 cross-references 'branch 2' for substantive dissent but branch 2 is AC-deviation-PASS in new scheme, line 330 says 'branch 7 YES' for em-dash annotation but should say 'branch 9 YES'."
+      }
+    ],
+    "feedback_incorporated": "Applied both codex proposed fixes: (1) attribution reframing for the agents/qa.md finding; (2) added 4 internal stale reference findings in commands/close.md at lines 209, 210, 320, and 330. Total violations increased from 1 to 5."
+  }
+}
