@@ -8,15 +8,17 @@
     "clarified": "Add dedicated analyst subagents for /push, /merge, and /pull commands. Each gets a pre-execution (or post-execution for pull) intelligent judgment mechanism mirroring the /commit + changelog-analyst architecture. Deliver a design plan (spec + context); implementation follows separately.",
     "what": "Three new analyst agent files (push-analyst, merge-analyst, pull-analyst) + modifications to three command bodies to dispatch them",
     "why": "User wants the same agentic safety-and-intelligence layer that /commit has via changelog-analyst applied to the other three git workflow commands",
-    "where": ["commands/push.md", "commands/merge.md", "commands/pull.md", "agents/push-analyst.md (new)", "agents/merge-analyst.md (new)", "agents/pull-analyst.md (new)"],
+    "where": ["commands/push.md", "commands/merge.md", "commands/pull.md", "agents/push-analyst.md (new)", "agents/merge-analyst.md (new)", "agents/pull-analyst.md (new)", "policies/tool-policy.v1.json (modify)", "hooks/pretool-cp-checkin.py (modify)"],
     "scope": {
       "included": [
-        "agents/push-analyst.md — new dedicated read-only analyst with grant-write capability",
-        "agents/merge-analyst.md — new dedicated read-only analyst with grant-write capability",
-        "agents/pull-analyst.md — new dedicated read-only advisory analyst (no grant)",
-        "commands/push.md — add pre-execution dispatch steps + grant validation",
+        "agents/push-analyst.md — new git-read-only analyst (filesystem writes restricted to /tmp/agentic-commit/push-analyst/ and optional ~/.claude/logs/ audit entry) with grant-write capability",
+        "agents/merge-analyst.md — new git-read-only analyst (filesystem writes restricted to /tmp/agentic-commit/merge-analyst/ and optional ~/.claude/logs/ audit entry) with grant-write capability",
+        "agents/pull-analyst.md — new git-read-only advisory analyst (no filesystem write; advisory stdout report only)",
+        "commands/push.md — add pre-execution dispatch steps + grant validation; commits-to-push range must use refs/remotes/<resolved_remote>/<branch>..HEAD",
         "commands/merge.md — add pre-execution dispatch steps + grant validation + tip revalidation",
-        "commands/pull.md — add pre_pull_head capture + post-execution conditional dispatch"
+        "commands/pull.md — add pre_pull_head capture + post-execution conditional dispatch; dispatch pull-analyst whenever HEAD changed (even on stash-pop failure exit 1)",
+        "policies/tool-policy.v1.json — add push-analyst, merge-analyst, pull-analyst role entries (M10; required for policy_registry to permit dispatch)",
+        "hooks/pretool-cp-checkin.py — add three role names to CP_AGENTS set (M10)"
       ],
       "excluded": [
         "hooks/push.sh — wrapper script unchanged per architect constraint",
@@ -89,7 +91,7 @@
     "observations": [
       "commands/push.md lines 1-93: no analyst dispatch found (inferred: Read tool)",
       "commands/merge.md lines 1-51: no analyst dispatch found (inferred: Read tool)",
-      "commands/pull.md lines 1-46: no analyst dispatch found (inferred: Read tool)",
+      "commands/pull.md lines 1-45: no analyst dispatch found (inferred: Read tool; wc -l confirmed 45 lines)",
       "agents/ directory listing: no push-analyst.md, merge-analyst.md, pull-analyst.md present (inferred: Glob tool)"
     ],
     "diagnosis_completeness": "incomplete (inferred only — this is a new-feature request, not a bug)",
@@ -129,16 +131,18 @@
     "files_to_modify": [
       "commands/push.md",
       "commands/merge.md",
-      "commands/pull.md"
+      "commands/pull.md",
+      "policies/tool-policy.v1.json (M10: add push-analyst, merge-analyst, pull-analyst role entries following changelog-analyst format at lines 792-818)",
+      "hooks/pretool-cp-checkin.py (M10: add push-analyst, merge-analyst, pull-analyst to CP_AGENTS set at lines 60-72)"
     ],
-    "validation_approach": "QA verifies: (1) analyst dispatch step present in each command body; (2) grant paths and validation logic correct; (3) wrapper scripts byte-for-byte unchanged; (4) DO NOT sections present in each analyst agent"
+    "validation_approach": "QA verifies: (1) analyst dispatch step present in each command body; (2) grant paths and validation logic correct; (3) wrapper scripts byte-for-byte unchanged; (4) DO NOT sections present in each analyst agent; (5) policies/tool-policy.v1.json has all three new role entries; (6) policy_registry.is_allowed('push-analyst', 'Write', '/tmp/agentic-commit/push-analyst/x') returns (True, 'ok'); (7) push-analyst uses refs/remotes/<resolved_remote>/<branch>..HEAD not @{u}..HEAD; (8) pull-analyst dispatched on HEAD change regardless of pull.sh exit code"
   },
   "push_analyst_design": {
     "trigger": "Pre-execution, dispatched from commands/push.md before calling push.sh",
     "analysis_scope": [
-      "commits-to-push range: upstream..HEAD (or all commits for first push — when @{u} is unresolvable)",
+      "commits-to-push range: refs/remotes/<resolved_remote>/<branch>..HEAD (where resolved_remote is the fork-prefer-origin result matching push.sh:38-42: 'fork' if git remote get-url fork succeeds, else 'origin', or explicit arg). NOT @{u}..HEAD — @{u} may track a different remote (e.g., upstream origin in a fork workflow). For first push where no remote tracking ref exists (refs/remotes/<resolved_remote>/<branch> absent), use all commits in git log HEAD.",
       "file names in committed blobs for sensitive patterns (.env, *.key, *.pem, *password*, *secret*, *credential*)",
-      "ahead/behind count vs remote — would push fail with non-fast-forward?",
+      "ahead/behind count vs resolved remote tracking ref (not vs @{u})",
       "branch name vs protection rules (direct push to main/master)",
       "divergence check between resolved remote and local HEAD"
     ],
@@ -157,7 +161,7 @@
     "grant_path": "/tmp/agentic-commit/push-analyst/<repo-hash>/<session-id>/<nonce>.json",
     "grant_consumption": "single-use; unlinked by commands/push.md on successful validation",
     "orchestrator_steps": [
-      "Step 0: Parse ARGUMENTS, resolve REMOTE (fork-prefer-origin logic matching push.sh:35-42)",
+      "Step 0: Parse ARGUMENTS, resolve REMOTE (fork-prefer-origin logic matching push.sh:38-42: if git remote get-url fork succeeds use 'fork' else 'origin'; explicit arg overrides)",
       "Step 1: Validate push-gate token (Chain A — existing logic, unchanged)",
       "Step 2: Compute pre-push snapshot: pre_head, branch, resolved_remote, remote_url; generate request_id nonce",
       "Step 3: Dispatch push-analyst subagent with branch, pre_head, remote_name, remote_url, request_id",
@@ -219,13 +223,13 @@
     ],
     "orchestrator_steps": [
       "Step 0: Capture pre_pull_head = git rev-parse HEAD",
-      "Step 1: Run pull.sh (unchanged)",
-      "Step 2: If pull.sh exits non-0: display error, stop",
-      "Step 3: Capture post_pull_head = git rev-parse HEAD",
-      "Step 4: If pre_pull_head == post_pull_head: print 'no HEAD change (no-op pull)', skip analyst",
-      "Step 5: Dispatch pull-analyst subagent with pre_pull_head, post_pull_head, branch",
-      "Step 6: Display pull-analyst report to user"
+      "Step 1: Run pull.sh (unchanged); capture exit_code",
+      "Step 2: Capture post_pull_head = git rev-parse HEAD (ALWAYS — pull.sh prints 'Pull completed successfully' at line 154 and advances HEAD BEFORE stash pop at lines 157-174; stash pop failure exits 1 at line 175 but HEAD already changed)",
+      "Step 3: If pre_pull_head == post_pull_head: if exit_code != 0 display pull.sh error; else print 'no HEAD change (no-op pull)'; stop (no analyst dispatch)",
+      "Step 4: Dispatch pull-analyst subagent with pre_pull_head, post_pull_head, branch, stash_restoration_failed=(exit_code != 0 AND pre_pull_head != post_pull_head)",
+      "Step 5: Display pull-analyst report to user (report includes stash-restoration-failure warning when stash_restoration_failed=true)"
     ],
+    "stash_pop_failure_rationale": "pull.sh verified sequence (lines 119-175): git pull --rebase runs at line 120; on success, 'Pull completed successfully' printed at line 154; stash pop runs at lines 158-176; stash pop failure exits 1 at line 175. HEAD has advanced before the stash pop. Skipping pull-analyst on non-0 exit would fail to analyze exactly the scenario where the user most needs it: a successful remote integration followed by a local conflict.",
     "toctou_rationale": "Pre-analysis is inherently stale because the pull itself changes what is incoming. Post-execution advisory satisfies the user requirement for 'intelligent judgment' without introducing false gates on stale pre-fetch analysis."
   },
   "agent_file_structure": {
@@ -253,7 +257,7 @@
     "observed": "现在的push和merge以及pull没有像commit一样的agentic智能判断机制",
     "measured": {
       "value": "agents/ directory: no push-analyst.md, merge-analyst.md, pull-analyst.md present; commands/push.md, commands/merge.md, commands/pull.md: no analyst dispatch steps",
-      "location": "agents/*.md (Glob), commands/push.md:1-93, commands/merge.md:1-51, commands/pull.md:1-46"
+      "location": "agents/*.md (Glob), commands/push.md:1-93, commands/merge.md:1-51, commands/pull.md:1-45 (wc -l confirmed)"
     },
     "expected": {
       "value": "Three analyst agent files exist; three command bodies dispatch them with grant validation",
@@ -269,7 +273,7 @@
     "all_occurrences": [
       "commands/push.md:1-93 (no analyst dispatch)",
       "commands/merge.md:1-51 (no analyst dispatch)",
-      "commands/pull.md:1-46 (no analyst dispatch)"
+      "commands/pull.md:1-45 (no analyst dispatch)"
     ]
   },
   "reference_source": {
