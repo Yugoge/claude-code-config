@@ -144,11 +144,19 @@
   ],
   "component_chain": [
     {
+      "file": "skills/ui-shared/report-schema.json",
+      "line_range": "212-275",
+      "role": "Machine-enforced JSON Schema for ui-specialist output. finding_base (lines 214-233) defines the base shape for all three canonical finding channels. Currently: location is flat string, no measured/expected/downstream_agent at any level.",
+      "imports_from": ["leaf"],
+      "evidence": "Read skills/ui-shared/report-schema.json lines 212-275: finding_base.location type:string; no selector, measured, expected, downstream_agent",
+      "verified_via": "Read"
+    },
+    {
       "file": "agents/ui-specialist.md",
-      "line_range": "250-260",
-      "role": "Specialist output schema — issues[] currently lacks inline per-issue shape",
-      "imports_from": ["~/.claude/skills/ui-shared/report-schema.json"],
-      "evidence": "Read agents/ui-specialist.md line 255: `'issues': []`",
+      "line_range": "243-257",
+      "role": "Prose spec for ui-specialist agent. Output Format section references report-schema.json as canonical contract but also shows an example JSON at line 255 with issues:[] which is NOT a channel in the canonical schema — this prose must be corrected to reference canonical channels.",
+      "imports_from": ["skills/ui-shared/report-schema.json"],
+      "evidence": "Read agents/ui-specialist.md lines 243-257: line 243 references 6-channel contract at report-schema.json; line 255 shows `'issues': []` in example JSON",
       "verified_via": "Read"
     },
     {
