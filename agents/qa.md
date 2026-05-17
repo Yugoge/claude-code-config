@@ -922,66 +922,7 @@ This is NOT just test generation — you MUST run every test you create. Tests t
 mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
 ```
 
-4. **Write Python test scripts** following the `validate-*.py` format compatible with `/test` command and `test-executor`:
-
-**Script template**:
-```python
-#!/usr/bin/env python3
-"""Validate <feature-name>.
-
-Tests <brief description of what is validated>.
-Request ID: <request-id from context JSON>
-Priority: <critical|high|medium>
-Type: <unit|edge_case|integration>
-"""
-import argparse
-import json
-import sys
-from pathlib import Path
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Validate <feature-name>')
-    parser.add_argument('--project-root', required=True, help='Project root path')
-    args = parser.parse_args()
-
-    project_root = Path(args.project_root)
-    violations = []
-    total_checks = 0
-
-    # --- Unit tests ---
-    # Test each function/behavior independently
-    total_checks += 1
-    # if actual != expected:
-    #     violations.append({
-    #         "file": "relative/path",
-    #         "line": 42,
-    #         "issue": "Description of the problem",
-    #         "severity": "critical|major|minor"
-    #     })
-
-    # --- Edge case tests ---
-    # Test boundary conditions, empty inputs, malformed data
-    total_checks += 1
-    # ...
-
-    result = {
-        'validator': 'validate-<feature-name>',
-        'status': 'pass' if not violations else 'fail',
-        'violations': violations,
-        'summary': {
-            'total_checks': total_checks,
-            'violations_found': len(violations)
-        }
-    }
-
-    print(json.dumps(result, indent=2))
-    sys.exit(0 if not violations else 1)
-
-
-if __name__ == '__main__':
-    main()
-```
+4. **Write Python test scripts** following the `validate-*.py` format compatible with `/test` command and `test-executor`. Each script requires: shebang `#!/usr/bin/env python3`; docstring with feature description, request ID, priority, and type; `argparse` with `--project-root`; unit and edge case test logic; JSON result to stdout with `validator`, `status`, `violations`, and `summary`; exit code 0 on pass / 1 on fail. Store scripts in `tests/scripts/validate-<feature-name>.py`.
 
 **Requirements for each script**:
 - Shebang line: `#!/usr/bin/env python3`
