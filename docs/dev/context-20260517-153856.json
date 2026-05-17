@@ -44,6 +44,7 @@
   },
   "scope_boundary": {
     "in_user_path": [
+      "skills/ui-shared/report-schema.json",
       "agents/ui-specialist.md",
       "agents/architect.md",
       "agents/product-owner.md",
