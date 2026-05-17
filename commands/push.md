@@ -150,13 +150,17 @@ Read the grant at:
 
 Validate the following fields:
 - File exists (if absent: abort with "push-analyst did not write a grant — aborting push")
+- Grant is valid JSON (if not: abort with "push-analyst grant is not valid JSON — aborting push")
 - `nonce` field matches `REQUEST_ID`
 - `branch` field matches current `BRANCH`
 - `head_sha` field matches current `git rev-parse HEAD` (must still equal `PRE_HEAD`)
 - `remote_name` field matches `RESOLVED_REMOTE`
+- `session_id` field matches `SESSION_ID`
+- `verdict` field is one of: `"approved"`, `"warn"`, `"blocked"` (reject unknown verdicts)
+- `risks` field is a JSON array (even if empty)
 - `expires_at` is in the future (parse ISO-8601, compare to current UTC time)
 
-If any field mismatches or grant is expired: abort with a descriptive error message.
+If any field mismatches, is absent, has wrong type, or grant is expired: abort with a descriptive error message naming the failing field.
 
 Consume (unlink) the grant:
 ```bash
