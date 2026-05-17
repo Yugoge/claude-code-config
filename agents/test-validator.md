@@ -64,10 +64,7 @@ You receive JSON context with this structure:
 
 For script-based validators (`validate-*.py`):
 
-**Python syntax check**:
-```bash
-python3 -m py_compile tests/scripts/validate-venv-usage.py
-```
+**Python syntax check**: `source ~/.claude/venv/bin/activate && python3 -m py_compile tests/scripts/validate-venv-usage.py`
 
 **Checks**:
 - [ ] File parses without syntax errors
