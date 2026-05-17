@@ -62,6 +62,9 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from lib.allowlist import read_grant  # noqa: E402
+
 
 # Per-worker filename — role-first naming: dev-report-<role>-<task-id>.json
 # task-id format: YYYYMMDD-HHMMSS (8 digits, dash, 6 digits)
@@ -378,33 +381,13 @@ def main():
     except Exception:
         pass
 
-    # /allow bypass: if allowlist pattern matches "Agent" dispatch, consume and pass
+    # /allow bypass: if allowlist pattern matches "Agent" dispatch, pass
     try:
         if not data.get('agent_id'):
-            sid = (data.get('session_id') or
-                   os.environ.get('CLAUDE_SESSION_ID', '') or 'default')
-            flag_path = Path(f'/tmp/claude-bash-allowlist-{sid}.json')
-            import fcntl
-            if flag_path.exists():
-                with open(flag_path, 'r+') as fh:
-                    fcntl.flock(fh, fcntl.LOCK_EX)
-                    try:
-                        import json as _json
-                        grant = _json.load(fh)
-                        pattern = grant.get('pattern', '')
-                        if not isinstance(pattern, str) or not pattern:
-                            raise ValueError('empty pattern')
-                        is_regex = grant.get('is_regex', False)
-                        if is_regex:
-                            import re as _re
-                            matched = bool(_re.search(pattern, 'Agent'))
-                        else:
-                            matched = pattern == 'Agent' or pattern in 'Agent'
-                        if matched:
-                            os.unlink(flag_path)
-                            sys.exit(0)
-                    except Exception:
-                        pass
+            _sid = (data.get('session_id') or
+                    os.environ.get('CLAUDE_SESSION_ID', '') or 'default')
+            if read_grant('Agent', _sid):
+                sys.exit(0)
     except Exception:
         pass
 

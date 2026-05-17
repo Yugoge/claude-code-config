@@ -1,7 +1,7 @@
 # commands
 
-*Last updated: 2026-05-16T20:22:19Z*
-**Total entries**: 34
+*Last updated: 2026-05-17T08:18:59Z*
+**Total entries**: 35
 **Convention**: kebab
 
 ## Tree
@@ -9,10 +9,11 @@
 commands/
 ├── `allow.md` - Single-use break-glass — bypass all safety blocks for the next matching bash command this turn. /allow = anything; /allow --tool <pattern> = explicit pattern (regex auto-detected). Trailing tokens become an audit-log comment. Auto-expires at stop.
 ├── `checkpoint.md` - Checkpoint Command
-├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
+├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests. Pass --codex to enable adversarial codex consultation on cleanliness-inspector and style-inspector; default is self-review only.
 ├── `close.md` - Close the current dev cycle (agent infers task-id from conversation). QA evaluates Workflow Integrity bullets and returns CLOSE YES/NO. Pass --codex to enable multi-round QA-codex debate; default is QA-only single-round assessment. Append --force to skip the debate entirely.
 ├── `code-review.md` - Comprehensive code review with best practices analysis
 ├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.5, xhigh reasoning) for a second opinion or parallel coding
+├── `commit.md` - Commit session changes via changelog-analyst subagent
 ├── `deep-search.md` - Deep website exploration with iterative search strategy
 ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time

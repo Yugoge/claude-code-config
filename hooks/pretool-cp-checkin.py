@@ -67,6 +67,8 @@ CP_AGENTS = {
     "cleaner", "cleanliness-inspector", "git-edge-case-analyst",
     "prompt-inspector", "rule-inspector", "spec", "style-inspector",
     "test-executor", "test-validator",
+    # Agentic commit role.
+    "changelog-analyst",
 }
 
 # Dev-registry sentinel agent names must match CP_AGENTS.  Keeping a single

@@ -428,6 +428,18 @@ Read BA output files:
 
 **Purpose**: Verify BA's analysis quality BEFORE Dev starts implementation. Catches unproven claims, scope mismatches, and missing investigation evidence early -- saving a wasted Dev+QA cycle.
 
+**Before dispatching QA, write qa_mode sentinel**:
+
+```bash
+python3 -c "
+import json
+p = '$REGISTRY_DIR/qa.json'
+d = json.load(open(p))
+d['qa_mode'] = 'ba_validation'
+json.dump(d, open(p, 'w'))
+" || { echo 'ERROR: Failed to set qa_mode=ba_validation in qa.json — aborting' >&2; exit 1; }
+```
+
 **Invoke QA in BA-validation mode**:
 
 ```
@@ -702,6 +714,18 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 **If dev completed**: Proceed to Step 11
 
 ### Step 11: Delegate to QA Subagent
+
+**Before dispatching QA, write qa_mode sentinel**:
+
+```bash
+python3 -c "
+import json
+p = '$REGISTRY_DIR/qa.json'
+d = json.load(open(p))
+d['qa_mode'] = 'final_verification'
+json.dump(d, open(p, 'w'))
+" || { echo 'ERROR: Failed to set qa_mode=final_verification in qa.json — aborting' >&2; exit 1; }
+```
 
 **Use Task tool to invoke QA subagent with file paths only**:
 
