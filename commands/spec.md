@@ -109,10 +109,7 @@ Only proceed to Step 6 when a STRONG signal fires.
 
 ### Step 6: Finalize (exactly once)
 
-1. **Count monolith lines**:
-   ```bash
-   MONOLITH_LINES=$(wc -l < <spec_path>)
-   ```
+1. **Count monolith lines**: `MONOLITH_LINES=$(wc -l < <spec_path>)`
 
 2. **Invoke spec subagent for agent selection + view creation + checkpoints**:
    ```
