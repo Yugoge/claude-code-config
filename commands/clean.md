@@ -586,7 +586,7 @@ Present verification summary:
 ## Next Steps
 
 1. Review changes: `git diff HEAD~1`
-2. If satisfied: Changes already committed — to publish to remote, run `/push` (requires push-gate: run `/commit` first if no prior commit in this session, otherwise run `bash ~/.claude/hooks/push.sh` directly)
+2. If satisfied: Changes already committed — next step is `/push` to publish to remote (push-gate note: the cleaner commits inline without writing a push-gate token; run `bash ~/.claude/hooks/push.sh` directly, or run `/commit` then `/push` if you need the full gate chain)
 3. If not satisfied: `git reset --hard <checkpoint_commit>`
 4. See detailed report: docs/clean/completion-{REQUEST_ID}.md
 ```
