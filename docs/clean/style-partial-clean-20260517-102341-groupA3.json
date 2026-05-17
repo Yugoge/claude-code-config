@@ -1,0 +1,234 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": "A3",
+  "files_audited": [
+    "agents/spec.md",
+    "agents/user.md",
+    "agents/ui-specialist.md",
+    "agents/dev.md",
+    "agents/changelog-analyst.md"
+  ],
+  "violations": [
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "agents/spec.md:39",
+      "finding": "Contains Chinese characters in example text (not wrapped in USER_VERBATIM tags or labeled verbatim:): '\"UI设计师\"' appears in a bulleted example of what roles a spec might mention.",
+      "recommendation": "Replace with English equivalent: '\"UI Designer\"'. The Standard 6 exemption for verbatim non-English user-binding quotes applies only to docs/dev/ticket-*.md, not agents/spec.md."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "agents/spec.md:359",
+      "finding": "Contains Chinese characters in an orchestrator view template comment: 'UI设计师统筹设计构思图形和动效的表述，BA设计代码实现，dev实现，QA验证'. This is inside a verbatim example comment in the Pipeline Workflow section instruction block.",
+      "recommendation": "Replace with an English equivalent example such as: 'e.g. Hard Rule about \"UI designer owns design conception and motion specs; BA owns code design; dev implements; QA verifies\"'. The Standard 6 exemption does not cover agents/spec.md."
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "agents/spec.md:721",
+      "finding": "Contains Chinese character in a forbidden cp.action pattern example: '\"verify BA didn\\'t 降级 scope\"'. The character '降级' (meaning 'downgrade') appears in an illustrative forbidden pattern.",
+      "recommendation": "Replace '降级' with 'downgrade': change to '\"verify BA didn\\'t downgrade scope\"'."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/spec.md:413-460",
+      "finding": "Contains inline Python implementation code: a 47-line python3 heredoc stanza (manifest.json writing with fcntl locking, sha256 hashing, section detection) in Phase 1 Step 5. This is executable logic, not an example.",
+      "recommendation": "Extract to scripts/write-spec-manifest.py with parameters for spec_id, monolith_path, agent_relevance_dict, views_dict. Replace the code block with: 'Run scripts/write-spec-manifest.py <spec-id> <monolith-path>'."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/spec.md:468-508",
+      "finding": "Contains inline Python implementation code: a 40-line python3 -c stanza (verbatim self-verification with regex whitelist and line-by-line checking) in Phase 1 Step 6. This is executable logic operating on actual file paths.",
+      "recommendation": "Extract to scripts/verify-spec-view-verbatim.py accepting MONOLITH_PATH and VIEW_PATH as parameters. Replace the code block with: 'Run scripts/verify-spec-view-verbatim.py $MONOLITH_PATH $VIEW_PATH'."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/spec.md:655-708",
+      "finding": "Contains inline Python implementation code: a 53-line python3 heredoc stanza (cp-state slot resolution with fcntl locking, agent_id matching, checkpoint writing) in Phase 2. This is executable logic with file I/O and concurrency control.",
+      "recommendation": "Extract to scripts/write-spec-checkpoints.py with parameters for spec_id, agent, agent_id, and checkpoint list. Replace the code block with a concise script invocation reference."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/changelog-analyst.md:60-560",
+      "finding": "The entire changelog-analyst.md agent file consists primarily of inline bash and Python implementation code (git workflow phases, python3 heredocs for push-gate token writing, bulk mode loop logic, flock-based commit serialization). The file is an implementation script embedded in agent markdown form rather than a high-level behavioral specification.",
+      "recommendation": "Extract operational bash phases (Phases 3-10) into scripts/changelog-commit.sh and scripts/write-push-gate-token.py, and Python inline stanzas into dedicated scripts. Keep the agent file to: input/output contracts, phase descriptions, and script invocation references."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/spec.md:414",
+      "finding": "Direct 'python3 - <<\\'PY\\'' call without venv activation in Phase 1 Step 5 (manifest writing stanza). Standard 3 has no exception for system-level or stdlib-only scripts.",
+      "recommendation": "Prefix with 'source /root/.claude/venv/bin/activate &&' before the python3 invocation, or extract to a venv-invoked script."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/spec.md:469",
+      "finding": "Direct 'python3 -c' call without venv activation in Phase 1 Step 6 (verbatim self-verification). Standard 3 has no exception for system-level or stdlib-only scripts.",
+      "recommendation": "Prefix with 'source /root/.claude/venv/bin/activate &&' or extract to a venv-invoked script."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/spec.md:526",
+      "finding": "Direct 'python3 /root/bin/spec-verify.py' call without venv activation in Phase 1 Step 7 (coverage verification). Standard 3 has no system-script exception.",
+      "recommendation": "Replace with: 'source /root/.claude/venv/bin/activate && python /root/bin/spec-verify.py --monolith \"$MONOLITH_PATH\" --views-dir \"docs/dev/specs/<spec-id>/views/\"'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/spec.md:583",
+      "finding": "Direct 'python3 /root/bin/spec-verify.py' call without venv activation in Phase 1 Step 7 coverage fallback (--strict flag invocation). Standard 3 has no system-script exception.",
+      "recommendation": "Replace with: 'source /root/.claude/venv/bin/activate && python /root/bin/spec-verify.py ... --strict'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/spec.md:642",
+      "finding": "Direct 'python3 /root/.claude/scripts/spec-check.py check-in' call without venv activation in Phase 2 checkpoint generation. Standard 3 has no system-script exception.",
+      "recommendation": "Replace with: 'source /root/.claude/venv/bin/activate && python /root/.claude/scripts/spec-check.py check-in ...'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/spec.md:655",
+      "finding": "Direct 'python3 - <<\\'PY\\'' heredoc call without venv activation in Phase 2 cp-state writing stanza.",
+      "recommendation": "Prefix with 'source /root/.claude/venv/bin/activate &&' or extract to a venv-invoked script."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/spec.md:758",
+      "finding": "The Tool usage section authorizes 'python3 -c stanzas' as permitted Bash usage, explicitly endorsing non-venv python3 invocations.",
+      "recommendation": "Change the authorization from 'python3 -c stanzas' to 'venv-activated Python helper scripts' to align with Standard 3."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/spec.md:824",
+      "finding": "Direct 'python3 /root/.claude/scripts/spec-check.py status' call without venv activation in the Quick sanity test section.",
+      "recommendation": "Replace with: 'source /root/.claude/venv/bin/activate && python /root/.claude/scripts/spec-check.py status ...'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/user.md:518",
+      "finding": "Direct 'python3 /root/.claude/scripts/spec-check.py mark' call without venv activation in the Checkpoint Marking Contract section.",
+      "recommendation": "Replace with: 'source /root/.claude/venv/bin/activate && python /root/.claude/scripts/spec-check.py mark ...'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/user.md:527",
+      "finding": "Direct 'python3 /root/.claude/scripts/spec-check.py waive' call without venv activation in the Checkpoint Marking Contract section.",
+      "recommendation": "Replace with: 'source /root/.claude/venv/bin/activate && python /root/.claude/scripts/spec-check.py waive ...'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/changelog-analyst.md:78",
+      "finding": "Direct 'python3 -c' call without venv activation in Phase 1 dispatch manifest parsing stanza (DISPATCH_FILES=$(python3 -c ...)).",
+      "recommendation": "Activate venv before the bash block or extract the JSON parsing to a dedicated venv-invoked script."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/changelog-analyst.md:348",
+      "finding": "Direct 'python3 - <<\\'PYEOF\\'' heredoc call without venv activation in Phase 10 push-gate token writing stanza.",
+      "recommendation": "Prefix with 'source /root/.claude/venv/bin/activate &&' before the python3 invocation, or extract to scripts/write-push-gate-token.py invoked through venv."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/dev.md:939",
+      "finding": "Direct 'python3 /root/.claude/scripts/spec-check.py mark' call without venv activation in the Checkpoint Marking Contract section.",
+      "recommendation": "Replace with: 'source /root/.claude/venv/bin/activate && python /root/.claude/scripts/spec-check.py mark ...'"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/dev.md:948",
+      "finding": "Direct 'python3 /root/.claude/scripts/spec-check.py waive' call without venv activation in the Checkpoint Marking Contract section.",
+      "recommendation": "Replace with: 'source /root/.claude/venv/bin/activate && python /root/.claude/scripts/spec-check.py waive ...'"
+    },
+    {
+      "standard": "integer-step-numbering",
+      "severity": "critical",
+      "location": "agents/ui-specialist.md:134",
+      "finding": "Uses decimal step numbering: '### Step 0.5: Execute E2E Flow on Both Viewports (MANDATORY)'. This is a real step heading, not an example or anti-pattern demonstration.",
+      "recommendation": "Renumber to an integer step. Since it falls between Steps 0 and 1, renumber existing Steps 1-7 to Steps 2-8 and make this Step 1, or renumber the sequence so all steps have integer labels."
+    }
+  ],
+  "standards_passed": [
+    "no-hardcoded-values: pass — agent .md files contain no scripts with hardcoded values; counter-examples in dev.md are inside explicitly marked anti-pattern demonstration blocks",
+    "meaningful-naming: pass — no files with forbidden naming patterns (enhance-*, fast-*, optimize-*, *-v2, improved-*, better-*, new-*) exist in the audited set",
+    "merge-similar-scripts: N/A — agent .md files are not scripts; standard applies to scripts/ directory",
+    "concise-documentation: pass — files contain appropriate technical specification detail; no marketing language in actual instructional content (counter-examples in dev.md are explicitly marked NOT-blocks)",
+    "parameterized-scripts: N/A — agent .md files are not scripts; standard applies to scripts/ directory",
+    "dangling-references: pass — referenced scripts verified to exist: /root/.claude/scripts/spec-check.py, /root/bin/spec-verify.py, /root/bin/spec-verify-views.py",
+    "merge-conflicts: pass — no merge conflict markers found in any of the 5 audited files"
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex confirmed Violations 1-3 (Chinese/english-only) as TRUE_POSITIVE with no exemption in agents/spec.md context. Confirmed Violations 4-5 (no-inline-code in spec.md and changelog-analyst.md) as TRUE_POSITIVE. Confirmed Violation 6 (use-source-venv) as TRUE_POSITIVE with no system-script exception. Additionally identified: (1) MISSED_CRITICAL: spec.md:758 Tool usage section authorizes 'python3 -c stanzas' which is a Standard 3 violation; (2) MISSED_CRITICAL: user.md and dev.md checkpoint bash blocks contain direct python3 calls (Standard 3); (3) MISSED_CRITICAL: ui-specialist.md:134 'Step 0.5' is a real decimal step heading violating Standard 4; (4) MISSED_CRITICAL: spec.md:642 and spec.md:824 direct python3 calls; (5) OBSERVATION_ONLY: checkpoint command blocks in user.md/dev.md may be considered instructional rather than Standard 1 violations (evaluated as Standard 3 violations only, not Standard 1, since they are single 4-line command reference blocks rather than embedded multi-line implementation logic).",
+    "findings": [
+      {
+        "issue": "Violations 1-3 are TRUE_POSITIVE english-only violations; exemption only applies to docs/dev/ticket-*.md",
+        "proposed_fix": "Keep all three as severity:critical; replace Chinese text with English equivalents",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Standard 6 exemption scope is clear: only docs/dev/ticket-*.md. All three occurrences are in agents/spec.md which is not exempt."
+      },
+      {
+        "issue": "Violations 4-5 are TRUE_POSITIVE no-inline-code violations; spec.md and changelog-analyst.md contain executable logic that should be in scripts",
+        "proposed_fix": "Finalize as severity:critical; extract code to named scripts",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "The code blocks contain real file I/O, fcntl locking, hashing, and git operations - these are not examples but executable workflow implementation."
+      },
+      {
+        "issue": "Violation 6 is TRUE_POSITIVE; Standard 3 has no system-script exception",
+        "proposed_fix": "Keep as severity:critical; prefix all python3 calls with source venv activation",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Standard 3 text states 'All Python script invocations MUST use source venv or source .venv, NOT direct python3' with no exception for system scripts."
+      },
+      {
+        "issue": "MISSED_CRITICAL: spec.md:758 Tool usage section authorizes 'python3 -c stanzas' — explicit endorsement of non-venv python3",
+        "proposed_fix": "Add as Standard 3 violation; change authorization from 'python3 -c stanzas' to 'venv-activated Python helper scripts'",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "This is a Standard 3 violation: an agent file explicitly authorizing the disallowed python3 invocation pattern."
+      },
+      {
+        "issue": "MISSED_CRITICAL: ui-specialist.md:134 'Step 0.5' is a real decimal step heading, not an example",
+        "proposed_fix": "Add as Standard 4 violation; renumber to an integer step",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Standard 4 requires integer step numbering. '### Step 0.5' is a real procedural step heading in ui-specialist.md, confirmed as not an anti-pattern demonstration block."
+      },
+      {
+        "issue": "MISSED_CRITICAL: user.md and dev.md checkpoint bash blocks contain direct python3 calls for spec-check.py (Standard 1 concern)",
+        "proposed_fix": "Evaluate as Standard 3 violations only (not Standard 1) since each block is a 4-line single-script-invocation reference, not embedded multi-line implementation logic",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "The checkpoint bash blocks in user.md and dev.md are 4-line command references showing exactly how to call a single script. This is closer to documentation than embedded implementation. Flagged as Standard 3 violations (python3 without venv) rather than Standard 1 violations (inline code implementation)."
+      }
+    ],
+    "feedback_incorporated": "Applied all 5 blocker findings: (1) confirmed Violations 1-3; (2) confirmed Violations 4-5 as Standard 1; (3) confirmed Violation 6 and expanded it to cover all python3 occurrences across all 5 files; (4) added spec.md:758 Tool usage authorization as additional Standard 3 violation; (5) added ui-specialist.md:134 Step 0.5 as Standard 4 violation. Classified checkpoint command blocks in user.md/dev.md as Standard 3 (not Standard 1) violations given their brevity and single-script-reference nature."
+  },
+  "summary": {
+    "standards_checked": 11,
+    "violations_found": 22,
+    "critical": 22,
+    "files_audited": 5,
+    "files_total": 5
+  },
+  "status": "complete"
+}

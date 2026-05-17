@@ -1,0 +1,229 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": "A1",
+  "files_audited": [
+    "agents/cleaner.md",
+    "agents/rule-inspector.md",
+    "agents/git-edge-case-analyst.md",
+    "agents/test-executor.md",
+    "agents/test-validator.md"
+  ],
+  "violations": [
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/rule-inspector.md:108-115",
+      "finding": "Bash code block with actual find/ls commands using concrete project-specific paths (data/raw, data/cache, data/processed, find . -maxdepth 2). Standard 1 prohibits inline bash/python code with 'find' commands using actual paths. This block is labeled 'How to get accurate data for updates' and is not marked as an example.",
+      "recommendation": "Extract to scripts/collect-root-doc-stats.sh with a --project-root parameter, and reference that script from the agent file."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/test-executor.md:80-101",
+      "finding": "Inline bash script block with full shebang, set -euo pipefail, variable capture (OUTPUT, EXIT_CODE), deactivate, and exit logic. This is a complete executable script embedded in an agent .md file, not a labeled example.",
+      "recommendation": "Extract to scripts/run-validator.sh with parameters ($1 VALIDATOR_PATH, $2 PROJECT_ROOT, $3 VENV_PATH) and reference it from the agent."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/test-executor.md:117-144",
+      "finding": "Inline Python block with subprocess.run calls, timeout=30, JSON parsing logic, and exception handling (TimeoutExpired, generic Exception). This is actual implementation code embedded in an agent .md file.",
+      "recommendation": "Extract to scripts/execute-validator.py with CLI arguments for venv_path, validator_path, project_root."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/test-executor.md:188-222",
+      "finding": "Inline Python file-reading and validation-loop logic: reads context files with open(), iterates criteria with for loops, calls check_criterion() and validate_criterion() — actual implementation code embedded in agent .md.",
+      "recommendation": "Extract to scripts/execute-instruction-validator.py or replace with concise prose describing the algorithm and a reference to the extraction script."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/test-executor.md:276-299",
+      "finding": "Inline Python error-handling block for instruction-based validator execution: reads instruction, gathers context files, iterates validation criteria with for loop — actual implementation logic, not labeled as example.",
+      "recommendation": "Extract to scripts/execute-instruction-validator.py alongside the 188-222 block."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/test-executor.md:305-343",
+      "finding": "Full aggregate_results() Python function with real loop logic: sum() generators, priority breakdowns, set comprehensions for edge case coverage — complete implementation code embedded in agent .md.",
+      "recommendation": "Extract to scripts/aggregate-test-results.py with a --results-json parameter."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/test-executor.md:349-377",
+      "finding": "Full analyze_failed_tests() Python function with real loop logic: iterates failed tests, extracts violations, generates recommendations — complete implementation code embedded in agent .md.",
+      "recommendation": "Extract to scripts/analyze-failed-tests.py and invoke via script reference."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/test-executor.md:487-516",
+      "finding": "Inline Python/bash execution-mode snippets for Standard Mode (fail_fast=false) and Fail-Fast Mode (fail_fast=true) with actual for-loop logic and break conditions. These are implementation code blocks, not simple examples.",
+      "recommendation": "Replace with concise prose descriptions of each mode. Move any implementation to scripts/run-validator.sh mode parameter."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/test-validator.md:87-115",
+      "finding": "Full check_imports() Python function with ast.parse(), ast.walk(), subprocess.run() calls to activate venv and test each import — complete implementation code embedded in agent .md.",
+      "recommendation": "Extract to scripts/check-validator-imports.py with a --script-path parameter."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/test-validator.md:131-155",
+      "finding": "Three Python functions (has_argparse, has_json_output, has_exit_codes) each with open() file-reading logic — actual implementation code embedded in agent .md.",
+      "recommendation": "Extract to scripts/check-validator-quality.py with a --script-path parameter."
+    },
+    {
+      "standard": "no-inline-code",
+      "severity": "critical",
+      "location": "agents/test-validator.md:175-195",
+      "finding": "Bash cat/jq command with concrete path (docs/test/edge-case-analysis.json) followed by full validate_edge_case_coverage() Python function with set operations — actual implementation code, not labeled example.",
+      "recommendation": "Extract to scripts/validate-edge-case-coverage.py and reference it from the agent."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/test-executor.md:559",
+      "finding": "Troubleshooting section shows 'time python3 test/scripts/validate-xxx.py --project-root .' without venv activation. Standard 3 requires all Python invocations in .sh and .md files to use source venv first.",
+      "recommendation": "Update to: source ~/.claude/venv/bin/activate && time python test/scripts/validate-xxx.py --project-root ."
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/test-executor.md:573",
+      "finding": "Troubleshooting section shows 'python3 test/scripts/validate-xxx.py --project-root . 2>&1 | head -20' without venv activation.",
+      "recommendation": "Update to: source ~/.claude/venv/bin/activate && python test/scripts/validate-xxx.py --project-root . 2>&1 | head -20"
+    },
+    {
+      "standard": "use-source-venv",
+      "severity": "critical",
+      "location": "agents/test-validator.md:69",
+      "finding": "Direct 'python3 -m py_compile tests/scripts/validate-venv-usage.py' without venv activation in the Syntax Validation section.",
+      "recommendation": "Update to: source ~/.claude/venv/bin/activate && python -m py_compile tests/scripts/validate-venv-usage.py"
+    },
+    {
+      "standard": "concise-documentation",
+      "severity": "critical",
+      "location": "agents/test-executor.md (680 lines)",
+      "finding": "Extremely verbose agent file: contains 4+ full Python function implementations (aggregate_results, analyze_failed_tests, error-handling loops, instruction-execution loops), a 50-line 'Example End-to-End Execution' narrative section, a 'Quality Checklist' section, a 'Best Practices' section with sub-sections, an 'Execution Modes' section with fenced implementation code, and a multi-section Troubleshooting guide. Total 680 lines of which the majority is implementation detail that belongs in scripts, not agent instructions. This wastes context tokens on every agent invocation.",
+      "recommendation": "Reduce to: role description, input format (JSON schema), execution step summary (prose bullets, no code), output format (JSON schema). Extract all implementation code to dedicated scripts. Target: under 150 lines."
+    },
+    {
+      "standard": "concise-documentation",
+      "severity": "critical",
+      "location": "agents/test-validator.md (478 lines)",
+      "finding": "Verbose agent file: contains multiple Python function implementations (check_imports, has_argparse, has_json_output, has_exit_codes, validate_edge_case_coverage), a detailed 'Example Validation Execution' walk-through section, an extensive Troubleshooting section, and a 'Best Practices' section. Implementation code belongs in scripts, not agent instructions.",
+      "recommendation": "Reduce to: role description, input format (JSON schema), validation criteria summary (prose), output format (JSON schema). Extract all function implementations to dedicated scripts. Target: under 100 lines."
+    },
+    {
+      "standard": "dangling-references",
+      "severity": "critical",
+      "location": "agents/test-executor.md:46,52,107,179,559,573",
+      "finding": "References paths under test/ folder (test/scripts/validate-venv-usage.py, test/instructions/claude-md-protection.md, test/reports/execution-report-*.json) but the test/ directory does not exist on disk. The actual test infrastructure is in tests/ (plural). These are broken path references that would cause runtime failures.",
+      "recommendation": "Replace all test/ path references with tests/ throughout agents/test-executor.md. For example: 'test/scripts/validate-venv-usage.py' → 'tests/scripts/validate-venv-usage.py', 'test/instructions/claude-md-protection.md' → 'tests/instructions/claude-md-protection.md'."
+    }
+  ],
+  "standards_passed": [
+    "no-inline-code: agents/cleaner.md — no code blocks with executable logic",
+    "no-inline-code: agents/git-edge-case-analyst.md — git command blocks use placeholder variables (<commit-hash>, <file>) and are clearly instructional examples, not executable scripts",
+    "no-hardcoded-values: N/A — all 5 files are agent .md files, not scripts; standard applies to scripts only",
+    "integer-step-numbering: all 5 files clean — no decimal (1.1, 1.2) or letter-suffixed (1a, 1b) step numbering found",
+    "meaningful-naming: all 5 files clean — no enhance-*, fast-*, optimize-*, -v2, improved-*, better-*, new-* patterns",
+    "english-only: all 5 files clean — no Chinese or non-English characters found",
+    "merge-similar-scripts: N/A — these are agent .md files, not scripts; standard targets scripts/ only",
+    "parameterized-scripts: N/A — these are agent .md files, not scripts; standard targets scripts/ only",
+    "merge-conflicts: all 5 files clean — no <<<<<<, =======, >>>>>>> markers found"
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex returned 9 actionable findings and 1 observation. Key corrections: (1) draft #7 (test-executor:107) was a false positive — venv is activated on line 106 immediately before; (2) draft #3 had an inaccurate range (276-343 should be 305-343, with 276-299 being a separate block); (3) 5 additional no-inline-code violations were missed (lines 188-222, 276-299, 487-516 in test-executor; lines 175-195 in test-validator; lines 108-115 in rule-inspector); (4) a dangling-references violation was missed (test/ vs tests/ path discrepancy in test-executor). Codex also flagged git-edge-case-analyst:29-67 as a missed no-inline-code violation.",
+    "findings": [
+      {
+        "issue": "SCOPE_BLOCKER: None of the 5 files are in the current diff — findings appear pre-existing",
+        "proposed_fix": "Label audit scope as legacy full-file audit if gating current diff",
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "The orchestrator dispatched this as a full-repo group audit without --changed-files parameter. The scope is intentionally a full-file audit of these 5 agent files, not a changed-files delta. This finding does not change the violations reported."
+      },
+      {
+        "issue": "FALSE_POSITIVE: Draft #7 (test-executor.md:107) — line 106 activates venv, making the python3 on line 107 post-activation",
+        "proposed_fix": "Delete #7 as a use-source-venv violation",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed: line 106 is '1. **Activate venv**: `source ~/.claude/venv/bin/activate`' and line 107 is '2. **Execute validator**: `python3 test/scripts/...`'. The venv activation instruction immediately precedes the python3 call. Removed draft #7 from violations."
+      },
+      {
+        "issue": "MISSED_CRITICAL/inaccurate range: Draft #3 aggregate_results() range was 276-343 but function starts at 305; lines 276-299 are a separate error-handling block",
+        "proposed_fix": "Split into two violations: lines 305-343 (aggregate_results) and lines 276-299 (error-handling block)",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed by reading file: lines 276-299 are a try/except block for instruction validation; lines 305-343 are the aggregate_results() function. Both are separate no-inline-code violations. Applied as two distinct violations."
+      },
+      {
+        "issue": "MISSED_CRITICAL: test-executor.md:188-222 contains inline Python file-reading and validation-loop logic",
+        "proposed_fix": "Add critical no-inline-code finding at agents/test-executor.md:188-222",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed: lines 188-222 contain Python with open() file reads and for-loop validation logic. Added as violation."
+      },
+      {
+        "issue": "MISSED_CRITICAL: test-executor.md:487-516 contains inline Python/bash execution-mode snippets",
+        "proposed_fix": "Add critical no-inline-code finding at agents/test-executor.md:487-516",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed: lines 487-516 contain Python for-loop implementations of Standard Mode and Fail-Fast Mode with break logic. Added as violation."
+      },
+      {
+        "issue": "MISSED_CRITICAL: test-validator.md:175-195 contains cat|jq command and full validate_edge_case_coverage() Python function",
+        "proposed_fix": "Add critical no-inline-code finding at agents/test-validator.md:175-195",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed: lines 175-195 contain bash cat/jq with concrete path and a full Python function with set operations. Added as violation."
+      },
+      {
+        "issue": "MISSED_CRITICAL: rule-inspector.md:108-115 contains actual find/ls commands with concrete paths",
+        "proposed_fix": "Add critical no-inline-code finding at agents/rule-inspector.md:108-115",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed: lines 108-115 contain find data/raw, find data/cache, find data/processed, ls data/processed with actual path names. Standard 1 check logic: 'find, grep, git, jq commands with actual paths' AND NOT marked as example. This block is labeled 'How to get accurate data for updates' — not an example. Added as violation."
+      },
+      {
+        "issue": "MISSED_CRITICAL: git-edge-case-analyst.md:29-67 contains raw multi-line git command blocks instead of referencing the helper script",
+        "proposed_fix": "Add critical no-inline-code finding at agents/git-edge-case-analyst.md:29-67; replace with reference to scripts/analyze-git-edge-cases.sh",
+        "classification": "blocker",
+        "disposition": "rejected",
+        "rationale": "The git command blocks in git-edge-case-analyst.md (lines 29-67) use placeholder variables: 'git log --oneline --all --grep=\"fix:\"', 'git show <commit-hash>', 'git diff <commit>^ <commit> -- <file>', 'git log --oneline --reverse --all -- <file>', 'git log --since=\"<date>\" --oneline -- <file>'. All path/parameter values are angle-bracket placeholders (<commit-hash>, <file>, <date>), not actual paths. Standard 1 check logic requires 'find, grep, git, jq commands with actual paths' to be a violation. These are instructional examples showing what kinds of git commands to run during analysis, consistent with the git-edge-case-analyst's role as an AI agent that executes these commands via tools (not a shell script). The 'AND NOT marked as example or in example section' exemption also applies — all blocks are labeled with '**Search for correction patterns**:', '**Examine what was fixed**:' etc., acting as method documentation. Not a violation. Rejected."
+      },
+      {
+        "issue": "MISSED_CRITICAL: Standard 10 clean assessment incorrect — test-executor.md references test/ paths that do not exist; actual folder is tests/",
+        "proposed_fix": "Add critical dangling-references finding for agents/test-executor.md:46,52,107,179",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed: test/ directory does not exist on disk; tests/ exists. test-executor.md references test/scripts/validate-venv-usage.py (line 46), test/instructions/claude-md-protection.md (line 52), test/scripts/validate-venv-usage.py (line 107), test/instructions/claude-md-protection.md (line 179), test/scripts/validate-xxx.py (lines 559, 573). All are broken references. Added as dangling-references violation."
+      },
+      {
+        "issue": "OBSERVATION_ONLY: No severity misclassification — all violations are critical per style-inspector standard",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirmed. All violations use critical severity per style-inspector guidelines."
+      }
+    ],
+    "feedback_incorporated": "Applied 7 of 9 Codex blockers: removed false positive #7 (test-executor:107 venv was already activated); corrected draft #3 range and split into two violations; added 5 missed no-inline-code violations (test-executor 188-222, 276-299, 487-516; test-validator 175-195; rule-inspector 108-115); added 1 missed dangling-references violation (test/ vs tests/). Rejected Codex git-edge-case-analyst:29-67 finding as false positive (placeholder variables, not actual paths; method documentation pattern, not executable script)."
+  },
+  "summary": {
+    "standards_checked": 11,
+    "violations_found": 16,
+    "critical": 16,
+    "files_audited": 5,
+    "files_total": 5
+  },
+  "status": "complete"
+}
