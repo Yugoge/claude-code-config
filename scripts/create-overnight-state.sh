@@ -38,7 +38,8 @@ resolve_project_dir() {
         printf '%s\n' "$toplevel"
         return 0
     fi
-    printf '%s\n' "/root"
+    echo "Error: cannot determine project directory; set CLAUDE_PROJECT_DIR or run from within a git repo" >&2
+    exit 1
 }
 PROJECT_DIR="$(resolve_project_dir)"
 
