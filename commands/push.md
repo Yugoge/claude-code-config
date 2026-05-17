@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # Push Command
 
-`/push` is the validated wrapper for normal branch publication. Note: pretool-git-privilege-guard.py is currently UNREGISTERED from settings.json — agents may freely git commit. The guard file exists at 655 lines but has no hook registration. Re-registration requires a separate cycle. The wrapper
+`/push` is the validated wrapper for normal branch publication. Note: pretool-git-privilege-guard.py is REGISTERED in settings.json (PreToolUse, Bash matcher) and enforces commit authorization — agents must hold a valid commit grant or use the `auto-bulk:` bridge prefix to commit. The wrapper
 script `~/.claude/hooks/push.sh` produces a valid push grant for use when
 the guard is eventually re-registered.
 
@@ -70,10 +70,7 @@ Token location: `/tmp/agentic-commit/push/<repo-hash>/<branch-encoded>.json`
 the token after a successful real-branch commit. The token is consumed (deleted) after
 a successful push.
 
-**Forward compatibility note**: `pretool-git-privilege-guard.py` is currently UNREGISTERED
-from `settings.json`. When it is eventually re-registered (separate future cycle), that
-cycle MUST first extend `BLESSED_BRIDGE_RE` to include the agentic commit message patterns
-before re-registering, or all changelog-analyst commits will be silently blocked.
+**Guard registration note**: `pretool-git-privilege-guard.py` is REGISTERED in `settings.json` (PreToolUse, Bash matcher). changelog-analyst commits require either a valid commit grant (written by `/commit` Step 5) or the `auto-bulk:` prefix (matched by `BLESSED_BRIDGE_RE`). Direct `git commit` by agents without a grant or blessed prefix is blocked.
 
 ## Pre-conditions for success
 
@@ -93,4 +90,4 @@ before re-registering, or all changelog-analyst commits will be silently blocked
 ## Related
 
 - `/commit <task-id>` — automatic semantic commit for a closed task.
-- Direct `git push` — not currently blocked (privilege guard is unregistered); use `/push` via the wrapper script as the conventional path.
+- Direct `git push` — agents must use `/push` via the wrapper script; the privilege guard is registered and enforces commit authorization before push is meaningful.

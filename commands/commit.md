@@ -73,7 +73,7 @@ Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/l
 
 ### Step 5: Write commit grant and dispatch-snapshot manifest
 
-Before dispatching changelog-analyst, write a single-use commit grant: activate venv and run Python to generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at` (10 minutes), and `created_at`. Best-effort; proceed even if grant write fails (guard is currently UNREGISTERED).
+Before dispatching changelog-analyst, write a single-use commit grant (skip this entire grant-write block when `BULK=true` — BULK commits use the `auto-bulk:` prefix which bypasses the guard via `BLESSED_BRIDGE_RE`; no grant is needed or written): activate venv and run Python to write the grant. First, resolve the session ID: `sid = os.environ.get("CLAUDE_SESSION_ID")`. If `sid` is empty or `None`, abort immediately with: `Cannot write commit grant: CLAUDE_SESSION_ID not set. Invoke /commit from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst. If `sid` is set, generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at` (10 minutes), and `created_at`. The guard IS registered and active — grant absence WILL block the changelog-analyst commit.
 
 Also write the dispatch-snapshot manifest (non-bulk mode only): activate venv and run Python to capture `git status --porcelain=v1` from both repos, then write `manifest_path = /tmp/claude-commit-manifest-{sid}.json` containing `session_id`, `task_id`, `dispatched_at`, and `files_at_dispatch`. Best-effort; skip entirely in bulk mode.
 
@@ -101,6 +101,7 @@ Constraints:
 - Write push-gate token after each successful commit
 - Push-gate token path MUST be: `/tmp/agentic-commit/push/<sha256(os.path.realpath(GIT_ROOT))[:16]>/<BRANCH with / replaced by __>.json`
 - Push-gate validates commit_sha only; expires_at is no longer written or checked
+- **BULK mode commit message prefix (REQUIRED when BULK=true)**: every commit message MUST begin with `auto-bulk: end-of-cycle commit for <current-branch>` where `<current-branch>` is the actual current git branch of the repo being committed (run `git rev-parse --abbrev-ref HEAD`). This prefix matches `BLESSED_BRIDGE_RE` and bypasses the privilege guard — no grant file is needed. Do NOT use this prefix when BULK=false.
 ```
 
 Wait for changelog-analyst to complete. Echo its final status to the user.

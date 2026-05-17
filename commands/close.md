@@ -31,7 +31,9 @@ Power users may also pass an explicit task-id or path: `/close <task-id>` or `/c
 
 ## Workflow
 
-Load preloaded todo list: activate venv and run `~/.claude/scripts/todo/close.py`.
+**Sentinel-before-todo contract**: If `--force` is present in `$ARGUMENTS`, the sentinel file MUST be written BEFORE loading the preloaded todo list (i.e., before `close.py` is run). The forced-override path procedure (steps 1-8 below) is the canonical authority; "Load preloaded todo list" applies only to the normal (non-force) path.
+
+Load preloaded todo list (non-force path only): activate venv and run `~/.claude/scripts/todo/close.py`.
 
 ### Argument parsing: `--codex` flag (applies to non-force paths)
 
@@ -58,7 +60,16 @@ Argument parsing order (orchestrator parses at the slash-command layer):
 
 Procedure when `--force` is present:
 
+The forced-override todo list has exactly **2 steps** (no Step 2 / QA dispatch):
+- Step 1: Write forced close-report
+- Step 2: Write audit log entry + temp update + clean up sentinel
+
+**Important**: Do NOT add a QA dispatch step to the forced-override todo list. The sentinel (written in step 1 below) is belt-and-suspenders; the primary protection is that the todo list never contains a QA dispatch step.
+
 1. **Strip `--force` from `$ARGUMENTS`**. If `--reason "<text>"` follows, capture `<text>` (everything between the matched quotes) as `$REASON`. If absent, set `$REASON="no reason provided"`.
+
+   **Immediately write force sentinel** (BEFORE any todo initialization and BEFORE loading close.py): resolve `DEV_SESSION_ID` from the dev-registry directory used for this session (the directory name under `.claude/dev-registry/` — format `dev-YYYYMMDD-HHMMSS`). Write an empty sentinel file at `/tmp/claude-close-force-<DEV_SESSION_ID>.flag`. If the write fails, proceed with the forced close (the primary protection is the 2-step todo; the sentinel is defense-in-depth).
+
 2. **Resolve the task-id** from the remaining argument using the same Task-id resolution rules below (explicit path → derive from basename; timestamp → use directly; no argument → orchestrator infers from session context). Reuse the same task-id form-detection and TASK_ID derivation rules below; do NOT create a separate path/timestamp/no-argument resolution algorithm for `--force`. Artifact existence checks are path-specific: when this resolution is invoked from the Forced-override path, skip `qa-report-<task-id>.json` verification.
 3. **Skip Step 2 entirely** — no QA subagent invocation, no Skill(codex) call, no Workflow Integrity Dimension evaluation, no multi-round debate.
 4. **Write the forced close-report** to `docs/dev/close-report-<task-id>.md` with this exact structure:
@@ -97,12 +108,9 @@ Procedure when `--force` is present:
 
    Append to `~/.claude/logs/close-overrides.log`: a line with ISO timestamp, task-id, mode=force, and the reason string. Create `~/.claude/logs/` if needed. If the append fails, the close-report write still succeeds; the audit log is best-effort.
 
-6. **Create forced-path update** using `/update --temp`. Default to
-   `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless
-   the user explicitly asks. It must state that closure was forced by the user,
-   reference `docs/dev/close-report-<task-id>.md`, and suggest `/commit
-   <task-id> -m "<summary>"` only if the user still intends to ship despite the
-   skipped debate.
+6. **Create forced-path update and clean up sentinel**: Create the update using `/update --temp`. Default to `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless the user explicitly asks. It must state that closure was forced by the user, reference `docs/dev/close-report-<task-id>.md`, and suggest `/commit <task-id> -m "<summary>"` only if the user still intends to ship despite the skipped debate.
+
+   After the update is created, remove the sentinel file `/tmp/claude-close-force-<DEV_SESSION_ID>.flag` by running `python3 -c "import os, pathlib; pathlib.Path('/tmp/claude-close-force-<DEV_SESSION_ID>.flag').unlink(missing_ok=True)"` (suppress any errors). This cleanup is mandatory, not best-effort — but errors are swallowed so the close still completes.
 
 7. **Print the final stdout line** (this is the line consumers grep for):
 
