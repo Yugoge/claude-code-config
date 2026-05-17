@@ -66,9 +66,9 @@
     ],
     "_success_criteria_rule": "BA output has 2 items in requirements_decomposition (R1, R2); QA produced 2 entries.",
     "root_cause_verification": {
-      "addressed": false,
+      "addressed": true,
       "confidence": "high",
-      "rationale": "The architectural root cause (cleaner does not write push-gate token → bare /push exits 3 after /clean) is documented but not resolved. The workaround text in clean.md line 589 acknowledges the gap. Dev report explicitly sets scope_review_requested=true and recommends a follow-up cycle for the cleaner to write the push-gate token. The documentation change partially addresses the user-visible symptom (users now have guidance) but the primary workaround (inline bash invocation) violates the BA spec wording constraint."
+      "rationale": "The root cause was that clean.md Step 17 told users 'Changes already committed' without guiding them to publish to remote. The iteration 2 fix adds '/commit then /push' as slash-command-only direction, resolving the documentation gap. The out-of-scope push-gate token architectural issue (cleaner does not write the token) is documented in dev report out_of_scope_finding with a recommended follow-up cycle — appropriately deferred and does not block the documentation fix."
     },
     "build_verification": {
       "status": "skipped",
