@@ -2,7 +2,7 @@
 # Description: Audit always-on security-critical hook files against a cycle baseline SHA
 #              and flag any drift. Drift is allowed only when explicitly listed via
 #              --allow <path> for the current cycle.
-# Usage: check-security-hook-drift.sh [--baseline <sha>] [--allow <path>]...
+# Usage: check-security-hook-drift.sh [--baseline <sha>] [--allow <path>]... [--frontmatter-lines <N>]
 # Exit codes:
 #   0  All security hooks match the baseline (or any drift is on an --allow list)
 #   1  At least one tracked file diverged from baseline and was not on --allow list
