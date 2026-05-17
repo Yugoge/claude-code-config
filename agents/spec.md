@@ -555,67 +555,7 @@ source ~/.claude/venv/bin/activate && python3 /root/.claude/scripts/spec-check.p
     --artifact docs/dev/<agent>-report-<ts>.json
 ```
 
-Then write checkpoints via a Python stanza that preserves flock discipline.
-The stanza resolves the cp-state path by locating the running slot whose
-stored `agent_id` matches THIS invocation's `<agent-id>` (not just "any
-running slot" — that would race with concurrent same-type instances):
-
-```bash
-python3 - <<'PY'
-import json, os, fcntl, re, sys
-from datetime import datetime, timezone
-from pathlib import Path
-
-def now(): return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-
-spec_id = "<spec-id>"
-agent = "<agent>"
-my_agent_id = "<agent-id>"  # MUST match what was passed to check-in above
-project_dir = os.environ["CLAUDE_PROJECT_DIR"]
-cp_dir = Path(project_dir) / ".claude" / "specs" / spec_id
-
-# Enumerate all slots for this agent type (primary first, then numbered
-# in ascending order). We will filter by agent_id below.
-candidates = []
-primary = cp_dir / f"cp-state-{agent}.json"
-if primary.exists():
-    candidates.append(primary)
-pattern = re.compile(rf"^cp-state-{re.escape(agent)}-(\d+)\.json$")
-numbered = sorted(
-    (int(pattern.match(p.name).group(1)), p)
-    for p in cp_dir.iterdir()
-    if pattern.match(p.name)
-)
-candidates.extend(p for _, p in numbered)
-
-# Pick the slot where agent_id matches my_agent_id AND is_running.
-# Matching by is_running alone is WRONG: concurrent same-type instances
-# (e.g., two ba's running in parallel) produce two running slots and the
-# first-match rule would non-deterministically hijack the sibling's slot.
-path = None
-for c in candidates:
-    with open(c) as f:
-        d = json.load(f)
-    if d.get("agent_id") == my_agent_id and d.get("is_running"):
-        path = c
-        break
-if path is None:
-    sys.exit(f"no running cp-state slot found for agent={agent} agent_id={my_agent_id}")
-
-with open(path) as f:
-    data = json.load(f)
-data["checkpoints"] = [
-    {"id": "cp-01", "action": "<verb-first atomic action>", "state": "pending", "waived_reason": None, "updated_at": now()},
-    # ... more cps
-]
-lock_path = str(path) + ".lock"
-with open(lock_path, "w") as lh:
-    fcntl.flock(lh.fileno(), fcntl.LOCK_EX)
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
-    fcntl.flock(lh.fileno(), fcntl.LOCK_UN)
-PY
-```
+Then write checkpoints via a Python stanza (activate venv first: `source ~/.claude/venv/bin/activate`) that preserves flock discipline. The stanza resolves the cp-state path by enumerating all slots for this agent type (primary first, then numbered), filtering for the slot where `agent_id` matches this invocation's agent-id AND `is_running` is true. Matching by `is_running` alone is wrong — concurrent same-type instances would race. Once the correct slot is found, load the JSON, set the `checkpoints` array with Gawande-style verb-first entries, and write back with fcntl.LOCK_EX. Exit with an error if no matching running slot is found.
 
 ### Checkpoint rules (Gawande-style)
 
