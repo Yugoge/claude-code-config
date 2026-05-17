@@ -414,47 +414,7 @@ Write `docs/dev/specs/<spec-id>/views/manifest.json`. Use fcntl.LOCK_EX for atom
 
 After writing EACH view file (including orchestrator.md), verify the verbatim constraint. Under the tightened rule, every non-blank line that is NOT a section title (##/###/####), view-header scaffolding, or `---` separator must be a byte-for-byte substring of the monolith. Blockquote lines (`> ...`) pass when the quoted text (after stripping `> `) is a verbatim monolith substring.
 
-```bash
-python3 -c "
-import sys, re
-monolith = open('$MONOLITH_PATH', encoding='utf-8').read()
-with open('$VIEW_PATH', encoding='utf-8') as f:
-    lines = f.readlines()
-# Whitelist: section titles + view-header scaffolding + '---' separators
-WHITELIST = [
-    re.compile(r'^<!--\s*AUTO-GENERATED\b.*-->\s*$'),
-    re.compile(r'^#\s+\S.*\s+view of\s+\S+\s*$'),
-    re.compile(r'^\*\*Monolith\*\*:\s+.+$'),
-    re.compile(r'^\*\*Extraction\*\*:\s+.+$'),
-    re.compile(r'^---\s*$'),
-    re.compile(r'^#{2,4}\s+\S.*$'),
-]
-in_header = True
-failures = []
-for i, line in enumerate(lines, 1):
-    stripped = line.rstrip('\n').rstrip()
-    if in_header:
-        if stripped == '---' and i > 3:
-            in_header = False
-        continue
-    if not stripped:
-        continue
-    if any(p.match(stripped) for p in WHITELIST):
-        continue
-    # Strip '> ' blockquote prefix for verbatim check
-    candidate = stripped[2:].rstrip() if stripped.startswith('> ') else ('' if stripped == '>' else stripped)
-    if candidate and candidate not in monolith:
-        failures.append((i, stripped[:80]))
-if failures:
-    print(f'FAIL: {len(failures)} non-verbatim lines')
-    for ln, text in failures[:5]:
-        print(f'  line {ln}: {text}')
-    sys.exit(1)
-else:
-    print('PASS: all content lines are verbatim substrings')
-    sys.exit(0)
-"
-```
+Activate the venv and run a Python verbatim-check: read the monolith and view file, skip the view header (up to the first `---` after line 3), skip blank lines and whitelisted patterns (AUTO-GENERATED comments, view title lines, `**Monolith**:`, `**Extraction**:`, `---`, section headings). For blockquote lines, strip the `> ` prefix before checking. Every remaining line must be a byte-for-byte substring of the monolith; failures are collected with line numbers. Exit 1 if any failures, exit 0 if all pass.
 
 **On failure**: If verification fails for any agent's view (exit code 1):
 1. Log a warning: `"WARNING: verbatim check failed for <agent>.md — retrying extraction"`
