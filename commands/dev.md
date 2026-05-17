@@ -220,6 +220,9 @@ Use Agent tool with:
 
   Requirement: '<requirement from Step 1>'
 
+  <If codex_required = true, include the literal next line; otherwise omit it>
+  codex_required: true
+
   Provide your observations and analysis relevant to this requirement.
   Return structured findings that will inform the BA analysis.
   DO NOT modify files. Return observations only.
