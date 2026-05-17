@@ -138,10 +138,10 @@ def _has_do_consent(data: dict) -> bool:
         return False
 
 
-def _check_and_consume_git_allowlist(command: str, data: dict) -> bool:
-    """Check and consume /allow grant for non-commit/non-push git operations.
+def _check_git_allowlist(command: str, data: dict) -> bool:
+    """Check /allow grant for non-commit/non-push git operations. Read-only.
 
-    Main-agent only. Returns True if grant was found and consumed.
+    Main-agent only. Returns True if grant matched (consume deferred to PostToolUse).
     """
     if data.get('agent_id'):
         return False
@@ -445,7 +445,7 @@ def _evaluate_commit(command, data):
 def _evaluate_merge(command, data):
     if os.environ.get('CLAUDE_MERGE_COMMAND_ACTIVE') == '1':
         return
-    if _check_and_consume_git_allowlist(command, data):
+    if _check_git_allowlist(command, data):
         return
     _block(
         '\nBLOCKED: agent git merge - only the /merge slash command '
@@ -564,7 +564,7 @@ def _evaluate_push(command, sid):
 
 
 def _evaluate_reset_hard(command, data):
-    if _check_and_consume_git_allowlist(command, data):
+    if _check_git_allowlist(command, data):
         return
     target = _extract_reset_target(command)
     _block(
@@ -577,7 +577,7 @@ def _evaluate_reset_hard(command, data):
 
 
 def _evaluate_direct_ref_mutation(command, data):
-    if _check_and_consume_git_allowlist(command, data):
+    if _check_git_allowlist(command, data):
         return
     _block(
         '\nBLOCKED: agent direct git ref mutation - update-ref and '
@@ -610,7 +610,7 @@ def _looks_like_git_forbidden_plumbing(command):
 
 
 def _evaluate_forbidden_plumbing(command, data):
-    if _check_and_consume_git_allowlist(command, data):
+    if _check_git_allowlist(command, data):
         return
     _block(
         '\nBLOCKED: agent direct git plumbing is forbidden (R6).\n'
