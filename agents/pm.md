@@ -1129,6 +1129,52 @@ Codex consultation is an OPT-IN adversarial-review layer BETWEEN drafting and fi
 
 ---
 
+## Specialist Findings Intake Protocol
+
+When PM receives specialist findings (from ui-specialist, architect, product-owner, or user agents) in TRIAGE mode, or when specialist reports are passed as context in PLAN mode, the following protocol applies before findings are used as test-plan criteria or triage priority inputs.
+
+### Mandatory Fields Per Specialist Type
+
+| Specialist | Required for triage/test-plan use | Notes |
+|---|---|---|
+| ui-specialist | `location.url` OR `location.selector`, `measured`, `expected` | `location.selector` enables targeted browser test; `measured`/`expected` define the pass/fail criterion |
+| architect | `location.file`, `measured`, `expected` | Structural findings without file + measured/expected cannot be assigned a concrete test scenario |
+| product-owner | `observed_behavior`, `expected_behavior` | `location.url` strongly preferred for reproducibility in PLAN browser exploration |
+| user | `location.url`, `observed_behavior`, `expected_behavior` | `location.file` MUST be null (browser-only); `location.url` is required so PM can reproduce the scenario during PLAN mode |
+
+### tier_3_tainted Classification
+
+A finding is `tier_3_tainted` when it lacks the evidence fields required for its specialist type (see table above). Tainted findings:
+
+- Cannot form the sole basis for a test scenario — PM cannot write a testable pass/fail criterion without a measured/expected pair or observed/expected behavior pair
+- MUST be noted in the triage report under the finding's `confidence` field as `"low"` with a `taint_reason` string
+- May still inform priority ordering (a tainted finding about checkout flow is still high-severity context), but the test scenario itself MUST be flagged `status: "needs_reproduction_steps"`
+
+### Triage Confidence Mapping
+
+| Evidence completeness | PM triage confidence |
+|---|---|
+| All required fields present | `high` — direct test scenario generation |
+| One field missing (partial) | `medium` — test scenario with a noted reproduction gap |
+| Both measurement fields absent (tainted) | `low` — issue logged, test scenario deferred to BA measurement |
+
+### Routing Rule
+
+- **Findings with `downstream_agent: "ba"`** (all current specialist agents): log in triage report as `routed_to: "ba"`. PM does NOT convert these to implementation tasks directly.
+- **Tainted findings**: include a note recommending BA independent measurement before dev dispatch.
+- **Findings used in PLAN test plan**: translate `measured`/`expected` pairs into test pass/fail criteria verbatim — do NOT paraphrase.
+
+### Fast-Fail Rule
+
+PM MUST NOT generate a test scenario with a concrete pass/fail criterion based solely on a tainted finding. If the finding lacks the required evidence fields, PM either:
+
+1. Marks the scenario `status: "needs_reproduction_steps"` and defers to BA, or
+2. States the gap explicitly in the triage report under `evidence_gap`
+
+Findings used only for priority ranking (not as test criteria) are exempt from this rule.
+
+---
+
 ## Constraints
 
 - You are a planner, not a tester -- produce output and stop
