@@ -586,7 +586,7 @@ Present verification summary:
 ## Next Steps
 
 1. Review changes: `git diff HEAD~1`
-2. If satisfied: Changes already committed — run `bash ~/.claude/hooks/push.sh` to publish the cleanup commit to remote (note: `/push` requires a prior `/commit` push-gate token which `/clean` does not produce; use push.sh directly)
+2. If satisfied: Changes already committed — run `bash ~/.claude/hooks/push.sh` to publish the cleanup commit to remote (`/push` requires a push-gate token from `/commit`; the cleaner commits inline so use push.sh directly)
 3. If not satisfied: `git reset --hard <checkpoint_commit>`
 4. See detailed report: docs/clean/completion-{REQUEST_ID}.md
 ```
