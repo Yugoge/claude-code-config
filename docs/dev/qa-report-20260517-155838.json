@@ -134,8 +134,8 @@
       "script_path": null,
       "health_check_url": null,
       "health_check_result": null,
-      "status": "skipped",
-      "blocking_reason": "doc-only change — no user-triggered code path, no UI, no backend service, no deployed artifact modified. Playwright verification does not apply."
+      "status": "legitimately_skipped",
+      "blocking_reason": "doc-only change — no user-triggered code path, no UI, no backend service, no deployed artifact modified. Both modified files are slash-command documentation files (.md) with disable-model-invocation:true; context.setup.applicability is N/A per BA spec. Playwright verification does not apply per agents/qa.md skip condition: change affects nothing the user can see or trigger in a browser."
     },
     "e2e_script_results": [],
     "ui_test_results": [
