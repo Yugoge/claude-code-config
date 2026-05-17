@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-07T10:41:30Z*
-**Total entries**: 112
+*Last updated: 2026-05-17T09:53:53Z*
+**Total entries**: 117
 **Convention**: kebab
 
 ## Tree
@@ -23,21 +23,24 @@ hooks/
 │   └── `pre-commit` - unknown file
 ├── lib/
 │   ├── `agent_resolver.py` - Refactored from pretool-subagent-code-block.py::_find_agent_type so that
+│   ├── `allowlist.py` - Single source of truth for read_grant() — the check-only (no delete)
 │   ├── `bash_write_targets.py` - Provides two public functions used by tool-policy and overnight-hook-guard:
 │   ├── `checkpoint-core.sh` - ============================================================================
+│   ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.
 │   ├── `closeout.py` - Public API:
 │   ├── `contract_runtime.py` - This module is the single shared engine consumed by every contract-aware
 │   ├── `policy_registry.py` - Reads /root/.claude/policies/tool-policy.v1.json and provides a single
 │   ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
 │   ├── `specialist_yield.py` - Public API:
+│   ├── `subagent.py` - Single source of truth for is_subagent_context() and supporting helpers
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 ├── tests/
+│   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 │   └── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
 ├── `audit-slashcommand.sh` - audit-slashcommand.sh
 ├── `auto-commit.sh` - ============================================================================
 ├── `check-todo-md-sync.py` - check-todo-md-sync.py — Session-start drift detector for todo scripts
 ├── `checkpoint.sh` - checkpoint.sh - Manual /checkpoint command
-├── `commit.sh` - 
 ├── `ensure-git-repo.sh` - ensure-git-repo.sh - DEPRECATED, scheduled for deletion
 ├── `fswatch-manager.sh` - fswatch-manager.sh - Manage git-fswatch instances
 ├── `git-fswatch.sh` - git-fswatch.sh - Comprehensive Git file watcher using fswatch
@@ -51,6 +54,8 @@ hooks/
 ├── `notification-idle-overnight.py` - Notification hook: Observe overnight idle events
 ├── `post-commit-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
 ├── `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
+├── `posttool-allowlist-consume.py` - PostToolUse Hook: /allow grant consumption
+├── `posttool-codex-skill-ledger.py` - Fires on every PostToolUse for the Skill tool. When tool_input.skill == "codex",
 ├── `posttool-command-frontmatter-validate.py` - PostToolUse Hook: Validate .claude/commands/*.md frontmatter structure
 ├── `posttool-doc-sync.py` - PostToolUse Hook: Auto-sync INDEX.md and CLAUDE.md when structural files change
 ├── `posttool-git-checkpoint.sh` - posttool-git-checkpoint.sh - PostToolUse checkpoint trigger
@@ -74,10 +79,10 @@ hooks/
 ├── `pretool-block-enterworktree.sh` - PreToolUse hook: Block EnterWorktree tool
 ├── `pretool-block-production-files.sh` - PreToolUse hook: Block Write/Edit to production paths from dev environment
 ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
-├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 2.
+├── `pretool-bulk-commit-detector.py` - Write to stderr and exit 0 (warn-only per user policy: no text-smell hard-blocks).
 ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
 ├── `pretool-cp-checkin.py` - cp-state file read
-├── `pretool-docker-build-guard.sh` - Hook: PreToolUse:Bash
+├── `pretool-cp-state-write-guard.py` - Cycle-3 slim form (2026-05-14): Bash-extractor removed — 22-form adversarial
 ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
 ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
@@ -88,13 +93,12 @@ hooks/
 ├── `pretool-read-size-guard.py` - PreToolUse Hook: Read Size Guard
 ├── `pretool-runcode-watchdog.py` - PreToolUse Hook: Start timeout watchdog for browser_run_code
 ├── `pretool-spec-block-foreground-agent.py` - PreToolUse Hook: Block foreground Agent during an active /spec Interview
-├── `pretool-subagent-code-block.py` - Canonical enforcement: pretool-tool-policy.py + lib/policy_registry
+├── `pretool-subagent-code-block.py` - Canonical enforcement: pretool-tool-policy.py + lib/policy_registry — this
 ├── `pretool-subagent-enforce.py` - PreToolUse:Agent Hook — Contract-driven role/pipeline enforcement
 ├── `pretool-todo-validate.py` - PreToolUse Hook: Validate TodoWrite input BEFORE execution
 ├── `pretool-tool-policy.py` - Single hook that consumes /root/.claude/policies/tool-policy.v1.json via
 ├── `pretool-workflow-gate.py` - PreToolUse Hook: Require TodoWrite/TodoRead acknowledgment before other tools
 ├── `pretool-worktree-guard.sh` - PreToolUse hook: Detect stale agent worktrees before ANY tool call
-├── `pretool-wrapper-userintent.py` - Mirrors the /allow pattern — both writer (UserPromptSubmit prompt-workflow.py)
 ├── `pretool-write-guard.sh` - PreToolUse Hook - Block Write tool from overwriting existing files
 ├── `project-settings-template.json` - json config
 ├── `prompt-workflow.py` - UserPromptSubmit Hook: Checklist Injection for Slash Commands
@@ -116,7 +120,8 @@ hooks/
 ├── `stop.sh` - stop.sh - wrapper for /stop slash command
 ├── `subagent-stop-diff-check.sh` - SubagentStop hook: flag large diffs without minimum-diff justification
 ├── `subagent-stop-guard-integrity.sh` - subagent-stop-guard-integrity.sh
-├── `subagentstop-cp-enforce.py` - Activation gate (NOT matcher=*): this hook exits 0 unless BOTH conditions hold:
+├── `subagentstop-codex-enforce.py` - Activation logic:
+├── `subagentstop-e2e-enforce.py` - Activation logic:
 ├── `userprompt-consent-allowlist.sh` - UserPromptSubmit Hook: parse `/allow <pattern>` and write a single-use
 └── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
 ```

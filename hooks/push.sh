@@ -32,7 +32,7 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Parse args: optional [<remote>], [--auto], [--force-with-lease], [--delete <branch>]
+# Parse args: optional [<remote>], [--auto]
 # Default remote: prefer "fork" if configured locally (typical fork-based workflow),
 # else fall back to "origin". Explicit /push <remote> overrides via the case below.
 if git remote get-url fork >/dev/null 2>&1; then
@@ -41,38 +41,17 @@ else
   REMOTE="origin"
 fi
 AUTO_MODE=0
-FORCE_WITH_LEASE=0
-DELETE_MODE=0
-DELETE_BRANCH=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --auto) AUTO_MODE=1 ;;
-    --force-with-lease)
-      # Force-replace remote branch IF its tip is what we expect (i.e., we have its
-      # current state fetched and visible). Refuses when remote moved beyond our
-      # last fetch — strictly safer than `--force` which clobbers unconditionally.
-      # The privilege-guard's _extract_push_remote skips flags (anything starting
-      # with `-`), so this flag is invisible to the remote-binding check; env-var
-      # + grant-manifest validation still runs unchanged.
-      FORCE_WITH_LEASE=1
-      ;;
-    --delete)
-      # Delete a remote branch. The next positional arg is the branch name on the remote.
-      # Skips the working-tree status report, ahead-count check, and grant-manifest's
-      # head-binding (the manifest still binds remote+ppid+sid+nonce; head is set to
-      # the branch tip we observed locally for audit-trail completeness).
-      DELETE_MODE=1
-      shift
-      DELETE_BRANCH="$1"
-      if [ -z "$DELETE_BRANCH" ] || [ "${DELETE_BRANCH:0:1}" = "-" ]; then
-        echo -e "${RED}❌ --delete requires a remote branch name as the next positional argument${NC}" >&2
-        echo "Usage: bash ~/.claude/hooks/push.sh [<remote>] --delete <branch-name>" >&2
-        exit 2
-      fi
+    --force|--force-with-lease|-f|--delete|-d|--mirror)
+      echo -e "${RED}❌ Dangerous push mode blocked: $1${NC}" >&2
+      echo "Safety policy allows only normal branch pushes through /push; use backup recovery refs for automatic backup." >&2
+      exit 2
       ;;
     -*)
       echo -e "${RED}❌ Unknown flag: $1${NC}" >&2
-      echo "Usage: bash ~/.claude/hooks/push.sh [<remote>] [--auto] [--force-with-lease] [--delete <branch>]" >&2
+      echo "Usage: bash ~/.claude/hooks/push.sh [<remote>] [--auto]" >&2
       exit 2
       ;;
     *) REMOTE="$1" ;;
@@ -80,11 +59,6 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-# --force-with-lease and --delete are mutually exclusive
-if [ "$FORCE_WITH_LEASE" = "1" ] && [ "$DELETE_MODE" = "1" ]; then
-  echo -e "${RED}❌ --force-with-lease and --delete are mutually exclusive${NC}" >&2
-  exit 2
-fi
 # Non-interactive stdin also engages auto-mode regardless of explicit flag
 if [ ! -t 0 ]; then
   AUTO_MODE=1
@@ -107,55 +81,69 @@ if [ "$AUTO_MODE" = "1" ]; then
 fi
 echo ""
 
-# Delete-mode short-circuit: skip the working-tree report, ahead-count, and head-binding.
-# We still emit a grant manifest (for audit + privilege-guard match) but use the deleted
-# branch name as the manifest "branch" so the guard's remote-binding check passes.
-if [ "$DELETE_MODE" = "1" ]; then
-  echo -e "${CYAN}Delete mode: $REMOTE/$DELETE_BRANCH${NC}"
-  echo ""
-  SID="${CLAUDE_SESSION_ID:-default}"
-  NONCE=$(python3 -c "import secrets; print(secrets.token_hex(16))")
-  GRANT_PATH="/tmp/claude-push-grant-${SID}-${NONCE}.json"
-  CREATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  # For delete we don't have a meaningful HEAD — record the soon-to-be-deleted ref's tip on remote
-  # if knowable, else "0000000000000000000000000000000000000000" (git's null sha for delete refspec).
-  CURRENT_HEAD=$(git rev-parse "$REMOTE/$DELETE_BRANCH" 2>/dev/null || echo "0000000000000000000000000000000000000000")
-  python3 - <<PYEOF
-import json
-data = {
-    "branch": "$DELETE_BRANCH",
-    "expected_head": "$CURRENT_HEAD",
-    "remote": "$REMOTE",
-    "nonce": "$NONCE",
-    "sid": "$SID",
-    "ppid": $$,
-    "created_at": "$CREATED_AT",
-    "mode": "delete",
-}
-with open("$GRANT_PATH", "w") as f:
-    json.dump(data, f, indent=2)
+# --- Push-gate: verify a valid session commit token exists ---
+_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo /root)"
+_REPO_HASH="$(python3 -c "import hashlib,os; print(hashlib.sha256(os.path.realpath('${_REPO_ROOT}').encode()).hexdigest()[:16])")"
+_BRANCH_RAW="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+_BRANCH="$(python3 -c "print('${_BRANCH_RAW}'.replace('/', '__'))")"
+_TOKEN_PATH="/tmp/agentic-commit/push/${_REPO_HASH}/${_BRANCH}.json"
+if [ -f "$_TOKEN_PATH" ]; then
+  _HEAD_SHA="$(git rev-parse HEAD 2>/dev/null)"
+  _GATE_RESULT="$(python3 - <<PYEOF 2>/dev/null
+import json, sys
+from datetime import datetime, timezone
+
+try:
+    d = json.load(open('${_TOKEN_PATH}'))
+except Exception as e:
+    print(f"parse_error: {e}")
+    sys.exit(0)
+
+commit_sha = d.get('commit_sha', '')
+expires_at_str = d.get('expires_at', '')
+
+# Validate expiry (must be present, parsable, and strictly in the future)
+try:
+    ea = expires_at_str.rstrip('Z')
+    expires_dt = datetime.fromisoformat(ea).replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    if expires_dt <= now:
+        print(f"expired: {expires_at_str}")
+        sys.exit(0)
+except Exception as e:
+    print(f"expiry_invalid: {expires_at_str!r} ({e})")
+    sys.exit(0)
+
+if commit_sha != '${_HEAD_SHA}':
+    print(f"sha_mismatch: token={commit_sha} HEAD=${_HEAD_SHA}")
+    sys.exit(0)
+
+print("ok")
 PYEOF
-  export CLAUDE_PUSH_COMMAND_ACTIVE=1
-  echo "🗑️  Deleting $REMOTE/$DELETE_BRANCH..."
-  echo ""
-  git push "$REMOTE" --delete "$DELETE_BRANCH"
-  PUSH_STATUS=$?
-  if [ $PUSH_STATUS -ne 0 ]; then
-    echo ""
-    echo -e "${RED}❌ Delete push failed${NC}"
-    exit 1
-  fi
-  rm -f "$GRANT_PATH"
-  mkdir -p ~/.claude/logs
-  AUDIT_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  printf '%s sid=%s command_kind=push remote=%s branch=%s head=%s sentinel_nonce=%s ppid=%s mode=delete\n' \
-    "$AUDIT_TS" "$SID" "$REMOTE" "$DELETE_BRANCH" "$CURRENT_HEAD" "$NONCE" "$$" \
-    >> ~/.claude/logs/git-privilege-grants.log
-  echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo -e "${GREEN}✅ Successfully deleted $REMOTE/$DELETE_BRANCH${NC}"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  exit 0
+)"
+  case "$_GATE_RESULT" in
+    ok) ;;
+    expired:*)
+      echo "❌ Push gate: session commit token expired (${_GATE_RESULT#expired: }). Run /commit to refresh." >&2
+      exit 3
+      ;;
+    expiry_invalid:*)
+      echo "❌ Push gate: token has unparsable expires_at (${_GATE_RESULT#expiry_invalid: }). Run /commit to refresh." >&2
+      exit 3
+      ;;
+    sha_mismatch:*)
+      echo "❌ Push gate: ${_GATE_RESULT#sha_mismatch: }. Run /commit to refresh." >&2
+      exit 3
+      ;;
+    parse_error:*|"")
+      echo "❌ Push gate: could not read token at ${_TOKEN_PATH} (${_GATE_RESULT}). Run /commit to refresh." >&2
+      exit 3
+      ;;
+  esac
+else
+  echo "❌ Push gate: no session commit token found at ${_TOKEN_PATH}." >&2
+  echo "   Run /commit first to create the push-gate token." >&2
+  exit 3
 fi
 
 # Step 1: Get current branch
@@ -312,21 +300,11 @@ UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
 if [ -z "$UPSTREAM" ]; then
   # No upstream set, push with -u
   echo "Setting upstream to $REMOTE/$BRANCH..."
-  if [ "$FORCE_WITH_LEASE" = "1" ]; then
-    echo -e "${YELLOW}⚠  --force-with-lease engaged on first push (refuses if remote ref already exists with diverging tip).${NC}"
-    git push --force-with-lease -u "$REMOTE" "$BRANCH"
-  else
-    git push -u "$REMOTE" "$BRANCH"
-  fi
+  git push -u "$REMOTE" "$BRANCH"
   PUSH_STATUS=$?
 else
   # Upstream exists, normal push
-  if [ "$FORCE_WITH_LEASE" = "1" ]; then
-    echo -e "${YELLOW}⚠  --force-with-lease engaged: remote ref will be replaced if its tip matches our last-fetched value.${NC}"
-    git push --force-with-lease "$REMOTE" "$BRANCH"
-  else
-    git push "$REMOTE" "$BRANCH"
-  fi
+  git push "$REMOTE" "$BRANCH"
   PUSH_STATUS=$?
 fi
 
@@ -351,6 +329,9 @@ fi
 
 # AC-iter2-9: wrapper unlinks grant on success path (guard never fires on subprocess)
 rm -f "$GRANT_PATH"
+
+# Delete push-gate token after successful push
+rm -f "$_TOKEN_PATH"
 
 # Step 10.5: Append audit log line (AC-B6 / AC-AUDIT-1)
 # Records every successful /push invocation for forensic review. Append-only.

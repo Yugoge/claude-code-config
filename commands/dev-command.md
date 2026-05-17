@@ -75,6 +75,10 @@ Extract requirement from `$ARGUMENTS`:
 Requirement: "$ARGUMENTS"
 ```
 
+**Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it from the requirement text and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every BA / QA / dev dispatch prompt below MUST include the literal line `codex_required: true` so the subagent's opt-in codex consultation block (`agents/<role>.md` § Codex adversarial consultation) activates. When `codex_required = false`, do NOT include that line — subagents skip codex consultation and emit `codex_consult: { invoked: false, status: "not_requested" }` in their output.
+
+**Codex suppression guardrail**: When `codex_required: true` is included in any subagent dispatch prompt, the orchestrator MUST NOT include any pre-populated `codex_consult` field or object in that same prompt. Setting `codex_required: true` and simultaneously pre-answering `codex_consult` contradicts the flag and silently suppresses Codex consultation.
+
 **Parse `--spec`**: If `$ARGUMENTS` contains `--spec <path>`, extract the path and remove the flag from the requirement text. Store as `spec_path`.
 
 **Auto-detect spec**: If `--spec` is NOT provided, scan `docs/dev/specs/*.md` sorted by modification time (newest first). If a file exists, set `spec_path` to that path and announce:
@@ -88,7 +92,10 @@ If no spec found, set `spec_path = null`. All downstream behavior is unchanged w
 **Detect views folder (sibling to spec)**:
 
 If `spec_path` is not null, check `<dirname>/<spec-id>/views/manifest.json`.
-If the manifest exists AND is valid JSON AND `schema_version == 1`, set:
+If the manifest exists AND is valid JSON AND `schema_version == 1`, first run the stale-view guard:
+- Compute `split_marker = <dirname(spec_path)>/<spec-id>/.split-complete`.
+- If `split_marker` is missing OR `spec_path` is newer than `split_marker`, treat the views/checkpoints as stale: set `views_available = false`, clear `view_paths`, and announce `Spec is newer than split views/checkpoints; using monolith spec for this /dev-command run. Re-finalize /spec before relying on per-agent views.`
+- Otherwise, set:
 - `views_available = true`
 - `view_paths` = manifest.views (dict of agent → path)
 
@@ -120,6 +127,44 @@ for agent in \
     > "$REGISTRY_DIR/$agent.json"
 done
 ```
+
+**Write verbatim user requirement document** (MANDATORY — do this before any Agent dispatch):
+
+```bash
+mkdir -p "$CLAUDE_PROJECT_DIR/docs/dev"
+REQUIREMENT_DOC="$CLAUDE_PROJECT_DIR/docs/dev/user-requirement-${DEV_SESSION_ID}.md"
+cat <<'REQEOF' > "$REQUIREMENT_DOC" || { echo "ERROR: Failed to write user requirement document — aborting." >&2; exit 1; }
+<verbatim stripped $ARGUMENTS text from Step 1 — paste literal text here, no shell variables inside heredoc>
+REQEOF
+```
+
+This document is the source-of-truth anchor for the entire session. Every subagent reads it before interpreting any derived context or spec. Use a single-quoted heredoc delimiter (`'REQEOF'`) so `$`, backticks, and shell metacharacters are never expanded.
+
+**E2E enforcement activation** (unconditional — always runs regardless of --codex flag):
+```bash
+scripts/write-e2e-enforce.sh --source-command dev-command --session-id $DEV_SESSION_ID
+```
+If it exits non-zero, the orchestrator MUST abort — E2E enforcement could not be activated.
+
+**Codex enforcement flag** (only when `codex_required = true`): Now that `$DEV_SESSION_ID` is defined above, write the enforcement flag so the SubagentStop hook can physically block ba/dev/qa agents that did not call codex:
+
+```bash
+# Must run AFTER DEV_SESSION_ID is generated above.
+ENFORCE_FLAG="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/codex-enforce.json"
+printf '{
+  "schema_version": 1,
+  "enabled": true,
+  "source_command": "dev-command",
+  "dev_session_id": "%s",
+  "claude_session_id": "%s",
+  "enforced_agent_types": ["ba", "dev", "qa"],
+  "created_at": "%s"
+}\n' "$DEV_SESSION_ID" "${CLAUDE_SESSION_ID:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  > "$ENFORCE_FLAG" \
+  || { echo "ERROR: Failed to write codex-enforce.json at $ENFORCE_FLAG — aborting. Cannot proceed without enforcement flag." >&2; exit 1; }
+```
+
+If the write fails, the orchestrator MUST abort with the error message above and NOT silently proceed. Continuing without the flag would create a false impression that enforcement is active.
 
 Store `$DEV_SESSION_ID` for use in every Agent launch prompt below. Every Agent launch prompt MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent.
 
@@ -191,6 +236,9 @@ Use Agent tool with:
   CHECKPOINT MARKING: see agents/<specialist-name>.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the <specialist-name> specialist. Follow .claude/agents/<specialist-name>.md.
+
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   Requirement: '<requirement from Step 1>'
 
@@ -280,6 +328,9 @@ Use Task tool with:
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
   Requirement: '<requirement from Step 1>'
   Clarification round: 0
   Previous answers: null
@@ -320,6 +371,9 @@ Use Task tool with:
   CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   Requirement: '<original requirement>'
   Clarification round: <N>
@@ -363,6 +417,13 @@ Read BA output files:
 
 **Purpose**: Verify BA's analysis quality BEFORE Dev starts implementation. Catches unproven claims, scope mismatches, and missing investigation evidence early -- saving a wasted Dev+QA cycle.
 
+**Before dispatching QA, write qa_mode sentinel**:
+
+```bash
+bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode ba_validation \
+  || { echo 'ERROR: Failed to set qa_mode=ba_validation in qa.json — aborting' >&2; exit 1; }
+```
+
 **Invoke QA in BA-validation mode**:
 
 ```
@@ -378,6 +439,9 @@ Use Agent tool with:
 
   DO NOT: build, deploy, open browser, run Playwright, or test code.
   DO: read BA's deliverables and challenge every claim.
+
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Context JSON: docs/dev/context-<timestamp>.json
@@ -466,6 +530,9 @@ Use Agent tool with:
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
   Your previous analysis was REJECTED by QA. Address each objection below
   with concrete evidence. Do not argue -- investigate and provide proof.
 
@@ -508,6 +575,9 @@ Use Task tool with:
 
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
   Context file: docs/dev/context-<timestamp>.json
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
@@ -543,6 +613,13 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 
 ### Step 10: Delegate to QA Subagent
 
+**Before dispatching QA, write qa_mode sentinel**:
+
+```bash
+bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode final_verification \
+  || { echo 'ERROR: Failed to set qa_mode=final_verification in qa.json — aborting' >&2; exit 1; }
+```
+
 **Use Task tool to invoke QA subagent with file paths only**:
 
 ```
@@ -553,6 +630,9 @@ Use Task tool with:
   CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the QA subagent. Follow agents/qa.md instructions precisely.
+
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   Context file: docs/dev/context-<timestamp>.json
   Dev report file: docs/dev/dev-report-<timestamp>.json

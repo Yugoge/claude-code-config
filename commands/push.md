@@ -5,129 +5,93 @@ disable-model-invocation: true
 
 # Push Command
 
-Validated `git push` wrapper. Under the always-on git-privilege guard
-(`pretool-git-privilege-guard.py`), this wrapper is the **only** authorized
-path for an agent context to push to a remote. The guard rejects every other
-`git push` invocation, including inline-env attempts.
+`/push` is the validated wrapper for normal branch publication. Note: pretool-git-privilege-guard.py is currently UNREGISTERED from settings.json — agents may freely git commit. The guard file exists at 655 lines but has no hook registration. Re-registration requires a separate cycle. The wrapper
+script `~/.claude/hooks/push.sh` produces a valid push grant for use when
+the guard is eventually re-registered.
+
+The slash entry has `disable-model-invocation: true` to prevent the model
+from autonomously self-dispatching `/push` via SlashCommand. It does NOT
+forbid agent execution of the wrapper script. When the user invokes `/push`
+in conversation and this docstring is injected into the agent's context,
+the agent's correct response is to run `~/.claude/hooks/push.sh [remote]`
+directly via Bash. push.sh internally generates the Scheme 6 grant
+manifest, exports `CLAUDE_PUSH_COMMAND_ACTIVE=1`, and runs the underlying
+push — all of which the privilege guard recognizes and admits. Do NOT
+bounce the work back to the user with "please run X manually" — that
+violates the harness's delegation design.
 
 ## Usage
 
+```bash
+/push
+/push <remote>
 ```
-/push                # push current branch to "origin" (default)
-/push <remote>       # push current branch to the named remote
-```
 
-The optional `<remote>` argument is forwarded into both the Scheme 6 grant
-manifest's `remote` field AND the underlying `git push <remote> <branch>`
-invocation, so the privilege-guard's `_validate_push_grant_remote` check
-(grant.remote vs cmd-line remote token) admits the push. Useful for
-fork-based workflows where `origin` points at an upstream you cannot write
-to (e.g., `slopus/happy`) and a separate remote (e.g., `fork`) points at
-your own writable fork (e.g., `Yugoge/happy`).
-
-If the named remote is not configured locally, the wrapper exits 1 with a
-helpful message and prints `git remote -v` so you can correct the typo or
-add the remote.
-
-The command is gated with `disable-model-invocation: true`: only the human
-user can trigger it. The model cannot self-invoke `/push` as a way around
-the guard.
+No force, delete, or ref-rewrite mode is available through `/push`. The wrapper
+accepts only an optional remote and `--auto` for non-interactive lock handling.
 
 ## Behavior summary
 
-1. **Detached HEAD check**: refuses to push if not on a branch.
-2. **Status report**: prints staged / modified / untracked files for context.
-3. **Dirty-tree informational warning** (NON-BLOCKING): if
-   `git status --porcelain` is non-empty, the wrapper prints a yellow
-   informational notice with the dirty-file count and continues. Working-tree
-   drift (modified, staged, or untracked files) does NOT block `/push`. Only
-   already-committed commits get pushed — staged and unstaged working-tree
-   files are NOT pushed. To push your local changes, commit them via
-   `/commit` first.
-4. **Nothing-to-push exit**: if the tree is clean and there are zero commits
-   ahead of the upstream, the wrapper prints "Nothing to push" and exits 0
-   without writing a grant or contacting the remote.
-5. **Scheme 6 grant emission**: when there is real work to push, the wrapper
-   writes a single-use grant manifest at
-   `/tmp/claude-push-grant-${CLAUDE_SESSION_ID:-default}-${NONCE}.json`. The
-   push-specific bound fields are `branch` (current branch), `expected_head`
-   (`git rev-parse HEAD` at grant time), and `remote` (the cmd-line remote
-   token). Generic Scheme 6 fields (`nonce`, `sid`, `ppid`, `created_at`) and
-   the per-nonce-filename rationale are documented in `/root/docs/scheme6.md`.
-6. **Env-var export**: the wrapper exports `CLAUDE_PUSH_COMMAND_ACTIVE=1`
-   into the `git push` child's environment. Both the env-var AND a matching
-   grant file are required to admit the push (see `/root/docs/scheme6.md`).
-7. **Push**: invokes `git push` (with `-u` if no upstream is set). The
-   privilege-guard validates the grant against the branch and HEAD on the
-   live repo, then unlinks the grant on first consumption (single-use).
-8. **Audit log**: on success, appends a line to
-   `~/.claude/logs/git-privilege-grants.log` recording timestamp, sid,
-   `command_kind=push`, branch, head, nonce, ppid.
+1. Refuse detached HEAD.
+2. Print staged / modified / untracked files for context only.
+3. Treat dirty worktree state as non-blocking; only committed objects push.
+4. Exit cleanly when there is nothing ahead of upstream.
+5. Emit a single-use push grant binding branch, current HEAD, remote, SID,
+   nonce, ppid, and timestamp.
+6. Export the wrapper-only push env var for the child process.
+7. Run a normal branch push, with `-u` only when setting an upstream.
+8. Append the push audit log on success.
 
-## Scheme 6 mechanism (why this works)
+## Safety contract
 
-See `/root/docs/scheme6.md` for the unified env-var + grant-manifest + privilege-guard validation + literal-substring rejection + single-use unlink protocol.
+- `/push` never stages, commits, resets, deletes branches, force-publishes, or
+  mutates refs directly.
+- `--force`, `-f`, `--force-with-lease`, `--delete`, `-d`, and `--mirror`
+  fail with exit 2 before any grant is written.
+- Automatic post-commit backup is separate from `/push` and uses only
+  `refs/backups/claude/<branch>/<short-sha>` recovery refs. It never publishes
+  `refs/heads/<branch>` in the background.
 
-`/push`-specific bindings: env-var `CLAUDE_PUSH_COMMAND_ACTIVE=1`; grant path `/tmp/claude-push-grant-<sid>-<nonce>.json`; manifest fields bind the push to a specific `branch + expected_head + remote + sid + ppid`. The guard's `_validate_push_grant_remote` check confirms `grant.remote` matches the cmd-line remote token, so a forged or stale grant — or a grant for a different branch/HEAD/remote — is rejected. The literal-substring rejection on the raw command string targets the literal `CLAUDE_PUSH_COMMAND_ACTIVE=`, neutralizing inline-env injection of the b5d447e attack shape.
+## Session commit prerequisite (push-gate)
 
-## Pre-conditions for a successful push
+`/push` requires a valid push-gate token written by a prior `/commit` in this session.
 
-- On a real branch (not detached HEAD).
-- Branch has commits ahead of upstream (or no upstream is set yet).
-- Working-tree drift (modified, staged, or untracked files) is **allowed** —
-  it does NOT block `/push`. Only already-committed commits get pushed.
-  Staged and unstaged working-tree files are NOT pushed; only commits
-  already on `<branch>` are pushed. If you want to ship local edits, run a
-  real semantic commit first (e.g., via `/commit <task-id>` for closed dev
-  tasks, or by hand for ad-hoc work). Automated snapshots on
-  `refs/checkpoints/<branch>` are out of scope here — `/push` never
-  advances HEAD.
+Token location: `/tmp/agentic-commit/push/<repo-hash>/<branch-encoded>.json`
+
+- `repo-hash` = `sha256(os.path.realpath(repo_root)).hexdigest()[:16]`
+- `branch-encoded` = branch name with `/` replaced by `__`
+- Token content: `{"commit_sha": "<sha>", "branch": "<branch>", "repo_root": "<root>", "expires_at": "<ISO+24h>"}`
+
+**Rejection conditions** (push is blocked if any hold):
+- Token file is absent (no `/commit` ran in this session)
+- Token `expires_at` field is absent, unparsable, or earlier than or equal to current UTC time
+- Token `commit_sha` does not match current `git rev-parse HEAD` (HEAD moved since commit)
+
+**Resolution**: run `/commit [<task-id>]` first. The `changelog-analyst` subagent writes
+the token after a successful real-branch commit. The token is consumed (deleted) after
+a successful push.
+
+**Forward compatibility note**: `pretool-git-privilege-guard.py` is currently UNREGISTERED
+from `settings.json`. When it is eventually re-registered (separate future cycle), that
+cycle MUST first extend `BLESSED_BRIDGE_RE` to include the agentic commit message patterns
+before re-registering, or all changelog-analyst commits will be silently blocked.
+
+## Pre-conditions for success
+
+- On a real branch.
+- Branch has commits ahead of upstream, or has no upstream yet.
+- The selected remote exists locally.
+- A valid push-gate token exists at the path above (see Session commit prerequisite).
 
 ## Exit codes
 
 | Exit | Meaning |
 |------|---------|
-| 0    | Push succeeded, OR nothing to push (clean tree, zero commits ahead) |
-| 1    | Detached HEAD, or `git push` failed |
-
-## Failure modes
-
-- **Detached HEAD**: checkout a real branch first.
-- **Push rejected by remote** (e.g., remote ahead): pull first
-  (`git pull --rebase`).
-- **Guard rejection**: if the wrapper itself was invoked correctly but the
-  guard still refuses, inspect `~/.claude/logs/git-privilege-grants.log`,
-  the grant file matching
-  `/tmp/claude-push-grant-${CLAUDE_SESSION_ID:-default}-*.json` (per-nonce),
-  and the guard's stderr. The guard's stderr names the specific rule violated
-  (head mismatch, branch mismatch, missing env, missing grant, inline-env
-  injection).
+| 0    | Push succeeded, or nothing to push |
+| 1    | Detached HEAD, missing remote, or normal push failure |
+| 2    | Blocked option such as force/delete/ref-rewrite mode |
 
 ## Related
 
-- `/commit <task-id>` — Wrapper that commits a closed dev task, also under
-  Scheme 6 (separate grant, separate env-var, same architecture).
-- `/merge <branch>` — Wrapper that merges an overnight worktree under a
-  different env-var precedent (`CLAUDE_MERGE_COMMAND_ACTIVE=1`).
-- `git push` directly — blocked by the always-on privilege-guard.
-
-## Script location
-
-The implementation is `~/.claude/hooks/push.sh`. The command frontmatter
-sets `disable-model-invocation: true` so the agent cannot trigger it
-through `SlashCommand`.
-
-## Notes
-
-- This document supersedes the older description that referenced an
-  auto-staging env var and an auto-staging prompt. That behavior was
-  removed when `b5d447e` ratified the snapshots-off-HEAD design; the
-  wrapper no longer auto-stages or auto-commits.
-- Grant file is single-use; a second `git push` in the same session
-  needs a new grant via a new `/push` invocation (see `/root/docs/scheme6.md`).
-- **redev7 removed the dirty-tree hard gate**. The gate was a leftover from
-  the earlier auto-staging design (pre-`b5d447e`). Since `/push` no longer
-  auto-commits, working-tree state cannot leak to HEAD via `/push`, and the
-  gate is unnecessary. Working-tree drift (modified, staged, or untracked
-  files) does NOT block `/push`. Only already-committed commits get pushed.
-  To push your local changes, commit them via `/commit` first.
+- `/commit <task-id>` — automatic semantic commit for a closed task.
+- Direct `git push` — not currently blocked (privilege guard is unregistered); use `/push` via the wrapper script as the conventional path.

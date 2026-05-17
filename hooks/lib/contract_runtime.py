@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import json
 import os
+import fcntl
 from pathlib import Path
 from typing import Optional
 
@@ -54,7 +55,10 @@ except ImportError:  # pragma: no cover - architect confirmed availability
     Draft7Validator = None  # type: ignore[assignment]
 
 # Importable from sibling lib module (already on the same hooks/lib/ path).
-from . import schema_registry
+try:
+    from . import schema_registry
+except ImportError:  # pragma: no cover - direct spec import in focused tests
+    from lib import schema_registry  # type: ignore
 
 
 def _result(ok: bool, errors: list, severity: str) -> dict:
@@ -84,6 +88,14 @@ def _try_read_contract(path: Path) -> Optional[dict]:
         return json.loads(path.read_text(encoding='utf-8'))
     except (OSError, json.JSONDecodeError):
         return None
+
+
+def load_contract_path(session_id: str, cycle_id: int) -> Optional[Path]:
+    """Return the active cycle-contract path for ``session_id``/``cycle_id``."""
+    for path in _candidate_contract_paths(session_id, cycle_id):
+        if path.exists():
+            return path
+    return None
 
 
 def load_contract(session_id: str, cycle_id: int) -> Optional[dict]:
@@ -126,6 +138,52 @@ def _check_required_when_ui(record: dict, required_keys: list[str]) -> list[str]
     ]
 
 
+_EVIDENCE_LEVELS = {
+    'rendered_cached',
+    'fresh_scan_triggered',
+    'fresh_scan_completed',
+    'extraction_verified',
+}
+
+
+def _iter_focus_results(record: dict) -> list[dict]:
+    focus = record.get('focus_criteria_results')
+    if not isinstance(focus, dict):
+        return []
+    results = focus.get('results')
+    return [item for item in results if isinstance(item, dict)] if isinstance(results, list) else []
+
+
+def _criterion_requires_extraction_verified(item: dict) -> bool:
+    text = str(item.get('criterion', '')).lower().replace('_', ' ')
+    return 'fresh extraction' in text or 'extraction verified' in text or 'extraction verification' in text
+
+
+def _check_evidence_taxonomy(record: dict) -> list[str]:
+    """Enforce fresh-extraction evidence levels for focus criteria results."""
+    errors: list[str] = []
+    for idx, item in enumerate(_iter_focus_results(record)):
+        level = item.get('evidence_level')
+        if level not in _EVIDENCE_LEVELS:
+            errors.append(
+                f"focus_criteria_results.results[{idx}].evidence_level must be one of {sorted(_EVIDENCE_LEVELS)}"
+            )
+            continue
+        required = item.get('required_evidence_level')
+        if required and required not in _EVIDENCE_LEVELS:
+            errors.append(
+                f"focus_criteria_results.results[{idx}].required_evidence_level is not recognized: {required}"
+            )
+            continue
+        if not required and _criterion_requires_extraction_verified(item):
+            required = 'extraction_verified'
+        if required == 'extraction_verified' and level != 'extraction_verified':
+            errors.append(
+                f"focus_criteria_results.results[{idx}].evidence_level={level} cannot satisfy extraction_verified"
+            )
+    return errors
+
+
 def _run_jsonschema(record: dict, schema: dict) -> list[str]:
     """Run Draft7Validator and collect formatted errors."""
     errors: list[str] = []
@@ -150,6 +208,7 @@ def validate(record: dict, schema_name: str) -> dict:
         return _result(False, [f"schema '{schema_name}' not registered"], 'fail')
 
     errors = _check_required_when_ui(record, _required_when_ui_keys(schema))
+    errors.extend(_check_evidence_taxonomy(record))
 
     if Draft7Validator is None:
         if errors:
@@ -347,3 +406,169 @@ def validate_artifact(record: dict, schema_name: str) -> dict:
     same Result shape so the existing severity contract is preserved.
     """
     return validate(record, schema_name)
+
+
+# ---------------------------------------------------------------------------
+# Atomic accepted-artifact reconciliation
+# ---------------------------------------------------------------------------
+
+
+def _project_dir() -> Path:
+    return Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
+
+
+def _lock_path(session_id: str, cycle_id: int) -> Path:
+    lock_dir = _project_dir() / '.claude' / 'locks'
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    return lock_dir / f'contract-reconcile-{session_id}-cycle{cycle_id}.lock'
+
+
+def _json_text(payload: dict) -> str:
+    return json.dumps(payload, ensure_ascii=False, indent=2) + '\n'
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + '.tmp')
+    tmp.write_text(text, encoding='utf-8')
+    json.loads(tmp.read_text(encoding='utf-8'))
+    tmp.replace(path)
+
+
+def _restore_text(path: Path, text: str | None) -> None:
+    if text is None:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        return
+    _atomic_write_text(path, text)
+
+
+def _expected_path_value(entry: dict):
+    raw = entry.get('expected_output_path')
+    if isinstance(raw, list):
+        return raw[0] if raw else None
+    return raw if isinstance(raw, str) else None
+
+
+def _expected_paths(entry: dict) -> list[str]:
+    raw = entry.get('expected_output_path')
+    if isinstance(raw, str):
+        return [raw]
+    if isinstance(raw, list):
+        return [item for item in raw if isinstance(item, str)]
+    return []
+
+
+def _resolve_artifact_path(path_str: str) -> Path:
+    path = Path(path_str)
+    return path if path.is_absolute() else _project_dir() / path
+
+
+def _artifact_valid_for_entry(entry: dict) -> tuple[bool, str]:
+    paths = _expected_paths(entry)
+    if not paths:
+        return True, ''
+    schema_name = entry.get('schema_name') or entry.get('expected_schema') or ''
+    for raw in paths:
+        path = _resolve_artifact_path(raw)
+        if not path.exists():
+            return False, f'expected artifact missing: {raw}'
+        if not schema_name:
+            continue
+        try:
+            record = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError):
+            return False, f'expected artifact is not valid JSON: {raw}'
+        result = validate_artifact(record, schema_name)
+        if not result.get('ok'):
+            return False, '; '.join(str(e) for e in result.get('errors', []))
+    return True, ''
+
+
+def _same_required_call(left: dict, right: dict) -> bool:
+    for key in ('step', 'role', 'pipeline_id', 'mode'):
+        if (left.get(key) or None) != (right.get(key) or None):
+            return False
+    return True
+
+
+def _mark_required_call(contract: dict, matched_entry: dict) -> None:
+    for entry in contract.get('required_calls', []) or []:
+        if isinstance(entry, dict) and _same_required_call(entry, matched_entry):
+            entry['schema_status'] = 'validated'
+            entry['artifact_path'] = _expected_path_value(matched_entry)
+            return
+
+
+def _mark_pipeline(contract: dict, matched_entry: dict) -> None:
+    role = matched_entry.get('role')
+    pipeline_id = matched_entry.get('pipeline_id')
+    if role not in {'ba', 'dev', 'qa'} or not pipeline_id:
+        return
+    pipelines = contract.get('pipelines')
+    if not isinstance(pipelines, dict):
+        return
+    pipeline = pipelines.setdefault(str(pipeline_id), {})
+    pipeline[f'{role}_status'] = 'done'
+    artifact_paths = pipeline.setdefault('artifact_paths', {})
+    if isinstance(artifact_paths, dict):
+        artifact_paths[str(role)] = _expected_path_value(matched_entry)
+
+
+def _mark_workflow(workflow: dict, step_index: int) -> None:
+    calls = workflow.get('subagent_calls')
+    if not isinstance(calls, dict):
+        calls = {}
+    calls[str(step_index)] = True
+    workflow['subagent_calls'] = calls
+    workflow.setdefault('contract_reconciliation', []).append(
+        {'step_index': step_index, 'status': 'validated'}
+    )
+
+
+def reconcile_accepted_artifact(
+    session_id: str,
+    cycle_id: int,
+    workflow_path: Path,
+    step_index: int,
+    matched_entry: dict,
+    *,
+    fail_after: str | None = None,
+) -> dict:
+    """Atomically reconcile accepted artifact status across contract + workflow state.
+
+    The function holds one file lock, computes every target mutation in memory,
+    writes by temp-file replacement, and rolls back earlier replacements if a
+    later write fails. ``fail_after`` exists only for regression tests that
+    prove partial-write rollback; production callers leave it unset.
+    """
+    contract_path = load_contract_path(session_id, cycle_id)
+    if contract_path is None:
+        return {'ok': False, 'reason': 'contract missing'}
+    artifact_ok, artifact_reason = _artifact_valid_for_entry(matched_entry)
+    if not artifact_ok:
+        return {'ok': False, 'reason': artifact_reason}
+    lock_file = _lock_path(session_id, cycle_id).open('w', encoding='utf-8')
+    with lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        original_contract = contract_path.read_text(encoding='utf-8')
+        original_workflow = workflow_path.read_text(encoding='utf-8') if workflow_path.exists() else None
+        contract = json.loads(original_contract)
+        workflow = json.loads(original_workflow) if original_workflow is not None else {}
+        _mark_required_call(contract, matched_entry)
+        _mark_pipeline(contract, matched_entry)
+        _mark_workflow(workflow, step_index)
+        try:
+            _atomic_write_text(contract_path, _json_text(contract))
+            if fail_after == 'contract':
+                raise RuntimeError('injected failure after contract write')
+            _atomic_write_text(workflow_path, _json_text(workflow))
+        except Exception:
+            _restore_text(contract_path, original_contract)
+            _restore_text(workflow_path, original_workflow)
+            raise
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+    return {'ok': True, 'contract_path': str(contract_path), 'workflow_path': str(workflow_path)}

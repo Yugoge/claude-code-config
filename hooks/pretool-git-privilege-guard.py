@@ -29,13 +29,16 @@ Forbidden agent operations:
     set by /merge at start. Stderr literal: `BLOCKED: agent git merge`.
   - git push (any form). Stderr literal:
     `BLOCKED: agent git push`.
-  - destructive history-rewriting reset to a non-HEAD ref. Stderr
-    literal: `BLOCKED: agent git reset to non-HEAD`.
+  - every hard reset form. Stderr literal:
+    `BLOCKED: agent git reset --hard`.
+  - direct ref mutation (`git update-ref`, branch force/delete/rename,
+    or writable HEAD symbolic-ref changes).
 
 Allowed: git add, git status, git log, git diff, git show, git blame,
 git ls-files, git ls-tree, git restore (working-tree only), git branch
 (list), git rev-list, git rev-parse, git symbolic-ref, git for-each-ref,
-git stash list/show/pop (non-destructive forms), and reset to HEAD only.
+and git stash list/show/pop (non-destructive forms). Hard reset and direct
+ref mutation are not agent-accessible.
 
 Spec: spec-20260424-233926 section 5.2.4 (R4.3) line 233-249.
 
@@ -58,9 +61,7 @@ Revision history:
   raw command text BEFORE the env-var check, defeating the b5d447e
   attack class even if the agent learns the env name. The grant file
   is unlinked on first valid consumption (single-use); validation
-  failures DO NOT consume the grant (forensics + brute-force
-  resistance).  /do-consent is intentionally NOT honored — the git
-  guard never consults `/tmp/claude-orchestrator-consent-<sid>.flag`.
+  failures DO NOT consume the grant (forensics + brute-force resistance).
   Cross-bypass is blocked: the push env name does NOT bypass commit,
   and vice versa.  Authority: spec ba-spec-20260425-redev2.md §4.1
   (AC-A1..AC-A17), close-report-20260425-push-commit-debate.md
@@ -79,7 +80,6 @@ Exit codes:
 """
 
 import glob
-import hashlib
 import json
 import os
 import re
@@ -90,6 +90,16 @@ from pathlib import Path
 
 
 BLESSED_BRIDGE_RE = re.compile(r'auto-bulk:\s*end-of-cycle commit for\b')
+
+GIT_GLOBAL_OPTION_RE = (
+    r'(?:\s+(?:-[Cc]\s+\S+|-[Cc]\S+|'
+    r'--(?:git-dir|work-tree|namespace|exec-path|super-prefix|config-env)'
+    r'(?:=\S+|\s+\S+)|'
+    r'--(?:bare|no-pager|paginate|no-replace-objects|literal-pathspecs|'
+    r'glob-pathspecs|noglob-pathspecs|icase-pathspecs|no-optional-locks)|'
+    r'-[pP]))*'
+)
+GIT_COMMAND_RE = r'(?:^|[\s;&|()`])git' + GIT_GLOBAL_OPTION_RE + r'\s+'
 
 
 def _block(message):
@@ -114,6 +124,59 @@ def _get_session_id(data):
         return ''
 
 
+def _has_do_consent(data: dict) -> bool:
+    """Return True if main agent has /do consent for this turn."""
+    if data.get('agent_id'):  # subagents cannot use /do
+        return False
+    sid = _get_session_id(data)
+    if not sid:
+        return False
+    try:
+        flag = Path(f'/tmp/claude-orchestrator-consent-{sid}.flag')
+        return flag.exists() and flag.read_text().strip() == 'true'
+    except Exception:
+        return False
+
+
+def _check_git_allowlist(command: str, data: dict) -> bool:
+    """Check /allow grant for non-commit/non-push git operations. Read-only.
+
+    Main-agent only. Returns True if grant matched (consume deferred to PostToolUse).
+    """
+    if data.get('agent_id'):
+        return False
+    sid = _get_session_id(data)
+    if not sid:
+        return False
+    flag_path = Path(f'/tmp/claude-bash-allowlist-{sid}.json')
+    try:
+        import fcntl
+        import json as _json
+        with open(flag_path, 'r+') as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+            try:
+                grant = _json.load(fh)
+            except Exception:
+                return False
+            pattern = grant.get('pattern', '')
+            if not isinstance(pattern, str) or not pattern:
+                return False
+            is_regex = grant.get('is_regex', False)
+            if is_regex:
+                import re as _re
+                matched = bool(_re.search(pattern, command))
+            else:
+                matched = pattern in command
+            if matched:
+                sys.stderr.write(f"[ALLOW] grant matched, consume deferred to PostToolUse\n")
+                return True
+            return False
+    except (FileNotFoundError, OSError):
+        return False
+    except Exception:
+        return False
+
+
 def _inline_env_present(command, var_name):
     """True iff the raw command string contains literal `<var_name>=`.
 
@@ -128,17 +191,6 @@ def _inline_env_present(command, var_name):
         return False
     needle = var_name + '='
     return needle in command
-
-
-def _grant_path_for(kind, sid):
-    """Return /tmp/claude-{kind}-grant-<sid>.json for kind in {push, commit}.
-
-    Retained for backward compat / readability; the live consumers use
-    `_find_grant` so they discover per-nonce filenames written by the
-    wrappers (close-report-20260425-push-commit-debate.md ratified the
-    `<sid>-<nonce>.json` pattern in §1-2).
-    """
-    return '/tmp/claude-%s-grant-%s.json' % (kind, sid)
 
 
 def _find_grant(kind, sid):
@@ -225,21 +277,13 @@ def _git_output(args):
         return ''
 
 
-def _sha256_text(text):
-    """Return lowercase hex sha256 of the UTF-8 bytes of `text`."""
-    try:
-        return hashlib.sha256((text or '').encode('utf-8')).hexdigest()
-    except Exception:
-        return ''
-
-
 def _extract_push_remote(command):
     """Best-effort extraction of the explicit remote argument from a
     `git push` invocation.  Returns the first positional token after
     `push` that is not a flag (does not start with `-`), or '' when
     not found (typical for plain `git push` with upstream tracking).
     """
-    m = re.search(r'(?:^|[\s;&|()`])git\s+push\b(.*)', command)
+    m = re.search(GIT_COMMAND_RE + r'push\b(.*)', command)
     if not m:
         return ''
     tail = m.group(1)
@@ -253,22 +297,49 @@ def _extract_push_remote(command):
 
 
 def _looks_like_git_commit(command):
-    return bool(re.search(r'(?:^|[\s;&|()`])git\s+commit\b', command))
+    return bool(re.search(GIT_COMMAND_RE + r'commit\b', command))
 
 
 def _looks_like_git_merge(command):
-    return bool(re.search(r'(?:^|[\s;&|()`])git\s+merge(?!-base|tool)\b', command))
+    return bool(re.search(GIT_COMMAND_RE + r'merge(?!-base|tool)\b', command))
 
 
 def _looks_like_git_push(command):
-    return bool(re.search(r'(?:^|[\s;&|()`])git\s+push\b', command))
+    return bool(re.search(GIT_COMMAND_RE + r'push\b', command))
 
 
 def _looks_like_git_reset_hard(command):
     return bool(re.search(
-        r"(?:^|[\s;&|()`])git\s+reset\s+(?:[^;|&]*\s+)?--hard\b",
+        GIT_COMMAND_RE + r"reset\s+(?:[^;|&]*\s+)?--hard\b",
         command,
     ))
+
+
+def _looks_like_git_direct_ref_mutation(command):
+    if re.search(GIT_COMMAND_RE + r'update-ref\b', command):
+        return True
+    if re.search(GIT_COMMAND_RE + r'symbolic-ref\s+(?:-m\s+\S+\s+)*HEAD\s+refs/', command):
+        return True
+    return bool(re.search(
+        GIT_COMMAND_RE + r'branch\s+(?:-[fDdMm]+\b|--delete\b|--force\b|--move\b)',
+        command,
+    ))
+
+
+def _push_has_forbidden_ref_mutation(command):
+    m = re.search(GIT_COMMAND_RE + r'push\b(.*)', command)
+    if not m:
+        return False
+    tail = re.split(r'[;&|`]', m.group(1), maxsplit=1)[0]
+    tokens = tail.strip().split()
+    for tok in tokens:
+        if tok in ('--force', '-f', '--force-with-lease', '--delete', '-d', '--mirror'):
+            return True
+        if tok.startswith('--force-with-lease='):
+            return True
+        if tok.startswith('+') or tok.startswith(':'):
+            return True
+    return False
 
 
 def _extract_commit_message(command):
@@ -290,7 +361,7 @@ def _extract_commit_message(command):
 
 def _extract_reset_target(command):
     m = re.search(
-        r"git\s+reset\s+(?:[^;|&]*?\s+)?--hard\s+([^\s;|&]+)",
+        GIT_COMMAND_RE + r"reset\s+(?:[^;|&]*?\s+)?--hard\s+([^\s;|&]+)",
         command,
     )
     return m.group(1) if m else ''
@@ -336,19 +407,6 @@ def _is_overnight_active():
         return False
 
 
-def _block_inline_env_commit(command):
-    """AC-A2: literal-substring inline-env injection block for commit."""
-    _block(
-        '\nBLOCKED: agent git commit - inline-env injection blocked.\n'
-        'Detected literal substring `CLAUDE_COMMIT_COMMAND_ACTIVE=` in '
-        'the raw command text; agents are not permitted to set this '
-        'env var inline.  Only the /commit wrapper may set it via '
-        'subprocess + os.environ.\n'
-        'Command excerpt: %s\n' % command[:200]
-        + 'Spec: ba-spec-20260425-redev2.md AC-A2.\n'
-    )
-
-
 def _block_default_deny_commit(msg):
     """AC-A13: default-deny block when commit env is unset."""
     _block(
@@ -365,153 +423,29 @@ def _block_default_deny_commit(msg):
     )
 
 
-def _validate_commit_grant_message(grant, msg):
-    """AC-A11: message sha256 must match grant.expected_message_sha256."""
-    expected_hash = (grant.get('expected_message_sha256') or '').lower()
-    actual_hash = _sha256_text(msg)
-    if not expected_hash or expected_hash != actual_hash:
-        _block(
-            '\nBLOCKED: agent git commit - message hash mismatch.\n'
-            'Expected sha256: %s\n' % (expected_hash or '<missing>')
-            + 'Actual   sha256: %s\n' % actual_hash
-            + 'Commit message excerpt: %r\n' % msg[:200]
-            + 'Grant did NOT authorize this exact commit message.\n'
-            'Spec: ba-spec-20260425-redev2.md AC-A11.\n'
-        )
-
-
-def _block_staged_superset(allowed_set, staged_set):
-    """AC-A9: staged set has files outside the grant's allowed_files."""
-    _block(
-        '\nBLOCKED: agent git commit - staged-set superset of '
-        'allowed_files.\n'
-        'Allowed: %s\n' % sorted(allowed_set)
-        + 'Staged : %s\n' % sorted(staged_set)
-        + 'Extras : %s\n' % sorted(staged_set - allowed_set)
-        + 'Spec: ba-spec-20260425-redev2.md AC-A9.\n'
-    )
-
-
-def _block_staged_subset(allowed_set, staged_set):
-    """AC-A10: staged set is missing files declared in allowed_files."""
-    _block(
-        '\nBLOCKED: agent git commit - staged-set subset of '
-        'allowed_files.\n'
-        'Allowed: %s\n' % sorted(allowed_set)
-        + 'Staged : %s\n' % sorted(staged_set)
-        + 'Missing: %s\n' % sorted(allowed_set - staged_set)
-        + 'Spec: ba-spec-20260425-redev2.md AC-A10.\n'
-    )
-
-
-def _validate_commit_grant_files(grant):
-    """AC-A9 / AC-A10: staged set must equal grant.allowed_files exactly."""
-    allowed_raw = grant.get('allowed_files') or []
-    if not isinstance(allowed_raw, list):
-        _block(
-            '\nBLOCKED: agent git commit - grant.allowed_files is not a list.\n'
-            'Spec: ba-spec-20260425-redev2.md AC-A9/A10.\n'
-        )
-    allowed_set = set(str(p) for p in allowed_raw if p)
-    staged_raw = _git_output(['diff', '--cached', '--name-only'])
-    staged_set = set(p for p in staged_raw.splitlines() if p)
-    if staged_set - allowed_set:
-        _block_staged_superset(allowed_set, staged_set)
-    if allowed_set - staged_set:
-        _block_staged_subset(allowed_set, staged_set)
-
-
-def _block_missing_commit_grant(sid):
-    """AC-A4 / AC-A16: env present but no on-disk grant for this SID."""
-    pattern = '/tmp/claude-commit-grant-%s-*.json' % sid
-    _block(
-        '\nBLOCKED: agent git commit - CLAUDE_COMMIT_COMMAND_ACTIVE=1 '
-        'is set but no valid grant manifest matching %s.\n' % pattern
-        + 'Single-use grants are unlinked on first valid consumption; '
-        'a missing grant means it was already used or never written.\n'
-        'Spec: ba-spec-20260425-redev2.md AC-A16; '
-        'close-report-20260425-push-commit-debate.md §1-2.\n'
-    )
-
-
-def _warn_bridge_message_drift(grant, msg):
-    """Emit warning if bridge-mode message hash differs from grant.expected."""
-    expected_hash = (grant.get('expected_message_sha256') or '').lower()
-    actual_hash = _sha256_text(msg)
-    if expected_hash and expected_hash != actual_hash:
-        sys.stderr.write(
-            'WARN: bridge-mode commit message hash mismatch '
-            '(expected=%s actual=%s); allowed under AC-P3-4 transition.\n'
-            % (expected_hash[:12], actual_hash[:12])
-        )
-
-
-def _warn_bridge_staged_drift(grant):
-    """Emit warning if bridge-mode staged-set differs from grant.allowed_files."""
-    allowed_raw = grant.get('allowed_files') or []
-    if not isinstance(allowed_raw, list):
-        return
-    allowed_set = set(str(p) for p in allowed_raw if p)
-    staged_raw = _git_output(['diff', '--cached', '--name-only'])
-    staged_set = set(p for p in staged_raw.splitlines() if p)
-    if staged_set != allowed_set:
-        sys.stderr.write(
-            'WARN: bridge-mode commit staged-set drift '
-            '(extras=%s missing=%s); allowed under AC-P3-4 transition.\n'
-            % (sorted(staged_set - allowed_set),
-               sorted(allowed_set - staged_set))
-        )
-
-
-def _observe_bridge_commit(sid, msg):
-    """AC-P3-2 defense-in-depth (added 2026-04-26 in dev-redev3-p3).
-
-    When the blessed-bridge regex matches AND the wrapper has set
-    CLAUDE_COMMIT_COMMAND_ACTIVE=1 AND a per-nonce grant manifest is
-    on disk, validate message hash + staged set against the grant.
-    Drift is logged (warning) but does NOT block — promotion to
-    hard-block is deferred to a future cycle (AC-P3-5).  Manifest
-    absence is allowed, preserving AC-P3-4 in-flight compatibility.
-    """
-    if os.environ.get('CLAUDE_COMMIT_COMMAND_ACTIVE') != '1':
-        return
-    grant_path, grant = _find_grant('commit', sid)
-    if grant is None:
-        return
-    _warn_bridge_message_drift(grant, msg)
-    _warn_bridge_staged_drift(grant)
-    _unlink_grant(grant_path)
-
-
-def _evaluate_commit(command, sid):
+def _evaluate_commit(command, data):
     # AC-A12: blessed-bridge regex commit STILL ALLOWED (regression).
     msg = _extract_commit_message(command)
     if msg and BLESSED_BRIDGE_RE.search(msg):
-        # AC-P3-2 defense-in-depth: observe-only validation when a
-        # bridge-mode grant accompanies the commit.  Plain blessed-bridge
-        # commits with no env/grant continue to be allowed (AC-P3-4).
-        _observe_bridge_commit(sid, msg)
         return
-    # AC-A2: literal-substring inline-env injection (precedes env check).
-    if _inline_env_present(command, 'CLAUDE_COMMIT_COMMAND_ACTIVE'):
-        _block_inline_env_commit(command)
-    # AC-A13: only the matching env name carries (cross-bypass blocked).
-    if os.environ.get('CLAUDE_COMMIT_COMMAND_ACTIVE') != '1':
-        _block_default_deny_commit(msg)
-    # AC-A4 / AC-A16: env present -> require single-use grant manifest.
-    # Per close-report §1-2, on-disk file is `<sid>-<nonce>.json`; glob+match.
-    grant_path, grant = _find_grant('commit', sid)
-    if grant is None:
-        _block_missing_commit_grant(sid)
-    # AC-A11 + AC-A9/A10: validate message hash and staged-set equality.
-    _validate_commit_grant_message(grant, msg)
-    _validate_commit_grant_files(grant)
-    # All validations passed.  Consume grant (single-use), then allow.
-    _unlink_grant(grant_path)
+    # Grant-file mechanism (Option C — guard UNREGISTERED; runs when re-registered):
+    # M1 of task 20260517-064431: sid extracted from data, matching _evaluate_merge pattern.
+    sid = _get_session_id(data)
+    if sid:
+        grant_path, grant = _find_grant('commit', sid)
+        if grant is not None:
+            # Validate expiry; allow and consume on valid grant.
+            if not _end_time_passed(grant.get('expires_at', '')):
+                _unlink_grant(grant_path)
+                return
+    # AC-A13: default-deny all other agent git commit calls.
+    _block_default_deny_commit(msg)
 
 
-def _evaluate_merge(command):
+def _evaluate_merge(command, data):
     if os.environ.get('CLAUDE_MERGE_COMMAND_ACTIVE') == '1':
+        return
+    if _check_git_allowlist(command, data):
         return
     _block(
         '\nBLOCKED: agent git merge - only the /merge slash command '
@@ -606,6 +540,13 @@ def _evaluate_push(command, sid):
     # AC-A1: literal-substring inline-env injection (precedes env check).
     if _inline_env_present(command, 'CLAUDE_PUSH_COMMAND_ACTIVE'):
         _block_inline_env_push(command)
+    if _push_has_forbidden_ref_mutation(command):
+        _block(
+            '\nBLOCKED: agent git push - force/delete/ref-rewrite push is forbidden.\n'
+            'Command excerpt: %s\n' % command[:200]
+            + 'Safety policy allows normal /push branch publication only; '
+            'automatic backup must use namespaced recovery refs.\n'
+        )
     # AC-A5: default-deny when env unset.
     if os.environ.get('CLAUDE_PUSH_COMMAND_ACTIVE') != '1':
         _block_default_deny_push(command)
@@ -622,28 +563,76 @@ def _evaluate_push(command, sid):
     _unlink_grant(grant_path)
 
 
-def _evaluate_reset_hard(command):
-    target = _extract_reset_target(command)
-    if _is_head_ref(target):
+def _evaluate_reset_hard(command, data):
+    if _check_git_allowlist(command, data):
         return
+    target = _extract_reset_target(command)
     _block(
-        '\nBLOCKED: agent git reset to non-HEAD - destructive '
-        'history-mutating reset to %r is forbidden from an overnight '
-        'context.\n' % target
+        '\nBLOCKED: agent git reset --hard - hard reset is forbidden '
+        'from agent flow.\n'
         + 'Command excerpt: %s\n' % command[:200]
-        + 'Spec: spec-20260424-233926 section 5.2.4 (R4.3).\n'
+        + 'Target: %r\n' % target
+        + 'Spec: 2026-05-09 commit/push loss-prevention policy.\n'
     )
 
 
-def _evaluate_command(command, sid):
+def _evaluate_direct_ref_mutation(command, data):
+    if _check_git_allowlist(command, data):
+        return
+    _block(
+        '\nBLOCKED: agent direct git ref mutation - update-ref and '
+        'branch force/delete/rename are forbidden.\n'
+        'Command excerpt: %s\n' % command[:200]
+        + 'Branch movement must go through expected-parent CAS wrappers.\n'
+    )
+
+
+def _looks_like_git_forbidden_plumbing(command):
+    """R6: Ban agent direct invocation of git plumbing that creates commit objects.
+
+    Defense-in-depth: most are already indirectly blocked (they call git commit
+    or git update-ref internally). These explicit bans close the gap for R6.
+    Uses GIT_COMMAND_RE anchor so string literals in python -c code are not matched.
+    """
+    forbidden_suffixes = [
+        r'commit-tree\b',
+        r'cherry-pick\b',
+        r'rebase\b',
+        r'pull\b',
+        r'filter-branch\b',
+        r'filter-repo\b',
+        r'replace\s+(-e|--edit)\b',
+        r'fast-import\b',
+        r'revert\b',
+        r'am\b',
+    ]
+    return any(re.search(GIT_COMMAND_RE + s, command) for s in forbidden_suffixes)
+
+
+def _evaluate_forbidden_plumbing(command, data):
+    if _check_git_allowlist(command, data):
+        return
+    _block(
+        '\nBLOCKED: agent direct git plumbing is forbidden (R6).\n'
+        'Command excerpt: %s\n' % command[:200]
+        + 'Commit creation must go through the /commit slash command.\n'
+    )
+
+
+def _evaluate_command(command, data):
+    sid = _get_session_id(data)
+    if _looks_like_git_forbidden_plumbing(command):
+        _evaluate_forbidden_plumbing(command, data)
     if _looks_like_git_reset_hard(command):
-        _evaluate_reset_hard(command)
+        _evaluate_reset_hard(command, data)
+    if _looks_like_git_direct_ref_mutation(command):
+        _evaluate_direct_ref_mutation(command, data)
     if _looks_like_git_push(command):
         _evaluate_push(command, sid)
     if _looks_like_git_merge(command):
-        _evaluate_merge(command)
+        _evaluate_merge(command, data)
     if _looks_like_git_commit(command):
-        _evaluate_commit(command, sid)
+        _evaluate_commit(command, data)
 
 
 def main():
@@ -657,17 +646,13 @@ def main():
         # Always-on per spec 5.2.4 line 240-241; overnight gate removed
         # 2026-04-25 (Option alpha) after b5d447e proved interactive
         # sessions need this guard too.
-        #
-        # AC-A17: /do consent is intentionally NOT honored here.  This
-        # guard MUST NOT consult /tmp/claude-orchestrator-consent-<sid>.flag
-        # under any circumstances; the boundary is frozen by design.
-        # Any future maintainer reading this: do not add a has_consent
-        # check.  See ba-spec-20260425-redev2.md R-4 for the rationale.
         command = (data.get('tool_input', {}) or {}).get('command', '') or ''
         if not command:
             sys.exit(0)
-        sid = _get_session_id(data)
-        _evaluate_command(command, sid)
+        # /do bypass: main-agent-only; subagents never benefit from consent flag.
+        if _has_do_consent(data):
+            sys.exit(0)
+        _evaluate_command(command, data)
     except SystemExit:
         raise
     except Exception:

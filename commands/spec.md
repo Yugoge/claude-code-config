@@ -1,5 +1,6 @@
 ---
-description: Create spec files for any dev workflow (/dev, /dev-overnight, or standalone reference)
+description: Create spec files for any dev workflow (/dev, /dev-overnight, or standalone reference). Pass --codex to enable adversarial codex consultation on each spec-subagent / QA dispatch; default is self-review only.
+argument-hint: "[--codex] [<requirement>]"
 disable-model-invocation: true
 ---
 
@@ -14,6 +15,10 @@ You manage spec files. `$ARGUMENTS` may be empty or hold the user's first requir
 **Philosophy**: Act immediately on whatever the user provides. Ask a clarification ONLY when the input is genuinely impossible to turn into a Section 5 skeleton. After writing the first spec, stay in a multi-turn loop and append any follow-up requirements to the SAME file. Exit on natural-conclusion strong signals only.
 
 ### Step 1: Parse $ARGUMENTS
+
+**Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it from the requirement text and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every spec-subagent / QA dispatch prompt below MUST include the literal line `codex_required: true` so the subagent's opt-in codex consultation block (`agents/<role>.md` § Codex adversarial consultation) activates. When `codex_required = false`, do NOT include that line — subagents skip codex consultation and emit `codex_consult: { invoked: false, status: "not_requested" }` in their output.
+
+After stripping `--codex`, branch on the remaining requirement text:
 
 - **Non-empty non-flag text**: treat as the first requirement. Skip to Step 3.
 - **Empty**: ask once, briefly and naturally — one sentence, first-person, match the user's energy and language (en or zh). Do not use a fixed phrase; vary wording. Then wait for the response and use it as the first requirement.
@@ -120,6 +125,8 @@ Only proceed to Step 6 when a STRONG signal fires.
      Monolith lines: <MONOLITH_LINES>
      Output folder: docs/dev/specs/<spec-id>/
      Project dir: <$CLAUDE_PROJECT_DIR>
+     <If codex_required = true, include the literal next line; otherwise omit it>
+     codex_required: true
      Execute Phase 0 (read spec, decide relevant agents).
      Then Phase 1 (intelligent extraction if monolith > 200 lines).
      Then Phase 2 (checkpoint generation).
@@ -134,6 +141,8 @@ Only proceed to Step 6 when a STRONG signal fires.
    - prompt: "
      Validate the spec split at docs/dev/specs/<spec-id>/views/.
      Monolith: <spec_path>
+     <If codex_required = true, include the literal next line; otherwise omit it>
+     codex_required: true
 
      Check these criteria:
      1. ROLE MANDATE: If the spec defines role responsibilities (look for 'role split',
@@ -184,6 +193,8 @@ Only proceed to Step 6 when a STRONG signal fires.
      Monolith lines: <MONOLITH_LINES>
      Output folder: docs/dev/specs/<spec-id>/
      Project dir: <$CLAUDE_PROJECT_DIR>
+     <If codex_required = true, include the literal next line; otherwise omit it>
+     codex_required: true
 
      Your previous split was REJECTED by QA. Address each issue below with concrete
      corrections to the views and/or checkpoints. Do not argue -- investigate and fix.
@@ -223,13 +234,22 @@ Only proceed to Step 6 when a STRONG signal fires.
    echo "⚠ unresolved split-QA issues (<N>); see split-qa-unresolved.json" >> docs/dev/specs/<spec-id>/.split-complete
    ```
 
-### Step 7: Display result
+### Step 7: Display result + workflow update
+
+Before the final stdout response, create a compact temp update using
+`/update --temp`. Default to `mktemp -t update-XXXXXX.md`; do not write this
+update into the repo unless the user explicitly asks. The update focuses on
+the next `/dev` session and references the spec path, split marker, views
+folder, checkpoints, and unresolved split-QA file by path instead of duplicating
+their contents. Do NOT use continuation-spec mode here because `/spec` already
+produced the spec.
 
 ```
 Spec created: <absolute path>
 Split marker: docs/dev/specs/<spec-id>/.split-complete
 Output folder: docs/dev/specs/<spec-id>/
 Checkpoints:  .claude/specs/<spec-id>/cp-state-*.json
+Update:      <temp update path for the next /dev session>
 
 Sections populated:
 - Section 5 (User's Acceptance Criterion): populated (N requirements accumulated)
@@ -257,5 +277,10 @@ Usage:
 - **Create the output directory** (`docs/dev/specs/`) if it does not exist.
 - **Use absolute paths** in all output messages.
 - **Spec Creation Mode is the only mode.** It acts immediately on whatever the user provides, accumulates multiple requirements into one file per session, and finalizes only on a natural-conclusion strong signal.
+- **Section 5 verbatim — DO NOT invent nested sub-section structure.** Section 5 holds the user's requirement text verbatim. The only structure the /spec orchestrator may ADD beneath Section 5 is the `### 5.N: <title>` accumulation header defined in Step 4 (one per follow-up turn); any other bullets, headings, or sub-headings must come verbatim from the user, not be invented. DO NOT decompose the user's natural-language paragraph into invented `#### A.`, `#### B.`, `#### C.` (or any `5.X.A`, `5.X.B`-style) sub-headings, machine-voice checklist bullets, or parallel "应/不应" AC ladders below a `§5.N` block. This prohibition governs both Step 3 (first-write of Section 5) and Step 4 (multi-turn append of `### 5.N`). If the user's paragraph contains multiple ideas, leave them as one paragraph; downstream agents (BA, dev, QA) will decompose during their own phases — not the /spec orchestrator.
 - **Output folder is created by the spec subagent** during Phase 0. The subagent decides which agents get views based on spec content. Legacy specs lacking an output folder remain valid — `/dev*` falls back gracefully.
 - **Todo script**: `/root/.claude/scripts/todo/spec.py` (symlinked to `/dev/shm/dev-workspace/dot-claude/scripts/todo/spec.py` — same inode) exposes the 7-step Spec Creation Mode todo list with `blocking_count = 3` (Steps 1-3 must complete before Claude can stop; Steps 4-7 are session-duration).
+- **Workflow update**: Step 7 emits a temp update for the next phase using
+  `/update --temp`. It must be compact, reference existing artifacts by path,
+  and suggest the exact next command (`/dev` auto-detect or `/dev --spec
+  <path>`).

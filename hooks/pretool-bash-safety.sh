@@ -5,6 +5,15 @@
 # Read full JSON from stdin
 INPUT=$(cat)
 
+CLAUDE_HOME="${CLAUDE_HOME:-${HOME}/.claude}"
+CLAUDE_TMPDIR="${CLAUDE_TMPDIR:-${TMPDIR:-/tmp}}"
+PYTHON_BIN="${CLAUDE_PYTHON_BIN:-${CLAUDE_HOME}/venv/bin/python}"
+if [ ! -x "$PYTHON_BIN" ]; then
+  PYTHON_BIN="${CLAUDE_PYTHON_FALLBACK:-python}"
+fi
+DAEMON_RESTART_GRANT_DIR="${CLAUDE_DAEMON_RESTART_GRANT_DIR:-${CLAUDE_TMPDIR}}"
+DAEMON_RESTART_SENTINEL_RE="$(printf '%s' "${DAEMON_RESTART_GRANT_DIR%/}/claude-allow-daemon-restart-" | sed 's/[][\\.^$*+?{}|()]/\\&/g')"
+
 # Codex compatibility: hook payloads may pass a multi-line shell snippet with
 # strict-mode preludes such as `set -euo pipefail` before the actual command.
 # Docker compose service detection must examine compose invocations, not the
@@ -20,8 +29,8 @@ strip_shell_prelude_for_compose() {
 }
 
 # Extract tool name and command
-TOOL_NAME=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null)
-COMMAND=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+TOOL_NAME=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_name',''))" 2>/dev/null)
+COMMAND=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
 COMPOSE_COMMAND=$(strip_shell_prelude_for_compose "$COMMAND")
 
 # Only act on Bash tool
@@ -108,11 +117,18 @@ check_systemctl_targets_all_dev() {
   done
 }
 
-# ── One-shot allowlist bypass for developer-class blocks ─────────────────────
+# ── One-shot allowlist bypass (single-shot /allow consume) ────────────────────
 # Reads /tmp/claude-bash-allowlist-<sid>.json (written by userprompt-consent-allowlist.sh).
-# On match: deletes the entry (single-use), logs, exits 0.
-# NEVER called for asteroid-class blocks.
-# NEVER bypasses subagent calls (agent_id check first, inline fresh parse).
+# On match: atomically deletes the flag (single-use), audit-logs, emits canonical
+# Claude Code PreToolUse approval JSON to stdout, returns 0.
+# Per task-id 20260509-113838 (R11 relaxation): this helper is invoked from the
+# global /allow short-circuit at line 555, which runs BEFORE all four absolute-ban
+# categories (Layer 1.A daemon-restart prohibition + session_dirs/happy-recovery/
+# happy-restart). The user-binding directive (verbatim text preserved in
+# docs/dev/ticket-20260509-113838.md) authorizes /allow to bypass any command
+# including dangerous ones when the user explicitly grants the pattern; consume
+# covers ANY safety block when the user-granted pattern matches.
+# NEVER bypasses subagent calls (IS_SUBAGENT inline fresh parse first; lines 121-131).
 CONSENT_LOG="$HOME/.claude/logs/bash-consent.log"
 
 check_and_consume_allowlist() {
@@ -123,7 +139,7 @@ check_and_consume_allowlist() {
   # at upstream call sites (all before the IS_SUBAGENT assignment). Inline parse is the only
   # correct approach.
   local is_sub
-  is_sub=$(echo "$INPUT" | python3 -c \
+  is_sub=$(echo "$INPUT" | "$PYTHON_BIN" -c \
     "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
     2>/dev/null)
   if [ "$is_sub" = "1" ]; then
@@ -131,7 +147,7 @@ check_and_consume_allowlist() {
   fi
 
   local sid
-  sid=$(echo "$INPUT" | python3 -c \
+  sid=$(echo "$INPUT" | "$PYTHON_BIN" -c \
     "import json,sys,os; d=json.load(sys.stdin); print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
     2>/dev/null)
   [ -z "$sid" ] && sid="default"
@@ -144,7 +160,7 @@ check_and_consume_allowlist() {
   # Pattern and command passed via environment variables — never shell-interpolated into Python.
   local lock_file="${flag_file}.lock"
   local consume_result
-  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" CMD_INPUT="$cmd" SID_VAL="$sid" python3 - <<'PYEOF'
+  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" CMD_INPUT="$cmd" SID_VAL="$sid" "$PYTHON_BIN" - <<'PYEOF'
 # V1: SIGALRM-only timeout (1s) around re.search to stop catastrophic-backtracking DoS.
 #     ThreadPoolExecutor fallback is PROHIBITED — it does not interrupt a running C regex.
 # V2: flock(LOCK_EX | LOCK_NB) with 3x 100ms retry; atomic unlink while lock held; finally-unlock.
@@ -159,8 +175,13 @@ flag_file = os.environ['FLAG_FILE']
 lock_file = os.environ['LOCK_FILE']
 cmd = os.environ['CMD_INPUT']
 
-# Dev-class block rules embedded here (must be kept in sync with the outer shell block list).
-# Each entry is a Python regex string. A subcommand is "dangerous" iff it matches ANY of these.
+# Block rules embedded here (must be kept in sync with the outer shell block list).
+# Each entry is a Python regex string. Historically used for cross-check between
+# /allow-pattern and embedded block rules; the cross-check was removed 2026-04-28
+# (see comment near matched_subcmd loop below). After task-id 20260509-113838
+# R11 relaxation, /allow is a true break-glass over ALL safety blocks; the
+# BLOCK_RULES list is retained for potential future use but is not consulted by
+# the consume path.
 BLOCK_RULES = [
     # V4 stash forms
     r'git\s+stash\s+(push|save|create|store|-u|--include-untracked|-a|--all)\b',
@@ -260,11 +281,16 @@ try:
 
     matched_subcmd = None
     for sub in subcmds:
-        # Both conditions must hold on the SAME subcommand:
-        # (a) subcommand matches the user's allow-pattern
-        # (b) subcommand matches at least one dev-class block rule
-        # 2026-04-28: cross-check against BLOCK_RULES removed — /allow is now a true
-        # break-glass over ALL safety blocks. User grants the exact pattern, accepts risk.
+        # Match the user's allow-pattern against each subcommand.
+        # Historic note: until 2026-04-28 the consume path also cross-checked the
+        # subcommand against BLOCK_RULES above and required BOTH conditions to
+        # hold; that gate was removed so /allow is a true break-glass over ALL
+        # safety blocks. Task-id 20260509-113838 reinforces this: per the
+        # user-binding directive (verbatim text preserved in
+        # docs/dev/ticket-20260509-113838.md) authorizing /allow to bypass any
+        # command including dangerous ones when the user explicitly grants the
+        # pattern, the consume covers any safety block when the granted pattern
+        # matches.
         if safe_search(pattern, sub, is_regex):
             matched_subcmd = sub
             break
@@ -273,14 +299,8 @@ try:
         print('NO_MATCH')
         sys.exit(0)
 
-    # Atomic consume: unlink flag while still holding the lock.
-    try:
-        os.unlink(flag_file)
-    except FileNotFoundError:
-        print('NO_FLAG')
-        sys.exit(0)
-
     # Emit structured result for shell wrapper to parse and log.
+    # Consume is deferred to posttool-allowlist-consume.py (PostToolUse).
     # Escape single quotes in matched_subcmd for safe shell consumption.
     print('CONSUMED\t{}\t{}\t{}'.format(
         pattern,
@@ -314,7 +334,32 @@ PYEOF
       matched_sub="${rest#*$'\t'}"
       mkdir -p "$(dirname "$CONSENT_LOG")"
       echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$sid CONSUMED pattern='$pattern' is_regex=$is_regex matched_subcmd='$matched_sub' full_cmd='$cmd'" >> "$CONSENT_LOG"
-      echo "[allow] One-shot bypass consumed for pattern='$pattern' (matched subcommand: '$matched_sub'). Command will proceed." >&2
+      echo "[allow] Grant matched for pattern='$pattern' (matched subcommand: '$matched_sub'). consume deferred to PostToolUse. Command will proceed." >&2
+      # DEFECT 3a fix iter-2 (task-id 20260509-113838): emit the canonical Claude
+      # Code PreToolUse approval JSON to stdout. Field shape verified locally at
+      # /root/.claude-cold.backup/2026-05-06/projects/-dev-shm-dev-workspace-dot-claude/
+      # 314848b6-214f-4302-845f-dc5d3d5975be/tool-results/b7goje9q2.txt:18702,19028
+      # (Anthropic Claude Code release notes); cross-verified by codex consultation
+      # of https://code.claude.com/docs/en/hooks. This produces a valid permissions-
+      # ledger entry for every consumed /allow. NOTE per D3b refutation: this
+      # canonical "allow" does NOT cross-block-short-circuit a sibling project-local
+      # deny — the docs specify "All matching hooks run in parallel" and PreToolUse
+      # precedence is "deny > defer > ask > allow". Cross-block override of
+      # /root/<repo>/.claude/settings.json deny rules requires a separate cycle
+      # (Plan B/C/D/E per dev-report plan_a_blocker_d3b).
+      #
+      # iter-2 fix per qa-report finding 1: pass pattern + matched_sub via env vars
+      # so the Python source itself is static. Shell-interpolating user-supplied
+      # patterns (which may contain literal single quotes, backslashes, or newlines)
+      # into a Python source string causes SyntaxError. json.dumps escapes any
+      # internal quote/backslash/newline correctly. This mirrors the env-var passing
+      # idiom used at userprompt-consent-allowlist.sh:140-148 for the same class of
+      # user-supplied strings.
+      PATTERN_VAL="$pattern" SUBCMD_VAL="$matched_sub" "$PYTHON_BIN" -c '
+import json, os
+reason = "/allow consumed for pattern=" + repr(os.environ["PATTERN_VAL"]) + " matched_subcmd=" + repr(os.environ["SUBCMD_VAL"])
+print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": reason}}))
+'
       return 0
       ;;
     *)
@@ -323,17 +368,27 @@ PYEOF
   esac
 }
 
-# ── C3: daemon-restart prohibition (BLOCK BEFORE /allow short-circuit) ─────
-# TASK-ID: c3-20260504-223115
-# Per BA spec docs/dev/ticket-c3-20260504-223115.md.
-# This block runs BEFORE the global /allow short-circuit so generic /allow
-# cannot bypass daemon-restart prohibition (R11). Daemon-restart is unblocked
-# ONLY by the dedicated sentinel /tmp/claude-allow-daemon-restart-<target>.flag
-# created by /root/bin/claude-allow-restart.
+# ── C3: daemon-restart prohibition helper (consume_daemon_restart_grant) ───
+# TASK-ID: c3-20260504-223115 (introduced) + 20260509-113838 (R11 relaxed)
+# Per BA spec docs/dev/ticket-c3-20260504-223115.md (original) +
+# docs/dev/ticket-20260509-113838.md (R11 supersession).
+#
+# Note: as of task-id 20260509-113838 the global /allow short-circuit at
+# line 555 runs BEFORE Layer 1.A daemon-restart prohibition. R11's narrower
+# invariant ("daemon-restart NOT bypassable by generic /allow") is RELAXED
+# per the user-binding directive (verbatim text preserved in
+# docs/dev/ticket-20260509-113838.md) authorizing /allow to bypass any command
+# including dangerous ones. The dedicated
+# ${DAEMON_RESTART_GRANT_DIR}/claude-allow-daemon-restart-<target>.flag sentinel created by
+# /root/bin/claude-allow-restart is preserved per W6 as the precise-grant
+# alternative for users who prefer not to type generic /allow. The function
+# below is still invoked from Layer 1.A; it remains the consume mechanism
+# for the dedicated channel and is unaffected by the /allow short-circuit
+# relocation.
 
 DAEMON_RESTART_AUDIT_LOG="${CLAUDE_DAEMON_RESTART_AUDIT_LOG:-$HOME/.claude/logs/claude-daemon-restart-grants.log}"
 
-# Atomic consume of /tmp/claude-allow-daemon-restart-<target>.flag.
+# Atomic consume of ${DAEMON_RESTART_GRANT_DIR}/claude-allow-daemon-restart-<target>.flag.
 # Reuses the same flock+SIGALRM atomic-consume design as check_and_consume_allowlist.
 # Args: $1 = bare unit name (e.g. "happy-daemon-dev"), $2 = the verb being attempted.
 # Returns 0 if a valid grant existed and was consumed (caller may proceed);
@@ -355,15 +410,15 @@ check_and_consume_daemon_restart_grant() {
   [ -z "$target" ] && return 1
 
   local sid
-  sid=$(echo "$INPUT" | python3 -c \
+  sid=$(echo "$INPUT" | "$PYTHON_BIN" -c \
     "import json,sys,os; d=json.load(sys.stdin); print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
     2>/dev/null)
   [ -z "$sid" ] && sid="default"
 
   mkdir -p "$(dirname "$DAEMON_RESTART_AUDIT_LOG")" 2>/dev/null || true
 
-  local flag_file="/tmp/claude-allow-daemon-restart-${target}.flag"
-  local flag_all="/tmp/claude-allow-daemon-restart-all.flag"
+  local flag_file="${DAEMON_RESTART_GRANT_DIR%/}/claude-allow-daemon-restart-${target}.flag"
+  local flag_all="${DAEMON_RESTART_GRANT_DIR%/}/claude-allow-daemon-restart-all.flag"
   local lock_file="${flag_file}.lock"
 
   # Try target-specific flag first; if absent, try the "all" flag.
@@ -374,7 +429,7 @@ check_and_consume_daemon_restart_grant() {
   [ ! -f "$flag_file" ] && return 1
 
   local consume_result
-  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" UNIT_VAL="$unit" SID_VAL="$sid" TARGET_VAL="$target" python3 - <<'PYEOF'
+  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" UNIT_VAL="$unit" SID_VAL="$sid" TARGET_VAL="$target" "$PYTHON_BIN" - <<'PYEOF'
 # Atomic flock+SIGALRM consume for daemon-restart grant.
 # Reuses the design from check_and_consume_allowlist (lines 114-298).
 import fcntl, json, os, signal, sys, time
@@ -477,7 +532,7 @@ PYEOF
       rest="${rest#*$'\t'}"
       expires="${rest%%$'\t'*}"
       grant_sid="${rest#*$'\t'}"
-      python3 - "$DAEMON_RESTART_AUDIT_LOG" "$sid" "$target" "$unit" "$verb" "$grant_target" "$expires" "$grant_sid" <<'PYAUDIT' >> "$DAEMON_RESTART_AUDIT_LOG"
+      "$PYTHON_BIN" - "$DAEMON_RESTART_AUDIT_LOG" "$sid" "$target" "$unit" "$verb" "$grant_target" "$expires" "$grant_sid" <<'PYAUDIT' >> "$DAEMON_RESTART_AUDIT_LOG"
 import json, sys
 from datetime import datetime, timezone
 log_path, sid, target, unit, verb, grant_target, expires, grant_sid = sys.argv[1:9]
@@ -499,7 +554,7 @@ PYAUDIT
       ;;
     EXPIRED$'\t'*|TARGET_MISMATCH$'\t'*|SESSION_MISMATCH$'\t'*|NO_FLAG|BLOCKED_LOCK|ERROR$'\t'*)
       local outcome="${consume_result%%$'\t'*}"
-      python3 - "$DAEMON_RESTART_AUDIT_LOG" "$sid" "$target" "$unit" "$verb" "$outcome" <<'PYAUDIT2' >> "$DAEMON_RESTART_AUDIT_LOG"
+      "$PYTHON_BIN" - "$DAEMON_RESTART_AUDIT_LOG" "$sid" "$target" "$unit" "$verb" "$outcome" <<'PYAUDIT2' >> "$DAEMON_RESTART_AUDIT_LOG"
 import json, sys
 from datetime import datetime, timezone
 log_path, sid, target, unit, verb, outcome = sys.argv[1:7]
@@ -520,6 +575,44 @@ PYAUDIT2
       ;;
   esac
 }
+
+# ── Global /allow short-circuit ─────────────────────────────────────────────
+# RELOCATED 2026-05-09 (task-id 20260509-113838) to run BEFORE all four
+# absolute-ban categories (Layer 1.A-E daemon-restart prohibition + the three
+# session/recovery/restart blocks below). The user-binding directive (verbatim
+# text preserved in docs/dev/ticket-20260509-113838.md) authorizing /allow to
+# bypass any command including dangerous ones when the user explicitly grants
+# the pattern supersedes c3-20260504-223115 R11.
+# R11's narrower invariant ("daemon-restart NOT bypassable by generic /allow")
+# is RELAXED for users who type generic /allow. The dedicated
+# /root/bin/claude-allow-restart channel and its check_and_consume_daemon_restart_grant
+# function are UNTOUCHED (W6) and remain the precise-grant alternative for
+# users who prefer R11's tighter band.
+# Single-shot consume semantics, V1 SIGALRM regex timeout, V1b structural
+# rejection, flock atomic-unlink, and the IS_SUBAGENT firewall (inside
+# check_and_consume_allowlist) are all preserved unchanged.
+# On consume-match: emits canonical Claude Code PreToolUse approval JSON to
+# stdout (DEFECT 3a) for permissions-ledger value; sibling project-local
+# settings.json hooks still run in parallel and a project-local deny still
+# wins per documented "deny > defer > ask > allow" precedence (D3b is a
+# Plan-A-blocker; see dev-report plan_a_blocker_d3b for alternatives).
+# ── Main-agent /do bypass ────────────────────────────────────────────────────
+_DO_IS_SUB=$(echo "$INPUT" | "$PYTHON_BIN" -c \
+  "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
+  2>/dev/null)
+if [ "$_DO_IS_SUB" != "1" ]; then
+  _DO_SID=$(echo "$INPUT" | "$PYTHON_BIN" -c \
+    "import json,sys,os; d=json.load(sys.stdin); \
+print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
+    2>/dev/null)
+  [ -z "$_DO_SID" ] && _DO_SID="default"
+  _DO_FLAG="/tmp/claude-orchestrator-consent-${_DO_SID}.flag"
+  if [ -f "$_DO_FLAG" ] && [ "$(cat "$_DO_FLAG" 2>/dev/null)" = "true" ]; then
+    exit 0
+  fi
+fi
+# ────────────────────────────────────────────────────────────────────────────
+check_and_consume_allowlist "$COMMAND" && exit 0
 
 # Layer 1.A — daemon-restart prohibition: systemctl verb gate against happy-daemon-*.
 # Verb set: stop|restart|disable|enable|reload|kill|try-restart|reload-or-restart.
@@ -578,14 +671,14 @@ if echo "$COMMAND" | grep -qE '(curl|wget|nc[[:space:]]|ncat|http\.client|aiohtt
   echo "Command: $COMMAND" >&2
   echo "REASON: per c3-20260504-223115, the daemon HTTP /stop endpoint is the only documented" >&2
   echo "        use of /stop on a localhost port; Claude must never trigger it. False-positive risk" >&2
-  echo "        on other localhost services is accepted per 彻底永久根本禁止." >&2
+  echo "        on other localhost services is accepted by design." >&2
   exit 2
 fi
 
 # Layer 1.E — sentinel-write block: any Bash that creates/edits the grant
 # sentinel is forbidden (only /root/bin/claude-allow-restart may write it).
 # Stable label: daemon-restart-sentinel-write.
-if echo "$COMMAND" | grep -qE '/tmp/claude-allow-daemon-restart-[A-Za-z0-9_-]+\.flag' \
+if echo "$COMMAND" | grep -qE "${DAEMON_RESTART_SENTINEL_RE}[A-Za-z0-9_-]+\.flag" \
    && echo "$COMMAND" | grep -qE '(>|>>|tee|cp|mv|ln|touch|cat\s)'; then
   echo "BLOCKED: daemon-restart-sentinel-write — writing to grant sentinel is FORBIDDEN" >&2
   echo "Command: $COMMAND" >&2
@@ -594,12 +687,13 @@ if echo "$COMMAND" | grep -qE '/tmp/claude-allow-daemon-restart-[A-Za-z0-9_-]+\.
   exit 2
 fi
 
-# ── Global /allow short-circuit ─────────────────────────────────────────────
-# Any user-granted /allow pattern bypasses every BLOCKED rule below,
-# making /allow a single-use break-glass covering all safety checks.
-# NOTE: daemon-restart prohibition (Layer 1.A-E above) runs BEFORE this
-# short-circuit and is NOT bypassable by generic /allow (per c3-20260504-223115 R11).
-check_and_consume_allowlist "$COMMAND" && exit 0
+# ── Global /allow short-circuit RELOCATED ──────────────────────────────────
+# As of task-id 20260509-113838 the /allow short-circuit runs BEFORE Layer 1.A
+# (and before the three absolute-ban blocks below). The original callsite at
+# this position is intentionally removed; the secondary check_and_consume_allowlist
+# callsites further below in the git-rule blocks (around lines 889/900/912/932/
+# 946/1002 of the original file) are now defense-in-depth-only and harmless
+# (no command can reach them with the /allow flag still present).
 
 # ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
 # On 2026-04-09, editing session_dirs.txt triggered full restore and killed all sessions.
@@ -940,15 +1034,29 @@ if echo "$COMMAND" | grep -qE 'git\s+restore\b' && \
   exit 2
 fi
 
-# Block: git reset --hard to a specific commit (HEAD or no-arg is fine — those are local safety reverts)
-if echo "$COMMAND" | grep -qE 'git\s+reset\s+--hard\b' && \
-   ! echo "$COMMAND" | grep -qE 'git\s+reset\s+--hard(\s+HEAD)?(\s*$|\s*[;&|])'; then
-  check_and_consume_allowlist "$COMMAND" && exit 0
-  echo "BLOCKED: 'git reset --hard <commit>' (non-HEAD) requires explicit user approval" >&2
+# Block: every git reset --hard form. Shared-repo policy forbids reset-like cleanup in agent flow.
+GIT_GLOBAL_OPT_RE='([[:space:]]+(-[Cc][[:space:]]+[^[:space:];|&]+|-[Cc][^[:space:];|&]+|--(git-dir|work-tree|namespace|exec-path|super-prefix|config-env)(=[^[:space:];|&]+|[[:space:]]+[^[:space:];|&]+)|--(bare|no-pager|paginate|no-replace-objects|literal-pathspecs|glob-pathspecs|noglob-pathspecs|icase-pathspecs|no-optional-locks)|-[pP]))*'
+GIT_CMD_RE='(^|[[:space:];&|()`])git'"$GIT_GLOBAL_OPT_RE"'[[:space:]]+'
+if echo "$COMMAND" | grep -qE "${GIT_CMD_RE}reset[[:space:]]+([^;|&]*[[:space:]]+)?--hard\b"; then
+  echo "BLOCKED: 'git reset --hard' is forbidden in agent flow" >&2
   echo "Command: $COMMAND" >&2
-  echo "REASON: reset --hard to an older commit rewrites branch history and discards work." >&2
-  echo "Safe: 'git reset --hard' or 'git reset --hard HEAD' (no commit arg) — just resets working tree." >&2
-  echo "For recovery, prefer 'git revert HEAD' (main agent only, with user consent) or 'git checkout -b recovery <ref>'. To revert older commits, ask the user." >&2
+  echo "REASON: shared-repo policy requires non-destructive recovery; hard reset can discard another session's work or index state." >&2
+  echo "Use semantic commits, backup recovery refs, or ask the user for a human-run recovery operation." >&2
+  exit 2
+fi
+
+# Block: force/delete branch publication and direct ref mutation surfaces.
+if echo "$COMMAND" | grep -qE "${GIT_CMD_RE}push\b" && \
+   echo "$COMMAND" | grep -qE '(^|[[:space:]])(--force|-f|--force-with-lease(=[^[:space:]]+)?|--delete|-d|--mirror)([[:space:]]|$)|[[:space:]]\+[^[:space:]]|[[:space:]]:[^[:space:]]'; then
+  echo "BLOCKED: force/delete/ref-rewrite push is forbidden in agent flow" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: policy allows normal /push branch publication and backup-only recovery refs; force/delete/ref-rewrite pushes can lose remote work." >&2
+  exit 2
+fi
+if echo "$COMMAND" | grep -qE "${GIT_CMD_RE}(update-ref\b|branch[[:space:]]+(-[fDdMm]+|--delete|--force|--move)\b|symbolic-ref([[:space:]]+-m([[:space:]]+[^[:space:];|&]+|[^[:space:];|&]*))*[[:space:]]+HEAD[[:space:]]+refs/)"; then
+  echo "BLOCKED: direct git ref mutation is forbidden in agent flow" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: branch movement must go through the expected-parent CAS wrapper; branch delete/force/update-ref is not agent-accessible." >&2
   exit 2
 fi
 
@@ -956,29 +1064,28 @@ fi
 # Subagents have weak context and cannot reliably know whether the user has consented.
 # All git history changes by subagents must be surfaced to the user instead.
 # Detection: parse stdin JSON for agent_id (matches pretool-orchestrator-gate.py mechanism).
-IS_SUBAGENT=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
+IS_SUBAGENT=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
 if [ "$IS_SUBAGENT" = "1" ]; then
   # /do bypass (2026-04-25): user has explicitly consented via /do — allow subagent history mutation
-  SID=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('session_id',''))" 2>/dev/null)
+  SID=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print(d.get('session_id',''))" 2>/dev/null)
   if [ -n "$SID" ] && [ -e "/tmp/claude-orchestrator-consent-${SID}.flag" ]; then
     exit 0
   fi
-  if echo "$COMMAND" | grep -qE 'git[[:space:]]+(revert|commit|merge|cherry-pick|rebase|push)([[:space:]]|$)'; then
-    echo "BLOCKED: Subagent-initiated git history mutation is FORBIDDEN" >&2
+  # Narrowed (2026-05-14): commit|merge|push are fully covered by
+  # pretool-git-privilege-guard.py (canonical layer). revert|cherry-pick|rebase
+  # are NOT covered there, so they remain in this layer.
+  if echo "$COMMAND" | grep -qE 'git[[:space:]]+(revert|cherry-pick|rebase)([[:space:]]|$)'; then
+    echo "BLOCKED: Subagent-initiated git history mutation is FORBIDDEN (revert|cherry-pick|rebase)" >&2
     echo "Command: $COMMAND" >&2
-    echo "REASON: On 2026-04-23, a dev subagent ran 'git revert 1204d62 --no-edit' on the" >&2
-    echo "nested .claude repo, undoing a user-approved feature commit. The user had stated" >&2
-    echo "'禁止 full revert' but the subagent had no real-time access to that constraint." >&2
     echo "Subagents must NEVER mutate git history. Tell the user what you want done" >&2
     echo "and ask them to run the command themselves." >&2
     echo "Allowed git verbs for subagents: status, log, show, diff, blame, ls-tree, ls-files, branch (read-only), worktree list." >&2
+    echo "(commit|merge|push are blocked by pretool-git-privilege-guard.py)" >&2
     exit 2
   fi
-  if echo "$COMMAND" | grep -qE 'git[[:space:]]+branch[[:space:]]+-D[[:space:]]'; then
-    echo "BLOCKED: Subagent-initiated branch deletion is FORBIDDEN" >&2
-    echo "Command: $COMMAND" >&2
-    exit 2
-  fi
+  # Branch -D / -d deletion is covered by the canonical block at line ~1046
+  # (regex -[fDdMm]+) AND by pretool-git-privilege-guard.py:287. The previous
+  # 'git branch -D ' substring check here was a duplicate and has been removed.
 fi
 
 # Block: git revert <commit-hash> or git revert <ref>^ or git revert <ref>~N or git revert <ref>@{N}
@@ -1014,12 +1121,6 @@ if echo "$COMMAND" | grep -qE 'git\s+revert\s+'; then
     echo "rationale, and ask them to run it manually." >&2
     exit 2
   fi
-fi
-
-# Warn: force push
-if echo "$COMMAND" | grep -qE 'git push\s+(--force|-f)\b'; then
-  echo "WARNING: Force push will rewrite remote history" >&2
-  echo "Command: $COMMAND" >&2
 fi
 
 exit 0

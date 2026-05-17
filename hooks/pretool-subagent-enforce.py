@@ -35,6 +35,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from lib import contract_runtime  # noqa: E402
+from lib.subagent import is_subagent_context  # noqa: E402
+from lib.allowlist import read_grant          # noqa: E402
 
 
 def _parse_stdin() -> dict:
@@ -42,6 +44,14 @@ def _parse_stdin() -> dict:
         return json.load(sys.stdin)
     except Exception:
         return {}
+
+
+def _has_consent(session_id: str) -> bool:
+    try:
+        flag = Path(f'/tmp/claude-orchestrator-consent-{session_id}.flag')
+        return flag.exists() and flag.read_text().strip() == 'true'
+    except Exception:
+        return False
 
 
 def _load_bookmark(session_id: str) -> dict | None:
@@ -195,6 +205,15 @@ def _main() -> None:
     if not stdin_data or stdin_data.get('tool_name') != 'Agent':
         sys.exit(0)
     session_id, cycle_id, state = _resolve_session_and_cycle(stdin_data)
+
+    # /do bypass: main-agent-only
+    if not is_subagent_context(stdin_data) and _has_consent(session_id):
+        sys.exit(0)
+
+    # /allow bypass: main-agent-only
+    if not is_subagent_context(stdin_data) and read_grant("Agent", session_id):
+        sys.exit(0)
+
     contract = contract_runtime.load_contract(session_id, cycle_id)
     if contract is None:
         # Hard cutover: legacy session — silent passthrough.

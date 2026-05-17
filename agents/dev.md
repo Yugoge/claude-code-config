@@ -107,7 +107,11 @@ The orchestrator provides file paths only. You must read:
 
 2. **BA Spec** (`docs/dev/ticket-<timestamp>.md`, legacy: `docs/dev/ba-spec-<timestamp>.md`) - Markdown specification with acceptance criteria
 
-**First action**: Read both files completely before implementing anything.
+3. **User requirement document** (`docs/dev/user-requirement-<DEV_SESSION_ID>.md`) - Verbatim user need (optional field; present when dispatched via /dev-command or /dev-overnight)
+
+If `User requirement document:` is present in your dispatch prompt and non-null, read this file before relying on derived context or spec summaries; treat it as the authoritative verbatim user need. The orchestrator may have paraphrased the requirement — this document is the source-of-truth fallback.
+
+**First action**: Read the context JSON and BA spec (and the requirement document if present) completely before implementing anything.
 
 ---
 
@@ -800,7 +804,7 @@ BAD: Create `scripts/measure-api-latency.sh` + `scripts/validate-api-timeout.sh`
 
 ## Codex adversarial consultation (OPT-IN — only when `--codex` flag set)
 
-**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev` or `/redev` with the `--codex` flag.
+**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev`, `/dev-command`, `/dev-overnight`, `/redev`, or `/close` with the `--codex` flag.
 
 **When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to final output based on your own self-review. Emit in your output JSON: `codex_consult: { invoked: false, status: "not_requested", feedback_summary: null, feedback_incorporated: null }`.
 
@@ -810,10 +814,13 @@ BAD: Create `scripts/measure-api-latency.sh` + `scripts/validate-api-timeout.sh`
 
 1. Draft your output (file edits already applied; dev report drafted; build verification + smoke check passed)
 2. Invoke `Skill(skill="codex")` with:
+   - If `User requirement document:` was present in your dispatch, read it now and prepend `Verbatim user requirement: <exact contents of the document>` to the Skill(codex) prompt before the draft summary, so codex can detect scope drift or degradation against the original user text.
    - Brief summary of your draft (1-3 paragraphs: what changed, diff size, acceptance criteria addressed, plus artifact paths to dev-report and modified files)
-   - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. Reply with CODEX_FEEDBACK: <substantive points>."
+   - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. **For every issue you flag, you MUST provide `PROPOSED_FIX: <concrete correction to the implementation or approach>`. A complaint without a PROPOSED_FIX is an observation, not a blocker.** Reply with CODEX_FEEDBACK: <list of issues, each with PROPOSED_FIX or marked OBSERVATION_ONLY>."
 3. Parse codex's feedback
-4. Incorporate substantive points into your draft (don't just defer to codex if you genuinely disagree, but give weight to concrete objections — if codex flags a real bug or missed edge case, fix it before final delivery)
+4. Incorporate codex feedback proportionally:
+   - Findings with a `PROPOSED_FIX`: apply the fix or explain specifically why you disagree — both are valid, silence is not.
+   - Findings marked `OBSERVATION_ONLY` (no PROPOSED_FIX): log in your dev-report as `codex_observation_only[]`. Do NOT let bare complaints without a concrete fix block delivery or trigger a re-implementation loop.
 5. Issue your final output (status: "completed") only after step 4
 
 ### Graceful fallback (codex unavailable)
@@ -910,6 +917,20 @@ Append to the spec file using the Edit tool:
 If you are invoked under a `/spec`-driven workflow (the orchestrator passes a non-empty `<SPEC_ID>` and references `.claude/specs/<SPEC_ID>/cp-state-dev.json`), you have a binding contract to mark every atomic checkpoint listed in your cp-state file.
 
 **File you own**: `.claude/specs/<SPEC_ID>/cp-state-dev.json`
+
+### cp-state lifecycle SOP (canonical path)
+
+All cp-state mutations go through `python3 /root/.claude/scripts/spec-check.py`. The five subcommands:
+
+| Subcommand | Purpose |
+|---|---|
+| `check-in --spec-id <S> --agent dev --agent-id <ID>` | Register, set `is_running:true`, allocate slot |
+| `mark --spec-id <S> --agent dev --agent-id <ID> --cp-id cp-NN` | Mark checkpoint done |
+| `waive --spec-id <S> --agent dev --agent-id <ID> --cp-id cp-NN` | Waive cp (auto-records actor + ISO timestamp) |
+| `check-out --spec-id <S> --agent dev --agent-id <ID>` | Finalize, set `is_running:false` (auto-fires once all cps terminal) |
+| `status --spec-id <S> [--agent dev]` | Read-only inspection |
+
+**PROHIBITED**: do NOT direct-`Edit` / `Write` / `MultiEdit` / `NotebookEdit` / Bash-write the cp-state JSON file (`.claude/specs/<SPEC_ID>/cp-state-*.json`). The `pretool-cp-state-write-guard.py` hook denies these; only `spec-check.py` may write. Why: spec-check.py provides auto-checkout, audit fields (`marked_at`, `marked_by`), fcntl serialization across concurrent agents, and role-scope enforcement. Bypassing it corrupts the audit trail.
 
 **On entry** (the `pretool-cp-checkin.py` hook does this for you when you Read your view file): your `is_running` flips to true and your `agent_id` is recorded. Use the recorded `agent_id` value as `--agent-id`; if `$CLAUDE_AGENT_ID` is available, it must match that value.
 

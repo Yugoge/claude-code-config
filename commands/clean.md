@@ -1,5 +1,6 @@
 ---
-description: Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
+description: Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests. Pass --codex to enable adversarial codex consultation on cleanliness-inspector and style-inspector; default is self-review only.
+argument-hint: "[--codex]"
 disable-model-invocation: true
 ---
 
@@ -50,6 +51,8 @@ All agents communicate via JSON in `docs/clean/`.
 ## Execution Steps
 
 ### Step 1: Initialize Workflow
+
+**Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex`, strip it from the arguments and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every cleanliness-inspector and style-inspector dispatch prompt below MUST include the literal line `codex_required: true` so the subagent's opt-in codex consultation block activates. When `codex_required = false`, omit that line.
 
 Load TodoList checklist:
 
@@ -244,7 +247,13 @@ fi
 
 ### Step 5: Invoke Cleanliness Inspector
 
-Delegate to cleanliness-inspector subagent:
+Delegate to cleanliness-inspector subagent. The dispatch prompt MUST include:
+
+```
+Context file: docs/clean/context-{REQUEST_ID}.json
+<If codex_required = true, include the literal next line; otherwise omit it>
+codex_required: true
+```
 
 ```bash
 ~/.claude/scripts/orchestrator.sh clean-inspect docs/clean/context-{REQUEST_ID}.json
@@ -316,6 +325,8 @@ Request ID: {REQUEST_ID}
 Group ID: {N}
 Project root: {PROJECT_ROOT}
 Context file: docs/clean/context-{REQUEST_ID}.json
+<If codex_required = true, include the literal next line; otherwise omit it>
+codex_required: true
 
 Files to audit (audit EVERY file in this list, no others):
 1. {file_path_1}
@@ -344,6 +355,7 @@ The partial report MUST use this schema:
 }
 
 You MUST read each file fully before auditing it. Check all 11 standards against each file.
+Your audit scope is exactly the files listed above. After auditing all of them, treat this as `STATUS: complete` for this invocation.
 ```
 
 After launching all agents, log: "Launched {AGENT_COUNT} style-inspector agents in parallel"
@@ -369,7 +381,7 @@ If ANY file from `all_files` is missing from the merged `files_audited`:
 
 1. Log which files were missed and their count
 2. Build a new group containing ONLY the missed files
-3. Launch a targeted style-inspector agent for the missed files (same prompt format as Step 8)
+3. Launch a targeted style-inspector agent for the missed files (same prompt format as Step 8, including `codex_required: true` when `codex_required = true`)
 4. After the targeted agent completes, merge its results into the final report
 5. Repeat coverage check -- if files are still missing after one retry, log an error and proceed
 

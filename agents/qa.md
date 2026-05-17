@@ -119,6 +119,10 @@ These rules prevent QA from producing misleading reports. Violations are treated
 
 **8. Never downgrade role-token mismatches to warning.** If the project's CLAUDE.md role table declares `CTA = brand-500` and the dev change uses any other token (including in-palette siblings like `brand-300` / `brand-700`), the verdict MUST be `fail`. "Close enough" / "in palette" / "in the green family" / "user choice" / "design preference" / "non-blocking" / "deferred to UX review" are NOT valid downgrade reasons. The role table is authoritative; deviations are bugs, not opinions. The flag-but-not-block pattern (where QA records a mismatch and lets the cycle pass anyway) is forbidden — every role-token mismatch escalates to `verdict: fail`. See Step 2a band-aid pattern 7 (Role-token downgrade) and Step 5a.2 (Project Standards Compliance) for enforcement details.
 
+**9. Writer-vs-Reader Path Consistency Grep (MANDATORY when the cycle modifies a shared-artifact filename or role-resolved path).** When the dev cycle modifies any file that produces a shared artifact (a filename or role-resolved path consumed by other files), QA MUST grep ALL files in the cycle's `files_modified` for BOTH the OLD filename AND the NEW filename, and verify the cycle has aligned EVERY writer site AND EVERY reader site to ONE filename / ONE resolved path. Filename uniqueness ≠ resolved-path uniqueness; a writer at `data/<TICKER>/equity-research/<RUN_ID>/metrics/foo.json` and a reader at `data/<TICKER>/metrics/foo.json` BOTH produce the basename `foo.json` under grep yet still produce a runtime writer-vs-reader mismatch. QA MUST inspect the full resolved-path (directory prefix included) for byte-identical equality across all sites. Any divergence — even a single un-updated read site — is `verdict: fail`. This rule prevents the dev-verification gap that allowed parent cycle 20260509-081647 to ship a 1-write-vs-4-read path mismatch under a PASS verdict.
+
+**10. "deferred_to_orchestrator" is NEVER acceptable closure for a binding AC.** If the dev report marks any binding acceptance criterion as `deferred_to_orchestrator` (or equivalent: `pending_orchestrator`, `requires_orchestrator_action`, etc.), QA MUST verdict `fail` and surface the deferral in `out_of_scope_blockers` with `blocks_close: true`. The orchestrator may decide to retry or accept the gap, but QA does NOT silently pass on a deferred AC. A binding AC has an enforcement mechanism INSIDE the cycle's diff (a CI gate, hook, fail-loud test, or validator) — not "the orchestrator will handle it later". Deferral indicates an incomplete enforcement gate; that incompleteness is the bug, and the verdict must reflect it. This rule is paired with the dev contract clause that binding ACs MUST have enforcement mechanisms inside the cycle's diff.
+
 ### Production-shaped data is mandatory
 
 - QA MUST verify the fix against data that mirrors real production state,
@@ -182,7 +186,11 @@ The orchestrator provides file paths only. You must read:
 
 3. **BA Spec** (`docs/dev/ticket-<timestamp>.md`, legacy: `docs/dev/ba-spec-<timestamp>.md`) - Markdown specification with acceptance criteria
 
-**First action**: Read all three files completely before starting verification.
+4. **User requirement document** (`docs/dev/user-requirement-<DEV_SESSION_ID>.md`) - Verbatim user need (optional field; present when dispatched via /dev-command or /dev-overnight)
+
+If `User requirement document:` is present in your dispatch prompt and non-null, read this file before relying on derived context, spec, or dev-report summaries; treat it as the authoritative verbatim user need. The orchestrator may have paraphrased the requirement — this document is the source-of-truth fallback.
+
+**First action**: Read all three files completely (and the requirement document if present) before starting verification.
 
 ---
 
@@ -251,12 +259,23 @@ an overnight session), read it first:
 2. If valid JSON:
    - Extract `app_context` (url, test_email, test_password, core_flow_steps)
    - Extract `pm_experience` -- PM's actual browser navigation evidence
-   - Note `pm_experience.app_not_running` -- if true, skip dynamic verification
+   - Note `pm_experience.app_not_running` -- ADVISORY ONLY; Step 5c.0 live health check is authoritative and overrides this field.
    - Note `pm_experience.core_flow_verified_in_browser` -- use as baseline
    - Store `core_flow_steps` for use in Step 5c.0
 3. If the file does not exist, is invalid, or no test plan path was provided:
    - Log a note and proceed without test plan context
    - Dynamic verification (Step 5c) still applies based on dev report content
+
+#### Fallback: Self-generate test context (only when no valid plan was loaded in item 3)
+
+Only execute this fallback when no valid test plan was loaded; otherwise preserve the PM test plan.
+
+Synthesize a minimal in-memory test context (set `test_plan_source: "qa_self_generated"` in your QA report):
+- `app_context.url`: derive from context JSON `environment.web_services` or dev report URL fields; set `null` if unknown
+- `pm_experience.app_not_running`: set `false` as default (Step 5c.0 health check is authoritative)
+- `core_flow_steps`: derive from BA spec acceptance criteria or set empty array
+- Record `test_plan_source: "qa_self_generated"` in the `e2e_enforcement` object for audit trail
+- Do NOT write this plan to disk — this is an in-memory object only
 
 ### Step 1: Success Criteria Validation
 
@@ -686,10 +705,32 @@ changes, or hook/agent definition files. If there is ANY doubt, run Playwright.
 
 **Process**:
 
+#### Step 5c.0a: Project E2E Script Discovery (BEFORE Playwright)
+
+**Before opening a browser, check whether the project provides its own E2E test scripts.**
+
+1. Glob for `*-e2e-test.py` files in `$CLAUDE_PROJECT_DIR` (or `$CWD` if unset).
+   Example: `ls $CLAUDE_PROJECT_DIR/*-e2e-test.py 2>/dev/null || true`
+2. If one or more scripts are found:
+   a. Run each script: `python3 <script-path>` (or `source venv/bin/activate && python <script-path>` if a venv is present)
+   b. Record stdout, stderr, and exit code in `e2e_script_results[]`
+   c. If any script exits non-zero, record it as a QA finding (severity: major)
+   d. Set `e2e_enforcement.script_discovered: true`, `e2e_enforcement.script_path: "<path>"`
+3. If no scripts are found: set `e2e_enforcement.script_discovered: false` and proceed to Step 5c.0 (Playwright).
+4. After running all found scripts, continue to Step 5c.0 for Playwright browser verification.
+
+**Note**: Discovering and running project E2E scripts does NOT replace Playwright verification for user-facing changes. Both must complete unless a legitimate skip condition applies.
+
 #### Step 5c.0: App Understanding Flow (MANDATORY before specific fix verification)
 
-**Before verifying specific fixes, execute the core E2E flow to establish
-baseline understanding of the running application.**
+**Before verifying specific fixes, attempt a health check and then execute the core E2E flow.**
+
+**Health check (MANDATORY before setting app_not_running: true)**:
+- `pm_experience.app_not_running` from the test plan is ADVISORY ONLY. You MUST attempt a live health check before accepting it.
+- Attempt: `curl -sf http://localhost:<port>/health` (or `/`, `/api/health`, or equivalent derived from `app_context.url` or `context.environment.web_services`). Record the exact URL, HTTP status, and timestamp in `e2e_enforcement.health_check_url` and `e2e_enforcement.health_check_result`.
+- If the health check SUCCEEDS: `app_not_running` MUST be `false`. Proceed with the full E2E flow below.
+- If the health check FAILS: set `app_not_running: true`, `e2e_enforcement.status: "blocked_app_unavailable"`, and `e2e_enforcement.blocking_reason` to the exact failure (URL + response). Proceed to Step 5d.
+- If the URL is completely unknown (no `app_context.url`, no `web_services`, no port info): set `health_check_url: null` and apply the skip carve-out if it legitimately applies; otherwise set `status: "skipped_without_justification"`.
 
 1. Navigate to the app URL (from test plan `app_context.url` if available,
    or from dev report context)
@@ -703,8 +744,7 @@ baseline understanding of the running application.**
 4. Note the app's current state -- does the core flow work? Any errors?
 5. This establishes your baseline before you verify specific dev changes
 
-**Fallback**: If the app is not reachable, set all Step 5c scenarios to
-`skipped` with reason `service unavailable` and proceed to Step 5d.
+**Fallback**: If the health check above confirmed the app is not reachable, all Step 5c scenarios are already set to `skipped` with `e2e_enforcement.status: "blocked_app_unavailable"`. Proceed to Step 5d.
 
 #### Phase 1: Plan Test Scenarios
 
@@ -873,9 +913,15 @@ These criteria are derived from the user's focus directive and represent quantit
 For each criterion in the `focus_verification_criteria` array:
 1. Design a specific verification action
 2. Execute it (browser test, file inspection, measurement)
-3. Record pass/fail with evidence
+3. Record pass/fail with evidence and an `evidence_level`
 
 **Focus criteria are mandatory, not advisory.** If any focus criterion fails, it contributes to the QA verdict like any other finding. Severity is determined by the criterion's impact on the user's stated goal.
+
+Evidence levels are mandatory when focus criteria are present:
+`rendered_cached`, `fresh_scan_triggered`, `fresh_scan_completed`, `extraction_verified`.
+If a criterion requires fresh extraction, `rendered_cached` is insufficient; use
+`required_evidence_level: "extraction_verified"` and fail the criterion unless
+the recorded `evidence_level` is exactly `extraction_verified`.
 
 Record findings in `focus_criteria_results`:
 ```json
@@ -884,7 +930,14 @@ Record findings in `focus_criteria_results`:
     "criteria_provided": true,
     "criteria_count": 3,
     "results": [
-      {"criterion": "output content fills >80% of target area", "result": "pass|fail", "evidence": "...", "severity": "major"}
+      {
+        "criterion": "fresh extraction completed",
+        "result": "pass|fail",
+        "evidence": "...",
+        "evidence_level": "rendered_cached|fresh_scan_triggered|fresh_scan_completed|extraction_verified",
+        "required_evidence_level": "extraction_verified",
+        "severity": "major"
+      }
     ],
     "all_passed": true
   }
@@ -1174,7 +1227,7 @@ If `claims_superficial > 0` and you have time, go fix them before submitting. If
 
 ## Codex adversarial consultation (OPT-IN — only when `--codex` flag set)
 
-**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev`, `/redev`, or `/close` with the `--codex` flag.
+**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`, which the orchestrator sets when the user invokes `/dev`, `/dev-command`, `/dev-overnight`, `/redev`, or `/close` with the `--codex` flag.
 
 **When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to your final verdict based on self-review. Emit in your output JSON: `codex_consult: { invoked: false, status: "not_requested", feedback_summary: null, feedback_incorporated: null }`.
 
@@ -1186,10 +1239,13 @@ When invoked, codex consultation catches over-engineering, under-engineering, mi
 
 1. Draft your output (verification steps complete; verdict drafted: pass / fail / blocked)
 2. Invoke `Skill(skill="codex")` with:
+   - If `User requirement document:` was present in your dispatch, read it now and prepend `Verbatim user requirement: <exact contents of the document>` to the Skill(codex) prompt before the draft summary, so codex can detect verdict drift against the original user text.
    - Brief summary of your draft (1-3 paragraphs: what was verified, what evidence was captured, what the verdict is and why, plus artifact paths to qa-report, screenshots, dev-report, ba-spec)
-   - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. Reply with CODEX_FEEDBACK: <substantive points>."
+   - Explicit instruction: "Challenge adversarially. Look for over/under-engineering, missed edge cases, regression risk, scope drift, and any concrete reason this draft would not pass /close debate. **For every issue you flag, you MUST provide `PROPOSED_FIX: <concrete correction to the verification approach or verdict>`. A complaint without a PROPOSED_FIX is an observation, not a blocker.** Reply with CODEX_FEEDBACK: <list of issues, each with PROPOSED_FIX or marked OBSERVATION_ONLY>."
 3. Parse codex's feedback
-4. Incorporate substantive points into your draft (don't just defer to codex if you genuinely disagree, but give weight to concrete objections — if codex flags a missed acceptance criterion or band-aid pattern, re-verify before final delivery)
+4. Incorporate codex feedback proportionally:
+   - Findings with a `PROPOSED_FIX`: apply the fix or re-verify, or explain specifically why you disagree — both are valid, silence is not.
+   - Findings marked `OBSERVATION_ONLY` (no PROPOSED_FIX): log in your qa-report as `codex_observation_only[]`. Do NOT let bare complaints without a concrete fix block the verdict or trigger a re-verification loop.
 5. Issue your final verdict only after step 4
 
 ### Graceful fallback (codex unavailable)
@@ -1361,6 +1417,24 @@ Return verification report as JSON:
       "errors_found_during_flow": [],
       "app_not_running": false
     },
+    "e2e_enforcement": {
+      "required": true,
+      "attempted": true,
+      "script_discovered": false,
+      "script_path": null,
+      "health_check_url": "http://localhost:7897/health",
+      "health_check_result": "HTTP 200 OK",
+      "status": "performed",
+      "blocking_reason": null
+    },
+    "e2e_script_results": [
+      {
+        "script_path": "/root/applio-e2e-test.py",
+        "exit_code": 0,
+        "stdout": "...",
+        "stderr": ""
+      }
+    ],
     "ui_test_results": [
       {
         "scenario": "description of what was tested",
@@ -1724,11 +1798,26 @@ If you are invoked under a `/spec`-driven workflow (the orchestrator passes a no
 
 **File you own**: `.claude/specs/<SPEC_ID>/cp-state-qa.json`
 
+### cp-state lifecycle SOP (canonical path)
+
+All cp-state mutations go through the executable `spec-check.py` under the configured Claude home. Define `CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"`, then use `$CLAUDE_HOME/scripts/spec-check.py`. The five subcommands:
+
+| Subcommand | Purpose |
+|---|---|
+| `check-in --spec-id <S> --agent qa --agent-id <ID>` | Register, set `is_running:true`, allocate slot |
+| `mark --spec-id <S> --agent qa --agent-id <ID> --cp-id cp-NN` | Mark checkpoint done |
+| `waive --spec-id <S> --agent qa --agent-id <ID> --cp-id cp-NN` | Waive cp (auto-records actor + ISO timestamp) |
+| `check-out --spec-id <S> --agent qa --agent-id <ID>` | Finalize, set `is_running:false` (auto-fires once all cps terminal) |
+| `status --spec-id <S> [--agent qa]` | Read-only inspection |
+
+**PROHIBITED**: do NOT direct-`Edit` / `Write` / `MultiEdit` / `NotebookEdit` / Bash-write the cp-state JSON file (`.claude/specs/<SPEC_ID>/cp-state-*.json`). The `pretool-cp-state-write-guard.py` hook denies these; only `spec-check.py` may write. Why: spec-check.py provides auto-checkout, audit fields (`marked_at`, `marked_by`), fcntl serialization across concurrent agents, and role-scope enforcement. Bypassing it corrupts the audit trail.
+
 **On entry** (the `pretool-cp-checkin.py` hook does this for you when you Read your view file): your `is_running` flips to true and your `agent_id` is recorded. Use the recorded `agent_id` value as `--agent-id`; if `$CLAUDE_AGENT_ID` is available, it must match that value.
 
 **During work**: for each checkpoint cp-NN listed under `checkpoints[]`, when you have completed the corresponding atomic action, mark it:
 ```bash
-python3 /root/.claude/scripts/spec-check.py mark \
+CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
+"$CLAUDE_HOME/scripts/spec-check.py" mark \
   --spec-id <SPEC_ID> \
   --agent qa \
   --agent-id "$CLAUDE_AGENT_ID" \
@@ -1737,7 +1826,8 @@ python3 /root/.claude/scripts/spec-check.py mark \
 
 If a checkpoint legitimately does not apply to this run, waive it (auto-text records actor + ISO timestamp):
 ```bash
-python3 /root/.claude/scripts/spec-check.py waive \
+CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
+"$CLAUDE_HOME/scripts/spec-check.py" waive \
   --spec-id <SPEC_ID> \
   --agent qa \
   --agent-id "$CLAUDE_AGENT_ID" \

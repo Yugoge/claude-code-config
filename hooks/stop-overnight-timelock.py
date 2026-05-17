@@ -127,6 +127,37 @@ def _block_pending(session_id: str, cycle_id_str: str) -> None:
     sys.exit(2)
 
 
+def _path_exists(value: object) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    return Path(value).expanduser().exists()
+
+
+def _closeout_artifact_blockers(state: dict) -> list[str]:
+    blockers: list[str] = []
+    if state.get('unresolved_issues') or state.get('current_issues'):
+        blockers.append('unresolved_backlog')
+    if not _path_exists(state.get('final_summary_path') or state.get('summary_path')):
+        blockers.append('final_summary')
+    retro = state.get('pm_retro_reports')
+    if not isinstance(retro, list) or not retro:
+        blockers.append('retro_status')
+    checkpoint_status = state.get('artifact_checkpoint_status') or state.get('checkpoint_status')
+    if checkpoint_status not in {'checkpointed', 'intentionally_uncommitted'}:
+        blockers.append('artifact_checkpoint_status')
+    return blockers
+
+
+def _block_closeout_artifacts(session_id: str, cycle_id_str: str, blockers: list[str]) -> None:
+    sys.stderr.write(
+        "\n CLOSEOUT GATE: final overnight artifacts are incomplete.\n"
+        f" session={session_id} cycle={cycle_id_str}\n"
+        f" missing={', '.join(blockers)}\n"
+        " Record backlog, final summary, PM retro, and checkpoint/artifact status before terminating.\n"
+    )
+    sys.exit(2)
+
+
 def _write_continuation_sentinel(
     state: dict, end_time: datetime, total_seconds: int
 ) -> None:
@@ -188,6 +219,10 @@ def _enforce_timelock(session_id: str, state: dict) -> None:
     pending = _invoke_closeout(session_id, state)
     if pending and not end_time_expired:
         _block_pending(session_id, str(state.get('cycle_count', '?')))
+    if end_time_expired:
+        blockers = _closeout_artifact_blockers(state)
+        if blockers:
+            _block_closeout_artifacts(session_id, str(state.get('cycle_count', '?')), blockers)
     if end_time is None:
         sys.exit(0)
     if datetime.now() < end_time:

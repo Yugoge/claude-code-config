@@ -5,7 +5,7 @@ Organization and usage documentation for `.claude/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 65
+- **Total files**: 69
 - **Subdirectories**: 34
 - **Naming convention**: lower
 
@@ -13,7 +13,6 @@ Organization and usage documentation for `.claude/`.
 - `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
 - `AUTOMATED_CLEANUP_SETUP.md` - 自动化清理系统配置文档
 - `CLAUDE.md` - CLAUDE.md
-- `CLAUDE.md.bak-layering-20260425-1329` - bak-layering-20260425-1329 file
 - `NESTED-REPO.md` - Nested Repo Sentinel
 - `config.yaml` - yaml config
 - `history.jsonl` - jsonl file
@@ -24,18 +23,23 @@ Organization and usage documentation for `.claude/`.
 - `push.sh` - 
 - `session.log` - log file
 - `settings.json` - json config
-- `settings.json.bak-multiedit-fix` - bak-multiedit-fix file
-- `settings.json.bak-pre-r4-hooks-20260425` - bak-pre-r4-hooks-20260425 file
-- `settings.json.bak.20260421-114348` - 20260421-114348 file
 - `settings.local.json` - json config
 - `stats-cache.json` - json config
+- `workflow-019e0d4c-09bf-77a1-a19a-cd74736ab48e.json` - json config
+- `workflow-019e0d52-4184-7e83-9695-bce01c179a8d.json` - json config
+- `workflow-019e1d0c-d666-76e0-a080-10a6c4811cb4.json` - json config
+- `workflow-019e1d17-3e27-77a0-891b-5d9aef797d53.json` - json config
 - `workflow-11d0da00-24f0-4e23-bbe0-bc15d31b993b.json` - json config
 - `workflow-1f9f0472-7a89-4cfa-87f2-c85616fed777.json` - json config
 - `workflow-215eec0e-0e9c-4f81-bd52-b73036e3d33a.json` - json config
 - `workflow-30b4bbbc-a873-4ba8-b8fd-804dc05492bc.json` - json config
+- `workflow-483e030c-3ab6-42d0-973e-8a2a4b8b8806.json` - json config
 - `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 - `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
 - `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
+- `workflow-820c1397-5298-4a25-953e-ec7433518c07.json` - json config
+- `workflow-8f30d29d-eb46-41a1-bc4b-45629a61cd4c.json` - json config
+- `workflow-be481a24-b459-4323-82a2-94a853be17ce.json` - json config
 - `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
 - `workflow-dd3a870c-9440-4274-896f-462dfe972646.json` - json config
 - `workflow-eaa1077b-49ad-4697-8e01-e4a923d2b116.json` - json config

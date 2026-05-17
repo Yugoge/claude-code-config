@@ -432,6 +432,63 @@ python3 /root/.claude/scripts/spec-check.py waive \
 
 ---
 
+## Codex adversarial consultation (OPT-IN — only when `--codex` flag set)
+
+**OPT-IN gating** (2026-05-04 user directive): codex consultation runs ONLY when the orchestrator's dispatch prompt explicitly includes `codex_required: true`; the invoking command is responsible for adding that line when its `--codex` flag applies.
+
+**When the dispatch does NOT instruct codex** (default — no `--codex` flag): SKIP the Procedure below entirely. Proceed directly to your final output based on self-review. Emit in your output JSON: `codex_consult: { invoked: false, status: "not_requested", findings: [], feedback_summary: null, feedback_incorporated: null }`.
+
+**When the dispatch DOES instruct codex**: follow the Procedure below. When invoked, codex consultation catches over-engineering, under-engineering, missed edge cases, and scope drift before the orchestrator and downstream agents inherit the mistake.
+
+### Procedure (only when `codex_required: true`)
+
+1. Draft your product-owner report (tag it as a draft, not yet ready)
+2. Invoke `Skill(skill="codex")` with:
+   - Brief summary of your draft (1-3 paragraphs, plus artifact paths to the output file)
+   - Explicit instruction (product-owner-role-scoped): "Challenge whether this draft product-owner report correctly identifies feature gaps and broken flows. Flag any finding missing browser evidence, any severity mismatch, any prohibited root-cause prescription or fix recommendation. **For every issue you flag, you MUST provide `PROPOSED_FIX: <corrected wording or concrete change>`. A complaint without a PROPOSED_FIX is an observation, not a blocker.** Reply with CODEX_FEEDBACK: <list of issues, each with PROPOSED_FIX or marked OBSERVATION_ONLY>."
+3. Parse codex's feedback
+4. Incorporate codex feedback proportionally:
+   - Findings with a `PROPOSED_FIX`: apply the fix or explain specifically why you disagree — both positions are valid, but silence is not.
+   - Findings marked `OBSERVATION_ONLY` (no PROPOSED_FIX): log in `codex_consult.findings[]` with `classification: "observation_only"` and `disposition: "logged"`. Do NOT let bare complaints without a constructive alternative block the cycle.
+5. Issue your final output only after step 4
+
+### Graceful fallback (codex unavailable)
+
+If `Skill(codex)` returns:
+- **Quota error** (e.g. "usage limit", "try again at..."): document `codex_consult: { invoked: true, status: "failed_quota", findings: [], feedback_summary: "<verbatim error message or summary>", feedback_incorporated: "self-review substituted" }` in your output JSON. Proceed with self-review covering 5+ adversarial questions you generated yourself (coverage gaps, missing browser evidence, severity errors, prohibited fix prescriptions, scope drift).
+- **Hang/timeout** (no response within reasonable time): document `codex_consult: { invoked: true, status: "failed_timeout", findings: [], feedback_summary: "<verbatim error or timeout description>", feedback_incorporated: "self-review substituted" }` in your output JSON. Proceed with self-review as above.
+- **Parse error** (codex output unparseable): document `codex_consult: { invoked: true, status: "failed_parse", findings: [], feedback_summary: "<verbatim error or parse failure description>", feedback_incorporated: "self-review substituted" }` in your output JSON. Proceed with self-review as above.
+
+In all fallback cases, do NOT block the cycle indefinitely. Self-review is acceptable substitute.
+
+### Output documentation
+
+Every product-owner JSON output MUST include a top-level `codex_consult` field with this shape:
+
+```json
+{
+  "codex_consult": {
+    "invoked": true | false,
+    "status": "ok" | "failed_quota" | "failed_timeout" | "failed_parse" | "not_requested",
+    "feedback_summary": "<overall summary, or null when not_requested>",
+    "findings": [
+      {
+        "issue": "<what codex flagged>",
+        "proposed_fix": "<codex's PROPOSED_FIX text, or null if OBSERVATION_ONLY>",
+        "classification": "blocker | major | observation_only",
+        "disposition": "applied | rejected | logged",
+        "rationale": "<why applied or rejected>"
+      }
+    ],
+    "feedback_incorporated": "<summary of what changed, or 'self-review substituted' on failure, or null when not_requested>"
+  }
+}
+```
+
+The `codex_consult` field MUST be present in all outputs.
+
+---
+
 ## Constraints
 
 - **Browser-first**: Every finding must be verified in the running app — no exceptions

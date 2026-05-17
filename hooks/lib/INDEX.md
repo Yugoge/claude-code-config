@@ -1,20 +1,23 @@
 # lib
 
-*Last updated: 2026-05-07T10:41:41Z*
-**Total entries**: 9
+*Last updated: 2026-05-17T06:55:29Z*
+**Total entries**: 12
 **Convention**: kebab
 
 ## Tree
 ```
 lib/
 ├── `agent_resolver.py` - Refactored from pretool-subagent-code-block.py::_find_agent_type so that
+├── `allowlist.py` - Read-only /allow grant check (read_grant); no deletion
 ├── `bash_write_targets.py` - Provides two public functions used by tool-policy and overnight-hook-guard:
 ├── `checkpoint-core.sh` - ============================================================================
+├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.
 ├── `closeout.py` - Public API:
 ├── `contract_runtime.py` - This module is the single shared engine consumed by every contract-aware
 ├── `policy_registry.py` - Reads /root/.claude/policies/tool-policy.v1.json and provides a single
 ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
 ├── `specialist_yield.py` - Public API:
+├── `subagent.py` - Subagent detection (is_subagent_context) for all hooks
 └── `todo_canonical.py` - Shared canonical todo validation utilities
 ```
 

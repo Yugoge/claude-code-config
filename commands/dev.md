@@ -39,6 +39,8 @@ Delegate to QA subagent (verification)
 IF QA fails → Refine context → Iterate
   ↓
 IF QA passes → Generate completion report
+  ↓
+Emit spec continuation or temp closure update
 ```
 
 **Key Principles**:
@@ -50,6 +52,8 @@ IF QA passes → Generate completion report
 - Rich JSON context stored in `docs/dev/`
 - QA verification after each dev cycle
 - Iterate until all quality standards met
+- Unfinished work is handed off into a continuation spec; only complete work
+  heading to `/close` uses a compact temp update.
 
 **No-Multitasking Rule (MANDATORY)**:
 - Each subagent invocation handles exactly ONE issue/task
@@ -72,6 +76,8 @@ Requirement: "$ARGUMENTS"
 
 **Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it from the requirement text and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every BA / QA / dev dispatch prompt below MUST include the literal line `codex_required: true` so the subagent's opt-in codex consultation block (`agents/<role>.md` § Codex adversarial consultation) activates. When `codex_required = false`, do NOT include that line — subagents skip codex consultation and emit `codex_consult: { invoked: false, status: "not_requested" }` in their output.
 
+**Codex suppression guardrail**: When `codex_required: true` is included in any subagent dispatch prompt, the orchestrator MUST NOT include any pre-populated `codex_consult` field or object in that same prompt. `codex_consult` is output authored by the subagent — not by the orchestrator. In particular, do not include `codex_consult: { invoked: false, status: "not_requested" }` or any other suppression shape. Setting `codex_required: true` and simultaneously pre-answering `codex_consult` contradicts the flag and silently suppresses Codex consultation. Set the flag and let the agent's own spec decide whether to invoke Codex.
+
 **Parse `--spec`**: If `$ARGUMENTS` contains `--spec <path>`, extract the path and remove the flag from the requirement text. Store as `spec_path`.
 
 **Auto-detect spec**: If `--spec` is NOT provided, scan `docs/dev/specs/*.md` sorted by modification time (newest first). If a file exists, set `spec_path` to that path and announce:
@@ -90,7 +96,10 @@ views_dir = <dirname(spec_path)>/<basename(spec_path, .md)>/views/
 manifest  = <views_dir>/manifest.json
 ```
 
-If `manifest.json` exists AND is valid JSON AND `schema_version` matches (currently 1), set:
+If `manifest.json` exists AND is valid JSON AND `schema_version` matches (currently 1), first run the stale-view guard:
+- Compute `split_marker = <dirname(spec_path)>/<basename(spec_path, .md)>/.split-complete`.
+- If `split_marker` is missing OR `spec_path` is newer than `split_marker`, treat the views/checkpoints as stale: set `views_available = false`, clear `view_paths`, and announce `Spec is newer than split views/checkpoints; using monolith spec for this /dev run. Re-finalize /spec before relying on per-agent views.`
+- Otherwise, set:
 - `views_available = true`
 - `view_paths` = manifest.views (dict of agent → path)
 
@@ -121,6 +130,18 @@ for agent in \
   printf '{"agent_type": "%s", "session_id": "%s"}\n' "$agent" "$DEV_SESSION_ID" \
     > "$REGISTRY_DIR/$agent.json"
 done
+```
+
+**Codex enforcement flag** (only when `codex_required = true`): Now that `$DEV_SESSION_ID` is defined above, run `scripts/write-codex-enforce.sh` to write the flag so the SubagentStop hook can physically block ba/dev/qa agents that did not call codex. If it exits non-zero, the orchestrator MUST abort — do NOT silently proceed without the flag.
+
+```
+scripts/write-codex-enforce.sh --source-command dev --session-id $DEV_SESSION_ID
+```
+
+**E2E enforcement flag** (unconditional — always-on): After `$DEV_SESSION_ID` and the registry directory are initialized, run `scripts/write-e2e-enforce.sh` to activate the E2E gate for QA. If it exits non-zero, the orchestrator MUST abort.
+
+```bash
+scripts/write-e2e-enforce.sh --source-command dev --session-id $DEV_SESSION_ID
 ```
 
 Store `$DEV_SESSION_ID` for use in every Agent launch prompt below. Every Agent launch prompt MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent.
@@ -198,6 +219,9 @@ Use Agent tool with:
   You are the <specialist-name> specialist. Follow .claude/agents/<specialist-name>.md.
 
   Requirement: '<requirement from Step 1>'
+
+  <If codex_required = true, include the literal next line; otherwise omit it>
+  codex_required: true
 
   Provide your observations and analysis relevant to this requirement.
   Return structured findings that will inform the BA analysis.
@@ -406,6 +430,13 @@ Read BA output files:
 ### Step 6: QA Validates BA Conclusions
 
 **Purpose**: Verify BA's analysis quality BEFORE Dev starts implementation. Catches unproven claims, scope mismatches, and missing investigation evidence early -- saving a wasted Dev+QA cycle.
+
+**Before dispatching QA, write qa_mode sentinel**:
+
+```bash
+bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode ba_validation \
+  || { echo 'ERROR: Failed to set qa_mode=ba_validation in qa.json — aborting' >&2; exit 1; }
+```
 
 **Invoke QA in BA-validation mode**:
 
@@ -682,6 +713,13 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 
 ### Step 11: Delegate to QA Subagent
 
+**Before dispatching QA, write qa_mode sentinel**:
+
+```bash
+bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode final_verification \
+  || { echo 'ERROR: Failed to set qa_mode=final_verification in qa.json — aborting' >&2; exit 1; }
+```
+
 **Use Task tool to invoke QA subagent with file paths only**:
 
 ```
@@ -879,6 +917,17 @@ Would you like to:
 3. Accept current implementation with known issues
 ```
 
+Before presenting those options, create or update a continuation spec using the
+`/update` default continuation-spec mode:
+- If this `/dev` cycle had a `spec_path`, append to that spec.
+- If there was no source spec, create a new spec from
+  `~/.claude/templates/overnight-spec.md`.
+- Populate Sections 2/3/4/6/7/8 with attempted approaches, changed-file
+  references, current QA evidence, unmet gap, concrete next plan, and traps.
+- If updating a spec that already has split views/checkpoints, record that they
+  are stale because the spec now contains a continuation update.
+- Print `Continuation spec: <path>` and `Next: /dev --spec <path>`.
+
 **If iteration <= 5**:
 
 **Refine context for next iteration**:
@@ -909,7 +958,7 @@ jq -s '.[0] * {
 
 **Iteration tracking**: Update TodoWrite with iteration number
 
-### Step 15: Generate Completion Report
+### Step 15: Generate Completion Report + Workflow Update
 
 **QA passed! Generate final report.**
 
@@ -992,6 +1041,33 @@ Development completed successfully!
 ```
 
 **Save report to**: `docs/dev/completion-<timestamp>.md`
+
+**Codex-native artifact postcondition (hard check before completion)**:
+
+Before `/dev` or `/redev` may be treated as complete, the Codex harness MUST validate the resolved `<task-id>` against the canonical same-task artifacts on disk:
+- `docs/dev/ticket-<task-id>.md`, `context-<task-id>.json`, `dev-report-<task-id>.json`, `qa-report-<task-id>.json`, and `completion-<task-id>.md` all exist and are non-empty where applicable.
+- JSON artifacts have top-level `request_id` and `task_id` exactly equal to `<task-id>`.
+- `dev-report-<task-id>.json` contains nested `dev.status == "completed"` plus nested `dev.files_modified` and `dev.files_created` arrays; top-level `status` alone does not count.
+- `qa-report-<task-id>.json` contains nested `qa.status == "pass"`; top-level `status` or `verdict` alone does not count.
+- If `claude_code_required = true`, context/report metadata must record that flag or a structured `claude_code_consult` failure/unavailable status.
+
+Subagent final messages, lifecycle records, and JSON-like stdout are not completion artifacts. Missing or malformed artifacts block completion with exact paths and reasons.
+
+**Workflow update**:
+
+- If there is any unfinished development work (non-empty follow-up work in
+  "Next Steps", known unmet acceptance criteria, accepted AC-deviation with
+  future work, max-iteration exit, or user asks to keep improving), use
+  `/update` default continuation-spec mode. If a source spec exists, update it;
+  otherwise create a new spec. The next command is `/dev --spec <spec_path>`.
+  Do NOT hand unfinished work to `/close` or `/commit`.
+- If all requested development is complete and only closure/shipping remains,
+  create a compact temp update using `/update --temp`. Default to
+  `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless
+  the user explicitly asks. Include `Task ID: <timestamp>`,
+  ticket/spec/context/dev-report/QA-report/completion paths, QA status,
+  iteration count, and suggested next command `/close <task-id>` (or bare
+  `/close` only when the same conversation context is still active).
 
 **Present to user**: Show summary with key changes and next steps
 
@@ -1315,4 +1391,3 @@ The rule originates from the user's explicit instruction (Chinese, preserved ver
 
 > 设计并部署 hook：PreToolUse 拦截 Agent 工具调用，扫描 prompt 字段，匹配工具名黑名单（Write/Edit/Read/Bash/Glob/Grep/sed/curl/jq/python3/node/npm/git/...）+ shell 语法（`bash` fenced block, `$(...)`, `cat <<EOF`, `>`, `>>`, `&&`, `|`, `mkdir`, `chmod`...）→ 命中即 exit 2 阻断派单。
 </USER_VERBATIM>
-

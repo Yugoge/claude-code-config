@@ -8,7 +8,7 @@
 # Global Claude Code Configuration
 
 <!-- AUTO:last-updated -->
-> Last updated: 2026-04-30
+> Last updated: 2026-05-17
 <!-- /AUTO:last-updated -->
 
 ---
@@ -41,7 +41,7 @@ Automated snapshots go to `refs/checkpoints/<branch>`; HEADs never advance. `/pu
 Main agent is the orchestrator; delegate real work to subagents. Enforced by `~/.claude/hooks/pretool-orchestrator-gate.py`.
 
 - **Whitelist (always allowed)**: `Agent`, `TodoWrite`, `AskUserQuestion`, `Skill`, `CronCreate`, `CronDelete`, `CronList`, `ScheduleWakeup`, `mcp__happy__change_title`, `Bash`, `Read` (≤600 lines, capped by `~/.claude/hooks/pretool-read-size-guard.py`), `Glob`, `Grep`. `Bash` capped at 3 consecutive same-name calls.
-- **Non-whitelist (`Edit`, `Write`, `WebFetch`, `WebSearch`, `NotebookEdit`, `EnterWorktree`, `ExitWorktree`, `mcp__playwright__*`, …)**: allowed once per consecutive same-name streak; 2nd same-name call blocks. Any different tool name resets the streak.
+- **Non-whitelist (`Edit`, `Write`, `WebFetch`, `WebSearch`, `NotebookEdit`, `EnterWorktree`, `ExitWorktree`, `mcp__playwright__*`, …)**: allowed once TOTAL per tool name per turn; intervening different tool calls do NOT reset the count; 2nd same-name call blocks regardless.
 - **Permanently blocked**: `EnterPlanMode`, `ExitPlanMode` — even with `/do`.
 - **Bypass**: user invokes `/do` this session → gate exits 0 for everything except permanently-blocked tools.
 - Subagents (`agent_id` present) bypass all checks. Streak state at `/tmp/claude-tool-streak-<sid>.json`. For files >600 lines, delegate and ask for a summary — never request raw contents.

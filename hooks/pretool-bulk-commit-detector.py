@@ -38,16 +38,25 @@ import sys
 SUBSYSTEM_PREFIXES = ['hooks/', 'commands/', 'scripts/', 'packages/', 'docs/']
 BULK_THRESHOLD = 3
 
+# D3 (ticket-20260511-070000): tighten the loose `sync.*uncommitted` regex to
+# word-boundary anchored form. The previous pattern false-positives on prose
+# like `synchronized` or `re-committed`. The b5d447e exact form
+# `chore(claude): sync all uncommitted ...` still matches via word-boundary
+# `\bsync\b.*\buncommitted\b` AND continues to be matched by the dedicated
+# chore(claude) pattern -- belt-and-suspenders. Subsystem fan-out (>= 3
+# subsystem prefixes) is still required for a block, so a commit whose
+# subject is JUST `sync uncommitted notes` but only touches docs/ remains
+# allowed.
 SUBJECT_PATTERNS = [
-    re.compile(r'sync.*uncommitted', re.IGNORECASE),
+    re.compile(r'\bsync\b.*\buncommitted\b', re.IGNORECASE),
     re.compile(r'chore\(claude\)\s*:\s*sync', re.IGNORECASE),
 ]
 
 
-def _block(message: str) -> None:
-    """Write to stderr and exit 2."""
+def _warn(message: str) -> None:
+    """Write to stderr and exit 0 (warn-only per user policy: no text-smell hard-blocks)."""
     sys.stderr.write(message)
-    sys.exit(2)
+    sys.exit(0)
 
 
 def _looks_like_git_commit(command: str) -> bool:
@@ -124,9 +133,9 @@ def _classify_subsystems(files: list) -> list:
 
 
 def _emit_bulk_block(message: str, prefixes: list, files: list) -> None:
-    """Emit the formatted bulk-commit block message and exit 2."""
-    _block(
-        f'\nBLOCKED: bulk-commit detector — touched: '
+    """Emit the formatted bulk-commit warning and exit 0 (warn-only)."""
+    _warn(
+        f'\nWARN (bulk-commit-detector, not blocking): touched: '
         f'{", ".join(prefixes)}\n'
         f'Commit subject {message[:120]!r} matches AI-bulk pattern '
         f'(`sync.*uncommitted` or `chore(claude): sync`) AND staged set '

@@ -145,6 +145,47 @@
           "enum": ["met", "not_met", "n/a"]
         }
       }
+    },
+    "focus_criteria_results": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "criteria_provided": {"type": "boolean"},
+        "criteria_count": {"type": "integer", "minimum": 0},
+        "all_passed": {"type": "boolean"},
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["criterion", "result", "evidence", "severity", "evidence_level"],
+            "properties": {
+              "criterion": {"type": "string", "minLength": 1},
+              "result": {"type": "string", "enum": ["pass", "fail", "warning", "skipped"]},
+              "evidence": {"type": "string"},
+              "severity": {"type": "string"},
+              "evidence_level": {
+                "type": "string",
+                "enum": [
+                  "rendered_cached",
+                  "fresh_scan_triggered",
+                  "fresh_scan_completed",
+                  "extraction_verified"
+                ]
+              },
+              "required_evidence_level": {
+                "type": "string",
+                "enum": [
+                  "rendered_cached",
+                  "fresh_scan_triggered",
+                  "fresh_scan_completed",
+                  "extraction_verified"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

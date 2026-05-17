@@ -121,7 +121,7 @@ Step 1: Read state file + enter worktree (first run only)
 5. **Skip unfixable issues**. If a fix fails verification 3 times, mark it as skipped and move on.
 6. **Track everything**. Use TodoWrite for per-cycle progress. Do NOT write to `.claude/overnight-state-<sid>.json` from the main agent — that file is owned by the orchestrator hooks. See `docs/dev/state-file-write-policy.md` for the full per-field write matrix.
 7. **The Stop hook prevents premature exit**. The time-lock hook will block conversation termination until end-time. Do not try to circumvent it.
-8. **Git checkpoint vs HEAD commit are distinct semantic layers**. The existing posttool-git-checkpoint.sh hook writes mid-cycle Write/Edit snapshots to `refs/checkpoints/*` only — these are NOT merge-ready commits and they do NOT advance any branch HEAD. They exist for crash recovery and audit, not for shipping. End-of-cycle Step 19 lands a real HEAD commit on the worktree branch via `commit.sh --auto-bulk-bridge <branch>` — that HEAD commit IS merge-ready and is the only artifact `/merge` consumes. See `/root/.claude/CLAUDE.md` (Auto-Commit Mechanism section) for the full checkpoint-ref vs HEAD-commit contract. Do NOT conflate "checkpoint after fix" (refs/checkpoints/*, recovery-only) with "ship upstream" (HEAD commit + `/merge`, distribution).
+8. **Git checkpoint vs HEAD commit are distinct semantic layers**. The existing posttool-git-checkpoint.sh hook writes mid-cycle Write/Edit snapshots to `refs/checkpoints/*` only — these are NOT merge-ready commits and they do NOT advance any branch HEAD. They exist for crash recovery and audit, not for shipping. End-of-cycle Step 19 lands a real HEAD commit on the worktree branch by calling `commit.sh "chore(overnight): end-of-cycle commit for <branch>"` directly via Bash (single positional arg, CC-valid `chore` type, `(overnight)` scope identifies automated context) — that HEAD commit IS merge-ready and is the only artifact `/merge` consumes. See `/root/.claude/CLAUDE.md` (Auto-Commit Mechanism section) for the full checkpoint-ref vs HEAD-commit contract. Do NOT conflate "checkpoint after fix" (refs/checkpoints/*, recovery-only) with "ship upstream" (HEAD commit + `/merge`, distribution).
 9. **Cycle-end deploy is autonomous-mode only** (canonical overnight Hard Rule 9). When `spec_mode == "autonomous"`, every cycle MUST end with QA rebuilding and redeploying via `docker compose build` and `docker compose up -d` for the project's own services (identified from `docker-compose.yml`); deploy verification is REQUIRED in this mode. When `spec_mode == "user-provided"`, deploy is NOT mandatory at the engine level — the user spec dictates whether to deploy (the orchestrator view's Pipeline Workflow may instruct deploy, may instruct skip, or may defer to a user gate). Regular `/dev` (single-pass, NOT `/dev-overnight`) MUST NOT auto-deploy regardless of spec_mode — `/dev` is a single-feature implementation pass, not an overnight cycle. Do NOT touch unrelated services or infrastructure.
 10. **Deduplicate**. Check the state file's cycle_log before starting a fix -- do not re-fix issues already addressed.
 11. **One issue per subagent, no exceptions**. Each BA subagent analyzes exactly ONE pipeline issue. Each Dev subagent implements exactly ONE pipeline fix. Each QA subagent verifies exactly ONE pipeline fix. The orchestrator launches N parallel subagents for N pipelines -- but each individual subagent handles only its own single pipeline. NEVER bundle multiple pipeline issues into one subagent prompt.
@@ -146,7 +146,7 @@ When `spec_mode == "user-provided"` is auto-detected from a spec but the user's 
 ## Arguments
 
 ```
-/dev-overnight [end-time] [focus] [--spec path/to/spec.md]
+/dev-overnight [end-time] [focus] [--spec path/to/spec.md] [--codex]
 ```
 
 **Examples**:
@@ -156,6 +156,9 @@ When `spec_mode == "user-provided"` is auto-detected from a spec but the user's 
 - `/dev-overnight` — default 8h, no focus
 - `/dev-overnight 6:00 --spec docs/my-spec.md` — run until 6:00, use user-provided spec
 - `/dev-overnight 6:00 fix UI --spec docs/ui-spec.md` — focus + user spec
+- `/dev-overnight 6:00 --codex` — run until 6:00 with Codex adversarial review enabled for PM
+
+**Parse `--codex`**: If `$ARGUMENTS` contains the literal token `--codex` (in any position), strip it from the argument string and set `codex_required = true`. Otherwise set `codex_required = false` (default). When `codex_required = true`, every PM dispatch prompt MUST include the literal line `codex_required: true` so PM's OPT-IN Codex consultation block (`agents/pm.md` § Codex adversarial consultation) activates. When `codex_required = false`, do NOT include that line.
 
 **`--spec` argument**: If provided, the session operates in **user-spec mode**:
 - The spec file is read by PM in PLAN mode (PM acts as supervisor, not full explorer)
@@ -210,6 +213,15 @@ Time-lock hook is active -- session will not terminate until end-time.
 Beginning autonomous exploration...
 ```
 
+**Codex enforcement flag** (only when `codex_required` field in state file is `true`): Read `codex_required` with `jq -r '.codex_required // false'` (defaults safely for old state files). When `true`, after binding `$DEV_SESSION_ID`, run `scripts/write-codex-enforce.sh`. If it exits non-zero, abort. When `codex_required = true`, every BA / QA / dev dispatch prompt below MUST include the literal line `codex_required: true`.
+
+```
+CODEX_REQUIRED=$(jq -r '.codex_required // false' "$STATE_FILE")
+# ... (bind DEV_SESSION_ID from state file first, then) ...
+[[ "$CODEX_REQUIRED" == "true" ]] && \
+  scripts/write-codex-enforce.sh --source-command dev-overnight --session-id "$DEV_SESSION_ID"
+```
+
 **Initialize dev-registry for hard subagent enforcement** (MANDATORY — do this before ANY Agent launch):
 
 The hook `pretool-subagent-code-block.py` blocks non-`dev` subagents from writing code files, but it needs the Claude-internal subagent UUID to be registered against an `agent_type`. Root cause of the /dev gap (see commit `e086ccb`): /dev-overnight sessions produce no `.claude/specs/` cp-state files, so the hook falls open and every subagent can write code. The fix is an orchestrator-provided sentinel file that each subagent reads as its FIRST ACTION; `pretool-cp-checkin.py` then writes the UUID→agent_type mapping into `.claude/dev-registry/agent-index.json`.
@@ -219,6 +231,12 @@ Reuse the overnight `session_id` from the state file (do NOT invent a new one �
 ```bash
 DEV_SESSION_ID="<reused-from-overnight-state.json>"
 REGISTRY_DIR="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID"
+```
+
+**E2E enforcement flag** (unconditional — always-on): Now that `$DEV_SESSION_ID` is bound, run `scripts/write-e2e-enforce.sh` to activate the E2E gate for QA. If it exits non-zero, abort.
+
+```bash
+scripts/write-e2e-enforce.sh --source-command dev-overnight --session-id "$DEV_SESSION_ID"
 ```
 
 Create sentinel files for every agent type this orchestrator can launch, including overnight-only specialists.
@@ -268,6 +286,29 @@ SECOND ACTION: Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>
 This gives overnight specialists the same checklist-stop semantics as BA/Dev/QA:
 check-in happens on the cp-state read, and Stop is blocked until the checklist is
 fully done or waived.
+
+**Write verbatim user requirement document** (MANDATORY — do this once in Step 1, before any Agent dispatch):
+
+```bash
+PROJECT_ROOT="${WORKTREE_PATH:-$CLAUDE_PROJECT_DIR}"
+mkdir -p "$PROJECT_ROOT/docs/dev"
+REQUIREMENT_DOC="$PROJECT_ROOT/docs/dev/user-requirement-${DEV_SESSION_ID}.md"
+cat <<'REQEOF' > "$REQUIREMENT_DOC" || { echo "ERROR: Failed to write user requirement document — aborting." >&2; exit 1; }
+<verbatim focus / requirement text from state file — paste literal text here, no shell variables inside heredoc>
+REQEOF
+```
+
+When `user_spec_path` is non-null, also append the spec path and Section 5 verbatim to the same document (do not summarize):
+
+```bash
+if [ -n "$USER_SPEC_PATH" ]; then
+  printf '\nUser spec path: %s\n' "$USER_SPEC_PATH" >> "$REQUIREMENT_DOC"
+  printf '\nSection 5 (User Acceptance Criterion):\n' >> "$REQUIREMENT_DOC"
+  # Read Section 5 verbatim from the spec file and append — do not paraphrase
+fi
+```
+
+This document is the source-of-truth anchor for the entire overnight session. Every subagent reads it before interpreting any derived context or spec. Use a single-quoted heredoc delimiter (`'REQEOF'`) so `$`, backticks, and shell metacharacters are never expanded. This write is idempotent across continuation cycles (same `DEV_SESSION_ID` reused).
 
 ---
 
@@ -397,6 +438,9 @@ Use Agent tool with:
 
   You are the PM subagent. Follow agents/pm.md instructions precisely.
 
+  User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
   Project path: <worktree_path from state file if set, otherwise project_path>
   State file path: <path to overnight-state-*.json>
   Session ID: <session_id>
@@ -416,6 +460,9 @@ Use Agent tool with:
   Read the orchestrator view FIRST. It contains the project's Role Mandate,
   Pipeline Workflow, Anti-Patterns, and Hard Rules you must enforce as supervisor.
   Incorporate these into your test plan's priority_tiers and recommended_specialists.
+
+  <If codex_required == true, include:>
+  codex_required: true
   "
 ```
 
@@ -544,6 +591,7 @@ Available specialists:
 Each subagent receives, at the TOP of its prompt before any other content:
 - FIRST ACTION line: "Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/<specialist.type>.json to register with the enforcement system. Do this BEFORE any other tool call."
 - CHECKPOINT MARKING line: "see agents/<specialist.type>.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit." (full SECOND ACTION SPEC_ID/cp-state semantics are defined once in the Step 1 cp-state handoff section above and need not be repeated per dispatch.)
+- User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 - Project path: <worktree_path from state file if set, otherwise project_path>
 - Already addressed: <addressed_issues array from state file>
 - Focus: <focus string from state file, or "none">
@@ -648,6 +696,9 @@ Use Agent tool with:
 
   You are the PM subagent in TRIAGE mode. Follow agents/pm.md Triage Protocol.
 
+  User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
   Project path: <worktree_path from state file if set, otherwise project_path>
   Session ID: <session_id>
   Cycle number: <cycle_count + 1>
@@ -676,6 +727,9 @@ Use Agent tool with:
   Pipeline Workflow, Anti-Patterns, and Hard Rules you must enforce as supervisor.
   Incorporate these into your triage decisions (tier assignments, pipeline_order,
   recommended_specialists) so specialist invocations comply with the spec's constraints.
+
+  <If codex_required == true, include:>
+  codex_required: true
 
   Write triage report to: docs/dev/overnight/<session_id>/triage-report-cycle<N>.json
   "
@@ -813,18 +867,20 @@ The focus string is a qualitative directive from the user (e.g., "high quality o
 **Process**:
 1. Read the `focus` field from the state file
 2. If empty or null, skip this step (no focus criteria to convert)
-3. Convert the qualitative focus into a `focus_verification_criteria` array of measurable criteria
+3. Convert the qualitative focus into a `focus_verification_criteria` array of measurable criterion objects
 4. Store the array in memory for use in Step 15 (QA prompt)
 
 **Conversion example** (illustrative only — derive criteria from the focus and project context, not from this template):
 
 | Focus string | QA verification criteria |
 |---|---|
-| `<qualitative focus>` | `["<measurable threshold #1 with number>", "<binary check #2>", "<observable assertion #3>"]` |
+| `<qualitative focus>` | `[{"criterion":"<measurable threshold #1 with number>","required_evidence_level":"rendered_cached"}, {"criterion":"<fresh extraction assertion>","required_evidence_level":"extraction_verified"}]` |
 
 **Rules**:
 - Each criterion must be measurable (includes a number, threshold, or binary check)
 - Each criterion must be verifiable by QA (observable in browser, API response, or file output)
+- Each criterion must declare `required_evidence_level` as one of `rendered_cached`, `fresh_scan_triggered`, `fresh_scan_completed`, or `extraction_verified`
+- Rendered/cached evidence must not satisfy criteria that require `extraction_verified`
 - Aim for 3-5 criteria per focus string
 - When in doubt, err on the side of stricter criteria
 
@@ -848,6 +904,9 @@ Agent(subagent_type: "ba")
     CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
     You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+    User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+    (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
     Requirement: '{pipeline.description}'
     Clarification round: 3
@@ -923,6 +982,10 @@ Read BA output files:
 ```
 For each active pipeline[i]:
 
+# Write qa_mode sentinel immediately before each QA dispatch (preserve existing fields)
+bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode ba_validation \
+  || { echo 'ERROR: Failed to set qa_mode=ba_validation in qa.json — aborting' >&2; exit 1; }
+
 Agent(subagent_type: "qa")
   description: "Validate BA analysis quality for pipeline {i} (not code)"
   prompt: "
@@ -934,6 +997,9 @@ Agent(subagent_type: "qa")
 
     DO NOT: build, deploy, open browser, run Playwright, or test code.
     DO: read BA's deliverables and challenge every claim.
+
+    User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+    (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
     BA spec file: docs/dev/ticket-{pipeline.timestamp_suffix}.md (legacy: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md)
     Context JSON: docs/dev/context-{pipeline.timestamp_suffix}.json
@@ -1028,6 +1094,9 @@ Use Agent tool with:
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
+  User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
+
   Your previous analysis was REJECTED by QA. Address each objection below
   with concrete evidence. Do not argue -- investigate and provide proof.
 
@@ -1074,6 +1143,9 @@ Agent(subagent_type: "dev")
     CHECKPOINT MARKING: see agents/dev.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
     You are the dev subagent. Follow agents/dev.md instructions precisely.
+
+    User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+    (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
     BA spec file: docs/dev/ticket-{pipeline.timestamp_suffix}.md (legacy: docs/dev/ba-spec-{pipeline.timestamp_suffix}.md)
@@ -1152,6 +1224,10 @@ Do NOT proceed to QA with stale containers.
 ```
 For each active pipeline[i]:
 
+# Write qa_mode sentinel immediately before each QA dispatch (preserve existing fields)
+bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode final_verification \
+  || { echo 'ERROR: Failed to set qa_mode=final_verification in qa.json — aborting' >&2; exit 1; }
+
 Agent(subagent_type: "qa")
   description: "QA verification for pipeline {i}: {pipeline.description}"
   prompt: "
@@ -1159,6 +1235,9 @@ Agent(subagent_type: "qa")
     CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
     You are the QA subagent. Follow agents/qa.md instructions precisely.
+
+    User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+    (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
     Context file: docs/dev/context-{pipeline.timestamp_suffix}.json
     Dev report file: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
@@ -1176,7 +1255,8 @@ Agent(subagent_type: "qa")
     Verify that changes were made inside the worktree, not the main project.
 
     <If focus_verification_criteria array exists from Step 7, include:>
-    Focus verification criteria (MANDATORY -- these are hard pass/fail from user's focus directive):
+    Focus verification criteria (MANDATORY -- these are hard pass/fail from user's focus directive).
+    QA must record `evidence_level` for every result; `rendered_cached` cannot satisfy `required_evidence_level: extraction_verified`:
     <list each criterion from focus_verification_criteria array>
     You MUST verify each criterion above. These are not optional hints. Failures count toward your QA verdict.
   "
@@ -1272,6 +1352,7 @@ bash ~/.claude/scripts/refine-context.sh \
 
 The merged context records `iteration=<new-iter>` and appends a `previous_attempts[]` entry with `iteration=<new-iter>-1`. Then dispatch:
 - `Agent(subagent_type: "dev")` with iteration context. Include in Dev prompt: `Overnight spec file: <pipeline.spec_path>`. Dev reads spec first for cross-cycle context, then updates Sections 2 and 3.
+- Before dispatching QA, write qa_mode sentinel: `bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode final_verification || { echo 'ERROR: Failed to set qa_mode=final_verification — aborting' >&2; exit 1; }`
 - `Agent(subagent_type: "qa")` with new dev report. Include in QA prompt: `Overnight spec file: <pipeline.spec_path>`. QA reads spec first, then updates Section 4 (and Sections 6-7 if fail).
 
 Loop termination:
@@ -1342,9 +1423,9 @@ The aggregator filters QA reports to those whose `timestamp_suffix` matches a `s
 
 **TIME CHECK**: invoke `~/.claude/scripts/overnight-status.sh` against the state file; it reports remaining wall-time relative to `end_time` and exits non-zero if the session has expired. If expired, proceed to Step 21 (session ending). Otherwise, mark Step 21 as completed via TodoWrite to trigger the loop reset.
 
-**Per-cycle commit (bridge mode)**:
+**Per-cycle commit**:
 
-After the time check, land a HEAD commit on the worktree branch covering this cycle's accumulated changes via the `/commit` wrapper in bridge mode (`commit.sh --auto-bulk-bridge "<worktree_branch>"`). The wrapper handles staged-set discovery, the `auto-bulk: end-of-cycle commit for <worktree_branch>` message format that `/merge` consumes, grant-manifest defense-in-depth (per-nonce manifest with `allowed_files` + `expected_message_sha256` + `branch`), and the `mode=auto-bulk-bridge` audit-log entry. Full mechanism + privilege-guard contract live in `commands/commit.md` and `~/.claude/hooks/commit.sh`. If the bridge invocation exits non-zero (empty staged set, invalid branch arg), log the failure to the cycle log and continue — per-fix `refs/checkpoints/*` snapshots remain intact and the operator can promote them manually.
+After the time check, land a HEAD commit on the worktree branch covering this cycle's accumulated changes. Call `commit.sh "chore(overnight): end-of-cycle commit for <worktree_branch>"` directly via Bash (single positional arg; `chore` is a valid CC type so M3 lint passes; `(overnight)` scope identifies the automated context). The CAS engine and content-bound ledger still apply. If the invocation exits non-zero (empty ledger for this session, disk content changed, or other CAS refusal), log the failure to the cycle log and continue — per-fix `refs/checkpoints/*` snapshots remain intact and the operator can promote them manually.
 
 If time expired: proceed to Step 20 (PM Retro) then Step 21 for final summary.
 If time remains: proceed to Step 20 (PM Retro), then mark Step 21 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 21 steps completed, reset todos to pending, and inject continuation instructions.
@@ -1369,6 +1450,9 @@ Use Agent tool with:
   FINAL_CYCLE: <true|false>
 
   You are the PM subagent in RETRO mode. Follow agents/pm.md Retrospective Protocol.
+
+  User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
+  (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
   Project path: <worktree_path from state file if set, otherwise project_path>
   Session ID: <session_id>
@@ -1398,6 +1482,9 @@ Use Agent tool with:
   (Attention Notes) for each unresolved pipeline, and to evaluate whether
   specialist invocations in this cycle complied with the spec.
 
+  <If codex_required == true, include:>
+  codex_required: true
+
   Write retro report to: docs/dev/overnight/<session_id>/retro-report-cycle<N>.json
   "
 ```
@@ -1414,7 +1501,7 @@ Use Agent tool with:
 If validation fails, log warning and proceed (retro is informational, not blocking).
 
 **Check qa_rerun_required**: Read the retro report's `qa_rerun_required` field.
-- If `qa_rerun_required: true`: re-invoke QA for the pipelines listed in `qa_rerun_reasons`. Use the same QA invocation pattern as Step 14-16, but pass additional context: `"This is a PM-requested QA re-run. Reasons: <qa_rerun_reasons>. Focus on the specific concerns raised."` After QA re-run completes, proceed to Step 21 (do NOT re-invoke RETRO — avoid infinite loops).
+- If `qa_rerun_required: true`: For each pipeline to be re-run, write qa_mode sentinel before dispatch: `bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode final_verification || { echo 'ERROR: Failed to set qa_mode=final_verification — aborting' >&2; exit 1; }`. Then re-invoke QA for the pipelines listed in `qa_rerun_reasons`. Use the same QA invocation pattern as Step 14-16, but pass additional context: `"This is a PM-requested QA re-run. Reasons: <qa_rerun_reasons>. Focus on the specific concerns raised."` After QA re-run completes, proceed to Step 21 (do NOT re-invoke RETRO — avoid infinite loops).
 - If `qa_rerun_required: false` or field absent: proceed normally to Step 21.
 
 ---
@@ -1657,7 +1744,7 @@ The state file is created by `create-overnight-state.sh` during session initiali
 - **pretool-workflow-gate.py** (PreToolUse): Gates tools until TodoWrite is called
 - **posttool-todo-count.py** (PostToolUse:TodoWrite): Enforces step count
 - **posttool-todo-sequence.py** (PostToolUse:TodoWrite): Enforces step ordering
-- **stop-workflow-enforce.py** (Stop): Blocks stop if workflow steps dropped
+- **codex_native_harness.py / stop-overnight-timelock.py** (Stop): Active Stop-chain workflow enforcement; do not cite absent legacy workflow-enforce hooks as active
 - **stop-overnight-timelock.py** (Stop): Blocks stop until end_time reached
 - **posttool-git-checkpoint.sh** (PostToolUse:Write|Edit): Auto-commits changes
 

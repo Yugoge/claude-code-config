@@ -18,7 +18,8 @@
     "PLAYWRIGHT_MCP_SANDBOX": "false",
     "PLAYWRIGHT_RUNCODE_TIMEOUT": "120",
     "ENABLE_TOOL_SEARCH": "false",
-    "_comment_anthropic": "\u4ee5\u4e0b\u4e3a\u53ef\u9009\u914d\u7f6e\uff08\u5df2\u7981\u7528\uff09",
+    "CLAUDE_CODE_ENABLE_TASKS": "false",
+    "_comment_anthropic": "以下为可选配置（已禁用）",
     "_disabled_anthropic": "[object Object]"
   },
   "includeCoAuthoredBy": true,
@@ -162,6 +163,7 @@
       "Bash(python3 /root/.claude/scripts/spec-check.py:*)",
       "Bash(python3 /root/bin/spec-verify-views.py:*)",
       "Bash(scripts/validate-dev-registry-enforcement.sh:*)",
+      "Bash(~/.claude/scripts/write-qa-mode.sh:*)",
       "Bash(/root/scripts/validate-dev-registry-enforcement.sh:*)",
       "Bash(/root/scripts/validate-ac6-fail-closed.sh:*)",
       "Bash(/root/scripts/validate-sentinel-lint.sh:*)",
@@ -170,7 +172,8 @@
       "Edit(.claude/agents/**)",
       "Edit(.claude/commands/**)",
       "Write(.claude/agents/**)",
-      "Write(.claude/commands/**)"
+      "Write(.claude/commands/**)",
+      "Bash(source /root/.claude/venv/bin/activate && python /root/.claude/hooks/lib/close-verdict.py:*)"
     ],
     "deny": [
       "Read(.env)",
@@ -248,7 +251,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "SessionStart": [
       {
@@ -346,10 +349,6 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-bash-views-guard.py\""
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/pretool-wrapper-userintent.py\""
           }
         ]
       },
@@ -390,11 +389,38 @@
         ]
       },
       {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-cp-state-write-guard.py\""
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit|NotebookEdit|MultiEdit",
         "hooks": [
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-subagent-code-block.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pretool-block-production-files.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__playwright__browser_navigate|mcp__playwright__browser_click|mcp__playwright__browser_run_code|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pretool-block-production.sh\""
           }
         ]
       },
@@ -483,16 +509,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/pretool-git-privilege-guard.py\"",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-bulk-commit-detector.py\"",
             "timeout": 5
           }
@@ -500,6 +516,15 @@
       }
     ],
     "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-allowlist-consume.py\""
+          }
+        ]
+      },
       {
         "matcher": "TodoWrite",
         "hooks": [
@@ -572,6 +597,15 @@
             "command": "python3 \"$HOME/.claude/hooks/posttool-runcode-watchdog.py\""
           }
         ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/posttool-codex-skill-ledger.py\""
+          }
+        ]
       }
     ],
     "Notification": [
@@ -630,7 +664,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/subagentstop-cp-enforce.py\""
+            "command": "python3 \"$HOME/.claude/hooks/subagentstop-codex-enforce.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/subagentstop-e2e-enforce.py\""
           }
         ]
       }

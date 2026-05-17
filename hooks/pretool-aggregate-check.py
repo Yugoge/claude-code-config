@@ -62,6 +62,9 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from lib.allowlist import read_grant  # noqa: E402
+
 
 # Per-worker filename — role-first naming: dev-report-<role>-<task-id>.json
 # task-id format: YYYYMMDD-HHMMSS (8 digits, dash, 6 digits)
@@ -366,6 +369,28 @@ def main():
         sys.exit(0)
     if not _is_qa_dispatch(data):
         sys.exit(0)
+
+    # /do bypass: main-agent-only
+    try:
+        if not data.get('agent_id'):
+            sid = (data.get('session_id') or
+                   os.environ.get('CLAUDE_SESSION_ID', '') or 'default')
+            flag = Path(f'/tmp/claude-orchestrator-consent-{sid}.flag')
+            if flag.exists() and flag.read_text().strip() == 'true':
+                sys.exit(0)
+    except Exception:
+        pass
+
+    # /allow bypass: if allowlist pattern matches "Agent" dispatch, pass
+    try:
+        if not data.get('agent_id'):
+            _sid = (data.get('session_id') or
+                    os.environ.get('CLAUDE_SESSION_ID', '') or 'default')
+            if read_grant('Agent', _sid):
+                sys.exit(0)
+    except Exception:
+        pass
+
     dev_dir = _resolve_dev_dir()
     per_worker, canonical_present = _scan_dev_dir(dev_dir)
     # FINDING-1: extract the LIST of pattern-anchored task-ids. None = no
