@@ -1,7 +1,7 @@
 # .claude
 
-*Last updated: 2026-05-16T21:03:37Z*
-**Total entries**: 20834
+*Last updated: 2026-05-17T09:36:08Z*
+**Total entries**: 21008
 **Convention**: kebab
 
 ## Tree
@@ -10,6 +10,7 @@
 ├── agents/
 │   ├── `architect.md` - Architecture review specialist for overnight exploration. Identifies structural issues, technical debt, optimization opportunities, dependency problems, and pattern inconsistencies. Returns structured JSON report.
 │   ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
+│   ├── `changelog-analyst.md` - Agentic commit subagent. Reads git state and dev-report to classify files, stages them, writes conventional commit messages (diff-first), handles nested repo, and writes push-gate token. Dispatched exclusively by /commit.
 │   ├── `cleaner.md` - Cleanup execution specialist. Executes approved cleanup actions from cleanliness-inspector and style-inspector reports. Returns structured JSON execution report with results.
 │   ├── `cleanliness-inspector.md` - File organization inspector for cleanup tasks. Detects misplaced docs, duplicates, temp files, build artifacts. Returns structured JSON report with cleanup recommendations.
 │   ├── `dev.md` - Implementation specialist for development tasks. Receives rich JSON context from orchestrator, creates parameterized scripts, implements changes based on git root cause analysis. Returns structured execution report.
@@ -46,10 +47,11 @@
 ├── commands/
 │   ├── `allow.md` - Single-use break-glass — bypass all safety blocks for the next matching bash command this turn. /allow = anything; /allow --tool <pattern> = explicit pattern (regex auto-detected). Trailing tokens become an audit-log comment. Auto-expires at stop.
 │   ├── `checkpoint.md` - Checkpoint Command
-│   ├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
+│   ├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests. Pass --codex to enable adversarial codex consultation on cleanliness-inspector and style-inspector; default is self-review only.
 │   ├── `close.md` - Close the current dev cycle (agent infers task-id from conversation). QA evaluates Workflow Integrity bullets and returns CLOSE YES/NO. Pass --codex to enable multi-round QA-codex debate; default is QA-only single-round assessment. Append --force to skip the debate entirely.
 │   ├── `code-review.md` - Comprehensive code review with best practices analysis
 │   ├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.5, xhigh reasoning) for a second opinion or parallel coding
+│   ├── `commit.md` - Commit session changes via changelog-analyst subagent
 │   ├── `deep-search.md` - Deep website exploration with iterative search strategy
 │   ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 │   ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
@@ -1639,6 +1641,143 @@
 │   │   └── `user.json` - json config
 │   ├── dev-20260516-180225/
 │   │   └── codex-ledger/
+│   ├── dev-20260516-211813/
+│   │   ├── codex-ledger/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `cleaner.json` - json config
+│   │   ├── `cleanliness-inspector.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `git-edge-case-analyst.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `prompt-inspector.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `rule-inspector.json` - json config
+│   │   ├── `style-inspector.json` - json config
+│   │   ├── `test-executor.json` - json config
+│   │   ├── `test-validator.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
+│   ├── dev-20260516-212024/
+│   │   ├── codex-ledger/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `cleaner.json` - json config
+│   │   ├── `cleanliness-inspector.json` - json config
+│   │   ├── `codex-enforce.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `e2e-enforce.json` - json config
+│   │   ├── `git-edge-case-analyst.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `prompt-inspector.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `rule-inspector.json` - json config
+│   │   ├── `style-inspector.json` - json config
+│   │   ├── `test-executor.json` - json config
+│   │   ├── `test-validator.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
+│   ├── dev-20260516-212127/
+│   │   ├── codex-ledger/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `cleaner.json` - json config
+│   │   ├── `cleanliness-inspector.json` - json config
+│   │   ├── `codex-enforce.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `e2e-enforce.json` - json config
+│   │   ├── `git-edge-case-analyst.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `prompt-inspector.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `rule-inspector.json` - json config
+│   │   ├── `style-inspector.json` - json config
+│   │   ├── `test-executor.json` - json config
+│   │   ├── `test-validator.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
+│   ├── dev-20260517-064431/
+│   │   ├── codex-ledger/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `cleaner.json` - json config
+│   │   ├── `cleanliness-inspector.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `git-edge-case-analyst.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `prompt-inspector.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `rule-inspector.json` - json config
+│   │   ├── `style-inspector.json` - json config
+│   │   ├── `test-executor.json` - json config
+│   │   ├── `test-validator.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
+│   ├── dev-20260517-064743/
+│   │   ├── codex-ledger/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `cleaner.json` - json config
+│   │   ├── `cleanliness-inspector.json` - json config
+│   │   ├── `codex-enforce.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `e2e-enforce.json` - json config
+│   │   ├── `git-edge-case-analyst.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `prompt-inspector.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `rule-inspector.json` - json config
+│   │   ├── `style-inspector.json` - json config
+│   │   ├── `test-executor.json` - json config
+│   │   ├── `test-validator.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
+│   ├── dev-20260517-065529/
+│   │   └── codex-ledger/
+│   ├── dev-20260517-092155/
+│   │   ├── codex-ledger/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `changelog-analyst.json` - json config
+│   │   ├── `cleaner.json` - json config
+│   │   ├── `cleanliness-inspector.json` - json config
+│   │   ├── `codex-enforce.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `git-edge-case-analyst.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `prompt-inspector.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `rule-inspector.json` - json config
+│   │   ├── `style-inspector.json` - json config
+│   │   ├── `test-executor.json` - json config
+│   │   ├── `test-validator.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
+│   ├── dev-20260517-092243/
+│   │   ├── codex-ledger/
+│   │   ├── `architect.json` - json config
+│   │   ├── `ba.json` - json config
+│   │   ├── `cleaner.json` - json config
+│   │   ├── `cleanliness-inspector.json` - json config
+│   │   ├── `codex-enforce.json` - json config
+│   │   ├── `dev.json` - json config
+│   │   ├── `git-edge-case-analyst.json` - json config
+│   │   ├── `pm.json` - json config
+│   │   ├── `product-owner.json` - json config
+│   │   ├── `prompt-inspector.json` - json config
+│   │   ├── `qa.json` - json config
+│   │   ├── `rule-inspector.json` - json config
+│   │   ├── `style-inspector.json` - json config
+│   │   ├── `test-executor.json` - json config
+│   │   ├── `test-validator.json` - json config
+│   │   ├── `ui-specialist.json` - json config
+│   │   └── `user.json` - json config
 │   ├── dev-test-001/
 │   │   └── `dev.json` - json config
 │   ├── qa-verify-test/
@@ -1791,6 +1930,7 @@
 │   ├── agents/
 │   │   ├── `architect.md` - Architecture review specialist for overnight exploration. Identifies structural issues, technical debt, optimization opportunities, dependency problems, and pattern inconsistencies. Returns structured JSON report.
 │   │   ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
+│   │   ├── `changelog-analyst.md` - Agentic commit subagent. Reads git state and dev-report to classify files, stages them, writes conventional commit messages (diff-first), handles nested repo, and writes push-gate token. Dispatched exclusively by /commit.
 │   │   ├── `cleaner.md` - Cleanup execution specialist. Executes approved cleanup actions from cleanliness-inspector and style-inspector reports. Returns structured JSON execution report with results.
 │   │   ├── `cleanliness-inspector.md` - File organization inspector for cleanup tasks. Detects misplaced docs, duplicates, temp files, build artifacts. Returns structured JSON report with cleanup recommendations.
 │   │   ├── `dev.md` - Implementation specialist for development tasks. Receives rich JSON context from orchestrator, creates parameterized scripts, implements changes based on git root cause analysis. Returns structured execution report.
@@ -1815,10 +1955,11 @@
 │   ├── commands/
 │   │   ├── `allow.md` - Single-use break-glass — bypass all safety blocks for the next matching bash command this turn. /allow = anything; /allow --tool <pattern> = explicit pattern (regex auto-detected). Trailing tokens become an audit-log comment. Auto-expires at stop.
 │   │   ├── `checkpoint.md` - Checkpoint Command
-│   │   ├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests
+│   │   ├── `clean.md` - Aggressive project cleanup - normalize docs structure, archive everything, delete one-time scripts/tests. Pass --codex to enable adversarial codex consultation on cleanliness-inspector and style-inspector; default is self-review only.
 │   │   ├── `close.md` - Close the current dev cycle (agent infers task-id from conversation). QA evaluates Workflow Integrity bullets and returns CLOSE YES/NO. Pass --codex to enable multi-round QA-codex debate; default is QA-only single-round assessment. Append --force to skip the debate entirely.
 │   │   ├── `code-review.md` - Comprehensive code review with best practices analysis
 │   │   ├── `codex.md` - Delegate a task to OpenAI Codex CLI (gpt-5.5, xhigh reasoning) for a second opinion or parallel coding
+│   │   ├── `commit.md` - Commit session changes via changelog-analyst subagent
 │   │   ├── `deep-search.md` - Deep website exploration with iterative search strategy
 │   │   ├── `dev-command.md` - Enhanced development workflow with BA subagent delegation, command development best practices, Three-Party Architecture, and comprehensive automation patterns
 │   │   ├── `dev-overnight.md` - Autonomous overnight development loop - continuously explores codebase, finds issues, fixes them, and repeats until end-time
@@ -2932,6 +3073,14 @@
 │   │   ├── dev-20260516-161724/
 │   │   ├── dev-20260516-170432/
 │   │   ├── dev-20260516-180225/
+│   │   ├── dev-20260516-211813/
+│   │   ├── dev-20260516-212024/
+│   │   ├── dev-20260516-212127/
+│   │   ├── dev-20260517-064431/
+│   │   ├── dev-20260517-064743/
+│   │   ├── dev-20260517-065529/
+│   │   ├── dev-20260517-092155/
+│   │   ├── dev-20260517-092243/
 │   │   ├── dev-test-001/
 │   │   ├── qa-verify-test/
 │   │   ├── test-123/
@@ -3015,6 +3164,7 @@
 │   │   ├── `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 │   │   ├── `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
 │   │   ├── `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
+│   │   ├── `workflow-820c1397-5298-4a25-953e-ec7433518c07.json` - json config
 │   │   ├── `workflow-8f30d29d-eb46-41a1-bc4b-45629a61cd4c.json` - json config
 │   │   ├── `workflow-be481a24-b459-4323-82a2-94a853be17ce.json` - json config
 │   │   ├── `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
@@ -3075,6 +3225,7 @@
 │   │   ├── `notification-idle-overnight.py` - Notification hook: Observe overnight idle events
 │   │   ├── `post-commit-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
 │   │   ├── `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
+│   │   ├── `posttool-allowlist-consume.py` - PostToolUse Hook: /allow grant consumption
 │   │   ├── `posttool-codex-skill-ledger.py` - Fires on every PostToolUse for the Skill tool. When tool_input.skill == "codex",
 │   │   ├── `posttool-command-frontmatter-validate.py` - PostToolUse Hook: Validate .claude/commands/*.md frontmatter structure
 │   │   ├── `posttool-doc-sync.py` - PostToolUse Hook: Auto-sync INDEX.md and CLAUDE.md when structural files change
@@ -3374,7 +3525,8 @@
 │   │   ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 │   │   ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 │   │   ├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
-│   │   └── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+│   │   ├── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+│   │   └── `write-qa-mode.sh` - Write or update qa_mode field in the QA sentinel file for a dev-registry session.
 │   ├── session-env/
 │   │   ├── 0060c9a2-0011-48fb-90fc-d40c0d2266f3/
 │   │   ├── 00675929-a27b-48c9-85e2-6fe850a50e8a/
@@ -3396,6 +3548,7 @@
 │   │   ├── 026162c4-b272-4e01-84b2-1eabe216fc64/
 │   │   ├── 0267d8d6-646f-4712-b806-477b359985d1/
 │   │   ├── 027bd18d-937b-40ac-9b09-23eeb43eadfd/
+│   │   ├── 02b4655c-b623-4f83-af8a-b0f44911306c/
 │   │   ├── 02b52cc7-8077-4d9c-923e-6b366bd3222c/
 │   │   ├── 02c680ba-dec8-440c-8637-5c01c54289fd/
 │   │   ├── 031b4086-cfba-425e-8c47-1d32db274a9f/
@@ -3548,6 +3701,7 @@
 │   │   ├── 0f18a8c8-b24c-4a92-a55f-08763cc3d2e9/
 │   │   ├── 0f3eb48a-017e-483b-b0eb-df679af1a533/
 │   │   ├── 0f4055f7-e62f-482c-a26c-b16a78f485b6/
+│   │   ├── 0f58fa54-37f4-4058-a0e5-5cb099da50f8/
 │   │   ├── 0f615eee-5306-4818-83a1-d76a448ea4af/
 │   │   ├── 0f670b2f-75bd-4539-a5a9-a2fe34b6956f/
 │   │   ├── 0f680170-bfdd-4f0d-9a23-f74e38a45a07/
@@ -3904,6 +4058,7 @@
 │   │   ├── 2d425339-a29d-4c59-8068-79bb8e62b34b/
 │   │   ├── 2d60fed9-5665-47fe-a140-efe0ab029223/
 │   │   ├── 2d6f5894-8166-4b5f-8997-489247f2442f/
+│   │   ├── 2d9ea3ee-7acf-4e3e-9757-ec8b86b31e15/
 │   │   ├── 2db90460-d28d-4328-8586-4858f3212f30/
 │   │   ├── 2dd0b8df-0783-482e-92b8-5f6a85d292fc/
 │   │   ├── 2df4e8cb-2787-46d8-bb7e-8eadf4c82c6a/
@@ -4462,6 +4617,7 @@
 │   │   ├── 63878e93-a724-4cf1-91ff-e9feaf219dcc/
 │   │   ├── 639b997d-b38b-4822-b0d9-ba7a7af50275/
 │   │   ├── 63a83e84-dc5d-4e48-b728-b16e5fb19557/
+│   │   ├── 63cd502b-be35-4b4e-b378-d6353739ba67/
 │   │   ├── 63fcee9f-56ed-45da-af19-911cfceecb4d/
 │   │   ├── 64064778-9e2b-44f5-b3e5-34998ee2cc2c/
 │   │   ├── 640ccedc-ce45-4467-8aaa-dc0b8bfbe183/
@@ -5454,6 +5610,7 @@
 │   │   ├── c199581d-00a5-4202-9d91-5a25e100c7ec/
 │   │   ├── c1a06288-3936-4f27-bcea-fa11124b117b/
 │   │   ├── c1a59a46-4f49-46d5-a5b5-88f16c231477/
+│   │   ├── c1a5f27c-e19c-441a-b7f8-dbec10d224d8/
 │   │   ├── c1c51b82-e244-4a5d-b48e-13865b0a0af5/
 │   │   ├── c1e29579-a92b-4cbe-9140-650bb561a0d1/
 │   │   ├── c1eb0fa0-e734-4241-b1e4-ae415f868a45/
@@ -5539,6 +5696,7 @@
 │   │   ├── c8d204d3-1ff8-4970-97ce-6112ecf1b6c6/
 │   │   ├── c8f8bcc1-ad93-46cc-a21d-0f21632bed97/
 │   │   ├── c90558da-5686-4cb4-81e7-1309712ea4d7/
+│   │   ├── c93c64e5-96d2-43f3-bec3-57c34381a4d2/
 │   │   ├── c93d4c56-0198-4266-8089-e1943c9cb2fb/
 │   │   ├── c947b489-98e8-452e-8426-b05a2039e279/
 │   │   ├── c94a25b0-740c-4b72-831d-dc3a3f2bd0fc/
@@ -6005,6 +6163,7 @@
 │   │   ├── f60e8f79-0655-4084-8b11-7db600dfb9c3/
 │   │   ├── f64ffbf2-6f5c-4c0c-84c1-4699e30163dc/
 │   │   ├── f66a3935-75ab-46d6-95f3-a918ea590380/
+│   │   ├── f67e93ca-db9e-432d-8ef3-12960233e8c2/
 │   │   ├── f69cba6c-f586-4af8-9975-a87d36d5d834/
 │   │   ├── f6eb26c7-1743-47fa-85de-0c0a75b84e01/
 │   │   ├── f6edf6bb-e07c-4277-bd3b-040ca627828f/
@@ -6122,16 +6281,14 @@
 │   │   └── ffea436f-2b6b-40d3-8196-a484178e0bf6/
 │   ├── sessions/
 │   │   ├── `1123030.json` - json config
-│   │   ├── `2073354.json` - json config
-│   │   ├── `2106684.json` - json config
+│   │   ├── `222479.json` - json config
 │   │   ├── `2279356.json` - json config
-│   │   ├── `2291815.json` - json config
-│   │   ├── `2296178.json` - json config
+│   │   ├── `2315506.json` - json config
+│   │   ├── `2338845.json` - json config
+│   │   ├── `2538467.json` - json config
 │   │   ├── `2638660.json` - json config
-│   │   ├── `3043872.json` - json config
 │   │   ├── `3737183.json` - json config
-│   │   ├── `3854491.json` - json config
-│   │   └── `3927539.json` - json config
+│   │   └── `823960.json` - json config
 │   ├── shell-snapshots/
 │   │   ├── `snapshot-bash-1757635174638-jx5vwd.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1757635860163-e24qqz.sh` - Snapshot file
@@ -6363,11 +6520,12 @@
 │   │   ├── `snapshot-bash-1776627740271-zv95mp.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1776672653324-t3vmb1.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1776702170123-dvx7bx.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1778943482744-mdqnih.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1778948244685-9phpcz.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1778962388853-knyq11.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1778962407795-ztbf3q.sh` - Snapshot file
-│   │   └── `snapshot-bash-1778962413712-92bf0a.sh` - Snapshot file
+│   │   ├── `snapshot-bash-1778994950414-uc1o31.sh` - Snapshot file
+│   │   ├── `snapshot-bash-1778995047714-nfon6f.sh` - Snapshot file
+│   │   ├── `snapshot-bash-1779000454664-uqh9qa.sh` - Snapshot file
+│   │   ├── `snapshot-bash-1779002463466-ul1lew.sh` - Snapshot file
+│   │   └── `snapshot-bash-1779005724464-2gzaop.sh` - Snapshot file
 │   ├── skills/
 │   │   ├── docx/
 │   │   ├── pdf/
@@ -6751,7 +6909,6 @@
 │   │   ├── `118b7991-6a74-4481-8a5c-757df10d3ee8-agent-118b7991-6a74-4481-8a5c-757df10d3ee8.json` - json config
 │   │   ├── `11a160a0-0069-40e8-9297-bb3b958062d8-agent-11a160a0-0069-40e8-9297-bb3b958062d8.json` - json config
 │   │   ├── `11a6440b-5529-41a5-9bd8-5093b63fd1cd-agent-11a6440b-5529-41a5-9bd8-5093b63fd1cd.json` - json config
-│   │   ├── `11a69111-8eda-4d34-b200-631b9bf26f29-agent-11a69111-8eda-4d34-b200-631b9bf26f29.json` - json config
 │   │   ├── `11b0edc3-3cf9-4e8c-9b4a-ba804d15ca58-agent-11b0edc3-3cf9-4e8c-9b4a-ba804d15ca58.json` - json config
 │   │   ├── `11c43408-e575-46a6-b97e-a3c65950c94e-agent-11c43408-e575-46a6-b97e-a3c65950c94e.json` - json config
 │   │   ├── `11d0da00-24f0-4e23-bbe0-bc15d31b993b-agent-11d0da00-24f0-4e23-bbe0-bc15d31b993b.json` - json config
@@ -8652,6 +8809,7 @@
 │   │   ├── `81d9886c-8e6d-4917-96d1-779394314365-agent-81d9886c-8e6d-4917-96d1-779394314365.json` - json config
 │   │   ├── `81dc48f3-9640-46a6-94d0-30da58550d70-agent-81dc48f3-9640-46a6-94d0-30da58550d70.json` - json config
 │   │   ├── `81fa3a54-621b-4ae4-b843-5c26c08fb06e-agent-81fa3a54-621b-4ae4-b843-5c26c08fb06e.json` - json config
+│   │   ├── `820c1397-5298-4a25-953e-ec7433518c07-agent-820c1397-5298-4a25-953e-ec7433518c07.json` - json config
 │   │   ├── `82281c3b-5154-49d2-b416-b8e260501006-agent-82281c3b-5154-49d2-b416-b8e260501006.json` - json config
 │   │   ├── `8232166b-f247-4208-9621-703767964575-agent-8232166b-f247-4208-9621-703767964575.json` - json config
 │   │   ├── `823908f4-38ec-47f1-9c6f-b49c81c471ba-agent-823908f4-38ec-47f1-9c6f-b49c81c471ba.json` - json config
@@ -10920,6 +11078,7 @@
 │   ├── `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 │   ├── `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
 │   ├── `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
+│   ├── `workflow-820c1397-5298-4a25-953e-ec7433518c07.json` - json config
 │   ├── `workflow-8f30d29d-eb46-41a1-bc4b-45629a61cd4c.json` - json config
 │   ├── `workflow-be481a24-b459-4323-82a2-94a853be17ce.json` - json config
 │   ├── `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
@@ -11321,6 +11480,7 @@
 │   │   └── `pre-commit` - unknown file
 │   ├── lib/
 │   │   ├── `agent_resolver.py` - Refactored from pretool-subagent-code-block.py::_find_agent_type so that
+│   │   ├── `allowlist.py` - Single source of truth for read_grant() — the check-only (no delete)
 │   │   ├── `bash_write_targets.py` - Provides two public functions used by tool-policy and overnight-hook-guard:
 │   │   ├── `checkpoint-core.sh` - ============================================================================
 │   │   ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.
@@ -11329,6 +11489,7 @@
 │   │   ├── `policy_registry.py` - Reads /root/.claude/policies/tool-policy.v1.json and provides a single
 │   │   ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
 │   │   ├── `specialist_yield.py` - Public API:
+│   │   ├── `subagent.py` - Single source of truth for is_subagent_context() and supporting helpers
 │   │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 │   ├── tests/
 │   │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
@@ -11350,6 +11511,7 @@
 │   ├── `notification-idle-overnight.py` - Notification hook: Observe overnight idle events
 │   ├── `post-commit-warn.sh` - post-commit-warn.sh - Warn about untracked files after commit
 │   ├── `post_tool_use.sh` - PostToolUse Hook - Code quality hints after file modifications
+│   ├── `posttool-allowlist-consume.py` - PostToolUse Hook: /allow grant consumption
 │   ├── `posttool-codex-skill-ledger.py` - Fires on every PostToolUse for the Skill tool. When tool_input.skill == "codex",
 │   ├── `posttool-command-frontmatter-validate.py` - PostToolUse Hook: Validate .claude/commands/*.md frontmatter structure
 │   ├── `posttool-doc-sync.py` - PostToolUse Hook: Auto-sync INDEX.md and CLAUDE.md when structural files change
@@ -12008,6 +12170,7 @@
 │   │   └── `d6ee22af-8c6c-4360-85cb-448ab6a48158.jsonl` - jsonl file
 │   ├── -root/
 │   │   ├── 01c17bba-66e8-4fbc-a3fc-2871721843b1/
+│   │   ├── 02b4655c-b623-4f83-af8a-b0f44911306c/
 │   │   ├── 0333732a-2b9a-4b51-85df-38dcb9b7347a/
 │   │   ├── 03b22e89-9eaa-41f3-bb4a-319c64701343/
 │   │   ├── 04c038ba-aa42-4e5d-bfe6-caeda5f4f889/
@@ -12123,6 +12286,7 @@
 │   │   ├── memory/
 │   │   ├── `0060c9a2-0011-48fb-90fc-d40c0d2266f3.jsonl` - jsonl file
 │   │   ├── `01c17bba-66e8-4fbc-a3fc-2871721843b1.jsonl` - jsonl file
+│   │   ├── `02b4655c-b623-4f83-af8a-b0f44911306c.jsonl` - jsonl file
 │   │   ├── `03b22e89-9eaa-41f3-bb4a-319c64701343.jsonl` - jsonl file
 │   │   ├── `04c038ba-aa42-4e5d-bfe6-caeda5f4f889.jsonl` - jsonl file
 │   │   ├── `05174558-3246-4d0d-9db0-bc9753d5a9c0.jsonl` - jsonl file
@@ -12616,6 +12780,7 @@
 │   │   ├── 07b2d4da-90b4-4b29-9e7f-45292d1488ab/
 │   │   ├── 0d300f11-cfb8-4c62-88fe-f89795dff5ce/
 │   │   ├── 0ecc149d-0a11-45db-983e-62c5a9bc9d78/
+│   │   ├── 0f58fa54-37f4-4058-a0e5-5cb099da50f8/
 │   │   ├── 0f615eee-5306-4818-83a1-d76a448ea4af/
 │   │   ├── 0f8edf20-7833-4f1d-8881-2e9042befdcf/
 │   │   ├── 10d54c3f-1183-4f5b-95a5-ec7cd6d2bdf4/
@@ -12704,6 +12869,7 @@
 │   │   ├── `07b2d4da-90b4-4b29-9e7f-45292d1488ab.jsonl` - jsonl file
 │   │   ├── `0d300f11-cfb8-4c62-88fe-f89795dff5ce.jsonl` - jsonl file
 │   │   ├── `0ecc149d-0a11-45db-983e-62c5a9bc9d78.jsonl` - jsonl file
+│   │   ├── `0f58fa54-37f4-4058-a0e5-5cb099da50f8.jsonl` - jsonl file
 │   │   ├── `0f615eee-5306-4818-83a1-d76a448ea4af.jsonl` - jsonl file
 │   │   ├── `0f680170-bfdd-4f0d-9a23-f74e38a45a07.jsonl` - jsonl file
 │   │   ├── `0f8edf20-7833-4f1d-8881-2e9042befdcf.jsonl` - jsonl file
@@ -12971,7 +13137,8 @@
 │   ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 │   ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 │   ├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
-│   └── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+│   ├── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+│   └── `write-qa-mode.sh` - Write or update qa_mode field in the QA sentinel file for a dev-registry session.
 ├── session-env/
 │   ├── 0060c9a2-0011-48fb-90fc-d40c0d2266f3/
 │   ├── 00675929-a27b-48c9-85e2-6fe850a50e8a/
@@ -12993,6 +13160,7 @@
 │   ├── 026162c4-b272-4e01-84b2-1eabe216fc64/
 │   ├── 0267d8d6-646f-4712-b806-477b359985d1/
 │   ├── 027bd18d-937b-40ac-9b09-23eeb43eadfd/
+│   ├── 02b4655c-b623-4f83-af8a-b0f44911306c/
 │   ├── 02b52cc7-8077-4d9c-923e-6b366bd3222c/
 │   ├── 02c680ba-dec8-440c-8637-5c01c54289fd/
 │   ├── 031b4086-cfba-425e-8c47-1d32db274a9f/
@@ -13145,6 +13313,7 @@
 │   ├── 0f18a8c8-b24c-4a92-a55f-08763cc3d2e9/
 │   ├── 0f3eb48a-017e-483b-b0eb-df679af1a533/
 │   ├── 0f4055f7-e62f-482c-a26c-b16a78f485b6/
+│   ├── 0f58fa54-37f4-4058-a0e5-5cb099da50f8/
 │   ├── 0f615eee-5306-4818-83a1-d76a448ea4af/
 │   ├── 0f670b2f-75bd-4539-a5a9-a2fe34b6956f/
 │   ├── 0f680170-bfdd-4f0d-9a23-f74e38a45a07/
@@ -13501,6 +13670,7 @@
 │   ├── 2d425339-a29d-4c59-8068-79bb8e62b34b/
 │   ├── 2d60fed9-5665-47fe-a140-efe0ab029223/
 │   ├── 2d6f5894-8166-4b5f-8997-489247f2442f/
+│   ├── 2d9ea3ee-7acf-4e3e-9757-ec8b86b31e15/
 │   ├── 2db90460-d28d-4328-8586-4858f3212f30/
 │   ├── 2dd0b8df-0783-482e-92b8-5f6a85d292fc/
 │   ├── 2df4e8cb-2787-46d8-bb7e-8eadf4c82c6a/
@@ -14059,6 +14229,7 @@
 │   ├── 63878e93-a724-4cf1-91ff-e9feaf219dcc/
 │   ├── 639b997d-b38b-4822-b0d9-ba7a7af50275/
 │   ├── 63a83e84-dc5d-4e48-b728-b16e5fb19557/
+│   ├── 63cd502b-be35-4b4e-b378-d6353739ba67/
 │   ├── 63fcee9f-56ed-45da-af19-911cfceecb4d/
 │   ├── 64064778-9e2b-44f5-b3e5-34998ee2cc2c/
 │   ├── 640ccedc-ce45-4467-8aaa-dc0b8bfbe183/
@@ -15051,6 +15222,7 @@
 │   ├── c199581d-00a5-4202-9d91-5a25e100c7ec/
 │   ├── c1a06288-3936-4f27-bcea-fa11124b117b/
 │   ├── c1a59a46-4f49-46d5-a5b5-88f16c231477/
+│   ├── c1a5f27c-e19c-441a-b7f8-dbec10d224d8/
 │   ├── c1c51b82-e244-4a5d-b48e-13865b0a0af5/
 │   ├── c1e29579-a92b-4cbe-9140-650bb561a0d1/
 │   ├── c1eb0fa0-e734-4241-b1e4-ae415f868a45/
@@ -15136,6 +15308,7 @@
 │   ├── c8d204d3-1ff8-4970-97ce-6112ecf1b6c6/
 │   ├── c8f8bcc1-ad93-46cc-a21d-0f21632bed97/
 │   ├── c90558da-5686-4cb4-81e7-1309712ea4d7/
+│   ├── c93c64e5-96d2-43f3-bec3-57c34381a4d2/
 │   ├── c93d4c56-0198-4266-8089-e1943c9cb2fb/
 │   ├── c947b489-98e8-452e-8426-b05a2039e279/
 │   ├── c94a25b0-740c-4b72-831d-dc3a3f2bd0fc/
@@ -15602,6 +15775,7 @@
 │   ├── f60e8f79-0655-4084-8b11-7db600dfb9c3/
 │   ├── f64ffbf2-6f5c-4c0c-84c1-4699e30163dc/
 │   ├── f66a3935-75ab-46d6-95f3-a918ea590380/
+│   ├── f67e93ca-db9e-432d-8ef3-12960233e8c2/
 │   ├── f69cba6c-f586-4af8-9975-a87d36d5d834/
 │   ├── f6eb26c7-1743-47fa-85de-0c0a75b84e01/
 │   ├── f6edf6bb-e07c-4277-bd3b-040ca627828f/
@@ -15719,16 +15893,14 @@
 │   └── ffea436f-2b6b-40d3-8196-a484178e0bf6/
 ├── sessions/
 │   ├── `1123030.json` - json config
-│   ├── `2073354.json` - json config
-│   ├── `2106684.json` - json config
+│   ├── `222479.json` - json config
 │   ├── `2279356.json` - json config
-│   ├── `2291815.json` - json config
-│   ├── `2296178.json` - json config
+│   ├── `2315506.json` - json config
+│   ├── `2338845.json` - json config
+│   ├── `2538467.json` - json config
 │   ├── `2638660.json` - json config
-│   ├── `3043872.json` - json config
 │   ├── `3737183.json` - json config
-│   ├── `3854491.json` - json config
-│   └── `3927539.json` - json config
+│   └── `823960.json` - json config
 ├── shell-snapshots/
 │   ├── `snapshot-bash-1757635174638-jx5vwd.sh` - Snapshot file
 │   ├── `snapshot-bash-1757635860163-e24qqz.sh` - Snapshot file
@@ -15960,11 +16132,12 @@
 │   ├── `snapshot-bash-1776627740271-zv95mp.sh` - Snapshot file
 │   ├── `snapshot-bash-1776672653324-t3vmb1.sh` - Snapshot file
 │   ├── `snapshot-bash-1776702170123-dvx7bx.sh` - Snapshot file
-│   ├── `snapshot-bash-1778943482744-mdqnih.sh` - Snapshot file
-│   ├── `snapshot-bash-1778948244685-9phpcz.sh` - Snapshot file
 │   ├── `snapshot-bash-1778962388853-knyq11.sh` - Snapshot file
-│   ├── `snapshot-bash-1778962407795-ztbf3q.sh` - Snapshot file
-│   └── `snapshot-bash-1778962413712-92bf0a.sh` - Snapshot file
+│   ├── `snapshot-bash-1778994950414-uc1o31.sh` - Snapshot file
+│   ├── `snapshot-bash-1778995047714-nfon6f.sh` - Snapshot file
+│   ├── `snapshot-bash-1779000454664-uqh9qa.sh` - Snapshot file
+│   ├── `snapshot-bash-1779002463466-ul1lew.sh` - Snapshot file
+│   └── `snapshot-bash-1779005724464-2gzaop.sh` - Snapshot file
 ├── skills/
 │   ├── docx/
 │   │   ├── `docx-js.md` - DOCX Library Tutorial
@@ -16593,7 +16766,6 @@
 │   ├── `118b7991-6a74-4481-8a5c-757df10d3ee8-agent-118b7991-6a74-4481-8a5c-757df10d3ee8.json` - json config
 │   ├── `11a160a0-0069-40e8-9297-bb3b958062d8-agent-11a160a0-0069-40e8-9297-bb3b958062d8.json` - json config
 │   ├── `11a6440b-5529-41a5-9bd8-5093b63fd1cd-agent-11a6440b-5529-41a5-9bd8-5093b63fd1cd.json` - json config
-│   ├── `11a69111-8eda-4d34-b200-631b9bf26f29-agent-11a69111-8eda-4d34-b200-631b9bf26f29.json` - json config
 │   ├── `11b0edc3-3cf9-4e8c-9b4a-ba804d15ca58-agent-11b0edc3-3cf9-4e8c-9b4a-ba804d15ca58.json` - json config
 │   ├── `11c43408-e575-46a6-b97e-a3c65950c94e-agent-11c43408-e575-46a6-b97e-a3c65950c94e.json` - json config
 │   ├── `11d0da00-24f0-4e23-bbe0-bc15d31b993b-agent-11d0da00-24f0-4e23-bbe0-bc15d31b993b.json` - json config
@@ -18494,6 +18666,7 @@
 │   ├── `81d9886c-8e6d-4917-96d1-779394314365-agent-81d9886c-8e6d-4917-96d1-779394314365.json` - json config
 │   ├── `81dc48f3-9640-46a6-94d0-30da58550d70-agent-81dc48f3-9640-46a6-94d0-30da58550d70.json` - json config
 │   ├── `81fa3a54-621b-4ae4-b843-5c26c08fb06e-agent-81fa3a54-621b-4ae4-b843-5c26c08fb06e.json` - json config
+│   ├── `820c1397-5298-4a25-953e-ec7433518c07-agent-820c1397-5298-4a25-953e-ec7433518c07.json` - json config
 │   ├── `82281c3b-5154-49d2-b416-b8e260501006-agent-82281c3b-5154-49d2-b416-b8e260501006.json` - json config
 │   ├── `8232166b-f247-4208-9621-703767964575-agent-8232166b-f247-4208-9621-703767964575.json` - json config
 │   ├── `823908f4-38ec-47f1-9c6f-b49c81c471ba-agent-823908f4-38ec-47f1-9c6f-b49c81c471ba.json` - json config
@@ -20834,6 +21007,7 @@
 ├── `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 ├── `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
 ├── `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
+├── `workflow-820c1397-5298-4a25-953e-ec7433518c07.json` - json config
 ├── `workflow-8f30d29d-eb46-41a1-bc4b-45629a61cd4c.json` - json config
 ├── `workflow-be481a24-b459-4323-82a2-94a853be17ce.json` - json config
 ├── `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config

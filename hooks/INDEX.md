@@ -1,6 +1,6 @@
 # hooks
 
-*Last updated: 2026-05-17T08:03:14Z*
+*Last updated: 2026-05-17T09:34:24Z*
 **Total entries**: 117
 **Convention**: kebab
 
@@ -32,7 +32,7 @@ hooks/
 │   ├── `policy_registry.py` - Reads /root/.claude/policies/tool-policy.v1.json and provides a single
 │   ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
 │   ├── `specialist_yield.py` - Public API:
-│   ├── `subagent.py` - Single source of truth for is_subagent_context() and its supporting
+│   ├── `subagent.py` - Single source of truth for is_subagent_context() and supporting helpers
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 ├── tests/
 │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
