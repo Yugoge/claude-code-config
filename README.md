@@ -5,7 +5,7 @@ Organization and usage documentation for `.claude/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 67
+- **Total files**: 62
 - **Subdirectories**: 34
 - **Naming convention**: lower
 
@@ -16,14 +16,11 @@ Organization and usage documentation for `.claude/`.
 - `config.yaml` - yaml config
 - `history.jsonl` - jsonl file
 - `mcp-needs-auth-cache.json` - json config
-- `overnight-state-d0ec784d-c321-41f6-ba24-65537efac311.json` - json config
-- `playwright-config.json` - json config
 - `playwright-storage-state.json` - json config
 - `push.sh` - 
 - `session.log` - log file
 - `settings.json` - json config
 - `settings.local.json` - json config
-- `stats-cache.json` - json config
 - `workflow-019e0d4c-09bf-77a1-a19a-cd74736ab48e.json` - json config
 - `workflow-019e0d52-4184-7e83-9695-bce01c179a8d.json` - json config
 - `workflow-019e1d0c-d666-76e0-a080-10a6c4811cb4.json` - json config
@@ -36,10 +33,8 @@ Organization and usage documentation for `.claude/`.
 - `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 - `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
 - `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
-- `workflow-be481a24-b459-4323-82a2-94a853be17ce.json` - json config
 - `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
 - `workflow-dd3a870c-9440-4274-896f-462dfe972646.json` - json config
-- `workflow-ddc65730-7eed-4de1-9dfd-4c042f3fea0a.json` - json config
 - `workflow-eaa1077b-49ad-4697-8e01-e4a923d2b116.json` - json config
 - `workflow-edfda281-beb8-434f-a45b-2a8053975db8.json` - json config
 - `workflow-fe05ca9a-7892-40ea-a3ba-660db57180b9.json` - json config

@@ -28,6 +28,9 @@ Each subagent invocation handles exactly ONE issue. Launch multiple subagents in
 
 ### 14. Subagent rejected by hook MUST PAUSE + report. See Subagent Hook Discipline.
 
+### 15. `disable-model-invocation: true` 只阻止 SlashCommand，不阻止 `Skill` 工具调用
+人工专属命令必须同时在 `settings.json` deny 列表加 `Skill(name:*)` 才构成真正的技术壁垒。
+
 ---
 
 ## 🔄 Auto-Commit Mechanism (refs/checkpoints/*)
