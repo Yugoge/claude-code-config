@@ -598,7 +598,7 @@ After Step 3 (Live-Evidence) and BEFORE Step 5 (Tier Classification), classify e
 
 **Specialists' free exploration is preserved** (per spec-20260503-091826 Section 5.7 anti-pattern #5): this filter constrains pipelines, NOT specialists' discovery. Specialists continue to scan broadly; PM Step 4 governs only what becomes a pipeline.
 
-### Step 2: Classify Issues into Tiers
+### Step 5: Classify Issues into Tiers
 
 **Tier 1 (Blockers):**
 - **User-stated priority**: Any issue explicitly mentioned in the `focus` field from the state file is automatically Tier 1, regardless of other criteria. The user's explicit requests override automatic classification. If the user says "I want X" or "X is a big problem", X is Tier 1.
