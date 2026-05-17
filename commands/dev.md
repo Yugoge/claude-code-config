@@ -214,6 +214,7 @@ Use Agent tool with:
 - description: "<Specialist role> consultation for: <requirement summary>"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<specialist-name>.json to register with the enforcement system. Do this BEFORE any other tool call.
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<specialist-name>.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
@@ -341,6 +342,7 @@ Use Task tool with:
 - description: "Analyze requirement and build development context"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
@@ -385,6 +387,7 @@ Use Task tool with:
 - description: "Continue BA analysis with clarification answers"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
@@ -449,6 +452,7 @@ Use Agent tool with:
 - description: "Validate BA analysis quality (not code)"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
@@ -554,6 +558,7 @@ Use Agent tool with:
 - description: "Re-investigate: address QA objections on analysis quality"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/ba.json to register with the enforcement system. Do this BEFORE any other tool call.
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-ba.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
@@ -598,6 +603,7 @@ Use Task tool with:
 - description: "Implement development changes based on BA context"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/dev.json to register with the enforcement system. Do this BEFORE any other tool call.
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-dev.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
@@ -730,6 +736,7 @@ Use Task tool with:
 - description: "Verify implementation quality against standards"
 - prompt: "
   FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/qa.json to register with the enforcement system. Do this BEFORE any other tool call.
+  User requirement document: docs/dev/user-requirement-<DEV_SESSION_ID>.md
 
   SECOND ACTION (only if SPEC_ID is non-empty and your cp-state file exists): Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-qa.json to discover your atomic checkpoints (cp-01, cp-02, ...).
 
