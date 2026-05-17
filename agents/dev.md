@@ -576,7 +576,7 @@ Before returning execution report, verify:
     - role_table says `body = ink-800` — diff uses `ink-700` → **FAIL** (in-family sibling, still wrong role)
     - role_table says `neutral = ink-500` — diff uses `slate-500` → **FAIL** (different scale entirely)
   - "In palette / in hue family / close enough / same brand scale" are NOT sufficient justifications. Only the exact `expected_token` for the bound role passes.
-  - If the BA context JSON has no `reference_source.role_table` (CLAUDE.md absent or BA skipped Step 0.5), log this in `implementation_notes` and proceed without role-token enforcement. Do NOT invent a role table; do NOT default to "in palette".
+  - If the BA context JSON has no `reference_source.role_table` (CLAUDE.md absent or BA skipped Step 1 role-grounding), log this in `implementation_notes` and proceed without role-token enforcement. Do NOT invent a role table; do NOT default to "in palette".
   - If the role table is present and a mismatch exists, you MUST either (a) fix the diff to use `expected_token`, or (b) return `status: blocked` with the role conflict described. Silent shipping of a mismatch is forbidden.
 
 ---
