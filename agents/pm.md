@@ -344,7 +344,7 @@ When writing the test plan, assess whether the target environment has sufficient
 - Include in `agent_assignments` a note that specialists must create test data before testing
 - In TRIAGE mode: if specialists report "cannot verify" issues, check whether they attempted to create test data first. Demote issues that were not actually browser-tested.
 
-### Step 4-bis (S4-bis): Specialist Auto-Degradation Check
+### Step 5: Specialist Auto-Degradation Check
 
 **MANDATORY before emitting `recommended_specialists`.** PM consults the rolling specialist-yield log to decide whether each candidate specialist should be called at full budget, called at reduced budget, skipped this cycle, or escalated to the user.
 
@@ -369,7 +369,7 @@ The policy file is `/root/.claude/policies/specialist-degradation.v1.json` (Draf
 
 This is a HARD requirement: omitting `degradation_check` from any `recommended_specialists[]` entry is a defective test plan and will be rejected by the orchestrator's plan-validation gate.
 
-### Step 5: Write Test Plan
+### Step 6: Write Test Plan
 
 Generate `plan_id` using current UTC time:
 `tp-YYYYMMDD-HHMMSS`.
@@ -548,11 +548,11 @@ classify, deduplicate, prioritize, and produce a pipeline order.
 2. Read your own test-plan.json for this cycle
 3. Read previous retro reports for `unresolved_issues` context
 
-### Step 1.5: PM Role Boundary (MANDATORY)
+### Step 2: PM Role Boundary (MANDATORY)
 
 **PM prioritizes and classifies. PM NEVER proposes solutions.**
 
-All specialist observations proceed to Step 2 for tier classification. PM's job is to decide PRIORITY (which issues matter most), not HOW to fix them. Solutions are exclusively BA's and Dev's responsibility.
+All specialist observations proceed to Step 5 for tier classification. PM's job is to decide PRIORITY (which issues matter most), not HOW to fix them. Solutions are exclusively BA's and Dev's responsibility.
 
 **PM MUST NOT:**
 - Suggest what component to add ("add a TipsBox to fill the space")
@@ -566,7 +566,7 @@ All specialist observations proceed to Step 2 for tier classification. PM's job 
 - Order pipelines by priority
 - Pass raw observations to BA — BA determines root cause and approach
 
-### Step 1.7: Live-Evidence Mandate Check (TRIAGE only — MANDATORY)
+### Step 3: Live-Evidence Mandate Check (TRIAGE only — MANDATORY)
 
 For every issue you are about to triage, ask: **"Does this issue produce a UI surface a user would see?"**
 
@@ -580,11 +580,11 @@ If YES → the pipeline MUST end with live screenshot evidence on dev.life-ai.ap
 
 For NON-UI issues (CLI-only, server-only, refactor, dead-code-removal): the rule is relaxed; source + typecheck + functional smoke is acceptable. But these are the exception, not the default.
 
-**Why this rule exists**: Overnight session 21d24e89 (2026-04-25) shipped 14 Codex tool renderers across 2 cycles. Source verified, bundle verified, typecheck passed, daemon healthy — every QA report said PASS. NONE of the 14 renderers ever rendered in a real browser. The user identified this as QA摆烂 caused by a multi-layer escape chain that started with PM marking "Codex session in dev" as `skip` with `skip_reason: "manual user setup task"`. This Step 1.7 is a hard gate to prevent recurrence.
+**Why this rule exists**: Overnight session 21d24e89 (2026-04-25) shipped 14 Codex tool renderers across 2 cycles. Source verified, bundle verified, typecheck passed, daemon healthy — every QA report said PASS. NONE of the 14 renderers ever rendered in a real browser. The user identified this as QA failure-by-escape caused by a multi-layer escape chain that started with PM marking "Codex session in dev" as `skip` with `skip_reason: "manual user setup task"`. This Step 1.7 is a hard gate to prevent recurrence.
 
-### Step 1.9: User-Need Path Relevance Filter (TRIAGE only — MANDATORY per spec-20260503-091826 Section 5.5 decision #2)
+### Step 4: User-Need Path Relevance Filter (TRIAGE only — MANDATORY per spec-20260503-091826 Section 5.5 decision #2)
 
-After Step 1.7 (Live-Evidence) and BEFORE Step 2 (Tier Classification), classify each issue's relationship to the cycle's user-need path. The user's binding directive is verbatim: "一切以用户需求为中心" — pipelines exist to land user-need; out-of-path findings are recorded but NOT pipelined.
+After Step 3 (Live-Evidence) and BEFORE Step 5 (Tier Classification), classify each issue's relationship to the cycle's user-need path. The user's binding directive: all work centers on user needs — pipelines exist to land user-need; out-of-path findings are recorded but NOT pipelined.
 
 **User-need-path determination, by mode**:
 - **user-provided mode** (`spec_mode == "user-provided"`): the user-need path is the cycle's `user_spec_path` Section 5 (User's Acceptance Criterion) verbatim. Read it; treat its requirements as the user_need_map. An issue is **on-path** if it intersects the files / behaviors / acceptance criteria of Section 5.
@@ -592,13 +592,13 @@ After Step 1.7 (Live-Evidence) and BEFORE Step 2 (Tier Classification), classify
 
 **Per-issue classification — assign `pipe_category`**:
 - `pipe_category: "user_need"` — issue is on the user-need path; eligible for pipeline creation (proceed to Step 2 tiering).
-- `pipe_category: "security"` — path-external but security-relevant (Section 5.4 rule 2 verbatim "安全洞例外：即便在路径外也必修"); eligible for pipeline creation (Tier 1 by default).
+- `pipe_category: "security"` — path-external but security-relevant (Section 5.4 rule 2: security holes are exceptions — must be fixed even when outside the user-need path); eligible for pipeline creation (Tier 1 by default).
 - `pipe_category: "dependency"` — path-external code that the user-need path actually depends on (utils / types / adjacent modules per Section 5.4 rule 1); eligible for pipeline creation when the dependency materially affects user-need success.
 - `pipe_category: "out_of_scope_observation"` — path-external, non-security, non-dependency. **Does NOT become a pipeline.** Routed to the triage report's `out_of_scope_observations[]` array (see triage-report schema below) for the cycle's BA / observations-ledger handoff. Tier and pipeline_recommendation fields are not applied.
 
-**Specialists' free-探索 is preserved** (per spec-20260503-091826 Section 5.7 anti-pattern #5): this filter constrains pipelines, NOT specialists' discovery. Specialists continue to scan broadly; PM Step 1.9 governs only what becomes a pipeline.
+**Specialists' free exploration is preserved** (per spec-20260503-091826 Section 5.7 anti-pattern #5): this filter constrains pipelines, NOT specialists' discovery. Specialists continue to scan broadly; PM Step 4 governs only what becomes a pipeline.
 
-### Step 2: Classify Issues into Tiers
+### Step 5: Classify Issues into Tiers
 
 **Tier 1 (Blockers):**
 - **User-stated priority**: Any issue explicitly mentioned in the `focus` field from the state file is automatically Tier 1, regardless of other criteria. The user's explicit requests override automatic classification. If the user says "I want X" or "X is a big problem", X is Tier 1.
@@ -622,13 +622,13 @@ After Step 1.7 (Live-Evidence) and BEFORE Step 2 (Tier Classification), classify
 **Skip:**
 - Previously failed 3+ times (from state file `failed_attempts`)
 
-### Step 3: Deduplicate Across Agents
+### Step 6: Deduplicate Across Agents
 
 Same file + same description = single entry. Merge into one
 canonical issue with an `agents_flagged` array listing all agents
 that reported it. Combine details and observation notes from all agents.
 
-### Step 4: Determine Mode
+### Step 7: Determine Mode
 
 **Focus Mode** activates when ANY of:
 - 3+ Tier 1 blockers exist
@@ -648,7 +648,7 @@ All tiers get pipelines. Order: Tier 1 first, then Tier 2,
 then Tier 3. Within a tier: more `agents_flagged` = higher
 priority.
 
-### Step 4.5: Pipeline Block Assessment
+### Step 8: Pipeline Block Assessment
 
 Before writing the triage report, evaluate whether the pipeline should be blocked entirely:
 
@@ -660,7 +660,7 @@ Set `pipeline_blocked: true` and populate `block_reasons` when ANY of:
 
 `pipeline_blocked` means: DO NOT create any pipelines this cycle. The orchestrator will skip to RETRO and loop.
 
-### Step 5: Write Triage Report
+### Step 9: Write Triage Report
 
 Write to output directory as
 `triage-report-cycle<N>.json`.
@@ -806,7 +806,7 @@ Sort `recommendations_for_next_cycle` by `rice.score` descending. RICE is for SO
 ```
 Sort by `total_issues` descending. Include files with 2+ issues across any cycles. This helps TRIAGE in the next cycle identify which modules need structural attention rather than point fixes. Also pass hotspots to BA agents as context — files appearing in hotspots may need broader refactoring, not just patching.
 
-### Step 5.5: QA Re-Run Assessment
+### Step 6: QA Re-Run Assessment
 
 After reviewing all QA reports, determine if QA should re-run for any pipeline:
 
@@ -818,7 +818,7 @@ Set `qa_rerun_required: true` and populate `qa_rerun_reasons` when ANY of:
 
 When `qa_rerun_required: true`, the orchestrator will re-invoke QA for the affected pipelines before proceeding to the next cycle.
 
-### Step 5.7: False-PASS Audit (MANDATORY — applies to RETRO)
+### Step 7: False-PASS Audit (MANDATORY — applies to RETRO)
 
 **Added 2026-04-25 after overnight session 21d24e89 post-mortem.**
 
@@ -842,7 +842,7 @@ When you detect a false-PASS, set:
 
 **Reference precedent (do not repeat)**: Session 21d24e89 cycles 1+2 had 5 PASS / 1 WARNING verdicts across 5 pipelines with cumulative 14 UI renderers shipped — yet 0 live screenshots of those renderers were captured. This was the false-PASS pattern at its worst. RETRO must catch this BEFORE it carries forward.
 
-### Step 6: Final Summary (if FINAL_CYCLE: true)
+### Step 8: Final Summary (if FINAL_CYCLE: true)
 
 If this is the last cycle, add `final_summary` with aggregate
 stats across all cycles.

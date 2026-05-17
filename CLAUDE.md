@@ -32,7 +32,7 @@ Each subagent invocation handles exactly ONE issue. Launch multiple subagents in
 
 ## 🔄 Auto-Commit Mechanism (refs/checkpoints/*)
 
-Automated snapshots go to `refs/checkpoints/<branch>`; HEADs never advance. `/push` requires clean tree. Full ops: `docs/checkpoint-mechanism.md`.
+Automated snapshots go to `refs/checkpoints/<branch>`; HEADs never advance. `/push` requires clean tree. Full ops: `docs/reference/checkpoint-mechanism.md`.
 
 ---
 
