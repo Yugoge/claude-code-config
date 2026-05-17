@@ -19,7 +19,8 @@ import sys
 from pathlib import Path
 
 # Make hooks/lib importable.
-sys.path.insert(0, '/root/.claude/hooks')
+_hooks_dir = os.environ.get('CLAUDE_HOOKS_DIR', os.path.join(os.path.dirname(__file__), '..', 'hooks'))
+sys.path.insert(0, str(Path(_hooks_dir).resolve()))
 from lib import contract_runtime  # noqa: E402
 
 
@@ -42,7 +43,6 @@ def _resolve_cycle(session_id: str, requested: int | None) -> int | None:
     project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
     candidates = [
         project_dir / 'docs' / 'dev' / 'overnight' / session_id,
-        Path('/root/docs/dev/overnight') / session_id,
     ]
     for base in candidates:
         cycles = _list_cycle_dirs(base)

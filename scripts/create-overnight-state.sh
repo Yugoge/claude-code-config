@@ -38,12 +38,17 @@ resolve_project_dir() {
         printf '%s\n' "$toplevel"
         return 0
     fi
-    printf '%s\n' "/root"
+    echo "Error: cannot determine project directory; set CLAUDE_PROJECT_DIR or run from within a git repo" >&2
+    exit 1
 }
 PROJECT_DIR="$(resolve_project_dir)"
 
 # --- Parse arguments ---
 CODEX_REQUIRED=false
+# Override state and cycle directories via env vars or CLI
+STATE_SUBDIR="${OVERNIGHT_STATE_SUBDIR:-.claude}"
+CYCLE_SUBDIR="${OVERNIGHT_CYCLE_SUBDIR:-docs/dev/overnight}"
+SPECS_SUBDIR="${OVERNIGHT_SPECS_SUBDIR:-docs/dev/specs}"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --end-time)  END_TIME="$2"; shift 2 ;;
@@ -51,10 +56,13 @@ while [[ $# -gt 0 ]]; do
         --spec)      SPEC_PATH="$2"; shift 2 ;;
         --session-id) SESSION_ID="$2"; shift 2 ;;
         --project-dir) PROJECT_DIR="$2"; shift 2 ;;
+        --state-subdir) STATE_SUBDIR="$2"; shift 2 ;;
+        --cycle-subdir) CYCLE_SUBDIR="$2"; shift 2 ;;
+        --specs-subdir) SPECS_SUBDIR="$2"; shift 2 ;;
         --codex)     CODEX_REQUIRED=true; shift ;;
         *)
             echo "Unknown option: $1" >&2
-            echo "Usage: create-overnight-state.sh [--end-time <time>] [--focus <str>] [--spec <path>] [--session-id <uuid>] [--project-dir <path>] [--codex]" >&2
+            echo "Usage: create-overnight-state.sh [--end-time <time>] [--focus <str>] [--spec <path>] [--session-id <uuid>] [--project-dir <path>] [--state-subdir <dir>] [--cycle-subdir <dir>] [--specs-subdir <dir>] [--codex]" >&2
             exit 1
             ;;
     esac
@@ -189,9 +197,9 @@ if [[ -n "$SPEC_PATH" ]]; then
     fi
     SPEC_MODE="user-provided"
     USER_SPEC_PATH="$SPEC_PATH"
-elif [[ -d "$PROJECT_DIR/docs/dev/specs" ]]; then
-    # Auto-detect: newest .md in docs/dev/specs/, excluding INDEX.md and README.md
-    DETECTED=$(find "$PROJECT_DIR/docs/dev/specs" -maxdepth 1 -name '*.md' \
+elif [[ -d "$PROJECT_DIR/$SPECS_SUBDIR" ]]; then
+    # Auto-detect: newest .md in the specs directory, excluding INDEX.md and README.md
+    DETECTED=$(find "$PROJECT_DIR/$SPECS_SUBDIR" -maxdepth 1 -name '*.md' \
         ! -name 'INDEX.md' ! -name 'README.md' \
         -printf '%T@ %p\n' 2>/dev/null \
         | sort -rn | head -1 | cut -d' ' -f2-)
@@ -233,13 +241,13 @@ if [[ "$USER_SPEC_PATH" != "null" && -n "$USER_SPEC_PATH" ]]; then
 fi
 
 # --- Ensure output directory exists ---
-STATE_DIR="$PROJECT_DIR/.claude"
+STATE_DIR="$PROJECT_DIR/$STATE_SUBDIR"
 mkdir -p "$STATE_DIR"
 
 STATE_FILE="$STATE_DIR/overnight-state-${SESSION_ID}.json"
 TMP_FILE="${STATE_FILE}.tmp"
 CYCLE_ID=1
-CYCLE_DIR="$PROJECT_DIR/docs/dev/overnight/$SESSION_ID/cycle-$CYCLE_ID"
+CYCLE_DIR="$PROJECT_DIR/$CYCLE_SUBDIR/$SESSION_ID/cycle-$CYCLE_ID"
 CONTRACT_FILE="$CYCLE_DIR/cycle-contract.json"
 TRACE_LOG_PATH="$CYCLE_DIR/trace.jsonl"
 MONOLITH_SHA="null"

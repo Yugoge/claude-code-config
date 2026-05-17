@@ -29,7 +29,7 @@ Organization and usage documentation for `todo/`.
 - `research-deep.py` - Python script
 - `security-check.py` - Python script
 - `site-navigate.py` - Python script
-- `spec.py` - Mirrors /root/knowledge-system/scripts/todo/ask.py structure
+- `spec.py` - Mirrors the ask.py structure in the knowledge-system scripts/todo directory
 - `test.py` - Preloaded TodoList for /test workflow
 
 ---
