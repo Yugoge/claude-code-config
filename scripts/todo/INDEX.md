@@ -1,6 +1,6 @@
 # todo
 
-*Last updated: 2026-05-09T15:43:44Z*
+*Last updated: 2026-05-17T15:46:32Z*
 **Total entries**: 21
 **Convention**: kebab
 
@@ -26,7 +26,7 @@ todo/
 ├── `research-deep.py` - Python script
 ├── `security-check.py` - Python script
 ├── `site-navigate.py` - Python script
-├── `spec.py` - Mirrors /root/knowledge-system/scripts/todo/ask.py structure
+├── `spec.py` - Mirrors the ask.py structure in the knowledge-system scripts/todo directory
 └── `test.py` - Preloaded TodoList for /test workflow
 ```
 
