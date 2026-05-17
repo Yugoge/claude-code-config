@@ -1,0 +1,75 @@
+{
+  "request_id": "20260517-155838",
+  "task_id": "20260517-155838",
+  "timestamp": "2026-05-17T17:10:00Z",
+  "inspector": "prompt-inspector",
+  "mode": "changed-files",
+  "changed_files": ["commands/close.md", "commands/do.md"],
+  "diff_commits": ["07d6e32", "400cd4b"],
+  "findings": [],
+  "summary": {
+    "files_inspected": 2,
+    "files_with_violations": 0,
+    "critical": 0,
+    "major": 0,
+    "minor": 0,
+    "total_verbose_lines": 0,
+    "new_in_diff_violations": 0,
+    "estimated_reduction": "N/A"
+  },
+  "analysis": {
+    "commands/do.md": {
+      "total_lines": 26,
+      "new_lines_in_diff": 20,
+      "verbose_sections_detected": [],
+      "verdict": "clean",
+      "introduced_in_diff": false,
+      "notes": "New section '## Closing /do-developed work' (lines 8-26, 19 lines of content). Section is an AC-mandated procedural cross-reference with specific commands, specific paths, and concrete workflow steps. Matches 'rules not stories' pattern: tells users exactly what to do without philosophical narrative. Does not match any critical verbose pattern (Philosophy/Overview/Quality Standards/Safety Features/Helper Scripts). No finding."
+    },
+    "commands/close.md": {
+      "total_lines": 377,
+      "new_lines_in_diff": 53,
+      "removed_lines_in_diff": 41,
+      "verbose_sections_detected": [],
+      "verdict": "clean",
+      "introduced_in_diff": false,
+      "notes": "Orphan commit 07d6e32 made 74-line changes (53 insertions, 41 deletions): (a) replaced inline bash blocks with prose equivalents (condensing, not expanding), (b) split the single-branch timestamp resolution into non-force/forced sub-branches to fix the qa-report inheritance bug, (c) renamed verdict branches 1b→2, 2→3, 3→4, 4→5, 5→6, 5b→7, 6→8, 7→9. Fix commit 400cd4b corrected 4 branch-number references that were still wrong after the orphan commit (verdict list 1/2/3/6/7/6→1/2/3/4/5/6/7, codex-disabled branch 7→9, em-dash annotation branch 7→9, cross-ref branch 2→3). All new content is procedural decision trees, numbered branch definitions, and spec cross-references — not Philosophy/Overview/Quality Standards/Safety Features/Helper Scripts. The section '## Constraints' and the QA dispatch prompt block are not new sections introduced in this diff; they were pre-existing content modified in-place (branch-number corrections). No verbose pattern section was introduced."
+    }
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex returned 4 OBSERVATION_ONLY items. None carried a PROPOSED_FIX. (1) No missed verbosity violation: commands/do.md new section is short, AC-required, and procedural; must not be counted as verbose even though it is a large percentage of the small file. (2) No false positives: draft reports no findings, no overcounting. (3) No severity misclassification: there is no qualifying verbose_lines section to threshold. (4) Draft summary in the original analysis overstates some commands/close.md additions as 'newly added branches/plumbing' when much was pre-existing content only renumbered/reworded — this is an observation, not a blocker, because the no-finding conclusion remains correct.",
+    "findings": [
+      {
+        "issue": "No missed verbosity violation found. commands/do.md new section is short, AC-required, and procedural; should not be counted as verbose even though it is a large percentage of the small file.",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Codex confirms the no-finding verdict for do.md. The section is 19 lines of procedural instruction, not a Philosophy/Overview/Quality Standards section."
+      },
+      {
+        "issue": "No false positives in the draft because it reports no findings.",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Affirmative confirmation of draft accuracy."
+      },
+      {
+        "issue": "No severity misclassification found; there is no qualifying verbose_lines section to threshold.",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Affirms that thresholds (critical>=200, major>=100, minor>=50) are correctly not triggered because verbose_lines=0."
+      },
+      {
+        "issue": "Draft summary overstates some commands/close.md additions as newly added branches/plumbing. Much of that content was pre-existing and only renumbered/reworded. This is not a blocker because the no-finding conclusion remains correct.",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Accurate observation. The analysis notes in the final report have been updated to reflect that the close.md changes are primarily renumbering of pre-existing verdict branches with targeted wording corrections, not wholesale new content. No-finding conclusion unchanged."
+      }
+    ],
+    "feedback_incorporated": "All 4 codex findings were OBSERVATION_ONLY with no PROPOSED_FIX. No changes to the no-finding verdict. Analysis notes updated to reflect that close.md changes are primarily renumbering of pre-existing verdict branches rather than wholly new content."
+  }
+}

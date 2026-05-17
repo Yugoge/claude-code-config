@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-17T17:01:45Z*
-**Total entries**: 93
+*Last updated: 2026-05-17T17:12:16Z*
+**Total entries**: 100
 **Convention**: kebab
 
 ## Tree
@@ -19,15 +19,18 @@ dev/
 ├── `ba-qa-report-20260416-073000.json` - json config
 ├── `ba-qa-report-20260517-153856.json` - json config
 ├── `ba-qa-report-20260517-155838.json` - json config
+├── `cleanliness-inspector-report-20260517-153856.json` - json config
 ├── `cleanliness-inspector-report-20260517-155838.json` - json config
 ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
 ├── `close-report-20260510-191533.md` - Close Debate Report
 ├── `close-report-20260511-094500.md` - Close Report — 20260511-094500
 ├── `close-report-20260511-180000.md` - Close Report — 20260511-180000
+├── `close-report-20260517-155838.md` - Close Debate Report
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
 ├── `completion-20260511-180000.md` - Development Completion Report — 20260511-180000
+├── `completion-20260517-153856.md` - Development Completion Report — 20260517-153856
 ├── `completion-20260517-155838.md` - Development Completion Report — 20260517-155838
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
@@ -65,6 +68,8 @@ dev/
 ├── `dev-report-dev-20260108-163807.json` - json config
 ├── `dev-report-dev-20260108-164641.json` - json config
 ├── `dev-report-dev-20260111-193314.json` - json config
+├── `prompt-inspector-report-20260517-153856.json` - json config
+├── `prompt-inspector-report-20260517-155838.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
 ├── `qa-input-dev-20260107-091716.json` - json config
@@ -95,6 +100,8 @@ dev/
 ├── `qa-report-dev-20260111-193314.json` - json config
 ├── `qa-report-iter2-dev-20260107-091716.json` - json config
 ├── `refined-context-dev-20260111-193314.json` - json config
+├── `style-inspector-report-20260517-153856.json` - json config
+├── `style-inspector-report-20260517-155838.json` - json config
 ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence
