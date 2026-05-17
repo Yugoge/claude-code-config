@@ -670,7 +670,7 @@ After all three phases complete, emit a JSON summary to stdout:
 Before exiting, verify for each agent that received checkpoints:
 
 ```bash
-python3 /root/.claude/scripts/spec-check.py status --spec-id <spec-id> --agent <agent>
+source ~/.claude/venv/bin/activate && python3 /root/.claude/scripts/spec-check.py status --spec-id <spec-id> --agent <agent>
 ```
 
 The status should show N checkpoints, all in `pending` state, with a timestamp matching your run.
