@@ -584,7 +584,7 @@ For NON-UI issues (CLI-only, server-only, refactor, dead-code-removal): the rule
 
 ### Step 1.9: User-Need Path Relevance Filter (TRIAGE only — MANDATORY per spec-20260503-091826 Section 5.5 decision #2)
 
-After Step 1.7 (Live-Evidence) and BEFORE Step 2 (Tier Classification), classify each issue's relationship to the cycle's user-need path. The user's binding directive is verbatim: "一切以用户需求为中心" — pipelines exist to land user-need; out-of-path findings are recorded but NOT pipelined.
+After Step 1.7 (Live-Evidence) and BEFORE Step 2 (Tier Classification), classify each issue's relationship to the cycle's user-need path. The user's binding directive: all work centers on user needs — pipelines exist to land user-need; out-of-path findings are recorded but NOT pipelined.
 
 **User-need-path determination, by mode**:
 - **user-provided mode** (`spec_mode == "user-provided"`): the user-need path is the cycle's `user_spec_path` Section 5 (User's Acceptance Criterion) verbatim. Read it; treat its requirements as the user_need_map. An issue is **on-path** if it intersects the files / behaviors / acceptance criteria of Section 5.
