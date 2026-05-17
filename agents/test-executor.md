@@ -198,79 +198,11 @@ For validators with `type: "instruction"`:
 
 Collect all execution results and aggregate:
 
-```python
-def aggregate_results(results: list) -> dict:
-    """Aggregate test results into summary statistics."""
-
-    total = len(results)
-    passed = sum(1 for r in results if r["execution"]["status"] == "pass")
-    failed = sum(1 for r in results if r["execution"]["status"] == "fail")
-    errors = sum(1 for r in results if r["execution"]["status"] == "error")
-
-    # Priority breakdown
-    priority_breakdown = {}
-    for priority in ["critical", "high", "medium"]:
-        priority_results = [r for r in results if r["priority"] == priority]
-        priority_breakdown[priority] = {
-            "total": len(priority_results),
-            "passed": sum(1 for r in priority_results if r["execution"]["status"] == "pass"),
-            "failed": sum(1 for r in priority_results if r["execution"]["status"] == "fail"),
-            "errors": sum(1 for r in priority_results if r["execution"]["status"] == "error")
-        }
-
-    # Edge case coverage
-    edge_cases_covered = set(r["edge_case"] for r in results if r.get("edge_case"))
-    edge_cases_passed = set(r["edge_case"] for r in results
-                           if r.get("edge_case") and r["execution"]["status"] == "pass")
-
-    return {
-        "total_tests": total,
-        "passed": passed,
-        "failed": failed,
-        "errors": errors,
-        "pass_rate": (passed / total * 100) if total > 0 else 0,
-        "priority_breakdown": priority_breakdown,
-        "edge_cases": {
-            "total_covered": len(edge_cases_covered),
-            "total_passed": len(edge_cases_passed),
-            "prevented": list(edge_cases_passed)
-        }
-    }
-```
+Count total, passed, failed, and errors. Break down by priority level (critical/high/medium). Collect sets of edge cases covered and passed. Return summary dict with counts, pass rate, priority breakdown, and edge case coverage.
 
 ### 4. Failed Test Analysis
 
-For each failed test, extract actionable information:
-
-```python
-def analyze_failed_tests(results: list) -> list:
-    """Analyze failed tests and generate recommendations."""
-
-    failed_tests = [r for r in results if r["execution"]["status"] == "fail"]
-
-    analysis = []
-    for test in failed_tests:
-        # Extract violation details
-        violations = test["result"].get("violations", [])
-        files_affected = set(v.get("file") for v in violations if v.get("file"))
-
-        # Generate recommendation
-        if len(violations) == 1:
-            recommendation = violations[0].get("recommendation", "Fix violation")
-        else:
-            recommendation = f"Fix {len(violations)} violations in {len(files_affected)} files"
-
-        analysis.append({
-            "validator": test["validator"],
-            "edge_case": test.get("edge_case"),
-            "violations_count": len(violations),
-            "files_affected": list(files_affected),
-            "severity": test["priority"],
-            "recommendation": recommendation
-        })
-
-    return analysis
-```
+For each failed test, extract violation details: count violations, collect affected files, and generate a per-test recommendation (single violation message or "Fix N violations in M files"). Return list of analysis records.
 
 ---
 
