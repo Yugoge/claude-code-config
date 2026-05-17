@@ -451,6 +451,8 @@ def _evaluate_commit(command, data):
     msg = _extract_commit_message(command)
     if msg and BLESSED_BRIDGE_RE.search(msg):
         return
+    if _check_git_allowlist(command, data):
+        return
     # Grant-file mechanism: SID-specific search first, then any-SID fallback.
     # Fallback handles subagent SID propagation gaps where changelog-analyst's
     # session_id (PreToolUse payload) differs from orchestrator's CLAUDE_SESSION_ID.
