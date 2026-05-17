@@ -113,8 +113,18 @@ Pass per-agent view paths alongside (not in place of) `spec_path` to subagents s
 
 The hook `pretool-subagent-code-block.py` blocks non-`dev` subagents from writing code files, but it needs the Claude-internal subagent UUID to be registered against an `agent_type`. Root cause of the /dev gap (see commit `e086ccb`): /dev-command sessions produce no `.claude/specs/` cp-state files, so the hook falls open and every subagent can write code. The fix is an orchestrator-provided sentinel file that the subagent reads as its FIRST ACTION; `pretool-cp-checkin.py` then writes the UUID→agent_type mapping into `.claude/dev-registry/agent-index.json`.
 
-Generate a session_id and create sentinel files for every agent type this orchestrator can launch:
+**Initialize dev-registry (hook pre-done)**:
 
+The `UserPromptSubmit` hook has already:
+1. Generated `DEV_SESSION_ID` (shown in hook output as `DEV_SESSION_ID pre-initialized by hook: …`)
+2. Created `.claude/dev-registry/<DEV_SESSION_ID>/` with per-agent sentinel files
+3. Written `docs/dev/user-requirement-<DEV_SESSION_ID>.md` with the verbatim user requirement
+4. Run `write-e2e-enforce.sh` — E2E enforcement is ACTIVE
+5. Run `write-codex-enforce.sh` (if `--codex` was passed)
+
+**Read `DEV_SESSION_ID` from the hook output above.** Store it for use in every Agent launch prompt below.
+
+**Fallback** (if hook output absent):
 ```bash
 DEV_SESSION_ID="dev-command-$(date +%Y%m%d-%H%M%S)"
 REGISTRY_DIR="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID"
@@ -128,43 +138,14 @@ for agent in \
 done
 ```
 
-**Write verbatim user requirement document** (MANDATORY — do this before any Agent dispatch):
+**Write verbatim user requirement document** (hook pre-done): The hook has already written `docs/dev/user-requirement-<DEV_SESSION_ID>.md` with the verbatim user requirement. Read `User requirement document:` from the hook output to get the path. **Fallback** (if hook absent): write the file manually per the bash heredoc pattern in the dev.md fallback block.
 
-```bash
-mkdir -p "$CLAUDE_PROJECT_DIR/docs/dev"
-REQUIREMENT_DOC="$CLAUDE_PROJECT_DIR/docs/dev/user-requirement-${DEV_SESSION_ID}.md"
-cat <<'REQEOF' > "$REQUIREMENT_DOC" || { echo "ERROR: Failed to write user requirement document — aborting." >&2; exit 1; }
-<verbatim stripped $ARGUMENTS text from Step 1 — paste literal text here, no shell variables inside heredoc>
-REQEOF
-```
-
-This document is the source-of-truth anchor for the entire session. Every subagent reads it before interpreting any derived context or spec. Use a single-quoted heredoc delimiter (`'REQEOF'`) so `$`, backticks, and shell metacharacters are never expanded. When including this path in dispatch prompts, always substitute the resolved value of `$REQUIREMENT_DOC` — MUST NOT pass literal `<DEV_SESSION_ID>` or `<REQUIREMENT_DOC>` placeholders to subagents.
-
-**E2E enforcement activation** (unconditional — always runs regardless of --codex flag):
+**E2E and Codex enforcement** (hook pre-done): The hook has already called `write-e2e-enforce.sh` and (if `--codex`) `write-codex-enforce.sh`. Both enforce flags are active. **Fallback** (if hook absent): call the scripts manually:
 ```bash
 scripts/write-e2e-enforce.sh --source-command dev-command --session-id $DEV_SESSION_ID
+# Only when --codex:
+# scripts/write-codex-enforce.sh --source-command dev-command --session-id $DEV_SESSION_ID
 ```
-If it exits non-zero, the orchestrator MUST abort — E2E enforcement could not be activated.
-
-**Codex enforcement flag** (only when `codex_required = true`): Now that `$DEV_SESSION_ID` is defined above, write the enforcement flag so the SubagentStop hook can physically block ba/dev/qa agents that did not call codex:
-
-```bash
-# Must run AFTER DEV_SESSION_ID is generated above.
-ENFORCE_FLAG="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/codex-enforce.json"
-printf '{
-  "schema_version": 1,
-  "enabled": true,
-  "source_command": "dev-command",
-  "dev_session_id": "%s",
-  "claude_session_id": "%s",
-  "enforced_agent_types": ["ba", "dev", "qa"],
-  "created_at": "%s"
-}\n' "$DEV_SESSION_ID" "${CLAUDE_SESSION_ID:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  > "$ENFORCE_FLAG" \
-  || { echo "ERROR: Failed to write codex-enforce.json at $ENFORCE_FLAG — aborting. Cannot proceed without enforcement flag." >&2; exit 1; }
-```
-
-If the write fails, the orchestrator MUST abort with the error message above and NOT silently proceed. Continuing without the flag would create a false impression that enforcement is active.
 
 Store `$DEV_SESSION_ID` for use in every Agent launch prompt below. Every Agent launch prompt MUST begin with a `FIRST ACTION` line instructing the subagent to `Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/<agent>.json` before any other tool call. Without that Read, the enforcement hook will fail open for that subagent.
 
