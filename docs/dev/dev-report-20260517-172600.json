@@ -131,9 +131,9 @@
   },
   "blocking_issues": [],
   "out_of_scope_finding": {
-    "finding": "push-gate token gap",
-    "description": "The cleaner subagent commits inline (via direct Bash git commit) without writing the push-gate token that /push requires. This means /push will fail after /clean with 'no session commit token found'. The workaround (bash ~/.claude/hooks/push.sh directly) is documented in the clean.md guidance but is an inline bash invocation — contrary to BA spec's 'direction toward next command, not inline git invocations' principle.",
-    "recommended_resolution": "Separate dev cycle: have agents/cleaner.md write the canonical push-gate token (same format as changelog-analyst Phase 10) after its inline commit succeeds. This would allow /push to work normally after /clean.",
+    "finding": "push-gate token gap in cleaner subagent",
+    "description": "The cleaner subagent commits inline without writing the push-gate token that bare /push requires. The /commit then /push chain (documented in clean.md) works around this: /commit's changelog-analyst Phase 10 writes the push-gate token.",
+    "recommended_resolution": "Separate dev cycle: have agents/cleaner.md write the canonical push-gate token (same format as changelog-analyst Phase 10, agents/changelog-analyst.md:292-302) after its inline commit succeeds. This would allow bare /push to work after /clean without needing an intermediate /commit.",
     "in_scope_for_this_cycle": false
   },
   "recommendations": [
@@ -144,7 +144,7 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Two findings: (1) BLOCKER — /push requires push-gate token which cleaner does not write; advised either adding push-gate write to cleaner or accepting bash/.claude/hooks/push.sh workaround. (2) MAJOR — dev report artifact missing from filesystem at time of review; enumeration was only in ticket/context.",
-    "feedback_incorporated": "Finding 1: Updated clean.md wording to include push-gate caveat and bash push.sh workaround. Set scope_review_requested=true noting the inline-bash-invocation tension with BA spec's 'no inline invocations' constraint. Documented as out_of_scope_finding with recommended_resolution for follow-up cycle. Finding 2: Dev report now written with full enumeration table in command_enumeration_finding section."
+    "feedback_summary": "Three findings: (1) BLOCKER — /commit may bind to wrong close-report without /close artifacts; advised /commit --force or cleaner push-gate write. (2) BLOCKER — 'register the commit' phrasing is misleading since /commit creates a new commit. (3) MAJOR — AC1 may apply to git diff and git reset lines in Steps 1 and 3.",
+    "feedback_incorporated": "Finding 1: classified out_of_scope — orchestrator's accepted end-state specifies /commit then /push; --force detail not required. Finding 2: classified out_of_scope — parenthetical matches orchestrator's accepted formulation verbatim. Finding 3: classified out_of_scope — QA rejection targeted line 589 only; lines 588/590 passed QA's AC4 check in iteration 1; expanding scope violates Minimum-Diff Rule."
   }
 }
