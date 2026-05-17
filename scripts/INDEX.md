@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-16T06:43:42Z*
-**Total entries**: 63
+*Last updated: 2026-05-17T09:34:33Z*
+**Total entries**: 64
 **Convention**: kebab
 
 ## Tree
@@ -69,7 +69,8 @@ scripts/
 ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 ├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
-└── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+├── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+└── `write-qa-mode.sh` - Write or update qa_mode field in the QA sentinel file for a dev-registry session.
 ```
 
 ---

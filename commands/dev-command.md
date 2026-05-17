@@ -399,13 +399,8 @@ Read BA output files:
 **Before dispatching QA, write qa_mode sentinel**:
 
 ```bash
-python3 -c "
-import json
-p = '$REGISTRY_DIR/qa.json'
-d = json.load(open(p))
-d['qa_mode'] = 'ba_validation'
-json.dump(d, open(p, 'w'))
-" || { echo 'ERROR: Failed to set qa_mode=ba_validation in qa.json — aborting' >&2; exit 1; }
+bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode ba_validation \
+  || { echo 'ERROR: Failed to set qa_mode=ba_validation in qa.json — aborting' >&2; exit 1; }
 ```
 
 **Invoke QA in BA-validation mode**:
@@ -591,13 +586,8 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 **Before dispatching QA, write qa_mode sentinel**:
 
 ```bash
-python3 -c "
-import json
-p = '$REGISTRY_DIR/qa.json'
-d = json.load(open(p))
-d['qa_mode'] = 'final_verification'
-json.dump(d, open(p, 'w'))
-" || { echo 'ERROR: Failed to set qa_mode=final_verification in qa.json — aborting' >&2; exit 1; }
+bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode final_verification \
+  || { echo 'ERROR: Failed to set qa_mode=final_verification in qa.json — aborting' >&2; exit 1; }
 ```
 
 **Use Task tool to invoke QA subagent with file paths only**:
