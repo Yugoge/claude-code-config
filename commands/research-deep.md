@@ -48,53 +48,7 @@ Review all gathered information and identify:
 If significant gaps exist, execute 2-3 more targeted searches.
 
 ### Phase 6: Synthesis & Report Generation
-Compile comprehensive research report:
-
-```markdown
-## Deep Research Report: $ARGUMENTS
-
-### Executive Summary
-[2-3 paragraph synthesis of key findings]
-
-### Main Findings
-1. **[Key Finding 1]**
-   - Evidence: [...]
-   - Sources: [URL1, URL2]
-   - Confidence: High/Medium/Low
-
-2. **[Key Finding 2]**
-   - Evidence: [...]
-   - Sources: [URL3, URL4]
-   - Confidence: High/Medium/Low
-
-[Continue for 5-7 key findings]
-
-### Detailed Analysis
-#### [Sub-topic 1]
-[Detailed analysis with citations]
-
-#### [Sub-topic 2]
-[Detailed analysis with citations]
-
-### Contrarian Viewpoints
-[List alternative perspectives or criticisms found]
-
-### Information Gaps
-[What remains unclear or needs more research]
-
-### Sources Used
-1. [Title] - [URL] - [Date] - [Credibility: High/Medium/Low]
-2. [...]
-
-### Research Metadata
-- Total searches: [N]
-- Sources analyzed: [N]
-- Time period covered: [...]
-- Last updated: [Date]
-
-### Recommendations
-[Actionable insights or next steps based on findings]
-```
+Compile a comprehensive report covering: executive summary (2-3 paragraphs), main findings (5-7) each with evidence/sources/confidence, per-sub-topic detailed analysis, contrarian viewpoints, information gaps, full sources list with credibility, research metadata (searches/sources/time period), and recommendations.
 
 ## Execution Guidelines
 1. **Total searches: 15-20** (adjust based on complexity)

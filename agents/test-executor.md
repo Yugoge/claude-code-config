@@ -43,13 +43,13 @@ You receive JSON context with this structure:
     "validators": [
       {
         "type": "script",
-        "path": "test/scripts/validate-venv-usage.py",
+        "path": "tests/scripts/validate-venv-usage.py",
         "edge_case": "EC002",
         "priority": "critical"
       },
       {
         "type": "instruction",
-        "path": "test/instructions/claude-md-protection.md",
+        "path": "tests/instructions/claude-md-protection.md",
         "edge_case": "EC001",
         "priority": "high"
       }
@@ -58,7 +58,7 @@ You receive JSON context with this structure:
   "parameters": {
     "fail_fast": false,
     "verbose": true,
-    "report_path": "test/reports/execution-report-{REQUEST_ID}.json"
+    "report_path": "tests/reports/execution-report-{REQUEST_ID}.json"
   },
   "validation_report": {
     "status": "pass",
@@ -77,34 +77,13 @@ You receive JSON context with this structure:
 For validators with `type: "script"`:
 
 **Execution command**:
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
 
-VALIDATOR_PATH="$1"
-PROJECT_ROOT="$2"
-VENV_PATH="$3"
-
-# Activate venv
-source "$VENV_PATH/bin/activate"
-
-# Execute validator and capture output
-OUTPUT=$(python3 "$VALIDATOR_PATH" --project-root "$PROJECT_ROOT" 2>&1)
-EXIT_CODE=$?
-
-# Deactivate venv
-deactivate
-
-# Parse JSON output
-echo "$OUTPUT" | jq .
-
-exit $EXIT_CODE
-```
+Activate the venv, run the validator script with `--project-root`, capture stdout (JSON) and stderr (errors), then deactivate. Parse the JSON output to determine pass/fail status.
 
 **Execution steps**:
 
 1. **Activate venv**: `source ~/.claude/venv/bin/activate`
-2. **Execute validator**: `python3 test/scripts/validate-venv-usage.py --project-root /path/to/project`
+2. **Execute validator**: `python3 tests/scripts/validate-venv-usage.py --project-root /path/to/project`
 3. **Capture stdout**: JSON output from validator
 4. **Capture stderr**: Error messages if any
 5. **Capture exit code**: 0 (pass), 1 (fail), other (error)
@@ -114,34 +93,7 @@ exit $EXIT_CODE
 
 **Error handling**:
 
-```python
-try:
-    result = subprocess.run(
-        f"source {venv_path}/bin/activate && python3 {validator_path} --project-root {project_root}",
-        shell=True,
-        capture_output=True,
-        text=True,
-        timeout=30  # 30 second timeout
-    )
-
-    # Try to parse JSON output
-    try:
-        output_json = json.loads(result.stdout)
-        status = "pass" if result.returncode == 0 else "fail"
-    except json.JSONDecodeError:
-        output_json = {"error": "Invalid JSON output", "raw_output": result.stdout}
-        status = "error"
-
-except subprocess.TimeoutExpired:
-    output_json = {"error": "Validator timed out after 30 seconds"}
-    status = "error"
-    result.returncode = 2
-
-except Exception as e:
-    output_json = {"error": str(e)}
-    status = "error"
-    result.returncode = 2
-```
+Run the validator via subprocess with a 30-second timeout. Parse JSON from stdout; on timeout or exception, set status to "error". On JSON decode failure, capture raw output.
 
 **Result format**:
 ```json
@@ -176,7 +128,7 @@ For validators with `type: "instruction"`:
 
 **Execution steps**:
 
-1. **Read instruction file**: `test/instructions/claude-md-protection.md`
+1. **Read instruction file**: `tests/instructions/claude-md-protection.md`
 2. **Parse instruction structure**:
    - Extract edge case reference
    - Extract purpose
@@ -184,42 +136,11 @@ For validators with `type: "instruction"`:
    - Extract validation criteria
    - Extract output format
 
-3. **Gather context files**:
-   ```python
-   context_files = instruction["context_files"]
-   context_data = {}
-   for file in context_files:
-       with open(project_root / file) as f:
-           context_data[file] = f.read()
-   ```
+3. **Gather context files**: Read each file listed in `instruction["context_files"]` from the project root into a context dictionary.
 
-4. **Apply validation criteria**:
-   ```markdown
-   ## Validation Criteria
-   - [ ] CLAUDE.md explicitly listed in official files allow-list
-   - [ ] README.md explicitly listed in official files allow-list
-   - [ ] ARCHITECTURE.md explicitly listed in official files allow-list
-   ```
+4. **Apply validation criteria**: Check each criterion from the instruction against the context data. Collect pass/fail and violations per criterion.
 
-   Check each criterion systematically:
-   ```python
-   criteria_results = []
-   for criterion in instruction["validation_criteria"]:
-       result = check_criterion(criterion, context_data)
-       criteria_results.append({
-           "criterion": criterion,
-           "passed": result["passed"],
-           "violations": result["violations"]
-       })
-   ```
-
-5. **Identify violations**:
-   ```python
-   violations = []
-   for criterion_result in criteria_results:
-       if not criterion_result["passed"]:
-           violations.extend(criterion_result["violations"])
-   ```
+5. **Identify violations**: Collect all violations from failed criteria.
 
 6. **Generate report**:
    ```json
@@ -247,7 +168,7 @@ For validators with `type: "instruction"`:
    }
    ```
 
-7. **Write report to file**: `test/reports/claude-md-protection-report-{timestamp}.json`
+7. **Write report to file**: `tests/reports/claude-md-protection-report-{timestamp}.json`
 
 8. **Record execution result**:
    ```json
@@ -271,110 +192,17 @@ For validators with `type: "instruction"`:
    }
    ```
 
-**Error handling**:
-
-```python
-try:
-    # Read instruction
-    instruction = parse_instruction(instruction_path)
-
-    # Gather context
-    context_data = gather_context_files(instruction["context_files"], project_root)
-
-    # Validate criteria
-    findings = []
-    for criterion in instruction["validation_criteria"]:
-        result = validate_criterion(criterion, context_data)
-        findings.extend(result["violations"])
-
-    status = "pass" if not findings else "fail"
-
-except FileNotFoundError as e:
-    findings = [{"error": f"Context file not found: {e}"}]
-    status = "error"
-
-except Exception as e:
-    findings = [{"error": f"Execution error: {e}"}]
-    status = "error"
-```
+**Error handling**: On FileNotFoundError, record the missing context file as an error. On any other exception, record the error message. Set status to "error" in both cases.
 
 ### 3. Result Aggregation
 
 Collect all execution results and aggregate:
 
-```python
-def aggregate_results(results: list) -> dict:
-    """Aggregate test results into summary statistics."""
-
-    total = len(results)
-    passed = sum(1 for r in results if r["execution"]["status"] == "pass")
-    failed = sum(1 for r in results if r["execution"]["status"] == "fail")
-    errors = sum(1 for r in results if r["execution"]["status"] == "error")
-
-    # Priority breakdown
-    priority_breakdown = {}
-    for priority in ["critical", "high", "medium"]:
-        priority_results = [r for r in results if r["priority"] == priority]
-        priority_breakdown[priority] = {
-            "total": len(priority_results),
-            "passed": sum(1 for r in priority_results if r["execution"]["status"] == "pass"),
-            "failed": sum(1 for r in priority_results if r["execution"]["status"] == "fail"),
-            "errors": sum(1 for r in priority_results if r["execution"]["status"] == "error")
-        }
-
-    # Edge case coverage
-    edge_cases_covered = set(r["edge_case"] for r in results if r.get("edge_case"))
-    edge_cases_passed = set(r["edge_case"] for r in results
-                           if r.get("edge_case") and r["execution"]["status"] == "pass")
-
-    return {
-        "total_tests": total,
-        "passed": passed,
-        "failed": failed,
-        "errors": errors,
-        "pass_rate": (passed / total * 100) if total > 0 else 0,
-        "priority_breakdown": priority_breakdown,
-        "edge_cases": {
-            "total_covered": len(edge_cases_covered),
-            "total_passed": len(edge_cases_passed),
-            "prevented": list(edge_cases_passed)
-        }
-    }
-```
+Count total, passed, failed, and errors. Break down by priority level (critical/high/medium). Collect sets of edge cases covered and passed. Return summary dict with counts, pass rate, priority breakdown, and edge case coverage.
 
 ### 4. Failed Test Analysis
 
-For each failed test, extract actionable information:
-
-```python
-def analyze_failed_tests(results: list) -> list:
-    """Analyze failed tests and generate recommendations."""
-
-    failed_tests = [r for r in results if r["execution"]["status"] == "fail"]
-
-    analysis = []
-    for test in failed_tests:
-        # Extract violation details
-        violations = test["result"].get("violations", [])
-        files_affected = set(v.get("file") for v in violations if v.get("file"))
-
-        # Generate recommendation
-        if len(violations) == 1:
-            recommendation = violations[0].get("recommendation", "Fix violation")
-        else:
-            recommendation = f"Fix {len(violations)} violations in {len(files_affected)} files"
-
-        analysis.append({
-            "validator": test["validator"],
-            "edge_case": test.get("edge_case"),
-            "violations_count": len(violations),
-            "files_affected": list(files_affected),
-            "severity": test["priority"],
-            "recommendation": recommendation
-        })
-
-    return analysis
-```
+For each failed test, extract violation details: count violations, collect affected files, and generate a per-test recommendation (single violation message or "Fix N violations in M files"). Return list of analysis records.
 
 ---
 
@@ -458,7 +286,7 @@ Return execution report as JSON:
 }
 ```
 
-Save to: `test/reports/execution-report-{REQUEST_ID}.json`
+Save to: `tests/reports/execution-report-{REQUEST_ID}.json`
 
 ---
 
@@ -482,38 +310,15 @@ Before returning execution report:
 
 ### Standard Mode (fail_fast=false)
 
-Execute all validators regardless of failures:
-
-```python
-for validator in validators:
-    result = execute_validator(validator)
-    results.append(result)
-    # Continue even if failed
-```
+Execute all validators regardless of failures. Collect all results before returning the report.
 
 ### Fail-Fast Mode (fail_fast=true)
 
-Stop on first critical failure:
-
-```python
-for validator in validators:
-    result = execute_validator(validator)
-    results.append(result)
-
-    if result["priority"] == "critical" and result["execution"]["status"] == "fail":
-        status = "partial"
-        break
-```
+Stop on first critical failure: execute validators in order; when a critical-priority validator fails, set status to "partial" and stop.
 
 ### Verbose Mode (verbose=true)
 
-Output progress to stderr during execution:
-
-```bash
-echo "Running validator 1/10: validate-venv-usage..." >&2
-# Execute validator
-echo "✓ Completed in 1.2s" >&2
-```
+Output progress to stderr during execution: log each validator name and index before running it, then log completion time after.
 
 ---
 
@@ -554,10 +359,7 @@ python3 -c "import sys; print(sys.prefix)"
 
 **Symptoms**: Validator killed after 30 seconds
 
-**Diagnosis**: Check validator performance
-```bash
-time python3 test/scripts/validate-xxx.py --project-root .
-```
+**Diagnosis**: Check validator performance: `source ~/.claude/venv/bin/activate && time python3 tests/scripts/validate-xxx.py --project-root .`
 
 **Fix**:
 - Optimize validator (reduce file scanning)
@@ -568,10 +370,7 @@ time python3 test/scripts/validate-xxx.py --project-root .
 
 **Symptoms**: "Invalid JSON output" in execution result
 
-**Diagnosis**: Check raw output
-```bash
-python3 test/scripts/validate-xxx.py --project-root . 2>&1 | head -20
-```
+**Diagnosis**: Check raw output: `source ~/.claude/venv/bin/activate && python3 tests/scripts/validate-xxx.py --project-root . 2>&1 | head -20`
 
 **Fix**:
 - Ensure validator prints ONLY JSON to stdout
@@ -589,69 +388,7 @@ python3 test/scripts/validate-xxx.py --project-root . 2>&1 | head -20
 - Ensure criteria are objective, not subjective
 - Add more specific patterns to match
 
----
-
-## Best Practices
-
-### For Execution Efficiency
-
-1. **Run critical tests first**: Fail fast on critical issues
-2. **Parallel execution** (future): Run independent validators in parallel
-3. **Cache results**: Don't re-run validators if files unchanged
-4. **Skip disabled**: Allow validators to be disabled temporarily
-
-### For Result Quality
-
-1. **Capture complete context**: Include validator output, exit code, timing
-2. **Distinguish error types**: Syntax error vs validation failure vs timeout
-3. **Provide recommendations**: Don't just report failures, suggest fixes
-4. **Calculate metrics**: Pass rate, edge case coverage, priority breakdown
-
-### For User Experience
-
-1. **Progress feedback**: Show which validator is running
-2. **Clear error messages**: Explain what went wrong and how to fix
-3. **Structured output**: JSON for machines, markdown for humans
-4. **Quick summary**: Show pass/fail counts upfront
-
----
-
-## Example End-to-End Execution
-
-**Input**: 10 validators (8 script-based, 2 instruction-based)
-
-**Execution process**:
-
-1. **Initialize**: Set up timing, activate venv
-2. **Execute scripts** (8 validators):
-   - validate-venv-usage.py → FAIL (3 violations)
-   - validate-step-numbering.py → PASS
-   - validate-todowrite-requirement.py → PASS
-   - validate-chinese-content.py → PASS
-   - validate-claude-md-protection.py → FAIL (1 violation)
-   - validate-file-naming.py → PASS
-   - validate-debug-file-age.py → PASS
-   - validate-optionality-language.py → PASS
-
-3. **Execute instructions** (2 validators):
-   - claude-md-protection.md → (Covered by script above, skip)
-   - workflow-json-cleanup.md → PASS
-
-4. **Aggregate results**:
-   - Total: 10 tests
-   - Passed: 8
-   - Failed: 2
-   - Pass rate: 80%
-
-5. **Generate report**: Write JSON with detailed results
-
-6. **Return status**: "completed" (all tests attempted)
-
-**Output**: Execution report with 2 failed tests requiring fixes
-
----
-
-**Remember**: You execute tests systematically. You capture all results. You distinguish errors from failures. You provide actionable recommendations for every failure.
+**Remember**: Execute tests systematically. Capture all results. Distinguish errors from failures. Provide actionable recommendations for every failure.
 
 ---
 

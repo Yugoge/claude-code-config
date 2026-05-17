@@ -64,10 +64,7 @@ You receive JSON context with this structure:
 
 For script-based validators (`validate-*.py`):
 
-**Python syntax check**:
-```bash
-python3 -m py_compile tests/scripts/validate-venv-usage.py
-```
+**Python syntax check**: `source ~/.claude/venv/bin/activate && python3 -m py_compile tests/scripts/validate-venv-usage.py`
 
 **Checks**:
 - [ ] File parses without syntax errors
@@ -83,36 +80,7 @@ python3 -m py_compile tests/scripts/validate-venv-usage.py
 
 ### 2. Dependency Validation
 
-**Check imports available**:
-```python
-import ast
-import sys
-from pathlib import Path
-
-def check_imports(script_path: Path, venv_path: Path) -> list:
-    """Check if all imports in script are available in venv."""
-    with open(script_path) as f:
-        tree = ast.parse(f.read())
-
-    imports = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imports.extend(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom):
-            imports.append(node.module)
-
-    # Activate venv and check each import
-    missing = []
-    for imp in imports:
-        result = subprocess.run(
-            f"source {venv_path}/bin/activate && python3 -c 'import {imp}'",
-            shell=True, capture_output=True
-        )
-        if result.returncode != 0:
-            missing.append(imp)
-
-    return missing
-```
+**Check imports available**: Parse the script with ast to extract all import names. For each import, activate the venv and attempt to import it. Return a list of missing (unavailable) imports.
 
 **Checks**:
 - [ ] All imports available in venv
@@ -127,32 +95,11 @@ def check_imports(script_path: Path, venv_path: Path) -> list:
 
 ### 3. Quality Validation
 
-**Argparse check**:
-```python
-def has_argparse(script_path: Path) -> bool:
-    """Check if script uses argparse for CLI."""
-    with open(script_path) as f:
-        content = f.read()
-    return "argparse" in content and "--project-root" in content
-```
+**Argparse check**: Read script source; verify it contains both "argparse" and "--project-root".
 
-**JSON output check**:
-```python
-def has_json_output(script_path: Path) -> bool:
-    """Check if script outputs JSON."""
-    with open(script_path) as f:
-        content = f.read()
-    return "json.dumps" in content or "json.dump" in content
-```
+**JSON output check**: Read script source; verify it contains "json.dumps" or "json.dump".
 
-**Exit code check**:
-```python
-def has_exit_codes(script_path: Path) -> bool:
-    """Check if script uses proper exit codes."""
-    with open(script_path) as f:
-        content = f.read()
-    return "sys.exit(0)" in content and "sys.exit(1)" in content
-```
+**Exit code check**: Read script source; verify it contains both "sys.exit(0)" and "sys.exit(1)".
 
 **Checks**:
 - [ ] Uses argparse with `--project-root` parameter
@@ -171,28 +118,9 @@ def has_exit_codes(script_path: Path) -> bool:
 
 ### 4. Edge Case Coverage Validation
 
-**Read edge case analysis**:
-```bash
-cat docs/test/edge-case-analysis.json | jq '.edge_cases[] | {id, title, root_cause}'
-```
+**Read edge case analysis**: Read `docs/test/edge-case-analysis.json` and extract edge case IDs, titles, and root causes.
 
-**Verify validator maps to edge case**:
-```python
-def validate_edge_case_coverage(validators: list, edge_cases: list) -> dict:
-    """Check if validators cover all edge cases."""
-    edge_case_ids = {ec["id"] for ec in edge_cases}
-    covered_ids = {v["edge_case"] for v in validators if v.get("edge_case")}
-
-    uncovered = edge_case_ids - covered_ids
-    extra = covered_ids - edge_case_ids
-
-    return {
-        "total_edge_cases": len(edge_case_ids),
-        "covered": len(covered_ids),
-        "uncovered": list(uncovered),
-        "extra_validators": list(extra)
-    }
-```
+**Verify validator maps to edge case**: Compare the set of edge case IDs from the analysis against the set of edge cases covered by validators. Report uncovered edge cases and any validators referencing non-existent edge cases.
 
 **Checks**:
 - [ ] Validator header documents edge case ID (EC001-EC008)
@@ -366,42 +294,6 @@ You are responsible for Step 5 only.
 
 ---
 
-## Example Validation Execution
-
-**Input context**: 10 validators to validate
-
-**Your process**:
-
-1. **Syntax validation**: Check each Python script parses
-   - `validate-venv-usage.py` → PASS
-   - `validate-step-numbering.py` → FAIL (syntax error line 42)
-
-2. **Dependency validation**: Check imports available
-   - `validate-chinese-content.py` → FAIL (missing regex)
-   - All others → PASS
-
-3. **Quality validation**: Check argparse, JSON, exit codes
-   - `validate-optionality-language.py` → WARNING (no --project-root)
-   - All others → PASS
-
-4. **Edge case coverage**: Check all 8 edge cases covered
-   - EC001-EC008 all have validators → PASS
-
-5. **Generate report**: Status = FAIL (2 critical issues)
-
-6. **Blocking issues**:
-   - Syntax error in validate-step-numbering.py
-   - Missing dependency in validate-chinese-content.py
-
-7. **Recommendations**:
-   - Fix syntax at line 42
-   - Install regex: pip install regex
-   - Add --project-root to validate-optionality-language.py
-
-**Output**: Validation report JSON with status="fail" and blocking issues
-
----
-
 ## Troubleshooting
 
 ### False Positives in Syntax Check
@@ -422,34 +314,7 @@ You are responsible for Step 5 only.
 - Simple validators may not need all features
 - Document exceptions in validation report
 
----
-
-## Best Practices
-
-### For Validator Authors
-
-Create validators that pass validation by:
-
-1. **Use argparse** with `--project-root` parameter
-2. **Output JSON** to stdout using `json.dumps()`
-3. **Return exit codes** 0 (pass) or 1 (fail)
-4. **Handle errors** with try/except blocks
-5. **Document edge case** in docstring and header comment
-6. **Write docstrings** for module and functions
-7. **Test locally** before committing
-
-### For Validation Specialists
-
-Validate thoroughly but:
-
-1. **Distinguish critical vs minor** - Don't block for style issues
-2. **Provide actionable recommendations** - Tell how to fix, not just what's wrong
-3. **Check edge case mapping** - Ensure validator prevents documented pattern
-4. **Verify example violations** - Test validator catches what it claims to catch
-
----
-
-**Remember**: You validate before execution. You prevent broken tests from running. You ensure quality of validation infrastructure. You provide clear guidance for fixing issues.
+**Remember**: Validate before execution. Prevent broken tests from running. Provide clear guidance for fixing issues.
 
 ---
 

@@ -36,7 +36,7 @@ The `/spec` command passes you:
 ### Step 1: Read the monolith
 
 Read `docs/dev/specs/<spec-id>.md` in full. Identify:
-- What roles/agents does the spec mention? (e.g., "UI设计师", "BA", "dev", "QA", "architect", "product-owner", "cleaner", "test-executor")
+- What roles/agents does the spec mention? (e.g., "UI designer", "BA", "dev", "QA", "architect", "product-owner", "cleaner", "test-executor")
 - What is the workflow? (e.g., "UI → BA → Dev → QA" means only those 4 agents)
 - What kind of work is this? (design-only? full-stack? docs-only?)
 
@@ -356,7 +356,7 @@ Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with the sections below i
 
 ## Pipeline Workflow
 
-<verbatim content blocks from the monolith that define the role split and pipeline stages (e.g., Hard Rule about "UI设计师统筹设计构思图形和动效的表述，BA设计代码实现，dev实现，QA验证"). Quote the monolith — do NOT synthesize a "Per-Cycle Steps" list or "Prompt Templates" block.>
+<verbatim content blocks from the monolith that define the role split and pipeline stages (e.g., Hard Rule about "UI designer coordinates design concepts, graphics, and animations; BA designs code implementation; dev implements; QA verifies"). Quote the monolith — do NOT synthesize a "Per-Cycle Steps" list or "Prompt Templates" block.>
 
 ---
 
@@ -408,104 +408,13 @@ Only the `## Agent Relevance Analysis` table, `## Views Created` list, and `## M
 
 ### Step 5: Write manifest.json
 
-Write `docs/dev/specs/<spec-id>/views/manifest.json` using a Python stanza with fcntl.LOCK_EX:
-
-```bash
-python3 - <<'PY'
-import json, os, fcntl, hashlib
-from datetime import datetime, timezone
-
-spec_id = "<spec-id>"
-monolith_path = "<monolith-path>"
-
-with open(monolith_path, "rb") as f:
-    content = f.read()
-    sha = hashlib.sha256(content).hexdigest()
-    byte_count = len(content)
-    line_count = content.count(b"\n")
-
-# Detect sections present
-text = content.decode("utf-8", errors="replace")
-import re
-sections = {}
-for m in re.finditer(r'^## (?:Section |S\s*)(\d+)', text, re.MULTILINE):
-    sections[f"S{m.group(1)}"] = True
-
-manifest = {
-    "schema_version": 1,
-    "spec_id": spec_id,
-    "monolith_path": monolith_path,
-    "monolith_sha256": sha,
-    "monolith_bytes": byte_count,
-    "monolith_lines": line_count,
-    "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
-    "agent_relevance": <AGENT_RELEVANCE_DICT>,
-    "views": {
-        # Only include agents that got views
-        # e.g. "ba": "spec-xxx/views/ba.md",
-        <VIEWS_DICT>
-    },
-    "sections_present": sections
-}
-
-manifest_path = f"docs/dev/specs/{spec_id}/views/manifest.json"
-lock_path = manifest_path + ".lock"
-with open(lock_path, "w") as lh:
-    fcntl.flock(lh.fileno(), fcntl.LOCK_EX)
-    with open(manifest_path, "w") as f:
-        json.dump(manifest, f, indent=2)
-    fcntl.flock(lh.fileno(), fcntl.LOCK_UN)
-print(f"Manifest written: {manifest_path}")
-PY
-```
-
-Replace `<AGENT_RELEVANCE_DICT>` with the actual dict from Phase 0, and `<VIEWS_DICT>` with only the agents that received views plus orchestrator.
+Write `docs/dev/specs/<spec-id>/views/manifest.json`. Use fcntl.LOCK_EX for atomic write. The manifest includes: schema_version, spec_id, monolith_path, sha256 hash of the monolith, byte count, line count, created_at timestamp, agent_relevance dict from Phase 0, views dict (only agents that received views), and sections_present dict detected by scanning for `## Section N` / `## SN` headings in the monolith. Activate the venv before running Python (`source ~/.claude/venv/bin/activate`).
 
 ### Step 6: Verbatim self-verification
 
 After writing EACH view file (including orchestrator.md), verify the verbatim constraint. Under the tightened rule, every non-blank line that is NOT a section title (##/###/####), view-header scaffolding, or `---` separator must be a byte-for-byte substring of the monolith. Blockquote lines (`> ...`) pass when the quoted text (after stripping `> `) is a verbatim monolith substring.
 
-```bash
-python3 -c "
-import sys, re
-monolith = open('$MONOLITH_PATH', encoding='utf-8').read()
-with open('$VIEW_PATH', encoding='utf-8') as f:
-    lines = f.readlines()
-# Whitelist: section titles + view-header scaffolding + '---' separators
-WHITELIST = [
-    re.compile(r'^<!--\s*AUTO-GENERATED\b.*-->\s*$'),
-    re.compile(r'^#\s+\S.*\s+view of\s+\S+\s*$'),
-    re.compile(r'^\*\*Monolith\*\*:\s+.+$'),
-    re.compile(r'^\*\*Extraction\*\*:\s+.+$'),
-    re.compile(r'^---\s*$'),
-    re.compile(r'^#{2,4}\s+\S.*$'),
-]
-in_header = True
-failures = []
-for i, line in enumerate(lines, 1):
-    stripped = line.rstrip('\n').rstrip()
-    if in_header:
-        if stripped == '---' and i > 3:
-            in_header = False
-        continue
-    if not stripped:
-        continue
-    if any(p.match(stripped) for p in WHITELIST):
-        continue
-    # Strip '> ' blockquote prefix for verbatim check
-    candidate = stripped[2:].rstrip() if stripped.startswith('> ') else ('' if stripped == '>' else stripped)
-    if candidate and candidate not in monolith:
-        failures.append((i, stripped[:80]))
-if failures:
-    print(f'FAIL: {len(failures)} non-verbatim lines')
-    for ln, text in failures[:5]:
-        print(f'  line {ln}: {text}')
-    sys.exit(1)
-else:
-    print('PASS: all content lines are verbatim substrings')
-    sys.exit(0)
-"
-```
+Activate the venv and run a Python verbatim-check: read the monolith and view file, skip the view header (up to the first `---` after line 3), skip blank lines and whitelisted patterns (AUTO-GENERATED comments, view title lines, `**Monolith**:`, `**Extraction**:`, `---`, section headings). For blockquote lines, strip the `> ` prefix before checking. Every remaining line must be a byte-for-byte substring of the monolith; failures are collected with line numbers. Exit 1 if any failures, exit 0 if all pass.
 
 **On failure**: If verification fails for any agent's view (exit code 1):
 1. Log a warning: `"WARNING: verbatim check failed for <agent>.md — retrying extraction"`
@@ -523,7 +432,7 @@ exiting if coverage < 100%. You cannot skip this -- fix the coverage first.
 After ALL views are written, run the coverage verification script:
 
 ```bash
-python3 /root/bin/spec-verify.py --monolith "$MONOLITH_PATH" --views-dir "docs/dev/specs/<spec-id>/views/"
+source ~/.claude/venv/bin/activate && python3 "${CLAUDE_PROJECT_DIR}/bin/spec-verify.py" --monolith "$MONOLITH_PATH" --views-dir "docs/dev/specs/<spec-id>/views/"
 ```
 
 This checks that every non-blank, non-separator line from the monolith appears in at least one view file. If it exits non-zero (coverage < 100%):
@@ -580,7 +489,7 @@ If after ONE retry the coverage is still < 100%, apply this deterministic rule:
 4. Re-run spec-verify.py with `--strict` flag (enforces coverage = 100%, max pairwise overlap < 70%, per-view uniqueness > 15%):
 
    ```bash
-   python3 /root/bin/spec-verify.py --monolith "$MONOLITH_PATH" --views-dir "docs/dev/specs/<spec-id>/views/" --strict
+   source ~/.claude/venv/bin/activate && python3 "${CLAUDE_PROJECT_DIR}/bin/spec-verify.py" --monolith "$MONOLITH_PATH" --views-dir "docs/dev/specs/<spec-id>/views/" --strict
    ```
 
 5. **Diagnose failures by type**:
@@ -639,74 +548,14 @@ Write cp-state files via `.claude/scripts/spec-check.py`. Do not write cp-state 
 #    disambiguates slots, but agent_id disambiguates the LOGICAL caller
 #    when multiple same-type instances run concurrently. Without it,
 #    Phase 2 cannot reliably pin to the correct slot.
-python3 /root/.claude/scripts/spec-check.py check-in \
+source ~/.claude/venv/bin/activate && python3 /root/.claude/scripts/spec-check.py check-in \
     --spec-id <spec-id> \
     --agent <agent> \
     --agent-id <agent-id> \
     --artifact docs/dev/<agent>-report-<ts>.json
 ```
 
-Then write checkpoints via a Python stanza that preserves flock discipline.
-The stanza resolves the cp-state path by locating the running slot whose
-stored `agent_id` matches THIS invocation's `<agent-id>` (not just "any
-running slot" — that would race with concurrent same-type instances):
-
-```bash
-python3 - <<'PY'
-import json, os, fcntl, re, sys
-from datetime import datetime, timezone
-from pathlib import Path
-
-def now(): return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-
-spec_id = "<spec-id>"
-agent = "<agent>"
-my_agent_id = "<agent-id>"  # MUST match what was passed to check-in above
-project_dir = os.environ["CLAUDE_PROJECT_DIR"]
-cp_dir = Path(project_dir) / ".claude" / "specs" / spec_id
-
-# Enumerate all slots for this agent type (primary first, then numbered
-# in ascending order). We will filter by agent_id below.
-candidates = []
-primary = cp_dir / f"cp-state-{agent}.json"
-if primary.exists():
-    candidates.append(primary)
-pattern = re.compile(rf"^cp-state-{re.escape(agent)}-(\d+)\.json$")
-numbered = sorted(
-    (int(pattern.match(p.name).group(1)), p)
-    for p in cp_dir.iterdir()
-    if pattern.match(p.name)
-)
-candidates.extend(p for _, p in numbered)
-
-# Pick the slot where agent_id matches my_agent_id AND is_running.
-# Matching by is_running alone is WRONG: concurrent same-type instances
-# (e.g., two ba's running in parallel) produce two running slots and the
-# first-match rule would non-deterministically hijack the sibling's slot.
-path = None
-for c in candidates:
-    with open(c) as f:
-        d = json.load(f)
-    if d.get("agent_id") == my_agent_id and d.get("is_running"):
-        path = c
-        break
-if path is None:
-    sys.exit(f"no running cp-state slot found for agent={agent} agent_id={my_agent_id}")
-
-with open(path) as f:
-    data = json.load(f)
-data["checkpoints"] = [
-    {"id": "cp-01", "action": "<verb-first atomic action>", "state": "pending", "waived_reason": None, "updated_at": now()},
-    # ... more cps
-]
-lock_path = str(path) + ".lock"
-with open(lock_path, "w") as lh:
-    fcntl.flock(lh.fileno(), fcntl.LOCK_EX)
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
-    fcntl.flock(lh.fileno(), fcntl.LOCK_UN)
-PY
-```
+Then write checkpoints via a Python stanza (activate venv first: `source ~/.claude/venv/bin/activate`) that preserves flock discipline. The stanza resolves the cp-state path by enumerating all slots for this agent type (primary first, then numbered), filtering for the slot where `agent_id` matches this invocation's agent-id AND `is_running` is true. Matching by `is_running` alone is wrong — concurrent same-type instances would race. Once the correct slot is found, load the JSON, set the `checkpoints` array with Gawande-style verb-first entries, and write back with fcntl.LOCK_EX. Exit with an error if no matching running slot is found.
 
 ### Checkpoint rules (Gawande-style)
 
@@ -718,7 +567,7 @@ Each checkpoint MUST be:
 4. **Relevant to the agent's role**: do not ask dev to verify user-facing acceptance criteria
 5. **Action MUST anchor user's verbatim need (T1.9, redev-tier123)**: For specs with Section 5 populated, each cp's `action` field MUST quote or directly reference a phrase from Section 5. The cp anchors WHAT the user wants; the HOW (verification methodology, audit framing, fix-mode language) remains the subagent's choice and MUST NOT appear in the action text.
 
-**Forbidden cp.action patterns** (T1.9): `"verify BA didn't 降级 scope"`, `"audit dev for write-tool misuse"`, any phrasing that prescribes verification methodology rather than anchoring user intent. The user's verbatim need is the anchor; the subagent decides how to verify it.
+**Forbidden cp.action patterns** (T1.9): `"verify BA didn't downgrade scope"`, `"audit dev for write-tool misuse"`, any phrasing that prescribes verification methodology rather than anchoring user intent. The user's verbatim need is the anchor; the subagent decides how to verify it.
 
 Checkpoint count bounds:
 - Minimum: 1 per agent (prevents empty checklists that pass trivially)
@@ -755,7 +604,7 @@ spec-derived checkpoint without replacing it with an equivalent atomic action.
 
 ## Tool usage
 
-You may use: `Read`, `Write`, `Bash` (for `.claude/scripts/spec-check.py`, `bin/spec-verify-views.py`, `bin/spec-verify.py`, `python3 -c` stanzas, and `mkdir -p`).
+You may use: `Read`, `Write`, `Bash` (for `.claude/scripts/spec-check.py`, `bin/spec-verify-views.py`, `bin/spec-verify.py`, Python invocations via venv (`source ~/.claude/venv/bin/activate && python3`), and `mkdir -p`).
 
 You must NOT:
 - Modify the monolith spec (read-only)
@@ -821,7 +670,7 @@ After all three phases complete, emit a JSON summary to stdout:
 Before exiting, verify for each agent that received checkpoints:
 
 ```bash
-python3 /root/.claude/scripts/spec-check.py status --spec-id <spec-id> --agent <agent>
+source ~/.claude/venv/bin/activate && python3 /root/.claude/scripts/spec-check.py status --spec-id <spec-id> --agent <agent>
 ```
 
 The status should show N checkpoints, all in `pending` state, with a timestamp matching your run.

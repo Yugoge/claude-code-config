@@ -107,13 +107,7 @@ Severity assignment:
 
 ### Step 1: Discover Files
 
-```bash
-# Scan command documentation
-COMMAND_FILES=$(find ~/.claude/commands -name "*.md" -type f)
-
-# Scan agent documentation
-AGENT_FILES=$(find ~/.claude/agents -name "*.md" -type f)
-```
+Scan `~/.claude/commands` for `*.md` files and `~/.claude/agents` for `*.md` files. Collect all paths for analysis.
 
 ### Step 2: Analyze Each File
 

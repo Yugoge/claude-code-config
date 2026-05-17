@@ -59,46 +59,7 @@ If Playwright fails at any stage:
 - Launch general-purpose agent to explore alternative paths
 
 ### Phase 6: Synthesis & Report
-Compile all findings into a structured report:
-
-```markdown
-## Deep Search Report: $2 on $1
-
-### 🎯 Search Goal
-$2
-
-### 📊 Search Summary
-- Total searches executed: [N]
-- Playwright navigations: [N successful / N total]
-- Documents found: [N]
-
-### 📄 Key Findings
-1. **Primary Document/Resource**
-   - Title: [...]
-   - URL: [...]
-   - Type: [...]
-   - Status: ✅ Verified / ⚠️ Unverified
-   - Summary: [...]
-
-2. **Additional Resources**
-   - [List other relevant findings]
-
-### 🔗 All Discovered URLs
-- [URL 1] - [Description]
-- [URL 2] - [Description]
-- ...
-
-### ⚠️ Issues Encountered
-- [List any blocked URLs, failed navigations, or limitations]
-
-### 💡 Recommendations
-- [Next steps or alternative approaches if needed]
-
-### 📝 Search Path Log
-Phase 1: [Results summary]
-Phase 2: [Results summary]
-...
-```
+Compile all findings into a structured report covering: search goal, summary (searches executed, Playwright navigations, documents found), key findings with title/URL/type/status/summary, all discovered URLs, issues encountered, recommendations, and a search path log per phase.
 
 ## Critical Execution Rules
 1. **Always use parallel tool calls** in Phase 1 and 3

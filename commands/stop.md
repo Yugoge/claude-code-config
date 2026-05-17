@@ -18,7 +18,7 @@ No arguments. Operates on every `overnight-state-*.json` under `.claude/`.
 ## What it does
 
 1. Backdates `end_time` on every active overnight-state file so `stop-overnight-timelock.py` releases.
-2. Marks every todo in `~/.claude/todos/<sid>-agent-<sid>.json` as `completed` so `stop-workflow-enforce.py` releases.
+2. Marks every todo in `~/.claude/todos/<sid>-agent-<sid>.json` as `completed` so the workflow-enforce hook releases.
 3. Sets `current_phase: completed` on each state file.
 
 After this, the next stop attempt succeeds.
@@ -37,7 +37,7 @@ The orchestrator calls the wrapper exactly once:
 bash ~/.claude/hooks/stop.sh
 ```
 
-The wrapper invokes `~/.claude/scripts/break-overnight-lock.py`. Sentinel enforcement (written at `/tmp/claude-stop-userintent-<sid>.flag` by `prompt-workflow.py` on user-typed `/stop`; consumed by `pretool-wrapper-userintent.py` PreToolUse hook before the wrapper runs) prevents agent self-invocation.
+The wrapper invokes `~/.claude/scripts/break-overnight-lock.py`. Sentinel enforcement (written at `/tmp/claude-stop-userintent-<sid>.flag` by `prompt-workflow.py` on user-typed `/stop`; consumed by the PreToolUse hook before the wrapper runs) prevents agent self-invocation.
 
 ## Why this command exists
 

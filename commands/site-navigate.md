@@ -68,52 +68,7 @@ Try: /docs/, /help/, /support/, /downloads/, /resources/
 ```
 
 ### Phase 6: Navigation Report
-```markdown
-## Site Navigation Report
-
-### Target Site
-$1
-
-### Goal
-$2
-
-### Navigation Path
-1. **Homepage**: $1
-   - Found: [Summary]
-   - Chose: [Link A] (reason: ...)
-
-2. **Level 2**: [URL]
-   - Found: [Summary]
-   - Chose: [Link B] (reason: ...)
-
-3. **Level 3**: [URL]
-   - Found: [Summary]
-   - [FOUND TARGET / Chose next link]
-
-[Continue for each level]
-
-### Result
-Status: ✅ Found / ⚠️ Partially Found / ❌ Not Found
-
-**Final Content**:
-[If found, provide the target information]
-
-**Final URL**: [URL where target was found]
-
-### All URLs Visited
-1. [URL] - [What was found]
-2. [URL] - [What was found]
-...
-
-### Dead Ends Encountered
-- [URL] - [Why it didn't lead to target]
-
-### Alternative Paths Not Taken
-- [URL] - [Why it was deprioritized]
-
-### Recommendations
-[If not found, suggest next steps]
-```
+Write a structured report covering: target site and goal, navigation path per level (URL visited, what was found, link chosen and why), final result status (found/partially found/not found) with final content and URL, all URLs visited, dead ends encountered, alternative paths not taken, and recommendations.
 
 ## Execution Guidelines
 1. **Depth limit: 5 levels** - prevents infinite navigation
