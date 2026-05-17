@@ -1,0 +1,20 @@
+{
+  "request_id": "clean-20260517-102341",
+  "group_id": 11,
+  "files_audited": [
+    "scripts/generate-folder-index.sh",
+    "scripts/generate-folder-readme.sh",
+    "scripts/install-checkpoint-refspec.sh",
+    "scripts/migrate-test-to-tests.sh",
+    "scripts/normalize-doc-names.sh"
+  ],
+  "violations": [],
+  "codex_consult": {
+    "invoked": false,
+    "status": "not_requested",
+    "feedback_summary": null,
+    "findings": [],
+    "feedback_incorporated": null
+  },
+  "status": "complete"
+}
