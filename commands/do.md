@@ -17,7 +17,7 @@ disable-model-invocation: true
 
 The explicit path form (`docs/dev/ticket-<task-id>.md`) is always safe — path-form resolution only verifies the named file exists, not `qa-report`. Bare timestamp form (`/close <task-id> --force`) also works after the forced-path qa-report skip fix (AC1 of ticket 20260517-155838).
 
-If no ticket file exists (you bypassed BA entirely), either (a) create a minimal ticket file first, or (b) use a self-chosen task-id with `/close <any-id> --force`.
+If no ticket file exists (you bypassed BA entirely), create a minimal ticket file first (e.g. `docs/dev/ticket-<task-id>.md`) and then use the path form above.
 
 After a successful forced close, follow up with:
 
