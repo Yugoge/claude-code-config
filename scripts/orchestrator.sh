@@ -136,13 +136,14 @@ iterate() {
   CURRENT_ITERATION=$(jq -r '.orchestrator.iteration // 1' "$CONTEXT_FILE")
   NEXT_ITERATION=$((CURRENT_ITERATION + 1))
 
-  # Max iterations safety check
-  MAX_ITERATIONS=5
+  # Max iterations safety check (override via env var or context file)
+  MAX_ITERATIONS="${ORCHESTRATOR_MAX_ITERATIONS:-$(jq -r '.orchestrator.max_iterations // 5' "$CONTEXT_FILE")}"
   if [[ $NEXT_ITERATION -gt $MAX_ITERATIONS ]]; then
     echo "Error: Maximum iterations ($MAX_ITERATIONS) exceeded" >&2
     jq -n \
       --arg reason "max iterations exceeded" \
-      '{status: "failed", reason: $reason, max_iterations: 5}'
+      --argjson max "$MAX_ITERATIONS" \
+      '{status: "failed", reason: $reason, max_iterations: $max}'
     exit 1
   fi
 
