@@ -174,7 +174,7 @@ def match_grant_for_bash_command(
     newline, not |\\n).
 
     Returns MatchResult on first subcommand match, None if no match / no grant.
-    IS_SUBAGENT check stays in the bash wrapper caller.
+    Subagent firewall check stays in the bash wrapper caller.
     """
     flag_file = f"/tmp/claude-bash-allowlist-{sid}.json"
     lock_file = f"{flag_file}.lock"
