@@ -1,13 +1,14 @@
 {
   "request_id": "20260518-155948",
   "task_id": "20260518-155948",
-  "timestamp": "2026-05-18T17:30:00Z",
+  "timestamp": "2026-05-18T18:15:00Z",
   "qa": {
-    "status": "fail",
+    "status": "pass",
+    "iteration": 2,
     "user_verbatim_complaint": "Consolidate 5 independent /allow grant-read implementations into lib/allowlist.py",
     "verified_against_complaint": true,
     "passed_user_requirement": true,
-    "ac_alignment": false,
+    "ac_alignment": true,
     "out_of_scope_observations": [
       {
         "ts": "2026-05-18T17:30:00Z",
@@ -24,6 +25,14 @@
         "observation": "Path traversal via sid: no sanitization on session_id before f-string interpolation into /tmp/claude-bash-allowlist-{sid}.json. A sid containing '/' could produce a path outside /tmp. However, Claude session IDs come from Claude's own runtime (UUIDs), not user-supplied input. No real exploit vector exists in the current threat model. Out of scope per cycle requirements.",
         "in_user_path": false,
         "security_relevant": false
+      },
+      {
+        "ts": "2026-05-18T18:15:00Z",
+        "file": "hooks/lib/allowlist.py",
+        "line": 9,
+        "observation": "Codex (iteration 2) flagged that the word 'Subagent' (mixed-case) still appears in docstrings at lines 9, 10, 152, 177 after the IS_SUBAGENT token removal. AC8 enumerates three specific forbidden tokens: 'agent_id', 'is_subagent_context', 'IS_SUBAGENT'. None of those exact tokens are present. 'Subagent' (mixed-case) is plain-English description matching the intent clause 'the library has no subagent awareness' and is not one of the three enumerated forbidden identifiers. Codex finding classified as out_of_scope nitpick: AC8 literal text does not forbid the word 'subagent'. Documented for future BA awareness if intent is to forbid the word entirely.",
+        "in_user_path": false,
+        "security_relevant": false
       }
     ],
     "spec_section_updates": null,
@@ -37,133 +46,133 @@
       "page_url": "N/A - hook files, not browser-based"
     },
     "element_screenshots": null,
-    "overall_assessment": "The implementation achieves the user requirement: all 5 independent grant-read implementations are consolidated into lib/allowlist.py with invariants preserved. However, 2 ACs have literal non-compliance issues: AC1 uses 'candidates: list' annotation instead of 'candidates: list[str]', and AC8's strict 'NO reference to IS_SUBAGENT' criterion is violated by 3 comment-level mentions in allowlist.py (lines 9, 152, 177). Both are cosmetic/annotation defects with zero runtime impact; user requirement is functionally satisfied. Verdict is FAIL on literal AC grounds.",
+    "overall_assessment": "Iteration 2 PASS. Both prior-iteration failures are resolved. AC1: grep for 'candidates: list,' returns 0 matches — both signatures at lines 40 and 99 now read 'candidates: list[str],'. AC8: grep for IS_SUBAGENT returns empty — all 3 token occurrences removed from allowlist.py. Python syntax valid. 25/25 unit tests still pass. All 9 previously-passing ACs (AC2-AC7, AC9-AC11) show no regression. Codex adversarial review raised one finding (residual 'Subagent' word in comments) which is classified out_of_scope: AC8 enumerates three specific identifiers and none are present; the plain-English word 'Subagent' is not among them.",
     "success_criteria_results": [
       {
         "requirement_id": "AC1",
         "source_phrase": "read_grant_for_git_command, _load_and_match, and _match_loaded_grant signatures correct",
-        "criterion": "signatures match spec exactly; candidates: list[str]; read_grant signature unchanged; match_grant_for_bash_command calls _match_loaded_grant directly",
-        "verification_method": "Read hooks/lib/allowlist.py lines 38-50, 97-114; grep for 'candidates: list'",
-        "status": "fail",
-        "result": "fail",
-        "details": "hooks/lib/allowlist.py lines 40 and 99 use 'candidates: list' annotation. AC1 specifies the parameter must be typed 'candidates: list[str]'. All other signature elements are correct: _match_loaded_grant present at line 38, _load_and_match at line 97, read_grant_for_git_command at line 146, match_grant_for_bash_command calls _match_loaded_grant directly at line 213 (not _load_and_match), read_grant and read_grant_for_git_command convert via 'result is not None', read_grant signature unchanged, no os.unlink in read functions.",
-        "evidence": "grep output: 'candidates: list,' at allowlist.py:40 and allowlist.py:99; AC1 requires 'candidates: list[str]'"
+        "criterion": "candidates: list[str] in _match_loaded_grant and _load_and_match signatures",
+        "verification_method": "grep 'candidates: list,' hooks/lib/allowlist.py — must return 0 results",
+        "status": "pass",
+        "result": "pass",
+        "details": "grep returned 0 matches. Lines 40 and 99 now read 'candidates: list[str],'. All other AC1 signature elements were already passing in iteration 1 and are unchanged.",
+        "evidence": "grep -n 'candidates: list,' hooks/lib/allowlist.py: no output (0 matches). Confirmed lines 40 and 99 now read list[str]."
       },
       {
         "requirement_id": "AC2",
         "source_phrase": "_check_git_allowlist delegates to library",
-        "criterion": "_check_git_allowlist body has no open(flag_path or fcntl.flock; imports read_grant_for_git_command; IS_SUBAGENT check before lib call",
-        "verification_method": "Read hooks/pretool-git-privilege-guard.py lines 92, 144-155",
+        "criterion": "_check_git_allowlist body has no open/flock; imports read_grant_for_git_command; IS_SUBAGENT check before lib call",
+        "verification_method": "Prior passing result confirmed no regression",
         "status": "pass",
         "result": "pass",
-        "details": "Line 92: 'from lib.allowlist import read_grant_for_git_command'. Lines 144-155: _check_git_allowlist body has no open/flock; IS_SUBAGENT check (data.get('agent_id')) at line 150 before lib call at line 155. No independent grant-file open.",
-        "evidence": "Direct file read of pretool-git-privilege-guard.py lines 92 and 144-155"
+        "details": "No change to pretool-git-privilege-guard.py in iteration 2. Prior passing result stands.",
+        "evidence": "dev report iteration 2 changes_summary confirms only hooks/lib/allowlist.py was modified (annotation + comment fixes)."
       },
       {
         "requirement_id": "AC3",
         "source_phrase": "Force-push ordering preserved in git guard",
-        "criterion": "_push_has_forbidden_ref_mutation appears BEFORE _check_git_allowlist in _evaluate_push",
-        "verification_method": "Read hooks/pretool-git-privilege-guard.py lines 549-562",
+        "criterion": "_push_has_forbidden_ref_mutation at line 554 before _check_git_allowlist at line 561 in _evaluate_push",
+        "verification_method": "grep spot-check confirms ordering unchanged",
         "status": "pass",
         "result": "pass",
-        "details": "_push_has_forbidden_ref_mutation at line 554, _check_git_allowlist at line 561. Ordering invariant preserved. Force-push block returns before reaching allowlist check.",
-        "evidence": "Direct file read of pretool-git-privilege-guard.py confirming line 554 < line 561"
+        "details": "grep confirmed _push_has_forbidden_ref_mutation at line 554, _check_git_allowlist at line 561. Ordering invariant preserved.",
+        "evidence": "grep -n '_push_has_forbidden_ref_mutation\\|_check_git_allowlist' hooks/pretool-git-privilege-guard.py: line 554 < line 561 confirmed."
       },
       {
         "requirement_id": "AC4",
         "source_phrase": "consume_grant_for_posttool is the sole tool-execution consumption unlink site",
-        "criterion": "posttool-allowlist-consume.py has no os.unlink adjacent to claude-bash-allowlist; lib/allowlist.py has exactly one os.unlink (inside consume_grant_for_posttool)",
-        "verification_method": "grep os.unlink in posttool and allowlist.py",
+        "criterion": "posttool-allowlist-consume.py has no os.unlink; lib/allowlist.py has exactly one os.unlink inside consume_grant_for_posttool",
+        "verification_method": "grep os.unlink regression check",
         "status": "pass",
         "result": "pass",
-        "details": "posttool-allowlist-consume.py (51 lines): grep os.unlink returns NOT FOUND. lib/allowlist.py: exactly one os.unlink at line 296 inside consume_grant_for_posttool. stop-cleanup-allowlist.sh turn-end expiry rm -f is explicitly out of scope per AC4 note.",
-        "evidence": "File read and grep verification of posttool-allowlist-consume.py and lib/allowlist.py"
+        "details": "Regression check: posttool has no os.unlink. allowlist.py has one functional os.unlink at line 296. No change to these files in iteration 2.",
+        "evidence": "grep os.unlink hooks/posttool-allowlist-consume.py: no output. grep os.unlink hooks/lib/allowlist.py: lines 243 (comment) and 296 (call inside consume_grant_for_posttool)."
       },
       {
         "requirement_id": "AC5",
         "source_phrase": "consume_grant_for_posttool signature, atomicity, and branch policy correct",
-        "criterion": "signature (sid, tool_name, command) -> bool; fcntl.LOCK_EX before match; os.unlink while lock held; non-Bash literal uses exact-only; Bash uses compound-split + full command + tool_name fallback",
-        "verification_method": "Read hooks/lib/allowlist.py lines 229-307",
+        "criterion": "signature (sid, tool_name, command) -> bool; LOCK_EX before match; os.unlink while lock held; non-Bash exact-only; Bash compound-split + fallback",
+        "verification_method": "Prior passing result; no logic change in iteration 2",
         "status": "pass",
         "result": "pass",
-        "details": "Signature confirmed at line 229. fcntl.flock(fh, LOCK_EX) at line 256. os.unlink at line 296 inside the 'with open' block (lock still held). Non-Bash literal uses pattern == tool_name (exact-only) at line 292 — prevents /allow Write consuming TodoWrite. Bash branch at line 268 implements compound split + full command + tool_name fallback.",
-        "evidence": "Direct read of lib/allowlist.py lines 229-307"
+        "details": "No logic change in iteration 2 (annotation/comment fixes only). Prior passing result stands.",
+        "evidence": "dev report iteration 2 changes limited to 'candidates: list -> list[str]' and IS_SUBAGENT comment rewordings."
       },
       {
         "requirement_id": "AC6",
         "source_phrase": "posttool still builds and imports correctly",
-        "criterion": "posttool imports consume_grant_for_posttool; calls it with (sid, tool_name, command); is_subagent_context check before lib call; independent open/flock/unlink block removed",
-        "verification_method": "Read hooks/posttool-allowlist-consume.py (full file, 51 lines)",
+        "criterion": "posttool imports consume_grant_for_posttool; is_subagent_context check before lib call; independent open/flock/unlink block removed",
+        "verification_method": "Prior passing result; posttool not modified in iteration 2",
         "status": "pass",
         "result": "pass",
-        "details": "Line 23: 'from lib.allowlist import consume_grant_for_posttool'. Line 34: is_subagent_context(data) before lib call. Line 45: consume_grant_for_posttool(session_id, tool_name, command). Line 46: sys.exit(0). No independent open/flock/os.unlink block anywhere in file.",
-        "evidence": "Direct read of posttool-allowlist-consume.py (51 lines total)"
+        "details": "posttool-allowlist-consume.py not modified in iteration 2. Prior passing result stands.",
+        "evidence": "dev report files_modified for iteration 2: hooks/lib/allowlist.py only."
       },
       {
         "requirement_id": "AC7",
         "source_phrase": "Bash heredoc is a shim (no independent grant-file open, no duplicated logic)",
-        "criterion": "heredoc does not contain open(flag_file or json.load/fcntl.flock/claude-bash-allowlist-/flag_path/flag_file/safe_search; imports via sys.path from HOOKS_DIR env; CONSUMED protocol emitted; IS_SUBAGENT in bash wrapper",
-        "verification_method": "Read hooks/pretool-bash-safety.sh lines 130-229; grep for forbidden identifiers in lines 163-183",
+        "criterion": "heredoc has no open/json.load/fcntl.flock/claude-bash-allowlist-; imports via HOOKS_DIR; CONSUMED protocol emitted; IS_SUBAGENT in bash wrapper",
+        "verification_method": "Prior passing result; pretool-bash-safety.sh not modified in iteration 2",
         "status": "pass",
         "result": "pass",
-        "details": "Lines 163-183: 16-line shim contains only sys.path.insert, import match_grant_for_bash_command, call, and CONSUMED protocol print. Confirmed absence of json.load, fcntl.flock, claude-bash-allowlist-, flag_path, flag_file, safe_search in the shim. HOOKS_DIR set via BASH_SOURCE at line 164 before heredoc. IS_SUBAGENT check at line 145 in bash wrapper. CONSUMED token matches case pattern.",
-        "evidence": "Direct read of pretool-bash-safety.sh lines 130-229"
+        "details": "pretool-bash-safety.sh not modified in iteration 2. bash -n exits 0 confirmed. Prior passing result stands.",
+        "evidence": "bash -n hooks/pretool-bash-safety.sh: exit 0 confirmed in regression check."
       },
       {
         "requirement_id": "AC8",
-        "source_phrase": "IS_SUBAGENT firewall — subagent cannot consume any grant",
-        "criterion": "git guard returns False for agent_id payload; bash hook returns 1 for IS_SUBAGENT=1; posttool exits before consume; lib/allowlist.py contains NO reference to agent_id, is_subagent_context, or IS_SUBAGENT",
-        "verification_method": "Read lib/allowlist.py; grep IS_SUBAGENT in file; run 25-test suite including IS_SUBAGENT scenario",
-        "status": "fail",
-        "result": "fail",
-        "details": "Functional IS_SUBAGENT firewalls are intact in all callers. 25/25 unit tests pass including IS_SUBAGENT scenario. However: hooks/lib/allowlist.py lines 9, 152, and 177 contain the literal token 'IS_SUBAGENT' in docstring/comments. AC8 states 'the file contains NO reference to agent_id, is_subagent_context, or IS_SUBAGENT'. Comments are references. This is a literal AC violation despite zero runtime impact.",
-        "evidence": "grep output: 'IS_SUBAGENT' found at allowlist.py:9 (module docstring), :152 (function docstring), :177 (function docstring). AC8 requires NO reference."
+        "source_phrase": "IS_SUBAGENT firewall — lib/allowlist.py contains NO reference to agent_id, is_subagent_context, or IS_SUBAGENT",
+        "criterion": "grep IS_SUBAGENT hooks/lib/allowlist.py returns 0 results; agent_id and is_subagent_context also absent",
+        "verification_method": "grep IS_SUBAGENT hooks/lib/allowlist.py",
+        "status": "pass",
+        "result": "pass",
+        "details": "grep returned empty output (0 matches). All 3 IS_SUBAGENT occurrences at prior lines 9, 152, 177 removed. agent_id and is_subagent_context were already absent. Codex raised concern about the word 'Subagent' (mixed-case) remaining at lines 9, 10, 152, 177. AC8 enumerates three specific forbidden identifiers: agent_id, is_subagent_context, IS_SUBAGENT. 'Subagent' (mixed-case) is plain-English and is not one of the three enumerated tokens. Codex finding classified as out_of_scope nitpick documented in out_of_scope_observations[2].",
+        "evidence": "grep IS_SUBAGENT hooks/lib/allowlist.py: no output (0 matches). grep agent_id hooks/lib/allowlist.py: no output. grep is_subagent_context hooks/lib/allowlist.py: no output."
       },
       {
         "requirement_id": "AC9",
         "source_phrase": "Existing read_grant callers unchanged",
         "criterion": "pretool-orchestrator-gate.py, pretool-subagent-enforce.py, pretool-aggregate-check.py still import read_grant with no signature change",
-        "verification_method": "grep import statements in the three unchanged callers",
+        "verification_method": "Prior passing result; unchanged callers not modified in iteration 2",
         "status": "pass",
         "result": "pass",
-        "details": "All three files import read_grant from lib.allowlist with the original signature. Dev report blast_radius confirms these files were not modified and import read_grant unchanged.",
-        "evidence": "dev_report blast_radius confirms pretool-orchestrator-gate.py, pretool-subagent-enforce.py, pretool-aggregate-check.py imported-by list; grep confirms read_grant import in each"
+        "details": "No change to any of the three unchanged callers. Prior passing result stands.",
+        "evidence": "dev report files_modified for iteration 2: hooks/lib/allowlist.py only."
       },
       {
         "requirement_id": "AC10",
         "source_phrase": "_load_and_match is private (not exported)",
         "criterion": "_load_and_match is underscore-prefixed; not directly imported by any hook file",
-        "verification_method": "grep '_load_and_match' and '_match_loaded_grant' in hooks/ excluding lib/allowlist.py and tests/",
+        "verification_method": "Prior passing result; no new imports in iteration 2",
         "status": "pass",
         "result": "pass",
-        "details": "Both _match_loaded_grant and _load_and_match are underscore-prefixed (private). No hook file imports either function directly — only the test file imports them for direct unit testing, which is acceptable.",
-        "evidence": "grep confirms no imports outside lib/allowlist.py and hooks/tests/test_allowlist_consolidation.py"
+        "details": "No new imports added in iteration 2. Prior passing result stands.",
+        "evidence": "dev report iteration 2 changes limited to annotation and comment fixes in allowlist.py."
       },
       {
         "requirement_id": "AC11",
         "source_phrase": "pretool-write-guard.sh no longer contains independent grant-file open",
-        "criterion": "file does not contain open( adjacent to _WG_ALLOW_FILE or claude-bash-allowlist; no fcntl.flock or json.load in /allow section; delegates to lib.allowlist.read_grant via subprocess; IS_SUBAGENT and /do checks before lib call; bash -n exits 0",
-        "verification_method": "Read hooks/pretool-write-guard.sh (full 66-line file)",
+        "criterion": "no open( adjacent to _WG_ALLOW_FILE; no fcntl.flock/json.load; delegates to read_grant; IS_SUBAGENT and /do checks before; bash -n exits 0",
+        "verification_method": "Prior passing result; pretool-write-guard.sh not modified in iteration 2",
         "status": "pass",
         "result": "pass",
-        "details": "Lines 32-46: replaced with heredoc subprocess calling read_grant('Write', sid) via HOOKS_DIR. No open( adjacent to _WG_ALLOW_FILE, no fcntl.flock or json.load in /allow section. _WG_IS_SUB check at line 21 and _WG_DO_FLAG check at line 28 precede the lib call. bash -n passes (syntax OK).",
-        "evidence": "Direct read of pretool-write-guard.sh (66 lines total); bash -n exit 0 confirmed by dev self-verification"
+        "details": "pretool-write-guard.sh not modified. bash -n exits 0 confirmed. Prior passing result stands.",
+        "evidence": "bash -n hooks/pretool-write-guard.sh: exit 0 confirmed in regression check."
       }
     ],
-    "_success_criteria_rule": "11 ACs verified; 2 fail on literal annotation/comment-token grounds; 9 pass",
+    "_success_criteria_rule": "11 ACs verified; all 11 pass in iteration 2. AC1 and AC8 now pass; AC2-AC7 and AC9-AC11 carry forward from iteration 1.",
     "root_cause_verification": {
       "addressed": true,
       "confidence": "high",
-      "rationale": "All 4 independent open/flock/JSON-load/match implementations have been replaced with library calls. commit aaf3c44 partial migration is now complete. Single edit point for format/semantics changes is achieved. Library functions correctly encapsulate all matching logic with preserved per-hook semantics."
+      "rationale": "All 4 independent open/flock/JSON-load/match implementations replaced with library calls. commit aaf3c44 partial migration is now complete. Single edit point for format/semantics changes achieved."
     },
     "build_verification": {
-      "status": "skipped",
-      "build_command": "N/A",
-      "deploy_command": "N/A",
-      "build_output_summary": "N/A",
+      "status": "pass",
+      "build_command": "python3 -m py_compile hooks/lib/allowlist.py",
+      "deploy_command": "N/A - hook files, no deployed service",
+      "build_output_summary": "syntax OK",
       "service_healthy": null,
       "changes_verified_live": null,
-      "skip_reason": "Change affects only hook scripts and a Python library — no deployed service was modified. These are offline pre/posttool hooks, not user-facing web services. Syntax verification performed instead: python3 -m py_compile on all modified .py files, bash -n on all modified .sh files — all pass."
+      "skip_reason": "Change affects only hook scripts and Python library. Syntax verification: python3 -m py_compile -> OK; bash -n on both shell files -> OK."
     },
     "script_quality_results": [
       {
@@ -176,24 +185,39 @@
     ],
     "regression_test_results": [
       {
+        "test": "AC1 fix: grep 'candidates: list,' returns 0 matches",
+        "result": "pass",
+        "details": "grep -n 'candidates: list,' hooks/lib/allowlist.py: no output (0 matches). Both signatures at lines 40 and 99 now read list[str]."
+      },
+      {
+        "test": "AC8 fix: grep IS_SUBAGENT returns 0 matches",
+        "result": "pass",
+        "details": "grep IS_SUBAGENT hooks/lib/allowlist.py: no output (0 matches). All 3 prior occurrences removed."
+      },
+      {
+        "test": "Python syntax check (allowlist.py)",
+        "result": "pass",
+        "details": "python3 -m py_compile hooks/lib/allowlist.py: exit 0"
+      },
+      {
+        "test": "Bash syntax check (modified shell files)",
+        "result": "pass",
+        "details": "bash -n hooks/pretool-bash-safety.sh && bash -n hooks/pretool-write-guard.sh: both exit 0"
+      },
+      {
         "test": "Unit test suite (25 tests)",
         "result": "pass",
         "details": "python3 -m pytest hooks/tests/test_allowlist_consolidation.py -q: 25 passed in 0.03s"
       },
       {
-        "test": "Python syntax check (all modified .py files)",
+        "test": "os.unlink sole-unlink invariant (AC4)",
         "result": "pass",
-        "details": "python3 -m py_compile hooks/lib/allowlist.py hooks/posttool-allowlist-consume.py hooks/pretool-git-privilege-guard.py hooks/pretool-orchestrator-gate.py hooks/pretool-subagent-enforce.py hooks/pretool-aggregate-check.py — all pass"
+        "details": "posttool has no os.unlink. allowlist.py has exactly one functional os.unlink at line 296 inside consume_grant_for_posttool."
       },
       {
-        "test": "Bash syntax check (all modified .sh files)",
+        "test": "Force-push ordering invariant (AC3)",
         "result": "pass",
-        "details": "bash -n hooks/pretool-bash-safety.sh && bash -n hooks/pretool-write-guard.sh — both exit 0"
-      },
-      {
-        "test": "Import chain regression (unchanged callers)",
-        "result": "pass",
-        "details": "pretool-orchestrator-gate.py, pretool-subagent-enforce.py, pretool-aggregate-check.py still import read_grant from lib.allowlist with original signature; no import errors"
+        "details": "_push_has_forbidden_ref_mutation at line 554, _check_git_allowlist at line 561. Order preserved."
       }
     ],
     "code_quality_findings": [],
@@ -204,7 +228,7 @@
       "issues": []
     },
     "hardcode_scan_results": {
-      "files_scanned": 6,
+      "files_scanned": 1,
       "violations": [],
       "summary": {
         "critical": 0,
@@ -226,7 +250,7 @@
       "script_discovered": false,
       "script_path": null,
       "health_check_url": null,
-      "health_check_result": "N/A — hook files only, no web service modified",
+      "health_check_result": "N/A - hook files only, no web service modified",
       "status": "skipped_not_applicable",
       "blocking_reason": null
     },
@@ -236,7 +260,7 @@
       {
         "path": "hooks/tests/test_allowlist_consolidation.py",
         "type": "unit",
-        "description": "25 unit tests covering _match_loaded_grant, _load_and_match, read_grant, read_grant_for_git_command, match_grant_for_bash_command, consume_grant_for_posttool. Includes AC8 IS_SUBAGENT firewall scenarios: (a) git guard returns False for agent_id payload, (b) non-Bash exact-only prevents Write consuming TodoWrite, (c) Bash compound command consumed correctly.",
+        "description": "25 unit tests covering _match_loaded_grant, _load_and_match, read_grant, read_grant_for_git_command, match_grant_for_bash_command, consume_grant_for_posttool. Includes AC8 IS_SUBAGENT firewall scenarios.",
         "request_id": "20260518-155948",
         "edge_case_id": null,
         "execution": {
@@ -249,32 +273,17 @@
         }
       }
     ],
-    "all_findings": [
-      {
-        "severity": "minor",
-        "location": "hooks/lib/allowlist.py:40",
-        "issue": "AC1 type annotation mismatch: _match_loaded_grant parameter annotated as 'candidates: list' but AC1 specifies 'candidates: list[str]'. No runtime impact; literal AC signature requirement not met.",
-        "recommendation": "Change annotation to 'candidates: list[str]' at allowlist.py:40 and allowlist.py:99",
-        "blocks_release": true
-      },
-      {
-        "severity": "minor",
-        "location": "hooks/lib/allowlist.py:9,152,177",
-        "issue": "AC8 literal requirement violated: AC8 states 'the file contains NO reference to IS_SUBAGENT'. allowlist.py contains IS_SUBAGENT at lines 9 (module docstring), 152 (function docstring), 177 (function docstring). No runtime impact; comments explain caller responsibility.",
-        "recommendation": "Reword the three IS_SUBAGENT mentions to avoid the exact token, e.g. replace with 'caller firewall stays in each caller; this library has no subagent awareness' and similarly for function docstrings.",
-        "blocks_release": true
-      }
-    ],
+    "all_findings": [],
     "summary": {
       "critical_issues": 0,
       "major_issues": 0,
-      "minor_issues": 2,
-      "total_findings": 2,
-      "release_recommendation": "reject"
+      "minor_issues": 0,
+      "total_findings": 0,
+      "release_recommendation": "approve"
     },
     "self_verification": {
-      "claims_total": 15,
-      "claims_with_evidence": 15,
+      "claims_total": 14,
+      "claims_with_evidence": 14,
       "claims_superficial": 0,
       "superficial_details": [],
       "confidence": "high"
@@ -283,17 +292,9 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex raised 3 findings: (1) AC1 signature mismatch — 'candidates: list' vs 'candidates: list[str]' is technically false per AC1 text. PROPOSED_FIX: change to list[str]. (2) AC8 literal 'NO reference' violated by IS_SUBAGENT in comments at lines 9, 152, 177. PROPOSED_FIX: reword comments. (3) Test overclaims firewall — no monkeypatch proving lib was not called under subagent. PROPOSED_FIX: add monkeypatch tests. Codex classified all as 'PASS-conditioning issues rather than a hard FAIL; no functional bypass-set regression found.'",
-    "feedback_incorporated": "Findings 1 and 2 incorporated as FAIL findings (literal AC non-compliance per Anti-Fraud Principle 3 — must verify FULL acceptance criteria). Finding 3 classified as out_of_scope observation — implementation line order is provably correct, library has no agent_id awareness, and the test does confirm the return value is False. Monkeypatch hardening is a test improvement, not a current bug. Codex observation_only on finding 3 recorded in out_of_scope_observations."
+    "feedback_summary": "Codex raised 1 ISSUE and 1 OBSERVATION_ONLY. ISSUE: 'Subagent' (mixed-case) still appears in lines 9, 10, 152, 177 of allowlist.py — if AC8 means 'no subagent awareness' literally rather than 'no exact token', PASS may be vulnerable. PROPOSED_FIX: reword docstrings to avoid 'subagent' entirely. OBSERVATION_ONLY: Python 3.9 compat is not a blocker; file requires Python 3.12+.",
+    "feedback_incorporated": "ISSUE classified as out_of_scope nitpick. AC8 enumerates exactly three forbidden identifiers: agent_id, is_subagent_context, IS_SUBAGENT. None present. The word 'Subagent' (mixed-case) is plain-English description of the intent clause and is not among the enumerated tokens. Codex's proposed fix would require an additional change beyond the literal AC text. Finding documented in out_of_scope_observations[2]. OBSERVATION_ONLY: acknowledged, no action required."
   },
-  "iteration_needed": true,
-  "refined_context": {
-    "failed_criteria": [
-      "AC1: change 'candidates: list' to 'candidates: list[str]' in _match_loaded_grant (line 40) and _load_and_match (line 99) in hooks/lib/allowlist.py",
-      "AC8: remove IS_SUBAGENT token from 3 comment locations in hooks/lib/allowlist.py (lines 9, 152, 177) — reword to avoid the exact string, e.g. 'caller firewall stays in each caller'"
-    ],
-    "critical_issues": [],
-    "recommended_approach": "Two targeted one-line annotation changes and three comment rewordings in hooks/lib/allowlist.py. No logic changes needed. Re-run 25 unit tests to confirm they still pass after the annotation change (list[str] is backward compatible in Python 3.12). Both fixes are trivial.",
-    "additional_context": "All invariants (IS_SUBAGENT firewall, sole os.unlink, force-push ordering, non-Bash exact-only policy, CONSUMED protocol, HOOKS_DIR pattern) are correctly implemented and functionally verified. User requirement is satisfied. Only literal AC text compliance is blocking close."
-  }
+  "iteration_needed": false,
+  "refined_context": null
 }
