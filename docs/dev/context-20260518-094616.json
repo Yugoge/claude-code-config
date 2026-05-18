@@ -34,7 +34,8 @@
       "IS_SUBAGENT assigned once at top of pretool-bash-safety.sh",
       "Inline parse inside check_and_consume_allowlist replaced with $IS_SUBAGENT reference",
       "_DO_IS_SUB inline agent_id parse at /do bypass block replaced with $IS_SUBAGENT reference",
-      "Subagent firewall still works correctly"
+      "Subagent firewall still works correctly",
+      "CLAUDE_PUSH_COMMAND_ACTIVE compound push+commit blocked at commit step (OBJ-8 scenario)"
     ],
     "constraints": [
       "Scope invariant: git push --force must remain blocked even with /allow grant",
