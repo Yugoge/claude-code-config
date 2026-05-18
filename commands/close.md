@@ -370,7 +370,7 @@ Then branch the update:
   and the three inspector report paths from Step 1. Next action: `/commit
   <task-id> -m "<real session summary>"`.
 - If the final verdict is `CLOSE: NO`, create or update a continuation spec
-  using `/update` default continuation-spec mode. If the dev context has a
+  using `/spec-continue` default continuation-spec mode. If the dev context has a
   source spec, append the close dissent and unresolved gaps to that spec;
   otherwise create a new spec. Next action: `/dev --spec <spec_path>`. Do NOT
   direct a failed close to `/commit`.

@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-18T11:35:35Z*
-**Total entries**: 170
+*Last updated: 2026-05-18T16:08:40Z*
+**Total entries**: 172
 **Convention**: kebab
 
 ## Tree
@@ -75,6 +75,7 @@ dev/
 ├── `context-20260517-222440.json` - json config
 ├── `context-20260518-071337.json` - json config
 ├── `context-20260518-094616.json` - json config
+├── `context-20260518-155948.json` - json config
 ├── `context-dev-20260107-091716.json` - json config
 ├── `context-dev-20260107-100221.json` - json config
 ├── `context-dev-20260107-104430.json` - json config
@@ -175,6 +176,7 @@ dev/
 ├── `ticket-20260517-222440.md` - BA Specification: /allow bypass does not extend to git commit in pretool-git-privilege-guard.py
 ├── `ticket-20260518-071337.md` - BA Specification: /allow Universal Bypass — systemctl and git push
 ├── `ticket-20260518-094616.md` - BA Specification: /allow Bypass System — 6-Issue Architectural Refactor
+├── `ticket-20260518-155948.md` - BA Specification: Consolidate 4 /allow Grant-Read Implementations into lib/allowlist.py
 ├── `user-requirement-dev-20260517-215114.md` - No description
 └── `user-requirement-dev-20260517-222440.md` - No description
 ```
