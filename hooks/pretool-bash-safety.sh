@@ -597,10 +597,8 @@ PYAUDIT2
 # wins per documented "deny > defer > ask > allow" precedence (D3b is a
 # Plan-A-blocker; see dev-report plan_a_blocker_d3b for alternatives).
 # ── Main-agent /do bypass ────────────────────────────────────────────────────
-_DO_IS_SUB=$(echo "$INPUT" | "$PYTHON_BIN" -c \
-  "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
-  2>/dev/null)
-if [ "$_DO_IS_SUB" != "1" ]; then
+# IS_SUBAGENT is set at the top of the script — no inline parse needed here.
+if [ "$IS_SUBAGENT" != "1" ]; then
   _DO_SID=$(echo "$INPUT" | "$PYTHON_BIN" -c \
     "import json,sys,os; d=json.load(sys.stdin); \
 print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
