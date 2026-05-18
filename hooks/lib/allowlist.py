@@ -6,7 +6,7 @@ logic used by PreToolUse and PostToolUse hooks.
 Contract:
   - PreToolUse hooks ONLY read the grant; they never delete it.
   - Deletion is deferred to posttool-allowlist-consume.py (PostToolUse).
-  - IS_SUBAGENT firewall stays in each caller; this library has no
+  - Subagent firewall check stays in each caller; this library has no
     subagent awareness.
 
 Extracted from pretool-orchestrator-gate.py lines 155-183 (initial
