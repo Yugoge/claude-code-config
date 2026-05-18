@@ -690,14 +690,6 @@ if echo "$COMMAND" | grep -qE "${DAEMON_RESTART_SENTINEL_RE}[A-Za-z0-9_-]+\.flag
   exit 2
 fi
 
-# ── Global /allow short-circuit RELOCATED ──────────────────────────────────
-# As of task-id 20260509-113838 the /allow short-circuit runs BEFORE Layer 1.A
-# (and before the three absolute-ban blocks below). The original callsite at
-# this position is intentionally removed; the secondary check_and_consume_allowlist
-# callsites further below in the git-rule blocks (around lines 889/900/912/932/
-# 946/1002 of the original file) are now defense-in-depth-only and harmless
-# (no command can reach them with the /allow flag still present).
-
 # ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
 # On 2026-04-09, editing session_dirs.txt triggered full restore and killed all sessions.
 # These files must NEVER be touched by Claude under any circumstances.
