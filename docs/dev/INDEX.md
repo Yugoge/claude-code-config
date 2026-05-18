@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-18T08:25:44Z*
-**Total entries**: 160
+*Last updated: 2026-05-18T09:49:08Z*
+**Total entries**: 161
 **Convention**: kebab
 
 ## Tree
@@ -165,6 +165,7 @@ dev/
 ├── `ticket-20260517-215114.md` - BA Specification: Agentic Analyst Mechanism for /push, /merge, /pull
 ├── `ticket-20260517-222440.md` - BA Specification: /allow bypass does not extend to git commit in pretool-git-privilege-guard.py
 ├── `ticket-20260518-071337.md` - BA Specification: /allow Universal Bypass — systemctl and git push
+├── `ticket-20260518-094616.md` - BA Specification: /allow Bypass System — 6-Issue Architectural Refactor
 ├── `user-requirement-dev-20260517-215114.md` - No description
 └── `user-requirement-dev-20260517-222440.md` - No description
 ```
