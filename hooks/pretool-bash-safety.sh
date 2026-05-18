@@ -14,6 +14,11 @@ fi
 DAEMON_RESTART_GRANT_DIR="${CLAUDE_DAEMON_RESTART_GRANT_DIR:-${CLAUDE_TMPDIR}}"
 DAEMON_RESTART_SENTINEL_RE="$(printf '%s' "${DAEMON_RESTART_GRANT_DIR%/}/claude-allow-daemon-restart-" | sed 's/[][\\.^$*+?{}|()]/\\&/g')"
 
+# IS_SUBAGENT: set once here at the top of the script (after PYTHON_BIN resolution).
+# $INPUT is assigned once at line 6 and never reassigned, so this read is safe regardless of position.
+# Used by check_and_consume_allowlist (subagent firewall) and the /do bypass block below.
+IS_SUBAGENT=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
+
 # Codex compatibility: hook payloads may pass a multi-line shell snippet with
 # strict-mode preludes such as `set -euo pipefail` before the actual command.
 # Docker compose service detection must examine compose invocations, not the
@@ -128,21 +133,16 @@ check_systemctl_targets_all_dev() {
 # docs/dev/ticket-20260509-113838.md) authorizes /allow to bypass any command
 # including dangerous ones when the user explicitly grants the pattern; consume
 # covers ANY safety block when the user-granted pattern matches.
-# NEVER bypasses subagent calls (IS_SUBAGENT inline fresh parse first; lines 121-131).
+# NEVER bypasses subagent calls (checked via IS_SUBAGENT script-global set at top of script).
 CONSENT_LOG="$HOME/.claude/logs/bash-consent.log"
 
 check_and_consume_allowlist() {
   local cmd="$1"
 
-  # IS_SUBAGENT check: INLINE fresh parse from $INPUT.
-  # The IS_SUBAGENT variable assigned at line ~499 is NOT yet set when this function is called
-  # at upstream call sites (all before the IS_SUBAGENT assignment). Inline parse is the only
-  # correct approach.
-  local is_sub
-  is_sub=$(echo "$INPUT" | "$PYTHON_BIN" -c \
-    "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
-    2>/dev/null)
-  if [ "$is_sub" = "1" ]; then
+  # IS_SUBAGENT check: references the script-global IS_SUBAGENT variable set at the top
+  # of the script (after PYTHON_BIN resolution). $INPUT is assigned once at line 6 and
+  # never reassigned, so IS_SUBAGENT is valid for the entire script lifetime.
+  if [ "$IS_SUBAGENT" = "1" ]; then
     return 1
   fi
 
@@ -597,10 +597,8 @@ PYAUDIT2
 # wins per documented "deny > defer > ask > allow" precedence (D3b is a
 # Plan-A-blocker; see dev-report plan_a_blocker_d3b for alternatives).
 # ── Main-agent /do bypass ────────────────────────────────────────────────────
-_DO_IS_SUB=$(echo "$INPUT" | "$PYTHON_BIN" -c \
-  "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
-  2>/dev/null)
-if [ "$_DO_IS_SUB" != "1" ]; then
+# IS_SUBAGENT is set at the top of the script — no inline parse needed here.
+if [ "$IS_SUBAGENT" != "1" ]; then
   _DO_SID=$(echo "$INPUT" | "$PYTHON_BIN" -c \
     "import json,sys,os; d=json.load(sys.stdin); \
 print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
@@ -612,6 +610,11 @@ print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" 
   fi
 fi
 # ────────────────────────────────────────────────────────────────────────────
+# Global /allow short-circuit — sole PreToolUse allowlist match/approval call site in
+# pretool-bash-safety.sh. Fires unconditionally after the /do bypass and before all
+# block rules. Actual grant deletion is deferred to posttool-allowlist-consume.py
+# (PostToolUse). Per-rule secondary calls were removed in task 20260518-094616 because
+# the global short-circuit at this location covers all paths unconditionally.
 check_and_consume_allowlist "$COMMAND" && exit 0
 
 # Layer 1.A — daemon-restart prohibition: systemctl verb gate against happy-daemon-*.
@@ -686,14 +689,6 @@ if echo "$COMMAND" | grep -qE "${DAEMON_RESTART_SENTINEL_RE}[A-Za-z0-9_-]+\.flag
   echo "        may create the grant sentinel." >&2
   exit 2
 fi
-
-# ── Global /allow short-circuit RELOCATED ──────────────────────────────────
-# As of task-id 20260509-113838 the /allow short-circuit runs BEFORE Layer 1.A
-# (and before the three absolute-ban blocks below). The original callsite at
-# this position is intentionally removed; the secondary check_and_consume_allowlist
-# callsites further below in the git-rule blocks (around lines 889/900/912/932/
-# 946/1002 of the original file) are now defense-in-depth-only and harmless
-# (no command can reach them with the /allow flag still present).
 
 # ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
 # On 2026-04-09, editing session_dirs.txt triggered full restore and killed all sessions.
@@ -802,7 +797,6 @@ fi
 if echo "$COMMAND" | grep -qE 'systemctl\s+(stop|restart|disable|enable|reload|kill|try-restart|reload-or-restart)(\s+|\b)' \
    && ! echo "$COMMAND" | grep -qE 'happy-daemon'; then
   if ! check_systemctl_targets_all_dev "$COMMAND" "$DEV_SYSTEMD"; then
-    check_and_consume_allowlist "$COMMAND" && exit 0
     echo "BLOCKED: systemctl stop/restart/disable/enable/reload/kill/try-restart/reload-or-restart is forbidden for production services" >&2
     echo "Command: $COMMAND" >&2
     echo "Hint: only $DEV_SYSTEMD is allowed (and happy-daemon-* is gated by Layer 1.A)." >&2
@@ -981,7 +975,6 @@ fi
 # V4: extended to also cover -u/--include-untracked/-a/--all variants (which include untracked/ignored files)
 if echo "$COMMAND" | grep -qE 'git\s+stash\s+(push|save|create|store|-u|--include-untracked|-a|--all)\b' || \
    echo "$COMMAND" | grep -qE 'git\s+stash\s+-[ua]+\b'; then
-  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: 'git stash push/save/create/store/-u/--all' requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: On 2026-04-19, a dev subagent used 'git stash' as a throwaway buffer" >&2
@@ -992,7 +985,6 @@ if echo "$COMMAND" | grep -qE 'git\s+stash\s+(push|save|create|store|-u|--includ
   exit 2
 fi
 if echo "$COMMAND" | grep -qE 'git\s+stash\s*($|[;&|])'; then
-  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: bare 'git stash' (implicit push) requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: See 2026-04-19 incident — stash is often paired with destructive checkout." >&2
@@ -1004,7 +996,6 @@ fi
 # Wide-path checkout from a ref overwrites the entire subtree with historical content.
 # Allowed: 'git checkout <ref> -- path/to/specific-file.ts' (single file), 'git checkout <branch>' (branch switch).
 if echo "$COMMAND" | grep -qE 'git\s+checkout\s+\S+\s+--\s+(\.|\*|[^ ]+/)\s*($|[;&|])'; then
-  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: 'git checkout <ref> -- .' / '-- *' / '-- dir/' requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: On 2026-04-19, a dev subagent ran 'git checkout 925f5960 -- .' inside" >&2
@@ -1024,7 +1015,6 @@ fi
 if echo "$COMMAND" | grep -qE 'git\s+restore\b' && \
    echo "$COMMAND" | grep -qE -- '(--source\b|-s\b)' && \
    echo "$COMMAND" | grep -qE -- '--\s+(\.|\*|[^ /]+/)\s*($|[;&|])'; then
-  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: 'git restore --source=<ref> -- .' / '-- *' / '-- dir/' requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: 'git restore --source=<ref> -- .' is the modern equivalent of" >&2
@@ -1064,8 +1054,7 @@ fi
 # Block: subagent-initiated git history mutation (2026-04-23 incident)
 # Subagents have weak context and cannot reliably know whether the user has consented.
 # All git history changes by subagents must be surfaced to the user instead.
-# Detection: parse stdin JSON for agent_id (matches pretool-orchestrator-gate.py mechanism).
-IS_SUBAGENT=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
+# IS_SUBAGENT is set at the top of the script (after PYTHON_BIN resolution); no re-parse needed.
 if [ "$IS_SUBAGENT" = "1" ]; then
   # /do bypass (2026-04-25): user has explicitly consented via /do — allow subagent history mutation
   SID=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print(d.get('session_id',''))" 2>/dev/null)
@@ -1107,7 +1096,6 @@ if echo "$COMMAND" | grep -qE 'git\s+revert\s+'; then
      echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*\S+\^+' || \
      echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*\S+~[0-9]*' || \
      echo "$COMMAND" | grep -qE 'git\s+revert\s+(\S+\s+)*\S+@\{[0-9]+\}'; then
-    check_and_consume_allowlist "$COMMAND" && exit 0
     echo "BLOCKED: 'git revert' with any ref modifier (caret/tilde/reflog/hash) requires explicit user approval" >&2
     echo "Command: $COMMAND" >&2
     echo "REASON: On 2026-04-23, a dev subagent ran 'git revert 1204d62' which undid a user-approved" >&2
