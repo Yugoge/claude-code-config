@@ -18,6 +18,92 @@ When invoked bare, the orchestrator identifies the active overnight cycle branch
 
 ## Implementation
 
+### Step 0: Resolve branch name
+
+The orchestrator resolves the source branch from conversation context (most recent
+overnight-state-*.json with `worktree_branch` field) or from the explicit argument.
+Do NOT guess from filesystem listing. If context cannot resolve a branch and no explicit
+argument was supplied, exit with an error asking the user to pass an explicit branch.
+
+### Step 1: Compute pre-merge snapshot
+
+```bash
+RESOLVED_BRANCH=<the-resolved-branch>
+SOURCE_TIP=$(git rev-parse "refs/heads/${RESOLVED_BRANCH}" 2>/dev/null || echo "MISSING")
+DEFAULT_BRANCH=$(bash ~/.claude/scripts/derive-default-branch.sh)
+DEFAULT_TIP=$(git rev-parse "refs/heads/${DEFAULT_BRANCH}" 2>/dev/null || echo "MISSING")
+REPO_HASH=$(python3 -c "import hashlib, os; print(hashlib.sha256(os.path.realpath('$(git rev-parse --show-toplevel)').encode()).hexdigest()[:16])")
+REQUEST_ID=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+SESSION_ID="${CLAUDE_SESSION_ID}"
+```
+
+If `SESSION_ID` is empty or unset, abort immediately with:
+"Cannot dispatch merge-analyst: CLAUDE_SESSION_ID not set. Invoke /merge from within a Claude Code session."
+
+If either tip is "MISSING", abort with an error describing which branch was not found.
+
+### Step 2: Dispatch merge-analyst subagent
+
+Dispatch the `merge-analyst` subagent with the following context:
+
+```
+RESOLVED_BRANCH=<RESOLVED_BRANCH>
+SOURCE_TIP=<SOURCE_TIP>
+DEFAULT_BRANCH=<DEFAULT_BRANCH>
+DEFAULT_TIP=<DEFAULT_TIP>
+REQUEST_ID=<REQUEST_ID>
+SESSION_ID=<SESSION_ID>
+REPO_HASH=<REPO_HASH>
+```
+
+Wait for the subagent to complete before proceeding.
+
+### Step 3: Read and validate merge-analyst grant
+
+Read the grant at:
+```
+/tmp/agentic-commit/merge-analyst/<REPO_HASH>/<SESSION_ID>/<REQUEST_ID>.json
+```
+
+Validate the following fields:
+- File exists (if absent: abort with "merge-analyst did not write a grant — aborting merge")
+- Grant is valid JSON (if not: abort with "merge-analyst grant is not valid JSON — aborting merge")
+- `nonce` field matches `REQUEST_ID`
+- `branch` field matches `RESOLVED_BRANCH`
+- `source_tip` field matches `SOURCE_TIP`
+- `default_tip` field matches `DEFAULT_TIP`
+- `default_branch` field matches `DEFAULT_BRANCH`
+- `session_id` field matches `SESSION_ID`
+- `verdict` field is one of: `"approved"`, `"blocked"` (reject unknown verdicts)
+- `risks` field is a JSON array (even if empty)
+- `expires_at` is in the future (60s expiry — parse ISO-8601, compare to current UTC time)
+
+If expired: re-dispatch merge-analyst (return to Step 2 with a fresh REQUEST_ID). Report
+to the user that the grant expired and a fresh analysis is running.
+
+If any non-expiry field mismatches, is absent, or has wrong type: abort with a descriptive error naming the failing field.
+
+Consume (unlink) the grant:
+```bash
+rm -f "/tmp/agentic-commit/merge-analyst/${REPO_HASH}/${SESSION_ID}/${REQUEST_ID}.json"
+```
+
+If verdict=blocked: display `risks[]` to the user and abort. Do NOT call merge.sh.
+
+### Step 4: Revalidate branch tips
+
+Immediately before calling merge.sh, re-read current branch tips:
+
+```bash
+CURRENT_SOURCE_TIP=$(git rev-parse "refs/heads/${RESOLVED_BRANCH}" 2>/dev/null)
+CURRENT_DEFAULT_TIP=$(git rev-parse "refs/heads/${DEFAULT_BRANCH}" 2>/dev/null)
+```
+
+If either tip differs from the value stored in the grant (`source_tip`, `default_tip`):
+abort with "Branch tips changed since merge-analyst ran — re-run /merge to get a fresh analysis".
+
+### Step 5: Call merge.sh
+
 The orchestrator calls the wrapper exactly once with the resolved branch:
 
 ```bash

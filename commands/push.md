@@ -12,12 +12,12 @@ The slash entry has `disable-model-invocation: true` to prevent the model
 from autonomously self-dispatching `/push` via SlashCommand. It does NOT
 forbid agent execution of the wrapper script. When the user invokes
 `/push` in conversation and this docstring is injected into the agent's
-context, the agent's correct response is to run `~/.claude/hooks/push.sh
-[remote]` directly via Bash. push.sh internally generates the grant
-manifest, exports `CLAUDE_PUSH_COMMAND_ACTIVE=1`, and runs the underlying
-push — all of which the privilege guard recognizes and admits. Do NOT
-bounce the work back to the user with "please run X manually" — that
-violates the harness's delegation design.
+context, the agent's correct response is to execute the **Agentic dispatch
+protocol** documented below (Steps 0-5), then call `push.sh` ONLY after
+push-analyst grant validation passes. Do NOT call `push.sh` directly
+without first dispatching `push-analyst` — the analyst gate is mandatory.
+Do NOT bounce the work back to the user with "please run X manually" —
+that violates the harness's delegation design.
 
 ## Usage
 
@@ -85,6 +85,100 @@ a successful push.
 | 0    | Push succeeded, or nothing to push |
 | 1    | Detached HEAD, missing remote, or normal push failure |
 | 2    | Blocked option such as force/delete/ref-rewrite mode |
+
+## Agentic dispatch protocol (pre-execution)
+
+Before calling `push.sh`, the orchestrator MUST execute the following steps in order:
+
+**Step 0: Parse arguments and resolve remote**
+
+Parse user-supplied arguments (optional `<remote>`, optional `--auto`). Resolve the push
+target remote using the same fork-prefer-origin logic as push.sh lines 38-42:
+
+```bash
+if git remote get-url fork >/dev/null 2>&1; then
+    RESOLVED_REMOTE="fork"
+else
+    RESOLVED_REMOTE="origin"
+fi
+# Explicit user-provided remote argument overrides the above
+```
+
+**Step 1: Validate push-gate token (Chain A — existing, unchanged)**
+
+This is the existing session commit prerequisite check. Verify the push-gate token at
+`/tmp/agentic-commit/push/<repo-hash>/<branch-encoded>.json` exists and that its
+`commit_sha` matches the current `git rev-parse HEAD`. If the token is absent or
+mismatched, abort and instruct the user to run `/commit` first.
+
+**Step 2: Compute pre-push snapshot**
+
+```bash
+PRE_HEAD=$(git rev-parse HEAD)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+REMOTE_URL=$(git remote get-url "${RESOLVED_REMOTE}" 2>/dev/null || echo "unknown")
+REPO_HASH=$(python3 -c "import hashlib, os; print(hashlib.sha256(os.path.realpath('$(git rev-parse --show-toplevel)').encode()).hexdigest()[:16])")
+REQUEST_ID=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+SESSION_ID="${CLAUDE_SESSION_ID}"
+```
+
+If `SESSION_ID` is empty or unset, abort immediately with:
+"Cannot dispatch push-analyst: CLAUDE_SESSION_ID not set. Invoke /push from within a Claude Code session."
+
+**Step 3: Dispatch push-analyst subagent**
+
+Dispatch the `push-analyst` subagent with the following context:
+
+```
+BRANCH=<BRANCH>
+PRE_HEAD=<PRE_HEAD>
+REMOTE_NAME=<RESOLVED_REMOTE>
+REMOTE_URL=<REMOTE_URL>
+REQUEST_ID=<REQUEST_ID>
+SESSION_ID=<SESSION_ID>
+REPO_HASH=<REPO_HASH>
+```
+
+Wait for the subagent to complete before proceeding.
+
+**Step 4: Read and validate push-analyst grant (Chain B)**
+
+Read the grant at:
+```
+/tmp/agentic-commit/push-analyst/<REPO_HASH>/<SESSION_ID>/<REQUEST_ID>.json
+```
+
+Validate the following fields:
+- File exists (if absent: abort with "push-analyst did not write a grant — aborting push")
+- Grant is valid JSON (if not: abort with "push-analyst grant is not valid JSON — aborting push")
+- `nonce` field matches `REQUEST_ID`
+- `branch` field matches current `BRANCH`
+- `head_sha` field matches current `git rev-parse HEAD` (must still equal `PRE_HEAD`)
+- `remote_name` field matches `RESOLVED_REMOTE`
+- `session_id` field matches `SESSION_ID`
+- `verdict` field is one of: `"approved"`, `"warn"`, `"blocked"` (reject unknown verdicts)
+- `risks` field is a JSON array (even if empty)
+- `expires_at` is in the future (parse ISO-8601, compare to current UTC time)
+
+If any field mismatches, is absent, has wrong type, or grant is expired: abort with a descriptive error message naming the failing field.
+
+Consume (unlink) the grant:
+```bash
+rm -f "/tmp/agentic-commit/push-analyst/${REPO_HASH}/${SESSION_ID}/${REQUEST_ID}.json"
+```
+
+Act on verdict:
+- `verdict=blocked`: display `risks[]` to the user and abort. Do NOT call push.sh.
+- `verdict=warn`: display `risks[]` to the user with a warning, then proceed.
+- `verdict=approved`: proceed.
+
+**Step 5: Call push.sh (Chain A push-gate token consumed here)**
+
+```bash
+bash ~/.claude/hooks/push.sh "${RESOLVED_REMOTE}"
+```
+
+The `--auto` flag is passed through if the user supplied it.
 
 ## Related
 
