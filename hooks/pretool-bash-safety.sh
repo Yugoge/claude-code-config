@@ -975,7 +975,6 @@ fi
 # V4: extended to also cover -u/--include-untracked/-a/--all variants (which include untracked/ignored files)
 if echo "$COMMAND" | grep -qE 'git\s+stash\s+(push|save|create|store|-u|--include-untracked|-a|--all)\b' || \
    echo "$COMMAND" | grep -qE 'git\s+stash\s+-[ua]+\b'; then
-  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: 'git stash push/save/create/store/-u/--all' requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: On 2026-04-19, a dev subagent used 'git stash' as a throwaway buffer" >&2
