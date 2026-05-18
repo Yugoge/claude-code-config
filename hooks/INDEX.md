@@ -1,6 +1,6 @@
 # hooks
 
-*Last updated: 2026-05-18T10:53:37Z*
+*Last updated: 2026-05-18T17:09:12Z*
 **Total entries**: 117
 **Convention**: kebab
 
@@ -23,7 +23,7 @@ hooks/
 │   └── `pre-commit` - unknown file
 ├── lib/
 │   ├── `agent_resolver.py` - Refactored from pretool-subagent-code-block.py::_find_agent_type so that
-│   ├── `allowlist.py` - Single source of truth for read_grant() — the check-only (no delete)
+│   ├── `allowlist.py` - Single source of truth for grant-read, grant-match, and grant-consume
 │   ├── `bash_write_targets.py` - Provides two public functions used by tool-policy and overnight-hook-guard:
 │   ├── `checkpoint-core.sh` - ============================================================================
 │   ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.
