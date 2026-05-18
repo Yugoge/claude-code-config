@@ -887,11 +887,11 @@ Development completed successfully!
 
 - If there is any unfinished development work (non-empty follow-up work in
   "Next Steps", known unmet acceptance criteria, or max-iteration exit), use
-  `/update` default continuation-spec mode. If a source spec exists, update it;
+  `/spec-continue` default continuation-spec mode. If a source spec exists, update it;
   otherwise create a new spec. The next command is `/dev --spec <spec_path>`.
   Do NOT hand unfinished work to `/close` or `/commit`.
 - If all requested development is complete and only closure/shipping remains,
-  create a compact temp update using `/update --temp`. Include `Task ID: <timestamp>`,
+  create a compact temp update using `/spec-continue --temp`. Include `Task ID: <timestamp>`,
   artifact paths (ticket, context, dev-report, QA-report, completion), QA status,
   iteration count, and suggested next commands: `/close <task-id>` → `/commit <task-id>` → `/push`.
 

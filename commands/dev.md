@@ -928,7 +928,7 @@ Would you like to:
 ```
 
 Before presenting those options, create or update a continuation spec using the
-`/update` default continuation-spec mode:
+`/spec-continue` default continuation-spec mode:
 - If this `/dev` cycle had a `spec_path`, append to that spec.
 - If there was no source spec, create a new spec from
   `~/.claude/templates/overnight-spec.md`.
@@ -1068,11 +1068,11 @@ Subagent final messages, lifecycle records, and JSON-like stdout are not complet
 - If there is any unfinished development work (non-empty follow-up work in
   "Next Steps", known unmet acceptance criteria, accepted AC-deviation with
   future work, max-iteration exit, or user asks to keep improving), use
-  `/update` default continuation-spec mode. If a source spec exists, update it;
+  `/spec-continue` default continuation-spec mode. If a source spec exists, update it;
   otherwise create a new spec. The next command is `/dev --spec <spec_path>`.
   Do NOT hand unfinished work to `/close` or `/commit`.
 - If all requested development is complete and only closure/shipping remains,
-  create a compact temp update using `/update --temp`. Default to
+  create a compact temp update using `/spec-continue --temp`. Default to
   `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless
   the user explicitly asks. Include `Task ID: <timestamp>`,
   ticket/spec/context/dev-report/QA-report/completion paths, QA status,

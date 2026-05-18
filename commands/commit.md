@@ -136,7 +136,7 @@ DO NOT:
 - Overwrite or delete prior "### Cycle N" sections
 - Modify any git state, commit grants, push tokens, or command files
 - Write any artifacts outside <SPEC_PATH>
-- Read or modify files outside <DEV_DOCS_ROOT>/ and <SPEC_PATH>
+- Read or modify files outside <DEV_DOCS_ROOT>/, <SPEC_PATH>, and /root/.claude/commands/spec-continue.md (allowed: read spec-continue.md for instructions)
 
 Follow the ## Continuation-spec mode instructions from /root/.claude/commands/spec-continue.md exactly:
 
