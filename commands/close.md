@@ -108,7 +108,7 @@ The forced-override todo list has exactly **2 steps** (no Step 2 / QA dispatch):
 
    Append to `~/.claude/logs/close-overrides.log`: a line with ISO timestamp, task-id, mode=force, and the reason string. Create `~/.claude/logs/` if needed. If the append fails, the close-report write still succeeds; the audit log is best-effort.
 
-6. **Create forced-path update and clean up sentinel**: Create the update using `/update --temp`. Default to `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless the user explicitly asks. It must state that closure was forced by the user, reference `docs/dev/close-report-<task-id>.md`, and suggest `/commit <task-id> -m "<summary>"` only if the user still intends to ship despite the skipped debate.
+6. **Create forced-path update and clean up sentinel**: Create the update using `/spec-continue --temp`. Default to `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless the user explicitly asks. It must state that closure was forced by the user, reference `docs/dev/close-report-<task-id>.md`, and suggest `/commit <task-id> -m "<summary>"` only if the user still intends to ship despite the skipped debate.
 
    After the update is created, remove the sentinel file by running `scripts/cleanup-close-force-sentinel.sh` with the resolved sentinel path (e.g. `/tmp/claude-close-force-<DEV_SESSION_ID>.flag`). Errors are swallowed so the close still completes. This cleanup is mandatory, not best-effort.
 
@@ -364,7 +364,7 @@ Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it 
 Then branch the update:
 
 - If the final verdict is `CLOSE: YES*`, create a compact temp update using
-  `/update --temp`. The update is for the next `/commit` attempt and MUST
+  `/spec-continue --temp`. The update is for the next `/commit` attempt and MUST
   reference, not duplicate: `docs/dev/close-report-<task-id>.md`,
   `docs/dev/dev-report-<task-id>.json`, `docs/dev/qa-report-<task-id>.json`,
   and the three inspector report paths from Step 1. Next action: `/commit
