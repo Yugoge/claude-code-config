@@ -14,7 +14,7 @@
     ],
     "scope": {
       "included": [
-        "hooks/pretool-git-privilege-guard.py — M1 (dead sid), M2 (central allowlist check)",
+        "hooks/pretool-git-privilege-guard.py — M1 (dead sid), M2 (central fast-path allowlist check for non-push; per-function calls retained)",
         "hooks/pretool-bash-safety.sh — M3 (remove 6 secondary calls + stale comment at lines ~690-696), M4 (IS_SUBAGENT relocation, remove inline parse from check_and_consume_allowlist, remove _DO_IS_SUB inline parse at /do bypass block lines ~600-602, update stale comment at lines ~124-131)"
       ],
       "excluded": [
