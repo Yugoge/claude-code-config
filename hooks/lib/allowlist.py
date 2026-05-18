@@ -96,7 +96,7 @@ def _match_loaded_grant(
 
 def _load_and_match(
     sid: str,
-    candidates: list,
+    candidates: list[str],
     literal_policy: str,
     regex_timeout: int | None,
 ) -> MatchResult | None:
