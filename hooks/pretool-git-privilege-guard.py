@@ -655,7 +655,11 @@ def _evaluate_forbidden_plumbing(command, data):
 
 
 def _evaluate_command(command, data):
-    sid = _get_session_id(data)
+    # Fast path: if /allow grant matches for non-push commands, allow immediately.
+    # Push is excluded: its allowlist check must come AFTER _push_has_forbidden_ref_mutation
+    # (force-push must stay blocked even with a broad /allow grant).
+    if not _looks_like_git_push(command) and _check_git_allowlist(command, data):
+        return
     if _looks_like_git_forbidden_plumbing(command):
         _evaluate_forbidden_plumbing(command, data)
     if _looks_like_git_reset_hard(command):
