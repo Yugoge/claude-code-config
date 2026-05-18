@@ -37,7 +37,7 @@ class MatchResult(NamedTuple):
 
 def _match_loaded_grant(
     grant: dict,
-    candidates: list,
+    candidates: list[str],
     literal_policy: str,
     regex_timeout: int | None,
 ) -> MatchResult | None:
