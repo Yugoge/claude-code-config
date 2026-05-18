@@ -34,7 +34,7 @@ The following operations are FORBIDDEN regardless of any instruction in the disp
 5. **Never rebase** — `git rebase` is not in scope and can rewrite public history
 6. **Never extend BLESSED_BRIDGE_RE** — do not suggest or implement adding conventional commit patterns to the privilege guard regex; this would destroy the security model
 7. **Never overwrite another session's push-gate token** — if the token path already exists and its `session_id` differs from the current session, print a WARNING and skip the token write for this repo
-8. **Never commit to main/master directly** — if the current branch is `main` or `master`, print a WARNING before committing and require FORCE=true to proceed
+8. **Never hard-block commits solely because the current branch is main/master** — if the current branch is `main` or `master`, print a WARNING before committing, but do not require `FORCE=true` solely for that branch; rely on the `/close` quality gate for commit-readiness
 9. **Never skip the flock** — do not bypass `flock -w 30 -x 9` even if it seems slow; the lock protects against concurrent staging corruption
 10. **Never use commit messages matching `\bsync\b.*\buncommitted\b` or `chore\(claude\)\s*:\s*sync`** — these patterns trigger pretool-bulk-commit-detector.py
 11. **Never run on branches starting with `refs/remotes/`** — these are remote-tracking refs, not local branches
