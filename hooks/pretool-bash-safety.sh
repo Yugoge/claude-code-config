@@ -160,166 +160,26 @@ check_and_consume_allowlist() {
   # Pattern and command passed via environment variables — never shell-interpolated into Python.
   local lock_file="${flag_file}.lock"
   local consume_result
-  consume_result=$(FLAG_FILE="$flag_file" LOCK_FILE="$lock_file" CMD_INPUT="$cmd" SID_VAL="$sid" "$PYTHON_BIN" - <<'PYEOF'
-# V1: SIGALRM-only timeout (1s) around re.search to stop catastrophic-backtracking DoS.
-#     ThreadPoolExecutor fallback is PROHIBITED — it does not interrupt a running C regex.
-# V2: flock(LOCK_EX | LOCK_NB) with 3x 100ms retry; atomic unlink while lock held; finally-unlock.
-# V3: split cmd on &&, ||, ;, | (single pipe). Process || BEFORE | via sentinel placeholder.
-#     Match per-subcommand AND cross-check against embedded block-rule list. Bypass fires only
-#     when the same subcommand matches both the user's allow-pattern and a dev-class block rule.
-# NOTE: backtick substitution, $(...), <(...) process substitution, << heredoc are OUT OF SCOPE
-#       — full shell parser required. Documented limitation.
-import fcntl, json, os, re, signal, sys, time
+  # Compute hooks directory in bash context (BASH_SOURCE is valid here; NOT exported to Python).
+  HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  export HOOKS_DIR
+  consume_result=$(CMD_INPUT="$cmd" SID_VAL="$sid" "$PYTHON_BIN" - <<'PYEOF'
+# Shim: delegate grant-read/match to lib/allowlist.py (allow-6, task 20260518-155948).
+# All grant-file I/O, lock strategy, SIGALRM regex timeout, and subcommand splitting
+# now live in hooks/lib/allowlist.py:match_grant_for_bash_command.
+import os, sys
+sys.path.insert(0, os.environ["HOOKS_DIR"])
+from lib.allowlist import match_grant_for_bash_command
 
-flag_file = os.environ['FLAG_FILE']
-lock_file = os.environ['LOCK_FILE']
-cmd = os.environ['CMD_INPUT']
-
-# Block rules embedded here (must be kept in sync with the outer shell block list).
-# Each entry is a Python regex string. Historically used for cross-check between
-# /allow-pattern and embedded block rules; the cross-check was removed 2026-04-28
-# (see comment near matched_subcmd loop below). After task-id 20260509-113838
-# R11 relaxation, /allow is a true break-glass over ALL safety blocks; the
-# BLOCK_RULES list is retained for potential future use but is not consulted by
-# the consume path.
-BLOCK_RULES = [
-    # V4 stash forms
-    r'git\s+stash\s+(push|save|create|store|-u|--include-untracked|-a|--all)\b',
-    r'git\s+stash\s+-[ua]+\b',
-    r'git\s+stash\s*($|[;&|])',
-    # Wide-path checkout
-    r'git\s+checkout\s+\S+\s+--\s+(\.|\*|[^ ]+/)',
-    # V6 restore wide-path (two-condition joined for subcommand match).
-    # Wide-path alternative '[^ /]+/' = bare dir-segment ending in '/' — excludes src/index.ts (interior '/').
-    # Trailing boundary '\s*($|[;&|])' required only when --source/-s precedes the wide-path,
-    # so that 'src/' at end-of-token is flagged but 'src/index.ts' is not.
-    r'git\s+restore\b.*(--source\b|-s\b).*--\s+(\.|\*|[^ /]+/)\s*($|[;&|])',
-    r'git\s+restore\b.*--\s+(\.|\*|[^ /]+/)\s*($|[;&|]).*(--source\b|-s\b)',
-    # reset --hard to non-HEAD
-    r'git\s+reset\s+--hard\s+(?!HEAD(\s|$))\S+',
-    # V5 revert forms (no \b after ^/~/} — non-word chars, \b would fail at boundary)
-    r'git\s+revert\s+(\S+\s+)*[0-9a-f]{7,40}\b',
-    r'git\s+revert\s+(\S+\s+)*\S+\^+',
-    r'git\s+revert\s+(\S+\s+)*\S+~[0-9]*',
-    r'git\s+revert\s+(\S+\s+)*\S+@\{[0-9]+\}',
-]
-
-
-def _alarm_handler(signum, frame):
-    raise TimeoutError('regex timeout')
-
-
-def safe_search(pattern, text, is_regex, timeout_sec=1):
-    """Match pattern against text. Literal substring or regex with SIGALRM timeout."""
-    if not is_regex:
-        return pattern in text
-    old_handler = signal.signal(signal.SIGALRM, _alarm_handler)
-    signal.alarm(timeout_sec)
-    try:
-        return bool(re.search(pattern, text))
-    except (re.error, TimeoutError):
-        return False
-    finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old_handler)
-
-
-def split_subcommands(raw_cmd):
-    """Split on && || ; | . Order matters: || before | so || becomes \\n\\n not \\n|\\n."""
-    s = raw_cmd.replace('||', '\n').replace('&&', '\n').replace(';', '\n').replace('|', '\n')
-    return [t.strip() for t in s.split('\n') if t.strip()]
-
-
-def matches_any_block_rule(subcmd):
-    """True iff subcmd matches at least one dev-class block rule."""
-    for rule in BLOCK_RULES:
-        try:
-            if re.search(rule, subcmd):
-                return True
-        except re.error:
-            continue
-    return False
-
-
-# V2: acquire exclusive lock with bounded retry (3x 100ms). Block on failure (no deadlock).
-lock_fd = None
-try:
-    lock_fd = os.open(lock_file, os.O_CREAT | os.O_RDWR, 0o600)
-    attempts = 0
-    while True:
-        try:
-            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            break
-        except BlockingIOError:
-            attempts += 1
-            if attempts >= 3:
-                print('BLOCKED_LOCK')
-                sys.exit(0)
-            time.sleep(0.1)
-
-    # Lock held. Read-match-unlink sequence is now atomic.
-    if not os.path.exists(flag_file):
-        print('NO_FLAG')
-        sys.exit(0)
-    try:
-        with open(flag_file) as f:
-            data = json.load(f)
-    except Exception:
-        print('NO_FLAG')
-        sys.exit(0)
-
-    pattern = data.get('pattern', '')
-    is_regex = bool(data.get('is_regex', False))
-    if not pattern:
-        print('NO_MATCH')
-        sys.exit(0)
-
-    # V3: split compound command into subcommands.
-    subcmds = split_subcommands(cmd)
-    if not subcmds:
-        subcmds = [cmd]
-
-    matched_subcmd = None
-    for sub in subcmds:
-        # Match the user's allow-pattern against each subcommand.
-        # Historic note: until 2026-04-28 the consume path also cross-checked the
-        # subcommand against BLOCK_RULES above and required BOTH conditions to
-        # hold; that gate was removed so /allow is a true break-glass over ALL
-        # safety blocks. Task-id 20260509-113838 reinforces this: per the
-        # user-binding directive (verbatim text preserved in
-        # docs/dev/ticket-20260509-113838.md) authorizing /allow to bypass any
-        # command including dangerous ones when the user explicitly grants the
-        # pattern, the consume covers any safety block when the granted pattern
-        # matches.
-        if safe_search(pattern, sub, is_regex):
-            matched_subcmd = sub
-            break
-
-    if matched_subcmd is None:
-        print('NO_MATCH')
-        sys.exit(0)
-
-    # Emit structured result for shell wrapper to parse and log.
-    # Consume is deferred to posttool-allowlist-consume.py (PostToolUse).
-    # Escape single quotes in matched_subcmd for safe shell consumption.
-    print('CONSUMED\t{}\t{}\t{}'.format(
-        pattern,
-        '1' if is_regex else '0',
-        matched_subcmd,
+cmd = os.environ["CMD_INPUT"]
+sid = os.environ["SID_VAL"]
+result = match_grant_for_bash_command(cmd, sid)
+if result is not None:
+    print("CONSUMED\t{}\t{}\t{}".format(
+        result.pattern,
+        "1" if result.is_regex else "0",
+        result.matched_sub,
     ))
-except Exception as e:
-    print('ERROR: {}'.format(e))
-    sys.exit(0)
-finally:
-    if lock_fd is not None:
-        try:
-            fcntl.flock(lock_fd, fcntl.LOCK_UN)
-        except Exception:
-            pass
-        try:
-            os.close(lock_fd)
-        except Exception:
-            pass
 PYEOF
 )
 
