@@ -117,8 +117,8 @@ mismatched, abort and instruct the user to run `/commit` first.
 PRE_HEAD=$(git rev-parse HEAD)
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 REMOTE_URL=$(git remote get-url "${RESOLVED_REMOTE}" 2>/dev/null || echo "unknown")
-REPO_HASH=$(python3 -c "import hashlib, os; print(hashlib.sha256(os.path.realpath('$(git rev-parse --show-toplevel)').encode()).hexdigest()[:16])")
-REQUEST_ID=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+REPO_HASH=$(printf '%s' "$(realpath "$(git rev-parse --show-toplevel)")" | sha256sum | cut -c1-16)
+REQUEST_ID=$(openssl rand -hex 16)
 SESSION_ID="${CLAUDE_SESSION_ID}"
 ```
 
