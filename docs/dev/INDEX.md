@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-18T22:20:40Z*
-**Total entries**: 189
+*Last updated: 2026-05-18T22:20:50Z*
+**Total entries**: 190
 **Convention**: kebab
 
 ## Tree
@@ -110,6 +110,7 @@ dev/
 ├── `dev-report-20260518-071337.json` - json config
 ├── `dev-report-20260518-094616.json` - json config
 ├── `dev-report-20260518-155948.json` - json config
+├── `dev-report-20260518-214050-budget-management.json` - json config
 ├── `dev-report-20260518-214050-dot-claude.json` - json config
 ├── `dev-report-20260518-214050-excel-analyzer.json` - json config
 ├── `dev-report-20260518-214050-knowledge-system-qijie.json` - json config
