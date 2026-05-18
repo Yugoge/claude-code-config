@@ -13,15 +13,14 @@ for retry. This is correct UX: user can retry with the same grant.
 Exit 0 always (fail-open). Silently exits if no grant or no match.
 """
 
-import fcntl
 import json
 import os
-import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from lib.subagent import is_subagent_context  # noqa: E402
+from lib.allowlist import consume_grant_for_posttool  # noqa: E402
 
 
 def _split_bash_command(cmd: str) -> list:
