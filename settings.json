@@ -250,7 +250,8 @@
       "Skill(spec:*)",
       "Skill(stop:*)",
       "Skill(test:*)",
-      "Skill(update:*)"
+      "Skill(update:*)",
+      "Skill(spec-continue:*)"
     ],
     "ask": [
       "Bash(docker run:*)",

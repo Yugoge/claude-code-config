@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-18T08:25:44Z*
-**Total entries**: 160
+*Last updated: 2026-05-18T11:35:35Z*
+**Total entries**: 170
 **Convention**: kebab
 
 ## Tree
@@ -27,6 +27,7 @@ dev/
 ├── `ba-qa-report-20260517-215114.json` - json config
 ├── `ba-qa-report-20260517-222440.json` - json config
 ├── `ba-qa-report-20260518-071337.json` - json config
+├── `ba-qa-report-20260518-094616.json` - json config
 ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 ├── `cleanliness-inspector-report-20260517-155838.json` - json config
 ├── `cleanliness-inspector-report-20260517-172600.json` - json config
@@ -35,6 +36,7 @@ dev/
 ├── `cleanliness-inspector-report-20260517-215114.json` - json config
 ├── `cleanliness-inspector-report-20260517-222440.json` - json config
 ├── `cleanliness-inspector-report-20260518-071337.json` - json config
+├── `cleanliness-inspector-report-20260518-094616.json` - json config
 ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
 ├── `close-report-20260510-191533.md` - Close Debate Report
 ├── `close-report-20260511-094500.md` - Close Report — 20260511-094500
@@ -47,6 +49,7 @@ dev/
 ├── `close-report-20260517-215114.md` - Close Report — 20260517-215114
 ├── `close-report-20260517-222440.md` - Close Debate — 20260517-222440 (MULTI-ROUND, codex_required: true)
 ├── `close-report-20260518-071337.md` - Close Report — 20260518-071337
+├── `close-report-20260518-094616.md` - Close Debate Report — 20260518-094616
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
@@ -58,6 +61,7 @@ dev/
 ├── `completion-20260517-215114.md` - Development Completion Report — 20260517-215114
 ├── `completion-20260517-222440.md` - Development Completion Report — 20260517-222440
 ├── `completion-20260518-071337.md` - Development Completion Report — 20260518-071337
+├── `completion-20260518-094616.md` - Development Completion Report — 20260518-094616
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
 ├── `context-20260510-191533.json` - json config
@@ -70,6 +74,7 @@ dev/
 ├── `context-20260517-215114.json` - json config
 ├── `context-20260517-222440.json` - json config
 ├── `context-20260518-071337.json` - json config
+├── `context-20260518-094616.json` - json config
 ├── `context-dev-20260107-091716.json` - json config
 ├── `context-dev-20260107-100221.json` - json config
 ├── `context-dev-20260107-104430.json` - json config
@@ -96,6 +101,7 @@ dev/
 ├── `dev-report-20260517-215114.json` - json config
 ├── `dev-report-20260517-222440.json` - json config
 ├── `dev-report-20260518-071337.json` - json config
+├── `dev-report-20260518-094616.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
 ├── `dev-report-dev-20260107-104430.json` - json config
@@ -112,6 +118,7 @@ dev/
 ├── `prompt-inspector-report-20260517-215114.json` - json config
 ├── `prompt-inspector-report-20260517-222440.json` - json config
 ├── `prompt-inspector-report-20260518-071337.json` - json config
+├── `prompt-inspector-report-20260518-094616.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
 ├── `qa-input-dev-20260107-091716.json` - json config
@@ -137,6 +144,7 @@ dev/
 ├── `qa-report-20260517-215114.json` - json config
 ├── `qa-report-20260517-222440.json` - json config
 ├── `qa-report-20260518-071337.json` - json config
+├── `qa-report-20260518-094616.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
 ├── `qa-report-dev-20260107-100221.json` - json config
 ├── `qa-report-dev-20260107-104430.json` - json config
@@ -155,6 +163,7 @@ dev/
 ├── `style-inspector-report-20260517-215114.json` - json config
 ├── `style-inspector-report-20260517-222440.json` - json config
 ├── `style-inspector-report-20260518-071337.json` - json config
+├── `style-inspector-report-20260518-094616.json` - json config
 ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence
@@ -165,6 +174,7 @@ dev/
 ├── `ticket-20260517-215114.md` - BA Specification: Agentic Analyst Mechanism for /push, /merge, /pull
 ├── `ticket-20260517-222440.md` - BA Specification: /allow bypass does not extend to git commit in pretool-git-privilege-guard.py
 ├── `ticket-20260518-071337.md` - BA Specification: /allow Universal Bypass — systemctl and git push
+├── `ticket-20260518-094616.md` - BA Specification: /allow Bypass System — 6-Issue Architectural Refactor
 ├── `user-requirement-dev-20260517-215114.md` - No description
 └── `user-requirement-dev-20260517-222440.md` - No description
 ```
