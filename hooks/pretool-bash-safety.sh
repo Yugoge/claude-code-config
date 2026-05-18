@@ -985,7 +985,6 @@ if echo "$COMMAND" | grep -qE 'git\s+stash\s+(push|save|create|store|-u|--includ
   exit 2
 fi
 if echo "$COMMAND" | grep -qE 'git\s+stash\s*($|[;&|])'; then
-  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: bare 'git stash' (implicit push) requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: See 2026-04-19 incident — stash is often paired with destructive checkout." >&2
