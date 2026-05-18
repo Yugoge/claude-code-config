@@ -117,7 +117,7 @@
       "id": "R2",
       "source_phrase": "6 per-function `_check_git_allowlist(command, data)` calls with no structural enforcement",
       "classification": "user-need clause",
-      "acceptance_criterion": "Central call in dispatcher for non-push operations; push retains own call after absolute ban; 5 per-function calls removed"
+      "acceptance_criterion": "Central fast-path call in dispatcher for pure non-push commands (not _looks_like_git_push guard); 5 per-function calls in non-push evaluate-* functions RETAINED; push retains own call after absolute ban; no return added after _evaluate_push dispatch"
     },
     {
       "id": "R3",
