@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-18T06:25:19Z*
-**Total entries**: 150
+*Last updated: 2026-05-18T07:16:32Z*
+**Total entries**: 152
 **Convention**: kebab
 
 ## Tree
@@ -65,6 +65,7 @@ dev/
 ├── `context-20260517-211508.json` - json config
 ├── `context-20260517-215114.json` - json config
 ├── `context-20260517-222440.json` - json config
+├── `context-20260518-071337.json` - json config
 ├── `context-dev-20260107-091716.json` - json config
 ├── `context-dev-20260107-100221.json` - json config
 ├── `context-dev-20260107-104430.json` - json config
@@ -155,6 +156,7 @@ dev/
 ├── `ticket-20260517-211508.md` - BA Specification: Fix broken ending-workflow in clean.md (Cycle 2)
 ├── `ticket-20260517-215114.md` - BA Specification: Agentic Analyst Mechanism for /push, /merge, /pull
 ├── `ticket-20260517-222440.md` - BA Specification: /allow bypass does not extend to git commit in pretool-git-privilege-guard.py
+├── `ticket-20260518-071337.md` - BA Specification: /allow Universal Bypass — systemctl and git push
 ├── `user-requirement-dev-20260517-215114.md` - No description
 └── `user-requirement-dev-20260517-222440.md` - No description
 ```
