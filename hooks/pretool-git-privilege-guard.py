@@ -568,7 +568,8 @@ def _block_missing_push_grant(sid):
     )
 
 
-def _evaluate_push(command, sid):
+def _evaluate_push(command, data):
+    sid = _get_session_id(data)
     # AC-A1: literal-substring inline-env injection (precedes env check).
     if _inline_env_present(command, 'CLAUDE_PUSH_COMMAND_ACTIVE'):
         _block_inline_env_push(command)
@@ -579,6 +580,8 @@ def _evaluate_push(command, sid):
             + 'Safety policy allows normal /push branch publication only; '
             'automatic backup must use namespaced recovery refs.\n'
         )
+    if _check_git_allowlist(command, data):
+        return
     # AC-A5: default-deny when env unset.
     if os.environ.get('CLAUDE_PUSH_COMMAND_ACTIVE') != '1':
         _block_default_deny_push(command)
@@ -660,7 +663,7 @@ def _evaluate_command(command, data):
     if _looks_like_git_direct_ref_mutation(command):
         _evaluate_direct_ref_mutation(command, data)
     if _looks_like_git_push(command):
-        _evaluate_push(command, sid)
+        _evaluate_push(command, data)
     if _looks_like_git_merge(command):
         _evaluate_merge(command, data)
     if _looks_like_git_commit(command):
