@@ -1015,7 +1015,6 @@ fi
 if echo "$COMMAND" | grep -qE 'git\s+restore\b' && \
    echo "$COMMAND" | grep -qE -- '(--source\b|-s\b)' && \
    echo "$COMMAND" | grep -qE -- '--\s+(\.|\*|[^ /]+/)\s*($|[;&|])'; then
-  check_and_consume_allowlist "$COMMAND" && exit 0
   echo "BLOCKED: 'git restore --source=<ref> -- .' / '-- *' / '-- dir/' requires explicit user approval" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: 'git restore --source=<ref> -- .' is the modern equivalent of" >&2
