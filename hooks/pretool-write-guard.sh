@@ -28,26 +28,18 @@ print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" 
   if [ -f "$_WG_DO_FLAG" ] && [ "$(cat "$_WG_DO_FLAG" 2>/dev/null)" = "true" ]; then
     exit 0
   fi
-  # /allow bypass (main-agent only)
+  # /allow bypass (main-agent only) — delegates to lib/allowlist.read_grant("Write", sid)
+  _WG_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   _WG_ALLOW_FILE="/tmp/claude-bash-allowlist-${_WG_SID}.json"
   if [ -f "$_WG_ALLOW_FILE" ]; then
-    _WG_MATCHED=$(python3 -c "
-import json, sys, re, fcntl
-path = sys.argv[1]
-try:
-    with open(path, 'r+') as fh:
-        fcntl.flock(fh, fcntl.LOCK_EX)
-        grant = json.load(fh)
-        pattern = grant.get('pattern', '')
-        if not isinstance(pattern, str) or not pattern:
-            raise ValueError('empty pattern')
-        is_regex = grant.get('is_regex', False)
-        matched = bool(re.search(pattern, 'Write')) if is_regex else (pattern == 'Write' or pattern in 'Write')
-        if matched:
-            print('1')
-except Exception:
-    pass
-" "$_WG_ALLOW_FILE" 2>/dev/null)
+    _WG_MATCHED=$(HOOKS_DIR="$_WG_HOOKS_DIR" WG_SID="$_WG_SID" python3 - <<'WGEOF'
+import os, sys
+sys.path.insert(0, os.environ["HOOKS_DIR"])
+from lib.allowlist import read_grant
+if read_grant("Write", os.environ["WG_SID"]):
+    print("1")
+WGEOF
+)
     if [ "$_WG_MATCHED" = "1" ]; then
       exit 0
     fi

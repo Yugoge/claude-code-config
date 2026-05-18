@@ -88,6 +88,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from lib.allowlist import read_grant_for_git_command  # noqa: E402
+
 
 BLESSED_BRIDGE_RE = re.compile(r'auto-bulk:\s*end-of-cycle commit for\b')
 
@@ -142,39 +145,14 @@ def _check_git_allowlist(command: str, data: dict) -> bool:
     """Check /allow grant for non-push git operations. Read-only.
 
     Main-agent only. Returns True if grant matched (consume deferred to PostToolUse).
+    IS_SUBAGENT check fires here before calling the library function.
     """
     if data.get('agent_id'):
         return False
     sid = _get_session_id(data)
     if not sid:
         return False
-    flag_path = Path(f'/tmp/claude-bash-allowlist-{sid}.json')
-    try:
-        import fcntl
-        import json as _json
-        with open(flag_path, 'r+') as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
-            try:
-                grant = _json.load(fh)
-            except Exception:
-                return False
-            pattern = grant.get('pattern', '')
-            if not isinstance(pattern, str) or not pattern:
-                return False
-            is_regex = grant.get('is_regex', False)
-            if is_regex:
-                import re as _re
-                matched = bool(_re.search(pattern, command))
-            else:
-                matched = pattern in command
-            if matched:
-                sys.stderr.write(f"[ALLOW] grant matched, consume deferred to PostToolUse\n")
-                return True
-            return False
-    except (FileNotFoundError, OSError):
-        return False
-    except Exception:
-        return False
+    return read_grant_for_git_command(command, sid)
 
 
 def _inline_env_present(command, var_name):
