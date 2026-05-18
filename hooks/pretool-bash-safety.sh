@@ -14,6 +14,11 @@ fi
 DAEMON_RESTART_GRANT_DIR="${CLAUDE_DAEMON_RESTART_GRANT_DIR:-${CLAUDE_TMPDIR}}"
 DAEMON_RESTART_SENTINEL_RE="$(printf '%s' "${DAEMON_RESTART_GRANT_DIR%/}/claude-allow-daemon-restart-" | sed 's/[][\\.^$*+?{}|()]/\\&/g')"
 
+# IS_SUBAGENT: set once here at the top of the script (after PYTHON_BIN resolution).
+# $INPUT is assigned once at line 6 and never reassigned, so this read is safe regardless of position.
+# Used by check_and_consume_allowlist (subagent firewall) and the /do bypass block below.
+IS_SUBAGENT=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
+
 # Codex compatibility: hook payloads may pass a multi-line shell snippet with
 # strict-mode preludes such as `set -euo pipefail` before the actual command.
 # Docker compose service detection must examine compose invocations, not the
