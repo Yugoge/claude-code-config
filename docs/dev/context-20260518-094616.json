@@ -25,8 +25,8 @@
     },
     "success_criteria": [
       "Dead sid variable removed from _evaluate_command",
-      "_check_git_allowlist called centrally in dispatcher for all non-push operations; push exempt",
-      "5 per-function _check_git_allowlist calls removed from non-push evaluate-* functions",
+      "_check_git_allowlist central fast-path added in dispatcher for pure non-push commands (conditioned on not _looks_like_git_push)",
+      "per-function _check_git_allowlist calls in 5 non-push evaluate-* functions RETAINED as safety-net for compound push+other commands",
       "git push --force still blocked with /allow grant present (scope invariant)",
       "6 secondary check_and_consume_allowlist calls removed from pretool-bash-safety.sh",
       "Global short-circuit at line 615 remains unconditional",
