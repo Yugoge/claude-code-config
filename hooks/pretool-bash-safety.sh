@@ -802,6 +802,7 @@ fi
 if echo "$COMMAND" | grep -qE 'systemctl\s+(stop|restart|disable|enable|reload|kill|try-restart|reload-or-restart)(\s+|\b)' \
    && ! echo "$COMMAND" | grep -qE 'happy-daemon'; then
   if ! check_systemctl_targets_all_dev "$COMMAND" "$DEV_SYSTEMD"; then
+    check_and_consume_allowlist "$COMMAND" && exit 0
     echo "BLOCKED: systemctl stop/restart/disable/enable/reload/kill/try-restart/reload-or-restart is forbidden for production services" >&2
     echo "Command: $COMMAND" >&2
     echo "Hint: only $DEV_SYSTEMD is allowed (and happy-daemon-* is gated by Layer 1.A)." >&2
