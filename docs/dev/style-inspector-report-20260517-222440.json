@@ -1,0 +1,46 @@
+{
+  "request_id": "dev-20260517-222440",
+  "timestamp": "2026-05-18T00:00:00+00:00",
+  "inspector": "style-inspector",
+  "scope": "changed-files",
+  "changed_files": ["hooks/pretool-git-privilege-guard.py"],
+  "violations": [],
+  "standards_passed": [
+    "no-inline-code",
+    "no-hardcoded-values",
+    "use-source-venv",
+    "integer-step-numbering",
+    "meaningful-naming",
+    "english-only",
+    "merge-similar-scripts",
+    "concise-documentation",
+    "parameterized-scripts",
+    "dangling-references",
+    "merge-conflicts"
+  ],
+  "notes": [
+    {
+      "standard": "english-only",
+      "location": "hooks/pretool-git-privilege-guard.py:11",
+      "finding": "Line 11 contains Chinese text `全部commit push` inside the module-level docstring. This is a verbatim quote of the historical user prompt that triggered the b5d447e incident. Standard 6 unconditional scan detected it.",
+      "disposition": "pre-existing — outside this cycle's diff hunk. The line is unchanged since at least commit aaf3c44 (refactor). AC-2.6(b) newness check: the changed-line ranges in this diff are lines 141-142, 444-445, 453-455. Line 11 does not fall within any diff hunk. Finding is therefore NOT attributable to this cycle and is NOT a new violation introduced by this PR.",
+      "advisory": true
+    }
+  ],
+  "summary": {
+    "standards_checked": 11,
+    "violations_found": 0,
+    "critical": 0,
+    "advisory_pre_existing": 1,
+    "files_audited": 1,
+    "files_total": 1,
+    "rounds_completed": 1
+  },
+  "codex_consult": {
+    "invoked": false,
+    "status": "not_requested",
+    "feedback_summary": null,
+    "findings": [],
+    "feedback_incorporated": null
+  }
+}
