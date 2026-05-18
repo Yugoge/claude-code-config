@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-18T22:41:54Z*
-**Total entries**: 201
+*Last updated: 2026-05-18T22:47:53Z*
+**Total entries**: 203
 **Convention**: kebab
 
 ## Tree
@@ -41,6 +41,7 @@ dev/
 ├── `cleanliness-inspector-report-20260518-094616.json` - json config
 ├── `cleanliness-inspector-report-20260518-155948.json` - json config
 ├── `cleanliness-inspector-report-20260518-214050.json` - json config
+├── `close-debate-20260518-214050.json` - json config
 ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
 ├── `close-report-20260510-191533.md` - Close Debate Report
 ├── `close-report-20260511-094500.md` - Close Report — 20260511-094500
@@ -55,6 +56,7 @@ dev/
 ├── `close-report-20260518-071337.md` - Close Report — 20260518-071337
 ├── `close-report-20260518-094616.md` - Close Debate Report — 20260518-094616
 ├── `close-report-20260518-155948.md` - Close Report — 20260518-155948
+├── `close-report-20260518-214050.md` - Close Debate Report
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
