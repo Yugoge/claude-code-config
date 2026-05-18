@@ -47,61 +47,13 @@ def main() -> None:
 
     tool_name = data.get("tool_name", "")
     session_id = data.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "default")
-    grant_path = Path(f"/tmp/claude-bash-allowlist-{session_id}.json")
 
-    try:
-        with open(grant_path, "r+") as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
-            try:
-                grant = json.load(fh)
-            except Exception:
-                sys.exit(0)
+    if tool_name == "Bash":
+        command = (data.get("tool_input") or {}).get("command", "")
+    else:
+        command = ""
 
-            pattern = grant.get("pattern", "")
-            if not isinstance(pattern, str) or not pattern:
-                sys.exit(0)
-
-            is_regex = grant.get("is_regex", False)
-
-            matched = False
-            if tool_name == "Bash":
-                command = (data.get("tool_input") or {}).get("command", "")
-                subcommands = _split_bash_command(command)
-                # Include full command as a candidate too
-                candidates = subcommands + [command]
-                for part in candidates:
-                    if is_regex:
-                        if re.search(pattern, part):
-                            matched = True
-                            break
-                    else:
-                        if pattern == part or pattern in part:
-                            matched = True
-                            break
-                # Fallback: exact tool-name match for grants like `/allow Bash`
-                if not matched and not is_regex and pattern == tool_name:
-                    matched = True
-            else:
-                if is_regex:
-                    matched = bool(re.search(pattern, tool_name))
-                else:
-                    # Exact match only for literal grants (prevents /allow Write from
-                    # consuming a TodoWrite call)
-                    matched = (pattern == tool_name)
-
-            if matched:
-                try:
-                    os.unlink(grant_path)
-                except FileNotFoundError:
-                    pass
-                sys.stderr.write(f"[ALLOW] grant CONSUMED for {tool_name}\n")
-            # If not matched: exit 0 silently — grant stays for the intended tool call
-
-    except FileNotFoundError:
-        pass
-    except Exception:
-        pass
-
+    consume_grant_for_posttool(session_id, tool_name, command)
     sys.exit(0)
 
 
