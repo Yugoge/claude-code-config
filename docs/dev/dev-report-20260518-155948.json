@@ -87,8 +87,8 @@
     },
     "diff_stats": {
       "files_changed": 6,
-      "lines_added": 309,
-      "lines_removed": 284,
+      "lines_added": 312,
+      "lines_removed": 287,
       "new_symbols_introduced": [
         "MatchResult",
         "_match_loaded_grant",
