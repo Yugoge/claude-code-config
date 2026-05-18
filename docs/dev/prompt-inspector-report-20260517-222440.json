@@ -1,0 +1,84 @@
+{
+  "request_id": "20260517-222440",
+  "timestamp": "2026-05-18T00:00:00Z",
+  "inspector": "prompt-inspector",
+  "changed_files_mode": true,
+  "changed_files": ["hooks/pretool-git-privilege-guard.py"],
+  "findings": [],
+  "skipped": [
+    {
+      "file": "hooks/pretool-git-privilege-guard.py",
+      "out_of_scope": true,
+      "introduced_in_diff": false,
+      "reason": "Python hook script; prompt-inspector only scans command/agent .md documentation (commands/*.md and agents/*.md). Verbosity rules and 'rules not stories' heuristics do not apply to Python implementation code or its module/function docstrings.",
+      "notes": "Module docstring (lines 2-80) contains historical incident narrative (lines 5-14) and revision history (lines 45-75). Function docstrings (_inline_env_present, _find_grant, _find_grant_any, _unlink_grant, _git_output) contain security-invariant rationale. These are code documentation for a security-sensitive hook, not command/agent execution documentation. A separate hook-documentation concision policy could review these — that is out of scope for prompt-inspector."
+    }
+  ],
+  "summary": {
+    "files_inspected": 1,
+    "files_with_violations": 0,
+    "files_skipped_out_of_scope": 1,
+    "critical": 0,
+    "major": 0,
+    "minor": 0,
+    "total_verbose_lines": 0,
+    "estimated_reduction": "n/a"
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex identified 6 issues with proposed fixes and 1 observation. Primary finding: the target file is a Python hook script, placing it outside prompt-inspector scope (command/agent .md files only). Secondary findings: function docstrings contain security invariants (not stories), verbosity percentage was miscalculated (17.2% not 23%), and severity classification of 'major' was wrong given the out-of-scope determination. All blocker and major findings had PROPOSED_FIX entries and were applied.",
+    "findings": [
+      {
+        "issue": "Scope error / false positive on file type: prompt-inspector is scoped to command/agent .md documentation; hooks/pretool-git-privilege-guard.py is a Python PreToolUse hook",
+        "proposed_fix": "Remove all verbosity findings for the file. If reporting the file at all, classify it as skipped: out_of_scope: true, reason: Python hook script; prompt-inspector only scans command/agent .md documentation.",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Inspector spec Step 1 explicitly states 'Scan ~/.claude/commands for *.md files and ~/.claude/agents for *.md files'. The target is a .py file, categorically outside the scan scope. All draft findings derived from this file are false positives by file type."
+      },
+      {
+        "issue": "Draft incorrectly treats Python docstrings as command/agent prompt prose",
+        "proposed_fix": "Replace the finding with: No prompt-inspector verbosity violation: target is a hook implementation file, not command/agent documentation.",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Follows from the scope error. Python docstrings are code documentation, not prompt documentation subject to 'rules not stories'."
+      },
+      {
+        "issue": "Over-counting the module docstring: draft counted lines 16-43 (forbidden/allowed ops, spec ref) and 77-80 (exit codes) as verbose, but these are functional operational documentation",
+        "proposed_fix": "If analyzed under a separate hook-docstring policy, count only exact candidate ranges: historical context lines 5-14 and revision history lines 45-75; do not count lines 16-43 or 77-80 as verbose.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Even if scope were extended to .py files, the functional sections of the module docstring (forbidden ops list, allowed ops list, spec reference, exit codes) are rules, not stories. Only the historical incident narrative and revision history changelog qualify as potentially verbose. Line count correction: ~41 lines (10 + 31), not ~79."
+      },
+      {
+        "issue": "Function docstring findings are false positives: _inline_env_present, _find_grant, _find_grant_any, _unlink_grant, _git_output docstrings explain security invariants affecting correctness",
+        "proposed_fix": "Remove those functions from prompt-inspector findings. At most, mark them OBSERVATION_ONLY under a separate code-documentation concision review.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "These docstrings explain why the code is written a specific way (inline-env detection rationale, nonce grant lookup semantics, single-use unlink behavior, CWD semantics for branch/HEAD resolution, SID fallback for subagent propagation gaps). This is functional security documentation, not verbose narrative."
+      },
+      {
+        "issue": "Verbosity percentage calculation was wrong: 120/696 is 17.2%, not 23%",
+        "proposed_fix": "Recalculate with exact line ranges before assigning severity. 120 lines / 696 = 17.2%; ~80 lines / 696 = 11.5%.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "The draft stated ~23% verbosity percentage. Correct arithmetic: 120/696 * 100 = 17.24%. This would have placed severity at 'major' (15-30% range) not 'critical', but the out-of-scope determination makes the calculation moot."
+      },
+      {
+        "issue": "Severity classification of 'major' should not be emitted because the file is out of scope",
+        "proposed_fix": "Final classification: no finding / skipped as out_of_scope, not major.",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Severity is only meaningful for in-scope files with genuine violations. Emitting 'major' for a .py file under prompt-inspector would be a false positive verdict."
+      },
+      {
+        "issue": "OBSERVATION_ONLY: A separate hook-documentation inspector could reasonably review whether historical incident details or revision history belong in long module docstrings. That is a different policy from prompt-inspector.",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Valid observation for a future hook-documentation quality policy. Not actionable under prompt-inspector scope."
+      }
+    ],
+    "feedback_incorporated": "All 6 PROPOSED_FIX items applied: (1) file classified as out_of_scope, not a verbosity finding; (2) draft finding removed and replaced with skipped entry; (3) module docstring line count corrected to exclude functional sections; (4) function docstring findings removed as false positives; (5) verbosity percentage corrected to 17.2%; (6) severity classification removed in favor of out_of_scope. Observation_only item logged."
+  }
+}
