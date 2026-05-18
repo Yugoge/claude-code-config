@@ -15,7 +15,7 @@
     "files_created": [
       "hooks/tests/test_allowlist_consolidation.py"
     ],
-    "changes_summary": "Consolidated 5 independent /allow grant-read implementations into hooks/lib/allowlist.py. Added _match_loaded_grant (pure match, no I/O), _load_and_match (blocking LOCK_EX wrapper), read_grant_for_git_command (substr_only literal policy), match_grant_for_bash_command (NB-flock+retry, compound split, SIGALRM), and consume_grant_for_posttool (atomic match+unlink, sole tool-execution consumption site). Updated all 4 callers to delegate to lib. All IS_SUBAGENT firewalls preserved in callers. Force-push ordering invariant preserved.",
+    "changes_summary": "Consolidated 5 independent /allow grant-read implementations into hooks/lib/allowlist.py. Added _match_loaded_grant (pure match, no I/O), _load_and_match (blocking LOCK_EX wrapper), read_grant_for_git_command (substr_only literal policy), match_grant_for_bash_command (NB-flock+retry, compound split, SIGALRM), and consume_grant_for_posttool (atomic match+unlink, sole tool-execution consumption site). Updated all 4 callers to delegate to lib. All subagent firewalls preserved in callers. Force-push ordering invariant preserved. Post-QA fixes applied: (1) AC1 type annotation: `candidates: list` -> `candidates: list[str]` in _match_loaded_grant and _load_and_match signatures; (2) AC8 comment wording: 3 occurrences of `IS_SUBAGENT` token in comments/docstrings replaced with plain-English equivalents.",
     "tasks_completed": [
       {
         "id": 1,
