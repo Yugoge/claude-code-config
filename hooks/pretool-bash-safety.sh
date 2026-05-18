@@ -139,15 +139,10 @@ CONSENT_LOG="$HOME/.claude/logs/bash-consent.log"
 check_and_consume_allowlist() {
   local cmd="$1"
 
-  # IS_SUBAGENT check: INLINE fresh parse from $INPUT.
-  # The IS_SUBAGENT variable assigned at line ~499 is NOT yet set when this function is called
-  # at upstream call sites (all before the IS_SUBAGENT assignment). Inline parse is the only
-  # correct approach.
-  local is_sub
-  is_sub=$(echo "$INPUT" | "$PYTHON_BIN" -c \
-    "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
-    2>/dev/null)
-  if [ "$is_sub" = "1" ]; then
+  # IS_SUBAGENT check: references the script-global IS_SUBAGENT variable set at the top
+  # of the script (after PYTHON_BIN resolution). $INPUT is assigned once at line 6 and
+  # never reassigned, so IS_SUBAGENT is valid for the entire script lifetime.
+  if [ "$IS_SUBAGENT" = "1" ]; then
     return 1
   fi
 
