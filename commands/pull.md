@@ -102,14 +102,6 @@ Wait for the subagent to complete.
 Display the pull-analyst advisory report to the user. The report is informational only —
 it does not gate any future command.
 
-## Features
-
-- Automatically stashes uncommitted changes before pulling, restores after
-- Uses `git pull --rebase` for clean linear history
-- Detects conflicts during rebase and lists conflicted files with resolution steps
-- Handles detached HEAD, network failures, and no upstream branch
-- Post-pull semantic risk analysis via pull-analyst (advisory, never blocking)
-
 ## Related Commands
 
 - `/push` - Push changes with untracked file detection
