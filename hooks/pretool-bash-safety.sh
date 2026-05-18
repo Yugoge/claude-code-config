@@ -610,6 +610,11 @@ print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" 
   fi
 fi
 # ────────────────────────────────────────────────────────────────────────────
+# Global /allow short-circuit — sole PreToolUse allowlist match/approval call site in
+# pretool-bash-safety.sh. Fires unconditionally after the /do bypass and before all
+# block rules. Actual grant deletion is deferred to posttool-allowlist-consume.py
+# (PostToolUse). Per-rule secondary calls were removed in task 20260518-094616 because
+# the global short-circuit at this location covers all paths unconditionally.
 check_and_consume_allowlist "$COMMAND" && exit 0
 
 # Layer 1.A — daemon-restart prohibition: systemctl verb gate against happy-daemon-*.
