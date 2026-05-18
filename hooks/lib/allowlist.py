@@ -149,7 +149,7 @@ def read_grant_for_git_command(command: str, sid: str) -> bool:
     Literal match: pattern in command (substr_only — no exact match branch).
     Regex match: re.search(pattern, command).
 
-    IS_SUBAGENT check stays in the caller (_check_git_allowlist).
+    Subagent firewall check stays in the caller (_check_git_allowlist).
     Returns True if grant matches, False otherwise.
     """
     result = _load_and_match(sid, [command], "substr_only", None)
