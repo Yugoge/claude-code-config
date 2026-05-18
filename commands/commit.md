@@ -103,6 +103,56 @@ Constraints:
 
 Wait for changelog-analyst to complete. Echo its final status to the user.
 
+### Step 7: Spec-continue dispatch (post-commit, non-blocking)
+
+**This step is dispatched by `/commit` from its own orchestrator context — NOT from within changelog-analyst.** changelog-analyst has already returned before this step executes.
+
+Skip this step entirely if ANY of the following are true:
+- `BULK=true`
+- `DRYRUN=true`
+- `TASK_ID` is empty
+- changelog-analyst did not report a successful real commit (no push-gate token written, or changelog-analyst reported an error)
+
+When `BULK=false` AND `DRYRUN=false` AND `TASK_ID` is set AND changelog-analyst reported success:
+
+Set `DEV_DOCS_ROOT` using the same CONTROL_ROOT logic as Step 6: `DEV_DOCS_ROOT=${CONTROL_ROOT}/docs/dev` (where `CONTROL_ROOT=/root`). Use absolute paths throughout Step 7.
+
+1. Resolve the spec path for this task-id using this lookup order (first match wins):
+   - Check `${DEV_DOCS_ROOT}/context-${TASK_ID}.json` — if it exists, parse it and extract the first non-empty value of `spec_path`, `spec_file`, or `user_spec_path`. Validate that the extracted path exists as a regular file; if it does not exist, continue to the next lookup step.
+   - If no valid spec path was found from context JSON: print `No spec associated with task-id ${TASK_ID}` and exit 0. Do NOT dispatch an Agent. (Ticket files and ba-spec files are NOT treated as spec targets — they are BA artifacts, not continuation specs.)
+
+2. If a spec path was resolved and validated, print `Step 7: spec-continue dispatched for task-id=${TASK_ID} spec=${SPEC_PATH}`.
+
+3. Dispatch an inline Agent (do NOT invoke `/spec-continue` as a slash-command) with the following prompt, substituting `TASK_ID`, `SPEC_PATH`, and `DEV_DOCS_ROOT`:
+
+```
+You are executing the spec-continuation logic for task-id=<TASK_ID>.
+
+Target spec file: <SPEC_PATH> (absolute path — this file exists; update it in place).
+
+DO NOT:
+- Invoke /spec-continue as a slash command
+- Create a new spec file; only update the existing one at <SPEC_PATH>
+- Overwrite or delete prior "### Cycle N" sections
+- Modify any git state, commit grants, push tokens, or command files
+- Write any artifacts outside <SPEC_PATH>
+- Read or modify files outside <DEV_DOCS_ROOT>/ and <SPEC_PATH>
+
+Follow the ## Continuation-spec mode instructions from /root/.claude/commands/spec-continue.md exactly:
+
+- The active task-id is <TASK_ID>.
+- The target spec to update is <SPEC_PATH>. Update this spec; do not create a new one.
+- Gather source artifacts from <DEV_DOCS_ROOT>/:
+    context-<TASK_ID>.json, dev-report-<TASK_ID>*.json, qa-report-<TASK_ID>*.json,
+    close-report-<TASK_ID>.md, completion-<TASK_ID>.md
+- Determine the next cycle number: max(existing "### Cycle N" headings) + 1; if none exist, use Cycle 1.
+- Append the new cycle block to the spec. Never overwrite prior cycles.
+- Populate sections 2-8 per the spec-continue continuation-spec instructions.
+- Output the spec path when done.
+```
+
+4. If the Agent dispatch fails for any reason (error, timeout, or exception), print `WARNING: spec-continue dispatch failed for task-id=${TASK_ID} — spec not updated` and continue. The commit is already recorded; Step 7 failure does NOT roll back or affect the commit.
+
 ## Close-gate verification reference
 
 The close-gate is the only guard this command owns. All git operations (staging, committing,

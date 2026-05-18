@@ -1,6 +1,6 @@
 # commands
 
-*Last updated: 2026-05-18T08:57:03Z*
+*Last updated: 2026-05-18T10:35:37Z*
 **Total entries**: 35
 **Convention**: kebab
 
@@ -38,10 +38,10 @@ commands/
 ├── `search-tree.md` - Tree search exploration with MCTS-inspired path evaluation
 ├── `security-check.md` - Security vulnerability analysis and recommendations
 ├── `site-navigate.md` - Intelligent site navigation simulating "click-through" exploration
+├── `spec-continue.md` - Continuation spec update or temp session note (was /update — renamed to avoid collision with MAP's /update portfolio mutation command)
 ├── `spec.md` - Create spec files for any dev workflow (/dev, /dev-overnight, or standalone reference). Pass --codex to enable adversarial codex consultation on each spec-subagent / QA dispatch; default is self-review only.
 ├── `stop.md` - Cancel active overnight time-lock + workflow-enforce so the session can terminate normally. User-invoked only — agents cannot self-stop.
-├── `test.md` - Test validation workflow with edge case detection, systematic validation, and quality enforcement
-└── `update.md` - Update unfinished work into a continuation spec, or create a compact temp session update when explicitly requested
+└── `test.md` - Test validation workflow with edge case detection, systematic validation, and quality enforcement
 ```
 
 ---
