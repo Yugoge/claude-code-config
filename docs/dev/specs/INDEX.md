@@ -1,13 +1,14 @@
 # specs
 
-*Last updated: 2026-05-17T21:09:00Z*
-**Total entries**: 1
+*Last updated: 2026-05-18T22:58:17Z*
+**Total entries**: 2
 **Convention**: kebab
 
 ## Tree
 ```
 specs/
-└── `spec-20260517-210806.md` - Spec: Add working /push ending-workflow to clean.md (cleaner push-gate fix)
+├── `spec-20260517-210806.md` - Spec: Add working /push ending-workflow to clean.md (cleaner push-gate fix)
+└── `spec-20260518-225715.md` - Spec: Dev Harness 扩展计划 — 工分系统、Test-Writer、Blast Radius、Executable AC、Canary
 ```
 
 ---
