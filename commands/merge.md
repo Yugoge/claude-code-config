@@ -32,8 +32,8 @@ RESOLVED_BRANCH=<the-resolved-branch>
 SOURCE_TIP=$(git rev-parse "refs/heads/${RESOLVED_BRANCH}" 2>/dev/null || echo "MISSING")
 DEFAULT_BRANCH=$(bash ~/.claude/scripts/derive-default-branch.sh)
 DEFAULT_TIP=$(git rev-parse "refs/heads/${DEFAULT_BRANCH}" 2>/dev/null || echo "MISSING")
-REPO_HASH=$(python3 -c "import hashlib, os; print(hashlib.sha256(os.path.realpath('$(git rev-parse --show-toplevel)').encode()).hexdigest()[:16])")
-REQUEST_ID=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+REPO_HASH=$(printf '%s' "$(realpath "$(git rev-parse --show-toplevel)")" | sha256sum | cut -c1-16)
+REQUEST_ID=$(openssl rand -hex 16)
 SESSION_ID="${CLAUDE_SESSION_ID}"
 ```
 
