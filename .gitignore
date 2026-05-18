@@ -59,6 +59,12 @@ mcp-needs-auth-cache.json
 # Live session telemetry (was previously tracked; rm --cached old ones)
 sessions/
 
+# Dev cycle output and session state (not for version control)
+.last-cleanup
+playwright-storage-state.json
+.todos.json
+docs/
+
 # Live workflow / dev coordination state
 workflow-*.json
 dev-registry/
