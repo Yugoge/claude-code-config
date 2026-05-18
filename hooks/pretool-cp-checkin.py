@@ -69,6 +69,8 @@ CP_AGENTS = {
     "test-executor", "test-validator",
     # Agentic commit role.
     "changelog-analyst",
+    # Agentic git workflow analyst roles (push, merge, pull).
+    "push-analyst", "merge-analyst", "pull-analyst",
 }
 
 # Dev-registry sentinel agent names must match CP_AGENTS.  Keeping a single

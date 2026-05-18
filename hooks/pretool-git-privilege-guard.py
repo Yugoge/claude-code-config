@@ -139,7 +139,7 @@ def _has_do_consent(data: dict) -> bool:
 
 
 def _check_git_allowlist(command: str, data: dict) -> bool:
-    """Check /allow grant for non-commit/non-push git operations. Read-only.
+    """Check /allow grant for non-push git operations. Read-only.
 
     Main-agent only. Returns True if grant matched (consume deferred to PostToolUse).
     """
@@ -441,6 +441,7 @@ def _block_default_deny_commit(msg):
         'For closed dev tasks, use /commit <task-id>.\n'
         'For human-driven commits, exit the agent context and run '
         'git commit directly.\n'
+        'Main agent may bypass with /allow <pattern> before the git commit command.\n'
         'Spec: spec-20260424-233926 section 5.2.4 (R4.3); '
         'ba-spec-20260425-redev2.md AC-A13.\n'
     )
@@ -450,6 +451,8 @@ def _evaluate_commit(command, data):
     # AC-A12: blessed-bridge regex commit STILL ALLOWED (regression).
     msg = _extract_commit_message(command)
     if msg and BLESSED_BRIDGE_RE.search(msg):
+        return
+    if _check_git_allowlist(command, data):
         return
     # Grant-file mechanism: SID-specific search first, then any-SID fallback.
     # Fallback handles subagent SID propagation gaps where changelog-analyst's

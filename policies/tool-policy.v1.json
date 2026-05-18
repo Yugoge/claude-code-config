@@ -815,6 +815,77 @@
         "/.claude/settings.json"
       ],
       "rationale": "changelog-analyst: git commit operations; reads dev-artifacts, stages and commits source changes via Bash (git add/commit); writes push-gate token to /tmp/agentic-commit/push/; no write access to protected infra"
+    },
+    "push-analyst": {
+      "allowed_tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Write"
+      ],
+      "allowed_write_path_prefixes": [
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/tmp/claude-scratch/push-analyst/",
+        "/tmp/agentic-commit/push-analyst/*"
+      ],
+      "denied_write_path_prefixes": [
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json"
+      ],
+      "rationale": "push-analyst: pre-push git read-only analysis; reads commits-to-push range, sensitive file patterns, and divergence; writes nonce-keyed grant to /tmp/agentic-commit/push-analyst/ (role-specific directory only, no broad /tmp/*); no write access to protected infra"
+    },
+    "merge-analyst": {
+      "allowed_tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Write"
+      ],
+      "allowed_write_path_prefixes": [
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/tmp/claude-scratch/merge-analyst/",
+        "/tmp/agentic-commit/merge-analyst/*"
+      ],
+      "denied_write_path_prefixes": [
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json"
+      ],
+      "rationale": "merge-analyst: pre-merge git read-only analysis; reads branch divergence, diff stat, conflict markers, and overnight-state for consistency validation; writes nonce-keyed grant (60s expiry) to /tmp/agentic-commit/merge-analyst/ (role-specific directory only, no broad /tmp/*); no write access to protected infra"
+    },
+    "pull-analyst": {
+      "allowed_tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Bash"
+      ],
+      "allowed_write_path_prefixes": [],
+      "denied_write_path_prefixes": [
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json"
+      ],
+      "rationale": "pull-analyst: post-pull advisory analysis only; reads new-commits range and semantic risk indicators (dependency manifests, schema files, API surface, CI/CD); Write tool excluded to enforce advisory-only contract — pull-analyst writes no grant and blocks nothing; no write access to protected infra"
     }
   }
 }
