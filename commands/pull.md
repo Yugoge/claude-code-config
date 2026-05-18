@@ -7,17 +7,8 @@ disable-model-invocation: true
 
 Execute safe git pull with automatic stash management and conflict detection.
 
-## Overview
-
-The `/pull` command safely pulls changes from the remote repository with:
-- Automatic stash management for uncommitted changes
-- Rebase strategy to maintain clean history
-- Conflict detection and resolution guidance
-- Safe restoration of stashed work
-
 ## Usage
 
-Simply type:
 ```
 /pull
 ```
