@@ -5,50 +5,54 @@
   "spec_path": "docs/dev/ticket-20260518-155948.md",
   "complexity_tier": "STANDARD",
   "requirement": {
-    "original": "Consolidate 4 independent grant-read implementations into one canonical library (hooks/lib/allowlist.py), preserving all invariants: PreToolUse hooks read-only, posttool deletes, IS_SUBAGENT firewall intact, bypassable operations set unchanged.",
-    "clarified": "Add shared internal primitives to hooks/lib/allowlist.py (_load_and_match, read_grant_for_git_command, match_grant_for_bash_command, consume_grant_for_posttool). Update pretool-git-privilege-guard.py, pretool-bash-safety.sh heredoc, and posttool-allowlist-consume.py to use them. Preserve all matching semantics exactly.",
-    "what": "Move duplicated grant-file I/O + lock + JSON-load + pattern-match code out of 3 hook files into hooks/lib/allowlist.py",
-    "why": "Four independent implementations create drift risk — a future change to grant file format or match semantics must be applied in four places; a miss causes a security gap in one hook but not others.",
+    "original": "Consolidate 5 independent grant-read implementations into one canonical library (hooks/lib/allowlist.py), preserving all invariants: PreToolUse hooks read-only, posttool is sole tool-execution consumption delete point, IS_SUBAGENT firewall intact, bypassable operations set unchanged.",
+    "clarified": "Add shared internal primitives to hooks/lib/allowlist.py (_match_loaded_grant pure match, _load_and_match blocking-lock wrapper, read_grant_for_git_command, match_grant_for_bash_command with NB-flock calling _match_loaded_grant directly, consume_grant_for_posttool(sid,tool_name,command) with full branch dispatch). Update pretool-git-privilege-guard.py, pretool-bash-safety.sh heredoc, posttool-allowlist-consume.py, and pretool-write-guard.sh to use them. Add hooks/tests/test_allowlist_consolidation.py for behavioral verification. Preserve all matching semantics exactly.",
+    "what": "Move duplicated grant-file I/O + lock + JSON-load + pattern-match code out of 4 hook files into hooks/lib/allowlist.py",
+    "why": "Five independent implementations create drift risk — a future change to grant file format or match semantics must be applied in five places; a miss causes a security gap in one hook but not others.",
     "where": [
       "hooks/lib/allowlist.py",
       "hooks/pretool-git-privilege-guard.py",
       "hooks/pretool-bash-safety.sh",
-      "hooks/posttool-allowlist-consume.py"
+      "hooks/posttool-allowlist-consume.py",
+      "hooks/pretool-write-guard.sh"
     ],
     "scope": {
       "included": [
-        "hooks/lib/allowlist.py — M1 read_grant_for_git_command, M2 _load_and_match internal helper, M3 consume_grant_for_posttool, S1 match_grant_for_bash_command",
+        "hooks/lib/allowlist.py — M1 read_grant_for_git_command, M2 _match_loaded_grant (pure match) + _load_and_match(->MatchResult|None) blocking-lock wrapper, M3 consume_grant_for_posttool(sid,tool_name,command), S1 match_grant_for_bash_command(NB-flock, calls _match_loaded_grant directly)",
         "hooks/pretool-git-privilege-guard.py — M4 replace _check_git_allowlist body with lib call",
         "hooks/pretool-bash-safety.sh — M5 replace heredoc grant-read section with shim calling lib",
-        "hooks/posttool-allowlist-consume.py — replace independent grant-read+unlink with consume_grant_for_posttool call"
+        "hooks/posttool-allowlist-consume.py — replace independent grant-read+unlink with consume_grant_for_posttool call",
+        "hooks/pretool-write-guard.sh — M6 replace inline Python block (lines 32-54) with call to read_grant(\"Write\", sid)"
       ],
       "excluded": [
         "hooks/pretool-orchestrator-gate.py — already uses lib.allowlist.read_grant, no change",
         "hooks/pretool-subagent-enforce.py — already uses lib.allowlist.read_grant, no change",
         "hooks/pretool-aggregate-check.py — already uses lib.allowlist.read_grant, no change",
         "hooks/userprompt-consent-allowlist.sh — grant writer, not reader, no change",
+        "hooks/stop-cleanup-allowlist.sh — turn-end expiry rm -f (different semantic from tool-execution consumption), out of scope, must not be modified",
         "IS_SUBAGENT check logic — stays in each caller, not moved to library",
         "Grant matching semantics — must be preserved per-hook exactly as today"
       ]
     },
     "success_criteria": [
-      "hooks/lib/allowlist.py contains _load_and_match, read_grant_for_git_command, match_grant_for_bash_command, consume_grant_for_posttool",
+      "hooks/lib/allowlist.py contains _match_loaded_grant, _load_and_match, read_grant_for_git_command, match_grant_for_bash_command, consume_grant_for_posttool",
       "pretool-git-privilege-guard.py:_check_git_allowlist has no grant-file open/flock — delegates to lib",
-      "pretool-bash-safety.sh heredoc has no grant-file open — delegates to lib via shim",
-      "posttool-allowlist-consume.py has no os.unlink — delegates to consume_grant_for_posttool which unlinks atomically under flock",
+      "pretool-bash-safety.sh heredoc has no grant-file open, json.load, or fcntl.flock — delegates to lib via shim",
+      "posttool-allowlist-consume.py has no os.unlink for claude-bash-allowlist files — delegates to consume_grant_for_posttool which unlinks atomically under flock (unrelated os.unlink sites for push grants, daemon-restart grants, watchdog remain unchanged)",
+      "pretool-write-guard.sh has no independent open/flock/json.load for claude-bash-allowlist — delegates to read_grant(\"Write\", sid) via lib",
       "IS_SUBAGENT check in each hook still fires before any lib call",
       "Force-push block in _evaluate_push still precedes allowlist check",
       "Bypassable operation set unchanged: same commands pass/fail as before"
     ],
     "constraints": [
       "PreToolUse hooks: read-only (no unlink in any lib read function)",
-      "PostToolUse: sole delete point — os.unlink only inside consume_grant_for_posttool",
+      "PostToolUse: sole tool-execution consumption delete point — os.unlink for claude-bash-allowlist files on tool-execution match only inside consume_grant_for_posttool(sid, tool_name, command); stop-cleanup-allowlist.sh turn-end expiry deletion is a different semantic and is excluded from this constraint",
       "IS_SUBAGENT firewall: stays in each caller; lib functions are not aware of subagent context",
       "Force-push must remain non-bypassable by generic /allow (ordering invariant in _evaluate_push)",
       "posttool _split_bash_command || handling (double-newline) must be preserved",
       "posttool tool_name fallback path (lines 82-84) must be preserved",
       "SIGALRM timeout in match_grant_for_bash_command (1s) must be preserved",
-      "bash heredoc stdout protocol (CONSUMED\\t or renamed MATCHED\\t) must remain parseable by shell case statement"
+      "bash heredoc stdout protocol must stay CONSUMED only — renaming to MATCHED is Won't Have; mismatched producer/consumer token silently breaks /allow"
     ]
   },
   "scope_boundary": {
@@ -56,7 +60,8 @@
       "hooks/lib/allowlist.py",
       "hooks/pretool-git-privilege-guard.py",
       "hooks/pretool-bash-safety.sh",
-      "hooks/posttool-allowlist-consume.py"
+      "hooks/posttool-allowlist-consume.py",
+      "hooks/pretool-write-guard.sh"
     ],
     "path_dependent_shared_infra": [
       "hooks/lib/subagent.py — imported by posttool; no change but must remain importable"
@@ -79,15 +84,17 @@
       "hooks/lib/allowlist.py",
       "hooks/pretool-git-privilege-guard.py",
       "hooks/pretool-bash-safety.sh",
-      "hooks/posttool-allowlist-consume.py"
+      "hooks/posttool-allowlist-consume.py",
+      "hooks/pretool-write-guard.sh"
     ],
     "evidence_type": "inferred",
     "observations": [
       "hooks/lib/allowlist.py:22-51 — read_grant(tool_name, sid), opens grant file, fcntl.flock(LOCK_EX), matches pattern against tool_name (inferred: static read)",
       "hooks/pretool-git-privilege-guard.py:141-177 — _check_git_allowlist(command, data), independent open+flock+JSON-load+match against command string, no unlink (inferred: static read)",
-      "hooks/pretool-bash-safety.sh:163-309 — Python heredoc with NB-flock retry + SIGALRM + compound-split; outputs CONSUMED protocol; no grant unlink (inferred: static read, comment at line 303 confirms deferred delete)",
-      "hooks/posttool-allowlist-consume.py:53-99 — open+flock+JSON-load+match (split + full + tool_name fallback) + os.unlink on match (inferred: static read)",
-      "aaf3c44 commit message confirms partial migration: 'pretool-git-privilege-guard: removed dormant os.unlink; renamed function to _check_git_allowlist' — library not yet used for command matching"
+      "hooks/pretool-bash-safety.sh:163-323 — Python heredoc with NB-flock retry + SIGALRM + compound-split; outputs CONSUMED protocol; no grant unlink (inferred: static read, comment at line 303 confirms deferred delete)",
+      "hooks/posttool-allowlist-consume.py:53-104 — open+flock+JSON-load+match (split + full + tool_name fallback) + os.unlink on match (inferred: static read)",
+      "aaf3c44 commit message confirms partial migration: 'pretool-git-privilege-guard: removed dormant os.unlink; renamed function to _check_git_allowlist' — library not yet used for command matching",
+      "hooks/pretool-write-guard.sh:32-53 — inline Python block: opens grant file, fcntl.flock(LOCK_EX), json.load, regex/literal-matches against \"Write\" string; IS_SUBAGENT (_WG_IS_SUB) and /do flag (_WG_DO_FLAG) checks precede this block in the bash caller (inferred: static read, confirmed by QA)"
     ],
     "diagnosis_completeness": "incomplete — inferred only (static code reading). Behavioral semantics verified by code inspection; no runtime measurement taken. Sufficient for a structural refactoring task with no observable symptoms.",
     "complaint_location_keywords": [
@@ -98,7 +105,7 @@
       "fcntl.flock"
     ],
     "localization_evidence": "Grep for 'claude-bash-allowlist-' in hooks/ finds all 4 grant-file reference sites; static read confirms independent open+flock+match in each",
-    "located_source": "hooks/pretool-git-privilege-guard.py:141-177, hooks/pretool-bash-safety.sh:163-309, hooks/posttool-allowlist-consume.py:53-99",
+    "located_source": "hooks/pretool-git-privilege-guard.py:141-177, hooks/pretool-bash-safety.sh:163-323, hooks/posttool-allowlist-consume.py:53-104",
     "localization_blocked": null,
     "git_bisect_result": {
       "triggered": false,
@@ -178,18 +185,37 @@
         "literal_match": "pattern == part OR pattern in part (subcommands/full); pattern == tool_name (fallback)",
         "regex_match": "re.search(pattern, part)",
         "compound_split": true
+      },
+      {
+        "hook": "pretool-write-guard.sh",
+        "input": "fixed string \"Write\"",
+        "literal_match": "pattern == \"Write\" or pattern in \"Write\" (delegates to read_grant)",
+        "regex_match": "re.search(pattern, \"Write\")",
+        "compound_split": false
       }
     ]
   },
   "implementation_plan": {
     "library_additions": [
       {
+        "function": "_match_loaded_grant",
+        "visibility": "private",
+        "purpose": "Pure match step: takes an already-loaded grant dict and matches against candidate strings. No file I/O, no lock. Called by both _load_and_match (blocking-lock path) and match_grant_for_bash_command (NB-lock path) to share match logic without conflating lock strategies.",
+        "parameters": "grant: dict, candidates: list[str], literal_policy: str, regex_timeout: int | None",
+        "returns": "MatchResult | None",
+        "no_unlink": true
+      },
+      {
         "function": "_load_and_match",
         "visibility": "private",
-        "purpose": "Internal helper: open grant file + flock + JSON load + match against list of candidate strings",
+        "purpose": "Blocking-lock wrapper: acquire LOCK_EX on grant file, json.load, then delegate to _match_loaded_grant for the actual match logic",
         "parameters": "sid: str, candidates: list[str], literal_policy: str, regex_timeout: int | None",
-        "literal_policy_values": ["exact_or_substr (read_grant behavior)", "substr_only (git guard behavior)"],
-        "returns": "bool (read-only, no unlink)"
+        "literal_policy_values": [
+          "exact_or_substr (read_grant behavior)",
+          "substr_only (git guard behavior)"
+        ],
+        "returns": "MatchResult | None (read-only, no unlink; callers convert to bool via result is not None)",
+        "lock_strategy": "blocking LOCK_EX on grant file directly. match_grant_for_bash_command must NOT use this lock path — it implements its own LOCK_EX|LOCK_NB with 3x100ms retry on sidecar .lock file."
       },
       {
         "function": "read_grant_for_git_command",
@@ -205,16 +231,18 @@
         "purpose": "PreToolUse match for bash hook — compound-split + SIGALRM timeout",
         "parameters": "command: str, sid: str, regex_timeout: int = 1",
         "returns": "MatchResult | None (MatchResult: pattern, is_regex, matched_sub)",
-        "no_unlink": true
+        "no_unlink": true,
+        "lock_strategy": "LOCK_EX|LOCK_NB with 3x100ms retry on sidecar .lock file (preserves existing bash heredoc behavior). Does NOT delegate lock acquisition to _load_and_match.. Calls _match_loaded_grant directly (not _load_and_match) to share match logic while using its own NB lock strategy."
       },
       {
         "function": "consume_grant_for_posttool",
         "visibility": "public",
         "purpose": "PostToolUse atomic match+unlink — sole os.unlink site",
-        "parameters": "grant_path: Path, candidates: list[str], is_regex: bool",
+        "parameters": "sid: str, tool_name: str, command: str",
         "returns": "bool",
         "unlinks": true,
-        "atomicity": "match and os.unlink happen inside single fcntl.flock(LOCK_EX) acquire"
+        "atomicity": "match and os.unlink happen inside single fcntl.flock(LOCK_EX) acquire",
+        "branch_dispatch": "Internally replicates posttool lines 68-91: (a) Bash: compound-split+exact-or-substr+full-cmd+tool_name fallback; (b) non-Bash literal: exact-only (pattern==tool_name); (c) non-Bash regex: re.search(pattern,tool_name)"
       }
     ],
     "hook_changes": [
@@ -224,11 +252,12 @@
       },
       {
         "file": "hooks/pretool-bash-safety.sh",
-        "change": "M5 — replace lines 163-309 Python heredoc grant-read/match section with shim: sys.path.insert + import lib.allowlist.match_grant_for_bash_command + call it + print CONSUMED (or MATCHED) protocol on MatchResult. Shell wrapper, IS_SUBAGENT check, approval JSON, audit log remain unchanged."
+        "change": "M5 — replace lines 163-323 Python heredoc grant-read/match section with shim: sys.path.insert + import lib.allowlist.match_grant_for_bash_command + call it + print CONSUMED protocol on MatchResult. Shell wrapper, IS_SUBAGENT check, approval JSON, audit log remain unchanged.",
+        "sys_path_note": "Before the PYEOF heredoc: HOOKS_DIR=\"\"; export HOOKS_DIR. In shim: sys.path.insert(0, os.environ[\"HOOKS_DIR\"]). BASH_SOURCE is NOT exported to child processes; __file__ resolves to <stdin> in heredoc mode — do not use either as a Python fallback."
       },
       {
         "file": "hooks/posttool-allowlist-consume.py",
-        "change": "Remove independent open+flock+JSON+match+os.unlink block (lines 53-98). Import consume_grant_for_posttool. Build candidates list (subcommands + full command + tool_name fallback) in posttool then call consume_grant_for_posttool(grant_path, candidates). Subagent check, session_id resolution remain in posttool."
+        "change": "Remove independent grant-read+match+unlink block (lines 53-104). Import consume_grant_for_posttool. Call consume_grant_for_posttool(sid, tool_name, command) where command is (data.get(\"tool_input\") or {}).get(\"command\", \"\") for Bash or \"\" for non-Bash. Keep sys.exit(0) at line 106. Subagent check and session_id resolution remain in posttool."
       }
     ]
   },
@@ -237,7 +266,9 @@
       "file": "hooks/lib/allowlist.py",
       "line_range": "1-51",
       "role": "Canonical grant-read library — currently has read_grant only; will gain _load_and_match, read_grant_for_git_command, match_grant_for_bash_command, consume_grant_for_posttool",
-      "imports_from": ["stdlib: fcntl, json, re, sys, os, pathlib, signal"],
+      "imports_from": [
+        "stdlib: fcntl, json, re, sys, os, pathlib, signal"
+      ],
       "evidence": "Read: hooks/lib/allowlist.py lines 1-51",
       "verified_via": "Read"
     },
@@ -245,7 +276,9 @@
       "file": "hooks/pretool-git-privilege-guard.py",
       "line_range": "141-177",
       "role": "_check_git_allowlist — independent grant-read against command string; will delegate to lib",
-      "imports_from": ["hooks/lib/allowlist.py (after M4)"],
+      "imports_from": [
+        "hooks/lib/allowlist.py (after M4)"
+      ],
       "evidence": "Read: hooks/pretool-git-privilege-guard.py lines 141-177",
       "verified_via": "Read"
     },
@@ -253,7 +286,9 @@
       "file": "hooks/pretool-bash-safety.sh",
       "line_range": "139-369",
       "role": "check_and_consume_allowlist bash function — IS_SUBAGENT check + Python heredoc shim; will delegate grant-read to lib via subprocess",
-      "imports_from": ["hooks/lib/allowlist.py via Python subprocess shim (after M5)"],
+      "imports_from": [
+        "hooks/lib/allowlist.py via Python subprocess shim (after M5)"
+      ],
       "evidence": "Read: hooks/pretool-bash-safety.sh lines 139-369",
       "verified_via": "Read"
     },
@@ -261,15 +296,28 @@
       "file": "hooks/posttool-allowlist-consume.py",
       "line_range": "38-106",
       "role": "PostToolUse sole grant-delete hook — will delegate atomic match+unlink to lib",
-      "imports_from": ["hooks/lib/allowlist.py (after posttool change)", "hooks/lib/subagent.py"],
+      "imports_from": [
+        "hooks/lib/allowlist.py (after posttool change)",
+        "hooks/lib/subagent.py"
+      ],
       "evidence": "Read: hooks/posttool-allowlist-consume.py lines 38-106",
+      "verified_via": "Read"
+    },
+    {
+      "file": "hooks/pretool-write-guard.sh",
+      "line_range": "32-53",
+      "role": "pretool Write guard — independent grant-read against fixed string \"Write\"; will delegate to read_grant(\"Write\", sid) via M6",
+      "imports_from": [
+        "hooks/lib/allowlist.py via Python subprocess shim (after M6)"
+      ],
+      "evidence": "Read: hooks/pretool-write-guard.sh lines 32-53 (confirmed by QA iteration 2)",
       "verified_via": "Read"
     }
   ],
   "pre_existing_guards": [
     {
       "file": "hooks/pretool-git-privilege-guard.py",
-      "line": 574,
+      "line": 576,
       "type": "if",
       "code_snippet": "if _push_has_forbidden_ref_mutation(command): _block(...)",
       "purpose": "Force-push/force-with-lease/delete-push remains non-bypassable even with /allow grant",
@@ -311,7 +359,7 @@
     "observed": "Four independent implementations of /allow grant-read logic exist across hooks/lib/allowlist.py, pretool-git-privilege-guard.py, pretool-bash-safety.sh, posttool-allowlist-consume.py",
     "measured": {
       "value": "Each of the 4 hooks independently opens /tmp/claude-bash-allowlist-<sid>.json, acquires fcntl.flock, loads JSON, and matches pattern",
-      "location": "lib/allowlist.py:22-51, pretool-git-privilege-guard.py:141-177, pretool-bash-safety.sh:163-309, posttool-allowlist-consume.py:53-99"
+      "location": "lib/allowlist.py:22-51, pretool-git-privilege-guard.py:141-177, pretool-bash-safety.sh:163-323, posttool-allowlist-consume.py:53-104"
     },
     "expected": {
       "value": "Grant-file I/O, lock, JSON load, and pattern match live only in hooks/lib/allowlist.py; hook files call library functions",
@@ -326,7 +374,8 @@
       "hooks/lib/allowlist.py",
       "hooks/pretool-git-privilege-guard.py",
       "hooks/pretool-bash-safety.sh",
-      "hooks/posttool-allowlist-consume.py"
+      "hooks/posttool-allowlist-consume.py",
+      "hooks/pretool-write-guard.sh"
     ],
     "additional_found": [
       "hooks/pretool-orchestrator-gate.py (already correct — uses lib.allowlist.read_grant)",
@@ -337,7 +386,8 @@
       "hooks/lib/allowlist.py:28",
       "hooks/pretool-git-privilege-guard.py:151",
       "hooks/pretool-bash-safety.sh:155",
-      "hooks/posttool-allowlist-consume.py:51"
+      "hooks/posttool-allowlist-consume.py:51",
+      "hooks/pretool-write-guard.sh:32"
     ]
   },
   "reference_source": {
@@ -382,14 +432,17 @@
   },
   "development_approach": {
     "strategy": "Extract shared primitives bottom-up: write library functions first (no external change), then update callers one at a time. Git guard (Python) is simplest; posttool (Python) is next; bash heredoc shim is last and most complex.",
-    "files_to_create": [],
+    "files_to_create": [
+      "hooks/tests/test_allowlist_consolidation.py"
+    ],
     "files_to_modify": [
       "hooks/lib/allowlist.py",
       "hooks/pretool-git-privilege-guard.py",
       "hooks/pretool-bash-safety.sh",
-      "hooks/posttool-allowlist-consume.py"
+      "hooks/posttool-allowlist-consume.py",
+      "hooks/pretool-write-guard.sh"
     ],
-    "validation_approach": "grep-based AC verification: (1) no grant-file open in hook files, (2) no os.unlink outside lib, (3) IS_SUBAGENT checks present before lib calls, (4) force-push block precedes allowlist check in git guard, (5) existing callers (orchestrator-gate, subagent-enforce, aggregate-check) unchanged"
+    "validation_approach": "Combination of grep-based and runtime test verification: (1) no grant-file open in hook files, (2) no os.unlink for claude-bash-allowlist outside lib, (3) IS_SUBAGENT checks present before lib calls, (4) force-push block precedes allowlist check in git guard (line 576 before 583), (5) existing callers (orchestrator-gate, subagent-enforce, aggregate-check) unchanged, (6) hooks/tests/test_allowlist_consolidation.py: subagent payloads return False/no-delete, /allow Write does not consume TodoWrite (exact-only), Bash compound command consumed correctly"
   },
   "standards_to_enforce": {
     "no_hardcoded_values": true,
@@ -456,8 +509,8 @@
         "issue": "Bash hook CONSUMED token is stale — comments say deletion deferred but token says CONSUMED",
         "proposed_fix": "Rename to MATCHED internally if no external parser depends on it",
         "classification": "minor",
-        "disposition": "applied",
-        "rationale": "Applied: Could Have item in spec. Token is only consumed by local case statement — rename is safe"
+        "disposition": "rejected_moved_to_wont_have",
+        "rationale": "Moved to Won't Have: token rename is a separate scope; mismatched producer/consumer token silently breaks /allow. The CONSUMED token is retained as-is."
       },
       {
         "issue": "Spec omits git push ordering invariant — force-push block must precede allowlist check",
