@@ -133,7 +133,7 @@ check_systemctl_targets_all_dev() {
 # docs/dev/ticket-20260509-113838.md) authorizes /allow to bypass any command
 # including dangerous ones when the user explicitly grants the pattern; consume
 # covers ANY safety block when the user-granted pattern matches.
-# NEVER bypasses subagent calls (IS_SUBAGENT inline fresh parse first; lines 121-131).
+# NEVER bypasses subagent calls (checked via IS_SUBAGENT script-global set at top of script).
 CONSENT_LOG="$HOME/.claude/logs/bash-consent.log"
 
 check_and_consume_allowlist() {
