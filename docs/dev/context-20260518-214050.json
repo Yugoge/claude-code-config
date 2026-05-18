@@ -5,7 +5,7 @@
   "complexity_tier": "COMPLEX",
   "requirement": {
     "original": "解决全部问题。删除截图和临时文件，ignore不需要备份/公开的文件",
-    "clarified": "Fix .gitignore coverage and remove tracked transient files (screenshots, workflow state, node_modules, secrets, empty sentinel files) across 10 private repositories. Add .gitignore patterns to prevent re-introduction.",
+    "clarified": "Fix .gitignore coverage and remove tracked transient files (screenshots, workflow state, node_modules, secrets, empty sentinel files, lockfiles, duplicate output directories) across 12 private repositories. Ignore all of docs/ in dot-claude. Delete both bun.lock and package-lock.json in happy. Gitignore INDEX.md in rednote-mcp. Delete null/ directory and root extension-less data files in application-assistant.",
     "what": "Multi-repo .gitignore cleanup and tracked file removal",
     "why": "Transient artifacts (workflow UUIDs, screenshots, node_modules, private knowledge data) have been committed to git indexes, causing noisy status and potential accidental exposure in future pushes",
     "where": [
@@ -42,7 +42,11 @@
       "git check-ignore passes for all newly-added .gitignore patterns",
       "travel-planner .env not tracked",
       "knowledge-system private data (chats/, learning-materials/, knowledge-base/) not in git index",
-      "Screenshot/temp files deleted from disk where applicable"
+      "Screenshot/temp files deleted from disk where applicable",
+      "dot-claude docs/ fully untracked (all 383 files)",
+      "happy bun.lock and package-lock.json deleted from disk and untracked",
+      "rednote-mcp INDEX.md files gitignored",
+      "application-assistant null/ deleted; root data files (education_details, experience_details, projects, skills) deleted"
     ],
     "constraints": [
       "Use git rm --cached (not git rm) to untrack without deleting, except for files explicitly marked for deletion",
@@ -51,33 +55,13 @@
       "Do not touch data/decisions/ in budget-management"
     ]
   },
-  "status": "needs_clarification",
-  "clarification_questions": [
-    {
-      "id": "Q1",
-      "repo": "dot-claude",
-      "question": "Should docs/ be added to .gitignore entirely (all 383 files untracked, including docs/reference/, docs/archive/, docs/incidents*, docs/server-infra.md), or only docs/dev/ (200 dev-cycle artifacts untracked, keeping docs/reference/ and other reference docs tracked)?",
-      "evidence": "183 non-dev docs tracked: docs/reference/checkpoint-mechanism.md, docs/archive/editor-configs, docs/clean/, docs/incidents-*, docs/server-infra.md, docs/ramdisk-architecture.md. These appear to be intentional reference documentation, not transient artifacts."
-    },
-    {
-      "id": "Q2",
-      "repo": "happy",
-      "question": "Both bun.lock and package-lock.json are tracked. root package.json and app package.json both declare packageManager: yarn. Should both lockfiles be deleted+gitignored (yarn projects use yarn.lock, not bun.lock or package-lock.json), or keep package-lock.json and only gitignore bun.lock?",
-      "evidence": "root/happy/package.json: packageManager: yarn@1.22.22. No bun.config or bunfig.toml found. bun.lock is 559KB (Mar 15), package-lock.json is 1.2MB (Mar 26)."
-    },
-    {
-      "id": "Q3",
-      "repo": "rednote-mcp",
-      "question": "INDEX.md (root) and scripts/INDEX.md are untracked. They match the auto-generated format used by dot-claude's INDEX.md files (Last updated timestamp, Total entries, Convention: kebab, tree structure). Are these intentional documentation to track, or auto-generated artifacts to add to .gitignore?",
-      "evidence": "Content: '# rednote-mcp\\n*Last updated: 2026-05-04T09:02:56Z*\\n**Total entries**: 16\\n**Convention**: kebab\\n## Tree'. Identical format to dot-claude/docs/dev/INDEX.md which is an auto-generated file."
-    },
-    {
-      "id": "Q4",
-      "repo": "application-assistant",
-      "question": "The null/ directory (3 tracked files: index.html + 2 PDFs) appears to be a bug where a null company name created a literal 'null' directory. Duplicate files exist in data/cover_letters/ and data/resumes/. Should null/ be deleted entirely? Also: 4 root files with no extension (education_details, experience_details, projects, skills) are tracked — duplicates exist in data/. Should these root copies be deleted?",
-      "evidence": "null/hunterbond-kdb-developer/ contains PDFs that exactly duplicate /root/application-assistant/data/cover_letters/Yuge_Tang_cover_letter_hunterbond-kdb-developer_20260405.pdf and /root/application-assistant/data/resumes/Yuge_Tang_resume_hunterbond-kdb-developer_20260405.pdf"
-    }
-  ],
+  "status": "ready",
+  "clarification_answers": {
+    "Q1": "ignore ALL of docs/ entirely (all 383 files untracked)",
+    "Q2": "delete BOTH bun.lock and package-lock.json, gitignore both",
+    "Q3": "auto-generated → gitignore INDEX.md (do NOT track)",
+    "Q4": "delete null/ and root duplicate files (education_details, experience_details, projects, skills at root level)"
+  },
   "scope_boundary": {
     "in_user_path": [
       "/dev/shm/dev-workspace/dot-claude/.gitignore",
