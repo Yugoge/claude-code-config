@@ -1054,8 +1054,7 @@ fi
 # Block: subagent-initiated git history mutation (2026-04-23 incident)
 # Subagents have weak context and cannot reliably know whether the user has consented.
 # All git history changes by subagents must be surfaced to the user instead.
-# Detection: parse stdin JSON for agent_id (matches pretool-orchestrator-gate.py mechanism).
-IS_SUBAGENT=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" 2>/dev/null)
+# IS_SUBAGENT is set at the top of the script (after PYTHON_BIN resolution); no re-parse needed.
 if [ "$IS_SUBAGENT" = "1" ]; then
   # /do bypass (2026-04-25): user has explicitly consented via /do — allow subagent history mutation
   SID=$(echo "$INPUT" | "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print(d.get('session_id',''))" 2>/dev/null)
