@@ -1,11 +1,11 @@
 {
   "spec_id": "spec-20260518-225715",
   "agent_type": "ba",
-  "instance_id": null,
+  "instance_id": 6,
   "generation": 1,
-  "agent_id": "a38cf1a11bff79b61",
+  "agent_id": "abab52afec9e5ffec",
   "is_running": true,
-  "checked_in_at": "2026-05-19T13:58:33Z",
+  "checked_in_at": "2026-05-19T14:08:36Z",
   "checked_out_at": null,
   "checkpoints": [
     {

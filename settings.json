@@ -285,7 +285,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
-  "model": "sonnet",
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -723,6 +723,6 @@
     ]
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
+  "effortLevel": "xhigh",
   "theme": "dark"
 }
