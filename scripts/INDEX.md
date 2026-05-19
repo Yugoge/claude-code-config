@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-19T16:02:32Z*
-**Total entries**: 70
+*Last updated: 2026-05-19T16:03:55Z*
+**Total entries**: 71
 **Convention**: kebab
 
 ## Tree
@@ -33,6 +33,7 @@ scripts/
 ├── `analyze-folder-history.sh` - Description: Analyze Git history for folder to discover file creation patterns
 ├── `analyze-git-edge-cases.sh` - Description: Analyze git history for edge cases from bug fix commits
 ├── `apply-permissions.sh` - apply-permissions.sh — merge aggregated permissions JSON list into settings.json
+├── `blast-radius-tool.py` - Two phases:
 ├── `break-overnight-lock.py` - Backdates end_time on every active overnight-state-*.json so
 ├── `build-pipelines-from-triage.py` - Consumes PM triage schema (issues[] keyed by triage_index + pipeline_order[] +
 ├── `bulk-commit-nested-run.sh` - One-shot bulk commit script for the nested dot-claude repo.

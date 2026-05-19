@@ -5,7 +5,7 @@ Organization and usage documentation for `.claude/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 62
+- **Total files**: 63
 - **Subdirectories**: 34
 - **Naming convention**: lower
 
@@ -13,6 +13,7 @@ Organization and usage documentation for `.claude/`.
 - `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
 - `CLAUDE.md` - CLAUDE.md
 - `NESTED-REPO.md` - Nested Repo Sentinel
+- `agent-scores.json` - json config
 - `config.yaml` - yaml config
 - `history.jsonl` - jsonl file
 - `mcp-needs-auth-cache.json` - json config
