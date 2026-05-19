@@ -829,6 +829,19 @@ ELIF qa.status == "fail":
   → Proceed to Step 14 (Iteration)
 ```
 
+**Sub-step 12.1: Mascot score-update (post-QA, spec-20260518-225715 §5.1)**:
+
+After the verdict is known, apply score-update events based on QA outcome and iteration count:
+
+- First-round PASS (iteration 0 + qa.status=pass) → `bash ~/.claude/scripts/score-update.sh --agent dev --event qa_first_pass --note "<task_id>"` AND `--agent ba --event qa_first_pass`. (dev +6, ba +3, qa 0.)
+- Second-or-later-round PASS (iteration ≥1 + qa.status=pass) → `--agent dev --event qa_second_pass --note "<task_id>"`. (dev +3.)
+- FAIL (qa.status=fail) — read `qa.failures[].primary_cause` to attribute the rejection:
+  - Any failure with `primary_cause = "dev_implementation"` → `score-update.sh --agent dev --event qa_reject_dev --note "<task_id>"`. (dev -12.)
+  - Any failure with `primary_cause = "ba_spec"` → `score-update.sh --agent ba --event qa_reject_ba --note "<task_id>"` AND `--agent dev --event qa_reject_ba` (dev -5, ba -8).
+  - `primary_cause = "qa_oversight"` or `"environment"` → no auto-score update (manual review).
+
+Each score-update call is independent; failures are non-blocking (a failed score-update writes to stderr but does not abort the dev cycle). Include the score deltas summary in the Step 15 completion report under a `score_updates` array.
+
 ### Step 13: Update Settings.json Permissions
 
 **CRITICAL**: Auto-update permissions for new functionality.
