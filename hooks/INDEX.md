@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-19T16:12:35Z*
-**Total entries**: 118
+*Last updated: 2026-05-19T19:34:26Z*
+**Total entries**: 119
 **Convention**: kebab
 
 ## Tree
@@ -112,6 +112,7 @@ hooks/
 ├── `session-git-init.sh` - ============================================================================
 ├── `session-info.sh` - s-info.sh — SessionStart: display environment info + tool quick reference
 ├── `session-promote-hook.sh` - Description: SessionStart hook that promotes a cold session back to ramdisk.
+├── `session-tmpfs-banner.sh` - session-tmpfs-banner.sh — SessionStart hook (6th in the SessionStart hooks block).
 ├── `session_start.sh` - SessionStart Hook - Display working environment info
 ├── `smart-checkpoint.sh` - smart-checkpoint.sh - DEPRECATED, scheduled for deletion
 ├── `start-fswatch-all.sh` - start-fswatch-all.sh - Start fswatch monitoring for all important repositories
