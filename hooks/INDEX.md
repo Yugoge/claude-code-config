@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-18T17:09:12Z*
-**Total entries**: 117
+*Last updated: 2026-05-19T16:11:53Z*
+**Total entries**: 118
 **Convention**: kebab
 
 ## Tree
@@ -35,6 +35,7 @@ hooks/
 │   ├── `subagent.py` - Single source of truth for is_subagent_context() and supporting helpers
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 ├── tests/
+│   ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 │   └── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
 ├── `audit-slashcommand.sh` - audit-slashcommand.sh

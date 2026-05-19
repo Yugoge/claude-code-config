@@ -10,12 +10,24 @@ Binary files (images, PDFs) are exempt.
 import json
 import os
 import sys
+from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from lib.allowlist import read_grant  # noqa: E402
 
 BINARY_EXTENSIONS = {
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".bmp", ".pdf",
 }
-LINE_LIMIT = 1000
+LINE_LIMIT = 600
 CHUNK_LIMIT = 600
+
+
+def has_consent(session_id: str) -> bool:
+    flag = Path(f"/tmp/claude-orchestrator-consent-{session_id}.flag")
+    try:
+        return flag.exists() and flag.read_text().strip() == "true"
+    except Exception:
+        return False
 
 
 def is_exempt(data, file_path):
