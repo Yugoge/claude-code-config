@@ -605,9 +605,33 @@ Use Agent tool with:
 
 **Pre-dispatch — Test-Writer dispatch (conditional, between BA and Dev per spec-20260518-225715 §5.2 line 167: "位置：BA → [test-writer] → Dev → QA")**:
 
-When BA's context JSON has `complexity_tier >= STANDARD` OR `risk_level = high`, dispatch the test-writer subagent BEFORE Dev. This sits in the pipeline as: BA → test-writer → Dev → QA. The test-writer reads `docs/dev/acceptance-criteria-<task_id>.json` (the Executable AC file produced by BA at Step 3) and generates pytest skeletons at `tests/generated/<task_id>/test_AC*.py` plus `tests/generated/manifest.json`. When `complexity_tier < STANDARD` and `risk_level != high`, SKIP the test-writer dispatch (record skip rationale in todo).
+Gate evaluation (mandatory): read `complexity_tier` and `risk_level` from BA's context JSON. If `complexity_tier ∈ {STANDARD, COMPLEX}` OR `risk_level == "high"`, then `test_writer_expected = true`; otherwise `test_writer_expected = false`. Pass `test_writer_expected` into the Dev and QA dispatch prompts.
 
-After test-writer completes, the generated test file paths and manifest path are passed onward to Dev (in the dispatch prompt) and to QA (Step 11). Dev makes the skeleton tests pass; QA verifies the manifest at Step 11 Phase 5.
+When `test_writer_expected == true`, dispatch the test-writer subagent BEFORE Dev:
+
+```
+Use Task tool with:
+- description: "Generate pytest skeletons from acceptance criteria"
+- prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/test-writer.json (or create if absent with {agent_type:'test-writer', session_id:'<DEV_SESSION_ID>'}).
+
+  You are the test-writer subagent. Follow agents/test-writer.md instructions precisely.
+
+  Inputs:
+    task_id: <task_id>
+    acceptance_criteria_path: docs/dev/acceptance-criteria-<task_id>.json
+    complexity_tier: <COMPLEX|STANDARD|SMALL|MICRO from BA context>
+    risk_level: <high|medium|low from BA context>
+
+  Write your report to: docs/dev/test-writer-report-<task_id>.json
+  Generated tests go under: tests/generated/<task_id>/
+  Manifest: tests/generated/manifest.json
+  "
+```
+
+After the test-writer subagent completes, verify on disk that `tests/generated/manifest.json` AND `docs/dev/test-writer-report-<task_id>.json` BOTH exist. If either is missing, abort the cycle with an error (the orchestrator MUST NOT proceed to Dev with a silently-skipped test-writer). When `test_writer_expected == false`, SKIP the dispatch (record skip rationale in the todo list).
+
+After test-writer completes (or is skipped), the generated test file paths and manifest path are passed onward to Dev (in the dispatch prompt) and to QA (Step 11). Dev makes the skeleton tests pass; QA verifies the manifest at Step 11 Phase 5 AND that `test_writer_expected == true` implies manifest/report existence (Phase 5 fails with `primary_cause: "dev_implementation"` or `"qa_oversight"` if expected but missing).
 
 **Pre-dispatch (Mascot scoring injection, spec-20260518-225715 §5.1)**:
 
