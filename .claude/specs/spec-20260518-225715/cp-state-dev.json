@@ -1,0 +1,67 @@
+{
+  "spec_id": "spec-20260518-225715",
+  "agent_type": "dev",
+  "instance_id": null,
+  "generation": 1,
+  "agent_id": "spec-subagent-dev-20260519",
+  "is_running": true,
+  "checked_in_at": "2026-05-19T10:55:59Z",
+  "checked_out_at": null,
+  "checkpoints": [
+    {
+      "id": "cp-01",
+      "action": "Implement score-update.sh accepting --agent --event --note params, reading/writing ~/.claude/agent-scores.json",
+      "status": "pending"
+    },
+    {
+      "id": "cp-02",
+      "action": "Implement score-inject.sh outputting segment+recent-events injection block for each of 21 agents",
+      "status": "pending"
+    },
+    {
+      "id": "cp-03",
+      "action": "Add score-inject.sh calls to dev.md at BA dispatch (Step 3), Dev dispatch (Step 8), QA dispatch (Step 11)",
+      "status": "pending"
+    },
+    {
+      "id": "cp-04",
+      "action": "Add score-update.sh call to dev.md after QA completes (Step 12.0) and add score summary to Step 15 report",
+      "status": "pending"
+    },
+    {
+      "id": "cp-05",
+      "action": "Add AskUserQuestion 1-5\u2605 + score-update.sh to close.md after CLOSE:YES (Step 3)",
+      "status": "pending"
+    },
+    {
+      "id": "cp-06",
+      "action": "Implement test-writer agent that generates pytest+Playwright skeleton tests from Executable AC JSON into tests/generated/<task_id>/",
+      "status": "pending"
+    },
+    {
+      "id": "cp-07",
+      "action": "Implement canary SessionStart hook: zero stdout on success, stderr+exit-2 on failure, behavioral (not grep) verification",
+      "status": "pending"
+    },
+    {
+      "id": "cp-08",
+      "action": "Fix session-info.sh and session-git-init.sh to redirect stdout to stderr; unify LINE_LIMIT to 1000 in pretool-read-size-guard.py and CLAUDE.md",
+      "status": "pending"
+    },
+    {
+      "id": "cp-09",
+      "action": "Read blast-radius-map.json and declare test runs/new tests/explicit exemptions for each coverage_gap in dev report",
+      "status": "pending"
+    },
+    {
+      "id": "cp-10",
+      "action": "Ensure test-writer UPDATE vs CREATE logic: archive on ac_uid hash change, skip on hash match, never delete",
+      "status": "pending"
+    }
+  ],
+  "terminal_artifact": {
+    "path": "docs/dev/dev-report-20260519.json",
+    "exists": false,
+    "validated_at": null
+  }
+}
