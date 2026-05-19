@@ -1,0 +1,16 @@
+{
+  "spec_id": "spec-20260518-225715",
+  "agent_type": "ba",
+  "instance_id": 7,
+  "generation": 1,
+  "agent_id": "current-retry-invocation-2",
+  "is_running": true,
+  "checked_in_at": "2026-05-19T14:20:48Z",
+  "checked_out_at": null,
+  "checkpoints": [],
+  "terminal_artifact": {
+    "path": null,
+    "exists": false,
+    "validated_at": null
+  }
+}
