@@ -335,6 +335,10 @@ If dev changed L1 when spec called for L3, treat as failed implementation.
 
 ### Step 3: Delegate to BA Subagent
 
+**Pre-dispatch (Mascot scoring injection, spec-20260518-225715 §5.1)**:
+
+Run `bash ~/.claude/scripts/score-inject.sh --agent ba` and capture stdout into a variable `BA_SCORE_HEADER`. Per spec 5.1 line 113, this injection text is inserted AFTER the role declaration and BEFORE the task instructions for the BA dispatch — i.e. right between "You are the BA subagent." and the "Requirement:" / task body. The injection shows the rank+range (NOT exact score) and last 3 events.
+
 **Use Task tool to invoke BA subagent for requirements analysis and context building**:
 
 ```
@@ -349,6 +353,9 @@ Use Task tool with:
   CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  <BA_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: 注入位置：角色声明之后、任务指令之前>
+
 
   Requirement: '<requirement from Step 1>'
   Clarification round: 0
