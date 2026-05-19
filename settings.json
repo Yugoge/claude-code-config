@@ -323,6 +323,10 @@
             "type": "command",
             "command": "bash \"$HOME/.claude/scripts/canary-verify.sh\"",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/session-tmpfs-banner.sh\""
           }
         ]
       }
