@@ -744,6 +744,23 @@ THEN <expected outcome>
 
 Create both output files (see Output Formats below).
 
+### Step 9: Run Blast-Radius Tool Phase 1 (Prediction)
+
+After identifying `files_to_modify` in `development_approach`, run the blast-radius tool to produce a TDAD prediction map (spec-20260518-225715 §5.3):
+
+```
+python3 scripts/blast-radius-tool.py \
+  --files <comma-separated files_to_modify> \
+  --output .claude/dev-registry/dev-<task_id>/blast-radius-map.json \
+  --task-id <task_id>
+```
+
+The output map carries `analyzed_files`, `edges[]` (confidence-tagged: high for AST-imports, medium for textual reference), `coverage_gaps[]` (hooks/ entries are severity=critical per spec §5.3), and `required_validation[]`. Reference the path from the context JSON via `blast_radius_map_path` so Dev and QA can both consume it (Dev declares coverage; QA reruns Phase 2 with `--git-diff`).
+
+### Step 10: Emit Executable Acceptance Criteria JSON
+
+Write `docs/dev/acceptance-criteria-<task_id>.json` containing the BDD ACs from Step 7 in Executable AC format (spec §5.4). Each item has `id`, `type` ∈ {ui, api, data, hook}, `given`, `when`, `then`, `check{...}`, and `ac_uid = sha256(type+given+when+then+JSON.stringify(check))[:16]`. Reference this file via the `acceptance_criteria_path` field in the context JSON so test-writer and QA can both consume it.
+
 ---
 
 ## Output Formats
