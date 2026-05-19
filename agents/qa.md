@@ -987,6 +987,34 @@ mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
 - Tests reveal implementation bugs → QA fail or warning depending on severity
 - Tests cannot run (broken scripts after 3 fix attempts) → QA warning with documented rationale
 
+#### Phase 5: Manifest Verification (when test-writer ran upstream)
+
+If `tests/generated/manifest.json` exists (because the cycle had `complexity_tier >= STANDARD` or `risk_level = high` and test-writer ran between BA and Dev), you MUST verify it before declaring a verdict:
+
+1. Read `tests/generated/manifest.json`. For every `active_tests[]` entry, verify the test file exists and is importable: `source ~/.claude/venv/bin/activate && python3 -c "import importlib.util, sys; spec = importlib.util.spec_from_file_location('t', '<path>'); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)"`. Record results in `qa.manifest_verification`.
+2. When `complexity_tier >= STANDARD`, run `pytest tests/generated/ -q` (allowing collection-only mode if tests still contain the `pytest.fail("TEST_INCOMPLETE: ...")` sentinel — sentinel-only failures are EXPECTED test-writer hardblocks, not QA failures). Record collection count and any genuine test failures in `qa.manifest_verification.pytest_failures`.
+3. A test that no longer contains the `TEST_INCOMPLETE:` sentinel but still fails → real Dev gap → critical finding with `primary_cause: "dev_implementation"`.
+4. A manifest entry whose test file is missing on disk → broken test-writer integration → critical finding with `primary_cause: "ba_spec"` (test-writer was supposed to produce this artifact).
+
+#### Phase 6: Blast-Radius Phase 2 Verification
+
+Per spec-20260518-225715 §5.3, QA MUST rerun the blast-radius tool against the actual git diff and cross-check Dev's declarations:
+
+```bash
+python3 scripts/blast-radius-tool.py \
+  --git-diff --base HEAD~1 \
+  --output .claude/dev-registry/dev-<task_id>/blast-radius-map-phase2.json \
+  --task-id <task_id>
+```
+
+Compare:
+- Each `coverage_gaps[]` entry in the Phase 2 map MUST have a matching entry in Dev's `blast_radius_declarations[]` (by file).
+- A Phase 2 gap NOT declared by Dev → critical finding (`primary_cause: "dev_implementation"`).
+- A Dev-declared exemption that you judge insufficient → record under `qa.blast_radius_phase2.exemption_vetoes[]` and demote verdict accordingly.
+- Phase 1 → Phase 2 delta (files Dev actually changed beyond what BA predicted) → record in `phase1_phase2_delta` for the spec audit.
+
+Verdict impact: declarations missing for a critical-severity gap (hooks/ or new-file with no prior coverage) is itself critical and blocks PASS.
+
 ### Step 12: Verify Permissions
 
 **CRITICAL**: Check that dev specified correct permissions for new functionality.
