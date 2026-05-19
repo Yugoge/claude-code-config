@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-19T16:03:55Z*
-**Total entries**: 71
+*Last updated: 2026-05-19T16:03:57Z*
+**Total entries**: 72
 **Convention**: kebab
 
 ## Tree
@@ -37,6 +37,7 @@ scripts/
 ├── `break-overnight-lock.py` - Backdates end_time on every active overnight-state-*.json so
 ├── `build-pipelines-from-triage.py` - Consumes PM triage schema (issues[] keyed by triage_index + pipeline_order[] +
 ├── `bulk-commit-nested-run.sh` - One-shot bulk commit script for the nested dot-claude repo.
+├── `canary-verify.sh` - Description: Cache-safe canary that behaviorally verifies the four core PreToolUse hooks.
 ├── `check-file-references.sh` - File reference detection script - used by /clean command
 ├── `check-overnight-reports.py` - Description: Validates all overnight required outputs declared by the active
 ├── `check-overnight-reports.sh` - DEPRECATED — replaced by check-overnight-reports.py per spec-20260426-090235 P0/M5.
