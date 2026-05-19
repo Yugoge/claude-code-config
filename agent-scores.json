@@ -4,19 +4,46 @@
   "global": {
     "agents": {
       "ba": {
-        "score": 50,
+        "score": 58,
         "rank": "熟练工匠",
-        "history": []
+        "history": [
+          {
+            "ts": "2026-05-19T17:15:08Z",
+            "event": "close_success_qa_pass",
+            "delta": 8,
+            "old_score": 50,
+            "new_score": 58,
+            "note": "20260519-160856"
+          }
+        ]
       },
       "dev": {
-        "score": 50,
-        "rank": "熟练工匠",
-        "history": []
+        "score": 65,
+        "rank": "资深工匠",
+        "history": [
+          {
+            "ts": "2026-05-19T17:15:08Z",
+            "event": "close_success_qa_pass",
+            "delta": 15,
+            "old_score": 50,
+            "new_score": 65,
+            "note": "20260519-160856"
+          }
+        ]
       },
       "qa": {
-        "score": 50,
+        "score": 58,
         "rank": "熟练工匠",
-        "history": []
+        "history": [
+          {
+            "ts": "2026-05-19T17:15:08Z",
+            "event": "close_success_qa_pass",
+            "delta": 8,
+            "old_score": 50,
+            "new_score": 58,
+            "note": "20260519-160856"
+          }
+        ]
       },
       "ui-specialist": {
         "score": 50,
