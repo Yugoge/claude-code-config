@@ -992,9 +992,10 @@ mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
 If `tests/generated/manifest.json` exists (because the cycle had `complexity_tier >= STANDARD` or `risk_level = high` and test-writer ran between BA and Dev), you MUST verify it before declaring a verdict:
 
 1. Read `tests/generated/manifest.json`. For every `active_tests[]` entry, verify the test file exists and is importable: `source ~/.claude/venv/bin/activate && python3 -c "import importlib.util, sys; spec = importlib.util.spec_from_file_location('t', '<path>'); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)"`. Record results in `qa.manifest_verification`.
-2. When `complexity_tier >= STANDARD`, run `pytest tests/generated/ -q` (allowing collection-only mode if tests still contain the `pytest.fail("TEST_INCOMPLETE: ...")` sentinel — sentinel-only failures are EXPECTED test-writer hardblocks, not QA failures). Record collection count and any genuine test failures in `qa.manifest_verification.pytest_failures`.
+2. When `complexity_tier >= STANDARD`, run `pytest tests/generated/ -q`. ANY remaining `pytest.fail("TEST_INCOMPLETE: ...")` sentinel in an active test is a Dev incompleteness — Dev was supposed to fill in the body. Grep `tests/generated/<task_id>/` for the literal string `TEST_INCOMPLETE:`; every match is a critical QA finding with `primary_cause: "dev_implementation"`. Record both pytest collection counts AND the sentinel-match list in `qa.manifest_verification.pytest_failures[]`.
 3. A test that no longer contains the `TEST_INCOMPLETE:` sentinel but still fails → real Dev gap → critical finding with `primary_cause: "dev_implementation"`.
 4. A manifest entry whose test file is missing on disk → broken test-writer integration → critical finding with `primary_cause: "ba_spec"` (test-writer was supposed to produce this artifact).
+5. **test_writer_expected vs manifest existence**: if the orchestrator passed `test_writer_expected = true` (gated by BA's complexity_tier >= STANDARD OR risk_level == high) AND `tests/generated/manifest.json` is missing → critical finding with `primary_cause: "qa_oversight"` if the orchestrator allowed proceed despite missing manifest, or `primary_cause: "dev_implementation"` if Dev was supposed to ensure test-writer ran.
 
 #### Phase 6: Blast-Radius Phase 2 Verification
 
