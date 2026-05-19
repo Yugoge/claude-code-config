@@ -1122,6 +1122,9 @@ Must be compatible with `agents/dev.md` input format:
   },
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-<task_id>.json",
   "blast_radius_map_path": ".claude/dev-registry/dev-<task_id>/blast-radius-map.json",
+  "complexity_tier": "MICRO | SMALL | STANDARD | COMPLEX",
+  "risk_level": "low | medium | high",
+  "_risk_level_doc": "Required top-level field. high = security-sensitive, infrastructure-critical, or affects > 5 files / pipeline orchestrators. Used by commands/dev.md Step 8 to gate test-writer dispatch (test-writer fires when complexity_tier >= STANDARD OR risk_level == high).",
   "standards_to_enforce": {
     "no_hardcoded_values": true,
     "yaml_frontmatter_description_only": true,
