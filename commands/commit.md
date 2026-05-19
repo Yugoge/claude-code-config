@@ -70,7 +70,30 @@ Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/l
 
 ### Step 5: Write commit grant and dispatch-snapshot manifest
 
-Before dispatching changelog-analyst, write a single-use commit grant (skip this entire grant-write block when `BULK=true` — BULK commits use the `auto-bulk:` prefix which bypasses the guard via `BLESSED_BRIDGE_RE`; no grant is needed or written): activate venv and run Python to write the grant. First, resolve the session ID: `sid = os.environ.get("CLAUDE_SESSION_ID")`. If `sid` is empty or `None`, abort immediately with: `Cannot write commit grant: CLAUDE_SESSION_ID not set. Invoke /commit from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst. If `sid` is set, generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at` (10 minutes), and `created_at`. The guard IS registered and active — grant absence WILL block the changelog-analyst commit.
+Before dispatching changelog-analyst, write a single-use commit grant (skip this entire grant-write block when `BULK=true` — BULK commits use the `auto-bulk:` prefix which bypasses the guard via `BLESSED_BRIDGE_RE`; no grant is needed or written): activate venv and run Python to write the grant. First, resolve the session ID: `sid = os.environ.get("CLAUDE_SESSION_ID")`. If `sid` is empty or `None`, abort immediately with: `Cannot write commit grant: CLAUDE_SESSION_ID not set. Invoke /commit from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst. If `sid` is set, generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at`, and `created_at`. The guard IS registered and active — grant absence WILL block the changelog-analyst commit.
+
+**Grant timestamp format (NON-NEGOTIABLE)**: The `expires_at` and `created_at` fields MUST be ISO-8601 strings produced from timezone-aware UTC datetimes (e.g. `(datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()` yields `"2026-05-19T16:18:56.123456+00:00"`). Epoch integers and epoch floats (e.g. `int(time.time()) + 600`, `time.time() + 600`) are NOT accepted by the privilege guard. The guard at `/root/.claude/hooks/pretool-git-privilege-guard.py:377-384` parses these fields via `datetime.fromisoformat(end_str.replace('Z', '+00:00'))`; on `ValueError`/`TypeError`/`AttributeError` the helper `_end_time_passed` returns `True` (i.e. "already expired"), which silently rejects the grant and blocks the commit. The expiration window is 10 minutes from `created_at` — bake the offset into `expires_at` at write time. Example correct grant-write pattern:
+
+```python
+import json, os, secrets
+from datetime import datetime, timedelta, timezone
+
+sid = os.environ["CLAUDE_SESSION_ID"]
+nonce = secrets.token_hex(8)
+now = datetime.now(timezone.utc)
+grant = {
+    "task_id": TASK_ID,
+    "sid": sid,
+    "nonce": nonce,
+    "created_at": now.isoformat(),
+    "expires_at": (now + timedelta(minutes=10)).isoformat(),
+}
+grant_path = f"/tmp/claude-commit-grant-{sid}-{nonce}.json"
+with open(grant_path, "w") as fp:
+    json.dump(grant, fp)
+```
+
+Both `created_at` and `expires_at` MUST match the regex `^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(\+\d{2}:\d{2}|Z)$`. Do NOT substitute `time.time()`, `int(time.time())`, or `datetime.utcnow()` (the last returns a naive datetime whose `.isoformat()` omits the TZ offset and falls into the naive-comparison branch at line 382).
 
 Also write the dispatch-snapshot manifest (non-bulk mode only): activate venv and run Python to capture `git status --porcelain=v1` from both repos, then write `manifest_path = /tmp/claude-commit-manifest-{sid}.json` containing `session_id`, `task_id`, `dispatched_at`, and `files_at_dispatch`. Best-effort; skip entirely in bulk mode.
 
