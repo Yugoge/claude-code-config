@@ -78,11 +78,15 @@ Before dispatching changelog-analyst, write a single-use commit grant (skip this
 import json, os, secrets
 from datetime import datetime, timedelta, timezone
 
+# task_id comes from the slash-command argument resolved in Step 2 above.
+# Substitute the resolved value before running this block; do NOT leave
+# `TASK_ID` as a bare identifier or the block will raise NameError.
+task_id = "<resolved-task-id-from-Step-2>"  # e.g. "20260519-160856"
 sid = os.environ["CLAUDE_SESSION_ID"]
 nonce = secrets.token_hex(8)
 now = datetime.now(timezone.utc)
 grant = {
-    "task_id": TASK_ID,
+    "task_id": task_id,
     "sid": sid,
     "nonce": nonce,
     "created_at": now.isoformat(),
