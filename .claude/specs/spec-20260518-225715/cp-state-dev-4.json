@@ -1,0 +1,67 @@
+{
+  "spec_id": "spec-20260518-225715",
+  "agent_type": "dev",
+  "instance_id": 4,
+  "generation": 1,
+  "agent_id": "a66b1f232c54d15b9",
+  "is_running": true,
+  "checked_in_at": "2026-05-19T16:00:40Z",
+  "checked_out_at": null,
+  "checkpoints": [
+    {
+      "id": "cp-01",
+      "action": "Implement score-update.sh accepting --agent --event --note params, reading/writing ~/.claude/agent-scores.json with global+projects dual-track",
+      "status": "pending"
+    },
+    {
+      "id": "cp-02",
+      "action": "Implement score-inject.sh: output tier+range (no exact score), recent 3 events, role-specific phrase, injected after role declaration before task instructions, for all 21 agents",
+      "status": "pending"
+    },
+    {
+      "id": "cp-03",
+      "action": "Add score-inject.sh calls to dev.md at Steps 3/8/11 (BA/Dev/QA dispatch) and score-update.sh after QA (Step 12.0) and score summary at Step 15 report",
+      "status": "pending"
+    },
+    {
+      "id": "cp-04",
+      "action": "Add AskUserQuestion 1-5★ with skip option + score-update.sh to close.md after CLOSE:YES only (CLOSE:NO does not trigger)",
+      "status": "pending"
+    },
+    {
+      "id": "cp-05",
+      "action": "Implement TDAD Blast Radius Tool using Python ast + grep: emit confidence-tagged edges to dev-registry/<task_id>/blast-radius-map.json, hooks/ gaps as severity:critical, coverage_gaps when dependent_tests is empty",
+      "status": "pending"
+    },
+    {
+      "id": "cp-06",
+      "action": "Implement test-writer agent: trigger on complexity_tier>=STANDARD or risk_level=high; generate tests/generated/<task_id>/test_AC*.py with pytest.fail('TEST_INCOMPLETE:...') hard-stops; generate manifest.json; hook_check auto-generated from AC JSON",
+      "status": "pending"
+    },
+    {
+      "id": "cp-07",
+      "action": "Implement canary SessionStart hook: register in settings.json; behavior-test Write guard, Bash safety, git privilege guard, read size guard; zero stdout on success, stderr+exit 2 on failure",
+      "status": "pending"
+    },
+    {
+      "id": "cp-08",
+      "action": "Fix session-info.sh and session-git-init.sh stdout→stderr; resolve LINE_LIMIT mismatch between pretool-read-size-guard.py (1000) and CLAUDE.md (600), update both to chosen value before canary registration",
+      "status": "pending"
+    },
+    {
+      "id": "cp-09",
+      "action": "Update agents/ba.md Output JSON schema to include acceptance_criteria_path field pointing to docs/dev/acceptance-criteria-<task_id>.json",
+      "status": "pending"
+    },
+    {
+      "id": "cp-10",
+      "action": "Update agents/qa.md failures[] verdict schema to require primary_cause enum (dev_issue|ba_issue) for score attribution",
+      "status": "pending"
+    }
+  ],
+  "terminal_artifact": {
+    "path": "docs/dev/dev-report-20260519.json",
+    "exists": false,
+    "validated_at": null
+  }
+}

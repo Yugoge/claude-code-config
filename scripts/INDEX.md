@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-17T22:09:02Z*
-**Total entries**: 68
+*Last updated: 2026-05-19T16:02:30Z*
+**Total entries**: 69
 **Convention**: kebab
 
 ## Tree
@@ -69,6 +69,7 @@ scripts/
 ├── `resolve-dev-report.py` - Usage:
 ├── `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 ├── `scan-project.sh` - Description: Scan project structure and detect project type
+├── `score-update.sh` - Description: Update agent score in ~/.claude/agent-scores.json based on a canonical event.
 ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 ├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file

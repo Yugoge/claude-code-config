@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 48
+- **Total files**: 49
 - **Subdirectories**: 2
 - **Naming convention**: kebab
 
@@ -50,6 +50,7 @@ Organization and usage documentation for `scripts/`.
 - `resolve-dev-report.py` - Usage:
 - `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 - `scan-project.sh` - Description: Scan project structure and detect project type
+- `score-update.sh` - Description: Update agent score in ~/.claude/agent-scores.json based on a canonical event.
 - `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 - `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 - `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
