@@ -92,6 +92,43 @@ def find_callers_via_grep(root: Path, basename: str) -> list[str]:
     return hits
 
 
+def find_dependent_tests(root: Path, target_rel: str) -> list[str]:
+    """Search tests/** for files that reference the target by basename, module
+    path, or relative path. Returns relative paths of matching test files.
+    Limited to .py / .sh / .md test descriptors under tests/.
+    """
+    tests_root = root / "tests"
+    if not tests_root.exists():
+        return []
+    basename = os.path.basename(target_rel)
+    needles = {basename}
+    # If the target is a Python module, also search for its dotted module path.
+    if target_rel.endswith(".py"):
+        mod = target_rel[:-3].replace("/", ".").lstrip(".")
+        if mod:
+            needles.add(mod)
+    hits: set[str] = set()
+    for needle in needles:
+        try:
+            result = subprocess.run(
+                ["grep", "-r", "-l",
+                 "--include=*.py", "--include=*.sh", "--include=*.md",
+                 "--exclude-dir=__pycache__", "--exclude-dir=.archive",
+                 "-F", needle, str(tests_root)],
+                capture_output=True, text=True, timeout=20,
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            continue
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            rel = os.path.relpath(line, str(root))
+            if in_scope(rel) and rel != target_rel:
+                hits.add(rel)
+    return sorted(hits)
+
+
 def severity_for(rel_path: str) -> str:
     """Per spec §5.3: hooks/ coverage gaps are critical."""
     norm = rel_path.replace("\\", "/").lstrip("./")
