@@ -66,9 +66,10 @@ LOCK_FILE="${COUNTER_FILE}.lock"
 # ── Pressure detection ───────────────────────────────────────────────
 # df --output=pcent emits a 2-line header + per-mount lines on most GNU coreutils;
 # we strip the header with `tail -n +2`. The `Use%` column comes with a trailing
-# percent sign that we strip. PATH-resolved bare `df` per OBJ-5.
+# percent sign that we strip. PATH-resolved bare `df` per OBJ-5. Wrapped in
+# `timeout 2s` so a hung df cannot block the hook (codex review F2).
 pressured=()
-mapfile -t df_pct < <(df --output=pcent /tmp /dev/shm 2>/dev/null | tail -n +2 | tr -d '% ' || true)
+mapfile -t df_pct < <(timeout 2s df --output=pcent /tmp /dev/shm 2>/dev/null | tail -n +2 | tr -d '% ' || true)
 mounts=(/tmp /dev/shm)
 
 for i in 0 1; do
