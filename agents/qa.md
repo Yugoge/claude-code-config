@@ -1002,10 +1002,12 @@ Per spec-20260518-225715 §5.3, QA MUST rerun the blast-radius tool against the 
 
 ```bash
 python3 scripts/blast-radius-tool.py \
-  --git-diff --base HEAD~1 \
+  --git-diff --base HEAD \
   --output .claude/dev-registry/dev-<task_id>/blast-radius-map-phase2.json \
   --task-id <task_id>
 ```
+
+Use `--base HEAD` (the default) — Dev's changes during this cycle are typically uncommitted, so `git diff HEAD` captures the working-tree mutation set. If the task was committed mid-cycle (rare), substitute the task's starting SHA recorded in `.claude/dev-registry/dev-<task_id>/start-sha` (if present) for `<base>`. Using `HEAD~1` would mix in unrelated prior-commit changes and produce false Phase-2 gaps.
 
 Compare:
 - Each `coverage_gaps[]` entry in the Phase 2 map MUST have a matching entry in Dev's `blast_radius_declarations[]` (by file).
