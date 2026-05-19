@@ -32,7 +32,9 @@ RATE_LIMIT=3
 
 # ── Token derivation ─────────────────────────────────────────────────
 # UserPromptSubmit hook receives a JSON envelope on stdin (same as prompt-workflow.py).
-INPUT=$(cat 2>/dev/null || true)
+# Bounded read so a never-closing stdin cannot hang the hook (codex review F2).
+INPUT=""
+IFS= read -r -t 1 -d '' INPUT 2>/dev/null || true
 
 SID=$(printf '%s' "$INPUT" | python3 -c "
 import json, os, sys
