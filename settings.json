@@ -365,7 +365,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/userprompt-tmpfs-pressure.sh\""
+            "command": "bash \"$HOME/.claude/hooks/userprompt-tmpfs-pressure.sh\"",
+            "timeout": 15
           }
         ]
       }

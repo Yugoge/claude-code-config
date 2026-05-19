@@ -1,7 +1,7 @@
 # dot-claude
 
-*Last updated: 2026-05-19T19:36:35Z*
-**Total entries**: 21559
+*Last updated: 2026-05-19T19:51:43Z*
+**Total entries**: 21554
 **Convention**: kebab
 
 ## Tree
@@ -1964,6 +1964,7 @@ dot-claude/
 │   │   ├── `ba-qa-report-20260519-151734-iter2.json` - json config
 │   │   ├── `ba-qa-report-20260519-151734.json` - json config
 │   │   ├── `ba-qa-report-20260519-161035.json` - json config
+│   │   ├── `ba-qa-report-20260519-175339.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260517-155838.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260517-172600.json` - json config
@@ -1993,6 +1994,7 @@ dot-claude/
 │   │   ├── `close-report-20260518-094616.md` - Close Debate Report — 20260518-094616
 │   │   ├── `close-report-20260518-155948.md` - Close Report — 20260518-155948
 │   │   ├── `close-report-20260518-214050.md` - Close Debate Report
+│   │   ├── `close-report-20260519-151734.md` - Close Debate Report
 │   │   ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 │   │   ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 │   │   ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
@@ -2142,6 +2144,7 @@ dot-claude/
 │   │   ├── `style-inspector-report-20260518-094616.json` - json config
 │   │   ├── `style-inspector-report-20260518-155948.json` - json config
 │   │   ├── `style-inspector-report-20260518-214050.json` - json config
+│   │   ├── `style-inspector-report-20260519-132417.json` - json config
 │   │   ├── `style-inspector-report-20260519-151734.json` - json config
 │   │   ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 │   │   ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
@@ -2184,7 +2187,8 @@ dot-claude/
 │   │   ├── `incidents-2026-04-04.md` - Production Catastrophe Incident — 2026-04-04
 │   │   ├── `lock-file-handling.md` - Git Lock File Handling
 │   │   ├── `server-infra.md` - Server Infrastructure — Full Reference Tables
-│   │   └── `slashcommand-quick-reference.md` - Slash Command Quick Reference
+│   │   ├── `slashcommand-quick-reference.md` - Slash Command Quick Reference
+│   │   └── `tmp-cleanup-convention.md` - Ad-hoc scratch directory convention
 │   ├── reports/
 │   │   └── `slashcommand-rollout-summary.md` - SlashCommand Permission Rollout Summary
 │   ├── templates/
@@ -6666,7 +6670,6 @@ dot-claude/
 │   │   ├── `694383.json` - json config
 │   │   ├── `701428.json` - json config
 │   │   ├── `706350.json` - json config
-│   │   ├── `715518.json` - json config
 │   │   └── `780033.json` - json config
 │   ├── shell-snapshots/
 │   │   ├── `snapshot-bash-1757635174638-jx5vwd.sh` - Snapshot file
@@ -6906,7 +6909,6 @@ dot-claude/
 │   │   ├── `snapshot-bash-1779202692613-rkjo0m.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1779202715955-88zojx.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1779202749164-hnjtdm.sh` - Snapshot file
-│   │   ├── `snapshot-bash-1779202782700-q5zhhs.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1779202988027-eouzuw.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1779205531838-5bnysy.sh` - Snapshot file
 │   │   ├── `snapshot-bash-1779207233266-282iw4.sh` - Snapshot file
@@ -10063,7 +10065,6 @@ dot-claude/
 │   │   ├── `b15b3230-9cce-4f78-84f3-e77ac542397b-agent-b15b3230-9cce-4f78-84f3-e77ac542397b.json` - json config
 │   │   ├── `b17d54a9-d79e-4e06-8871-11c3e2255a6e-agent-b17d54a9-d79e-4e06-8871-11c3e2255a6e.json` - json config
 │   │   ├── `b183d321-dc24-47a5-b6e8-a01071c8623f-agent-b183d321-dc24-47a5-b6e8-a01071c8623f.json` - json config
-│   │   ├── `b19400dd-5bbe-4e00-a723-4fc6fb345f9e-agent-b19400dd-5bbe-4e00-a723-4fc6fb345f9e.json` - json config
 │   │   ├── `b1a22f09-8532-48d2-bbb6-ff99a08c3515-agent-b1a22f09-8532-48d2-bbb6-ff99a08c3515.json` - json config
 │   │   ├── `b1f14d8c-55cb-4c4b-9e6d-0145c4cc1de6-agent-b1f14d8c-55cb-4c4b-9e6d-0145c4cc1de6.json` - json config
 │   │   ├── `b1fe7e66-5641-4c2a-99d6-1300c57ce07c-agent-b1fe7e66-5641-4c2a-99d6-1300c57ce07c.json` - json config
@@ -11090,7 +11091,6 @@ dot-claude/
 │   │   ├── `ed38896c-cbea-47b1-a328-3fd0ef6d311b-agent-ed38896c-cbea-47b1-a328-3fd0ef6d311b.json` - json config
 │   │   ├── `ed391c97-39a2-468d-abf7-1e80e28b1d71-agent-ed391c97-39a2-468d-abf7-1e80e28b1d71.json` - json config
 │   │   ├── `ed3de965-9e3b-41d6-bfe0-de4bd0845abe-agent-ed3de965-9e3b-41d6-bfe0-de4bd0845abe.json` - json config
-│   │   ├── `ed539f16-96c1-42be-bfc6-3fc701ca2945-agent-ed539f16-96c1-42be-bfc6-3fc701ca2945.json` - json config
 │   │   ├── `ed5e4f9b-bd4f-4d3b-aaac-673d4e83005e-agent-ed5e4f9b-bd4f-4d3b-aaac-673d4e83005e.json` - json config
 │   │   ├── `ed6775b1-b24f-4a0b-9085-692989cae4bc-agent-ed6775b1-b24f-4a0b-9085-692989cae4bc.json` - json config
 │   │   ├── `ed7f0540-aef9-4d01-bcb9-618475a25e01-agent-ed7f0540-aef9-4d01-bcb9-618475a25e01.json` - json config
@@ -12360,7 +12360,6 @@ dot-claude/
 │   │   ├── dd14eb46-ce80-4ab4-97a5-1a99aa168e6f/
 │   │   ├── e2792d7a-c61f-41f6-aa78-3fa755ea5ed6/
 │   │   ├── edf1d35f-a31a-477e-8d2a-75083459005c/
-│   │   ├── memory/
 │   │   ├── `008141e0-ea7e-4642-9241-ef99c4100811.jsonl` - jsonl file
 │   │   ├── `1bf3bec2-b5bc-401b-9b90-79b972121765.jsonl` - jsonl file
 │   │   ├── `1cb1fce7-9c74-48f6-a419-bc84d848eec6.jsonl` - jsonl file
@@ -16445,7 +16444,6 @@ dot-claude/
 │   ├── `694383.json` - json config
 │   ├── `701428.json` - json config
 │   ├── `706350.json` - json config
-│   ├── `715518.json` - json config
 │   └── `780033.json` - json config
 ├── shell-snapshots/
 │   ├── `snapshot-bash-1757635174638-jx5vwd.sh` - Snapshot file
@@ -16685,7 +16683,6 @@ dot-claude/
 │   ├── `snapshot-bash-1779202692613-rkjo0m.sh` - Snapshot file
 │   ├── `snapshot-bash-1779202715955-88zojx.sh` - Snapshot file
 │   ├── `snapshot-bash-1779202749164-hnjtdm.sh` - Snapshot file
-│   ├── `snapshot-bash-1779202782700-q5zhhs.sh` - Snapshot file
 │   ├── `snapshot-bash-1779202988027-eouzuw.sh` - Snapshot file
 │   ├── `snapshot-bash-1779205531838-5bnysy.sh` - Snapshot file
 │   ├── `snapshot-bash-1779207233266-282iw4.sh` - Snapshot file
@@ -20087,7 +20084,6 @@ dot-claude/
 │   ├── `b15b3230-9cce-4f78-84f3-e77ac542397b-agent-b15b3230-9cce-4f78-84f3-e77ac542397b.json` - json config
 │   ├── `b17d54a9-d79e-4e06-8871-11c3e2255a6e-agent-b17d54a9-d79e-4e06-8871-11c3e2255a6e.json` - json config
 │   ├── `b183d321-dc24-47a5-b6e8-a01071c8623f-agent-b183d321-dc24-47a5-b6e8-a01071c8623f.json` - json config
-│   ├── `b19400dd-5bbe-4e00-a723-4fc6fb345f9e-agent-b19400dd-5bbe-4e00-a723-4fc6fb345f9e.json` - json config
 │   ├── `b1a22f09-8532-48d2-bbb6-ff99a08c3515-agent-b1a22f09-8532-48d2-bbb6-ff99a08c3515.json` - json config
 │   ├── `b1f14d8c-55cb-4c4b-9e6d-0145c4cc1de6-agent-b1f14d8c-55cb-4c4b-9e6d-0145c4cc1de6.json` - json config
 │   ├── `b1fe7e66-5641-4c2a-99d6-1300c57ce07c-agent-b1fe7e66-5641-4c2a-99d6-1300c57ce07c.json` - json config
@@ -21114,7 +21110,6 @@ dot-claude/
 │   ├── `ed38896c-cbea-47b1-a328-3fd0ef6d311b-agent-ed38896c-cbea-47b1-a328-3fd0ef6d311b.json` - json config
 │   ├── `ed391c97-39a2-468d-abf7-1e80e28b1d71-agent-ed391c97-39a2-468d-abf7-1e80e28b1d71.json` - json config
 │   ├── `ed3de965-9e3b-41d6-bfe0-de4bd0845abe-agent-ed3de965-9e3b-41d6-bfe0-de4bd0845abe.json` - json config
-│   ├── `ed539f16-96c1-42be-bfc6-3fc701ca2945-agent-ed539f16-96c1-42be-bfc6-3fc701ca2945.json` - json config
 │   ├── `ed5e4f9b-bd4f-4d3b-aaac-673d4e83005e-agent-ed5e4f9b-bd4f-4d3b-aaac-673d4e83005e.json` - json config
 │   ├── `ed6775b1-b24f-4a0b-9085-692989cae4bc-agent-ed6775b1-b24f-4a0b-9085-692989cae4bc.json` - json config
 │   ├── `ed7f0540-aef9-4d01-bcb9-618475a25e01-agent-ed7f0540-aef9-4d01-bcb9-618475a25e01.json` - json config
