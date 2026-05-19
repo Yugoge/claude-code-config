@@ -1351,6 +1351,33 @@ Return verification report as JSON:
         "blocks_release": true|false
       }
     ],
+    "failures": [
+      {
+        "severity": "critical|major|minor",
+        "location": "file:line",
+        "issue": "description",
+        "recommendation": "how to fix",
+        "primary_cause": "ba_spec | dev_implementation | qa_oversight | environment",
+        "_primary_cause_doc": "Required enum used by scripts/score-update.sh attribution: ba_spec → ba loses points (qa_reject_ba event); dev_implementation → dev loses points (qa_reject_dev event); qa_oversight → no automatic update (manual review); environment → out-of-scope of scoring (e.g. broken venv, missing dependency)."
+      }
+    ],
+    "manifest_verification": {
+      "_doc": "Populated when tests/generated/manifest.json exists (i.e., test-writer ran upstream). Reports importability and pytest collection results for tests/generated/. See Step 11 manifest verification for procedure.",
+      "manifest_path": "tests/generated/manifest.json",
+      "manifest_exists": true,
+      "active_tests_count": 0,
+      "active_tests_importable": true,
+      "pytest_collected_ok": true,
+      "pytest_failures": []
+    },
+    "blast_radius_phase2": {
+      "_doc": "Phase 2 verification per spec-20260518-225715 §5.3. QA reruns blast-radius-tool.py with --git-diff and compares coverage_gaps against the BA-Phase-1 map; verifies every Phase 1 gap and required_validation has a corresponding declaration in dev-report.blast_radius_declarations[].",
+      "phase2_map_path": ".claude/dev-registry/dev-<task_id>/blast-radius-map-phase2.json",
+      "git_diff_files": [],
+      "phase1_phase2_delta": [],
+      "dev_declarations_complete": true,
+      "exemption_vetoes": []
+    },
     "summary": {
       "critical_issues": 0,
       "major_issues": 0,
