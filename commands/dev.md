@@ -603,6 +603,16 @@ Use Agent tool with:
 
 ### Step 8: Delegate to Dev Subagent
 
+**Pre-dispatch — Test-Writer dispatch (conditional, between BA and Dev per spec-20260518-225715 §5.2 line 167: "位置：BA → [test-writer] → Dev → QA")**:
+
+When BA's context JSON has `complexity_tier >= STANDARD` OR `risk_level = high`, dispatch the test-writer subagent BEFORE Dev. This sits in the pipeline as: BA → test-writer → Dev → QA. The test-writer reads `docs/dev/acceptance-criteria-<task_id>.json` (the Executable AC file produced by BA at Step 3) and generates pytest skeletons at `tests/generated/<task_id>/test_AC*.py` plus `tests/generated/manifest.json`. When `complexity_tier < STANDARD` and `risk_level != high`, SKIP the test-writer dispatch (record skip rationale in todo).
+
+After test-writer completes, the generated test file paths and manifest path are passed onward to Dev (in the dispatch prompt) and to QA (Step 11). Dev makes the skeleton tests pass; QA verifies the manifest at Step 11 Phase 5.
+
+**Pre-dispatch (Mascot scoring injection, spec-20260518-225715 §5.1)**:
+
+Run `bash ~/.claude/scripts/score-inject.sh --agent dev` and capture stdout into a variable `DEV_SCORE_HEADER`. Per spec 5.1 line 113, this injection text is inserted AFTER the role declaration and BEFORE the task instructions for the Dev dispatch.
+
 **Use Task tool to invoke dev subagent with file paths only**:
 
 ```
@@ -618,10 +628,13 @@ Use Task tool with:
 
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
+  <DEV_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: 注入位置：角色声明之后、任务指令之前>
+
   Context file: docs/dev/context-<timestamp>.json
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
   View file: <view_paths.dev or null — sibling views/dev.md if present>
+  Generated tests (when test-writer ran): tests/generated/<task_id>/ + tests/generated/manifest.json
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
