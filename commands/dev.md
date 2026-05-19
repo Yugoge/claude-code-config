@@ -1081,6 +1081,17 @@ jq -s '.[0] * {
 - Dev Report: `docs/dev/dev-report-<timestamp>.json`
 - QA Report: `docs/dev/qa-report-<timestamp>.json`
 
+## Mascot Score Changes (spec-20260518-225715 §5.1)
+
+Summarise score-update events from Sub-step 12.1 (and any user-rating events from `/close`) in a table:
+
+| Agent | Event | Delta | Old → New |
+|-------|-------|-------|-----------|
+| ba    | qa_first_pass | +3 | 50 → 53 |
+| dev   | qa_first_pass | +6 | 50 → 56 |
+
+The current rank+range per agent is read by injecting `bash ~/.claude/scripts/score-inject.sh --agent <name>` (rank+range only — exact score is intentionally hidden per spec 5.1 line 112).
+
 ## Next Steps
 
 {Any follow-up tasks or recommendations}
