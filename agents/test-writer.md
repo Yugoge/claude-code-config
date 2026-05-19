@@ -77,15 +77,26 @@ underscores (e.g. `AC-01` → `AC_01`).
 
 **Dev contract**: Dev MUST preserve the `AC_UID`, `AC_TYPE`, the function name `test_<id_normalized>`, and the docstring verbatim. Dev MUST remove the `pytest.fail("TEST_INCOMPLETE: ...")` sentinel when filling in the real test body. Dev MAY add any number of `assert ...` statements, helper imports, fixtures, and parametrize decorators. The "do not alter assertion logic" rule applies only WHILE the sentinel is present — Dev replacing the sentinel block with a real implementation is the EXPECTED outcome of a STANDARD/high-risk cycle.
 
-### 2. Manifest: `tests/generated/manifest.json`
+### 2. Per-task manifest: `tests/generated/<task_id>/manifest.json`
+
+Each task has its OWN manifest under `tests/generated/<task_id>/manifest.json` (per-task scoping prevents cross-task AC-id collisions — every cycle has its own `AC-01`, `AC-02`, etc.). A global manifest `tests/generated/manifest.json` is ALSO maintained as a thin index that lists active per-task manifest paths:
+
+```
+tests/generated/<task_id_1>/manifest.json    (per-task active_tests for task 1)
+tests/generated/<task_id_2>/manifest.json    (per-task active_tests for task 2)
+tests/generated/manifest.json                (index — points at per-task manifests)
+```
+
+**Per-task manifest schema** (`tests/generated/<task_id>/manifest.json`):
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "task_id": "<task_id>",
   "generated_at": "<ISO-8601>",
   "active_tests": [
     {
+      "task_id": "<task_id>",
       "ac_id": "<id>",
       "ac_uid": "<ac_uid>",
       "type": "<ui|api|data|hook>",
@@ -95,10 +106,25 @@ underscores (e.g. `AC-01` → `AC_01`).
     }
   ],
   "archived_tests": [
-    { "ac_uid": "<previous_uid>", "archived_at": "...", "reason": "ac_uid changed" }
+    { "task_id": "<task_id>", "ac_id": "<id>", "ac_uid": "<previous_uid>", "archived_at": "...", "reason": "ac_uid changed" }
   ]
 }
 ```
+
+**Global index** (`tests/generated/manifest.json`):
+
+```json
+{
+  "schema_version": "1.0",
+  "kind": "index",
+  "tasks": [
+    { "task_id": "<task_id_1>", "manifest_path": "tests/generated/<task_id_1>/manifest.json" },
+    { "task_id": "<task_id_2>", "manifest_path": "tests/generated/<task_id_2>/manifest.json" }
+  ]
+}
+```
+
+UPDATE vs CREATE keying uses the tuple `(task_id, ac_id)` — a new task creating its own `AC-01` does NOT touch any other task's `AC-01`. Archiving only ever moves files under the CURRENT task's `tests/generated/<task_id>/.archive/` directory.
 
 `hook_check` is the AC's `check` object copied verbatim — fully derived from
 the AC JSON, the Dev does NOT fill `hook_check` manually.
