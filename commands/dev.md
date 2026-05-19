@@ -749,6 +749,10 @@ bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode fi
   || { echo 'ERROR: Failed to set qa_mode=final_verification in qa.json — aborting' >&2; exit 1; }
 ```
 
+**Pre-dispatch (Mascot scoring injection, spec-20260518-225715 §5.1)**:
+
+Run `bash ~/.claude/scripts/score-inject.sh --agent qa` and capture stdout into a variable `QA_SCORE_HEADER`. Per spec 5.1 line 113, this injection text is inserted AFTER the role declaration and BEFORE the task instructions for the QA dispatch.
+
 **Use Task tool to invoke QA subagent with file paths only**:
 
 ```
@@ -763,6 +767,9 @@ Use Task tool with:
   CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the QA subagent. Follow agents/qa.md instructions precisely.
+
+  <QA_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: 注入位置：角色声明之后、任务指令之前>
+
 
   Context file: docs/dev/context-<timestamp>.json
   Dev report file: docs/dev/dev-report-<timestamp>.json
