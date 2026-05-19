@@ -326,7 +326,8 @@
           },
           {
             "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/session-tmpfs-banner.sh\""
+            "command": "bash \"$HOME/.claude/hooks/session-tmpfs-banner.sh\"",
+            "timeout": 5
           }
         ]
       }
