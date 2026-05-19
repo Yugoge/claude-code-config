@@ -126,17 +126,20 @@ decision=$(
 # ── Emit the warning ─────────────────────────────────────────────────
 echo
 echo "[tmpfs-pressure] WARN: one or more tmpfs mounts above ${THRESHOLD}% — non-blocking notice"
-df -h /tmp /dev/shm 2>/dev/null || true
+# df -h wrapped in `timeout 2s` so a hung df cannot block the hook (codex F2).
+timeout 2s df -h /tmp /dev/shm 2>/dev/null || true
 for mount in "${pressured[@]}"; do
   echo "--- top-5 dirs under ${mount} ---"
   # GNU du -sh --max-depth=1 is broken — -s conflicts with --max-depth=1.
   # Use -xh --max-depth=1, filter the root row by awk on the path column,
-  # sort by size descending, head -5. 5s timeout keeps the hook non-blocking
-  # even if the mount has many entries. PATH-resolved bare `du` per OBJ-5.
-  timeout 5s du -xh --max-depth=1 "$mount" 2>/dev/null \
-    | awk -v m="$mount" '$2 != m' \
+  # sort by size descending, head -5. The outer `timeout 5s` covers the
+  # ENTIRE pipeline (du + awk + sort + head) per codex review F2 so a
+  # hung sort or stalled head also cannot exceed the time bound.
+  # PATH-resolved bare `du` per OBJ-5.
+  timeout 5s bash -c "du -xh --max-depth=1 '$mount' 2>/dev/null \
+    | awk -v m='$mount' '\$2 != m' \
     | sort -hr \
-    | head -5 \
+    | head -5" \
     || true
 done
 echo
