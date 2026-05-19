@@ -16,8 +16,9 @@ THRESHOLD=75
 
 # `df -h /tmp /dev/shm | tail -n +2` yields exactly two lines on this server.
 # We parse each line; column 5 is `Use%` (e.g., `45%`). We strip the `%` and
-# compare numerically.
-df -h /tmp /dev/shm 2>/dev/null | tail -n +2 | while IFS= read -r line; do
+# compare numerically. Wrapped in `timeout 2s` so a hung df cannot block
+# the SessionStart sequence (codex review F2).
+timeout 2s df -h /tmp /dev/shm 2>/dev/null | tail -n +2 | while IFS= read -r line; do
   # Defensive: skip blank lines that can appear on unusual mount lists.
   [ -z "$line" ] && continue
   # Use% is the 5th whitespace-separated column.
