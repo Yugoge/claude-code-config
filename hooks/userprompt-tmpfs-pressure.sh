@@ -98,7 +98,11 @@ fi
 # `exit 0` inside the subshell only exits the subshell, not the parent hook.
 decision=$(
   {
-    flock -x 9 || { printf 'skip'; exit 0; }
+    # Bounded flock (-w 1) so contention with a long-running concurrent hook
+    # invocation or with the daily cleanup script's xargs rm on this lock file
+    # cannot block the user prompt (codex review F1). On contention we skip
+    # the warning rather than waiting — the next prompt re-tries.
+    flock -x -w 1 9 || { printf 'skip'; exit 0; }
     n=$(cat "$COUNTER_FILE" 2>/dev/null || echo 0)
     case "$n" in
       ''|*[!0-9]*) n=0 ;;
