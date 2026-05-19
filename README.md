@@ -5,7 +5,7 @@ Organization and usage documentation for `.claude/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 63
+- **Total files**: 64
 - **Subdirectories**: 34
 - **Naming convention**: lower
 
@@ -14,6 +14,7 @@ Organization and usage documentation for `.claude/`.
 - `CLAUDE.md` - CLAUDE.md
 - `NESTED-REPO.md` - Nested Repo Sentinel
 - `agent-scores.json` - json config
+- `agent-scores.json.lock` - lock file
 - `config.yaml` - yaml config
 - `history.jsonl` - jsonl file
 - `mcp-needs-auth-cache.json` - json config

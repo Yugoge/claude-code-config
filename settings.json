@@ -173,7 +173,15 @@
       "Edit(.claude/commands/**)",
       "Write(.claude/agents/**)",
       "Write(.claude/commands/**)",
-      "Bash(source /root/.claude/venv/bin/activate && python /root/.claude/hooks/lib/close-verdict.py:*)"
+      "Bash(source /root/.claude/venv/bin/activate && python /root/.claude/hooks/lib/close-verdict.py:*)",
+      "Bash(scripts/score-update.sh:*)",
+      "Bash(scripts/score-inject.sh:*)",
+      "Bash(scripts/canary-verify.sh:*)",
+      "Bash(python3 scripts/blast-radius-tool.py:*)",
+      "Bash(~/.claude/scripts/score-update.sh:*)",
+      "Bash(~/.claude/scripts/score-inject.sh:*)",
+      "Bash(~/.claude/scripts/canary-verify.sh:*)",
+      "Bash(python3 ~/.claude/scripts/blast-radius-tool.py:*)"
     ],
     "deny": [
       "Read(.env)",

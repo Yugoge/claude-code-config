@@ -1,7 +1,7 @@
 # dot-claude
 
-*Last updated: 2026-05-19T16:02:39Z*
-**Total entries**: 21504
+*Last updated: 2026-05-19T16:10:52Z*
+**Total entries**: 21519
 **Convention**: kebab
 
 ## Tree
@@ -27,6 +27,7 @@ dot-claude/
 │   ├── `style-inspector.md` - Development standards auditor. Enforces /dev quality standards: no hardcoding, naming conventions, venv usage, step numbering, language, script merging, documentation conciseness. Returns structured JSON report with violations.
 │   ├── `test-executor.md` - Execution specialist for test infrastructure. Executes script-based and AI instruction-based tests. Returns structured execution report with results and recommendations.
 │   ├── `test-validator.md` - Validation specialist for test infrastructure. Validates test syntax, dependencies, and quality before execution. Returns structured validation report.
+│   ├── `test-writer.md` - Generate pytest skeleton tests from BA-produced acceptance-criteria-<task_id>.json with pytest.fail("TEST_INCOMPLETE:...") hard-stops; manage tests/generated/manifest.json with UPDATE vs CREATE logic keyed on ac_uid hashes. Triggered by /dev when complexity_tier >= STANDARD or any tier with risk_level = high (per spec-20260518-225715 §5.2).
 │   ├── `ui-specialist.md` - UI/UX review specialist for overnight exploration. Evaluates visual design quality, aesthetic beauty, design system adherence, styling consistency, responsive design, and component quality. Returns structured JSON report with beauty score and design quality assessment. Accessibility checks are advisory.
 │   └── `user.md` - End-user simulation specialist for overnight exploration. Tests actual usage scenarios, checks if things work as expected, identifies UX friction, broken flows, and confusing behavior. Returns structured JSON report.
 ├── archive/
@@ -1960,6 +1961,7 @@ dot-claude/
 │   │   ├── `ba-qa-report-20260518-155948.json` - json config
 │   │   ├── `ba-qa-report-20260518-214050.json` - json config
 │   │   ├── `ba-qa-report-20260519-132417.json` - json config
+│   │   ├── `ba-qa-report-20260519-151734-iter2.json` - json config
 │   │   ├── `ba-qa-report-20260519-151734.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260517-155838.json` - json config
@@ -2146,7 +2148,8 @@ dot-claude/
 │   │   ├── `user-requirement-dev-20260517-222440.md` - No description
 │   │   ├── `user-requirement-dev-20260518-214050.md` - No description
 │   │   ├── `user-requirement-dev-20260519-132417.md` - No description
-│   │   └── `user-requirement-dev-20260519-151734.md` - No description
+│   │   ├── `user-requirement-dev-20260519-151734.md` - No description
+│   │   └── `user-requirement-dev-20260519-161035.md` - No description
 │   ├── examples/
 │   │   └── `settings-with-checkpoint.json` - json config
 │   ├── guides/
@@ -2195,6 +2198,7 @@ dot-claude/
 │   │   ├── `style-inspector.md` - Development standards auditor. Enforces /dev quality standards: no hardcoding, naming conventions, venv usage, step numbering, language, script merging, documentation conciseness. Returns structured JSON report with violations.
 │   │   ├── `test-executor.md` - Execution specialist for test infrastructure. Executes script-based and AI instruction-based tests. Returns structured execution report with results and recommendations.
 │   │   ├── `test-validator.md` - Validation specialist for test infrastructure. Validates test syntax, dependencies, and quality before execution. Returns structured validation report.
+│   │   ├── `test-writer.md` - Generate pytest skeleton tests from BA-produced acceptance-criteria-<task_id>.json with pytest.fail("TEST_INCOMPLETE:...") hard-stops; manage tests/generated/manifest.json with UPDATE vs CREATE logic keyed on ac_uid hashes. Triggered by /dev when complexity_tier >= STANDARD or any tier with risk_level = high (per spec-20260518-225715 §5.2).
 │   │   ├── `ui-specialist.md` - UI/UX review specialist for overnight exploration. Evaluates visual design quality, aesthetic beauty, design system adherence, styling consistency, responsive design, and component quality. Returns structured JSON report with beauty score and design quality assessment. Accessibility checks are advisory.
 │   │   └── `user.md` - End-user simulation specialist for overnight exploration. Tests actual usage scenarios, checks if things work as expected, identifies UX friction, broken flows, and confusing behavior. Returns structured JSON report.
 │   ├── archive/
@@ -3390,6 +3394,7 @@ dot-claude/
 │   │   ├── todos/
 │   │   ├── worktrees/
 │   │   ├── `agent-scores.json` - json config
+│   │   ├── `agent-scores.json.lock` - lock file
 │   │   ├── `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
 │   │   ├── `CLAUDE.md` - CLAUDE.md
 │   │   ├── `config.yaml` - yaml config
@@ -3736,9 +3741,11 @@ dot-claude/
 │   │   ├── `analyze-folder-history.sh` - Description: Analyze Git history for folder to discover file creation patterns
 │   │   ├── `analyze-git-edge-cases.sh` - Description: Analyze git history for edge cases from bug fix commits
 │   │   ├── `apply-permissions.sh` - apply-permissions.sh — merge aggregated permissions JSON list into settings.json
+│   │   ├── `blast-radius-tool.py` - Two phases:
 │   │   ├── `break-overnight-lock.py` - Backdates end_time on every active overnight-state-*.json so
 │   │   ├── `build-pipelines-from-triage.py` - Consumes PM triage schema (issues[] keyed by triage_index + pipeline_order[] +
 │   │   ├── `bulk-commit-nested-run.sh` - One-shot bulk commit script for the nested dot-claude repo.
+│   │   ├── `canary-verify.sh` - Description: Cache-safe canary that behaviorally verifies the four core PreToolUse hooks.
 │   │   ├── `check-file-references.sh` - File reference detection script - used by /clean command
 │   │   ├── `check-overnight-reports.py` - Description: Validates all overnight required outputs declared by the active
 │   │   ├── `check-overnight-reports.sh` - DEPRECATED — replaced by check-overnight-reports.py per spec-20260426-090235 P0/M5.
@@ -9329,6 +9336,7 @@ dot-claude/
 │   │   ├── `88b57c1e-dccf-477a-b7af-ab86e1c0da20-agent-88b57c1e-dccf-477a-b7af-ab86e1c0da20.json` - json config
 │   │   ├── `88ce475b-8068-4aeb-abeb-c3714e94aa56-agent-88ce475b-8068-4aeb-abeb-c3714e94aa56.json` - json config
 │   │   ├── `88d1caac-ecbf-4e6a-a988-23c4abf1c356-agent-88d1caac-ecbf-4e6a-a988-23c4abf1c356.json` - json config
+│   │   ├── `88dfdcea-706b-457f-b6c1-07bd1dac0b8f-agent-88dfdcea-706b-457f-b6c1-07bd1dac0b8f.json` - json config
 │   │   ├── `88e2119c-1935-454f-95ae-5244797b3848-agent-88e2119c-1935-454f-95ae-5244797b3848.json` - json config
 │   │   ├── `88e7e9ea-a8ad-478a-bb6d-bcb30b73624f-agent-88e7e9ea-a8ad-478a-bb6d-bcb30b73624f.json` - json config
 │   │   ├── `88ee0f2a-e49d-4d31-806f-f31936f7c7e2-agent-88ee0f2a-e49d-4d31-806f-f31936f7c7e2.json` - json config
@@ -10314,6 +10322,7 @@ dot-claude/
 │   │   ├── `c167907f-c15b-4735-9bd6-57b8a10481ce-agent-c167907f-c15b-4735-9bd6-57b8a10481ce.json` - json config
 │   │   ├── `c16a0177-38ec-48a3-8bc5-d9d9a4b91e80-agent-c16a0177-38ec-48a3-8bc5-d9d9a4b91e80.json` - json config
 │   │   ├── `c173b6a2-940e-4948-bd8b-c2c9fae3a183-agent-c173b6a2-940e-4948-bd8b-c2c9fae3a183.json` - json config
+│   │   ├── `c19723bc-4d94-4516-8677-05673dcfe14a-agent-c19723bc-4d94-4516-8677-05673dcfe14a.json` - json config
 │   │   ├── `c1cc4e49-fca2-4bfc-83b7-5875562f3f5a-agent-c1cc4e49-fca2-4bfc-83b7-5875562f3f5a.json` - json config
 │   │   ├── `c1cfba2f-1153-40c5-b50e-6539874ba80f-agent-c1cfba2f-1153-40c5-b50e-6539874ba80f.json` - json config
 │   │   ├── `c1dd00ea-9af6-4d2c-91ce-9381c388892c-agent-c1dd00ea-9af6-4d2c-91ce-9381c388892c.json` - json config
@@ -11404,6 +11413,7 @@ dot-claude/
 │   │   ├── overnight-20260429-test-plu/
 │   │   └── overnight-20260501-d0ec784d/
 │   ├── `agent-scores.json` - json config
+│   ├── `agent-scores.json.lock` - lock file
 │   ├── `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
 │   ├── `CLAUDE.md` - CLAUDE.md
 │   ├── `config.yaml` - yaml config
@@ -13498,9 +13508,11 @@ dot-claude/
 │   ├── `analyze-folder-history.sh` - Description: Analyze Git history for folder to discover file creation patterns
 │   ├── `analyze-git-edge-cases.sh` - Description: Analyze git history for edge cases from bug fix commits
 │   ├── `apply-permissions.sh` - apply-permissions.sh — merge aggregated permissions JSON list into settings.json
+│   ├── `blast-radius-tool.py` - Two phases:
 │   ├── `break-overnight-lock.py` - Backdates end_time on every active overnight-state-*.json so
 │   ├── `build-pipelines-from-triage.py` - Consumes PM triage schema (issues[] keyed by triage_index + pipeline_order[] +
 │   ├── `bulk-commit-nested-run.sh` - One-shot bulk commit script for the nested dot-claude repo.
+│   ├── `canary-verify.sh` - Description: Cache-safe canary that behaviorally verifies the four core PreToolUse hooks.
 │   ├── `check-file-references.sh` - File reference detection script - used by /clean command
 │   ├── `check-overnight-reports.py` - Description: Validates all overnight required outputs declared by the active
 │   ├── `check-overnight-reports.sh` - DEPRECATED — replaced by check-overnight-reports.py per spec-20260426-090235 P0/M5.
@@ -19336,6 +19348,7 @@ dot-claude/
 │   ├── `88b57c1e-dccf-477a-b7af-ab86e1c0da20-agent-88b57c1e-dccf-477a-b7af-ab86e1c0da20.json` - json config
 │   ├── `88ce475b-8068-4aeb-abeb-c3714e94aa56-agent-88ce475b-8068-4aeb-abeb-c3714e94aa56.json` - json config
 │   ├── `88d1caac-ecbf-4e6a-a988-23c4abf1c356-agent-88d1caac-ecbf-4e6a-a988-23c4abf1c356.json` - json config
+│   ├── `88dfdcea-706b-457f-b6c1-07bd1dac0b8f-agent-88dfdcea-706b-457f-b6c1-07bd1dac0b8f.json` - json config
 │   ├── `88e2119c-1935-454f-95ae-5244797b3848-agent-88e2119c-1935-454f-95ae-5244797b3848.json` - json config
 │   ├── `88e7e9ea-a8ad-478a-bb6d-bcb30b73624f-agent-88e7e9ea-a8ad-478a-bb6d-bcb30b73624f.json` - json config
 │   ├── `88ee0f2a-e49d-4d31-806f-f31936f7c7e2-agent-88ee0f2a-e49d-4d31-806f-f31936f7c7e2.json` - json config
@@ -20321,6 +20334,7 @@ dot-claude/
 │   ├── `c167907f-c15b-4735-9bd6-57b8a10481ce-agent-c167907f-c15b-4735-9bd6-57b8a10481ce.json` - json config
 │   ├── `c16a0177-38ec-48a3-8bc5-d9d9a4b91e80-agent-c16a0177-38ec-48a3-8bc5-d9d9a4b91e80.json` - json config
 │   ├── `c173b6a2-940e-4948-bd8b-c2c9fae3a183-agent-c173b6a2-940e-4948-bd8b-c2c9fae3a183.json` - json config
+│   ├── `c19723bc-4d94-4516-8677-05673dcfe14a-agent-c19723bc-4d94-4516-8677-05673dcfe14a.json` - json config
 │   ├── `c1cc4e49-fca2-4bfc-83b7-5875562f3f5a-agent-c1cc4e49-fca2-4bfc-83b7-5875562f3f5a.json` - json config
 │   ├── `c1cfba2f-1153-40c5-b50e-6539874ba80f-agent-c1cfba2f-1153-40c5-b50e-6539874ba80f.json` - json config
 │   ├── `c1dd00ea-9af6-4d2c-91ce-9381c388892c-agent-c1dd00ea-9af6-4d2c-91ce-9381c388892c.json` - json config
@@ -21483,6 +21497,7 @@ dot-claude/
 │       ├── `restore-ramdisk.sh` - Description: Restore ramdisk workspace from disk-based .bak directories (boot-time)
 │       └── `sync-backup.sh` - Description: Sync ramdisk workspace back to disk-based .bak directories.
 ├── `agent-scores.json` - json config
+├── `agent-scores.json.lock` - lock file
 ├── `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
 ├── `CLAUDE.md` - CLAUDE.md
 ├── `config.yaml` - yaml config
