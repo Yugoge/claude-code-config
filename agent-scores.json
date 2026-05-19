@@ -3,27 +3,120 @@
   "_note": "Mascot scoring system per spec-20260518-225715 Section 5.1. global.agents holds 21 agents at initial score 50 (熟练工匠 mid-tier). projects.<name>.agents holds per-project overrides (none initially). All 21 agents are schema-reserved; score-update.sh applies non-zero deltas only for ba/dev/qa events per the canonical event table; expert agents accept events with delta 0 until their event triggers are added in a future cycle.",
   "global": {
     "agents": {
-      "ba":                    { "score": 50, "rank": "熟练工匠", "history": [] },
-      "dev":                   { "score": 50, "rank": "熟练工匠", "history": [] },
-      "qa":                    { "score": 50, "rank": "熟练工匠", "history": [] },
-      "ui-specialist":         { "score": 50, "rank": "熟练工匠", "history": [] },
-      "architect":             { "score": 50, "rank": "熟练工匠", "history": [] },
-      "product-owner":         { "score": 50, "rank": "熟练工匠", "history": [] },
-      "user":                  { "score": 50, "rank": "熟练工匠", "history": [] },
-      "pm":                    { "score": 50, "rank": "熟练工匠", "history": [] },
-      "changelog-analyst":     { "score": 50, "rank": "熟练工匠", "history": [] },
-      "push-analyst":          { "score": 50, "rank": "熟练工匠", "history": [] },
-      "merge-analyst":         { "score": 50, "rank": "熟练工匠", "history": [] },
-      "pull-analyst":          { "score": 50, "rank": "熟练工匠", "history": [] },
-      "cleanliness-inspector": { "score": 50, "rank": "熟练工匠", "history": [] },
-      "style-inspector":       { "score": 50, "rank": "熟练工匠", "history": [] },
-      "prompt-inspector":      { "score": 50, "rank": "熟练工匠", "history": [] },
-      "rule-inspector":        { "score": 50, "rank": "熟练工匠", "history": [] },
-      "git-edge-case-analyst": { "score": 50, "rank": "熟练工匠", "history": [] },
-      "cleaner":               { "score": 50, "rank": "熟练工匠", "history": [] },
-      "test-validator":        { "score": 50, "rank": "熟练工匠", "history": [] },
-      "test-executor":         { "score": 50, "rank": "熟练工匠", "history": [] },
-      "spec":                  { "score": 50, "rank": "熟练工匠", "history": [] }
+      "ba": {
+        "score": 58,
+        "rank": "熟练工匠",
+        "history": [
+          {
+            "ts": "2026-05-19T16:04:18Z",
+            "event": "close_success_qa_pass",
+            "delta": 8,
+            "old_score": 50,
+            "new_score": 58,
+            "note": "smoke test"
+          }
+        ]
+      },
+      "dev": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "qa": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "ui-specialist": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "architect": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "product-owner": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "user": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "pm": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "changelog-analyst": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "push-analyst": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "merge-analyst": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "pull-analyst": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "cleanliness-inspector": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "style-inspector": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "prompt-inspector": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "rule-inspector": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "git-edge-case-analyst": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "cleaner": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "test-validator": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "test-executor": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      },
+      "spec": {
+        "score": 50,
+        "rank": "熟练工匠",
+        "history": []
+      }
     }
   },
   "projects": {}

@@ -135,7 +135,7 @@ agents[agent]["score"] = new_score
 agents[agent]["rank"] = rank_for_score(new_score)
 history = agents[agent].setdefault("history", [])
 history.append({
-    "ts": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "ts": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "event": event,
     "delta": delta,
     "old_score": old_score,
