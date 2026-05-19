@@ -54,10 +54,18 @@ verify_bash_safety() {
     emit_failure "missing or non-executable: ${hook}"
     return
   fi
-  # Inputs: a safe payload (echo hello) — expect exit 0
-  local payload='{"tool_name":"Bash","tool_input":{"command":"echo hello"}}'
-  if ! echo "${payload}" | bash "${hook}" >/dev/null 2>&1; then
-    emit_failure "pretool-bash-safety.sh rejected a benign 'echo hello' payload (hook may be broken)"
+  # Allow case: benign payload should NOT exit 2
+  local safe='{"tool_name":"Bash","tool_input":{"command":"echo hello"}}'
+  echo "${safe}" | bash "${hook}" >/dev/null 2>&1
+  if [[ $? -eq 2 ]]; then
+    emit_failure "pretool-bash-safety.sh BLOCKED a benign 'echo hello' payload (false-positive guard)"
+  fi
+  # Block case: a payload matching one of the documented unsafe patterns
+  # MUST be rejected (exit 2). Use 'rm -rf /' style payload — universally blocked.
+  local unsafe='{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}'
+  echo "${unsafe}" | bash "${hook}" >/dev/null 2>&1
+  if [[ $? -ne 2 ]]; then
+    emit_failure "pretool-bash-safety.sh FAILED to block 'rm -rf /' (fail-open guard — should exit 2)"
   fi
 }
 
@@ -67,11 +75,9 @@ verify_write_guard() {
     emit_failure "missing: ${hook}"
     return
   fi
-  # Safe payload: writing to /tmp — expect non-crash. Exit code variations are
-  # acceptable; we only fail if the hook process itself errors with a non-policy
-  # signal (>=126 = exec failure, 127 = command not found).
-  local payload='{"tool_name":"Write","tool_input":{"file_path":"/tmp/canary-safe.txt","content":"ok"}}'
-  echo "${payload}" | bash "${hook}" >/dev/null 2>&1
+  # Exec-error detection (>=126 = exec failure, 127 = command not found)
+  local safe='{"tool_name":"Write","tool_input":{"file_path":"/tmp/canary-safe.txt","content":"ok"}}'
+  echo "${safe}" | bash "${hook}" >/dev/null 2>&1
   local rc=$?
   if [[ "${rc}" -ge 126 ]]; then
     emit_failure "pretool-write-guard.sh exec error rc=${rc}"
@@ -84,12 +90,27 @@ verify_read_size_guard() {
     emit_failure "missing: ${hook}"
     return
   fi
-  # Small synthetic Read payload — must not crash
-  local payload='{"tool_name":"Read","tool_input":{"file_path":"/dev/null"}}'
-  echo "${payload}" | python3 "${hook}" >/dev/null 2>&1
+  # Allow case: tiny file (or /dev/null) must NOT exit 2
+  local safe='{"tool_name":"Read","tool_input":{"file_path":"/dev/null"}}'
+  echo "${safe}" | python3 "${hook}" >/dev/null 2>&1
   local rc=$?
   if [[ "${rc}" -ge 126 ]]; then
     emit_failure "pretool-read-size-guard.py exec error rc=${rc}"
+  fi
+  # Block case: synthesize an oversized file. The hook's documented cap is
+  # 1000 lines (CLAUDE.md says 600; spec §5.5 documented mismatch). Use 5000
+  # lines to exceed any plausible cap and assert the guard fires (exit 2).
+  local oversized="/tmp/canary-oversized-$$.txt"
+  yes "fill" 2>/dev/null | head -5000 > "${oversized}" || true
+  local payload="{\"tool_name\":\"Read\",\"tool_input\":{\"file_path\":\"${oversized}\"}}"
+  echo "${payload}" | python3 "${hook}" >/dev/null 2>&1
+  rc=$?
+  rm -f "${oversized}"
+  # Note: the guard exits 0/2/other depending on policy. We do NOT hard-fail
+  # this because the documented cap value is contested (1000 vs 600); we
+  # surface it as advisory if it did NOT exit 2 — so QA knows to verify.
+  if [[ "${rc}" -ne 2 ]]; then
+    emit_advisory "pretool-read-size-guard.py did NOT block a 5000-line file (rc=${rc}); verify cap value"
   fi
 }
 
@@ -99,12 +120,15 @@ verify_git_privilege_guard() {
     emit_failure "missing: ${hook}"
     return
   fi
-  # Benign git status payload
-  local payload='{"tool_name":"Bash","tool_input":{"command":"git status"}}'
-  echo "${payload}" | python3 "${hook}" >/dev/null 2>&1
+  # Allow case: 'git status' is universally read-only
+  local safe='{"tool_name":"Bash","tool_input":{"command":"git status"}}'
+  echo "${safe}" | python3 "${hook}" >/dev/null 2>&1
   local rc=$?
   if [[ "${rc}" -ge 126 ]]; then
     emit_failure "pretool-git-privilege-guard.py exec error rc=${rc}"
+  fi
+  if [[ "${rc}" -eq 2 ]]; then
+    emit_failure "pretool-git-privilege-guard.py BLOCKED 'git status' (false-positive — should be allowed)"
   fi
 }
 
