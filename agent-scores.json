@@ -4,18 +4,9 @@
   "global": {
     "agents": {
       "ba": {
-        "score": 58,
+        "score": 50,
         "rank": "熟练工匠",
-        "history": [
-          {
-            "ts": "2026-05-19T16:04:18Z",
-            "event": "close_success_qa_pass",
-            "delta": 8,
-            "old_score": 50,
-            "new_score": 58,
-            "note": "smoke test"
-          }
-        ]
+        "history": []
       },
       "dev": {
         "score": 50,
