@@ -108,6 +108,22 @@ def rank_for_score(score):
             return name
     return "熟练工匠"
 
+CANONICAL_AGENTS = {
+    "ba", "dev", "qa",
+    "ui-specialist", "architect", "product-owner", "user", "pm",
+    "changelog-analyst", "push-analyst", "merge-analyst", "pull-analyst",
+    "cleanliness-inspector", "style-inspector", "prompt-inspector",
+    "rule-inspector", "git-edge-case-analyst", "cleaner",
+    "test-validator", "test-executor", "spec",
+}
+
+if agent not in CANONICAL_AGENTS:
+    sys.stderr.write(
+        f"score-update.sh: unknown agent '{agent}'. "
+        f"Allowed agents: {', '.join(sorted(CANONICAL_AGENTS))}\n"
+    )
+    sys.exit(1)
+
 if event not in EVENT_DELTAS:
     sys.stderr.write(
         f"score-update.sh: unknown event '{event}'. "
