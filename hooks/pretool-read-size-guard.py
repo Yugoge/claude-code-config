@@ -10,12 +10,24 @@ Binary files (images, PDFs) are exempt.
 import json
 import os
 import sys
+from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from lib.allowlist import read_grant  # noqa: E402
 
 BINARY_EXTENSIONS = {
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".bmp", ".pdf",
 }
-LINE_LIMIT = 1000
+LINE_LIMIT = 600
 CHUNK_LIMIT = 600
+
+
+def has_consent(session_id: str) -> bool:
+    flag = Path(f"/tmp/claude-orchestrator-consent-{session_id}.flag")
+    try:
+        return flag.exists() and flag.read_text().strip() == "true"
+    except Exception:
+        return False
 
 
 def is_exempt(data, file_path):
@@ -53,6 +65,14 @@ def main():
     file_path = tool_input.get("file_path", "")
     if is_exempt(data, file_path):
         sys.exit(0)
+
+    if data.get("tool_name") == "Read" and not data.get("agent_id"):
+        sid = data.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "default")
+        try:
+            if has_consent(sid) or read_grant("Read", sid):
+                sys.exit(0)
+        except Exception:
+            pass
 
     line_count = count_lines(file_path)
     if line_count < 0 or line_count <= LINE_LIMIT:
