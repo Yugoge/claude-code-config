@@ -187,27 +187,41 @@ def build_report(
                     "edge_type": "textual_reference",
                 })
 
-        # Coverage gap detection: every file flagged for change has no automated
-        # test in this codebase (no tests/ dir yet). Per spec 5.3, hooks/ gaps
-        # are critical; everything else is medium unless an explicit override.
+        # Coverage gap detection: search tests/** for any dependent tests.
+        # Only emit a coverage_gap when no dependent tests are found.
+        # Per spec 5.3, hooks/ gaps are critical when present.
         sev = severity_for(tf_norm)
         is_hook = sev == "critical" and "hooks/" in tf_norm
-        coverage_gaps.append({
-            "file": tf_norm,
-            "gap_type": "no_automated_test",
-            "severity": sev,
-            "behavioral_test_only": is_hook,
-            "exemption_hint": (
-                "canary-verify.sh tests this hook without modifying it; "
-                "Dev should declare an explicit exemption with this reason"
-                if is_hook else None
-            ),
-            "dependent_tests": [],
-            "note": (
-                "spec 5.3: hooks/ severity critical" if is_hook
-                else f"No automated test for {tf_norm}; declare validation in dev-report"
-            ),
-        })
+        dependent_tests = find_dependent_tests(root, tf_norm)
+        if dependent_tests:
+            # Tests exist that reference this file — record edges, no gap.
+            for t in dependent_tests:
+                key = (t, tf_norm)
+                if key not in seen_edges:
+                    seen_edges.add(key)
+                    edges.append({
+                        "from": t,
+                        "to": tf_norm,
+                        "confidence": "medium",
+                        "edge_type": "test_dependency",
+                    })
+        else:
+            coverage_gaps.append({
+                "file": tf_norm,
+                "gap_type": "no_automated_test",
+                "severity": sev,
+                "behavioral_test_only": is_hook,
+                "exemption_hint": (
+                    "canary-verify.sh tests this hook without modifying it; "
+                    "Dev should declare an explicit exemption with this reason"
+                    if is_hook else None
+                ),
+                "dependent_tests": [],
+                "note": (
+                    "spec 5.3: hooks/ severity critical" if is_hook
+                    else f"No automated test for {tf_norm}; declare validation in dev-report"
+                ),
+            })
 
         # Required validation entries for callers of modified files
         callers = [e["from"] for e in edges if e["to"] == tf_norm]
