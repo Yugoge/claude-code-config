@@ -151,7 +151,14 @@ Read context → edit files → verify build → done. Every extra tool call is 
 8. Write report (1 tool call)
 
 **Blast Radius (Step 3):**
-For each file in `files_to_modify`, run ONE grep to find all importers:
+
+If the context JSON includes a `blast_radius_map_path` field (BA Phase 1 output, spec-20260518-225715 §5.3), READ that file instead of running an ad-hoc grep. The map contains pre-computed `edges[]`, `coverage_gaps[]` (hooks/ entries severity=critical), and `required_validation[]`. For each entry in `coverage_gaps[]` and `required_validation[]` you MUST declare in your dev-report how you addressed it. Declaration shapes:
+
+- `tests_run`: list of automated tests run that cover the file (path + result)
+- `new_tests_written`: tests you authored this cycle to cover the gap (path)
+- `exemption`: explicit justification for not covering the gap (must include a `reason`; QA can veto exemptions). For hooks/ gaps marked `behavioral_test_only: true`, the canonical exemption reason is "covered by canary-verify.sh behavioral testing — file not modified this cycle".
+
+If the context JSON does NOT include `blast_radius_map_path`, fall back to ad-hoc grep: for each file in `files_to_modify`, run ONE grep to find all importers:
 `grep -rl "from.*<filename>" src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx"`
 Record in your report as `blast_radius`:
 ```json
@@ -161,6 +168,26 @@ Record in your report as `blast_radius`:
 ]
 ```
 If a file has >5 importers, note it as high-impact in `implementation_notes`. QA uses this to decide what pages to test beyond the direct fix.
+
+**Blast-radius declarations** go in the dev-report under a top-level `blast_radius_declarations[]` array:
+
+```json
+"blast_radius_declarations": [
+  {
+    "file": "hooks/pretool-write-guard.sh",
+    "coverage_gap_severity": "critical",
+    "addressed_by": "exemption",
+    "reason": "behavioral_test_only:true — covered by canary-verify.sh; file not modified this cycle"
+  },
+  {
+    "file": "scripts/score-update.sh",
+    "coverage_gap_severity": "critical",
+    "addressed_by": "new_tests_written",
+    "tests": ["AC-01 smoke (close_success_qa_pass ba +8)", "AC-14 batch (all 13 events + 1 invalid)"]
+  }
+]
+```
+QA reads this array; missing or empty declarations on a non-empty `coverage_gaps[]` is a critical QA finding.
 
 **TDD Protocol (Steps 4 + 6):**
 - **Mandatory for bug fixes**: Write a test that reproduces the bug BEFORE fixing it. This proves the bug existed and the fix works.
