@@ -4,7 +4,7 @@
   "global": {
     "agents": {
       "ba": {
-        "score": 64,
+        "score": 67,
         "rank": "资深工匠",
         "history": [
           {
@@ -46,12 +46,20 @@
             "old_score": 69,
             "new_score": 64,
             "note": "20260519-132417"
+          },
+          {
+            "ts": "2026-05-19T21:23:27Z",
+            "event": "qa_first_pass",
+            "delta": 3,
+            "old_score": 64,
+            "new_score": 67,
+            "note": "20260519-161035 tmpfs prevention layers"
           }
         ]
       },
       "dev": {
-        "score": 75,
-        "rank": "资深工匠",
+        "score": 81,
+        "rank": "宗师级",
         "history": [
           {
             "ts": "2026-05-19T17:15:08Z",
@@ -92,6 +100,14 @@
             "old_score": 85,
             "new_score": 75,
             "note": "20260519-132417"
+          },
+          {
+            "ts": "2026-05-19T21:23:27Z",
+            "event": "qa_first_pass",
+            "delta": 6,
+            "old_score": 75,
+            "new_score": 81,
+            "note": "20260519-161035 tmpfs prevention layers"
           }
         ]
       },
