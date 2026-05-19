@@ -66,6 +66,14 @@ def main():
     if is_exempt(data, file_path):
         sys.exit(0)
 
+    if data.get("tool_name") == "Read" and not data.get("agent_id"):
+        sid = data.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "default")
+        try:
+            if has_consent(sid) or read_grant("Read", sid):
+                sys.exit(0)
+        except Exception:
+            pass
+
     line_count = count_lines(file_path)
     if line_count < 0 or line_count <= LINE_LIMIT:
         sys.exit(0)
