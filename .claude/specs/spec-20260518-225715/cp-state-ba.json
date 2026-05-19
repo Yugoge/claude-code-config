@@ -4,9 +4,9 @@
   "instance_id": null,
   "generation": 1,
   "agent_id": "current-retry-invocation-2",
-  "is_running": true,
+  "is_running": false,
   "checked_in_at": "2026-05-19T14:20:44Z",
-  "checked_out_at": null,
+  "checked_out_at": "2026-05-19T15:42:57Z",
   "checkpoints": [
     {
       "id": "cp-01",
@@ -44,6 +44,6 @@
   "terminal_artifact": {
     "path": "docs/dev/ba-report-20260519.json",
     "exists": false,
-    "validated_at": "2026-05-19T14:15:19Z"
+    "validated_at": "2026-05-19T15:42:57Z"
   }
 }
