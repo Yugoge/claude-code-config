@@ -181,7 +181,11 @@
       "Bash(~/.claude/scripts/score-update.sh:*)",
       "Bash(~/.claude/scripts/score-inject.sh:*)",
       "Bash(~/.claude/scripts/canary-verify.sh:*)",
-      "Bash(python3 ~/.claude/scripts/blast-radius-tool.py:*)"
+      "Bash(python3 ~/.claude/scripts/blast-radius-tool.py:*)",
+      "Write(tests/generated/**)",
+      "Edit(tests/generated/**)",
+      "Bash(pytest tests/generated:*)",
+      "Bash(source ~/.claude/venv/bin/activate && pytest tests/generated:*)"
     ],
     "deny": [
       "Read(.env)",
