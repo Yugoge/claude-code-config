@@ -1103,6 +1103,8 @@ Must be compatible with `agents/dev.md` input format:
     "files_to_modify": ["<existing files to change>"],
     "validation_approach": "<how QA will verify>"
   },
+  "acceptance_criteria_path": "docs/dev/acceptance-criteria-<task_id>.json",
+  "blast_radius_map_path": ".claude/dev-registry/dev-<task_id>/blast-radius-map.json",
   "standards_to_enforce": {
     "no_hardcoded_values": true,
     "yaml_frontmatter_description_only": true,
