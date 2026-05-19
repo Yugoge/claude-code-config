@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-19T19:34:26Z*
-**Total entries**: 119
+*Last updated: 2026-05-19T19:35:37Z*
+**Total entries**: 120
 **Convention**: kebab
 
 ## Tree
@@ -125,7 +125,8 @@ hooks/
 ├── `subagentstop-codex-enforce.py` - Activation logic:
 ├── `subagentstop-e2e-enforce.py` - Activation logic:
 ├── `userprompt-consent-allowlist.sh` - UserPromptSubmit Hook: parse `/allow <pattern>` and write a single-use
-└── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
+├── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
+└── `userprompt-tmpfs-pressure.sh` - userprompt-tmpfs-pressure.sh — UserPromptSubmit hook (4th block, appended).
 ```
 
 ---
