@@ -1,8 +1,12 @@
 {
   "request_id": "20260520-085647-d1722b",
   "task_id": "20260520-085647-d1722b",
-  "timestamp": "2026-05-20T07:50:00Z",
+  "timestamp": "2026-05-20T08:56:47Z",
   "inspector": "style-inspector",
+  "cycle_origin": "20260519-211515",
+  "task_id_transferred_from": "20260519-211515",
+  "task_id_transfer_reason": "4 rounds of background-process task-id collision on 20260519-211515; collision-resistant suffix -d1722b assigned. This is a re-close inspection of the SAME 3-file diff with fresh task-id.",
+  "fix_forward_already_applied": "_resolve_context removed from posttool-subagent-track.py (was at line 440 in pre-cleanup baseline); audit comment '_resolve_context removed by cycle 20260519-211515 close cleanup' now at lines 440-442. Verified via Read of hooks/posttool-subagent-track.py.",
   "scope": {
     "mode": "changed-files",
     "files_audited": [
