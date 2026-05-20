@@ -44,24 +44,14 @@ If `BULK=true`: `TASK_ID` may remain empty; changelog-analyst operates in bulk m
 
 If `FORCE=false` AND `BULK=false`:
 
+Resolve the close-report path via the helper script (which probes
+subproject docs/dev/ first, then falls back to `/root/docs/dev/` — see
+`scripts/resolve-close-report.sh`). The script exits 1 when no candidate
+file exists; `CLOSE_REPORT` still holds the fallback path for the error
+message in check 1 below.
+
 ```
-CONTROL_ROOT=/root
-# Subproject path-walk (mirrors Step 6 changelog-analyst dispatch): probe the
-# most-specific subproject docs/dev/ first, fall back to CONTROL_ROOT. Handles
-# nested-repo cycles where the close-report lives at /root/.claude/docs/dev/...
-# (symlinked to the actual nested working tree) rather than /root/docs/dev/.
-CLOSE_REPORT=""
-for candidate in \
-    "${CLAUDE_PROJECT_DIR:-}/docs/dev/close-report-${TASK_ID}.md" \
-    "/root/.claude/docs/dev/close-report-${TASK_ID}.md" \
-    "${CONTROL_ROOT}/docs/dev/close-report-${TASK_ID}.md"; do
-    if [ -n "$candidate" ] && [ -f "$candidate" ]; then
-        CLOSE_REPORT="$candidate"
-        break
-    fi
-done
-# Fallback to outer path for the error message when no candidate exists.
-[ -z "$CLOSE_REPORT" ] && CLOSE_REPORT="${CONTROL_ROOT}/docs/dev/close-report-${TASK_ID}.md"
+CLOSE_REPORT="$(bash ~/.claude/scripts/resolve-close-report.sh "$TASK_ID")" || true
 ```
 
 Run these checks (abort on first failure with a clear error message):
