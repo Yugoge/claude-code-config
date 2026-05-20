@@ -221,23 +221,30 @@
     ]
   },
   "summary": {
+    "iter": 2,
     "total_acs": 13,
-    "acs_with_objections": 10,
-    "acs_clean": 3,
+    "acs_resolved_by_iter1": 8,
+    "acs_with_remaining_iter1_objections": 0,
+    "acs_with_new_iter2_objections": 2,
+    "_iter1_legacy_summary": {
+      "acs_with_objections": 10,
+      "acs_clean": 3,
+      "verdict": "fail"
+    },
     "objection_severity_breakdown": {
-      "critical": 1,
-      "major": 6,
-      "minor": 3
+      "critical": 2,
+      "major": 0,
+      "minor": 0
     },
     "dimensions_triggered": {
-      "evidence_quality": 1,
-      "scope_alignment": 1,
-      "investigation_completeness": 2,
-      "affected_file_accuracy": 1,
-      "spec_text_vs_execution_drift": 6
+      "evidence_quality": 0,
+      "scope_alignment": 0,
+      "investigation_completeness": 0,
+      "affected_file_accuracy": 0,
+      "spec_text_vs_execution_drift": 2
     },
     "verdict": "fail",
-    "verdict_rationale": "10 of 13 ACs require revision. The spec_text_vs_execution_drift count (6) is unusually high — most ACs were written with substring/count-based checks that can pass without forcing dev to actually do the work. BA must regenerate the acceptance-criteria JSON with structural, scope-anchored checks before dev cycle can proceed."
+    "verdict_rationale": "Iter-1 GENUINELY RESOLVED 8 of 10 prior objections — substantial improvement, no regression to scope coverage, codex-supplied tightenings honored, paragraph-scoping correctly applied where requested. However, iter-1 introduced 2 NEW critical defects: (a) AC-07 SHA-equality fails for mutable runtime telemetry that already drifts before dev acts — would unfairly fail compliant dev work; (b) AC-09 runtime fixture has ImportError + vacuous test that passes regardless of dev's SKIP_FILES augmentation — pass-as-substitute. Both confirmed by independent codex review. Per QA Anti-Fraud Principle 5 (never substitute related-but-different verification) AND QA principle (no unfair fail after correct work), BOTH defects are blocking. Verdict FAIL — BA must revise AC-07 and AC-09 before dev can proceed."
   },
   "codex_consult": {
     "invoked": true,
