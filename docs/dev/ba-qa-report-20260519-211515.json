@@ -13,8 +13,54 @@
     "verified_against_complaint": true,
     "passed_user_requirement": true,
     "ac_alignment": true,
-    "verified_location_keywords": ["docs", "dev", "ticket", "20260519-211515", "qa-output-retrospective-classification", "20260519-175339"],
-    "location_overlap": ["docs", "dev", "20260519-211515"],
+    "verified_location_keywords": ["ticket-20260519-211515.md", "context-20260519-211515.json", "AC5", "AC9", "AC10", "frozen", "spec-20260520-044700.md", "Continuation", "regex", "changelog-analyst"],
+    "location_overlap": ["ticket-20260519-211515", "context-20260519-211515", "AC5", "AC9", "AC10", "spec-20260520-044700"],
+    "complaint_resolution_evidence": "BA iter-3 surgical fixes resolve all three iter-1 QA blockers. Iter-3 also applied 4 codex iter-3 follow-on findings. Each resolution backed by ticket-line citations and (for AC5) a live python3 regex execution against the verbatim real-world close-report line. See verification_evidence below.",
+    "verification_evidence": {
+      "verify_1_obj1_ac10_frozen_spec": {
+        "status": "pass",
+        "checks": {
+          "technical_hints_excludes_frozen_spec": {"ticket_line": 813, "evidence": "Technical Hints row 6 explicitly reads `agents/qa.md, agents/ba.md (R10, priority 6) — **docs/dev/specs/spec-20260520-044700.md is NOT in this row**; the trap-cleanup contract lands ONLY at agent-template level per user requirement line 76 (frozen spec)`. PASS."},
+          "ac10_v4_frozen_spec_zero_diff_invariant": {"ticket_line": 797, "evidence": "V4 runs `git diff d988d4a -- docs/dev/specs/spec-20260520-044700.md | wc -l` and asserts 0 diff lines (working-tree byte-identity vs d988d4a). PASS."},
+          "context_affected_files_excludes_frozen_spec": {"context_field": ".affected_files", "evidence": "jq enumeration shows 18 paths; spec-20260520-044700.md is NOT present. PASS."},
+          "context_scope_boundary_in_user_path_excludes_frozen_spec": {"context_field": ".scope_boundary.in_user_path", "evidence": "jq enumeration shows 16 paths; frozen spec is NOT present. PASS."},
+          "context_requirement_where_excludes_frozen_spec": {"context_field": ".requirement.where", "evidence": "jq enumeration shows 18 paths; frozen spec is NOT present. PASS."},
+          "context_files_to_modify_excludes_frozen_spec": {"context_field": ".development_approach.files_to_modify", "evidence": "jq enumeration shows 17 paths; frozen spec is NOT present. PASS."},
+          "ac10_v1_full_do_not_clauses": {"ticket_lines": [700, 701, 714, 715], "evidence": "Line 700 has full pkill/killall parenthetical clause verbatim. Line 701 has full frozen-spec DO-NOT sentence. Lines 714-715 are V1 verifier's full matching strings (escaped). No truncation. CF3-05 PASS."},
+          "ac10_v3_python_section_bounded_verifier": {"ticket_lines": [752, 765, 770, 771, 772], "evidence": "V3 replaced with Python verifier that (i) finds agents/ba.md Markdown Spec template region via `### Markdown Spec` heading boundary, (ii) within that region locates both `## Acceptance Criteria` and `## Technical Hints` sub-sections, (iii) asserts cross-reference appears in BOTH sub-sections. NOT a whole-file grep. CF3-05 PASS."}
+        },
+        "blocker_resolution": "VERIFY-1 (OBJ-1 AC10 frozen-spec contradiction) fully resolved. Iter-3 reverts iter-2's append-only proposal entirely; both d988d4a (commit) AND spec-20260520-044700.md (working-tree file) are frozen. Trap-cleanup contract lands at agent-template level (agents/qa.md subsection + agents/ba.md template references) only."
+      },
+      "verify_2_obj2_ac5_regex_drift": {
+        "status": "pass",
+        "checks": {
+          "regex_in_step_7_algorithm": {"ticket_line": 394, "regex": "^[-*+]?\\s*Continuation spec(\\s*\\([^)]*\\))?\\s*:\\s*`?(docs/dev/specs/spec-[^\\s`]+\\.md)`?\\s*$", "evidence": "Permissive regex with three tolerance components: optional leading bullet `^[-*+]?`, optional parenthetical qualifier `(\\s*\\([^)]*\\))?`, optional inline backticks. PASS."},
+          "regex_matches_real_close_report_line_LIVE": {"target_file": "docs/dev/close-report-20260519-175339.md", "target_line_1_indexed": 151, "actual_line_content": "- Continuation spec (from prior NO): `docs/dev/specs/spec-20260520-044700.md`", "live_python3_run_result": "regex matches: True; captured group(2) = docs/dev/specs/spec-20260520-044700.md", "evidence": "QA executed python3 re.match against verbatim real-world line. Match confirmed; captured path correct. PASS."},
+          "ac_body_quotes_verbatim_real_world_line": {"ticket_line": 402, "evidence": "AC5 algorithm prose at ticket:402 quotes the exact real-world line. V5(b) sanity-checks the line content first (rejects if drifted) then runs the regex. PASS."},
+          "ac5_v5_verifier_runs_against_real_line": {"ticket_lines": [498, 500, 501, 504, 505, 506, 509], "evidence": "V5(b) opens docs/dev/close-report-20260519-175339.md, reads splitlines()[150] (1-indexed line 151), sanity-checks against expected literal, runs permissive regex, asserts captured path == 'docs/dev/specs/spec-20260520-044700.md'. Locks regex against future drift. PASS."},
+          "step_7_heading_extraction_uses_3_hashes": {"ticket_line": 441, "commit_md_line": 114, "evidence": "Step 7 extractor uses `^#{2,3}[[:space:]]+Step 7`. commands/commit.md actual heading at :114 is `### Step 7: Spec-continue dispatch (post-commit, non-blocking)` (3 hashes). CF3-02 PASS."}
+        },
+        "blocker_resolution": "VERIFY-2 (OBJ-2 AC5 regex drift) fully resolved. Iter-2 literal regex matched NONE of the real-world line's three tolerance categories. Iter-3 permissive regex captures the path correctly. Live python3 invocation confirms match."
+      },
+      "verify_3_obj3_ac9_dual_landing": {
+        "status": "pass",
+        "checks": {
+          "equivalent_landing_clause_removed": {"ticket_line": 631, "evidence": "Only occurrence of phrase 'equivalent landing in commands/commit.md is also acceptable' is the audit-trail line at 631 explicitly stating the clause is REMOVED. PASS."},
+          "secondary_mirror_clause_absent": {"evidence": "Grep for 'secondary mirror' against ticket-20260519-211515.md returned zero matches. PASS."},
+          "technical_hints_r9_sole_target": {"ticket_line": 816, "evidence": "Technical Hints row 9 reads `agents/changelog-analyst.md (R9 SOLE binding landing per BA-QA iter-1 OBJ-3 + user requirement lines 51-53, priority 9) — commands/commit.md is NOT a substitute target for R9`. PASS."},
+          "ac9_v3_sole_landing_verifier": {"ticket_lines": [665, 666, 667, 668, 669], "evidence": "V3 grep -qF tests ONLY agents/changelog-analyst.md for verbatim phrase 'Reverses <SHA>: <one-line rationale for why prior reasoning no longer holds>'. AC9 PASSES iff phrase in agents/changelog-analyst.md; FAILS in every other case including phrase landed only in commands/commit.md. PASS."},
+          "ac9_v4_affected_files_assertion": {"ticket_line": 672, "evidence": "V4 uses jq -e '.affected_files | index(\"agents/changelog-analyst.md\") != null'. Confirmed at position 18 in context.affected_files. PASS."}
+        },
+        "blocker_resolution": "VERIFY-3 (OBJ-3 AC9 dual-landing ambiguity) fully resolved. Iter-3 removed dual-landing clause; Technical Hints names agents/changelog-analyst.md as SOLE binding landing. V3 verifier semantics: AC9 PASSES iff phrase present in agents/changelog-analyst.md (no commands/commit.md substitution)."
+      },
+      "additional_codex_iter3_followons": {
+        "cf3_04_acceptance_criteria_path_null": {"status": "pass", "evidence": "jq returned null. context.json field `_acceptance_criteria_path_iter3_note` documents rationale: on-disk file contains stale D+H content. PASS."},
+        "cf3_02_step7_heading_depth": {"status": "pass", "evidence": "Iter-3 extractor uses `^#{2,3}[[:space:]]+Step 7`. commands/commit.md uses `### Step 7` (3 hashes) at line 114; matches tolerant pattern. PASS."},
+        "cf3_01_logged_not_applied": {"status": "pass_with_rationale", "evidence": "BA correctly declined codex's demand to re-debate AC5 algorithm order. context.json findings[].CF3-01 documents rationale: orchestrator's iter-3 dispatch enumerated three specific blockers (OBJ-1/OBJ-2/OBJ-3); algorithm order NOT among them. QA iter-1 OBS-2 had classified context-first as defensible. Orchestrator said 'Don't expand scope chasing them'. Disposition: logged_not_applied. PASS."},
+        "cf3_03_residual_frozen_spec_edit_references_purged": {"status": "pass", "evidence": "Remaining mentions of spec-20260520-044700.md fall into only legitimate categories: scope-reconciliation prose explaining iter-2-to-iter-3 supersession, V4 zero-diff invariant command, AC5 captured-path constant string, W7 frozen-COMMIT description, audit-trail removal notes. No live 'modify this file' instruction remains. CF2-12/CF2-13 disposition correctly updated to 'superseded_by_iter3'. PASS."},
+        "cf3_05_ac10_v1_full_clauses_and_v3_section_bounded": {"status": "pass", "evidence": "V1 (lines 712-715) checks full clause text without truncation including parenthetical and full frozen-spec sentence. V3 (lines 752+) replaced with Python verifier that extracts agents/ba.md Markdown Spec template region + both sub-sections, NOT whole-file grep. PASS."}
+      }
+    },
     "five_dimension_assessment": {
       "evidence_quality": {"verdict": "pass", "rationale": "BA understanding matches retrospective JSON concrete_remediation for all 9 items. Each AC quotes verbatim items[i].concrete_remediation. Spot-checked item-by-item: items 1, 2, 3, 4, 5, 6, 7, 9, 10 all correctly paraphrased and traceable.", "evidence": "ticket lines 147, 175, 199, 212, 232, 257, 269, 290, 312 begin with verbatim concrete_remediation quote matching retrospective JSON items[].concrete_remediation."},
       "scope_alignment": {"verdict": "pass", "rationale": "BA covers exactly 9 in-scope items (1, 2, 3, 4, 5, 6, 7, 9, 10). Item 8 (23 leaked playwright-mcp processes) correctly logged in out_of_scope_observations with security_relevant=false per user 就地部署 authorization. Nothing added unilaterally; nothing dropped.", "universal_scope_claims_check": "User requirement doc line 6: /redev --codex 修复全部建议的内容. BA correctly interpreted 'all' as 'all 9 in-scope items' since item 8 is explicitly skipped per ACCEPTABLE-DEBT classification. No universal-claim narrowing.", "evidence": "ticket Requirements Decomposition table lines 113-123 maps all 10 retrospective items to R1..R10; R8 (item 8) flagged out-of-path → out_of_scope_observations, matching retrospective JSON final_classification."},
