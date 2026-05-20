@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-19T19:51:28Z*
-**Total entries**: 120
+*Last updated: 2026-05-20T15:45:28Z*
+**Total entries**: 128
 **Convention**: kebab
 
 ## Tree
@@ -35,9 +35,17 @@ hooks/
 │   ├── `subagent.py` - Single source of truth for is_subagent_context() and supporting helpers
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 ├── tests/
+│   ├── `_ac10_verify.sh` - Shell script
+│   ├── `_ac1_verify.sh` - Shell script
+│   ├── `_ac3_verify.sh` - Shell script
+│   ├── `_ac5_verify.sh` - Shell script
+│   ├── `_ac6_verify.sh` - Shell script
+│   ├── `_ac9_verify.sh` - Shell script
+│   ├── `_final_sweep.sh` - Final sweep — invoke each AC's verifier and print PASS/FAIL summary.
 │   ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
-│   └── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
+│   ├── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
+│   └── `test_push_sentinel_abort.sh` - Unit test for AC1 V5: hooks/push.sh self-aborts before any real git push
 ├── `audit-slashcommand.sh` - audit-slashcommand.sh
 ├── `auto-commit.sh` - ============================================================================
 ├── `check-todo-md-sync.py` - check-todo-md-sync.py — Session-start drift detector for todo scripts

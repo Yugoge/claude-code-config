@@ -161,4 +161,58 @@ if [ -n "$COMMENT" ]; then
 else
   echo "[allow] Grant recorded: pattern='$PATTERN' is_regex=$IS_REGEX. Valid for ONE matching bash call this turn."
 fi
+
+# ── Step 4: write sentinel grant (task 20260519-211515 R2 / AC2) ──
+# Sentinel-file grant lifecycle: /tmp/claude-grants/<task_id>.json contains
+# {task_id, session_id, allowed_operations[], created_at, expires_at}.
+# The legacy pattern-string grant (above) remains for back-compat; the new
+# sentinel is a STRUCTURED grant that hooks/lib/allowlist.py reads via
+# load_sentinel_grant_for_task() — predicate never substring-matches against
+# the command line. allowed_operations[] is bootstrapped from the legacy
+# pattern as a single {op,target,args_contain} entry when the pattern is
+# literal; regex patterns produce a wildcard entry that requires a manual
+# allowed_operations[] follow-up. Atomic write-temp+rename so partial files
+# never appear.
+TASK_ID="${CLAUDE_TASK_ID:-${SID}}"
+SENTINEL_DIR="/tmp/claude-grants"
+mkdir -p "$SENTINEL_DIR" 2>/dev/null
+SENTINEL_FILE="${SENTINEL_DIR}/${TASK_ID}.json"
+SENTINEL_TMP="${SENTINEL_FILE}.tmp.$$"
+ALLOW_PATTERN="$PATTERN" \
+  ALLOW_IS_REGEX="$IS_REGEX" \
+  SENTINEL_TMP="$SENTINEL_TMP" \
+  SID="$SID" \
+  TASK_ID="$TASK_ID" \
+  python3 -c "
+import json, os, time
+pattern = os.environ['ALLOW_PATTERN']
+is_regex = os.environ['ALLOW_IS_REGEX'] == 'true'
+now = time.time()
+# Default sentinel TTL: 300s. Aligns with bash-safety grant window.
+ttl = 300
+# Literal patterns produce a single structured op entry; regex patterns
+# produce a wildcard placeholder so the legacy regex path still works
+# while the structured predicate forbids substring-style command-line
+# matches (per AC2).
+if is_regex:
+    ops = [{'op': '*', 'note': 'legacy regex pattern', 'pattern': pattern}]
+else:
+    parts = pattern.split(None, 1)
+    op = parts[0] if parts else pattern
+    rest = parts[1] if len(parts) >= 2 else ''
+    entry = {'op': op}
+    if rest:
+        entry['args_contain'] = [rest]
+    ops = [entry]
+grant = {
+    'task_id': os.environ['TASK_ID'],
+    'session_id': os.environ['SID'],
+    'allowed_operations': ops,
+    'created_at': now,
+    'expires_at': now + ttl,
+}
+with open(os.environ['SENTINEL_TMP'], 'w') as f:
+    json.dump(grant, f)
+" 2>/dev/null && mv -f "$SENTINEL_TMP" "$SENTINEL_FILE" 2>/dev/null
+
 exit 0
