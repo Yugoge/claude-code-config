@@ -256,12 +256,44 @@
   },
   "iteration_needed": true,
   "refined_context": {
-    "failed_criteria": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-07", "AC-09", "AC-10", "AC-11", "AC-13"],
+    "iter": 2,
+    "failed_criteria": ["AC-07", "AC-09"],
     "critical_issues": [
-      "AC-13 pass-as-substitute: dev could pass without writing the structural exemption",
-      "AC-01 tools-list mismatch: AC would pass with a 3-tool list that leaves test-writer non-functional"
+      "AC-07: per-path SHA equality fails on mutable runtime telemetry; would unfairly fail dev work",
+      "AC-09: runtime fixture has ImportError AND vacuous test (dot-prefix already filters)"
     ],
-    "recommended_approach": "BA must regenerate acceptance-criteria-20260520-221452.json with the per-AC PROPOSED_FIX content from each objection. Key pattern: replace must_contain_any / file-wide must_contain with scope-anchored regex (extract section, then check within section). Replace count-based checks (must_count_gte) with precedence-based checks (per-invocation precedence verification). Ensure ticket prose requirements (tools list, cross-reference rewrites) actually map to JSON check structure.",
-    "additional_context": "BA's investigation evidence is largely accurate — all factual claims about current file state verified pass. The defect is at the AC-encoding layer: BA correctly identified WHAT must change but wrote checks too loose to enforce it. Out-of-scope observations: orchestrator should escalate git rm --cached step to explicit user confirmation; blast-radius map is 6.1MB (likely unfiltered)."
-  }
+    "recommended_approach": "BA iter-3 must address ONLY AC-07 and AC-09 (iter-1 resolved 8/10 prior objections; do NOT re-touch other ACs). For AC-07: replace per-path SHA equality with existence-only check; OR capture pre-dev baseline if stronger safety needed; AND reconcile ticket prose vs check script re: 'git rm -r --cached' vs 'git rm --cached'. For AC-09: fix runtime fixture import via PYTHONPATH=PWD + package-relative import; AND change fixture to call build_tree(root / .claude) so the test exercises the leak path (currently tests a vacuous scenario already handled by dot-prefix filter); OPTIONALLY add structural check for a SKIP_PATH_PREFIXES or equivalent path-aware predicate.",
+    "additional_context": "Iter-1 drift-fix work is genuinely improved — do not undo it. The remaining 2 defects are isolated to AC-07 and AC-09 runtime test design. AC-09 AST checks (already correct in iter-1) should remain; only the runtime fixture needs replacement. AC-07 ls-files-empty check should remain; only the SHA-equality script needs replacement.",
+    "_iter1_legacy_refined_context": {
+      "failed_criteria": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-07", "AC-09", "AC-10", "AC-11", "AC-13"],
+      "note": "All resolved in iter-1 except AC-07 and AC-09 (which got NEW iter-2 defects — see OBJ-11/OBJ-12)."
+    }
+  },
+  "prior_iter1_verdict_reference": {
+    "iter1_timestamp": "2026-05-20T22:50:00Z",
+    "iter1_objection_count": 10,
+    "iter1_verdict": "fail",
+    "iter2_objection_count": 2,
+    "objections_resolved_count": 10,
+    "objections_added_count": 2,
+    "net_progress": "Substantial improvement (10 -> 2 objections), but verdict remains FAIL because the 2 new objections are critical-severity gate-definition defects."
+  },
+  "out_of_scope_observations_iter2_additions": [
+    {
+      "ts": "2026-05-20T23:55:00Z",
+      "file": "ticket-20260520-221452.md",
+      "line": 161,
+      "observation": "BA iter-1 added DERIVED_WORK scope_label to AC-07 _scope_label field, correctly cross-referencing the iter-1 out_of_scope_observation re: orchestrator awareness for git rm --cached blast radius. This is acceptable scope_alignment — the destructive verb is properly threaded to orchestrator user-confirmation. Out_of_scope_observation routing per agents/ba.md is correct.",
+      "in_user_path": false,
+      "security_relevant": false
+    },
+    {
+      "ts": "2026-05-20T23:55:00Z",
+      "file": "acceptance-criteria-20260520-221452.json",
+      "line": 245,
+      "observation": "AC-07 ticket prose line 109 specifies 'git rm -r --cached' (with -r for recursive) but the JSON check script uses 'git rm --cached' (no -r). For directory target .claude/specs/spec-20260518-225715/, -r flag is REQUIRED. BA must reconcile prose vs check.",
+      "in_user_path": false,
+      "security_relevant": false
+    }
+  ]
 }
