@@ -72,29 +72,10 @@ Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/l
 
 Before dispatching changelog-analyst, write a single-use commit grant (skip this entire grant-write block when `BULK=true` — BULK commits use the `auto-bulk:` prefix which bypasses the guard via `BLESSED_BRIDGE_RE`; no grant is needed or written): activate venv and run Python to write the grant. First, resolve the session ID: `sid = os.environ.get("CLAUDE_SESSION_ID")`. If `sid` is empty or `None`, abort immediately with: `Cannot write commit grant: CLAUDE_SESSION_ID not set. Invoke /commit from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst. If `sid` is set, generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at`, and `created_at`. The guard IS registered and active — grant absence WILL block the changelog-analyst commit.
 
-**Grant timestamp format (NON-NEGOTIABLE)**: The `expires_at` and `created_at` fields MUST be ISO-8601 strings produced from timezone-aware UTC datetimes (e.g. `(datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()` yields `"2026-05-19T16:18:56.123456+00:00"`). Epoch integers and epoch floats (e.g. `int(time.time()) + 600`, `time.time() + 600`) are NOT accepted by the privilege guard. The guard at `/root/.claude/hooks/pretool-git-privilege-guard.py:377-384` parses these fields via `datetime.fromisoformat(end_str.replace('Z', '+00:00'))`; on `ValueError`/`TypeError`/`AttributeError` the helper `_end_time_passed` returns `True` (i.e. "already expired"), which silently rejects the grant and blocks the commit. The expiration window is 10 minutes from `created_at` — bake the offset into `expires_at` at write time. Example correct grant-write pattern:
+**Grant timestamp format (NON-NEGOTIABLE)**: The `expires_at` and `created_at` fields MUST be ISO-8601 strings produced from timezone-aware UTC datetimes (e.g. `(datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()` yields `"2026-05-19T16:18:56.123456+00:00"`). Epoch integers and epoch floats (e.g. `int(time.time()) + 600`, `time.time() + 600`) are NOT accepted by the privilege guard. The guard at `/root/.claude/hooks/pretool-git-privilege-guard.py:377-384` parses these fields via `datetime.fromisoformat(end_str.replace('Z', '+00:00'))`; on `ValueError`/`TypeError`/`AttributeError` the helper `_end_time_passed` returns `True` (i.e. "already expired"), which silently rejects the grant and blocks the commit. The expiration window is 10 minutes from `created_at` — bake the offset into `expires_at` at write time. Activate the venv and invoke the grant-writer script (resolves `CLAUDE_SESSION_ID` from the environment, generates a fresh nonce, writes timezone-aware ISO-8601 `created_at` and `expires_at` on a 10-minute window, and emits the resulting grant path on stdout):
 
-```python
-import json, os, secrets
-from datetime import datetime, timedelta, timezone
-
-# task_id comes from the slash-command argument resolved in Step 2 above.
-# Substitute the resolved value before running this block; do NOT leave
-# `TASK_ID` as a bare identifier or the block will raise NameError.
-task_id = "<resolved-task-id-from-Step-2>"  # e.g. "20260519-160856"
-sid = os.environ["CLAUDE_SESSION_ID"]
-nonce = secrets.token_hex(8)
-now = datetime.now(timezone.utc)
-grant = {
-    "task_id": task_id,
-    "sid": sid,
-    "nonce": nonce,
-    "created_at": now.isoformat(),
-    "expires_at": (now + timedelta(minutes=10)).isoformat(),
-}
-grant_path = f"/tmp/claude-commit-grant-{sid}-{nonce}.json"
-with open(grant_path, "w") as fp:
-    json.dump(grant, fp)
+```bash
+source venv/bin/activate && python /root/.claude/scripts/write-commit-grant.py --task-id "$TASK_ID"
 ```
 
 Both `created_at` and `expires_at` MUST match the regex `^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(\+\d{2}:\d{2}|Z)$`. Do NOT substitute `time.time()`, `int(time.time())`, or `datetime.utcnow()` (the last returns a naive datetime whose `.isoformat()` omits the TZ offset and falls into the naive-comparison branch at line 382).

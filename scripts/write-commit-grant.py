@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""Write a single-use /commit privilege-guard grant manifest.
+
+Invoked from `commands/commit.md` Step 5 (non-bulk mode) to author a
+short-lived authorization token consumed by
+`/root/.claude/hooks/pretool-git-privilege-guard.py` (see
+`_end_time_passed` at lines 377-384; ISO-8601 contract preserved).
+
+The script writes a JSON file at
+`<output-dir>/claude-commit-grant-<sid>-<nonce>.json` containing:
+  - task_id    : --task-id argument (REQUIRED)
+  - sid        : --sid argument OR CLAUDE_SESSION_ID env var
+  - nonce      : 16-char hex (secrets.token_hex(8))
+  - created_at : ISO-8601 timezone-aware UTC at write time
+  - expires_at : created_at + GRANT_TTL_MINUTES (named module constant)
+
+Both timestamps are produced from `datetime.now(timezone.utc)` and are
+fromisoformat-parseable by the privilege guard. Epoch ints/floats and
+naive datetimes are silently rejected by the guard.
+
+Exit codes:
+  0  success (grant written)
+  2  CLAUDE_SESSION_ID unresolved (neither --sid nor env var supplied)
+  argparse-default 2 when --task-id is omitted (handled by argparse)
+"""
+
+import argparse
+import json
+import os
+import secrets
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+# Grant validity window. The privilege guard expires the grant at
+# created_at + GRANT_TTL_MINUTES; do not duplicate this literal at the
+# operational call site (use the constant symbolically).
+GRANT_TTL_MINUTES = 10
+
+
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="write-commit-grant.py",
+        description="Write a single-use /commit privilege-guard grant manifest.",
+    )
+    parser.add_argument(
+        "--task-id",
+        required=True,
+        help="Task-id from the /commit invocation (e.g. 20260519-160856).",
+    )
+    parser.add_argument(
+        "--sid",
+        default=None,
+        help="Claude session id. Defaults to the CLAUDE_SESSION_ID env var.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="/tmp",
+        help="Directory to write the grant JSON into. Default: /tmp.",
+    )
+    return parser.parse_args(argv)
+
+
+def _resolve_sid(cli_sid: str | None) -> str:
+    if cli_sid:
+        return cli_sid
+    env_sid = os.environ.get("CLAUDE_SESSION_ID", "")
+    if not env_sid:
+        print(
+            "Cannot write commit grant: CLAUDE_SESSION_ID is not set and "
+            "--sid was not supplied. Invoke /commit from within a Claude "
+            "Code session or pass --sid explicitly.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    return env_sid
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(sys.argv[1:] if argv is None else argv)
+    if not args.task_id.strip():
+        print(
+            "Cannot write commit grant: --task-id must be non-empty.",
+            file=sys.stderr,
+        )
+        return 2
+    sid = _resolve_sid(args.sid)
+    nonce = secrets.token_hex(8)
+    now = datetime.now(timezone.utc)
+    grant = {
+        "task_id": args.task_id,
+        "sid": sid,
+        "nonce": nonce,
+        "created_at": now.isoformat(),
+        "expires_at": (now + timedelta(minutes=GRANT_TTL_MINUTES)).isoformat(),
+    }
+    grant_path = Path(args.output_dir) / f"claude-commit-grant-{sid}-{nonce}.json"
+    with open(grant_path, "w") as fp:
+        json.dump(grant, fp)
+    print(str(grant_path))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

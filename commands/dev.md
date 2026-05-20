@@ -335,6 +335,10 @@ If dev changed L1 when spec called for L3, treat as failed implementation.
 
 ### Step 3: Delegate to BA Subagent
 
+**Pre-dispatch (Mascot scoring injection, spec-20260518-225715 §5.1)**:
+
+Run `bash ~/.claude/scripts/score-inject.sh --agent ba` and capture stdout into a variable `BA_SCORE_HEADER`. Per spec 5.1 line 113, this injection text is inserted AFTER the role declaration and BEFORE the task instructions for the BA dispatch — i.e. right between "You are the BA subagent." and the "Requirement:" / task body. The injection shows the rank+range (NOT exact score) and last 3 events.
+
 **Use Task tool to invoke BA subagent for requirements analysis and context building**:
 
 ```
@@ -349,6 +353,9 @@ Use Task tool with:
   CHECKPOINT MARKING: see agents/ba.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
+
+  <BA_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: 注入位置：角色声明之后、任务指令之前>
+
 
   Requirement: '<requirement from Step 1>'
   Clarification round: 0
@@ -596,6 +603,40 @@ Use Agent tool with:
 
 ### Step 8: Delegate to Dev Subagent
 
+**Pre-dispatch — Test-Writer dispatch (conditional, between BA and Dev per spec-20260518-225715 §5.2 line 167: "位置：BA → [test-writer] → Dev → QA")**:
+
+Gate evaluation (mandatory): read `complexity_tier` and `risk_level` from BA's context JSON. If `complexity_tier ∈ {STANDARD, COMPLEX}` OR `risk_level == "high"`, then `test_writer_expected = true`; otherwise `test_writer_expected = false`. Pass `test_writer_expected` into the Dev and QA dispatch prompts.
+
+When `test_writer_expected == true`, dispatch the test-writer subagent BEFORE Dev:
+
+```
+Use Task tool with:
+- description: "Generate pytest skeletons from acceptance criteria"
+- prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/test-writer.json (or create if absent with {agent_type:'test-writer', session_id:'<DEV_SESSION_ID>'}).
+
+  You are the test-writer subagent. Follow agents/test-writer.md instructions precisely.
+
+  Inputs:
+    task_id: <task_id>
+    acceptance_criteria_path: docs/dev/acceptance-criteria-<task_id>.json
+    complexity_tier: <COMPLEX|STANDARD|SMALL|MICRO from BA context>
+    risk_level: <high|medium|low from BA context>
+
+  Write your report to: docs/dev/test-writer-report-<task_id>.json
+  Generated tests go under: tests/generated/<task_id>/
+  Manifest: tests/generated/manifest.json
+  "
+```
+
+After the test-writer subagent completes, verify on disk that `tests/generated/manifest.json` AND `docs/dev/test-writer-report-<task_id>.json` BOTH exist. If either is missing, abort the cycle with an error (the orchestrator MUST NOT proceed to Dev with a silently-skipped test-writer). When `test_writer_expected == false`, SKIP the dispatch (record skip rationale in the todo list).
+
+After test-writer completes (or is skipped), the generated test file paths and manifest path are passed onward to Dev (in the dispatch prompt) and to QA (Step 11). Dev makes the skeleton tests pass; QA verifies the manifest at Step 11 Phase 5 AND that `test_writer_expected == true` implies manifest/report existence (Phase 5 fails with `primary_cause: "dev_implementation"` or `"qa_oversight"` if expected but missing).
+
+**Pre-dispatch (Mascot scoring injection, spec-20260518-225715 §5.1)**:
+
+Run `bash ~/.claude/scripts/score-inject.sh --agent dev` and capture stdout into a variable `DEV_SCORE_HEADER`. Per spec 5.1 line 113, this injection text is inserted AFTER the role declaration and BEFORE the task instructions for the Dev dispatch.
+
 **Use Task tool to invoke dev subagent with file paths only**:
 
 ```
@@ -611,10 +652,13 @@ Use Task tool with:
 
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
+  <DEV_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: 注入位置：角色声明之后、任务指令之前>
+
   Context file: docs/dev/context-<timestamp>.json
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
   View file: <view_paths.dev or null — sibling views/dev.md if present>
+  Generated tests (when test-writer ran): tests/generated/<task_id>/ + tests/generated/manifest.json
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
@@ -729,6 +773,10 @@ bash ~/.claude/scripts/write-qa-mode.sh --session-id "$DEV_SESSION_ID" --mode fi
   || { echo 'ERROR: Failed to set qa_mode=final_verification in qa.json — aborting' >&2; exit 1; }
 ```
 
+**Pre-dispatch (Mascot scoring injection, spec-20260518-225715 §5.1)**:
+
+Run `bash ~/.claude/scripts/score-inject.sh --agent qa` and capture stdout into a variable `QA_SCORE_HEADER`. Per spec 5.1 line 113, this injection text is inserted AFTER the role declaration and BEFORE the task instructions for the QA dispatch.
+
 **Use Task tool to invoke QA subagent with file paths only**:
 
 ```
@@ -743,6 +791,9 @@ Use Task tool with:
   CHECKPOINT MARKING: see agents/qa.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.
 
   You are the QA subagent. Follow agents/qa.md instructions precisely.
+
+  <QA_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: 注入位置：角色声明之后、任务指令之前>
+
 
   Context file: docs/dev/context-<timestamp>.json
   Dev report file: docs/dev/dev-report-<timestamp>.json
@@ -801,6 +852,19 @@ ELIF qa.status == "warning":
 ELIF qa.status == "fail":
   → Proceed to Step 14 (Iteration)
 ```
+
+**Sub-step 12.1: Mascot score-update (post-QA, spec-20260518-225715 §5.1)**:
+
+After the verdict is known, apply score-update events based on QA outcome and iteration count:
+
+- First-round PASS (iteration 0 + qa.status=pass) → `bash ~/.claude/scripts/score-update.sh --agent dev --event qa_first_pass --note "<task_id>"` AND `--agent ba --event qa_first_pass`. (dev +6, ba +3, qa 0.)
+- Second-or-later-round PASS (iteration ≥1 + qa.status=pass) → `--agent dev --event qa_second_pass --note "<task_id>"`. (dev +3.)
+- FAIL (qa.status=fail) — read `qa.failures[].primary_cause` to attribute the rejection:
+  - Any failure with `primary_cause = "dev_implementation"` → `score-update.sh --agent dev --event qa_reject_dev --note "<task_id>"`. (dev -12.)
+  - Any failure with `primary_cause = "ba_spec"` → `score-update.sh --agent ba --event qa_reject_ba --note "<task_id>"` AND `--agent dev --event qa_reject_ba` (dev -5, ba -8).
+  - `primary_cause = "qa_oversight"` or `"environment"` → no auto-score update (manual review).
+
+Each score-update call is independent; failures are non-blocking (a failed score-update writes to stderr but does not abort the dev cycle). Include the score deltas summary in the Step 15 completion report under a `score_updates` array.
 
 ### Step 13: Update Settings.json Permissions
 
@@ -1040,6 +1104,17 @@ jq -s '.[0] * {
 - Context: `docs/dev/context-<timestamp>.json`
 - Dev Report: `docs/dev/dev-report-<timestamp>.json`
 - QA Report: `docs/dev/qa-report-<timestamp>.json`
+
+## Mascot Score Changes (spec-20260518-225715 §5.1)
+
+Summarise score-update events from Sub-step 12.1 (and any user-rating events from `/close`) in a table:
+
+| Agent | Event | Delta | Old → New |
+|-------|-------|-------|-----------|
+| ba    | qa_first_pass | +3 | 50 → 53 |
+| dev   | qa_first_pass | +6 | 50 → 56 |
+
+The current rank+range per agent is read by injecting `bash ~/.claude/scripts/score-inject.sh --agent <name>` (rank+range only — exact score is intentionally hidden per spec 5.1 line 112).
 
 ## Next Steps
 
