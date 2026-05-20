@@ -493,14 +493,18 @@
       "qa_report_objections_subject": "AC-D3 read_grant call-site count; H fallback chain (None-key + cross-type); first-unflipped-match scope (OBJ-3)"
     },
     "preserved_artifact_paths": [
-      "docs/dev/ticket-20260519-211515-DH.md",
-      "docs/dev/context-20260519-211515-DH.json"
+      "docs/dev/ticket-20260519-211515-CYCLE2.md",
+      "docs/dev/context-20260519-211515-CYCLE2.json",
+      "docs/dev/acceptance-criteria-20260519-211515-CYCLE2.json",
+      ".claude/dev-registry/dev-20260519-211515/blast-radius-map-CYCLE2.json"
     ],
+    "post_orchestrator_resolution": "D+H ticket+context promoted to canonical at ~2026-05-20T05:23Z; AC+blast-radius ghost Cycle 2 companion artifacts moved to -CYCLE2 suffix at ~2026-05-20T06:00Z. Orchestrator-side collision-resolution cleanup complete for this cycle. The D+H cycle owns the canonical 20260519-211515 ticket+context slot; the parallel Cycle 2 artifacts (originally at -DH suffix until the canonical slot was reassigned) now live exclusively under the -CYCLE2 suffix.",
     "orchestrator_required_resolution": [
       "Decide which BA cycle owns the canonical 20260519-211515 artifact slot.",
       "If the D+H cycle is canonical, rename *-DH.md / *-DH.json to the canonical paths after relocating the parallel cycle's artifacts to its own task-id.",
       "If the parallel cycle is canonical, reassign the D+H cycle a fresh task-id and rename *-DH.* to that new id.",
       "Diagnose how two BA cycles received the same task-id from the orchestrator's task-id allocator (likely a clock-second collision or a missing distinctness check) and patch the allocator."
-    ]
+    ],
+    "orchestrator_resolution_status": "resolved_at_2026-05-20T06:00Z — D+H owns canonical slot; Cycle 2 ghost companions live at -CYCLE2 suffix"
   }
 }
