@@ -66,7 +66,8 @@
       "agents/changelog-analyst.md is the SOLE binding landing for R9 per BA-QA iter-1 OBJ-3 + user requirement lines 51-53 — AC9 FAILS if the rule lands only in commands/commit.md (no dual-landing fallback)"
     ]
   },
-  "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260519-211515.json",
+  "acceptance_criteria_path": null,
+  "_acceptance_criteria_path_iter3_note": "iter-3 sets this to null per codex iter-3 finding #4. The on-disk docs/dev/acceptance-criteria-20260519-211515.json contains stale D+H cycle content (4160 bytes, schema_version 1.0, cycle 'D+H bypass coverage hardening'); it does NOT mirror this cycle's ACs. _test_writer_skip_reason is non-empty (see field below), so commands/dev.md Step 8 MUST skip test-writer dispatch on this cycle. Downstream consumers (test-writer, QA) MUST source ACs from the ticket-20260519-211515.md AC1..AC10 prose, not from this path. When R7 lands and BA's allowed_write_path_prefixes includes 'docs/dev/acceptance-criteria-', a follow-up cycle can regenerate the file; for this cycle the null signal prevents wrong-cycle skeleton generation.",
   "blast_radius_map_path": null,
   "_blast_radius_map_note": "Blast-radius tool Phase 1 prediction map is not generated for this cycle because the affected_files span markdown spec/agent/command files (not source code with AST imports). The dev cycle's verification surface is file-content-grep per the BA ticket ACs.",
   "affected_files": [
