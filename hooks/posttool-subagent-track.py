@@ -150,6 +150,59 @@ def _step_has_subagent_call(canonical: list, step_index: int) -> bool:
     return item.get('subagent_call') is not None
 
 
+def _find_earliest_unflipped_matching_step(
+    canonical: list,
+    state: dict,
+    subagent_type: str,
+    ip_index: int | None,
+) -> int | None:
+    """Bounded-window K=3 first-unflipped-match keyed on subagent_type.
+
+    Cycle 20260519-211515 Item H (AC-H1, AC-H3b). Used by Case A in _main
+    when stdin.tool_input.subagent_type is NON-EMPTY (parallel
+    TodoWrite+Agent dispatch closes the bookmark-stale race).
+
+    Case A is gated on a single valid in_progress anchor (OBJ-5 BLOCKER
+    resolution): if ip_index is None — either no in_progress step exists,
+    OR multi-in_progress returned None from _current_in_progress_index —
+    return None immediately. There is NO `else: start = 0` fallback. The
+    caller exits 0 with no write per AC-H3b sub-cases (3) and (4).
+
+    Within the K=3 window canonical[max(0, ip_index):ip_index+3], return
+    the earliest index whose canonical step has
+    subagent_call.subagent_type matching `subagent_type` (case-insensitive)
+    AND is not yet flipped in state.subagent_calls.
+
+    Returns int (target index) or None (no anchor / no unflipped match).
+    """
+    if ip_index is None:
+        return None
+    if not isinstance(subagent_type, str) or not subagent_type:
+        return None
+    start = max(0, ip_index)
+    end = min(len(canonical), start + 3)  # K=3 bounded window
+    needle = subagent_type.lower()
+    calls = state.get('subagent_calls') or {}
+    if not isinstance(calls, dict):
+        calls = {}
+    for i in range(start, end):
+        step = canonical[i] if i < len(canonical) else None
+        if not isinstance(step, dict):
+            continue
+        call = step.get('subagent_call') or {}
+        if not isinstance(call, dict):
+            continue
+        cand_type = call.get('subagent_type', '')
+        if not isinstance(cand_type, str):
+            continue
+        if cand_type.lower() != needle:
+            continue
+        if calls.get(str(i)):
+            continue  # already flipped
+        return i
+    return None  # window exhausted, no unflipped match
+
+
 def _get_expected_type(canonical: list, step_index: int) -> str:
     """Extract expected subagent_type from canonical step metadata."""
     if step_index < 0 or step_index >= len(canonical):
