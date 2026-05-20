@@ -158,9 +158,9 @@
   "downstream_blockers_for_dev_dispatch": [
     {
       "blocker": "OBJ-9: complexity_tier=STANDARD + acceptance_criteria_path=null contract violation",
-      "resolution_options": [
-        "R1: Overwrite docs/dev/acceptance-criteria-20260519-211515.json with D+H ACs (from 10 ACs in ticket); update context.acceptance_criteria_path to point to it.",
-        "R2: Downgrade context.complexity_tier to SMALL (bypasses test-writer dispatch)."
+      "resolution_options_in_codex_preferred_order": [
+        "R1 (codex-preferred): Overwrite docs/dev/acceptance-criteria-20260519-211515.json with D+H ACs (from 10 ACs in ticket: AC-D1, AC-D2, AC-D3, AC-D4, AC-H1, AC-H2, AC-H3a, AC-H3b, AC-H4, AC-D-H); update context.acceptance_criteria_path to point to it. Satisfies the STANDARD-tier contract rather than bypassing it.",
+        "R2 (weaker, codex-deprecated): Downgrade context.complexity_tier to SMALL (bypasses test-writer dispatch). Should only be used if explicitly justified."
       ]
     }
   ],
