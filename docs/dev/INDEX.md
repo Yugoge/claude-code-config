@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-20T07:37:15Z*
-**Total entries**: 277
+*Last updated: 2026-05-20T07:44:55Z*
+**Total entries**: 278
 **Convention**: kebab
 
 ## Tree
@@ -22,6 +22,7 @@ dev/
 │   ├── `spec-20260518-225715.md` - Spec: Dev Harness 扩展计划 — 工分系统、Test-Writer、Blast Radius、Executable AC、Canary
 │   └── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
 ├── `acceptance-criteria-20260519-132417.json` - json config
+├── `acceptance-criteria-20260519-211515-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-20260519-211515-CYCLE2.json` - json config
 ├── `acceptance-criteria-20260519-211515.json` - json config
 ├── `architect-report-20260517-155838.json` - json config
