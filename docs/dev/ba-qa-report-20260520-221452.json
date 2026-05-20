@@ -118,7 +118,9 @@
       "proposed_fix": "BA must clarify in the ticket that AC-07 is DERIVED work (necessary side-effect of M-P2.3, not a separate user-stated requirement). Add explicit constraint: dev MUST use `git rm --cached` (never `git rm` or `git rm -r` without --cached). Add explicit forbidden-action: dev MUST NOT delete working-tree cp-state files. The orchestrator should pre-authorize this explicitly rather than BA inferring 'user implicit authorization'. Recommend: classify under out_of_scope_observations or escalate to user-confirmation before dev acts."
     },
     {
-      "id": "OBJ-07",
+      "id": "OBJ-07-LEGACY",
+      "_doc": "PARTIALLY RESOLVED in iter-1 — AST set membership is sound, but runtime fixture is defective. See OBJ-12 (NEW iter-2 objection).",
+      "iter1_resolution": "PARTIALLY_RESOLVED — ast.literal_eval set membership is sound; BUT runtime fixture has ImportError + vacuous test (see OBJ-12).",
       "dimension": "spec_text_vs_execution_drift",
       "severity": "major",
       "ac_affected": "AC-09",
