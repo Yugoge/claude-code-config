@@ -479,6 +479,7 @@ fi
 # This is the consume-on-any-terminal-result entry point; PostToolUse
 # performs the unlink for all four terminal cases (success, non_zero,
 # malformed, comment_only).
+SENTINEL_EXISTS_FOR_TASK=0
 if [ "$IS_SUBAGENT" != "1" ]; then
   TASK_ID_FOR_SENTINEL="${CLAUDE_TASK_ID:-}"
   if [ -z "$TASK_ID_FOR_SENTINEL" ]; then
@@ -488,21 +489,47 @@ if [ "$IS_SUBAGENT" != "1" ]; then
   fi
   if [ -n "$TASK_ID_FOR_SENTINEL" ]; then
     HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    SENTINEL_MATCH=$(HOOKS_DIR="$HOOKS_DIR" CMD_INPUT="$COMMAND" TASK_ID="$TASK_ID_FOR_SENTINEL" "$PYTHON_BIN" - <<'PYEOF' 2>/dev/null
+    SENTINEL_QUERY=$(HOOKS_DIR="$HOOKS_DIR" CMD_INPUT="$COMMAND" TASK_ID="$TASK_ID_FOR_SENTINEL" "$PYTHON_BIN" - <<'PYEOF' 2>/dev/null
 import os, sys
 sys.path.insert(0, os.environ['HOOKS_DIR'])
-from lib.allowlist import match_sentinel_grant_for_bash_command
-m = match_sentinel_grant_for_bash_command(os.environ['TASK_ID'], os.environ['CMD_INPUT'])
-print('SENTINEL_OK' if m is not None else 'SENTINEL_NONE')
+from lib.allowlist import load_sentinel_grant_for_task, match_sentinel_grant_for_bash_command
+task_id = os.environ['TASK_ID']
+cmd = os.environ['CMD_INPUT']
+grant = load_sentinel_grant_for_task(task_id)
+if grant is None:
+    print('SENTINEL_NONE')
+else:
+    m = match_sentinel_grant_for_bash_command(task_id, cmd)
+    if m is not None:
+        print('SENTINEL_OK')
+    else:
+        print('SENTINEL_EXISTS_NO_MATCH')
 PYEOF
 )
-    if [ "$SENTINEL_MATCH" = "SENTINEL_OK" ]; then
-      mkdir -p "$(dirname "$CONSENT_LOG")"
-      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=$TASK_ID_FOR_SENTINEL SENTINEL_GRANT_MATCHED command='$COMMAND'" >> "$CONSENT_LOG"
-      echo "[allow-sentinel] structured grant matched for task=$TASK_ID_FOR_SENTINEL. consume-on-any-terminal-result deferred to PostToolUse." >&2
-      "$PYTHON_BIN" -c 'import json; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": "/allow sentinel grant consumed (structured allowed_operations[] match)"}}))'
-      exit 0
-    fi
+    case "$SENTINEL_QUERY" in
+      SENTINEL_OK)
+        mkdir -p "$(dirname "$CONSENT_LOG")"
+        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=$TASK_ID_FOR_SENTINEL SENTINEL_GRANT_MATCHED command='$COMMAND'" >> "$CONSENT_LOG"
+        echo "[allow-sentinel] structured grant matched for task=$TASK_ID_FOR_SENTINEL. consume-on-any-terminal-result deferred to PostToolUse." >&2
+        "$PYTHON_BIN" -c 'import json; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": "/allow sentinel grant consumed (structured allowed_operations[] match)"}}))'
+        exit 0
+        ;;
+      SENTINEL_EXISTS_NO_MATCH)
+        # AC2 invariant (CF-1, codex iter-1 adversarial review): when a
+        # structured sentinel exists for this task but does NOT match the
+        # current bash command structurally, the legacy /allow short-circuit
+        # MUST NOT be consulted. Substring-matching the comment-only attack
+        # (e.g. `echo hi # rm -rf /` against a legacy `rm` pattern) would
+        # otherwise succeed via the legacy path. We mark this and skip the
+        # legacy short-circuit below.
+        SENTINEL_EXISTS_FOR_TASK=1
+        echo "[allow-sentinel] sentinel exists for task=$TASK_ID_FOR_SENTINEL but command did not match allowed_operations[] — legacy /allow path suppressed for this Bash call (AC2 invariant)." >&2
+        ;;
+      SENTINEL_NONE|*)
+        # No sentinel: legacy /allow short-circuit may proceed.
+        :
+        ;;
+    esac
   fi
 fi
 
