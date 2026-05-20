@@ -1,12 +1,15 @@
 {
   "request_id": "20260520-085647-d1722b",
   "task_id": "20260520-085647-d1722b",
-  "timestamp": "2026-05-20T08:56:47Z",
+  "timestamp": "2026-05-20T22:00:00Z",
   "inspector": "style-inspector",
   "cycle_origin": "20260519-211515",
+  "attempt": "second-close-after-fix-forward",
+  "prior_close_verdict": "CLOSE: NO (Bullet 1 dissent: /commit Step 3 hardcoded /root/docs/dev/ path could not locate nested-repo close-reports at /root/.claude/docs/dev/)",
+  "fix_forward_summary": "Step-3 hardcoded path replaced with helper-script invocation. New helper script implements subproject path-walk (CLAUDE_PROJECT_DIR -> /root/.claude -> CONTROL_ROOT).",
   "task_id_transferred_from": "20260519-211515",
-  "task_id_transfer_reason": "4 rounds of background-process task-id collision on 20260519-211515; collision-resistant suffix -d1722b assigned. This is a re-close inspection of the SAME 3-file diff with fresh task-id.",
-  "fix_forward_already_applied": "_resolve_context removed from posttool-subagent-track.py (was at line 440 in pre-cleanup baseline); audit comment '_resolve_context removed by cycle 20260519-211515 close cleanup' now at lines 440-442. Verified via Read of hooks/posttool-subagent-track.py.",
+  "task_id_transfer_reason": "4 rounds of background-process task-id collision on 20260519-211515; collision-resistant suffix -d1722b assigned. This is the SECOND /close attempt on this task-id (first returned CLOSE: NO).",
+  "prior_round_3_file_audit_carried_forward": "_resolve_context removed from posttool-subagent-track.py (was at line 440 in pre-cleanup baseline); audit comment '_resolve_context removed by cycle 20260519-211515 close cleanup' now at lines 440-442. Prior 3 files (allowlist.py / posttool-subagent-track.py / test_allowlist_consolidation.py) UNCHANGED this round; their verdict (0 critical, 2 advisories) carries forward.",
   "scope": {
     "mode": "changed-files",
     "files_audited": [
