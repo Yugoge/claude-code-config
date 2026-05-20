@@ -184,25 +184,30 @@
     }
   },
   "summary": {
-    "total_issues": 5,
+    "total_issues": 8,
     "critical": 0,
     "major": 0,
-    "minor": 5,
-    "introduced_in_diff_count": 4,
+    "minor": 8,
+    "introduced_in_diff_count": 7,
     "pre_existing_count": 1,
-    "estimated_space_saved": "0 KB (doc/import fixes, no archival)",
+    "round1_findings_carried_forward": 5,
+    "round2_new_findings": 3,
+    "round2_corrections_to_round1": 1,
+    "estimated_space_saved": "0 KB (doc/import/mode/flag fixes, no archival)",
     "files_with_findings": [
       "hooks/lib/allowlist.py",
-      "hooks/tests/test_allowlist_consolidation.py"
+      "hooks/tests/test_allowlist_consolidation.py",
+      "scripts/resolve-close-report.sh"
     ],
     "files_clean": [
-      "hooks/posttool-subagent-track.py"
+      "hooks/posttool-subagent-track.py",
+      "commands/commit.md"
     ],
     "verdict_input_for_close": {
       "close_blocking_findings": 0,
-      "close_non_blocking_findings": 5,
+      "close_non_blocking_findings": 8,
       "blocker_status": "NO BLOCKER for cleanliness CLOSE",
-      "explanation": "Prior CLOSE: NO blocker (dead `_resolve_context` function) is now RESOLVED — AST scan confirms the function has been deleted; only the audit comment remains. The 5 remaining findings (4 NEW minor doc/import drift items + 1 pre-existing minor naming-convention observation) are all advisory cosmetic. None has blocks_close:true. Per Section 5.4 rule 3 and AC-2.6, file-level minor findings are non-blocking. Cleanliness gate: PASS."
+      "explanation": "Prior CLOSE: NO trigger (round 1 Bullet 1: /commit Standard 1 violation — 16-line inline path-walk in commit.md Step 3) is RESOLVED by the round-2 fix-forward: the inline block has been replaced by a 1-line invocation of new helper scripts/resolve-close-report.sh. The 8 remaining cleanliness findings (5 carried from round 1 + 3 NEW from round-2 fix-forward) are all minor advisory items: (1) file mode 644 drift, (2) `set -u`-only flag drift, (3) comment-vs-code drift in helper script (no functional bug, just doc-vs-code mismatch), (4) unused timezone import, (5) module docstring stale wording, (6) TestReadGrant docstring stale wording, (7) TestSentinelGrantLifecycle docstring stale-count wording, (8) pre-existing private-name cross-module import (observation_only). NONE has blocks_close:true. Per Section 5.4 rule 3 and AC-2.6 Mechanism (ii) tagging, file-level minor findings are non-blocking when verdict_input_for_close.close_blocking_findings=0. Cleanliness gate (round 2): PASS."
     }
   },
   "codex_consult": {
