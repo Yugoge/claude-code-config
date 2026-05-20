@@ -34,4 +34,18 @@ if [ -f "$DO_FLAG" ]; then
   rm -f "$DO_FLAG"
 fi
 rm -f "/tmp/claude-tool-streak-${SID}.json"
+
+# ── Sentinel-grant reap (task 20260519-211515 R2 / AC2) ──
+# At session stop, sweep /tmp/claude-grants/*.json: unlink any sentinel
+# whose expires_at has elapsed OR whose JSON is malformed. Bounded
+# best-effort; never blocks agent stop. The reaper delegates to
+# hooks/lib/allowlist.reap_expired_sentinel_grants().
+HOOK_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+python3 -c "
+import sys
+sys.path.insert(0, '${HOOK_DIR}')
+from lib.allowlist import reap_expired_sentinel_grants
+print('[stop-cleanup] reaped', reap_expired_sentinel_grants(), '/tmp/claude-grants/* sentinel grants', file=sys.stderr)
+" 2>>"$CONSENT_LOG" || true
+
 exit 0
