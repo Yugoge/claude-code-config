@@ -94,13 +94,13 @@
     "duplicate_content": []
   },
   "summary": {
-    "total_issues": 2,
+    "total_issues": 4,
     "critical": 0,
-    "major": 1,
-    "minor": 1,
+    "major": 0,
+    "minor": 4,
     "introduced_in_diff_count": 2,
-    "pre_existing_count": 0,
-    "estimated_space_saved": "negligible (~30 lines)",
+    "pre_existing_count": 2,
+    "estimated_space_saved": "negligible (~15 lines comment/docstring + ~9 lines test boilerplate + 2 import names)",
     "files_with_findings": [
       "hooks/posttool-subagent-track.py",
       "hooks/tests/test_allowlist_consolidation.py"
@@ -109,9 +109,9 @@
       "hooks/lib/allowlist.py"
     ],
     "verdict_input_for_close": {
-      "close_blocking_findings": 1,
-      "close_non_blocking_findings": 1,
-      "explanation": "1 file-level finding tagged introduced_in_diff:true with blocks_close:true (dead_functions._resolve_context). 1 finding tagged introduced_in_diff:true but blocks_close:false (minor naming_violations stale class docstring — cosmetic). Per AC-2.6 default-safe rule, only the dead_functions finding may force CLOSE: NO at the close.md verdict layer; the close.md cleanliness gate evaluator should consider whether a single major dead-helper warrants CLOSE: NO or a fix-forward annotation, given the helper is non-executing and confined to a hook file."
+      "close_blocking_findings": 0,
+      "close_non_blocking_findings": 4,
+      "explanation": "Zero major/critical findings. Zero findings with both introduced_in_diff:true AND blocks_close:true. All 4 findings are minor cosmetic/documentation issues. F1 and F2 are NEW-in-diff (cycle's diff is the proximate cause) but blocks_close:false (documentation-only). F3 and F4 are pre-existing (introduced_in_diff:false) and therefore advisory-only per AC-12.1 default-safe rule. Recommended close.md verdict input: CLEAN — proceed to CLOSE: YES. The 4 minor findings may either be fixed-forward in a follow-up cleanup cycle or left as documented advisories; none threaten the D+H acceptance criteria (10/10 ACs PASS per QA). Note: the prior iteration's _resolve_context dead-function finding was already addressed — the function body has been removed; only the stale breadcrumb (F2) remains."
     }
   },
   "codex_consult": {
