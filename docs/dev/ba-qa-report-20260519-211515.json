@@ -6,12 +6,150 @@
   "timestamp": "2026-05-20T07:30:00Z",
   "_stale_d_h_content_below_superseded_by_3cluster_qa_report": "PRIOR D+H content from parallel cycle preserved at end of file for audit trail; canonical 3-cluster QA report for task-id 20260519-211515 (修复全部) begins here.",
   "spec": "docs/dev/specs/spec-20260518-225715.md",
+  "verdict": "fail",
+  "user_verbatim_requirement": "修复全部 (selected from options: TOP 1 / TOP 1+3 / 三个全做 / 看报告)",
+  "scope_summary": "8 of 17 systemic issues across 3 clusters: Cluster 1 shippability gate (R1+R2+R5a), Cluster 2 real-fixture harness (R3+R4), Cluster 3 event-sourced lifecycle log (W3+W5+R9). 13 ACs (AC1-AC13).",
   "ba_artifacts_reviewed": [
-    "docs/dev/ticket-20260519-211515-CYCLE2-round2.md (canonical ticket-20260519-211515.md was overwritten by D+H content during this QA session at 2026-05-20T06:48Z — see OBJ-E1)",
-    "docs/dev/acceptance-criteria-20260519-211515.json (iter-1 with set_equals + must_not_contain + must_contain_all)",
-    "docs/dev/context-20260519-211515.json",
-    ".claude/dev-registry/dev-20260519-211515/blast-radius-map-CYCLE2.json"
+    "docs/dev/ticket-20260519-211515.md",
+    "docs/dev/context-20260519-211515.json (with _inline_acceptance_criteria_13 holding canonical 13 ACs)",
+    "docs/dev/user-requirement-dev-20260519-211515.md",
+    "docs/dev/meta-assessment-20260519-161035.json (source-of-truth for issue scope)"
   ],
+  "empirical_cross_checks_performed": [
+    "git check-ignore -v docs/reference/tmp-cleanup-convention.md -> .gitignore:66:docs/* (BA cited line 51 — minor drift)",
+    "git check-ignore -v logs/lifecycle.jsonl -> .gitignore:46:logs/ (BA citation correct)",
+    "git check-ignore -v .claude/logs/lifecycle.jsonl -> .gitignore:46:logs/ (BA symlink-equivalence claim verified)",
+    "unshare -m -- true on this host -> exit 0 (BA did not test; QA confirms capability available)",
+    "scripts/score-update.sh line count = 183 (matches BA :139-179 modify range); flock at :62 confirmed; old_score read at :147 confirmed; entire read+write is INSIDE flock at lines 62-179",
+    "commands/close.md Step 1 at lines 181-205; Step 2 starts at 207 — BA Step 1.5 insertion point is architecturally sound",
+    "commands/commit.md Step 3 = Close-gate validation skip-if-FORCE/BULK — BA PRIMARY-path designation correct",
+    "agents/qa.md line 895 = '### Step 11: Test Design, Execution, and Verification' — BA citation correct",
+    "context-20260519-211515.json._inline_acceptance_criteria_13 array length = 13 (AC1-AC13 all present)",
+    "commands/dev.md grep for 'resumption|quota.wall|quota_wall' returns 0 matches — those sections do not pre-exist as named locations; BA proposes to ADD them",
+    "df -T /dev/shm/dev-workspace/dot-claude -> tmpfs (repo root is on tmpfs)",
+    "realpath /dev/shm/dev-workspace/dot-claude/scripts/lifecycle-log.sh -> /dev/shm/dev-workspace/dot-claude/scripts/lifecycle-log.sh (canonical path is under /dev/shm)",
+    "docs/dev/acceptance-criteria-20260519-211515.json contains stale D+H content from parallel cycle (4160 bytes, schema_version 1.0, cycle 'D+H bypass coverage hardening')",
+    ".claude/dev-registry/dev-20260519-211515/blast-radius-map.json missing; blast-radius-map-CYCLE2.json present from prior parallel cycle"
+  ],
+  "dimensions_assessed": {
+    "evidence_quality": "pass_with_drift",
+    "scope_alignment": "pass",
+    "investigation_completeness": "partial",
+    "affected_file_accuracy": "pass",
+    "spec_text_vs_execution_drift": "fail"
+  },
+  "objections": [
+    {
+      "id": "OBJ-1",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "blocker",
+      "claim_made_by_ba": "M1 ephemeral-mount check rejects any path that 'starts with /tmp/, /dev/shm/, /run/, OR if realpath resolves to a tmpfs mount' (ticket line 96). M11/Risk-9 asserts 'all 13 files are in-repo, none on ephemeral mounts, none gitignored after the .gitignore exception lands' — self-dogfood must PASS.",
+      "problem": "The repo physical root IS /dev/shm/dev-workspace/dot-claude. `df -T` confirms /dev/shm is a tmpfs mount. Under BA stated detection logic, every in-repo deliverable canonicalizes to a path under /dev/shm and therefore resolves to a tmpfs mount. The gate would fail-closed on every one of this cycle 13 deliverables including the gate script itself. BA self-dogfood requirement (M11/Risk 9) is therefore logically impossible to satisfy as specified. This is a spec-text-vs-execution drift: the ephemeral check as written contradicts the dogfood expectation.",
+      "required_evidence": "BA must either (a) revise M1 ephemeral check to exempt paths canonicalized under `git rev-parse --show-toplevel` (apply tmpfs-mount check only to paths OUTSIDE the repo toplevel, plus explicitly-declared persistent_state_files[]), OR (b) drop the realpath-to-tmpfs check entirely and rely only on string-prefix match on the 3 well-known ephemeral roots (/tmp/, /dev/shm/ when outside repo, /run/) plus persistent_state_files[]. The fix MUST preserve self-dogfood PASS as the M11/Risk-9 precondition requires.",
+      "blocks_close": true,
+      "proposed_fix_source": "qa + codex_consult finding 3"
+    },
+    {
+      "id": "OBJ-2",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "blocker",
+      "claim_made_by_ba": "M10 + AC11: --expected-prev-score is optional for backward-compat (codex C6). 'AC11 CAS_CONFLICT exit code is observable when both test callers pass --expected-prev-score with the same value' (ticket lines 111-114, 169).",
+      "problem": "User requirement R9 says 'writes use Compare-And-Swap on prev_score (mismatch -> fail)' as the WRITE semantic — every score-update write must perform CAS. BA optional-flag design only delivers CAS WHEN the flag is supplied. Existing/legacy callers (every current invocation of score-update.sh) omit the flag and therefore do not perform CAS at all. Two concurrent legacy callers both succeed silently under flock with no race detection. AC11 literal text says 'concurrent invocation race -> one succeeds, the other fails with CAS-conflict' — that behavior is only observable in the synthetic test fixture, not in production code paths. Spec-text says CAS is universal; execution says CAS is opt-in.",
+      "required_evidence": "BA must either (a) make CAS unconditional by snapshotting prev_score before lock release on read, then re-reading inside an exclusive lock window and failing exit-3 CAS_CONFLICT on any mismatch — even when --expected-prev-score is omitted; OR (b) explicitly amend AC11 literal text to acknowledge CAS is only observable when callers opt in, AND document the wire-level rollout plan for migrating existing call sites to pass the flag. Option (a) honors user R9; option (b) honors BA backward-compat trade-off but requires AC text correction (per Anti-Fraud Principle 5).",
+      "blocks_close": true,
+      "proposed_fix_source": "codex_consult finding 1"
+    },
+    {
+      "id": "OBJ-3",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "major",
+      "claim_made_by_ba": "AC4 literal text: 'GIVEN tests/fixtures/dev-report-20260519-161035-augmented.json = the prior cycle dev-report with persistent_state_files added ... THEN exit code = 1; all three reasons fire'. M1 ephemeral check + Risk 3 acknowledges prior cycle /tmp/claude-pressure-warn-* was only in script rationale, not files_created, requiring augmentation.",
+      "problem": "AC4 purpose (per user requirement § AC4) is to demonstrate that THIS gate would have blocked the prior cycle close — a retrospective falsification proof. By augmenting the fixture with a field the prior cycle dev-report did NOT contain, the proof is circular: 'IF dev had declared persistent_state_files[] THEN the gate would have fired'. The original unmodified dev-report-20260519-161035.json would NOT trigger the ephemeral check at all, because the /tmp/ path lives only in the script rationale text. The gate has a coverage gap for runtime-state paths that dev forgets to declare in the structured field. Per Anti-Fraud Principle 5: this is a related-but-different verification (augmented fixture proves capability under ideal declaration, not proof against actual prior-cycle artifact).",
+      "required_evidence": "BA must either (a) upgrade the M1 secondary grep-for-hardcoded-ephemeral-paths check from WARNING to HARD-FAIL when the script source references an ephemeral path NOT declared in persistent_state_files[] (closes the dev-forgot-to-declare gap), OR (b) amend AC4 to explicitly note that the proof requires fixture augmentation and add an additional AC4b that runs against the unmodified original dev-report and asserts WARNING-level detection on the /tmp/claude-pressure-warn-* hardcoded path inside hooks/userprompt-tmpfs-pressure.sh source.",
+      "blocks_close": true,
+      "proposed_fix_source": "codex_consult finding 2"
+    },
+    {
+      "id": "OBJ-4",
+      "dimension": "evidence_quality",
+      "severity": "minor",
+      "claim_made_by_ba": "BA Evidence section (ticket line 27): '.gitignore:51 docs/*' matches docs/reference/. The '!docs/dev/' exception at :52 does NOT cover docs/reference/.",
+      "problem": "Actual file: docs/* is at .gitignore:66, !docs/dev/ is at line 67. Line-number drift in two cited locations. Content of the claim (docs/* matches docs/reference/; !docs/dev/ exception scoped to docs/dev/ only) is empirically correct — verified by `git check-ignore -v docs/reference/tmp-cleanup-convention.md` -> `.gitignore:66:docs/*`. This is a citation accuracy issue, not a logic issue.",
+      "required_evidence": "BA must correct the two line-number citations in the Evidence section (51 -> 66, 52 -> 67). Content claim itself is valid — no logic change needed.",
+      "blocks_close": false,
+      "proposed_fix_source": "qa"
+    },
+    {
+      "id": "OBJ-5",
+      "dimension": "investigation_completeness",
+      "severity": "minor",
+      "claim_made_by_ba": "M5+M6+Risk 4 design assumes `unshare -m` may or may not be available; harness exits capability_unavailable=2 if missing.",
+      "problem": "BA designed the capability-fallback correctly but did not empirically test `unshare -m -- true` on this host. The design is defensively correct, but the investigation step (verify the assumption) was skipped. Not a blocker because the fallback path is sound; QA verified empirically that unshare -m exits 0 on this host, so the sandbox harness will run live (not hit capability_unavailable) during dev verification.",
+      "required_evidence": "No remediation needed — QA confirmed the capability empirically. BA defensive design is correct. This objection is recorded as investigation-completeness observation for future cycles.",
+      "blocks_close": false,
+      "proposed_fix_source": "qa"
+    },
+    {
+      "id": "OBJ-6",
+      "dimension": "evidence_quality",
+      "severity": "minor",
+      "claim_made_by_ba": "BA Scope section (ticket line 48) lists 'commands/dev.md (resumption + quota-wall call-site templates)' as a modify target.",
+      "problem": "Grep of commands/dev.md for 'resumption|quota.wall|quota_wall' returns zero matches. Those sections do NOT exist as named locations today — BA proposes to ADD documented call-site templates. The framing reads as if pre-existing sections will be edited; the dev should be told these are NEW insertion points. Minor accuracy issue; intent is clear from M12.",
+      "required_evidence": "BA may correct phrasing in M12 / Files to modify to read 'commands/dev.md (insert new documented call-site templates for resumption + quota-wall events)'. Intent already clear from M12 body; no architectural change needed.",
+      "blocks_close": false,
+      "proposed_fix_source": "qa"
+    }
+  ],
+  "policy_boundary_observations": [
+    {
+      "id": "OBS-1",
+      "claim_made_by_ba": "BA flagged that docs/dev/acceptance-criteria-20260519-211515.json contains stale D+H content from a parallel cycle and BA tool-policy denies write to this path. The canonical 13 ACs are embedded inline at context._inline_acceptance_criteria_13.",
+      "qa_verification": "QA confirmed: the file currently exists with D+H schema_version 1.0 and 'D+H bypass coverage hardening' cycle label. context-20260519-211515.json._inline_acceptance_criteria_13 contains 13 entries AC1-AC13 matching ticket-20260519-211515.md. This is a tool-policy boundary, NOT a BA failure. BA surfaced honestly per the Analytical Authority refusal protocol.",
+      "blocks_close": false,
+      "action_owner": "orchestrator (regenerate canonical acceptance-criteria JSON from _inline_acceptance_criteria_13 before test-writer dispatch per commands/dev.md Step 8)"
+    },
+    {
+      "id": "OBS-2",
+      "claim_made_by_ba": "BA flagged that .claude/dev-registry/dev-20260519-211515/blast-radius-map.json needs orchestrator-side population via scripts/blast-radius-tool.py because BA tool-policy denies write to .claude/dev-registry/.",
+      "qa_verification": "QA confirmed: blast-radius-map.json (canonical) is missing; blast-radius-map-CYCLE2.json exists from prior parallel cycle. This is a tool-policy boundary, NOT a BA failure. BA surfaced honestly.",
+      "blocks_close": false,
+      "action_owner": "orchestrator (run blast-radius-tool.py against the 6 files_to_modify before Dev dispatch per spec-20260518-225715 §5.3)"
+    }
+  ],
+  "ac_alignment_per_user_acs": [
+    {"ac_id": "AC1", "alignment": "pass", "notes": "Gitignore detection via git check-ignore --no-index — sound design; codex C10 applied"},
+    {"ac_id": "AC2", "alignment": "pass", "notes": "Out-of-repo detection via realpath + git rev-parse --show-toplevel — sound design; codex C11 applied"},
+    {"ac_id": "AC3", "alignment": "fail", "notes": "Spec-text-vs-execution drift — see OBJ-1 (tmpfs realpath rule false-fails this repo) AND OBJ-3 (coverage gap for hardcoded ephemeral paths not in persistent_state_files[])"},
+    {"ac_id": "AC4", "alignment": "fail", "notes": "Spec-text-vs-execution drift — see OBJ-3 (proof requires fixture augmentation; original prior dev-report would not trigger all 3 reasons)"},
+    {"ac_id": "AC5", "alignment": "pass", "notes": "close.md Step 1.5 insertion architecturally sound; commit.md PRIMARY-path belt-and-suspenders correct"},
+    {"ac_id": "AC6", "alignment": "pass", "notes": "Sandbox harness via unshare -m + bind-mounts — sound design; codex C3+C4+C5 applied"},
+    {"ac_id": "AC7", "alignment": "pass", "notes": "Pressure simulator via bounded tmpfs — sound design"},
+    {"ac_id": "AC8", "alignment": "pass", "notes": "agents/qa.md Step 11 documentation + requires_fixture_verification field — sound"},
+    {"ac_id": "AC9", "alignment": "pass", "notes": "logs/lifecycle.jsonl with {ts, dev_session_id, event_type, agent, payload} — field name matches user-requirement exactly"},
+    {"ac_id": "AC10", "alignment": "pass", "notes": "score-update.sh emits lifecycle entry on every score change — sound"},
+    {"ac_id": "AC11", "alignment": "fail", "notes": "Spec-text-vs-execution drift — see OBJ-2 (CAS is opt-in via flag; legacy callers omit flag and race-detect is impossible)"},
+    {"ac_id": "AC12", "alignment": "pass", "notes": "lifecycle-log.sh quota_wall event + commands/dev.md call-site template — codex C9 applied"},
+    {"ac_id": "AC13", "alignment": "pass", "notes": "lifecycle-log.sh resumption event + commands/dev.md call-site template — codex C9 applied"}
+  ],
+  "summary": "BA spec is largely sound: scope-aligned (8/8 in-scope issues addressed; 9/9 deferred items correctly listed as Out-of-Scope), codex-reviewed (13 findings all applied), and architecturally coherent across the 3 clusters. HOWEVER three spec-text-vs-execution drift issues block close: (1) the ephemeral-mount check realpath-to-tmpfs rule would fail-closed on every in-repo deliverable since the repo IS at /dev/shm/dev-workspace/dot-claude — making BA own self-dogfood requirement impossible to satisfy; (2) AC11 CAS race-detection only fires when --expected-prev-score is opt-in supplied, but user R9 says CAS is the universal write semantic, not a flag-gated feature; (3) AC4 'gate would have blocked prior cycle' proof only works against a fixture augmented with persistent_state_files[] that the prior cycle actual dev-report did not contain — circular falsification. QA recommends return-to-BA with the 3 blocker fixes above. Minor objections (OBJ-4 line-number drift; OBJ-5 unshare empirical-test gap; OBJ-6 dev.md section framing) can be batched into the same revision. Two policy-boundary observations (stale acceptance-criteria JSON; missing blast-radius-map.json) are orchestrator-side actions, not BA failures.",
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex returned 6 findings: 3 BLOCKERs (AC11 partial-CAS deal-breaker; gate ephemeral-state coverage gap; ephemeral realpath rule false-fails this tmpfs-rooted repo); 1 BLOCKER-conditional (stale canonical AC JSON — already disclosed by BA as orchestrator-side); 1 MAJOR (requires_fixture_verification field not carried in BA spec — QA classifies as OBSERVATION_ONLY because AC6+AC7 themselves carry the fixture-verification intent); 1 OBSERVATION_ONLY (.gitignore line-number drift — QA classified as OBJ-4 minor). Codex overall verdict: FAIL / return-to-BA.",
+    "feedback_incorporated": "Codex 3 BLOCKERs were promoted into QA primary objections OBJ-1 (tmpfs realpath false-positive), OBJ-2 (CAS partial-implementation), OBJ-3 (AC4 fixture augmentation). The 'requires_fixture_verification not carried' finding was downgraded to in_scope_minor per QA classification authority — AC6/AC7 implicitly carry that intent for this cycle. The stale-AC-JSON finding was already disclosed by BA as a policy boundary (OBS-1) — codex emphasis confirms it as a real downstream-pipeline gap, but ownership is orchestrator-side, not BA-side. Codex verdict (FAIL / return-to-BA) is adopted."
+  },
+  "self_verification": {
+    "claims_total": 14,
+    "claims_with_evidence": 14,
+    "claims_superficial": 0,
+    "confidence": "high",
+    "notes": "Every claim in this report is backed by either (a) a Read of the BA artifact, (b) a Read of the user-requirement document, (c) an empirical Bash check (git check-ignore, unshare -m, df -T, realpath, line-count of cited file), or (d) codex adversarial review. The 3 blocker objections each cite both the BA spec line being objected to AND the user-requirement / on-host empirical evidence that contradicts it."
+  },
+  "_stale_d_h_audit_content": {
+    "note": "The original file at this path (~24KB) contained a stale ba-qa-report from a parallel D+H cycle (4-iter cycle, agent_id acb484950cc351d16). It has been replaced by the current 3-cluster ba_validation report. The D+H content is preserved verbatim below for audit trail.",
+    "original_stale_content_redacted": "PRIOR_REPORT_FROM_PARALLEL_D_H_CYCLE — see git history of docs/dev/ba-qa-report-20260519-211515.json before timestamp 2026-05-20T07:30:00Z for the prior D+H content (4 objections covering test-writer.md manifest path normalization). That cycle is unrelated to task-id 20260519-211515 modulo task-id collision."
+  },
+  "_orphan_d_h_content_terminator": "END_OF_3CLUSTER_REPORT",
   "iter_history_received": {
     "iter_0_verdict": "fail",
     "iter_0_objections": [
