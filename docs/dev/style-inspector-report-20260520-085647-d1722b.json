@@ -173,42 +173,89 @@
       "disposition_rationale": "Mirroring the pre-existing test pattern is acceptable - refactoring is a separate follow-up cycle concern."
     }
   ],
-  "observations": [
+  "observations_this_round": [
+    {
+      "standard": "no-inline-code (Standard 1) - clarification only",
+      "severity": "observation_only",
+      "introduced_in_diff": true,
+      "location": "commands/commit.md:54",
+      "diff_overlap": true,
+      "absent_from_baseline": false,
+      "finding": "Codex confirmed that the inline assignment 'CLOSE_REPORT=$(bash ~/.claude/scripts/resolve-close-report.sh \"$TASK_ID\") || true' is a one-line script invocation/assignment - NOT inline bash logic under Standard 1. The '|| true' is documented error-contract handling for the helper's intentional dual-output pattern.",
+      "recommendation": "(No change required.) Logged as transparency that the inline question was considered and explicitly cleared.",
+      "applied": false,
+      "disposition_rationale": "Codex explicitly downgraded to OBSERVATION_ONLY; not a Standard 1 violation."
+    },
+    {
+      "standard": "shell-safety (NOT one of the 11 standards)",
+      "severity": "observation_only",
+      "introduced_in_diff": true,
+      "location": "scripts/resolve-close-report.sh:16",
+      "diff_overlap": true,
+      "absent_from_baseline": true,
+      "finding": "Script uses 'set -u' but not 'set -e' or 'set -o pipefail'. Codex confirmed: 'Not covered by Standards 1-11. No flag.'",
+      "recommendation": "(Out of inspector scope - functional/safety follow-up if desired.) The script's exit-code contract is explicit (echo+exit 0 on hit, echo+exit 1 on miss); the for-loop has no pipelines or compound failures that pipefail would catch. set -e would change the contract because the [ -n $candidate ] guard for the unset-CLAUDE_PROJECT_DIR case would interact unpredictably.",
+      "applied": false,
+      "disposition_rationale": "Outside the 11 enumerated style standards. Codex explicitly classified as OBSERVATION_ONLY."
+    },
+    {
+      "standard": "concise-documentation (Standard 8) - line count",
+      "severity": "observation_only",
+      "introduced_in_diff": true,
+      "location": "commands/commit.md:47-51",
+      "diff_overlap": true,
+      "absent_from_baseline": true,
+      "finding": "Prose addition is 5 lines vs the standard's brief-context guideline. Codex confirmed: 'I would not call it a concise-documentation violation, though it could be shortened if desired.'",
+      "recommendation": "(Soft, not blocking) Consider compressing to 2-3 lines if a follow-up cycle revisits Step 3. Not required for close-cleanliness.",
+      "applied": false,
+      "disposition_rationale": "Every line carries technical content (fallback ordering / exit-code semantics / variable post-condition). Codex explicitly classified as OBSERVATION_ONLY."
+    },
+    {
+      "standard": "script-output-pattern (NOT one of the 11 standards)",
+      "severity": "observation_only",
+      "introduced_in_diff": true,
+      "location": "scripts/resolve-close-report.sh:25-26 and 31-32",
+      "diff_overlap": true,
+      "absent_from_baseline": true,
+      "finding": "Script echoes a path AND exits 0 on success; echoes the fallback path AND exits 1 on miss. Caller distinguishes via exit code. Codex confirmed: 'documented in the script header and used intentionally with exit status. Not a style-standard violation.'",
+      "recommendation": "(No change required.) Header comment lines 11-14 explicitly document the dual-output contract.",
+      "applied": false,
+      "disposition_rationale": "Pattern is intentional and documented. Not a standards violation."
+    },
+    {
+      "standard": "english-only (Standard 6) - em-dash",
+      "severity": "observation_only",
+      "introduced_in_diff": true,
+      "location": "scripts/resolve-close-report.sh:30 and commands/commit.md:48",
+      "diff_overlap": true,
+      "absent_from_baseline": "partial (commit.md em-dash also appears in pre-existing prose elsewhere in the file; script line 30 is new)",
+      "finding": "Both files contain em-dashes (U+2014). Codex confirmed: 'Standard 6 only bans Chinese characters (U+4E00-U+9FFF); this is not a violation.'",
+      "recommendation": "(No change required.)",
+      "applied": false,
+      "disposition_rationale": "Em-dash is not a Chinese character. Standard 6 scope is U+4E00-U+9FFF only."
+    }
+  ],
+  "observations_carried_forward_from_prior_round": [
     {
       "standard": "documentation-accuracy (not one of the 11 critical standards)",
       "severity": "observation_only",
-      "introduced_in_diff": false,
-      "location": "hooks/tests/test_allowlist_consolidation.py:113",
-      "diff_overlap": false,
-      "absent_from_baseline": false,
-      "finding": "TestReadGrant class docstring still says 'Unit tests for read_grant (public API, exact_or_substr semantics).' but this cycle changed read_grant's semantics to exact_only (allowlist.py:149). The docstring is at line 113 which is OUTSIDE the diff's changed-line range (per AC-2.6 line-level rule, this is `introduced_in_diff: false`). However, the new tests at lines 155-184 within the same class enforce exact_only semantics, making the class-level docstring inaccurate.",
-      "recommendation": "(Soft) Update class docstring at line 113 to 'Unit tests for read_grant (public API, exact_only literal semantics).' Logged for transparency; does NOT block close cleanliness per AC-2.6.",
-      "applied": false,
-      "disposition_rationale": "Not a violation of any of the 11 enumerated standards. AC-2.6 line-level rule: line 113 is outside diff-overlap → introduced_in_diff is false → cannot be flagged as cycle-introduced. Codex flagged this as 'documentation accuracy miss' but explicitly noted it is not one of the 11 critical standards."
+      "location": "hooks/tests/test_allowlist_consolidation.py:113 (file unchanged this round)",
+      "finding": "TestReadGrant class docstring still says 'exact_or_substr semantics' but cycle 20260519-211515 changed read_grant to exact_only. Outside diff-overlap line range -> introduced_in_diff=false per AC-2.6.",
+      "disposition_rationale": "Not a violation of any of the 11 enumerated standards. Logged for transparency only."
     },
     {
       "standard": "exception-handling (functional risk, NOT a style standard)",
       "severity": "observation_only",
-      "introduced_in_diff": false,
-      "location": "hooks/posttool-subagent-track.py:_try_load_contract (lines 279-287, pre-existing)",
-      "diff_overlap": false,
-      "absent_from_baseline": false,
-      "finding": "Codex raised that broad `except Exception: return None` in _try_load_contract is mostly pre-existing (not introduced by this cycle), but the cycle's new contract-presence-first routing now BRANCHES on the contract load outcome — meaning a load error (vs a clean absent contract) falls through to the legacy path with no diagnostic. This is a FUNCTIONAL risk note, not a style/cleanliness violation. The pre-diff baseline already had this same exception-swallowing behavior — the routing change merely makes the failure mode more visible.",
-      "recommendation": "(Out of scope for inspector — file as functional follow-up.) Consider distinguishing 'absent contract' (None from clean miss) vs 'load error' (Exception path) and no-writing on load error rather than falling through to legacy. Not part of any of the 11 style standards.",
-      "applied": false,
-      "disposition_rationale": "Pre-existing code shape; AC-2.6 default-safe rule: line range is outside diff-overlap. Inspector scope is style standards 1-11; functional exception-handling concerns are QA territory. Logged for orchestrator awareness only."
+      "location": "hooks/posttool-subagent-track.py:_try_load_contract (lines 279-287, pre-existing; file unchanged this round)",
+      "finding": "Broad 'except Exception: return None' in _try_load_contract is pre-existing baseline; cycle's new contract-presence-first routing makes the failure mode more visible.",
+      "disposition_rationale": "Pre-existing code shape; outside diff-overlap; functional concern not in the 11 style standards. QA territory."
     },
     {
-      "standard": "meaningful-naming (Standard 5) — name length",
+      "standard": "meaningful-naming (Standard 5) - name length",
       "severity": "observation_only",
-      "introduced_in_diff": true,
-      "location": "hooks/posttool-subagent-track.py:153 — `_find_earliest_unflipped_matching_step`",
-      "diff_overlap": true,
-      "absent_from_baseline": true,
-      "finding": "Codex initially raised the long helper name as a possible naming concern, then explicitly downgraded to OBSERVATION_ONLY: 'long but precise; do not flag it as a blocker.' Recorded here for transparency.",
-      "recommendation": "(No change required.) The name precisely encodes the helper's contract (earliest + unflipped + matching + step). Standard 5 forbids generic enhancement words; long-but-precise verb_adj_phrase names are aligned with the rule's intent, not a violation.",
-      "applied": false,
-      "disposition_rationale": "Explicitly downgraded by codex; not a Standard 5 violation."
+      "location": "hooks/posttool-subagent-track.py:153 '_find_earliest_unflipped_matching_step' (file unchanged this round)",
+      "finding": "Codex explicitly downgraded the long helper name from possible naming concern to OBSERVATION_ONLY: 'long but precise; do not flag it as a blocker.'",
+      "disposition_rationale": "Not a Standard 5 violation."
     }
   ],
   "verdict": {
