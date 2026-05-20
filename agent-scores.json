@@ -4,7 +4,7 @@
   "global": {
     "agents": {
       "ba": {
-        "score": 99,
+        "score": 100,
         "rank": "宗师级",
         "history": [
           {
@@ -158,6 +158,14 @@
             "old_score": 96,
             "new_score": 99,
             "note": "20260519-211515 9-item retrospective"
+          },
+          {
+            "ts": "2026-05-20T19:34:36Z",
+            "event": "close_success_qa_pass",
+            "delta": 8,
+            "old_score": 99,
+            "new_score": 100,
+            "note": "redev-20260520-pipelineopt"
           }
         ]
       },
@@ -316,12 +324,20 @@
             "old_score": 100,
             "new_score": 100,
             "note": "20260519-211515 9-item retrospective"
+          },
+          {
+            "ts": "2026-05-20T19:34:36Z",
+            "event": "close_success_qa_pass",
+            "delta": 15,
+            "old_score": 100,
+            "new_score": 100,
+            "note": "redev-20260520-pipelineopt"
           }
         ]
       },
       "qa": {
-        "score": 38,
-        "rank": "初级工匠",
+        "score": 46,
+        "rank": "熟练工匠",
         "history": [
           {
             "ts": "2026-05-19T17:15:08Z",
@@ -434,6 +450,14 @@
             "old_score": 30,
             "new_score": 38,
             "note": "20260520-081129"
+          },
+          {
+            "ts": "2026-05-20T19:34:36Z",
+            "event": "close_success_qa_pass",
+            "delta": 8,
+            "old_score": 38,
+            "new_score": 46,
+            "note": "redev-20260520-pipelineopt"
           }
         ]
       },
