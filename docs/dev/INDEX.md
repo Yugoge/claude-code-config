@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-20T11:18:36Z*
-**Total entries**: 301
+*Last updated: 2026-05-20T14:08:27Z*
+**Total entries**: 302
 **Convention**: kebab
 
 ## Tree
@@ -22,9 +22,9 @@ dev/
 │   ├── `spec-20260518-225715.md` - Spec: Dev Harness 扩展计划 — 工分系统、Test-Writer、Blast Radius、Executable AC、Canary
 │   └── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
 ├── `acceptance-criteria-20260519-132417.json` - json config
-├── `acceptance-criteria-20260519-211515-CYCLE2-iter1.json` - json config
-├── `acceptance-criteria-20260519-211515-CYCLE2.json` - json config
-├── `acceptance-criteria-20260519-211515.json` - json config
+├── `acceptance-criteria-20260519-211515-7faae4.json` - json config
+├── `acceptance-criteria-20260519-211515-CYCLE2-7faae4.json` - json config
+├── `acceptance-criteria-20260519-211515-CYCLE2-iter1-7faae4.json` - json config
 ├── `acceptance-criteria-20260520-085647-d1722b.json` - json config
 ├── `architect-report-20260517-155838.json` - json config
 ├── `architect-report-dev-20260517-215114.json` - json config
@@ -47,10 +47,10 @@ dev/
 ├── `ba-qa-report-20260519-175339-iter2.json` - json config
 ├── `ba-qa-report-20260519-175339-iter3.json` - json config
 ├── `ba-qa-report-20260519-175339.json` - json config
-├── `ba-qa-report-20260519-211515-CYCLE2-iter1.json` - json config
+├── `ba-qa-report-20260519-211515-7faae4.json` - json config
+├── `ba-qa-report-20260519-211515-CYCLE2-iter1-7faae4.json` - json config
 ├── `ba-qa-report-20260519-211515-iter2.json` - json config
 ├── `ba-qa-report-20260519-211515-iter3.json` - json config
-├── `ba-qa-report-20260519-211515.json` - json config
 ├── `ba-qa-report-20260520-085647-d1722b-iter2.json` - json config
 ├── `ba-qa-report-20260520-085647-d1722b-iter3.json` - json config
 ├── `ba-qa-report-20260520-085647-d1722b.json` - json config
@@ -69,6 +69,7 @@ dev/
 ├── `cleanliness-inspector-report-20260519-151734.json` - json config
 ├── `cleanliness-inspector-report-20260519-161035.json` - json config
 ├── `cleanliness-inspector-report-20260519-175339.json` - json config
+├── `cleanliness-inspector-report-20260519-211515-7faae4.json` - json config
 ├── `cleanliness-inspector-report-20260519-211515.json` - json config
 ├── `cleanliness-inspector-report-20260520-085647-d1722b.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
@@ -91,7 +92,7 @@ dev/
 ├── `close-report-20260519-151734.md` - Close Debate Report
 ├── `close-report-20260519-161035.md` - Close Debate Report — 20260519-161035
 ├── `close-report-20260519-175339.md` - Close Report — 20260519-175339
-├── `close-report-20260519-211515.md` - Close Debate Report
+├── `close-report-20260519-211515-7faae4.md` - Close Debate Report
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
@@ -109,8 +110,8 @@ dev/
 ├── `completion-20260519-151734.md` - Development Completion Report — 20260519-151734
 ├── `completion-20260519-161035.md` - Development Completion Report — 20260519-161035
 ├── `completion-20260519-175339.md` - Development Completion Report — 20260519-175339
+├── `completion-20260519-211515-7faae4.md` - Development Completion Report — 20260519-211515
 ├── `completion-20260519-211515-redev9items.md` - Development Completion Report — 20260519-211515 (redev 9-item retrospective)
-├── `completion-20260519-211515.md` - Development Completion Report — 20260519-211515
 ├── `completion-20260520-085647-d1722b.md` - Development Completion Report — 20260520-085647-d1722b
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
@@ -131,9 +132,9 @@ dev/
 ├── `context-20260519-151734.json` - json config
 ├── `context-20260519-161035.json` - json config
 ├── `context-20260519-175339.json` - json config
-├── `context-20260519-211515-CYCLE2-round2.json` - json config
+├── `context-20260519-211515-CYCLE2-7faae4.json` - json config
+├── `context-20260519-211515-CYCLE2-round2-7faae4.json` - json config
 ├── `context-20260519-211515-CYCLE2-round3.json` - json config
-├── `context-20260519-211515-CYCLE2.json` - json config
 ├── `context-20260519-211515.json` - json config
 ├── `context-20260520-085647-d1722b.json` - json config
 ├── `context-dev-20260107-091716.json` - json config
@@ -181,8 +182,8 @@ dev/
 ├── `dev-report-20260519-151734.json` - json config
 ├── `dev-report-20260519-161035.json` - json config
 ├── `dev-report-20260519-175339.json` - json config
+├── `dev-report-20260519-211515-7faae4.json` - json config
 ├── `dev-report-20260519-211515-iter3.json` - json config
-├── `dev-report-20260519-211515.json` - json config
 ├── `dev-report-20260520-085647-d1722b.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
@@ -208,7 +209,7 @@ dev/
 ├── `prompt-inspector-report-20260519-151734.json` - json config
 ├── `prompt-inspector-report-20260519-161035.json` - json config
 ├── `prompt-inspector-report-20260519-175339.json` - json config
-├── `prompt-inspector-report-20260519-211515.json` - json config
+├── `prompt-inspector-report-20260519-211515-7faae4.json` - json config
 ├── `prompt-inspector-report-20260520-085647-d1722b.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
@@ -247,8 +248,8 @@ dev/
 ├── `qa-report-20260519-151734.json` - json config
 ├── `qa-report-20260519-161035.json` - json config
 ├── `qa-report-20260519-175339.json` - json config
+├── `qa-report-20260519-211515-7faae4.json` - json config
 ├── `qa-report-20260519-211515-final.json` - json config
-├── `qa-report-20260519-211515.json` - json config
 ├── `qa-report-20260520-085647-d1722b.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
 ├── `qa-report-dev-20260107-100221.json` - json config
@@ -275,7 +276,7 @@ dev/
 ├── `style-inspector-report-20260519-151734.json` - json config
 ├── `style-inspector-report-20260519-161035.json` - json config
 ├── `style-inspector-report-20260519-175339.json` - json config
-├── `style-inspector-report-20260519-211515.json` - json config
+├── `style-inspector-report-20260519-211515-7faae4.json` - json config
 ├── `style-inspector-report-20260520-085647-d1722b.json` - json config
 ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
@@ -294,12 +295,12 @@ dev/
 ├── `ticket-20260519-151734.md` - BA Specification: Fix /do and /allow Bypass Coverage in PreToolUse Hooks
 ├── `ticket-20260519-161035.md` - BA Specification: Layered prevention of tmp/ramdisk pressure recurrence
 ├── `ticket-20260519-175339.md` - BA Specification: Chrome CDP Page-Target Deadlock — Wrapper Lock + Stale-Page Cleanup + Cron Surgical Edit
-├── `ticket-20260519-211515-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
+├── `ticket-20260519-211515-CYCLE2-7faae4.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
+├── `ticket-20260519-211515-CYCLE2-round2-7faae4.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-20260519-211515-CYCLE2-round3.md` - BA Specification: 3-Cluster Harness Fixes (Shippability Gate / Real-Fixture Verification / Event-Sourced Lifecycle Log)
-├── `ticket-20260519-211515-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-20260519-211515.md` - BA Specification: Implement 9 retrospective remediation items from cycle 20260519-175339
 ├── `ticket-20260520-085647-d1722b.md` - BA Specification: Close /allow grant leakage (D) and PostToolUse:Agent tracker race (H) — TRANSFERRED
-├── `ticket-20260520-allow-dh.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H)
+├── `ticket-20260520-allow-dh-7faae4.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H)
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
 ├── `user-requirement-dev-20260518-214050.md` - No description
@@ -307,7 +308,7 @@ dev/
 ├── `user-requirement-dev-20260519-151734.md` - No description
 ├── `user-requirement-dev-20260519-161035.md` - User Requirement — dev-20260519-161035
 ├── `user-requirement-dev-20260519-175339.md` - No description
-└── `user-requirement-dev-20260519-211515.md` - User Requirement — dev-20260519-211515
+└── `user-requirement-dev-20260519-211515-7faae4.md` - User Requirement — dev-20260519-211515
 ```
 
 ---
