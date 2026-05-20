@@ -241,7 +241,7 @@
     },
     {
       "id": "AC-07",
-      "ac_uid": "PENDING_RECOMPUTE",
+      "ac_uid": "3619ae6db161fb50",
       "type": "hook",
       "given": "dev has removed the three targets from the git index while preserving working-tree files — canonical form `git rm -r --cached -- agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/` (the `-r` flag is REQUIRED because `.claude/specs/spec-20260518-225715/` is a directory). This is derived-work cleanup necessary because M-P2.3 .gitignore is a no-op for already-tracked paths. Equivalent index operations (e.g. `git update-index --force-remove`) that achieve the same end state are acceptable — AC verifies end state, not literal command",
       "when": "(a) `git ls-files agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/` is run; (b) for each path P enumerated by `git ls-tree -r HEAD --name-only -- agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/`, the working-tree path P is queried for EXISTENCE only",
