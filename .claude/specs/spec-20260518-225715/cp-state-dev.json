@@ -3,10 +3,10 @@
   "agent_type": "dev",
   "instance_id": null,
   "generation": 1,
-  "agent_id": "spec-subagent-dev-20260519",
-  "is_running": false,
-  "checked_in_at": "2026-05-19T10:55:59Z",
-  "checked_out_at": "2026-05-19T16:29:07Z",
+  "agent_id": "a52101522e2cea6f4",
+  "is_running": true,
+  "checked_in_at": "2026-05-20T07:45:40Z",
+  "checked_out_at": null,
   "checkpoints": [
     {
       "id": "cp-01",
