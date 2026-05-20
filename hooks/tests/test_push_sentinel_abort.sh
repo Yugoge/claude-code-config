@@ -149,8 +149,36 @@ fi
 _assert_zero_push_invocations "fixture 3 (FAIL sentinel)" || FAILS=$((FAILS+1))
 rm -f "$SENT_PATH" 2>/dev/null
 
+# ── Fixture 4 (CF-3 regression): PASS sentinel with missing binding fields ──
+_reset_counter
+SENT_PATH=$(_write_sentinel PASS 0 missing_fields)
+set +e
+PATH="$MOCK_BIN:$PATH" CLAUDE_PUSH_REQUEST_ID=unit-test-req bash "$PUSH_SH" origin --auto >"$WORKDIR/out4" 2>&1
+status4=$?
+set -e
+if [ "$status4" -eq 0 ]; then
+  echo "FAIL: fixture 4 (PASS sentinel missing binding fields) — push.sh exited 0; CF-3 not fixed" >&2
+  FAILS=$((FAILS+1))
+fi
+_assert_zero_push_invocations "fixture 4 (missing binding fields)" || FAILS=$((FAILS+1))
+rm -f "$SENT_PATH" 2>/dev/null
+
+# ── Fixture 5 (CF-3 regression): PASS sentinel with bound head mismatch ──
+_reset_counter
+SENT_PATH=$(_write_sentinel PASS 0 full)  # head=deadbeef intentionally != real HEAD
+set +e
+PATH="$MOCK_BIN:$PATH" CLAUDE_PUSH_REQUEST_ID=unit-test-req bash "$PUSH_SH" origin --auto >"$WORKDIR/out5" 2>&1
+status5=$?
+set -e
+if [ "$status5" -eq 0 ]; then
+  echo "FAIL: fixture 5 (head mismatch) — push.sh exited 0; CF-3 binding-mismatch not enforced" >&2
+  FAILS=$((FAILS+1))
+fi
+_assert_zero_push_invocations "fixture 5 (head mismatch)" || FAILS=$((FAILS+1))
+rm -f "$SENT_PATH" 2>/dev/null
+
 if [ "$FAILS" -eq 0 ]; then
-  echo "ALL 3 FIXTURES PASS: expired sentinel, FAIL sentinel, missing sentinel — mock git push invocation count zero in each"
+  echo "ALL 5 FIXTURES PASS: missing/expired/FAIL sentinel + CF-3 missing-fields + CF-3 head-mismatch — mock git invocation count zero in each"
   exit 0
 else
   echo "$FAILS fixture(s) failed" >&2
