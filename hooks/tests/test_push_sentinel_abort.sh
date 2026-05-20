@@ -59,8 +59,11 @@ REAL_GIT=$(command -v git)
 export REAL_GIT INVOCATION_COUNT_FILE
 
 # Helper: write a Chain-B sentinel with controlled content + mtime.
+# Note: head bound to "deadbeef" deliberately mismatches git HEAD so we test
+# the head_mismatch branch with the PASS sentinel later; the three core
+# fixtures (missing / expired / FAIL) do not reach the binding check.
 _write_sentinel() {
-  local result="$1" ; local age_seconds="${2:-0}"
+  local result="$1" ; local age_seconds="${2:-0}" ; local body_kind="${3:-full}"
   local repo_hash
   repo_hash=$(python3 -c "import hashlib,os; print(hashlib.sha256(os.path.realpath('${REPO_ROOT}').encode()).hexdigest()[:16])")
   local branch_raw
@@ -70,10 +73,15 @@ _write_sentinel() {
   local sdir="/tmp/agentic-commit/push-analyst/${repo_hash}"
   mkdir -p "$sdir"
   local spath="${sdir}/${branch}-chainB.validated.sentinel.json"
-  python3 -c "
-import json
-json.dump({'result':'$result','request_id':'unit-test-req','head':'deadbeef','branch':'${branch_raw}','remote':'origin'}, open('${spath}','w'))
+  if [ "$body_kind" = "missing_fields" ]; then
+    # CF-3 regression: result-only sentinel must NOT pass.
+    printf '{"result":"%s"}' "$result" > "$spath"
+  else
+    BRANCH_RAW="$branch_raw" RESULT_VAL="$result" SPATH="$spath" python3 -c "
+import json, os
+json.dump({'result':os.environ['RESULT_VAL'],'request_id':'unit-test-req','head':'deadbeef','branch':os.environ['BRANCH_RAW'],'remote':'origin'}, open(os.environ['SPATH'],'w'))
 "
+  fi
   if [ "$age_seconds" -gt 0 ]; then
     # Backdate the mtime to make the sentinel stale.
     touch -d "@$(($(date -u +%s) - age_seconds))" "$spath"
