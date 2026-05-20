@@ -70,7 +70,9 @@
       "proposed_fix": "Extend AC-02 check.checks[] to include a third entry: {file: 'commands/dev.md', regex: 'test-writer', must_match: true} scoped near line 134-136. Update ticket M-P1.1b to mention this third site. Dev must add 'test-writer' to the fallback enumeration loop."
     },
     {
-      "id": "OBJ-03",
+      "id": "OBJ-03-LEGACY",
+      "_doc": "RESOLVED in iter-1. Preserved for audit trail.",
+      "iter1_resolution": "RESOLVED — paragraph-scoped per block; backtick-aware regex.",
       "dimension": "spec_text_vs_execution_drift",
       "severity": "major",
       "ac_affected": "AC-03",
