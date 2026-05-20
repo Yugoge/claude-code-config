@@ -4,7 +4,7 @@
   "global": {
     "agents": {
       "ba": {
-        "score": 100,
+        "score": 95,
         "rank": "宗师级",
         "history": [
           {
@@ -198,11 +198,19 @@
             "old_score": 93,
             "new_score": 100,
             "note": "20260519-211515 Std6 fix landed Round 2 YES"
+          },
+          {
+            "ts": "2026-05-20T21:17:54Z",
+            "event": "close_fail_qa_pass",
+            "delta": -5,
+            "old_score": 100,
+            "new_score": 95,
+            "note": "20260520-085647-d1722b"
           }
         ]
       },
       "dev": {
-        "score": 100,
+        "score": 90,
         "rank": "宗师级",
         "history": [
           {
@@ -396,12 +404,20 @@
             "old_score": 86,
             "new_score": 100,
             "note": "20260519-211515 Std6 fix landed Round 2 YES"
+          },
+          {
+            "ts": "2026-05-20T21:17:54Z",
+            "event": "close_fail_qa_pass",
+            "delta": -10,
+            "old_score": 100,
+            "new_score": 90,
+            "note": "20260520-085647-d1722b"
           }
         ]
       },
       "qa": {
-        "score": 28,
-        "rank": "初级工匠",
+        "score": 16,
+        "rank": "见习学徒",
         "history": [
           {
             "ts": "2026-05-19T17:15:08Z",
@@ -546,6 +562,14 @@
             "old_score": 22,
             "new_score": 28,
             "note": "20260519-211515 Std6 fix landed Round 2 YES"
+          },
+          {
+            "ts": "2026-05-20T21:17:54Z",
+            "event": "close_fail_qa_pass",
+            "delta": -12,
+            "old_score": 28,
+            "new_score": 16,
+            "note": "20260520-085647-d1722b"
           }
         ]
       },
