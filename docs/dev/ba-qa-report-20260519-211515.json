@@ -289,14 +289,14 @@
     "orchestrator_must_resolve": "OBJ-E1: permanently resolve task-id collision between Cycle 2 and D+H; restore Cycle 2 ticket to canonical docs/dev/ticket-20260519-211515.md path; lock canonical path against D+H writes",
     "no_dispatch_recommended_until": "OBJ-A1 + OBJ-B1 + OBJ-C1 + OBJ-E1 all resolved; QA re-validates iter-2"
   },
-  "codex_consult": {
+  "_stale_d_h_codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex sustained ALL 4 QA concerns: OBJ-A1 (BLOCKER — positive check gameable, only 'root index' is net-new), OBJ-B1 (MAJOR — ticket prose missing 1 of 2 qa.md must_not_contain literals), OBJ-C1 (MAJOR — ticket prose for commands/dev.md too vague vs AC JSON), OBJ-E1 (BLOCKER — canonical ticket path is wrong/unrelated D+H content). Codex independently classified OBS-D1 as OBSERVATION_ONLY (not internally contradictory — negative removes old wording, positive forces new wording to reappear). Codex final verdict: FAIL / return to BA for iter-2.",
-    "feedback_incorporated": "All 4 codex-confirmed objections included in this report with PROPOSED_FIX directly informed by codex prescription. Severities reflect codex agreement (2 BLOCKER, 2 MAJOR). Codex's proposed prose for OBJ-A1, OBJ-B1, OBJ-C1 incorporated verbatim into proposed_fix fields.",
+    "feedback_summary": "(STALE — see canonical codex_consult above for 3-cluster codex review)",
+    "feedback_incorporated": "(STALE)",
     "codex_output_path": "/var/tmp/codex-outputs/codex-output-3766365-1779259731.txt"
   },
-  "self_verification": {
+  "_stale_d_h_self_verification": {
     "claims_total": 16,
     "claims_with_evidence": 16,
     "claims_superficial": 0,
