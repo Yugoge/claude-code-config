@@ -47,8 +47,11 @@ def _match_loaded_grant(
         grant: decoded JSON grant dict (keys: pattern, is_regex)
         candidates: list of strings to match against (e.g. subcommands,
                     tool_name, full command)
-        literal_policy: "exact_or_substr" (pattern==cand or pattern in cand)
-                        or "substr_only" (pattern in cand only)
+        literal_policy: "exact_or_substr" (pattern==cand or pattern in cand),
+                        "substr_only" (pattern in cand only), or
+                        "exact_only" (pattern==cand only — used by PreTool
+                        read_grant to mirror PostTool consume_grant_for_posttool
+                        Branch 3 exact-only semantics)
         regex_timeout: SIGALRM timeout in seconds for regex match; None = no
                        timeout
 
