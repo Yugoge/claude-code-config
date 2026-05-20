@@ -1,8 +1,9 @@
 {
   "request_id": "20260519-211515",
   "task_id": "20260519-211515",
-  "timestamp": "2026-05-20T05:30:00Z",
-  "_ba_iteration": "0 (fresh dispatch for new 9-item retrospective scope; prior BA-QA iteration history under obsolete scopes — including 3-cluster harness-fix and D+H bugfix work — is discarded per user directive 禁止加载任何非本cycle的内容)",
+  "timestamp": "2026-05-20T05:30:00Z (iter-0) — updated 2026-05-20T08:50:00Z (iter-2 recipe tightening)",
+  "_ba_iteration": "2 (recipe tightening only — no scope/design change; QA iter-1 raised 10 spec_text_vs_execution_drift objections, all addressed; codex iter-2 raised 14 sub-findings, 12 PROPOSED_FIX applied + 2 OBSERVATION_ONLY logged)",
+  "_test_writer_skip_reason": "Meta-grep cycle. All 10 ACs verify via file-content-grep / awk / jq / Python-AST invariants against existing markdown / JSON / hooks (plus one focused bash/pytest unit test that dev authors as part of AC1 V5, NOT a test-writer-generated skeleton). There is no production code surface needing test-writer-generated pytest skeletons. Furthermore, docs/dev/acceptance-criteria-20260519-211515.json contains STALE 07:05 D+H cycle content blocked from regeneration until R7 lands and ba role's allowed_write_path_prefixes includes docs/dev/acceptance-criteria-. Test-writer dispatched against the stale ACs would generate wrong-cycle skeletons. dev.md Step 8 MUST treat any non-empty _test_writer_skip_reason as an explicit SKIP path for test-writer dispatch and route the dev role directly. V_TW verifier (see BA ticket Test-Writer Routing Disposition section) enforces this; R3 reminder cycle absorbs the one-line dev.md addition if not already present.",
   "complexity_tier": "COMPLEX",
   "_complexity_tier_doc": "COMPLEX — architectural: R2 redesigns the /allow grant philosophy (pattern-string → structured sentinel JSON), R7 reconciles tool-policy contract across 9 role entries with a policy_version bump. Both changes affect every subsequent cycle. BA agent spec Tier Assessment 'COMPLEX' is the right tier ('high blast radius, architectural, or user-flagged risk'). A prior linter adjusted this to STANDARD; restored to COMPLEX because R2 + R7 cross the architectural threshold.",
   "risk_level": "high",
