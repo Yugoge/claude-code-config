@@ -401,11 +401,20 @@ def _enforce(stdin_data: dict, contract: dict, state: dict,
 # Main
 # ---------------------------------------------------------------------------
 
-def _resolve_context(session_id: str):
-    """Load state + canonical and locate the in-progress subagent_call step.
+def _resolve_base_context(session_id: str):
+    """Load state + canonical + ip_index without gating on subagent_call metadata.
 
-    Returns tuple(state, last_todos, canonical, ip_index, bm_path) on a
-    valid in-progress subagent_call step; otherwise None.
+    Cycle 20260519-211515 Item H: replaces the previous
+    `_resolve_context` gate-and-bail pattern for the legacy path. Case A
+    (subagent_type non-empty, typed lookup) MUST NOT bail when the current
+    in_progress step lacks subagent_call metadata — that is exactly the
+    parallel-dispatch race shape where the bookmark is stale by one step.
+
+    Returns tuple(state, last_todos, canonical, ip_index, bm_path) on
+    success (bm exists, last_todos non-empty). ip_index may be None when
+    no in_progress step exists OR when multiple in_progress steps were
+    detected by the guarded _current_in_progress_index. Returns None when
+    bookmark is unreadable / shape is invalid.
     """
     state, bm_path = _load_workflow_bookmark(session_id)
     if state is None:
@@ -416,6 +425,20 @@ def _resolve_context(session_id: str):
         return None
     canonical = run_todo_script(cmd_name) or []
     ip_index = _current_in_progress_index(state)
+    return state, last_todos, canonical, ip_index, bm_path
+
+
+def _resolve_context(session_id: str):
+    """Path A (contract / overnight) resolver — preserves prior semantics.
+
+    Identical to the pre-cycle-20260519-211515 behavior: requires a single
+    valid in_progress index AND that canonical step has subagent_call
+    metadata. Returns None otherwise.
+    """
+    base = _resolve_base_context(session_id)
+    if base is None:
+        return None
+    state, last_todos, canonical, ip_index, bm_path = base
     if ip_index is None:
         return None
     if not _step_has_subagent_call(canonical, ip_index):
@@ -431,25 +454,99 @@ def _emit_legacy_tracked(last_todos: list, ip_index: int) -> None:
           f'subagent call recorded.')
 
 
+def _extract_subagent_type(stdin_data: dict) -> str:
+    """Extract and normalize stdin.tool_input.subagent_type.
+
+    Returns lower-cased, stripped string; empty string if absent / wrong type.
+    """
+    ti = stdin_data.get('tool_input') if isinstance(stdin_data, dict) else None
+    if not isinstance(ti, dict):
+        return ''
+    val = ti.get('subagent_type', '')
+    if not isinstance(val, str):
+        return ''
+    return val.strip().lower()
+
+
 def _main() -> None:
     stdin_data, session_id, agent_prompt = _parse_stdin()
-    ctx = _resolve_context(session_id)
-    if ctx is None:
-        sys.exit(0)
-    state, last_todos, canonical, ip_index, bm_path = ctx
 
+    # Path A (contract present — /dev-overnight): preserve prior semantics.
+    # Resolve via the stricter _resolve_context which requires a single
+    # in_progress step with subagent_call metadata.
+    ctx = _resolve_context(session_id)
+    if ctx is not None:
+        state, last_todos, canonical, ip_index, bm_path = ctx
+        _check_role_match(_get_expected_type(canonical, ip_index),
+                          agent_prompt, ip_index)
+        contract = _try_load_contract(session_id, state)
+        if contract is not None:
+            step = _current_step_label(state)
+            _enforce(stdin_data, contract, state, bm_path, step)
+            sys.exit(0)
+        # Contract absent: Path B serial-dispatch legacy write (AC-H2, AC-H3a).
+        # ip_index is already gated as a single valid anchor + has subagent_call.
+        subagent_type = _extract_subagent_type(stdin_data)
+        if subagent_type:
+            # Case A: typed lookup wins over Case B legacy when subagent_type
+            # is non-empty — even if the current in_progress step happens to
+            # have matching subagent_call metadata. This routes serial
+            # dispatch that includes subagent_type through the same window
+            # as parallel dispatch; AC-H2 is preserved because the window
+            # start = ip_index will find the same target on serial flows.
+            target = _find_earliest_unflipped_matching_step(
+                canonical, state, subagent_type, ip_index,
+            )
+            if target is not None and isinstance(target, int):
+                _record_subagent_call_legacy(bm_path, str(target))
+                _emit_legacy_tracked(last_todos, target)
+            # else: typed miss within K=3 window — exit 0 no-write (AC-H3b sub-case 2)
+            sys.exit(0)
+        # Case B (subagent_type absent): legacy write (AC-H3a).
+        if isinstance(ip_index, int):
+            _record_subagent_call_legacy(bm_path, str(ip_index))
+            _emit_legacy_tracked(last_todos, ip_index)
+        sys.exit(0)
+
+    # Path A's stricter _resolve_context returned None. Try the broader
+    # _resolve_base_context for Case A (typed lookup is permitted even when
+    # the current in_progress step lacks subagent_call metadata — that is
+    # exactly the parallel TodoWrite+Agent race shape).
+    base = _resolve_base_context(session_id)
+    if base is None:
+        sys.exit(0)
+    state, last_todos, canonical, ip_index, bm_path = base
+
+    subagent_type = _extract_subagent_type(stdin_data)
+    if subagent_type:
+        # Case A: subagent_type non-empty. Gated on single valid in_progress
+        # anchor. Helper returns None when ip_index is None (no anchor / multi)
+        # OR when no unflipped matching step in K=3 window — all AC-H3b cases.
+        target = _find_earliest_unflipped_matching_step(
+            canonical, state, subagent_type, ip_index,
+        )
+        if target is not None and isinstance(target, int):
+            _check_role_match(_get_expected_type(canonical, target),
+                              agent_prompt, target)
+            _record_subagent_call_legacy(bm_path, str(target))
+            _emit_legacy_tracked(last_todos, target)
+        # DO NOT fall through to Case B — when subagent_type is non-empty
+        # and typed lookup misses, exit 0 no-write (AC-H3b mandate).
+        sys.exit(0)
+
+    # Case B: subagent_type absent. Existing legacy chain: requires a
+    # single valid in_progress anchor AND that step has subagent_call.
+    # _resolve_base_context did not enforce subagent_call gate; reapply it
+    # here for Case B parity with AC-H3a.
+    if ip_index is None:
+        sys.exit(0)  # AC-H3b sub-case 1: legacy None
+    if not _step_has_subagent_call(canonical, ip_index):
+        sys.exit(0)  # AC-H3b sub-case 1: in_progress lacks subagent_call
     _check_role_match(_get_expected_type(canonical, ip_index),
                       agent_prompt, ip_index)
-
-    contract = _try_load_contract(session_id, state)
-    step = _current_step_label(state)
-
-    if contract is None:
+    if isinstance(ip_index, int):
         _record_subagent_call_legacy(bm_path, str(ip_index))
         _emit_legacy_tracked(last_todos, ip_index)
-        sys.exit(0)
-
-    _enforce(stdin_data, contract, state, bm_path, step)
     sys.exit(0)
 
 
