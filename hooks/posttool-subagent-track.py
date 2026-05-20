@@ -437,24 +437,9 @@ def _resolve_base_context(session_id: str):
     return state, last_todos, canonical, ip_index, bm_path
 
 
-def _resolve_context(session_id: str):
-    """Path A (contract / overnight) resolver — preserves prior semantics.
-
-    Identical to the pre-cycle-20260519-211515 behavior: requires a single
-    valid in_progress index AND that canonical step has subagent_call
-    metadata. Returns None otherwise.
-    """
-    base = _resolve_base_context(session_id)
-    if base is None:
-        return None
-    state, last_todos, canonical, ip_index, bm_path = base
-    if ip_index is None:
-        return None
-    if not _step_has_subagent_call(canonical, ip_index):
-        return None
-    return state, last_todos, canonical, ip_index, bm_path
-
-
+# NOTE: `_resolve_context` removed by cycle 20260519-211515 close cleanup
+# (cleanliness-inspector finding: dead function — H restructure inlined the
+# contract gate into `_main`, leaving this helper without callers).
 def _emit_legacy_tracked(last_todos: list, ip_index: int) -> None:
     """Print the SUBAGENT TRACKED line for the legacy fall-through path."""
     item = last_todos[ip_index] if ip_index < len(last_todos) else {}
