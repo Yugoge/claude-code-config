@@ -12,7 +12,11 @@
     "clarified": "Land code-fix items D + H from the prior Codex triage of leftover work after cycle 20260519-151734 closed. D: tighten PreTool /allow literal match to exact-only. H: replace bookmark-in_progress inference with bounded-window K=3 first-unflipped-match gated on a single valid in_progress anchor, with mandatory multi-in_progress guard at _current_in_progress_index.",
     "what": "Patch hooks/lib/allowlist.py (one enum branch + one call-site policy change + docstring) and hooks/posttool-subagent-track.py (helper + Case A / Case B reorder + None-key guard + multi-in_progress guard at _current_in_progress_index). Add regression test for D.",
     "why": "Two pre-existing harness defects: permission-grant leakage vector + workflow-deadlock-on-parallel-dispatch race. User directive '不放松任何权限' — both fixes preserve or tighten existing semantics.",
-    "where": ["hooks/lib/allowlist.py", "hooks/posttool-subagent-track.py", "hooks/tests/test_allowlist_consolidation.py"],
+    "where": [
+      "hooks/lib/allowlist.py",
+      "hooks/posttool-subagent-track.py",
+      "hooks/tests/test_allowlist_consolidation.py"
+    ],
     "success_criteria": [
       "AC-D1: /allow Re does NOT match Read at PreTool (read_grant returns False)",
       "AC-D2: /allow Read matches Read at PreTool AND consumes at PostTool",
@@ -27,8 +31,13 @@
     ]
   },
   "scope_boundary": {
-    "in_user_path": ["hooks/lib/allowlist.py", "hooks/posttool-subagent-track.py"],
-    "path_dependent_shared_infra": ["hooks/tests/test_allowlist_consolidation.py"],
+    "in_user_path": [
+      "hooks/lib/allowlist.py",
+      "hooks/posttool-subagent-track.py"
+    ],
+    "path_dependent_shared_infra": [
+      "hooks/tests/test_allowlist_consolidation.py"
+    ],
     "out_of_path_observed_but_not_touched": []
   },
   "out_of_scope_observations": [],
@@ -52,9 +61,8 @@
       "status": "partially_resolved_with_trade_off_surfaced"
     }
   },
-  "acceptance_criteria_path": null,
+  "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260519-211515.json",
   "blast_radius_map_path": null,
-  "_companion_artifacts_note": "D+H scope is too small to require companion AC/blast-radius JSONs. The 10 ACs in ticket-20260519-211515-DH.md (AC-D1, AC-D2, AC-D3, AC-D4, AC-H1, AC-H2, AC-H3a, AC-H3b, AC-H4, AC-D-H) are authoritative. Codex iter3 flagged this as a downstream contract gap with complexity_tier=STANDARD; orchestrator can elect to (R1) regenerate companion AC JSON, or (R2) downgrade tier to SMALL. See codex_consult_iter3.findings ISSUE-1.",
   "development_approach": {
     "strategy": "D: align PreTool literal match to PostTool exact-only by adding exact_only enum branch + switching read_grant's call. H: replace bookmark in_progress inference with bounded-window K=3 first-unflipped-match keyed on stdin.tool_input.subagent_type, gated on a single valid in_progress anchor (no canonical[0:3] fallback when ip_index is None or multi). Mutually-exclusive Case A (subagent_type non-empty) / Case B (subagent_type absent). None-key guard before _record_subagent_call_legacy. Multi-in_progress guard at _current_in_progress_index entry.",
     "files_to_create": [],
@@ -111,6 +119,72 @@
       "Stop the parallel Cycle 2 process from writing to the canonical 20260519-211515 paths.",
       "Rename -DH suffix files to canonical paths once Cycle 2 process is halted.",
       "Decide on Codex ISSUE-1 (acceptance_criteria_path=null vs complexity_tier=STANDARD): R1 (regenerate companion AC JSON from 10 D+H ACs) or R2 (downgrade tier to SMALL)."
+    ],
+    "post_orchestrator_resolution": "Two ghost overwrites occurred (round 1 ~05:08-05:16Z, round 2 ~06:44-06:49Z). Each time orchestrator preserved ghosts under -CYCLE2 / -CYCLE2-round2 suffixes and promoted BA's D+H iter content to canonical. AC + blast-radius companion ghosts also moved to -CYCLE2.",
+    "preserved_artifact_paths_actual": [
+      "docs/dev/ticket-20260519-211515-CYCLE2.md",
+      "docs/dev/ticket-20260519-211515-CYCLE2-round2.md",
+      "docs/dev/context-20260519-211515-CYCLE2.json",
+      "docs/dev/context-20260519-211515-CYCLE2-round2.json",
+      "docs/dev/acceptance-criteria-20260519-211515-CYCLE2.json",
+      ".claude/dev-registry/dev-20260519-211515/blast-radius-map-CYCLE2.json"
     ]
+  },
+  "iteration_log": [
+    {
+      "iteration": 2,
+      "iter_timestamp": "2026-05-20T07:05:14.833604+00:00",
+      "ba_response_iter": "iter3 dispatch (cumulative iter 2 of BA revision counter — first revision iter1 fixed OBJ-1/2/3 partially, second revision iter3 finalized OBJ-4/5)",
+      "objections_addressed": [
+        {
+          "id": "OBJ-4",
+          "resolution": "AC-H3 split into AC-H3a + AC-H3b (resolved per QA iter3)"
+        },
+        {
+          "id": "OBJ-5",
+          "resolution": "helper returns None on ip_index=None or multi-anchor; K=3 window only when valid single anchor (resolved per QA iter3)"
+        },
+        {
+          "id": "OBJ-6",
+          "resolution": "companion AC + blast-radius paths nulled then re-pointed at orchestrator-generated AC JSON (R1 path per QA-iter3 codex preference)"
+        }
+      ]
+    }
+  ],
+  "ba_qa_unresolved_objections": {
+    "ceiling_reached": true,
+    "max_iterations": 3,
+    "iter1_qa_objections": [
+      "OBJ-1 RESOLVED",
+      "OBJ-2 RESOLVED (via Case A/B split + None-key guard)",
+      "OBJ-3 RESOLVED (via K=3 bounded window + ip_index None handling)"
+    ],
+    "iter2_qa_new_objections": [
+      "OBJ-4 RESOLVED (AC-H3a/H3b split)",
+      "OBJ-5 RESOLVED (helper anchors on single ip_index)",
+      "OBJ-6 RESOLVED-PARTIAL → orchestrator R1 fix completed at orchestrator-side"
+    ],
+    "iter3_qa_new_objections": [
+      {
+        "id": "OBJ-7",
+        "severity": "major",
+        "scope_impact": "blocks_close_NOT_dev_dispatch",
+        "resolution": "orchestrator-side fixed: iteration_log[] now populated above"
+      },
+      {
+        "id": "OBJ-8",
+        "severity": "major",
+        "scope_impact": "blocks_close_NOT_dev_dispatch",
+        "resolution": "orchestrator-side fixed: collision_report preserved_artifact_paths_actual now reflects on-disk state"
+      },
+      {
+        "id": "OBJ-9",
+        "severity": "blocker",
+        "scope_impact": "blocks_dev_dispatch",
+        "resolution": "orchestrator-side fixed via R1: acceptance-criteria-20260519-211515.json regenerated from 10 D+H ACs; context.acceptance_criteria_path now points to it"
+      }
+    ],
+    "verdict_for_dev_dispatch": "PROCEED — all dev-dispatch blockers resolved orchestrator-side. close-stage objections (OBJ-7/8) also resolved.",
+    "recurring_collision_observation": "Background process (likely overnight/scheduled cycle on spec-20260518-225715) overwrote canonical task-id slot TWICE during this cycle. Out of scope for this cycle's D+H fix. Logged as future ticket: 'task-id allocator collision with background cycles — design distinctness check'."
   }
 }

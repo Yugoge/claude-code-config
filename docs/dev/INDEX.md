@@ -1,6 +1,6 @@
 # dev
 
-*Last updated: 2026-05-20T07:03:24Z*
+*Last updated: 2026-05-20T07:06:14Z*
 **Total entries**: 272
 **Convention**: kebab
 
@@ -269,7 +269,7 @@ dev/
 ├── `ticket-20260519-175339.md` - BA Specification: Chrome CDP Page-Target Deadlock — Wrapper Lock + Stale-Page Cleanup + Cron Surgical Edit
 ├── `ticket-20260519-211515-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-20260519-211515-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
-├── `ticket-20260519-211515.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
+├── `ticket-20260519-211515.md` - BA Specification: 3-Cluster Harness Fixes (Shippability Gate / Real-Fixture Verification / Event-Sourced Lifecycle Log)
 ├── `ticket-20260520-allow-dh.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H)
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
