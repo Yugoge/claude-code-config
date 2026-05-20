@@ -133,67 +133,65 @@
   ],
   "observations_only": [
     {
-      "id": "OBS-1",
-      "ac_id": "AC-C2-04",
-      "observation": "AC-C2-04 includes .claude/INDEX.md in the grep scope, but that file currently has 0 agent-scores matches. The grep over that file passes trivially today. Not blocking -- Section 7 P2.4 explicitly names .claude/INDEX.md as one of the three indices to regenerate, so AC including it preserves spec-named coverage.",
-      "severity": "minor",
-      "action_required": "none"
+      "id": "OBS-D1",
+      "ac_id": "AC-C2-02",
+      "observation": "AC-C2-02 commands/dev.md sub-check requires literal 'tests/generated/manifest.json' (root index path) in must_contain_all. That string ALREADY appears today in the line 632 wording the must_not_contain targets. When Dev removes the line 632 wording, the literal disappears. Dev must add new wording that contains 'tests/generated/manifest.json' as the root index path. This is NOT internally contradictory — the negative check removes the old two-artifact wording; the positive check forces it to reappear in the new three-artifact wording. The literal is allowed to appear in multiple places; the constraint is the SHAPE of the surrounding sentence.",
+      "severity": "info",
+      "action_required": "none (clarity only)"
     },
     {
-      "id": "OBS-2",
-      "ac_id": "AC-C2-08",
-      "observation": "AC-C2-08 grep pattern source.language|source-language uses a regex dot that matches any character. Both source language (space) and source-language (hyphen) and even sourceXlanguage would match. Intended permissiveness -- fine.",
-      "severity": "minor",
-      "action_required": "none"
-    },
-    {
-      "id": "OBS-3",
-      "general_observation": "BA overall analysis quality is strong: every evidence claim reproducible, every line number accurate, scope cleanly bounded to Section 7 P1+P2+P3, P4 prohibitions explicit in blast-radius-map. The 3 drift defects in objections are spec_text_vs_execution_drift -- fixable via AC-text-and-recipe edits without changing the cycle prescriptive work. Once OBJ-1, OBJ-2, OBJ-3 are repaired and ac_uids regenerated, the BA deliverable can pass to Dev.",
+      "id": "OBS-D2",
+      "general_observation": "BA iter-1's iter_history mechanism (iter_history[] in AC JSON) is excellent for audit traceability. Both iter-0 codex findings and iter-1 codex_consult_iter2 findings are documented with disposition + rationale. ac_uid_previous + ac_uid_regenerated_reason fields preserved for both modified ACs (AC-C2-01 and AC-C2-02). This is best-practice BA hygiene and should be retained in future iters.",
       "severity": "info",
       "action_required": "none"
     }
   ],
   "ba_strengths": [
-    "Codex adversarial consultation invoked (codex_required=true): 10 findings all applied with PROPOSED_FIX + rationale documented",
-    "P4 explicit prohibitions enumerated in blast-radius-map.json p4_deferred_explicit_prohibitions[] (defense against Section 7 parenthetical scope creep)",
-    "Cycle 1 18-AC non-regression named as required_validation entry 2 with specific spot-check ACs (AC-01/02/14/15/17/18) -- bounded verification scope",
-    "Component chain provides verified_via field for every file, distinguishing Read vs Grep evidence",
-    "User pre-dispatch decisions Q1 + Q2 honored -- Standard 6 exemption is ADDITIVE (preserves the existing 20260509-153155 paragraph) and Cycle 2 strictly P1+P2+P3",
-    "JSON syntax integrity of tool-policy.v1.json named as required_validation entry 1"
+    "Iter-1 codex consultation invoked (codex_consult_iter2 with 4 findings + 1 observation-only) — all 4 PROPOSED_FIX applied with per-finding disposition rationale",
+    "ac_uid regenerated for both modified ACs with ac_uid_previous + ac_uid_regenerated_reason audit fields preserved",
+    "OBJ-2 fully resolved: qa.md sub-check now has 2 must_not_contain anchors AND 6 must_contain_all literals binding codex F4 + F6",
+    "OBJ-3 fully resolved: AC-C2-01 set_equals enforces Section 7 'limited to' wording; prose tightened to verbatim Section 7 P1.1 (no stream stubs/tmp)",
+    "Test-writer.md must_not_contain anchors verified by QA grep to fail today at all 5 cited line numbers (139/181/183/198/216)",
+    "qa.md must_not_contain anchors verified by QA grep to fail today at both cited line numbers (994/995)",
+    "commands/dev.md:632 must_not_contain anchor verified by QA grep to fail today (codex F5 lockstep enforcement)",
+    "iter_history[] in AC JSON provides complete audit trail of what changed iter-0 → iter-1"
   ],
   "remediation_required_before_dev_dispatch": {
-    "BA_must_amend_primary": "docs/dev/acceptance-criteria-20260519-211515.json AC-C2-02 (BLOCKER) and AC-C2-01 (MAJOR drift); regenerate ac_uid for any AC whose check object changes",
-    "BA_must_amend_secondary": "docs/dev/ticket-20260519-211515.md AC summaries for AC-C2-02 and AC-C2-01 to mirror the JSON edits",
-    "no_dispatch_recommended_until": "OBJ-1, OBJ-2, OBJ-3 PROPOSED_FIXes applied; ac_uids regenerated; QA re-validates"
+    "BA_must_amend_primary": "docs/dev/acceptance-criteria-20260519-211515.json AC-C2-02 test-writer.md sub-check (OBJ-A1 BLOCKER) — replace bare positive literals with section-scoped required new fragments per OBJ-A1 proposed_fix; regenerate ac_uid",
+    "BA_must_amend_secondary": "Cycle 2 ticket prose (currently at docs/dev/ticket-20260519-211515-CYCLE2-round2.md, NOT at canonical path) — apply OBJ-B1 + OBJ-C1 ticket prose fixes",
+    "orchestrator_must_resolve": "OBJ-E1: permanently resolve task-id collision between Cycle 2 and D+H; restore Cycle 2 ticket to canonical docs/dev/ticket-20260519-211515.md path; lock canonical path against D+H writes",
+    "no_dispatch_recommended_until": "OBJ-A1 + OBJ-B1 + OBJ-C1 + OBJ-E1 all resolved; QA re-validates iter-2"
   },
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex sustained ALL 3 primary objections (OBJ-1 BLOCKER, OBJ-2 MAJOR, OBJ-3 MAJOR) and OBS-1 as OBSERVATION_ONLY. Codex agreed AC-C2-02 can falsely pass while binding Section 7 P1.2 remediation is unimplemented -- exactly the spec_text_vs_execution_drift pattern. Codex provided independent PROPOSED_FIX prescriptions that match QA prescriptions for each objection. Codex final verdict: Return FAIL to BA with required AC repairs before Dev proceeds.",
-    "feedback_incorporated": "All 3 codex-confirmed objections included in this report with PROPOSED_FIX directly informed by codex prescription. Severity ratings reflect codex agreement (1 BLOCKER, 2 MAJOR). Codex nuance on OBJ-3 (do not overstate as Section 7 blocker until BA chooses intent) applied: OBJ-3 severity set to major, not blocker.",
-    "codex_output_path": "/var/tmp/codex-outputs/codex-output-3832895-1779254016.txt"
+    "feedback_summary": "Codex sustained ALL 4 QA concerns: OBJ-A1 (BLOCKER — positive check gameable, only 'root index' is net-new), OBJ-B1 (MAJOR — ticket prose missing 1 of 2 qa.md must_not_contain literals), OBJ-C1 (MAJOR — ticket prose for commands/dev.md too vague vs AC JSON), OBJ-E1 (BLOCKER — canonical ticket path is wrong/unrelated D+H content). Codex independently classified OBS-D1 as OBSERVATION_ONLY (not internally contradictory — negative removes old wording, positive forces new wording to reappear). Codex final verdict: FAIL / return to BA for iter-2.",
+    "feedback_incorporated": "All 4 codex-confirmed objections included in this report with PROPOSED_FIX directly informed by codex prescription. Severities reflect codex agreement (2 BLOCKER, 2 MAJOR). Codex's proposed prose for OBJ-A1, OBJ-B1, OBJ-C1 incorporated verbatim into proposed_fix fields.",
+    "codex_output_path": "/var/tmp/codex-outputs/codex-output-3766365-1779259731.txt"
   },
   "self_verification": {
-    "claims_total": 14,
-    "claims_with_evidence": 14,
+    "claims_total": 16,
+    "claims_with_evidence": 16,
     "claims_superficial": 0,
     "superficial_details": [],
     "confidence": "high",
     "claims_audit": [
-      "OBJ-1 evidence: 3 grep tests run against current test-writer.md, all 3 returned exit 0",
-      "OBJ-2 evidence: grep test against current qa.md returned 0 hits; codex independently confirmed reading qa.md:992-999",
-      "OBJ-3 evidence: AC JSON value array directly read from acceptance-criteria-20260519-211515.json (5 entries) vs prose (6+ items)",
-      "Evidence quality dimension: every BA observation point cross-checked against actual files via Bash/Grep",
-      "Scope alignment dimension: explicit P1.1 to AC-C2-01 through P3.9 to AC-C2-08 mapping verified item-by-item",
-      "Investigation completeness: BA verified_via field traced for each component_chain entry",
-      "Affected-file accuracy: every cited file verified to exist via ls/Read",
-      "All line numbers cited in objections verified via Read",
-      "Codex consultation: invoked, output captured, conclusions cross-referenced before finalizing severity",
-      "P4 leakage check: blast-radius-map.json p4_deferred_explicit_prohibitions[] verified to enumerate 5 items",
-      "Standard 6 user decision Q1 (add exemption, not translate): verified honored in AC-C2-08",
-      "P4 deferral user decision Q2: verified in Won't Have list and in p4_deferred_explicit_prohibitions",
-      "Cycle 1 non-regression target: verified in required_validation entry 2 with spot-check AC list",
-      "ac_uid algorithm: verified preserved (sha256[:16] documented in meta)"
+      "OBJ-A1 evidence: grep against agents/test-writer.md for each of 5 positive must_contain_all literals — 4 returned True today, only 'root index' returned False (verified empirically)",
+      "OBJ-A1 evidence: 5 must_not_contain literals all matched today at cited line numbers (139/181/183/198/216) — verified via Grep",
+      "OBJ-B1 evidence: read ticket-20260519-211515-CYCLE2-round2.md line 225 verbatim; compared to AC JSON must_not_contain[] which has 2 entries — verified prose has only 1",
+      "OBJ-C1 evidence: read ticket-20260519-211515-CYCLE2-round2.md line 226 verbatim ('must reference the Option-(b) read pattern consistently'); compared to AC JSON which has must_not_contain on :632 verbatim + must_contain_all on 4 literals including 'all three' — verified prose hides specifics",
+      "OBJ-E1 evidence: file stat shows ticket-20260519-211515.md mtime 06:48Z during QA session (started ~06:43Z); diff confirms current canonical file header is D+H, backup -CYCLE2-round2.md header is Cycle 2",
+      "OBS-D1 evidence: grep 'tests/generated/manifest.json' commands/dev.md → matches at :632 (inside must_not_contain target); confirmed positive check would need NEW wording containing same literal",
+      "qa.md must_not_contain entries verified: grep 'pytest tests/generated/ -q' → :995 match; grep 'Read tests/generated/manifest.json. For every active_tests[] entry' → :994 match",
+      "commands/dev.md:632 must_not_contain verified: grep verbatim wording → :632 match",
+      "Evidence quality dimension: every must_not_contain literal cross-checked against actual files via Grep on /dev/shm/dev-workspace/dot-claude paths",
+      "Scope alignment dimension: iter-1 preserved 8-AC structure; P4 deferrals unchanged; user decisions Q1+Q2 preserved",
+      "Investigation completeness: iter_history[] in AC JSON traced for both iter-0 and iter-1 codex incorporations",
+      "Affected-file accuracy: all 12 files still in files_to_modify; ac_uid_previous + ac_uid_regenerated_reason fields verified present",
+      "Codex consultation: invoked via Skill(codex), output at /var/tmp/codex-outputs/codex-output-3766365-1779259731.txt (710KB), final conclusion table extracted and integrated",
+      "All severity ratings cross-referenced against codex severity ratings (concur: 2 BLOCKER + 2 MAJOR)",
+      "Iter-0 objections status determined empirically: OBJ-2 + OBJ-3 verified resolved; OBJ-1 verified only partially resolved (positive check gameability)",
+      "ac_uid algorithm preserved: sha256[:16] documented in AC JSON meta block"
     ]
   }
 }
