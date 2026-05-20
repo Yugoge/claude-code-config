@@ -86,17 +86,40 @@ def main() -> None:
 
     consume_grant_for_posttool(session_id, tool_name, command)
 
-    # Sentinel-grant consume-on-any-terminal-result: unlink the structured
-    # sentinel grant for this task on ALL terminal outcomes. The terminal
-    # classification is logged via stderr only — the unlink is unconditional.
+    # Sentinel-grant consume-on-any-terminal-result (task 20260519-211515 R2 / AC2).
+    #
+    # CF-2 scoping (codex iter-1 BLOCKER): the sentinel grants bash-command
+    # authorization. PostToolUse fires for EVERY tool (matcher "*"), so an
+    # unrelated Read/Grep/Glob call after `/allow` could otherwise unlink the
+    # sentinel before the intended Bash call. We restrict sentinel consumption
+    # to Bash terminal results AND only when the sentinel actually matched
+    # this command structurally (`match_sentinel_grant_for_bash_command`).
+    # The four mandated terminal cases (success/failure/non_zero/malformed)
+    # are all hit only when Bash itself fires; non-Bash tool events skip the
+    # sentinel-consume path entirely.
     task_id = (
         data.get("task_id")
         or os.environ.get("CLAUDE_TASK_ID")
         or session_id
     )
-    if task_id:
+    if task_id and tool_name == "Bash":
+        try:
+            from lib.allowlist import match_sentinel_grant_for_bash_command  # noqa: E402
+        except Exception:
+            match_sentinel_grant_for_bash_command = None
         terminal_result = _classify_terminal_result(data)
-        consume_sentinel_grant_on_terminal_result(task_id, terminal_result)
+        should_consume = False
+        if match_sentinel_grant_for_bash_command is not None:
+            try:
+                m = match_sentinel_grant_for_bash_command(task_id, command)
+                if m is not None:
+                    should_consume = True
+            except Exception:
+                # Malformed grant counts as terminal_result='malformed' — consume.
+                should_consume = True
+                terminal_result = "malformed"
+        if should_consume:
+            consume_sentinel_grant_on_terminal_result(task_id, terminal_result)
     sys.exit(0)
 
 
