@@ -32,6 +32,22 @@
         "observation": "Codex flagged sys.exit(0) as the Case A/Case B mutual-exclusion mechanism — observation only. The pattern is correct given that the hook's contract is 'tracking only, never blocks' (exit code 0 always) and Path A/B/Case A/Case B are mutually exclusive control-flow branches that all converge on sys.exit(0). Refactor into a structured return shape would improve unit-testability but is not a correctness issue.",
         "in_user_path": false,
         "security_relevant": false
+      },
+      {
+        "ts": "2026-05-20T07:50:00Z",
+        "file": "hooks/posttool-todo-sequence.py",
+        "line": 167,
+        "observation": "Skill(codex) H-1 finding: posttool-todo-sequence.py::save_state writes the loaded state dict back wholesale (state['last_todos']=new_todos; bookmark_path.write_text(json.dumps(state))) without re-reading and merging subagent_calls. Codex argues this could clobber a freshly-written subagent_calls entry if PostToolUse:TodoWrite and PostToolUse:Agent interleave concurrently. Classification: OUT_OF_SCOPE per /codex Rule 3. Rationale: (1) Claude Code serializes tools within a response — PostToolUse hooks for Tool A complete before Tool B starts; the read-modify-write race requires concurrent hook execution which does not occur in the runtime model. (2) AC-H1 contracts on subagent_calls being set after PostToolUse:Agent — not on cross-hook lock semantics. (3) The load-modify-write pattern in save_state pre-exists this cycle (introduced by earlier todo-sequence work, untouched by 20260519-211515). (4) AC-H4 explicitly mandates no changes to pretool-todo-validate.py and the related sequence/validate stack; adding cross-hook locks to save_state would expand scope and violate AC-H4. Surface to user as 'codex identified one cross-hook lock concern in posttool-todo-sequence.py::save_state outside the cycle scope — could be a separate cycle if the runtime model ever changes to support concurrent PostToolUse hook execution'.",
+        "in_user_path": false,
+        "security_relevant": false
+      },
+      {
+        "ts": "2026-05-20T07:50:00Z",
+        "file": "/var/tmp/dev-test/test_h.py",
+        "line": null,
+        "observation": "Skill(codex) OBS-1 finding: the H regression harness lives at /var/tmp/dev-test/test_h.py (transient location) rather than under tracked hooks/tests/. Codex classified this as OBSERVATION_ONLY. QA agrees this is non-durable and notes it does NOT invalidate the in-tree pytest at hooks/tests/test_allowlist_consolidation.py which carries the AC-D regression tests (test_read_grant_exact_only_rejects_substring, test_read_grant_exact_only_rejects_write_against_todowrite). Followup: promote /var/tmp/dev-test/test_h.py to hooks/tests/test_posttool_subagent_track.py in a subsequent cycle — out-of-scope for the D+H bypass coverage cycle (no AC requires the H harness to be durable; only the in-tree pytest at hooks/tests/test_allowlist_consolidation.py is required, and that file IS committed and was verified PASS 27/27).",
+        "in_user_path": false,
+        "security_relevant": false
       }
     ],
     "spec_section_updates": null,
