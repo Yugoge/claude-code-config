@@ -284,11 +284,12 @@
       "policies/tool-policy.v1.json (R7)",
       "hooks/lib/allowlist.py, hooks/userprompt-consent-allowlist.sh, hooks/pretool-bash-safety.sh, hooks/posttool-allowlist-consume.py, hooks/stop-cleanup-allowlist.sh, hooks/tests/test_allowlist_consolidation.py, CLAUDE.md (R2)",
       "hooks/push.sh, commands/push.md (R1)",
-      "commands/commit.md (R5, R9)",
+      "commands/commit.md (R5 only — R9 SOLE landing is now agents/changelog-analyst.md per BA-QA iter-1 OBJ-3)",
       "agents/push-analyst.md, commands/push.md (R4)",
-      "docs/dev/specs/spec-20260520-044700.md, agents/ba.md (R10)",
+      "agents/qa.md, agents/ba.md (R10 — frozen spec is OFF-LIMITS per BA-QA iter-1 OBJ-1)",
       "agents/qa.md (R6)",
-      "commands/close.md, commands/dev.md (R3)"
+      "commands/close.md, commands/dev.md (R3)",
+      "agents/changelog-analyst.md (R9 SOLE binding landing)"
     ]
   },
   "reference_source": {
