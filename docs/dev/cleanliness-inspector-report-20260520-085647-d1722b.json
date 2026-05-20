@@ -99,12 +99,24 @@
         "file": "hooks/tests/test_allowlist_consolidation.py",
         "line_range": "371-377",
         "introduced_in_diff": true,
-        "reason": "TestSentinelGrantLifecycle class docstring at L371-377 says 'four mandatory terminal-consumption cases' but immediately enumerates five distinct case names (success, failure, non_zero, malformed, comment_only). The class additionally contains 7 test_* methods including test_terminal_consume_round_trip_unlinks_grant, test_sentinel_predicate_never_substring_matches_command_line, and test_expired_grant_treated_as_missing — exceeding the 'four cases' count.",
+        "reason": "TestSentinelGrantLifecycle class docstring at L371-377 says 'four mandatory terminal-consumption cases' but the class enumerates five distinct case names by string (success, failure, non_zero, malformed, comment_only) AND contains EIGHT test_* methods (AST-verified in round 2: test_terminal_consume_success, test_terminal_consume_failure, test_terminal_consume_non_zero, test_terminal_consume_malformed, test_comment_only_attack_pretool_denied_no_leftover, test_terminal_consume_round_trip_unlinks_grant, test_sentinel_predicate_never_substring_matches_command_line, test_expired_grant_treated_as_missing). NOTE (round-2 correction): Round-1 report incorrectly stated '7 tests' — codex caught this in round 2; AST count is 8.",
         "severity": "minor",
-        "recommendation": "Reword to: 'Covers terminal-consumption results (success, failure/non_zero, malformed, comment_only), plus round-trip matching, no-raw-substring matching, and expiry reap.'",
+        "recommendation": "Rewrite the class docstring to describe terminal consumption plus predicate/expiry coverage without a numeric count. Suggested wording: 'Covers terminal-consumption results (success, failure/non_zero, malformed, comment_only) plus round-trip matching, no-raw-substring matching, and expiry reap.' Codex confirmed PROPOSED_FIX (round 2 codex item 6).",
         "safe_to_fix": true,
         "blocks_close": false,
-        "rationale_non_blocking": "Documentation accuracy issue inside a test file's class docstring; does not affect functional correctness, hook behavior, or test discovery. Cosmetic minor."
+        "rationale_non_blocking": "Documentation accuracy issue inside a test file's class docstring; does not affect functional correctness, hook behavior, or test discovery."
+      },
+      {
+        "file": "scripts/resolve-close-report.sh",
+        "line_range": "2-8 (comment block) vs 20-23 (loop logic)",
+        "introduced_in_diff": true,
+        "round2_new": true,
+        "reason": "Comment-vs-code drift: leading comment at L2-8 advertises 'subproject path-walk' as the resolution strategy, but the implementation at L20-23 is a hard-coded 3-candidate probe (${CLAUDE_PROJECT_DIR:-}/docs/dev/..., /root/.claude/docs/dev/..., ${CONTROL_ROOT}/docs/dev/...) — there is no actual path-walk (no dirname, no walk-upward, no commonpath derivation). When CLAUDE_PROJECT_DIR is unset, the first candidate collapses to a literal '/docs/dev/close-report-${TASK_ID}.md' (FS-root-anchored) — a non-empty but bogus path that '[ -n $candidate ]' does not reject (the empty-prefix guard at L24 only catches the empty-string case, not the FS-root degenerate case). The '[ -f $candidate ]' check at L24 still works correctly (the bogus file does not exist) so there is NO runtime defect — the loop continues to the next candidate and the script's outcome is unchanged. Still, comment-vs-code mismatch is real cleanliness drift.",
+        "severity": "minor",
+        "recommendation": "Two acceptable fixes: (a) reword the leading comment to drop 'subproject path-walk' phrasing and describe the actual 3-candidate ordered probe; or (b) guard the project candidate with '[ -n ${CLAUDE_PROJECT_DIR:-} ]' before adding it to the candidate list. Codex flagged this as the only substantive NEW concern in round 2 (codex item 3).",
+        "safe_to_fix": true,
+        "blocks_close": false,
+        "rationale_non_blocking": "No runtime failure — '[ -f ]' correctly rejects the FS-root-anchored bogus path, loop continues to next candidate, final fallback at L31 still emits the correct CONTROL_ROOT path for error messages. The behavior matches the intent; only the comment overpromises. Cosmetic documentation drift, not a functional defect."
       }
     ],
     "docs_categorization": [],
