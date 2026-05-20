@@ -117,26 +117,37 @@ fi
 _CHAIN_B_HEAD_SHA="$(git rev-parse HEAD 2>/dev/null)"
 _CHAIN_B_VERIFY=$(REQUEST_ID="$_CHAIN_B_REQUEST_ID" SENT_PATH="$_CHAIN_B_SENTINEL_PATH" HEAD_SHA="$_CHAIN_B_HEAD_SHA" BRANCH_REF="$_CHAIN_B_BRANCH_RAW" REMOTE_REF="$REMOTE" python3 - <<'PYEOF' 2>/dev/null
 import json, os, sys
+# CF-3 (task 20260519-211515 codex iter-1 BLOCKER): ALL binding fields are
+# MANDATORY. A sentinel containing only {"result":"PASS"} must NOT pass — it
+# is malformed. Each of result / request_id / head / branch / remote MUST be
+# present, a non-empty string, AND equal to the expected value.
 try:
     d = json.load(open(os.environ['SENT_PATH']))
 except Exception as e:
     print(f"parse_error:{e}")
     sys.exit(0)
-if d.get('result') != 'PASS':
-    print(f"FAIL_result:{d.get('result')}")
+if not isinstance(d, dict):
+    print(f"parse_error:not_a_dict")
     sys.exit(0)
-if d.get('request_id') and d['request_id'] != os.environ['REQUEST_ID']:
-    print(f"request_id_mismatch:sentinel={d.get('request_id')} expected={os.environ['REQUEST_ID']}")
+result = d.get('result')
+if not isinstance(result, str) or result != 'PASS':
+    print(f"FAIL_result:{result}")
     sys.exit(0)
-if d.get('head') and d['head'] != os.environ['HEAD_SHA']:
-    print(f"head_mismatch:sentinel={d.get('head')} expected={os.environ['HEAD_SHA']}")
-    sys.exit(0)
-if d.get('branch') and d['branch'] != os.environ['BRANCH_REF']:
-    print(f"branch_mismatch:sentinel={d.get('branch')} expected={os.environ['BRANCH_REF']}")
-    sys.exit(0)
-if d.get('remote') and d['remote'] != os.environ['REMOTE_REF']:
-    print(f"remote_mismatch:sentinel={d.get('remote')} expected={os.environ['REMOTE_REF']}")
-    sys.exit(0)
+# Mandatory binding fields — missing/empty/wrong-type means malformed.
+required = (
+    ('request_id', os.environ['REQUEST_ID']),
+    ('head',       os.environ['HEAD_SHA']),
+    ('branch',     os.environ['BRANCH_REF']),
+    ('remote',     os.environ['REMOTE_REF']),
+)
+for key, expected in required:
+    val = d.get(key)
+    if not isinstance(val, str) or not val:
+        print(f"binding_missing:{key}")
+        sys.exit(0)
+    if val != expected:
+        print(f"{key}_mismatch:sentinel={val!r} expected={expected!r}")
+        sys.exit(0)
 print("ok")
 PYEOF
 )
