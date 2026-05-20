@@ -1,7 +1,7 @@
 {
   "request_id": "20260520-085647-d1722b",
   "task_id": "20260520-085647-d1722b",
-  "timestamp": "2026-05-20T08:48:00Z",
+  "timestamp": "2026-05-20T08:58:00Z",
   "inspector": "prompt-inspector",
   "mode": "changed-files",
   "tagging_mechanism": "ii_inspector_side_tagging",
@@ -92,44 +92,51 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Re-consulted codex (gpt-5.5 xhigh, session 019e4492-6af9-7742-abaa-9d110f5bc1ab) on the empty-findings + scope-mismatch conclusion. Codex confirmed the draft on all 3 challenge questions and returned 5 concrete PROPOSED_FIXes (all applied): (1) keep findings=[] with explicit scope_mismatch wording; (2) explicit declaration that Python files/docstrings/comments are out of scope; (3) report status as 'not_applicable' rather than plain 'pass' to prevent misreading 0-violations as cycle-wide cleanliness; (4) --changed-files mode should auto-skip out-of-scope extensions via top-level skipped_out_of_scope_files metadata, not synthetic findings; (5) introduced_in_diff tagging applies only to in-scope findings, not skipped metadata. Codex agreed: do NOT silently expand inspector to Python verbosity — would create overlapping responsibility with code/style inspectors.",
+    "feedback_summary": "Re-closed cycle: codex (gpt-5.5 xhigh, session 019e472c-8088-7ec0-b6e9-c84cefe6edcc) reviewed the draft findings=[] + out-of-domain conclusion for task-id 20260520-085647-d1722b and returned verdict NO_ISSUES. Codex confirmed all 5 challenge questions: (1) no prompt-inspector findings should be emitted for .py files; (2) verbosity rules do not transfer to Python docstrings/comments — those belong to code/style review, not prompt-inspector; (3) empty findings=[] with out-of-domain metadata note is correct (not advisory findings); (4) no severity calibration applies because no in-domain findings; (5) --changed-files narrows inspection but does not expand domain beyond command/agent .md docs. Codex cited agents/prompt-inspector.md:16-20, 41-42, 108-110 as the scope-defining lines. Single PROPOSED_FIX: keep findings: [], result/status: not_applicable, explicit out-of-domain note + skipped-file metadata; do NOT synthesize findings for the three .py files. Prior-pass PROPOSED_FIXes (5 items) remain applied unchanged in the structure above.",
     "findings": [
       {
-        "issue": "Confirm empty findings + scope_mismatch is correct conclusion",
+        "issue": "Re-close verification: confirm out-of-domain classification and empty findings posture for .py-only changed-files diff under new task-id 20260520-085647-d1722b",
+        "proposed_fix": "Keep `findings: []`, `result/status: not_applicable`, and the explicit out-of-domain note/skipped-file metadata. Do not synthesize findings for `hooks/lib/allowlist.py`, `hooks/posttool-subagent-track.py`, or `hooks/tests/test_allowlist_consolidation.py`.",
+        "classification": "observation_only",
+        "disposition": "applied",
+        "rationale": "Codex returned NO_ISSUES verdict — the draft posture (and prior-pass structure) was already correct. No changes to findings, status, scope wording, or skipped-file metadata required. Re-close verification complete."
+      },
+      {
+        "issue": "Prior-pass: Confirm empty findings + scope_mismatch is correct conclusion",
         "proposed_fix": "Keep findings: [] and add wording: scope_mismatch: true; changed_files contained only .py files, while prompt-inspector scope is limited to .md command/agent docs. No in-scope Markdown files were available for inspection.",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Applied in scope_mismatch + scope_mismatch_detail top-level fields."
+        "rationale": "Applied in scope_mismatch + scope_mismatch_detail top-level fields (carried forward from prior pass; codex re-confirmed correctness)."
       },
       {
-        "issue": "Do not silently produce Python verbosity findings — would expand inspector beyond declared .md scope and create overlapping responsibility with code/style inspectors",
+        "issue": "Prior-pass: Do not silently produce Python verbosity findings — would expand inspector beyond declared .md scope and create overlapping responsibility with code/style inspectors",
         "proposed_fix": "Add explicit wording: Python files, including docstrings and comments, are out of scope for prompt-inspector. They must not generate prompt-inspector findings.",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Applied verbatim in scope_mismatch_detail."
+        "rationale": "Applied verbatim in scope_mismatch_detail (carried forward; codex re-confirmed)."
       },
       {
-        "issue": "False-negative risk exists only if consumers misread '0 violations' as 'whole /dev cycle has no verbosity/code-quality issues'",
+        "issue": "Prior-pass: False-negative risk exists only if consumers misread '0 violations' as 'whole /dev cycle has no verbosity/code-quality issues'",
         "proposed_fix": "Report status as not_applicable or no_in_scope_files rather than plain pass: result: 'not_applicable'; reason: 'No changed files matched prompt-inspector scope.'",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Applied as top-level result: 'not_applicable' + reason field, and summary.status: 'not_applicable'."
+        "rationale": "Applied as top-level result: 'not_applicable' + reason field, and summary.status: 'not_applicable' (carried forward; codex re-confirmed)."
       },
       {
-        "issue": "--changed-files mode should auto-skip out-of-scope extensions cleanly, not emit one finding per Python file. Out-of-scope files are metadata, not violations.",
+        "issue": "Prior-pass: --changed-files mode should auto-skip out-of-scope extensions cleanly, not emit one finding per Python file. Out-of-scope files are metadata, not violations.",
         "proposed_fix": "Include skipped files in a top-level field: skipped_out_of_scope_files: [...], while keeping findings: [].",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Applied as top-level skipped_out_of_scope_files array with per-file metadata (path, extension, reason, introduced_in_diff)."
+        "rationale": "Applied as top-level skipped_out_of_scope_files array with per-file metadata (path, extension, reason, introduced_in_diff) (carried forward; codex re-confirmed)."
       },
       {
-        "issue": "Mechanism documentation is appropriate, but only for in-scope findings. Since there are no findings, introduced_in_diff should not appear as synthetic findings.",
+        "issue": "Prior-pass: Mechanism documentation is appropriate, but only for in-scope findings. Since there are no findings, introduced_in_diff should not appear as synthetic findings.",
         "proposed_fix": "Add wording: changed-files mechanism: inspector-side tagging with introduced_in_diff applies only to findings from in-scope Markdown files; no tags were emitted because no findings were produced.",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Applied in new_vs_preexisting_mechanism.applied_in_this_report_detail clarifying that introduced_in_diff:true on skipped_out_of_scope_files entries is provenance metadata, not finding tags."
+        "rationale": "Applied in new_vs_preexisting_mechanism.applied_in_this_report_detail (carried forward; codex re-confirmed)."
       }
     ],
-    "feedback_incorporated": "All 5 codex PROPOSED_FIX entries applied. Top-level structure: result=not_applicable, scope_mismatch=true with detailed wording explicitly excluding Python from scope, skipped_out_of_scope_files array for clean metadata, empty findings: [], mechanism note clarifying tagging applies only to in-scope findings. No findings invented from Python files; scope held strictly to .md mandate. Compatible with prior pass's findings=[] conclusion while strengthening structure per codex guidance."
+    "feedback_incorporated": "Re-close pass: codex verdict NO_ISSUES on all 5 challenge dimensions (scope-correctness, Python-non-transfer, empty-findings-correctness, severity-N/A, --changed-files-domain-preservation). The single new PROPOSED_FIX (keep findings=[], not_applicable status, skipped-file metadata, no synthesis) confirms the prior-pass structure was already correct. All 5 prior-pass PROPOSED_FIXes remain applied unchanged. Strict scope adherence held: prompt-inspector's .md-only mandate not silently expanded to Python verbosity. Report task-id 20260520-085647-d1722b retains findings=[] + scope_mismatch=true + result=not_applicable; close.md sees nothing from prompt-inspector to block on for this diff."
   }
 }
