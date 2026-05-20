@@ -3,10 +3,10 @@
   "agent_type": "ba",
   "instance_id": null,
   "generation": 1,
-  "agent_id": "current-retry-invocation-2",
-  "is_running": false,
-  "checked_in_at": "2026-05-19T14:20:44Z",
-  "checked_out_at": "2026-05-19T15:42:57Z",
+  "agent_id": "a8acb3212987219b6",
+  "is_running": true,
+  "checked_in_at": "2026-05-20T04:36:09Z",
+  "checked_out_at": null,
   "checkpoints": [
     {
       "id": "cp-01",
