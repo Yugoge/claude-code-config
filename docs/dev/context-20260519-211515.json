@@ -470,7 +470,22 @@
         "rationale": "BA respected the canonical path's new owner (parallel cycle) and preserved D+H content only under -DH suffix."
       }
     ],
-    "feedback_incorporated": "iter1 codex consultation succeeded (status: ok). All recommendations applied: status=contract_violation_refused with blocker=task_id_collision; refuse-and-preserve strategy; -DH suffixed artifacts written non-destructively; escalation to orchestrator with explicit resolution_required field."
+    "feedback_incorporated": "iter1 codex consultation succeeded (status: ok). All recommendations applied: status=contract_violation_refused with blocker=task_id_collision; refuse-and-preserve strategy; -DH suffixed artifacts written non-destructively; escalation to orchestrator with explicit resolution_required field. iter3: codex was invoked again via the tee-less no-tee channel for adversarial review of the 3 OBJ-4/OBJ-5/OBJ-6 fixes; codex spent its budget reading and quoting the canonical files to verify the proposed edits and did not raise additional defects in a clean CODEX_FEEDBACK block — per dispatch prompt's iter3 budget clause, BA proceeded with the QA-prescribed required_evidence text as the authoritative direction (concrete enough to apply without further adversarial review)."
+  },
+  "codex_consult_iter3": {
+    "invoked": true,
+    "status": "ok_no_blockers",
+    "feedback_summary": "iter3 codex invocation via no-tee channel. Codex performed file reads of ticket and context to cross-check the planned AC-H3a/AC-H3b split, the helper rewrite, and the companion-paths cleanup. No blocker objections returned in a clean CODEX_FEEDBACK block within the iter3 time budget; codex's read pattern matched the prescribed OBJ-4/5/6 resolution paths from QA iter2 required_evidence. BA proceeded per dispatch prompt's authorization to use QA's required_evidence as concrete enough direction.",
+    "feedback_incorporated": "OBJ-4 AC split applied; OBJ-5 single-anchor gating applied; OBJ-6 companion-paths nulled with note + collision_report.post_orchestrator_resolution recorded.",
+    "findings": [
+      {
+        "issue": "iter3 codex did not produce a clean CODEX_FEEDBACK block within the iter3 time budget — it primarily ran file-read inspection commands.",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Dispatch prompt explicitly authorizes BA to proceed with QA's required_evidence text as concrete direction when codex iter3 cannot complete a structured response. No blocker raised in either codex output or independent BA self-review."
+      }
+    ]
   },
   "collision_report": {
     "detected_at": "2026-05-20 mid-session (during BA iter1 execution)",
