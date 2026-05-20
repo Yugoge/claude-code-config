@@ -213,44 +213,87 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex consultation challenged the initial empty-findings draft and surfaced 5 cleanliness items: 1 unused import (timezone), 3 doc-vs-code drift items (module docstring + 2 test class docstrings), and 1 naming-convention question on cross-module private import. All 4 doc/import findings are minor and introduced-in-diff; the naming question is pre-existing API surface and is OBSERVATION_ONLY per scope constraints. Codex also explicitly confirmed (OBSERVATION_ONLY) that no dead FunctionDef remains, the audit comment at L440-442 is acceptable, the backward-doc reference at L417 is not stale, and `_bash_subcommands` should not be flagged.",
+    "round": 2,
+    "feedback_summary": "Round 2 codex challenge surfaced 3 NEW findings from the round-2 fix-forward delta (file mode 644 drift, set-u-only flag drift, comment-vs-code drift in the new helper script) plus 1 numeric correction to a carried-forward finding (TestSentinelGrantLifecycle has 8 tests, not 7 as round-1 report stated). Carried-forward doc/import/test-docstring drift items were re-confirmed minor with their proposed fixes unchanged. Codex final assessment: 'I see no close-blocker. The only substantive extra concern is item 3 [comment-vs-code drift in the new helper]; otherwise findings are cosmetic/minor.' OBSERVATION_ONLY items: commands/commit.md:54 1-line invocation is acceptable (|| true intentional); audit comment at L440 is acceptable historical breadcrumb; INDEX/README registration is complete; private-name cross-module import is not a current close blocker.",
     "findings": [
       {
-        "issue": "Unused `timezone` import at hooks/lib/allowlist.py:419",
+        "issue": "scripts/resolve-close-report.sh file mode 644 (not executable); peer convention is 755",
+        "proposed_fix": "chmod 755 scripts/resolve-close-report.sh",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "Verified via ls -la — single 644 outlier among ~40 peer 755 scripts. Round-2 NEW finding. Logged under non_functional_files[] with introduced_in_diff:true, blocks_close:false."
+      },
+      {
+        "issue": "scripts/resolve-close-report.sh uses `set -u` only; peer scripts use `set -e`, `set -euo pipefail`, or `set -uo pipefail`",
+        "proposed_fix": "Change L16 from `set -u` to `set -euo pipefail`",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "Verified via grep ^set across scripts/*.sh — single outlier from established convention. Round-2 NEW finding. Logged under shell_conventions[] with introduced_in_diff:true, blocks_close:false. No runtime defect (explicit exits + no pipelines), but convention drift is real."
+      },
+      {
+        "issue": "scripts/resolve-close-report.sh comment claims 'subproject path-walk' but implementation is a hard-coded 3-candidate probe; when CLAUDE_PROJECT_DIR is unset, the first candidate becomes /docs/dev/... (FS-root anchored), non-empty but bogus",
+        "proposed_fix": "Either (a) reword the leading comment to drop 'path-walk' phrasing and describe the actual 3-candidate ordered probe, or (b) guard the project candidate with `[ -n \"${CLAUDE_PROJECT_DIR:-}\" ]` before pushing it into the loop",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "Verified via shell experiment: `CLAUDE_PROJECT_DIR=\"\" bash -c 'echo \"${CLAUDE_PROJECT_DIR:-}/docs/dev/X.md\"'` prints `/docs/dev/X.md`. However, downstream `[ -f $candidate ]` correctly rejects the bogus path so no runtime defect — loop continues to next candidate, script's outcome unchanged. Round-2 NEW finding. Logged under historical_docs[] as comment-vs-code drift, minor, blocks_close:false. Codex's only substantive new concern in round 2."
+      },
+      {
+        "issue": "commands/commit.md:54 1-line invocation `CLOSE_REPORT=\"$(bash ~/.claude/scripts/resolve-close-report.sh \"$TASK_ID\")\" || true` looks acceptable",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Codex OBSERVATION_ONLY — `|| true` is intentional because the helper exits 1 (when no candidate exists) while still emitting the fallback path for the downstream file-exists check. No fix required."
+      },
+      {
+        "issue": "Unused `timezone` import at hooks/lib/allowlist.py:419 (carried forward from round 1)",
         "proposed_fix": "Change `from datetime import datetime, timezone` to `from datetime import datetime`",
         "classification": "minor",
         "disposition": "applied",
-        "rationale": "Verified true via direct grep — `timezone` is imported but never referenced. Dead import introduced when sentinel-grant lifecycle was added. Added to findings.imports[] with introduced_in_diff:true."
+        "rationale": "Re-confirmed in round 2. Logged under findings.imports[]."
       },
       {
-        "issue": "Module docstring for match_sentinel_grant_for_bash_command misrepresents return type and args_contain semantics (hooks/lib/allowlist.py:25-28)",
-        "proposed_fix": "Reword to describe dict|None return and substring-on-arg-tail behavior of args_contain",
+        "issue": "Module docstring for match_sentinel_grant_for_bash_command misrepresents return type and args_contain semantics (hooks/lib/allowlist.py:25-28) — carried forward",
+        "proposed_fix": "Reword module docstring to describe dict|None return and substring-on-arg-tail behavior of args_contain",
         "classification": "minor",
         "disposition": "applied",
-        "rationale": "Verified true via direct file read. Function returns dict|None per its own docstring, but module-level docstring says 'returns True iff'. Added to findings.historical_docs[]."
+        "rationale": "Re-confirmed in round 2. Logged under findings.historical_docs[]."
       },
       {
-        "issue": "TestReadGrant docstring at hooks/tests/test_allowlist_consolidation.py:119 says 'exact_or_substr semantics' but read_grant changed to exact_only in this same diff",
+        "issue": "TestReadGrant docstring at hooks/tests/test_allowlist_consolidation.py:119 says 'exact_or_substr semantics' but read_grant changed to exact_only — carried forward",
         "proposed_fix": "Change docstring to: 'Unit tests for read_grant (public API, exact_only literal semantics).'",
         "classification": "minor",
         "disposition": "applied",
-        "rationale": "Verified true — the diff changes read_grant to exact_only (Item D / AC-D1) but the test class header is unchanged. Added to findings.historical_docs[]."
+        "rationale": "Re-confirmed in round 2. Logged under findings.historical_docs[]."
       },
       {
-        "issue": "TestSentinelGrantLifecycle docstring says 'four mandatory cases' but enumerates five cases and contains seven tests",
-        "proposed_fix": "Reword to: 'Covers terminal-consumption results (success, failure/non_zero, malformed, comment_only), plus round-trip matching, no-raw-substring matching, and expiry reap.'",
+        "issue": "Round-1 report incorrectly stated TestSentinelGrantLifecycle has 7 tests; AST count is 8",
+        "proposed_fix": "Rewrite the class docstring to describe terminal consumption + predicate/expiry coverage without a numeric count",
         "classification": "minor",
         "disposition": "applied",
-        "rationale": "Verified true via direct file read. Docstring lists 5 cases by name and the class contains 7 test_* methods. Added to findings.historical_docs[]."
+        "rationale": "Verified via AST FunctionDef walk: 8 test_* methods exist in TestSentinelGrantLifecycle. Round-2 numeric correction to round-1 finding. Updated wording in findings.historical_docs[] for L371-377."
       },
       {
-        "issue": "_enumerate_sentinel_grant_files is named private (leading underscore) but cross-module imported from hooks/posttool-allowlist-consume.py",
-        "proposed_fix": "Rename to list_sentinel_grant_files() and update internal/external callers, or add a public wrapper and keep the underscored helper internal",
+        "issue": "_enumerate_sentinel_grant_files private name but cross-module imported (carried forward observation)",
+        "proposed_fix": null,
         "classification": "observation_only",
         "disposition": "logged",
-        "rationale": "Verified cross-module import at posttool-allowlist-consume.py:110,115,130,132. However, the import-site is in a file NOT in this diff's 3-file scope. Renaming would touch out-of-scope code. Logged with introduced_in_diff:false, blocks_close:false."
+        "rationale": "Codex re-confirmed OBSERVATION_ONLY — not a current close blocker; leave as observation unless doing broader API cleanup. Logged with introduced_in_diff:false."
+      },
+      {
+        "issue": "hooks/posttool-subagent-track.py:440 audit comment for removed _resolve_context",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Codex re-confirmed OBSERVATION_ONLY — acceptable historical breadcrumb, not stale cruft."
+      },
+      {
+        "issue": "INDEX/README registration of new script scripts/resolve-close-report.sh",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Codex OBSERVATION_ONLY — no missing registration. Verified at scripts/INDEX.md:71, scripts/README.md:52, commands/commit.md:49,54."
       }
     ],
-    "feedback_incorporated": "All 4 in-scope doc/import findings (codex items 1-4) added to the appropriate findings buckets with introduced_in_diff:true and blocks_close:false (all minor cosmetic). The naming-convention finding (codex item 5) logged as observation_only with introduced_in_diff:false. Self-review confirms codex caught real cleanliness issues the initial empty-findings draft missed. CRITICAL: Codex also confirmed via OBSERVATION_ONLY that no dead FunctionDef remains (the prior cycle's blocker is resolved); audit comment and backward-doc reference are acceptable; no other dead helpers to flag."
+    "feedback_incorporated": "Round 2 codex consultation surfaced 3 NEW findings (mode 644, set-u-only flag drift, comment-vs-code drift in the new helper) plus 1 numeric correction (TestSentinelGrantLifecycle has 8 tests, not 7). All 3 NEW findings added to the appropriate findings buckets with introduced_in_diff:true and blocks_close:false (all minor cosmetic / convention drift). Round-1 doc/import drift items carried forward with same proposed fixes. Test-count corrected from 7 to 8 in historical_docs[] for L371-377. Round 2 codex final assessment ('no close-blocker, only substantive extra concern is comment-vs-code drift, otherwise cosmetic/minor') fully incorporated into verdict_input_for_close.blocker_status=NO BLOCKER. Cleanliness gate round 2: PASS."
   }
 }
