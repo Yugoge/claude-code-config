@@ -1,12 +1,13 @@
 {
-  "_overwritten_2026-05-20T06:15:00Z": "Hot-swapped scope. Prior 3-cluster + D+H content (38KB) overwritten with new-scope verdict for 9-item retrospective remediation of cycle 20260519-175339. Prior content available in git history.",
+  "_overwritten_2026-05-20T09:50:00Z": "Iter-2 (this) — BA iter-1's three blockers (OBJ-1 AC10 frozen-spec, OBJ-2 AC5 regex, OBJ-3 AC9 dual-landing) all resolved by BA iter-3 surgical fixes. Verdict: PASS. Iter-1 fail report (prior content of this file) available in git history.",
   "request_id": "20260519-211515",
   "task_id": "20260519-211515",
-  "timestamp": "2026-05-20T06:15:00Z",
+  "timestamp": "2026-05-20T09:50:00Z",
   "qa_mode": "ba_validation",
-  "scope_note": "Hot-swapped scope. Prior ba-qa-report-20260519-211515.json (3-cluster harness-fix scope, then D+H scope) is now STALE and overwritten with this new-scope verdict. This iteration validates BA ticket for the 9-item retrospective remediation of cycle 20260519-175339 (Chrome CDP page-target deadlock fix). Source of truth: docs/dev/qa-output-retrospective-classification-20260519-175339.json.",
+  "ba_qa_iteration": 2,
+  "scope_note": "Iter-2 re-validation of BA iter-1 revised spec (BA iteration 3). Iter-1 raised 3 blockers (OBJ-1/OBJ-2/OBJ-3); BA applied surgical fixes plus 4 codex iter-3 follow-on findings. Iter-2 verifies each blocker resolution. Source of truth: docs/dev/qa-output-retrospective-classification-20260519-175339.json. User requirement: docs/dev/user-requirement-dev-20260519-211515.md (lines 51-53 mandate agents/changelog-analyst.md for R9; line 76 freezes docs/dev/specs/spec-20260520-044700.md).",
   "qa": {
-    "status": "fail",
+    "status": "pass",
     "verdict_reason": "Two BLOCKER objections raised by codex adversarial review (CF-AC10-FROZEN-SPEC-CONTRADICTION and CF-AC5-DISCOVERY-ORDER-AND-PARSER) plus one MAJOR objection (CF-AC9-DUAL-LANDING-AMBIGUITY). Both BLOCKERs verified empirically by QA. The first is a direct violation of the user binding constraint that docs/dev/specs/spec-20260520-044700.md is frozen — Technical Hints contradicts AC10 body. The second is a spec-text-vs-execution drift (dimension 5) where BA literal regex will not match what actually exists in the close-report.",
     "user_verbatim_complaint": "/redev --codex 修复全部建议的内容; 重新加载我们刚刚谈论的内容，禁止加载任何非本cycle的内容",
     "verified_against_complaint": true,
