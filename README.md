@@ -5,7 +5,7 @@ Organization and usage documentation for `.claude/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 64
+- **Total files**: 65
 - **Subdirectories**: 34
 - **Naming convention**: lower
 
@@ -20,6 +20,7 @@ Organization and usage documentation for `.claude/`.
 - `mcp-needs-auth-cache.json` - json config
 - `playwright-storage-state.json` - json config
 - `push.sh` - 
+- `scheduled_tasks.lock` - lock file
 - `session.log` - log file
 - `settings.json` - json config
 - `settings.local.json` - json config
