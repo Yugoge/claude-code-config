@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-19T16:23:05Z*
-**Total entries**: 72
+*Last updated: 2026-05-20T21:44:29Z*
+**Total entries**: 74
 **Convention**: kebab
 
 ## Tree
@@ -68,6 +68,7 @@ scripts/
 ├── `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
 ├── `quick-excel` - unknown file
 ├── `refine-context.sh` - refine-context.sh — merge QA-refined context with original context
+├── `resolve-close-report.sh` - Resolve the close-report path for a given TASK_ID using subproject path-walk.
 ├── `resolve-dev-report.py` - Usage:
 ├── `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 ├── `scan-project.sh` - Description: Scan project structure and detect project type
@@ -77,6 +78,7 @@ scripts/
 ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 ├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 ├── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+├── `write-commit-grant.py` - Invoked from `commands/commit.md` Step 5 (non-bulk mode) to author a
 ├── `write-e2e-enforce.sh` - Writes e2e-enforce.json into the dev-registry for the given session.
 └── `write-qa-mode.sh` - Write or update qa_mode field in the QA sentinel file for a dev-registry session.
 ```

@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 52
+- **Total files**: 54
 - **Subdirectories**: 2
 - **Naming convention**: kebab
 
@@ -49,6 +49,7 @@ Organization and usage documentation for `scripts/`.
 - `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
 - `quick-excel` - unknown file
 - `refine-context.sh` - refine-context.sh — merge QA-refined context with original context
+- `resolve-close-report.sh` - Resolve the close-report path for a given TASK_ID using subproject path-walk.
 - `resolve-dev-report.py` - Usage:
 - `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 - `scan-project.sh` - Description: Scan project structure and detect project type
@@ -58,6 +59,7 @@ Organization and usage documentation for `scripts/`.
 - `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 - `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 - `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+- `write-commit-grant.py` - Invoked from `commands/commit.md` Step 5 (non-bulk mode) to author a
 - `write-e2e-enforce.sh` - Writes e2e-enforce.json into the dev-registry for the given session.
 - `write-qa-mode.sh` - Write or update qa_mode field in the QA sentinel file for a dev-registry session.
 
