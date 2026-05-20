@@ -36,89 +36,102 @@
       "id": 1,
       "name": "no-inline-code",
       "applicability": "command/agent .md files only",
-      "applicable_to_diff": false,
-      "rationale": "All 3 changed files are .py; no command/agent markdown affected."
+      "applicable_to_diff": true,
+      "files_evaluated": ["commands/commit.md"],
+      "verdict": "no violations",
+      "rationale": "The new code block in commit.md is a SINGLE 1-line bash variable assignment that delegates to scripts/resolve-close-report.sh. This is invocation, not inline logic. The change is a REDUCTION of inline content vs the baseline (2 lines -> 1 line) - exactly the direction Standard 1 prescribes. The path-walk logic is properly extracted to the helper script. Codex consultation confirmed (OBSERVATION_ONLY): 'one-line script invocation/assignment, not inline bash logic under the stated standard.'"
     },
     {
       "id": 2,
       "name": "no-hardcoded-values",
       "applicability": "all source files",
       "applicable_to_diff": true,
-      "verdict": "no new critical violations; 1 advisory"
+      "files_evaluated": ["scripts/resolve-close-report.sh", "commands/commit.md"],
+      "verdict": "no critical violations; 1 advisory (raised by codex)"
     },
     {
       "id": 3,
       "name": "use-source-venv",
       "applicability": "shell .sh and command .md that invoke python",
       "applicable_to_diff": false,
-      "rationale": "Changed files are Python sources, not invocation sites. Grepped each file for 'python3 ' patterns — 0 hits."
+      "rationale": "resolve-close-report.sh is pure bash, invokes no python. commands/commit.md changed region invokes only bash. Pre-existing 'source venv/bin/activate && python /root/.claude/scripts/write-commit-grant.py' at line 83 is unchanged baseline content."
     },
     {
       "id": 4,
       "name": "integer-step-numbering",
       "applicability": "command/agent .md files only",
       "applicable_to_diff": false,
-      "rationale": "No .md files in this diff."
+      "rationale": "commit.md changed region does not introduce step numbering. Existing Step 1..Step 7 sequence is integer and pre-existing."
     },
     {
       "id": 5,
       "name": "meaningful-naming",
       "applicability": "all source files",
       "applicable_to_diff": true,
+      "files_evaluated": ["scripts/resolve-close-report.sh"],
       "verdict": "no violations",
       "new_symbols_reviewed": [
-        "_find_earliest_unflipped_matching_step",
-        "_extract_subagent_type",
-        "_resolve_base_context",
-        "test_read_grant_exact_only_rejects_substring",
-        "test_read_grant_exact_only_rejects_write_against_todowrite",
-        "literal_policy='exact_only' enum branch"
+        "resolve-close-report.sh (filename)",
+        "CONTROL_ROOT (env var)",
+        "CLAUDE_PROJECT_DIR (env var)",
+        "TASK_ID (positional arg)",
+        "candidate (loop var)"
       ],
-      "rationale": "All identifiers are verb-phrase or noun-phrase descriptive. None matches forbidden patterns (enhance-*, fast-*, *-v2, optimize-*, improved-*, better-*, new-*). _resolve_base_context's 'base' prefix is semantically meaningful — explicitly distinguishes from _resolve_context's strict-gate variant. _find_earliest_unflipped_matching_step is long but precisely encodes its contract; per codex consultation this is NOT a meaningful-naming violation (OBSERVATION_ONLY there)."
+      "rationale": "Filename 'resolve-close-report' is a precise verb-phrase describing the script's contract. No forbidden patterns (enhance-/fast-/optimize-/v2/v3/improved-/better-/new-) appear. All identifiers are descriptive."
     },
     {
       "id": 6,
       "name": "english-only",
-      "applicability": "all source files",
+      "applicability": "all source files; full-directory scan exception for commands/+agents/",
       "applicable_to_diff": true,
-      "verdict": "no violations",
-      "rationale": "Grepped each of the 3 files for Unicode range U+4E00..U+9FFF; 0 hits."
+      "verdict": "no violations introduced",
+      "rationale": "Grepped scripts/resolve-close-report.sh and commands/commit.md for U+4E00-U+9FFF: 0 hits. Unconditional full-directory scan of commands/ and agents/ returned only PRE-EXISTING verbatim user-binding Chinese quotes in commands/dev.md and commands/close.md (lines 253, 357, 609, 660, 800, 1480, 1482 in dev.md; lines 377-391 in close.md) - these match the Standard-6 verbatim-quote exemption (traceable to docs/dev/ticket-*.md user-binding directives) and are NOT introduced_in_diff. The em-dash (U+2014) at script:30 and commit.md:48 is NOT a Chinese character (codex confirmed: 'Standard 6 only bans Chinese characters')."
     },
     {
       "id": 7,
       "name": "merge-similar-scripts",
       "applicability": "scripts/ directory",
-      "applicable_to_diff": false,
-      "rationale": "No new script files created (per dev-report.files_created=[]). Function additions inside existing files do not implicate this standard."
+      "applicable_to_diff": true,
+      "files_evaluated": ["scripts/resolve-close-report.sh"],
+      "verdict": "no violations",
+      "rationale": "resolve-close-report.sh has a single narrow contract (resolve a close-report path via 3-candidate subproject path-walk). No existing script in scripts/ implements close-report path resolution; nearest neighbors (resolve-dev-report.py, write-commit-grant.py) have distinct contracts. The script's header comment explicitly cross-references the parallel Step 6 changelog-analyst fallback strategy in commit.md, documenting the design relationship."
     },
     {
       "id": 8,
       "name": "concise-documentation",
       "applicability": "command/agent .md files only",
-      "applicable_to_diff": false,
-      "rationale": "No .md files in this diff."
+      "applicable_to_diff": true,
+      "files_evaluated": ["commands/commit.md"],
+      "verdict": "no violations",
+      "rationale": "The new 5-line prose addition at commit.md:47-51 is brief technical context (helper purpose + fallback contract + variable post-condition) - within the brief-context pattern the standard explicitly permits. No marketing language ('amazing', 'fast', 'optimized', 'powerful'), no story-style narrative, no repetitive examples, no pseudocode, no excessive explanation markers. Codex confirmed OBSERVATION_ONLY: 'technical context for the helper and fallback contract. I would not call it a concise-documentation violation, though it could be shortened if desired.' Every line carries technical content (fallback ordering / exit-code semantics / post-condition)."
     },
     {
       "id": 9,
       "name": "parameterized-scripts",
       "applicability": "scripts and library modules",
       "applicable_to_diff": true,
-      "verdict": "no critical violations; 1 advisory (K=3 magic number)"
+      "files_evaluated": ["scripts/resolve-close-report.sh"],
+      "verdict": "no critical violations; 1 advisory (hardcoded /root/.claude middle candidate per codex)",
+      "rationale_pass": "TASK_ID is a REQUIRED positional arg with ${1:?usage:...} enforcement (fails-loud on missing). CONTROL_ROOT is parameterized via ${CONTROL_ROOT:-/root} env-override with sensible default. CLAUDE_PROJECT_DIR is taken directly from env (${CLAUDE_PROJECT_DIR:-} graceful empty-string fallback). The third (fallback) candidate path is fully parameterized through CONTROL_ROOT. The first (primary) candidate is parameterized through CLAUDE_PROJECT_DIR.",
+      "advisory_rationale": "Codex flagged the MIDDLE candidate '/root/.claude/docs/dev/...' as lacking an override mechanism while the first and third candidates are env-parameterized. See advisory_findings[] for full disposition."
     },
     {
       "id": 10,
       "name": "dangling-references",
-      "applicability": "command/agent .md references to scripts",
-      "applicable_to_diff": false,
-      "rationale": "No .md files in this diff. Python imports inside .py files are internal (lib.todo_canonical, lib.contract_runtime) and pre-existing in the baseline; no new imports added in this cycle that could be dangling."
+      "applicability": "command/agent .md references to scripts; .py imports",
+      "applicable_to_diff": true,
+      "files_evaluated": ["commands/commit.md"],
+      "verdict": "no violations",
+      "rationale": "commit.md:54 references '~/.claude/scripts/resolve-close-report.sh' which resolves via /root/.claude/scripts/ symlink to /dev/shm/dev-workspace/dot-claude/scripts/resolve-close-report.sh. The file EXISTS on disk (verified: -rw-r--r-- 1251 bytes). The reference is live, not dangling. No new .py imports introduced (bash script imports nothing)."
     },
     {
       "id": 11,
       "name": "no-merge-conflict-markers",
       "applicability": "all files",
       "applicable_to_diff": true,
+      "files_evaluated": ["scripts/resolve-close-report.sh", "commands/commit.md"],
       "verdict": "no violations",
-      "rationale": "Ran ~/.claude/scripts/detect-merge-conflicts.sh and intersected with the 3 changed files — 0 hits. (The detector reports other repo-wide pre-existing markers in INDEX.md / hooks/README.md / etc., but none in the 3 cycle-diff files; those are not introduced_in_diff and are out of changed-files scope per AC-2.6.)"
+      "rationale": "Ran ~/.claude/scripts/detect-merge-conflicts.sh /dev/shm/dev-workspace/dot-claude and filtered for the 2 changed files - 0 hits. (Repo-wide pre-existing markers in INDEX.md / hooks/README.md exist but are not in the 2 cycle-diff files; not introduced_in_diff per AC-2.6.)"
     }
   ],
   "violations": [],
