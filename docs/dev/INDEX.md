@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-20T22:08:27Z*
-**Total entries**: 320
+*Last updated: 2026-05-20T22:15:18Z*
+**Total entries**: 322
 **Convention**: kebab
 
 ## Tree
@@ -20,7 +20,8 @@ dev/
 │   │   └── `split-qa-unresolved.json` - json config
 │   ├── `spec-20260517-210806.md` - Spec: Add working /push ending-workflow to clean.md (cleaner push-gate fix)
 │   ├── `spec-20260518-225715.md` - Spec: Dev Harness 扩展计划 — 工分系统、Test-Writer、Blast Radius、Executable AC、Canary
-│   └── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
+│   ├── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
+│   └── `spec-20260520-221059.md` - Spec: Unresolved issues backlog from session 88dfdcea — TOP 3 cluster stranded by scope hot-swap + post-session confession
 ├── `acceptance-criteria-20260519-132417.json` - json config
 ├── `acceptance-criteria-20260520-085647-d1722b.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
@@ -326,6 +327,7 @@ dev/
 ├── `user-requirement-dev-20260519-151734.md` - No description
 ├── `user-requirement-dev-20260519-161035.md` - User Requirement — dev-20260519-161035
 ├── `user-requirement-dev-20260519-175339.md` - No description
+├── `user-requirement-dev-20260520-221452.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
