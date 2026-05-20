@@ -1,13 +1,14 @@
 # tests
 
-*Last updated: 2026-05-20T09:19:32Z*
-**Total entries**: 5
+*Last updated: 2026-05-20T09:22:29Z*
+**Total entries**: 6
 **Convention**: kebab
 
 ## Tree
 ```
 tests/
 ├── `_ac1_verify.sh` - Shell script
+├── `_ac5_verify.sh` - Shell script
 ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 ├── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
