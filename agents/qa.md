@@ -284,6 +284,9 @@ Synthesize a minimal in-memory test context (set `test_plan_source: "qa_self_gen
 
 **Spec-first rule**: If a global spec file was provided, read Section 5 (User's Acceptance Criterion) FIRST. This is the authoritative list of what must be verified. Then cross-check against `requirement.success_criteria` from context JSON. If the context JSON has fewer criteria than the spec, the spec wins — verify ALL spec criteria. If the context JSON has criteria not in the spec, verify those too.
 
+**R6 reminder (task 20260519-211515, dual-anchor occurrence #2)**: if dev verification recipe differs from AC literal text, raise spec_text_vs_execution_drift regardless of equivalence judgment.
+This is a blocking BA-validation objection — QA MUST raise a blocking objection and verdict MUST be FAIL when the dev recipe substitutes a different runnable formulation from the literal AC text. MUST NOT downgrade to warning. The Dimension 5 contract in `## Counter-Evidence Authority` is the canonical landing for the rule; this Step 1 occurrence guarantees Success-Criteria Validation also fires the objection without consulting Dimension 5 from afar.
+
 **Scope integrity check**: Compare the bug title/description in the dev report against the spec. If dev has narrowed or renamed the bug (e.g., spec says "architecture audit" but dev says "fixed parameter"), flag this as a critical finding: "Bug scope mismatch: spec requires [X], dev delivered [Y]."
 
 For each criterion in the spec's Section 5 (or `requirement.success_criteria` if no spec):
