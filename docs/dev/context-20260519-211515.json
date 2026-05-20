@@ -398,6 +398,42 @@
         "settings.json /allow patterns (different system)",
         "Prior cycle's read-size-guard.py / block-enterworktree.sh (commit 8d74e83 untouched)"
       ]
+    },
+    {
+      "iteration": 2,
+      "ts": "2026-05-20T06:00:00Z",
+      "reason": "QA iter2 BA-validation rejection with 3 new objections (2 BLOCKER + 1 MAJOR) on residual drift from iter1. After orchestrator promoted the D+H artifacts from -DH suffix to canonical paths at ~05:23 UTC, BA iter3 applied targeted text edits to the canonical files to resolve all 3 OBJ. No new investigation; pure spec/JSON text edits.",
+      "objections_addressed": [
+        {
+          "id": "OBJ-4",
+          "severity": "blocker",
+          "dimension": "spec_text_vs_execution_drift",
+          "resolution": "AC-H3 split into AC-H3a (subagent_type ABSENT + legacy resolves a single valid in_progress index with subagent_call metadata → legacy write allowed; preserves AC-H2 serial-dispatch behavior) and AC-H3b (four enumerated no-write orphan sub-cases: (1) subagent_type absent + legacy returns None; (2) subagent_type non-empty + typed lookup miss; (3) subagent_type non-empty + no in_progress; (4) subagent_type non-empty + multi-in_progress). This removes the iter1 contradiction where AC-H3's general GIVEN listed 'missing subagent_type' as an orphan trigger while Technical Hints Case B allowed legacy write in that same state."
+        },
+        {
+          "id": "OBJ-5",
+          "severity": "blocker",
+          "dimension": "spec_text_vs_execution_drift",
+          "resolution": "Helper _find_earliest_unflipped_matching_step rewritten: removed the iter1 `else: start = 0` fallback that opened canonical[0:3] when ip_index is None. New behavior: if ip_index is None, return None immediately — caller exits 0 no-write per AC-H3b sub-cases (3) and (4). Case A is now gated on a single valid in_progress anchor. Additionally, added a multi-in_progress guard requirement at _current_in_progress_index entry path: if more than one in_progress step is found, return None — bookmark is inconsistent, safer to no-write than to pick an arbitrary anchor. Concrete reference implementation embedded in Technical Hints H section. Edge Cases & Risks H section gained an explicit OBJ-5 bullet documenting the single-anchor gating rule."
+        },
+        {
+          "id": "OBJ-6",
+          "severity": "major",
+          "dimension": "affected_file_accuracy",
+          "resolution": "Companion artifact paths reconciled with orchestrator's collision-resolution cleanup. acceptance_criteria_path set to null and blast_radius_map_path set to null — D+H scope (2 hooks + 1 test file; 9 ACs total) is too small to require companion JSONs; the ACs in ticket-20260519-211515.md are authoritative. Added _companion_artifacts_note documenting the rationale and pointing at the ghost Cycle 2 companion artifacts now at -CYCLE2 suffix. collision_report.preserved_artifact_paths[] updated to reflect the actual on-disk state: the D+H ticket+context were promoted to canonical at ~05:23 UTC by the orchestrator, and the ghost Cycle 2 AC+blast-radius companion artifacts were moved to -CYCLE2 suffix at ~06:00 UTC; orchestrator-side collision-resolution cleanup is complete for this cycle."
+        }
+      ],
+      "files_modified_iter2": [
+        "docs/dev/ticket-20260519-211515.md (canonical — AC-H3 split, helper spec rewrite, Edge Cases bullet)",
+        "docs/dev/context-20260519-211515.json (this file — companion paths, _companion_artifacts_note, iteration_log iter2 entry, collision_report.post_orchestrator_resolution)"
+      ],
+      "not_touched_iter2": [
+        "hooks/lib/allowlist.py (dev's job)",
+        "hooks/posttool-subagent-track.py (dev's job)",
+        "hooks/tests/test_allowlist_consolidation.py (dev's job)",
+        "out_of_scope_observations[] (remains empty per dispatch directive)",
+        "Cycle 2 companion artifacts at -CYCLE2 suffix (those belong to the parallel cycle)"
+      ]
     }
   ],
   "codex_consult": {
