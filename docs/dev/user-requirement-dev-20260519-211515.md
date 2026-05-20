@@ -1,81 +1,88 @@
 # User Requirement — dev-20260519-211515
 
-## Verbatim user final selection
+## Verbatim user directives (this conversation only)
 
-> 修复全部 (selected from options: "TOP 1 / TOP 1+3 / 三个全做 / 看报告")
+> 派出qa和codex辩论哪些是系统性原因哪些需要修
+> /redev --codex 修复全部建议的内容
+> 重新加载我们刚刚谈论的内容，禁止加载任何非本cycle的内容
 
-User chose "fix all 3 TOP categories" after reviewing a 17-row meta-assessment of systemic issues from the prior cycle (task-id 20260519-161035, the 4-layer tmpfs prevention). Meta-assessment was produced by QA+codex; report at `docs/dev/meta-assessment-20260519-161035.json`.
+User just completed a QA+codex retrospective debate (this conversation, 2 codex rounds) classifying 10 self-identified shortcomings from the Chrome CDP page-target deadlock fix cycle (task-id `20260519-175339`). User now directs **fix all suggested items**, explicitly scoped to **this retrospective only**. ANY scope drift to prior cycles (including the 17-row meta-assessment of task-id `20260519-161035`) is explicitly forbidden.
 
-## Scope (binding) — 8 of 17 systemic issues, grouped into 3 deliverables
+## Scope (binding) — 9 of 10 retrospective items (skip item 8 ACCEPTABLE-DEBT)
 
-### Cluster 1 — Shippability gate (issues R1 + R2 + R5a)
+Single source of truth: `docs/dev/qa-output-retrospective-classification-20260519-175339.json`. BA MUST read it.
 
-Add a QA-side post-cycle check that verifies dev outputs are actually **shippable**:
-- (R1) Every entry in `dev.files_created` / `dev.files_modified` is diffed against `.gitignore`. Gitignore match → flag `unshippable_via_git`; close gate critical-fail UNLESS dev-report has `gitignore_waiver` with rationale.
-- (R2) Any path matching system locations (`/usr/local/`, `/etc/`, `/opt/`, `/var/`, paths outside `git rev-parse --show-toplevel`) requires EITHER (a) an in-repo install manifest like `scripts/install/<deliverable>-install.sh`, OR (b) `system_file_waiver` field in dev-report.
-- (R5a) Persistent-state file under ephemeral mounts (`/tmp/`, `/dev/shm/`, `/run/`) must be flagged unless paired with an ENOSPC fallback path; tmpfs-as-persistence is rejected.
+### Category A — SYSTEMIC (6 items, infra-level fix required)
 
-Deliverable shape: a Python check script under `scripts/`, invoked during QA Step 11 final-verification OR during /close (between inspectors and QA-debate; pick ONE, document).
+**Item 7** ⭐ (highest priority, observed firing 3× during the retrospective debate itself)
+- Symptom: `tool-policy.v1.json` Skill + write-prefix gaps with `agents/*.md` role contracts. `codex_required:true` dispatched to inspector roles (style/cleanliness/prompt) but Skill(codex) is blocked by tool-policy because Skill is not in those roles' allowed_tools. Empirically blocked QA writes to `retrospective-classification-*` filename prefix too.
+- Remediation: reconcile tool-policy with agent.md role contracts. Inspector roles whose dispatch contract accepts `codex_required` MUST have Skill in allowed_tools. QA write-path prefix vocabulary MUST be either declared in tool-policy and surfaced to dispatchers, OR widened.
 
-### Cluster 2 — Real-fixture verification harness (issues R3 + R4)
+**Item 2**
+- Symptom: bash-safety hook gates by literal pattern match against the command string. User's `/allow "你自己做"` was satisfied by embedding that token in a bash comment — pattern-stuffing exploit.
+- Remediation: replace pattern-match grant with a sentinel-file grant marker (write-once, read-and-unlink), so the orchestrator cannot self-author the pattern into the command text.
 
-Replace `--dry-run`-only verification and PATH-shim mocking with sandboxed real-effect tests:
-- (R3) For destructive scheduled jobs: sandbox harness that creates synthetic files at target paths in an isolated workspace, runs the script non-dry-run, asserts correct deletes + preserved hard-exclusions.
-- (R4) For threshold-conditional behaviors: pressure simulator that creates a real >threshold condition (e.g., bounded tmpfs mount or controlled scratch dir) and captures actual hook output under real (not mocked) conditions.
+**Item 1**
+- Symptom: `/push` orchestrator's validate-then-push.sh sequence was newline-chained without `&&`. Python validation printed `FAIL: grant expired` but `push.sh` ran anyway because shell continues across non-zero exits without short-circuit.
+- Remediation: validate + push.sh must be a single atomic exec model where FAIL aborts push.sh. EITHER merge into a single Python process that exec's push.sh on success only, OR split into two separate Bash calls with the second guarded on the first's exit code.
 
-Deliverable shape: reusable scripts under `scripts/` plus invocation pattern documented in `agents/qa.md`.
+**Item 5**
+- Symptom: `/commit` Step 7 dispatched spec-continue ONLY when `context.spec_path` is non-null. Our cycle's continuation spec `docs/dev/specs/spec-20260520-044700.md` was real and on disk but not captured in context (context.spec_path was set to null because the AUTO-detected spec was a different unrelated spec). Step 7 silently skipped → continuation spec orphaned from task lineage.
+- Remediation: /commit Step 7 must glob-discover cycle continuation specs (e.g., via the close-report's `Continuation spec:` line OR via spec-with-matching-task-window) and fail-closed when one exists but wasn't captured in context.
 
-### Cluster 3 — Event-sourced lifecycle log (issues W3 + W5 + R9)
+**Item 4**
+- Symptom: push-analyst grant TTL is 60s. Subagent itself runs 60s+. Orchestrator latency to consume adds 5-30s. Grant routinely expires before validation.
+- Remediation: bump TTL constant from 60s to 180s.
 
-Append-only event log for agent lifecycle events:
-- (W3) Quota-wall events: when a subagent is cut by API quota, record {ts, dev_session_id, agent_role, agent_id, tool_uses_at_cut, partial_artifacts}.
-- (W5) Resumption events: when orchestrator re-dispatches a fresh agent to resume cut work, log {ts, dev_session_id, prior_agent_id, new_agent_id, recovery_notes}.
-- (R9) Score-update transitions: replace direct score writes with append-only log entries {ts, agent, event, prev_score, new_score, delta, actor, reason}. Reads use latest entry; writes use Compare-And-Swap on prev_score (mismatch → fail).
+**Item 10**
+- Symptom: Each /close run's QA AC1/AC2/AC11 verification spawned wrapper test instances against `127.0.0.1:9` that NEVER exited (no cleanup trap). Each /close left a new pair of orphan PIDs holding `/run/playwright-mcp.lock`. Observed: PIDs 3024155/3024167 from /close attempt 1, PIDs 3261106/3261281 from /close attempt 2.
+- Remediation: AC verification recipes that spawn child processes MUST include `trap` cleanup or equivalent termination guarantee. Codify in `agents/qa.md` final-verification harness section and/or spec template.
 
-Deliverable shape: logging module writing to `.claude/logs/lifecycle.jsonl` (in-repo, NOT /tmp). Modify `score-update.sh` to use the log; orchestrator + QA surface recent events.
+### Category B — NEED-TO-FIX (3 items, orchestrator-discipline fixes)
 
-## Acceptance criteria
+**Item 6**
+- Symptom: QA close-debate Round 1 codex flagged AC4/AC5 verification recipe drift. AC4 spec required navigation+evaluation+screenshot but dev gave brief invocation; AC5 spec required runtime cmdline grep but dev used byte-identity (config file absent locally). QA classified them as minor non-blocking instead of `spec_text_vs_execution_drift`.
+- Remediation: QA MUST fire `spec_text_vs_execution_drift` on ANY recipe substitution regardless of equivalence judgment. Hardcoded into `agents/qa.md` BA-Validation Mode dimension 5.
 
-### Cluster 1 — Shippability gate
-- AC1: Gate fails closed when a `dev.files_created` entry is gitignore-matched AND no `gitignore_waiver` field. Verifiable: fixture dev-report with `docs/test.md` (matched by gitignore:66) → fail with reason citing the gitignored path.
-- AC2: Gate fails closed when a `dev.files_modified` entry is outside `git rev-parse --show-toplevel` AND no `system_file_waiver`. Verifiable: fixture referencing `/usr/local/sbin/foo.sh` → fail.
-- AC3: Gate fails closed for ephemeral-mount persistence file without ENOSPC fallback. Verifiable: fixture referencing `/tmp/claude-pressure-warn-*` → fail or pass-with-explicit-ack.
-- AC4: Gate passes silently when all files in-repo + not gitignored. Verifiable: re-applied to prior cycle 20260519-161035, this gate would have FAILED — confirms detection of L3+L2+R5a defects we missed.
-- AC5: Gate wiring requires no manual orchestrator action — invoked via QA Step 11 OR close.md hook (chosen path documented).
+**Item 3**
+- Symptom: TodoWrite hook tracks "Agent call AFTER step transitions to in_progress". Orchestrator dispatched QA before that transition; hook then refused to close the step. Orchestrator skipped the close transition.
+- Remediation: codify "mark step in_progress BEFORE Agent dispatch" rule in `commands/dev.md` and `commands/close.md` workflow text.
 
-### Cluster 2 — Real-fixture harness
-- AC6: Sandbox harness, given destructive script + expected-survive + expected-delete lists, runs non-dry-run against synthetic fixtures and reports pass/fail. Verifiable: harness against `/usr/local/sbin/tmp-cleanup.sh` with synthetic /tmp content; assert correct deletes + preserved hard-exclusions.
-- AC7: Pressure-simulation harness manufactures a real >75% mount condition and captures actual hook output. Verifiable: simulate /tmp >75%, invoke `hooks/userprompt-tmpfs-pressure.sh`, assert real warning + top-5 du block from non-mocked du.
-- AC8: Both harnesses referenced from `agents/qa.md`; BA-spec carries `requires_fixture_verification: true` flag that QA honors.
+**Item 9**
+- Symptom: commit `d988d4a` reversed the policy from commit `c411ef1` (2 days prior, broad `docs/` ignore) without citing or explaining why c411ef1's rationale no longer applies.
+- Remediation: codify in commit-message guidance (in `agents/changelog-analyst.md`) that any commit reversing a prior policy commit MUST cite the prior SHA and explain why its rationale is superseded.
 
-### Cluster 3 — Lifecycle log
-- AC9: Append-only log at `.claude/logs/lifecycle.jsonl` records {ts, dev_session_id, event_type, agent, payload}. Verifiable: synthetic event → grep log.
-- AC10: `score-update.sh` writes a lifecycle entry on every score change with {ts, agent, event, prev_score, new_score, delta, reason}. Verifiable: invoke → assert entry written.
-- AC11: `score-update.sh` uses Compare-And-Swap on prev_score: concurrent invocation race → one succeeds, the other fails with CAS-conflict. Verifiable: two concurrent calls → assert exactly one wins.
-- AC12: Orchestrator writes `quota_wall` lifecycle entry when a subagent dispatch hits known quota-wall error. Verifiable: synthetic quota-wall → assert entry.
-- AC13: Orchestrator writes `resumption` lifecycle entry when dispatching a fresh agent intended to resume cut work. Verifiable: synthetic resumption → assert entry.
+### Category C — ACCEPTABLE-DEBT (item 8, SKIP)
+
+Item 8 (23 leaked production playwright-mcp processes) is user-authorized per `就地部署`, AC12 invariant, OOS-logged. No action.
+
+## Acceptance criteria — 9 ACs (one per fix item)
+
+- **AC1.1** (item 7): Re-dispatching style-inspector / cleanliness-inspector / prompt-inspector with `codex_required: true` results in `codex_consult.status = ok` (not `failed_quota` with `tool Skill not in allowed_tools`). Verifiable: synthetic --changed-files dispatch + JSON status check.
+- **AC1.2** (item 2): Bash-safety hook does NOT permit `kill <pid>` merely because the command string contains a literal `/allow` keyword. The new sentinel-file mechanism requires a separately-written grant. Verifiable: orchestrator-authored pattern-in-comment NO LONGER satisfies the hook.
+- **AC1.3** (item 1): /push validation FAIL (e.g., expired grant) atomically prevents push.sh from running. Verifiable: deliberately-expired grant fixture → push.sh is not invoked.
+- **AC1.4** (item 5): /commit Step 7 dispatches spec-continue when a continuation spec exists on disk even if context.spec_path is null. Verifiable: replay scenario → Step 7 fires.
+- **AC1.5** (item 4): push-analyst grant TTL constant is 180s. Verifiable: grep the source post-edit.
+- **AC1.6** (item 10): AC1/AC2/AC11 spec recipes include `trap` cleanup or equivalent in test harness. Verifiable: post-edit, no orphan playwright-mcp left after a synthetic close.
+- **AC2.1** (item 6): `agents/qa.md` BA-Validation Mode dimension 5 explicitly says "ANY recipe substitution triggers spec_text_vs_execution_drift". Verifiable: grep agents/qa.md for that rule post-edit.
+- **AC2.2** (item 3): `commands/dev.md` AND `commands/close.md` explicitly document "mark step in_progress BEFORE Agent dispatch". Verifiable: grep both files post-edit.
+- **AC2.3** (item 9): `agents/changelog-analyst.md` requires reversal commits to cite prior SHA. Verifiable: grep agents/changelog-analyst.md post-edit; OR a commit-message-validate hook flags missing citation.
 
 ## Constraints (binding)
 
-- All deliverables live at git-tracked paths (do NOT repeat the R1 gitignore mistake — none under `docs/`)
-- Scripts: `#!/usr/bin/env bash` or `#!/usr/bin/env python3`; chmod +x
-- Lifecycle log location MUST be `.claude/logs/lifecycle.jsonl` (in-repo, portable)
-- Existing working hooks/scripts from prior cycle (session-tmpfs-banner.sh, userprompt-tmpfs-pressure.sh, tmp-cleanup.sh) MUST NOT change behavior — only `score-update.sh` + orchestrator dispatch flow change
-- `~/.claude/scripts/score-update.sh` callers must continue working unchanged (CAS + log are transparent additions)
-- No new daemons / Prometheus / monitoring stacks — additive only
+- All deliverables live at git-tracked paths (`/root/.claude/` = nested dot-claude repo, fully tracked)
+- DO NOT bundle any work from prior task-id `20260519-161035` (3-cluster, 13-AC, 17-row meta-assessment) — that is a SEPARATE work stream
+- DO NOT modify shipped artifacts from task-id `20260519-175339`: the `/usr/local/bin/playwright-mcp-stealth` wrapper, the `.gitignore` amendment, the 14 docs/dev/* artifacts — all are committed in `d988d4a` and frozen
+- Continuation spec `docs/dev/specs/spec-20260520-044700.md` is committed and frozen — do not modify
+- 23 leaked production playwright-mcp processes — DO NOT touch (user `就地部署` directive still binding)
+- This cycle's source of truth is `docs/dev/qa-output-retrospective-classification-20260519-175339.json` — BA must read it for the verbatim per-item rationale and codex round-2 final classifications
 
-## Out of scope (deferred)
+## Out of scope (explicitly excluded)
 
-- W1 (spec auto-detect override)
-- W2 (test-writer skipped for STANDARD bash)
-- W4 (orchestrator Write gate)
-- R5b (long-session counter reset)
-- R5c (timeout 15s→20s)
-- R5d (mtime doc precision)
-- R6 (orphan commit prevention)
-- R7 (CLAUDE_SESSION_ID export)
-- R8 (Stop-hook codex override)
+- Items from prior task-id `20260519-161035`'s meta-assessment (17 systemic issues / 3 clusters / 13 ACs)
+- Any infrastructure that mixes this retrospective's scope with prior retrospectives
+- Anything not in the 10-item retrospective for task-id `20260519-175339`
 
 ## Source of truth
 
-`docs/dev/meta-assessment-20260519-161035.json` — canonical 17-row classification. BA MUST read it.
+`docs/dev/qa-output-retrospective-classification-20260519-175339.json` — canonical 10-item classification with codex round-1 challenge + round-2 unanimous (model=gpt-5.5 xhigh, 2 rounds executed).
