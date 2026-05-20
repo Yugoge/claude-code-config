@@ -117,12 +117,23 @@ def _current_in_progress_index(state: dict) -> int | None:
     The validator at pretool-todo-validate.py around line 238 keys
     `subagent_calls` on the canonical enumerate-index string form, so this
     writer must conform to the same indexing scheme (NOT the step label).
+
+    Multi-in_progress guard (cycle 20260519-211515 Item H, OBJ-5 BLOCKER
+    resolution): if MORE THAN ONE step has status='in_progress' the bookmark
+    is inconsistent — return None so callers fall through to the no-write
+    branch. This prevents the typed-lookup window in Case A from anchoring
+    on an ambiguous bookmark state, and prevents Case B legacy from
+    arbitrarily picking the first of several in_progress steps.
     """
     last_todos = state.get('last_todos') or []
+    found: int | None = None
     for idx, item in enumerate(last_todos):
         if isinstance(item, dict) and item.get('status') == 'in_progress':
-            return idx
-    return None
+            if found is not None:
+                # Multi-in_progress bookmark inconsistency — refuse to anchor.
+                return None
+            found = idx
+    return found
 
 
 # ---------------------------------------------------------------------------
