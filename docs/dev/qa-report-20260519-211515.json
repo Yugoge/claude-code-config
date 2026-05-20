@@ -1,7 +1,7 @@
 {
   "request_id": "20260519-211515",
   "task_id": "20260519-211515",
-  "timestamp": "2026-05-20T07:45:00Z",
+  "timestamp": "2026-05-20T08:10:00Z",
   "qa": {
     "status": "pass",
     "user_verbatim_complaint": "Items D + H from codex triage of prior cycle 20260519-151734: (D) /allow PreTool/PostTool asymmetry — substring grants bypass PreTool gates but are never consumed at PostTool, leaking past single-use; (H) PostToolUse:Agent bookmark inference races on parallel TodoWrite+Agent dispatch, flipping the wrong canonical step or no-writing.",
