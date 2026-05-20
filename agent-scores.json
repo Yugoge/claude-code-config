@@ -4,7 +4,7 @@
   "global": {
     "agents": {
       "ba": {
-        "score": 96,
+        "score": 99,
         "rank": "宗师级",
         "history": [
           {
@@ -150,6 +150,14 @@
             "old_score": 88,
             "new_score": 96,
             "note": "20260520-081129"
+          },
+          {
+            "ts": "2026-05-20T11:12:42Z",
+            "event": "qa_first_pass",
+            "delta": 3,
+            "old_score": 96,
+            "new_score": 99,
+            "note": "20260519-211515 9-item retrospective"
           }
         ]
       },
@@ -300,6 +308,14 @@
             "old_score": 86,
             "new_score": 100,
             "note": "20260520-081129"
+          },
+          {
+            "ts": "2026-05-20T11:12:42Z",
+            "event": "qa_first_pass",
+            "delta": 6,
+            "old_score": 100,
+            "new_score": 100,
+            "note": "20260519-211515 9-item retrospective"
           }
         ]
       },
