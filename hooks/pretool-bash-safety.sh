@@ -470,6 +470,43 @@ print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" 
   fi
 fi
 # ────────────────────────────────────────────────────────────────────────────
+# Sentinel-grant short-circuit (task 20260519-211515 R2 / AC2).
+# Reads /tmp/claude-grants/<task_id>.json via hooks/lib/allowlist.py
+# match_sentinel_grant_for_bash_command(). The predicate is STRUCTURED:
+# allowed_operations[] entries must EQUAL the bash sub-command's op/target
+# tokens — the in-hook command-text grep is REPLACED by this structured
+# match. Substring matching against the raw command line is forbidden.
+# This is the consume-on-any-terminal-result entry point; PostToolUse
+# performs the unlink for all four terminal cases (success, non_zero,
+# malformed, comment_only).
+if [ "$IS_SUBAGENT" != "1" ]; then
+  TASK_ID_FOR_SENTINEL="${CLAUDE_TASK_ID:-}"
+  if [ -z "$TASK_ID_FOR_SENTINEL" ]; then
+    TASK_ID_FOR_SENTINEL=$(echo "$INPUT" | "$PYTHON_BIN" -c \
+      "import json,sys,os; d=json.load(sys.stdin); print(d.get('task_id','') or d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
+      2>/dev/null)
+  fi
+  if [ -n "$TASK_ID_FOR_SENTINEL" ]; then
+    HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SENTINEL_MATCH=$(HOOKS_DIR="$HOOKS_DIR" CMD_INPUT="$COMMAND" TASK_ID="$TASK_ID_FOR_SENTINEL" "$PYTHON_BIN" - <<'PYEOF' 2>/dev/null
+import os, sys
+sys.path.insert(0, os.environ['HOOKS_DIR'])
+from lib.allowlist import match_sentinel_grant_for_bash_command
+m = match_sentinel_grant_for_bash_command(os.environ['TASK_ID'], os.environ['CMD_INPUT'])
+print('SENTINEL_OK' if m is not None else 'SENTINEL_NONE')
+PYEOF
+)
+    if [ "$SENTINEL_MATCH" = "SENTINEL_OK" ]; then
+      mkdir -p "$(dirname "$CONSENT_LOG")"
+      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=$TASK_ID_FOR_SENTINEL SENTINEL_GRANT_MATCHED command='$COMMAND'" >> "$CONSENT_LOG"
+      echo "[allow-sentinel] structured grant matched for task=$TASK_ID_FOR_SENTINEL. consume-on-any-terminal-result deferred to PostToolUse." >&2
+      "$PYTHON_BIN" -c 'import json; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": "/allow sentinel grant consumed (structured allowed_operations[] match)"}}))'
+      exit 0
+    fi
+  fi
+fi
+
+# ────────────────────────────────────────────────────────────────────────────
 # Global /allow short-circuit — sole PreToolUse allowlist match/approval call site in
 # pretool-bash-safety.sh. Fires unconditionally after the /do bypass and before all
 # block rules. Actual grant deletion is deferred to posttool-allowlist-consume.py
