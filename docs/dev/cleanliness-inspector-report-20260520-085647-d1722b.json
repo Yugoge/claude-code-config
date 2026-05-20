@@ -55,7 +55,19 @@
     "temp_files": [],
     "duplicate_scripts": [],
     "duplicate_tests": [],
-    "non_functional_files": [],
+    "non_functional_files": [
+      {
+        "file": "scripts/resolve-close-report.sh",
+        "introduced_in_diff": true,
+        "round2_new": true,
+        "reason": "File mode is 644 (NOT executable). Every peer scripts/*.sh in the same directory is mode 755. The script has a `#!/bin/bash` shebang but cannot be invoked as `./scripts/resolve-close-report.sh`. The script functionally works at its only call site (commands/commit.md:54 invokes via `bash <path>` which does not require the execute bit), but the convention drift is real and confusing for future direct-execution callers.",
+        "severity": "minor",
+        "recommendation": "chmod 755 scripts/resolve-close-report.sh. Codex confirmed PROPOSED_FIX (round 2 codex item 1).",
+        "safe_to_fix": true,
+        "blocks_close": false,
+        "rationale_non_blocking": "Functionally works via `bash <path>` invocation; no runtime failure. Convention-consistency drift only."
+      }
+    ],
     "non_functional_folders": [],
     "orphaned_subagents": [],
     "unreferenced_scripts": [],
