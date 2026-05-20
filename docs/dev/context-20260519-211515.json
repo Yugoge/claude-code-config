@@ -31,13 +31,13 @@
       "agents/push-analyst.md",
       "agents/qa.md",
       "agents/ba.md",
-      "agents/changelog-analyst.md",
-      "docs/dev/specs/spec-20260520-044700.md"
+      "agents/changelog-analyst.md"
     ],
+    "_where_iter3_note": "iter-3 removed 'docs/dev/specs/spec-20260520-044700.md' from this list per BA-QA iter-1 OBJ-1 (user requirement line 76: frozen spec must NOT be modified). The trap-cleanup contract for R10 lands ONLY at agent-template level (agents/qa.md + agents/ba.md).",
     "scope": {
       "included": [
         "9 retrospective items (1, 2, 3, 4, 5, 6, 7, 9, 10)",
-        "Codex-blocker augmentations (R7 expands to 9 roles; R2 expands to full /allow lifecycle; R1 routes through push.sh not commit-grant; R5 deterministic; R10 AC1/AC2/AC3/AC4/AC11)"
+        "Codex-blocker augmentations (R7 expands to 9 roles; R2 expands to full /allow lifecycle; R1 routes through push.sh not commit-grant; R5 deterministic; R10 lands at agent-template level only — frozen spec is OFF-LIMITS per user requirement line 76)"
       ],
       "excluded": [
         "Item 8 (23 leaked playwright-mcp processes) — acceptable-debt, OOS observation only",
