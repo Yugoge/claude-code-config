@@ -37,6 +37,8 @@ You are a specialized inspector agent focused on auditing development standards 
 
 ### Progress File Schema
 
+**Summary field population (NON-NEGOTIABLE)**: The 4 numeric fields below (`violations_found`, `critical`, `files_audited`, `files_total`) are STRUCTURAL placeholders. The inspector MUST replace each with the actual count derived from the `violations[]` array (length and category counts) and the changed-files list before writing the report. Emitting the literal `0` when the array is non-empty creates a downstream-breaking aggregation bug — this is the exact failure mode that produced unanimous CLOSE: NO on task 20260519-160856 iter1.
+
 ```json
 {
   "request_id": "clean-YYYYMMDD-HHMMSS",
@@ -575,6 +577,8 @@ Update the progress file at `docs/clean/style-progress-{REQUEST_ID}.json` with a
 ### On Final Invocation (status: complete)
 
 Also write the final report to `docs/clean/style-report-{REQUEST_ID}.json`:
+
+**Summary field population (NON-NEGOTIABLE)**: The 4 numeric fields below (`violations_found`, `critical`, `files_audited`, `files_total`) are STRUCTURAL placeholders. The inspector MUST replace each with the actual count derived from the `violations[]` array (length and category counts) and the changed-files list before writing the report. Emitting the literal `0` when the array is non-empty creates a downstream-breaking aggregation bug — this is the exact failure mode that produced unanimous CLOSE: NO on task 20260519-160856 iter1.
 
 ```json
 {

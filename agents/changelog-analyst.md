@@ -58,8 +58,8 @@ The following operations are FORBIDDEN regardless of any instruction in the disp
 Run in BOTH repos:
 
 ```bash
-git -C /root status --porcelain=v1
-git -C /dev/shm/dev-workspace/dot-claude status --porcelain=v1
+git -C "${CONTROL_ROOT}" status --porcelain=v1
+git -C "${NESTED_REPO}" status --porcelain=v1
 ```
 
 Parse each output. Extract ALL files including untracked (`??`). The full
@@ -308,14 +308,14 @@ BRANCH=$(git -C "${GIT_ROOT}" rev-parse --abbrev-ref HEAD)
 After committing in `/root`, check the nested repo:
 
 ```bash
-git -C /dev/shm/dev-workspace/dot-claude status --porcelain=v1
+git -C "${NESTED_REPO}" status --porcelain=v1
 ```
 
 If output is non-empty:
 - Repeat Phases 3–8 for `GIT_ROOT=/dev/shm/dev-workspace/dot-claude`
 - Build an independent commit message (type/scope/summary derived from nested repo diff)
 - The lock for the nested repo is acquired at its own GIT_DIR:
-  `GIT_DIR="$(git -C /dev/shm/dev-workspace/dot-claude rev-parse --absolute-git-dir)"`
+  `GIT_DIR="$(git -C "${NESTED_REPO}" rev-parse --absolute-git-dir)"`
 
 If output is empty: print `Nested repo: no changes to commit.`
 
@@ -354,7 +354,7 @@ while ITERATION < MAX_ITERATIONS:
     # Compute status fingerprint from BOTH repos (includes untracked files — M11, fix #8)
     # Include both repo labels to avoid false idle when only nested repo is dirty
     STATUS_FP=$(
-        { echo "ROOT:"; git -C /root status --porcelain=v1; echo "NESTED:"; git -C /dev/shm/dev-workspace/dot-claude status --porcelain=v1; } | LC_ALL=C sort | sha256sum
+        { echo "ROOT:"; git -C "${CONTROL_ROOT}" status --porcelain=v1; echo "NESTED:"; git -C "${NESTED_REPO}" status --porcelain=v1; } | LC_ALL=C sort | sha256sum
     )
     if [ "$STATUS_FP" = "$PREV_STATUS_FP" ]; then
         echo "Bulk: idle diff (fingerprint unchanged in both repos). Stopping."
@@ -363,7 +363,7 @@ while ITERATION < MAX_ITERATIONS:
     PREV_STATUS_FP="$STATUS_FP"
 
     # If zero changes, stop
-    if [ -z "$(git -C /root status --porcelain=v1)$(git -C /dev/shm/dev-workspace/dot-claude status --porcelain=v1)" ]; then
+    if [ -z "$(git -C "${CONTROL_ROOT}" status --porcelain=v1)$(git -C "${NESTED_REPO}" status --porcelain=v1)" ]; then
         echo "Bulk: zero diff in both repos. Done."
         break
     fi
@@ -406,8 +406,8 @@ After the loop ends (max iterations or idle fingerprint):
 
 **Final zero-diff verification** (M11 — AC6):
 ```bash
-ROOT_STATUS=$(git -C /root status --porcelain=v1)
-NESTED_STATUS=$(git -C /dev/shm/dev-workspace/dot-claude status --porcelain=v1)
+ROOT_STATUS=$(git -C "${CONTROL_ROOT}" status --porcelain=v1)
+NESTED_STATUS=$(git -C "${NESTED_REPO}" status --porcelain=v1)
 if [ -z "$ROOT_STATUS" ] && [ -z "$NESTED_STATUS" ]; then
     echo "Bulk complete: zero diff in both repos."
 else
