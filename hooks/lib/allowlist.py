@@ -337,3 +337,218 @@ def consume_grant_for_posttool(sid: str, tool_name: str, command: str) -> bool:
         return False
     except Exception:
         return False
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Sentinel-grant lifecycle (task 20260519-211515 R2 / AC2)
+#
+# The sentinel grant is a STRUCTURED replacement for the legacy
+# pattern-string grant. The hook reads /tmp/claude-grants/<task_id>.json
+# at PreToolUse time instead of grepping the command text. The predicate
+# never substring-matches against the command line; allowed_operations[]
+# is a structured list of {op, target?, args_contain?} dicts that must
+# match by exact op-and-target equality.
+#
+# Contract (consume-on-any-terminal-result):
+#   - success: grant unlinked on exit 0
+#   - failure: grant unlinked on non-zero exit (1..255)
+#   - malformed: grant unlinked when JSON parse fails during posttool
+#   - comment_only: pretool denies; posttool MUST NOT leave leftover state
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _enumerate_sentinel_grant_files(task_id: str | None = None) -> list[Path]:
+    """List existing sentinel grant files under SENTINEL_GRANT_DIR.
+
+    If task_id is provided, restrict to files whose basename starts with
+    "<task_id>-" or equals "<task_id>.json".
+    """
+    try:
+        d = Path(SENTINEL_GRANT_DIR)
+        if not d.is_dir():
+            return []
+        if task_id:
+            return [p for p in d.glob("*.json")
+                    if p.name == f"{task_id}.json" or p.name.startswith(f"{task_id}-")]
+        return list(d.glob("*.json"))
+    except Exception:
+        return []
+
+
+def load_sentinel_grant_for_task(task_id: str) -> dict | None:
+    """Read and validate a sentinel grant JSON for a given task_id.
+
+    Returns the decoded grant dict on success, None if missing/malformed/expired.
+    Required schema keys: task_id, session_id, allowed_operations (list),
+    created_at, expires_at. expires_at is an ISO-8601 string OR unix-epoch
+    integer/float; if it has elapsed, the grant is treated as missing.
+
+    NOTE: this function does NOT unlink the grant. Consumption goes through
+    consume_sentinel_grant_on_terminal_result().
+    """
+    matches = _enumerate_sentinel_grant_files(task_id)
+    if not matches:
+        return None
+    # Most-recent-mtime wins on the unlikely event of duplicates.
+    try:
+        matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    except Exception:
+        pass
+    grant_path = matches[0]
+    try:
+        with open(grant_path) as f:
+            grant = json.load(f)
+    except Exception:
+        return None
+    if not isinstance(grant, dict):
+        return None
+    required = ("task_id", "session_id", "allowed_operations", "created_at", "expires_at")
+    if not all(k in grant for k in required):
+        return None
+    if not isinstance(grant.get("allowed_operations"), list):
+        return None
+    # Expiry check (deny-by-default on parse failure).
+    exp = grant.get("expires_at")
+    try:
+        now = time.time()
+        if isinstance(exp, (int, float)):
+            if exp < now:
+                return None
+        elif isinstance(exp, str):
+            # Accept ISO-8601 with Z or +00:00 suffix.
+            from datetime import datetime, timezone
+            s = exp.replace("Z", "+00:00")
+            t = datetime.fromisoformat(s).timestamp()
+            if t < now:
+                return None
+        else:
+            return None
+    except Exception:
+        return None
+    return grant
+
+
+def _bash_subcommands(command: str) -> list[str]:
+    """Split a compound bash command on && || ; | into stripped sub-tokens."""
+    s = command.replace("||", "\n").replace("&&", "\n").replace(";", "\n").replace("|", "\n")
+    parts = [p.strip() for p in s.split("\n") if p.strip()]
+    return parts or [command]
+
+
+def match_sentinel_grant_for_bash_command(task_id: str, command: str) -> dict | None:
+    """Structural match of bash command against sentinel-grant allowed_operations[].
+
+    The match is STRUCTURAL: for each entry in allowed_operations[], the entry
+    must be a dict with at minimum {"op": <token>}. The candidate sub-token
+    (the first whitespace-separated word of a sub-command after compound
+    splitting) must EQUAL entry["op"]. Optional entry["target"] (if present)
+    must EQUAL the second whitespace-separated word of the same sub-command.
+    Optional entry["args_contain"] (if present, list[str]) must each appear
+    as a literal substring of the remainder of the sub-command (this is the
+    only substring-style predicate, and it is scoped to a single declared
+    arg-fragment, NOT the entire command line).
+
+    The function NEVER substring-matches the entry["op"] against the raw
+    command line — that was the legacy bash-safety bypass closed by R2.
+
+    Returns the matched allowed_operations[] entry on success, None otherwise.
+    """
+    grant = load_sentinel_grant_for_task(task_id)
+    if grant is None:
+        return None
+    ops = grant.get("allowed_operations", [])
+    for sub in _bash_subcommands(command):
+        tokens = sub.split()
+        if not tokens:
+            continue
+        head_op = tokens[0]
+        head_target = tokens[1] if len(tokens) >= 2 else None
+        rest = " ".join(tokens[1:]) if len(tokens) >= 2 else ""
+        for entry in ops:
+            if not isinstance(entry, dict):
+                continue
+            want_op = entry.get("op")
+            if not isinstance(want_op, str) or want_op != head_op:
+                continue
+            want_target = entry.get("target")
+            if want_target is not None and want_target != head_target:
+                continue
+            args_contain = entry.get("args_contain") or []
+            if not isinstance(args_contain, list):
+                continue
+            if all(isinstance(a, str) and a in rest for a in args_contain):
+                return entry
+    return None
+
+
+def consume_sentinel_grant_on_terminal_result(task_id: str, terminal_result: str) -> bool:
+    """Unlink the sentinel grant file on ANY terminal result.
+
+    This implements the consume-on-any-terminal-result semantic mandated by
+    AC2: grants must be unlinked on the four mandatory terminal-consumption
+    cases (success, non_zero exit, malformed grant, comment_only attack).
+
+    Args:
+        task_id: the task whose sentinel grant should be reaped.
+        terminal_result: one of "success", "failure", "non_zero", "malformed",
+                         "comment_only", or any other terminal sentinel string.
+                         The value is logged but does not change behavior —
+                         all four cases unlink unconditionally.
+
+    Returns:
+        True iff at least one matching grant file was unlinked, False otherwise.
+    """
+    unlinked = False
+    for p in _enumerate_sentinel_grant_files(task_id):
+        try:
+            os.unlink(p)
+            unlinked = True
+            sys.stderr.write(
+                f"[ALLOW-SENTINEL] grant CONSUMED for task_id={task_id} "
+                f"terminal_result={terminal_result} path={p}\n"
+            )
+        except FileNotFoundError:
+            pass
+        except Exception as exc:
+            sys.stderr.write(
+                f"[ALLOW-SENTINEL] unlink failed for {p}: {exc}\n"
+            )
+    return unlinked
+
+
+def reap_expired_sentinel_grants() -> int:
+    """Stop-cleanup helper: unlink every sentinel grant whose expires_at has
+    elapsed. Returns the count of reaped files. Best-effort; never raises."""
+    count = 0
+    for p in _enumerate_sentinel_grant_files(None):
+        try:
+            with open(p) as f:
+                grant = json.load(f)
+        except Exception:
+            # Malformed grant — also reap.
+            try:
+                os.unlink(p)
+                count += 1
+            except Exception:
+                pass
+            continue
+        exp = grant.get("expires_at")
+        elapsed = False
+        try:
+            now = time.time()
+            if isinstance(exp, (int, float)) and exp < now:
+                elapsed = True
+            elif isinstance(exp, str):
+                from datetime import datetime
+                s = exp.replace("Z", "+00:00")
+                if datetime.fromisoformat(s).timestamp() < now:
+                    elapsed = True
+        except Exception:
+            elapsed = True
+        if elapsed:
+            try:
+                os.unlink(p)
+                count += 1
+            except Exception:
+                pass
+    return count
