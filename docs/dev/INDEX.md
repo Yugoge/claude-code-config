@@ -1,6 +1,6 @@
 # dev
 
-*Last updated: 2026-05-20T06:49:01Z*
+*Last updated: 2026-05-20T06:57:15Z*
 **Total entries**: 269
 **Convention**: kebab
 
@@ -118,8 +118,8 @@ dev/
 ├── `context-20260519-151734.json` - json config
 ├── `context-20260519-161035.json` - json config
 ├── `context-20260519-175339.json` - json config
+├── `context-20260519-211515-CYCLE2-round2.json` - json config
 ├── `context-20260519-211515-CYCLE2.json` - json config
-├── `context-20260519-211515-DH.json` - json config
 ├── `context-20260519-211515.json` - json config
 ├── `context-dev-20260107-091716.json` - json config
 ├── `context-dev-20260107-100221.json` - json config
@@ -264,9 +264,9 @@ dev/
 ├── `ticket-20260519-151734.md` - BA Specification: Fix /do and /allow Bypass Coverage in PreToolUse Hooks
 ├── `ticket-20260519-161035.md` - BA Specification: Layered prevention of tmp/ramdisk pressure recurrence
 ├── `ticket-20260519-175339.md` - BA Specification: Chrome CDP Page-Target Deadlock — Wrapper Lock + Stale-Page Cleanup + Cron Surgical Edit
+├── `ticket-20260519-211515-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-20260519-211515-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
-├── `ticket-20260519-211515-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
-├── `ticket-20260519-211515.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
+├── `ticket-20260519-211515.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-20260520-allow-dh.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H)
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
