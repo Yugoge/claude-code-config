@@ -470,12 +470,87 @@ print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" 
   fi
 fi
 # ────────────────────────────────────────────────────────────────────────────
+# Sentinel-grant short-circuit (task 20260519-211515 R2 / AC2).
+# Reads /tmp/claude-grants/<task_id>.json via hooks/lib/allowlist.py
+# match_sentinel_grant_for_bash_command(). The predicate is STRUCTURED:
+# allowed_operations[] entries must EQUAL the bash sub-command's op/target
+# tokens — the in-hook command-text grep is REPLACED by this structured
+# match. Substring matching against the raw command line is forbidden.
+# This is the consume-on-any-terminal-result entry point; PostToolUse
+# performs the unlink for all four terminal cases (success, non_zero,
+# malformed, comment_only).
+SENTINEL_EXISTS_FOR_TASK=0
+if [ "$IS_SUBAGENT" != "1" ]; then
+  TASK_ID_FOR_SENTINEL="${CLAUDE_TASK_ID:-}"
+  if [ -z "$TASK_ID_FOR_SENTINEL" ]; then
+    TASK_ID_FOR_SENTINEL=$(echo "$INPUT" | "$PYTHON_BIN" -c \
+      "import json,sys,os; d=json.load(sys.stdin); print(d.get('task_id','') or d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
+      2>/dev/null)
+  fi
+  if [ -n "$TASK_ID_FOR_SENTINEL" ]; then
+    HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SENTINEL_QUERY=$(HOOKS_DIR="$HOOKS_DIR" CMD_INPUT="$COMMAND" TASK_ID="$TASK_ID_FOR_SENTINEL" "$PYTHON_BIN" - <<'PYEOF' 2>/dev/null
+import os, sys
+sys.path.insert(0, os.environ['HOOKS_DIR'])
+from lib.allowlist import load_sentinel_grant_for_task, match_sentinel_grant_for_bash_command
+task_id = os.environ['TASK_ID']
+cmd = os.environ['CMD_INPUT']
+grant = load_sentinel_grant_for_task(task_id)
+if grant is None:
+    print('SENTINEL_NONE')
+else:
+    m = match_sentinel_grant_for_bash_command(task_id, cmd)
+    if m is not None:
+        print('SENTINEL_OK')
+    else:
+        print('SENTINEL_EXISTS_NO_MATCH')
+PYEOF
+)
+    case "$SENTINEL_QUERY" in
+      SENTINEL_OK)
+        mkdir -p "$(dirname "$CONSENT_LOG")"
+        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=$TASK_ID_FOR_SENTINEL SENTINEL_GRANT_MATCHED command='$COMMAND'" >> "$CONSENT_LOG"
+        echo "[allow-sentinel] structured grant matched for task=$TASK_ID_FOR_SENTINEL. consume-on-any-terminal-result deferred to PostToolUse." >&2
+        "$PYTHON_BIN" -c 'import json; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": "/allow sentinel grant consumed (structured allowed_operations[] match)"}}))'
+        exit 0
+        ;;
+      SENTINEL_EXISTS_NO_MATCH)
+        # AC2 invariant (CF-1, codex iter-1 adversarial review): when a
+        # structured sentinel exists for this task but does NOT match the
+        # current bash command structurally, the legacy /allow short-circuit
+        # MUST NOT be consulted. Substring-matching the comment-only attack
+        # (e.g. `echo hi # rm -rf /` against a legacy `rm` pattern) would
+        # otherwise succeed via the legacy path. We mark this and skip the
+        # legacy short-circuit below.
+        SENTINEL_EXISTS_FOR_TASK=1
+        echo "[allow-sentinel] sentinel exists for task=$TASK_ID_FOR_SENTINEL but command did not match allowed_operations[] — legacy /allow path suppressed for this Bash call (AC2 invariant)." >&2
+        ;;
+      SENTINEL_NONE|*)
+        # No sentinel: legacy /allow short-circuit may proceed.
+        :
+        ;;
+    esac
+  fi
+fi
+
+# ────────────────────────────────────────────────────────────────────────────
 # Global /allow short-circuit — sole PreToolUse allowlist match/approval call site in
 # pretool-bash-safety.sh. Fires unconditionally after the /do bypass and before all
 # block rules. Actual grant deletion is deferred to posttool-allowlist-consume.py
 # (PostToolUse). Per-rule secondary calls were removed in task 20260518-094616 because
 # the global short-circuit at this location covers all paths unconditionally.
-check_and_consume_allowlist "$COMMAND" && exit 0
+#
+# CF-1 gating (task 20260519-211515 codex iter-1 BLOCKER): when a structured
+# sentinel exists for the current task but did NOT match the bash command's
+# allowed_operations[] structurally, the legacy substring-match short-circuit
+# is SUPPRESSED — otherwise the comment-only bypass attack (e.g. `echo hi
+# # rm -rf /` against a legacy `rm` pattern) defeats AC2's "predicate never
+# substring-matches against the command line" invariant. If no sentinel exists
+# (SENTINEL_EXISTS_FOR_TASK=0) we still run the legacy short-circuit for
+# back-compat with pre-migration grants.
+if [ "$SENTINEL_EXISTS_FOR_TASK" != "1" ]; then
+  check_and_consume_allowlist "$COMMAND" && exit 0
+fi
 
 # Layer 1.A — daemon-restart prohibition: systemctl verb gate against happy-daemon-*.
 # Verb set: stop|restart|disable|enable|reload|kill|try-restart|reload-or-restart.

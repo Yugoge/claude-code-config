@@ -117,12 +117,23 @@ def _current_in_progress_index(state: dict) -> int | None:
     The validator at pretool-todo-validate.py around line 238 keys
     `subagent_calls` on the canonical enumerate-index string form, so this
     writer must conform to the same indexing scheme (NOT the step label).
+
+    Multi-in_progress guard (cycle 20260519-211515 Item H, OBJ-5 BLOCKER
+    resolution): if MORE THAN ONE step has status='in_progress' the bookmark
+    is inconsistent — return None so callers fall through to the no-write
+    branch. This prevents the typed-lookup window in Case A from anchoring
+    on an ambiguous bookmark state, and prevents Case B legacy from
+    arbitrarily picking the first of several in_progress steps.
     """
     last_todos = state.get('last_todos') or []
+    found: int | None = None
     for idx, item in enumerate(last_todos):
         if isinstance(item, dict) and item.get('status') == 'in_progress':
-            return idx
-    return None
+            if found is not None:
+                # Multi-in_progress bookmark inconsistency — refuse to anchor.
+                return None
+            found = idx
+    return found
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +148,68 @@ def _step_has_subagent_call(canonical: list, step_index: int) -> bool:
     if not isinstance(item, dict):
         return False
     return item.get('subagent_call') is not None
+
+
+def _find_earliest_unflipped_matching_step(
+    canonical: list,
+    state: dict,
+    subagent_type: str,
+    ip_index: int | None,
+) -> int | None:
+    """Bounded-window K=3 first-unflipped-match keyed on subagent_type.
+
+    Cycle 20260519-211515 Item H (AC-H1, AC-H3b). Used by Case A in _main
+    when stdin.tool_input.subagent_type is NON-EMPTY (parallel
+    TodoWrite+Agent dispatch closes the bookmark-stale race).
+
+    Case A is gated on a single valid in_progress anchor (OBJ-5 BLOCKER
+    resolution): if ip_index is None — either no in_progress step exists,
+    OR multi-in_progress returned None from _current_in_progress_index —
+    return None immediately. There is NO `else: start = 0` fallback. The
+    caller exits 0 with no write per AC-H3b sub-cases (3) and (4).
+
+    Within the K=3 window canonical[max(0, ip_index):ip_index+3], return
+    the earliest index whose canonical step has
+    subagent_call.subagent_type matching `subagent_type` (case-insensitive)
+    AND is not yet flipped in state.subagent_calls.
+
+    Returns int (target index) or None (no anchor / no unflipped match).
+    """
+    if ip_index is None:
+        return None
+    if not isinstance(subagent_type, str) or not subagent_type:
+        return None
+    start = max(0, ip_index)
+    end = min(len(canonical), start + 3)  # K=3 bounded window
+    needle = subagent_type.lower()
+    calls = state.get('subagent_calls') or {}
+    if not isinstance(calls, dict):
+        calls = {}
+    for i in range(start, end):
+        step = canonical[i] if i < len(canonical) else None
+        if not isinstance(step, dict):
+            continue
+        call_meta = step.get('subagent_call')
+        if call_meta is None:
+            continue
+        # Normalize: subagent_call may be a dict (single subagent) or a list
+        # of dicts (multiple alternative subagents — supported by the
+        # validator's _format_subagent_names at pretool-todo-validate.py:244-248).
+        if isinstance(call_meta, dict):
+            entries = [call_meta]
+        elif isinstance(call_meta, list):
+            entries = [e for e in call_meta if isinstance(e, dict)]
+        else:
+            continue
+        if calls.get(str(i)):
+            continue  # already flipped
+        for entry in entries:
+            cand_type = entry.get('subagent_type', '')
+            if not isinstance(cand_type, str):
+                continue
+            if cand_type.lower() == needle:
+                return i
+    return None  # window exhausted, no unflipped match
 
 
 def _get_expected_type(canonical: list, step_index: int) -> str:
@@ -337,11 +410,20 @@ def _enforce(stdin_data: dict, contract: dict, state: dict,
 # Main
 # ---------------------------------------------------------------------------
 
-def _resolve_context(session_id: str):
-    """Load state + canonical and locate the in-progress subagent_call step.
+def _resolve_base_context(session_id: str):
+    """Load state + canonical + ip_index without gating on subagent_call metadata.
 
-    Returns tuple(state, last_todos, canonical, ip_index, bm_path) on a
-    valid in-progress subagent_call step; otherwise None.
+    Cycle 20260519-211515 Item H: replaces the previous
+    `_resolve_context` gate-and-bail pattern for the legacy path. Case A
+    (subagent_type non-empty, typed lookup) MUST NOT bail when the current
+    in_progress step lacks subagent_call metadata — that is exactly the
+    parallel-dispatch race shape where the bookmark is stale by one step.
+
+    Returns tuple(state, last_todos, canonical, ip_index, bm_path) on
+    success (bm exists, last_todos non-empty). ip_index may be None when
+    no in_progress step exists OR when multiple in_progress steps were
+    detected by the guarded _current_in_progress_index. Returns None when
+    bookmark is unreadable / shape is invalid.
     """
     state, bm_path = _load_workflow_bookmark(session_id)
     if state is None:
@@ -352,13 +434,12 @@ def _resolve_context(session_id: str):
         return None
     canonical = run_todo_script(cmd_name) or []
     ip_index = _current_in_progress_index(state)
-    if ip_index is None:
-        return None
-    if not _step_has_subagent_call(canonical, ip_index):
-        return None
     return state, last_todos, canonical, ip_index, bm_path
 
 
+# NOTE: `_resolve_context` removed by cycle 20260519-211515 close cleanup
+# (cleanliness-inspector finding: dead function — H restructure inlined the
+# contract gate into `_main`, leaving this helper without callers).
 def _emit_legacy_tracked(last_todos: list, ip_index: int) -> None:
     """Print the SUBAGENT TRACKED line for the legacy fall-through path."""
     item = last_todos[ip_index] if ip_index < len(last_todos) else {}
@@ -367,25 +448,79 @@ def _emit_legacy_tracked(last_todos: list, ip_index: int) -> None:
           f'subagent call recorded.')
 
 
+def _extract_subagent_type(stdin_data: dict) -> str:
+    """Extract and normalize stdin.tool_input.subagent_type.
+
+    Returns lower-cased, stripped string; empty string if absent / wrong type.
+    """
+    ti = stdin_data.get('tool_input') if isinstance(stdin_data, dict) else None
+    if not isinstance(ti, dict):
+        return ''
+    val = ti.get('subagent_type', '')
+    if not isinstance(val, str):
+        return ''
+    return val.strip().lower()
+
+
 def _main() -> None:
     stdin_data, session_id, agent_prompt = _parse_stdin()
-    ctx = _resolve_context(session_id)
-    if ctx is None:
-        sys.exit(0)
-    state, last_todos, canonical, ip_index, bm_path = ctx
 
+    # Load base context once (state, canonical, ip_index, bm_path).
+    base = _resolve_base_context(session_id)
+    if base is None:
+        sys.exit(0)
+    state, last_todos, canonical, ip_index, bm_path = base
+
+    # Contract-presence check FIRST (cycle 20260519-211515 codex Finding 1):
+    # if a /dev-overnight cycle-contract is active, the legacy Case A/B paths
+    # MUST NOT run — bookmark writes go strictly through the contract's
+    # _enforce path (artifact validation + atomic reconciliation). Falling
+    # through to a legacy write would bypass artifact validation.
+    contract = _try_load_contract(session_id, state)
+    if contract is not None:
+        # Path A: strict gate (single in_progress + subagent_call metadata).
+        if ip_index is None:
+            sys.exit(0)
+        if not _step_has_subagent_call(canonical, ip_index):
+            sys.exit(0)
+        _check_role_match(_get_expected_type(canonical, ip_index),
+                          agent_prompt, ip_index)
+        step = _current_step_label(state)
+        _enforce(stdin_data, contract, state, bm_path, step)
+        sys.exit(0)
+
+    # Contract absent — Path B: legacy bookkeeping. Case A (typed lookup
+    # via subagent_type) takes precedence over Case B (legacy in_progress
+    # inference). The two are mutually exclusive; Case A MUST NOT fall
+    # through to Case B on a typed miss (AC-H3b mandate).
+    subagent_type = _extract_subagent_type(stdin_data)
+    if subagent_type:
+        # Case A: subagent_type non-empty. Gated on single valid in_progress
+        # anchor. Helper returns None when ip_index is None (no anchor / multi)
+        # OR when no unflipped matching step in K=3 window — all AC-H3b cases.
+        target = _find_earliest_unflipped_matching_step(
+            canonical, state, subagent_type, ip_index,
+        )
+        if target is not None and isinstance(target, int):
+            _check_role_match(_get_expected_type(canonical, target),
+                              agent_prompt, target)
+            _record_subagent_call_legacy(bm_path, str(target))
+            _emit_legacy_tracked(last_todos, target)
+        # DO NOT fall through to Case B when subagent_type is non-empty
+        # and typed lookup misses (AC-H3b sub-case 2 mandate).
+        sys.exit(0)
+
+    # Case B: subagent_type absent. Existing legacy chain: requires a
+    # single valid in_progress anchor AND that step has subagent_call.
+    if ip_index is None:
+        sys.exit(0)  # AC-H3b sub-case 1: legacy None
+    if not _step_has_subagent_call(canonical, ip_index):
+        sys.exit(0)  # AC-H3b sub-case 1: in_progress lacks subagent_call
     _check_role_match(_get_expected_type(canonical, ip_index),
                       agent_prompt, ip_index)
-
-    contract = _try_load_contract(session_id, state)
-    step = _current_step_label(state)
-
-    if contract is None:
+    if isinstance(ip_index, int):
         _record_subagent_call_legacy(bm_path, str(ip_index))
         _emit_legacy_tracked(last_todos, ip_index)
-        sys.exit(0)
-
-    _enforce(stdin_data, contract, state, bm_path, step)
     sys.exit(0)
 
 
