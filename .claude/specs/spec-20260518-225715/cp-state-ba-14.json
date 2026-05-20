@@ -4,9 +4,9 @@
   "instance_id": 14,
   "generation": 1,
   "agent_id": "a3515878ce4e7d6ce",
-  "is_running": true,
-  "checked_in_at": "2026-05-20T22:55:00Z",
-  "checked_out_at": null,
+  "is_running": false,
+  "checked_in_at": "2026-05-20T23:10:36Z",
+  "checked_out_at": "2026-05-20T23:11:01Z",
   "checkpoints": [
     {
       "id": "cp-01",
@@ -44,6 +44,6 @@
   "terminal_artifact": {
     "path": "docs/dev/ba-report-20260519.json",
     "exists": false,
-    "validated_at": "2026-05-19T15:42:57Z"
+    "validated_at": "2026-05-20T23:11:01Z"
   }
 }
