@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-20T20:32:34Z*
-**Total entries**: 306
+*Last updated: 2026-05-20T20:34:11Z*
+**Total entries**: 311
 **Convention**: kebab
 
 ## Tree
@@ -49,6 +49,7 @@ dev/
 ├── `ba-qa-report-20260519-175339.json` - json config
 ├── `ba-qa-report-20260519-211515-iter2.json` - json config
 ├── `ba-qa-report-20260519-211515-iter3.json` - json config
+├── `ba-qa-report-20260519-211515.json` - json config
 ├── `ba-qa-report-20260520-085647-d1722b-iter2.json` - json config
 ├── `ba-qa-report-20260520-085647-d1722b-iter3.json` - json config
 ├── `ba-qa-report-20260520-085647-d1722b.json` - json config
@@ -112,6 +113,7 @@ dev/
 ├── `completion-20260519-161035.md` - Development Completion Report — 20260519-161035
 ├── `completion-20260519-175339.md` - Development Completion Report — 20260519-175339
 ├── `completion-20260519-211515-redev9items.md` - Development Completion Report — 20260519-211515 (redev 9-item retrospective)
+├── `completion-20260519-211515.md` - No description
 ├── `completion-20260520-085647-d1722b.md` - Development Completion Report — 20260520-085647-d1722b
 ├── `completion-d1e94e.md` - Development Completion Report — 20260519-211515
 ├── `context-20260416-063500.json` - json config
@@ -184,6 +186,7 @@ dev/
 ├── `dev-report-20260519-161035.json` - json config
 ├── `dev-report-20260519-175339.json` - json config
 ├── `dev-report-20260519-211515-iter3.json` - json config
+├── `dev-report-20260519-211515.json` - json config
 ├── `dev-report-20260520-085647-d1722b.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
@@ -251,7 +254,9 @@ dev/
 ├── `qa-report-20260519-151734.json` - json config
 ├── `qa-report-20260519-161035.json` - json config
 ├── `qa-report-20260519-175339.json` - json config
+├── `qa-report-20260519-211515-close-debate.json` - json config
 ├── `qa-report-20260519-211515-final.json` - json config
+├── `qa-report-20260519-211515.json` - json config
 ├── `qa-report-20260520-085647-d1722b.json` - json config
 ├── `qa-report-d1e94e.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
