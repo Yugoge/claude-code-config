@@ -111,7 +111,7 @@ Constraints:
 
 Wait for changelog-analyst to complete. Echo its final status to the user.
 
-### Step 7: Spec-continue dispatch (post-commit, non-blocking)
+### Step 7: Spec-continue dispatch (post-commit, deterministic fail-closed)
 
 **This step is dispatched by `/commit` from its own orchestrator context — NOT from within changelog-analyst.** changelog-analyst has already returned before this step executes.
 
@@ -125,13 +125,40 @@ When `BULK=false` AND `DRYRUN=false` AND `TASK_ID` is set AND changelog-analyst 
 
 Set `DEV_DOCS_ROOT` using the same CONTROL_ROOT logic as Step 6: `DEV_DOCS_ROOT=${CONTROL_ROOT}/docs/dev` (where `CONTROL_ROOT=/root`). Use absolute paths throughout Step 7.
 
-1. Resolve the spec path for this task-id using this lookup order (first match wins):
-   - Check `${DEV_DOCS_ROOT}/context-${TASK_ID}.json` — if it exists, parse it and extract the first non-empty value of `spec_path`, `spec_file`, or `user_spec_path`. Validate that the extracted path exists as a regular file; if it does not exist, continue to the next lookup step.
-   - If no valid spec path was found from context JSON: print `No spec associated with task-id ${TASK_ID}` and exit 0. Do NOT dispatch an Agent. (Ticket files and ba-spec files are NOT treated as spec targets — they are BA artifacts, not continuation specs.)
+**Step 7 algorithm (verbatim contract — total-ordered, deterministic, fail-closed):**
 
-2. If a spec path was resolved and validated, print `Step 7: spec-continue dispatched for task-id=${TASK_ID} spec=${SPEC_PATH}`.
+The algorithm is the algorithm. There are no "options" the implementer can pick from; the steps are total-ordered and mandatory. No nondeterminism aliases anywhere in Step 7 (no "dev chooses", no "one of:", no "pick latest", no "prefer newest", no "select any", no "most recent wins", no "any matching", no "the right one"). Prior-cycle artifacts MUST NOT be matched: the glob and content predicates are anchored to the CURRENT cycle's `${TASK_ID}`; no cross-cycle drag-in. This operationalizes the user binding directive `禁止加载任何非本cycle的内容`.
 
-3. Dispatch an inline Agent (do NOT invoke `/spec-continue` as a slash-command) with the following prompt, substituting `TASK_ID`, `SPEC_PATH`, and `DEV_DOCS_ROOT`:
+(1) **context.spec_path first.**
+    If `${DEV_DOCS_ROOT}/context-${TASK_ID}.json` field `spec_path` is non-null AND the file at that path exists as a regular file, dispatch `/dev` with that `spec_path`. STOP.
+
+(2) **Continuation spec line (parenthetical-qualifier + markdown-bullet + backtick tolerant).**
+    Else parse `${DEV_DOCS_ROOT}/close-report-${TASK_ID}.md` fence-aware: read each line outside a fenced code block (skip ranges between ``` and ```). Apply the regex
+
+        ^[-*+]?\s*Continuation spec(\s*\([^)]*\))?\s*:\s*`?(docs/dev/specs/spec-[^\s`]+\.md)`?\s*$
+
+    against each non-fenced line, where:
+      - Leading `^[-*+]?\s*` accepts an optional markdown list marker (`- `, `* `, `+ `).
+      - Optional `(\s*\([^)]*\))?` accepts parenthetical qualifiers such as `(from prior NO)`, `(this cycle)`, `(rebuilt)`.
+      - Inline backticks `` ` `` around the path are accepted (markdown code-span).
+    The verbatim real-world close-report line proving this case is `docs/dev/close-report-20260519-175339.md:151` —
+
+        - Continuation spec (from prior NO): `docs/dev/specs/spec-20260520-044700.md`
+
+    Note the leading dash AND the backticks AND the parenthetical qualifier — ALL THREE must be tolerated.
+    If exactly one such line matches AND the captured path exists on disk, dispatch `/dev` with that path, emit a WARNING `linked via close-report, not context.spec_path`. STOP.
+
+(3) **Mtime + literal-task-id glob (final stage).**
+    Else glob `docs/dev/specs/spec-YYYYMMDD-HHMMSS.md` (basename pattern enforced) with mtime in [close-report mtime - 24h, close-report mtime + 1h]. For each candidate, run `grep -lF "${TASK_ID}" candidate.md` — this is the ONLY content predicate allowed; no other grep, no free-form content scan. Collect the set of candidates that pass both the basename pattern, mtime window, and literal-task-id grep.
+
+(4) **Outcome (fail-closed).**
+    - If set is empty: print `No spec associated with task-id ${TASK_ID}` and exit 0 (silent, unchanged from prior behavior).
+    - If set has exactly one element: print `spec produced this cycle but not linked in context: <path>` and exit non-zero (fail-closed).
+    - If set has multiple elements: print `multiple specs produced this cycle without context linkage: <paths>; explicit context.spec_path required` and exit non-zero (fail-closed).
+
+**Dispatch payload (when stage 1 or 2 selects a path)**
+
+Dispatch an inline Agent (do NOT invoke `/spec-continue` as a slash-command) with the following prompt, substituting `TASK_ID`, `SPEC_PATH`, and `DEV_DOCS_ROOT`:
 
 ```
 You are executing the spec-continuation logic for task-id=<TASK_ID>.
@@ -159,7 +186,9 @@ Follow the ## Continuation-spec mode instructions from /root/.claude/commands/sp
 - Output the spec path when done.
 ```
 
-4. If the Agent dispatch fails for any reason (error, timeout, or exception), print `WARNING: spec-continue dispatch failed for task-id=${TASK_ID} — spec not updated` and continue. The commit is already recorded; Step 7 failure does NOT roll back or affect the commit.
+If the Agent dispatch fails for any reason (error, timeout, or exception), print `WARNING: spec-continue dispatch failed for task-id=${TASK_ID} — spec not updated` and continue. The commit is already recorded; Step 7 failure does NOT roll back or affect the commit.
+
+**Reversal-rationale guidance for changelog-analyst (R9 cross-reference)**: the binding rule that any forward-fix commit which intentionally reverses prior behavior MUST include `Reverses <SHA>: <one-line rationale for why prior reasoning no longer holds>` in the commit-message body lives in `agents/changelog-analyst.md` Phase 6 (the SOLE binding landing). `/commit` orchestrator does NOT enforce the rule directly; changelog-analyst owns commit-message construction and is the contract holder.
 
 ## Close-gate verification reference
 
