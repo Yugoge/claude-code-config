@@ -601,9 +601,14 @@ Use Agent tool with:
 
 **Iteration tracking**: Update TodoWrite with BA-QA iteration number.
 
-### Step 8: Delegate to Dev Subagent
+### Step 8: Agent dispatch — Delegate to Dev Subagent
+
+**TodoWrite ordering reminder (task 20260519-211515 R3 / AC3)**: TodoWrite mark-as-in_progress for step N must precede any Agent() call dispatched within step N.
+The orchestrator MUST emit a TodoWrite call updating the Step-N todo item to `in_progress` BEFORE invoking any Agent() (or Task tool) dispatch in Step N. REQUIRED ordering: TodoWrite first, Agent() second. Always update the in_progress marker BEFORE dispatch. Before dispatch of test-writer or Dev (or any subagent in any Step), the matching Todo item MUST already be in_progress; otherwise do not dispatch.
 
 **Pre-dispatch — Test-Writer dispatch (conditional, between BA and Dev per spec-20260518-225715 §5.2 line 167: "位置：BA → [test-writer] → Dev → QA")**:
+
+**Test-writer skip-sentinel honor (task 20260519-211515 R4 / V_TW, CF2-14)**: BEFORE evaluating the gate below, read `_test_writer_skip_reason` from BA's context JSON. If that field is a non-empty string, the test-writer dispatch MUST be skipped on this cycle regardless of complexity_tier / risk_level — the sentinel is an explicit BA-authored skip signal. Record `test_writer_expected = false` and the skip reason in the todo list. Do NOT route a stale-content acceptance-criteria JSON to test-writer; doing so generates wrong-cycle pytest skeletons. This honor-clause is the V_TW enforcement; commands/dev.md Step 8 must reference `_test_writer_skip_reason` or `skip test-writer` language so the sentinel is not decorative.
 
 Gate evaluation (mandatory): read `complexity_tier` and `risk_level` from BA's context JSON. If `complexity_tier ∈ {STANDARD, COMPLEX}` OR `risk_level == "high"`, then `test_writer_expected = true`; otherwise `test_writer_expected = false`. Pass `test_writer_expected` into the Dev and QA dispatch prompts.
 

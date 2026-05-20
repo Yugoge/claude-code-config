@@ -230,6 +230,38 @@ contained "sync uncommitted"), replace the summary with `session changes for <sc
 - Per-commit staged set must touch fewer than 3 of: `{hooks/, commands/, scripts/, packages/, docs/}`
   (stay below BULK_THRESHOLD=3 to avoid detector warning)
 
+**Reversal-citation rule (task 20260519-211515 R9 / AC9 — SOLE BINDING LANDING)**
+
+When this commit intentionally reverses a recent prior commit's policy or behavior
+as a **forward-fix** commit (a normal new commit that contradicts a prior policy
+WITHOUT using `git revert`, `git reset --hard`, `git rebase`, amend, or force-push —
+those destructive verbs are independently forbidden per Destructive-Action Escalation
+in `agents/ba.md`), the commit-message body MUST include the verbatim citation:
+
+    Reverses <SHA>: <one-line rationale for why prior reasoning no longer holds>
+
+where `<SHA>` is the short SHA (≥7 chars) of the commit whose policy this commit
+reverses, and `<one-line rationale>` explains why the prior reasoning no longer
+holds. This is the SOLE binding landing for the reversal-citation rule per
+user requirement lines 51-53 — landing the rule only in `commands/commit.md` does
+NOT satisfy AC9. `commands/commit.md` cross-references this section but is NOT
+a substitute target.
+
+Two independent rules apply here, distinct in scope:
+1. **Destructive verb prohibition** (pre-existing, enforced by Destructive-Action
+   Escalation in `agents/ba.md` + commit grant + push grant): no `git revert`,
+   `git reset --hard`, `git rebase`, amend, or force-push of any prior commit
+   unless the user explicitly authorizes. The reversal-citation rule does NOT
+   require or imply destructive operations.
+2. **Reversal-citation rule** (THIS new contract): when a forward-fix commit
+   reverses prior behavior, the message body MUST include the citation. The
+   commit retains "forward-fix only" mechanics — no history rewrite, no
+   destructive verbs. The citation is documentation, not a destructive action.
+
+Retroactive amendment of past commits (e.g. `d988d4a`) is NOT performed; the
+rule applies to FUTURE commits only. The frozen-commit invariant on `d988d4a`
+is unchanged.
+
 ### Phase 7: Orphan handling (S2)
 
 Files present in git status tracked-modified but absent from dev-report (if dev-report
