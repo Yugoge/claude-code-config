@@ -4,7 +4,7 @@
   "global": {
     "agents": {
       "ba": {
-        "score": 71,
+        "score": 79,
         "rank": "资深工匠",
         "history": [
           {
@@ -94,11 +94,19 @@
             "old_score": 63,
             "new_score": 71,
             "note": "20260519-161035"
+          },
+          {
+            "ts": "2026-05-20T05:01:35Z",
+            "event": "close_success_qa_pass",
+            "delta": 8,
+            "old_score": 71,
+            "new_score": 79,
+            "note": "20260519-160856"
           }
         ]
       },
       "dev": {
-        "score": 88,
+        "score": 100,
         "rank": "宗师级",
         "history": [
           {
@@ -188,11 +196,19 @@
             "old_score": 73,
             "new_score": 88,
             "note": "20260519-161035"
+          },
+          {
+            "ts": "2026-05-20T05:01:34Z",
+            "event": "close_success_qa_pass",
+            "delta": 15,
+            "old_score": 88,
+            "new_score": 100,
+            "note": "20260519-160856"
           }
         ]
       },
       "qa": {
-        "score": 32,
+        "score": 40,
         "rank": "初级工匠",
         "history": [
           {
@@ -258,6 +274,14 @@
             "old_score": 24,
             "new_score": 32,
             "note": "20260519-161035"
+          },
+          {
+            "ts": "2026-05-20T05:01:35Z",
+            "event": "close_success_qa_pass",
+            "delta": 8,
+            "old_score": 32,
+            "new_score": 40,
+            "note": "20260519-160856"
           }
         ]
       },
