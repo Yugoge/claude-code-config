@@ -17,51 +17,80 @@
     "default_safe_contract": "Findings with introduced_in_diff:true AND blocks_close:true may force CLOSE: NO at the close.md verdict layer. Findings with introduced_in_diff:false are pre-existing/advisory/non-blocking per Section 5.4 rule 3. Untagged/absent defaults to ignore (none in this report — all 4 findings carry explicit tags).",
     "ground_truth_method": "Read tool against current working-tree state at audit time, cross-checked with git blame to date each finding's source line to either this cycle's diff or a prior commit."
   },
-  "findings": {
+  "findings": [
+    {
+      "id": "F1",
+      "category": "naming_violations",
+      "file": "hooks/tests/test_allowlist_consolidation.py",
+      "line_ref": "L113",
+      "introduced_in_diff": true,
+      "severity": "minor",
+      "description": "TestReadGrant class-level docstring at L113 still says '\"\"\"Unit tests for read_grant (public API, exact_or_substr semantics).\"\"\"' but the read_grant() target the class exercises now uses exact_only literal_policy (cycle Item D). Two new test methods added INSIDE this class by THIS diff (test_read_grant_exact_only_rejects_substring, test_read_grant_exact_only_rejects_write_against_todowrite) explicitly assert exact_only behavior, making the class docstring directly contradict the tests it now contains. git blame attributes L113 to an earlier commit, but the contradiction is diff-introduced because the cycle's own additions are what created the mismatch — under AC-12.1 inspector-side tagging the cycle owns this.",
+      "proposed_fix": "Change L113 to: '\"\"\"Unit tests for read_grant (public API, exact_only read-only semantics).\"\"\"'",
+      "safe_to_fix": true,
+      "blocks_close": false,
+      "rationale_non_blocking": "Documentation accuracy issue inside a test-file class docstring. Does not affect functional correctness, hook behavior, test discovery, or any acceptance criterion (10/10 ACs PASS per QA). Cosmetic — not a CLOSE: NO blocker per Section 5.4 cleanliness scope. Codex concurred."
+    },
+    {
+      "id": "F2",
+      "category": "obsolete_functionality",
+      "file": "hooks/posttool-subagent-track.py",
+      "line_ref": "L416-L417 docstring backref + L440-L442 NOTE comment block",
+      "introduced_in_diff": true,
+      "severity": "minor",
+      "description": "Stale _resolve_context cleanup breadcrumb in two adjacent locations: (a) docstring of _resolve_base_context at L416-417 reads 'replaces the previous _resolve_context gate-and-bail pattern for the legacy path' — but _resolve_context no longer exists in the file (its body was removed in a prior cleanup iteration of this same cycle); (b) a 3-line NOTE comment at L440-442 documents that a prior cleanliness-inspector finding was applied. Once the cycle closes, both references become dead-comment noise pointing at a symbol that does not exist. Per codex review, merged into a single finding (same symbol, same cycle, same fix).",
+      "proposed_fix": "Two-part edit: (a) reword the docstring sentence at L416-417 to drop the deleted symbol name, e.g. 'Cycle 20260519-211515 Item H: replaces the previous gate-and-bail pattern for the legacy path.'; (b) delete the 3-line NOTE comment block at L440-442 entirely — it documented a fix that is now landed and is therefore archaeology, not running documentation.",
+      "safe_to_fix": true,
+      "blocks_close": false,
+      "rationale_non_blocking": "Documentation/comment-only cleanup. No executable code involved. Does not affect any acceptance criterion. Cosmetic — not a CLOSE: NO blocker. Codex agreed on severity and recommended combining drafts into one finding (applied here)."
+    },
+    {
+      "id": "F3",
+      "category": "non_functional_files",
+      "subcategory": "tempfile_leak_in_test",
+      "file": "hooks/tests/test_allowlist_consolidation.py",
+      "line_ref": "L119-L127 (test_exact_match_returns_true)",
+      "introduced_in_diff": false,
+      "severity": "minor",
+      "description": "test_exact_match_returns_true creates a tempfile.NamedTemporaryFile(delete=False) at L120-L123 and never deletes it. The local variables sid and proper_path extracted at L124 and L126 are immediately discarded — L128-129 overwrite both with a controlled test_sid / grant_path pair. The NamedTemporaryFile leaks to /tmp/claude-bash-allowlist-rg1.*.json on every test run (codex verified live leftover files dated through 2026-05-20). git blame attributes L119-127 to commit ea02581f (2026-05-18 17:27, prior cycle), so this is PRE-EXISTING — not introduced by this cycle's diff.",
+      "proposed_fix": "Delete the entire NamedTemporaryFile block at L119-L127 (everything from `with tempfile.NamedTemporaryFile(` through `proper_path = f\"/tmp/...\"`). The `# Use a controlled SID` branch at L128 onward is the actual test setup and is sufficient on its own.",
+      "safe_to_fix": true,
+      "blocks_close": false,
+      "rationale_non_blocking": "introduced_in_diff:false → per AC-12.1 default-safe rule this finding is advisory/non-blocking by definition. Pre-existing /tmp leak; cleanliness-relevant but not this cycle's responsibility. Surfaced for the next cleanup cycle to address."
+    },
+    {
+      "id": "F4",
+      "category": "obsolete_functionality",
+      "subcategory": "unused_imports",
+      "file": "hooks/tests/test_allowlist_consolidation.py",
+      "line_ref": "L14 (MagicMock), L21 (MatchResult)",
+      "introduced_in_diff": false,
+      "severity": "minor",
+      "description": "Two imports are present but never referenced in the test file body: (a) MagicMock at L14 ('from unittest.mock import patch, MagicMock') — only patch is used (L102); MagicMock has zero references in the file. (b) MatchResult at L21 (in the lib.allowlist import block) — never referenced in any test method. git blame attributes both to commit ea02581f (2026-05-18, prior cycle), so this is PRE-EXISTING.",
+      "proposed_fix": "L14: change `from unittest.mock import patch, MagicMock` → `from unittest.mock import patch`. L21: drop the `MatchResult,` line from the multi-line import block.",
+      "safe_to_fix": true,
+      "blocks_close": false,
+      "rationale_non_blocking": "introduced_in_diff:false → per AC-12.1 default-safe rule, advisory/non-blocking. Pre-existing unused-import warnings that ruff/pyflakes would flag in a regular lint pass; surfaced for the next style/lint cleanup cycle."
+    }
+  ],
+  "findings_by_category_summary": {
     "misplaced_docs": [],
-    "naming_violations": [
-      {
-        "file": "hooks/tests/test_allowlist_consolidation.py",
-        "line_ref": "L113",
-        "introduced_in_diff": true,
-        "reason": "TestReadGrant class-level docstring still says 'exact_or_substr semantics' but the class's read_grant() target now uses exact_only literal_policy (cycle 20260519-211515 Item D). The diff added two new test methods inside this class (test_read_grant_exact_only_rejects_substring, test_read_grant_exact_only_rejects_write_against_todowrite) that explicitly test exact_only behavior, making the class docstring contradict the tests it contains. The diff did not touch line 113 itself, but the diff's additions are the proximate cause of the inconsistency.",
-        "severity": "minor",
-        "recommendation": "Update class docstring to: '\"\"\"Unit tests for read_grant (public API, exact_only read-only semantics).\"\"\"'",
-        "safe_to_fix": true,
-        "blocks_close": false,
-        "rationale_non_blocking": "Documentation accuracy issue inside a test file's class docstring; does not affect functional correctness, hook behavior, or test discovery. Cosmetic minor — not a CLOSE: NO blocker per Section 5.4 cleanliness scope."
-      }
-    ],
+    "naming_violations": ["F1"],
     "archive_candidates": [],
     "dev_context_files": [],
     "temp_files": [],
     "duplicate_scripts": [],
     "duplicate_tests": [],
-    "non_functional_files": [],
+    "non_functional_files": ["F3"],
     "non_functional_folders": [],
     "orphaned_subagents": [],
     "unreferenced_scripts": [],
     "orphaned_tests": [],
     "historical_docs": [],
     "docs_categorization": [],
-    "obsolete_functionality": [],
+    "obsolete_functionality": ["F2", "F4"],
     "orphan_commands": [],
-    "dead_functions": [
-      {
-        "file": "hooks/posttool-subagent-track.py",
-        "function": "_resolve_context",
-        "line_ref": "L440-L457 (definition)",
-        "introduced_in_diff": true,
-        "reason": "Pre-cycle (git HEAD) _resolve_context() was called by _main() at line 372. The cycle's restructure of _main() (Item H) replaced that call with a direct _resolve_base_context() call and inlined the strict contract gate (Path A block at L495-L505). After the restructure, _resolve_context() has no caller in the file or anywhere else in the codebase — its only remaining reference is a backref comment inside _resolve_base_context's docstring (L417). This is a top-level private helper defined-but-never-called → dead code introduced by THIS diff.",
-        "severity": "major",
-        "callers_found": [],
-        "verification": "git show HEAD:hooks/posttool-subagent-track.py confirms _resolve_context was called at L372 pre-cycle; current file's grep for '_resolve_context' returns only the definition at L440 and one docstring backref at L417 — no production call sites.",
-        "recommendation": "Delete _resolve_context() entirely (L440-L457). The 'strict contract gate' semantic it encapsulated is now inlined in _main() Path A (L495-L505) and is therefore not lost. Update the docstring backref at L417 of _resolve_base_context to remove the now-stale '_resolve_context gate-and-bail' reference, or replace with 'pre-cycle gate-and-bail'.",
-        "safe_to_fix": true,
-        "blocks_close": true,
-        "rationale_blocking": "Per inspector rule #16 (Dead Functions Detection), top-level functions defined but never called are major-severity dead code. This was introduced by the cycle's diff (file-level: hooks/posttool-subagent-track.py). Although confined to a hook file and non-executing (no behavioral impact), it represents code-quality regression in the very file the cycle's main fix lands in — leaving it in place would normalize dead-code accretion in production-critical hook infrastructure."
-      }
-    ],
+    "dead_functions": [],
     "duplicate_content": []
   },
   "summary": {
