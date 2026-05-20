@@ -1,12 +1,11 @@
 {
   "request_id": "20260519-211515",
   "task_id": "20260519-211515",
-  "timestamp": "2026-05-20T06:50:00Z",
-  "iteration": 3,
-  "collision_note_iter3": "RECURRING COLLISION: canonical paths docs/dev/ticket-20260519-211515.md and docs/dev/context-20260519-211515.json were overwritten AGAIN by parallel Cycle 2 of spec-20260518-225715 at 2026-05-20T06:44-06:45Z mid-iter3 session, AFTER the orchestrator had promoted D+H content to those canonical slots at ~05:23Z. BA iter3 refuses to engage in a write race and preserves D+H content under -DH suffix. Orchestrator MUST diagnose and patch the task-id allocator collision permanently (this is the second collision in the same slot). See collision_report_recurring.",
+  "timestamp": "2026-05-20T11:30:00Z",
+  "_note_on_prior_content": "This file was previously occupied by a stale D+H bugfix BA context from a parallel cycle (Cycle 2 of spec-20260518-225715). That cycle's task-id collided with this one. The D+H context has been superseded by the harness work described below, which is the authoritative BA context for task-id 20260519-211515 per the user requirement document at docs/dev/user-requirement-dev-20260519-211515.md.",
   "complexity_tier": "STANDARD",
-  "risk_level": "medium",
-  "_risk_level_doc": "medium — security-relevant fix to permission-grant matcher (D) and workflow-validator state-tracking fix (H). Bounded blast radius: D touches one library function used by 6 production callers all with exact tool names; H changes legacy Path B of a single posttool hook with mutually-exclusive Case A / Case B chain gated on single-anchor.",
+  "risk_level": "high",
+  "_risk_level_doc": "high — modifies shared infrastructure (score-update.sh + .gitignore + commands/close.md + commands/commit.md + commands/dev.md + agents/qa.md) that all downstream cycles depend on. Bounded blast radius: gate is a NEW pre-debate insertion in /close (Step 1.5) and /commit PRIMARY path; sandbox harnesses are NEW additive scripts; CAS+log-emission in score-update.sh is backward-compat-preserving (optional flag). Test-writer dispatch gate fires per commands/dev.md Step 8 (complexity_tier=STANDARD); acceptance_criteria_path below points to non-null AC JSON.",
   "requirement": {
     "original": "好的开完成全部",
     "clarified": "Land code-fix items D + H from the prior Codex triage of leftover work after cycle 20260519-151734 closed. D: tighten PreTool /allow literal match to exact-only. H: replace bookmark-in_progress inference with bounded-window K=3 first-unflipped-match gated on a single valid in_progress anchor, with mandatory multi-in_progress guard at _current_in_progress_index.",
