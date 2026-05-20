@@ -82,7 +82,9 @@
       "proposed_fix": "Rewrite AC-03 check to: (a) must_not_contain_regex should account for backtick wrap: `Write\\s+\\`?tests/generated/manifest\\.json\\`?(?!\\s*\\(global)`; (b) must_contain should target the actual per-task path string `tests/generated/<task_id>/manifest.json` (already in JSON line 85) AND require the report.manifest_path field to NOT equal the global path; (c) drop the {kind:\"index\" requirement or rewrite as `\"kind\":\\s*\"index\"` regex to match real JSON formatting. Scope the must_not_contain to the Procedure step 5 paragraph + Output JSON block only, not file-wide."
     },
     {
-      "id": "OBJ-04",
+      "id": "OBJ-04-LEGACY",
+      "_doc": "RESOLVED in iter-1. Preserved for audit trail.",
+      "iter1_resolution": "RESOLVED — Phase 5 and schema scopes separated; sentinel preservation via verbatim phrase regex.",
       "dimension": "spec_text_vs_execution_drift",
       "severity": "major",
       "ac_affected": "AC-04",
