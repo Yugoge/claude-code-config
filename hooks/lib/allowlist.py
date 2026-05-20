@@ -135,13 +135,18 @@ def _load_and_match(
 def read_grant(tool_name: str, sid: str) -> bool:
     """Check /allow grant for tool_name. Read-only — does NOT delete the grant.
 
-    Literal match: pattern == tool_name OR pattern in tool_name (exact_or_substr).
-    Regex match: re.search(pattern, tool_name).
+    Literal match: pattern == tool_name ONLY (exact_only). Mirrors PostToolUse
+    consume_grant_for_posttool Branch 3 to close the PreTool/PostTool
+    asymmetry that allowed substring grants (e.g. '/allow Re') to bypass
+    PreTool gates while never being consumed at PostTool — causing grant
+    leakage past single-use. See cycle 20260519-211515 Item D.
+    Regex match: re.search(pattern, tool_name) (unchanged, see is_regex
+    branch of _match_loaded_grant).
 
     Deletion is deferred to posttool-allowlist-consume.py (PostToolUse).
     Returns True if grant matches, False otherwise (missing file = False).
     """
-    result = _load_and_match(sid, [tool_name], "exact_or_substr", None)
+    result = _load_and_match(sid, [tool_name], "exact_only", None)
     if result is not None:
         sys.stderr.write(f"[ALLOW] grant matched for {tool_name}, consume deferred to PostToolUse\n")
         return True
