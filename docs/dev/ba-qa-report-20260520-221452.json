@@ -26,14 +26,36 @@
   },
   "objections": [
     {
-      "id": "OBJ-01",
+      "id": "OBJ-11",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "critical",
+      "ac_affected": "AC-07",
+      "primary_cause": "ba_spec",
+      "finding": "AC-07.per_path_survival_and_content_match script enforces git hash-object P equals git rev-parse HEAD:P for every prior-HEAD path. Verified live in current working tree (BEFORE any dev work): TWO files already drift from HEAD — .claude/specs/spec-20260518-225715/cp-state-qa.json (HEAD fd540c... vs WT fa4ddf...) and agent-scores.json (HEAD 41c522... vs WT 14b30c...). Both are inherently mutable runtime telemetry: every spec-check.py invocation mutates cp-state files; score-update.sh + score-inject.sh mutate agent-scores.json. The check would FAIL dev's compliant git rm --cached work through no fault of dev's. Dev cannot reset these to HEAD without destroying live runtime state (current cycle's spec-check.py is actively writing cp-state-qa.json). This violates the QA principle 'no unfair fail after correct work'. Codex independently confirmed this finding with verbatim SHA evidence.",
+      "evidence": "Live execution at 2026-05-20T23:50Z: while IFS read p; do head_sha=git rev-parse HEAD:p; wt_sha=git hash-object p; mismatch echo DRIFT; done over git ls-tree -r HEAD --name-only --paths produces 2 DRIFT lines. acceptance-criteria-20260520-221452.json:274-290 contains the SHA-equality script.",
+      "proposed_fix": "Replace AC-07.per_path_survival_and_content_match with existence-only check: for each path P enumerated by git ls-tree -r HEAD --name-only, assert [ -f P ]. Drop the SHA byte-equality assertion entirely — git rm --cached semantics already guarantee working-tree preservation by definition. If BA wants stronger safety against accidental working-tree truncation, capture a pre-dev baseline of file sizes/SHAs at task-id start (e.g., write to .claude/dev-registry/dev-20260520-221452/pre-dev-baseline.txt as part of dev-handoff) and compare working-tree against THAT baseline, not against HEAD. Also: the ticket prose at line 109 says git rm -r --cached but AC-07 line 247-258 only uses git rm --cached (no -r). For directory target .claude/specs/spec-20260518-225715/, -r is required. Reconcile prose vs check."
+    },
+    {
+      "id": "OBJ-12",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "critical",
+      "ac_affected": "AC-09",
+      "primary_cause": "ba_spec",
+      "finding": "AC-09.specs_exclusion_runtime inline Python script has TWO compounding defects: (1) HARD IMPORT ERROR: the script uses importlib.util.spec_from_file_location(tree, hooks/doc_sync/tree.py) + spec.loader.exec_module(tree_mod) — but hooks/doc_sync/tree.py:5 contains 'from .extract import extract_description' (a relative import). Loading tree.py outside its package context produces ImportError: attempted relative import with no known parent package. I verified this experimentally — the inline script fails before any test is run, regardless of dev's SKIP_FILES augmentation. (2) VACUOUS TEST: even if the import worked, the fixture creates .claude/specs/spec-foo/cp-state.json and calls tree_mod.build_tree(root). But tree.py:22-27 already filters not i.name.startswith('.') — so .claude (dot-prefixed) is filtered today, BEFORE any dev SKIP_FILES change. The runtime test would pass vacuously even if dev forgot to augment SKIP_FILES with .claude/specs/. This is a textbook pass-as-substitute scenario — the check passes whether dev does the work or not. Codex independently confirmed both defects.",
+      "evidence": "(1) Live execution at 2026-05-20T23:50Z reproduces ImportError verbatim. (2) Verified: package-aware import + build_tree on fixture containing .claude/specs/spec-foo/cp-state.json produces output containing only normal.txt — .claude already excluded by dot-prefix filter. acceptance-criteria-20260520-221452.json:360-374 contains the broken runtime fixture.",
+      "proposed_fix": "(a) Fix import: PYTHONPATH=PWD python3 -c 'from hooks.doc_sync import tree as tree_mod; ...' so package-relative import works. (b) Make the fixture EXERCISE the actual leak path: call build_tree(root / '.claude') (or simulate the .claude/INDEX.md regeneration) — NOT build_tree(root). Inside .claude, the specs/ subdirectory is NOT dot-prefixed, so the current code does NOT exclude it. After dev augments SKIP_FILES with a .claude/specs predicate, the fixture would prove the exclusion happens. (c) Alternatively or additionally: add a structural check that tree.py has a path-aware .claude/specs skip predicate (e.g., new SKIP_PATH_PREFIXES set containing .claude/specs or equivalent). This catches the leak structurally, not just via fixture probability."
+    },
+    {
+      "id": "OBJ-01-LEGACY",
+      "_doc": "RESOLVED in iter-1. Preserved for audit trail.",
       "dimension": "affected_file_accuracy",
       "severity": "major",
       "ac_affected": "AC-01",
       "primary_cause": "ba_spec",
       "finding": "AC-01 JSON check at acceptance-criteria-20260520-221452.json:26-30 requires allowed_tools_must_include = [Read, Bash, Skill] — only 3 tools. But ticket-20260520-221452.md:99 explicitly requires the test-writer role to have [Read, Glob, Grep, Bash, Write, Edit, MultiEdit, Skill] — 8 tools. Without Write and Edit and MultiEdit in the policy, test-writer literally cannot write or update test files. Dev could pass AC-01 with a 3-tool list and still leave test-writer unable to perform its core function.",
       "evidence": "acceptance-criteria-20260520-221452.json:20-30 vs ticket-20260520-221452.md:99 (M-P1.1 spec)",
-      "proposed_fix": "Update AC-01 check.allowed_tools_must_include to list all 8 tools: ['Read', 'Glob', 'Grep', 'Bash', 'Write', 'Edit', 'MultiEdit', 'Skill']. Also add denied_write_path_prefixes assertion to include the full list from ticket (/src/, /app/, /lib/, /.claude/hooks/, /.claude/agents/, /.claude/commands/, /.claude/policies/, /.claude/schemas/, /.claude/scripts/, /.claude/settings.json)."
+      "proposed_fix": "Update AC-01 check.allowed_tools_must_include to list all 8 tools: ['Read', 'Glob', 'Grep', 'Bash', 'Write', 'Edit', 'MultiEdit', 'Skill']. Also add denied_write_path_prefixes assertion to include the full list from ticket (/src/, /app/, /lib/, /.claude/hooks/, /.claude/agents/, /.claude/commands/, /.claude/policies/, /.claude/schemas/, /.claude/scripts/, /.claude/settings.json).",
+      "iter1_resolution": "RESOLVED — JSON now lists all 8 tools and 10 deny-prefixes."
     },
     {
       "id": "OBJ-02",
