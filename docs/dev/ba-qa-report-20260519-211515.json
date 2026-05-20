@@ -31,11 +31,11 @@
   "verdict_rationale": "Iter-1 resolves OBJ-2 and OBJ-3 cleanly. OBJ-1 is only partially resolved: the negative anchors fail today as designed, but the positive must_contain_all check remains gameable because 4 of 5 positive literals already exist in the schema block at test-writer.md:80-127. Codex independently confirmed Dev could delete the 5 forbidden sentences and add 'root index' as a bare comment, satisfying the AC without performing the Section 7 P1.2 'in lockstep' Procedure/Output/Checklist rewrite. Additionally, 2 NEW spec_text_vs_execution_drift defects surfaced from prose↔JSON divergence: ticket prose for agents/qa.md sub-check mentions only 1 of 2 must_not_contain entries; ticket prose for commands/dev.md sub-check is vague vs the AC JSON's specific must_not_contain on line 632 + must_contain_all 'all three'. Finally, the canonical ticket path docs/dev/ticket-20260519-211515.md has been overwritten AGAIN by the D+H BA cycle during this QA session (file mtime 2026-05-20T06:48Z, my QA session started ~06:43Z) — Cycle 2 ticket prose now lives only in docs/dev/ticket-20260519-211515-CYCLE2-round2.md backup.",
   "summary": {
     "dimensions_evaluated": 5,
-    "objections_total": 3,
-    "blocker": 1,
+    "objections_total": 4,
+    "blocker": 2,
     "major": 2,
     "minor": 0,
-    "observations_only": 3,
+    "observations_only": 2,
     "evidence_quality": "pass",
     "scope_alignment": "pass",
     "investigation_completeness": "pass",
@@ -45,31 +45,32 @@
   "dimensions": {
     "evidence_quality": {
       "verdict": "pass",
-      "details": "BA cites verifiable evidence for every claim: 17 observation points in Contract A all reproducible via grep/git check-ignore. Line numbers accurate. Tool-policy test-writer role absence verified: grep returned 0 hits. .gitignore failure verified: 3 git check-ignore invocations all returned exit 1. README.md:16-17 verified containing agent-scores entries. INDEX.md verified containing leaked entries at multiple line ranges. test-writer.md schema block at 80-127 verified containing Option (b) shape. agents/style-inspector.md:318 existing exemption paragraph verified. codex findings (10) all documented with PROPOSED_FIX + disposition + rationale in context.json codex_consult.",
+      "details": "BA iter-1's negative-anchor approach is empirically verified: every must_not_contain literal in AC-C2-02 was grep-tested against the actual files on disk. 5/5 test-writer.md literals match at lines 139, 181, 183, 198, 216. 2/2 qa.md literals match at lines 994, 995. 1/1 commands/dev.md literal matches at line 632. All checks fail today as designed.",
       "evidence_sample": [
-        "BA claim agents/test-writer.md schema block lines 80-127 implements Option (b) correctly: verified, schema at :80-127 contains per-task active_tests block + global index block with kind:index, tasks:[]",
-        "BA claim agents/qa.md:992-998 reads root manifest.json.active_tests[] directly (Option (a) shape): verified, qa.md:992 reads tests/generated/manifest.json, :994 iterates active_tests[], :995 runs unscoped pytest tests/generated/ -q",
-        "BA claim agents/style-inspector.md:318 existing Exemption paragraph (task-id 20260509-153155): verified, line 318 begins with **Exemption (verbatim user-binding quotes) and cites task-id 20260509-153155",
-        "BA claim commands/dev.md:856 contains literal Sub-step 12.1: verified verbatim",
-        "BA claim commands/dev.md:1110 contains literal from Sub-step 12.1: verified verbatim"
+        "grep 'Check existing manifest** at `tests/generated/manifest.json`' agents/test-writer.md → matched at :139",
+        "grep 'pytest tests/generated/ -q' agents/qa.md → matched at :995",
+        "grep 'Read `tests/generated/manifest.json`. For every `active_tests[]` entry' agents/qa.md → matched at :994",
+        "grep 'verify on disk that `tests/generated/manifest.json` AND' commands/dev.md → matched at :632",
+        "grep 'per-task manifest' agents/test-writer.md → matched at :82 (schema block, already present — positive check gameable)",
+        "grep 'root index' agents/test-writer.md → 0 hits (only net-new canary literal)"
       ]
     },
     "scope_alignment": {
       "verdict": "pass",
-      "details": "BA delivered exactly 8 ACs mapping 1:1 to Section 7 P1+P2+P3 items: P1.1->AC-C2-01, P1.2->AC-C2-02, P2.3->AC-C2-03, P2.4->AC-C2-04, P3.6->AC-C2-05, P3.7->AC-C2-06, P3.8->AC-C2-07, P3.9->AC-C2-08. P2.5 (agent-scores.example.json) correctly classified as Won't Have per spec wording 'Optionally'. P4 properly deferred: all 5 P4 items enumerated explicitly in Won't Have AND in blast-radius-map.json p4_deferred_explicit_prohibitions[]. No P4 leakage detected in Must/Should/Could. User decisions Q1 (Standard 6 exemption, NOT translate) honored in AC-C2-08. User decision Q2 (defer P4) honored throughout. Cycle 1 ACs intentionally omitted with explicit rationale. Universal-scope claim test: user said all designed components, by priority; user pre-dispatch DECISION explicitly narrowed Cycle 2 to P1+P2+P3 (Q2). This narrowing is documented and user-confirmed, so the universal-claim guard does NOT trigger."
+      "details": "Iter-1 preserves the 8-AC structure mapping 1:1 to Section 7. P4 deferred items remain explicit in blast-radius-map p4_deferred_explicit_prohibitions[]. User decisions Q1+Q2 honored. ac_uids regenerated for both AC-C2-01 and AC-C2-02 with ac_uid_previous + ac_uid_regenerated_reason fields preserved for audit trail."
     },
     "investigation_completeness": {
       "verdict": "pass",
-      "details": "BA verified current state of every targeted file via Read + Grep (verified_via field in component_chain). All 17 observation points carry direct measurements with file:line citations. Most critical: BA correctly identified the Option (b) drift is SPLIT -- schema block at 80-127 is correct, procedural sentences at 139/181/183/198/216 are drifted (codex F3). BA also verified agent-scores leaked-entry locations down to specific line numbers (3417-3418, 11443-11444, 21534-21535 in INDEX.md). BA verified that the existing .gitignore rule at line 75 does NOT match .claude/specs/... BA noted that .claude/INDEX.md currently has 0 agent-scores matches (verified independently). Investigation deliverables match the requirement."
+      "details": "BA iter-1 invoked codex_consult_iter2 (4 findings, all applied + 1 observation-only logged). Iter-1's meta.codex_findings_incorporated lists all 11 incorporations across iter-0 codex and iter-1 codex with per-finding disposition rationale."
     },
     "affected_file_accuracy": {
       "verdict": "pass",
-      "details": "All 12 files in files_to_modify exist and contain the claimed evidence. policies/tool-policy.v1.json exists with no test-writer role. agents/test-writer.md exists with schema at :80-127. agents/qa.md exists with Phase 5 at :990-998 reading root manifest. agents/style-inspector.md exists with Standard 6 at :308-329 and Exemption at :318. commands/dev.md exists with Sub-step 12.1 at :856 and cross-ref at :1110. scripts/score-inject.sh, score-update.sh, canary-verify.sh all exist with cited python3 invocation lines. .gitignore exists with cited :75 rule. README.md/INDEX.md exist with cited leaked-entry lines. .claude/INDEX.md exists. No phantom paths, no incorrect line numbers."
+      "details": "All 12 files in files_to_modify still exist. Iter-1 did not change the file set. Line numbers cited in must_not_contain rationales are accurate (verified verbatim via grep)."
     },
     "spec_text_vs_execution_drift": {
       "verdict": "fail",
-      "details": "Three drift defects found, one BLOCKER and two MAJOR. The BLOCKER (AC-C2-02 test-writer.md sub-check) allows Dev to leave the Section 7 P1.2 procedural-drift remediation unimplemented while still passing the AC mechanically. See objections array for prescriptive AC repairs.",
-      "drift_count": 3
+      "details": "Four drift defects remain after iter-1: OBJ-A1 BLOCKER (partial OBJ-1 fix — positive check still gameable); OBJ-B1 MAJOR (ticket prose for qa.md sub-check missing one must_not_contain literal); OBJ-C1 MAJOR (ticket prose for commands/dev.md sub-check too vague vs AC JSON specifics); OBJ-E1 BLOCKER (canonical ticket path collision — Cycle 2 content not at canonical path). Codex sustained all 4.",
+      "drift_count": 4
     }
   },
   "objections": [
