@@ -1,7 +1,9 @@
 {
   "request_id": "20260519-211515",
   "task_id": "20260519-211515",
-  "timestamp": "2026-05-20T07:30:00Z",
+  "timestamp": "2026-05-20T09:45:00Z",
+  "_cycle_replaced": "This file was previously written for the parallel D+H cycle (also task-id 20260519-211515 due to slot collision per BA context out_of_scope_observation #3-#4); the orchestrator's dispatch for THIS cycle (retrospective remediation of 9 items 1/2/3/4/5/6/7/9/10) overwrote it. Original D+H content is recoverable from `git log` and from the BA spec.",
+  "_obsolete_timestamp": "2026-05-20T07:30:00Z",
   "dev_report_path": "docs/dev/dev-report-20260519-211515.json",
   "dev": {
     "status": "completed",
