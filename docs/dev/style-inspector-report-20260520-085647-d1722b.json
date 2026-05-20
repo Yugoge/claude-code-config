@@ -135,30 +135,42 @@
     }
   ],
   "violations": [],
-  "advisory_findings": [
+  "advisory_findings_this_round": [
+    {
+      "standard": "no-hardcoded-values (Standard 2) + parameterized-scripts (Standard 9)",
+      "severity": "advisory",
+      "introduced_in_diff": true,
+      "location": "scripts/resolve-close-report.sh:22",
+      "diff_overlap": true,
+      "absent_from_baseline": true,
+      "finding": "The middle candidate in the path-walk loop hardcodes '/root/.claude/docs/dev/close-report-${TASK_ID}.md' with no env-override mechanism, while the first candidate is parameterized through CLAUDE_PROJECT_DIR and the third through CONTROL_ROOT. Codex raised this as the SOLE adversarial blocker in its consultation. The literal '/root/.claude/' IS the well-known dot-claude install location on this control box (symlink target of /root/.claude -> /dev/shm/dev-workspace/dot-claude per /root/.claude/CLAUDE.md 'Nested .claude Repo' section), so the value is stable on this topology - but the inconsistency in parameterization style is a legitimate Standard-2/9 concern that codex correctly identified.",
+      "recommendation": "Apply codex's PROPOSED_FIX: add 'CLAUDE_DOT_ROOT=\"${CLAUDE_DOT_ROOT:-${CONTROL_ROOT}/.claude}\"' near the existing CONTROL_ROOT assignment; replace the middle-candidate literal with '${CLAUDE_DOT_ROOT}/docs/dev/close-report-${TASK_ID}.md'. Also rephrase the header comment 'fall back to /root/docs/dev/' to use symbolic CONTROL_ROOT/docs/dev/.",
+      "applied": false,
+      "disposition_rationale": "Logged as ADVISORY rather than CRITICAL because (a) Standard 2 explicitly exempts 'Constants that genuinely never change' and /root/.claude/ IS the stable dot-claude install location on this server (documented in CLAUDE.md global instructions), (b) the actual fallback path (third candidate, used when neither CLAUDE_PROJECT_DIR nor the nested location resolves) IS parameterized via CONTROL_ROOT - environment-override capability exists for the failure-mode error-message path, (c) the middle candidate's role is a TACTICAL fix for the specific nested-repo case that caused the prior CLOSE: NO (Bullet 1 dissent), so its existence is the entire point of the fix-forward. Codex classified this as 'blocker' under Standard 2 but acknowledged the override convention exists for the other two; reasonable people disagree on whether convention-stable paths count under the 'genuinely never change' exemption. The fix is small (2 lines added) and SHOULD be applied as cleanup-followup, but does NOT meet the bar for 'critical violation that blocks close-cleanliness' per AC-2.6 default-safe rule. close.md and the orchestrator may override this judgment if they choose."
+    }
+  ],
+  "advisory_findings_carried_forward_from_prior_round": [
     {
       "standard": "no-hardcoded-values (Standard 2) + parameterized-scripts (Standard 9)",
       "severity": "advisory",
       "introduced_in_diff": true,
       "location": "hooks/posttool-subagent-track.py:183",
-      "diff_overlap": true,
-      "absent_from_baseline": true,
-      "finding": "Magic number K=3 hardcoded inline: `end = min(len(canonical), start + 3)  # K=3 bounded window`. The window size is a BA-ticket-mandated constant (per dev-report.tasks_completed[1].changes — 'K=3 bounded window'), but inline literal-3 with only an end-of-line comment as documentation is weaker than a named module-level constant. Documented as advisory rather than critical because (a) the constant is design-mandated by the BA spec, (b) the inline value has a docstring reference in _find_earliest_unflipped_matching_step at line 171 ('K=3 bounded window'), and (c) any tuning would require BA-ticket re-spec, so parameterization for environment-runtime override is not the goal.",
-      "recommendation": "Introduce module-level constant near the top of hooks/posttool-subagent-track.py: `SUBAGENT_TYPED_LOOKUP_WINDOW = 3  # BA cycle 20260519-211515 Item H` and replace `start + 3` with `start + SUBAGENT_TYPED_LOOKUP_WINDOW`. Naming per codex consultation: avoid opaque K_WINDOW; SUBAGENT_TYPED_LOOKUP_WINDOW or TYPED_LOOKUP_LOOKAHEAD is preferred.",
+      "carryforward_note": "From prior /close round; file unchanged this round.",
+      "finding": "Magic number K=3 hardcoded inline: 'end = min(len(canonical), start + 3)  # K=3 bounded window'. BA-ticket-mandated constant; inline literal-3 with only an end-of-line comment is weaker than a named module-level constant.",
+      "recommendation": "Introduce module-level constant 'SUBAGENT_TYPED_LOOKUP_WINDOW = 3  # BA cycle 20260519-211515 Item H' and replace 'start + 3' with 'start + SUBAGENT_TYPED_LOOKUP_WINDOW'.",
       "applied": false,
-      "disposition_rationale": "Inspector reports; does not auto-fix. Advisory only — does not block close cleanliness check."
+      "disposition_rationale": "Advisory only - does not block close cleanliness."
     },
     {
-      "standard": "no-hardcoded-values (Standard 2) — test fixture coupling",
+      "standard": "no-hardcoded-values (Standard 2) - test fixture coupling",
       "severity": "advisory",
       "introduced_in_diff": true,
       "location": "hooks/tests/test_allowlist_consolidation.py:158,177",
-      "diff_overlap": true,
-      "absent_from_baseline": true,
-      "finding": "New AC-D1 regression tests embed the literal grant-file path `/tmp/claude-bash-allowlist-{test_sid}.json` directly in test bodies (mirroring pre-existing baseline tests at lines 129, 139, 192, etc.). Per codex consultation, this is test-fixture coupling that matches the production grant-file contract literal in hooks/lib/allowlist.py:120 (`f'/tmp/claude-bash-allowlist-{sid}.json'`). Not a critical violation because the production module uses the same literal as the canonical contract; advisory because both sides could be centralized into a single helper (e.g., `lib.allowlist.grant_path_for(sid)`).",
-      "recommendation": "Optionally extract a shared helper `lib.allowlist.grant_path_for(sid: str) -> Path` and use it from both production sites AND test fixtures, so the literal `/tmp/claude-bash-allowlist-*` lives in exactly one place. Not required for close-cleanliness.",
+      "carryforward_note": "From prior /close round; file unchanged this round.",
+      "finding": "New AC-D1 regression tests embed the literal grant-file path '/tmp/claude-bash-allowlist-{test_sid}.json' directly in test bodies; test-fixture coupling that matches the production grant-file contract literal in hooks/lib/allowlist.py:120.",
+      "recommendation": "Optionally extract a shared helper 'lib.allowlist.grant_path_for(sid: str) -> Path' and use it from both production sites AND test fixtures. Not required for close-cleanliness.",
       "applied": false,
-      "disposition_rationale": "Inspector reports; advisory. Mirroring the pre-existing test pattern is acceptable — refactoring is a separate follow-up cycle concern."
+      "disposition_rationale": "Mirroring the pre-existing test pattern is acceptable - refactoring is a separate follow-up cycle concern."
     }
   ],
   "observations": [
