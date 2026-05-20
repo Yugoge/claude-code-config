@@ -1,7 +1,7 @@
 # tests
 
-*Last updated: 2026-05-20T09:25:51Z*
-**Total entries**: 8
+*Last updated: 2026-05-20T09:26:55Z*
+**Total entries**: 9
 **Convention**: kebab
 
 ## Tree
@@ -9,6 +9,7 @@
 tests/
 ├── `_ac10_verify.sh` - Shell script
 ├── `_ac1_verify.sh` - Shell script
+├── `_ac3_verify.sh` - Shell script
 ├── `_ac5_verify.sh` - Shell script
 ├── `_ac6_verify.sh` - Shell script
 ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
