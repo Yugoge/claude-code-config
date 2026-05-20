@@ -987,6 +987,37 @@ mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
 - Tests reveal implementation bugs → QA fail or warning depending on severity
 - Tests cannot run (broken scripts after 3 fix attempts) → QA warning with documented rationale
 
+#### Phase 5: Manifest Verification (when test-writer ran upstream)
+
+If `tests/generated/manifest.json` exists (because the cycle had `complexity_tier >= STANDARD` or `risk_level = high` and test-writer ran between BA and Dev), you MUST verify it before declaring a verdict:
+
+1. Read `tests/generated/manifest.json`. For every `active_tests[]` entry, verify the test file exists and is importable: `source ~/.claude/venv/bin/activate && python3 -c "import importlib.util, sys; spec = importlib.util.spec_from_file_location('t', '<path>'); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)"`. Record results in `qa.manifest_verification`.
+2. When `complexity_tier >= STANDARD`, run `pytest tests/generated/ -q`. ANY remaining `pytest.fail("TEST_INCOMPLETE: ...")` sentinel in an active test is a Dev incompleteness — Dev was supposed to fill in the body. Grep `tests/generated/<task_id>/` for the literal string `TEST_INCOMPLETE:`; every match is a critical QA finding with `primary_cause: "dev_implementation"`. Record both pytest collection counts AND the sentinel-match list in `qa.manifest_verification.pytest_failures[]`.
+3. A test that no longer contains the `TEST_INCOMPLETE:` sentinel but still fails → real Dev gap → critical finding with `primary_cause: "dev_implementation"`.
+4. A manifest entry whose test file is missing on disk → broken test-writer integration → critical finding with `primary_cause: "ba_spec"` (test-writer was supposed to produce this artifact).
+5. **test_writer_expected vs manifest existence**: if the orchestrator passed `test_writer_expected = true` (gated by BA's complexity_tier >= STANDARD OR risk_level == high) AND `tests/generated/manifest.json` is missing → critical finding with `primary_cause: "qa_oversight"` if the orchestrator allowed proceed despite missing manifest, or `primary_cause: "dev_implementation"` if Dev was supposed to ensure test-writer ran.
+
+#### Phase 6: Blast-Radius Phase 2 Verification
+
+Per spec-20260518-225715 §5.3, QA MUST rerun the blast-radius tool against the actual git diff and cross-check Dev's declarations:
+
+```bash
+python3 scripts/blast-radius-tool.py \
+  --git-diff --base HEAD \
+  --output .claude/dev-registry/dev-<task_id>/blast-radius-map-phase2.json \
+  --task-id <task_id>
+```
+
+Use `--base HEAD` (the default) — Dev's changes during this cycle are typically uncommitted, so `git diff HEAD` captures the working-tree mutation set. If the task was committed mid-cycle (rare), substitute the task's starting SHA recorded in `.claude/dev-registry/dev-<task_id>/start-sha` (if present) for `<base>`. Using `HEAD~1` would mix in unrelated prior-commit changes and produce false Phase-2 gaps.
+
+Compare:
+- Each `coverage_gaps[]` entry in the Phase 2 map MUST have a matching entry in Dev's `blast_radius_declarations[]` (by file).
+- A Phase 2 gap NOT declared by Dev → critical finding (`primary_cause: "dev_implementation"`).
+- A Dev-declared exemption that you judge insufficient → record under `qa.blast_radius_phase2.exemption_vetoes[]` and demote verdict accordingly.
+- Phase 1 → Phase 2 delta (files Dev actually changed beyond what BA predicted) → record in `phase1_phase2_delta` for the spec audit.
+
+Verdict impact: declarations missing for a critical-severity gap (hooks/ or new-file with no prior coverage) is itself critical and blocks PASS.
+
 ### Step 12: Verify Permissions
 
 **CRITICAL**: Check that dev specified correct permissions for new functionality.
@@ -1351,6 +1382,33 @@ Return verification report as JSON:
         "blocks_release": true|false
       }
     ],
+    "failures": [
+      {
+        "severity": "critical|major|minor",
+        "location": "file:line",
+        "issue": "description",
+        "recommendation": "how to fix",
+        "primary_cause": "ba_spec | dev_implementation | qa_oversight | environment",
+        "_primary_cause_doc": "Required enum used by scripts/score-update.sh attribution: ba_spec → ba loses points (qa_reject_ba event); dev_implementation → dev loses points (qa_reject_dev event); qa_oversight → no automatic update (manual review); environment → out-of-scope of scoring (e.g. broken venv, missing dependency)."
+      }
+    ],
+    "manifest_verification": {
+      "_doc": "Populated when tests/generated/manifest.json exists (i.e., test-writer ran upstream). Reports importability and pytest collection results for tests/generated/. See Step 11 manifest verification for procedure.",
+      "manifest_path": "tests/generated/manifest.json",
+      "manifest_exists": true,
+      "active_tests_count": 0,
+      "active_tests_importable": true,
+      "pytest_collected_ok": true,
+      "pytest_failures": []
+    },
+    "blast_radius_phase2": {
+      "_doc": "Phase 2 verification per spec-20260518-225715 §5.3. QA reruns blast-radius-tool.py with --git-diff and compares coverage_gaps against the BA-Phase-1 map; verifies every Phase 1 gap and required_validation has a corresponding declaration in dev-report.blast_radius_declarations[].",
+      "phase2_map_path": ".claude/dev-registry/dev-<task_id>/blast-radius-map-phase2.json",
+      "git_diff_files": [],
+      "phase1_phase2_delta": [],
+      "dev_declarations_complete": true,
+      "exemption_vetoes": []
+    },
     "summary": {
       "critical_issues": 0,
       "major_issues": 0,

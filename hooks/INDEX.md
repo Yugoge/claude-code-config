@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-18T17:09:12Z*
-**Total entries**: 117
+*Last updated: 2026-05-19T19:51:28Z*
+**Total entries**: 120
 **Convention**: kebab
 
 ## Tree
@@ -35,6 +35,7 @@ hooks/
 │   ├── `subagent.py` - Single source of truth for is_subagent_context() and supporting helpers
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 ├── tests/
+│   ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 │   └── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
 ├── `audit-slashcommand.sh` - audit-slashcommand.sh
@@ -111,6 +112,7 @@ hooks/
 ├── `session-git-init.sh` - ============================================================================
 ├── `session-info.sh` - s-info.sh — SessionStart: display environment info + tool quick reference
 ├── `session-promote-hook.sh` - Description: SessionStart hook that promotes a cold session back to ramdisk.
+├── `session-tmpfs-banner.sh` - session-tmpfs-banner.sh — SessionStart hook (6th in the SessionStart hooks block).
 ├── `session_start.sh` - SessionStart Hook - Display working environment info
 ├── `smart-checkpoint.sh` - smart-checkpoint.sh - DEPRECATED, scheduled for deletion
 ├── `start-fswatch-all.sh` - start-fswatch-all.sh - Start fswatch monitoring for all important repositories
@@ -123,7 +125,8 @@ hooks/
 ├── `subagentstop-codex-enforce.py` - Activation logic:
 ├── `subagentstop-e2e-enforce.py` - Activation logic:
 ├── `userprompt-consent-allowlist.sh` - UserPromptSubmit Hook: parse `/allow <pattern>` and write a single-use
-└── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
+├── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
+└── `userprompt-tmpfs-pressure.sh` - userprompt-tmpfs-pressure.sh — UserPromptSubmit hook (4th block, appended).
 ```
 
 ---
