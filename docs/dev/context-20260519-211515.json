@@ -86,37 +86,170 @@
     {"ts": "2026-05-20T11:30:00Z", "task_id": "20260519-211515", "file": "commands/close.md", "line": null, "observation": "Codex C1: /close --force and /commit --force/--bulk bypass the shippability gate. Documented as audited overrides. Future cycle to evaluate enforcement on force paths.", "in_user_path": false, "security_relevant": false},
     {"ts": "2026-05-20T11:30:00Z", "task_id": "20260519-211515", "file": "scripts/score-update.sh", "line": null, "observation": "Codex C7: User requirement says 'Reads use latest entry; writes use CAS'. score-inject.sh and other existing readers consume agent-scores.json directly. Reconciled: scores.json authoritative-for-reads; lifecycle log is audit-trail-only. AC9/AC10/AC11 satisfied. Future cycle if user wants log-as-source-of-truth (projection script).", "in_user_path": false, "security_relevant": false}
   ],
-  "iter3_objections_resolved": {
-    "OBJ-4": {
-      "severity": "blocker",
-      "dimension": "spec_text_vs_execution_drift",
-      "resolution": "AC-H3 split into AC-H3a (subagent_type absent + legacy resolves single valid in_progress idx with subagent_call metadata → Case B writes; preserves AC-H2 serial dispatch) and AC-H3b (4 enumerated no-write orphan cases: subagent_type absent + legacy None; subagent_type non-empty + typed miss; subagent_type non-empty + no in_progress; subagent_type non-empty + multi-in_progress). Removes iter1 contradiction.",
-      "status": "resolved"
+  "evidence": {
+    "observed": "User selected '修复全部' from the meta-assessment of 17 systemic issues from prior cycle 20260519-161035. 8 issues across 3 clusters; 9 issues deferred. 13 ACs (AC1-AC13).",
+    "measured": {
+      "value": "dev-report-20260519-161035.json:13 lists 'docs/reference/tmp-cleanup-convention.md' (gitignored, .gitignore:51 docs/*); :10 lists '/usr/local/sbin/tmp-cleanup.sh' (out-of-repo); rationale at :40 references '/tmp/claude-pressure-warn-<token>' (ephemeral). scripts/score-update.sh:147 reads agents[agent]['score'] without CAS. .gitignore:46 'logs/' matches logs/lifecycle.jsonl AND .claude/logs/lifecycle.jsonl.",
+      "location": "docs/dev/dev-report-20260519-161035.json:10,13,40 + scripts/score-update.sh:147 + .gitignore:46"
     },
-    "OBJ-5": {
-      "severity": "blocker",
-      "dimension": "spec_text_vs_execution_drift",
-      "resolution": "Helper _find_earliest_unflipped_matching_step rewritten: removed iter1 else: start=0 fallback. New behavior: ip_index None → return None immediately (caller exits 0 no-write per AC-H3b). Added MANDATORY multi-in_progress guard at _current_in_progress_index entry. Embedded concrete Python reference implementation in Technical Hints. Added OBJ-5 bullet in Edge Cases.",
-      "status": "resolved"
+    "expected": {
+      "value": "Gate fails closed for all three pattern classes (gitignored / out-of-repo / ephemeral-persistence without waiver). Score-update.sh CAS detects concurrent races. Lifecycle log at logs/lifecycle.jsonl tracked under git.",
+      "source": "docs/dev/user-requirement-dev-20260519-211515.md (verbatim user binding text); docs/dev/meta-assessment-20260519-161035.json (codex-reviewed classifications)"
     },
-    "OBJ-6": {
-      "severity": "major",
-      "dimension": "affected_file_accuracy",
-      "resolution": "Per dispatch prompt: acceptance_criteria_path=null and blast_radius_map_path=null; embedded ticket ACs (10 ACs in ticket-DH.md) are authoritative. Codex iter3 raised BLOCKER ISSUE-1: complexity_tier=STANDARD triggers /dev Step 8 test-writer which expects non-null AC JSON path. BA elected to follow dispatch prompt instruction and surfaced trade-off here for orchestrator decision.",
-      "status": "partially_resolved_with_trade_off_surfaced"
+    "gap": "8 issues with zero enforcement today; prior cycle shipped broken state to origin/master. 13 ACs to land."
+  },
+  "scope_expansion": {
+    "search_pattern": "score-update.sh, files_created, files_modified, /tmp/claude-, logs/, dry-run",
+    "search_scope": "/dev/shm/dev-workspace/dot-claude/**",
+    "user_reported": [
+      "scripts/shippability-gate.py (new — Cluster 1)",
+      "scripts/sandbox-destructive.sh (new — Cluster 2)",
+      "scripts/sandbox-pressure.sh (new — Cluster 2)",
+      "scripts/lifecycle-log.sh (new — Cluster 3)",
+      "scripts/score-update.sh (modified — Cluster 3)"
+    ],
+    "additional_found": [
+      "scripts/sandbox-common.sh (new — shared library between Cluster 2 scripts, codex C3+C4+C5 demanded it)",
+      "scripts/install/tmp-cleanup-install.sh (new — S1 should-have, demonstrates R2 waiver pattern)",
+      "commands/close.md (modified — Step 1.5 wiring per AC5)",
+      "commands/commit.md (modified — codex C1 belt-and-suspenders per Decision 1)",
+      "commands/dev.md (modified — AC12+AC13 quota-wall + resumption call-site templates per codex C9)",
+      "agents/qa.md (modified — requires_fixture_verification flag handling per AC8)",
+      ".gitignore (modified — !/logs/lifecycle.jsonl exception per codex C8)"
+    ],
+    "all_occurrences": [
+      ".gitignore:46",
+      "commands/close.md:181-205",
+      "agents/qa.md:895+",
+      "scripts/score-update.sh:147"
+    ]
+  },
+  "reference_source": {
+    "tier": "tier_2_verified",
+    "description": "User requirement document + meta-assessment + prior dev-report + .gitignore (all verified by Read/grep this session)",
+    "url_or_location": "docs/dev/user-requirement-dev-20260519-211515.md + docs/dev/meta-assessment-20260519-161035.json + docs/dev/dev-report-20260519-161035.json + .gitignore",
+    "copy_allowed": true
+  },
+  "prior_attempts": {
+    "triggered": true,
+    "trigger_source": "prior_cycle_shipped_broken_state",
+    "attempts": [
+      {
+        "artifact_path": "docs/dev/ticket-20260519-161035.md + 4-layer-tmpfs commit chain",
+        "proposed_solution": "Implement 4-layer tmpfs pressure prevention (SessionStart banner + UserPromptSubmit pressure hook + tmp-cleanup cron + docs)",
+        "actual_change": "Created 2 hooks, modified settings.json, modified /usr/local/sbin/tmp-cleanup.sh, created docs/reference/tmp-cleanup-convention.md (gitignored)",
+        "outcome": "Shipped to origin/master with R1 (gitignored doc), R2 (out-of-repo script, no install manifest), R5a (counter on /tmp) — all 3 issues invisible to QA/close gates",
+        "failure_category": "wrong_scope",
+        "target_layer": "L5"
+      }
+    ],
+    "novelty_check": {
+      "this_attempt_layer": "L5",
+      "differs_from_all_priors": true,
+      "rationale": "Prior cycle implemented runtime-prevention hooks at the system-runtime layer. This cycle implements meta-harness-prevention at the dev/QA harness layer (close-gate + commit-gate + sandbox-verification + lifecycle-audit). The two layers are orthogonal — this cycle's deliverables COULD have caught the prior cycle's R1/R2/R5a issues if they had existed in the prior cycle. NOT a re-attempt of tmpfs prevention; the systemic backfill that makes future cycles unable to ship the same class of broken artifacts."
     }
   },
+  "setup": {
+    "applicability": "N/A",
+    "reason": "non-UI -- agent-prompt edit + bash/python script creation + .gitignore edit + optional settings.json permissions; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths (pipeline steps, API endpoints). All targets are dev/QA harness infrastructure."
+  },
+  "diagnosis_layer": "L5",
+  "requirements_decomposition": [
+    {"id": "R1", "source_phrase": "修复全部", "acceptance_criterion": "parent — decomposed into R2-R14"},
+    {"id": "R2", "source_phrase": "(R1) Every entry in dev.files_created / dev.files_modified is diffed against .gitignore. Gitignore match → flag unshippable_via_git; close gate critical-fail UNLESS dev-report has gitignore_waiver with rationale.", "acceptance_criterion": "AC1 (M1+M2+M3)"},
+    {"id": "R3", "source_phrase": "(R2) Any path matching system locations requires EITHER (a) an in-repo install manifest OR (b) system_file_waiver field", "acceptance_criterion": "AC2 (M1+M2+M3)"},
+    {"id": "R4", "source_phrase": "(R5a) Persistent-state file under ephemeral mounts must be flagged unless paired with an ENOSPC fallback path", "acceptance_criterion": "AC3 (M1+M2+M3)"},
+    {"id": "R5", "source_phrase": "Deliverable shape: a Python check script under scripts/, invoked during QA Step 11 OR during /close (pick ONE, document)", "acceptance_criterion": "AC5 (M3 picked /close; codex C1 added /commit PRIMARY belt-and-suspenders as M4)"},
+    {"id": "R6", "source_phrase": "(R3) For destructive scheduled jobs: sandbox harness runs script non-dry-run", "acceptance_criterion": "AC6 (M5+M7)"},
+    {"id": "R7", "source_phrase": "(R4) For threshold-conditional behaviors: pressure simulator creates real >threshold condition", "acceptance_criterion": "AC7 (M6+M7)"},
+    {"id": "R8", "source_phrase": "Deliverable shape: reusable scripts under scripts/ plus invocation pattern documented in agents/qa.md", "acceptance_criterion": "AC8 (M8)"},
+    {"id": "R9", "source_phrase": "(W3) Quota-wall events record {ts, dev_session_id, agent_role, agent_id, tool_uses_at_cut, partial_artifacts}", "acceptance_criterion": "AC12 (M9+M12 quota-wall)"},
+    {"id": "R10", "source_phrase": "(W5) Resumption events log {ts, dev_session_id, prior_agent_id, new_agent_id, recovery_notes}", "acceptance_criterion": "AC13 (M9+M12 resumption)"},
+    {"id": "R11", "source_phrase": "(R9) Score-update transitions: replace direct score writes with append-only log entries; Reads use latest entry; writes use Compare-And-Swap on prev_score", "acceptance_criterion": "AC9+AC10+AC11 (M9+M10+M11) with codex C7 reconciliation: scores.json authoritative for reads, log is audit-trail, CAS real under flock"},
+    {"id": "R12", "source_phrase": "Deliverable shape: logging module writing to .claude/logs/lifecycle.jsonl (in-repo, NOT /tmp)", "acceptance_criterion": "AC9+AC10 (M9+M10+M11) with multi-authority conflict resolution: helper writes to logs/lifecycle.jsonl (the in-repo runtime path; user's .claude/logs mental path resolves to same file via /root/.claude symlink)"},
+    {"id": "R13", "source_phrase": "All deliverables live at git-tracked paths (do NOT repeat the R1 gitignore mistake — none under docs/)", "acceptance_criterion": "implicit precondition verified by gate dogfooding itself on this cycle's dev-report"},
+    {"id": "R14", "source_phrase": "Existing score-update.sh callers must continue working unchanged (CAS + log are transparent additions). No new daemons.", "acceptance_criterion": "implicit cross-cutting constraint honored by M9-M12 (optional --expected-prev-score per codex C6)"}
+  ],
+  "component_chain": [
+    {"file": "scripts/shippability-gate.py", "line_range": "new", "role": "Validates dev-report against gitignore + out-of-repo + ephemeral patterns; writes verdict JSON; exit code 0/1/2", "imports_from": "subprocess(git check-ignore --no-index, realpath, git rev-parse --show-toplevel)", "evidence": "BA design per AC1-AC5 + codex C10+C11+C12", "verified_via": "design"},
+    {"file": "commands/close.md", "line_range": "181-205 + new Step 1.5", "role": "After Step 1 inspectors complete, run shippability-gate.py against dev-report; if exit !=0, force CLOSE: NO", "imports_from": "scripts/shippability-gate.py", "evidence": "Read commands/close.md:181-205 confirms inspector-dispatch shape", "verified_via": "Read"},
+    {"file": "commands/commit.md", "line_range": "PRIMARY-path", "role": "Belt-and-suspenders pre-commit gate invocation (non-force, non-bulk paths only)", "imports_from": "scripts/shippability-gate.py", "evidence": "BA design per codex C1+C2", "verified_via": "design"},
+    {"file": "scripts/sandbox-destructive.sh", "line_range": "new", "role": "unshare -m + bind-mount /tmp /var/tmp /var/log /dev/shm to sandboxed dirs; invoke target script non-dry-run; assert delete/preserve lists", "imports_from": "scripts/sandbox-common.sh", "evidence": "BA design per AC6 + codex C3+C4+C5", "verified_via": "design"},
+    {"file": "scripts/sandbox-pressure.sh", "line_range": "new", "role": "unshare -m + tmpfs bind-mount with size= to manufacture >75% real mount; invoke target hook with real df/du", "imports_from": "scripts/sandbox-common.sh", "evidence": "BA design per AC7 + codex C3+C4+C5", "verified_via": "design"},
+    {"file": "scripts/sandbox-common.sh", "line_range": "new (sourced lib)", "role": "Capability check (unshare -m); sandbox-root resolution (/var/lib/claude-sandbox primary); repo-root assertion (no scratch inside git toplevel); trap-EXIT cleanup helper", "imports_from": "leaf (only POSIX coreutils)", "evidence": "BA design per codex C4+C5", "verified_via": "design"},
+    {"file": "scripts/lifecycle-log.sh", "line_range": "new", "role": "Validate JSON payload; build event record {ts, dev_session_id, event_type, agent, payload}; atomic single-line O_APPEND to logs/lifecycle.jsonl", "imports_from": "leaf (only POSIX coreutils + python3 for JSON validation)", "evidence": "BA design per AC9", "verified_via": "design"},
+    {"file": "scripts/score-update.sh", "line_range": "139-179 (modify)", "role": "Existing flock + JSON mutation; add optional --expected-prev-score; under flock compare prev to expected (or to last-read) and exit 3 CAS_CONFLICT on mismatch; on success invoke lifecycle-log.sh", "imports_from": "scripts/lifecycle-log.sh", "evidence": "Read scripts/score-update.sh:1-183 confirms existing flock+python pattern", "verified_via": "Read"},
+    {"file": "agents/qa.md", "line_range": "895+", "role": "Step 11 documentation: how QA reads BA-spec requires_fixture_verification field and invokes the appropriate sandbox harness", "imports_from": "scripts/sandbox-destructive.sh, scripts/sandbox-pressure.sh", "evidence": "BA design per AC8", "verified_via": "design"},
+    {"file": "commands/dev.md", "line_range": "resumption + quota-wall sections", "role": "One-line call-site templates for lifecycle-log.sh invocation when orchestrator dispatches resumption or detects quota-wall (AC12+AC13)", "imports_from": "scripts/lifecycle-log.sh", "evidence": "BA design per codex C9", "verified_via": "design"},
+    {"file": ".gitignore", "line_range": "46 (modify, add 2 lines after)", "role": "Negate logs/ for the specific lifecycle.jsonl file at repo root", "imports_from": "leaf", "evidence": "BA design per codex C8", "verified_via": "design"}
+  ],
+  "pre_existing_guards": [
+    {"file": "scripts/score-update.sh", "line": 62, "type": "flock", "code_snippet": "if ! flock -w 10 9; then echo \"failed to acquire lock\"; exit 2; fi", "purpose": "Serialize concurrent score-update.sh invocations", "removal_authorized": false},
+    {"file": "scripts/score-update.sh", "line": 163, "type": "atomic_write", "code_snippet": "fd, tmp_path = tempfile.mkstemp(...); os.replace(tmp_path, scores_file)", "purpose": "Atomic write of agent-scores.json via tempfile+rename", "removal_authorized": false},
+    {"file": "commands/close.md", "line": 4, "type": "frontmatter", "code_snippet": "disable-model-invocation: true", "purpose": "Prevent model self-invocation of /close (only human via slash UI)", "removal_authorized": false},
+    {"file": "commands/dev.md", "line": 4, "type": "frontmatter", "code_snippet": "disable-model-invocation: true", "purpose": "Prevent model self-invocation of /dev", "removal_authorized": false}
+  ],
+  "regression_investigation_checklist": {
+    "triggered": false,
+    "items": [
+      {"check": "User complaint contains regression keywords (was working/broke/used to)", "status": "skipped", "evidence": "User said '修复全部' — selecting from meta-assessment options. Not a regression of a previously-working feature; this is a NEW harness layer on top of existing /close workflow."}
+    ]
+  },
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260519-211515.json",
-  "blast_radius_map_path": null,
+  "blast_radius_map_path": ".claude/dev-registry/dev-20260519-211515/blast-radius-map.json",
   "development_approach": {
-    "strategy": "D: align PreTool literal match to PostTool exact-only by adding exact_only enum branch + switching read_grant's call. H: replace bookmark in_progress inference with bounded-window K=3 first-unflipped-match keyed on stdin.tool_input.subagent_type, gated on a single valid in_progress anchor (no canonical[0:3] fallback when ip_index is None or multi). Mutually-exclusive Case A (subagent_type non-empty) / Case B (subagent_type absent). None-key guard before _record_subagent_call_legacy. Multi-in_progress guard at _current_in_progress_index entry.",
-    "files_to_create": [],
-    "files_to_modify": [
-      "hooks/lib/allowlist.py",
-      "hooks/posttool-subagent-track.py",
-      "hooks/tests/test_allowlist_consolidation.py"
+    "strategy": "Cluster 1: scripts/shippability-gate.py reads dev-report JSON, runs 3 checks (gitignore via git check-ignore --no-index, out-of-repo via realpath + git rev-parse, ephemeral-mount via path-prefix + persistent_state_files[]), writes verdict JSON to docs/dev/shippability-gate-<task-id>.json, exit 0/1/2. Wired into commands/close.md as new Step 1.5 between inspector dispatch and QA debate. Belt-and-suspenders at commands/commit.md PRIMARY (non-force) path. Cluster 2: scripts/sandbox-{destructive,pressure}.sh use unshare -m + bind-mounts to remap /tmp /dev/shm /var/log /var/tmp; scratch at /var/lib/claude-sandbox; capability_unavailable=2 on missing unshare -m. Shared scripts/sandbox-common.sh enforces no-scratch-in-repo-root. agents/qa.md Step 11 documents the harnesses + honors requires_fixture_verification BA-spec field. Cluster 3: scripts/lifecycle-log.sh appends JSONL to logs/lifecycle.jsonl. scripts/score-update.sh adds optional --expected-prev-score, performs CAS under flock, invokes lifecycle-log.sh on success. .gitignore adds !/logs/ + !/logs/lifecycle.jsonl narrow exceptions. commands/dev.md adds documented call-site templates for AC12 quota-wall + AC13 resumption events.",
+    "files_to_create": [
+      "scripts/shippability-gate.py",
+      "scripts/sandbox-destructive.sh",
+      "scripts/sandbox-pressure.sh",
+      "scripts/sandbox-common.sh",
+      "scripts/lifecycle-log.sh",
+      "scripts/install/tmp-cleanup-install.sh"
     ],
-    "validation_approach": "Static: pytest hooks/tests/test_allowlist_consolidation.py (existing + new). Smoke: invoke each of 6 production PreTool call sites once with exact + once with substring (AC-D3). For H: simulated parallel/serial/orphan dispatch via direct Python test invocation of posttool-subagent-track.py."
+    "files_to_modify": [
+      "scripts/score-update.sh",
+      "commands/close.md",
+      "commands/commit.md",
+      "commands/dev.md",
+      "agents/qa.md",
+      ".gitignore"
+    ],
+    "validation_approach": "Self-dogfood: dev MUST run python3 scripts/shippability-gate.py --dev-report docs/dev/dev-report-20260519-211515.json BEFORE handing off to QA — all 13 files must pass. AC1-AC5 via gate fixture files. AC6-AC7 via sandbox-* invocations on real prior-cycle scripts (or capability_unavailable=2 if unshare -m missing). AC8 via grep of agents/qa.md. AC9 via single lifecycle-log.sh invocation + jq parse. AC10 via score-update.sh invocation + grep lifecycle.jsonl. AC11 via two-parallel-call test fixture with same --expected-prev-score. AC12+AC13 via lifecycle-log.sh synthetic-event invocations + commands/dev.md grep for call-site templates."
+  },
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": true,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex (gpt-5.5, xhigh reasoning) reviewed 3 architecture decisions + 5 explicit questions. Returned 13 findings on Decision 1 (gate invocation), Decision 2 (sandbox shape), Decision 3a-3e (lifecycle log details), plus 4 missed-pitfall items. All 13 were classified in_scope_real_bug (12) or in_scope_minor (1). All applied. Key changes triggered by codex: (a) gate also lands in /commit PRIMARY path as belt-and-suspenders, not just /close (C1); (b) sandbox uses unshare -m + bind-mounts not just scratch dir, capability_unavailable on missing namespace (C3+C4); (c) sandbox refuses repo-internal fallback because this repo IS .claude (C5); (d) --expected-prev-score is optional not required for backward-compat (C6); (e) scores.json remains authoritative for reads, log is audit-trail (C7); (f) .gitignore exception scoped to /logs/lifecycle.jsonl specifically not broad logs/ (C8); (g) AC12/AC13 require minimal orchestrator call-site wiring in commands/dev.md not just helper-demo (C9); (h) git check-ignore --no-index flag required (C10); (i) realpath canonicalization needed for symlinked /root/.claude paths (C11); (j) persistent_state_files[] field added to dev-report contract per codex C12 (prior cycle's /tmp/claude-pressure-warn-* was only in script rationale, not files_created).",
+    "findings": [
+      {"issue": "C1: /close --force short-circuits before inspectors; /commit --force/--bulk also bypass close-gate. 'Every /close passes it' is false.", "proposed_fix": "Keep Option B (/close) as required normal-path gate; document 'normal /close only; human force/bulk paths are audited overrides'; add belt-and-suspenders at /commit PRIMARY non-force path.", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "Closes the bypass for normal-path commits while documenting that force/bulk remain audited overrides. M4 added to spec; documented in Out-of-Scope Observations."},
+      {"issue": "C2: Document scope limit explicitly (normal /close only; force/bulk are audited overrides)", "proposed_fix": "Add explicit doc in spec + commit.md + close.md notes", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "Risk 6 in ticket Edge Cases section."},
+      {"issue": "C3: scratch dir alone doesn't exercise real scripts hardcoded to /tmp /dev/shm /var/log — sandbox design incomplete", "proposed_fix": "Use unshare -m mount namespace + bind-mounts so unmodified scripts see sandboxed /tmp /var/tmp /dev/shm /var/log", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "Without mount-namespace, sandbox-destructive can't exercise /usr/local/sbin/tmp-cleanup.sh which hardcodes /tmp. M5+M6 updated to use unshare -m + bind-mounts."},
+      {"issue": "C4: If namespace unavailable, do NOT report PASS — fail with capability_unavailable", "proposed_fix": "Capability check at sandbox-common.sh entry; exit 2 (capability_unavailable) if unshare -m -- true fails. NOT silent PASS.", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "M7 + Risk 4 in ticket."},
+      {"issue": "C5: avoid $HOME/.claude/sandbox fallback — this repo IS .claude; failed cleanup pollutes repo", "proposed_fix": "sandbox-common.sh refuses any scratch path inside git rev-parse --show-toplevel. Primary: /var/lib/claude-sandbox/; if mkdir fails → exit capability_unavailable=2. No repo-internal fallback.", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "M7 + Risk 5 in ticket."},
+      {"issue": "C6: --expected-prev-score required violates 'callers continue unchanged' backward-compat", "proposed_fix": "Make --expected-prev-score optional; if supplied compare inside flock; if omitted, read implicit expected inside flock then compare. Mismatch exits 3 CAS_CONFLICT.", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "M10 updated. Preserves old CLI; AC11 still verifiable via test fixture passing same --expected-prev-score to both callers."},
+      {"issue": "C7: If lifecycle JSONL is source of truth, score-inject.sh / projection must read latest log entry. Treating agent-scores.json as authoritative does not satisfy 'reads use latest entry'.", "proposed_fix": "Either (a) build projection script that reads latest log entry, OR (b) document reconciliation: scores.json remains authoritative-for-reads; log is audit-trail-only.", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "Adopted (b) — scores.json authoritative, log is audit. AC9/AC10/AC11 all satisfiable under (b). Logged in Out-of-Scope Observations for future (a) cycle."},
+      {"issue": "C8: gitignore path — actual runtime path is logs/lifecycle.jsonl (repo root IS .claude). Add narrow exceptions !/logs/ + !/logs/lifecycle.jsonl, NOT broad !.claude/logs/.", "proposed_fix": "Add narrow exception scoped to literal file at repo root; don't unignore the whole logs/ tree.", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "M11 updated. Multi-authority conflict (user said .claude/logs/lifecycle.jsonl but repo runtime is logs/lifecycle.jsonl) resolved per ticket Reference Source section."},
+      {"issue": "C9: AC12/AC13 — helper-only demo is not enough. The ACs say orchestrator writes events when lifecycle situations occur. Wire minimal call sites.", "proposed_fix": "Add documented call-site templates in commands/dev.md resumption + quota-wall sections; full detection logic deferred to followup", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "M12 added. AC text says 'when synthetic event' — call-site template + synthetic test satisfies."},
+      {"issue": "C10: Use git check-ignore -v --no-index so tracked-but-ignored paths are still detected", "proposed_fix": "Pass --no-index flag in gate's git check-ignore invocation", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "M1 gitignore-check uses --no-index."},
+      {"issue": "C11: Normalize symlinked repo paths (/root/.claude/... resolves inside /dev/shm/dev-workspace/dot-claude); don't false-fail those as out-of-repo", "proposed_fix": "Canonicalize via realpath before comparing to git rev-parse --show-toplevel", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "M1 system-path check uses realpath; Risk 2 in ticket."},
+      {"issue": "C12: R5a detection should not rely only on dev.files_created/modified — prior cycle's /tmp/claude-pressure-warn-* was in rationale, not as created file. Require persistent_state_files[] or scan declared runtime-state paths.", "proposed_fix": "Add persistent_state_files[] required field to dev-report contract; additionally grep shipped script sources for hardcoded ephemeral paths (warning, not hard-fail)", "classification": "in_scope_real_bug", "disposition": "applied", "rationale": "M1 ephemeral-mount check now reads persistent_state_files[]; Risk 3 in ticket. New dev-report contract field — dev must populate."},
+      {"issue": "C13: Add permissions/settings for new scripts if they must run without manual prompts", "proposed_fix": "Document in Technical Hints; dev to add allowlist entries to settings.json if needed", "classification": "in_scope_minor", "disposition": "applied", "rationale": "Technical Hints Constraints bullet."}
+    ],
+    "feedback_incorporated": "All 13 codex findings applied. 12 in_scope_real_bug + 1 in_scope_minor. 0 OBSERVATION_ONLY, 0 rejected, 0 nitpicks. Specifically: M4 added (commit.md belt-and-suspenders); M5+M6 use unshare -m; M7 enforces no-repo-scratch; M10 --expected-prev-score optional; M11 narrow gitignore exception; M12 commands/dev.md call-site templates; M1 uses --no-index + realpath + persistent_state_files[] field."
+  },
+  "specialists_assessed": {
+    "ui-specialist": "SKIP — pure harness infrastructure, no UI",
+    "architect": "SKIP — codex enforced provides adversarial architectural review at every BA/dev/QA stage",
+    "product-owner": "SKIP — internal tooling, no business-logic",
+    "user": "SKIP — no E2E user surface"
   },
   "codex_consult_iter3": {
     "invoked": true,
