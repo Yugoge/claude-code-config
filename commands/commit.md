@@ -44,9 +44,14 @@ If `BULK=true`: `TASK_ID` may remain empty; changelog-analyst operates in bulk m
 
 If `FORCE=false` AND `BULK=false`:
 
+Resolve the close-report path via the helper script (which probes
+subproject docs/dev/ first, then falls back to `/root/docs/dev/` — see
+`scripts/resolve-close-report.sh`). The script exits 1 when no candidate
+file exists; `CLOSE_REPORT` still holds the fallback path for the error
+message in check 1 below.
+
 ```
-CONTROL_ROOT=/root
-CLOSE_REPORT="${CONTROL_ROOT}/docs/dev/close-report-${TASK_ID}.md"
+CLOSE_REPORT="$(bash ~/.claude/scripts/resolve-close-report.sh "$TASK_ID")" || true
 ```
 
 Run these checks (abort on first failure with a clear error message):
