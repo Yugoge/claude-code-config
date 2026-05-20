@@ -30,7 +30,34 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from lib.subagent import is_subagent_context  # noqa: E402
-from lib.allowlist import consume_grant_for_posttool  # noqa: E402
+from lib.allowlist import (  # noqa: E402
+    consume_grant_for_posttool,
+    consume_sentinel_grant_on_terminal_result,
+)
+
+
+def _classify_terminal_result(data: dict) -> str:
+    """Classify the posttool terminal-result for sentinel consumption.
+
+    Implements consume-on-any-terminal-result: every terminal outcome
+    (success, failure, non_zero exit, malformed grant, comment_only attack)
+    unlinks the sentinel. The returned label is logged but the unlink is
+    unconditional.
+
+    Returns one of: "success", "failure", "non_zero", "malformed",
+                    "comment_only", "unknown_terminal".
+    """
+    response = data.get("tool_response") or {}
+    if isinstance(response, dict):
+        if response.get("is_error"):
+            return "failure"
+        exit_code = response.get("exit_code")
+        if isinstance(exit_code, int):
+            if exit_code == 0:
+                return "success"
+            if 1 <= exit_code <= 255:
+                return "non_zero"
+    return "unknown_terminal"
 
 
 def main() -> None:
@@ -38,6 +65,11 @@ def main() -> None:
         raw = sys.stdin.read()
         data = json.loads(raw) if raw.strip() else {}
     except Exception:
+        # Malformed posttool input — still reap the sentinel for the
+        # comment_only / malformed terminal case.
+        task_id = os.environ.get("CLAUDE_TASK_ID", "")
+        if task_id:
+            consume_sentinel_grant_on_terminal_result(task_id, "malformed")
         sys.exit(0)
 
     # Main-agent only — subagents are exempt
@@ -53,6 +85,18 @@ def main() -> None:
         command = ""
 
     consume_grant_for_posttool(session_id, tool_name, command)
+
+    # Sentinel-grant consume-on-any-terminal-result: unlink the structured
+    # sentinel grant for this task on ALL terminal outcomes. The terminal
+    # classification is logged via stderr only — the unlink is unconditional.
+    task_id = (
+        data.get("task_id")
+        or os.environ.get("CLAUDE_TASK_ID")
+        or session_id
+    )
+    if task_id:
+        terminal_result = _classify_terminal_result(data)
+        consume_sentinel_grant_on_terminal_result(task_id, terminal_result)
     sys.exit(0)
 
 
