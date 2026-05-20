@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-20T21:16:06Z*
-**Total entries**: 314
+*Last updated: 2026-05-20T21:44:57Z*
+**Total entries**: 317
 **Convention**: kebab
 
 ## Tree
@@ -95,7 +95,7 @@ dev/
 ├── `close-report-20260519-175339.md` - Close Report — 20260519-175339
 ├── `close-report-20260519-211515.md` - Close Report — task-id 20260519-211515
 ├── `close-report-20260520-085647-d1722b.md` - Close Debate Report
-├── `close-report-d1e94e.md` - Close Debate Report
+├── `close-report-d1e94e-prior.md` - Close Debate Report
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
@@ -116,7 +116,7 @@ dev/
 ├── `completion-20260519-211515-redev9items.md` - Development Completion Report — 20260519-211515 (redev 9-item retrospective)
 ├── `completion-20260519-211515.md` - Development Completion Report — 20260519-211515
 ├── `completion-20260520-085647-d1722b.md` - Development Completion Report — 20260520-085647-d1722b
-├── `completion-d1e94e.md` - Development Completion Report — 20260519-211515
+├── `completion-d1e94e.md` - Development Completion Report — d1e94e
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
 ├── `context-20260510-191533.json` - json config
@@ -142,6 +142,7 @@ dev/
 ├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
+├── `context-d1e94e.json` - json config
 ├── `context-dev-20260107-091716.json` - json config
 ├── `context-dev-20260107-100221.json` - json config
 ├── `context-dev-20260107-104430.json` - json config
@@ -215,6 +216,7 @@ dev/
 ├── `prompt-inspector-report-20260519-151734.json` - json config
 ├── `prompt-inspector-report-20260519-161035.json` - json config
 ├── `prompt-inspector-report-20260519-175339.json` - json config
+├── `prompt-inspector-report-20260519-211515-recheck.json` - json config
 ├── `prompt-inspector-report-20260519-211515-redev9items.json` - json config
 ├── `prompt-inspector-report-20260519-211515.json` - json config
 ├── `prompt-inspector-report-20260520-085647-d1722b.json` - json config
@@ -313,6 +315,7 @@ dev/
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-d1e94e-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
+├── `ticket-d1e94e.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
 ├── `user-requirement-dev-20260518-214050.md` - No description
