@@ -1,0 +1,170 @@
+{
+  "schema_version": "1.0",
+  "request_id": "20260519-211515",
+  "task_id": "20260519-211515",
+  "cycle": 2,
+  "qa_mode": "ba_validation",
+  "timestamp": "2026-05-20T05:30:00Z",
+  "agent_id": "ba-validation-qa-20260520-0530",
+  "spec": "docs/dev/specs/spec-20260518-225715.md",
+  "ba_artifacts_reviewed": [
+    "docs/dev/ticket-20260519-211515.md",
+    "docs/dev/context-20260519-211515.json",
+    "docs/dev/acceptance-criteria-20260519-211515.json",
+    ".claude/dev-registry/dev-20260519-211515/blast-radius-map.json"
+  ],
+  "verdict": "fail",
+  "verdict_rationale": "BA's analysis quality is mostly strong (evidence verified, scope correctly bounded, P4 properly excluded, codex 10 findings all applied), but AC-C2-02 contains a fatal spec_text_vs_execution_drift defect that allows Dev to leave the binding Section 7 P1.2 procedural-drift remediation unimplemented while still passing the AC. Two additional spec_text_vs_execution_drift defects (AC-C2-02 qa.md brittle literal; AC-C2-01 prose-vs-machine drift) compound the verification risk. These defects must be repaired before Dev dispatch.",
+  "summary": {
+    "dimensions_evaluated": 5,
+    "objections_total": 3,
+    "blocker": 1,
+    "major": 2,
+    "minor": 0,
+    "observations_only": 3,
+    "evidence_quality": "pass",
+    "scope_alignment": "pass",
+    "investigation_completeness": "pass",
+    "affected_file_accuracy": "pass",
+    "spec_text_vs_execution_drift": "fail"
+  },
+  "dimensions": {
+    "evidence_quality": {
+      "verdict": "pass",
+      "details": "BA cites verifiable evidence for every claim: 17 observation points in Contract A all reproducible via grep/git check-ignore. Line numbers accurate. Tool-policy test-writer role absence verified: grep returned 0 hits. .gitignore failure verified: 3 git check-ignore invocations all returned exit 1. README.md:16-17 verified containing agent-scores entries. INDEX.md verified containing leaked entries at multiple line ranges. test-writer.md schema block at 80-127 verified containing Option (b) shape. agents/style-inspector.md:318 existing exemption paragraph verified. codex findings (10) all documented with PROPOSED_FIX + disposition + rationale in context.json codex_consult.",
+      "evidence_sample": [
+        "BA claim agents/test-writer.md schema block lines 80-127 implements Option (b) correctly: verified, schema at :80-127 contains per-task active_tests block + global index block with kind:index, tasks:[]",
+        "BA claim agents/qa.md:992-998 reads root manifest.json.active_tests[] directly (Option (a) shape): verified, qa.md:992 reads tests/generated/manifest.json, :994 iterates active_tests[], :995 runs unscoped pytest tests/generated/ -q",
+        "BA claim agents/style-inspector.md:318 existing Exemption paragraph (task-id 20260509-153155): verified, line 318 begins with **Exemption (verbatim user-binding quotes) and cites task-id 20260509-153155",
+        "BA claim commands/dev.md:856 contains literal Sub-step 12.1: verified verbatim",
+        "BA claim commands/dev.md:1110 contains literal from Sub-step 12.1: verified verbatim"
+      ]
+    },
+    "scope_alignment": {
+      "verdict": "pass",
+      "details": "BA delivered exactly 8 ACs mapping 1:1 to Section 7 P1+P2+P3 items: P1.1->AC-C2-01, P1.2->AC-C2-02, P2.3->AC-C2-03, P2.4->AC-C2-04, P3.6->AC-C2-05, P3.7->AC-C2-06, P3.8->AC-C2-07, P3.9->AC-C2-08. P2.5 (agent-scores.example.json) correctly classified as Won't Have per spec wording 'Optionally'. P4 properly deferred: all 5 P4 items enumerated explicitly in Won't Have AND in blast-radius-map.json p4_deferred_explicit_prohibitions[]. No P4 leakage detected in Must/Should/Could. User decisions Q1 (Standard 6 exemption, NOT translate) honored in AC-C2-08. User decision Q2 (defer P4) honored throughout. Cycle 1 ACs intentionally omitted with explicit rationale. Universal-scope claim test: user said all designed components, by priority; user pre-dispatch DECISION explicitly narrowed Cycle 2 to P1+P2+P3 (Q2). This narrowing is documented and user-confirmed, so the universal-claim guard does NOT trigger."
+    },
+    "investigation_completeness": {
+      "verdict": "pass",
+      "details": "BA verified current state of every targeted file via Read + Grep (verified_via field in component_chain). All 17 observation points carry direct measurements with file:line citations. Most critical: BA correctly identified the Option (b) drift is SPLIT -- schema block at 80-127 is correct, procedural sentences at 139/181/183/198/216 are drifted (codex F3). BA also verified agent-scores leaked-entry locations down to specific line numbers (3417-3418, 11443-11444, 21534-21535 in INDEX.md). BA verified that the existing .gitignore rule at line 75 does NOT match .claude/specs/... BA noted that .claude/INDEX.md currently has 0 agent-scores matches (verified independently). Investigation deliverables match the requirement."
+    },
+    "affected_file_accuracy": {
+      "verdict": "pass",
+      "details": "All 12 files in files_to_modify exist and contain the claimed evidence. policies/tool-policy.v1.json exists with no test-writer role. agents/test-writer.md exists with schema at :80-127. agents/qa.md exists with Phase 5 at :990-998 reading root manifest. agents/style-inspector.md exists with Standard 6 at :308-329 and Exemption at :318. commands/dev.md exists with Sub-step 12.1 at :856 and cross-ref at :1110. scripts/score-inject.sh, score-update.sh, canary-verify.sh all exist with cited python3 invocation lines. .gitignore exists with cited :75 rule. README.md/INDEX.md exist with cited leaked-entry lines. .claude/INDEX.md exists. No phantom paths, no incorrect line numbers."
+    },
+    "spec_text_vs_execution_drift": {
+      "verdict": "fail",
+      "details": "Three drift defects found, one BLOCKER and two MAJOR. The BLOCKER (AC-C2-02 test-writer.md sub-check) allows Dev to leave the Section 7 P1.2 procedural-drift remediation unimplemented while still passing the AC mechanically. See objections array for prescriptive AC repairs.",
+      "drift_count": 3
+    }
+  },
+  "objections": [
+    {
+      "id": "OBJ-1",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "blocker",
+      "ac_id": "AC-C2-02",
+      "ac_uid_current": "d5968ab139aece77",
+      "title": "AC-C2-02 must_contain_all check on agents/test-writer.md passes trivially against CURRENT (untouched) file",
+      "evidence": "Ran BA's exact check pattern against current untouched test-writer.md: grep for tests/generated/<task_id>/manifest.json exits 0 (matches at :80, :82, :90); grep for 'kind: index' exits 0 (matches at :119); grep for 'tasks: [' exits 0 (matches at :120). ALL THREE literals are present in the schema block at lines 80-127, which BA itself verified is already Option (b)-correct. The drift BA identified (codex F3: procedural sentences at lines 139/181/183/198/216 still cite ROOT manifest.json as the active store) is NOT enforced by this check.",
+      "consequence": "Dev could leave test-writer.md procedural sentences completely unmodified and AC-C2-02 would falsely PASS for the test-writer.md sub-check. The binding Section 7 P1.2 remediation Update test-writer.md AND qa.md AND commands/dev.md verification step in lockstep is unenforced for the test-writer.md axis.",
+      "proposed_fix": "Replace AC-C2-02 test-writer.md must_contain_all literal-grep check with a procedural-text alignment check that is failing TODAY. (a) Add NEGATIVE checks (must_not_contain) for current procedural lines: line 139 wording about Check existing manifest at tests/generated/manifest.json; line 183 about Write tests/generated/manifest.json; line 198 manifest_path: tests/generated/manifest.json in the report template. (b) Add POSITIVE procedural checks: must_contain at least one sentence referring to the root manifest as 'index' (not active store) in the Procedure section (lines 174-186), AND at least one sentence referring to tests/generated/<task_id>/manifest.json as the active per-task manifest in the same Procedure section. (c) Regenerate ac_uid since the check object changes.",
+      "blocks_dispatch": true,
+      "spec_clause": "spec-20260518-225715.md Section 7 P1.2 + codex F3 in context.json codex_consult.findings[2]",
+      "codex_concurrence": "Codex sustained as BLOCKER; independently proposed identical fix (negative checks against old wording + positive checks against new wording)."
+    },
+    {
+      "id": "OBJ-2",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "major",
+      "ac_id": "AC-C2-02",
+      "ac_uid_current": "d5968ab139aece77",
+      "title": "AC-C2-02 qa.md must_contain_all literal tasks[] is brittle -- token presence does not enforce Phase 5 Option (b) consumption",
+      "evidence": "BA qa.md sub-check requires literals tests/generated/<task_id>/manifest.json, tasks[], pytest tests/generated/<task_id>/. Running the literal check against current qa.md returns 0 matches (good -- fails today). But the chosen sentinel tasks[] is a bare bracket pair that could be inserted into qa.md prose ANYWHERE WITHOUT actually changing Phase 5 to read root index then find current task_id entry then read that entry manifest_path then verify only the per-task manifest active_tests[]. Current qa.md:992-998 still iterates root active_tests[] directly and runs unscoped pytest tests/generated/ -q. The codex F4 intent (QA scoped to current task_id) and codex F6 intent (schema fields root_index_path + per_task_manifest_path + task_id) are NOT enforced by the brittle literal sentinel.",
+      "consequence": "Dev could add tasks[] in unrelated prose and leave Phase 5 logic unscoped -- codex F4 regression risk reappears on the FIRST cycle that has test-writer trigger fire.",
+      "proposed_fix": "Replace the qa.md sub-check with a cohesive multi-element check that enforces the actual codex F4 + F6 intent: (a) must_contain_all should require literals root_index_path AND per_task_manifest_path (binding to F6 schema fields); (b) must_contain literal pytest tests/generated/<task_id>/ OR equivalent scoped form (binding to F4 scoping); (c) must_contain a phrase like current task_id or task_id matches in the Phase 5 section (binding F4 intent); (d) ADD must_not_contain checks for OLD shape: pytest tests/generated/ -q (current line 995, must be removed) and instructions to iterate root manifest active_tests[] directly. Regenerate ac_uid.",
+      "blocks_dispatch": true,
+      "spec_clause": "spec-20260518-225715.md Section 7 P1.2 + codex F4/F6 in context.json codex_consult.findings[3] and [5]",
+      "codex_concurrence": "Codex sustained as MAJOR; independently proposed cohesive multi-element check with positive AND negative literals."
+    },
+    {
+      "id": "OBJ-3",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "major",
+      "ac_id": "AC-C2-01",
+      "ac_uid_current": "972e1d86723a664b",
+      "title": "AC-C2-01 prose-vs-machine drift: 'then' text claims 6 entries plus the four stream stubs and tmp but the JSON contains_all value lists only 5",
+      "evidence": "AC-C2-01 'then' field reads: allowed_write_path_prefixes contains all six required entries (*/tests/generated/, */docs/dev/test-writer-report-, */.claude/specs/*/cp-state-test-writer.json, */docs/dev/specs/*/cp-state-test-writer.json, */.claude/dev-registry/*/test-writer.json, plus the four stream stubs and tmp). The contains_all value array has only 5 entries -- missing the stream stubs (*/dev/null, */dev/stderr, */dev/stdout) and tmp (/tmp/*, /var/tmp/*) entries that other roles uniformly include. A Dev who reads the JSON check and not the prose could add the 5 listed entries and skip the stream/tmp stubs; AC-C2-01 would pass; test-writer would still fail at runtime for stream redirection scenarios that other roles support.",
+      "consequence": "Inconsistency between human-readable spec and machine check; Dev could deliver a test-writer role missing operational stubs without AC catching it. BA must decide intent.",
+      "proposed_fix": "BA chooses one branch and aligns prose with machine: (a) PREFERRED tight scope per Section 7 verbatim -- update 'then' prose to all five required entries and remove plus the four stream stubs and tmp parenthetical; OR (b) full-operability scope -- 'then' prose stays at six-plus-stubs AND contains_all value adds the missing entries (*/dev/null, */dev/stderr, */dev/stdout, /tmp/*, /var/tmp/*). Either branch acceptable; current divergence is not. Also fix the arithmetic in the prose ('all six' but lists more items). Regenerate ac_uid.",
+      "blocks_dispatch": false,
+      "spec_clause": "spec-20260518-225715.md Section 7 P1.1. Section 7 itself does not enumerate stream/tmp stubs -- BA textual claim went beyond Section 7.",
+      "codex_concurrence": "Codex sustained as MAJOR; nuance: do not overstate as Section 7 blocker until BA chooses intent. Severity set to major per codex nuance."
+    }
+  ],
+  "observations_only": [
+    {
+      "id": "OBS-1",
+      "ac_id": "AC-C2-04",
+      "observation": "AC-C2-04 includes .claude/INDEX.md in the grep scope, but that file currently has 0 agent-scores matches. The grep over that file passes trivially today. Not blocking -- Section 7 P2.4 explicitly names .claude/INDEX.md as one of the three indices to regenerate, so AC including it preserves spec-named coverage.",
+      "severity": "minor",
+      "action_required": "none"
+    },
+    {
+      "id": "OBS-2",
+      "ac_id": "AC-C2-08",
+      "observation": "AC-C2-08 grep pattern source.language|source-language uses a regex dot that matches any character. Both source language (space) and source-language (hyphen) and even sourceXlanguage would match. Intended permissiveness -- fine.",
+      "severity": "minor",
+      "action_required": "none"
+    },
+    {
+      "id": "OBS-3",
+      "general_observation": "BA overall analysis quality is strong: every evidence claim reproducible, every line number accurate, scope cleanly bounded to Section 7 P1+P2+P3, P4 prohibitions explicit in blast-radius-map. The 3 drift defects in objections are spec_text_vs_execution_drift -- fixable via AC-text-and-recipe edits without changing the cycle prescriptive work. Once OBJ-1, OBJ-2, OBJ-3 are repaired and ac_uids regenerated, the BA deliverable can pass to Dev.",
+      "severity": "info",
+      "action_required": "none"
+    }
+  ],
+  "ba_strengths": [
+    "Codex adversarial consultation invoked (codex_required=true): 10 findings all applied with PROPOSED_FIX + rationale documented",
+    "P4 explicit prohibitions enumerated in blast-radius-map.json p4_deferred_explicit_prohibitions[] (defense against Section 7 parenthetical scope creep)",
+    "Cycle 1 18-AC non-regression named as required_validation entry 2 with specific spot-check ACs (AC-01/02/14/15/17/18) -- bounded verification scope",
+    "Component chain provides verified_via field for every file, distinguishing Read vs Grep evidence",
+    "User pre-dispatch decisions Q1 + Q2 honored -- Standard 6 exemption is ADDITIVE (preserves the existing 20260509-153155 paragraph) and Cycle 2 strictly P1+P2+P3",
+    "JSON syntax integrity of tool-policy.v1.json named as required_validation entry 1"
+  ],
+  "remediation_required_before_dev_dispatch": {
+    "BA_must_amend_primary": "docs/dev/acceptance-criteria-20260519-211515.json AC-C2-02 (BLOCKER) and AC-C2-01 (MAJOR drift); regenerate ac_uid for any AC whose check object changes",
+    "BA_must_amend_secondary": "docs/dev/ticket-20260519-211515.md AC summaries for AC-C2-02 and AC-C2-01 to mirror the JSON edits",
+    "no_dispatch_recommended_until": "OBJ-1, OBJ-2, OBJ-3 PROPOSED_FIXes applied; ac_uids regenerated; QA re-validates"
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex sustained ALL 3 primary objections (OBJ-1 BLOCKER, OBJ-2 MAJOR, OBJ-3 MAJOR) and OBS-1 as OBSERVATION_ONLY. Codex agreed AC-C2-02 can falsely pass while binding Section 7 P1.2 remediation is unimplemented -- exactly the spec_text_vs_execution_drift pattern. Codex provided independent PROPOSED_FIX prescriptions that match QA prescriptions for each objection. Codex final verdict: Return FAIL to BA with required AC repairs before Dev proceeds.",
+    "feedback_incorporated": "All 3 codex-confirmed objections included in this report with PROPOSED_FIX directly informed by codex prescription. Severity ratings reflect codex agreement (1 BLOCKER, 2 MAJOR). Codex nuance on OBJ-3 (do not overstate as Section 7 blocker until BA chooses intent) applied: OBJ-3 severity set to major, not blocker.",
+    "codex_output_path": "/var/tmp/codex-outputs/codex-output-3832895-1779254016.txt"
+  },
+  "self_verification": {
+    "claims_total": 14,
+    "claims_with_evidence": 14,
+    "claims_superficial": 0,
+    "superficial_details": [],
+    "confidence": "high",
+    "claims_audit": [
+      "OBJ-1 evidence: 3 grep tests run against current test-writer.md, all 3 returned exit 0",
+      "OBJ-2 evidence: grep test against current qa.md returned 0 hits; codex independently confirmed reading qa.md:992-999",
+      "OBJ-3 evidence: AC JSON value array directly read from acceptance-criteria-20260519-211515.json (5 entries) vs prose (6+ items)",
+      "Evidence quality dimension: every BA observation point cross-checked against actual files via Bash/Grep",
+      "Scope alignment dimension: explicit P1.1 to AC-C2-01 through P3.9 to AC-C2-08 mapping verified item-by-item",
+      "Investigation completeness: BA verified_via field traced for each component_chain entry",
+      "Affected-file accuracy: every cited file verified to exist via ls/Read",
+      "All line numbers cited in objections verified via Read",
+      "Codex consultation: invoked, output captured, conclusions cross-referenced before finalizing severity",
+      "P4 leakage check: blast-radius-map.json p4_deferred_explicit_prohibitions[] verified to enumerate 5 items",
+      "Standard 6 user decision Q1 (add exemption, not translate): verified honored in AC-C2-08",
+      "P4 deferral user decision Q2: verified in Won't Have list and in p4_deferred_explicit_prohibitions",
+      "Cycle 1 non-regression target: verified in required_validation entry 2 with spot-check AC list",
+      "ac_uid algorithm: verified preserved (sha256[:16] documented in meta)"
+    ]
+  }
+}
