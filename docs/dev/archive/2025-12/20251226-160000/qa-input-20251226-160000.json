@@ -1,0 +1,352 @@
+{
+  "request_id": "clean-enhancement-20251226-160000",
+  "timestamp": "2025-12-26T16:00:00Z",
+  "requirement": {
+    "original": "立即添加以上我提出的几个原则，同时加入docs中的INDEX和整理归纳功能（这需要设计标准的docs文件架结构）",
+    "clarified": "Enhance cleanliness-inspector and cleaner agents with 4 new detection principles and docs/ organization functionality with INDEX.md generation",
+    "what": "Add new detection capabilities and docs organization to /clean command",
+    "why": "Current cleanliness-inspector misses critical orphaned files (unreferenced subagents/scripts/tests, historical docs). Need standardized docs structure with auto-generated INDEX for better organization.",
+    "where": [
+      "agents/cleanliness-inspector.md",
+      "agents/cleaner.md",
+      "commands/clean.md"
+    ],
+    "scope": {
+      "included": [
+        "Add 4 new detection sections to cleanliness-inspector",
+        "Design standard docs/ folder structure based on successful patterns",
+        "Add docs categorization logic (by filename patterns)",
+        "Add INDEX.md generation to cleaner",
+        "Support root-level README.md and ARCHITECTURE.md (not moved)",
+        "Auto-categorize docs into guides/, reference/, planning/, reports/, archive/"
+      ],
+      "excluded": [
+        "Touching docs/dev/ or docs/clean/ (JSON only, no .md files)",
+        "Changes to orchestrator.sh or clean.md orchestration logic",
+        "New scripts creation (use existing helpers)"
+      ]
+    },
+    "success_criteria": [
+      "cleanliness-inspector detects orphaned subagents (not referenced by commands)",
+      "cleanliness-inspector detects unreferenced scripts (not in commands/agents)",
+      "cleanliness-inspector detects orphaned tests (testing deleted code)",
+      "cleanliness-inspector detects historical feature docs (describing deleted features)",
+      "cleanliness-inspector categorizes docs by filename patterns",
+      "cleaner generates/updates docs/INDEX.md with categorized file list",
+      "Root README.md and ARCHITECTURE.md are preserved (not moved to docs/)",
+      "docs/ structure follows: guides/, reference/, planning/, reports/, archive/",
+      "INDEX.md excludes dev/ and clean/ JSON files, only lists .md files"
+    ],
+    "constraints": [
+      "No hardcoded values in detection logic",
+      "Use existing check-file-references.sh helper",
+      "Follow /dev standards (English only, integer steps, meaningful naming)",
+      "Preserve all existing cleanliness-inspector functionality",
+      "Backward compatible with existing /clean workflow"
+    ]
+  },
+  "root_cause_analysis": {
+    "symptom": "cleanliness-inspector lacks detection for orphaned subagents, unreferenced scripts, orphaned tests, and historical docs. No standardized docs organization or INDEX.",
+    "root_cause": "cleanliness-inspector.md was created (commit 030e4873) with file organization focus only, missing functional relationship detection (subagent→command, script→command/agent, test→code) and docs categorization",
+    "root_cause_commit": "030e4873 - checkpoint: Auto-save at 2025-12-26 15:12:46",
+    "why_introduced": "Initial cleanliness-inspector focused on file location issues (misplaced docs, duplicates, temp files) but didn't include functional reference checking or docs structure design",
+    "why_problematic": "Orphaned files accumulate (unused subagents, unreferenced scripts, tests for deleted code, outdated docs) without detection. docs/ becomes disorganized without standard structure.",
+    "timeline": "cleanliness-inspector created today (2025-12-26), immediately identified as incomplete",
+    "affected_files": [
+      "agents/cleanliness-inspector.md",
+      "agents/cleaner.md"
+    ]
+  },
+  "context": {
+    "codebase_state": {
+      "git_status": "M settings.json, ?? agents/cleanliness-inspector.md, ?? agents/cleaner.md, ?? agents/style-inspector.md",
+      "current_branch": "master",
+      "recent_commits": [
+        "030e4873 - checkpoint: Auto-save at 2025-12-26 15:12:46",
+        "bb76d511 - fix: resolve all P0 critical violations in /clean command",
+        "c972c7ab - feat: enhance /clean command with intelligent reference detection"
+      ]
+    },
+    "file_contents": {
+      "agents/cleanliness-inspector.md": "393 lines, sections 1-7: misplaced docs, archive candidates, dev context cleanup, one-time scripts, duplicate scripts, one-time tests, duplicate tests, non-functional files. MISSING: orphaned subagents, unreferenced scripts, orphaned tests, historical docs, docs categorization",
+      "agents/cleaner.md": "415 lines, 6 action types: move, archive, delete, rename, fix_style, update_gitignore. MISSING: generate_index action for docs/INDEX.md",
+      "successful_patterns": {
+        "multi-asset-portfolio": "docs/ with guides/, reference/, planning/, reports/, archive/, schemas/, setup/ subdirectories. Has comprehensive docs/README.md INDEX.",
+        "knowledge-system": "docs/ with guides/, reference/, testing/, validation/, plans/, architecture/, archive/ subdirectories."
+      }
+    },
+    "dependencies": {
+      "runtime": "bash, jq, git, grep, find",
+      "existing_scripts": [
+        "~/.claude/scripts/check-file-references.sh - detects file references, exit codes: 0=safe delete, 1=has references, 2=archive only"
+      ]
+    },
+    "environment": {
+      "config_files": [
+        ".claude/settings.json",
+        ".claude/commands/clean.md",
+        ".claude/agents/cleanliness-inspector.md",
+        ".claude/agents/cleaner.md"
+      ]
+    }
+  },
+  "development_approach": {
+    "strategy": "Add 4 new detection sections (8-11) to cleanliness-inspector.md for orphaned files and docs categorization. Add generate_index action to cleaner.md for INDEX.md generation. Update commands/clean.md to support root README.md and ARCHITECTURE.md.",
+    "files_to_modify": [
+      "agents/cleanliness-inspector.md - add sections 8-11",
+      "agents/cleaner.md - add generate_index action type",
+      "commands/clean.md - update root .md file rules"
+    ],
+    "validation_approach": "QA will verify: (1) new detection sections follow same pattern as existing, (2) detection logic uses check-file-references.sh, (3) docs categorization rules match successful patterns, (4) INDEX.md generation excludes JSON files, (5) root README.md/ARCHITECTURE.md preserved"
+  },
+  "docs_structure_design": {
+    "standard_structure": {
+      "root": {
+        "allowed_md_files": [
+          "README.md",
+          "ARCHITECTURE.md"
+        ],
+        "rule": "All other .md files move to docs/"
+      },
+      "docs": {
+        "INDEX.md": "Auto-generated by cleaner, lists all .md files categorized",
+        "subdirectories": {
+          "guides": {
+            "purpose": "User guides, tutorials, how-to documents",
+            "patterns": [
+              "*-guide.md",
+              "*-tutorial.md",
+              "*-quickstart.md",
+              "how-to-*.md"
+            ]
+          },
+          "reference": {
+            "purpose": "Technical docs, API reference, registries",
+            "patterns": [
+              "*-reference.md",
+              "api-*.md",
+              "*-registry.md",
+              "command-*.md"
+            ]
+          },
+          "planning": {
+            "purpose": "Planning docs, roadmaps, design proposals",
+            "patterns": [
+              "*-plan.md",
+              "*-proposal.md",
+              "roadmap.md",
+              "*-design.md",
+              "architecture.md"
+            ]
+          },
+          "reports": {
+            "purpose": "Completion reports, summaries, QA reports",
+            "patterns": [
+              "*-report.md",
+              "*-summary.md",
+              "*-complete.md",
+              "phase-*.md",
+              "qa-*.md"
+            ]
+          },
+          "archive": {
+            "purpose": "Historical docs, outdated guides, old reports",
+            "structure": "YYYY-MM/ subdirectories by last modified date",
+            "patterns": [
+              "*-fix.md",
+              "*-fixes.md",
+              "*-analysis.md",
+              "*-temp.md",
+              "*-draft.md",
+              "migration-*.md"
+            ],
+            "age_rule": "Docs matching patterns + modified > 30 days ago"
+          }
+        },
+        "excluded": {
+          "dev": "Development workflow JSONs only, no .md files",
+          "clean": "Clean workflow JSONs only, no .md files"
+        }
+      }
+    },
+    "index_format": {
+      "filename": "docs/INDEX.md",
+      "sections": [
+        "# Documentation Index",
+        "## Quick Navigation (links to key docs)",
+        "## Guides (list all guides/*.md)",
+        "## Reference (list all reference/*.md)",
+        "## Planning (list all planning/*.md)",
+        "## Reports (list all reports/*.md)",
+        "## Archive (by month)",
+        "## Uncategorized (root docs/ .md files not in subdirs)"
+      ],
+      "exclusions": [
+        "dev/**/*.json",
+        "clean/**/*.json",
+        "**/*.json"
+      ]
+    }
+  },
+  "new_detection_principles": {
+    "section_8_orphaned_subagents": {
+      "principle": "All subagents not referenced by any command should be suggested for deletion or archival",
+      "detection_logic": "For each agents/*.md: grep -r 'Task.*subagent_type.*<agent-name>' commands/ || grep -r '<agent-name>' commands/*.md. If not found → orphaned",
+      "severity": "major",
+      "output_field": "orphaned_subagents"
+    },
+    "section_9_unreferenced_scripts": {
+      "principle": "All scripts not referenced by commands or subagents should be suggested for deletion",
+      "detection_logic": "For each scripts/*.sh: check-file-references.sh + grep in commands/*.md and agents/*.md. If no functional references → unreferenced",
+      "severity": "major",
+      "output_field": "unreferenced_scripts"
+    },
+    "section_10_orphaned_tests": {
+      "principle": "All tests for non-existent code should be suggested for deletion",
+      "detection_logic": "For each tests/test_*.py: extract module name, check if src/<module>.py or scripts/<module>.sh exists. If not → orphaned",
+      "severity": "minor",
+      "output_field": "orphaned_tests"
+    },
+    "section_11_historical_feature_docs": {
+      "principle": "Docs describing deleted features should be archived",
+      "detection_logic": "For docs/*.md: extract feature/module names from content, check if corresponding code exists. If not → historical",
+      "severity": "minor",
+      "output_field": "historical_docs"
+    },
+    "section_12_docs_categorization": {
+      "principle": "All docs should be categorized into standard subdirectories",
+      "detection_logic": "For each docs/*.md (excluding INDEX.md, dev/, clean/): match filename against patterns, suggest target subdirectory",
+      "severity": "minor",
+      "output_field": "docs_categorization"
+    }
+  },
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "use_source_venv": false,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true,
+    "english_only": true
+  },
+  "dev": {
+    "status": "completed",
+    "tasks_completed": [
+      {
+        "id": 1,
+        "description": "Enhanced agents/cleanliness-inspector.md with 5 new detection sections (8-12)",
+        "type": "enhancement",
+        "files_modified": [
+          "agents/cleanliness-inspector.md"
+        ],
+        "changes": "Added sections 8-12: Orphaned Subagents Detection, Unreferenced Scripts Detection, Orphaned Tests Detection, Historical Feature Docs Detection, Docs Categorization",
+        "rationale": "Root cause: cleanliness-inspector created without functional reference detection. Fix adds detection for orphaned subagents (not in commands), unreferenced scripts (not in commands/agents), orphaned tests (testing deleted code), historical docs (describing deleted features), and docs categorization (auto-organize by filename patterns)"
+      },
+      {
+        "id": 2,
+        "description": "Enhanced agents/cleaner.md with generate_index action type",
+        "type": "enhancement",
+        "files_modified": [
+          "agents/cleaner.md"
+        ],
+        "changes": "Added generate_index action type that creates/updates docs/INDEX.md with categorized file listing. Excludes dev/**/*.json and clean/**/*.json. Lists files by category: guides/, reference/, planning/, reports/, archive/, uncategorized",
+        "rationale": "Provides standardized docs/ organization with auto-generated INDEX.md for easy navigation. Follows successful patterns from multi-asset-portfolio and knowledge-system projects"
+      },
+      {
+        "id": 3,
+        "description": "Updated commands/clean.md root directory rules",
+        "type": "enhancement",
+        "files_modified": [
+          "commands/clean.md"
+        ],
+        "changes": "Updated Step 1 with documentation structure rules: root directory ALLOWS README.md and ARCHITECTURE.md (project-level files), moves all other .md files to docs/. Documented standard docs/ subdirectory structure",
+        "rationale": "Clarifies that README.md and ARCHITECTURE.md are project-level files that should remain in root, while all other docs move to docs/ for organization"
+      }
+    ],
+    "files_modified": [
+      "agents/cleanliness-inspector.md",
+      "agents/cleaner.md",
+      "commands/clean.md"
+    ],
+    "scripts_created": [],
+    "git_rationale": {
+      "root_cause_commit": "030e4873",
+      "root_cause_description": "checkpoint: Auto-save at 2025-12-26 15:12:46",
+      "why_issue_occurred": "Initial cleanliness-inspector implementation focused on file location issues (misplaced docs, duplicates, temp files) but didn't include functional relationship detection (subagent→command, script→command/agent, test→code) or docs categorization/organization standards",
+      "how_fix_addresses_root": "Added 5 new detection sections (8-12) that detect functional relationships: orphaned subagents not referenced by commands, unreferenced scripts not in commands/agents, orphaned tests for deleted code, historical docs describing deleted features, and docs categorization for standardized organization. Also added INDEX.md generation to cleaner for auto-organizing docs/ structure. Root README.md and ARCHITECTURE.md now explicitly allowed."
+    },
+    "implementation_details": {
+      "new_detection_sections": {
+        "section_8_orphaned_subagents": {
+          "purpose": "Detect subagents not referenced by any command",
+          "detection_method": "grep in commands/*.md for subagent_type, Task references, and agents/*.md paths",
+          "severity": "major",
+          "output_field": "orphaned_subagents"
+        },
+        "section_9_unreferenced_scripts": {
+          "purpose": "Detect scripts not referenced by commands or agents",
+          "detection_method": "Use check-file-references.sh helper + grep in commands/*.md and agents/*.md",
+          "severity": "major",
+          "output_field": "unreferenced_scripts"
+        },
+        "section_10_orphaned_tests": {
+          "purpose": "Detect tests for non-existent code",
+          "detection_method": "Extract module name from test_*.py, check if src/module.py or scripts/module.sh exists",
+          "severity": "minor",
+          "output_field": "orphaned_tests"
+        },
+        "section_11_historical_feature_docs": {
+          "purpose": "Detect docs describing deleted features",
+          "detection_method": "Extract file mentions from docs, check if >50% of mentioned files are missing",
+          "severity": "minor",
+          "output_field": "historical_docs"
+        },
+        "section_12_docs_categorization": {
+          "purpose": "Auto-categorize docs into standard subdirectories",
+          "detection_method": "Filename pattern matching against guides/, reference/, planning/, reports/, archive/ patterns",
+          "severity": "minor",
+          "output_field": "docs_categorization"
+        }
+      },
+      "cleaner_enhancements": {
+        "generate_index_action": {
+          "action_type": "generate_index",
+          "target": "docs/INDEX.md",
+          "functionality": "Scans all .md files in docs/ and subdirectories, categorizes by subdirectory, generates INDEX.md with links",
+          "exclusions": [
+            "dev/**/*.json",
+            "clean/**/*.json",
+            "**/*.json"
+          ],
+          "sections": [
+            "Quick Navigation",
+            "Guides",
+            "Reference",
+            "Planning",
+            "Reports",
+            "Archive",
+            "Uncategorized"
+          ]
+        }
+      },
+      "docs_structure_standards": {
+        "root_allowed": [
+          "README.md",
+          "ARCHITECTURE.md"
+        ],
+        "root_rule": "All other .md files move to docs/",
+        "docs_subdirectories": {
+          "guides": "User guides, tutorials, how-to documents",
+          "reference": "Technical docs, API reference, registries",
+          "planning": "Planning docs, roadmaps, design proposals",
+          "reports": "Completion reports, summaries, QA reports",
+          "archive": "Historical docs (organized by YYYY-MM/)",
+          "dev": "Development workflow JSONs only (no .md files)",
+          "clean": "Clean workflow JSONs only (no .md files)"
+        }
+      }
+    },
+    "qa_ready": true,
+    "qa_notes": "Verify: (1) New detection sections follow same pattern as existing sections 1-7, (2) Detection logic uses check-file-references.sh helper for reference checking, (3) Docs categorization patterns match context JSON design, (4) INDEX.md generation excludes JSON files, (5) Root README.md and ARCHITECTURE.md explicitly allowed in Step 1 rules",
+    "permissions_to_add": []
+  }
+}
