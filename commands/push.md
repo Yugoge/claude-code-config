@@ -200,6 +200,20 @@ called from a validator wrapper that has already written the Chain-B sentinel in
 the SAME process tree; the sentinel-gate at hooks/push.sh:84 enforces that
 constraint and self-aborts if violated.
 
+## Push-analyst grant TTL
+
+The push-analyst writes its Chain-B grant with a default TTL of
+`PUSH_ANALYST_GRANT_TTL_SECONDS = 180` seconds — raised from 120 to 180 in
+task 20260519-211515 R4 / AC4 to absorb subagent dispatch latency observed on
+cold-path invocations where the orchestrator → push-analyst → grant-write
+round-trip exceeded the prior 120s window. Rationale: subagent dispatch latency
+on first invocation can take 60s+; combining with grant validation + sentinel
+write puts the effective end-to-end deadline above the 120s threshold, causing
+intermittent Chain-B grant expirations. The 180s TTL is the named constant
+defined in `agents/push-analyst.md` Phase 7. The commit-grant mechanism at
+`scripts/write-commit-grant.py` (`GRANT_TTL_MINUTES = 10`) is a DIFFERENT
+mechanism and was not changed.
+
 ## Related
 
 - `/commit <task-id>` — automatic semantic commit for a closed task.
