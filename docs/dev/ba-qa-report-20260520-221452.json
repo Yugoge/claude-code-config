@@ -154,7 +154,9 @@
       "proposed_fix": "Add a positive check to AC-11: must_contain_regex anchored to the former cross-reference locations — e.g., near line 844 must contain a phrase referring to the new integer-step form like 'Step 12 spec section updates' (or 'After applying spec section updates,'); near line 1115 must contain something like 'Step 12 score-update events' or 'score-update events from Step 12'. The exact phrasing is dev's choice but the AC should verify some integer-anchored prose exists at those locations."
     },
     {
-      "id": "OBJ-10",
+      "id": "OBJ-10-LEGACY",
+      "_doc": "RESOLVED in iter-1. Preserved for audit trail.",
+      "iter1_resolution": "RESOLVED — paragraph-scoped slice of new exemption with stable Cycle-2-user-facing anchor; existing line 320 paragraph cannot satisfy.",
       "dimension": "spec_text_vs_execution_drift",
       "severity": "critical",
       "ac_affected": "AC-13",
