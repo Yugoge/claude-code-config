@@ -81,6 +81,113 @@ if [ "$AUTO_MODE" = "1" ]; then
 fi
 echo ""
 
+# ─── Chain-B sentinel-file gate (task 20260519-211515 R1 / AC1) ───────────────
+# Closes the push-analyst Chain-B bypass: push.sh self-aborts if the
+# validated-push sentinel is missing, stale, or FAIL. The sentinel is
+# bound to <repo+sid+request+branch+head+remote>. This is the single-process
+# pattern's read-and-consume side: validator wrapper writes the sentinel
+# atomically (temp+rename) on Chain-B success only; push.sh reads it here
+# and unlinks it. Missing sentinel ⇒ abort. Stale (mtime > 60s) ⇒ abort.
+# FAIL sentinel ⇒ abort. All three abort branches use `exit 1` BEFORE any
+# `git push` invocation downstream — see Step 9.
+_CHAIN_B_REPO_HASH="$(python3 -c "import hashlib,os; print(hashlib.sha256(os.path.realpath('${_REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || echo /root)}').encode()).hexdigest()[:16])" 2>/dev/null)"
+_CHAIN_B_BRANCH_RAW="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+_CHAIN_B_BRANCH="$(python3 -c "print('${_CHAIN_B_BRANCH_RAW}'.replace('/', '__'))")"
+_CHAIN_B_REQUEST_ID="${CLAUDE_PUSH_REQUEST_ID:-${CLAUDE_TASK_ID:-${CLAUDE_SESSION_ID:-default}}}"
+_CHAIN_B_SENTINEL_DIR="/tmp/agentic-commit/push-analyst/${_CHAIN_B_REPO_HASH}"
+_CHAIN_B_SENTINEL_PATH="${_CHAIN_B_SENTINEL_DIR}/${_CHAIN_B_BRANCH}-chainB.validated.sentinel.json"
+
+if [ ! -f "$_CHAIN_B_SENTINEL_PATH" ]; then
+  echo -e "${RED}❌ Chain-B sentinel missing at ${_CHAIN_B_SENTINEL_PATH}.${NC}" >&2
+  echo "   The push-analyst grant did not write a success sentinel." >&2
+  echo "   Run /push through the validator wrapper instead of chaining with && from the orchestrator." >&2
+  exit 1
+fi
+
+_CHAIN_B_NOW=$(date -u +%s)
+_CHAIN_B_SENTINEL_MTIME=$(stat -c '%Y' "$_CHAIN_B_SENTINEL_PATH" 2>/dev/null || echo 0)
+_CHAIN_B_AGE=$(( _CHAIN_B_NOW - _CHAIN_B_SENTINEL_MTIME ))
+if [ "$_CHAIN_B_AGE" -gt 60 ]; then
+  rm -f "$_CHAIN_B_SENTINEL_PATH"
+  echo -e "${RED}❌ Chain-B sentinel STALE (age=${_CHAIN_B_AGE}s > 60s) — refusing to push.${NC}" >&2
+  echo "   Stale sentinel indicates a zombie validation; rerun /push." >&2
+  exit 1
+fi
+
+_CHAIN_B_HEAD_SHA="$(git rev-parse HEAD 2>/dev/null)"
+_CHAIN_B_VERIFY=$(REQUEST_ID="$_CHAIN_B_REQUEST_ID" SENT_PATH="$_CHAIN_B_SENTINEL_PATH" HEAD_SHA="$_CHAIN_B_HEAD_SHA" BRANCH_REF="$_CHAIN_B_BRANCH_RAW" REMOTE_REF="$REMOTE" python3 - <<'PYEOF' 2>/dev/null
+import json, os, sys
+# CF-3 (task 20260519-211515 codex iter-1 BLOCKER): ALL binding fields are
+# MANDATORY. A sentinel containing only {"result":"PASS"} must NOT pass — it
+# is malformed. Each of result / request_id / head / branch / remote MUST be
+# present, a non-empty string, AND equal to the expected value.
+try:
+    d = json.load(open(os.environ['SENT_PATH']))
+except Exception as e:
+    print(f"parse_error:{e}")
+    sys.exit(0)
+if not isinstance(d, dict):
+    print(f"parse_error:not_a_dict")
+    sys.exit(0)
+result = d.get('result')
+if not isinstance(result, str) or result != 'PASS':
+    print(f"FAIL_result:{result}")
+    sys.exit(0)
+# Mandatory binding fields — missing/empty/wrong-type means malformed.
+required = (
+    ('request_id', os.environ['REQUEST_ID']),
+    ('head',       os.environ['HEAD_SHA']),
+    ('branch',     os.environ['BRANCH_REF']),
+    ('remote',     os.environ['REMOTE_REF']),
+)
+for key, expected in required:
+    val = d.get(key)
+    if not isinstance(val, str) or not val:
+        print(f"binding_missing:{key}")
+        sys.exit(0)
+    if val != expected:
+        print(f"{key}_mismatch:sentinel={val!r} expected={expected!r}")
+        sys.exit(0)
+print("ok")
+PYEOF
+)
+
+case "$_CHAIN_B_VERIFY" in
+  ok)
+    # Single-use consume: atomic unlink BEFORE the executable git invocation so
+    # the sentinel can never authorize a second push. trap below ensures cleanup
+    # on any exit.
+    rm -f "$_CHAIN_B_SENTINEL_PATH"
+    ;;
+  FAIL_result:*)
+    rm -f "$_CHAIN_B_SENTINEL_PATH"
+    echo -e "${RED}❌ Chain-B sentinel reports FAIL: ${_CHAIN_B_VERIFY#FAIL_result:}${NC}" >&2
+    exit 1
+    ;;
+  parse_error:*|"")
+    rm -f "$_CHAIN_B_SENTINEL_PATH"
+    echo -e "${RED}❌ Chain-B sentinel malformed (${_CHAIN_B_VERIFY:-empty}). Refusing to push.${NC}" >&2
+    exit 1
+    ;;
+  binding_missing:*)
+    rm -f "$_CHAIN_B_SENTINEL_PATH"
+    echo -e "${RED}❌ Chain-B sentinel missing required binding field: ${_CHAIN_B_VERIFY#binding_missing:}${NC}" >&2
+    echo "   All of result, request_id, head, branch, remote are MANDATORY." >&2
+    exit 1
+    ;;
+  *)
+    rm -f "$_CHAIN_B_SENTINEL_PATH"
+    echo -e "${RED}❌ Chain-B sentinel binding mismatch: ${_CHAIN_B_VERIFY}${NC}" >&2
+    echo "   Sentinel is bound to (request_id, head, branch, remote); one of those drifted." >&2
+    exit 1
+    ;;
+esac
+
+# trap-on-exit: ensure sentinel is removed on ANY exit path even though we
+# already unlinked it above; defense-in-depth against future code that
+# writes a sentinel mid-flow.
+trap 'rm -f "$_CHAIN_B_SENTINEL_PATH" 2>/dev/null' EXIT INT TERM
+
 # --- Push-gate: verify a valid session commit token exists ---
 _REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo /root)"
 _REPO_HASH="$(python3 -c "import hashlib,os; print(hashlib.sha256(os.path.realpath('${_REPO_ROOT}').encode()).hexdigest()[:16])")"
