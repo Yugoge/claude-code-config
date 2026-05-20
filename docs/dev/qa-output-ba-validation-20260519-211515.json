@@ -180,7 +180,7 @@
       "findings_breakdown": {"blocker": 3, "major": 7},
       "applicable_to_ba_spec": "10/10 findings in-scope spec-quality improvements per Rule 3 of codex calling protocol (all carry PROPOSED_FIX, all target BA spec verification recipes)"
     }
-  ],
+  },
 
   "out_of_scope_observations": [
     {
