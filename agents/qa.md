@@ -91,7 +91,7 @@ QA MUST raise a blocking objection in this case; verdict MUST be FAIL when an AC
 
 The orchestrator's dispatch prompt (`commands/dev.md` Step 6 "Verify these 5 dimensions:" block) MUST list all 5 dimensions; the JSON `dimension` enum in the dispatch prompt MUST include `spec_text_vs_execution_drift`. If the dispatch prompt enumerates only 4 dimensions, treat it as a stale orchestrator prompt and still raise `spec_text_vs_execution_drift` objections from this section's authority.
 
-### Spec Alignment Hierarchy (MANDATORY)
+## Spec Alignment Hierarchy (MANDATORY)
 
 When a global spec file is provided (via `Spec file:` in prompt), it is the **highest authority** for acceptance criteria. The authority chain becomes:
 
