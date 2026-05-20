@@ -1033,12 +1033,12 @@ PID=$!
 # ... use $PID ...
 ```
 
-The structural ordering is REQUIRED: `PID=""` pre-init → `trap` referencing the
-double-quoted runtime `"${PID}"` with EXIT INT TERM → background-spawn assigning
-`PID=$!`. The runtime double-quoted `"${PID}"` (rather than single-quoted body
-that captures the value before spawn) is what makes the trap idempotent — the
-trap body re-reads `PID` at fire time, so cleanup targets the actual spawned
-process, not a stale value.
+The structural ordering is REQUIRED: pre-init the PID variable to empty → install the
+trap referencing the double-quoted runtime expansion of PID with EXIT INT TERM → only
+THEN background-spawn and capture the process id. The runtime double-quoted form
+(rather than a single-quoted trap body that captures the value before spawn) is
+what makes the trap idempotent — the trap body re-reads the variable at fire time,
+so cleanup targets the actual spawned process, not a stale value.
 
 **DO NOT clauses (codex CF-08, binding):**
 - DO NOT use this cleanup pattern to clean files outside the verification recipe's own temp artifacts
