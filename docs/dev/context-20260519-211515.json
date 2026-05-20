@@ -44,7 +44,8 @@
       "AC-D4: Regex grants (is_regex: true) behave unchanged",
       "AC-H1: Parallel TodoWrite+Agent dispatch records subagent_calls[idx]=True via bounded-window typed lookup, next TodoWrite not blocked",
       "AC-H2: Serial TodoWrite then Agent dispatch still works",
-      "AC-H3: Orphan Agent dispatch does not corrupt bookmark — no None key, no wrong-step flip, no fall-through corruption",
+      "AC-H3a: Serial-dispatch legacy write preserved (subagent_type absent + legacy resolves single valid in_progress with subagent_call metadata → Case B writes subagent_calls[str(idx)]=True; aligns with AC-H2 serial flow)",
+      "AC-H3b: Orphan Agent dispatch does not corrupt bookmark — 4 enumerated no-write cases (subagent_type absent+legacy None; subagent_type non-empty+typed miss; subagent_type non-empty+no in_progress; subagent_type non-empty+multi-in_progress); no None key, no wrong-step flip, no canonical[0:3] misflip from no-anchor/multi-anchor states",
       "AC-H4: Gate 4 strictness preserved (validator unchanged)",
       "AC-D-H: Prior cycle's read-size-guard / block-enterworktree /allow bypass paths still work end-to-end"
     ],
