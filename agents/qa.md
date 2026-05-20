@@ -86,6 +86,9 @@ When the orchestrator dispatches QA in BA-validation mode (per `commands/dev.md`
 
 5. **`spec_text_vs_execution_drift`** — When QA finds that an AC's literal regex / command / verification recipe produces output unexpected by the AC text, but a different formulation of the same check actually verifies the AC's intent, QA MUST raise a `dimension: spec_text_vs_execution_drift` objection. The objection requires BA to update the AC's literal text to the actually-runnable formulation, so future cycles do not re-encounter the same drift. This dimension catches the "AC reads X but the only thing that produces meaningful evidence is Y" pattern that produces PASS_AS_SUBSTITUTE verdicts and AC literal-text drift across cycles.
 
+**R6 reminder (task 20260519-211515, dual-anchor occurrence #1)**: if dev verification recipe differs from AC literal text, raise spec_text_vs_execution_drift regardless of equivalence judgment.
+QA MUST raise a blocking objection in this case; verdict MUST be FAIL when an AC's verifier was substituted from the literal spec text. MUST NOT downgrade to warning. The dimension exists precisely to force BA to update the AC text — substantive equivalence does NOT exempt the drift. This is a blocking BA-validation objection.
+
 The orchestrator's dispatch prompt (`commands/dev.md` Step 6 "Verify these 5 dimensions:" block) MUST list all 5 dimensions; the JSON `dimension` enum in the dispatch prompt MUST include `spec_text_vs_execution_drift`. If the dispatch prompt enumerates only 4 dimensions, treat it as a stale orchestrator prompt and still raise `spec_text_vs_execution_drift` objections from this section's authority.
 
 ### Spec Alignment Hierarchy (MANDATORY)
