@@ -3,10 +3,10 @@
   "agent_type": "qa",
   "instance_id": null,
   "generation": 1,
-  "agent_id": "acb484950cc351d16",
-  "is_running": true,
+  "agent_id": null,
+  "is_running": false,
   "checked_in_at": "2026-05-20T05:11:01Z",
-  "checked_out_at": null,
+  "checked_out_at": "2026-05-20T08:23:21Z",
   "checkpoints": [
     {
       "id": "cp-01",
