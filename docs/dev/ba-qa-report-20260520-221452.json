@@ -130,7 +130,9 @@
       "proposed_fix": "Rewrite AC-09 with structural checks: (a) hooks/doc_sync/regen_readme.py SKIP_NAMES literal MUST be a Python set containing both 'agent-scores.json' AND 'agent-scores.json.lock' (parse the AST or use a tighter regex anchored to `SKIP_NAMES\\s*=\\s*\\{[^}]*'agent-scores\\.json'[^}]*'agent-scores\\.json\\.lock'`); (b) hooks/doc_sync/tree.py SKIP_FILES + IGNORE_DIRS similarly; (c) optionally add a runtime test: invoke regen_readme.py with a fixture containing these files and assert they are excluded from output."
     },
     {
-      "id": "OBJ-08",
+      "id": "OBJ-08-LEGACY",
+      "_doc": "RESOLVED in iter-1. Preserved for audit trail.",
+      "iter1_resolution": "RESOLVED — shell-aware preprocess (comment-strip + quote-mask) + per-invocation precedence regex.",
       "dimension": "spec_text_vs_execution_drift",
       "severity": "major",
       "ac_affected": "AC-10",
