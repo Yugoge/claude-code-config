@@ -46,7 +46,22 @@ If `FORCE=false` AND `BULK=false`:
 
 ```
 CONTROL_ROOT=/root
-CLOSE_REPORT="${CONTROL_ROOT}/docs/dev/close-report-${TASK_ID}.md"
+# Subproject path-walk (mirrors Step 6 changelog-analyst dispatch): probe the
+# most-specific subproject docs/dev/ first, fall back to CONTROL_ROOT. Handles
+# nested-repo cycles where the close-report lives at /root/.claude/docs/dev/...
+# (symlinked to the actual nested working tree) rather than /root/docs/dev/.
+CLOSE_REPORT=""
+for candidate in \
+    "${CLAUDE_PROJECT_DIR:-}/docs/dev/close-report-${TASK_ID}.md" \
+    "/root/.claude/docs/dev/close-report-${TASK_ID}.md" \
+    "${CONTROL_ROOT}/docs/dev/close-report-${TASK_ID}.md"; do
+    if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+        CLOSE_REPORT="$candidate"
+        break
+    fi
+done
+# Fallback to outer path for the error message when no candidate exists.
+[ -z "$CLOSE_REPORT" ] && CLOSE_REPORT="${CONTROL_ROOT}/docs/dev/close-report-${TASK_ID}.md"
 ```
 
 Run these checks (abort on first failure with a clear error message):
