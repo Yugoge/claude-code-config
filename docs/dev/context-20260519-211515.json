@@ -316,7 +316,7 @@
     "novelty_check": {
       "this_attempt_layer": "mixed L1..L5",
       "differs_from_all_priors": true,
-      "rationale": "Zero overlap with prior attempt's diff surface. Prior modified /usr/local/bin/playwright-mcp-stealth; this modifies .claude/-tree files (hooks, scripts, policies, agents, commands, CLAUDE.md, continuation spec). Different files, layers, failure mode."
+      "rationale": "Zero overlap with prior attempt's diff surface. Prior modified /usr/local/bin/playwright-mcp-stealth; this modifies .claude/-tree files (hooks, scripts, policies, agents, commands, CLAUDE.md). The frozen continuation spec docs/dev/specs/spec-20260520-044700.md is NOT modified per user requirement line 76; iter-3 reverts iter-2's append-only proposal."
     }
   },
   "context": {
