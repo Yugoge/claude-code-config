@@ -351,8 +351,9 @@
     ],
     "validation_approach": "Static: pytest hooks/tests/test_allowlist_consolidation.py (existing + new test for AC-D1). Smoke: invoke each of the 6 production PreTool read_grant call sites once with exact pattern + once with substring pattern, assert exact returns True / substring returns False (AC-D3). For H: simulate parallel dispatch via direct Python test invocation of posttool-subagent-track.py with a synthesized bookmark and stdin payload — assert subagent_calls[<expected_idx>]=True is recorded via Case A bounded-window lookup (AC-H1); simulate serial dispatch — same assertion (AC-H2); simulate orphan Agent in Case A (subagent_type non-empty, no match within window) — assert no exception, no None key written, no wrong-step flip (AC-H3); simulate orphan Agent in Case B (subagent_type absent, legacy returns None) — assert no exception, no None key (AC-H3); leave pretool-todo-validate.py untouched and re-run any existing harness tests against it to confirm Gate 4 still blocks (AC-H4). Re-run the prior cycle's smoke for AC-D-H (read-size-guard + block-enterworktree /allow bypass) with /allow Read and /allow EnterWorktree to confirm exact match still works."
   },
-  "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260519-211515.json",
-  "blast_radius_map_path": ".claude/dev-registry/dev-20260519-211515/blast-radius-map.json",
+  "acceptance_criteria_path": null,
+  "blast_radius_map_path": null,
+  "_companion_artifacts_note": "D+H scope is too small to require companion AC/blast-radius JSONs. The 9 ACs in ticket-20260519-211515.md (AC-D1..D4, AC-H1, AC-H2, AC-H3a, AC-H3b, AC-H4, AC-D-H) are authoritative. Ghost Cycle 2 companion artifacts at -CYCLE2 suffix (docs/dev/acceptance-criteria-20260519-211515-CYCLE2.json, .claude/dev-registry/dev-20260519-211515/blast-radius-map-CYCLE2.json) do not apply to this cycle.",
   "standards_to_enforce": {
     "no_hardcoded_values": true,
     "yaml_frontmatter_description_only": true,
