@@ -148,6 +148,41 @@ class TestReadGrant(unittest.TestCase):
     def test_missing_grant_returns_false(self):
         self.assertFalse(read_grant("Write", "sid-that-does-not-exist-abc123"))
 
+    # AC-D1 regression (cycle 20260519-211515 Item D): read_grant is exact_only.
+    # Substring grants (e.g. '/allow Re') MUST NOT match the tool name 'Read'
+    # at PreTool. This closes the PreTool/PostTool asymmetry that allowed
+    # grant leakage past single-use.
+    def test_read_grant_exact_only_rejects_substring(self):
+        """Grant pattern 'Re' must NOT match tool name 'Read' (AC-D1)."""
+        test_sid = "test-read-grant-exact-only"
+        grant_path = f"/tmp/claude-bash-allowlist-{test_sid}.json"
+        try:
+            with open(grant_path, "w") as f:
+                json.dump({"pattern": "Re", "is_regex": False}, f)
+            # Pre-cycle behavior: exact_or_substr would have returned True
+            # ("Re" in "Read"). New exact_only semantics returns False.
+            self.assertFalse(read_grant("Read", test_sid))
+            # Grant file MUST still exist (read-only, no unlink).
+            self.assertTrue(os.path.exists(grant_path))
+        finally:
+            if os.path.exists(grant_path):
+                os.unlink(grant_path)
+
+    # AC-D1 additional regression: '/allow Write' must NOT match 'TodoWrite'
+    # at PreTool (was the original asymmetry — PostTool was already exact-only
+    # via Branch 3 of consume_grant_for_posttool, but PreTool was substr).
+    def test_read_grant_exact_only_rejects_write_against_todowrite(self):
+        """Grant pattern 'Write' must NOT match tool name 'TodoWrite' (AC-D1)."""
+        test_sid = "test-read-grant-write-vs-todowrite"
+        grant_path = f"/tmp/claude-bash-allowlist-{test_sid}.json"
+        try:
+            with open(grant_path, "w") as f:
+                json.dump({"pattern": "Write", "is_regex": False}, f)
+            self.assertFalse(read_grant("TodoWrite", test_sid))
+        finally:
+            if os.path.exists(grant_path):
+                os.unlink(grant_path)
+
 
 class TestReadGrantForGitCommand(unittest.TestCase):
     """Unit tests for read_grant_for_git_command (substr_only semantics)."""
