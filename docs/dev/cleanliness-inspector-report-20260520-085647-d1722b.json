@@ -130,12 +130,26 @@
         "line": 419,
         "symbol": "timezone",
         "introduced_in_diff": true,
-        "reason": "`from datetime import datetime, timezone` imports `timezone` but the local scope (inside `load_sentinel_grant_for_task` at L378) never references `timezone` — only `datetime.fromisoformat()` is used. The companion site at line 542 in reap_expired_sentinel_grants correctly imports only `datetime`. The L419 import was introduced when the sentinel-grant lifecycle was added in this diff.",
+        "reason": "`from datetime import datetime, timezone` imports `timezone` but the local scope (inside `load_sentinel_grant_for_task` at L378) never references `timezone` — only `datetime.fromisoformat()` is used. The companion site at line 542 in reap_expired_sentinel_grants correctly imports only `datetime`. The L419 import was introduced when the sentinel-grant lifecycle was added in this cycle.",
         "severity": "minor",
-        "recommendation": "Change `from datetime import datetime, timezone` to `from datetime import datetime`.",
+        "recommendation": "Change `from datetime import datetime, timezone` to `from datetime import datetime`. Codex re-confirmed PROPOSED_FIX (round 2 codex item 5).",
         "safe_to_fix": true,
         "blocks_close": false,
         "rationale_non_blocking": "Unused import in a narrow local scope; no runtime impact, no namespace pollution at module level. Cosmetic minor."
+      }
+    ],
+    "shell_conventions": [
+      {
+        "file": "scripts/resolve-close-report.sh",
+        "line": 16,
+        "introduced_in_diff": true,
+        "round2_new": true,
+        "reason": "Script uses `set -u` only — no `-e` (errexit), no `-o pipefail`. Every one of the ~40 peer scripts/*.sh files uses at minimum `set -e`, or more commonly `set -uo pipefail` / `set -euo pipefail` (grep ^set scripts/*.sh confirms: 33 use `set -euo pipefail`, 4 use `set -uo pipefail`, 4 use `set -e`, 1 outlier is this new script). Given the script has explicit `exit 0` / `exit 1` lines and contains no pipelines, missing flags do not produce a runtime defect — but they break the established peer-script convention, which is a real cleanliness signal for future maintainers.",
+        "severity": "minor",
+        "recommendation": "Change L16 from `set -u` to `set -euo pipefail` to match the most-common peer convention. Codex confirmed PROPOSED_FIX (round 2 codex item 2).",
+        "safe_to_fix": true,
+        "blocks_close": false,
+        "rationale_non_blocking": "No runtime failure mode given explicit exit codes and no pipelines. Convention-consistency drift only."
       }
     ]
   },
