@@ -1,0 +1,158 @@
+{
+  "request_id": "dev-20260519-211515",
+  "timestamp": "2026-05-20T00:00:00Z",
+  "inspector": "prompt-inspector",
+  "mode": "--changed-files",
+  "scope_contract": "cleanliness-of-THIS-diff only; emits new-in-this-diff findings tagged via Mechanism (ii) inspector-side tagging with explicit introduced_in_diff field on every finding",
+  "changed_files_in_scope": [
+    "agents/ba.md",
+    "agents/changelog-analyst.md",
+    "agents/push-analyst.md",
+    "agents/qa.md",
+    "commands/close.md",
+    "commands/commit.md",
+    "commands/dev.md",
+    "commands/push.md"
+  ],
+  "changed_files_out_of_scope": [
+    "CLAUDE.md"
+  ],
+  "out_of_scope_reason": "CLAUDE.md is global configuration / standing instructions, not an agent/command execution doc. 'Rules not stories' principle applies to .claude/agents/*.md and .claude/commands/*.md; not skipped silently — explicitly excluded with audit trail.",
+  "diff_insertion_summary": {
+    "agents/ba.md": {"added": 3, "removed": 0},
+    "agents/changelog-analyst.md": {"added": 32, "removed": 0},
+    "agents/push-analyst.md": {"added": 5, "removed": 2},
+    "agents/qa.md": {"added": 42, "removed": 4},
+    "commands/close.md": {"added": 4, "removed": 1},
+    "commands/commit.md": {"added": 36, "removed": 7},
+    "commands/dev.md": {"added": 6, "removed": 1},
+    "commands/push.md": {"added": 37, "removed": 3},
+    "total_added": 165,
+    "total_removed": 18,
+    "largest_single_insertion": "agents/qa.md (+42 lines)",
+    "note_on_largest": "Corrected per codex CF-1: prior draft mis-identified commands/commit.md +43 as largest; +43 was total-changed (36 add + 7 del). Actual largest insertion is agents/qa.md +42, below the minor=50 threshold."
+  },
+  "findings": [],
+  "advisory_observations": [
+    {
+      "file": "commands/push.md",
+      "location": "Push-analyst grant TTL section + Step 5 explanatory rationale (approx lines 186-190 and 203-215)",
+      "severity": "advisory_below_minor",
+      "introduced_in_diff": true,
+      "verbose_lines_estimate": 10,
+      "category": "story_smell — rationale-heavy explanatory prose embedded in a rule",
+      "description": "The TTL section devotes ~10 lines to WHY 180s was chosen (subagent dispatch latency narrative, end-to-end deadline math, distinction from commit-grant TTL). 'Rules not stories' would prefer the constant declaration plus a one-line distinct-mechanism note.",
+      "recommendation_per_codex_PROPOSED_FIX": "Compress TTL section to: 'Set PUSH_ANALYST_GRANT_TTL_SECONDS = 180 in agents/push-analyst.md. This Chain-B TTL is distinct from commit-grant GRANT_TTL_MINUTES = 10; do not change commit-grant TTL here.'",
+      "blocks_close": false,
+      "reason_non_blocking": "Below minor=50 file-level threshold (+37 total added). Logged as cleanup candidate for a future hygiene cycle."
+    },
+    {
+      "file": "agents/changelog-analyst.md",
+      "location": "Reversal-citation rule 'Two independent rules apply here, distinct in scope' block (approx lines 250-263)",
+      "severity": "advisory_below_minor",
+      "introduced_in_diff": true,
+      "verbose_lines_estimate": 14,
+      "category": "story_smell — duplicate-rule restatement and cross-reference clarifying prose",
+      "description": "The block re-states the destructive-verb prohibition that already lives in agents/ba.md Destructive-Action Escalation, then recapitulates the reversal-citation rule that was just stated in the preceding paragraph. Adds ~14 lines of clarifying prose without introducing new executable content.",
+      "recommendation_per_codex_PROPOSED_FIX": "Replace approximate lines 250-263 with: 'This is a forward-fix documentation rule only. It does NOT authorize git revert, git reset --hard, git rebase, amend, or force-push; those remain forbidden unless explicitly user-authorized. Apply prospectively; do not amend past commits such as d988d4a.'",
+      "blocks_close": false,
+      "reason_non_blocking": "Below minor=50 file-level threshold (+32 added). However the duplicate-rule cross-reference is the second-strongest cleanup candidate in the cycle after commands/push.md."
+    },
+    {
+      "file": "agents/qa.md",
+      "location": "Verification harness cleanup contract — 'structural ordering is REQUIRED' paragraph (within the new MANDATORY section)",
+      "severity": "advisory_below_minor",
+      "introduced_in_diff": true,
+      "verbose_lines_estimate": 5,
+      "category": "story_smell — mechanism explanation embedded in rule",
+      "description": "Explains WHY the runtime double-quoted trap form is idempotent (variable re-read at fire time, etc) across ~5 lines. The canonical pattern itself is shown in the bash block immediately above; explanation could be replaced with 'use this pattern verbatim'.",
+      "recommendation_per_codex_PROPOSED_FIX": "Optional compression: replace the 5-line explanation with a single-line cross-reference: 'Use the pattern verbatim — the runtime double-quoted PID expansion is what makes the trap idempotent.' Mechanism explanation belongs in /dev hygiene docs, not the contract section.",
+      "blocks_close": false,
+      "reason_non_blocking": "Below minor=50 file-level threshold (+42 added). The contract itself plus DO-NOT clauses are substantive rules; only the mechanism explanation drifts into 'stories'."
+    },
+    {
+      "file": "commands/dev.md + commands/close.md",
+      "location": "R3 TodoWrite-ordering reminders inserted at Step 8 (dev.md) and Step 1 (close.md)",
+      "severity": "advisory_below_minor",
+      "introduced_in_diff": true,
+      "verbose_lines_estimate": 3,
+      "category": "redundant_restatement",
+      "description": "Each reminder restates the TodoWrite-before-Agent rule across 3 near-identical sentences ('MUST emit … BEFORE invoking', 'REQUIRED ordering: TodoWrite first, Agent() second', 'Always update the in_progress marker BEFORE dispatch', 'Before dispatch … must already be in_progress').",
+      "recommendation_per_codex_PROPOSED_FIX": "Reduce each reminder to one sentence: 'TodoWrite update Step-N to in_progress BEFORE any Agent() dispatch in Step N (REQUIRED ordering).'",
+      "blocks_close": false,
+      "reason_non_blocking": "Below minor=50 file-level threshold. The restatement is intentionally emphatic for a binding ordering rule; redundancy here is defensible vs cycle history of ordering-violation regressions."
+    }
+  ],
+  "summary": {
+    "files_inspected": 8,
+    "files_out_of_scope_in_diff": 1,
+    "files_with_violations": 0,
+    "files_with_advisory_observations": 5,
+    "critical": 0,
+    "major": 0,
+    "minor": 0,
+    "advisory_below_minor": 4,
+    "verdict": "PASS — no blocking prompt-inspector finding",
+    "close_no_trigger": false,
+    "final_wording_per_codex_CF5": "No blocking prompt-inspector finding. Advisory cleanup candidates exist in commands/push.md (TTL rationale ~10 lines) and agents/changelog-analyst.md (duplicate-rule block ~14 lines), but introduced verbose content remains below minor severity (file-level 50-line threshold strictly binds per codex CF-4) and does not justify CLOSE:NO."
+  },
+  "severity_threshold_application": {
+    "thresholds": {"critical": 200, "major": 100, "minor": 50},
+    "granularity": "file-level (per agents/prompt-inspector.md spec)",
+    "binding_per_codex_CF4": "absolute file-level thresholds bind; aggregated multi-file insertions (165 total in this cycle) do NOT promote individual sub-threshold blocks to findings",
+    "largest_per_file_added": {
+      "agents/qa.md": 42,
+      "commands/push.md": 37,
+      "commands/commit.md": 36,
+      "agents/changelog-analyst.md": 32,
+      "commands/dev.md": 6,
+      "agents/push-analyst.md": 5,
+      "commands/close.md": 4,
+      "agents/ba.md": 3
+    },
+    "all_below_minor_50": true
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex confirmed the verdict (0/0/0, no CLOSE:NO) but flagged: (1) counting error in draft (commit.md +43 was total-changed, not insertion; actual largest = qa.md +42); (2) push.md TTL rationale undercounted as 3 lines, actual ~10-11 — strongest cleanup candidate; (3) changelog-analyst duplicate-rule block undercounted as ~10 lines, actual ~14; (4) severity calibration confirmed — file-level 50-line threshold strictly binds; (5) advised final wording log advisory candidates rather than say 'nothing notable'.",
+    "findings": [
+      {
+        "issue": "COUNTING_ERROR — draft said commands/commit.md +43 is largest insertion; actual largest insertion is agents/qa.md +42; +43 was total-changed (36 add + 7 del) for commit.md",
+        "proposed_fix": "Replace draft text with: 'Largest actual insertion count is agents/qa.md at +42 lines; commands/push.md is +37 and commands/commit.md is +36. All remain below the 50-line minor threshold.'",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Counting accuracy is fundamental to inspector credibility. Report's diff_insertion_summary now reflects per-file added counts and identifies agents/qa.md +42 as the largest insertion."
+      },
+      {
+        "issue": "MISSED_ADVISORY — commands/push.md TTL rationale + Step 5 explanatory prose closer to 10-11 lines, not the draft's '3-line' characterization; strongest cleanup candidate of the cycle",
+        "proposed_fix": "Compress TTL section to: 'Set PUSH_ANALYST_GRANT_TTL_SECONDS = 180 in agents/push-analyst.md. This Chain-B TTL is distinct from commit-grant GRANT_TTL_MINUTES = 10; do not change commit-grant TTL here.'",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Logged as advisory_observation for commands/push.md with verbose_lines_estimate=10 and verbatim codex PROPOSED_FIX wording recorded as recommendation_per_codex_PROPOSED_FIX. Not promoted to finding because file-level total (+37) below 50."
+      },
+      {
+        "issue": "MISSED_ADVISORY — agents/changelog-analyst.md 'Two independent rules' block + prospective/frozen-commit note spans ~14 lines, not draft's ~10; story-like restatement",
+        "proposed_fix": "Replace approximate lines 250-263 with: 'This is a forward-fix documentation rule only. It does NOT authorize git revert, git reset --hard, git rebase, amend, or force-push; those remain forbidden unless explicitly user-authorized. Apply prospectively; do not amend past commits such as d988d4a.'",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Logged as advisory_observation for agents/changelog-analyst.md with verbose_lines_estimate=14 and verbatim codex PROPOSED_FIX wording. Not promoted to finding because file-level total (+32) below 50."
+      },
+      {
+        "issue": "SEVERITY_CALIBRATION — confirms file-level 50-line minor threshold strictly binds; does not aggregate cross-file",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirms calibration. Aggregating 165 cycle insertions across files into a finding would violate the spec's per-file granularity. Recorded in severity_threshold_application.binding_per_codex_CF4."
+      },
+      {
+        "issue": "ANTI-FRAUD — draft is not rubber-stamping the verdict but should not say 'nothing notable'; should log below-threshold advisory cleanup candidates explicitly",
+        "proposed_fix": "Final wording: 'No blocking prompt-inspector finding. Advisory cleanup candidates exist in commands/push.md and agents/changelog-analyst.md, but introduced verbose content remains below minor severity and does not justify CLOSE:NO.'",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Verbatim wording recorded in summary.final_wording_per_codex_CF5. Four advisory_observations populated to give downstream consumers a concrete cleanup backlog while keeping the formal verdict at 0/0/0."
+      }
+    ],
+    "feedback_incorporated": "All 5 codex findings applied: counting error corrected with per-file insertion table; 2 missed advisories logged as advisory_observations with verbatim codex PROPOSED_FIX recommendations; severity calibration recorded as binding constraint; anti-fraud final wording adopted verbatim. Final verdict unchanged (0 critical / 0 major / 0 minor) — codex agreed verdict is correct but draft was 'mildly under-adversarial' on logging detail."
+  }
+}
