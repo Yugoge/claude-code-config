@@ -324,7 +324,7 @@
     },
     {
       "id": "AC-09",
-      "ac_uid": "PENDING_RECOMPUTE",
+      "ac_uid": "d7653985e85603ea",
       "type": "data",
       "given": "hooks/doc_sync/regen_readme.py and hooks/doc_sync/tree.py are AST-parsed; the doc-sync filter is exercised against a fixture that simulates the ACTUAL leak path (build_tree starting INSIDE .claude where `specs/` is NOT dot-prefixed and is NOT filtered by the existing `startswith('.')` predicate)",
       "when": "(a) AST membership of SKIP_NAMES (regen_readme.py) and SKIP_FILES (tree.py) is checked for both 'agent-scores.json' AND 'agent-scores.json.lock'; (b) the doc-sync filtering code path is exercised by importing the package via PYTHONPATH=$PWD (preserving the relative import `from .extract import extract_description`) and calling `tree_mod.build_tree(root / '.claude')` against a fixture containing BOTH a `.claude/specs/spec-foo/cp-state.json` (positive leak path) AND a `.claude/ordinary/specs/keep.txt` (negative-control path that proves the dev's fix is PATH-AWARE, not a blanket `i.name == 'specs'` filter that would also suppress legitimate sibling `specs/` directories)",
