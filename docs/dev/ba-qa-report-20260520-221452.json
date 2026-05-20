@@ -142,7 +142,9 @@
       "proposed_fix": "Replace AC-10 with per-invocation precedence verification: for each non-comment line containing 'python3' in the file, check that one of: (a) the same line contains 'source ~/.claude/venv/bin/activate &&' before 'python3' (subshell form like `( source ~/.claude/venv/bin/activate && python3 - ... )`); (b) a preceding line in the same function body (between the opening `function name() {` and the python3 line) contains 'source ~/.claude/venv/bin/activate' without intervening function-boundary tokens. Implement as a small parser or a per-file regex with surrounding context. Alternatively: bind dev to use ONLY the subshell-wrap form so the check is a simple inline-regex `\\(\\s*source\\s+[^)]*venv/bin/activate\\s*&&\\s*python3`."
     },
     {
-      "id": "OBJ-09",
+      "id": "OBJ-09-LEGACY",
+      "_doc": "RESOLVED in iter-1. Preserved for audit trail.",
+      "iter1_resolution": "RESOLVED — cross-references scoped to Step 12 + Mascot Score Changes; case-sensitive Step prevents trivial sub-step match.",
       "dimension": "investigation_completeness",
       "severity": "minor",
       "ac_affected": "AC-11",
