@@ -94,7 +94,9 @@
       "proposed_fix": "Split AC-04 into two checks: (a) Phase 5 step 1 MUST read per-task manifest (not global) — update must_not_contain to scope-limited regex; (b) the global-index PRESENCE sentinel at line 1004 stays as-is and is REQUIRED to remain (must_contain 'tests/generated/manifest.json is missing' or equivalent). Schema field manifest_path MUST be per-task path (must_contain_regex '\"manifest_path\":\\s*\"tests/generated/<task_id>/manifest\\.json\"')."
     },
     {
-      "id": "OBJ-05",
+      "id": "OBJ-05-LEGACY",
+      "_doc": "RESOLVED in iter-1. Preserved for audit trail.",
+      "iter1_resolution": "RESOLVED — per-task path REQUIRED in dispatch + handoff scopes; test-writer dispatch input correctly excluded.",
       "dimension": "spec_text_vs_execution_drift",
       "severity": "major",
       "ac_affected": "AC-05",
