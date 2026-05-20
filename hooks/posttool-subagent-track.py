@@ -189,17 +189,26 @@ def _find_earliest_unflipped_matching_step(
         step = canonical[i] if i < len(canonical) else None
         if not isinstance(step, dict):
             continue
-        call = step.get('subagent_call') or {}
-        if not isinstance(call, dict):
+        call_meta = step.get('subagent_call')
+        if call_meta is None:
             continue
-        cand_type = call.get('subagent_type', '')
-        if not isinstance(cand_type, str):
-            continue
-        if cand_type.lower() != needle:
+        # Normalize: subagent_call may be a dict (single subagent) or a list
+        # of dicts (multiple alternative subagents — supported by the
+        # validator's _format_subagent_names at pretool-todo-validate.py:244-248).
+        if isinstance(call_meta, dict):
+            entries = [call_meta]
+        elif isinstance(call_meta, list):
+            entries = [e for e in call_meta if isinstance(e, dict)]
+        else:
             continue
         if calls.get(str(i)):
             continue  # already flipped
-        return i
+        for entry in entries:
+            cand_type = entry.get('subagent_type', '')
+            if not isinstance(cand_type, str):
+                continue
+            if cand_type.lower() == needle:
+                return i
     return None  # window exhausted, no unflipped match
 
 
