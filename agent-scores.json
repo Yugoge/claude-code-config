@@ -4,7 +4,7 @@
   "global": {
     "agents": {
       "ba": {
-        "score": 90,
+        "score": 85,
         "rank": "宗师级",
         "history": [
           {
@@ -126,12 +126,20 @@
             "old_score": 95,
             "new_score": 90,
             "note": "20260519-161933"
+          },
+          {
+            "ts": "2026-05-20T09:18:35Z",
+            "event": "close_fail_qa_pass",
+            "delta": -5,
+            "old_score": 90,
+            "new_score": 85,
+            "note": "20260519-211515-DH-collision"
           }
         ]
       },
       "dev": {
-        "score": 90,
-        "rank": "宗师级",
+        "score": 80,
+        "rank": "资深工匠",
         "history": [
           {
             "ts": "2026-05-19T17:15:08Z",
@@ -252,12 +260,20 @@
             "old_score": 100,
             "new_score": 90,
             "note": "20260519-161933"
+          },
+          {
+            "ts": "2026-05-20T09:18:35Z",
+            "event": "close_fail_qa_pass",
+            "delta": -10,
+            "old_score": 90,
+            "new_score": 80,
+            "note": "20260519-211515-DH-collision"
           }
         ]
       },
       "qa": {
-        "score": 42,
-        "rank": "熟练工匠",
+        "score": 30,
+        "rank": "初级工匠",
         "history": [
           {
             "ts": "2026-05-19T17:15:08Z",
@@ -354,6 +370,14 @@
             "old_score": 54,
             "new_score": 42,
             "note": "20260519-161933"
+          },
+          {
+            "ts": "2026-05-20T09:18:35Z",
+            "event": "close_fail_qa_pass",
+            "delta": -12,
+            "old_score": 42,
+            "new_score": 30,
+            "note": "20260519-211515-DH-collision"
           }
         ]
       },
