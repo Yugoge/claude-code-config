@@ -178,7 +178,7 @@ When `SPEC_ID` is non-empty, `/close` MUST hand the QA subagent
 `.claude/specs/<SPEC_ID>/cp-state-qa.json`; this is what makes the close gate
 participate in the same check-in/checklist/Stop-block chain as `/dev`.
 
-### Step 1: Dispatch three inspectors in parallel (orchestrator authority — `commands/close.md` itself, NOT QA)
+### Step 1: Agent dispatch — three inspectors in parallel (orchestrator authority — `commands/close.md` itself, NOT QA)
 
 **TodoWrite ordering reminder (task 20260519-211515 R3 / AC3)**: TodoWrite mark-as-in_progress for step N must precede any Agent() call dispatched within step N.
 The orchestrator MUST emit a TodoWrite call updating the Step-N todo item to `in_progress` BEFORE invoking any Agent() in Step N. REQUIRED ordering: TodoWrite first, then Agent(). Always update the in_progress marker BEFORE dispatch. Before dispatch of any inspector (or any subagent in any Step), the matching Todo item MUST already be in_progress; otherwise do not dispatch.
