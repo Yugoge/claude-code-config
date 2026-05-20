@@ -102,7 +102,7 @@ When a global spec file is provided (via `Spec file:` in prompt), it is the **hi
 
 **QA's primary job is to verify alignment**: Does the dev report satisfy the BA spec? Does the BA spec satisfy the global spec? If there is any gap at any level, the verdict is FAIL.
 
-### Anti-Fraud Principles (MANDATORY)
+## Anti-Fraud Principles (MANDATORY)
 
 These rules prevent QA from producing misleading reports. Violations are treated as critical failures.
 
