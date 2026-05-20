@@ -249,8 +249,10 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex confirmed 8 of QA's 10 candidate objections (AC-03, AC-04, AC-05, AC-07, AC-09, AC-10, AC-11, AC-13) and added 2 new ones (AC-01 tools-list mismatch; AC-02 missing third agent-list site in commands/dev.md:134-136). Codex's PROPOSED_FIXes were incorporated into the objection list. Codex did not push back on AC-07 as OBSERVATION_ONLY rather than a blocker — agreed and documented as scope_alignment minor + out_of_scope_observation.",
-    "feedback_incorporated": "All 10 codex findings became objections OBJ-01..OBJ-10. AC-07 demoted to minor severity per codex's enforcement-not-broken observation. AC-13 elevated to critical per QA Anti-Fraud Principle 5 because the pass-as-substitute drift would silently land a non-fix."
+    "iter": 2,
+    "feedback_summary": "Codex (gpt-5.5 xhigh) ran at 2026-05-20T23:55Z for iter-2 validation. Confirmed BOTH new iter-2 objections with verbatim SHA evidence (agent-scores.json HEAD 41c522/WT 14b30c; cp-state-qa.json HEAD fd540c/WT fa4ddf) AND verbatim ImportError reproduction. Codex VERDICT_RECOMMENDATION: FAIL not WARN. Codex agreed iter-1 fixes for AC-02/03/04/05/10/11/13 are materially improved. Codex's PROPOSED_FIXes incorporated verbatim into OBJ-11 (existence-only check; capture pre-dev baseline if stronger safety needed) and OBJ-12 (PYTHONPATH-based import; fixture must call build_tree(.claude); add structural SKIP_PATH_PREFIXES check).",
+    "feedback_incorporated": "All 3 iter-2 codex findings became OBJ-11 + OBJ-12 (item 1 -> OBJ-11; items 2+3 -> OBJ-12 with combined defect statement). Out-of-scope observation #2 added re: git rm prose-vs-script -r flag mismatch (codex did not flag but identified during cross-read).",
+    "_iter1_consult_summary": "Iter-1 codex confirmed 8 of 10 candidate objections and added 2 new ones. All 10 became OBJ-01..OBJ-10 (now suffixed -LEGACY)."
   },
   "iteration_needed": true,
   "refined_context": {
