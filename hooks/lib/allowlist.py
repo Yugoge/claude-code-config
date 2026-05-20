@@ -14,6 +14,25 @@ extraction, task aaf3c44). Extended with consolidation functions for
 allow-6 (task 20260518-155948) to eliminate 4 independent open/flock/
 JSON-load/match implementations across hook files.
 
+Sentinel-file grant lifecycle (task 20260519-211515 R2 / AC2):
+  - In addition to the legacy pattern-string grant file
+    (/tmp/claude-bash-allowlist-<sid>.json), the orchestrator may write a
+    structured sentinel grant at /tmp/claude-grants/<task_id>-<nonce>.json
+    containing {task_id, session_id, allowed_operations[], created_at,
+    expires_at}. allowed_operations[] is a structured list of {op, target,
+    args_contain?, ...} dicts, NOT a free-text regex.
+  - load_sentinel_grant_for_task() reads and validates the sentinel.
+  - match_sentinel_grant_for_bash_command() returns True iff the bash
+    command structurally satisfies at least one entry in allowed_operations[].
+    The predicate NEVER substring-matches against the raw command line;
+    the only allowed predicate is structured-equality on op/target/args.
+  - consume_sentinel_grant_on_terminal_result() unlinks the sentinel on
+    ANY terminal result (success, non-zero exit, malformed grant, or
+    comment-only attack). This is the consume-on-any-terminal-result
+    semantic (item 2 of qa-output-retrospective-classification-20260519-175339).
+  - reap_expired_sentinel_grants() is called by stop-cleanup hook to remove
+    unconsumed grants at session end.
+
 Stdlib-only; Python 3.12+ required.
 """
 
@@ -26,6 +45,10 @@ import sys
 import time
 from pathlib import Path
 from typing import NamedTuple
+
+
+# Sentinel-grant filesystem layout (task 20260519-211515 R2 / AC2)
+SENTINEL_GRANT_DIR = "/tmp/claude-grants"
 
 
 class MatchResult(NamedTuple):
