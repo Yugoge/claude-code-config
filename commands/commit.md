@@ -148,10 +148,10 @@ The algorithm is total-ordered and mandatory. Implementers MUST NOT introduce wo
     Note the leading dash AND the backticks AND the parenthetical qualifier — ALL THREE must be tolerated.
     If exactly one such line matches AND the captured path exists on disk, dispatch `/dev` with that path, emit a WARNING `linked via close-report, not context.spec_path`. STOP.
 
-(3) **Mtime + literal-task-id glob (final stage).**
+(3) Mtime + literal-task-id glob (final stage).
     Else glob `docs/dev/specs/spec-YYYYMMDD-HHMMSS.md` (basename pattern enforced) with mtime in [close-report mtime - 24h, close-report mtime + 1h]. For each candidate, run `grep -lF "${TASK_ID}" candidate.md` — this is the ONLY content predicate allowed; no other grep, no free-form content scan. Collect the set of candidates that pass both the basename pattern, mtime window, and literal-task-id grep.
 
-(4) **Outcome (fail-closed).**
+(4) Outcome (fail-closed).
     - If set is empty: print `No spec associated with task-id ${TASK_ID}` and exit 0 (silent, unchanged from prior behavior).
     - If set has exactly one element: print `spec produced this cycle but not linked in context: <path>` and exit non-zero (fail-closed).
     - If set has multiple elements: print `multiple specs produced this cycle without context linkage: <paths>; explicit context.spec_path required` and exit non-zero (fail-closed).
