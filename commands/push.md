@@ -172,13 +172,33 @@ Act on verdict:
 - `verdict=warn`: display `risks[]` to the user with a warning, then proceed.
 - `verdict=approved`: proceed.
 
-**Step 5: Call push.sh (Chain A push-gate token consumed here)**
+**Step 5: Call push.sh via the single-process pattern (Chain A push-gate token consumed here)**
+
+Per task 20260519-211515 R1 / AC1, validate-push and the actual push MUST be a
+**single-process exec pattern** — the validator wrapper writes a Chain-B success
+sentinel at
+`/tmp/agentic-commit/push-analyst/<REPO_HASH>/<BRANCH>-chainB.validated.sentinel.json`
+(atomic temp+rename, mtime ≤ 60s, bound to `request_id` + `head` + `branch` + `remote`)
+and then `exec`s `~/.claude/hooks/push.sh` so both commands run as ONE PID. Read
+the sentinel ONLY once from inside push.sh; missing / expired / FAIL / mismatched
+sentinel triggers `exit 1` BEFORE any executable `git push` is reached.
+
+Do **NOT** chain validate + push.sh with `&&` from the orchestrator. The orchestrator
+chaining model has a window where the validator passes but the agent dispatch is
+re-entered with stale state — the push-analyst grant Chain-B bypass. The
+single-process pattern (one PID, unconditional short-circuit) eliminates the
+window by construction.
 
 ```bash
-bash ~/.claude/hooks/push.sh "${RESOLVED_REMOTE}"
+# Single-process pattern (RECOMMENDED): validator wrapper exec's push.sh.
+exec ~/.claude/hooks/push.sh "${RESOLVED_REMOTE}"
 ```
 
-The `--auto` flag is passed through if the user supplied it.
+If `--auto` is required, append it to the `exec` line. The legacy
+`bash ~/.claude/hooks/push.sh "${RESOLVED_REMOTE}"` form is acceptable ONLY when
+called from a validator wrapper that has already written the Chain-B sentinel in
+the SAME process tree; the sentinel-gate at hooks/push.sh:84 enforces that
+constraint and self-aborts if violated.
 
 ## Related
 
