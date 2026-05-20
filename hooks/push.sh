@@ -154,8 +154,9 @@ PYEOF
 
 case "$_CHAIN_B_VERIFY" in
   ok)
-    # Single-use consume: atomic unlink BEFORE git push so the sentinel can
-    # never authorize a second push. trap below ensures cleanup on any exit.
+    # Single-use consume: atomic unlink BEFORE the executable git invocation so
+    # the sentinel can never authorize a second push. trap below ensures cleanup
+    # on any exit.
     rm -f "$_CHAIN_B_SENTINEL_PATH"
     ;;
   FAIL_result:*)
@@ -166,6 +167,12 @@ case "$_CHAIN_B_VERIFY" in
   parse_error:*|"")
     rm -f "$_CHAIN_B_SENTINEL_PATH"
     echo -e "${RED}❌ Chain-B sentinel malformed (${_CHAIN_B_VERIFY:-empty}). Refusing to push.${NC}" >&2
+    exit 1
+    ;;
+  binding_missing:*)
+    rm -f "$_CHAIN_B_SENTINEL_PATH"
+    echo -e "${RED}❌ Chain-B sentinel missing required binding field: ${_CHAIN_B_VERIFY#binding_missing:}${NC}" >&2
+    echo "   All of result, request_id, head, branch, remote are MANDATORY." >&2
     exit 1
     ;;
   *)
