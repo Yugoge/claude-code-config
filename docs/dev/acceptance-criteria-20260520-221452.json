@@ -1,0 +1,314 @@
+{
+  "schema_version": "1.0",
+  "task_id": "20260520-221452",
+  "generated_at": "2026-05-20T22:14:52Z",
+  "spec_ref": "docs/dev/specs/spec-20260518-225715.md Section 7 (Cycle 2 remediation)",
+  "ac_uid_algorithm": "sha256(type + given + when + then + json.dumps(check, sort_keys=True, separators=(',',':'), ensure_ascii=False))[:16]",
+  "items": [
+    {
+      "id": "AC-01",
+      "ac_uid": "73ff256369d6dc34",
+      "type": "data",
+      "given": "policies/tool-policy.v1.json is parsed as JSON",
+      "when": "the keys of .roles are enumerated",
+      "then": "one key MUST equal 'test-writer' AND value contains required fields (allowed_tools, allowed_write_path_prefixes with required globs, denied_write_path_prefixes, rationale)",
+      "check": {
+        "file": "policies/tool-policy.v1.json",
+        "format": "json",
+        "path": ".roles[\"test-writer\"]",
+        "must_exist": true,
+        "must_contain_keys": [
+          "allowed_tools",
+          "allowed_write_path_prefixes",
+          "denied_write_path_prefixes",
+          "rationale"
+        ],
+        "allowed_tools_must_include": [
+          "Read",
+          "Bash",
+          "Skill"
+        ],
+        "allowed_write_path_prefixes_must_include": [
+          "*/tests/generated/",
+          "*/.claude/dev-registry/*/test-writer.json",
+          "*/.claude/specs/spec-*/cp-state-test-writer*.json",
+          "*/docs/dev/test-writer-report-",
+          "/tmp/*",
+          "/var/tmp/*"
+        ],
+        "denied_write_path_prefixes_must_include": [
+          "/.claude/hooks/",
+          "/.claude/agents/",
+          "/.claude/commands/",
+          "/.claude/policies/",
+          "/.claude/scripts/",
+          "/.claude/settings.json"
+        ]
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-02",
+      "ac_uid": "bf9c50df60986621",
+      "type": "data",
+      "given": "hooks/pretool-cp-checkin.py and hooks/prompt-workflow.py are read as text",
+      "when": "CP_AGENTS set literal and agent_types list literal are inspected",
+      "then": "BOTH must contain the string 'test-writer'",
+      "check": {
+        "checks": [
+          {
+            "file": "hooks/pretool-cp-checkin.py",
+            "regex": "\\b\"test-writer\"\\b",
+            "must_match": true
+          },
+          {
+            "file": "hooks/prompt-workflow.py",
+            "regex": "\\b['\"]test-writer['\"]\\b",
+            "must_match": true
+          }
+        ]
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-03",
+      "ac_uid": "4bcb749e125538df",
+      "type": "data",
+      "given": "agents/test-writer.md is read as text",
+      "when": "Procedure section step 5 and Output JSON Report block are inspected",
+      "then": "step 5 instructs writing per-task manifest AND maintaining global as {kind:index, tasks[]} AND report.manifest_path points at per-task path",
+      "check": {
+        "file": "agents/test-writer.md",
+        "must_contain": [
+          "tests/generated/<task_id>/manifest.json",
+          "{kind:\"index\""
+        ],
+        "must_not_contain_regex": "Write\\s+tests/generated/manifest\\.json(?!\\s*\\(global)"
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-04",
+      "ac_uid": "c8f16437c0763e25",
+      "type": "data",
+      "given": "agents/qa.md is read as text",
+      "when": "Phase 5 (## Phase 5: Manifest Verification) and output JSON schema's manifest_verification block are inspected",
+      "then": "path references use tests/generated/<task_id>/manifest.json (per-task); pytest scoped to per-task dir; must_not_contain the Cycle-1-drift active_tests-from-global phrasing",
+      "check": {
+        "file": "agents/qa.md",
+        "must_contain": [
+          "tests/generated/<task_id>/manifest.json"
+        ],
+        "must_not_contain": [
+          "Read `tests/generated/manifest.json`. For every `active_tests[]` entry"
+        ],
+        "must_contain_regex": "pytest\\s+tests/generated/<task_id>/"
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-05",
+      "ac_uid": "29d1421e6f876b1d",
+      "type": "data",
+      "given": "commands/dev.md is read as text",
+      "when": "Step 11 QA dispatch block is inspected",
+      "then": "any manifest path reference passed to QA is tests/generated/<task_id>/manifest.json (parametrized), not the global file",
+      "check": {
+        "file": "commands/dev.md",
+        "must_contain": [
+          "tests/generated/<task_id>/manifest.json"
+        ],
+        "must_not_contain_regex": "tests/generated/manifest\\.json(?!\\s*\\(index)"
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-06",
+      "ac_uid": "d83d7c2416c7f26d",
+      "type": "data",
+      "given": ".gitignore is read as text",
+      "when": "searched for three patterns line-by-line",
+      "then": "all three lines /agent-scores.json, /agent-scores.json.lock, /.claude/specs/spec-*/ appear",
+      "check": {
+        "file": ".gitignore",
+        "must_contain_lines": [
+          "/agent-scores.json",
+          "/agent-scores.json.lock",
+          "/.claude/specs/spec-*/"
+        ]
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-07",
+      "ac_uid": "1ff92a4b4c002103",
+      "type": "hook",
+      "given": "git working tree is queried",
+      "when": "git ls-files agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/ is run",
+      "then": "stdout is empty (zero lines) and exit code is 0",
+      "check": {
+        "script": "git",
+        "args": [
+          "ls-files",
+          "agent-scores.json",
+          "agent-scores.json.lock",
+          ".claude/specs/spec-20260518-225715/"
+        ],
+        "assertions": [
+          {
+            "property": "exit_code",
+            "match": "equals",
+            "value": 0
+          },
+          {
+            "property": "stdout",
+            "match": "equals",
+            "value": ""
+          }
+        ]
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-08",
+      "ac_uid": "ea4c2e44ca7a4e55",
+      "type": "data",
+      "given": "README.md, INDEX.md, .claude/INDEX.md are read as text",
+      "when": "grep -c 'agent-scores' across all three files",
+      "then": "total count across all three files MUST be 0",
+      "check": {
+        "checks": [
+          {
+            "file": "README.md",
+            "regex": "agent-scores",
+            "must_count_lte": 0
+          },
+          {
+            "file": "INDEX.md",
+            "regex": "agent-scores",
+            "must_count_lte": 0
+          },
+          {
+            "file": ".claude/INDEX.md",
+            "regex": "agent-scores",
+            "must_count_lte": 0
+          }
+        ]
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-09",
+      "ac_uid": "f412ec55378eeb88",
+      "type": "data",
+      "given": "hooks/doc_sync/regen_readme.py and hooks/doc_sync/tree.py are read as text",
+      "when": "SKIP_NAMES / SKIP_FILES / IGNORE_DIRS literals are inspected",
+      "then": "exclusion mechanism in place for agent-scores.json, agent-scores.json.lock, and .claude/specs (or equivalent runtime filter)",
+      "check": {
+        "checks": [
+          {
+            "file": "hooks/doc_sync/regen_readme.py",
+            "must_contain_any": [
+              "agent-scores.json",
+              ".claude/specs"
+            ]
+          },
+          {
+            "file": "hooks/doc_sync/tree.py",
+            "must_contain_any": [
+              "agent-scores.json",
+              ".claude/specs"
+            ]
+          }
+        ]
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-10",
+      "ac_uid": "22a1353a69cd6eee",
+      "type": "data",
+      "given": "scripts/score-update.sh, scripts/score-inject.sh, scripts/canary-verify.sh are read as text",
+      "when": "every line containing python3 (excluding comments) is inspected; venv activation must precede in same execution context",
+      "then": "for each file, count of 'venv/bin/activate' MUST be >= count of python3 invocations",
+      "check": {
+        "checks": [
+          {
+            "file": "scripts/score-update.sh",
+            "regex": "venv/bin/activate",
+            "must_count_gte": 1
+          },
+          {
+            "file": "scripts/score-inject.sh",
+            "regex": "venv/bin/activate",
+            "must_count_gte": 1
+          },
+          {
+            "file": "scripts/canary-verify.sh",
+            "regex": "venv/bin/activate",
+            "must_count_gte": 3
+          }
+        ]
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-11",
+      "ac_uid": "502566b9ba42f805",
+      "type": "data",
+      "given": "commands/dev.md is read as text",
+      "when": "grep -n 'Sub-step 12\\.' commands/dev.md is run",
+      "then": "exit code MUST be 1 (no matches); both Sub-step 12.0 and Sub-step 12.1 labels eliminated",
+      "check": {
+        "file": "commands/dev.md",
+        "must_not_contain_regex": "Sub-step 12\\.\\d"
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-12",
+      "ac_uid": "26a6449a5b99964c",
+      "type": "data",
+      "given": "scripts/canary-verify.sh is read as text",
+      "when": "grep -n '/tmp/' scripts/canary-verify.sh is run",
+      "then": "exit code MUST be 1 (no matches); both temp files via mktemp",
+      "check": {
+        "file": "scripts/canary-verify.sh",
+        "must_not_contain_regex": "/tmp/",
+        "must_contain_regex": "mktemp\\s+-t\\s+canary-"
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    },
+    {
+      "id": "AC-13",
+      "ac_uid": "2aece326a603d34c",
+      "type": "data",
+      "given": "agents/style-inspector.md is read as text",
+      "when": "Standard 6 section is inspected",
+      "then": "new precise exemption paragraph present (enumerates rank labels + AskUserQuestion choices, cites spec-20260518-225715 §5.1, re-affirms code comments + stderr remain English-only)",
+      "check": {
+        "file": "agents/style-inspector.md",
+        "must_contain": [
+          "spec-20260518-225715",
+          "rank",
+          "AskUserQuestion"
+        ],
+        "must_contain_regex": "(comments|diagnostic).*English"
+      },
+      "testability": "automated",
+      "primary_cause_attribution_hint": null
+    }
+  ]
+}
