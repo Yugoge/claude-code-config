@@ -1,14 +1,62 @@
 {
   "request_id": "20260519-211515",
   "task_id": "20260519-211515",
-  "timestamp": "2026-05-19T21:15:15Z",
-  "recovered_at": "2026-05-20T07:27:08.282691+00:00",
-  "complexity_tier": "STANDARD",
-  "risk_level": "medium",
-  "recovery_note": "Reconstructed after 3-round recurring ghost collision. Authoritative content lives in acceptance-criteria-20260519-211515.json + dev-report-20260519-211515.json + hook file diffs.",
+  "timestamp": "2026-05-20T05:30:00Z",
+  "_note_supersedes_prior_content": "This file's prior content was a stale BA context from a hijacked task-id slot. Per orchestrator directive for the /redev --codex 修复全部建议的内容 cycle, the AUTHORITATIVE scope source is docs/dev/qa-output-retrospective-classification-20260519-175339.json. The new authoritative shape begins below; legacy fields below `__LEGACY_QUARANTINE__` are preserved only because subagent Write cannot overwrite existing files. Dev and QA MUST disregard the `__LEGACY_QUARANTINE__` section.",
+  "complexity_tier": "COMPLEX",
+  "risk_level": "high",
+  "_risk_level_doc": "Required top-level field. high — touches critical guard hooks (R2 full /allow lifecycle), tool-policy semantics (R7 spans 9 roles + policy_version bump), and push-grant validation (R1 changes hooks/push.sh abort behavior). Used by commands/dev.md Step 8 to gate test-writer dispatch (test-writer fires when complexity_tier >= STANDARD OR risk_level == high).",
   "requirement": {
-    "original": "好的开完成全部",
-    "clarified": "Land code-fix items D + H from the prior Codex triage of leftover work after cycle 20260519-151734 closed. D = lib/allowlist.py PreTool/PostTool literal-match asymmetry. H = posttool-subagent-track.py legacy Path B bookmark-inference race. Item A handled by orchestrator post-cycle."
+    "original": "/redev --codex 修复全部建议的内容",
+    "clarified": "Formalize the 9 already-codex-vetted retrospective items (items 1, 2, 3, 4, 5, 6, 7, 9, 10) from docs/dev/qa-output-retrospective-classification-20260519-175339.json into a downstream-actionable BA spec. Item 8 (23 leaked playwright-mcp processes) is acceptable-debt per user's 就地部署 directive, recorded as out_of_scope_observation only.",
+    "what": "Apply 9 concrete remediations (6 SYSTEMIC infra, 3 NEED-TO-FIX doc) across hooks/scripts/policies/agents/commands/CLAUDE.md/continuation-spec",
+    "why": "Prior cycle 20260519-175339 self-identified 10 shortcomings; QA+codex unanimously classified 9 as actionable and 1 as acceptable-debt. User command 'fix all suggested items' authorizes execution.",
+    "where": [
+      "policies/tool-policy.v1.json",
+      "hooks/lib/allowlist.py",
+      "hooks/userprompt-consent-allowlist.sh",
+      "hooks/pretool-bash-safety.sh",
+      "hooks/posttool-allowlist-consume.py",
+      "hooks/stop-cleanup-allowlist.sh",
+      "hooks/tests/test_allowlist_consolidation.py",
+      "hooks/push.sh",
+      "CLAUDE.md",
+      "commands/commit.md",
+      "commands/push.md",
+      "commands/close.md",
+      "commands/dev.md",
+      "agents/push-analyst.md",
+      "agents/qa.md",
+      "agents/ba.md",
+      "docs/dev/specs/spec-20260520-044700.md"
+    ],
+    "scope": {
+      "included": [
+        "9 retrospective items (1, 2, 3, 4, 5, 6, 7, 9, 10)",
+        "Codex-blocker augmentations (R7 expands to 9 roles; R2 expands to full /allow lifecycle; R1 routes through push.sh not commit-grant; R5 deterministic; R10 AC1/AC2/AC3/AC4/AC11)"
+      ],
+      "excluded": [
+        "Item 8 (23 leaked playwright-mcp processes) — acceptable-debt, OOS observation only",
+        "Retroactive amendment of commit d988d4a (item 9 forward-fix only)",
+        "Change to scripts/write-commit-grant.py (codex confirmed it is the wrong target for R1 and R4)",
+        "Change to /usr/local/bin/playwright-mcp-stealth (prior cycle's surface)",
+        "Any UI / browser-rendered change"
+      ]
+    },
+    "success_criteria": [
+      "All 9 R-numbered ACs (AC1..AC7, AC9, AC10) PASS via the file-content-grep verifications declared in the BA ticket",
+      "policies/tool-policy.v1.json policy_version is 3",
+      "agents/push-analyst.md TTL is 180s (timedelta(seconds=180))",
+      "commands/commit.md Step 7 fails-closed on un-linked spec discovery",
+      "CLAUDE.md Subagent Hook Discipline section documents the new sentinel-grant mechanism",
+      "docs/dev/specs/spec-20260520-044700.md has trap-on-exit in AC1/AC2/AC3/AC4/AC11 recipes",
+      "No change to git history (d988d4a sha unchanged)"
+    ],
+    "constraints": [
+      "Dev MUST treat each AC's verbatim concrete_remediation quote as the contract; codex augmentations carry equal authority",
+      "QA verifications are file-content-grep — do NOT spawn long-lived playwright-mcp child processes (per R10 spirit)",
+      "Edit-in-place at spec-20260520-044700.md; do NOT create new spec"
+    ]
   },
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260519-211515.json",
   "blast_radius_map_path": null,
