@@ -169,7 +169,7 @@
     "affected_file_accuracy": "pass",
     "spec_text_vs_execution_drift": "fail"
   },
-  "dimensions": {
+  "_stale_d_h_dimensions": {
     "evidence_quality": {
       "verdict": "pass",
       "details": "BA iter-1's negative-anchor approach is empirically verified: every must_not_contain literal in AC-C2-02 was grep-tested against the actual files on disk. 5/5 test-writer.md literals match at lines 139, 181, 183, 198, 216. 2/2 qa.md literals match at lines 994, 995. 1/1 commands/dev.md literal matches at line 632. All checks fail today as designed.",
