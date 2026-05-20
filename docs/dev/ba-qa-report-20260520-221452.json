@@ -58,7 +58,9 @@
       "iter1_resolution": "RESOLVED — JSON now lists all 8 tools and 10 deny-prefixes."
     },
     {
-      "id": "OBJ-02",
+      "id": "OBJ-02-LEGACY",
+      "_doc": "RESOLVED in iter-1. Preserved for audit trail.",
+      "iter1_resolution": "RESOLVED — AST-set membership + shell-token check now covers all 3 sites including commands/dev.md:134-136.",
       "dimension": "investigation_completeness",
       "severity": "minor",
       "ac_affected": "AC-02",
