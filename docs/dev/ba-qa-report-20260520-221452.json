@@ -106,7 +106,9 @@
       "proposed_fix": "Rewrite AC-05 as two checks: (a) Step 11 QA-dispatch (or the specific manifest-path-passed-to-QA line) MUST contain 'tests/generated/<task_id>/manifest.json' — scope to QA dispatch block only by line-range or by anchoring on adjacent 'manifest_path' keyword; (b) drop the file-wide must_not_contain — instead require that the dev dispatch handoff at line 666 also use the per-task path. Allow global-index references to coexist where semantically correct."
     },
     {
-      "id": "OBJ-06",
+      "id": "OBJ-06-LEGACY",
+      "_doc": "PARTIALLY RESOLVED in iter-1 — scope label added correctly, but the SHA-equality check is defective. See OBJ-11 (NEW iter-2 objection).",
+      "iter1_resolution": "PARTIALLY_RESOLVED — DERIVED_WORK scope label added; cross-reference to out_of_scope_observation correct; BUT per-path SHA equality check is unfair (see OBJ-11).",
       "dimension": "scope_alignment",
       "severity": "minor",
       "ac_affected": "AC-07",
