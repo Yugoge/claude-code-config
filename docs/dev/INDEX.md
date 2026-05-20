@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-20T22:15:18Z*
-**Total entries**: 322
+*Last updated: 2026-05-20T22:32:39Z*
+**Total entries**: 323
 **Convention**: kebab
 
 ## Tree
@@ -315,6 +315,7 @@ dev/
 ├── `ticket-20260519-211515-CYCLE2-round3.md` - BA Specification: 3-Cluster Harness Fixes (Shippability Gate / Real-Fixture Verification / Event-Sourced Lifecycle Log)
 ├── `ticket-20260519-211515.md` - BA Specification: Implement 9 retrospective remediation items from cycle 20260519-175339
 ├── `ticket-20260520-085647-d1722b.md` - BA Specification: Close /allow grant leakage (D) and PostToolUse:Agent tracker race (H) — TRANSFERRED
+├── `ticket-20260520-221452.md` - BA Specification: spec-20260518-225715 Cycle 2 — P1+P2+P3 Close-Gate Remediation
 ├── `ticket-20260520-allow-dh-7faae4.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H)
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
