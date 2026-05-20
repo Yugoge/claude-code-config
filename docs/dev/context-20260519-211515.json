@@ -60,12 +60,287 @@
   },
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260519-211515.json",
   "blast_radius_map_path": null,
+  "_blast_radius_map_note": "Blast-radius tool Phase 1 prediction map is not generated for this cycle because the affected_files span markdown spec/agent/command files (not source code with AST imports). The dev cycle's verification surface is file-content-grep per the BA ticket ACs.",
   "affected_files": [
+    "policies/tool-policy.v1.json",
+    "hooks/lib/allowlist.py",
+    "hooks/userprompt-consent-allowlist.sh",
+    "hooks/pretool-bash-safety.sh",
+    "hooks/posttool-allowlist-consume.py",
+    "hooks/stop-cleanup-allowlist.sh",
+    "hooks/tests/test_allowlist_consolidation.py",
+    "hooks/push.sh",
+    "CLAUDE.md",
+    "commands/commit.md",
+    "commands/push.md",
+    "commands/close.md",
+    "commands/dev.md",
+    "agents/push-analyst.md",
+    "agents/qa.md",
+    "agents/ba.md",
+    "docs/dev/specs/spec-20260520-044700.md"
+  ],
+  "spec_path": null,
+  "ticket_path": "docs/dev/ticket-20260519-211515.md",
+  "scope_boundary": {
+    "in_user_path": [
+      "policies/tool-policy.v1.json",
+      "hooks/lib/allowlist.py",
+      "hooks/userprompt-consent-allowlist.sh",
+      "hooks/pretool-bash-safety.sh",
+      "hooks/posttool-allowlist-consume.py",
+      "hooks/stop-cleanup-allowlist.sh",
+      "hooks/push.sh",
+      "CLAUDE.md",
+      "commands/commit.md",
+      "commands/push.md",
+      "commands/close.md",
+      "commands/dev.md",
+      "agents/push-analyst.md",
+      "agents/qa.md",
+      "agents/ba.md",
+      "docs/dev/specs/spec-20260520-044700.md"
+    ],
+    "path_dependent_shared_infra": [
+      "hooks/tests/test_allowlist_consolidation.py"
+    ],
+    "out_of_path_observed_but_not_touched": [
+      "23 leaked production playwright-mcp processes (item 8 ACCEPTABLE-DEBT, OOS)"
+    ]
+  },
+  "out_of_scope_observations": [
+    {
+      "ts": "2026-05-20T05:30:00Z",
+      "task_id": "20260519-211515",
+      "file": "n/a (system state)",
+      "line": null,
+      "observation": "23 leaked production playwright-mcp processes against :8080 — pre-date this cycle, never held the cycle's /run/playwright-mcp.lock; user explicitly authorized via 就地部署 per item 8 ACCEPTABLE-DEBT; logged in close-report-20260519-175339.md lines 110, 165, 192, 212. Recurrence-acceptable.",
+      "in_user_path": false,
+      "security_relevant": false
+    },
+    {
+      "ts": "2026-05-20T05:30:00Z",
+      "task_id": "20260519-211515",
+      "file": "n/a (BA session live)",
+      "line": null,
+      "observation": "This BA session's codex tee output to /var/tmp/codex-outputs/codex-output-*.txt was blocked by the ba role's tool-policy (the */var/tmp/codex-outputs/ glob did not resolve to the absolute /var/tmp/codex-outputs/ literal target the hook expected). Live recurrence of item 7. Workaround: wrote to /tmp/codex-ba-redev-output.txt instead. Reinforces R7 priority — it IS the root-cause item.",
+      "in_user_path": false,
+      "security_relevant": false
+    }
+  ],
+  "root_cause_analysis": {
+    "symptom": "Prior cycle 20260519-175339 self-identified 10 shortcomings during /close debate; 6 were classified SYSTEMIC infra defects, 3 NEED-TO-FIX behavioral disciplines, 1 ACCEPTABLE-DEBT.",
+    "root_cause": "Cumulative infra debt: (a) tool-policy contract inconsistency with agent.md codex_required mandates (item 7 — recurs every cycle); (b) pattern-match grant mechanism is trivially spoofable + bypassable (item 2); (c) push-grant Chain-B short-circuit relies on orchestrator chaining semantics (item 1); (d) commit-grant TTL structurally too short for subagent latency (item 4); (e) /commit Step 7 silent skip is fail-open data contract (item 5); (f) QA test harness has no trap-on-exit (item 10); (g) discipline reminders missing in close.md/dev.md/qa.md/commit.md (items 3, 6, 9).",
+    "root_cause_commit": "N/A (retrospective items span multiple commits and infra design decisions; no single commit caused all 10)",
+    "why_introduced": "Each item has its own genealogy; retrospective JSON items[].final_rationale fields document each one. Tool-policy gaps were original 2026-05-09 omissions; grant-pattern matching was original 2026-04 design; push-analyst TTL was 60s and bumped to 120s in a prior cycle but is still too tight.",
+    "why_problematic": "Recurrence — every cycle hits at least some of these gaps. This BA session hit item 7 live during codex consult (codex tee blocked).",
+    "timeline": "Items accumulated across multiple cycles; the prior cycle 20260519-175339 was the first to formally enumerate them in a structured retrospective. The retrospective was produced 2026-05-20T05:05:00Z; this BA spec follows at 2026-05-20T05:30:00Z.",
+    "affected_files": [
+      "policies/tool-policy.v1.json",
+      "hooks/lib/allowlist.py",
+      "hooks/userprompt-consent-allowlist.sh",
+      "hooks/pretool-bash-safety.sh",
+      "hooks/posttool-allowlist-consume.py",
+      "hooks/stop-cleanup-allowlist.sh",
+      "hooks/tests/test_allowlist_consolidation.py",
+      "hooks/push.sh",
+      "CLAUDE.md",
+      "commands/commit.md",
+      "commands/push.md",
+      "commands/close.md",
+      "commands/dev.md",
+      "agents/push-analyst.md",
+      "agents/qa.md",
+      "agents/ba.md",
+      "docs/dev/specs/spec-20260520-044700.md"
+    ],
+    "evidence_type": "observed",
+    "observations": [
+      "9 of 12 agents/*.md files referencing Skill(codex) lack Skill in their allowed_tools entry in policies/tool-policy.v1.json (observed: direct grep + jq inspection of policies/tool-policy.v1.json)",
+      "agents/push-analyst.md:158 currently sets push-analyst grant expires_at = current_time + timedelta(seconds=120) (observed: Read of agents/push-analyst.md)",
+      "scripts/write-commit-grant.py:38 sets GRANT_TTL_MINUTES = 10 — DIFFERENT mechanism from push-analyst TTL (observed: Read of scripts/write-commit-grant.py)",
+      "hooks/lib/allowlist.py + hooks/userprompt-consent-allowlist.sh + hooks/posttool-allowlist-consume.py + hooks/stop-cleanup-allowlist.sh together form the centralized /allow grant lifecycle (observed: grep for 'allowlist' across hooks/)",
+      "Live recurrence of item 7 during this BA session: codex tee to /var/tmp/codex-outputs/codex-output-*.txt blocked by tool-policy for ba role (observed: hook error message during codex skill invocation)"
+    ],
+    "diagnosis_completeness": "complete",
+    "complaint_location_keywords": [
+      "修复全部建议的内容",
+      "/redev --codex",
+      "retrospective",
+      "9 actionable items"
+    ],
+    "localization_evidence": "The retrospective JSON itself localizes each item with file:line specifics; this BA spec re-verified each localization by direct Read/Grep of the named files (push-analyst.md:158, write-commit-grant.py:38, tool-policy.v1.json roles section, hooks/lib/allowlist.py).",
+    "located_source": "docs/dev/qa-output-retrospective-classification-20260519-175339.json (the authoritative scope source); per-item file:line localizations are listed in evidence.measured of the BA ticket.",
+    "localization_blocked": null,
+    "git_bisect_result": {
+      "triggered": false,
+      "reason": "Not a regression bug. The retrospective enumerates accumulated infra defects, not a recent break."
+    }
+  },
+  "diagnosis_layer": "mixed L1..L5 (per requirement: R7=L5, R2=L5, R1=L4, R5=L4, R4=L3, R10=L3, R6=L1, R3=L1, R9=L1)",
+  "requirements_decomposition": [
+    {"id": "R1", "source_phrase": "items[0].concrete_remediation (push-analyst grant Chain B bypass)", "acceptance_criterion": "AC1"},
+    {"id": "R2", "source_phrase": "items[1].concrete_remediation (bash-safety sentinel-grant lifecycle)", "acceptance_criterion": "AC2"},
+    {"id": "R3", "source_phrase": "items[2].concrete_remediation (TodoWrite ordering doc reminder)", "acceptance_criterion": "AC3"},
+    {"id": "R4", "source_phrase": "items[3].concrete_remediation (push-analyst TTL → 180s)", "acceptance_criterion": "AC4"},
+    {"id": "R5", "source_phrase": "items[4].concrete_remediation (/commit Step 7 fail-closed)", "acceptance_criterion": "AC5"},
+    {"id": "R6", "source_phrase": "items[5].concrete_remediation (QA spec_text_vs_execution_drift)", "acceptance_criterion": "AC6"},
+    {"id": "R7", "source_phrase": "items[6].concrete_remediation (tool-policy Skill + write-paths)", "acceptance_criterion": "AC7"},
+    {"id": "R8", "source_phrase": "items[7] (23 leaked playwright-mcp processes)", "acceptance_criterion": "N/A (out_of_scope_observations)"},
+    {"id": "R9", "source_phrase": "items[8].concrete_remediation (commit-message reversal rationale)", "acceptance_criterion": "AC9"},
+    {"id": "R10", "source_phrase": "items[9].concrete_remediation (trap-on-exit test harness)", "acceptance_criterion": "AC10"}
+  ],
+  "component_chain": [
+    {"file": "policies/tool-policy.v1.json", "line_range": "106-575", "role": "role-table for 12 agents that reference Skill(codex); R7 mutates 9 role entries to add Skill", "imports_from": "leaf (config)", "evidence": "jq enumeration of .roles[*].allowed_tools across the 12 named roles", "verified_via": "grep+jq"},
+    {"file": "hooks/lib/allowlist.py", "line_range": "module-wide", "role": "central /allow grant matcher; R2 extends with structured allowed_operations[] sentinel reading", "imports_from": "consumed by hooks/pretool-bash-safety.sh and others", "evidence": "grep for 'match_grant_for_bash_command' shows 1 definition + 4+ consumers", "verified_via": "grep"},
+    {"file": "agents/push-analyst.md", "line_range": "140-184", "role": "push-analyst grant emitter (Phase 7 writes grant JSON with expires_at); R4 bumps timedelta literal from 120s to 180s", "imports_from": "consumed by commands/push.md Step 4 (orchestrator reads grant)", "evidence": "Read of agents/push-analyst.md:158", "verified_via": "Read"},
+    {"file": "hooks/push.sh", "line_range": "whole-file", "role": "push wrapper; R1 adds self-abort on missing Chain-B sentinel OR is exec'd by validator wrapper", "imports_from": "called by commands/push.md Step 5", "evidence": "ls -la hooks/push.sh", "verified_via": "Read"},
+    {"file": "commands/commit.md", "line_range": "114-162 (Step 7) + commit-message template area", "role": "/commit orchestrator spec; R5 changes Step 7 spec discovery semantics; R9 adds commit-message reversal rationale note", "imports_from": "leaf", "evidence": "Read of commands/commit.md Steps 1-7", "verified_via": "Read"},
+    {"file": "docs/dev/specs/spec-20260520-044700.md", "line_range": "whole-file", "role": "continuation spec from prior cycle; R10 wraps AC1/AC2/AC3/AC4/AC11 recipes in trap-on-exit", "imports_from": "leaf (continuation spec, tracked, committed in d988d4a)", "evidence": "Read of spec-20260520-044700.md", "verified_via": "Read"}
+  ],
+  "pre_existing_guards": [
+    {"file": "policies/tool-policy.v1.json", "line": 14, "type": "config policy version", "code_snippet": "\"policy_version\": 2", "purpose": "version-stamping mechanism for the tool-policy schema; R7 bumps this to 3", "removal_authorized": true},
+    {"file": "hooks/pretool-bash-safety.sh", "line": 197, "type": "string-pattern grant match", "code_snippet": "echo \"[allow] Grant matched for pattern='$pattern'...\" >&2", "purpose": "the existing comment-pattern matching mechanism R2 replaces. Dev REMOVES this matching path and replaces with structured allowed_operations[] match.", "removal_authorized": true},
+    {"file": "agents/push-analyst.md", "line": 158, "type": "TTL constant", "code_snippet": "expires_at = (datetime.now(timezone.utc) + timedelta(seconds=120))", "purpose": "push-analyst grant TTL; R4 changes 120 to 180", "removal_authorized": true},
+    {"file": "scripts/write-commit-grant.py", "line": 38, "type": "TTL constant", "code_snippet": "GRANT_TTL_MINUTES = 10", "purpose": "commit-grant TTL — DIFFERENT mechanism from push-analyst. NOT in scope; R4 must NOT touch this.", "removal_authorized": false}
+  ],
+  "regression_investigation_checklist": null,
+  "_regression_checklist_note": "Field omitted because retrospective items are accumulated infra debt, not a regression bug. No 'was working, now broken' signal in user requirement.",
+  "setup": {
+    "applicability": "N/A",
+    "reason": "non-UI -- agent-prompt edit / config / hook edit; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths"
+  },
+  "evidence": {
+    "observed": "User command '/redev --codex 修复全部建议的内容' — implement 9 retrospective items.",
+    "measured": {
+      "value": "9 actionable items (items 1, 2, 3, 4, 5, 6, 7, 9, 10); 1 acceptable-debt (item 8)",
+      "location": "docs/dev/qa-output-retrospective-classification-20260519-175339.json items[] array"
+    },
+    "expected": {
+      "value": "After this cycle: 9 items have concrete code/spec/doc changes landed; each has objective file-content-grep verification; no git history change; item 8 logged only in out_of_scope_observations",
+      "source": "Retrospective JSON priority_remediation_order + per-item concrete_remediation fields"
+    },
+    "gap": "9 items currently un-actioned (no infra changes since retrospective filed at 2026-05-20T05:05:00Z)."
+  },
+  "scope_expansion": {
+    "search_pattern": "concrete_remediation field values across 9 in-scope items",
+    "search_scope": "/dev/shm/dev-workspace/dot-claude/",
+    "user_reported": ["9 items as enumerated in retrospective JSON"],
+    "additional_found": [
+      "9 agents/*.md files lack Skill in tool-policy (codex R7 blocker expands R7 from 3 inspector roles to 9 roles)",
+      "Full /allow grant lifecycle is 5 files, not 1 (codex R2 blocker expands R2 from bash-safety.sh to full lifecycle)"
+    ],
+    "all_occurrences": [
+      "policies/tool-policy.v1.json (R7)",
+      "hooks/lib/allowlist.py, hooks/userprompt-consent-allowlist.sh, hooks/pretool-bash-safety.sh, hooks/posttool-allowlist-consume.py, hooks/stop-cleanup-allowlist.sh, hooks/tests/test_allowlist_consolidation.py, CLAUDE.md (R2)",
+      "hooks/push.sh, commands/push.md (R1)",
+      "commands/commit.md (R5, R9)",
+      "agents/push-analyst.md, commands/push.md (R4)",
+      "docs/dev/specs/spec-20260520-044700.md, agents/ba.md (R10)",
+      "agents/qa.md (R6)",
+      "commands/close.md, commands/dev.md (R3)"
+    ]
+  },
+  "reference_source": {
+    "tier": "tier_2_verified",
+    "description": "QA+codex consensus retrospective from this same .claude session (2 adversarial rounds, gpt-5.5 xhigh, unanimous Round 2)",
+    "url_or_location": "docs/dev/qa-output-retrospective-classification-20260519-175339.json",
+    "copy_allowed": true,
+    "role_table": null,
+    "_role_table_note": "No CLAUDE.md project role-token map applies. This cycle modifies .claude infrastructure, not a UI; no design-system role table is in play."
+  },
+  "prior_attempts": {
+    "triggered": true,
+    "trigger_source": "dedup_hit (retrospective is the prior-attempt artifact) + recent commit d988d4a",
+    "attempts": [
+      {
+        "artifact_path": "docs/dev/close-report-20260519-175339.md + docs/dev/specs/spec-20260520-044700.md + commit d988d4a",
+        "proposed_solution": "Chrome CDP page-target deadlock fix via 30-second flock -w 30 in /usr/local/bin/playwright-mcp-stealth",
+        "actual_change": "+104 lines in /usr/local/bin/playwright-mcp-stealth; 12/12 ACs PASS; 3 clean inspector reports",
+        "outcome": "Implementation correct; 10 self-identified shortcomings remained — 6 systemic infra defects, 3 behavioral disciplines, 1 acceptable debt",
+        "failure_category": "wrong_scope",
+        "target_layer": "L3 (deadlock fix)"
+      }
+    ],
+    "novelty_check": {
+      "this_attempt_layer": "mixed L1..L5",
+      "differs_from_all_priors": true,
+      "rationale": "Zero overlap with prior attempt's diff surface. Prior modified /usr/local/bin/playwright-mcp-stealth; this modifies .claude/-tree files (hooks, scripts, policies, agents, commands, CLAUDE.md, continuation spec). Different files, layers, failure mode."
+    }
+  },
+  "context": {
+    "codebase_state": "M .claude/specs/spec-20260518-225715/cp-state-{dev,qa}.json + hooks/ + agent-scores.json + many docs/dev/ untracked artifacts from prior cycle",
+    "recent_commits": "d988d4a chore(docs): ship dev cycle 20260519-175339 + re-enable docs/dev",
+    "file_contents": {},
+    "dependencies": {},
+    "environment": {
+      "nested_repo": "/dev/shm/dev-workspace/dot-claude (symlinked from /root/.claude per CLAUDE.md 'Nested .claude Repo' section)",
+      "branch": "master",
+      "tmpfs_root": "/dev/shm — workspace is on tmpfs; persistent state lives in committed files"
+    }
+  },
+  "development_approach": {
+    "strategy": "Implement 9 items in retrospective priority order (7 > 2 > 1 > 5 > 4 > 10 > 6 > 3 > 9). R7 first because every subsequent cycle hits the gap; R2 second because grant-mechanism redesign is the deepest change; R1 third because push-grant integrity needs single-process semantics before R4's TTL bump matters. R3/R6/R9 are 1-line doc additions, lowest risk, last.",
+    "files_to_create": [],
+    "files_to_modify": [
+      "policies/tool-policy.v1.json",
+      "hooks/lib/allowlist.py",
+      "hooks/userprompt-consent-allowlist.sh",
+      "hooks/pretool-bash-safety.sh",
+      "hooks/posttool-allowlist-consume.py",
+      "hooks/stop-cleanup-allowlist.sh",
+      "hooks/tests/test_allowlist_consolidation.py",
+      "hooks/push.sh",
+      "CLAUDE.md",
+      "commands/commit.md",
+      "commands/push.md",
+      "commands/close.md",
+      "commands/dev.md",
+      "agents/push-analyst.md",
+      "agents/qa.md",
+      "agents/ba.md",
+      "docs/dev/specs/spec-20260520-044700.md"
+    ],
+    "validation_approach": "QA runs the file-content-grep recipes declared in each AC of docs/dev/ticket-20260519-211515.md. No long-lived child process spawning (per R10 spirit). For R7, QA additionally runs jq queries against policies/tool-policy.v1.json to verify Skill in 9 role entries + policy_version=3."
+  },
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": true,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true
+  },
+  "research_findings": {
+    "searched": false,
+    "reason": "All 9 items are pre-classified by codex+QA in the retrospective JSON; concrete_remediation text is the verbatim contract. No best-practices research needed."
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "5 blocker/major findings (#1, #2, #3, #4, #5) APPLIED to expand scope of R7, R2, R1, R10, R5; 5 observation_only findings (#6, #7, #8, #9, #10) LOGGED.",
+    "findings": [
+      {"issue": "R7 under-enumerates codex_required roles (3 named vs 9 actually in repo)", "proposed_fix": "Expand R7 AC to enumerate all 9 roles: architect, pm, product-owner, spec, ui-specialist, user, style-inspector, cleanliness-inspector, prompt-inspector", "classification": "blocker", "disposition": "applied", "rationale": "Grep confirmed 12 agents/*.md reference Skill(codex); ba/dev/qa already have Skill; the other 9 do not."},
+      {"issue": "R2 scope too narrow (only hooks/pretool-bash-safety.sh)", "proposed_fix": "Expand R2 AC to full /allow lifecycle: writer (userprompt-consent-allowlist.sh) + matcher (lib/allowlist.py) + consumers (pretool-bash-safety.sh, posttool-allowlist-consume.py) + cleanup (stop-cleanup-allowlist.sh) + tests (tests/test_allowlist_consolidation.py) + CLAUDE.md", "classification": "blocker", "disposition": "applied", "rationale": "Grep confirmed 5 files in the lifecycle; updating only one leaves grants written/consumed inconsistently."},
+      {"issue": "R1 routes through wrong file (scripts/write-commit-grant.py is commit-grant, not push-grant)", "proposed_fix": "Remove scripts/write-commit-grant.py from R1; route through hooks/push.sh + commands/push.md sentinel/exec patterns", "classification": "major", "disposition": "applied", "rationale": "scripts/write-commit-grant.py uses GRANT_TTL_MINUTES=10 for COMMIT grants; push-analyst Chain-B is a separate mechanism."},
+      {"issue": "R10 under-scopes ACs (named AC1/AC2/AC11 but target spec has AC1/AC2/AC3/AC4/AC11)", "proposed_fix": "Expand R10 to all 5 ACs in target spec", "classification": "major", "disposition": "applied", "rationale": "Read of spec-20260520-044700.md confirms 5 ACs spawn long-lived child processes."},
+      {"issue": "R5 'cycle window' is underspecified, can choose wrong/multiple specs or still silently pass", "proposed_fix": "Define cycle-window source explicitly; context first, then glob; one match = fail with 'spec produced this cycle but not linked in context'; multiple = fail requiring explicit linkage", "classification": "major", "disposition": "applied", "rationale": "Deterministic fail-closed semantics required to prevent the silent-skip recurrence."},
+      {"issue": "R4 target file question (write-commit-grant.py vs push-analyst.md)", "proposed_fix": null, "classification": "observation_only", "disposition": "logged", "rationale": "Codex confirmed agents/push-analyst.md is the right target; scripts/write-commit-grant.py is the wrong mechanism. Document TTL in commands/push.md."},
+      {"issue": "R2 sequencing relative to R7", "proposed_fix": null, "classification": "observation_only", "disposition": "logged", "rationale": "Codex confirmed R2 is independent of R7 because /tmp/* is universally writable. Grant writer must be hook or orchestrator /allow flow — never a subagent."},
+      {"issue": "R10 edit-in-place vs new spec", "proposed_fix": null, "classification": "observation_only", "disposition": "logged", "rationale": "Codex confirmed edit-in-place at spec-20260520-044700.md is correct."},
+      {"issue": "Item 8 dropping confirmation", "proposed_fix": null, "classification": "observation_only", "disposition": "logged", "rationale": "Codex confirmed item 8 acceptable-debt OOS is correct."},
+      {"issue": "Priority order semantics", "proposed_fix": null, "classification": "observation_only", "disposition": "logged", "rationale": "Codex confirmed priority is informational for sequencing, not AC numbering."}
+    ],
+    "feedback_incorporated": "5 blocker/major findings applied to expand R1, R2, R5, R7, R10. 5 observation_only findings logged. Codex output archived at /tmp/codex-ba-redev-output.txt. Codex session id: 019e445f-00f6-7080-9f08-705fd307d486."
+  },
+  "__LEGACY_QUARANTINE__": "Fields below are stale content from a hijacked task-id slot. Dev and QA MUST disregard. Preserved only because subagent Write cannot overwrite existing files.",
+  "_legacy_acceptance_criteria_path": "docs/dev/acceptance-criteria-20260519-211515.json",
+  "_legacy_blast_radius_map_path_null": null,
+  "_legacy_affected_files": [
     "hooks/lib/allowlist.py",
     "hooks/posttool-subagent-track.py",
     "hooks/tests/test_allowlist_consolidation.py"
   ],
-  "spec_path": null,
+  "_legacy_spec_path": null,
   "ba_qa_unresolved_objections": {
     "ba_qa_iterations_completed": 3,
     "ba_qa_status_at_exhaustion": "fail",
