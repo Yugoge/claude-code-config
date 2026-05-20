@@ -200,8 +200,9 @@
       "agents/push-analyst.md",
       "agents/qa.md",
       "agents/ba.md",
-      "docs/dev/specs/spec-20260520-044700.md"
+      "agents/changelog-analyst.md"
     ],
+    "_root_cause_affected_files_iter3_note": "iter-3 removed 'docs/dev/specs/spec-20260520-044700.md' and added 'agents/changelog-analyst.md' per BA-QA iter-1 OBJ-1 + OBJ-3.",
     "evidence_type": "observed",
     "observations": [
       "9 of 12 agents/*.md files referencing Skill(codex) lack Skill in their allowed_tools entry in policies/tool-policy.v1.json (observed: direct grep + jq inspection of policies/tool-policy.v1.json)",
