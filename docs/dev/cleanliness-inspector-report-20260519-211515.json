@@ -117,44 +117,44 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex returned 5 findings: (1) _resolve_context dead, (2) TestReadGrant docstring stale, (3) Path B header missing typed-lookup wording, (4) exact_or_substr branch in allowlist.py production-orphan, (5) OBSERVATION_ONLY clean naming. Findings 1 and 2 were verified and applied. Finding 3 was rejected after direct file read showed the Path B comment (L507-L510) already contains the typed-lookup precedence and no-fallthrough mandate codex suggested adding. Finding 4 was rejected as library-API design preservation: exact_or_substr is a generic policy option in _match_loaded_grant exercised by tests; the branch is not orphan code but a preserved API surface. Finding 5 was logged as observation_only.",
+    "feedback_summary": "Codex returned 5 actionable items: (1) keep finding 1 as minor with the proposed wording; (2) combine drafts F2+F3 into one finding for the stale _resolve_context breadcrumb (applied — see F2); (3) MISSED defect — NamedTemporaryFile leak at L119-127 of test file (applied — added as F3); (4) MISSED defect — unused MagicMock + MatchResult imports (applied — added as F4); (5) severity calibration confirmed — none blocking, none major. All five codex suggestions either applied or already covered.",
     "findings": [
       {
-        "issue": "_resolve_context() in hooks/posttool-subagent-track.py is now unreferenced after _main() switched to _resolve_base_context() and duplicated strict contract gating. Newly dead private helper code.",
-        "proposed_fix": "Remove _resolve_context() entirely; keep the 'strict contract gate' explanation in _main() if needed.",
-        "classification": "major",
-        "disposition": "applied",
-        "rationale": "Verified via git show HEAD vs current file grep: function had one caller pre-cycle (line 372 of _main()), now zero callers. Cycle's diff is the proximate cause. Flagged in dead_functions with introduced_in_diff:true and blocks_close:true."
-      },
-      {
-        "issue": "TestReadGrant class docstring still says 'exact_or_substr semantics' but read_grant() now uses exact_only.",
-        "proposed_fix": "Change to: '\"\"\"Unit tests for read_grant (public API, exact_only read-only semantics).\"\"\"'",
+        "issue": "Confirm finding 1 (TestReadGrant class docstring contradiction) is real and minor.",
+        "proposed_fix": "Reword L113 to: '\"\"\"Unit tests for read_grant (public API, exact_only semantics).\"\"\"'",
         "classification": "observation_only",
         "disposition": "applied",
-        "rationale": "Verified via grep: line 113 docstring contradicts the cycle's two new tests added inside the class. Although the diff did not literally touch line 113, the inconsistency is diff-introduced. Flagged in naming_violations with introduced_in_diff:true and blocks_close:false (cosmetic). Codex's proposed wording adopted verbatim."
+        "rationale": "Codex agreed with the draft; wording adopted verbatim into F1.proposed_fix."
       },
       {
-        "issue": "Path B header in hooks/posttool-subagent-track.py omits typed-lookup precedence / no-fallthrough wording.",
-        "proposed_fix": "Replace Path B paragraph with wording stating typed-lookup precedence and no-fallthrough on miss.",
-        "classification": "major",
-        "disposition": "rejected",
-        "rationale": "Direct file read of lines 507-510 shows the Path B comment ALREADY contains the wording codex proposed: 'Case A (typed lookup via subagent_type) takes precedence over Case B (legacy in_progress inference). The two are mutually exclusive; Case A MUST NOT fall through to Case B on a typed miss (AC-H3b mandate).' Codex's read of the file was incomplete; the diff already addresses this concern."
+        "issue": "Drafts F2 + F3 should be combined: same symbol (_resolve_context), same cycle, same fix; report them as one issue with a two-part proposed_fix.",
+        "proposed_fix": "Remove L440-442 NOTE block; reword L416-417 docstring to drop the deleted symbol name.",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "Codex's structural suggestion adopted. Drafts merged into single finding F2 covering both L416-417 docstring backref and L440-442 NOTE comment. Reduces noise and aligns with the cleanliness-inspector principle that file-level granularity is the right unit."
       },
       {
-        "issue": "exact_or_substr branch in allowlist.py is no longer production-called after read_grant() switched to exact_only; only tests call that helper policy.",
-        "proposed_fix": "Refactor bash branch 1 to call _match_loaded_grant with exact_or_substr, or delete the helper policy and tests.",
-        "classification": "major",
-        "disposition": "rejected",
-        "rationale": "exact_or_substr is a generic literal_policy option in _match_loaded_grant — a library-API surface, not caller-specific dead code. It IS exercised by tests (test_exact_or_substr_exact_match, test_exact_or_substr_substring_match in TestMatchLoadedGrant). Deletion would be a breaking API change to a freshly-stabilized hook lib. The branch remains a valid future-caller option. This is library-design preservation, not orphan code. Out of scope for cleanliness inspector."
+        "issue": "MISSED defect: tempfile.NamedTemporaryFile(delete=False) leak at L119-127 of test_allowlist_consolidation.py. Live leftover files in /tmp confirm leak. Cleanliness-relevant.",
+        "proposed_fix": "Delete the unused NamedTemporaryFile block entirely; keep the controlled `test_sid = \"test-read-grant-unit\"` path logic.",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "Verified by direct read: L119-127 creates a temp file whose sid/proper_path are immediately discarded by L128-129's controlled SID setup. git blame attributes the leak to commit ea02581f (2026-05-18), so introduced_in_diff:false. Added as F3 with the codex-proposed fix; tagged advisory per AC-12.1."
       },
       {
-        "issue": "New helper/test naming and reference status look clean.",
+        "issue": "MISSED optional dead-import defect: MagicMock (L14) and MatchResult (L21) imports are unreferenced.",
+        "proposed_fix": "Remove MagicMock from L14 mock import; remove MatchResult from L21 lib.allowlist import block.",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "Verified by grep: only `patch` is referenced from unittest.mock (L102); MagicMock and MatchResult have zero usages. git blame attributes both lines to commit ea02581f. Added as F4 with codex's proposed fix; tagged advisory per AC-12.1."
+      },
+      {
+        "issue": "Severity confirmation: none of the findings should be major or block CLOSE; the temp leak is the only behavioral residue but does not threaten D+H acceptance criteria.",
         "proposed_fix": null,
         "classification": "observation_only",
         "disposition": "logged",
-        "rationale": "_resolve_base_context, _find_earliest_unflipped_matching_step, _extract_subagent_type are all called by _main() in the same file. New test method names are valid snake_case and unittest-discoverable. No new TODO/FIXME/legacy markers introduced by the diff. Confirmed via grep."
+        "rationale": "Severity calibration confirmed by codex. All 4 findings remain minor / non-blocking. Recorded in summary.verdict_input_for_close as 0 blocking, 4 non-blocking."
       }
     ],
-    "feedback_incorporated": "Codex Finding 1 (_resolve_context dead) applied as dead_functions finding with introduced_in_diff:true and blocks_close:true. Codex Finding 2 (TestReadGrant stale docstring) applied as naming_violations finding with introduced_in_diff:true and blocks_close:false (cosmetic). Codex Finding 3 rejected with file-read evidence. Codex Finding 4 rejected as library-API preservation. Codex Finding 5 logged as observation_only."
+    "feedback_incorporated": "All 5 codex items applied or recognized: (1)(2) draft findings restructured — F1 kept as cosmetic minor; drafts 2+3 merged into F2 covering both stale breadcrumb locations; (3)(4) two MISSED defects added as F3 (tempfile leak) and F4 (unused imports), both tagged introduced_in_diff:false per git blame evidence; (5) severity calibration confirmed and recorded in summary."
   }
 }
