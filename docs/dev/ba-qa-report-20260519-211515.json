@@ -200,7 +200,7 @@
       "drift_count": 4
     }
   },
-  "objections": [
+  "_stale_d_h_objections": [
     {
       "id": "OBJ-A1",
       "dimension": "spec_text_vs_execution_drift",
