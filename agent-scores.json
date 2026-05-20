@@ -4,8 +4,8 @@
   "global": {
     "agents": {
       "ba": {
-        "score": 73,
-        "rank": "资深工匠",
+        "score": 81,
+        "rank": "宗师级",
         "history": [
           {
             "ts": "2026-05-19T17:15:08Z",
@@ -238,11 +238,19 @@
             "old_score": 93,
             "new_score": 73,
             "note": "20260520-200804"
+          },
+          {
+            "ts": "2026-05-20T22:16:12Z",
+            "event": "close_success_qa_fail_fixed",
+            "delta": 8,
+            "old_score": 73,
+            "new_score": 81,
+            "note": "20260520-085647-d1722b"
           }
         ]
       },
       "dev": {
-        "score": 45,
+        "score": 60,
         "rank": "熟练工匠",
         "history": [
           {
@@ -476,11 +484,19 @@
             "old_score": 85,
             "new_score": 45,
             "note": "20260520-200804"
+          },
+          {
+            "ts": "2026-05-20T22:16:12Z",
+            "event": "close_success_qa_fail_fixed",
+            "delta": 15,
+            "old_score": 45,
+            "new_score": 60,
+            "note": "20260520-085647-d1722b"
           }
         ]
       },
       "qa": {
-        "score": 0,
+        "score": 6,
         "rank": "见习学徒",
         "history": [
           {
@@ -666,6 +682,14 @@
             "old_score": 8,
             "new_score": 0,
             "note": "20260520-200804"
+          },
+          {
+            "ts": "2026-05-20T22:16:12Z",
+            "event": "close_success_qa_fail_fixed",
+            "delta": 6,
+            "old_score": 0,
+            "new_score": 6,
+            "note": "20260520-085647-d1722b"
           }
         ]
       },
