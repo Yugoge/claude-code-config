@@ -259,10 +259,16 @@
     }
   ],
   "verdict": {
-    "summary": "NO NEW CRITICAL VIOLATIONS introduced by cycle 20260519-211515 diff. Two advisory findings (K=3 magic number + test-fixture path coupling), both with introduced_in_diff=true and concrete PROPOSED_FIX. Three observations (documentation-accuracy class-docstring staleness, exception-handling functional risk, helper-name length) all logged for transparency but explicitly NOT critical violations. Per AC-2.6 default-safe rule, the report is suitable for close.md cleanliness gating: zero critical_violations means close-clean passes.",
-    "critical_violations_count": 0,
-    "advisory_findings_count": 2,
-    "observations_count": 3,
+    "summary": "NO NEW CRITICAL VIOLATIONS introduced by the SECOND-/close fix-forward diff (scripts/resolve-close-report.sh NEW + commands/commit.md Step 3 modification). One NEW advisory raised by codex (Standard 2/9: middle path-walk candidate /root/.claude/docs/dev/ is hardcoded literal vs the parameterized first and third candidates) with concrete PROPOSED_FIX - logged for cleanup-followup but does NOT block close-cleanliness per AC-2.6 default-safe rule (the path is conventionally stable on this server topology and codex acknowledged the convention). Five observations all logged for transparency. Prior-round 3-file audit verdict (0 critical, 2 advisories on allowlist.py / posttool-subagent-track.py / test_allowlist_consolidation.py) carries forward UNCHANGED - those files were not modified this round. Aggregate cycle-level critical violation count: ZERO. close_cleanliness_gate=pass.",
+    "critical_violations_count_this_round": 0,
+    "critical_violations_count_carried_forward": 0,
+    "aggregate_critical": 0,
+    "advisory_findings_count_this_round": 1,
+    "advisory_findings_count_carried_forward": 2,
+    "aggregate_advisory": 3,
+    "observations_count_this_round": 5,
+    "observations_count_carried_forward": 3,
+    "aggregate_observations": 8,
     "close_cleanliness_gate": "pass"
   },
   "codex_consult": {
