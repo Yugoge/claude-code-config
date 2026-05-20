@@ -109,9 +109,9 @@
       "agents/push-analyst.md",
       "agents/qa.md",
       "agents/ba.md",
-      "agents/changelog-analyst.md",
-      "docs/dev/specs/spec-20260520-044700.md"
+      "agents/changelog-analyst.md"
     ],
+    "_in_user_path_iter3_note": "iter-3 removed 'docs/dev/specs/spec-20260520-044700.md' per BA-QA iter-1 OBJ-1 (frozen per user requirement line 76).",
     "path_dependent_shared_infra": [
       "hooks/tests/test_allowlist_consolidation.py",
       "hooks/tests/test_push_sentinel_abort.sh"
