@@ -63,7 +63,8 @@ sessions/
 .last-cleanup
 playwright-storage-state.json
 .todos.json
-docs/
+docs/*
+!docs/dev/
 
 # Live workflow / dev coordination state
 workflow-*.json
