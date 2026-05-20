@@ -1,0 +1,228 @@
+{
+  "request_id": "dev-20260519-211515",
+  "timestamp": "2026-05-20T11:15:00Z",
+  "inspector": "cleanliness-inspector",
+  "mode": "--changed-files",
+  "mechanism": "ii_inspector_side_tagging",
+  "scope_contract": "Per AC-12.1 / Section 5.4 rule 3: only violations newly introduced in this diff are emitted; every finding tagged introduced_in_diff:bool. close.md uses tag per AC-2.6 (b).",
+  "changed_files_scanned": [
+    "CLAUDE.md",
+    "agents/ba.md",
+    "agents/changelog-analyst.md",
+    "agents/push-analyst.md",
+    "agents/qa.md",
+    "commands/close.md",
+    "commands/commit.md",
+    "commands/dev.md",
+    "commands/push.md",
+    "hooks/lib/allowlist.py",
+    "hooks/posttool-allowlist-consume.py",
+    "hooks/pretool-bash-safety.sh",
+    "hooks/push.sh",
+    "hooks/stop-cleanup-allowlist.sh",
+    "hooks/userprompt-consent-allowlist.sh",
+    "hooks/tests/_ac1_verify.sh",
+    "hooks/tests/_ac3_verify.sh",
+    "hooks/tests/_ac5_verify.sh",
+    "hooks/tests/_ac6_verify.sh",
+    "hooks/tests/_ac9_verify.sh",
+    "hooks/tests/_ac10_verify.sh",
+    "hooks/tests/_final_sweep.sh",
+    "hooks/tests/test_allowlist_consolidation.py",
+    "hooks/tests/test_push_sentinel_abort.sh",
+    "policies/tool-policy.v1.json"
+  ],
+  "findings": {
+    "misplaced_docs": [],
+    "naming_violations": [
+      {
+        "file": "hooks/tests/_ac1_verify.sh",
+        "reason": "New shell verifier file does not follow the existing hooks/tests/test_* test-file pattern used by tracked tests (test_allowlist_consolidation.py, test_cp_checkin.py, test_commit_strip_dotfile_paths.py) and by sibling new file test_push_sentinel_abort.sh. Underscore-prefix is Python private-module convention, atypical for shell tests.",
+        "severity": "minor",
+        "recommendation": "If durable, rename to test_ac1_verify.sh; if task-private, remove or archive after cycle closes.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_ac3_verify.sh",
+        "reason": "Same as _ac1_verify.sh — underscore-prefix breaks hooks/tests/test_* convention.",
+        "severity": "minor",
+        "recommendation": "Rename to test_ac3_verify.sh or remove after cycle closes.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_ac5_verify.sh",
+        "reason": "Same as _ac1_verify.sh — underscore-prefix breaks hooks/tests/test_* convention.",
+        "severity": "minor",
+        "recommendation": "Rename to test_ac5_verify.sh or remove after cycle closes.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_ac6_verify.sh",
+        "reason": "Same as _ac1_verify.sh — underscore-prefix breaks hooks/tests/test_* convention.",
+        "severity": "minor",
+        "recommendation": "Rename to test_ac6_verify.sh or remove after cycle closes.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_ac9_verify.sh",
+        "reason": "Same as _ac1_verify.sh — underscore-prefix breaks hooks/tests/test_* convention.",
+        "severity": "minor",
+        "recommendation": "Rename to test_ac9_verify.sh or remove after cycle closes.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_ac10_verify.sh",
+        "reason": "Same as _ac1_verify.sh — underscore-prefix breaks hooks/tests/test_* convention.",
+        "severity": "minor",
+        "recommendation": "Rename to test_ac10_verify.sh or remove after cycle closes.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_final_sweep.sh",
+        "reason": "Underscore-prefix breaks hooks/tests/test_* convention. Functions as a top-level test driver; should follow standard test naming if retained.",
+        "severity": "minor",
+        "recommendation": "Rename to test_final_sweep.sh or remove after cycle closes.",
+        "introduced_in_diff": true
+      }
+    ],
+    "archive_candidates": [],
+    "dev_context_files": [],
+    "temp_files": [],
+    "duplicate_scripts": [],
+    "duplicate_tests": [],
+    "non_functional_files": [],
+    "non_functional_folders": [],
+    "orphaned_subagents": [],
+    "unreferenced_scripts": [
+      {
+        "file": "hooks/tests/_ac1_verify.sh",
+        "reason": "New task-specific verifier; verified by grep against hooks/, commands/, agents/, policies/ that nothing functional invokes this file. _final_sweep.sh (sibling driver) does NOT call _ac*_verify.sh — it embeds its own equivalent checks inline and only invokes test_push_sentinel_abort.sh at line 56. Only references are auto-generated INDEX.md entries.",
+        "severity": "minor",
+        "advisory": true,
+        "recommendation": "Either wire _final_sweep.sh to invoke _ac1_verify.sh, or remove/archive the standalone file post-cycle. Note: out-of-scope contextual references in docs/dev/completion-20260519-211515.md exist but are not in the changed-files diff and therefore cannot establish non-orphan status under --changed-files audit scope.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_ac3_verify.sh",
+        "reason": "Same as _ac1_verify.sh — no functional invocation in canonical dirs; _final_sweep.sh embeds equivalent checks inline rather than calling this file.",
+        "severity": "minor",
+        "advisory": true,
+        "recommendation": "Wire into _final_sweep.sh or remove/archive post-cycle.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_ac5_verify.sh",
+        "reason": "Same as _ac1_verify.sh — no functional invocation; _final_sweep.sh duplicates the check logic inline.",
+        "severity": "minor",
+        "advisory": true,
+        "recommendation": "Wire into _final_sweep.sh or remove/archive post-cycle.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_ac6_verify.sh",
+        "reason": "Same as _ac1_verify.sh — no functional invocation; _final_sweep.sh duplicates the check logic inline.",
+        "severity": "minor",
+        "advisory": true,
+        "recommendation": "Wire into _final_sweep.sh or remove/archive post-cycle.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_ac9_verify.sh",
+        "reason": "Same as _ac1_verify.sh — no functional invocation; _final_sweep.sh duplicates the check logic inline.",
+        "severity": "minor",
+        "advisory": true,
+        "recommendation": "Wire into _final_sweep.sh or remove/archive post-cycle.",
+        "introduced_in_diff": true
+      },
+      {
+        "file": "hooks/tests/_ac10_verify.sh",
+        "reason": "Same as _ac1_verify.sh — no functional invocation; _final_sweep.sh duplicates the check logic inline.",
+        "severity": "minor",
+        "advisory": true,
+        "recommendation": "Wire into _final_sweep.sh or remove/archive post-cycle.",
+        "introduced_in_diff": true
+      }
+    ],
+    "orphaned_tests": [],
+    "historical_docs": [],
+    "docs_categorization": [],
+    "obsolete_functionality": [],
+    "orphan_commands": [],
+    "dead_functions": [],
+    "duplicate_content": [],
+    "permission_observations": [
+      {
+        "file_group": [
+          "hooks/tests/_ac1_verify.sh",
+          "hooks/tests/_ac3_verify.sh",
+          "hooks/tests/_ac5_verify.sh",
+          "hooks/tests/_ac6_verify.sh",
+          "hooks/tests/_ac9_verify.sh",
+          "hooks/tests/_ac10_verify.sh",
+          "hooks/tests/_final_sweep.sh"
+        ],
+        "reason": "The seven new shell scripts are mode 644 (not executable). Sibling new file test_push_sentinel_abort.sh is 755. Functionally tolerated where callers use `bash <script>`, but inconsistent with the executable-shell convention.",
+        "severity": "minor",
+        "advisory": true,
+        "recommendation": "If these files are retained, chmod +x to match the canonical 755 convention; if they are removed/archived (per naming_violations + unreferenced_scripts findings above) this becomes moot.",
+        "introduced_in_diff": true
+      }
+    ]
+  },
+  "summary": {
+    "total_issues": 15,
+    "critical": 0,
+    "major": 0,
+    "minor": 15,
+    "advisory_count": 13,
+    "blocking_count": 0,
+    "estimated_space_saved": "negligible (small shell scripts; 7 files totaling ~20KB if archived)",
+    "verdict_input_for_close": {
+      "blocking_findings": 0,
+      "non_blocking_findings": 15,
+      "all_findings_introduced_in_diff": true,
+      "close_recommendation": "non-blocking — all findings are minor naming/wiring/permission anomalies in newly-introduced task-private verifier scripts. None block CLOSE."
+    },
+    "out_of_scope_pre_existing_dirt_observed_but_not_emitted": [
+      "policies/tool-policy.v1.json.bak.1778564751 (created 2026-05-12, predates this diff)",
+      "projects/*.jsonl.bak* files (pre-existing transcripts)",
+      "Mixed 644/755 permission convention across the broader hooks/ Python dir (pattern is pre-existing inconsistency, not introduced by this diff)"
+    ]
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex provided 4 constructive PROPOSED_FIX entries: (1) tighten naming_violations wording to specify rename target or archive disposition; (2) correct permission_observation rationale — _final_sweep.sh does NOT invoke _ac*_verify.sh files (confirmed by direct grep, only line 56 invokes test_push_sentinel_abort.sh); (3) MISSED orphan finding — _ac*_verify.sh are unreferenced by any caller in the diff; _final_sweep.sh embeds duplicate inline checks; (4) no-orphans rationale was using out-of-scope evidence (completion-*.md, qa-report-*.json) that are not in the changed-files list and cannot establish non-orphan status under --changed-files audit scope.",
+    "findings": [
+      {
+        "issue": "naming_violations wording lacked concrete rename target / disposition guidance",
+        "proposed_fix": "Rephrase to specify rename to test_ac*_verify.sh and test_final_sweep.sh if durable, else remove/archive.",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "Improved actionability of each naming_violations entry; recommendation field now states explicit rename target."
+      },
+      {
+        "issue": "permission_observation rationale incorrectly implied _final_sweep.sh invokes _ac*_verify.sh via bash",
+        "proposed_fix": "Correct rationale: _final_sweep.sh does NOT invoke them; they are functionally orphaned within the diff. Demote to advisory consistency observation.",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "Verified by grep on hooks/tests/_final_sweep.sh — only line 56 invokes test_push_sentinel_abort.sh; _ac*_verify.sh files have zero invocations in the script. Rationale corrected."
+      },
+      {
+        "issue": "Missing orphan finding: _ac*_verify.sh are unreferenced verifier scripts",
+        "proposed_fix": "Add unreferenced_scripts entries flagging each _ac*_verify.sh with introduced_in_diff:true and advisory recommendation (wire into _final_sweep.sh or remove/archive).",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "Verified by grep across hooks/, commands/, agents/, policies/ — only INDEX.md auto-generated mentions exist. Six new unreferenced_scripts findings added, all introduced_in_diff:true, all advisory non-blocking."
+      },
+      {
+        "issue": "Initial no-orphans rationale relied on out-of-scope completion-*.md and qa-report-*.json references",
+        "proposed_fix": "Restrict orphan-status rationale to listed changed files only. External docs may be noted as contextual but cannot establish non-orphan status under --changed-files scope.",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "Recommendation field in each unreferenced_scripts finding now explicitly notes the scope contract and labels external docs as contextual only."
+      }
+    ],
+    "feedback_incorporated": "All 4 codex items applied: (1) naming_violations recommendations tightened with rename targets; (2) permission_observation rationale corrected to remove false claim about _final_sweep.sh invocation chain; (3) six new unreferenced_scripts findings added covering _ac{1,3,5,6,9,10}_verify.sh, each tagged introduced_in_diff:true and advisory; (4) orphan rationale scope-restricted with explicit note about --changed-files contract."
+  }
+}
