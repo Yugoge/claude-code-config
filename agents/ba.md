@@ -942,11 +942,14 @@ ledger lazy-create rules.)
 - WHEN <action>
 - THEN <expected outcome>
 
+**Verification harness cleanup contract (R10 cross-reference, task 20260519-211515)**: any AC whose verification recipe spawns a background child process MUST install `trap '<cleanup>' EXIT INT TERM` BEFORE spawning, per the canonical pattern in `agents/qa.md` `### Verification harness cleanup contract (MANDATORY)`. Do NOT inline-rewrite the contract here; cross-reference qa.md and follow the four DO NOT clauses verbatim.
+
 ## Technical Hints
 
 - Affected files: <list>
 - Related patterns: <existing code patterns to follow>
 - Constraints: <technical limitations>
+- **Verification harness cleanup contract (R10 cross-reference)**: any harness cleanup with `trap.*EXIT INT TERM` MUST use the canonical pattern in `agents/qa.md` (PID="" init → trap with double-quoted runtime `"${PID}"` + EXIT INT TERM → spawn capturing `PID=$!`); no `pkill -f` / `killall`; never touch the frozen spec `docs/dev/specs/spec-20260520-044700.md`.
 ```
 
 ### JSON Context (`docs/dev/context-<timestamp>.json`)

@@ -155,11 +155,14 @@ Create directory:
 mkdir -p "${GRANT_DIR}"
 ```
 
-Compute `expires_at`: current UTC time + 120 seconds (ISO-8601 format).
+Compute `expires_at`: current UTC time + `PUSH_ANALYST_GRANT_TTL_SECONDS` (ISO-8601 format).
+The TTL was raised from 120s to 180s per task 20260519-211515 R4 / AC4 to absorb
+subagent dispatch latency on cold paths.
 
 ```python
 from datetime import datetime, timedelta, timezone
-expires_at = (datetime.now(timezone.utc) + timedelta(seconds=120)).strftime("%Y-%m-%dT%H:%M:%SZ")
+PUSH_ANALYST_GRANT_TTL_SECONDS = 180
+expires_at = (datetime.now(timezone.utc) + timedelta(seconds=PUSH_ANALYST_GRANT_TTL_SECONDS)).strftime("%Y-%m-%dT%H:%M:%SZ")
 ```
 
 Write grant JSON using the Write tool:
