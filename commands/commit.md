@@ -127,12 +127,12 @@ Set `DEV_DOCS_ROOT` using the same CONTROL_ROOT logic as Step 6: `DEV_DOCS_ROOT=
 
 **Step 7 algorithm (verbatim contract — total-ordered, deterministic, fail-closed):**
 
-The algorithm is the algorithm. There are no "options" the implementer can pick from; the steps are total-ordered and mandatory. No nondeterminism aliases anywhere in Step 7 (no "dev chooses", no "one of:", no "pick latest", no "prefer newest", no "select any", no "most recent wins", no "any matching", no "the right one"). Prior-cycle artifacts MUST NOT be matched: the glob and content predicates are anchored to the CURRENT cycle's `${TASK_ID}`; no cross-cycle drag-in. This operationalizes the user binding directive `禁止加载任何非本cycle的内容`.
+The algorithm is total-ordered and mandatory. Implementers MUST NOT introduce wording that admits implementer discretion; every nondeterminism alias is forbidden by AC5-V3. Prior-cycle artifacts MUST NOT be matched: the glob and content predicates are anchored to the CURRENT cycle's `${TASK_ID}`; no cross-cycle drag-in. This operationalizes the user binding directive `禁止加载任何非本cycle的内容`.
 
-(1) **context.spec_path first.**
+(1) context.spec_path first.
     If `${DEV_DOCS_ROOT}/context-${TASK_ID}.json` field `spec_path` is non-null AND the file at that path exists as a regular file, dispatch `/dev` with that `spec_path`. STOP.
 
-(2) **Continuation spec line (parenthetical-qualifier + markdown-bullet + backtick tolerant).**
+(2) Continuation spec line (parenthetical-qualifier + markdown-bullet + backtick tolerant).
     Else parse `${DEV_DOCS_ROOT}/close-report-${TASK_ID}.md` fence-aware: read each line outside a fenced code block (skip ranges between ``` and ```). Apply the regex
 
         ^[-*+]?\s*Continuation spec(\s*\([^)]*\))?\s*:\s*`?(docs/dev/specs/spec-[^\s`]+\.md)`?\s*$
