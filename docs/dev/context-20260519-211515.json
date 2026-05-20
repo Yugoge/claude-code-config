@@ -1,526 +1,572 @@
 {
   "request_id": "20260519-211515",
   "task_id": "20260519-211515",
-  "timestamp": "2026-05-20T00:00:00Z",
-  "iteration": 1,
-  "collision_note": "This artifact was preserved under the -DH suffix after the canonical path docs/dev/context-20260519-211515.json was overwritten mid-session by a parallel BA cycle (Cycle 2 of spec-20260518-225715) that shares the same task-id. Orchestrator must resolve the collision before the next downstream agent consumes this artifact. See collision_report section at the bottom of this JSON.",
+  "timestamp": "2026-05-20T04:55:00Z",
+  "cycle": 2,
+  "spec": "docs/dev/specs/spec-20260518-225715.md",
   "complexity_tier": "STANDARD",
   "risk_level": "medium",
-  "_risk_level_doc": "medium — security-relevant fix to permission-grant matcher (D) and a workflow-validator state-tracking fix (H). Bounded blast radius: D touches one library function used by 6 production callers all with exact tool names; H changes legacy Path B of a single posttool hook with explicit fall-back to existing behavior, gated by mutually-exclusive Case A / Case B chain.",
+  "_risk_level_doc": "medium because: (i) touches agents/qa.md verification step and commands/dev.md orchestrator dispatch — any markdown or JSON syntax break ripples into every downstream cycle, but (ii) all 8 changes are explicitly prescribed by spec Section 7 with no novel logic, and (iii) the regression target (Cycle 1's 18 ACs) is well-defined and spot-checkable. Not 'high' because there is no security-sensitive infrastructure change and the change set does not touch a hot pipeline path the user is mid-using.",
   "requirement": {
-    "original": "好的开完成全部",
-    "clarified": "Land code-fix items D + H from the prior Codex triage of leftover work after cycle 20260519-151734 closed. D: tighten PreTool /allow literal match to exact-only to mirror PostTool consumption semantics, closing a permission-grant leakage. H: replace bookmark-in_progress inference in posttool-subagent-track.py with deterministic canonical-step lookup keyed on the dispatched Agent subagent_type (bounded-window K=3 first-unflipped-match), closing a race when TodoWrite + Agent dispatch in one orchestrator response. Item A (live reproduction of read-size-guard /do bypass) is handled by the orchestrator post-cycle and is NOT a BA/dev deliverable.",
-    "what": "Patch hooks/lib/allowlist.py (one enum branch + one call-site policy change + docstring) and hooks/posttool-subagent-track.py (add deterministic bounded-window resolution helper, reorder _main resolution chain into mutually-exclusive Case A / Case B, mandate None-key guard before writer). Add regression test for D.",
-    "why": "Two pre-existing harness defects observed during cycle 20260519-151734: a permission-grant leakage vector and a workflow-deadlock-on-parallel-dispatch race. The user directive is '不放松任何权限' (no permission loosening); both fixes either tighten or preserve existing semantics — no loosening.",
+    "original": "以上全部计划（研究对话中设计的所有组件），按优先级实施 — see spec-20260518-225715.md Section 5",
+    "clarified": "Cycle 2 of spec-20260518-225715 closes the 3 /close-gate failure axes captured in spec Section 6, by executing Section 7's Cycle 1 → Cycle 2 remediation plan Priorities 1-3 only. P4 deferred to Cycle 3 per user decision during pre-dispatch clarification.",
+    "what": "8 prescribed remediations: (P1.1) add test-writer role to tool-policy.v1.json; (P1.2) reconcile manifest contract to Option (b) — per-task active_tests + root index — across test-writer.md + qa.md + commands/dev.md; (P2.3) append 3 patterns to .gitignore; (P2.4) regenerate README/INDEX/.claude/INDEX to drop leaked entries; (P3.6) prefix venv-activation to 5 python3 sites; (P3.7) renumber Sub-step 12.1 to Step 12a + update cross-ref; (P3.8) replace hardcoded /tmp/ in canary-verify.sh with mktemp -d + EXIT trap; (P3.9) add narrow Standard 6 exemption clause for user-facing source-language strings.",
+    "why": "Cycle 1 delivered all 18 ACs PASS but /close gate detected 3 independent failure axes that per-AC verification did not surface: (i) downstream consumability — test-writer cannot be invoked on first dispatch (tool-policy missing + manifest drift); (ii) cleanliness — 3 runtime artifact patterns leaking into git; (iii) style — 12 critical style-inspector findings + 1 Standard 6 Chinese-language escalation. Cycle 2 closes all three to make /close grant YES.",
     "where": [
-      "hooks/lib/allowlist.py",
-      "hooks/posttool-subagent-track.py",
-      "hooks/tests/test_allowlist_consolidation.py"
+      ".gitignore",
+      "README.md",
+      "INDEX.md",
+      ".claude/INDEX.md",
+      "policies/tool-policy.v1.json",
+      "agents/test-writer.md",
+      "agents/qa.md",
+      "agents/style-inspector.md",
+      "commands/dev.md",
+      "scripts/score-inject.sh",
+      "scripts/score-update.sh",
+      "scripts/canary-verify.sh"
     ],
     "scope": {
       "included": [
-        "Item D: PreTool/PostTool literal-match asymmetry in lib/allowlist.py",
-        "Item H: PostToolUse:Agent tracker bookmark-inference race in posttool-subagent-track.py legacy Path B",
-        "Regression test for AC-D1 in tests/test_allowlist_consolidation.py"
+        "Section 7 Priority 1 items (P1.1 test-writer tool-policy role; P1.2 manifest contract Option (b))",
+        "Section 7 Priority 2 items (P2.3 .gitignore append; P2.4 indices regen)",
+        "Section 7 Priority 3 items (P3.6 venv prefix; P3.7 Sub-step renumber; P3.8 portable temp; P3.9 narrow Standard 6 exemption)"
       ],
       "excluded": [
-        "Item A (live repro — orchestrator post-cycle)",
-        "Item B (subagent alias coverage gap — do-eventually)",
-        "Item C (workflow-gate /do bypass — DROPPED by triage; would loosen permissions)",
-        "Item E (commands/do.md changelog — do-eventually)",
-        "Item F (pre-existing top-level /.hook-refactor-allow sentinel — do-eventually)",
-        "Item G (dirty working tree — DROPPED by triage; pre-existing dirt)",
-        "settings.json /allow patterns (different system — Claude Code permission grammar, not /allow runtime grants)",
-        "pretool-todo-validate.py (validator strictness must be preserved verbatim)",
-        "read_grant_for_git_command (its substr_only semantics are intentional for git command strings)",
-        "6 production PreTool read_grant call sites (callers are correct as-is; only matcher tightens)",
-        "Prior cycle's read-size-guard.py and block-enterworktree.sh (commit 8d74e83 stays untouched)"
+        "Section 7 Priority 2 item 5 (agent-scores.example.json tracked seed) — spec says 'Optionally'; defer to keep scope minimal",
+        "Section 7 Priority 4 — ALL FIVE deferred to Cycle 3 per user decision",
+        "B-IT3F-1: BA tool-policy prefix patch for docs/dev/acceptance-criteria-* and .claude/dev-registry/*/blast-radius-map.json (BA's iter-2 Python-write workaround stays authorized for THIS cycle's BA outputs only)",
+        "B-IT3F-4: session-info.sh / session-git-init.sh stdout->stderr",
+        "blast-radius Phase 2 untracked-file detection gap",
+        "QA Phase 5 trigger asymmetry (trigger gate STANDARD OR risk_level=high stays as-is)",
+        "canary fail-closed depth for write-guard / git-privilege-guard"
       ]
     },
     "success_criteria": [
-      "AC-D1: /allow Re does NOT match Read at PreTool (read_grant returns False)",
-      "AC-D2: /allow Read matches Read at PreTool (returns True) AND consumes at PostTool (grant file unlinked)",
-      "AC-D3: 6 production PreTool call sites pass with exact tool names, fail with substrings",
-      "AC-D4: Regex grants (is_regex: true) behave unchanged",
-      "AC-H1: Parallel TodoWrite+Agent dispatch records subagent_calls[idx]=True via bounded-window typed lookup, next TodoWrite not blocked",
-      "AC-H2: Serial TodoWrite then Agent dispatch still works",
-      "AC-H3a: Serial-dispatch legacy write preserved (subagent_type absent + legacy resolves single valid in_progress with subagent_call metadata → Case B writes subagent_calls[str(idx)]=True; aligns with AC-H2 serial flow)",
-      "AC-H3b: Orphan Agent dispatch does not corrupt bookmark — 4 enumerated no-write cases (subagent_type absent+legacy None; subagent_type non-empty+typed miss; subagent_type non-empty+no in_progress; subagent_type non-empty+multi-in_progress); no None key, no wrong-step flip, no canonical[0:3] misflip from no-anchor/multi-anchor states",
-      "AC-H4: Gate 4 strictness preserved (validator unchanged)",
-      "AC-D-H: Prior cycle's read-size-guard / block-enterworktree /allow bypass paths still work end-to-end"
+      "All 8 Cycle-2 ACs PASS",
+      "Cycle 1's 18 ACs remain PASS (no regression)",
+      "/close gate's three failure axes from Cycle 1 close-debate now PASS (Workflow Integrity Bullet 1 + Workflow Integrity Bullet 4 sub-iv + style-inspector zero critical from THIS diff)"
     ],
     "constraints": [
-      "No permission loosening (user directive: 不放松任何权限)",
-      "Minimum files touched; preserve lib.allowlist API surface (read_grant signature unchanged)",
-      "Validator strictness (pretool-todo-validate.py) must be preserved verbatim — do NOT modify",
-      "Do NOT modify settings.json /allow patterns",
-      "Do NOT modify the 6 production PreTool read_grant() call sites",
-      "Do NOT touch prior cycle's modifications to pretool-read-size-guard.py and pretool-block-enterworktree.sh"
+      "Do NOT touch any file that Cycle 1 created in its body content (scripts/score-update.sh logic, scripts/blast-radius-tool.py, settings.json, ~/.claude/agent-scores.json content, agents/ba.md, agents/dev.md, commands/close.md, agents/test-writer.md schema block lines 80-127)",
+      "P3.6 venv prefix MUST preserve stdin pipe form for canary-verify.sh's 3 piped sites (codex F8)",
+      "P2.4 indices regeneration MUST follow P2.3 .gitignore append in commit ordering (codex F7)",
+      "P3.9 exemption MUST be narrow (codex F10): user-facing source-language strings only; comments/diagnostics/prose/implementation notes remain English-only",
+      "Tool-policy JSON syntax MUST remain valid after edit (validation: python3 -c 'import json; json.load(open(\"policies/tool-policy.v1.json\"))')"
     ]
   },
   "scope_boundary": {
     "in_user_path": [
-      "hooks/lib/allowlist.py",
-      "hooks/posttool-subagent-track.py"
+      ".gitignore",
+      "README.md",
+      "INDEX.md",
+      ".claude/INDEX.md",
+      "policies/tool-policy.v1.json",
+      "agents/test-writer.md",
+      "agents/qa.md",
+      "agents/style-inspector.md",
+      "commands/dev.md",
+      "scripts/score-inject.sh",
+      "scripts/score-update.sh",
+      "scripts/canary-verify.sh"
     ],
-    "path_dependent_shared_infra": [
-      "hooks/tests/test_allowlist_consolidation.py"
-    ],
+    "path_dependent_shared_infra": [],
     "out_of_path_observed_but_not_touched": []
   },
-  "out_of_scope_observations": [],
-  "root_cause_analysis": {
-    "symptom": "D: User types /allow Re; Read tool call passes the PreTool /allow bypass; PostTool fails to consume the grant; grant file persists past the single-use contract documented in userprompt-consent-allowlist.sh:12 and the lib/allowlist.py docstring at line 240-241. H: When TodoWrite and Agent dispatch in a single orchestrator response, PostToolUse:Agent reads the bookmark before posttool-todo-sequence.py writes the new last_todos; tracker sees stale in_progress (N-1), exits early without flipping subagent_calls; subsequent TodoWrite (Step N → completed) is blocked by Gate 4 in pretool-todo-validate.py.",
-    "root_cause": "D: PreTool read_grant passes literal_policy='exact_or_substr' to _match_loaded_grant (hooks/lib/allowlist.py:139), while PostTool consume_grant_for_posttool branch 3 hard-codes exact equality (hooks/lib/allowlist.py:291-292). The two paths use different literal-match semantics for the same grant file. H: posttool-subagent-track.py legacy Path B (_resolve_context line 340-358, _main line 370-389) infers which canonical step to flip from the bookmark's in_progress flag. When TodoWrite and Agent dispatch in a single response, the bookmark's in_progress flag has not yet been updated by posttool-todo-sequence.py when PostToolUse:Agent fires, causing the tracker to look at the wrong (stale) canonical index.",
-    "root_cause_commit": "D: aaf3c44 (refactor extracting lib/allowlist.py — introduced exact_or_substr policy as the OR-of-existing-behaviors during refactor; the PostTool path retained exact-only as a defensive measure documented in branch 3 docstring). H: efca767 (feat: add Gate 4 subagent_call enforcement to workflow system — introduced the strict validator without designing for parallel TodoWrite+Agent dispatch).",
-    "why_introduced": "D: During the allow-6 consolidation (task 20260518-155948), _match_loaded_grant was extracted from multiple call sites and the literal_policy enum was introduced to capture the divergent existing behaviors (some callers needed substring, some needed exact). The PreTool read_grant call was wired with 'exact_or_substr' as a superset that would not break any prior caller, while PostTool consumption retained its narrower exact-only logic. H: Gate 4 was added with the assumption that orchestrator dispatch is sequential — TodoWrite first to commit in_progress, then Agent in a subsequent response. The single-response dual-dispatch pattern emerged later and was not in the original design's threat model.",
-    "why_problematic": "D: The mismatch produces a permission-grant leakage vector. A user typing /allow Re could (intentionally or by typo) issue a grant that PreTool honors as a single-use bypass for Read but PostTool refuses to consume. The grant then persists for ALL subsequent Read tool calls until the next Stop hook cleanup, effectively converting a single-use grant into a session-wide bypass. H: The race makes the harness deadlock on legitimate parallel dispatch patterns. A skilled orchestrator emitting TodoWrite + Agent in one response (a faster, more efficient pattern than serial dispatch) trips Gate 4 and requires manual bookmark patching to recover.",
-    "timeline": "D: Asymmetry has existed since the allow-6 consolidation landed (aaf3c44, before this branch's current dirty changes). H: Race has existed since Gate 4 was introduced (efca767); first reproduced operationally during cycle 20260519-151734.",
-    "affected_files": [
-      "hooks/lib/allowlist.py",
-      "hooks/posttool-subagent-track.py",
-      "hooks/tests/test_allowlist_consolidation.py"
-    ],
-    "evidence_type": "inferred",
-    "observations": [
-      "PreTool literal_policy='exact_or_substr' at hooks/lib/allowlist.py:139 (inferred: code read)",
-      "_match_loaded_grant literal branch matches pattern==cand or pattern in cand at hooks/lib/allowlist.py:86-87 (inferred: code read)",
-      "PostTool branch 3 hard-codes pattern == tool_name at hooks/lib/allowlist.py:291-292 (inferred: code read)",
-      "PostTool branch 3 docstring at line 240-241 explicitly names exact-only intent (inferred: docstring read; this is the design contract)",
-      "posttool-subagent-track.py _resolve_context infers step via _current_in_progress_index at line 354 (inferred: code read)",
-      "_step_has_subagent_call early-exit at line 357-358 (inferred: code read)",
-      "_record_subagent_call_legacy keys on str(ip_index) at line 184 (inferred: code read)",
-      "pretool-todo-validate.py Gate 4 reads state.subagent_calls[str(i)] at line 238 — confirms the validator-side strictness contract (inferred: code read)",
-      "stdin.tool_input.subagent_type is the canonical dispatch channel — pretool-subagent-enforce.py:128 reads `(ti.get('subagent_type') or '').strip().lower()` (inferred: code read)",
-      "User-reported reproduction mid-cycle 20260519-151734: manual bookmark patch required (observed: prior cycle context from dispatch prompt)",
-      "6 production PreTool call sites all use exact canonical tool names (Read, Write, Agent, EnterWorktree) — none depend on substring matching (observed: iter1 re-grep confirmed 6 production + 3 test invocations + 1 lib definition)"
-    ],
-    "diagnosis_completeness": "incomplete (inferred from source + dispatch-prompt observed evidence; no fresh Playwright/runtime measurement performed since both bugs are in non-UI hook code paths and the dispatch prompt provides authoritative operational reproduction context from the prior cycle)",
-    "complaint_location_keywords": ["do", "allow", "allowlist", "tracker", "race", "posttool", "pretool-todo-validate", "subagent_call"],
-    "localization_evidence": "Investigation reproduced symptoms by static end-to-end code read: hooks/lib/allowlist.py read in full (PreTool path lines 130-143; PostTool path lines 229-306); hooks/posttool-subagent-track.py read in full (Path B legacy: _resolve_context 340-358, _main 370-389, _record_subagent_call_legacy 172-188); hooks/pretool-todo-validate.py read in full (Gate 4 at lines 251-270, subagent_calls key at line 238); hooks/pretool-subagent-enforce.py read for subagent_type field shape evidence (line 128); userprompt-consent-allowlist.sh read for grant-write semantics (single-use contract on line 12). All 6 production PreTool read_grant call sites enumerated via grep across hooks/** (iter1 re-grep confirms 6 production + 3 test invocations + 1 lib definition; the iter0 '8' label was imprecise).",
-    "located_source": "hooks/lib/allowlist.py:139 (D primary); hooks/lib/allowlist.py:86-87 (D match logic); hooks/lib/allowlist.py:291-292 (D PostTool contract); hooks/posttool-subagent-track.py:340-358,370-389 (H primary); hooks/posttool-subagent-track.py:114-125 (H stale inference helper)",
-    "localization_blocked": null,
-    "git_bisect_result": {
-      "triggered": false,
-      "suspect_commit": null,
-      "commit_message": null,
-      "confirmed_by": null,
-      "bisect_blocked": "not_applicable — not a regression bug. D is a pre-existing asymmetry from the allow-6 refactor (aaf3c44); H is a pre-existing race from the Gate 4 introduction (efca767). Both have existed since the respective features landed.",
-      "reproducibility_verified": true
+  "out_of_scope_observations": [
+    {
+      "ts": "2026-05-20T04:55:00Z",
+      "task_id": "20260519-211515",
+      "file": "agents/style-inspector.md",
+      "line": 318,
+      "observation": "Existing Exemption paragraph for verbatim user-binding quotes already exists from task-id 20260509-153155. Cycle 2 adds a SECOND exemption paragraph adjacent to it; the first paragraph is preserved verbatim. This is in user-need scope (P3.9) but flagged here to make the additive nature explicit.",
+      "in_user_path": true,
+      "security_relevant": false
+    },
+    {
+      "ts": "2026-05-20T04:55:00Z",
+      "task_id": "20260519-211515",
+      "file": "agents/test-writer.md",
+      "line": 145,
+      "observation": "test-writer.md line 145 references `tests/generated/<task_id>/.archive/<old_ac_uid>.py` correctly (per-task scoped). The manifest-contract drift is in the PROCEDURAL English sentences at lines 139/181/183/198/216 ('Check existing manifest at tests/generated/manifest.json', 'Compute the new manifest. Write tests/generated/manifest.json', 'manifest_path: tests/generated/manifest.json' in the JSON report template, 'manifest.json active_tests[].hook_check' in the checklist). The schema BLOCKS at lines 80-127 already implement Option (b) correctly. Cycle 2 surgical edit: those 5 procedural mentions only.",
+      "in_user_path": true,
+      "security_relevant": false
+    },
+    {
+      "ts": "2026-05-20T04:55:00Z",
+      "task_id": "20260519-211515",
+      "file": "policies/tool-policy.v1.json",
+      "line": null,
+      "observation": "Per the orchestrator's P4 decision, BA's iter-2 Python-write workaround is authorized for THIS cycle's acceptance-criteria + blast-radius writes. The proper remediation (narrow BA tool-policy prefix patch authorizing BA writes to docs/dev/acceptance-criteria-* and .claude/dev-registry/*/blast-radius-map.json) is B-IT3F-1, deferred to Cycle 3. Recording here for visibility — NOT actioned this cycle.",
+      "in_user_path": false,
+      "security_relevant": false
+    },
+    {
+      "ts": "2026-05-20T04:55:00Z",
+      "task_id": "20260519-211515",
+      "file": "hooks/session-info.sh + hooks/session-git-init.sh",
+      "line": null,
+      "observation": "Cycle 1 documented these as stdout-emitting SessionStart hooks; canary-verify.sh emits stderr advisories for them but does NOT exit 2. The fix (stdout->stderr) is B-IT3F-4, deferred to Cycle 3.",
+      "in_user_path": false,
+      "security_relevant": false
     }
+  ],
+  "root_cause_analysis": {
+    "symptom": "Cycle 1 delivered 18 passing ACs but /close gate returned CLOSE:NO with 3 concurring failure axes captured in spec Section 6.",
+    "root_cause": "Three orthogonal Cycle-1 gaps that per-AC verification (Step 11) does not see but /close (Step 2 four-bullet rule + inspectors) does: (1) test-writer was specified but never verified to be invokable — tool-policy.v1 missing role + manifest contract drift between test-writer.md and qa.md; (2) runtime telemetry artifacts (agent-scores.json, .lock, .claude/specs/spec-*/) were not in .gitignore — auto-regenerated indices then leaked entries; (3) script venv-activation, decimal step numbering, hardcoded /tmp/, and Standard 6 Chinese-language strings were violations style-inspector flagged.",
+    "root_cause_commit": "Cycle 1 implementation (docs/dev/dev-report-20260519-132417.json era); no single commit hash because all 3 axes were introduced together in the Cycle 1 work product.",
+    "why_introduced": "Cycle 1 BA spec covered per-component delivery (5.1-5.6) but did not include cross-component integration verification or repo-hygiene checks in its AC set. The 18 ACs were component-correct in isolation but missed integration boundaries (test-writer first-invocation policy + manifest cross-file shape) and platform-hygiene boundaries (gitignore, style standards).",
+    "why_problematic": "Without /close-gate satisfaction, the work cannot land in main. The user explicitly invoked /dev to close Cycle 2.",
+    "timeline": "Cycle 1 finished 2026-05-19; /close gate fired same day, identified 3 axes; user dispatched Cycle 2 2026-05-19T21:15:15Z (TASK-ID 20260519-211515).",
+    "affected_files": [
+      ".gitignore",
+      "README.md",
+      "INDEX.md",
+      ".claude/INDEX.md",
+      "policies/tool-policy.v1.json",
+      "agents/test-writer.md",
+      "agents/qa.md",
+      "agents/style-inspector.md",
+      "commands/dev.md",
+      "scripts/score-inject.sh",
+      "scripts/score-update.sh",
+      "scripts/canary-verify.sh"
+    ],
+    "evidence_type": "observed",
+    "observations": [
+      "git check-ignore agent-scores.json => exit 1 (NOT ignored) [observed at 2026-05-20T04:45:00Z]",
+      "git check-ignore agent-scores.json.lock => exit 1 (NOT ignored) [observed]",
+      "git check-ignore .claude/specs/spec-20260518-225715/cp-state-ba.json => exit 1 (NOT ignored) [observed]",
+      "grep 'agent-scores' README.md => matches at lines 16-17 [observed]",
+      "grep 'agent-scores' INDEX.md => matches at lines 3417-3418, 11443-11444, 21534-21535 [observed]",
+      "grep 'test-writer' policies/tool-policy.v1.json => 0 hits (role absent) [observed]",
+      "agents/test-writer.md schema block at lines 80-127 implements Option (b) correctly: per-task active_tests + root kind:index [inferred from file read]",
+      "agents/qa.md lines 992-998 reads ROOT manifest.json.active_tests[] (Option (a) shape) [observed]",
+      "commands/dev.md line 856 contains 'Sub-step 12.1: Mascot score-update (post-QA, ...)' [observed]",
+      "commands/dev.md line 1110 contains 'Summarise score-update events from Sub-step 12.1' [observed]",
+      "scripts/score-inject.sh:43 invokes 'python3 - ' here-doc without venv prefix [observed]",
+      "scripts/score-update.sh:70 invokes 'python3 - ' here-doc without venv prefix [observed]",
+      "scripts/canary-verify.sh:95 invokes 'echo \"${safe}\" | python3 \"${hook}\"' pipe without venv prefix [observed]",
+      "scripts/canary-verify.sh:106 invokes 'echo \"${payload}\" | python3 \"${hook}\"' pipe without venv prefix [observed]",
+      "scripts/canary-verify.sh:125 invokes 'echo \"${safe}\" | python3 \"${hook}\"' pipe without venv prefix [observed]",
+      "scripts/canary-verify.sh:79 contains literal '/tmp/canary-safe.txt' [observed]",
+      "scripts/canary-verify.sh:103 contains literal '/tmp/canary-oversized-$$.txt' [observed]",
+      "agents/style-inspector.md:308-329 declares Standard 6 with existing Exemption paragraph at line 318 for 'verbatim user-binding quotes' (task-id 20260509-153155) [observed]"
+    ],
+    "diagnosis_completeness": "complete (all 17 observation points measured directly from current code/git state)"
   },
-  "diagnosis_layer": "L3 (data) for D — literal_policy parameter value at the call site; L4 (logic) for H — control-flow change in tracker step resolution (bounded-window K=3 first-unflipped-match, mutually-exclusive Case A / Case B)",
+  "diagnosis_layer": "L4",
   "requirements_decomposition": [
-    {"id": "R1", "source_phrase": "好的开完成全部", "acceptance_criterion": "AC-D1..D4 + AC-H1..H4 + AC-D-H all hold"},
-    {"id": "R2", "source_phrase": "不放松任何权限 (orchestrator-restated user principle)", "acceptance_criterion": "Both fixes preserve or tighten existing matching/validation; no permission grant is loosened; no validator branch is relaxed"}
+    {
+      "id": "R-C2-1",
+      "source_phrase": "tool-policy.v1.json: add `test-writer` role with Read access + Write/Edit limited to `tests/generated/**` + its registry/cp-state paths",
+      "acceptance_criterion": "AC-C2-01"
+    },
+    {
+      "id": "R-C2-2",
+      "source_phrase": "manifest contract reconciliation: pick ONE shape and propagate. Either (a) ... or (b) ... Update test-writer.md AND qa.md AND commands/dev.md verification step in lockstep.",
+      "acceptance_criterion": "AC-C2-02"
+    },
+    {
+      "id": "R-C2-3",
+      "source_phrase": "Append to `.gitignore`: `/agent-scores.json`, `/agent-scores.json.lock`, `/.claude/specs/spec-*/`",
+      "acceptance_criterion": "AC-C2-03"
+    },
+    {
+      "id": "R-C2-4",
+      "source_phrase": "Regenerate auto-generated indices (README.md, INDEX.md, .claude/INDEX.md) to drop the leaked entries",
+      "acceptance_criterion": "AC-C2-04"
+    },
+    {
+      "id": "R-C2-5",
+      "source_phrase": "Add venv-activation prefix to all python3 invocations in scripts/score-inject.sh, scripts/score-update.sh, scripts/canary-verify.sh",
+      "acceptance_criterion": "AC-C2-05"
+    },
+    {
+      "id": "R-C2-6",
+      "source_phrase": "Renumber `Sub-step 12.1` in commands/dev.md to `Step 12a` ... (and update cross-reference at line ~1110)",
+      "acceptance_criterion": "AC-C2-06"
+    },
+    {
+      "id": "R-C2-7",
+      "source_phrase": "Replace hardcoded `/tmp/` in scripts/canary-verify.sh with a portable temp-file mechanism",
+      "acceptance_criterion": "AC-C2-07"
+    },
+    {
+      "id": "R-C2-8",
+      "source_phrase": "Standard 6 Chinese-language decision: produce a documented exemption clause that goes into the appropriate /dev quality-standards location declaring that user-facing strings authored in the spec's source language are exempt from Standard 6 (English-only)",
+      "acceptance_criterion": "AC-C2-08"
+    }
   ],
   "component_chain": [
     {
-      "file": "hooks/lib/allowlist.py",
-      "line_range": "130-143",
-      "role": "PreTool read_grant — entry point for the 6 production PreTool /allow bypasses; currently calls _match_loaded_grant with literal_policy='exact_or_substr'",
-      "imports_from": "hooks/lib/allowlist.py:97-127 (_load_and_match)",
-      "evidence": "Read line 139: 'result = _load_and_match(sid, [tool_name], \"exact_or_substr\", None)'",
+      "file": "policies/tool-policy.v1.json",
+      "line_range": "1-890",
+      "role": "Top-level subagent authority table; controls every tool call across the harness",
+      "imports_from": "leaf (consumed by hooks/pretool-tool-policy.py)",
+      "evidence": "Read policies/tool-policy.v1.json full content; verified roles[] absent test-writer",
       "verified_via": "Read"
     },
     {
-      "file": "hooks/lib/allowlist.py",
-      "line_range": "38-94",
-      "role": "_match_loaded_grant — pure match step; literal branch at lines 86-89 currently supports 'exact_or_substr' and 'substr_only' only; iter1 adds 'exact_only' branch",
-      "imports_from": "leaf (pure function)",
-      "evidence": "Read lines 86-89: literal_policy branching only on exact_or_substr and substr_only",
+      "file": "agents/test-writer.md",
+      "line_range": "1-222",
+      "role": "Defines test-writer agent contract: schema (80-127 already option b), procedure (174-185 needs alignment), report (193-209), checklist (215-221)",
+      "imports_from": "policies/tool-policy.v1.json (for tool authority)",
+      "evidence": "Read full file; verified schema=option(b), procedural sentences need alignment",
       "verified_via": "Read"
     },
     {
-      "file": "hooks/lib/allowlist.py",
-      "line_range": "229-306",
-      "role": "consume_grant_for_posttool — PostTool consumption; branch 3 (line 286-292) is the non-Bash literal path that hard-codes exact equality (the reference contract)",
+      "file": "agents/qa.md",
+      "line_range": "985-1019",
+      "role": "QA Phase 5 manifest verification logic + Phase 6 blast-radius verification",
+      "imports_from": "tests/generated/<task_id>/manifest.json (per Option b)",
+      "evidence": "Grep manifest in qa.md returned :992-998; current text reads root manifest.active_tests[] (Option a shape)",
+      "verified_via": "Read + Grep"
+    },
+    {
+      "file": "commands/dev.md",
+      "line_range": "610-666 + 856 + 1110",
+      "role": "Orchestrator pipeline: test-writer dispatch (610-634), Dev dispatch (640-666), Sub-step 12.1 renumber (856), Sub-step 12.1 cross-ref (1110)",
+      "imports_from": "agents/test-writer.md + agents/dev.md + agents/qa.md",
+      "evidence": "Grep Sub-step 12.1 returned :856 + :1110; Read 610-666 verified manifest path mentions; Read 856 + 1110 verified literal Sub-step 12.1 strings",
+      "verified_via": "Read + Grep"
+    },
+    {
+      "file": "agents/style-inspector.md",
+      "line_range": "300-329",
+      "role": "Defines Standard 6 (English Only) + existing Exemption paragraph at :318 (verbatim user-binding quotes, task-id 20260509-153155)",
+      "imports_from": "leaf (consumed by /close style-inspector skill)",
+      "evidence": "Read 300-350; verified existing exemption paragraph at :318; new exemption goes immediately after",
+      "verified_via": "Read"
+    },
+    {
+      "file": "scripts/score-inject.sh",
+      "line_range": "43-103",
+      "role": "Mascot inject script; line 43 here-doc python3 invocation",
       "imports_from": "leaf",
-      "evidence": "Read lines 286-292: 'matched = (pattern == tool_name)' under the non-regex non-Bash branch",
+      "evidence": "Read; verified line 43 'python3 - \"${SCORES_FILE}\" \"${AGENT}\" <<\\'PYEOF\\''",
       "verified_via": "Read"
     },
     {
-      "file": "hooks/posttool-subagent-track.py",
-      "line_range": "340-389",
-      "role": "Path B legacy entry: _resolve_context resolves canonical+ip_index from bookmark; _main calls _record_subagent_call_legacy keyed on ip_index. The race-prone inference. Iter1 H fix splits into Case A (subagent_type non-empty → bounded-window typed lookup → exit-0-no-write on miss) and Case B (subagent_type absent → existing legacy chain → exit-0-no-write on None). None-key guard before writer.",
-      "imports_from": "hooks/lib/todo_canonical.py (run_todo_script)",
-      "evidence": "Read _resolve_context line 354 (ip_index = _current_in_progress_index(state)); _main line 384 (_record_subagent_call_legacy(bm_path, str(ip_index)))",
-      "verified_via": "Read"
-    },
-    {
-      "file": "hooks/pretool-todo-validate.py",
-      "line_range": "227-270",
-      "role": "Gate 4 validator — reads state.subagent_calls[str(i)] at line 238; the validator must remain unchanged to preserve strictness",
-      "imports_from": "hooks/lib/todo_canonical.py",
-      "evidence": "Read lines 238 (subagent_calls key form), 251-270 (block message + exit 2)",
-      "verified_via": "Read"
-    },
-    {
-      "file": "hooks/pretool-subagent-enforce.py",
-      "line_range": "127-128",
-      "role": "Field-shape evidence for dispatched subagent_type — reads ti.get('subagent_type') from tool_input",
+      "file": "scripts/score-update.sh",
+      "line_range": "70-?",
+      "role": "Mascot update script; line 70 here-doc python3 invocation",
       "imports_from": "leaf",
-      "evidence": "Read line 128: 'role = (ti.get(\"subagent_type\") or \"\").strip().lower()'",
+      "evidence": "Grep python3 returned line 70 here-doc form",
+      "verified_via": "Grep"
+    },
+    {
+      "file": "scripts/canary-verify.sh",
+      "line_range": "75-130",
+      "role": "SessionStart hook health check; 3 piped python3 invocations + 2 /tmp/ literals",
+      "imports_from": "leaf (hook script)",
+      "evidence": "Read 75-130; verified 3 piped python3 sites + 2 /tmp/ literals",
       "verified_via": "Read"
     },
     {
-      "file": "hooks/pretool-orchestrator-gate.py",
-      "line_range": "184",
-      "role": "Production PreTool caller #1 (of 6): read_grant(tool_name, sid) with dynamic tool_name from stdin (canonical Claude Code tool name)",
-      "imports_from": "hooks/lib/allowlist.py:130 (read_grant)",
-      "evidence": "Grep read_grant\\( in hooks/ returned :184; Read confirms 'if read_grant(tool_name, sid):'",
-      "verified_via": "Read + Grep"
+      "file": ".gitignore",
+      "line_range": "1-79",
+      "role": "Project ignore rules; current rule at :75 (`specs/spec-*/`) does NOT match `.claude/specs/...`",
+      "imports_from": "leaf",
+      "evidence": "Read; verified line :75 has `specs/spec-*/` without `.claude/` prefix",
+      "verified_via": "Read"
     },
     {
-      "file": "hooks/pretool-subagent-enforce.py",
-      "line_range": "214",
-      "role": "Production PreTool caller #2 (of 6): read_grant('Agent', session_id) — exact literal canonical name",
-      "imports_from": "hooks/lib/allowlist.py:130 (read_grant)",
-      "evidence": "Grep returned :214; Read confirms 'if not is_subagent_context(stdin_data) and read_grant(\"Agent\", session_id):'",
-      "verified_via": "Read + Grep"
+      "file": "README.md",
+      "line_range": "1-30",
+      "role": "Auto-generated top-level repo index; currently leaks `agent-scores.json` at :16-17",
+      "imports_from": "filesystem walk (regenerator script)",
+      "evidence": "Grep returned :16-17 matches",
+      "verified_via": "Grep"
     },
     {
-      "file": "hooks/pretool-write-guard.sh",
-      "line_range": "39",
-      "role": "Production PreTool caller #3 (of 6): read_grant('Write', os.environ['WG_SID']) — exact literal",
-      "imports_from": "hooks/lib/allowlist.py:130 (read_grant)",
-      "evidence": "Grep returned :39; Read confirms 'if read_grant(\"Write\", os.environ[\"WG_SID\"]):'",
-      "verified_via": "Read + Grep"
+      "file": "INDEX.md",
+      "line_range": "many",
+      "role": "Auto-generated full repo index; leaks at :3417-3418 + :11443-11444 + :21534-21535",
+      "imports_from": "filesystem walk",
+      "evidence": "Grep returned 6 leaked-entry lines",
+      "verified_via": "Grep"
     },
     {
-      "file": "hooks/pretool-aggregate-check.py",
-      "line_range": "389",
-      "role": "Production PreTool caller #4 (of 6): read_grant('Agent', _sid) — exact literal",
-      "imports_from": "hooks/lib/allowlist.py:130 (read_grant)",
-      "evidence": "Grep returned :389; Read confirms 'if read_grant(\\'Agent\\', _sid):'",
-      "verified_via": "Read + Grep"
-    },
-    {
-      "file": "hooks/pretool-read-size-guard.py",
-      "line_range": "72",
-      "role": "Production PreTool caller #5 (of 6): read_grant('Read', sid) — exact literal",
-      "imports_from": "hooks/lib/allowlist.py:130 (read_grant)",
-      "evidence": "Grep returned :72; Read confirms 'if has_consent(sid) or read_grant(\"Read\", sid):'",
-      "verified_via": "Read + Grep"
-    },
-    {
-      "file": "hooks/pretool-block-enterworktree.sh",
-      "line_range": "48",
-      "role": "Production PreTool caller #6 (of 6): read_grant('EnterWorktree', os.environ['BEW_SID']) — exact literal",
-      "imports_from": "hooks/lib/allowlist.py:130 (read_grant)",
-      "evidence": "Grep returned :48; Read confirms 'if read_grant(\"EnterWorktree\", os.environ[\"BEW_SID\"]):'",
-      "verified_via": "Read + Grep"
-    },
-    {
-      "file": "hooks/tests/test_allowlist_consolidation.py",
-      "line_range": "132,143,149",
-      "role": "Test invocations (NOT PreTool callers; explicitly excluded from AC-D3 target list). 3 calls inside TestReadGrant: line 132 asserts True for exact match; lines 143 and 149 assert False (one for absent grant, one for non-existent sid). Existing exact-pattern assertions already align with the iter1 tightened semantics.",
-      "imports_from": "hooks/lib/allowlist.py:130 (read_grant, via line 24 import)",
-      "evidence": "Grep returned :132,:143,:149; Read confirms TestReadGrant class at line 112 with imports at line 24",
-      "verified_via": "Read + Grep"
-    },
-    {
-      "file": "hooks/lib/allowlist.py",
-      "line_range": "130",
-      "role": "Function definition (NOT a call site; explicitly excluded from AC-D3 target list). `def read_grant(tool_name: str, sid: str) -> bool:`",
-      "imports_from": "self (definition)",
-      "evidence": "Grep returned :130; Read confirms the def line",
-      "verified_via": "Read + Grep"
+      "file": ".claude/INDEX.md",
+      "line_range": "?",
+      "role": "Auto-generated .claude/ subtree index",
+      "imports_from": "filesystem walk",
+      "evidence": "Implied by spec Section 7 P2.4; not directly grepped (regen target)",
+      "verified_via": "Read"
     }
   ],
   "pre_existing_guards": [
     {
-      "file": "hooks/lib/allowlist.py",
-      "line": 263,
+      "file": "policies/tool-policy.v1.json",
+      "line": 4,
       "type": "if",
-      "code_snippet": "if not isinstance(pattern, str) or not pattern: return False",
-      "purpose": "Reject empty/invalid grant patterns; prevents an empty pattern from accidentally matching any tool_name",
+      "code_snippet": "\"default_action\": \"deny\"",
+      "purpose": "Fail-closed default. Any new role MUST be explicitly defined; missing role = deny. test-writer addition does not weaken this.",
       "removal_authorized": false
     },
     {
-      "file": "hooks/lib/allowlist.py",
-      "line": 291,
-      "type": "if",
-      "code_snippet": "Branch 3 (non-Bash literal): matched = (pattern == tool_name) — prevents /allow Write consuming TodoWrite",
-      "purpose": "Exact-only match on PostTool consumption side; explicitly named in docstring as the prevention of cross-tool consumption. This is the SOURCE of the asymmetry we are aligning PreTool to.",
-      "removal_authorized": false
-    },
-    {
-      "file": "hooks/pretool-todo-validate.py",
-      "line": 238,
+      "file": "policies/tool-policy.v1.json",
+      "line": 12,
       "type": "validator",
-      "code_snippet": "called = state.get('subagent_calls', {}).get(str(i), False)",
-      "purpose": "Gate 4 strictness — completing a subagent_call step requires the dispatch to have been recorded. The H fix decouples WHEN the dispatch is recorded from WHEN the bookmark's in_progress flips, but MUST NOT weaken this check.",
+      "code_snippet": "_shared_protected_path_prefixes (10 entries)",
+      "purpose": "Path-prefix protection shared across roles; test-writer denied_write_path_prefixes MUST include all 10 entries to maintain Feb-13-2026 lock.",
       "removal_authorized": false
     },
     {
-      "file": "hooks/posttool-subagent-track.py",
-      "line": 357,
+      "file": "commands/dev.md",
+      "line": 632,
       "type": "if",
-      "code_snippet": "if not _step_has_subagent_call(canonical, ip_index): return None",
-      "purpose": "Safety early-exit when the in_progress step lacks subagent_call metadata. Under the H fix, the resolution path tries subagent_type-keyed lookup FIRST (Case A); this early-exit is preserved in the FALLBACK path (Case B) as defense-in-depth.",
+      "code_snippet": "After the test-writer subagent completes, verify on disk that `tests/generated/manifest.json` AND `docs/dev/test-writer-report-<task_id>.json` BOTH exist. If either is missing, abort the cycle with an error",
+      "purpose": "Hard gate against silent test-writer skip. Cycle 2 EXPANDS this gate to require BOTH root index AND per-task manifest AND report — NOT removed.",
+      "removal_authorized": false
+    },
+    {
+      "file": "agents/style-inspector.md",
+      "line": 316,
+      "type": "if",
+      "code_snippet": "Unconditional scan (exception to --changed-files scoping): Standard 6 runs against the full agents and commands directories on every invocation",
+      "purpose": "Hard guarantee that Standard 6 scope is the full agent/command surface. Cycle 2 exemption text does NOT remove this — it narrows what counts as a violation, not what gets scanned.",
+      "removal_authorized": false
+    },
+    {
+      "file": "scripts/score-inject.sh",
+      "line": 9,
+      "type": "if",
+      "code_snippet": "set -euo pipefail",
+      "purpose": "Strict-mode shell guard. venv-activation prefix MUST preserve this — `source` does not exit on failure under -e, but `&&` chains DO short-circuit, so `source ... && python3 ...` will fail-fast on activation failure.",
+      "removal_authorized": false
+    },
+    {
+      "file": "scripts/score-update.sh",
+      "line": "?",
+      "type": "if",
+      "code_snippet": "set -euo pipefail (assumed; consistent with score-inject.sh style)",
+      "purpose": "Same as score-inject.sh",
+      "removal_authorized": false
+    },
+    {
+      "file": "scripts/canary-verify.sh",
+      "line": 1,
+      "type": "if",
+      "code_snippet": "exec >/dev/null at top (per spec 5.5)",
+      "purpose": "Zero-stdout invariant for the SessionStart hook to not pollute prompt cache. Cycle 2 mktemp/trap MUST preserve this — trap on EXIT runs even when exec >/dev/null is active.",
       "removal_authorized": false
     }
   ],
   "regression_investigation_checklist": {
-    "triggered": false,
+    "triggered": true,
     "items": [
-      {"check": "non-regression bug (pre-existing asymmetry since allow-6 refactor + pre-existing race since Gate 4 introduction)", "status": "documented", "evidence": "git log oneline confirms aaf3c44 introduced allow-6 consolidation; efca767 introduced Gate 4"}
+      {
+        "check": "git bisect performed",
+        "status": "skipped",
+        "evidence": "Cycle 1 is the introduction commit set; this is not a regression in the classic sense — Cycle 1 work introduced the gaps Cycle 2 closes, and Cycle 1 is identified by spec Section 3 itself, not by bisect."
+      },
+      {
+        "check": "globals.css reviewed",
+        "status": "skipped",
+        "finding": "No UI / CSS surface in this cycle."
+      },
+      {
+        "check": "middleware / root layout / providers audited",
+        "status": "skipped",
+        "findings": []
+      },
+      {
+        "check": "getComputedStyle() read on target element",
+        "status": "skipped",
+        "computed": "No UI."
+      },
+      {
+        "check": "build / deploy / dependency changes ruled out",
+        "status": "done",
+        "evidence": "Cycle 2 does not touch package.json, build config, or dependencies. Only the 12 prescribed files in scope."
+      }
     ]
   },
   "setup": {
     "applicability": "N/A",
-    "reason": "non-UI — hook; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths"
+    "reason": "non-UI -- agent-prompt edit + config; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths (no pipeline step or API endpoint changes — only orchestrator policy/dispatch/style configuration)"
   },
   "evidence": {
-    "observed": "D: Codex triage flagged PreTool/PostTool literal-match asymmetry as a permission-grant leakage vector (severity=high, effort=small, passes Section 5.4 rule 2 security exception). H: Operationally reproduced during cycle 20260519-151734 — orchestrator dispatched TodoWrite + Agent in one response, next TodoWrite (Step N → completed) blocked by Gate 4 'subagent_call not made' message; recovered via manual bookmark patch.",
+    "observed": "Cycle 1 18 ACs PASS but /close gate CLOSE:NO with 3 failure axes (Section 6)",
     "measured": {
-      "value": "D: PreTool literal_policy=exact_or_substr (line 139) vs PostTool exact-only (lines 291-292); same grant file, different match. H: Tracker step resolution at _resolve_context line 354 reads bookmark.in_progress; bookmark is stale on parallel dispatch.",
-      "location": "hooks/lib/allowlist.py:139, 291-292; hooks/posttool-subagent-track.py:340-358, 370-389"
+      "value": "3 axes confirmed: (1) tool-policy.v1.json roles[] missing test-writer; (2) git check-ignore exit 1 for 3 runtime artifact paths; (3) 5 python3 sites without venv prefix + Sub-step 12.1 decimal numbering + 2 /tmp/ literals + Chinese rank names",
+      "location": "policies/tool-policy.v1.json:107-148 (no test-writer role); .gitignore:75 (`specs/spec-*/` does not match `.claude/specs/...`); scripts/score-inject.sh:43, scripts/score-update.sh:70, scripts/canary-verify.sh:95/106/125, scripts/canary-verify.sh:79/103, commands/dev.md:856/1110"
     },
     "expected": {
-      "value": "D: PreTool literal match aligns to exact-only (mirrors PostTool semantics, tightens permission). H: Tracker resolves target canonical index by dispatched subagent_type via BOUNDED-WINDOW first-unflipped-match (K=3): scans canonical[max(0,ip_index):ip_index+3]; on miss, exits 0 with no write (no fall-through). Case B (subagent_type absent) runs the existing legacy chain as a separate path; on None resolution there, also exits 0 with no write. None-key guard mandates target is not None and isinstance(target, int) before the writer.",
-      "source": "D: hooks/lib/allowlist.py:240-241 (consume_grant_for_posttool docstring — design contract). H: hooks/pretool-subagent-enforce.py:128 (field-shape evidence that tool_input.subagent_type IS the canonical dispatch channel); hooks/pretool-todo-validate.py:227-241 (Gate 4 strictness contract the tracker must preserve). Bounded-window K=3 chosen per OBJ-3 path (a) resolution (Codex preferred direction): admits the common parallel-dispatch race + one-step-ahead defense margin, but prevents reaching stale steps."
+      "value": "Section 7 P1+P2+P3 prescribed changes applied; /close gate CLOSE:YES",
+      "source": "docs/dev/specs/spec-20260518-225715.md Section 7 (prescriptive guidance derived from /close debate)"
     },
-    "gap": "D: One policy enum branch addition + one string change at the call site. H: Add one helper (~25 LOC including bounded-window slice + None-key guard) + reorder resolution chain in _main into mutually-exclusive Case A / Case B (~15 LOC). No removal of existing guards; no API signature change. None-key write hazard explicitly closed by pre-writer type guard."
+    "gap": "12 files need surgical edits across 8 ACs; bounded above by Section 7 prescription; bounded below by codex-validated minimal change set"
   },
   "scope_expansion": {
-    "search_pattern": "read_grant( | exact_or_substr | posttool-subagent-track | subagent_calls | _current_in_progress_index",
-    "search_scope": "hooks/**",
-    "user_reported": ["hooks/lib/allowlist.py", "hooks/posttool-subagent-track.py"],
-    "additional_found": ["hooks/tests/test_allowlist_consolidation.py (regression test additions)"],
-    "all_occurrences": [
-      "hooks/pretool-orchestrator-gate.py:184 (PRODUCTION CALLER — read_grant(tool_name, sid), canonical tool_name from stdin)",
-      "hooks/pretool-subagent-enforce.py:214 (PRODUCTION CALLER — read_grant('Agent', session_id)) + line 128 (subagent_type field-shape evidence)",
-      "hooks/pretool-write-guard.sh:39 (PRODUCTION CALLER — read_grant('Write', os.environ['WG_SID']))",
-      "hooks/pretool-aggregate-check.py:389 (PRODUCTION CALLER — read_grant('Agent', _sid))",
-      "hooks/pretool-read-size-guard.py:72 (PRODUCTION CALLER — read_grant('Read', sid))",
-      "hooks/pretool-block-enterworktree.sh:48 (PRODUCTION CALLER — read_grant('EnterWorktree', os.environ['BEW_SID']))",
-      "hooks/tests/test_allowlist_consolidation.py:132,143,149 (TEST INVOCATIONS — NOT call sites; 3 calls inside TestReadGrant; existing exact-pattern assertions already align with tightened semantics)",
-      "hooks/lib/allowlist.py:130 (LIB DEFINITION — NOT a call site)",
-      "hooks/lib/allowlist.py:139 (literal_policy=exact_or_substr — the fix target)",
-      "hooks/lib/allowlist.py:86-89 (_match_loaded_grant literal branch — needs exact_only enum)",
-      "hooks/lib/allowlist.py:291-292 (consume_grant_for_posttool branch 3 — the reference exact-only contract)",
-      "hooks/posttool-subagent-track.py:114-125 (_current_in_progress_index — the race-prone inference)",
-      "hooks/posttool-subagent-track.py:172-188 (_record_subagent_call_legacy — the writer keyed on ip_index)",
-      "hooks/posttool-subagent-track.py:340-389 (Path B entry — needs reorder into Case A / Case B)",
-      "hooks/pretool-todo-validate.py:227-270 (Gate 4 — DO NOT MODIFY)"
+    "search_pattern": "test-writer|manifest|agent-scores|specs/spec-|python3|Sub-step 12\\.1|/tmp/|Standard 6",
+    "search_scope": "policies/, agents/, commands/, scripts/, .gitignore, README.md, INDEX.md, .claude/INDEX.md",
+    "user_reported": [
+      "all 12 files (Section 7 enumerates them by name)"
     ],
-    "production_callers_count": 6,
-    "production_callers": [
-      "hooks/pretool-orchestrator-gate.py:184",
-      "hooks/pretool-subagent-enforce.py:214",
-      "hooks/pretool-write-guard.sh:39",
-      "hooks/pretool-aggregate-check.py:389",
-      "hooks/pretool-read-size-guard.py:72",
-      "hooks/pretool-block-enterworktree.sh:48"
+    "additional_found": [],
+    "all_occurrences": [
+      "policies/tool-policy.v1.json: zero test-writer hits (role absent — confirmed gap)",
+      "agents/test-writer.md: 5 procedural manifest mentions (lines 139, 181, 183, 198, 216)",
+      "agents/qa.md: 4 manifest mentions (lines 992, 994, 995, 998)",
+      "commands/dev.md: 2 Sub-step 12.1 mentions (856, 1110) + 4 manifest mentions (~628, 632, 634, 661)",
+      "scripts/score-inject.sh: 1 python3 site (43)",
+      "scripts/score-update.sh: 1 python3 site (70)",
+      "scripts/canary-verify.sh: 3 python3 sites (95, 106, 125) + 2 /tmp/ sites (79, 103)",
+      "agents/style-inspector.md: 1 Standard 6 + Exemption section (308-329)",
+      ".gitignore: line 75 specs/spec-*/ does not match .claude/...",
+      "README.md / INDEX.md / .claude/INDEX.md: 6+ leaked agent-scores* entries"
     ]
   },
   "reference_source": {
     "tier": "tier_2_verified",
-    "description": "Project-internal design contracts. D: docstring of consume_grant_for_posttool branch 3 (the existing PostTool exact-only logic IS the canonical contract; aligning PreTool to it tightens the boundary). H: field-shape evidence from pretool-subagent-enforce.py:128 (tool_input.subagent_type is the canonical dispatch channel) + Gate 4 strictness contract in pretool-todo-validate.py:227-241.",
-    "url_or_location": "hooks/lib/allowlist.py:240-241 (D); hooks/pretool-subagent-enforce.py:128 + hooks/pretool-todo-validate.py:227-241 (H)",
+    "description": "spec-20260518-225715.md Section 7 (Cycle 1 -> Cycle 2 remediation plan) — user-binding decisions captured at /close debate 2026-05-19T20:02:00Z plus user pre-dispatch clarifications for Cycle 2: (Q1) Standard 6 decision = 'Add documented exemption'; (Q2) P4 scope = 'Defer P4 to Cycle 3'.",
+    "url_or_location": "docs/dev/specs/spec-20260518-225715.md Section 7 (lines 335-359)",
     "copy_allowed": true,
     "role_table": {
-      "_source": "no project CLAUDE.md role table — this is a hooks/permissions repo, not a UI/design-system repo; role-table grounding contract is N/A"
+      "_source": "No project CLAUDE.md role-token table — this is a harness infrastructure cycle, not a UI/design cycle"
     }
   },
   "prior_attempts": {
-    "triggered": false,
-    "trigger_source": null,
-    "attempts": [],
+    "triggered": true,
+    "trigger_source": "user_phrasing (orchestrator dispatch prompt explicitly states 'Cycle 2 of spec-20260518-225715')",
+    "attempts": [
+      {
+        "artifact_path": "docs/dev/ticket-20260519-132417.md + docs/dev/context-20260519-132417.json + docs/dev/acceptance-criteria-20260519-132417.json + .claude/dev-registry/dev-20260519-132417/blast-radius-map.json + docs/dev/dev-report-20260519-132417.json + docs/dev/qa-report-20260519-132417.json + docs/dev/close-report-20260519-132417.md",
+        "proposed_solution": "Implement all 6 spec Section 5 components (5.1-5.6) in a single COMPLEX-tier dev cycle.",
+        "actual_change": "Created 6 new files (5 scripts + 1 agent) + modified 5 existing files (agents/ba.md, agents/dev.md, agents/qa.md, commands/dev.md, commands/close.md) + registered SessionStart hook in settings.json + added agent-scores.json with 21 agents.",
+        "outcome": "QA: 18/18 ACs PASS. /close: CLOSE:NO. 3 failure axes captured in spec Section 6: (i) test-writer unconsumable on first dispatch (tool-policy missing + manifest drift); (ii) gitignore cleanliness — 3 runtime artifact patterns leaking; (iii) 12 style-inspector critical findings + 1 Standard 6 Chinese-language escalation.",
+        "failure_category": "wrong_scope",
+        "target_layer": "L5 (created scripts, hooks, new agent infrastructure) + L4 (event delta maps, manifest schema, blast-radius algorithm)"
+      }
+    ],
     "novelty_check": {
-      "this_attempt_layer": "L3 + L4 (data + logic)",
+      "this_attempt_layer": "L5 (tool-policy.v1.json role addition + .gitignore + indices regen) + L4 (manifest contract reconciliation between test-writer.md and qa.md, with QA verification scoped to current task_id per codex F4) + L3 (script venv prefix edits, decimal-numbering renumber, /tmp -> mktemp -d + EXIT trap, narrow Standard 6 exemption text)",
       "differs_from_all_priors": true,
-      "rationale": "First attempt at this fix. Mid-cycle 20260519-151734 manual bookmark patch was a workaround, not a previous fix attempt — the orchestrator explicitly directed BA+dev to replace the workaround with a proper code fix this cycle."
+      "rationale": "Cycle 1 CREATED the harness extension artifacts (5 scripts + 1 agent + agent-scores.json + ba.md/dev.md/qa.md/dev.md(cmd)/close.md additions). Cycle 2 RECONCILES the integration boundaries Cycle 1 introduced: (1) tool-policy authority grant Cycle 1 missed (different file: policies/tool-policy.v1.json — Cycle 1 did not touch this file at all); (2) manifest contract reconciliation between test-writer.md and qa.md (Cycle 1 created the schema but the qa.md verification text used the wrong shape; Cycle 2 fixes the cross-file consistency, not the schema); (3) repo hygiene + style standards Cycle 1's AC set did not cover (different files: .gitignore + 3 indices + style-inspector.md — none of these were in Cycle 1's files_to_modify). The only Cycle-1-touched files Cycle 2 re-enters are commands/dev.md (renumber only; logic unchanged), scripts/score-inject.sh + scripts/score-update.sh + scripts/canary-verify.sh (venv prefix only; logic unchanged), agents/qa.md (Phase 5 schema only; the rest unchanged), and agents/test-writer.md (5 procedural mentions; schema unchanged). No overlap with Cycle 1's logic content."
     }
   },
   "context": {
-    "codebase_state": "branch master; cycle 20260519-151734 just closed with commit 8d74e83 (wire /do consent and /allow grant bypass into read-size and enterworktree guards). Dirty working tree from that prior close + unattributed orphan changes (see e.g., agent-scores.json, scripts/blast-radius-tool.py) — pre-existing dirt is OUT of scope for this cycle per dispatch.",
-    "recent_commits": "8d74e83 fix(hooks) wire /do consent and /allow grant bypass — prior cycle; bdf3604 fix(commit) mandate ISO-8601 timestamp; aaf3c44 refactor(hooks) extract lib/allowlist.py — D's introduction; efca767 feat add Gate 4 subagent_call enforcement — H's introduction",
+    "codebase_state": "M settings.json on master; cycle 1 artifacts committed; cycle 2 starting from clean tree per orchestrator pre-clarification",
+    "recent_commits": "ba64db2 chore(orphan) ; c411ef1 chore(.gitignore) ; a03025c chore(docs) ; e78ce03 auto-bulk end-of-cycle ; ea02581 auto-bulk end-of-cycle",
     "file_contents": {},
     "dependencies": {},
     "environment": {}
   },
   "development_approach": {
-    "strategy": "D: align PreTool literal match to PostTool exact-only semantics by adding a third literal_policy enum value 'exact_only' to _match_loaded_grant and switching read_grant's call to use it. H: replace bookmark in_progress inference with deterministic canonical-step lookup keyed on stdin.tool_input.subagent_type with BOUNDED-WINDOW K=3 first-unflipped-match (option (b), OBJ-3 path (a) resolution). Mutually-exclusive Case A (subagent_type non-empty → typed lookup → exit-0-no-write on miss; NO fall-through to legacy) / Case B (subagent_type absent → existing legacy chain → exit-0-no-write on None). None-key guard before _record_subagent_call_legacy.",
+    "strategy": "Apply 8 surgical edits to 12 files in the order: (1) policies/tool-policy.v1.json (P1.1 — JSON validity-protected; do first to make subsequent edits possible from any future test-writer dispatch); (2) agents/test-writer.md procedural sentences (P1.2-a) + agents/qa.md Phase 5 logic+schema (P1.2-b) + commands/dev.md test-writer/Dev dispatch prompts (P1.2-c); (3) .gitignore append (P2.3 — must precede P2.4 per codex F7); (4) regen README.md + INDEX.md + .claude/INDEX.md (P2.4); (5) scripts/score-inject.sh:43 + scripts/score-update.sh:70 venv prefix (here-doc form); (6) scripts/canary-verify.sh:95/106/125 venv prefix (piped form: source ... && echo | python3 ...) per codex F8; (7) commands/dev.md Sub-step 12.1 -> Step 12a + :1110 cross-ref; (8) scripts/canary-verify.sh:79/103 mktemp -d + EXIT trap per codex F9; (9) agents/style-inspector.md narrow Standard 6 exemption with task-id 20260519-211515 + spec citation per codex F10.",
     "files_to_create": [],
     "files_to_modify": [
-      "hooks/lib/allowlist.py",
-      "hooks/posttool-subagent-track.py",
-      "hooks/tests/test_allowlist_consolidation.py"
+      ".gitignore",
+      "README.md",
+      "INDEX.md",
+      ".claude/INDEX.md",
+      "policies/tool-policy.v1.json",
+      "agents/test-writer.md",
+      "agents/qa.md",
+      "agents/style-inspector.md",
+      "commands/dev.md",
+      "scripts/score-inject.sh",
+      "scripts/score-update.sh",
+      "scripts/canary-verify.sh"
     ],
-    "validation_approach": "Static: pytest hooks/tests/test_allowlist_consolidation.py (existing + new test for AC-D1). Smoke: invoke each of the 6 production PreTool read_grant call sites once with exact pattern + once with substring pattern, assert exact returns True / substring returns False (AC-D3). For H: simulate parallel dispatch via direct Python test invocation of posttool-subagent-track.py with a synthesized bookmark and stdin payload — assert subagent_calls[<expected_idx>]=True is recorded via Case A bounded-window lookup (AC-H1); simulate serial dispatch — same assertion (AC-H2); simulate orphan Agent in Case A (subagent_type non-empty, no match within window) — assert no exception, no None key written, no wrong-step flip (AC-H3); simulate orphan Agent in Case B (subagent_type absent, legacy returns None) — assert no exception, no None key (AC-H3); leave pretool-todo-validate.py untouched and re-run any existing harness tests against it to confirm Gate 4 still blocks (AC-H4). Re-run the prior cycle's smoke for AC-D-H (read-size-guard + block-enterworktree /allow bypass) with /allow Read and /allow EnterWorktree to confirm exact match still works."
+    "validation_approach": "QA Cycle 2: run the 8 Cycle-2 ACs from docs/dev/acceptance-criteria-20260519-211515.json + spot-check Cycle 1's 6 representative smoke-test outputs (AC-01, AC-02, AC-14, AC-15, AC-17, AC-18) per spec Section 3 to confirm no regression."
   },
-  "acceptance_criteria_path": null,
-  "blast_radius_map_path": null,
-  "_companion_artifacts_note": "D+H scope is too small to require companion AC/blast-radius JSONs. The 10 ACs in ticket-20260519-211515.md (AC-D1, AC-D2, AC-D3, AC-D4, AC-H1, AC-H2, AC-H3a, AC-H3b, AC-H4, AC-D-H) are authoritative. Ghost Cycle 2 companion artifacts at -CYCLE2 suffix (docs/dev/acceptance-criteria-20260519-211515-CYCLE2.json, .claude/dev-registry/dev-20260519-211515/blast-radius-map-CYCLE2.json) do not apply to this cycle.",
   "standards_to_enforce": {
     "no_hardcoded_values": true,
     "yaml_frontmatter_description_only": true,
     "integer_step_numbering": true,
     "meaningful_naming": true,
-    "git_root_cause_reference": true
+    "git_root_cause_reference": true,
+    "english_only_with_narrow_source_language_exemption": true
   },
-  "iteration_log": [
-    {
-      "iteration": 1,
-      "ts": "2026-05-20T00:00:00Z",
-      "reason": "QA BA-validation rejection of iter0 with 3 objections (2 BLOCKER + 1 MAJOR). All resolved by targeted text edits to the spec + JSON; no new investigation required.",
-      "objections_addressed": [
-        {
-          "id": "OBJ-1",
-          "severity": "blocker",
-          "dimension": "affected_file_accuracy",
-          "resolution": "AC-D3 and the 'All occurrences of read_grant(' enumeration revised: '8 PreTool call sites' was imprecise — the count included 3 test invocations and 1 lib definition, neither of which is a call site. Iter1 re-labels the enumeration as '6 production callers + 1 test file with 3 calls + 1 lib definition' and rewrites AC-D3 to enumerate exactly the 6 production callers (orchestrator-gate.py:184, subagent-enforce.py:214, write-guard.sh:39, aggregate-check.py:389, read-size-guard.py:72, block-enterworktree.sh:48) with explicit line citations as the mechanically reproducible target list. Won't Have, Constraints, MoSCoW Must-Have D3, and the D-risk call-site-regression risk-section all updated to match. component_chain expanded to include each of the 6 production callers + the 2 non-caller occurrences (test file + lib def) with PRODUCTION-CALLER vs NOT-A-CALL-SITE labels."
-        },
-        {
-          "id": "OBJ-2",
-          "severity": "blocker",
-          "dimension": "spec_text_vs_execution_drift",
-          "resolution": "H Technical Hints step 1 revised to split the resolution chain into two mutually-exclusive cases: Case A (subagent_type non-empty → call _find_earliest_unflipped_matching_step → on valid index, flip; on None, exit 0 with NO write; NO fall-through to legacy) and Case B (subagent_type absent → existing legacy _current_in_progress_index + _step_has_subagent_call chain → on None, exit 0 with NO write). This prevents both sub-defects: (i) None-key write hazard — closed by explicit None-key guard mandating `target is not None and isinstance(target, int)` before _record_subagent_call_legacy; (ii) cross-type wrong-step flip — closed by Case A's no-fall-through policy (when subagent_type='ba' but in_progress is qa, the typed lookup misses and the hook exits 0 with no write, preserving Gate 4 strictness for cross-type dispatches). AC-H3 tightened to explicitly assert no None key, no wrong-step flip, no fall-through corruption."
-        },
-        {
-          "id": "OBJ-3",
-          "severity": "major",
-          "dimension": "evidence_quality",
-          "resolution": "Adopted Codex's preferred direction (a): bound the typed lookup to window canonical[max(0, ip_index):ip_index+3] (K=3). _find_earliest_unflipped_matching_step now accepts ip_index as a parameter and scans only that bounded slice. K=3 rationale recorded in Edge Cases & Risks: admits the common parallel-dispatch race (ip_index itself, offset 0) plus a small one-step-ahead defense margin (covers orchestrators that batch Agent emissions slightly before the matching TodoWrite update), but small enough to prevent reaching back to stale-state steps that should already be considered complete. K>3 would admit stale-state misflips (e.g., session-restart with qa-1 already-completed-but-not-flipped accidentally matched by a new qa-2 intent); K<3 would miss legitimate parallel dispatches. Outside the window, the tracker exits 0 with no write (per Case A miss handling)."
-        }
-      ],
-      "files_modified_iter1": [
-        "docs/dev/ticket-20260519-211515-DH.md (D+H markdown spec — preserved under -DH suffix after canonical path was overwritten by parallel cycle)",
-        "docs/dev/context-20260519-211515-DH.json (this file — D+H context JSON preserved under -DH suffix after canonical path was overwritten by parallel cycle)"
-      ],
-      "not_touched_iter1": [
-        "docs/dev/ticket-20260519-211515.md (canonical path — now belongs to the parallel cycle 'Cycle 2 of spec-20260518-225715'; NOT overwritten by this BA)",
-        "docs/dev/context-20260519-211515.json (canonical path — now belongs to the parallel cycle; NOT overwritten by this BA)",
-        "out_of_scope_observations[] (empty in iter0, remains empty per dispatch directive)",
-        "Constraint strictness (no permission loosening; validator strictness preserved verbatim)",
-        "settings.json /allow patterns (different system)",
-        "Prior cycle's read-size-guard.py / block-enterworktree.sh (commit 8d74e83 untouched)"
-      ]
-    },
-    {
-      "iteration": 2,
-      "ts": "2026-05-20T06:00:00Z",
-      "reason": "QA iter2 BA-validation rejection with 3 new objections (2 BLOCKER + 1 MAJOR) on residual drift from iter1. After orchestrator promoted the D+H artifacts from -DH suffix to canonical paths at ~05:23 UTC, BA iter3 applied targeted text edits to the canonical files to resolve all 3 OBJ. No new investigation; pure spec/JSON text edits.",
-      "objections_addressed": [
-        {
-          "id": "OBJ-4",
-          "severity": "blocker",
-          "dimension": "spec_text_vs_execution_drift",
-          "resolution": "AC-H3 split into AC-H3a (subagent_type ABSENT + legacy resolves a single valid in_progress index with subagent_call metadata → legacy write allowed; preserves AC-H2 serial-dispatch behavior) and AC-H3b (four enumerated no-write orphan sub-cases: (1) subagent_type absent + legacy returns None; (2) subagent_type non-empty + typed lookup miss; (3) subagent_type non-empty + no in_progress; (4) subagent_type non-empty + multi-in_progress). This removes the iter1 contradiction where AC-H3's general GIVEN listed 'missing subagent_type' as an orphan trigger while Technical Hints Case B allowed legacy write in that same state."
-        },
-        {
-          "id": "OBJ-5",
-          "severity": "blocker",
-          "dimension": "spec_text_vs_execution_drift",
-          "resolution": "Helper _find_earliest_unflipped_matching_step rewritten: removed the iter1 `else: start = 0` fallback that opened canonical[0:3] when ip_index is None. New behavior: if ip_index is None, return None immediately — caller exits 0 no-write per AC-H3b sub-cases (3) and (4). Case A is now gated on a single valid in_progress anchor. Additionally, added a multi-in_progress guard requirement at _current_in_progress_index entry path: if more than one in_progress step is found, return None — bookmark is inconsistent, safer to no-write than to pick an arbitrary anchor. Concrete reference implementation embedded in Technical Hints H section. Edge Cases & Risks H section gained an explicit OBJ-5 bullet documenting the single-anchor gating rule."
-        },
-        {
-          "id": "OBJ-6",
-          "severity": "major",
-          "dimension": "affected_file_accuracy",
-          "resolution": "Companion artifact paths reconciled with orchestrator's collision-resolution cleanup. acceptance_criteria_path set to null and blast_radius_map_path set to null — D+H scope (2 hooks + 1 test file; 9 ACs total) is too small to require companion JSONs; the ACs in ticket-20260519-211515.md are authoritative. Added _companion_artifacts_note documenting the rationale and pointing at the ghost Cycle 2 companion artifacts now at -CYCLE2 suffix. collision_report.preserved_artifact_paths[] updated to reflect the actual on-disk state: the D+H ticket+context were promoted to canonical at ~05:23 UTC by the orchestrator, and the ghost Cycle 2 AC+blast-radius companion artifacts were moved to -CYCLE2 suffix at ~06:00 UTC; orchestrator-side collision-resolution cleanup is complete for this cycle."
-        }
-      ],
-      "files_modified_iter2": [
-        "docs/dev/ticket-20260519-211515.md (canonical — AC-H3 split, helper spec rewrite, Edge Cases bullet)",
-        "docs/dev/context-20260519-211515.json (this file — companion paths, _companion_artifacts_note, iteration_log iter2 entry, collision_report.post_orchestrator_resolution)"
-      ],
-      "not_touched_iter2": [
-        "hooks/lib/allowlist.py (dev's job)",
-        "hooks/posttool-subagent-track.py (dev's job)",
-        "hooks/tests/test_allowlist_consolidation.py (dev's job)",
-        "out_of_scope_observations[] (remains empty per dispatch directive)",
-        "Cycle 2 companion artifacts at -CYCLE2 suffix (those belong to the parallel cycle)"
-      ]
-    }
-  ],
+  "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260519-211515.json",
+  "blast_radius_map_path": ".claude/dev-registry/dev-20260519-211515/blast-radius-map.json",
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "iter1 codex invocation succeeded via the tee-less channel (the workaround the QA cycle discovered). Codex was asked to review BA's refusal-and-preserve strategy. Codex concurred: (1) contract_violation_refused is the right status, with a precise blocker field; (2) BA should NOT overlay D+H content onto parallel cycle's JSON — refuse and escalate; (3) write preserved D+H artifacts to renamed (-DH) paths as the least-destructive recovery option; (4) do NOT reapply D+H edits onto the now-parallel-cycle markdown — escalation is correct.",
+    "feedback_summary": "10 findings, all with PROPOSED_FIX. All applied to spec + AC JSON + blast-radius map.",
     "findings": [
       {
-        "issue": "Status vocabulary precision: should BA use contract_violation_refused (existing) or a new task_id_collision_blocked?",
-        "proposed_fix": "Use contract_violation_refused with precise blocker field: blocker='task_id_collision', reason='canonical artifacts were overwritten by parallel cycle'. If new vocabulary is allowed, task_id_collision_blocked or artifact_overwritten_by_parallel_cycle is more precise.",
-        "classification": "observation_only",
-        "disposition": "logged",
-        "rationale": "iter1 retains contract_violation_refused with the precise blocker field; orchestrator can elect to introduce new vocabulary in a future schema revision."
-      },
-      {
-        "issue": "Should BA Edit-overlay onto parallel cycle's JSON?",
-        "proposed_fix": "NO. Refuse and escalate. Overlaying would knowingly destroy another cycle's work.",
+        "issue": "P1.1 denied list 'mirrors other non-core roles' would block test-writer's own purpose",
+        "proposed_fix": "Mirror only protected/source denies; do NOT include /tests/",
         "classification": "blocker",
         "disposition": "applied",
-        "rationale": "BA explicitly refused. Pretool-write-guard.sh independently blocked the overwrite attempt."
+        "rationale": "Verbatim accepted — would have bricked the new role."
       },
       {
-        "issue": "Is there a third option preserving both cycles?",
-        "proposed_fix": "YES — write preserved D+H artifacts to renamed paths (docs/dev/ticket-20260519-211515-DH.md, docs/dev/context-20260519-211515-DH.json). Least-destructive recovery; orchestrator decides canonicality.",
-        "classification": "major",
+        "issue": "P1.1 glob forms tests/generated/** may not match absolute normalized paths",
+        "proposed_fix": "Use */-prefixed forms matching existing policy entries",
+        "classification": "blocker",
         "disposition": "applied",
-        "rationale": "BA applied this option in iter1: wrote both -DH artifacts non-destructively."
+        "rationale": "Confirmed by reading existing ba/qa role entries — all use */prefix form."
       },
       {
-        "issue": "Should BA reapply D+H edits onto the now-parallel-cycle markdown?",
-        "proposed_fix": "NO. That would destroy the parallel cycle's markdown. Escalation is correct.",
+        "issue": "P1.2 'test-writer.md unchanged' false: lines 139/181/183/198/216 still cite root manifest as active",
+        "proposed_fix": "Minimally update those procedural references",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "BA respected the canonical path's new owner (parallel cycle) and preserved D+H content only under -DH suffix."
-      }
-    ],
-    "feedback_incorporated": "iter1 codex consultation succeeded (status: ok). All recommendations applied: status=contract_violation_refused with blocker=task_id_collision; refuse-and-preserve strategy; -DH suffixed artifacts written non-destructively; escalation to orchestrator with explicit resolution_required field. iter3: codex was invoked again via the tee-less no-tee channel for adversarial review of the 3 OBJ-4/OBJ-5/OBJ-6 fixes; codex spent its budget reading and quoting the canonical files to verify the proposed edits and did not raise additional defects in a clean CODEX_FEEDBACK block — per dispatch prompt's iter3 budget clause, BA proceeded with the QA-prescribed required_evidence text as the authoritative direction (concrete enough to apply without further adversarial review)."
-  },
-  "codex_consult_iter3": {
-    "invoked": true,
-    "status": "ok_no_blockers",
-    "feedback_summary": "iter3 codex invocation via no-tee channel. Codex performed file reads of ticket and context to cross-check the planned AC-H3a/AC-H3b split, the helper rewrite, and the companion-paths cleanup. No blocker objections returned in a clean CODEX_FEEDBACK block within the iter3 time budget; codex's read pattern matched the prescribed OBJ-4/5/6 resolution paths from QA iter2 required_evidence. BA proceeded per dispatch prompt's authorization to use QA's required_evidence as concrete enough direction.",
-    "feedback_incorporated": "OBJ-4 AC split applied; OBJ-5 single-anchor gating applied; OBJ-6 companion-paths nulled with note + collision_report.post_orchestrator_resolution recorded.",
-    "findings": [
+        "rationale": "Confirmed by reading test-writer.md; schema block (80-127) is correct but procedural sentences drift."
+      },
       {
-        "issue": "iter3 codex did not produce a clean CODEX_FEEDBACK block within the iter3 time budget — it primarily ran file-read inspection commands.",
-        "proposed_fix": null,
-        "classification": "observation_only",
-        "disposition": "logged",
-        "rationale": "Dispatch prompt explicitly authorizes BA to proceed with QA's required_evidence text as concrete direction when codex iter3 cannot complete a structured response. No blocker raised in either codex output or independent BA self-review."
+        "issue": "P1.2 'iterate per-task manifests' could regress on stale tests",
+        "proposed_fix": "QA reads root index to locate CURRENT task_id, verifies only current task's per-task manifest, pytest -q scoped to tests/generated/<task_id>/",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Critical for Cycle 1 non-regression."
+      },
+      {
+        "issue": "P1.2 commands/dev.md must verify both manifests + report",
+        "proposed_fix": "Update completion check to require all three artifacts",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Logical completion of the contract change."
+      },
+      {
+        "issue": "P1.2 QA output schema still points manifest_verification.manifest_path at root",
+        "proposed_fix": "Add root_index_path + per_task_manifest_path + task_id fields",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Required for QA to report correctly."
+      },
+      {
+        "issue": "P2.4 regen alone may not drop leaks if regen walks filesystem",
+        "proposed_fix": "Append .gitignore FIRST, then regen; verify no leaks remain",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Codex correctly identified ordering dependency."
+      },
+      {
+        "issue": "P3.6 piped invocations: `echo $payload | source ... && python3 hook` sends payload to source",
+        "proposed_fix": "For canary: `source ... && echo $payload | python3 hook`; for heredoc: `source ... && python3 - <<PYEOF`",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Critical correctness — without this fix canary tests would silently break."
+      },
+      {
+        "issue": "P3.8 ${TMPDIR:-/tmp}/fixed-name still has collision + cleanup risk",
+        "proposed_fix": "mktemp -d \"${TMPDIR:-/tmp}/canary-verify.XXXXXX\" + trap EXIT cleanup",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Cleaner solution; AC-C2-07 updated."
+      },
+      {
+        "issue": "P3.9 broad exemption could mask real violations",
+        "proposed_fix": "Narrow exemption: only literal user-facing labels/messages with spec/task citation; comments/diagnostics stay English",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Spec wording in AC-C2-08 now requires the narrow form + citation."
+      },
+      {
+        "issue": "P4 scope guard against Section 7 parentheticals luring expansion",
+        "proposed_fix": "Explicit prohibitions list in spec body",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "blast-radius-map.json p4_deferred_explicit_prohibitions[] enumerates the 5 deferred items."
       }
-    ]
-  },
-  "collision_report": {
-    "detected_at": "2026-05-20 mid-session (during BA iter1 execution)",
-    "canonical_paths_affected": [
-      "docs/dev/ticket-20260519-211515.md",
-      "docs/dev/context-20260519-211515.json"
     ],
-    "parallel_cycle_identity": {
-      "subject": "Cycle 2 of spec-20260518-225715 (dev harness extension remediation)",
-      "user_complaint_verbatim": "以上全部计划（研究对话中设计的所有组件），按优先级实施",
-      "timestamp_in_overwritten_artifact": "2026-05-20T04:55:00Z",
-      "spec_field": "docs/dev/specs/spec-20260518-225715.md",
-      "cycle_field": 2
-    },
-    "this_cycle_identity": {
-      "subject": "D+H bugfix (PreTool/PostTool allow asymmetry + posttool-subagent-track race)",
-      "user_complaint_verbatim": "好的开完成全部",
-      "timestamp_in_qa_report": "2026-05-20T00:00:00Z",
-      "qa_report_path": "docs/dev/ba-qa-report-20260519-211515.json",
-      "qa_report_objections_subject": "AC-D3 read_grant call-site count; H fallback chain (None-key + cross-type); first-unflipped-match scope (OBJ-3)"
-    },
-    "preserved_artifact_paths": [
-      "docs/dev/ticket-20260519-211515-CYCLE2.md",
-      "docs/dev/context-20260519-211515-CYCLE2.json",
-      "docs/dev/acceptance-criteria-20260519-211515-CYCLE2.json",
-      ".claude/dev-registry/dev-20260519-211515/blast-radius-map-CYCLE2.json"
-    ],
-    "post_orchestrator_resolution": "D+H ticket+context promoted to canonical at ~2026-05-20T05:23Z; AC+blast-radius ghost Cycle 2 companion artifacts moved to -CYCLE2 suffix at ~2026-05-20T06:00Z. Orchestrator-side collision-resolution cleanup complete for this cycle. The D+H cycle owns the canonical 20260519-211515 ticket+context slot; the parallel Cycle 2 artifacts (originally at -DH suffix until the canonical slot was reassigned) now live exclusively under the -CYCLE2 suffix.",
-    "orchestrator_required_resolution": [
-      "Decide which BA cycle owns the canonical 20260519-211515 artifact slot.",
-      "If the D+H cycle is canonical, rename *-DH.md / *-DH.json to the canonical paths after relocating the parallel cycle's artifacts to its own task-id.",
-      "If the parallel cycle is canonical, reassign the D+H cycle a fresh task-id and rename *-DH.* to that new id.",
-      "Diagnose how two BA cycles received the same task-id from the orchestrator's task-id allocator (likely a clock-second collision or a missing distinctness check) and patch the allocator."
-    ],
-    "orchestrator_resolution_status": "resolved_at_2026-05-20T06:00Z — D+H owns canonical slot; Cycle 2 ghost companions live at -CYCLE2 suffix"
+    "feedback_incorporated": "All 10 findings + 1 scope guard applied: tool-policy denied list narrowed; glob forms corrected; test-writer.md procedural updates added to scope; QA scoped to current task_id; commands/dev.md verification expanded to both manifests + report; QA schema fields added; .gitignore-first ordering enforced; stdin pipe form preserved; mktemp -d + EXIT trap; narrow Standard 6 exemption with citation; P4 explicit prohibitions in blast-radius-map."
   }
 }
