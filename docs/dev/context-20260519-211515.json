@@ -76,6 +76,7 @@
     "hooks/posttool-allowlist-consume.py",
     "hooks/stop-cleanup-allowlist.sh",
     "hooks/tests/test_allowlist_consolidation.py",
+    "hooks/tests/test_push_sentinel_abort.sh",
     "hooks/push.sh",
     "CLAUDE.md",
     "commands/commit.md",
@@ -85,6 +86,7 @@
     "agents/push-analyst.md",
     "agents/qa.md",
     "agents/ba.md",
+    "agents/changelog-analyst.md",
     "docs/dev/specs/spec-20260520-044700.md"
   ],
   "spec_path": null,
