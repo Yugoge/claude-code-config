@@ -331,8 +331,9 @@
       {"issue": "Priority order semantics", "proposed_fix": null, "classification": "observation_only", "disposition": "logged", "rationale": "Codex confirmed priority is informational for sequencing, not AC numbering."}
     ],
     "feedback_incorporated": "5 blocker/major findings applied to expand R1, R2, R5, R7, R10. 5 observation_only findings logged. Codex output archived at /tmp/codex-ba-redev-output.txt. Codex session id: 019e445f-00f6-7080-9f08-705fd307d486."
-  },
-  "__LEGACY_QUARANTINE__": "Fields below are stale content from a hijacked task-id slot. Dev and QA MUST disregard. Preserved only because subagent Write cannot overwrite existing files.",
+  }
+}
+
   "_legacy_acceptance_criteria_path": "docs/dev/acceptance-criteria-20260519-211515.json",
   "_legacy_blast_radius_map_path_null": null,
   "_legacy_affected_files": [
