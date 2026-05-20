@@ -29,9 +29,10 @@
     "default_safe_contract": "Findings with introduced_in_diff:true are NEW-in-this-diff. Findings with introduced_in_diff:false are pre-existing/advisory/non-blocking. Round 2: 'introduced_in_diff' covers the SAME cycle's combined fix-forward diff (round-1 + round-2 deltas both count as in-diff)."
   },
   "context": {
-    "task_lineage": "Re-close inspection of the SAME 3-file diff under NEW collision-resistant task-id 20260520-085647-d1722b (transferred from 20260519-211515 after 4 rounds of task-id collision).",
-    "prior_blocker_status": "RESOLVED — `_resolve_context` dead function has been DELETED from hooks/posttool-subagent-track.py. AST FunctionDef scan confirms no `_resolve_context` exists. Only an audit comment at L440-442 remains: '# NOTE: `_resolve_context` removed by cycle 20260519-211515 close cleanup' — intentional historical breadcrumb. The prior CLOSE: NO blocker (dead_functions._resolve_context, blocks_close:true) is no longer applicable.",
-    "diff_state": "All 3 files already committed in 28a1e85 (`feat(hooks): allowlist consolidation + push-sentinel + AC verify suite`); working-tree diff against HEAD is empty. Inspector scope is the as-committed content of the H-restructure cycle."
+    "task_lineage": "Round 2 re-close inspection. Round 1 had 5 findings (1 pre-existing, 4 NEW minor) on the 3 hooks files. Round 2 adds the round-2 fix-forward delta (new helper script + commit.md Step 3 1-line replacement) and surfaces 3 NEW findings from that delta plus 1 numeric correction to a carried-forward finding.",
+    "prior_blocker_status_round1": "RESOLVED — `_resolve_context` dead function DELETED from hooks/posttool-subagent-track.py. AST FunctionDef walk confirms no `_resolve_context` exists. Only an audit comment at L440-442 remains (intentional historical breadcrumb, codex-confirmed acceptable).",
+    "prior_close_no_reason_round1": "RESOLVED — round-1 CLOSE: NO was triggered by /commit Standard 1: a 16-line inline bash path-walk in commands/commit.md Step 3 violated the orchestrator-prompt-purity / no-inline-helper principle. Round-2 fix-forward extracted that block into scripts/resolve-close-report.sh and replaced it with a 1-line invocation. Verified in this report's verifications.round2_fix_forward_validation.commit_md_step3_change.",
+    "diff_state": "Working-tree diff vs HEAD: commands/commit.md (modified Step 3, +5/-2 lines net), scripts/resolve-close-report.sh (untracked NEW file, 32 lines), scripts/INDEX.md + scripts/README.md auto-bumped with the new entry. The 3 hooks files are unchanged from round 1 (already committed in 28a1e85)."
   },
   "findings": {
     "misplaced_docs": [],
