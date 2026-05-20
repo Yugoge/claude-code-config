@@ -319,7 +319,11 @@
       "agents/push-analyst.md",
       "agents/qa.md",
       "agents/ba.md",
+      "agents/changelog-analyst.md",
       "docs/dev/specs/spec-20260520-044700.md"
+    ],
+    "files_to_create": [
+      "hooks/tests/test_push_sentinel_abort.sh"
     ],
     "validation_approach": "QA runs the file-content-grep recipes declared in each AC of docs/dev/ticket-20260519-211515.md. No long-lived child process spawning (per R10 spirit). For R7, QA additionally runs jq queries against policies/tool-policy.v1.json to verify Skill in 9 role entries + policy_version=3."
   },
