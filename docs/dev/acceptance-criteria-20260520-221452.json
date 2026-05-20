@@ -241,11 +241,11 @@
     },
     {
       "id": "AC-07",
-      "ac_uid": "4b439f79c3763889",
+      "ac_uid": "PENDING_RECOMPUTE",
       "type": "hook",
-      "given": "dev has run `git rm --cached -- agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/` to satisfy M-P2.3 .gitignore (derived-work cleanup; .gitignore is a no-op for already-tracked paths)",
-      "when": "(a) `git ls-files agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/` is run; (b) for each path P enumerated by `git ls-tree -r HEAD -- agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/`, the working-tree file P MUST exist AND its content blob SHA MUST equal HEAD:P (proving --cached preserved both presence and bit-identical content)",
-      "then": "stdout from (a) is empty AND exit 0; for every path P enumerated by (b), the working-tree file exists and `git hash-object P` equals `git rev-parse HEAD:P` — proving dev used --cached and did not accidentally truncate or alter any working-tree file",
+      "given": "dev has removed the three targets from the git index while preserving working-tree files — canonical form `git rm -r --cached -- agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/` (the `-r` flag is REQUIRED because `.claude/specs/spec-20260518-225715/` is a directory). This is derived-work cleanup necessary because M-P2.3 .gitignore is a no-op for already-tracked paths. Equivalent index operations (e.g. `git update-index --force-remove`) that achieve the same end state are acceptable — AC verifies end state, not literal command",
+      "when": "(a) `git ls-files agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/` is run; (b) for each path P enumerated by `git ls-tree -r HEAD --name-only -- agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/`, the working-tree path P is queried for EXISTENCE only",
+      "then": "stdout from (a) is empty AND exit 0; for every path P enumerated by (b), the working-tree copy MUST still exist — proving `--cached` preserved presence. Bit-identical content equality is NOT asserted because cp-state-qa.json and agent-scores.json are inherently mutable runtime telemetry that drifts from HEAD via every spec-check.py / score-update.sh / score-inject.sh invocation (verified live 2026-05-20T23:50Z: both already drift from HEAD before dev acts). Asserting SHA equality would unfairly fail compliant dev work (OBJ-11 fix per QA iter-2). The tradeoff: content-destruction (e.g. accidental truncation) is not detected by this AC; that tradeoff is intentional and is the only safe ground-truth available without a pre-dev baseline",
       "check": {
         "checks": [
           {
@@ -271,23 +271,24 @@
             ]
           },
           {
-            "_check_id": "AC-07.per_path_survival_and_content_match",
+            "_check_id": "AC-07.per_path_existence_only",
             "script": "bash",
             "args": [
               "-c",
-              "set -eu; PATHS=$(git ls-tree -r HEAD --name-only -- agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/); FAIL=0; while IFS= read -r p; do [ -z \"$p\" ] && continue; if [ ! -f \"$p\" ]; then echo \"MISSING_WORKING_TREE: $p\" >&2; FAIL=1; continue; fi; head_sha=$(git rev-parse \"HEAD:$p\"); wt_sha=$(git hash-object -- \"$p\"); if [ \"$head_sha\" != \"$wt_sha\" ]; then echo \"CONTENT_DRIFT: $p (head=$head_sha wt=$wt_sha)\" >&2; FAIL=1; fi; done <<< \"$PATHS\"; exit $FAIL"
+              "set -eu; PATHS=$(git ls-tree -r HEAD --name-only -- agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/); FAIL=0; MISSING=\"\"; while IFS= read -r p; do [ -z \"$p\" ] && continue; if [ ! -e \"$p\" ]; then MISSING=\"$MISSING $p\"; FAIL=1; fi; done <<< \"$PATHS\"; if [ \"$FAIL\" -ne 0 ]; then echo \"MISSING_WORKING_TREE:$MISSING\" >&2; fi; exit $FAIL"
             ],
             "assertions": [
               {
                 "property": "exit_code",
                 "match": "equals",
                 "value": 0,
-                "description": "For EVERY path previously tracked at HEAD under the three targets, the working-tree copy survives AND its content SHA matches HEAD — proving --cached preservation across the entire set, not just one cp-state file"
+                "description": "For EVERY path previously tracked at HEAD under the three targets, the working-tree copy MUST still exist (test `-e`). Content drift is NOT checked — cp-state-qa.json and agent-scores.json are inherently mutable runtime telemetry that drifts from HEAD before dev acts (this is the OBJ-11 fix; QA iter-2 verified empirical drift)."
               }
             ]
           }
         ],
-        "_scope_label": "DERIVED_WORK: necessary side-effect of M-P2.3 .gitignore append on already-tracked files; not a separate user-stated requirement. Cross-reference: out_of_scope_observation #1 in ba-qa-report-20260520-221452.json flags orchestrator awareness."
+        "_scope_label": "DERIVED_WORK: necessary side-effect of M-P2.3 .gitignore append on already-tracked files; not a separate user-stated requirement. Cross-reference: out_of_scope_observation #1 in ba-qa-report-20260520-221452.json flags orchestrator awareness.",
+        "_obj11_note": "iter-3 replaces prior per_path_survival_and_content_match (SHA equality) with per_path_existence_only because cp-state-qa.json and agent-scores.json are mutable runtime telemetry that drifts from HEAD even before dev acts — SHA equality would unfairly fail compliant dev work. The intentional tradeoff: content-destruction is not detected; OBJ-11 codex review accepts this as the only safe ground-truth without a pre-dev baseline."
       },
       "testability": "automated",
       "primary_cause_attribution_hint": null
