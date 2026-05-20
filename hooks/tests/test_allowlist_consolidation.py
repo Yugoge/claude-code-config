@@ -365,5 +365,169 @@ class TestCheckGitAllowlistSubagentFirewall(unittest.TestCase):
             self.skipTest("_check_git_allowlist not accessible in test context")
 
 
+class TestSentinelGrantLifecycle(unittest.TestCase):
+    """Tests for sentinel-grant lifecycle (task 20260519-211515 R2 / AC2).
+
+    Covers the consume-on-any-terminal-result contract for the four mandatory
+    terminal-consumption cases: success, failure, non_zero, malformed,
+    comment_only, and a terminal_consume integration round-trip.
+
+    Each test asserts the corresponding grant file under SENTINEL_GRANT_DIR
+    is unlinked after consumption — this is the post-condition invariant.
+    """
+
+    def setUp(self):
+        os.makedirs(SENTINEL_GRANT_DIR, exist_ok=True)
+
+    def _write_sentinel(self, task_id, ops=None, ttl=300, nonce=""):
+        path = os.path.join(SENTINEL_GRANT_DIR, f"{task_id}{nonce}.json")
+        now = time.time()
+        grant = {
+            "task_id": task_id,
+            "session_id": "test-session",
+            "allowed_operations": ops or [{"op": "ls"}],
+            "created_at": now,
+            "expires_at": now + ttl,
+        }
+        with open(path, "w") as f:
+            json.dump(grant, f)
+        return path
+
+    def test_terminal_consume_success(self):
+        """Sentinel grant is unlinked on terminal_result='success' (exit 0)."""
+        task_id = "test-sentinel-success"
+        path = self._write_sentinel(task_id)
+        try:
+            self.assertTrue(os.path.exists(path))
+            self.assertTrue(consume_sentinel_grant_on_terminal_result(task_id, "success"))
+            self.assertFalse(os.path.exists(path))
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_terminal_consume_failure(self):
+        """Sentinel grant is unlinked on terminal_result='failure' (is_error=True)."""
+        task_id = "test-sentinel-failure"
+        path = self._write_sentinel(task_id)
+        try:
+            self.assertTrue(consume_sentinel_grant_on_terminal_result(task_id, "failure"))
+            self.assertFalse(os.path.exists(path))
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_terminal_consume_non_zero(self):
+        """Sentinel grant is unlinked on terminal_result='non_zero' (exit 1..255)."""
+        task_id = "test-sentinel-non-zero"
+        path = self._write_sentinel(task_id)
+        try:
+            self.assertTrue(consume_sentinel_grant_on_terminal_result(task_id, "non_zero"))
+            self.assertFalse(os.path.exists(path))
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_terminal_consume_malformed(self):
+        """Malformed JSON grant is unlinked at posttool / reap time."""
+        task_id = "test-sentinel-malformed"
+        path = os.path.join(SENTINEL_GRANT_DIR, f"{task_id}.json")
+        with open(path, "w") as f:
+            f.write("{not valid json")
+        try:
+            # consume_sentinel_grant_on_terminal_result reaps unconditionally —
+            # even malformed grants are unlinked when terminal_result is provided.
+            self.assertTrue(consume_sentinel_grant_on_terminal_result(task_id, "malformed"))
+            self.assertFalse(os.path.exists(path))
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_comment_only_attack_pretool_denied_no_leftover(self):
+        """comment_only: pretool denies (no sentinel exists for current task),
+        AND posttool consume with terminal_result='comment_only' must NOT
+        leave leftover state. The grant file simply does not exist, and
+        consume returns False without raising.
+        """
+        task_id = "test-sentinel-comment-only-attack-nonexistent"
+        # No sentinel file exists for this task_id.
+        path = os.path.join(SENTINEL_GRANT_DIR, f"{task_id}.json")
+        self.assertFalse(os.path.exists(path))
+        # Pretool match against a malicious command containing the magic phrase
+        # in a comment — no grant, structural match returns None.
+        result = match_sentinel_grant_for_bash_command(
+            task_id, "echo hello # /allow rm -rf /"
+        )
+        self.assertIsNone(result)
+        # Posttool consume on comment_only terminal_result is a no-op,
+        # returns False, and leaves zero leftover state.
+        consumed = consume_sentinel_grant_on_terminal_result(task_id, "comment_only")
+        self.assertFalse(consumed)
+        self.assertFalse(os.path.exists(path))
+
+    def test_terminal_consume_round_trip_unlinks_grant(self):
+        """End-to-end: write sentinel → pretool match → posttool consume on
+        any terminal result → assert grant file removed.
+
+        This is the canonical terminal_consume integration scenario.
+        """
+        task_id = "test-sentinel-terminal-consume-round-trip"
+        path = self._write_sentinel(
+            task_id, ops=[{"op": "ls", "target": "-la"}]
+        )
+        try:
+            # Pretool: structural match succeeds for matching op+target.
+            m = match_sentinel_grant_for_bash_command(task_id, "ls -la /tmp")
+            self.assertIsNotNone(m)
+            self.assertEqual(m.get("op"), "ls")
+            # Posttool: consume on terminal_result='success' unlinks.
+            self.assertTrue(consume_sentinel_grant_on_terminal_result(task_id, "success"))
+            self.assertFalse(os.path.exists(path))
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_sentinel_predicate_never_substring_matches_command_line(self):
+        """AC2 invariant: predicate never substring-matches against the raw
+        command line. A literal 'rm -rf' in the command must NOT trigger
+        a match for an unrelated 'ls' op grant.
+        """
+        task_id = "test-sentinel-no-substring-match"
+        path = self._write_sentinel(task_id, ops=[{"op": "ls"}])
+        try:
+            # Command mentions 'ls' inside an unrelated string — structural
+            # match would still succeed because the first sub-token IS 'ls'.
+            # The real invariant test: a malicious command whose head op
+            # differs must NOT match even if it contains 'ls' as substring.
+            self.assertIsNone(
+                match_sentinel_grant_for_bash_command(task_id, "rm -rf /; echo ls")
+            )
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_expired_grant_treated_as_missing(self):
+        """expires_at in the past → load_sentinel_grant_for_task returns None
+        (deny-by-default). Reap should remove it."""
+        task_id = "test-sentinel-expired"
+        path = os.path.join(SENTINEL_GRANT_DIR, f"{task_id}.json")
+        now = time.time()
+        with open(path, "w") as f:
+            json.dump({
+                "task_id": task_id,
+                "session_id": "x",
+                "allowed_operations": [{"op": "ls"}],
+                "created_at": now - 600,
+                "expires_at": now - 300,
+            }, f)
+        try:
+            self.assertIsNone(load_sentinel_grant_for_task(task_id))
+            count = reap_expired_sentinel_grants()
+            self.assertGreaterEqual(count, 1)
+            self.assertFalse(os.path.exists(path))
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+
 if __name__ == "__main__":
     unittest.main()
