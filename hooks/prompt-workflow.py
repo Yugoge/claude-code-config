@@ -727,7 +727,7 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     if cmd_name == 'dev-overnight':
         end_time, focus, spec_path, codex_required = parse_overnight_args(user_input)
         create_overnight_state(end_time, focus, spec_path=spec_path, session_id=sid, codex_required=codex_required)
-    if cmd_name in ('dev', 'dev-command'):
+    if cmd_name in ('dev', 'dev-command', 'redev'):
         dev_session_id = _init_dev_registry(cmd_name, user_input, sid, PROJECT_DIR)
         codex_active = '--codex' in user_input.split()
         req_doc = f'docs/dev/user-requirement-{dev_session_id}.md'
@@ -735,8 +735,6 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
         print(f'User requirement document: {req_doc}')
         print(f'E2E enforcement: ACTIVE')
         print(f'Codex enforcement: {"ACTIVE (--codex)" if codex_active else "inactive"}')
-    if cmd_name == 'redev' and '--codex' in user_input.split():
-        _activate_codex_for_redev(sid, PROJECT_DIR)
     emit_checklist_message(cmd_name, todos)
 
 
