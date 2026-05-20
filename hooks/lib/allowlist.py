@@ -88,6 +88,8 @@ def _match_loaded_grant(
         else:
             if literal_policy == "exact_or_substr":
                 matched = pattern == cand or pattern in cand
+            elif literal_policy == "exact_only":
+                matched = pattern == cand
             else:  # substr_only
                 matched = pattern in cand
 
