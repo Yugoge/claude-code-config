@@ -1018,6 +1018,38 @@ Compare:
 
 Verdict impact: declarations missing for a critical-severity gap (hooks/ or new-file with no prior coverage) is itself critical and blocks PASS.
 
+### Verification harness cleanup contract (MANDATORY)
+
+Any QA verification recipe that spawns a background child process (playwright-mcp,
+codex CLI in background, headless browser, daemon) MUST install
+`trap '<cleanup>' EXIT INT TERM` BEFORE spawning. The canonical idempotent-cleanup
+pattern is:
+
+```bash
+PID=""
+trap 'if [ -n "${PID}" ]; then kill -TERM "${PID}" 2>/dev/null; wait "${PID}" 2>/dev/null; fi' EXIT INT TERM
+<spawn-command> &
+PID=$!
+# ... use $PID ...
+```
+
+The structural ordering is REQUIRED: `PID=""` pre-init → `trap` referencing the
+double-quoted runtime `"${PID}"` with EXIT INT TERM → background-spawn assigning
+`PID=$!`. The runtime double-quoted `"${PID}"` (rather than single-quoted body
+that captures the value before spawn) is what makes the trap idempotent — the
+trap body re-reads `PID` at fire time, so cleanup targets the actual spawned
+process, not a stale value.
+
+**DO NOT clauses (codex CF-08, binding):**
+- DO NOT use this cleanup pattern to clean files outside the verification recipe's own temp artifacts
+- DO NOT bypass any PreToolUse / PostToolUse / Stop hook in the cleanup path
+- DO NOT broadcast signals to PIDs the recipe did not itself spawn (no `pkill -f`, no `killall`)
+- DO NOT edit `docs/dev/specs/spec-20260520-044700.md` to add or modify content; the file is frozen per user binding directive
+
+The cleanup contract lands at agent-template level (this file + `agents/ba.md`)
+ONLY — future BA specs inherit it by construction. The frozen spec
+`docs/dev/specs/spec-20260520-044700.md` is OFF-LIMITS per user requirement line 76.
+
 ### Step 12: Verify Permissions
 
 **CRITICAL**: Check that dev specified correct permissions for new functionality.
