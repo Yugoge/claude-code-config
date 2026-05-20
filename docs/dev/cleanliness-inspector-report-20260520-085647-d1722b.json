@@ -155,22 +155,32 @@
   },
   "verifications": {
     "_resolve_context_removed": {
-      "method": "AST FunctionDef walk + grep across hooks/",
-      "result": "PASS — no FunctionDef named _resolve_context exists in hooks/posttool-subagent-track.py. Two textual references remain: (a) audit comment at L440-442 (intentional historical breadcrumb, project convention permits removal-trail comments), (b) backward-doc reference inside _resolve_base_context docstring at L417 (explicitly worded 'replaces the previous `_resolve_context` gate-and-bail pattern' — not stale, explains the supersession).",
-      "audit_comment_assessment": "ACCEPTABLE — intentional historical breadcrumb. 3-line comment trail aids future archaeology. Not cruft.",
+      "method": "AST FunctionDef walk + grep across hooks/ (re-verified in round 2)",
+      "result": "PASS — no FunctionDef named _resolve_context exists in hooks/posttool-subagent-track.py. Two textual references remain: (a) audit comment at L440-442 (intentional historical breadcrumb, codex-confirmed acceptable per round 2 item 8), (b) backward-doc reference inside _resolve_base_context docstring at L417 (explicitly worded 'replaces the previous `_resolve_context` gate-and-bail pattern' — not stale, explains the supersession).",
+      "audit_comment_assessment": "ACCEPTABLE — intentional historical breadcrumb. Codex re-confirmed in round 2: 'acceptable historical breadcrumb, not stale cruft.'",
       "backward_reference_assessment": "ACCEPTABLE — the docstring at L417 explicitly uses the word 'previous' and explains what replaced the removed helper. Deliberate cross-reference, not stale documentation."
+    },
+    "round2_fix_forward_validation": {
+      "method": "git diff inspection + ls -la mode check + grep ^set on peer scripts + AST walk on tests",
+      "commit_md_step3_change": "PASS — 16-line inline `CONTROL_ROOT=/root\\nCLOSE_REPORT=...` block replaced by 1-line `CLOSE_REPORT=\"$(bash ~/.claude/scripts/resolve-close-report.sh \"$TASK_ID\")\" || true`. The `|| true` is intentional: the helper exits 1 when no candidate exists while still emitting the fallback path on stdout for the downstream file-exists check. Codex confirmed commands/commit.md:54 is acceptable (round 2 codex item 4 OBSERVATION_ONLY).",
+      "new_helper_registration": "PASS — scripts/resolve-close-report.sh is registered in scripts/INDEX.md:71 (auto-generated entry), scripts/README.md:52 (auto-generated entry), and referenced by commands/commit.md:49 (documentation) and commands/commit.md:54 (invocation). Codex confirmed no missing registration (round 2 codex item 9).",
+      "new_helper_mode_drift": "FINDING (round-2 NEW) — mode 644, peer convention 755. Logged under non_functional_files[].",
+      "new_helper_set_flag_drift": "FINDING (round-2 NEW) — `set -u` only; peer convention `set -euo pipefail` (or similar). Logged under shell_conventions[].",
+      "new_helper_comment_vs_code_drift": "FINDING (round-2 NEW) — comment claims 'subproject path-walk' but implementation is hard-coded 3-candidate probe. Logged under historical_docs[].",
+      "test_count_correction": "ACCEPTED (round-2 correction) — round-1 report said TestSentinelGrantLifecycle has 7 tests; round-2 AST walk verified 8 tests. Updated finding wording in historical_docs[] for L371-377."
     },
     "function_reference_audit": {
       "method": "AST FunctionDef enumeration + grep across hooks/, commands/, agents/, scripts/",
       "allowlist_py": "14 top-level symbols (1 NamedTuple class, 4 private helpers, 8 public functions, 1 module constant). All referenced — public functions across 2-9 external files; private helpers via internal calls within the same file or cross-module imports.",
       "posttool_subagent_track_py": "27 top-level functions after H restructure. All referenced internally by _main or its callees. No dead helpers remain.",
-      "test_allowlist_consolidation_py": "All TestCase classes/methods auto-discovered by unittest. Referenced by hooks/tests/_final_sweep.sh and project index files."
+      "test_allowlist_consolidation_py": "All TestCase classes/methods auto-discovered by unittest. Referenced by hooks/tests/_final_sweep.sh and project index files.",
+      "resolve_close_report_sh": "1 function-less bash script. Single call site at commands/commit.md:54. Documentation refs at commands/commit.md:49, scripts/INDEX.md:71, scripts/README.md:52."
     },
     "no_other_cleanliness_violations": {
       "temp_files": "none in scope",
       "backup_files": "none in scope",
-      "naming_conventions_overall": "consistent — sentinel-grant lifecycle uses verb_object_for_context() pattern; tests use TestX class + test_x method convention. One naming-vs-visibility friction noted in naming_violations[] (pre-existing).",
-      "duplicate_content": "none — all 3 files have distinct purposes (lib helper, runtime hook, unit tests)"
+      "naming_conventions_overall": "consistent — sentinel-grant lifecycle uses verb_object_for_context() pattern; tests use TestX class + test_x method convention; new bash script uses kebab-case filename matching peer convention. One naming-vs-visibility friction noted in naming_violations[] (pre-existing).",
+      "duplicate_content": "none — all 5 files have distinct purposes (lib helper, runtime hook, unit tests, command spec, new helper script)"
     }
   },
   "summary": {
