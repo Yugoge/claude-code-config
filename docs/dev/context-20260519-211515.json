@@ -87,9 +87,9 @@
     "agents/push-analyst.md",
     "agents/qa.md",
     "agents/ba.md",
-    "agents/changelog-analyst.md",
-    "docs/dev/specs/spec-20260520-044700.md"
+    "agents/changelog-analyst.md"
   ],
+  "_affected_files_iter3_note": "iter-3 removed 'docs/dev/specs/spec-20260520-044700.md' from this list per BA-QA iter-1 OBJ-1 (user requirement line 76: frozen spec must NOT be modified). AC10 V4 enforces zero diff against d988d4a. The trap-cleanup contract for R10 lands only at agent-template level.",
   "spec_path": null,
   "ticket_path": "docs/dev/ticket-20260519-211515.md",
   "scope_boundary": {
