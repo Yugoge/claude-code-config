@@ -12,19 +12,24 @@
   "prior_round_3_file_audit_carried_forward": "_resolve_context removed from posttool-subagent-track.py (was at line 440 in pre-cleanup baseline); audit comment '_resolve_context removed by cycle 20260519-211515 close cleanup' now at lines 440-442. Prior 3 files (allowlist.py / posttool-subagent-track.py / test_allowlist_consolidation.py) UNCHANGED this round; their verdict (0 critical, 2 advisories) carries forward.",
   "scope": {
     "mode": "changed-files",
-    "files_audited": [
+    "files_audited_this_round": [
+      "scripts/resolve-close-report.sh",
+      "commands/commit.md"
+    ],
+    "files_unchanged_from_prior_close": [
       "hooks/lib/allowlist.py",
       "hooks/posttool-subagent-track.py",
       "hooks/tests/test_allowlist_consolidation.py"
     ],
+    "files_unchanged_audit_disposition": "Prior style-inspector audit verdict (0 critical, 2 advisories on the 3 original files) carried forward unchanged; those files were not re-read this round per OUT_OF_SCOPE contract from the orchestrator.",
     "ac_basis": "close.md AC-2.6 cleanliness-of-THIS-diff scoping; line-level default-safe rule",
-    "diff_stats_reference": {
+    "pre_diff_baseline_method": "scripts/resolve-close-report.sh: NEW file (git show HEAD:scripts/resolve-close-report.sh errored 'exists on disk but not in HEAD' - acceptable; all 32 lines are introduced_in_diff=true). commands/commit.md: git diff HEAD vs working tree (5 prose lines inserted + 2-line code-block replaced with 1-line invocation, lines 47-54 are the changed-line range).",
+    "previously_in_scope_diff_stats": {
       "files_changed": 3,
       "lines_added": 217,
       "lines_removed": 22,
-      "source": "docs/dev/dev-report-20260519-211515.json diff_stats"
-    },
-    "pre_diff_baseline_method": "git show HEAD:<path> for each of the 3 files"
+      "source": "docs/dev/dev-report-20260519-211515.json diff_stats (prior round; unchanged)"
+    }
   },
   "standards_evaluated": [
     {
