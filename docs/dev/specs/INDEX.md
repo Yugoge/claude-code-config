@@ -1,7 +1,7 @@
 # specs
 
-*Last updated: 2026-05-20T04:50:40Z*
-**Total entries**: 12
+*Last updated: 2026-05-20T22:12:41Z*
+**Total entries**: 13
 **Convention**: kebab
 
 ## Tree
@@ -18,7 +18,8 @@ specs/
 │   └── `split-qa-unresolved.json` - json config
 ├── `spec-20260517-210806.md` - Spec: Add working /push ending-workflow to clean.md (cleaner push-gate fix)
 ├── `spec-20260518-225715.md` - Spec: Dev Harness 扩展计划 — 工分系统、Test-Writer、Blast Radius、Executable AC、Canary
-└── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
+├── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
+└── `spec-20260520-221059.md` - Spec: Unresolved issues backlog from session 88dfdcea — TOP 3 cluster stranded by scope hot-swap + post-session confession
 ```
 
 ---
