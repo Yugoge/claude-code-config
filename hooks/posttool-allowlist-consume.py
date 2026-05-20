@@ -104,9 +104,15 @@ def main() -> None:
     )
     if task_id and tool_name == "Bash":
         try:
-            from lib.allowlist import match_sentinel_grant_for_bash_command  # noqa: E402
+            from lib.allowlist import (  # noqa: E402
+                match_sentinel_grant_for_bash_command,
+                load_sentinel_grant_for_task,
+                _enumerate_sentinel_grant_files,
+            )
         except Exception:
             match_sentinel_grant_for_bash_command = None
+            load_sentinel_grant_for_task = None
+            _enumerate_sentinel_grant_files = None
         terminal_result = _classify_terminal_result(data)
         should_consume = False
         if match_sentinel_grant_for_bash_command is not None:
@@ -115,9 +121,19 @@ def main() -> None:
                 if m is not None:
                     should_consume = True
             except Exception:
-                # Malformed grant counts as terminal_result='malformed' — consume.
                 should_consume = True
                 terminal_result = "malformed"
+        # Malformed-grant terminal case: a sentinel file exists for this task
+        # but load_sentinel_grant_for_task returned None (parse failure or
+        # expired). The AC2 contract requires unlink on malformed.
+        if (not should_consume) and load_sentinel_grant_for_task is not None \
+                and _enumerate_sentinel_grant_files is not None:
+            try:
+                if _enumerate_sentinel_grant_files(task_id) and load_sentinel_grant_for_task(task_id) is None:
+                    should_consume = True
+                    terminal_result = "malformed"
+            except Exception:
+                pass
         if should_consume:
             consume_sentinel_grant_on_terminal_result(task_id, terminal_result)
     sys.exit(0)
