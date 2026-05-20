@@ -173,7 +173,19 @@
       "Edit(.claude/commands/**)",
       "Write(.claude/agents/**)",
       "Write(.claude/commands/**)",
-      "Bash(source /root/.claude/venv/bin/activate && python /root/.claude/hooks/lib/close-verdict.py:*)"
+      "Bash(source /root/.claude/venv/bin/activate && python /root/.claude/hooks/lib/close-verdict.py:*)",
+      "Bash(scripts/score-update.sh:*)",
+      "Bash(scripts/score-inject.sh:*)",
+      "Bash(scripts/canary-verify.sh:*)",
+      "Bash(python3 scripts/blast-radius-tool.py:*)",
+      "Bash(~/.claude/scripts/score-update.sh:*)",
+      "Bash(~/.claude/scripts/score-inject.sh:*)",
+      "Bash(~/.claude/scripts/canary-verify.sh:*)",
+      "Bash(python3 ~/.claude/scripts/blast-radius-tool.py:*)",
+      "Write(tests/generated/**)",
+      "Edit(tests/generated/**)",
+      "Bash(pytest tests/generated:*)",
+      "Bash(source ~/.claude/venv/bin/activate && pytest tests/generated:*)"
     ],
     "deny": [
       "Read(.env)",
@@ -285,7 +297,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
-  "model": "sonnet",
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -306,6 +318,16 @@
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/session-promote-hook.sh\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/scripts/canary-verify.sh\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/session-tmpfs-banner.sh\"",
+            "timeout": 5
           }
         ]
       }
@@ -336,6 +358,15 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/userprompt-consent-allowlist.sh\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/userprompt-tmpfs-pressure.sh\"",
+            "timeout": 15
           }
         ]
       }
@@ -723,6 +754,6 @@
     ]
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
+  "effortLevel": "xhigh",
   "theme": "dark"
 }
