@@ -1,17 +1,18 @@
 {
   "schema_version": "1.0",
   "task_id": "20260520-221452",
-  "generated_at": "2026-05-20T22:14:52Z",
+  "generated_at": "2026-05-20T23:10:00Z",
+  "revision": "iter1 (post-QA OBJ-01..OBJ-10 remediation)",
   "spec_ref": "docs/dev/specs/spec-20260518-225715.md Section 7 (Cycle 2 remediation)",
   "ac_uid_algorithm": "sha256(type + given + when + then + json.dumps(check, sort_keys=True, separators=(',',':'), ensure_ascii=False))[:16]",
   "items": [
     {
       "id": "AC-01",
-      "ac_uid": "73ff256369d6dc34",
+      "ac_uid": "efbe5ef12975e7e7",
       "type": "data",
       "given": "policies/tool-policy.v1.json is parsed as JSON",
       "when": "the keys of .roles are enumerated",
-      "then": "one key MUST equal 'test-writer' AND value contains required fields (allowed_tools, allowed_write_path_prefixes with required globs, denied_write_path_prefixes, rationale)",
+      "then": "key 'test-writer' MUST exist with allowed_tools containing the full 8-tool list [Read, Glob, Grep, Bash, Write, Edit, MultiEdit, Skill] (Write/Edit/MultiEdit required for test-writer to actually write test files); denied_write_path_prefixes mirroring other non-core specialists; rationale non-empty",
       "check": {
         "file": "policies/tool-policy.v1.json",
         "format": "json",
@@ -25,7 +26,12 @@
         ],
         "allowed_tools_must_include": [
           "Read",
+          "Glob",
+          "Grep",
           "Bash",
+          "Write",
+          "Edit",
+          "MultiEdit",
           "Skill"
         ],
         "allowed_write_path_prefixes_must_include": [
@@ -37,35 +43,51 @@
           "/var/tmp/*"
         ],
         "denied_write_path_prefixes_must_include": [
+          "/src/",
+          "/app/",
+          "/lib/",
           "/.claude/hooks/",
           "/.claude/agents/",
           "/.claude/commands/",
           "/.claude/policies/",
+          "/.claude/schemas/",
           "/.claude/scripts/",
           "/.claude/settings.json"
-        ]
+        ],
+        "rationale_must_be_non_empty_string": true
       },
       "testability": "automated",
       "primary_cause_attribution_hint": null
     },
     {
       "id": "AC-02",
-      "ac_uid": "bf9c50df60986621",
+      "ac_uid": "a3127dfcdafbcd1b",
       "type": "data",
-      "given": "hooks/pretool-cp-checkin.py and hooks/prompt-workflow.py are read as text",
-      "when": "CP_AGENTS set literal and agent_types list literal are inspected",
-      "then": "BOTH must contain the string 'test-writer'",
+      "given": "hooks/pretool-cp-checkin.py and hooks/prompt-workflow.py and commands/dev.md are read as text",
+      "when": "the CP_AGENTS set literal, the agent_types list literal, and the fallback agent-enumeration loop are inspected for test-writer membership",
+      "then": "all three sites MUST list test-writer so the harness consistently treats it as a dispatchable agent (without the third commands/dev.md fallback site, sessions resumed without the hook auto-init still skip test-writer registry creation)",
       "check": {
         "checks": [
           {
             "file": "hooks/pretool-cp-checkin.py",
-            "regex": "\\b\"test-writer\"\\b",
-            "must_match": true
+            "regex": "CP_AGENTS\\s*=\\s*\\{[^}]*[\"']test-writer[\"'][^}]*\\}",
+            "multiline": true,
+            "must_match": true,
+            "description": "test-writer literal MUST appear inside the CP_AGENTS set literal body"
           },
           {
             "file": "hooks/prompt-workflow.py",
-            "regex": "\\b['\"]test-writer['\"]\\b",
-            "must_match": true
+            "regex": "agent_types\\s*=\\s*\\[[^\\]]*[\"']test-writer[\"'][^\\]]*\\]",
+            "multiline": true,
+            "must_match": true,
+            "description": "test-writer literal MUST appear inside the agent_types list literal body"
+          },
+          {
+            "file": "commands/dev.md",
+            "regex": "for\\s+agent\\s+in\\s*\\\\?\\s*\\n?[^;]*test-writer[^;]*;\\s*do",
+            "multiline": true,
+            "must_match": true,
+            "description": "test-writer MUST appear inside the fallback `for agent in ... ; do` agent-enumeration loop (near line 133-136) so the manual init path also creates the test-writer.json sentinel"
           }
         ]
       },
@@ -74,55 +96,90 @@
     },
     {
       "id": "AC-03",
-      "ac_uid": "4bcb749e125538df",
+      "ac_uid": "aac5719d8442572d",
       "type": "data",
       "given": "agents/test-writer.md is read as text",
-      "when": "Procedure section step 5 and Output JSON Report block are inspected",
-      "then": "step 5 instructs writing per-task manifest AND maintaining global as {kind:index, tasks[]} AND report.manifest_path points at per-task path",
+      "when": "the Procedure section step 5 paragraph and the Output JSON Report code-fence are inspected (scope-anchored)",
+      "then": "step 5 instructs writing the per-task active manifest at tests/generated/<task_id>/manifest.json AND maintaining the global index file at tests/generated/manifest.json with shape {kind:\"index\", tasks:[...]}; the report.manifest_path field points at the per-task path; the residual Cycle-1-drift wording 'Write `tests/generated/manifest.json`' (with backticks) MUST NOT appear unqualified in step 5",
       "check": {
         "file": "agents/test-writer.md",
         "must_contain": [
-          "tests/generated/<task_id>/manifest.json",
-          "{kind:\"index\""
+          "tests/generated/<task_id>/manifest.json"
         ],
-        "must_not_contain_regex": "Write\\s+tests/generated/manifest\\.json(?!\\s*\\(global)"
+        "must_contain_regex": [
+          "\"kind\"\\s*:\\s*\"index\"",
+          "\"manifest_path\"\\s*:\\s*\"tests/generated/<task_id>/manifest\\.json\""
+        ],
+        "must_not_contain_regex_scoped": [
+          {
+            "scope_start_regex": "^5\\.\\s+Compute the new manifest\\.",
+            "scope_end_regex": "^6\\.\\s+Return a structured report",
+            "regex": "Write\\s+`?tests/generated/manifest\\.json`?(?!\\s*\\(global)",
+            "must_match": false,
+            "description": "Within procedure step 5 paragraph only, the unqualified 'Write tests/generated/manifest.json' wording (with or without backticks) MUST NOT appear"
+          }
+        ]
       },
       "testability": "automated",
       "primary_cause_attribution_hint": null
     },
     {
       "id": "AC-04",
-      "ac_uid": "c8f16437c0763e25",
+      "ac_uid": "8f5bfc7728652d3f",
       "type": "data",
       "given": "agents/qa.md is read as text",
-      "when": "Phase 5 (## Phase 5: Manifest Verification) and output JSON schema's manifest_verification block are inspected",
-      "then": "path references use tests/generated/<task_id>/manifest.json (per-task); pytest scoped to per-task dir; must_not_contain the Cycle-1-drift active_tests-from-global phrasing",
+      "when": "Phase 5 (section heading '#### Phase 5: Manifest Verification') and the output JSON schema's manifest_verification block are inspected (scope-anchored)",
+      "then": "Phase 5 step 1 MUST read the per-task manifest (not the global file); pytest invocation MUST scope to tests/generated/<task_id>/; schema manifest_path MUST be per-task; the LEGITIMATE global-index presence sentinel at line ~1004 MUST be preserved verbatim",
       "check": {
         "file": "agents/qa.md",
-        "must_contain": [
-          "tests/generated/<task_id>/manifest.json"
+        "must_contain_regex": [
+          "tests/generated/<task_id>/manifest\\.json",
+          "pytest\\s+tests/generated/<task_id>/",
+          "\"manifest_path\"\\s*:\\s*\"tests/generated/<task_id>/manifest\\.json\"",
+          "test_writer_expected[^\\n]*manifest\\.json is missing"
         ],
-        "must_not_contain": [
-          "Read `tests/generated/manifest.json`. For every `active_tests[]` entry"
+        "must_not_contain_regex_scoped": [
+          {
+            "scope_start_regex": "^#### Phase 5: Manifest Verification",
+            "scope_end_regex": "^#### Phase 6:",
+            "regex": "Read `tests/generated/manifest\\.json`\\.\\s+For every `active_tests\\[\\]` entry",
+            "must_match": false,
+            "description": "The Cycle-1-drift active_tests-from-global phrasing MUST NOT appear inside the Phase 5 section"
+          }
         ],
-        "must_contain_regex": "pytest\\s+tests/generated/<task_id>/"
+        "_doc_preserves_sentinel": "The 'test_writer_expected = true AND tests/generated/manifest.json is missing' sentinel at qa.md ~line 1004 is a LEGITIMATE global-index presence check (the global index is the {kind:index, tasks[]} file the test-writer continues to write under Option B). It MUST remain; verified by the fourth must_contain_regex above."
       },
       "testability": "automated",
       "primary_cause_attribution_hint": null
     },
     {
       "id": "AC-05",
-      "ac_uid": "29d1421e6f876b1d",
+      "ac_uid": "0987c17f0bc79c03",
       "type": "data",
       "given": "commands/dev.md is read as text",
-      "when": "Step 11 QA dispatch block is inspected",
-      "then": "any manifest path reference passed to QA is tests/generated/<task_id>/manifest.json (parametrized), not the global file",
+      "when": "the Step 11 QA dispatch block and the Dev-handoff text block (~line 666) are inspected (scope-anchored); the test-writer dispatch input block (~line 633) MAY continue to mention the global index file",
+      "then": "every manifest path passed onward to Dev or QA MUST be parametrized as tests/generated/<task_id>/manifest.json; the global file MAY still be cited as the index but only with an explicit '(index)' or equivalent disambiguation",
       "check": {
         "file": "commands/dev.md",
-        "must_contain": [
-          "tests/generated/<task_id>/manifest.json"
+        "must_contain_regex": [
+          "tests/generated/<task_id>/manifest\\.json"
         ],
-        "must_not_contain_regex": "tests/generated/manifest\\.json(?!\\s*\\(index)"
+        "must_not_contain_regex_scoped": [
+          {
+            "scope_start_regex": "^### Step 11:",
+            "scope_end_regex": "^### Step 12:",
+            "regex": "tests/generated/manifest\\.json(?!\\s*\\((?:index|global))",
+            "must_match": false,
+            "description": "Inside Step 11 (QA dispatch), unqualified 'tests/generated/manifest.json' references MUST NOT remain (must be parametrized as per-task or annotated '(index)' / '(global)')"
+          },
+          {
+            "scope_start_regex": "Generated tests \\(when test-writer ran\\):",
+            "scope_end_regex": "Write your implementation report",
+            "regex": "tests/generated/manifest\\.json(?!\\s*\\((?:index|global))",
+            "must_match": false,
+            "description": "Inside the Dev-handoff text (~line 666), unqualified 'tests/generated/manifest.json' MUST be replaced with per-task form or annotated"
+          }
+        ]
       },
       "testability": "automated",
       "primary_cause_attribution_hint": null
@@ -147,31 +204,51 @@
     },
     {
       "id": "AC-07",
-      "ac_uid": "1ff92a4b4c002103",
+      "ac_uid": "b96a5528fb42c3ea",
       "type": "hook",
-      "given": "git working tree is queried",
-      "when": "git ls-files agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/ is run",
-      "then": "stdout is empty (zero lines) and exit code is 0",
+      "given": "the git working tree is queried after dev has run `git rm --cached -- agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/` (derived-work cleanup required because M-P2.3 .gitignore is a no-op for already-tracked files)",
+      "when": "`git ls-files agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/` is run",
+      "then": "stdout is empty AND exit_code 0 AND the working-tree copies of agent-scores.json (+ .lock) AND every .claude/specs/spec-20260518-225715/cp-state-*.json file still exist on disk (verifying dev used --cached, NOT a destructive `git rm`)",
       "check": {
-        "script": "git",
-        "args": [
-          "ls-files",
-          "agent-scores.json",
-          "agent-scores.json.lock",
-          ".claude/specs/spec-20260518-225715/"
-        ],
-        "assertions": [
+        "checks": [
           {
-            "property": "exit_code",
-            "match": "equals",
-            "value": 0
+            "script": "git",
+            "args": [
+              "ls-files",
+              "agent-scores.json",
+              "agent-scores.json.lock",
+              ".claude/specs/spec-20260518-225715/"
+            ],
+            "assertions": [
+              {
+                "property": "exit_code",
+                "match": "equals",
+                "value": 0
+              },
+              {
+                "property": "stdout",
+                "match": "equals",
+                "value": ""
+              }
+            ]
           },
           {
-            "property": "stdout",
-            "match": "equals",
-            "value": ""
+            "script": "bash",
+            "args": [
+              "-c",
+              "test -f agent-scores.json && test -f agent-scores.json.lock && ls .claude/specs/spec-20260518-225715/cp-state-*.json >/dev/null 2>&1"
+            ],
+            "assertions": [
+              {
+                "property": "exit_code",
+                "match": "equals",
+                "value": 0,
+                "description": "Working-tree copies MUST survive — proves dev used `git rm --cached` (not `git rm` / `git rm -r` without --cached)"
+              }
+            ]
           }
-        ]
+        ],
+        "_scope_label": "DERIVED_WORK: this AC is the necessary side-effect of M-P2.3 .gitignore append on already-tracked files; not a separate user-stated requirement. Out_of_scope_observation #1 in ba-qa-report-20260520-221452.json flags that the orchestrator should pre-authorize git rm --cached explicitly. BA proceeded under the spec Section-7 P2.3 mandate that the patterns 'belong in .gitignore from inception'."
       },
       "testability": "automated",
       "primary_cause_attribution_hint": null
@@ -207,71 +284,123 @@
     },
     {
       "id": "AC-09",
-      "ac_uid": "f412ec55378eeb88",
+      "ac_uid": "81741d5eb07151ff",
       "type": "data",
       "given": "hooks/doc_sync/regen_readme.py and hooks/doc_sync/tree.py are read as text",
-      "when": "SKIP_NAMES / SKIP_FILES / IGNORE_DIRS literals are inspected",
-      "then": "exclusion mechanism in place for agent-scores.json, agent-scores.json.lock, and .claude/specs (or equivalent runtime filter)",
+      "when": "the SKIP_NAMES / SKIP_FILES / IGNORE_DIRS literal definitions are inspected (line-anchored, structural)",
+      "then": "the SKIP_NAMES set in regen_readme.py MUST contain both 'agent-scores.json' AND 'agent-scores.json.lock'; the SKIP_FILES set in tree.py MUST contain both 'agent-scores.json' AND 'agent-scores.json.lock'; .claude/specs MUST be excluded via IGNORE_DIRS, an additional set, or an equivalent runtime filter wired into the actual exclusion code path (not as a passive comment)",
       "check": {
         "checks": [
           {
             "file": "hooks/doc_sync/regen_readme.py",
-            "must_contain_any": [
-              "agent-scores.json",
-              ".claude/specs"
-            ]
+            "regex": "SKIP_NAMES\\s*=\\s*\\{[^}]*'agent-scores\\.json'[^}]*'agent-scores\\.json\\.lock'[^}]*\\}",
+            "multiline": true,
+            "must_match": true,
+            "description": "SKIP_NAMES literal MUST be a Python set containing BOTH 'agent-scores.json' AND 'agent-scores.json.lock' (order-independent — see also the second regex variant below)"
+          },
+          {
+            "file": "hooks/doc_sync/regen_readme.py",
+            "regex": "SKIP_NAMES\\s*=\\s*\\{[^}]*'agent-scores\\.json\\.lock'[^}]*'agent-scores\\.json'[^}]*\\}",
+            "multiline": true,
+            "must_match_any_of": [
+              "AC-09.regen.order1",
+              "AC-09.regen.order2"
+            ],
+            "_group_id": "AC-09.regen.order2",
+            "description": "Alternate ordering accepted: .lock first then .json; satisfies the same structural intent"
           },
           {
             "file": "hooks/doc_sync/tree.py",
-            "must_contain_any": [
-              "agent-scores.json",
-              ".claude/specs"
-            ]
+            "regex": "SKIP_FILES\\s*=\\s*\\{[^}]*'agent-scores\\.json'[^}]*'agent-scores\\.json\\.lock'[^}]*\\}",
+            "multiline": true,
+            "must_match": true,
+            "description": "SKIP_FILES literal in tree.py MUST contain BOTH 'agent-scores.json' AND 'agent-scores.json.lock' (or alternate ordering — see below)"
+          },
+          {
+            "file": "hooks/doc_sync/tree.py",
+            "regex": "SKIP_FILES\\s*=\\s*\\{[^}]*'agent-scores\\.json\\.lock'[^}]*'agent-scores\\.json'[^}]*\\}",
+            "multiline": true,
+            "must_match_any_of": [
+              "AC-09.tree.order1",
+              "AC-09.tree.order2"
+            ],
+            "_group_id": "AC-09.tree.order2",
+            "description": "Alternate ordering accepted"
+          },
+          {
+            "file": "hooks/doc_sync/tree.py",
+            "regex": "IGNORE_DIRS\\s*=\\s*\\{[^}]*['\"]\\.claude/specs['\"][^}]*\\}|\\.claude/specs[^\\n]*ignore|specs-skip|gitignore-aware",
+            "multiline": true,
+            "must_match": true,
+            "description": ".claude/specs MUST be excluded via IGNORE_DIRS literal containing '.claude/specs', OR via an equivalent runtime exclusion (e.g., gitignore-aware filter, or a specs-skip mechanism). Bare passive comments do not satisfy."
           }
-        ]
+        ],
+        "_grouping_doc": "AC-09 accepts either ordering of agent-scores.json + .lock inside SKIP_NAMES/SKIP_FILES; treat the two ordering checks per file as an OR group (at least one must match)."
       },
       "testability": "automated",
       "primary_cause_attribution_hint": null
     },
     {
       "id": "AC-10",
-      "ac_uid": "22a1353a69cd6eee",
+      "ac_uid": "748fd315e0faea05",
       "type": "data",
       "given": "scripts/score-update.sh, scripts/score-inject.sh, scripts/canary-verify.sh are read as text",
-      "when": "every line containing python3 (excluding comments) is inspected; venv activation must precede in same execution context",
-      "then": "for each file, count of 'venv/bin/activate' MUST be >= count of python3 invocations",
+      "when": "every non-comment occurrence of 'python3' is inspected; for each invocation, the same logical line or its immediately enclosing subshell/function scope MUST first execute `source ~/.claude/venv/bin/activate` (precedence verification, not raw count)",
+      "then": "every python3 invocation is preceded in its own shell scope by venv activation. The recommended canonical shape (and the only form this AC accepts inline) is the subshell wrap: `( source ~/.claude/venv/bin/activate && python3 ... )`. Verification: for each non-comment line containing python3, that line OR a preceding line within the same subshell (between unmatched `(` ... `)`) MUST contain `source ~/.claude/venv/bin/activate`",
       "check": {
         "checks": [
           {
             "file": "scripts/score-update.sh",
-            "regex": "venv/bin/activate",
-            "must_count_gte": 1
+            "regex_per_python3_invocation": "\\(\\s*source\\s+(?:~|\\$\\{?HOME\\}?|/root)/\\.claude/venv/bin/activate\\s*&&\\s*python3\\b",
+            "must_match_for_each_python3_line": true,
+            "description": "Every non-comment line that calls python3 MUST be part of a subshell that first sources the venv on the SAME logical line (or be inside an explicit subshell where activation precedes python3 in the same `( ... )` block)"
           },
           {
             "file": "scripts/score-inject.sh",
-            "regex": "venv/bin/activate",
-            "must_count_gte": 1
+            "regex_per_python3_invocation": "\\(\\s*source\\s+(?:~|\\$\\{?HOME\\}?|/root)/\\.claude/venv/bin/activate\\s*&&\\s*python3\\b",
+            "must_match_for_each_python3_line": true
           },
           {
             "file": "scripts/canary-verify.sh",
-            "regex": "venv/bin/activate",
-            "must_count_gte": 3
+            "regex_per_python3_invocation": "\\(\\s*source\\s+(?:~|\\$\\{?HOME\\}?|/root)/\\.claude/venv/bin/activate\\s*&&\\s*python3\\b",
+            "must_match_for_each_python3_line": true,
+            "description": "All 3 python3 sites (~lines 95, 106, 125) MUST be wrapped"
           }
-        ]
+        ],
+        "_verification_algorithm": "(1) For each file, scan line-by-line. (2) Find every line whose stripped form does NOT start with '#' and contains the literal token 'python3' as a word (not 'python3-config' / 'python3.10' command substring). (3) For each such line, assert the SAME line matches the regex `\\(\\s*source\\s+(?:~|\\$\\{?HOME\\}?|/root)/\\.claude/venv/bin/activate\\s*&&\\s*python3\\b`. (4) If a python3 invocation is not on the same line as the activation (e.g., multi-line heredoc form), the test MAY accept if the line is inside a `( ... )` subshell whose opening line contains `source ~/.claude/venv/bin/activate` AND no intervening `)` closes that subshell before the python3 line. (5) Comments and bare-line activations without a python3 on the same line do NOT count toward satisfaction.",
+        "_rationale": "OBJ-08 PROPOSED_FIX: bind dev to the subshell-wrap form so the check is a simple inline regex. Eliminates the count-vs-precedence drift and the comment-bypass risk."
       },
       "testability": "automated",
       "primary_cause_attribution_hint": null
     },
     {
       "id": "AC-11",
-      "ac_uid": "502566b9ba42f805",
+      "ac_uid": "85e0fa540e8c6fe1",
       "type": "data",
       "given": "commands/dev.md is read as text",
-      "when": "grep -n 'Sub-step 12\\.' commands/dev.md is run",
-      "then": "exit code MUST be 1 (no matches); both Sub-step 12.0 and Sub-step 12.1 labels eliminated",
+      "when": "the decimal Sub-step labels and the cross-references at former lines 844 and 1115 are inspected",
+      "then": "no 'Sub-step 12.\\d' label remains anywhere in the file; the cross-reference formerly at line 844 (after Sub-step 12.0 / spec section updates block) now refers to integer-step prose like 'Step 12 spec section updates' or 'After applying the spec section updates above,'; the cross-reference formerly at line 1115 (in the Mascot Score Changes summary section) now refers to integer-step prose like 'Step 12 score-update events' or 'score-update events from Step 12'",
       "check": {
-        "file": "commands/dev.md",
-        "must_not_contain_regex": "Sub-step 12\\.\\d"
+        "checks": [
+          {
+            "file": "commands/dev.md",
+            "regex": "Sub-step 12\\.\\d",
+            "must_match": false,
+            "description": "No decimal Sub-step 12.N label remains anywhere in the file"
+          },
+          {
+            "file": "commands/dev.md",
+            "regex": "(After applying|After the )?\\s*(the\\s+)?spec section updates",
+            "must_match": true,
+            "description": "Cross-reference replacing the former 'After Sub-step 12.0 completes' phrasing (around former line 844) MUST exist as integer-step prose referring to the spec-section-updates block of Step 12"
+          },
+          {
+            "file": "commands/dev.md",
+            "regex": "score-update events\\s+(from\\s+Step\\s+12|of\\s+Step\\s+12|in\\s+Step\\s+12)",
+            "must_match": true,
+            "description": "Cross-reference replacing the former 'from Sub-step 12.1' phrasing (around former line 1115, in the Mascot Score Changes section) MUST exist as integer-step prose anchoring the score-update events to Step 12"
+          }
+        ]
       },
       "testability": "automated",
       "primary_cause_attribution_hint": null
@@ -293,19 +422,44 @@
     },
     {
       "id": "AC-13",
-      "ac_uid": "2aece326a603d34c",
+      "ac_uid": "be0ccf6becd3912b",
       "type": "data",
       "given": "agents/style-inspector.md is read as text",
-      "when": "Standard 6 section is inspected",
-      "then": "new precise exemption paragraph present (enumerates rank labels + AskUserQuestion choices, cites spec-20260518-225715 §5.1, re-affirms code comments + stderr remain English-only)",
+      "when": "the Standard 6 section (between heading '### Standard 6: English Only' and the next '### Standard 7' heading) is extracted as scoped text",
+      "then": "within the scoped Standard 6 section there MUST exist a NEW exemption paragraph distinct from the existing 'Exemption (verbatim user-binding quotes)' at line ~320; the new paragraph carries a stable anchor heading containing the literal phrase 'Cycle-2 user-facing'; AND the paragraph contains ALL of: (a) literal 'spec-20260518-225715 §5.1' attribution, (b) at least one of the five Chinese rank-label samples from spec §5.1, (c) the literal phrase 'AskUserQuestion', (d) re-affirmation that code comments AND stderr/diagnostic strings remain English-only",
       "check": {
         "file": "agents/style-inspector.md",
-        "must_contain": [
-          "spec-20260518-225715",
-          "rank",
-          "AskUserQuestion"
-        ],
-        "must_contain_regex": "(comments|diagnostic).*English"
+        "scope": {
+          "start_regex": "^### Standard 6: English Only",
+          "end_regex": "^### Standard 7:"
+        },
+        "scoped_assertions": [
+          {
+            "regex": "\\*\\*Exemption \\(Cycle-2 user-facing[^)]*\\)\\*\\*",
+            "must_match": true,
+            "description": "Stable anchor heading for the NEW exemption paragraph (distinct from the existing 'verbatim user-binding quotes' exemption at line ~320)"
+          },
+          {
+            "regex": "spec-20260518-225715\\s+§5\\.1",
+            "must_match": true,
+            "description": "Literal spec attribution"
+          },
+          {
+            "regex": "见习学徒|初级工匠|熟练工匠|资深工匠|宗师级",
+            "must_match": true,
+            "description": "At least one of the five spec §5.1 rank-label samples"
+          },
+          {
+            "regex": "AskUserQuestion",
+            "must_match": true,
+            "description": "Literal 'AskUserQuestion' citation"
+          },
+          {
+            "regex": "(comments?\\s+AND\\s+(stderr|diagnostic)|(stderr|diagnostic).*(comments|comment).*English|comments[^.]*English[^.]*diagnostic|diagnostic[^.]*English[^.]*comment)",
+            "must_match": true,
+            "description": "Re-affirmation that BOTH code comments AND stderr/diagnostic strings remain English-only (not a single one-sided clause)"
+          }
+        ]
       },
       "testability": "automated",
       "primary_cause_attribution_hint": null
