@@ -25,6 +25,11 @@ from lib.allowlist import (
     read_grant_for_git_command,
     match_grant_for_bash_command,
     consume_grant_for_posttool,
+    load_sentinel_grant_for_task,
+    match_sentinel_grant_for_bash_command,
+    consume_sentinel_grant_on_terminal_result,
+    reap_expired_sentinel_grants,
+    SENTINEL_GRANT_DIR,
 )
 
 
