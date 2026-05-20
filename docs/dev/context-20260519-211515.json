@@ -108,10 +108,12 @@
       "agents/push-analyst.md",
       "agents/qa.md",
       "agents/ba.md",
+      "agents/changelog-analyst.md",
       "docs/dev/specs/spec-20260520-044700.md"
     ],
     "path_dependent_shared_infra": [
-      "hooks/tests/test_allowlist_consolidation.py"
+      "hooks/tests/test_allowlist_consolidation.py",
+      "hooks/tests/test_push_sentinel_abort.sh"
     ],
     "out_of_path_observed_but_not_touched": [
       "23 leaked production playwright-mcp processes (item 8 ACCEPTABLE-DEBT, OOS)"
