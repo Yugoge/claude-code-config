@@ -21629,8 +21629,6 @@ dot-claude/
 │       ├── `hello.py` - Python script
 │       ├── `restore-ramdisk.sh` - Description: Restore ramdisk workspace from disk-based .bak directories (boot-time)
 │       └── `sync-backup.sh` - Description: Sync ramdisk workspace back to disk-based .bak directories.
-├── `agent-scores.json` - json config
-├── `agent-scores.json.lock` - lock file
 ├── `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
 ├── `CLAUDE.md` - CLAUDE.md
 ├── `config.yaml` - yaml config
