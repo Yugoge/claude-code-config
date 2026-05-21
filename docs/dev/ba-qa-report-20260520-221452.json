@@ -389,8 +389,9 @@
     "feedback_incorporated": "All 3 iter-2 codex findings became OBJ-11 + OBJ-12 (item 1 -> OBJ-11; items 2+3 -> OBJ-12 with combined defect statement). Out-of-scope observation #2 added re: git rm prose-vs-script -r flag mismatch (codex did not flag but identified during cross-read).",
     "_iter1_consult_summary": "Iter-1 codex confirmed 8 of 10 candidate objections and added 2 new ones. All 10 became OBJ-01..OBJ-10 (now suffixed -LEGACY)."
   },
-  "iteration_needed": true,
-  "refined_context": {
+  "iteration_needed": false,
+  "refined_context": null,
+  "_iter2_refined_context_preserved": {
     "iter": 2,
     "failed_criteria": ["AC-07", "AC-09"],
     "critical_issues": [
