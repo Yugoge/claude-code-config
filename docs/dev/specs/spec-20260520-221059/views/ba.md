@@ -40,13 +40,6 @@ These were explicitly listed as deferred in the user-requirement document at ses
 
 ### Layer D — minor residual debt from THIS session's own deliverables and cross-cycle pollution
 
-- **D1** — 22 dirty files in working tree from concurrent cycles (`d1e94e` / `75463e-DH` / `085647-d1722b`) plus 1 in `/root` repo (`docs/dev/specs/spec-20260520-051938.md`). At least 3 separate dev cycles ran in recent days and never committed their artifacts.
-- **D2** — Step 7 false positive: `docs/dev/specs/spec-20260518-225715.md` (mascot scoring spec) contains a "20260519-211515" historical cross-reference; the new Step 7 algorithm flags it as a non-linked continuation spec for this cycle. The algorithm is correct; the data is polluted. Ghost cycle pollution cleanup needed.
-- **D3** — `docs/reference/tmp-cleanup-convention.md` (L3 deliverable from cycle 161035) is still gitignored. AC8 verified existence on local disk; fresh clones get nothing. Add a `.gitignore` exception OR move file to a non-ignored path.
-- **D4** — `/tmp/update-FgI2V5.md` and `/tmp/update-wflOHq.md` lingering temp `/spec-continue --temp` files. They have no consumers after their respective /commit runs; will be swept by tmp-cleanup at >7d but currently occupying tmpfs.
-- **D5** — Duplicate sibling file `docs/dev/prompt-inspector-report-20260519-211515-redev9items.json` left over from the write-guard workaround pattern (write to sibling → cp over canonical). Should be deduplicated.
-- **D6** — 15 cleanliness-inspector minor findings from cycle 20260519-211515: 7 `_ac{N}_verify.sh` files use underscore-prefix breaking `test_*` convention, 6 of them are orphaned (`_final_sweep.sh` does not invoke them), 1 permission anomaly (644 vs canonical 755). Inspector recommended rename to `test_*` OR archive after cycle closes.
-- **D7** — Silent quota-wall handling: orchestrator absorbed at least 5 quota cuts (`BA iter1 → cut → resume`, `QA final-verification → cut → resume`, push-analyst rate-limit, dev cycle agent → cut, /close style-inspector → cut) without escalation. User had no visibility into when subagent reasoning quality may have degraded.
 
 ### 5.2: 用户反馈"就这么点？你给我发了这么多！"— 补充遗漏
 
