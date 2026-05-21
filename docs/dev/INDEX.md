@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-21T09:12:24Z*
-**Total entries**: 342
+*Last updated: 2026-05-21T09:14:37Z*
+**Total entries**: 343
 **Convention**: kebab
 
 ## Tree
@@ -33,6 +33,7 @@ dev/
 ├── `acceptance-criteria-d1e94e.json` - json config
 ├── `architect-report-20260517-155838.json` - json config
 ├── `architect-report-dev-20260517-215114.json` - json config
+├── `architect-report-spec-20260520-221059.json` - json config
 ├── `ba-qa-report-20260416-063500.json` - json config
 ├── `ba-qa-report-20260416-073000.json` - json config
 ├── `ba-qa-report-20260517-153856.json` - json config
