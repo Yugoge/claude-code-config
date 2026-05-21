@@ -67,12 +67,27 @@
     "16_dead_functions": "pass — hooks/doc_sync/tree.py adds _is_dot_claude_specs which is wired into the items filter (line `and not _is_dot_claude_specs(i)`); not dead. All other touched python is wiring-up edits.",
     "17_duplicate_content": "pass — no byte-identical files introduced."
   },
+  "reverification_actions": [
+    "Read prior cleanliness-inspector-report-20260520-221452.json baseline",
+    "git status + git diff --stat across all 17 changed files",
+    "git diff content review of .gitignore, README.md, agents/{qa,style-inspector,test-writer}.md, commands/dev.md, docs/dev/specs/spec-20260518-225715.md, hooks/{doc_sync/regen_readme.py, doc_sync/tree.py, pretool-cp-checkin.py, prompt-workflow.py}, policies/tool-policy.v1.json, scripts/{canary-verify.sh, score-inject.sh, score-update.sh, spec-check.py}",
+    "Reference verification via ~/.claude/scripts/check-file-references.sh on all 4 changed scripts (all returned `Functional references: Yes (cannot delete)`)",
+    "Orphan-agent scan via ~/.claude/scripts/detect-orphan-agents.sh (only pre-existing product-owner.md flagged; outside changed-files scope)",
+    "grep verification that test-writer is referenced from commands/dev.md (8+ references confirmed)"
+  ],
   "preexisting_observations_non_blocking": [
     {
       "file": "specs/",
       "introduced_in_diff": false,
       "severity": "minor",
       "description": "Pre-existing top-level specs/ tree (separate from .claude/specs/) was not touched by this diff and is outside the changed-files scope; default-safe ignored per AC-2.6 (b).",
+      "scope_decision": "not_in_changed_files_scope"
+    },
+    {
+      "file": "/root/.claude/agents/product-owner.md",
+      "introduced_in_diff": false,
+      "severity": "minor",
+      "description": "detect-orphan-agents.sh flags product-owner.md as not referenced by any command (last_modified: 3 days ago; commit_count: 19). Pre-existing; not in this diff's changed-files scope; default-safe ignored.",
       "scope_decision": "not_in_changed_files_scope"
     }
   ],
