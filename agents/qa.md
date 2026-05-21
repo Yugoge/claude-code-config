@@ -1431,8 +1431,10 @@ Return verification report as JSON:
       }
     ],
     "manifest_verification": {
-      "_doc": "Populated when tests/generated/manifest.json exists (i.e., test-writer ran upstream). Reports importability and pytest collection results for tests/generated/. See Step 11 manifest verification for procedure.",
-      "manifest_path": "tests/generated/manifest.json",
+      "_doc": "Populated when the per-task active manifest tests/generated/<task_id>/manifest.json exists (i.e., test-writer ran upstream). Reports importability and pytest collection results scoped to tests/generated/<task_id>/. The global index file at tests/generated/manifest.json (kind=index, tasks=[...]) is NOT this field's manifest_path; it is consulted only as a sentinel for cross-task discovery. See Step 11 Phase 5 for the per-task procedure.",
+      "manifest_path": "tests/generated/<task_id>/manifest.json",
+      "global_index_path": "tests/generated/manifest.json",
+      "global_index_kind": "index",
       "manifest_exists": true,
       "active_tests_count": 0,
       "active_tests_importable": true,
