@@ -130,9 +130,11 @@ verify_git_privilege_guard() {
     emit_failure "missing: ${hook}"
     return
   fi
-  # Allow case: 'git status' is universally read-only
+  # Allow case: 'git status' is universally read-only. python3 invocation is
+  # wrapped in a same-line subshell that sources the venv per
+  # spec-20260518-225715 Cycle 2 P3.6.
   local safe='{"tool_name":"Bash","tool_input":{"command":"git status"}}'
-  echo "${safe}" | python3 "${hook}" >/dev/null 2>&1
+  echo "${safe}" | ( source ~/.claude/venv/bin/activate && python3 "${hook}" >/dev/null 2>&1 )
   local rc=$?
   if [[ "${rc}" -ge 126 ]]; then
     emit_failure "pretool-git-privilege-guard.py exec error rc=${rc}"
