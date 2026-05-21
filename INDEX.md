@@ -11516,8 +11516,6 @@ dot-claude/
 │   │   ├── overnight-20260429-test-bar/
 │   │   ├── overnight-20260429-test-plu/
 │   │   └── overnight-20260501-d0ec784d/
-│   ├── `agent-scores.json` - json config
-│   ├── `agent-scores.json.lock` - lock file
 │   ├── `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
 │   ├── `CLAUDE.md` - CLAUDE.md
 │   ├── `config.yaml` - yaml config
