@@ -861,7 +861,9 @@ ELIF qa.status == "fail":
   → Proceed to Step 14 (Iteration)
 ```
 
-**Sub-step 12.1: Mascot score-update (post-QA, spec-20260518-225715 §5.1)**:
+**Apply Mascot score-update events (post-QA, spec-20260518-225715 §5.1)**:
+
+This post-decision-tree pass — formerly labelled with a decimal `Sub-step 12.1` (eliminated per spec-20260518-225715 Cycle 2 P3.7 / /dev integer-step-numbering Standard 4) — applies the canonical score-update events for this cycle. It stays inside Step 12 (the decimal was the only thing removed; ordering, semantics, and trigger gates are unchanged).
 
 After the verdict is known, apply score-update events based on QA outcome and iteration count:
 
