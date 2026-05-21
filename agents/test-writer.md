@@ -136,12 +136,12 @@ the AC JSON, the Dev does NOT fill `hook_check` manually.
 For each AC item in the input JSON:
 
 1. **Compute lookup key**: `ac_uid` (16-char sha256 prefix per spec §5.4).
-2. **Check existing manifest** at `tests/generated/manifest.json` if present.
-3. **If ac_uid is new** → CREATE: write a new skeleton file, mark `status: "active"` in manifest.
-4. **If ac_uid is unchanged** (same id, same ac_uid) → IDEMPOTENT skip: no file write, no manifest mutation. Log to stderr "ac_uid <uid> unchanged — skipped".
+2. **Check existing per-task active manifest** at `tests/generated/<task_id>/manifest.json` if present (the global `tests/generated/manifest.json` is a `{kind:"index", tasks:[...]}` index and does NOT carry `active_tests[]` — do NOT consult it for UPDATE/CREATE keying).
+3. **If ac_uid is new** → CREATE: write a new skeleton file, mark `status: "active"` in the per-task manifest.
+4. **If ac_uid is unchanged** (same id, same ac_uid) → IDEMPOTENT skip: no file write, no per-task manifest mutation. Log to stderr "ac_uid <uid> unchanged — skipped".
 5. **If ac_id exists but ac_uid changed** → ARCHIVE OLD + CREATE NEW:
    - Move the old test file to `tests/generated/<task_id>/.archive/<old_ac_uid>.py`
-   - Add the old entry to `archived_tests[]` with reason `"ac_uid changed"`
+   - Add the old entry to `archived_tests[]` (in the per-task manifest) with reason `"ac_uid changed"`
    - Write a new skeleton for the current ac_uid as active
 6. **NEVER DELETE** a test file. Archive only.
 
