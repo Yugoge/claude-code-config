@@ -6,11 +6,146 @@
   "iteration": 3,
   "verdict": "pass",
   "qa": {
-    "status": "fail",
+    "status": "pass",
     "verified_against_complaint": true,
-    "passed_user_requirement": false,
-    "ac_alignment": false,
-    "overall_assessment": "ITER-2 VERDICT. BA iter-1 GENUINELY IMPROVED 8 of 10 prior objections — substantial improvement. Adversarial substitutability attacks could not break AC-01, AC-02, AC-03, AC-04, AC-05, AC-10, AC-11, AC-13. However, BA iter-1 introduced 2 NEW critical defects: AC-07 SHA-equality check (per_path_survival_and_content_match) fails for mutable runtime telemetry that already drifts from HEAD BEFORE dev acts (cp-state-qa.json and agent-scores.json) — would unfairly fail compliant dev work; AC-09 specs_exclusion_runtime fixture has a hard ImportError (relative import from .extract) AND tests a vacuous condition (tree.py already filters dot-prefixed names so .claude is excluded today regardless of SKIP_FILES augmentation) — pass-as-substitute scenario. Both confirmed by independent codex review. Verdict FAIL. BA iter-3 must address ONLY AC-07 and AC-09 — do NOT re-touch the 8 resolved ACs. Out-of-scope observation re: git rm --cached is acceptable as BA-DERIVED_WORK scope-labeled cleanup; the scope label and out_of_scope_observation routing is correctly threaded for orchestrator awareness."
+    "passed_user_requirement": true,
+    "ac_alignment": true,
+    "overall_assessment": "ITER-3 VERDICT: PASS. BA iter-3 surgically fixed both iter-2 critical objections (OBJ-11 on AC-07, OBJ-12 on AC-09) WITHOUT touching any of the other 11 ACs. Empirically verified: (a) AC-01..AC-06, AC-08, AC-10..AC-13 ac_uid bit-identical to iter-2 (11/11 untouched, no-touch contract honored); (b) AC-07 ac_uid changed (4b439f79 -> 3619ae6d) — SHA-equality replaced with per_path_existence_only check; ls-files-empty + per-path-existence both exit 0 today pre-dev (49 paths); `git update-index --force-remove` end-state-equivalent to `git rm -r --cached` verified in throwaway repo; ticket prose vs check script reconciled on `git rm -r --cached`; (c) AC-09 ac_uid changed (13dbd117 -> d7653985) — PYTHONPATH heredoc fixes ImportError, build_tree(root/'.claude') fixes vacuous test, negative-control ordinary/specs/keep.txt defeats substitutability attack. Empirical runs: AC-09 fixture exits 1 on UNFIXED tree.py (correctly fails at spec-foo/ assertion), exits 0 on simulated path-aware fix (parent==root anchor), and the naive 'specs' in IGNORE_DIRS substitution fails neg-control (keep.txt missing). Codex iter-3 adversarial consultation returned 5 findings, ALL OBSERVATION_ONLY, ZERO blockers. Verdict PASS; BA-QA loop done; orchestrator proceeds to Dev (Step 8).",
+    "_iter2_overall_assessment_preserved": "ITER-2 VERDICT. BA iter-1 GENUINELY IMPROVED 8 of 10 prior objections — substantial improvement. Adversarial substitutability attacks could not break AC-01, AC-02, AC-03, AC-04, AC-05, AC-10, AC-11, AC-13. However, BA iter-1 introduced 2 NEW critical defects (OBJ-11 on AC-07 SHA-equality; OBJ-12 on AC-09 ImportError+vacuous-test). Both resolved by BA iter-3 surgical fix."
+  },
+  "iter3_no_touch_verification": {
+    "method": "ac_uid SHA equality check across all 13 ACs between iter-2 (git checkpoint 2ba01a1) and iter-3 (current file).",
+    "untouched_acs_expected": ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-08", "AC-10", "AC-11", "AC-12", "AC-13"],
+    "untouched_acs_count_expected": 11,
+    "untouched_acs_verified": ["AC-01:efbe5ef12975e7e7", "AC-02:baed0fa6365ef6dd", "AC-03:d02f6cfa9052329c", "AC-04:9d727e2e84112856", "AC-05:ae1de0c57d012c17", "AC-06:d83d7c2416c7f26d", "AC-08:ea4c2e44ca7a4e55", "AC-10:aa2a911022c763f1", "AC-11:5bbe970f97d071a1", "AC-12:26a6449a5b99964c", "AC-13:546c22e4fddfaf20"],
+    "untouched_acs_count_verified": 11,
+    "modified_acs_expected": ["AC-07", "AC-09"],
+    "modified_acs_verified": {
+      "AC-07": {"iter2_uid": "4b439f79c3763889", "iter3_uid": "3619ae6db161fb50", "changed": true, "expected": true},
+      "AC-09": {"iter2_uid": "13dbd1174351eaae", "iter3_uid": "d7653985e85603ea", "changed": true, "expected": true}
+    },
+    "no_touch_contract_honored": true
+  },
+  "iter3_objections_resolution": {
+    "OBJ-11": {
+      "ac_affected": "AC-07",
+      "iter3_status": "RESOLVED",
+      "verification": "Per_path_survival_and_content_match (SHA equality) REPLACED with per_path_existence_only check using `test -e`. Empirical: ran the iter-3 verbatim check script today against current working tree (pre-dev, 49 paths tracked). Both AC-07.ls_files_empty and AC-07.per_path_existence_only exit 0 — this is the correct pre-dev baseline state. The new check no longer asserts byte-equality with HEAD, so the documented drift of cp-state-qa.json (HEAD fd540c / WT fa4ddf) and agent-scores.json (HEAD 41c522 / WT 14b30c) cannot cause unfair fail. Codex consultation confirmed: 'acceptable for this cycle. A stronger SHA check would reintroduce OBJ-11 unfair-fail risk without a pre-dev baseline.'",
+      "tradeoff_acknowledged": "Content-destruction (e.g. accidental working-tree truncation) is not detected by AC-07; BA explicitly documents this in `_obj11_note` and ticket line 229. Codex accepts as the only safe ground-truth without a pre-dev baseline. If stronger safety is needed in a future cycle, BA can add pre-dev-baseline capture step to dev-handoff (codex's future PROPOSED_FIX, deferred)."
+    },
+    "OBJ-12": {
+      "ac_affected": "AC-09",
+      "iter3_status": "RESOLVED",
+      "verification": "Iter-2's importlib.util-based script REPLACED with: (a) `PYTHONPATH=$PWD python3 - <<'PY' from hooks.doc_sync import tree as tree_mod ... PY` heredoc — fixes hard ImportError from `from .extract` relative import; (b) `build_tree(root / '.claude')` instead of `build_tree(root)` — exercises the actual leak path (specs/ inside .claude is NOT dot-prefixed); (c) negative-control fixture `.claude/ordinary/specs/keep.txt` — proves the dev fix must distinguish .claude/specs from .claude/ordinary/specs. Empirical: (i) the verbatim AC-09 check exits 1 against UNFIXED tree.py with AssertionError 'build_tree did NOT suppress leak-path spec-foo/' (correctly identifies the leak); (ii) a simulated path-aware fix (parent==root anchor) exits 0; (iii) a naive 'specs' in IGNORE_DIRS substitution fails neg-control assertion (ii.a) with 'keep.txt missing — naive fix too broad' — substitutability attack defeated. Codex consultation confirmed: 'no blocker. The empty file content is irrelevant because the decisive check is subtree/path suppression, not cp-state contents.'",
+      "structural_anti_substitution": "AC-09 still has BOTH (a) AST set-membership checks (SKIP_NAMES + SKIP_FILES MUST contain both agent-scores.json AND .lock) AND (b) runtime fixture exercising the leak. Combination forces dev to write a path-aware predicate that distinguishes .claude/specs from .claude/ordinary/specs."
+    }
+  },
+  "iter3_empirical_verification_log": [
+    {
+      "ts": "2026-05-20T23:50:00Z",
+      "ac": "AC-07.ls_files_empty",
+      "command": "git ls-files agent-scores.json agent-scores.json.lock .claude/specs/spec-20260518-225715/",
+      "result": "49 paths returned (pre-dev baseline). After dev runs `git rm -r --cached`, this MUST return empty + exit 0.",
+      "verdict_when_check_runs": "WILL_PASS once dev acts"
+    },
+    {
+      "ts": "2026-05-20T23:55:00Z",
+      "ac": "AC-07.per_path_existence_only",
+      "command": "for each path P from `git ls-tree -r HEAD --name-only`, test -e P",
+      "result": "All 49 paths exist in working tree today (pre-dev). After `git rm -r --cached`, all 49 will STILL exist (--cached preserves working-tree by definition). Check exits 0.",
+      "verdict_when_check_runs": "PASS"
+    },
+    {
+      "ts": "2026-05-20T23:55:30Z",
+      "ac": "git update-index --force-remove equivalence",
+      "command": "controlled experiment in throwaway git repo: init, commit a.txt, `git update-index --force-remove a.txt`, observe ls-files + working-tree state",
+      "result": "ls-files empty + a.txt content preserved ('hello'). Identical to `git rm --cached a.txt`. Equivalence clause does NOT weaken AC.",
+      "verdict_when_check_runs": "PASS"
+    },
+    {
+      "ts": "2026-05-20T23:57:00Z",
+      "ac": "AC-09 verbatim against UNFIXED tree.py",
+      "command": "PYTHONPATH=$PWD python3 ... build_tree(root/.claude) against fixture with spec-foo/cp-state.json + ordinary/specs/keep.txt",
+      "result": "AssertionError 'build_tree did NOT suppress leak-path spec-foo/' — exit 1. Check correctly identifies the unfixed state.",
+      "verdict_when_check_runs": "FAIL_PRE_DEV (correct — AC detects the unfixed state)"
+    },
+    {
+      "ts": "2026-05-20T23:57:30Z",
+      "ac": "AC-09 against SIMULATED PATH-AWARE FIX",
+      "command": "monkeypatch build_tree with `not (i.name == 'specs' and i.parent == root_anchor)` predicate",
+      "result": "All assertions pass. spec-foo/ + cp-state.json suppressed. ordinary/ + keep.txt preserved. normal.txt visible. Exit 0.",
+      "verdict_when_check_runs": "PASS_AFTER_DEV (correct — AC accepts proper fix)"
+    },
+    {
+      "ts": "2026-05-20T23:57:45Z",
+      "ac": "AC-09 against NAIVE blanket fix",
+      "command": "monkeypatch tree_mod.IGNORE_DIRS = IGNORE_DIRS | {'specs'} (naive blanket name predicate)",
+      "result": "Negative-control assertion (ii.a) fails: 'keep.txt missing — naive fix is too broad'. Substitutability attack defeated. AC correctly distinguishes proper fix from substitute.",
+      "verdict_when_check_runs": "FAIL_FOR_NAIVE (correct — AC rejects blanket substitution)"
+    }
+  ],
+  "iter3_out_of_scope_observations": [
+    {
+      "ts": "2026-05-21T00:00:00Z",
+      "file": "docs/dev/acceptance-criteria-20260520-221452.json",
+      "line": 5,
+      "observation": "JSON `revision` field still reads 'iter2 (post-QA OBJ-01..OBJ-10 + post-codex 9 PROPOSED_FIX tightening)' while ticket-20260520-221452.md line 7 already records the iter-3 revision. Audit-clarity drift only — no tooling gates on this free-text field, so it does NOT block the verdict. Recommended BA touch-up: update revision string to 'iter3 (surgical OBJ-11+OBJ-12 fix; 11 ACs untouched)' for audit trail consistency. Codex iter-3 PROPOSED_FIX #4.",
+      "in_user_path": false,
+      "security_relevant": false,
+      "blocks_close": false
+    },
+    {
+      "ts": "2026-05-21T00:00:00Z",
+      "file": "docs/dev/acceptance-criteria-20260520-221452.json",
+      "line": 246,
+      "observation": "AC-07 documents intentional tradeoff: existence-only check cannot detect content-destruction (e.g. accidental truncation of cp-state-qa.json to empty by malicious dev). BA explicitly accepts this tradeoff in `_obj11_note` and ticket line 229. Codex iter-3 review concurred: 'acceptable for this cycle; future PROPOSED_FIX if desired: capture a pre-dev baseline of file type/size/hash before Dev starts and compare against that, not HEAD.' Out-of-scope for THIS cycle's surgical fix; deferred for potential future hardening cycle.",
+      "in_user_path": false,
+      "security_relevant": false,
+      "blocks_close": false
+    },
+    {
+      "ts": "2026-05-21T00:00:00Z",
+      "file": "docs/dev/acceptance-criteria-20260520-221452.json",
+      "line": 372,
+      "observation": "AC-09 negative-control fixture uses fresh empty `cp-state.json` content. Codex iter-3 noted this is fine because the decisive check is subtree/path suppression (not cp-state contents) but recommended future cycle could use production-shaped names like `.claude/specs/spec-20260518-225715/cp-state-qa.json` for stronger fidelity. Optional future hardening, not a blocker for THIS cycle.",
+      "in_user_path": false,
+      "security_relevant": false,
+      "blocks_close": false
+    },
+    {
+      "ts": "2026-05-21T00:00:00Z",
+      "file": "docs/dev/acceptance-criteria-20260520-221452.json",
+      "line": 365,
+      "observation": "AC-09 top-level detection uses `top_level_lines = [ln for ln in lines if not (ln.startswith(' ') or ln.startswith('│') or ln.startswith('    '))]`. Codex iter-3 noted this is adequate for current build_tree renderer (depth-1 children have no leading prefix). It would only get brittle if Dev changed tree.py rendering format while preserving a visible empty specs/ line. Optional future cleanup: replace heuristic with exact-match rejection of '├── specs/' and '└── specs/' tokens. Not a blocker for THIS cycle."
+    }
+  ],
+  "iter3_codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "iter": 3,
+    "feedback_summary": "Codex (gpt-5.5, xhigh) ran at 2026-05-20T23:58Z for iter-3 validation. Verdict: NO BLOCKING ISSUES. Five findings, all OBSERVATION_ONLY: (1) AC-07 existence-only can miss truncation — acceptable for this cycle, future PROPOSED_FIX is pre-dev-baseline capture; (2) git update-index --force-remove equivalence is acceptable — end-state verification is correct; (3) AC-09 empty cp-state.json fixture is sufficient — decisive check is subtree/path suppression, not file content; (4) JSON revision field still says iter2 (ticket says iter3) — audit-clarity drift, NOT gate-blocking unless tooling parses the revision string; (5) AC-09 top-level specs/ detection is adequate for current build_tree renderer. Codex accepts BA iter-3 as resolving OBJ-11 and OBJ-12 without introducing new defects.",
+    "feedback_incorporated": "All 5 codex findings are OBSERVATION_ONLY. None are blockers. The one PROPOSED_FIX (revision field iter2->iter3 in JSON) is recorded in iter3_out_of_scope_observations as a minor audit-clarity item — does NOT affect pass/fail because no tooling gates on the free-text revision string. Other 4 observations are accepted as documented tradeoffs that BA already acknowledges in ticket and AC notes (_obj11_note, _obj12_note)."
+  },
+  "iter3_summary": {
+    "iter": 3,
+    "total_acs": 13,
+    "acs_resolved_by_iter1": 8,
+    "acs_resolved_by_iter2_iter3": 2,
+    "acs_with_remaining_objections": 0,
+    "objection_severity_breakdown": {
+      "critical": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "dimensions_triggered": {
+      "evidence_quality": 0,
+      "scope_alignment": 0,
+      "investigation_completeness": 0,
+      "affected_file_accuracy": 0,
+      "spec_text_vs_execution_drift": 0
+    },
+    "verdict": "pass",
+    "verdict_rationale": "BA iter-3 surgically resolved both critical iter-2 objections (OBJ-11 on AC-07, OBJ-12 on AC-09) and honored the no-touch contract on the other 11 ACs (ac_uid bit-identical verification). Empirical verification confirms: (1) AC-07 existence-only check exits 0 today pre-dev (49 paths tracked), will continue to pass after `git rm -r --cached` since --cached preserves working-tree by definition; (2) AC-07 equivalence clause for `git update-index --force-remove` does NOT weaken intent — empirically verified end-state-equivalent in throwaway git repo; (3) AC-09 runtime fixture correctly fails on unfixed tree.py (AssertionError on spec-foo/), correctly passes on simulated path-aware fix, and correctly rejects naive `'specs' in IGNORE_DIRS` substitution via the negative-control assertion. Codex iter-3 adversarial consultation returned ZERO blocking issues — 5 findings all OBSERVATION_ONLY (1 of which has a minor PROPOSED_FIX: update JSON revision field iter2->iter3 for audit clarity, logged in out_of_scope_observations). Per QA contract: no blocking objections + codex concurrence = verdict PASS. BA-QA loop done. Orchestrator proceeds to Dev (Step 8)."
   },
   "iter1_objections_resolution": {
     "OBJ-01": {"ac_affected": "AC-01", "iter1_status": "resolved", "verification": "allowed_tools_must_include now lists all 8 tools; denied_write_path_prefixes_must_include lists all 10 paths. Dev cannot pass with 3-tool list or subset of denial prefixes."},
