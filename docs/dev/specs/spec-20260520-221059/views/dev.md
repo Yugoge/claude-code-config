@@ -55,7 +55,7 @@
 - **E7** — No hook enforces R9 reversal-citation rule. agents/changelog-analyst.md got the rule (item 9 from 9-item retrospective landed) but there's no commit-message-validate hook that fails commits without "Reverses <SHA>:" citation when needed. The rule is documentation-only; no teeth.
 - **E15** — TodoWrite canonical-validation ceremony cost. Every step transition requires a separate TodoWrite call due to "one completion per call" hook rule. Multiple wasted tool calls per cycle just for state-machine bookkeeping. Either widen the rule (allow batched transitions) or eliminate the per-call requirement.
 
-### Layer J — production bug fixes
+### Layer J — known-but-uncommunicated production bugs
 
 - **J1** — `refs/checkpoints/master` is now CORRUPTED. The subagent that recovered the 5 lost artifacts noted: the latest checkpoint commit `f63b1a7` captured 92-byte stderr-redirect stub files from a failed first restoration attempt. The corrupted state is still in the checkpoint ref. Future recoveries from this ref will retrieve garbage for these paths. Needs cleanup or rewind.
 - **J2** — `/push` command spec hardcodes `SESSION_ID="88dfdcea-706b-457f-b6c1-07bd1dac0b8f"` (this session's UUID). It was baked in via UserPromptSubmit hook injection at /push invocation. If session changes (next /push in another session), the spec literal is wrong. Real bug: the spec body should reference an env var, not a literal UUID.
