@@ -67,6 +67,9 @@ CP_AGENTS = {
     "cleaner", "cleanliness-inspector", "git-edge-case-analyst",
     "prompt-inspector", "rule-inspector", "spec", "style-inspector",
     "test-executor", "test-validator",
+    # Test-writer agent (spec-20260518-225715 §5.2): generates pytest
+    # skeletons from BA-produced acceptance-criteria JSON between BA and Dev.
+    "test-writer",
     # Agentic commit role.
     "changelog-analyst",
     # Agentic git workflow analyst roles (push, merge, pull).
