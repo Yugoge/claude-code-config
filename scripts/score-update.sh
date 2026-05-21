@@ -178,6 +178,7 @@ except Exception:
 
 print(f"{agent}:{event}:{old_score}->{new_score} (delta={delta})")
 PYEOF
+)
 
 # Lock auto-releases on shell exit
 exit 0
