@@ -66,8 +66,9 @@ fi
 
 # Delegate the JSON mutation + event-name validation to Python (atomic write).
 # Python prints the resulting delta to stdout for callers to capture, or exits 1
-# on unknown event (no modification made).
-python3 - "${SCORES_FILE}" "${AGENT}" "${EVENT}" "${NOTE}" <<'PYEOF'
+# on unknown event (no modification made). venv activation is co-located on the
+# same line as python3 per /dev Standard 6.spec-20260518-225715 Cycle 2 P3.6.
+( source ~/.claude/venv/bin/activate && python3 - "${SCORES_FILE}" "${AGENT}" "${EVENT}" "${NOTE}" <<'PYEOF'
 import json
 import os
 import sys
