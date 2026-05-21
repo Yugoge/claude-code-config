@@ -18,7 +18,7 @@
     },
     "verified_location_keywords": ["tool-policy", "test-writer", "manifest", "qa.md", "dev.md", "gitignore", "agent-scores", "INDEX.md", "sub-step", "tmp", "canary", "venv", "standard-6", "exemption"],
     "location_overlap": ["test-writer", "tool-policy", "manifest", "gitignore", "agent-scores", "tmp", "standard-6", "venv"],
-    "complaint_resolution_evidence": "All 13 strict ACs as drafted PASS. However, two gaps remain that the strict-AC subset did not encode: (1) test-writer was not dispatched despite the spec §5.2 gate triggering, leaving consumability untested end-to-end; (2) .claude/INDEX.md was not regenerated, leaving cp-state telemetry leaked despite the path-aware filter being correctly installed.",
+    "complaint_resolution_evidence": "All 13 strict ACs PASS (unchanged from prior round). Both prior FAIL gaps now CLOSED: (1) test-writer dispatched with all 4 expected artifacts present, schema-valid, importable (pytest --collect-only returns '13 tests collected'); (2) .claude/INDEX.md regenerated with 0 cp-state + 0 spec-20260518-225715 + 0 agent-scores entries. Function source and on-disk artifact now consistent.",
     "complaint_element_pointer": {
       "selector": "N/A — non-UI cycle",
       "how_located": "spec-driven AC verification",
