@@ -1,7 +1,10 @@
 {
   "request_id": "20260520-221452",
-  "timestamp": "2026-05-21T00:00:00Z",
+  "timestamp": "2026-05-21T06:30:00Z",
   "inspector": "cleanliness-inspector",
+  "round": "re-verification",
+  "prior_verdict": "CLEAN (0 findings)",
+  "prior_report_timestamp": "2026-05-21T00:00:00Z",
   "scope": {
     "mode": "--changed-files",
     "spec_id": "spec-20260518-225715",
