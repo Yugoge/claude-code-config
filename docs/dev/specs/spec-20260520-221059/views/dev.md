@@ -32,11 +32,19 @@ When the user said `修复全部` after the 17-item meta-assessment, they meant 
 - **W5** — Agent-resumption event log: when orchestrator dispatches a fresh agent to resume cut work, record `{ts, dev_session_id, prior_agent_id, new_agent_id, recovery_notes}`. Currently all resumptions are silent.
 - **R9** — Score-update CAS + lifecycle log: replace direct score writes with append-only log entries `{ts, agent, event, prev_score, new_score, delta, actor, reason}`. Reads use latest entry; writes use Compare-And-Swap on prev_score. User observed score drift `dev 81→73` between events with no event-log explanation.
 
-### Layer B implementation items
+### Layer B — orchestrator's post-session self-confession (5 items the orchestrator initially downplayed)
 
+When the user asked "确定没有别的没做的没有被你记录?", the orchestrator surfaced:
+
+1. **Artifact-loss root cause never investigated** — 5 cycle artifacts disappeared from disk mid-session and were recovered via `refs/checkpoints/master`. The orchestrator never identified WHICH process/hook/script deleted them. Likely candidates: a hook with `rm`, a cleanup script with too-wide scope, cross-session `git restore` or `git clean`. Until root cause is found, this is a defense-not-fortified-but-tested timebomb.
+2. **Cross-session work falsely attributed to current cycle** — commits `28a1e85` and `97585ca` were already on disk before the current /commit; the orchestrator claimed they belonged to the 9-item retrospective but cannot prove their content matches the 9-item scope. There may be unrelated work bundled in those SHAs that landed on origin/master under this cycle's banner.
+3. **AskUserQuestion empty-answer bug** — orchestrator prompted user for rating twice (post-/redev, post-/close YES) and both times received empty answer payload. Treated as "skip" per spec, but may indicate the hook/UI framework loses rating responses. Worth investigating the AskUserQuestion → orchestrator data path.
+4. **Item 8 from 9-item retrospective NOT addressed** — `ACCEPTABLE-DEBT`: 23 leaked production playwright-mcp processes. User-authorized via `就地部署`, OOS-logged. Still leaking resources right now.
 5. **Codex QA-stage in_scope_minor follow-ons from 4-layer prevention** — counter file on /tmp ENOSPC fallback (related to R5a above), long-session non-saturated counter sweep reset (the L2 cleanup wipes counter mtime), L1.5 worst-case ~16s exceeds settings 15s timeout, `-mtime +N` documentation precision (>3d actually means 72-96h depending on cron landing).
 
-### Layer C — deferred implementation items
+### Layer C — 17-item meta-assessment of cycle 20260519-161035, the OTHER 9 always-known deferred items
+
+These were explicitly listed as deferred in the user-requirement document at session midpoint; none addressed.
 
 - **W1** — Spec auto-detect rule violated by orchestrator when newest spec was unrelated to current /dev request; rule should be `fail/ask` instead of silent override.
 - **W2** — test-writer silent skip when complexity_tier ≥ STANDARD; dispatch gate should route STANDARD-tier bash to shellcheck+Bats+fixture OR record explicit waiver, no silent skip.
