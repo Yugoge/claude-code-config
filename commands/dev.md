@@ -663,7 +663,7 @@ Use Task tool with:
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
   View file: <view_paths.dev or null — sibling views/dev.md if present>
-  Generated tests (when test-writer ran): tests/generated/<task_id>/ + tests/generated/manifest.json
+  Generated tests (when test-writer ran): tests/generated/<task_id>/ + per-task active manifest at tests/generated/<task_id>/manifest.json (the global file tests/generated/manifest.json (index) is consulted only as a presence sentinel for cross-task discovery — its shape is {kind:"index", tasks:[...]} and it does NOT carry active_tests[]).
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
