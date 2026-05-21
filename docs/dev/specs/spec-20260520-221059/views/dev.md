@@ -90,3 +90,17 @@ These were explicitly listed as deferred in the user-requirement document at ses
 - **R4ext** — `/root/.claude/projects/-dev-shm-dev-workspace-dot-claude/<session-uuid>/tool-results/` files persist across the session. These contain large tool outputs (the recovery subagent's transcript, the meta-assessment QA outputs, etc.). Size and retention untracked.
 - **R5ext** — Multiple Bash env vars I manually exported leak to child processes: `CLAUDE_SESSION_ID`, `CLAUDE_PUSH_REQUEST_ID`, `CLAUDE_PROJECT_DIR`. None persist beyond subshell but could be observed by hooks running in those subshells.
 
+### Layer D — minor residual debt from THIS session's own deliverables and cross-cycle pollution
+
+- **D1** — 22 dirty files in working tree from concurrent cycles (`d1e94e` / `75463e-DH` / `085647-d1722b`) plus 1 in `/root` repo (`docs/dev/specs/spec-20260520-051938.md`). At least 3 separate dev cycles ran in recent days and never committed their artifacts.
+- **D3** — `docs/reference/tmp-cleanup-convention.md` (L3 deliverable from cycle 161035) is still gitignored. AC8 verified existence on local disk; fresh clones get nothing. Add a `.gitignore` exception OR move file to a non-ignored path.
+- **D4** — `/tmp/update-FgI2V5.md` and `/tmp/update-wflOHq.md` lingering temp `/spec-continue --temp` files. They have no consumers after their respective /commit runs; will be swept by tmp-cleanup at >7d but currently occupying tmpfs.
+- **D5** — Duplicate sibling file `docs/dev/prompt-inspector-report-20260519-211515-redev9items.json` left over from the write-guard workaround pattern (write to sibling → cp over canonical). Should be deduplicated.
+
+## Scope and constraints inherited (binding)
+
+- DO NOT modify shipped artifacts already on `origin/master` (commits `6cd997b`, `34210cc`, `8d74e83`, `d988d4a`, `6d28883`, `28a1e85`, `23184c9`, `97585ca`, `4d9f9f5`)
+- DO NOT modify frozen continuation spec `docs/dev/specs/spec-20260520-044700.md`
+- Future cycles addressing these issues MUST land deliverables at non-gitignored paths (do not repeat the L3 mistake)
+- All new scripts use `#!/usr/bin/env bash` or `#!/usr/bin/env python3`; chmod +x
+- Lifecycle log location (when R9 lands) MUST be `logs/lifecycle.jsonl` (in-repo; add `.gitignore` exception if `logs/` is currently ignored)
