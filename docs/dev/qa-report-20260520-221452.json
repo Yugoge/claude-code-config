@@ -154,38 +154,28 @@
       "exemption_vetoes": []
     },
     "summary": {
-      "critical_issues": 2,
+      "critical_issues": 0,
       "major_issues": 0,
-      "minor_issues": 0,
+      "minor_issues": 2,
       "total_findings": 2,
-      "release_recommendation": "reject"
+      "release_recommendation": "approve",
+      "_release_recommendation_note": "Both minor findings are non-blocking observations recorded for follow-on cycles. They do not block PASS verdict or /close progression."
     },
     "self_verification": {
-      "claims_total": 18,
-      "claims_with_evidence": 18,
+      "claims_total": 24,
+      "claims_with_evidence": 24,
       "claims_superficial": 0,
       "superficial_details": [],
       "confidence": "high",
-      "_note": "Every PASS claim is backed by deterministic evidence (AST literal_eval, scope-anchored regex, runtime fixture exit code, grep with line numbers). The two FAIL findings are backed by (1) absence of test-writer artifacts on disk + BA context JSON line-389 quote + commands/dev.md:613 gate logic quote, and (2) grep -c output on .claude/INDEX.md + stat showing pre-Cycle-2 modification timestamp + fresh build_tree producing zero leak."
+      "_note": "Every PASS claim is backed by deterministic evidence: file existence + size + mtime (stat), JSON schema parse + key inspection (json.load), pytest --collect-only output ('13 tests collected in 0.02s'), grep -c with line counts (all three indices = 0 for cp-state/spec-/agent-scores), fresh build_tree consistency check against on-disk artifact (0 leak tokens), prior-round AST literal_eval + scope-anchored regex evidence (artifacts unchanged for the 13 strict ACs). Both prior-round gaps independently verified against orchestrator's claimed fix evidence."
     },
     "codex_consult": {
       "invoked": true,
       "status": "ok",
-      "feedback_summary": "Codex (gpt-5.5 xhigh) returned 5 findings. Findings #1 (test-writer skipped under false gate) and #2 (.claude/INDEX.md still leaks cp-state) are BLOCKERS — both incorporated as failures[] in this report and drove the FAIL verdict. Finding #3 (REPORT-CORRECTION: Step 9 build skipped too broad) is incorporated as build_verification.status=pass with static-check substitution and skip_reason citing the carve-out. Findings #4 and #5 are OBSERVATION_ONLY (AC-09 negative control is necessary not over-engineering; AC-07 existence-only intentional tradeoff per OBJ-11) and are noted but not actionable in this verdict.",
-      "feedback_incorporated": "FAIL verdict incorporates codex blockers #1 and #2; build_verification field reframed per codex #3 to record static checks rather than blanket 'skipped'. Codex findings #4 and #5 logged here as OBSERVATION_ONLY (no action needed)."
+      "feedback_summary": "Codex (gpt-5.5 xhigh) final-verification round returned 4 findings. F1 (stale QA report still shows FAIL with old failures[]) — self-resolving: THIS invocation overwrites the prior FAIL report with this PASS verdict. F2 (missing completion-20260520-221452.md) — out_of_scope for QA: completion artifact is written by /close orchestrator step, not by QA subagent (per commands/close.md). F3 (schema-shape: top-level global_index_kind missing from test-writer report) — in_scope_minor: recorded as non_blocking_observation #1; equivalent fact IS recorded at schema_compliance.global_index_kind_index:true and actual global manifest file correctly has kind:'index'. F4 (sentinel exception must be explicit) — in_scope_real_bug: recorded as non_blocking_observation #2 with explicit exception_classification 'retroactive_dispatch_after_dev' and exception_rationale documented. Codex also confirmed positive evidence: manifest/index paths coherent, 13 manifest entries match 13 files, pytest collect-only passes, .claude/INDEX.md leak is actually closed (0 across all 3 grep targets, fresh build_tree consistency-confirmed).",
+      "feedback_incorporated": "F1+F2 acknowledged (F1 self-resolves with this write; F2 deferred to /close orchestrator). F3 recorded as non_blocking_observation #1. F4 recorded as non_blocking_observation #2 with explicit retroactive_dispatch_after_dev exception classification per codex PROPOSED_FIX."
     }
   },
-  "iteration_needed": true,
-  "refined_context": {
-    "failed_criteria": [
-      "Spec §5.2 line 167 workflow position: 位置：BA → [test-writer] → Dev → QA — test-writer step skipped despite gate triggering",
-      "Spec Section 7 P2.4: 'Regenerate auto-generated indices to drop leaked entries' — only agent-scores half completed; cp-state half remains on disk"
-    ],
-    "critical_issues": [
-      "BA validation_approach contains false gate logic — orchestrator trusted it and skipped test-writer. BA must correct gate text OR explicitly set _test_writer_skip_reason; orchestrator must re-dispatch test-writer.",
-      "Dev's task #8 only regenerated INDEX.md + README.md for agent-scores entries; .claude/INDEX.md still has 38 cp-state-* leaked lines from before Cycle 2 started. Path-aware filter is correctly installed (AC-09 PASS) but artifact was never re-rendered."
-    ],
-    "recommended_approach": "Cycle 3 must (a) re-dispatch test-writer for the Cycle 2 acceptance-criteria JSON to produce tests/generated/20260520-221452/manifest.json + docs/dev/test-writer-report-20260520-221452.json (or set explicit skip-sentinel); (b) regenerate .claude/INDEX.md via the existing path-aware filter and commit the clean artifact; (c) strengthen AC-08 in the Cycle-3 spec to grep BOTH 'agent-scores' AND 'cp-state-|spec-2026[0-9]{4}-[0-9]{6}' patterns in all 3 indices; (d) fix BA's gate-logic text and add a self-check in BA template that the gate semantics use OR not AND. Optionally fix the orchestrator dispatch wiring to evaluate the gate independently rather than trusting BA's prose.",
-    "additional_context": "Codex adversarial review (xhigh reasoning) surfaced both gaps with PROPOSED_FIX detail; QA verified them independently via filesystem inspection and grep. Both gaps map directly to /close gate failure axes from Cycle 1 (axis 1 consumability + axis 2 cleanliness) — the very axes Cycle 2 was supposed to close. Cycle 2 closed axis 3 (style violations: AC-11/AC-12/AC-13 all PASS) and partially closed axis 2 (agent-scores). Recommend Cycle 3 in-scope items: P4 deferred items + the 2 new FAIL gaps above."
-  }
+  "iteration_needed": false,
+  "refined_context": null
 }
