@@ -34,8 +34,9 @@
 - **E10** — Session learnings are non-durable. This spec file is the only persistent record of these self-assessments. If file is lost (tmpfs cleared, gitignore matched, ghost cycle pollution), the entire reasoning chain across this session is lost. Need a more durable "session learnings log" architecture.
 - **E16** — Conversation transcript not persisted to disk by /spec or anywhere else. The user-orchestrator dialogue across this session lives only in the REPL. If session ends, the reasoning chain is lost. /spec should optionally snapshot key turns into a session-companion file alongside the spec.
 
-### Layer J — structural placement bugs
+### Layer J — known-but-uncommunicated production bugs
 
+- **J3** — L2 cleanup script `/usr/local/sbin/tmp-cleanup.sh` is in NO repo. If host filesystem is wiped or reinstalled, 12KB of cleanup logic vanishes. R2's install-manifest IS the fix, but the urgent failure mode is real today. The script needs a mirror in-repo at `scripts/install/` even before R2's automated gate lands.
 - **J7** — `agent-scores.json` IS tracked by git. Every score change is part of commit history, cluttering diffs of unrelated work. Move to a non-tracked log + summary tracked file, OR accept the clutter explicitly.
 
 ### Layer P — implicit architectural assumptions
