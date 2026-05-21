@@ -13,11 +13,7 @@
 **Session**: spec-20260520-221059
 **Created**: 2026-05-20T22:10:59Z
 
-## Section 5: User's Acceptance Criterion
-
-> 将你说的问题全部保存为新的spec
-
-User's directive: save everything the orchestrator just enumerated as the comprehensive unresolved-issues backlog. The backlog spans three layers — the originally-promised work that got displaced by scope hot-swap, the items the orchestrator surfaced under self-confession when the user asked "are you sure nothing else is unrecorded?", and the always-known deferred items. The verbatim enumeration follows:
+## Verification scope (per spec Section 5)
 
 ### Layer A — verification gates
 
