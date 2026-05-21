@@ -1,0 +1,91 @@
+{
+  "task_id": "20260521-090100",
+  "request_id": "20260521-090100",
+  "generated_at": "2026-05-21T09:01:00Z",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "type": "data",
+      "given": "policies/tool-policy.v1.json has been updated",
+      "when": "grep for the string */docs/codex/ is run against policies/tool-policy.v1.json",
+      "then": "exactly 12 matches are found — one per role: ba, qa, dev, pm, architect, product-owner, cleanliness-inspector, prompt-inspector, spec, style-inspector, ui-specialist, user — and zero matches exist under timeline, transportation, test-writer, general-purpose, changelog-analyst, push-analyst, merge-analyst, pull-analyst",
+      "check": {
+        "tool": "grep",
+        "pattern": "\\*/docs/codex/",
+        "file": "policies/tool-policy.v1.json",
+        "expected_count": 12
+      },
+      "ac_uid": "ac1-20260521-090100-policy-12roles"
+    },
+    {
+      "id": "AC2",
+      "type": "data",
+      "given": "policies/tool-policy.v1.json has been updated",
+      "when": "the policy_version field is read from policies/tool-policy.v1.json",
+      "then": "its value is 4",
+      "check": {
+        "tool": "json_read",
+        "file": "policies/tool-policy.v1.json",
+        "field": "policy_version",
+        "expected_value": 4
+      },
+      "ac_uid": "ac2-20260521-090100-policy-version-4"
+    },
+    {
+      "id": "AC3",
+      "type": "data",
+      "given": "commands/codex.md has been updated",
+      "when": "Step 2 of commands/codex.md is read",
+      "then": "it contains 'docs/codex/' as the primary output directory, includes a mkdir -p command for that directory, and documents how task_id and role are derived (from $TASK_ID/$ROLE env or session context) with explicit fallback behavior when those are absent",
+      "check": {
+        "tool": "grep",
+        "pattern": "docs/codex/",
+        "file": "commands/codex.md",
+        "expected_min_count": 1
+      },
+      "ac_uid": "ac3-20260521-090100-codexmd-canonical-path"
+    },
+    {
+      "id": "AC4",
+      "type": "data",
+      "given": "commands/codex.md has been updated",
+      "when": "the tee command in Steps 3 and 4 (exec and review mode) is inspected",
+      "then": "the path passed to tee is either a literal docs/codex/ path, a $CLAUDE_PROJECT_DIR/docs/codex/ form, or a command-substitution form that the hooks/lib/bash_write_targets.py _resolve_path function can expand — it does NOT rely solely on an opaque shell variable like $CODEX_OUT set in a separate preceding shell statement",
+      "check": {
+        "tool": "grep",
+        "pattern": "tee.*docs/codex/|tee.*\\$CLAUDE_PROJECT_DIR/docs/codex/",
+        "file": "commands/codex.md",
+        "expected_min_count": 1
+      },
+      "ac_uid": "ac4-20260521-090100-codexmd-hook-resolvable-tee"
+    },
+    {
+      "id": "AC5",
+      "type": "hook",
+      "given": "the updated policies/tool-policy.v1.json is in effect and pretool-tool-policy.py is active for a subagent with role=ba",
+      "when": "a Bash command writes to docs/codex/20260521-090100/ba.txt via tee or shell redirect",
+      "then": "the hook allows the command — exit 0, no BLOCKED message in stderr",
+      "check": {
+        "tool": "bash_hook_test",
+        "command": "echo test | tee /dev/shm/dev-workspace/dot-claude/docs/codex/20260521-090100/ba.txt",
+        "role": "ba",
+        "expected": "allowed"
+      },
+      "ac_uid": "ac5-20260521-090100-ba-write-allowed"
+    },
+    {
+      "id": "AC6",
+      "type": "data",
+      "given": "commands/codex.md has been updated",
+      "when": "the text of Step 2 is read",
+      "then": "/var/tmp/codex-outputs/ appears only in a fallback or exceptional context (not as the primary default path), and the primary path is docs/codex/",
+      "check": {
+        "tool": "file_content_check",
+        "file": "commands/codex.md",
+        "must_contain": "docs/codex/",
+        "must_not_be_primary": "/var/tmp/codex-outputs/"
+      },
+      "ac_uid": "ac6-20260521-090100-vartemp-demoted"
+    }
+  ]
+}
