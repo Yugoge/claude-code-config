@@ -22,8 +22,11 @@ Canonical events (from spec 5.1 table):
   user_rating_5, user_rating_4, user_rating_3, user_rating_2, user_rating_1
 
 Score is clamped to [0,100]. Rank is recomputed from final score:
-  0-20 = 见习学徒, 21-40 = 初级工匠, 41-60 = 熟练工匠,
-  61-80 = 资深工匠, 81-100 = 宗师级
+  0-20 = rank-1 (apprentice), 21-40 = rank-2 (junior), 41-60 = rank-3 (skilled),
+  61-80 = rank-4 (senior), 81-100 = rank-5 (master)
+  Note: the bound CJK rank labels emitted to stdout (per spec-20260518-225715
+  §5.1 / agents/style-inspector.md Standard 6 Cycle-2 exemption) remain the
+  source-language labels; this usage block is English-only stderr text.
 EOF
   exit 1
 }
