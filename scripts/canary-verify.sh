@@ -77,7 +77,8 @@ verify_write_guard() {
   fi
   # Exec-error detection (>=126 = exec failure, 127 = command not found).
   # Use mktemp for the synthetic file_path payload per spec-20260518-225715
-  # Cycle 2 P3.8 (replaces former hardcoded /tmp/canary-safe.txt literal).
+  # Cycle 2 P3.8 (replaces former hardcoded temp-dir literal — mktemp keeps
+  # the path tooling-portable and parameterized).
   local safe_file
   safe_file=$(mktemp -t canary-safe.XXXXXX)
   local safe="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"${safe_file}\",\"content\":\"ok\"}}"
