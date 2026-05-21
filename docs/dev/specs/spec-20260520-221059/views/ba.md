@@ -37,15 +37,6 @@ When the user asked "确定没有别的没做的没有被你记录?", the orches
 
 These were explicitly listed as deferred in the user-requirement document at session midpoint; none addressed.
 
-- **W1** — Spec auto-detect rule violated by orchestrator when newest spec was unrelated to current /dev request; rule should be `fail/ask` instead of silent override.
-- **W2** — test-writer silent skip when complexity_tier ≥ STANDARD; dispatch gate should route STANDARD-tier bash to shellcheck+Bats+fixture OR record explicit waiver, no silent skip.
-- **W4** — orchestrator Write gate (1/turn) caused completion-report writes to be subagent-delegated multiple times; gate redesign needed.
-- **R5b** — long-session (>7d) non-saturated counter (`n<3`) gets cleaned by Layer-2 sweep → rate-limit silently resets. TTL-based sweep with explicit reset-event semantics needed.
-- **R5c** — L1.5 ~16s worst-case vs settings.json hook-level 15s timeout. Bump to 20s OR trim L1.5 budget to ≤12s. (Marked one-off in meta-assessment but real.)
-- **R5d** — `-mtime +N` documentation precision: convention doc says ">3d" but GNU find semantics mean strictly more than N full 24h periods. Update tmp-cleanup-convention.md to "older than N×24h, granularity 24h" + add boundary test.
-- **R6** — orphan commit `34210cc` (and now patterns of similar dumps) pollute history with cross-subsystem mega-commits. /dev preflight should block or baseline dirty/orphaned pre-cycle state; baseline ref recorded in final report.
-- **R7** — `CLAUDE_SESSION_ID` not exported in orchestrator shell; push token written with `session_id="unknown"`. Init+export at orchestrator-shell startup; fail uploads if missing rather than writing 'unknown'.
-- **R8** — Stop-hook codex-override: when orchestrator passed `codex_required: false` to BA iter1 resumption, harness Stop-hook forced codex invocation anyway. Explicit task flags should override resume/Stop-hook defaults unless a hard-blocking hook emits visible reason + user confirmation.
 
 ### Layer D — minor residual debt from THIS session's own deliverables and cross-cycle pollution
 
