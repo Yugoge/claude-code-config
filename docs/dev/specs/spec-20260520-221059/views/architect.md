@@ -44,8 +44,25 @@
 - **P1** — `/dev/shm` is the same physical filesystem across session resumes. But it's tmpfs — server reboot or umount wipes the workspace including this spec file. The auto-commit `refs/checkpoints/master` is the only backstop, and J1 shows it's currently corrupted for some paths.
 - **P2** — `agent-scores.json` persistence assumed reliable but lives on tmpfs (the whole repo). Score history could vanish on reboot. The score-event log proposed in R9 also lives on the same tmpfs.
 
-### Layer Q — config/system architecture gaps
+### Layer Q — hook/policy/config system gaps
 
 - **Q4** — `.gitignore` rationale is undocumented. Some `docs/` paths ship (`docs/dev/` re-enabled by d988d4a), others don't (`docs/reference/` blanket-ignored). No explanation of why. New deliverables can't predict which paths will ship.
 - **Q6** — `agent-scores.json` IS tracked by git (J7). Every score change adds a diff line, cluttering commits. AND commits show score events from earlier sessions of OTHER agents — the file is a moving target.
+
+### Layer M — preferences and memory that ought to be durable
+
+- **M3** — Multiple "ghost cycle" task-id slot collisions are now known: `20260519-211515` had 3 scopes; `spec-20260518-225715` mascot scoring also adopted the same slot for D+H. **How many MORE task-id slots have undiscovered ghost pollution?** No systematic survey done.
+- **M4** — The 10-item retrospective from cycle 175339 (source of the 9-item shipped scope) — the orchestrator never verified `qa-output-retrospective-classification-20260519-175339.json` ACTUALLY contains 10 items. Could be more. Could be miscategorized. Trust-but-verify never applied to the retrospective source.
+
+### Layer U — meta-observations on this very accumulation
+
+- **U3** — This spec file IS the durable record of all of the above. If THIS spec is lost (gitignore, ghost pollution, reboot, /spec misconfig), this entire reasoning cascade is gone. Recursive concern: the artifact preserving the "fragility of artifacts" lessons is itself fragile.
+
+## Scope and constraints inherited (binding)
+
+- DO NOT modify shipped artifacts already on `origin/master` (commits `6cd997b`, `34210cc`, `8d74e83`, `d988d4a`, `6d28883`, `28a1e85`, `23184c9`, `97585ca`, `4d9f9f5`)
+- DO NOT modify frozen continuation spec `docs/dev/specs/spec-20260520-044700.md`
+- Future cycles addressing these issues MUST land deliverables at non-gitignored paths (do not repeat the L3 mistake)
+- All new scripts use `#!/usr/bin/env bash` or `#!/usr/bin/env python3`; chmod +x
+- Lifecycle log location (when R9 lands) MUST be `logs/lifecycle.jsonl` (in-repo; add `.gitignore` exception if `logs/` is currently ignored)
 
