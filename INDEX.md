@@ -3472,8 +3472,6 @@ dot-claude/
 │   │   ├── tests/
 │   │   ├── todos/
 │   │   ├── worktrees/
-│   │   ├── `agent-scores.json` - json config
-│   │   ├── `agent-scores.json.lock` - lock file
 │   │   ├── `ARCHITECTURE.md` - 🏗️ Claude Code Global Configuration - Architecture
 │   │   ├── `CLAUDE.md` - CLAUDE.md
 │   │   ├── `config.yaml` - yaml config
