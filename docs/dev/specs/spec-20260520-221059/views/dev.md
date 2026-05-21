@@ -13,7 +13,7 @@
 **Session**: spec-20260520-221059
 **Created**: 2026-05-20T22:10:59Z
 
-## Section 5: User's Acceptance Criterion
+## Implementation scope (per spec Section 5)
 
 ### Layer A — implementation items (harness/hook/gate)
 
