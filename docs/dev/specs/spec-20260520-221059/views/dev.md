@@ -67,7 +67,7 @@
 
 - **O5** — codex during 9-item retrospective dev stage flagged: F4 (mktemp in /tmp during /tmp cleanup), F5 (dry-run truncation at 200 candidates). These were applied during dev. But codex F1 (blocking flock under contention) was applied as `flock -x -w 1` — meaning under heavy contention the L1.5 hook now SKIPS rather than waits. Is "skip when contended" the right behavior? Untested under contention.
 
-### Layer Q — hook/policy/config implementation gaps
+### Layer Q — hook/policy/config system gaps
 
 - **Q1** — orchestrator-gate's "consecutive same-tool" counting logic is brittle. After multiple TodoWrite calls, when does the streak reset? Tested implicitly multiple times this session.
 - **Q2** — pretool-write-guard blocks overwrites SILENTLY (no stderr message to subagent). Subagents claim "Report written" because their internal logic completed; the disk state lies. Related to E2 (silent-failure pattern) but specifically a guard-design choice.
