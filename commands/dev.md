@@ -664,7 +664,7 @@ Use Task tool with:
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
   View file: <view_paths.dev or null — sibling views/dev.md if present>
-  Generated tests (when test-writer ran): tests/generated/<task_id>/ + per-task active manifest at tests/generated/<task_id>/manifest.json (the global file tests/generated/manifest.json (index) is consulted only as a presence sentinel for cross-task discovery — its shape is {kind:"index", tasks:[...]} and it does NOT carry active_tests[]).
+  Generated tests (when test-writer ran): tests/generated/<task_id>/ + per-task active manifest at tests/generated/<task_id>/manifest.json. Global index file tests/generated/manifest.json (kind:"index") is a presence sentinel only — see Step 8 test-writer dispatch for full shape.
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
@@ -823,7 +823,7 @@ Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
 **Apply spec section updates (before the decision tree)**:
 
-This pre-decision-tree pass — formerly labelled with a decimal sub-step (eliminated per spec-20260518-225715 Cycle 2 P3.7 / /dev integer-step-numbering Standard 4) — applies QA's reported spec section updates to the spec file before processing the verdict, in the same Step 12 it has always belonged to.
+This pre-decision-tree pass applies QA's reported spec section updates to the spec file before processing the verdict.
 
 If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec` and a global spec path was passed to Step 11), the orchestrator MUST apply QA's reported spec section updates to the spec file before processing the verdict:
 
@@ -864,7 +864,7 @@ ELIF qa.status == "fail":
 
 **Apply Mascot score-update events (post-QA, spec-20260518-225715 §5.1)**:
 
-This post-decision-tree pass — formerly labelled with a decimal sub-step (eliminated per spec-20260518-225715 Cycle 2 P3.7 / /dev integer-step-numbering Standard 4) — applies the canonical score-update events for this cycle. It stays inside Step 12 (the decimal was the only thing removed; ordering, semantics, and trigger gates are unchanged).
+This post-decision-tree pass applies the canonical score-update events for this cycle.
 
 After the verdict is known, apply score-update events based on QA outcome and iteration count:
 
@@ -1118,7 +1118,7 @@ jq -s '.[0] * {
 
 ## Mascot Score Changes (spec-20260518-225715 §5.1)
 
-Summarise score-update events from Step 12 (the score-update events pass, formerly labelled with a decimal sub-step — see spec-20260518-225715 Cycle 2 P3.7) and any user-rating events from `/close` in a table:
+Summarise score-update events from Step 12 and any user-rating events from `/close` in a table:
 
 | Agent | Event | Delta | Old → New |
 |-------|-------|-------|-----------|

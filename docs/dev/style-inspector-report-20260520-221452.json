@@ -1,9 +1,19 @@
 {
   "task_id": "20260520-221452",
   "spec_id": "spec-20260518-225715",
-  "cycle": "Cycle 2",
+  "cycle": "Cycle 2 — re-verification round after orchestrator fixes",
   "inspector": "style-inspector",
-  "scope": "--changed-files (16 files)",
+  "scope": "--changed-files (17 files)",
+  "round": "re-verify",
+  "prior_report_overwritten": true,
+  "prior_findings_status": {
+    "scripts/score-update.sh:73": {
+      "prior_finding": "Comment cross-referenced wrong /dev standard number (read 'Standard 6.spec' — should be Standard 3)",
+      "fix_applied": "Comment now reads '/dev Standard 3 (use source venv) — spec-20260518-225715 Cycle 2 P3.6.'",
+      "verification": "PASS — confirmed via Read of scripts/score-update.sh:72-74",
+      "additional_improvement_observed": "Lines 25-26 heredoc usage block now uses English rank labels (rank-1 apprentice, rank-2 junior, rank-3 skilled, rank-4 senior, rank-5 master) with a non-weakening note at lines 27-29 pointing to the Cycle-2 exemption at agents/style-inspector.md:322 and spec section 5.1. Stderr/usage text is now fully English-only while bound CJK rank labels remain only in the canonical emit paths (RANK_BOUNDARIES at lines 100-106 and fallback at lines 113, 149) per the exemption."
+    }
+  },
   "files_audited": [
     ".gitignore",
     "INDEX.md",
