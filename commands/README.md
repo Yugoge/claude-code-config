@@ -34,7 +34,7 @@ Organization and usage documentation for `commands/`.
 - `push.md` - Push Command
 - `quick-commit.md` - Create a well-formatted git commit with auto-generated message
 - `quick-prototype.md` - Rapidly create interactive prototypes and demos combining multiple artifact capabilities
-- `redev.md` - dev workflow, skip prompt injection — for re-invocation with /dev context already loaded. Pass --codex to enable adversarial codex consultation on each subagent's draft; default is self-review only.
+- `redev.md` - dev workflow, context-light invocation — same task semantics as /dev, but assumes the /dev workflow instructions are already loaded. Pass --codex to enable adversarial codex consultation on each subagent's draft; default is self-review only.
 - `refactor.md` - Suggest refactoring improvements for code quality
 - `reflect-search.md` - Reflection-driven iterative search with goal evaluation
 - `research-deep.md` - Multi-source deep research with 15-20 iterative searches

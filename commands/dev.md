@@ -133,7 +133,7 @@ mkdir -p "$REGISTRY_DIR"
 for agent in \
     architect ba cleaner cleanliness-inspector dev git-edge-case-analyst \
     pm product-owner prompt-inspector qa rule-inspector style-inspector \
-    test-executor test-validator ui-specialist user; do
+    test-executor test-validator test-writer ui-specialist user; do
   printf '{"agent_type": "%s", "session_id": "%s"}\n' "$agent" "$DEV_SESSION_ID" \
     > "$REGISTRY_DIR/$agent.json"
 done
