@@ -10,15 +10,47 @@
 
 **Pipeline**: ba → dev → qa
 
-## Hard Rules Relevant to Orchestrator
+## Monolith Structural Scaffolding
 
-## Scope and constraints inherited (binding)
+## Section 1: Before
 
-- DO NOT modify shipped artifacts already on `origin/master` (commits `6cd997b`, `34210cc`, `8d74e83`, `d988d4a`, `6d28883`, `28a1e85`, `23184c9`, `97585ca`, `4d9f9f5`)
-- DO NOT modify frozen continuation spec `docs/dev/specs/spec-20260520-044700.md`
-- Future cycles addressing these issues MUST land deliverables at non-gitignored paths (do not repeat the L3 mistake)
-- All new scripts use `#!/usr/bin/env bash` or `#!/usr/bin/env python3`; chmod +x
-- Lifecycle log location (when R9 lands) MUST be `logs/lifecycle.jsonl` (in-repo; add `.gitignore` exception if `logs/` is currently ignored)
+### Cycle 1
+
+_Not yet populated._
+
+## Section 2: What Was Attempted
+
+### Cycle 1
+
+_Not yet populated._
+
+## Section 3: What Was Changed
+
+### Cycle 1
+
+_Not yet populated._
+
+## Section 4: Current State
+
+### Cycle 1
+
+_Not yet populated._
+
+## Section 6: Why Not Met
+
+### Cycle 1
+
+_Not yet populated._
+
+## Section 7: What Must Be Done
+
+### Cycle 1
+
+_Not yet populated._
+
+## Section 8: Attention Notes
+
+_Not yet populated._
 
 ## Agent Relevance Analysis
 
