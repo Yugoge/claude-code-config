@@ -49,9 +49,9 @@
     ],
     "_success_criteria_rule": "13 ACs in acceptance-criteria-20260520-221452.json → 13 entries in success_criteria_results.",
     "root_cause_verification": {
-      "addressed": false,
+      "addressed": true,
       "confidence": "high",
-      "rationale": "Cycle 1's /close gate failure had 3 axes: (1) test-writer not consumable, (2) runtime telemetry leaking, (3) 12 style violations. Cycle 2 addressed axis 3 (style) cleanly (AC-11, AC-12, AC-13 all pass) and addressed axis 2 PARTIALLY (agent-scores leak closed, but .claude/INDEX.md still leaks cp-state telemetry — see FAIL #2). Axis 1 (consumability) was supposed to be addressed by adding test-writer to tool-policy + CP_AGENTS + agent_types (AC-01, AC-02 all pass at the contract surface), but the actual end-to-end test of consumability — dispatching test-writer in this very cycle and verifying it produces the per-task manifest + report — was SKIPPED via false BA gate logic (see FAIL #1). The strict-AC subset PASSES (alignment is TRUE), but the broader user requirement (close all 3 /close gate failure axes) is NOT empirically satisfied."
+      "rationale": "Cycle 1's /close gate failure had 3 axes: (1) test-writer not consumable, (2) runtime telemetry leaking, (3) 12 style violations. Cycle 2 final state addresses ALL three: axis 3 (style) via AC-11/AC-12/AC-13 PASS; axis 2 (telemetry leak) via AC-08 PASS for agent-scores AND post-regen .claude/INDEX.md cleanliness (0 cp-state, 0 spec-20260518-225715); axis 1 (consumability) via the static contract surface (AC-01 through AC-05 PASS) AND the end-to-end dispatch demonstration (test-writer dispatched and produced tests/generated/20260520-221452/manifest.json + global index + report + 13 importable skeletons). The two prior-round gaps are now empirically closed."
     },
     "build_verification": {
       "status": "pass",
