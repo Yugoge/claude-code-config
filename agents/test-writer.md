@@ -200,7 +200,8 @@ known-incomplete and QA blocks the cycle until the sentinel is removed.
 
 Write to `docs/dev/test-writer-report-<task_id>.json` (or return as stdout if
 the orchestrator captures inline). The `manifest_path` field is the PER-TASK
-active manifest path (see Procedure step 5 for global-index handling):
+active manifest path; the global index file at `tests/generated/manifest.json`
+is shape `kind: index` (NOT the active manifest):
 
 ```json
 {
