@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-21T01:22:15Z*
-**Total entries**: 330
+*Last updated: 2026-05-21T06:11:13Z*
+**Total entries**: 333
 **Convention**: kebab
 
 ## Tree
@@ -18,6 +18,8 @@ dev/
 │   ├── spec-20260518-225715/
 │   │   ├── views/
 │   │   └── `split-qa-unresolved.json` - json config
+│   ├── spec-20260520-221059/
+│   │   └── views/
 │   ├── `spec-20260517-210806.md` - Spec: Add working /push ending-workflow to clean.md (cleaner push-gate fix)
 │   ├── `spec-20260518-225715.md` - Spec: Dev Harness 扩展计划 — 工分系统、Test-Writer、Blast Radius、Executable AC、Canary
 │   ├── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
@@ -76,6 +78,7 @@ dev/
 ├── `cleanliness-inspector-report-20260519-211515-recheck.json` - json config
 ├── `cleanliness-inspector-report-20260519-211515.json` - json config
 ├── `cleanliness-inspector-report-20260520-085647-d1722b.json` - json config
+├── `cleanliness-inspector-report-20260520-221452.json` - json config
 ├── `cleanliness-inspector-report-d1e94e.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
 ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
