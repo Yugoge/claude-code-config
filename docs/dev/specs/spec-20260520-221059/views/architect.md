@@ -21,14 +21,14 @@
 
 - **R6** — orphan commit `34210cc` (and now patterns of similar dumps) pollute history with cross-subsystem mega-commits. /dev preflight should block or baseline dirty/orphaned pre-cycle state; baseline ref recorded in final report.
 
-### Layer D — cross-cycle structural pollution
+### Layer D — minor residual debt from THIS session's own deliverables and cross-cycle pollution
 
 - **D1** — 22 dirty files in working tree from concurrent cycles (`d1e94e` / `75463e-DH` / `085647-d1722b`) plus 1 in `/root` repo (`docs/dev/specs/spec-20260520-051938.md`). At least 3 separate dev cycles ran in recent days and never committed their artifacts.
 - **D3** — `docs/reference/tmp-cleanup-convention.md` (L3 deliverable from cycle 161035) is still gitignored. AC8 verified existence on local disk; fresh clones get nothing. Add a `.gitignore` exception OR move file to a non-ignored path.
 - **D4** — `/tmp/update-FgI2V5.md` and `/tmp/update-wflOHq.md` lingering temp `/spec-continue --temp` files. They have no consumers after their respective /commit runs; will be swept by tmp-cleanup at >7d but currently occupying tmpfs.
 - **D5** — Duplicate sibling file `docs/dev/prompt-inspector-report-20260519-211515-redev9items.json` left over from the write-guard workaround pattern (write to sibling → cp over canonical). Should be deduplicated.
 
-### Layer E — architectural process gaps
+### Layer E — orchestrator-process gaps (meta-level, beyond specific tool fixes)
 
 - **E5** — This very spec output is at risk: `docs/dev/specs/spec-20260520-221059.md` lives on tmpfs (`/dev/shm/...`) under a `docs/` subtree with historical gitignore complications. Need to verify (a) it'll actually persist past next reboot, (b) it ships via git.
 - **E10** — Session learnings are non-durable. This spec file is the only persistent record of these self-assessments. If file is lost (tmpfs cleared, gitignore matched, ghost cycle pollution), the entire reasoning chain across this session is lost. Need a more durable "session learnings log" architecture.
