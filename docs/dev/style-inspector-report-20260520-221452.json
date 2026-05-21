@@ -66,28 +66,25 @@
       "covers": "USER_VERBATIM-tagged content (commands/dev.md lines 253, 1486-1488)"
     }
   },
-  "findings": [
+  "findings": [],
+  "non_findings_with_rationale": [
     {
       "file": "scripts/score-update.sh",
-      "line": 73,
-      "severity": "minor",
-      "description": "Comment cross-references the WRONG /dev standard number. Text reads '/dev Standard 6.spec-20260518-225715 Cycle 2 P3.6.' — but Standard 6 in agents/style-inspector.md is English-Only; the venv co-location rule is Standard 3 (Use Source venv, Not python3). Additionally the period between '6' and 'spec' looks like a typo (should be '/' or whitespace). Recommend: '# same line as python3 per /dev Standard 3 (use source venv) — spec-20260518-225715 Cycle 2 P3.6.'",
-      "standard_violated": "Standard 8 (concise-documentation — accurate cross-references)",
-      "introduced_in_diff": true
-    }
-  ],
-  "non_findings_with_rationale": [
+      "lines": "73-74",
+      "candidate_violation": "Standard 3 (direct python3 call) + Standard 8 (cross-reference accuracy)",
+      "rationale": "Re-verification of prior finding's fix. Comment now correctly cites Standard 3, and python3 is invoked via 'source ~/.claude/venv/bin/activate && python3 -' co-located on the same line — fully compliant with Standard 3."
+    },
+    {
+      "file": "scripts/score-update.sh",
+      "lines": "25-29 (usage heredoc), 100-106, 113, 149 (canonical emit)",
+      "candidate_violation": "Standard 6 (CJK characters)",
+      "rationale": "Usage-block CJK eliminated in this round (now English rank labels + non-weakening attribution note at lines 27-29). CJK confined to RANK_BOUNDARIES table + rank_for_score fallback paths — the canonical user-facing emit channel covered by exemption class (i) at agents/style-inspector.md:322. Non-weakening clause preserved."
+    },
     {
       "file": "scripts/score-inject.sh",
       "lines": "40-41, 53-58, 65, 72-73, 78, 80, 96-101, 104",
       "candidate_violation": "Standard 6 (CJK characters)",
-      "rationale": "All CJK characters are bound user-facing prompt-output strings: rank labels (见习学徒/初级工匠/熟练工匠/资深工匠/宗师级), neutral-header fallback text (line 40-41, 72-73), user-rating tail phrase (lines 96-101). Explicitly covered by the Cycle-2 exemption at agents/style-inspector.md:322 classes (i), (ii), and (iv). Non-weakening clause preserved: code comments above the heredoc remain English."
-    },
-    {
-      "file": "scripts/score-update.sh",
-      "lines": "101-106, 113, 149",
-      "candidate_violation": "Standard 6 (CJK characters)",
-      "rationale": "RANK_BOUNDARIES table entries (lines 101-106), rank_for_score fallback (line 113), and agent-init fallback (line 149) all emit one of the five canonical rank labels — bound to the spec-20260518-225715 §5.1 role per exemption class (i). Stderr/diagnostic strings remain English (lines 125-128, 132-136), consistent with the non-weakening clause."
+      "rationale": "All CJK characters are bound user-facing prompt-output strings: rank labels, neutral-header fallback text (lines 40-41, 72-73), user-rating tail phrase (lines 96-101). Explicitly covered by the Cycle-2 exemption classes (i), (ii), and (iv). No new CJK introduced in this re-verification round."
     },
     {
       "file": "commands/dev.md",
