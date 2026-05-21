@@ -52,10 +52,13 @@ _Not yet populated._
 
 _Not yet populated._
 
-## Agent Relevance Analysis
+## Pipeline declarations
 
-See `manifest.json` for the per-agent relevance decisions.
+**Pipeline**: ba → dev → qa
 
-## Views Created
+## Source-of-truth references
 
-See `manifest.json` for the list of view files generated.
+- 17-item meta-assessment (Layer A + C source): `docs/dev/meta-assessment-20260519-161035.json`
+- 9-item retrospective scope (replaced Layer A mid-cycle): `docs/dev/qa-output-retrospective-classification-20260519-175339.json`
+- The 4-layer prevention cycle (Layer B's `in_scope_minor` source): `docs/dev/qa-report-20260519-161035.json` codex_consult section
+- This session's transcript: present as full conversation history, not yet persisted to disk
