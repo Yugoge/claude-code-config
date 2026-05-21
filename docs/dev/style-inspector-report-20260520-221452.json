@@ -36,15 +36,15 @@
   "standards_checked": [
     "Standard 1 (no-inline-code)",
     "Standard 2 (no-hardcoded-values)",
-    "Standard 3 (use-source-venv)",
+    "Standard 3 (use-source-venv) — re-verified at scripts/score-update.sh:73-74",
     "Standard 4 (integer-step-numbering)",
     "Standard 5 (meaningful-naming)",
-    "Standard 6 (english-only — with Cycle-2 exemption verified at agents/style-inspector.md:322)",
+    "Standard 6 (english-only — with Cycle-2 exemption at agents/style-inspector.md:322; unconditional full-dir scan of agents/* and commands/* performed)",
     "Standard 7 (merge-similar-scripts)",
     "Standard 8 (concise-documentation)",
     "Standard 9 (parameterized-scripts)",
     "Standard 10 (dangling-references)",
-    "Standard 11 (merge-conflicts)"
+    "Standard 11 (merge-conflicts) — line-anchored full-repo grep performed; zero real markers"
   ],
   "exemption_verification": {
     "standard_6_cycle2_exemption": {
