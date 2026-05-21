@@ -101,5 +101,6 @@ tail = (
 sys.stdout.write(f"[段位: {rank}] [区间: {rng}] 最近事件: {recent_str}\n")
 sys.stdout.write(tail + "\n")
 PYEOF
+)
 
 exit 0
