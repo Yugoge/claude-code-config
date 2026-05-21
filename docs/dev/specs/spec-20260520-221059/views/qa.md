@@ -32,7 +32,9 @@ When the user said `修复全部` after the 17-item meta-assessment, they meant 
 - **W5** — Agent-resumption event log: when orchestrator dispatches a fresh agent to resume cut work, record `{ts, dev_session_id, prior_agent_id, new_agent_id, recovery_notes}`. Currently all resumptions are silent.
 - **R9** — Score-update CAS + lifecycle log: replace direct score writes with append-only log entries `{ts, agent, event, prev_score, new_score, delta, actor, reason}`. Reads use latest entry; writes use Compare-And-Swap on prev_score. User observed score drift `dev 81→73` between events with no event-log explanation.
 
-### Layer B — verification follow-ons
+### Layer B — orchestrator's post-session self-confession (5 items the orchestrator initially downplayed)
+
+When the user asked "确定没有别的没做的没有被你记录?", the orchestrator surfaced:
 
 1. **Artifact-loss root cause never investigated** — 5 cycle artifacts disappeared from disk mid-session and were recovered via `refs/checkpoints/master`. The orchestrator never identified WHICH process/hook/script deleted them. Likely candidates: a hook with `rm`, a cleanup script with too-wide scope, cross-session `git restore` or `git clean`. Until root cause is found, this is a defense-not-fortified-but-tested timebomb.
 2. **Cross-session work falsely attributed to current cycle** — commits `28a1e85` and `97585ca` were already on disk before the current /commit; the orchestrator claimed they belonged to the 9-item retrospective but cannot prove their content matches the 9-item scope. There may be unrelated work bundled in those SHAs that landed on origin/master under this cycle's banner.
