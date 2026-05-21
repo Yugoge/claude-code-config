@@ -7,19 +7,17 @@
 
 ---
 
-## Role Mandate
-
-> **Pipeline**: ba → dev → qa
-
 # Spec: Unresolved issues backlog from session 88dfdcea — TOP 3 cluster stranded by scope hot-swap + post-session confession
 
 **Pipeline**: ba → dev → qa
 **Session**: spec-20260520-221059
 **Created**: 2026-05-20T22:10:59Z
 
-## Structural scope (per spec Section 5)
+## Section 5: User's Acceptance Criterion
 
-### Layer C — structural item
+> 将你说的问题全部保存为新的spec
+
+### Layer C — 17-item meta-assessment of cycle 20260519-161035, the OTHER 9 always-known deferred items
 
 - **R6** — orphan commit `34210cc` (and now patterns of similar dumps) pollute history with cross-subsystem mega-commits. /dev preflight should block or baseline dirty/orphaned pre-cycle state; baseline ref recorded in final report.
 
