@@ -56,7 +56,7 @@ These were explicitly listed as deferred in the user-requirement document at ses
 - **R7** — `CLAUDE_SESSION_ID` not exported in orchestrator shell; push token written with `session_id="unknown"`. Init+export at orchestrator-shell startup; fail uploads if missing rather than writing 'unknown'.
 - **R8** — Stop-hook codex-override: when orchestrator passed `codex_required: false` to BA iter1 resumption, harness Stop-hook forced codex invocation anyway. Explicit task flags should override resume/Stop-hook defaults unless a hard-blocking hook emits visible reason + user confirmation.
 
-### Layer E — hook/process implementation gaps
+### Layer E — orchestrator-process gaps (meta-level, beyond specific tool fixes)
 
 - **E2** — Subagent "wrote report but didn't" silent-failure pattern. Multiple instances where inspector subagents reported "Report written" but no file appeared on disk (cleanliness + prompt during cycle 211515 close, before artifact recovery). Different from write-guard blocking: subagents CLAIMED success. Possible causes: tool-policy write-prefix gap, hook intercepting silently, or subagent fabrication. Needs root-cause investigation + a "subagent claim verification" check (orchestrator validates claimed deliverables before proceeding).
 - **E6** — Single-/commit-grant-per-orchestrator-dispatch limit. changelog-analyst surfaced this: the guard unlinks grant after first commit, so multi-commit cycles (feature + orphan + nested repo) require either (a) /commit wrapper writes N grants up-front, or (b) contract explicit "one commit per dispatch". Real gap, blocks the orphan-capture pattern in single /commit invocations.
