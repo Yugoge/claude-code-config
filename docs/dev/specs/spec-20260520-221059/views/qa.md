@@ -90,7 +90,7 @@ These were explicitly listed as deferred in the user-requirement document at ses
 - **G6** — `prompt-inspector-report-20260519-211515-redev9items.json` is a sibling duplicate of `prompt-inspector-report-20260519-211515.json` (write-guard workaround). Deduplicate.
 - **G7** — `style-inspector-report-20260519-211515-recheck.json` and `prompt-inspector-report-20260519-211515-recheck.json` exist (visible in /push working-tree listing) — extra inspector runs whose origin is unclear. Investigate or delete.
 
-### Layer J — verification of production-bug fixes
+### Layer J — known-but-uncommunicated production bugs
 
 - **J4** — The 22 dirty working-tree files include `docs/dev/INDEX.md` and `.claude/specs/spec-20260518-225715/cp-state-{dev,qa}.json`. The INDEX modification means future docs/dev/ lookups via index are stale. The cp-state JSONs are checkpoint state from this session; if a future /dev cycle relies on SPEC_ID `spec-20260518-225715`, it would NOT see this session's checkpoint progress.
 
