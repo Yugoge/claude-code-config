@@ -39,7 +39,7 @@
 - **J3** — L2 cleanup script `/usr/local/sbin/tmp-cleanup.sh` is in NO repo. If host filesystem is wiped or reinstalled, 12KB of cleanup logic vanishes. R2's install-manifest IS the fix, but the urgent failure mode is real today. The script needs a mirror in-repo at `scripts/install/` even before R2's automated gate lands.
 - **J7** — `agent-scores.json` IS tracked by git. Every score change is part of commit history, cluttering diffs of unrelated work. Move to a non-tracked log + summary tracked file, OR accept the clutter explicitly.
 
-### Layer P — implicit architectural assumptions
+### Layer P — implicit assumptions the orchestrator never validated
 
 - **P1** — `/dev/shm` is the same physical filesystem across session resumes. But it's tmpfs — server reboot or umount wipes the workspace including this spec file. The auto-commit `refs/checkpoints/master` is the only backstop, and J1 shows it's currently corrupted for some paths.
 - **P2** — `agent-scores.json` persistence assumed reliable but lives on tmpfs (the whole repo). Score history could vanish on reboot. The score-event log proposed in R9 also lives on the same tmpfs.
