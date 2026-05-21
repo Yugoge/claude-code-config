@@ -1117,7 +1117,7 @@ jq -s '.[0] * {
 
 ## Mascot Score Changes (spec-20260518-225715 §5.1)
 
-Summarise score-update events from Step 12 (the score-update events pass, formerly labelled `Sub-step 12.1` — see spec-20260518-225715 Cycle 2 P3.7) and any user-rating events from `/close` in a table:
+Summarise score-update events from Step 12 (the score-update events pass, formerly labelled with a decimal sub-step — see spec-20260518-225715 Cycle 2 P3.7) and any user-rating events from `/close` in a table:
 
 | Agent | Event | Delta | Old → New |
 |-------|-------|-------|-----------|
