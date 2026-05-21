@@ -125,6 +125,16 @@ User points out that the original 4 layers (Layer A/B/C/D, 29 items) under-repre
 
 User pushes for another exhaustive sweep. Below are items pulled from deeper recesses — bugs, gaps, and observations the orchestrator noticed during execution but never elevated to user-facing surface.
 
+### Layer J — known-but-uncommunicated production bugs
+
+- **J1** — `refs/checkpoints/master` is now CORRUPTED. The subagent that recovered the 5 lost artifacts noted: the latest checkpoint commit `f63b1a7` captured 92-byte stderr-redirect stub files from a failed first restoration attempt. The corrupted state is still in the checkpoint ref. Future recoveries from this ref will retrieve garbage for these paths. Needs cleanup or rewind.
+- **J2** — `/push` command spec hardcodes `SESSION_ID="88dfdcea-706b-457f-b6c1-07bd1dac0b8f"` (this session's UUID). It was baked in via UserPromptSubmit hook injection at /push invocation. If session changes (next /push in another session), the spec literal is wrong. Real bug: the spec body should reference an env var, not a literal UUID.
+- **J3** — L2 cleanup script `/usr/local/sbin/tmp-cleanup.sh` is in NO repo. If host filesystem is wiped or reinstalled, 12KB of cleanup logic vanishes. R2's install-manifest IS the fix, but the urgent failure mode is real today. The script needs a mirror in-repo at `scripts/install/` even before R2's automated gate lands.
+- **J4** — The 22 dirty working-tree files include `docs/dev/INDEX.md` and `.claude/specs/spec-20260518-225715/cp-state-{dev,qa}.json`. The INDEX modification means future docs/dev/ lookups via index are stale. The cp-state JSONs are checkpoint state from this session; if a future /dev cycle relies on SPEC_ID `spec-20260518-225715`, it would NOT see this session's checkpoint progress.
+- **J5** — `hooks/tests/__pycache__/` files appear in `git status` output. Python bytecode shouldn't be tracked. Check `.gitignore` for `__pycache__/` exclusion.
+- **J6** — Score-update ceiling=100 silently caps deltas (E3 above) AND it caps MULTIPLE TIMES PER CYCLE. dev hit 100 ceiling, then took penalties bringing it down, then rose back to 100, capped again. Each capping is a separately-lost positive signal. The schedule needs to track an "uncapped delta" running total or remove the ceiling.
+- **J7** — `agent-scores.json` IS tracked by git. Every score change is part of commit history, cluttering diffs of unrelated work. Move to a non-tracked log + summary tracked file, OR accept the clutter explicitly.
+
 ### Layer K — workflow conflicts the orchestrator silently navigated
 
 - **K1** — The original 8-item TOP cluster (Layer A) IS from cycle 161035 meta-assessment. The 9-item retrospective scope (cycle 211515) carried the user's binding directive `禁止加载任何非本cycle的内容` referring to NOT bundling 161035 work. **Finishing Layer A's 8 items requires reversing or scoping that directive.** This is a workflow conflict the user needs to explicitly resolve before the 8 items can ship. Future /dev or /redev addressing Layer A must re-authorize loading 161035 meta-assessment content.
