@@ -21,7 +21,7 @@
     },
     "architect": {
       "included": true,
-      "reason": "Structural items: J3/J7/Q4/Q6/R6/P1/P2/E5/E10/D1/D3/D4/D5"
+      "reason": "Structural items: R6/D1/D3/D4/D5/E5/E10/E16/J3/J7/P1/P2/Q4/Q6/M3/M4/U3"
     },
     "ui-specialist": {
       "included": false,
@@ -75,27 +75,27 @@
   "views": {
     "ba": {
       "path": "views/ba.md",
-      "bytes": 11913,
-      "lines": 121,
-      "sha256": "aa2beeb155265f6975527195d14ef1c0f5ebf71bdedecfd95f18ccfb68eacc43"
+      "bytes": 36852,
+      "lines": 229,
+      "sha256": "98768d1b2dbbb59ed89559caa6d7daaa707c8a56205bbc47a3cfe8031530b31a"
     },
     "dev": {
       "path": "views/dev.md",
-      "bytes": 10889,
-      "lines": 82,
-      "sha256": "d38aacd6a303cb62dea9064284d1eebb5d59bb2e4c9227513cad09b892110d04"
+      "bytes": 15102,
+      "lines": 106,
+      "sha256": "b687ca92c059620f6709ed1f3b1b94d43a9853967de2e7278d186de3402e0ca1"
     },
     "qa": {
       "path": "views/qa.md",
-      "bytes": 12730,
-      "lines": 87,
-      "sha256": "236ba61c5d09b515ffee00f453f022cd395f0135d78932e35ed06b6712770e07"
+      "bytes": 25235,
+      "lines": 163,
+      "sha256": "797069af1920d0428850659f1996f1bbeabdcc020c433552312ba61758f7ad09"
     },
     "architect": {
       "path": "views/architect.md",
-      "bytes": 4130,
-      "lines": 52,
-      "sha256": "6d15303cee51d905fdf15f4b8cbdebc1cadc31234c0efd95a44a134264dc13d7"
+      "bytes": 6298,
+      "lines": 68,
+      "sha256": "2cfba0940b76b38ccfaf4368f68f9a1aad79864d5f1760b9f9d6fe6020858ab5"
     },
     "orchestrator": {
       "path": "views/orchestrator.md",
