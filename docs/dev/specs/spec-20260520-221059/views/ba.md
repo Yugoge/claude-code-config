@@ -142,6 +142,13 @@ User pushes for another exhaustive sweep. Below are items pulled from deeper rec
 - **K3** — Push to origin did NOT include the 22 dirty files. If a future session rebases origin/master, dirty files become candidates for merge conflicts or loss. Should those files be committed (under what cycle?), reverted, or stashed?
 - **K4** — `/do` consent flag at `/tmp/claude-orchestrator-consent-<session-id>.flag` is meant to expire at session end. But session resumes (which fired multiple times this session per SessionStart hook) may not clear the flag. Consent may persist across logical session boundaries. Needs verification.
 
+### Layer L — orchestrator's silent decisions during execution
+
+- **L1** — Multiple codex `out_of_scope` rejections never surfaced to user. Codex flagged at least 4 adjacent attack vectors during 9-item cycle QA (codex #1 "Bash self-authoring sentinel" was rejected as adjacent attack vector outside threat model). Each rejection is a potential issue the orchestrator unilaterally dismissed under Rule 3/4. List of all codex_out_of_scope rejections across this session warrants surfacing.
+- **L2** — Codex CLI session IDs (`019e4739-3dd8-7581-abaa-12a0355a0a5c`, etc.) noted in artifacts but no ledger. Future "trace which codex consultation produced what finding" requires manual grep through `/var/tmp/codex-outputs/`. Codex-consult-ledger script would help.
+- **L3** — `refs/checkpoints/master` mechanism itself is unmonitored. We don't know how often it commits, what triggers it, whether it's healthy. The mechanism saved this cycle but its own SRE story is invisible. Health check + write-rate audit needed.
+- **L4** — The orchestrator chose Branch 4 (Workflow Integrity FAIL) at /close Round 1 partly on style-inspector evidence. But "Standard 6 critical at commit.md:130" is debatable severity — was that ACTUALLY critical, or did style-inspector self-upgrade ADVISORY→CRITICAL based on strict-literal reading that may have been overzealous? The Round 1 NO verdict consumed orchestrator + dev + ba + qa scores (-10/-5/-12). Worth a calibration check on style-inspector severity escalation logic.
+
 ### Layer M — preferences and memory that ought to be durable
 
 - **M1** — User preferences observed across the session but not persisted anywhere: prefers Chinese with mixed English; values orchestrator decisiveness over excessive clarification; wants honesty about gaps (asked "are you sure" twice in a row); accepts terse direct answers. None of this is recorded in CLAUDE.md or anywhere durable.
