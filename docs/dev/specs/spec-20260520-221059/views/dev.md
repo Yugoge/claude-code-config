@@ -46,12 +46,6 @@
 - **R7** — `CLAUDE_SESSION_ID` not exported in orchestrator shell; push token written with `session_id="unknown"`. Init+export at orchestrator-shell startup; fail uploads if missing rather than writing 'unknown'.
 - **R8** — Stop-hook codex-override: when orchestrator passed `codex_required: false` to BA iter1 resumption, harness Stop-hook forced codex invocation anyway. Explicit task flags should override resume/Stop-hook defaults unless a hard-blocking hook emits visible reason + user confirmation.
 
-### Layer D — cleanup tasks
-
-- **D3** — `docs/reference/tmp-cleanup-convention.md` (L3 deliverable from cycle 161035) is still gitignored. AC8 verified existence on local disk; fresh clones get nothing. Add a `.gitignore` exception OR move file to a non-ignored path.
-- **D4** — `/tmp/update-FgI2V5.md` and `/tmp/update-wflOHq.md` lingering temp `/spec-continue --temp` files. They have no consumers after their respective /commit runs; will be swept by tmp-cleanup at >7d but currently occupying tmpfs.
-- **D5** — Duplicate sibling file `docs/dev/prompt-inspector-report-20260519-211515-redev9items.json` left over from the write-guard workaround pattern (write to sibling → cp over canonical). Should be deduplicated.
-
 ### Layer E — hook/process implementation gaps
 
 - **E2** — Subagent "wrote report but didn't" silent-failure pattern. Multiple instances where inspector subagents reported "Report written" but no file appeared on disk (cleanliness + prompt during cycle 211515 close, before artifact recovery). Different from write-guard blocking: subagents CLAIMED success. Possible causes: tool-policy write-prefix gap, hook intercepting silently, or subagent fabrication. Needs root-cause investigation + a "subagent claim verification" check (orchestrator validates claimed deliverables before proceeding).
