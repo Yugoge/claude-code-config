@@ -108,8 +108,9 @@ verify_read_size_guard() {
   # Block case: synthesize an oversized file. The hook's documented cap is
   # 1000 lines (CLAUDE.md says 600; spec §5.5 documented mismatch). Use 5000
   # lines to exceed any plausible cap and assert the guard fires (exit 2).
-  # mktemp replaces former hardcoded /tmp/canary-oversized-$$ literal per
-  # spec-20260518-225715 Cycle 2 P3.8.
+  # mktemp replaces former hardcoded temp-dir oversized literal per
+  # spec-20260518-225715 Cycle 2 P3.8 (parameterizes the path so the test
+  # tolerates non-default TMPDIR setups).
   local oversized
   oversized=$(mktemp -t canary-oversized.XXXXXX)
   yes "fill" 2>/dev/null | head -5000 > "${oversized}" || true
