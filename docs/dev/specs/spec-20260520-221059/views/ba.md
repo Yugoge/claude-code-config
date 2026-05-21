@@ -112,13 +112,6 @@ User signals "keep digging". Below are items pulled from yet-deeper angles — s
 - **U2** — The orchestrator's "remembering" is limited by context compactions. SessionStart hooks fired ~4-5 times this session; each is a compaction event. Items mentioned BEFORE a compaction may have been silently summarized away.
 - **U3** — This spec file IS the durable record of all of the above. If THIS spec is lost (gitignore, ghost pollution, reboot, /spec misconfig), this entire reasoning cascade is gone. Recursive concern: the artifact preserving the "fragility of artifacts" lessons is itself fragile.
 
-## Source-of-truth references
-
-- 17-item meta-assessment (Layer A + C source): `docs/dev/meta-assessment-20260519-161035.json`
-- 9-item retrospective scope (replaced Layer A mid-cycle): `docs/dev/qa-output-retrospective-classification-20260519-175339.json`
-- The 4-layer prevention cycle (Layer B's `in_scope_minor` source): `docs/dev/qa-report-20260519-161035.json` codex_consult section
-- This session's transcript: present as full conversation history, not yet persisted to disk
-
 ## Scope and constraints inherited (binding)
 
 - DO NOT modify shipped artifacts already on `origin/master` (commits `6cd997b`, `34210cc`, `8d74e83`, `d988d4a`, `6d28883`, `28a1e85`, `23184c9`, `97585ca`, `4d9f9f5`)
