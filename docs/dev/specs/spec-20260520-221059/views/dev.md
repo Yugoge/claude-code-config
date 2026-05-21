@@ -7,19 +7,21 @@
 
 ---
 
-## Role Mandate
-
-> **Pipeline**: ba → dev → qa
-
 # Spec: Unresolved issues backlog from session 88dfdcea — TOP 3 cluster stranded by scope hot-swap + post-session confession
 
 **Pipeline**: ba → dev → qa
 **Session**: spec-20260520-221059
 **Created**: 2026-05-20T22:10:59Z
 
-## Implementation scope (per spec Section 5)
+## Section 5: User's Acceptance Criterion
 
-### Layer A — implementation items (harness/hook/gate)
+> 将你说的问题全部保存为新的spec
+
+User's directive: save everything the orchestrator just enumerated as the comprehensive unresolved-issues backlog. The backlog spans three layers — the originally-promised work that got displaced by scope hot-swap, the items the orchestrator surfaced under self-confession when the user asked "are you sure nothing else is unrecorded?", and the always-known deferred items. The verbatim enumeration follows:
+
+### Layer A — 17-item meta-assessment of cycle 20260519-161035 (tmpfs prevention), TOP 3 cluster (8 items) — **stranded by scope hot-swap**
+
+When the user said `修复全部` after the 17-item meta-assessment, they meant these 8 items (the TOP 3 cluster grouped by QA+codex). Mid-cycle the requirement doc was rewritten to a different 9-item retrospective; these 8 items got displaced and **none of them shipped**.
 
 - **R1** — Shippability gate: every entry in `dev-report.dev.files_modified`/`files_created` must be diffed against `.gitignore`. Gitignore match → critical fail UNLESS dev-report has `gitignore_waiver`. This is the gate that would have caught `docs/reference/tmp-cleanup-convention.md` being gitignored (the L3 doc that AC8 passed but won't ship via git).
 - **R2** — System-file install-manifest gate: any path matching `/usr/local/`, `/etc/`, `/opt/`, `/var/`, or outside `git rev-parse --show-toplevel` requires either an in-repo install manifest (`scripts/install/<deliverable>-install.sh`) OR explicit `system_file_waiver`. This is what would have caught `/usr/local/sbin/tmp-cleanup.sh` being single-host-only.
