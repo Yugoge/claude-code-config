@@ -71,7 +71,7 @@ These were explicitly listed as deferred in the user-requirement document at ses
 - **J5** — `hooks/tests/__pycache__/` files appear in `git status` output. Python bytecode shouldn't be tracked. Check `.gitignore` for `__pycache__/` exclusion.
 - **J6** — Score-update ceiling=100 silently caps deltas (E3 above) AND it caps MULTIPLE TIMES PER CYCLE. dev hit 100 ceiling, then took penalties bringing it down, then rose back to 100, capped again. Each capping is a separately-lost positive signal. The schedule needs to track an "uncapped delta" running total or remove the ceiling.
 
-### Layer O — codex/subagent-surfaced fixes
+### Layer O — subagent-surfaced findings the orchestrator deprioritized
 
 - **O5** — codex during 9-item retrospective dev stage flagged: F4 (mktemp in /tmp during /tmp cleanup), F5 (dry-run truncation at 200 candidates). These were applied during dev. But codex F1 (blocking flock under contention) was applied as `flock -x -w 1` — meaning under heavy contention the L1.5 hook now SKIPS rather than waits. Is "skip when contended" the right behavior? Untested under contention.
 
