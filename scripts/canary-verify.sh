@@ -75,10 +75,15 @@ verify_write_guard() {
     emit_failure "missing: ${hook}"
     return
   fi
-  # Exec-error detection (>=126 = exec failure, 127 = command not found)
-  local safe='{"tool_name":"Write","tool_input":{"file_path":"/tmp/canary-safe.txt","content":"ok"}}'
+  # Exec-error detection (>=126 = exec failure, 127 = command not found).
+  # Use mktemp for the synthetic file_path payload per spec-20260518-225715
+  # Cycle 2 P3.8 (replaces former hardcoded /tmp/canary-safe.txt literal).
+  local safe_file
+  safe_file=$(mktemp -t canary-safe.XXXXXX)
+  local safe="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"${safe_file}\",\"content\":\"ok\"}}"
   echo "${safe}" | bash "${hook}" >/dev/null 2>&1
   local rc=$?
+  rm -f "${safe_file}"
   if [[ "${rc}" -ge 126 ]]; then
     emit_failure "pretool-write-guard.sh exec error rc=${rc}"
   fi
