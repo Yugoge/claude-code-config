@@ -26,14 +26,6 @@
 3. **AskUserQuestion empty-answer bug** — orchestrator prompted user for rating twice (post-/redev, post-/close YES) and both times received empty answer payload. Treated as "skip" per spec, but may indicate the hook/UI framework loses rating responses. Worth investigating the AskUserQuestion → orchestrator data path.
 4. **Item 8 from 9-item retrospective NOT addressed** — `ACCEPTABLE-DEBT`: 23 leaked production playwright-mcp processes. User-authorized via `就地部署`, OOS-logged. Still leaking resources right now.
 
-### Layer C — verification follow-ons
-
-- **W1** — Spec auto-detect rule violated by orchestrator when newest spec was unrelated to current /dev request; rule should be `fail/ask` instead of silent override.
-- **W2** — test-writer silent skip when complexity_tier ≥ STANDARD; dispatch gate should route STANDARD-tier bash to shellcheck+Bats+fixture OR record explicit waiver, no silent skip.
-- **W4** — orchestrator Write gate (1/turn) caused completion-report writes to be subagent-delegated multiple times; gate redesign needed.
-- **R7** — `CLAUDE_SESSION_ID` not exported in orchestrator shell; push token written with `session_id="unknown"`. Init+export at orchestrator-shell startup; fail uploads if missing rather than writing 'unknown'.
-- **R8** — Stop-hook codex-override: when orchestrator passed `codex_required: false` to BA iter1 resumption, harness Stop-hook forced codex invocation anyway. Explicit task flags should override resume/Stop-hook defaults unless a hard-blocking hook emits visible reason + user confirmation.
-
 ### Layer D — verification of cleanup
 
 - **D2** — Step 7 false positive: `docs/dev/specs/spec-20260518-225715.md` (mascot scoring spec) contains a "20260519-211515" historical cross-reference; the new Step 7 algorithm flags it as a non-linked continuation spec for this cycle. The algorithm is correct; the data is polluted. Ghost cycle pollution cleanup needed.
