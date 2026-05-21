@@ -1,0 +1,220 @@
+{
+  "request_id": "20260521-090100",
+  "task_id": "20260521-090100",
+  "timestamp": "2026-05-21T09:01:00Z",
+  "complexity_tier": "STANDARD",
+  "risk_level": "low",
+  "_risk_level_doc": "Change is confined to two configuration/command files. No security boundary is crossed; only additive policy grants (new allowed prefix, no removal of denials). Hook logic is unchanged.",
+  "requirement": {
+    "original": "Codex CLI invocations from subagents currently lack a canonical writable output path. When subagents invoke the codex Skill, Codex output cannot be directed to a file because tool-policy.v1.json does not grant write access to a codex output directory — resulting in a 'no-tee workaround' where Codex output only goes to stdout. The desired end-state is: docs/codex/<task_id>/<role>.txt is the canonical Codex output path; tool-policy.v1.json grants write access to that directory prefix for the relevant roles; and wherever the codex Skill definition lives (commands/, SKILL.md, or equivalent), the default output target reflects that canonical path. After this change, subagents can write Codex output to a file in docs/codex/ without being blocked by hooks, and the no-tee workaround is retired.",
+    "clarified": "Add */docs/codex/ to allowed_write_path_prefixes for 12 Codex-consultation roles in tool-policy.v1.json; update commands/codex.md Step 2 and Step 4 to use docs/codex/<task_id>/<role>.txt as the canonical default path with deterministic derivation of task_id and role; demote /var/tmp/codex-outputs/ to exceptional fallback only.",
+    "what": "Grant write access to docs/codex/ directory prefix and establish it as the canonical default Codex output path in the codex command definition",
+    "why": "Subagents invoking the codex Skill cannot currently write output to a persistent, structured file without being blocked by the tool policy hook; this forces a workaround where output goes only to stdout",
+    "where": ["policies/tool-policy.v1.json", "commands/codex.md"],
+    "scope": {
+      "included": [
+        "Adding */docs/codex/ to allowed_write_path_prefixes for ba, qa, dev, pm, architect, product-owner, cleanliness-inspector, prompt-inspector, spec, style-inspector, ui-specialist, user",
+        "Incrementing policy_version to 4 with _note explaining the change",
+        "Updating commands/codex.md Step 2 to generate docs/codex/<task_id>/<role>.txt as canonical path",
+        "Updating commands/codex.md Step 4 to use a hook-resolvable tee target",
+        "Documenting /var/tmp/codex-outputs/ as exceptional fallback"
+      ],
+      "excluded": [
+        "Modifying any hook file or lib/ Python modules",
+        "Creating docs/codex/ directory in git (runtime mkdir)",
+        "Adding docs/codex/ to timeline, transportation, test-writer, general-purpose, changelog-analyst, push-analyst, merge-analyst, pull-analyst",
+        "Changing codex-enforce.json schema",
+        "Migrating existing /var/tmp/codex-outputs/ files"
+      ]
+    },
+    "success_criteria": [
+      "grep '*/docs/codex/' policies/tool-policy.v1.json returns exactly 12 matches",
+      "policy_version field equals 4",
+      "commands/codex.md Step 2 generates docs/codex/<task_id>/<role>.txt as primary path",
+      "bash tee target in commands/codex.md Step 4 is hook-resolvable (not an opaque shell variable)",
+      "ba-role subagent Bash write to docs/codex/20260521-090100/ba.txt is not blocked"
+    ],
+    "constraints": [
+      "Do not modify hook files or lib/ Python modules",
+      "Do not modify settings.json",
+      "Policy path prefix must use */docs/codex/ glob form (not /docs/codex/ anchored or docs/codex/ bare)",
+      "Tee target in codex.md must resolve without arbitrary shell variable expansion by the hook parser"
+    ]
+  },
+  "scope_boundary": {
+    "in_user_path": ["policies/tool-policy.v1.json", "commands/codex.md"],
+    "path_dependent_shared_infra": ["hooks/pretool-tool-policy.py (read only — understand matching behavior; do not modify)", "hooks/lib/bash_write_targets.py (read only — understand _resolve_path behavior for AC4)"],
+    "out_of_path_observed_but_not_touched": []
+  },
+  "out_of_scope_observations": [],
+  "root_cause_analysis": {
+    "symptom": "Subagents invoking codex Skill cannot write output to docs/codex/ because the path is absent from allowed_write_path_prefixes in all role entries",
+    "root_cause": "tool-policy.v1.json was never updated to include a docs/codex/ write prefix; commands/codex.md was written before the canonical output path requirement existed",
+    "root_cause_commit": "N/A — this is a missing-feature gap, not a regression",
+    "why_introduced": "The /var/tmp/codex-outputs/ path was chosen for disk-backed storage to avoid tmpfs ENOSPC; no structured per-task-per-role path was designed at that time",
+    "why_problematic": "Codex output is ephemeral and not discoverable by task/role; no persistent audit trail exists in the repo; the tee workaround in codex.md cannot succeed because the policy blocks the write path",
+    "timeline": "2026-05-21 — first time this gap is being addressed; no prior attempts",
+    "affected_files": ["policies/tool-policy.v1.json", "commands/codex.md"],
+    "evidence_type": "inferred",
+    "observations": [
+      "grep 'docs/codex' policies/tool-policy.v1.json returns 0 matches (inferred: confirmed by file read lines 1-941)",
+      "commands/codex.md Step 2 generates /var/tmp/codex-outputs/ path, no mention of docs/codex/ (inferred: confirmed by file read lines 82-90)",
+      "BA subagent attempt to tee to /var/tmp/codex-outputs/ during this very session was BLOCKED by pretool-tool-policy.py with 'write target not in allowed_write_path_prefixes' (OBSERVED: live hook rejection during this analysis session)"
+    ],
+    "diagnosis_completeness": "complete — live hook rejection observed during session",
+    "complaint_location_keywords": ["docs/codex", "tool-policy.v1.json", "codex Skill", "no-tee workaround"],
+    "localization_evidence": "BA subagent received BLOCKED by tool-policy.v1 error when attempting Bash tee to /var/tmp/codex-outputs/ in this session; policy file read confirmed no docs/codex/ prefix for any role",
+    "located_source": "policies/tool-policy.v1.json (all role entries, lines 14-941) and commands/codex.md (Step 2, lines 82-90)",
+    "localization_blocked": null,
+    "git_bisect_result": {
+      "triggered": false,
+      "suspect_commit": null,
+      "commit_message": null,
+      "confirmed_by": null,
+      "bisect_blocked": "not applicable — missing feature, not a regression",
+      "reproducibility_verified": false
+    }
+  },
+  "diagnosis_layer": "L5",
+  "requirements_decomposition": [
+    {"id": "R1", "source_phrase": "docs/codex/<task_id>/<role>.txt is the canonical Codex output path", "acceptance_criterion": "commands/codex.md Step 2 generates docs/codex/<task_id>/<role>.txt as the mandatory default"},
+    {"id": "R2", "source_phrase": "tool-policy.v1.json grants write access to that directory prefix for the relevant roles", "acceptance_criterion": "12 consultation roles have */docs/codex/ in allowed_write_path_prefixes"},
+    {"id": "R3", "source_phrase": "wherever the codex Skill definition lives, the default output target reflects that canonical path", "acceptance_criterion": "commands/codex.md tee command uses a hook-resolvable canonical path"},
+    {"id": "R4", "source_phrase": "subagents can write Codex output to a file in docs/codex/ without being blocked by hooks", "acceptance_criterion": "ba-role Bash write to docs/codex/<task_id>/<role>.txt is not blocked"},
+    {"id": "R5", "source_phrase": "the no-tee workaround is retired", "acceptance_criterion": "/var/tmp/codex-outputs/ appears only as exceptional fallback in codex.md"}
+  ],
+  "component_chain": [
+    {
+      "file": "commands/codex.md",
+      "line_range": "82-114",
+      "role": "Codex Skill definition — defines how output path is generated (Step 2) and how codex is invoked with tee (Steps 3-4)",
+      "imports_from": ["leaf"],
+      "evidence": "Read tool result lines 82-114 confirmed Step 2 generates /var/tmp/codex-outputs/ path via bash, Step 4 uses tee $CODEX_OUT",
+      "verified_via": "Read"
+    },
+    {
+      "file": "policies/tool-policy.v1.json",
+      "line_range": "1-941",
+      "role": "Write-path allowlist for all subagent roles — pretool-tool-policy.py checks write targets against allowed_write_path_prefixes",
+      "imports_from": ["hooks/pretool-tool-policy.py"],
+      "evidence": "Read tool result confirmed all 12 target roles have */var/tmp/codex-outputs/ but NOT */docs/codex/",
+      "verified_via": "Read"
+    },
+    {
+      "file": "hooks/pretool-tool-policy.py",
+      "line_range": "1-80",
+      "role": "Hook that reads policy and blocks writes to paths not in allowed_write_path_prefixes; parses Bash tee targets via lib/bash_write_targets.py",
+      "imports_from": ["hooks/lib/bash_write_targets.py", "hooks/lib/policy_registry.py"],
+      "evidence": "Read tool result lines 1-80 confirmed bash write-target extraction path; _resolve_path only expands $HOME/~/$CLAUDE_PROJECT_DIR, not arbitrary $VAR",
+      "verified_via": "Read"
+    }
+  ],
+  "pre_existing_guards": [],
+  "setup": {
+    "applicability": "N/A",
+    "reason": "non-UI -- config; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths"
+  },
+  "evidence": {
+    "observed": "Codex output cannot be directed to a file because tool-policy.v1.json does not grant write access to a codex output directory",
+    "measured": {
+      "value": "0 occurrences of 'docs/codex' in policies/tool-policy.v1.json; commands/codex.md Step 2 generates /var/tmp/codex-outputs/ path only",
+      "location": "policies/tool-policy.v1.json:1-941 and commands/codex.md:82-90"
+    },
+    "expected": {
+      "value": "*/docs/codex/ present in allowed_write_path_prefixes for 12 consultation roles; commands/codex.md Step 2 generates docs/codex/<task_id>/<role>.txt as canonical default",
+      "source": "User requirement verbatim + existing policy pattern (*/var/tmp/codex-outputs/) as structural template"
+    },
+    "gap": "12 roles missing */docs/codex/ entry; commands/codex.md has no docs/codex/ reference at all"
+  },
+  "scope_expansion": {
+    "search_pattern": "docs/codex",
+    "search_scope": "entire repo",
+    "user_reported": ["policies/tool-policy.v1.json", "commands/codex.md"],
+    "additional_found": [],
+    "all_occurrences": []
+  },
+  "reference_source": {
+    "tier": "tier_2_verified",
+    "description": "Existing policy pattern */var/tmp/codex-outputs/ used as structural template for the new */docs/codex/ entry; verified by direct Read of tool-policy.v1.json in this session",
+    "url_or_location": "policies/tool-policy.v1.json lines 119-941",
+    "copy_allowed": true
+  },
+  "prior_attempts": {
+    "triggered": false,
+    "trigger_source": null,
+    "attempts": [],
+    "novelty_check": {
+      "this_attempt_layer": "L5",
+      "differs_from_all_priors": true,
+      "rationale": "No prior attempts; first-time analysis"
+    }
+  },
+  "context": {
+    "codebase_state": "master branch; policies/tool-policy.v1.json at policy_version 3; commands/codex.md at current state with /var/tmp/codex-outputs/ as sole output path",
+    "recent_commits": "50f2ca2 fix(agents): tighten style-inspector summary contract; 28a1e85 feat(hooks): allowlist consolidation; 6537d7d fix(hooks,commit): close-gate subproject path-walk",
+    "file_contents": {},
+    "dependencies": {},
+    "environment": {}
+  },
+  "development_approach": {
+    "strategy": "Additive policy change: insert */docs/codex/ into each of the 12 consultation roles' allowed_write_path_prefixes array, increment policy_version, update _note. Then update commands/codex.md Step 2 to generate a structured canonical path and Step 4 to use a hook-resolvable tee target.",
+    "files_to_create": [],
+    "files_to_modify": [
+      "policies/tool-policy.v1.json",
+      "commands/codex.md"
+    ],
+    "validation_approach": "grep count for */docs/codex/ in policy; policy_version field check; codex.md text inspection for canonical path and hook-safe tee form; live hook rejection test for ba role"
+  },
+  "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260521-090100.json",
+  "blast_radius_map_path": null,
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": true,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex raised 4 actionable findings and 1 observation. Findings: (1) role exclusion reason was imprecise — timeline/transportation DO have Skill in the policy, so exclusion must be justified by 'not a codex-consultation role per agents/*.md', not 'no Skill tool'; (2) Bash tee variable expansion ambiguity — hook parser cannot expand arbitrary $VAR, so tee target must be a literal or $CLAUDE_PROJECT_DIR form; (3) task_id/role derivation must be explicitly specified in codex.md; (4) /var/tmp/codex-outputs/ should be exceptional fallback, not co-equal default. Observation: */docs/codex/ is the correct glob pattern.",
+    "findings": [
+      {
+        "issue": "Role exclusion reason was wrong: timeline/transportation DO have Skill in tool-policy.v1.json; test-writer and general-purpose also have Skill. Exclusion reason stated was 'no Skill tool' which is factually incorrect.",
+        "proposed_fix": "Reframe exclusion criterion as 'not a Codex-consultation role per agents/*.md definition'. The 12-role list itself is correct; only the stated justification needed correction.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Spec and context JSON now state the correct exclusion criterion: consultation role identity, not Skill tool presence."
+      },
+      {
+        "issue": "Bash tee + variable expansion: hook parser (lib/bash_write_targets.py _resolve_path) only expands $HOME, ~, $CLAUDE_PROJECT_DIR — not arbitrary $CODEX_OUT. If codex.md Step 4 uses tee '$CODEX_OUT' with $CODEX_OUT set in a prior statement, hook sees literal '$CODEX_OUT' and blocks.",
+        "proposed_fix": "Update codex.md Step 4 to use a literal path or $CLAUDE_PROJECT_DIR-prefixed form directly in the tee command, not via an opaque shell variable. Add AC4 verifying hook-resolvable tee target.",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "AC4 added; Technical Hints explain the _resolve_path constraint. Dev must restructure Steps 2-4 to inline the canonical path."
+      },
+      {
+        "issue": "Step 2 must define how task_id and role are derived; otherwise agents may literally use '<task_id>' as a placeholder.",
+        "proposed_fix": "Specify in codex.md: task_id from $TASK_ID env or dev-registry session context; role from $ROLE env or resolved agent type; fallback to timestamp-only when absent.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Added to Should Have requirements and to AC3 description."
+      },
+      {
+        "issue": "Keeping /var/tmp/codex-outputs/ as co-equal fallback weakens 'canonical path as default' requirement.",
+        "proposed_fix": "Make docs/codex/ the mandatory default; /var/tmp/codex-outputs/ only for exceptional cases (mkdir failure, missing context) with explicit announcement.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "AC6 and Won't Have section updated; Should Have item added for explicit fallback documentation."
+      },
+      {
+        "issue": "*/docs/codex/ is the correct glob pattern and is consistent with existing policy patterns (OBSERVATION_ONLY).",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirmed correct; no change needed."
+      }
+    ],
+    "feedback_incorporated": "Applied all 4 actionable findings: corrected role exclusion rationale, added AC4 for hook-resolvable tee target, specified task_id/role derivation in requirements, demoted /var/tmp/codex-outputs/ to exceptional fallback."
+  }
+}
