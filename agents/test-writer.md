@@ -178,11 +178,21 @@ known-incomplete and QA blocks the cycle until the sentinel is removed.
 1. Read `acceptance_criteria_path` JSON.
 2. Check trigger gate: if `complexity_tier < STANDARD` AND `risk_level != high`,
    skip — emit a no-op report and exit.
-3. Read existing `tests/generated/manifest.json` if present.
-4. For each AC item: apply UPDATE vs CREATE logic. Write test skeletons.
-5. Compute the new manifest. Write `tests/generated/manifest.json`.
+3. Read existing `tests/generated/<task_id>/manifest.json` (per-task active
+   manifest) if present; ALSO read `tests/generated/manifest.json` (global
+   index) if present so the upsert below can update the index entry for the
+   current task.
+4. For each AC item: apply UPDATE vs CREATE logic. Write test skeletons under
+   `tests/generated/<task_id>/`.
+5. Compute the new manifest. Write the per-task active manifest at
+   `tests/generated/<task_id>/manifest.json` (this is the file QA Phase 5
+   reads via `active_tests[]`). THEN upsert an entry
+   `{task_id, manifest_path: "tests/generated/<task_id>/manifest.json"}` into
+   the global index at `tests/generated/manifest.json` (global) — the global
+   file is shape `{kind: "index", tasks: [...]}` and lists every active
+   per-task manifest path; it MUST NOT carry an `active_tests[]` array.
 6. Return a structured report with `tests_created[]`, `tests_archived[]`,
-   `tests_skipped_idempotent[]`, and `manifest_path`.
+   `tests_skipped_idempotent[]`, and `manifest_path` (set to the per-task path).
 
 ---
 
