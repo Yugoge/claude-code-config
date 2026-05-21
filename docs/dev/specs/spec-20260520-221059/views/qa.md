@@ -55,7 +55,7 @@ These were explicitly listed as deferred in the user-requirement document at ses
 - **R7** — `CLAUDE_SESSION_ID` not exported in orchestrator shell; push token written with `session_id="unknown"`. Init+export at orchestrator-shell startup; fail uploads if missing rather than writing 'unknown'.
 - **R8** — Stop-hook codex-override: when orchestrator passed `codex_required: false` to BA iter1 resumption, harness Stop-hook forced codex invocation anyway. Explicit task flags should override resume/Stop-hook defaults unless a hard-blocking hook emits visible reason + user confirmation.
 
-### Layer D — verification of cleanup
+### Layer D — minor residual debt from THIS session's own deliverables and cross-cycle pollution
 
 - **D2** — Step 7 false positive: `docs/dev/specs/spec-20260518-225715.md` (mascot scoring spec) contains a "20260519-211515" historical cross-reference; the new Step 7 algorithm flags it as a non-linked continuation spec for this cycle. The algorithm is correct; the data is polluted. Ghost cycle pollution cleanup needed.
 - **D6** — 15 cleanliness-inspector minor findings from cycle 20260519-211515: 7 `_ac{N}_verify.sh` files use underscore-prefix breaking `test_*` convention, 6 of them are orphaned (`_final_sweep.sh` does not invoke them), 1 permission anomaly (644 vs canonical 755). Inspector recommended rename to `test_*` OR archive after cycle closes.
