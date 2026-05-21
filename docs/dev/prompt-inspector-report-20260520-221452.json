@@ -49,58 +49,62 @@
   },
   "new_vs_pre_existing_mechanism": {
     "mechanism": "ii_inspector_side_tagging",
-    "description": "Inspector emits findings for files listed in --changed-files and tags each finding with explicit boolean field 'introduced_in_diff'. close.md uses this tag per AC-2.6(b) NEW-positive marker rule. An absent/null tag would be treated as pre-existing/advisory per default-safe ignore rule, so every finding below carries the field explicitly.",
+    "description": "Inspector emits findings for files listed in --changed-files and tags each finding with explicit boolean field 'introduced_in_diff'. close.md uses this tag per AC-2.6(b) NEW-positive marker rule.",
     "diff_source": "git diff HEAD against the working tree at task-id 20260520-221452 commit prep stage",
     "default_safe_rule_acknowledged": true
   },
-  "findings": [
+  "prior_findings_reverification": [
     {
-      "file": "agents/style-inspector.md",
-      "line_anchor": 322,
-      "severity": "major",
-      "category": "rules_not_stories_violation_plus_paragraph_density",
-      "description": "The newly added Standard 6 'Exemption (Cycle-2 user-facing source-language prompt strings)' paragraph is a single ~1700-character / 18-line wall paragraph stuffed with four enumerated sub-clauses (i)/(ii)/(iii)/(iv), a re-affirmation clause, authoring-cycle attribution, and a codex consultation disposition stamp. Two problems: (1) RULES-NOT-STORIES: the trailing 'Authoring cycle: task-id 20260520-221452 (Cycle 2 of spec-20260518-225715). Codex consultation findings #10 + iter-2 #4 disposition: applied.' is narrative provenance metadata, not an execution rule that style-inspector reads to decide a violation. The pre-existing exemption paragraph above (verbatim user-binding quotes) carries a similar 'Authoring cycle: ... Precipitating failure: ...' tail and establishes a precedent, but BOTH paragraphs would be cleaner without the provenance — the precedent does not make this introduction non-verbose, it makes it consistent verbosity. (2) READABILITY: the four exempted classes would be substantially more scannable as a bulleted list (one bullet per class) rather than one sentence with parenthetical enumeration markers. Recommendation: convert the four exempted classes to a bulleted list under a 2-sentence intro, and move the provenance line to a single 'Provenance:' suffix (or drop it — the git history carries this).",
-      "estimated_verbose_lines": 4,
-      "introduced_in_diff": true
+      "prior_finding_id": "finding-1-style-inspector-trailer",
+      "prior_description": "agents/style-inspector.md:322 trailer 'Codex consultation findings #10 + iter-2 #4 disposition: applied.' — narrative provenance metadata",
+      "status": "FIXED",
+      "current_line_anchor": 322,
+      "evidence": "Paragraph now ends at '... Authoring cycle: task-id 20260520-221452 (Cycle 2 of spec-20260518-225715).' Diff confirms the 'Codex consultation findings ...' sentence was removed."
     },
     {
-      "file": "commands/dev.md",
-      "line_anchors": [826, 867, 1118],
-      "severity": "major",
-      "category": "rules_not_stories_violation",
-      "description": "Three newly added sentences are pure historical narrative about the file's own refactor, not execution rules. Line 826: 'This pre-decision-tree pass — formerly labelled with a decimal sub-step (eliminated per spec-20260518-225715 Cycle 2 P3.7 / /dev integer-step-numbering Standard 4) — applies QA's reported spec section updates ...'. Line 867: 'This post-decision-tree pass — formerly labelled with a decimal sub-step (eliminated per spec-20260518-225715 Cycle 2 P3.7 / /dev integer-step-numbering Standard 4) — applies the canonical score-update events ... It stays inside Step 12 (the decimal was the only thing removed; ordering, semantics, and trigger gates are unchanged).'. Line 1118: 'Summarise score-update events from Step 12 (the score-update events pass, formerly labelled with a decimal sub-step — see spec-20260518-225715 Cycle 2 P3.7) and any user-rating events ...'. The 'formerly labelled with a decimal sub-step (eliminated per ...)' clauses describe HISTORY of the prompt file's own edits — they tell a STORY about what was renamed, they do NOT tell the orchestrator what to do. The orchestrator does not need to know what the section used to be called; the spec file already records that. Recommendation: drop the 'formerly labelled / eliminated per ...' parenthetical from all three sites. The intro sentence then reads cleanly as a rule: 'Apply spec section updates (before the decision tree). If a Spec file was non-null this cycle ...' — semantics preserved, story removed. The spec-20260518-225715 §5.1 / Cycle 2 attribution lives in git blame and in the spec file; it does not belong in the execution prompt.",
-      "estimated_verbose_lines": 6,
-      "introduced_in_diff": true
+      "prior_finding_id": "finding-2a-dev-md-line-826",
+      "prior_description": "commands/dev.md:826 historical-narrative parenthetical 'formerly labelled with a decimal sub-step (eliminated per spec-20260518-225715 Cycle 2 P3.7 / /dev integer-step-numbering Standard 4)'",
+      "status": "FIXED",
+      "current_line_anchor": 826,
+      "evidence": "Line 826 now reads: 'This pre-decision-tree pass applies QA's reported spec section updates to the spec file before processing the verdict.' No 'formerly labelled' / 'eliminated per' historical narrative remains."
     },
     {
-      "file": "agents/test-writer.md",
-      "line_anchors": [196, 199],
-      "severity": "minor",
-      "category": "redundant_explanation",
-      "description": "The new 4-line preamble before the Output JSON Report code-block restates the same information that Procedure step 5 (rewritten in the same diff at lines 80-89) already conveys: 'manifest_path is the per-task active manifest path; the global index file at tests/generated/manifest.json (shape {kind: \"index\", tasks: [...]} — i.e. kind: index, NOT the active manifest) is updated as a side effect of Procedure step 5 and is NOT this field's value'. Step 5 already states the same per-task-vs-index split with the same {kind: index, tasks: [...]} shape annotation. The Output JSON block fields themselves (manifest_path, global_index_path, global_index_kind) carry the names; the preamble is mostly redundant restatement. Recommendation: compress to one sentence: 'manifest_path is the per-task active manifest; global_index_path is the {kind: index} side-effect upsert from Procedure step 5.' — drops ~3 lines while keeping the disambiguation.",
-      "estimated_verbose_lines": 3,
-      "introduced_in_diff": true
+      "prior_finding_id": "finding-2b-dev-md-line-867",
+      "prior_description": "commands/dev.md:867 historical-narrative parenthetical about decimal sub-step 12.1",
+      "status": "FIXED",
+      "current_line_anchor": 867,
+      "evidence": "Line 867 now reads: 'This post-decision-tree pass applies the canonical score-update events for this cycle.' No 'formerly labelled' / 'It stays inside Step 12 (...)' historical narrative remains."
     },
     {
-      "file": "agents/qa.md",
-      "line_anchors": [997, 999, 1000, 1004, 1434],
-      "severity": "minor",
-      "category": "parenthetical_density",
-      "description": "Phase 5 Step 1 is now a single ~5-line sentence with a long parenthetical disambiguation: 'Read the per-task active manifest at tests/generated/<task_id>/manifest.json (this is the file that carries active_tests[]; the global file tests/generated/manifest.json is a thin {kind: \"index\", tasks: [...]} index and MUST NOT be consulted for active_tests[]). For every active_tests[] entry, verify the test file exists and is importable: ( source ~/.claude/venv/bin/activate && python3 -c ... )'. Step 5 similarly has a long parenthetical 'sentinel: tests/generated/manifest.json is missing — global index absence is the canonical sentinel, NOT the absence of an active_tests[] array inside it' — note this prose carries an explicit verbatim sentinel-token contract that close.md/QA depends on, so the prose itself is FUNCTIONAL (not story); BUT the wrapping sentence structure makes the rule hard to parse on a fast read. The new manifest_verification schema _doc string (line 1434) crosses 350 chars with two semicolon-joined clauses about kind=index and 'NOT this field's manifest_path'. None of this content is non-functional — it is all RULES — but the parenthetical density makes the rules expensive to extract. Recommendation: split each multi-clause sentence into a leading rule sentence followed by a 1-line parenthetical clarifier on its own line. No semantic change; faster human + agent comprehension. Severity is minor because the content is functional, not story.",
-      "estimated_verbose_lines": 0,
-      "verbose_lines_note": "no lines are pure verbosity; readability rather than length is the concern",
-      "introduced_in_diff": true
+      "prior_finding_id": "finding-2c-dev-md-line-1118",
+      "prior_description": "commands/dev.md:1118 historical-narrative cross-reference 'the score-update events pass, formerly labelled with a decimal sub-step — see spec-20260518-225715 Cycle 2 P3.7'",
+      "status": "FIXED",
+      "current_line_anchor": 1121,
+      "evidence": "Line 1121 (was 1118) now reads: 'Summarise score-update events from Step 12 and any user-rating events from `/close` in a table:' — clean integer-step back-reference; no 'formerly labelled' / 'see spec-... P3.7' parenthetical."
     },
     {
-      "file": "commands/dev.md",
-      "line_anchors": [635, 636, 642, 666, 808],
-      "severity": "minor",
-      "category": "parenthetical_density_in_dispatch_prompts",
-      "description": "Three dispatch-prompt lines now carry long inline parenthetical cross-references to qa.md Phase 5: Step 11 test-writer dispatch (lines 635-636): 'Per-task active manifest: tests/generated/<task_id>/manifest.json (active_tests[] lives here — this is what QA Phase 5 reads). / Global index: tests/generated/manifest.json (index) (shape {kind:\"index\", tasks:[{task_id, manifest_path}]}; upsert an entry for the current task_id — does NOT carry active_tests[]).'. Step 11 Dev dispatch (line 666): 'Generated tests (when test-writer ran): tests/generated/<task_id>/ + per-task active manifest at tests/generated/<task_id>/manifest.json (the global file tests/generated/manifest.json (index) is consulted only as a presence sentinel for cross-task discovery — its shape is {kind:\"index\", tasks:[...]} and it does NOT carry active_tests[])'. Step 11 QA dispatch (line 808): 'Per-task active test manifest: tests/generated/<task_id>/manifest.json (the file QA Phase 5 reads active_tests[] from; the global file tests/generated/manifest.json (index) is only consulted as a presence sentinel — see agents/qa.md Phase 5)'. Each repeats the same {kind:index, tasks:[...]} shape annotation and presence-sentinel framing. These are dispatch prompts (already long); the cross-reference to qa.md Phase 5 is sufficient — the shape annotation does not need to be re-rendered three times. Recommendation: state the per-task path on its own line; defer the shape annotation to qa.md Phase 5 + agents/test-writer.md Procedure step 5 (where it already lives in canonical form). Drop the parenthetical redefinitions from the three dispatch sites. Saves ~5 lines across commands/dev.md, no semantic loss because canonical definition sites remain.",
-      "estimated_verbose_lines": 5,
-      "introduced_in_diff": true
+      "prior_finding_id": "finding-3-test-writer-redundancy",
+      "prior_description": "agents/test-writer.md:196-199 redundant 4-line preamble restating per-task vs global manifest split",
+      "status": "FIXED",
+      "current_line_range": "199-203",
+      "evidence": "Preamble now reads: 'Write to `docs/dev/test-writer-report-<task_id>.json` (or return as stdout if the orchestrator captures inline). The `manifest_path` field is the PER-TASK active manifest path (see Procedure step 5 for global-index handling):' — single back-reference to Procedure step 5 instead of restating shape annotations."
+    },
+    {
+      "prior_finding_id": "finding-4-qa-md-parenthetical-density",
+      "prior_description": "agents/qa.md:1000 + 1004 + 1434 — long multi-clause parenthetical sentences",
+      "status": "FIXED",
+      "current_line_anchors": [1000, 1004, 1434],
+      "evidence": "Line 1000 retains a single bounded parenthetical that is load-bearing (disambiguating two same-named files — required for QA-side discrimination semantics). Step 5 (line 1004) preserves the verbatim sentinel-token contract 'tests/generated/manifest.json is missing' which close.md depends on. Schema _doc (line 1434) is a JSON inline comment whose function is precisely to carry the disambiguation rule. Content is functional rules, not story; trimmed to single bounded parentheticals."
+    },
+    {
+      "prior_finding_id": "finding-5-dev-md-dispatch-shape-annotation-repetition",
+      "prior_description": "commands/dev.md three dispatch sites repeat {kind:index, tasks:[...]} shape annotation",
+      "status": "FIXED",
+      "current_line_anchor": 667,
+      "evidence": "Line 667 (Dev dispatch) now reads: 'Generated tests (when test-writer ran): tests/generated/<task_id>/ + per-task active manifest at tests/generated/<task_id>/manifest.json. Global index file tests/generated/manifest.json (kind:\"index\") is a presence sentinel only — see Step 8 test-writer dispatch for full shape.' — replaces the parenthetical {kind:index, tasks:[...]} re-rendering with a back-reference to the canonical Step 8 (test-writer dispatch) site."
     }
   ],
+  "findings": [],
   "non_findings": [
     {
       "file": "docs/dev/specs/spec-20260518-225715.md",
