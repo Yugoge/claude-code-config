@@ -7,10 +7,6 @@
 
 ---
 
-## Role Mandate
-
-> **Pipeline**: ba → dev → qa
-
 # Spec: Unresolved issues backlog from session 88dfdcea — TOP 3 cluster stranded by scope hot-swap + post-session confession
 
 **Pipeline**: ba → dev → qa
@@ -27,19 +23,48 @@ User's directive: save everything the orchestrator just enumerated as the compre
 
 When the user said `修复全部` after the 17-item meta-assessment, they meant these 8 items (the TOP 3 cluster grouped by QA+codex). Mid-cycle the requirement doc was rewritten to a different 9-item retrospective; these 8 items got displaced and **none of them shipped**.
 
+- **R1** — Shippability gate: every entry in `dev-report.dev.files_modified`/`files_created` must be diffed against `.gitignore`. Gitignore match → critical fail UNLESS dev-report has `gitignore_waiver`. This is the gate that would have caught `docs/reference/tmp-cleanup-convention.md` being gitignored (the L3 doc that AC8 passed but won't ship via git).
+- **R2** — System-file install-manifest gate: any path matching `/usr/local/`, `/etc/`, `/opt/`, `/var/`, or outside `git rev-parse --show-toplevel` requires either an in-repo install manifest (`scripts/install/<deliverable>-install.sh`) OR explicit `system_file_waiver`. This is what would have caught `/usr/local/sbin/tmp-cleanup.sh` being single-host-only.
+- **R5a** — Counter file ephemeral-mount protection: persistent-state files under `/tmp/`, `/dev/shm/`, `/run/` flagged unless paired with ENOSPC fallback. Catches the L1.5 counter file living on the very mount it's supposed to protect.
+- **R3** — Real-fixture destructive sandbox harness: replaces `--dry-run`-only verification with synthetic-file sandbox + non-dry-run script invocation + assertion of correct deletes + preserved hard-exclusions.
+- **R4** — Pressure-simulation harness: manufactures real `>75%` mount condition (not PATH-shim mock-df), captures actual hook output under real condition. PATH-shim allowed at unit-level only; AC verification of threshold behaviors requires real fixture.
+- **W3** — Quota-wall event log: when subagent dispatch is cut by API quota, orchestrator records `{ts, dev_session_id, agent_role, agent_id, tool_uses_at_cut, partial_artifacts}` to lifecycle log. This session had at least 5 such silent cuts, none escalated.
+- **W5** — Agent-resumption event log: when orchestrator dispatches a fresh agent to resume cut work, record `{ts, dev_session_id, prior_agent_id, new_agent_id, recovery_notes}`. Currently all resumptions are silent.
+- **R9** — Score-update CAS + lifecycle log: replace direct score writes with append-only log entries `{ts, agent, event, prev_score, new_score, delta, actor, reason}`. Reads use latest entry; writes use Compare-And-Swap on prev_score. User observed score drift `dev 81→73` between events with no event-log explanation.
 
 ### Layer B — orchestrator's post-session self-confession (5 items the orchestrator initially downplayed)
 
 When the user asked "确定没有别的没做的没有被你记录?", the orchestrator surfaced:
 
+1. **Artifact-loss root cause never investigated** — 5 cycle artifacts disappeared from disk mid-session and were recovered via `refs/checkpoints/master`. The orchestrator never identified WHICH process/hook/script deleted them. Likely candidates: a hook with `rm`, a cleanup script with too-wide scope, cross-session `git restore` or `git clean`. Until root cause is found, this is a defense-not-fortified-but-tested timebomb.
+2. **Cross-session work falsely attributed to current cycle** — commits `28a1e85` and `97585ca` were already on disk before the current /commit; the orchestrator claimed they belonged to the 9-item retrospective but cannot prove their content matches the 9-item scope. There may be unrelated work bundled in those SHAs that landed on origin/master under this cycle's banner.
+3. **AskUserQuestion empty-answer bug** — orchestrator prompted user for rating twice (post-/redev, post-/close YES) and both times received empty answer payload. Treated as "skip" per spec, but may indicate the hook/UI framework loses rating responses. Worth investigating the AskUserQuestion → orchestrator data path.
+4. **Item 8 from 9-item retrospective NOT addressed** — `ACCEPTABLE-DEBT`: 23 leaked production playwright-mcp processes. User-authorized via `就地部署`, OOS-logged. Still leaking resources right now.
+5. **Codex QA-stage in_scope_minor follow-ons from 4-layer prevention** — counter file on /tmp ENOSPC fallback (related to R5a above), long-session non-saturated counter sweep reset (the L2 cleanup wipes counter mtime), L1.5 worst-case ~16s exceeds settings 15s timeout, `-mtime +N` documentation precision (>3d actually means 72-96h depending on cron landing).
 
 ### Layer C — 17-item meta-assessment of cycle 20260519-161035, the OTHER 9 always-known deferred items
 
 These were explicitly listed as deferred in the user-requirement document at session midpoint; none addressed.
 
+- **W1** — Spec auto-detect rule violated by orchestrator when newest spec was unrelated to current /dev request; rule should be `fail/ask` instead of silent override.
+- **W2** — test-writer silent skip when complexity_tier ≥ STANDARD; dispatch gate should route STANDARD-tier bash to shellcheck+Bats+fixture OR record explicit waiver, no silent skip.
+- **W4** — orchestrator Write gate (1/turn) caused completion-report writes to be subagent-delegated multiple times; gate redesign needed.
+- **R5b** — long-session (>7d) non-saturated counter (`n<3`) gets cleaned by Layer-2 sweep → rate-limit silently resets. TTL-based sweep with explicit reset-event semantics needed.
+- **R5c** — L1.5 ~16s worst-case vs settings.json hook-level 15s timeout. Bump to 20s OR trim L1.5 budget to ≤12s. (Marked one-off in meta-assessment but real.)
+- **R5d** — `-mtime +N` documentation precision: convention doc says ">3d" but GNU find semantics mean strictly more than N full 24h periods. Update tmp-cleanup-convention.md to "older than N×24h, granularity 24h" + add boundary test.
+- **R6** — orphan commit `34210cc` (and now patterns of similar dumps) pollute history with cross-subsystem mega-commits. /dev preflight should block or baseline dirty/orphaned pre-cycle state; baseline ref recorded in final report.
+- **R7** — `CLAUDE_SESSION_ID` not exported in orchestrator shell; push token written with `session_id="unknown"`. Init+export at orchestrator-shell startup; fail uploads if missing rather than writing 'unknown'.
+- **R8** — Stop-hook codex-override: when orchestrator passed `codex_required: false` to BA iter1 resumption, harness Stop-hook forced codex invocation anyway. Explicit task flags should override resume/Stop-hook defaults unless a hard-blocking hook emits visible reason + user confirmation.
 
 ### Layer D — minor residual debt from THIS session's own deliverables and cross-cycle pollution
 
+- **D1** — 22 dirty files in working tree from concurrent cycles (`d1e94e` / `75463e-DH` / `085647-d1722b`) plus 1 in `/root` repo (`docs/dev/specs/spec-20260520-051938.md`). At least 3 separate dev cycles ran in recent days and never committed their artifacts.
+- **D2** — Step 7 false positive: `docs/dev/specs/spec-20260518-225715.md` (mascot scoring spec) contains a "20260519-211515" historical cross-reference; the new Step 7 algorithm flags it as a non-linked continuation spec for this cycle. The algorithm is correct; the data is polluted. Ghost cycle pollution cleanup needed.
+- **D3** — `docs/reference/tmp-cleanup-convention.md` (L3 deliverable from cycle 161035) is still gitignored. AC8 verified existence on local disk; fresh clones get nothing. Add a `.gitignore` exception OR move file to a non-ignored path.
+- **D4** — `/tmp/update-FgI2V5.md` and `/tmp/update-wflOHq.md` lingering temp `/spec-continue --temp` files. They have no consumers after their respective /commit runs; will be swept by tmp-cleanup at >7d but currently occupying tmpfs.
+- **D5** — Duplicate sibling file `docs/dev/prompt-inspector-report-20260519-211515-redev9items.json` left over from the write-guard workaround pattern (write to sibling → cp over canonical). Should be deduplicated.
+- **D6** — 15 cleanliness-inspector minor findings from cycle 20260519-211515: 7 `_ac{N}_verify.sh` files use underscore-prefix breaking `test_*` convention, 6 of them are orphaned (`_final_sweep.sh` does not invoke them), 1 permission anomaly (644 vs canonical 755). Inspector recommended rename to `test_*` OR archive after cycle closes.
+- **D7** — Silent quota-wall handling: orchestrator absorbed at least 5 quota cuts (`BA iter1 → cut → resume`, `QA final-verification → cut → resume`, push-analyst rate-limit, dev cycle agent → cut, /close style-inspector → cut) without escalation. User had no visibility into when subagent reasoning quality may have degraded.
 
 ### 5.2: 用户反馈"就这么点？你给我发了这么多！"— 补充遗漏
 
@@ -49,6 +74,39 @@ User points out that the original 4 layers (Layer A/B/C/D, 29 items) under-repre
 
 ### Layer E — orchestrator-process gaps (meta-level, beyond specific tool fixes)
 
+- **E1** — Orchestrator's missing "shippability cross-check" reflex at every stage (not just an automated gate). Beyond R1's tool implementation, the orchestrator never paused to ask "will this actually ship via git?" at QA/close/commit. R1 fixes the gate; this fix is about orchestrator MENTAL MODEL. Even after R1 lands, orchestrator should also internalize the check as a pre-/commit reflex.
+- **E2** — Subagent "wrote report but didn't" silent-failure pattern. Multiple instances where inspector subagents reported "Report written" but no file appeared on disk (cleanliness + prompt during cycle 211515 close, before artifact recovery). Different from write-guard blocking: subagents CLAIMED success. Possible causes: tool-policy write-prefix gap, hook intercepting silently, or subagent fabrication. Needs root-cause investigation + a "subagent claim verification" check (orchestrator validates claimed deliverables before proceeding).
+- **E3** — Score-system ceiling=100 truncates positive deltas. dev hit 100 ceiling, subsequent +6 / +15 events silently capped. Net signal lost. Score-system needs either remove ceiling, log uncapped values, or surface "would have been +N but ceiling-capped" in the event log (R9 may or may not cover).
+- **E4** — Codex invocation count + cost not tracked. Across this session codex was invoked ~15-20+ times via Skill(codex). Each is a separate GPT-5.5 API call. No accounting anywhere. Affects cost-aware policy decisions (when to invoke codex vs when to skip).
+- **E5** — This very spec output is at risk: `docs/dev/specs/spec-20260520-221059.md` lives on tmpfs (`/dev/shm/...`) under a `docs/` subtree with historical gitignore complications. Need to verify (a) it'll actually persist past next reboot, (b) it ships via git.
+- **E6** — Single-/commit-grant-per-orchestrator-dispatch limit. changelog-analyst surfaced this: the guard unlinks grant after first commit, so multi-commit cycles (feature + orphan + nested repo) require either (a) /commit wrapper writes N grants up-front, or (b) contract explicit "one commit per dispatch". Real gap, blocks the orphan-capture pattern in single /commit invocations.
+- **E7** — No hook enforces R9 reversal-citation rule. agents/changelog-analyst.md got the rule (item 9 from 9-item retrospective landed) but there's no commit-message-validate hook that fails commits without "Reverses <SHA>:" citation when needed. The rule is documentation-only; no teeth.
+- **E8** — L1.5 hook ENOSPC fallback untested. Counter file write would fail under genuine /tmp ENOSPC; hook designed non-blocking but the ENOSPC fallback path was never exercised. R5a covers the redesign; this is the testing gap.
+- **E9** — `.git/lost-found` / `git fsck --unreachable` blobs never investigated as part of artifact-loss forensics. The subagent recovered via `refs/checkpoints/master` but didn't search lost-found. May contain additional copies of historically-lost work.
+- **E10** — Session learnings are non-durable. This spec file is the only persistent record of these self-assessments. If file is lost (tmpfs cleared, gitignore matched, ghost cycle pollution), the entire reasoning chain across this session is lost. Need a more durable "session learnings log" architecture.
+- **E11** — QA scoring imbalance for messenger-vs-author cases. QA net -6 this cycle when QA was messenger of inspector finding (not QA's own analysis failure). The schedule treats "CLOSE: NO because QA dissented" identically to "CLOSE: NO because inspector caught issue post-QA". A "QA-caught-vs-QA-missed" distinction is missing.
+- **E12** — The "scope hot-swap" mid-cycle is itself unprecedented and unrecorded. requirement doc was rewritten mid-/redev — was it user intent, tool accident, or session-compaction artifact? Process didn't record WHY scope changed or WHO did it. Future cycles need a "scope-change event log" to prevent silent scope diff.
+- **E13** — Orchestrator claims-vs-reality drift. Multiple "this is done" claims turned out false in retrospect: "all 6 cycle artifacts verified" before they vanished; "inspector reports written" before they were found missing; "subagent reported success" before the write was silently blocked. Subagent-claim-verification gap (orchestrator should re-check claimed deliverables on disk before accepting subagent reports as ground truth).
+- **E14** — Inspector dispatch authority gap during /close debate. close.md restricts inspector dispatch to /close-orchestrator itself, not QA-internal. If QA debate concludes "we need to re-run an inspector after the fix" (which happened this cycle), QA cannot dispatch — only the next outer orchestrator can. Process inflexibility.
+- **E15** — TodoWrite canonical-validation ceremony cost. Every step transition requires a separate TodoWrite call due to "one completion per call" hook rule. Multiple wasted tool calls per cycle just for state-machine bookkeeping. Either widen the rule (allow batched transitions) or eliminate the per-call requirement.
+- **E16** — Conversation transcript not persisted to disk by /spec or anywhere else. The user-orchestrator dialogue across this session lives only in the REPL. If session ends, the reasoning chain is lost. /spec should optionally snapshot key turns into a session-companion file alongside the spec.
+
+### Layer F — testing-coverage gaps (knowing-vs-verifying)
+
+- **F1** — 4-layer prevention cycle's empirical effectiveness is not formally captured. We saw `/var/log/tmp-cleanup.log` show `freed=445900K, freed_total=448MiB` from real cron runs — strong evidence the prevention works. But no test/regression artifact records "verified PASS in production" with timestamps. R3's sandbox harness wouldn't have caught this, but a "production effectiveness log" would.
+- **F2** — The Standard 6 violation at commit.md:130 was caught by style-inspector — proving the inspector works. But there's no test confirming that style-inspector WILL catch newly-introduced CJK in command files going forward. Self-deployment of the 9-item retrospective fixes was successful but unwitnessed by a regression suite.
+- **F3** — The single-process exec pattern (item 1 fix) was used to push 4d9f9f5 — proving the sentinel gate works. But no test verifies the gate self-aborts when sentinel is MISSING/STALE/FAIL/mismatched. The negative cases are untested in production.
+- **F4** — The new push-analyst TTL 180s (item 4) was applied this session — but no measurement confirms 180s is empirically sufficient. Cold-path subagent dispatch latency varies; the TTL may still be too tight on slow hosts.
+
+### Layer G — cycle-cleanup work (multiple parallel cycles need closure)
+
+- **G1** — Cycle `d1e94e`: artifacts on disk include {ticket, context, dev-report, qa-report, completion, close-report-d1e94e-prior} but no close-report-d1e94e.md (deleted). State ambiguous — was it closed? rolled back? lost?
+- **G2** — Cycle `75463e-DH`: D+H allowlist consolidation work. Ticket + context untracked on disk. Likely the originator of the `hooks/lib/allowlist.py` consolidation that ended up in our cycle 211515 work. Did it formally close?
+- **G3** — Cycle `20260520-085647-d1722b`: inspector reports + close-report all present untracked. Looks like a recently-completed cycle whose artifacts never got committed.
+- **G4** — Outer-repo `/root/docs/dev/specs/spec-20260520-051938.md`: untracked spec in the OUTER repo, no companion cycle artifacts visible. Orphaned spec.
+- **G5** — `acceptance-criteria-20260519-211515.json` on disk is stale D+H content from a parallel cycle that polluted this task-id slot. Either delete or rename to the right cycle.
+- **G6** — `prompt-inspector-report-20260519-211515-redev9items.json` is a sibling duplicate of `prompt-inspector-report-20260519-211515.json` (write-guard workaround). Deduplicate.
+- **G7** — `style-inspector-report-20260519-211515-recheck.json` and `prompt-inspector-report-20260519-211515-recheck.json` exist (visible in /push working-tree listing) — extra inspector runs whose origin is unclear. Investigate or delete.
 
 ### Layer H — knowledge the user explicitly might value
 
