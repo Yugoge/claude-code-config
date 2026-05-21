@@ -104,17 +104,3 @@ User's directive: save everything the orchestrator just enumerated as the compre
 - **P4** — codex-skill auth/config assumed stable mid-session. codex CLI has its own state (cached auth tokens at `/root/.codex/`). Token expiry mid-session would cause silent codex failures.
 - **P5** — The user-prompt-submit hook injection that bakes SESSION_ID into the /push docstring assumed the literal UUID is acceptable for orchestrator consumption. It IS (the orchestrator parses it as data) but the hook is now session-specific by accident.
 
-## Source-of-truth references
-
-- 17-item meta-assessment (Layer A + C source): `docs/dev/meta-assessment-20260519-161035.json`
-- 9-item retrospective scope (replaced Layer A mid-cycle): `docs/dev/qa-output-retrospective-classification-20260519-175339.json`
-- The 4-layer prevention cycle (Layer B's `in_scope_minor` source): `docs/dev/qa-report-20260519-161035.json` codex_consult section
-- This session's transcript: present as full conversation history, not yet persisted to disk
-
-## Scope and constraints inherited (binding)
-
-- DO NOT modify shipped artifacts already on `origin/master` (commits `6cd997b`, `34210cc`, `8d74e83`, `d988d4a`, `6d28883`, `28a1e85`, `23184c9`, `97585ca`, `4d9f9f5`)
-- DO NOT modify frozen continuation spec `docs/dev/specs/spec-20260520-044700.md`
-- Future cycles addressing these issues MUST land deliverables at non-gitignored paths (do not repeat the L3 mistake)
-- All new scripts use `#!/usr/bin/env bash` or `#!/usr/bin/env python3`; chmod +x
-- Lifecycle log location (when R9 lands) MUST be `logs/lifecycle.jsonl` (in-repo; add `.gitignore` exception if `logs/` is currently ignored)
