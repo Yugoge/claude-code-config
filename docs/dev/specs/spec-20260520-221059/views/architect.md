@@ -13,7 +13,7 @@
 **Session**: spec-20260520-221059
 **Created**: 2026-05-20T22:10:59Z
 
-## Section 5: Structural / Architectural Items
+## Structural scope (per spec Section 5)
 
 ### Layer C — structural item
 
