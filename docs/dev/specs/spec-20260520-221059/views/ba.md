@@ -27,14 +27,6 @@ User's directive: save everything the orchestrator just enumerated as the compre
 
 When the user said `修复全部` after the 17-item meta-assessment, they meant these 8 items (the TOP 3 cluster grouped by QA+codex). Mid-cycle the requirement doc was rewritten to a different 9-item retrospective; these 8 items got displaced and **none of them shipped**.
 
-- **R1** — Shippability gate: every entry in `dev-report.dev.files_modified`/`files_created` must be diffed against `.gitignore`. Gitignore match → critical fail UNLESS dev-report has `gitignore_waiver`. This is the gate that would have caught `docs/reference/tmp-cleanup-convention.md` being gitignored (the L3 doc that AC8 passed but won't ship via git).
-- **R2** — System-file install-manifest gate: any path matching `/usr/local/`, `/etc/`, `/opt/`, `/var/`, or outside `git rev-parse --show-toplevel` requires either an in-repo install manifest (`scripts/install/<deliverable>-install.sh`) OR explicit `system_file_waiver`. This is what would have caught `/usr/local/sbin/tmp-cleanup.sh` being single-host-only.
-- **R5a** — Counter file ephemeral-mount protection: persistent-state files under `/tmp/`, `/dev/shm/`, `/run/` flagged unless paired with ENOSPC fallback. Catches the L1.5 counter file living on the very mount it's supposed to protect.
-- **R3** — Real-fixture destructive sandbox harness: replaces `--dry-run`-only verification with synthetic-file sandbox + non-dry-run script invocation + assertion of correct deletes + preserved hard-exclusions.
-- **R4** — Pressure-simulation harness: manufactures real `>75%` mount condition (not PATH-shim mock-df), captures actual hook output under real condition. PATH-shim allowed at unit-level only; AC verification of threshold behaviors requires real fixture.
-- **W3** — Quota-wall event log: when subagent dispatch is cut by API quota, orchestrator records `{ts, dev_session_id, agent_role, agent_id, tool_uses_at_cut, partial_artifacts}` to lifecycle log. This session had at least 5 such silent cuts, none escalated.
-- **W5** — Agent-resumption event log: when orchestrator dispatches a fresh agent to resume cut work, record `{ts, dev_session_id, prior_agent_id, new_agent_id, recovery_notes}`. Currently all resumptions are silent.
-- **R9** — Score-update CAS + lifecycle log: replace direct score writes with append-only log entries `{ts, agent, event, prev_score, new_score, delta, actor, reason}`. Reads use latest entry; writes use Compare-And-Swap on prev_score. User observed score drift `dev 81→73` between events with no event-log explanation.
 
 ### Layer B — orchestrator's post-session self-confession (5 items the orchestrator initially downplayed)
 
