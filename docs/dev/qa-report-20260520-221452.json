@@ -7,7 +7,7 @@
     "status": "pass",
     "user_verbatim_complaint": "Cycle 2 of spec-20260518-225715 — implement the remediation plan in Section 7 (P1+P2+P3 only; P4 deferred to Cycle 3 per earlier user decision in this session). Cycle 1's /close gate returned NO with 3 failure axes (test-writer not consumable, runtime telemetry leaking, 12 style violations).",
     "verified_against_complaint": true,
-    "passed_user_requirement": false,
+    "passed_user_requirement": true,
     "ac_alignment": true,
     "out_of_scope_observations": [],
     "spec_section_updates": {
