@@ -5,7 +5,12 @@ from pathlib import Path
 from .extract import extract_description
 from .patch import _replace_section
 
-SKIP_NAMES = {'INDEX.md', 'README.md', '__init__.py', '.DS_Store'}
+SKIP_NAMES = {
+    'INDEX.md', 'README.md', '__init__.py', '.DS_Store',
+    # Runtime telemetry — gitignored per spec-20260518-225715 Cycle 2 P2.3;
+    # excluding from the README listing prevents re-leakage on regen.
+    'agent-scores.json', 'agent-scores.json.lock',
+}
 SKIP_DIRS = {'__pycache__', '.git', 'node_modules'}
 
 
