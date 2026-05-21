@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Description: Update agent score in ~/.claude/agent-scores.json based on a canonical event.
+# Description: Update agent score state file based on a canonical event.
 # Usage: score-update.sh --agent <name> --event <event_name> [--note <text>] [--scores-file <path>]
 # Exit codes:
 #   0 = success (score updated, history appended)
