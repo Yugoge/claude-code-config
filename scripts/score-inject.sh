@@ -40,7 +40,7 @@ EOF
   exit 0
 fi
 
-python3 - "${SCORES_FILE}" "${AGENT}" <<'PYEOF'
+( source ~/.claude/venv/bin/activate && python3 - "${SCORES_FILE}" "${AGENT}" <<'PYEOF'
 import json
 import sys
 
