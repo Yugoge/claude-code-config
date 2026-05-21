@@ -822,7 +822,7 @@ Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
 **Apply spec section updates (before the decision tree)**:
 
-This pre-decision-tree pass — formerly labelled with a decimal `Sub-step 12.0` (eliminated per spec-20260518-225715 Cycle 2 P3.7 / /dev integer-step-numbering Standard 4) — applies QA's reported spec section updates to the spec file before processing the verdict, in the same Step 12 it has always belonged to.
+This pre-decision-tree pass — formerly labelled with a decimal sub-step (eliminated per spec-20260518-225715 Cycle 2 P3.7 / /dev integer-step-numbering Standard 4) — applies QA's reported spec section updates to the spec file before processing the verdict, in the same Step 12 it has always belonged to.
 
 If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec` and a global spec path was passed to Step 11), the orchestrator MUST apply QA's reported spec section updates to the spec file before processing the verdict:
 
