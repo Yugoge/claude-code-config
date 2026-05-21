@@ -844,7 +844,7 @@ If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec
   - APPEND the new content under the new (or existing) `### Cycle N` header — i.e., place the new content after any existing content already under that cycle header.
   - **NEVER overwrite prior cycle content under existing `### Cycle 1`, `### Cycle 2`, ... headers.** Prior cycles' content is historical and immutable; only the current cycle's subsection grows. (This insertion semantics is also documented in `agents/qa.md` `### After Verification` for the QA-self side; the orchestrator-side application here mirrors it. Phrase: "preserve cycle headers; append after existing cycle content; never overwrite prior cycle content.")
 
-After Sub-step 12.0 completes (or is skipped on non-spec cycles), proceed to the decision tree.
+After the spec section updates pass completes (or is skipped on non-spec cycles), proceed to the decision tree.
 
 **Decision tree**:
 
