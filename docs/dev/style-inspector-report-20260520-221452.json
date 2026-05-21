@@ -90,19 +90,25 @@
       "file": "commands/dev.md",
       "lines": "253, 357, 609, 661, 801, 1486-1488",
       "candidate_violation": "Standard 6 (CJK characters)",
-      "rationale": "All CJK occurrences are PRE-EXISTING (not in this cycle's diff). Lines 253 and 1486-1488 are wrapped in <USER_VERBATIM> tags (verbatim user-binding-quote exemption at agents/style-inspector.md:320). Lines 357/609/661/801 are verbatim spec-attributed quotes ('per spec 5.1 line 113: ...', 'per spec-20260518-225715 §5.2 line 167: ...'). The cycle's diff to commands/dev.md introduced ZERO new CJK characters."
+      "rationale": "All CJK is pre-existing — not in this re-verification round's diff. Lines 253 and 1486-1488 are USER_VERBATIM-tagged (verbatim user-binding-quote exemption at agents/style-inspector.md:320). Lines 357/609/661/801 are verbatim spec-attributed quotes ('per spec 5.1 line 113: ...', 'per spec-20260518-225715 §5.2 line 167: ...')."
+    },
+    {
+      "file": "commands/close.md",
+      "lines": "377, 381-386, 391",
+      "candidate_violation": "Standard 6 (CJK characters)",
+      "rationale": "Verbatim spec quote at line 377 + AskUserQuestion choice-ladder labels at lines 381-386 (rank stars + skip option) + spec-attributed skip-handling at line 391. Pre-existing; covered by exemption class (iii) AskUserQuestion choice ladder + verbatim-spec-attributed quote pattern. Not in this round's diff."
     },
     {
       "file": "docs/dev/specs/spec-20260518-225715.md",
       "lines": "throughout",
       "candidate_violation": "Standard 6 (CJK characters)",
-      "rationale": "File is under docs/ — Standard 6 scope-exclusion zone ('Do NOT scan docs/ -- documentation and planning files may legitimately contain non-English content'). Spec files in docs/dev/specs/ are explicitly out-of-scope for Standard 6 enforcement."
+      "rationale": "File is under docs/ — Standard 6 scope-exclusion zone. Spec files in docs/dev/specs/ are explicitly out-of-scope for Standard 6 enforcement."
     },
     {
       "file": "scripts/canary-verify.sh",
       "line": 116,
       "candidate_violation": "Standard 2 (hardcoded magic number 5000)",
-      "rationale": "The literal 5000 is a deliberate test-input size chosen to exceed any plausible cap value; the comment at lines 109-110 explicitly documents the choice ('Use 5000 lines to exceed any plausible cap and assert the guard fires'). Per Standard 2 guidance, 'Constants that genuinely never change' are acceptable. The script also accepts --hooks-dir parameter so the only test variable is parameterized."
+      "rationale": "The literal 5000 is a deliberate test-input size chosen to exceed any plausible cap value. Per Standard 2 guidance, 'Constants that genuinely never change' are acceptable. The script also accepts --hooks-dir parameter."
     },
     {
       "file": "scripts/score-update.sh",
@@ -111,34 +117,10 @@
       "rationale": "The EVENT_DELTAS dict mirrors the canonical spec-5.1 score-event table verbatim; these are spec-contract constants, NOT environment-variable values. Per Standard 2 'Constants that genuinely never change' rule. The script's mutable inputs (--agent, --event, --note, --scores-file) ARE all parameterized."
     },
     {
-      "file": "agents/style-inspector.md",
-      "line": 322,
-      "candidate_violation": "Standard 8 (long paragraph)",
-      "rationale": "Single dense paragraph; however, it enumerates four discrete exemption classes with spec attribution, scope binding, and a re-affirmation of the non-weakening clause. The density is functional — every clause encodes an enforcement boundary; bullet-splitting would scatter the binding without reducing the byte count. Recommend keeping as-is; no rewrite warranted."
-    },
-    {
-      "file": "commands/dev.md",
-      "lines": "826, 867, 1121",
-      "candidate_violation": "Standard 4 (decimal step references)",
-      "rationale": "These lines REFERENCE the historical decimal labels (Sub-step 12.0 / 12.1) in retrospective prose ('formerly labelled with a decimal sub-step (eliminated per ... Standard 4)') to document the integer-step-numbering migration. The actual step structure no longer uses decimals — the active headings on lines 824 and 865 are 'Apply spec section updates' and 'Apply Mascot score-update events'. Retrospective references to deprecated numbering are documentation of compliance, not violations."
-    },
-    {
-      "file": "scripts/spec-check.py",
-      "lines": "56-59",
-      "candidate_violation": "Standard 8 (verbose comment)",
-      "rationale": "5-line comment explaining the test-writer enrolment is functional traceability (spec attribution + cross-file consistency rationale). Standard 8 permits 'Concise technical explanations (≤3 lines) providing context'; this is 4 lines of functional content (spec id, agent name, cross-file pointers, failure mode). Acceptable."
-    },
-    {
-      "file": "hooks/pretool-cp-checkin.py",
-      "lines": "70-72",
-      "candidate_violation": "Standard 8 (verbose comment)",
-      "rationale": "3-line comment registering test-writer in CP_AGENTS with spec attribution. Functional and concise."
-    },
-    {
-      "file": "hooks/doc_sync/regen_readme.py + hooks/doc_sync/tree.py",
-      "lines": "regen_readme.py:10-12, tree.py:8-11 + 17-24",
-      "candidate_violation": "Standard 8 (comment verbosity)",
-      "rationale": "Both files add justification comments for the SKIP_NAMES additions (spec-attributed runtime-telemetry exclusion). tree.py also adds an 8-line block explaining the PATH-AWARE leak suppression — the verbosity is justified by the NEGATIVE control AC-09 cited in the comment (a naïve i.name == 'specs' check would over-suppress). Functional documentation of an invariant."
+      "file": "all 17 cycle-diff files",
+      "lines": "n/a",
+      "candidate_violation": "Standard 11 (unresolved merge-conflict markers)",
+      "rationale": "Line-anchored full-repo grep for ^<<<<<<<|^=======$|^>>>>>>> performed; all hits resolved to regex/pattern/heredoc references inside hook + test + tooling scripts (e.g., scripts/detect-merge-conflicts.sh, hooks/lib/checkpoint-core.sh, tests/integration-test.sh). Zero real conflict markers in any file."
     }
   ],
   "codex_consult": {
