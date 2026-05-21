@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "kind": "index",
+  "tasks": [
+    {
+      "task_id": "20260520-221452",
+      "manifest_path": "tests/generated/20260520-221452/manifest.json"
+    }
+  ]
+}
