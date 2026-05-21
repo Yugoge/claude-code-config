@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-21T09:12:09Z*
-**Total entries**: 341
+*Last updated: 2026-05-21T09:12:24Z*
+**Total entries**: 342
 **Convention**: kebab
 
 ## Tree
@@ -332,6 +332,7 @@ dev/
 ├── `ticket-20260520-085647-d1722b.md` - BA Specification: Close /allow grant leakage (D) and PostToolUse:Agent tracker race (H) — TRANSFERRED
 ├── `ticket-20260520-221452.md` - BA Specification: spec-20260518-225715 Cycle 2 — P1+P2+P3 Close-Gate Remediation
 ├── `ticket-20260520-allow-dh-7faae4.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H)
+├── `ticket-20260521-085827-fa9f07.md` - BA Specification: Batched remediation — codex output relocation + sentinel investigation + /allow vs orchestra tracker-gate
 ├── `ticket-20260521-090100.md` - BA Specification: Canonical Codex Output Path (docs/codex/)
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
