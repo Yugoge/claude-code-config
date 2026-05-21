@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-21T06:59:27Z*
-**Total entries**: 336
+*Last updated: 2026-05-21T09:10:17Z*
+**Total entries**: 339
 **Convention**: kebab
 
 ## Tree
@@ -330,6 +330,7 @@ dev/
 ├── `ticket-20260520-085647-d1722b.md` - BA Specification: Close /allow grant leakage (D) and PostToolUse:Agent tracker race (H) — TRANSFERRED
 ├── `ticket-20260520-221452.md` - BA Specification: spec-20260518-225715 Cycle 2 — P1+P2+P3 Close-Gate Remediation
 ├── `ticket-20260520-allow-dh-7faae4.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H)
+├── `ticket-20260521-090100.md` - BA Specification: Canonical Codex Output Path (docs/codex/)
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-d1e94e-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
@@ -342,6 +343,8 @@ dev/
 ├── `user-requirement-dev-20260519-161035.md` - User Requirement — dev-20260519-161035
 ├── `user-requirement-dev-20260519-175339.md` - No description
 ├── `user-requirement-dev-20260520-221452.md` - No description
+├── `user-requirement-dev-20260521-085554.md` - No description
+├── `user-requirement-dev-20260521-085627.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
