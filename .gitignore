@@ -77,3 +77,10 @@ specs/spec-*/
 worktrees/
 backups/.claude.json.backup.*
 settings.json.bak-*
+
+# Runtime telemetry (spec-20260518-225715 Cycle 2 P2.3 — root-anchored;
+# previously leaked because the generic specs/spec-*/ rule above is relative
+# and does not match .claude/specs/...)
+/agent-scores.json
+/agent-scores.json.lock
+/.claude/specs/spec-*/

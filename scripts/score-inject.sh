@@ -30,8 +30,11 @@ done
 
 [[ -z "${AGENT}" ]] && usage
 
-# If the scores file doesn't exist, emit a neutral header (mid-tier 熟练工匠 / 41-60)
-# rather than fail — the orchestrator can run the inject in fresh checkouts.
+# If the scores file doesn't exist, emit a neutral mid-tier header (rank-3 /
+# range 41-60 / no-recent-events) rather than fail — the orchestrator can run
+# the inject in fresh checkouts. The CJK rank label inside the cat heredoc
+# below is the bound user-facing prompt-output per spec-20260518-225715 §5.1
+# Cycle-2 exemption (agents/style-inspector.md Standard 6).
 if [[ ! -f "${SCORES_FILE}" ]]; then
   cat <<'EOF'
 [段位: 熟练工匠] [区间: 41-60] 最近事件: 无近期事件
@@ -40,7 +43,7 @@ EOF
   exit 0
 fi
 
-python3 - "${SCORES_FILE}" "${AGENT}" <<'PYEOF'
+( source ~/.claude/venv/bin/activate && python3 - "${SCORES_FILE}" "${AGENT}" <<'PYEOF'
 import json
 import sys
 
@@ -101,5 +104,6 @@ tail = (
 sys.stdout.write(f"[段位: {rank}] [区间: {rng}] 最近事件: {recent_str}\n")
 sys.stdout.write(tail + "\n")
 PYEOF
+)
 
 exit 0

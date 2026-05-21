@@ -599,7 +599,7 @@ def _init_dev_registry(cmd_name: str, user_input: str, claude_session_id: str, p
         'architect', 'ba', 'cleaner', 'cleanliness-inspector', 'dev',
         'git-edge-case-analyst', 'pm', 'product-owner', 'prompt-inspector',
         'qa', 'rule-inspector', 'style-inspector', 'test-executor',
-        'test-validator', 'ui-specialist', 'user',
+        'test-validator', 'test-writer', 'ui-specialist', 'user',
     ]
     try:
         registry_dir.mkdir(parents=True, exist_ok=True)

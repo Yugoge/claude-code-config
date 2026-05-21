@@ -136,12 +136,12 @@ the AC JSON, the Dev does NOT fill `hook_check` manually.
 For each AC item in the input JSON:
 
 1. **Compute lookup key**: `ac_uid` (16-char sha256 prefix per spec §5.4).
-2. **Check existing manifest** at `tests/generated/manifest.json` if present.
-3. **If ac_uid is new** → CREATE: write a new skeleton file, mark `status: "active"` in manifest.
-4. **If ac_uid is unchanged** (same id, same ac_uid) → IDEMPOTENT skip: no file write, no manifest mutation. Log to stderr "ac_uid <uid> unchanged — skipped".
+2. **Check existing per-task active manifest** at `tests/generated/<task_id>/manifest.json` if present (the global `tests/generated/manifest.json` is a `{kind:"index", tasks:[...]}` index and does NOT carry `active_tests[]` — do NOT consult it for UPDATE/CREATE keying).
+3. **If ac_uid is new** → CREATE: write a new skeleton file, mark `status: "active"` in the per-task manifest.
+4. **If ac_uid is unchanged** (same id, same ac_uid) → IDEMPOTENT skip: no file write, no per-task manifest mutation. Log to stderr "ac_uid <uid> unchanged — skipped".
 5. **If ac_id exists but ac_uid changed** → ARCHIVE OLD + CREATE NEW:
    - Move the old test file to `tests/generated/<task_id>/.archive/<old_ac_uid>.py`
-   - Add the old entry to `archived_tests[]` with reason `"ac_uid changed"`
+   - Add the old entry to `archived_tests[]` (in the per-task manifest) with reason `"ac_uid changed"`
    - Write a new skeleton for the current ac_uid as active
 6. **NEVER DELETE** a test file. Archive only.
 
@@ -178,24 +178,38 @@ known-incomplete and QA blocks the cycle until the sentinel is removed.
 1. Read `acceptance_criteria_path` JSON.
 2. Check trigger gate: if `complexity_tier < STANDARD` AND `risk_level != high`,
    skip — emit a no-op report and exit.
-3. Read existing `tests/generated/manifest.json` if present.
-4. For each AC item: apply UPDATE vs CREATE logic. Write test skeletons.
-5. Compute the new manifest. Write `tests/generated/manifest.json`.
+3. Read existing `tests/generated/<task_id>/manifest.json` (per-task active
+   manifest) if present; ALSO read `tests/generated/manifest.json` (global
+   index) if present so the upsert below can update the index entry for the
+   current task.
+4. For each AC item: apply UPDATE vs CREATE logic. Write test skeletons under
+   `tests/generated/<task_id>/`.
+5. Compute the new manifest. Write the per-task active manifest at
+   `tests/generated/<task_id>/manifest.json` (this is the file QA Phase 5
+   reads via `active_tests[]`). THEN upsert an entry
+   `{task_id, manifest_path: "tests/generated/<task_id>/manifest.json"}` into
+   the global index at `tests/generated/manifest.json` (global) — the global
+   file is shape `{kind: "index", tasks: [...]}` and lists every active
+   per-task manifest path; it MUST NOT carry an `active_tests[]` array.
 6. Return a structured report with `tests_created[]`, `tests_archived[]`,
-   `tests_skipped_idempotent[]`, and `manifest_path`.
+   `tests_skipped_idempotent[]`, and `manifest_path` (set to the per-task path).
 
 ---
 
 ## Output JSON Report
 
 Write to `docs/dev/test-writer-report-<task_id>.json` (or return as stdout if
-the orchestrator captures inline):
+the orchestrator captures inline). The `manifest_path` field is the PER-TASK
+active manifest path; the global index file at `tests/generated/manifest.json`
+is shape `kind: index` (NOT the active manifest):
 
 ```json
 {
   "task_id": "<task_id>",
   "timestamp": "<ISO-8601>",
-  "manifest_path": "tests/generated/manifest.json",
+  "manifest_path": "tests/generated/<task_id>/manifest.json",
+  "global_index_path": "tests/generated/manifest.json",
+  "global_index_kind": "index",
   "trigger_gate": {
     "complexity_tier": "<COMPLEX>",
     "risk_level": "<high>",

@@ -995,13 +995,13 @@ mkdir -p tests/{scripts,instructions,data/fixtures,data/mocks,reports}
 
 #### Phase 5: Manifest Verification (when test-writer ran upstream)
 
-If `tests/generated/manifest.json` exists (because the cycle had `complexity_tier >= STANDARD` or `risk_level = high` and test-writer ran between BA and Dev), you MUST verify it before declaring a verdict:
+If the per-task active manifest `tests/generated/<task_id>/manifest.json` exists (because the cycle had `complexity_tier >= STANDARD` or `risk_level = high` and test-writer ran between BA and Dev), you MUST verify it before declaring a verdict:
 
-1. Read `tests/generated/manifest.json`. For every `active_tests[]` entry, verify the test file exists and is importable: `source ~/.claude/venv/bin/activate && python3 -c "import importlib.util, sys; spec = importlib.util.spec_from_file_location('t', '<path>'); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)"`. Record results in `qa.manifest_verification`.
-2. When `complexity_tier >= STANDARD`, run `pytest tests/generated/ -q`. ANY remaining `pytest.fail("TEST_INCOMPLETE: ...")` sentinel in an active test is a Dev incompleteness — Dev was supposed to fill in the body. Grep `tests/generated/<task_id>/` for the literal string `TEST_INCOMPLETE:`; every match is a critical QA finding with `primary_cause: "dev_implementation"`. Record both pytest collection counts AND the sentinel-match list in `qa.manifest_verification.pytest_failures[]`.
+1. Read the per-task active manifest at `tests/generated/<task_id>/manifest.json` (this is the file that carries `active_tests[]`; the global `tests/generated/manifest.json` is an index-only sentinel — see Phase 5 sentinel rule at item 5). For every `active_tests[]` entry, verify the test file exists and is importable: `( source ~/.claude/venv/bin/activate && python3 -c "import importlib.util, sys; spec = importlib.util.spec_from_file_location('t', '<path>'); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)" )`. Record results in `qa.manifest_verification`.
+2. When `complexity_tier >= STANDARD`, run `pytest tests/generated/<task_id>/ -q` (per-task-scoped — sibling tasks must not be re-collected). ANY remaining `pytest.fail("TEST_INCOMPLETE: ...")` sentinel in an active test is a Dev incompleteness — Dev was supposed to fill in the body. Grep `tests/generated/<task_id>/` for the literal string `TEST_INCOMPLETE:`; every match is a critical QA finding with `primary_cause: "dev_implementation"`. Record both pytest collection counts AND the sentinel-match list in `qa.manifest_verification.pytest_failures[]`.
 3. A test that no longer contains the `TEST_INCOMPLETE:` sentinel but still fails → real Dev gap → critical finding with `primary_cause: "dev_implementation"`.
 4. A manifest entry whose test file is missing on disk → broken test-writer integration → critical finding with `primary_cause: "ba_spec"` (test-writer was supposed to produce this artifact).
-5. **test_writer_expected vs manifest existence**: if the orchestrator passed `test_writer_expected = true` (gated by BA's complexity_tier >= STANDARD OR risk_level == high) AND `tests/generated/manifest.json` is missing → critical finding with `primary_cause: "qa_oversight"` if the orchestrator allowed proceed despite missing manifest, or `primary_cause: "dev_implementation"` if Dev was supposed to ensure test-writer ran.
+5. **test_writer_expected vs manifest existence** (sentinel: `tests/generated/manifest.json is missing` — global index absence is the canonical sentinel, NOT the absence of an `active_tests[]` array inside it): if the orchestrator passed `test_writer_expected = true` (gated by BA's complexity_tier >= STANDARD OR risk_level == high) AND the per-task manifest is missing OR the global index `tasks[]` carries no entry for the current `task_id`, emit a critical finding with `primary_cause: "qa_oversight"` if the orchestrator allowed proceed despite missing manifest, or `primary_cause: "dev_implementation"` if Dev was supposed to ensure test-writer ran.
 
 #### Phase 6: Blast-Radius Phase 2 Verification
 
@@ -1431,8 +1431,10 @@ Return verification report as JSON:
       }
     ],
     "manifest_verification": {
-      "_doc": "Populated when tests/generated/manifest.json exists (i.e., test-writer ran upstream). Reports importability and pytest collection results for tests/generated/. See Step 11 manifest verification for procedure.",
-      "manifest_path": "tests/generated/manifest.json",
+      "_doc": "Populated when the per-task active manifest tests/generated/<task_id>/manifest.json exists (i.e., test-writer ran upstream). Reports importability and pytest collection results scoped to tests/generated/<task_id>/. The global index file at tests/generated/manifest.json (kind=index, tasks=[...]) is NOT this field's manifest_path; it is consulted only as a sentinel for cross-task discovery. See Step 11 Phase 5 for the per-task procedure.",
+      "manifest_path": "tests/generated/<task_id>/manifest.json",
+      "global_index_path": "tests/generated/manifest.json",
+      "global_index_kind": "index",
       "manifest_exists": true,
       "active_tests_count": 0,
       "active_tests_importable": true,
