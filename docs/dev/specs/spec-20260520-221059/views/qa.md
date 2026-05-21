@@ -61,7 +61,7 @@ These were explicitly listed as deferred in the user-requirement document at ses
 - **D6** — 15 cleanliness-inspector minor findings from cycle 20260519-211515: 7 `_ac{N}_verify.sh` files use underscore-prefix breaking `test_*` convention, 6 of them are orphaned (`_final_sweep.sh` does not invoke them), 1 permission anomaly (644 vs canonical 755). Inspector recommended rename to `test_*` OR archive after cycle closes.
 - **D7** — Silent quota-wall handling: orchestrator absorbed at least 5 quota cuts (`BA iter1 → cut → resume`, `QA final-verification → cut → resume`, push-analyst rate-limit, dev cycle agent → cut, /close style-inspector → cut) without escalation. User had no visibility into when subagent reasoning quality may have degraded.
 
-### Layer E — process verification gaps
+### Layer E — orchestrator-process gaps (meta-level, beyond specific tool fixes)
 
 - **E1** — Orchestrator's missing "shippability cross-check" reflex at every stage (not just an automated gate). Beyond R1's tool implementation, the orchestrator never paused to ask "will this actually ship via git?" at QA/close/commit. R1 fixes the gate; this fix is about orchestrator MENTAL MODEL. Even after R1 lands, orchestrator should also internalize the check as a pre-/commit reflex.
 - **E3** — Score-system ceiling=100 truncates positive deltas. dev hit 100 ceiling, subsequent +6 / +15 events silently capped. Net signal lost. Score-system needs either remove ceiling, log uncapped values, or surface "would have been +N but ceiling-capped" in the event log (R9 may or may not cover).
