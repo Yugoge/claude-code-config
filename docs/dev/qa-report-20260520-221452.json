@@ -96,8 +96,8 @@
       "script_path": null,
       "health_check_url": null,
       "health_check_result": null,
-      "status": "skipped_non_ui",
-      "blocking_reason": null
+      "status": "legitimately_skipped",
+      "blocking_reason": "Non-UI cycle: scope is 17 files of harness infrastructure — config (policies/tool-policy.v1.json, .gitignore), agent/command prompts (agents/test-writer.md, agents/qa.md, agents/style-inspector.md, commands/dev.md), bash scripts (scripts/score-update.sh, scripts/score-inject.sh, scripts/canary-verify.sh, scripts/spec-check.py), python hooks (hooks/pretool-cp-checkin.py, hooks/prompt-workflow.py, hooks/doc_sync/regen_readme.py, hooks/doc_sync/tree.py), auto-generated indices (README.md, INDEX.md), and spec narrative (docs/dev/specs/spec-20260518-225715.md). Zero changes to rendered UI surfaces; no browser-driveable URL; no Playwright invocation possible. Substitute checks performed in lieu of E2E: (1) bash -n on all 3 modified shell scripts (PASS); (2) py_compile on all 5 modified Python files (PASS); (3) json.load on tool-policy.v1.json (PASS); (4) AC-09 runtime fixture exercising hooks/doc_sync/tree.py build_tree() against synthetic .claude/ tree (PASS — leak suppressed, negative control preserved, positive control present); (5) AST literal_eval verifying CP_AGENTS + agent_types + SKIP_NAMES + SKIP_FILES contain expected literal members (PASS). All 13 strict ACs verified deterministically. Skip is legitimate per Step 9 build-verification carve-out (non-deployed files: hooks, agent definitions, documentation)."
     },
     "e2e_script_results": [],
     "ui_test_results": [],
