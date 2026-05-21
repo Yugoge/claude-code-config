@@ -585,6 +585,44 @@
       ],
       "rationale": "style-inspector: non-core specialist may read/analyze, write its own docs/dev reports, and update only its own cp-state; no source/protected/test edits."
     },
+    "test-writer": {
+      "allowed_tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Bash",
+        "Write",
+        "Edit",
+        "MultiEdit",
+        "Skill"
+      ],
+      "allowed_write_path_prefixes": [
+        "*/tests/generated/",
+        "*/.claude/dev-registry/*/test-writer.json",
+        "*/.claude/specs/spec-*/cp-state-test-writer*.json",
+        "*/docs/dev/test-writer-report-",
+        "*/dev/null",
+        "*/dev/stderr",
+        "*/dev/stdout",
+        "*/tmp/claude-scratch/test-writer/",
+        "*/var/tmp/codex-outputs/",
+        "/tmp/*",
+        "/var/tmp/*"
+      ],
+      "denied_write_path_prefixes": [
+        "/src/",
+        "/app/",
+        "/lib/",
+        "/.claude/hooks/",
+        "/.claude/agents/",
+        "/.claude/commands/",
+        "/.claude/policies/",
+        "/.claude/schemas/",
+        "/.claude/scripts/",
+        "/.claude/settings.json"
+      ],
+      "rationale": "test-writer (spec-20260518-225715 §5.2): generates pytest skeleton tests from BA-produced acceptance-criteria JSON; writes ONLY under tests/generated/<task_id>/ + its own dev-registry sentinel + cp-state + docs/dev/test-writer-report-; explicitly forbidden from src/app/lib and all protected /.claude/ subdirs. Read access is broad (analyses AC JSON, spec files, existing tests for archive/idempotency keying)."
+    },
     "test-executor": {
       "allowed_tools": [
         "Read",
