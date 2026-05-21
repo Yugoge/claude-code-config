@@ -38,6 +38,20 @@ When the user said `修复全部` after the 17-item meta-assessment, they meant 
 2. **Cross-session work falsely attributed to current cycle** — commits `28a1e85` and `97585ca` were already on disk before the current /commit; the orchestrator claimed they belonged to the 9-item retrospective but cannot prove their content matches the 9-item scope. There may be unrelated work bundled in those SHAs that landed on origin/master under this cycle's banner.
 3. **AskUserQuestion empty-answer bug** — orchestrator prompted user for rating twice (post-/redev, post-/close YES) and both times received empty answer payload. Treated as "skip" per spec, but may indicate the hook/UI framework loses rating responses. Worth investigating the AskUserQuestion → orchestrator data path.
 4. **Item 8 from 9-item retrospective NOT addressed** — `ACCEPTABLE-DEBT`: 23 leaked production playwright-mcp processes. User-authorized via `就地部署`, OOS-logged. Still leaking resources right now.
+5. **Codex QA-stage in_scope_minor follow-ons from 4-layer prevention** — counter file on /tmp ENOSPC fallback (related to R5a above), long-session non-saturated counter sweep reset (the L2 cleanup wipes counter mtime), L1.5 worst-case ~16s exceeds settings 15s timeout, `-mtime +N` documentation precision (>3d actually means 72-96h depending on cron landing).
+
+### Layer C — 17-item meta-assessment of cycle 20260519-161035, the OTHER 9 always-known deferred items
+
+These were explicitly listed as deferred in the user-requirement document at session midpoint; none addressed.
+
+- **W1** — Spec auto-detect rule violated by orchestrator when newest spec was unrelated to current /dev request; rule should be `fail/ask` instead of silent override.
+- **W2** — test-writer silent skip when complexity_tier ≥ STANDARD; dispatch gate should route STANDARD-tier bash to shellcheck+Bats+fixture OR record explicit waiver, no silent skip.
+- **W4** — orchestrator Write gate (1/turn) caused completion-report writes to be subagent-delegated multiple times; gate redesign needed.
+- **R5b** — long-session (>7d) non-saturated counter (`n<3`) gets cleaned by Layer-2 sweep → rate-limit silently resets. TTL-based sweep with explicit reset-event semantics needed.
+- **R5c** — L1.5 ~16s worst-case vs settings.json hook-level 15s timeout. Bump to 20s OR trim L1.5 budget to ≤12s. (Marked one-off in meta-assessment but real.)
+- **R5d** — `-mtime +N` documentation precision: convention doc says ">3d" but GNU find semantics mean strictly more than N full 24h periods. Update tmp-cleanup-convention.md to "older than N×24h, granularity 24h" + add boundary test.
+- **R7** — `CLAUDE_SESSION_ID` not exported in orchestrator shell; push token written with `session_id="unknown"`. Init+export at orchestrator-shell startup; fail uploads if missing rather than writing 'unknown'.
+- **R8** — Stop-hook codex-override: when orchestrator passed `codex_required: false` to BA iter1 resumption, harness Stop-hook forced codex invocation anyway. Explicit task flags should override resume/Stop-hook defaults unless a hard-blocking hook emits visible reason + user confirmation.
 
 ### Layer D — verification of cleanup
 
