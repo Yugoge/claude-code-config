@@ -52,12 +52,12 @@
       "line": 322,
       "present": true,
       "covers": [
-        "CJK rank labels 见习学徒, 初级工匠, 熟练工匠, 资深工匠, 宗师级 in scripts/score-inject.sh + scripts/score-update.sh",
+        "CJK rank labels in scripts/score-inject.sh + scripts/score-update.sh canonical emit paths",
         "user-rating tail-phrase block in scripts/score-inject.sh",
         "AskUserQuestion choice ladder labels in commands/close.md",
         "score-inject neutral-header fallback strings in scripts/score-inject.sh"
       ],
-      "non_weakening_clauses_preserved": "code comments AND stderr/diagnostic strings remain English-only"
+      "non_weakening_clauses_preserved": "code comments AND stderr/diagnostic strings remain English-only — re-verified in scripts/score-update.sh usage block (now English rank labels + non-weakening attribution note) and stderr lines 125-128, 132-136"
     },
     "verbatim_user_binding_exemption": {
       "file": "agents/style-inspector.md",
