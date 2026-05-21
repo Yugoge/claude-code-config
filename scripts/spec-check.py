@@ -52,6 +52,11 @@ ALLOWED_AGENTS = (
     "cleaner", "cleanliness-inspector", "git-edge-case-analyst",
     "prompt-inspector", "rule-inspector", "spec", "style-inspector",
     "test-executor", "test-validator",
+    # Test-writer agent (spec-20260518-225715 §5.2 / Cycle 2 P1.1 codex finding #1):
+    # registered here so check-in / mark / waive accept the role symmetrically
+    # with hooks/pretool-cp-checkin.py CP_AGENTS + hooks/prompt-workflow.py
+    # agent_types. Without this, test-writer's cp-state lifecycle would 404.
+    "test-writer",
 )
 
 ALLOWED_STATES = ("pending", "done", "waived-with-reason")

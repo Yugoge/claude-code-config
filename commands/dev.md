@@ -133,7 +133,7 @@ mkdir -p "$REGISTRY_DIR"
 for agent in \
     architect ba cleaner cleanliness-inspector dev git-edge-case-analyst \
     pm product-owner prompt-inspector qa rule-inspector style-inspector \
-    test-executor test-validator ui-specialist user; do
+    test-executor test-validator test-writer ui-specialist user; do
   printf '{"agent_type": "%s", "session_id": "%s"}\n' "$agent" "$DEV_SESSION_ID" \
     > "$REGISTRY_DIR/$agent.json"
 done
@@ -630,11 +630,12 @@ Use Task tool with:
 
   Write your report to: docs/dev/test-writer-report-<task_id>.json
   Generated tests go under: tests/generated/<task_id>/
-  Manifest: tests/generated/manifest.json
+  Per-task active manifest: tests/generated/<task_id>/manifest.json (active_tests[] lives here — this is what QA Phase 5 reads).
+  Global index: tests/generated/manifest.json (index) (shape {kind:"index", tasks:[{task_id, manifest_path}]}; upsert an entry for the current task_id — does NOT carry active_tests[]).
   "
 ```
 
-After the test-writer subagent completes, verify on disk that `tests/generated/manifest.json` AND `docs/dev/test-writer-report-<task_id>.json` BOTH exist. If either is missing, abort the cycle with an error (the orchestrator MUST NOT proceed to Dev with a silently-skipped test-writer). When `test_writer_expected == false`, SKIP the dispatch (record skip rationale in the todo list).
+After the test-writer subagent completes, verify on disk that ALL THREE of `tests/generated/<task_id>/manifest.json` (per-task active manifest), `tests/generated/manifest.json` (global index) AND `docs/dev/test-writer-report-<task_id>.json` exist. If any is missing, abort the cycle with an error (the orchestrator MUST NOT proceed to Dev with a silently-skipped test-writer). When `test_writer_expected == false`, SKIP the dispatch (record skip rationale in the todo list).
 
 After test-writer completes (or is skipped), the generated test file paths and manifest path are passed onward to Dev (in the dispatch prompt) and to QA (Step 11). Dev makes the skeleton tests pass; QA verifies the manifest at Step 11 Phase 5 AND that `test_writer_expected == true` implies manifest/report existence (Phase 5 fails with `primary_cause: "dev_implementation"` or `"qa_oversight"` if expected but missing).
 
@@ -663,7 +664,7 @@ Use Task tool with:
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
   View file: <view_paths.dev or null — sibling views/dev.md if present>
-  Generated tests (when test-writer ran): tests/generated/<task_id>/ + tests/generated/manifest.json
+  Generated tests (when test-writer ran): tests/generated/<task_id>/ + per-task active manifest at tests/generated/<task_id>/manifest.json. Global index file tests/generated/manifest.json (index) is a presence sentinel only — see Step 8 test-writer dispatch for full shape.
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
@@ -805,6 +806,7 @@ Use Task tool with:
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
   Spec file: <spec_path or null>
   View file: <view_paths.qa or null — sibling views/qa.md if present>
+  Per-task active test manifest: tests/generated/<task_id>/manifest.json (the file QA Phase 5 reads active_tests[] from; the global file tests/generated/manifest.json (index) is only consulted as a presence sentinel — see agents/qa.md Phase 5).
   Write your verification report to: docs/dev/qa-report-<timestamp>.json
 
   If Spec file is not null: Read the spec file FIRST. After verification, do NOT directly Edit docs/dev/specs/*.md (QA tool-policy denies write access by design — the verifier role must not mutate the spec it verifies). Instead, REPORT proposed Section 4/6/7 content via the qa-report JSON's 'qa.spec_section_updates' field with sub-fields 'section_4' (always populated when a spec is present and Section 4 measurements were taken; null otherwise), 'section_6' (populated only when verdict is fail; null otherwise), and 'section_7' (populated only when verdict is fail; null otherwise). The orchestrator applies these to the spec file in Step 12 with cycle-header create/append insertion semantics preserved. See agents/qa.md '### After Verification' under '## Overnight Spec Integration' for the QA-side prose, and agents/qa.md '## Output Format' for the JSON schema declaration.
@@ -819,7 +821,9 @@ Use Task tool with:
 
 Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
-**Sub-step 12.0 (apply spec section updates BEFORE decision tree)**:
+**Apply spec section updates (before the decision tree)**:
+
+This pre-decision-tree pass applies QA's reported spec section updates to the spec file before processing the verdict.
 
 If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec` and a global spec path was passed to Step 11), the orchestrator MUST apply QA's reported spec section updates to the spec file before processing the verdict:
 
@@ -841,7 +845,7 @@ If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec
   - APPEND the new content under the new (or existing) `### Cycle N` header — i.e., place the new content after any existing content already under that cycle header.
   - **NEVER overwrite prior cycle content under existing `### Cycle 1`, `### Cycle 2`, ... headers.** Prior cycles' content is historical and immutable; only the current cycle's subsection grows. (This insertion semantics is also documented in `agents/qa.md` `### After Verification` for the QA-self side; the orchestrator-side application here mirrors it. Phrase: "preserve cycle headers; append after existing cycle content; never overwrite prior cycle content.")
 
-After Sub-step 12.0 completes (or is skipped on non-spec cycles), proceed to the decision tree.
+After the spec section updates pass completes (or is skipped on non-spec cycles), proceed to the decision tree.
 
 **Decision tree**:
 
@@ -858,7 +862,9 @@ ELIF qa.status == "fail":
   → Proceed to Step 14 (Iteration)
 ```
 
-**Sub-step 12.1: Mascot score-update (post-QA, spec-20260518-225715 §5.1)**:
+**Apply Mascot score-update events (post-QA, spec-20260518-225715 §5.1)**:
+
+This post-decision-tree pass applies the canonical score-update events for this cycle.
 
 After the verdict is known, apply score-update events based on QA outcome and iteration count:
 
@@ -1112,7 +1118,7 @@ jq -s '.[0] * {
 
 ## Mascot Score Changes (spec-20260518-225715 §5.1)
 
-Summarise score-update events from Sub-step 12.1 (and any user-rating events from `/close`) in a table:
+Summarise score-update events from Step 12 and any user-rating events from `/close` in a table:
 
 | Agent | Event | Delta | Old → New |
 |-------|-------|-------|-----------|
