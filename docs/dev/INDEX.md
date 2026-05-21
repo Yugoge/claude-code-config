@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-21T00:57:19Z*
-**Total entries**: 328
+*Last updated: 2026-05-21T01:03:51Z*
+**Total entries**: 329
 **Convention**: kebab
 
 ## Tree
@@ -300,6 +300,7 @@ dev/
 ├── `style-inspector-report-20260519-211515.json` - json config
 ├── `style-inspector-report-20260520-085647-d1722b.json` - json config
 ├── `style-inspector-report-d1e94e.json` - json config
+├── `test-writer-report-20260520-221452.json` - json config
 ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence
