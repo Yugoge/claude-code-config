@@ -95,9 +95,11 @@ verify_read_size_guard() {
     emit_failure "missing: ${hook}"
     return
   fi
-  # Allow case: tiny file (or /dev/null) must NOT exit 2
+  # Allow case: tiny file (or /dev/null) must NOT exit 2.
+  # python3 invocation is wrapped in a same-line subshell that sources the
+  # venv per spec-20260518-225715 Cycle 2 P3.6 (canonical /dev Standard).
   local safe='{"tool_name":"Read","tool_input":{"file_path":"/dev/null"}}'
-  echo "${safe}" | python3 "${hook}" >/dev/null 2>&1
+  echo "${safe}" | ( source ~/.claude/venv/bin/activate && python3 "${hook}" >/dev/null 2>&1 )
   local rc=$?
   if [[ "${rc}" -ge 126 ]]; then
     emit_failure "pretool-read-size-guard.py exec error rc=${rc}"
@@ -105,10 +107,13 @@ verify_read_size_guard() {
   # Block case: synthesize an oversized file. The hook's documented cap is
   # 1000 lines (CLAUDE.md says 600; spec §5.5 documented mismatch). Use 5000
   # lines to exceed any plausible cap and assert the guard fires (exit 2).
-  local oversized="/tmp/canary-oversized-$$.txt"
+  # mktemp replaces former hardcoded /tmp/canary-oversized-$$ literal per
+  # spec-20260518-225715 Cycle 2 P3.8.
+  local oversized
+  oversized=$(mktemp -t canary-oversized.XXXXXX)
   yes "fill" 2>/dev/null | head -5000 > "${oversized}" || true
   local payload="{\"tool_name\":\"Read\",\"tool_input\":{\"file_path\":\"${oversized}\"}}"
-  echo "${payload}" | python3 "${hook}" >/dev/null 2>&1
+  echo "${payload}" | ( source ~/.claude/venv/bin/activate && python3 "${hook}" >/dev/null 2>&1 )
   rc=$?
   rm -f "${oversized}"
   # Note: the guard exits 0/2/other depending on policy. We do NOT hard-fail
