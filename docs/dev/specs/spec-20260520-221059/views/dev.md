@@ -7,6 +7,10 @@
 
 ---
 
+## Role Mandate
+
+> **Pipeline**: ba → dev → qa
+
 # Spec: Unresolved issues backlog from session 88dfdcea — TOP 3 cluster stranded by scope hot-swap + post-session confession
 
 **Pipeline**: ba → dev → qa
