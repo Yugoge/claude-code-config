@@ -332,5 +332,37 @@
       }
     ],
     "feedback_incorporated": "All 4 BLOCKER findings and all 5 MAJOR findings were incorporated. The minor scope-clarification finding was also applied. No findings rejected."
+  },
+  "qa_objection_revision": {
+    "revision_round": 1,
+    "objections_addressed": [
+      {
+        "id": "OBJ-1",
+        "severity": "major_blocking",
+        "qa_claim": "AC11 python3 comment command does not trigger any of the 4 rules before the fix — it is already exits 0",
+        "ba_verification": "Confirmed via Python regex simulation: rule 715 no match, rule 722 no match, rule 743 compound=False (rm|mv present but workflow-path absent), rule 751 no match (rm after # not a control operator). QA is correct.",
+        "resolution": "AC11 reclassified to C1 (Could Have) forward-proofing with note that it already passes pre-fix. Real incident command (codex exec with killall+claude in prompt body) promoted to AC13 only per codex feedback to avoid duplicate AC11/AC13 redundancy.",
+        "codex_input": "Codex BLOCKER: using same codex command in both AC11 and AC13 creates redundancy and leaves C1 (Python comment case) without coverage. PROPOSED_FIX: keep python3 comment as C1 AC11 (noting already passes), put real codex incident command in AC13 only.",
+        "codex_disposition": "applied"
+      },
+      {
+        "id": "OBJ-2",
+        "severity": "major_blocking",
+        "qa_claim": "M2 must bindingly specify that line 743's workflow-path grep stays on raw $COMMAND; Technical Hints is non-binding",
+        "ba_verification": "Correct. Applying COMMAND_CONTEXT_STRIPPED to the workflow-path grep would strip quoted paths like '.claude/todos/x', defeating the protection. The binding must be in M2.",
+        "resolution": "M2 updated to explicitly state: for line 743 compound condition, ONLY the dangerous-token grep (rm|mv)\\s uses COMMAND_CONTEXT_STRIPPED; workflow-path grep MUST remain on raw $COMMAND. Technical Hints updated to cross-reference M2 as binding.",
+        "codex_input": "Codex OBSERVATION_ONLY: Change 2 correctly preserves security. Dangerous-verb grep on COMMAND_CONTEXT_STRIPPED + workflow-path grep on raw $COMMAND is the correct split.",
+        "codex_disposition": "applied"
+      },
+      {
+        "id": "OBJ-3",
+        "severity": "minor_non_blocking",
+        "qa_claim": "AC13 uses fictional binary some-doc-tool; replace with real incident command codex exec with prompt body",
+        "ba_verification": "Confirmed: codex exec \"The hook documentation says killall and claude processes are monitored\" triggers rule 715 (Python regex simulation: True). This is the real incident command class.",
+        "resolution": "AC13 updated to use real incident command with full NOTE explaining pre-fix behavior (rule 715 fires on raw command string) and post-fix expected behavior (stripped view contains only 'codex exec', rule does not fire).",
+        "codex_input": "Codex confirmed rule 715 (killall|pkill)\\s+.*(happy|claude|docker) matches when killall appears then claude appears later on the same line via .* wildcard. Minor caveat: grep .* is line-local.",
+        "codex_disposition": "applied"
+      }
+    ]
   }
 }
