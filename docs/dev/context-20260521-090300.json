@@ -221,22 +221,30 @@
   },
   "scope_expansion": {
     "search_pattern": ".hook-refactor-allow",
-    "search_scope": "/ (entire filesystem), hooks/",
+    "search_scope": "/ (entire filesystem via find), hooks/ (grep)",
     "user_reported": ["/root/.hook-refactor-allow (suggested path — resolved to symlink target)"],
     "additional_found": [
-      "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow",
-      "/dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。",
-      "/dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow",
-      "/root/happy-dev.bak/.claude/.hook-refactor-allow",
-      "/root/multi-asset-portfolio/.claude/.hook-refactor-allow",
-      "/tmp/.hook-refactor-allow-consumed-* (4 files)",
-      "/tmp/.hook-refactor-allow.removed-* (8 files)",
-      "/tmp/g4-cfg-test/.claude/.hook-refactor-allow.bak2"
+      "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow (primary, mtime 2026-04-27, CRITICAL)",
+      "/dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 (Unicode-suffix, mtime 2026-05-09, INERT)",
+      "/dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow (mtime 2026-05-07, HIGH)",
+      "/root/happy-dev.bak/.claude/.hook-refactor-allow (mtime 2026-05-07, bak copy)",
+      "/root/multi-asset-portfolio/.claude/.hook-refactor-allow (mtime 2026-05-01, HIGH)",
+      "/root/orchestra/.claude/.hook-refactor-allow (mtime 2026-05-10, HIGH)",
+      "/root/travel-planner/.claude/.hook-refactor-allow (mtime 2026-05-06, HIGH)",
+      "/root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow (mtime 2026-04-27, archive)",
+      "/root/.claude.bak/.hook-refactor-allow (mtime 2026-04-27, backup)",
+      "/tmp/.hook-refactor-allow-consumed-* (4 files: 1777245462, 1777275537, 1777277239, 1777278118)",
+      "/tmp/.hook-refactor-allow.removed-* (9 files: 1777491091, 17774916892, 1777492074, 1777492671, 1777492689, 1777492723, 1777493861, 1777493887, 1777938221)",
+      "/tmp/g4-cfg-test/.claude/.hook-refactor-allow.bak2 (test artifact, .bak2 suffix, not matched by hooks)"
     ],
     "all_occurrences": [
-      "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow (primary, stale, HIGH-RISK)",
-      "hooks/pretool-claude-config-guard.py:47,77 (reads sentinel)",
-      "hooks/pretool-block-production-files.sh:133 (reads sentinel via HOME check)"
+      "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow (primary, stale, CRITICAL-RISK via HOME bypass)",
+      "/dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow (live project, HIGH-RISK in project context)",
+      "/root/orchestra/.claude/.hook-refactor-allow (live project, HIGH-RISK in project context)",
+      "/root/travel-planner/.claude/.hook-refactor-allow (live project, HIGH-RISK in project context)",
+      "/root/multi-asset-portfolio/.claude/.hook-refactor-allow (live project, HIGH-RISK in project context)",
+      "hooks/pretool-claude-config-guard.py:47,75-77,176-177 (reads sentinel; enforcement gate at 176-177)",
+      "hooks/pretool-block-production-files.sh:133 (reads sentinel via PROJECT_DIR and HOME check)"
     ]
   },
   "reference_source": {
