@@ -1,0 +1,72 @@
+{
+  "task_id": "20260521-090200",
+  "request_id": "20260521-090200",
+  "generated_at": "2026-05-21T09:02:00Z",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "type": "hook",
+      "given": "user issues /allow /tmp/xlsx-venv/bin/python /root/orchestra/docs/dev/find_red_cells.py (literal pattern, no redirect)",
+      "when": "sentinel is written via userprompt-consent-allowlist.sh and command /tmp/xlsx-venv/bin/python /root/orchestra/docs/dev/find_red_cells.py > /root/orchestra/docs/research/case-3 is attempted",
+      "then": "match_sentinel_grant_for_bash_command returns a non-None entry matching op=/tmp/xlsx-venv/bin/python; pretool-bash-safety.sh exits 0 with SENTINEL_OK",
+      "check": {
+        "tool": "python3",
+        "invocation": "call match_sentinel_grant_for_bash_command(task_id, '/tmp/xlsx-venv/bin/python /root/orchestra/docs/dev/find_red_cells.py > /root/orchestra/docs/research/case-3') with a pre-written sentinel containing op='/tmp/xlsx-venv/bin/python'",
+        "expected_result": "non-None MatchResult"
+      },
+      "ac_uid": "ac1-sentinel-tmp-interpreter-match"
+    },
+    {
+      "id": "AC2",
+      "type": "hook",
+      "given": "user issues /allow /tmp/xlsx-venv/bin/python /root/script.py > /root/output",
+      "when": "sentinel is written via userprompt-consent-allowlist.sh Step 4",
+      "then": "allowed_operations[0] in the written sentinel does NOT contain '> /root/output' in args_contain; args_contain contains only '/root/script.py' (pre-redirect argument only)",
+      "check": {
+        "tool": "python3",
+        "invocation": "read /tmp/claude-grants/<task_id>.json after /allow fires; inspect allowed_operations[0].args_contain",
+        "expected_result": "args_contain does not contain '>' or the redirect target path"
+      },
+      "ac_uid": "ac2-sentinel-no-redirect-in-args-contain"
+    },
+    {
+      "id": "AC3",
+      "type": "hook",
+      "given": "user issues bare /allow (wildcard) which sets pattern='.*' is_regex=true",
+      "when": "userprompt-consent-allowlist.sh Step 4 runs",
+      "then": "EITHER no sentinel file is written at /tmp/claude-grants/<task_id>.json for this regex grant; OR sentinel is written with legacy_fallback_allowed=true. Legacy check_and_consume_allowlist IS consulted for the subsequent Bash command (SENTINEL_EXISTS_FOR_TASK remains 0).",
+      "check": {
+        "tool": "bash",
+        "invocation": "verify /tmp/claude-grants/<task_id>.json absent after regex /allow, or present with legacy_fallback_allowed=true; then verify SENTINEL_EXISTS_FOR_TASK is not set to 1 for the subsequent command",
+        "expected_result": "CF-1 suppression does not fire for regex grants"
+      },
+      "ac_uid": "ac3-cf1-no-suppress-regex-wildcard"
+    },
+    {
+      "id": "AC4",
+      "type": "hook",
+      "given": "a subagent (agent_id present in hook input) attempts to execute any Bash command",
+      "when": "check_and_consume_allowlist is called inside pretool-bash-safety.sh",
+      "then": "function returns 1 immediately due to IS_SUBAGENT=1; legacy grant is never consulted; no change to this behavior",
+      "check": {
+        "tool": "bash",
+        "invocation": "simulate hook input with agent_id set; verify check_and_consume_allowlist returns 1",
+        "expected_result": "IS_SUBAGENT firewall for legacy grants preserved"
+      },
+      "ac_uid": "ac4-subagent-legacy-firewall-preserved"
+    },
+    {
+      "id": "AC5",
+      "type": "config",
+      "given": "settings.json is updated with Bash(/tmp/*-venv/bin/python*:*) in allow list",
+      "when": "a command starting with any /tmp/*-venv/bin/python path is attempted",
+      "then": "Claude Code built-in permission check allows it without requiring /allow interaction",
+      "check": {
+        "tool": "grep",
+        "invocation": "grep '/tmp/.*-venv/bin/python' settings.json",
+        "expected_result": "matching entry present in allow array"
+      },
+      "ac_uid": "ac5-settings-venv-allow-entry"
+    }
+  ]
+}
