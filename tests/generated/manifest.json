@@ -13,6 +13,10 @@
     {
       "task_id": "20260522-000000",
       "manifest_path": "tests/generated/20260522-000000/manifest.json"
+    },
+    {
+      "task_id": "20260522-080646-A",
+      "manifest_path": "tests/generated/20260522-080646-A/manifest.json"
     }
   ]
 }
