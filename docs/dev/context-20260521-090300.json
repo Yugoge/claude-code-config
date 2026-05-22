@@ -128,13 +128,13 @@
     },
     {
       "id": "R5",
-      "source_phrase": "assess whether it is a legitimate active security exception or a stale/dangerous artifact",
-      "acceptance_criterion": "Assessment: stale (25 days past last use), high-risk (pretool-block-production-files HOME check active), not a legitimate active session"
+      "source_phrase": "assess risk",
+      "acceptance_criterion": "Assessment: primary file CRITICAL (25 days stale, HOME bypass ACTIVE, system-global scope); 4 live per-project sentinels HIGH-RISK (each activates pretool-block-production-files.sh bypass in their project context — NOT lower-risk than primary); archive/bak copies LOW-RISK; Unicode-suffix file INERT"
     },
     {
       "id": "R6",
-      "source_phrase": "produce a remediation recommendation if the file is risky or no longer needed",
-      "acceptance_criterion": "Tiered recommendation: (1) delete stale root-level sentinel, (2) audit per-project sentinels, (3) delete anomalous Unicode file, (4) log structural hardening as follow-up"
+      "source_phrase": "recommend remediation",
+      "acceptance_criterion": "Tiered recommendation covering all live project sentinels: (1) delete primary stale root-level sentinel, (2) confirm and delete per-project sentinels in happy-dev, orchestra, travel-planner, multi-asset-portfolio, (3) delete bak/archive copies, (4) delete anomalous Unicode file, (5) log structural hardening ($HOME fallback removal) as follow-up cycle"
     }
   ],
   "component_chain": [
