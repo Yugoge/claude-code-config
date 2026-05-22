@@ -226,14 +226,14 @@
   "evidence": {
     "observed": "User reports: /allow sentinel grant existed but execution was still blocked for /tmp/xlsx-venv/bin/python /root/orchestra/docs/dev/find_red_cells.py > /root/orchestra/docs/research/case-3",
     "measured": {
-      "value": "pretool-tool-policy.py exits 2 with BLOCKED for ba subagent + Bash command with > /root/orchestra/docs/research/case-3 redirect; is_allowed('ba','Write','/root/orchestra/docs/research/case-3') = (False, 'not in allowed_write_path_prefixes')",
-      "location": "hooks/pretool-tool-policy.py:47-92; policies/tool-policy.v1.json ba.allowed_write_path_prefixes; Codex runtime execution output"
+      "value": "extract_bash_write_paths(cmd) = ['/root/orchestra/docs/research/case-3']; is_allowed('ba','Write','/root/orchestra/docs/research/case-3') = (False, 'write target /root/orchestra/docs/research/case-3 not in allowed_write_path_prefixes'); is_allowed('ba','Bash',None) = (True,'ok'); _looks_regex('/tmp/xlsx-venv/bin/python') = False",
+      "location": "hooks/lib/bash_write_targets.py:375-399; hooks/lib/policy_registry.py:260-276; policies/tool-policy.v1.json:119-140; direct Python execution in hooks directory"
     },
     "expected": {
-      "value": "pretool-tool-policy.py exits 0 for ba subagent writing to /root/orchestra/docs/research/ when that prefix is in allowed_write_path_prefixes; pretool-bash-safety.sh sentinel block reached and returns SENTINEL_OK",
+      "value": "pretool-tool-policy.py exits 0 for ba subagent writing to /root/orchestra/docs/research/ when that prefix is in allowed_write_path_prefixes; pretool-bash-safety.sh sentinel block reached and returns SENTINEL_OK for IS_SUBAGENT=1 when valid sentinel exists",
       "source": "User requirement: /allow grant should be honored; policies/tool-policy.v1.json design intent for per-role write authorization"
     },
-    "gap": "ba.allowed_write_path_prefixes in policies/tool-policy.v1.json does not include /root/orchestra/docs/research/; pretool-tool-policy.py blocks before /allow sentinel system is consulted; IS_SUBAGENT=1 guard at pretool-bash-safety.sh:483 skips sentinel block entirely for subagents"
+    "gap": "(A) ba.allowed_write_path_prefixes in policies/tool-policy.v1.json does not include /root/orchestra/docs/research/ → pretool-tool-policy.py exits 2 before /allow sentinel system is consulted; (B) IS_SUBAGENT != 1 guard at pretool-bash-safety.sh:483 skips sentinel block entirely for subagents; (C) task ID writer uses session_id from UserPromptSubmit, reader prefers task_id from PreToolUse JSON field first — potential mismatch when CLAUDE_TASK_ID unset"
   },
   "scope_expansion": {
     "search_pattern": "allowed_write_path_prefixes|IS_SUBAGENT|SENTINEL_EXISTS_NO_MATCH|extract_bash_write_paths",
