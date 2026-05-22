@@ -261,13 +261,14 @@ def _handle_shell_interp(tokens: list, cmd_idx: int) -> str:
                 i += 1
             if i < len(tokens):
                 payload_text, payload_type = tokens[i]
-                # Unwrap quotes from payload
+                # Unwrap quotes from payload and expose as canonical executable text.
+                # The -c payload is shell code; append it unquoted so that danger-token
+                # grep patterns (which look for command-word positions) can match it.
                 if payload_type in ('single_quoted', 'double_quoted'):
                     inner = payload_text[1:-1]  # strip surrounding quotes
                     processed = strip_non_executable_contexts(inner)
-                    # Re-wrap in same quote style
-                    quote_char = payload_text[0]
-                    result_tokens.append((quote_char + processed + quote_char, payload_type))
+                    # Append unwrapped so grep sees "sh -c rm /tmp/foo" not "sh -c 'rm...'"
+                    result_tokens.append((' ' + processed, 'word'))
                 else:
                     result_tokens.append(tokens[i])
                 i += 1
