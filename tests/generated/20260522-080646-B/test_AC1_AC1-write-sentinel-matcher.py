@@ -16,7 +16,7 @@ import pytest
 AC_UID = "AC1-write-sentinel-matcher"
 AC_TYPE = "hook"
 
-HOOKS_DIR = str(Path(__file__).parent.parent.parent / "hooks")
+HOOKS_DIR = str(Path(__file__).parent.parent.parent.parent / "hooks")
 sys.path.insert(0, HOOKS_DIR)
 
 SENTINEL_GRANT_DIR = "/tmp/claude-grants"
