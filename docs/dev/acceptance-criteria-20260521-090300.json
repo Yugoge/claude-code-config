@@ -1,0 +1,99 @@
+{
+  "request_id": "20260521-090300",
+  "task_id": "20260521-090300",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "type": "data",
+      "given": "The filesystem at /dev/shm/dev-workspace/dot-claude",
+      "when": "stat /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow is run",
+      "then": "Output confirms file exists, size=0, mtime=2026-04-27, and /root/.claude/.hook-refactor-allow resolves to same inode via /root/.claude symlink",
+      "check": {
+        "method": "bash",
+        "command": "stat /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow && readlink -f /root/.claude/.hook-refactor-allow",
+        "expected_pattern": "Size: 0.*2026-04-27"
+      },
+      "ac_uid": "ac1-hook-refactor-allow-location-confirmed"
+    },
+    {
+      "id": "AC2",
+      "type": "data",
+      "given": "The file at /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow",
+      "when": "its size is checked",
+      "then": "File is 0 bytes (empty — contains no configuration, credentials, or active directives)",
+      "check": {
+        "method": "bash",
+        "command": "wc -c /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow",
+        "expected": "0"
+      },
+      "ac_uid": "ac2-hook-refactor-allow-contents-empty"
+    },
+    {
+      "id": "AC3",
+      "type": "data",
+      "given": "A grep of hook-refactor-allow across all files in hooks/",
+      "when": "grep completes",
+      "then": "Exactly two hook files match: hooks/pretool-claude-config-guard.py and hooks/pretool-block-production-files.sh",
+      "check": {
+        "method": "bash",
+        "command": "grep -rln hook-refactor-allow /dev/shm/dev-workspace/dot-claude/hooks/",
+        "expected_files": [
+          "hooks/pretool-claude-config-guard.py",
+          "hooks/pretool-block-production-files.sh"
+        ]
+      },
+      "ac_uid": "ac3-hook-files-exhaustive-grep"
+    },
+    {
+      "id": "AC4",
+      "type": "hook",
+      "given": "HOME=/root, /root/.claude symlinks to /dev/shm/dev-workspace/dot-claude, and the stale .hook-refactor-allow file exists at root level",
+      "when": "A simulated subagent Edit to /root/.claude/hooks/pretool-bash-safety.sh is tested against pretool-block-production-files.sh with agent_id set",
+      "then": "The hook exits 0 (does NOT block) because $HOME/.claude/.hook-refactor-allow resolves via symlink to the stale file",
+      "check": {
+        "method": "python",
+        "command": "python3 -c \"import json; print(json.dumps({'tool_name':'Edit','agent_id':'test-agent','tool_input':{'file_path':'/root/.claude/hooks/pretool-bash-safety.sh'}}))\" | /dev/shm/dev-workspace/dot-claude/hooks/pretool-block-production-files.sh; echo \"exit=$?\"",
+        "expected_exit": "0"
+      },
+      "ac_uid": "ac4-bypass-active-via-home-symlink"
+    },
+    {
+      "id": "AC5",
+      "type": "data",
+      "given": "The consumed-sentinel files at /tmp/.hook-refactor-allow-consumed-*",
+      "when": "their contents are read",
+      "then": "Each contains explicit user-authorized session text with intent to delete; all sessions are from 2026-04-27 or earlier; no session is dated after 2026-04-27",
+      "check": {
+        "method": "bash",
+        "command": "cat /tmp/.hook-refactor-allow-consumed-*",
+        "expected_pattern": "User-authorized hook refactor"
+      },
+      "ac_uid": "ac5-historical-intent-confirmed"
+    },
+    {
+      "id": "AC6",
+      "type": "data",
+      "given": "The findings in this spec",
+      "when": "dev processes this ticket",
+      "then": "A concrete action plan is produced covering: (1) delete stale root-level sentinel, (2) confirm or delete per-project sentinels in happy-dev and multi-asset-portfolio, (3) delete anomalous Unicode-suffix file, with follow-up hardening logged",
+      "check": {
+        "method": "manual",
+        "description": "Dev report must list each of the 3 file categories addressed and confirm deletion or deferral with justification"
+      },
+      "ac_uid": "ac6-remediation-recommendation-actioned"
+    },
+    {
+      "id": "AC7",
+      "type": "hook",
+      "given": "After deletion of /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow",
+      "when": "A simulated subagent Edit to /root/.claude/hooks/pretool-bash-safety.sh is tested against pretool-block-production-files.sh",
+      "then": "The hook exits 2 (BLOCKED) because $HOME/.claude/.hook-refactor-allow no longer exists",
+      "check": {
+        "method": "python",
+        "command": "python3 -c \"import json; print(json.dumps({'tool_name':'Edit','agent_id':'test-agent','tool_input':{'file_path':'/root/.claude/hooks/pretool-bash-safety.sh'}}))\" | /dev/shm/dev-workspace/dot-claude/hooks/pretool-block-production-files.sh; echo \"exit=$?\"",
+        "expected_exit": "2"
+      },
+      "ac_uid": "ac7-bypass-closed-after-deletion"
+    }
+  ]
+}
