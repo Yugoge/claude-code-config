@@ -123,7 +123,7 @@
       "reproducibility_verified": false
     }
   },
-  "diagnosis_layer": "L3",
+  "diagnosis_layer": "L5",
   "requirements_decomposition": [
     {"id": "R1", "source_phrase": "将你说的问题全部保存为新的spec", "acceptance_criterion": "N/A — save already done via spec-20260520-221059.md; this decomposition covers implementation items"},
     {"id": "R2", "source_phrase": "arch-1: docs/reference/ entirely gitignored at .gitignore:66", "acceptance_criterion": "git ls-files docs/reference/ returns 12+ files after exception added"},
