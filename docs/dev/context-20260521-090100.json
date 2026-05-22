@@ -40,7 +40,8 @@
       "Do not modify settings.json",
       "Policy path prefix must be */docs/codex/ (glob form per policy _note fnmatch semantics)",
       "Tee targets must use $CLAUDE_PROJECT_DIR/docs/codex/$CODEX_OUT_TASK_ID/$CODEX_OUT_ROLE.txt or literal fallback — no standalone opaque shell variable",
-      "Path-safety guard ^[A-Za-z0-9._-]+$ must be present for both env var components"
+      "Path-safety guard ^[A-Za-z0-9._-]+$ must be present for both env var components",
+      "Path-safety guard must ALSO explicitly reject '.' and '..' as standalone values — Codex CF-2: '..' passes the base regex but can escape docs/codex/ at shell runtime"
     ]
   },
   "scope_boundary": {
