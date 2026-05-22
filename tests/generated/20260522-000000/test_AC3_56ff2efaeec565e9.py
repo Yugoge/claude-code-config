@@ -18,7 +18,45 @@ def test_AC3():
     WHEN:  diff <(tail -n +2 /usr/local/sbin/tmp-cleanup.sh) <(tail -n +2 scripts/install/tmp-cleanup-install.sh) is run AND head -1 and stat -c %a are checked
     THEN:  diff exits 0 (lines 2..EOF are identical; only shebang line differs) AND head -1 returns #!/usr/bin/env bash AND stat returns 755 AND git ls-files returns the file path
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — scripts/install/tmp-cleanup-install.sh mirror: diff exits 0, shebang correct, mode 755, git-tracked")
+    import os
+    import stat
+    repo = "/dev/shm/dev-workspace/dot-claude"
+    mirror = os.path.join(repo, "scripts/install/tmp-cleanup-install.sh")
+    source = "/usr/local/sbin/tmp-cleanup.sh"
+
+    # File must exist
+    assert os.path.isfile(mirror), f"Expected {mirror} to exist"
+
+    # Shebang must be #!/usr/bin/env bash (not #!/bin/bash)
+    with open(mirror, "r") as f:
+        first_line = f.readline().rstrip("\n")
+    assert first_line == "#!/usr/bin/env bash", (
+        f"Expected shebang '#!/usr/bin/env bash', got '{first_line}'"
+    )
+
+    # Content parity: lines 2..EOF must be identical to source
+    diff_result = subprocess.run(
+        ["bash", "-c",
+         f"diff <(tail -n +2 {source}) <(tail -n +2 {mirror})"],
+        capture_output=True,
+        text=True,
+    )
+    assert diff_result.returncode == 0, (
+        f"Content mismatch between lines 2..EOF of source and mirror:\n{diff_result.stdout}"
+    )
+
+    # File mode must be 755
+    file_stat = os.stat(mirror)
+    mode_octal = oct(stat.S_IMODE(file_stat.st_mode))
+    assert mode_octal == "0o755", f"Expected mode 755, got {mode_octal}"
+
+    # Must be git-tracked
+    ls_result = subprocess.run(
+        ["git", "ls-files", "scripts/install/tmp-cleanup-install.sh"],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+    )
+    assert ls_result.stdout.strip() == "scripts/install/tmp-cleanup-install.sh", (
+        "scripts/install/tmp-cleanup-install.sh is not tracked by git"
+    )
