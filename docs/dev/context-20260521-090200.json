@@ -134,43 +134,59 @@
   ],
   "component_chain": [
     {
+      "file": "settings.json",
+      "line_range": "448-454",
+      "role": "Registers pretool-tool-policy.py with matcher '*' (all tools), meaning it fires for every Bash call",
+      "imports_from": ["hooks/pretool-tool-policy.py"],
+      "evidence": "Read at lines 448-454: matcher='*', command=python3 $HOME/.claude/hooks/pretool-tool-policy.py",
+      "verified_via": "Read"
+    },
+    {
       "file": "hooks/pretool-tool-policy.py",
       "line_range": "47-101",
-      "role": "PRIMARY BLOCKER: fires for all tools (matcher *); extracts Bash redirect targets as Write targets; checks role-based allowed_write_path_prefixes; exits 2 if denied",
-      "imports_from": ["policies/tool-policy.v1.json"],
-      "evidence": "Codex runtime execution confirmed exit=2 for ba subagent with /root/orchestra/docs/research/case-3 target; settings.json lines 449-454 matcher=*",
+      "role": "PRIMARY BLOCKER: fires for all tools (matcher *); extracts Bash redirect targets as Write targets; checks role-based allowed_write_path_prefixes; exits 2 if denied; bypasses main agent (role=None → exit 0)",
+      "imports_from": ["hooks/lib/bash_write_targets.py", "hooks/lib/policy_registry.py"],
+      "evidence": "Direct Python execution: is_allowed('ba','Write','/root/orchestra/docs/research/case-3') = (False, 'not in allowed_write_path_prefixes'); extract_bash_write_paths(cmd) = ['/root/orchestra/docs/research/case-3']",
+      "verified_via": "both"
+    },
+    {
+      "file": "hooks/lib/bash_write_targets.py",
+      "line_range": "375-399",
+      "role": "extract_bash_write_paths: extracts redirect target /root/orchestra/docs/research/case-3 from Bash command using redirect regex",
+      "imports_from": [],
+      "evidence": "Direct Python execution: extract_bash_write_paths('/tmp/xlsx-venv/bin/python ... > /root/orchestra/docs/research/case-3') = ['/root/orchestra/docs/research/case-3']",
       "verified_via": "both"
     },
     {
       "file": "policies/tool-policy.v1.json",
-      "line_range": "ba.allowed_write_path_prefixes",
-      "role": "Role-based write policy: defines which paths each subagent role may write to",
+      "line_range": "108-153",
+      "role": "ba role write policy: allowed_write_path_prefixes does not include any /root/orchestra/ prefix; deny reason for the block",
       "imports_from": [],
-      "evidence": "Codex test confirmed is_allowed('ba', 'Write', '/root/orchestra/docs/research/case-3') = (False, 'not in allowed_write_path_prefixes')",
+      "evidence": "Read at lines 119-140: ba.allowed_write_path_prefixes confirmed — no /root/orchestra/ entry; direct Python execution confirms denial",
       "verified_via": "both"
     },
     {
       "file": "hooks/userprompt-consent-allowlist.sh",
       "line_range": "51-219",
-      "role": "Writes sentinel grant when user types /allow; parser determines op/args_contain from pattern",
+      "role": "Writes sentinel grant when user types /allow; parser determines op from first bare token; subsequent tokens become COMMENT",
       "imports_from": [],
-      "evidence": "Read at lines 86-97 (parser), 176 (task ID writer), 197-205 (sentinel construction)",
+      "evidence": "Read at lines 86-97 (parser: bare[0]=PATTERN, bare[1:]=COMMENT), 176 (task ID writer: CLAUDE_TASK_ID:-SID), 197-205 (sentinel construction: op=first token, no args_contain for single-part pattern)",
       "verified_via": "Read"
     },
     {
       "file": "hooks/pretool-bash-safety.sh",
-      "line_range": "139-229 and 483-553",
-      "role": "Reads and validates both grant types; applies sentinel check (IS_SUBAGENT gated); applies CF-1 suppression",
+      "line_range": "145 and 483-553",
+      "role": "Reads and validates both grant types; sentinel check gated by IS_SUBAGENT != 1 (line 483); legacy allowlist gated by IS_SUBAGENT at line 145; task ID reader at lines 484-488",
       "imports_from": ["hooks/lib/allowlist.py"],
-      "evidence": "Read at lines 145, 483, 484-488 (task ID reader), 517-527 (CF-1), 551",
+      "evidence": "Read at lines 1-35 (IS_SUBAGENT set at top), 145 (legacy gate), 483 (sentinel gate), 484-488 (reader fallback), 509-532 (sentinel query), 551 (CF-1 gate)",
       "verified_via": "Read"
     },
     {
       "file": "hooks/lib/allowlist.py",
       "line_range": "438-481",
-      "role": "match_sentinel_grant_for_bash_command: structural match of bash command against allowed_operations[]",
+      "role": "match_sentinel_grant_for_bash_command: structural match — op equality check; args_contain=[] → all() over empty → True → MATCH for /tmp/xlsx-venv/bin/python op",
       "imports_from": [],
-      "evidence": "Read at lines 463-481: op equality check; args_contain=[] → all() over empty = True (works correctly for /tmp paths)",
+      "evidence": "Read at lines 464-481: head_op=tokens[0]='/tmp/xlsx-venv/bin/python'; want_op from sentinel={op:'/tmp/xlsx-venv/bin/python'}; equality True; args_contain=[] → all() True → match. Works correctly for /tmp paths.",
       "verified_via": "Read"
     }
   ],
