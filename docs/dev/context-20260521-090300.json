@@ -326,27 +326,27 @@
     "feedback_summary": "Iteration 3 (QA-rejected x2, now corrected). Codex verified 5 claims: Claims 1,2,4,5 CONFIRMED. Claim 3 partially corrected — there are 2 Unicode-suffix files (not 1): /dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 AND /root/.claude.bak/.claude/.hook-refactor-allow。 (both mtime 2026-05-09). Total filesystem instance count is 10 (8 exact-name + 2 Unicode), not 9. Codex independently ran find / to locate both Unicode variants. QA objections 1-5 are now all addressed: (1) .removed-* count = 9 confirmed; (2) enforcement gate at lines 176-177 confirmed; (3) 10 total instances (8 exact + 2 Unicode) confirmed; (4) per-project sentinel risk confirmed via live hook invocation; (5) both ticket and JSON have 7 ACs confirmed.",
     "findings": [
       {
-        "issue": "Deletion is necessary immediate containment but insufficient as the full fix. The $HOME fallback in pretool-block-production-files.sh:133 means any persistent empty file at $HOME/.claude/ becomes a permanent global bypass.",
-        "proposed_fix": "Remove or narrow the $HOME/.claude/.hook-refactor-allow fallback in pretool-block-production-files.sh. Add TTL/session binding or migrate to the structured sentinel-grant pattern already used for /allow.",
-        "classification": "major",
-        "disposition": "logged",
-        "rationale": "The structural hardening is out of scope for this audit cycle — the user's requirement asks for assessment and remediation recommendation, not hook code modification. Logged as out_of_scope_observations with security_relevant=true for a follow-up cycle."
-      },
-      {
-        "issue": ".gitignore:73 ignores .hook-refactor-allow, making stale residue invisible in normal git status. This is a contributing factor.",
-        "proposed_fix": "Remove .hook-refactor-allow from .gitignore, or add a session-end cleanup hook.",
-        "classification": "observation_only",
-        "disposition": "logged",
-        "rationale": "Logged in out_of_scope_observations for follow-up. Does not block the immediate remediation."
-      },
-      {
-        "issue": "Deletion should be gated by confirmation that no active user-authorized hook refactor session is in progress.",
-        "proposed_fix": "AC should require user confirmation of no active session before deletion.",
+        "issue": "Claim 3 — the inventory stated 9 instances (8 exact-name + 1 Unicode-suffix). Codex independently ran find / and found 2 Unicode-suffix variants: /dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 AND /root/.claude.bak/.claude/.hook-refactor-allow。. Total is 10 instances.",
+        "proposed_fix": "Update inventory to 10 instances (8 exact-name + 2 Unicode-suffix). Add /root/.claude.bak/.claude/.hook-refactor-allow。 to deletion targets. Both Unicode files are INERT but should be cleaned up.",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Added as Edge Case in ticket and as confirmation requirement in dev approach."
+        "rationale": "Applied: inventory updated to 10 instances in ticket Finding 4, AC1, Scope section, and context JSON scope_expansion. /root/.claude.bak/.claude/.hook-refactor-allow。 added to files_to_delete."
+      },
+      {
+        "issue": "Claims 1, 2, 4, 5 confirmed as accurate. No corrections required for .removed-* count (9), line citations (176-177), per-project risk assessment, or AC count (7).",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Codex independently verified via live bash commands. All four claims pass."
+      },
+      {
+        "issue": "$HOME fallback structural weakness (pre-existing finding from prior rounds): deletion is necessary immediate containment but insufficient. The $HOME fallback means any persistent empty file at $HOME/.claude/ becomes a permanent global bypass.",
+        "proposed_fix": "Remove or narrow the $HOME/.claude/.hook-refactor-allow fallback in pretool-block-production-files.sh. Separate cycle.",
+        "classification": "major",
+        "disposition": "logged",
+        "rationale": "Structural hardening is out of scope for this audit cycle. Logged as out_of_scope_observations with security_relevant=true."
       }
     ],
-    "feedback_incorporated": "Added session-confirmation gate to remediation recommendation and edge cases. Logged HOME-fallback structural weakness as out_of_scope_observation with security_relevant=true for follow-up cycle. .gitignore contributing factor logged as out_of_scope_observation."
+    "feedback_incorporated": "Applied Codex finding: updated inventory from 9 to 10 instances by adding /root/.claude.bak/.claude/.hook-refactor-allow。. All 5 QA objections are now addressed with concrete evidence. Codex confirmed Claims 1,2,4,5 independently."
   }
 }
