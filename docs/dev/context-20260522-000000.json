@@ -31,7 +31,7 @@
       ]
     },
     "success_criteria": [
-      "git ls-files docs/reference/ returns 12+ files",
+      "git ls-files docs/reference/ | wc -l returns exactly 12",
       "git check-ignore logs/lifecycle.jsonl exits 1 (not ignored)",
       "git ls-files scripts/install/tmp-cleanup-install.sh returns the file",
       "score-update.sh history entries contain uncapped_delta key",
