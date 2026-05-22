@@ -1,0 +1,292 @@
+{
+  "request_id": "20260521-090200",
+  "task_id": "20260521-090200",
+  "timestamp": "2026-05-21T09:02:00Z",
+  "requirement": {
+    "original": "When a user grants /allow permission for a command, the hook system still blocks execution. Specific observed case: the command was a Python interpreter located under /tmp (e.g., /tmp/xlsx-venv/bin/python), running a script at /root/orchestra/docs/dev/find_red_cells.py, with stdout redirected to a file at /root/orchestra/docs/research/case-3. The /allow sentinel grant existed but execution was still blocked. Root cause is unknown — candidates are: (1) hooks/pretool-bash-safety.sh has a daemon-restart-wrapper or similar pattern that matches /tmp/ interpreter paths and blocks regardless of any sentinel grant, (2) the stdout redirection is handled as a separate operation whose target is not covered by the grant op/target fields, (3) the hooks/lib/allowlist.py match logic does not correctly handle commands where the executable path is under /tmp. Investigate which hook actually blocked this command, trace through the allowlist matching logic to find the gap, and determine what precise change is needed so that an /allow grant covering this type of command (venv interpreter under /tmp, script path, output redirect) is correctly honored.",
+    "clarified": "Three gaps in the /allow grant system prevent the command from being honored: (A) IS_SUBAGENT firewall blocks all grant paths in subagent context; (B) CF-1 suppresses legacy fallback when a regex/wildcard sentinel exists but cannot structurally match (op='*' never equals any real command token); (C) sentinel args_contain construction is redirect-unaware — the redirect token '> /output' lands in args_contain where it may not appear in the hook's view of the command.",
+    "what": "Fix three gaps in the /allow grant system so that user-granted permissions for /tmp venv interpreter commands with output redirects are correctly honored",
+    "why": "User needs to run Python scripts from venv interpreters installed under /tmp (e.g., xlsx-venv) and redirect output to files; the /allow grant mechanism fails silently due to structural bugs in sentinel construction and CF-1 gating logic",
+    "where": [
+      "hooks/userprompt-consent-allowlist.sh",
+      "hooks/pretool-bash-safety.sh",
+      "hooks/lib/allowlist.py",
+      "settings.json"
+    ],
+    "scope": {
+      "included": [
+        "Sentinel construction in userprompt-consent-allowlist.sh: redirect token stripping from args_contain; no-sentinel for regex/wildcard grants",
+        "CF-1 gate in pretool-bash-safety.sh: legacy_fallback_allowed exemption for sentinels that cannot structurally match",
+        "settings.json allow list: add /tmp/*-venv/bin/python* entry as secondary fix"
+      ],
+      "excluded": [
+        "Daemon-restart prohibition layers 1.A through 1.E",
+        "Subagent write firewall in userprompt-consent-allowlist.sh Step 0",
+        "PostToolUse sentinel consumption logic (posttool-allowlist-consume.py)",
+        "Any change to the AC2 comment-only attack invariant",
+        "IS_SUBAGENT firewall for legacy pattern-string grants"
+      ]
+    },
+    "success_criteria": [
+      "User issues /allow /tmp/xlsx-venv/bin/python <script> and the command is allowed by pretool-bash-safety.sh (SENTINEL_OK or CONSUMED log)",
+      "Redirect tokens (> /path) in the /allow pattern are not stored in args_contain",
+      "Bare /allow or regex /allow grants do not trigger CF-1 suppression of legacy path",
+      "Daemon-restart and subagent firewalls remain fully intact"
+    ],
+    "constraints": [
+      "AC2 comment-only attack invariant must be preserved",
+      "IS_SUBAGENT firewall for legacy grants must remain unchanged",
+      "All Layer 1.A–1.E daemon-restart prohibition blocks must remain intact"
+    ]
+  },
+  "scope_boundary": {
+    "in_user_path": [
+      "hooks/pretool-bash-safety.sh",
+      "hooks/userprompt-consent-allowlist.sh",
+      "hooks/lib/allowlist.py"
+    ],
+    "path_dependent_shared_infra": [
+      "settings.json"
+    ],
+    "out_of_path_observed_but_not_touched": []
+  },
+  "out_of_scope_observations": [],
+  "root_cause_analysis": {
+    "symptom": "User issues /allow for a /tmp venv Python command with output redirect; command is still blocked",
+    "root_cause": "Three independent gaps: (A) IS_SUBAGENT firewall unconditionally discards all grant paths in subagent contexts; (B) CF-1 at pretool-bash-safety.sh:517-527 sets SENTINEL_EXISTS_FOR_TASK=1 on SENTINEL_EXISTS_NO_MATCH, which suppresses legacy path at line 551 — this fires for regex/wildcard grants because their op='*' never equals any real command's head_op; (C) sentinel construction in userprompt-consent-allowlist.sh:196-205 puts the full remainder of the pattern (including redirect '> /output-path') into args_contain[0] as one string, which fails if the hook payload omits or normalizes the redirect",
+    "root_cause_commit": "28a1e85 feat(hooks): allowlist consolidation + push-sentinel + AC verify suite — CF-1 invariant was added here; sentinel construction present in this commit",
+    "why_introduced": "CF-1 was added as a security invariant to prevent comment-only bypass attacks (e.g., 'echo hi # rm -rf /') against legacy substring matching. The sentinel args_contain construction was intended to capture the full allow pattern faithfully.",
+    "why_problematic": "CF-1 is too broad: it fires for regex/wildcard grants whose sentinel op='*' can never structurally match any real command, permanently suppressing legacy for all regex grants. The args_contain construction does not distinguish shell redirect tokens from actual command arguments.",
+    "timeline": "Introduced in commit 28a1e85 (2026-05-18)",
+    "affected_files": [
+      "hooks/pretool-bash-safety.sh",
+      "hooks/userprompt-consent-allowlist.sh",
+      "hooks/lib/allowlist.py"
+    ],
+    "evidence_type": "inferred",
+    "observations": [
+      "pretool-bash-safety.sh:145 check_and_consume_allowlist() returns 1 immediately when IS_SUBAGENT=1 (inferred: code reading)",
+      "pretool-bash-safety.sh:483 entire sentinel block wrapped in IS_SUBAGENT != 1 condition (inferred: code reading)",
+      "pretool-bash-safety.sh:517-527 SENTINEL_EXISTS_NO_MATCH branch sets SENTINEL_EXISTS_FOR_TASK=1 (inferred: code reading)",
+      "pretool-bash-safety.sh:551 CF-1 gate: check_and_consume_allowlist called only when SENTINEL_EXISTS_FOR_TASK != 1 (inferred: code reading)",
+      "userprompt-consent-allowlist.sh:197-199 regex grants produce op='*' sentinel entry (inferred: code reading)",
+      "lib/allowlist.py:470-471 match requires want_op == head_op (exact string equality) — '*' never equals any real command token (inferred: code reading)",
+      "userprompt-consent-allowlist.sh:196-205 args_contain = [rest] where rest = everything after first whitespace-delimited token, including redirect '> /path' (inferred: code reading)"
+    ],
+    "diagnosis_completeness": "incomplete (inferred only — no runtime logs available to confirm which specific path fired)",
+    "complaint_location_keywords": [
+      "/allow",
+      "/tmp/xlsx-venv/bin/python",
+      "find_red_cells.py",
+      "case-3",
+      "sentinel grant",
+      "blocked"
+    ],
+    "localization_evidence": "No runtime logs available. Root cause localized by static code tracing through three independent code paths in pretool-bash-safety.sh and userprompt-consent-allowlist.sh. All three gaps are independently verifiable by reading the source at the cited lines.",
+    "located_source": "hooks/pretool-bash-safety.sh:145 (IS_SUBAGENT gate), hooks/pretool-bash-safety.sh:517-527 (CF-1), hooks/userprompt-consent-allowlist.sh:196-205 (args_contain construction)",
+    "localization_blocked": null,
+    "git_bisect_result": {
+      "triggered": false,
+      "suspect_commit": "28a1e85",
+      "commit_message": "feat(hooks): allowlist consolidation + push-sentinel + AC verify suite",
+      "confirmed_by": "git-log-diff",
+      "bisect_blocked": "Not a regression report — user reports new functionality (sentinel grant) not working as expected, not a previously-working feature breaking",
+      "reproducibility_verified": false
+    }
+  },
+  "diagnosis_layer": "L4",
+  "requirements_decomposition": [
+    {
+      "id": "R1",
+      "source_phrase": "the /allow sentinel grant existed but execution was still blocked",
+      "acceptance_criterion": "Command allowed by pretool-bash-safety.sh when sentinel grant exists for the exact command op"
+    },
+    {
+      "id": "R2",
+      "source_phrase": "the command was a Python interpreter located under /tmp",
+      "acceptance_criterion": "Command with /tmp/*/bin/python as first token passes sentinel structural match when op matches"
+    },
+    {
+      "id": "R3",
+      "source_phrase": "the stdout redirection is handled as a separate operation whose target is not covered by the grant op/target fields",
+      "acceptance_criterion": "Redirect tokens (> /path) in the /allow pattern are stripped before constructing args_contain in the sentinel"
+    },
+    {
+      "id": "R4",
+      "source_phrase": "hooks/lib/allowlist.py match logic does not correctly handle commands where the executable path is under /tmp",
+      "acceptance_criterion": "match_sentinel_grant_for_bash_command with op='/tmp/xlsx-venv/bin/python' returns a matching entry for the command"
+    }
+  ],
+  "component_chain": [
+    {
+      "file": "hooks/userprompt-consent-allowlist.sh",
+      "line_range": "165-219",
+      "role": "Writes legacy grant and sentinel grant when user types /allow",
+      "imports_from": [],
+      "evidence": "Grep confirmed sentinel write at lines 176-216; args_contain construction at lines 196-205",
+      "verified_via": "Read"
+    },
+    {
+      "file": "hooks/pretool-bash-safety.sh",
+      "line_range": "139-229 and 461-553",
+      "role": "Reads and validates both grant types; applies CF-1 suppression logic",
+      "imports_from": ["hooks/lib/allowlist.py"],
+      "evidence": "Read at lines 145, 483, 517-527, 551",
+      "verified_via": "Read"
+    },
+    {
+      "file": "hooks/lib/allowlist.py",
+      "line_range": "438-481",
+      "role": "match_sentinel_grant_for_bash_command: structural match of bash command against allowed_operations[]",
+      "imports_from": [],
+      "evidence": "Read at lines 463-481: exact op equality check, args_contain substring check",
+      "verified_via": "Read"
+    }
+  ],
+  "pre_existing_guards": [
+    {
+      "file": "hooks/pretool-bash-safety.sh",
+      "line": 145,
+      "type": "if",
+      "code_snippet": "if [ \"$IS_SUBAGENT\" = \"1\" ]; then return 1; fi",
+      "purpose": "Prevents subagents from benefiting from legacy /allow grants",
+      "removal_authorized": false
+    },
+    {
+      "file": "hooks/pretool-bash-safety.sh",
+      "line": 517,
+      "type": "if",
+      "code_snippet": "SENTINEL_EXISTS_FOR_TASK=1; echo '[allow-sentinel] sentinel exists for task=... but command did not match'",
+      "purpose": "CF-1: prevents comment-only attack by suppressing legacy substring match when a structured sentinel exists but does not match",
+      "removal_authorized": false
+    },
+    {
+      "file": "hooks/userprompt-consent-allowlist.sh",
+      "line": 21,
+      "type": "if",
+      "code_snippet": "if [ \"$IS_SUBAGENT\" = \"1\" ]; then exit 0; fi",
+      "purpose": "Subagent write firewall: prevents subagents from creating /allow grants",
+      "removal_authorized": false
+    }
+  ],
+  "regression_investigation_checklist": {
+    "triggered": false
+  },
+  "setup": {
+    "applicability": "N/A",
+    "reason": "non-UI -- hook / config; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths. This is a hook system fix only."
+  },
+  "evidence": {
+    "observed": "User reports: /allow sentinel grant existed but execution was still blocked for /tmp/xlsx-venv/bin/python /root/orchestra/docs/dev/find_red_cells.py > /root/orchestra/docs/research/case-3",
+    "measured": {
+      "value": "IS_SUBAGENT gate at line 145 of pretool-bash-safety.sh returns 1 unconditionally for subagents; CF-1 at line 517-527 sets SENTINEL_EXISTS_FOR_TASK=1 on SENTINEL_EXISTS_NO_MATCH; regex grants produce op='*' sentinel which never matches head_op; args_contain includes redirect tokens from raw pattern split",
+      "location": "hooks/pretool-bash-safety.sh:145, hooks/pretool-bash-safety.sh:517-527, hooks/pretool-bash-safety.sh:551, hooks/userprompt-consent-allowlist.sh:196-205, hooks/lib/allowlist.py:470-471"
+    },
+    "expected": {
+      "value": "When user issues /allow for a specific command, that command should exit pretool-bash-safety.sh with exit 0 (allowed). The SENTINEL_OK branch at line 509-515 should fire, or the CONSUMED branch at line 963-998 should fire.",
+      "source": "CLAUDE.md Sentinel-grant mechanism description; hooks/pretool-bash-safety.sh design intent as documented in comments lines 474-535"
+    },
+    "gap": "Three gaps prevent the intended allow: (A) subagent context bypasses all paths; (B) regex/wildcard sentinels trigger CF-1 suppression of legacy; (C) redirect tokens in args_contain cause structural mismatch"
+  },
+  "scope_expansion": {
+    "search_pattern": "IS_SUBAGENT|SENTINEL_EXISTS_NO_MATCH|args_contain|op.*\\*",
+    "search_scope": "hooks/",
+    "user_reported": [
+      "hooks/pretool-bash-safety.sh",
+      "hooks/lib/allowlist.py",
+      "hooks/userprompt-consent-allowlist.sh"
+    ],
+    "additional_found": [
+      "hooks/posttool-allowlist-consume.py"
+    ],
+    "all_occurrences": [
+      "hooks/pretool-bash-safety.sh:145",
+      "hooks/pretool-bash-safety.sh:483",
+      "hooks/pretool-bash-safety.sh:517-527",
+      "hooks/pretool-bash-safety.sh:551",
+      "hooks/userprompt-consent-allowlist.sh:196-205",
+      "hooks/lib/allowlist.py:463-481"
+    ]
+  },
+  "reference_source": {
+    "tier": "tier_2_verified",
+    "description": "Direct code reading of hook source files in this session",
+    "url_or_location": "hooks/pretool-bash-safety.sh, hooks/userprompt-consent-allowlist.sh, hooks/lib/allowlist.py",
+    "copy_allowed": true
+  },
+  "prior_attempts": {
+    "triggered": false,
+    "trigger_source": null,
+    "attempts": [],
+    "novelty_check": {
+      "this_attempt_layer": "L4",
+      "differs_from_all_priors": true,
+      "rationale": "No prior attempts on this specific issue"
+    }
+  },
+  "context": {
+    "codebase_state": "modified settings.json and various docs/dev files pending commit",
+    "recent_commits": "28a1e85 feat(hooks): allowlist consolidation + push-sentinel + AC verify suite",
+    "file_contents": {},
+    "dependencies": {},
+    "environment": {}
+  },
+  "development_approach": {
+    "strategy": "Three targeted fixes, each independently verifiable: (1) In userprompt-consent-allowlist.sh, strip redirect tokens from args_contain during sentinel construction; (2) In userprompt-consent-allowlist.sh, skip writing sentinel for regex/wildcard grants (is_regex=true); (3) In pretool-bash-safety.sh CF-1 block, add fallback option for sentinels with legacy_fallback_allowed field OR rely on fix (2) meaning regex grants never produce a sentinel. Additionally add Bash(/tmp/*-venv/bin/python*:*) to settings.json allow list.",
+    "files_to_create": [],
+    "files_to_modify": [
+      "hooks/userprompt-consent-allowlist.sh",
+      "hooks/pretool-bash-safety.sh",
+      "settings.json"
+    ],
+    "validation_approach": "QA writes unit tests for: (a) sentinel construction with redirect pattern — verify args_contain excludes > token; (b) regex /allow — verify no sentinel written; (c) literal /allow for /tmp path — verify sentinel written with correct op and args_contain; (d) pretool-bash-safety.sh CF-1 path — simulate SENTINEL_EXISTS_NO_MATCH with legacy fallback scenario"
+  },
+  "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260521-090200.json",
+  "blast_radius_map_path": ".claude/dev-registry/dev-20260521-090200/blast-radius-map.json",
+  "complexity_tier": "STANDARD",
+  "risk_level": "medium",
+  "_risk_level_doc": "medium: changes to security-relevant hook logic; affects allow-grant system which has been through multiple prior cycles; blast radius limited to 3 hook files; all daemon-restart and subagent firewalls explicitly excluded from scope",
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": true,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex confirmed all three gaps and provided concrete PROPOSED_FIX for each. Issue 1 (IS_SUBAGENT): do not relax legacy /allow for subagents; instead extend structured sentinel grants to subagent contexts with session_id matching. Issue 2 (CF-1): relax CF-1 only for regex/wildcard sentinels that cannot structurally match — either skip writing sentinel for regex grants or add legacy_fallback_allowed flag. Issue 3 (args_contain + redirect): fix sentinel construction to strip redirect tokens (> /path) from args_contain, storing only pre-redirect argv fragments. Additional: add /tmp/*-venv/bin/python* to settings.json allow list.",
+    "findings": [
+      {
+        "issue": "IS_SUBAGENT blocks all /allow in subagent context",
+        "proposed_fix": "Do not relax legacy /allow for subagents. Instead, allow only user-created structured sentinel grants to be honored in subagent Bash calls when sentinel exists for task/session, grant.session_id matches, and allowed_operations[] structurally matches the command. Keep legacy blocked.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Codex proposed extending sentinel grant to subagents (Could Have). BA spec captures this as C1 (could have) because the primary observed case may be main-agent context; the IS_SUBAGENT scenario is one of two scenarios. The subagent firewall for legacy grants is preserved unconditionally per W2."
+      },
+      {
+        "issue": "CF-1 suppresses legacy /allow when sentinel exists but cannot match (regex/wildcard op='*')",
+        "proposed_fix": "Either do not write sentinel for regex/wildcard grants so CF-1 never fires; or add legacy_fallback_allowed: true field to sentinel and exempt it from SENTINEL_EXISTS_FOR_TASK=1 assignment",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Codex confirmed this is a real defect: op='*' can never match any real command head_op, so CF-1 always fires for regex grants, permanently blocking legacy. Fix encoded in M3."
+      },
+      {
+        "issue": "Redirect-sensitive args_contain may fail if hook command text excludes or normalizes > token",
+        "proposed_fix": "Fix sentinel construction: op=argv[0], target=argv[1] if applicable, args_contain=only semantic argv before shell redirects. Do not put '> /path' inside args_contain.",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Codex confirmed this is a real defect: redirect token in args_contain is brittle. Fix encoded in M2."
+      },
+      {
+        "issue": "Add explicit permission allow entries for /tmp/*-venv/bin/python* in settings.json",
+        "proposed_fix": "Add Bash(/tmp/*-venv/bin/python*:*) to settings.json allow list as secondary structural fix",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Encoded as S1 (Should Have) — secondary fix that removes the need for /allow for common venv workflows"
+      }
+    ],
+    "feedback_incorporated": "All four Codex findings incorporated: IS_SUBAGENT extension to subagent sentinel (C1 Could Have), CF-1 relaxation for regex/wildcard (M3 Must Have), redirect token stripping from args_contain (M2 Must Have), settings.json allow entry (S1 Should Have)"
+  }
+}
