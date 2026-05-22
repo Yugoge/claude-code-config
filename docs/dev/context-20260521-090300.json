@@ -226,6 +226,7 @@
     "additional_found": [
       "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow (primary, mtime 2026-04-27, CRITICAL)",
       "/dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 (Unicode-suffix, mtime 2026-05-09, INERT)",
+      "/root/.claude.bak/.claude/.hook-refactor-allow。 (Unicode-suffix, mtime 2026-05-09, INERT — backup copy)",
       "/dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow (mtime 2026-05-07, HIGH)",
       "/root/happy-dev.bak/.claude/.hook-refactor-allow (mtime 2026-05-07, bak copy)",
       "/root/multi-asset-portfolio/.claude/.hook-refactor-allow (mtime 2026-05-01, HIGH)",
