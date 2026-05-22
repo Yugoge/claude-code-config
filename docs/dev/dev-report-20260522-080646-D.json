@@ -101,10 +101,10 @@
     "notes": "All 5 pytest tests pass: 5 passed in 0.03s. All grep verifications confirmed. No build system for markdown-only changes."
   },
   "codex_consult": {
-    "invoked": false,
-    "status": "not_requested",
-    "feedback_summary": null,
-    "feedback_incorporated": null
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Two findings: (1) [in_scope_real_bug] changelog-analyst Phase 2 provenance filter used git diff --name-only <sha>..HEAD which is wrong at pre-commit time — Phase 2 runs before staging/commit so ..HEAD returns empty set, falsely flagging all legitimate changes as provenance_anomaly. (2) [in_scope_minor] baseline_dirty_snapshot was consumed by QA/changelog but not declared as a mandatory top-level dev-report field in agents/dev.md schema.",
+    "feedback_incorporated": "Fix 1: Changed changelog-analyst.md provenance filter step 1 from '..HEAD' form to working-tree diff form 'git diff --name-only <baseline_head_sha>' with explanatory note why ..HEAD is wrong pre-commit. Fix 2: Added baseline_dirty_snapshot as mandatory top-level dev-report field in agents/dev.md with schema entry. Updated dev-report JSON to include baseline_dirty_snapshot. Updated AC4 test to verify correct diff form."
   },
   "blocking_issues": [],
   "recommendations": [
