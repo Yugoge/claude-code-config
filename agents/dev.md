@@ -504,11 +504,13 @@ The dev report MUST be written to the filesystem so QA can read it directly. Als
   "request_id": "<task-id>",
   "task_id": "<task-id>",
   "timestamp": "ISO-8601",
+  "baseline_head_sha": "<git rev-parse HEAD at dispatch time, or empty string if unborn repo>",
   "dev_report_path": "docs/dev/dev-report-<timestamp>.json",
   "dev": {
     "status": "completed|blocked|needs_review",
     "files_modified": [],
     "files_created": [],
+    "observed_preexisting": [],
     "tasks_completed": [
       {
         "id": 1,
