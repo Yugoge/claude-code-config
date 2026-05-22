@@ -1,0 +1,96 @@
+{
+  "request_id": "20260521-090100",
+  "task_id": "20260521-090100",
+  "timestamp": "2026-05-22T00:00:00Z",
+  "qa_mode": "ba_validation",
+  "verdict": "fail",
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex identified 5 blockers and 3 major issues not in my draft. Key additions: (1) prior-attempt analysis is false — ticket-20260521-085827-fa9f07.md already covers the same relocation and its CR-1.7 explicitly says dev MUST be omitted from the role list; (2) /root/.agents/skills/codex/SKILL.md is a missing affected file not in BA scope; (3) AC1 grep count will be inflated if _note contains the docs/codex/ string; (4) AC4 only checks 1 tee site but there are 3 tee sites in codex.md; (5) AC4 permits command-substitution forms the hook cannot resolve.",
+    "feedback_incorporated": "All 5 blockers incorporated as blocking objections. OBSERVATION_ONLY items logged separately."
+  },
+  "objections": [
+    {
+      "id": "OBJ-1",
+      "dimension": "investigation_completeness",
+      "severity": "blocking",
+      "claim": "BA states: 'Prior Attempts — Triggered: no, Trigger source: null. No prior attempts; first-time analysis' (context JSON lines 144-150).",
+      "problem": "This is factually false. File docs/dev/ticket-20260521-085827-fa9f07.md, created at 2026-05-21T08:58:27Z (27 minutes before this ticket), explicitly addresses the same 'Codex output relocation to docs/codex/<task_id>/<role>.txt' requirement as ITEM #1 with a complete BA spec including evidence, scope, requirements, and acceptance criteria (ticket lines 22-66). BA's prior-attempt check did not find or acknowledge this immediately prior spec. The later ticket (090100) replicates work already done in fa9f07, with divergent conclusions (see OBJ-2 and OBJ-3). Skipping investigation of prior attempts is a critical completeness failure.",
+      "required_evidence": "BA must read docs/dev/ticket-20260521-085827-fa9f07.md ITEM #1, compare its scope/conclusions to ticket-090100, and either declare 090100 as a supersession with explicit reconciliation of every divergence, or merge/align the specs. Simply claiming 'no prior attempts' is not permissible given this file exists and predates the current ticket."
+    },
+    {
+      "id": "OBJ-2",
+      "dimension": "scope_alignment",
+      "severity": "blocking",
+      "claim": "BA's Must Have list includes: 'add */docs/codex/ to allowed_write_path_prefixes for all 12 Codex-consultation roles: ba, qa, dev, pm, architect, product-owner, cleanliness-inspector, prompt-inspector, spec, style-inspector, ui-specialist, user'. AC1 counts exactly 12 grep matches (acceptance-criteria-20260521-090100.json lines 7-18).",
+      "problem": "The prior ticket (ticket-20260521-085827-fa9f07.md M3, line 161) explicitly derives the correct set as 9 roles: 'ba, qa, architect, pm, product-owner, ui-specialist, cleanliness-inspector, style-inspector, prompt-inspector. Dev role excluded (already has * per CR-1.7).' The current BA ticket adds dev, spec, and user to the list compared to the prior ticket's explicit analysis. Including dev is documented as wrong in the prior Codex review (CR-1.7). Including spec and user is an expansion not justified by new evidence. The 12-role count in AC1 is internally inconsistent with the prior ticket's reasoned 9-role list and with CR-1.7's explicit exclusion of dev. This is a scope divergence from prior analysis without stated rationale.",
+      "required_evidence": "BA must explicitly reconcile the 12-role list against the prior ticket's 9-role list with evidence for including spec and user (which already have */var/tmp/codex-outputs/ and Skill, so the prior ticket may have overlooked them) AND must address the dev wildcard issue head-on. If dev is intentionally included for documentation consistency despite the wildcard, that must be stated. The AC1 grep count must match whatever the correct final role list is."
+    },
+    {
+      "id": "OBJ-3",
+      "dimension": "affected_file_accuracy",
+      "severity": "blocking",
+      "claim": "BA's Technical Hints list only two affected files: policies/tool-policy.v1.json and commands/codex.md. BA's scope section also lists only these two files (context JSON lines 13, 57, 162-163).",
+      "problem": "The prior ticket (ticket-20260521-085827-fa9f07.md M2, line 160) explicitly states: 'commands/codex.md and /root/.agents/skills/codex/SKILL.md updated with the new path-resolution bash block.' The SKILL.md file at /root/.agents/skills/codex/SKILL.md is confirmed to still contain /var/tmp/codex-outputs/ at lines 98-108 and tee \"$CODEX_OUT\" at lines 112, 121, 126. This is the actual runtime Skill invoked by the harness when agents call Skill(skill='codex'). If the fix only updates commands/codex.md but not SKILL.md, the runtime behavior does not change — subagents invoking the codex Skill will still use the old path. The file /root/.agents/skills/codex/SKILL.md is a critical missing affected file in BA's current spec.",
+      "required_evidence": "BA must add /root/.agents/skills/codex/SKILL.md to affected files and acceptance criteria. A specific AC verifying that SKILL.md contains the canonical docs/codex/ path and hook-resolvable tee form (matching commands/codex.md) must be added. BA must state whether the file is to be manually updated or generated from commands/codex.md."
+    },
+    {
+      "id": "OBJ-4",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "blocking",
+      "claim": "AC1 states: 'WHEN a grep for */docs/codex/ is run against policies/tool-policy.v1.json, THEN exactly 12 occurrences are found.' The acceptance-criteria JSON check field specifies pattern: '\\*/docs/codex/' and expected_count: 12.",
+      "problem": "Two independent problems with AC1's verification recipe: (1) BA's Must Have says the _note entry must document the addition, and if the _note contains the string */docs/codex/ (which it should, to explain the change per Must Have line 54), the raw grep will count the _note occurrence as a match, making the count 13 (or more) instead of 12. The grep-count verification is self-defeating when the same string must appear in both role entries and the _note. (2) The BA's Technical Hints (ticket line 134) state 'Dev should confirm no role is missed by grepping for var/tmp/codex-outputs in the policy and matching each against the 12-role list' — this is the same flawed parity logic (17 roles have that prefix, not 12). The grep count AC is structurally fragile against _note content. A JSON-semantic check that counts docs/codex/ entries within roles[*].allowed_write_path_prefixes arrays specifically would be robust and correct.",
+      "required_evidence": "BA must replace the raw grep count in AC1 with a JSON-semantic check that iterates roles[].allowed_write_path_prefixes and counts occurrences there only. The _note verification must be separate. The exact Python or jq command for the JSON-semantic check must be specified as the literal AC verification recipe."
+    },
+    {
+      "id": "OBJ-5",
+      "dimension": "spec_text_vs_execution_drift",
+      "severity": "blocking",
+      "claim": "AC4 states: tee path does not rely solely on opaque shell variable. The acceptance-criteria JSON check pattern is 'tee.*docs/codex/|tee.*\\$CLAUDE_PROJECT_DIR/docs/codex/' with expected_min_count: 1.",
+      "problem": "Three issues: (1) AC4 allows 'command-substitution form that the hooks/lib/bash_write_targets.py _resolve_path function can expand', but _resolve_path (bash_write_targets.py lines 152-170) ONLY expands $HOME, ~, $CLAUDE_PROJECT_DIR. A tee $(echo docs/codex/...) form would be parsed as literal token '$(echo' followed by 'docs/codex/...)' — the hook would NOT correctly identify this as a valid write target. Any command-substitution form is therefore unsafe. AC4 must prohibit command-substitution forms entirely. (2) commands/codex.md has THREE tee invocations (review mode line 97, exec default line 106, exec with-model line 111). AC4's expected_min_count: 1 would pass if only one tee is fixed and two remain broken. The AC must verify all three tee invocations use the canonical path. (3) The grep pattern is too permissive — tee.*docs/codex/ would match a comment, not just the actual tee command. The recipe needs to verify zero remaining occurrences of 'tee.*\\$CODEX_OUT' in addition to positive presence of the canonical form.",
+      "required_evidence": "BA must update AC4 to: (a) explicitly prohibit command-substitution tee forms, (b) require all three tee invocations use a hook-resolvable path (not just at least one), (c) include a negative check that tee \"$CODEX_OUT\" (the old form) no longer appears in the file."
+    },
+    {
+      "id": "OBJ-6",
+      "dimension": "evidence_quality",
+      "severity": "major",
+      "claim": "BA's root_cause_analysis states: 'BA subagent attempt to tee to /var/tmp/codex-outputs/ during this very session was BLOCKED by pretool-tool-policy.py with write target not in allowed_write_path_prefixes' (context JSON line 62). This is listed as the primary evidence of the problem (evidence_type: 'inferred', diagnosis_completeness: 'complete — live hook rejection observed').",
+      "problem": "The diagnosis is imprecise in a way that could misdirect the fix. The `ba` role DOES have */var/tmp/codex-outputs/ in its allowed_write_path_prefixes (policies/tool-policy.v1.json line 137). The actual reason for the block is that hooks/lib/bash_write_targets.py _extract_tee_targets() sees the literal string $CODEX_OUT as the tee target, because _resolve_path() does not expand arbitrary $VAR beyond $HOME, ~, $CLAUDE_PROJECT_DIR. The resolved path '$CODEX_OUT' matches no allowed prefix. The symptom is the same (write blocked) but the root cause is the variable-expansion failure, NOT the absence of the path prefix. The fix for the original /var/tmp/ path requires making the tee target a literal path — which is correctly specified in AC4 — but the described root cause ('path prefix absent from all role entries') is factually wrong and may confuse dev or reviewers. Additionally, the evidence_type field says 'inferred' while the observations field says 'OBSERVED: live hook rejection during this analysis session' — a self-contradiction in the evidence classification.",
+      "required_evidence": "BA must correct the root_cause diagnosis to state: 'The block occurs because bash_write_targets.py _resolve_path() cannot expand $CODEX_OUT (only $HOME/~/$CLAUDE_PROJECT_DIR are resolved), so the hook sees the literal string $CODEX_OUT as the write target, which matches no allowed prefix.' The evidence_type should be 'observed' for the hook rejection event. The 'path absent' framing conflates the new requirement (adding docs/codex/ as a NEW allowed path) with the immediate block mechanism (variable non-expansion)."
+    },
+    {
+      "id": "OBJ-7",
+      "dimension": "evidence_quality",
+      "severity": "major",
+      "claim": "BA's Technical Hints state: 'The 12-role list was validated by cross-referencing which roles have */var/tmp/codex-outputs/ in their existing allowed_write_path_prefixes (same parity logic).' (ticket line 134)",
+      "problem": "This parity logic produces 17 roles (all roles with */var/tmp/codex-outputs/: user, ui-specialist, ba, qa, pm, architect, product-owner, cleaner, cleanliness-inspector, git-edge-case-analyst, prompt-inspector, rule-inspector, style-inspector, test-writer, test-executor, test-validator, spec), not 12. BA excluded cleaner, git-edge-case-analyst, rule-inspector, test-executor, test-validator from the list (correctly, as they don't have agents/*.md files with codex consultation), but included dev (which has '*' not */var/tmp/codex-outputs/). The stated derivation method does not actually produce the 12-role list BA claims. The correct derivation criterion is 'role has agents/*.md that invokes Skill(codex) for consultation', which produces ba, qa, dev, pm, architect, product-owner, cleanliness-inspector, prompt-inspector, spec, style-inspector, ui-specialist, user (12 roles), and dev happens to be in this list even though it lacks the var/tmp prefix. The Technical Hints instruct dev to 'confirm no role is missed by grepping for var/tmp/codex-outputs' which would give dev the wrong derivation method and lead to incorrect verification.",
+      "required_evidence": "BA must correct Technical Hints to specify the correct derivation criterion: 'grep for Skill(skill=\"codex\") or equivalent invocation in agents/*.md to identify consultation roles'. The wrong derivation method in the hints risks dev including or excluding roles incorrectly."
+    },
+    {
+      "id": "OBJ-8",
+      "dimension": "scope_alignment",
+      "severity": "advisory",
+      "claim": "AC5 specifies: 'GIVEN the updated policy is in effect and pretool-tool-policy.py is active for a subagent with role=ba' (acceptance-criteria-20260521-090100.json lines 64-72).",
+      "problem": "The hook resolves role identity via agent_resolver.py using subagent_type or agent_id (agent_resolver.py resolution order at lines 1-21), not a generic 'role=ba' field in a test invocation. AC5's check uses tool 'bash_hook_test' with role: 'ba' but does not specify how the test context establishes the role for pretool-tool-policy.py. If the test command is run outside a real subagent context (without CLAUDE_AGENT_ID registered in agent-index.json as a ba-type agent), the hook may resolve the role as None or unknown and either allow or deny by a different path than the policy check. The AC should specify the exact mechanism: either direct policy_registry.py invocation with role='ba', or a real subagent dispatch. Additionally, AC5 tests tee to the path but Step 2's mkdir -p has not run at that point, so the directory does not exist. This does not affect the hook test (the hook allows based on path-prefix match, not file-system existence) but must be documented.",
+      "required_evidence": "BA should clarify in AC5 whether the test is a direct policy_registry.py invocation (with role='ba' parameter) or a full subagent hook invocation. OBSERVATION_ONLY if the intent is a direct library call, which would still correctly test the path-prefix logic."
+    }
+  ],
+  "codex_observation_only": [
+    {
+      "id": "CODEX-OBS-1",
+      "finding": "policy_version exact value of 4 is brittle if a concurrent policy edit has occurred. PROPOSED_FIX: prefer 'current_policy_version + 1' with base version recorded. OBSERVATION_ONLY since the cycle appears to start from a known version-3 baseline."
+    }
+  ],
+  "summary": "FAIL. Five blocking objections and two major objections. The most critical issue is that BA failed to detect an immediately prior spec (ticket-20260521-085827-fa9f07.md, created 27 minutes earlier) covering the same requirement. That prior spec reached different conclusions on key points: (a) dev role must be excluded from policy updates (CR-1.7), making the 12-role list and AC1 count wrong; (b) /root/.agents/skills/codex/SKILL.md is a required affected file that BA omitted entirely from the current spec. Without updating SKILL.md, the runtime Skill invoked by Skill(skill='codex') remains broken even after commands/codex.md is fixed. Additional blocking issues: AC1's raw grep count is invalidated by the required _note update; AC4 allows command-substitution tee forms the hook cannot resolve, and only requires 1 of 3 tee sites to be fixed. BA must reconcile with the prior ticket before this spec can proceed to dev.",
+  "failing_dimensions": [
+    "investigation_completeness",
+    "scope_alignment",
+    "affected_file_accuracy",
+    "spec_text_vs_execution_drift",
+    "evidence_quality"
+  ],
+  "blocking_objection_count": 5,
+  "major_objection_count": 2,
+  "advisory_objection_count": 1
+}
