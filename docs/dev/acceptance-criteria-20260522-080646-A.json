@@ -136,8 +136,10 @@
       "id": "AC11",
       "type": "hook",
       "given": "The hook processes: python3 -c 'import os; # rm is not needed here'",
-      "when": "pretool-bash-safety.sh runs",
-      "then": "exit code is 0 (allowed) — rm appears only in a Python comment within the -c payload",
+      "when": "pretool-bash-safety.sh runs (before OR after fix)",
+      "then": "exit code is 0 (allowed) — rm appears only after a shell comment marker '#' which is not a control operator; already exits 0 pre-fix (C1 forward-proofing)",
+      "classification": "C1_forward_proofing",
+      "pre_fix_behavior": "already exits 0 — verified: rule 715 no match, rule 722 no match, rule 743 compound=False (rm|mv present but no workflow path), rule 751 no match (rm preceded by '# ' not a control operator)",
       "check": {
         "method": "invoke_hook",
         "command": "python3 -c 'import os; # rm is not needed here'",
