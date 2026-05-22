@@ -13,53 +13,20 @@
   },
   "summary": "All 4 blocking objections from iteration 2 are resolved in iteration 3. OBJ-1+OBJ-2: AC4 now uses single-quote outer wrapper with correct schema path d['global']['agents']['ba']['history'][-1]; live exec returns '108 100' exit 0. OBJ-3: AC1 cmd[0] and AC2 cmd[0] no longer have '; echo 0' suffix; AC2 cmd[1] and cmd[2] retain '; echo 0' as authorized by iteration 3 dispatch. OBJ-4: context success_criteria[0] now says 'exactly 12'. All 5 dimensions PASS.",
   "prior_objection_resolutions": [
-    {"objection": "arch-4 verify-no-op treatment", "status": "RESOLVED", "evidence": "git ls-tree HEAD -- agent-scores.json returns empty (confirmed live). Context scope: arch-4 (verify-no-op). S1 operative instruction correct. Residual stale wording at lines 26/62 (commit staged) non-blocking because S1 takes priority."},
-    {"objection": "logs/lifecycle.jsonl absent from files_to_create", "status": "RESOLVED", "evidence": "Context files_to_create now includes: logs/lifecycle.jsonl (create empty file; git add; empty JSONL is valid)."},
-    {"objection": "diagnosis_layer L3", "status": "RESOLVED", "evidence": "diagnosis_layer = L5 confirmed in context JSON."},
-    {"objection": "acceptance-criteria file missing", "status": "RESOLVED", "evidence": "docs/dev/acceptance-criteria-20260522-000000.json exists, valid JSON, 5 ACs (AC1-AC5), all required fields present."},
-    {"objection": "blast_radius_map_path pointed to non-existent artifact", "status": "RESOLVED", "evidence": "blast_radius_map_path = null with blast_radius_map_waived block documented."},
-    {"objection": "Context R2 used 12+ (greedy)", "status": "PARTIALLY_RESOLVED", "evidence": "R2 and AC1 corrected to exactly 12. RESIDUAL: context success_criteria[0] still says 12+ — new OBJ-4 raised."},
-    {"objection": "Context R3 missing tracking check", "status": "RESOLVED", "evidence": "R3 now includes git ls-files --error-unmatch tracking check. Matches AC2."},
-    {"objection": "Context R4 byte count / wc -c", "status": "RESOLVED", "evidence": "R4 uses tail-diff. validation_approach says no byte count."}
+    {"objection": "OBJ-1 (iteration 2): AC4 check command shell-broken — unescaped inner double-quotes causing SyntaxError", "status": "RESOLVED", "evidence": "AC4 check.commands[0] now uses single-quote outer wrapper. Inner section contains 0 unescaped single quotes. Live exec returns '108 100' exit 0."},
+    {"objection": "OBJ-2 (iteration 2): AC4 check uses wrong schema path d[agents][ba] instead of d[global][agents][ba]", "status": "RESOLVED", "evidence": "AC4 cmd now contains d[\"global\"][\"agents\"][\"ba\"][\"history\"][-1]. Matches score-update.sh:57 and :147 initialization."},
+    {"objection": "OBJ-3 (iteration 2): AC1/AC2 cmd[0] had '; echo 0' masking exit_code:1 expectations", "status": "RESOLVED", "evidence": "AC1 cmd[0]='git check-ignore -q docs/reference/tmp-cleanup-convention.md' — no '; echo 0'. AC2 cmd[0]='git check-ignore -q logs/lifecycle.jsonl' — no '; echo 0'. AC2 cmd[1] and cmd[2] retain '; echo 0' as authorized by iteration 3 dispatch."},
+    {"objection": "OBJ-4 (iteration 2): context success_criteria[0] said '12+' contradicting R2/AC1 'exactly 12'", "status": "RESOLVED", "evidence": "context-20260522-000000.json requirement.success_criteria[0]='git ls-files docs/reference/ | wc -l returns exactly 12'. No '12+' present."},
+    {"objection": "arch-4 verify-no-op treatment (iteration 1)", "status": "RESOLVED", "evidence": "git ls-tree HEAD -- agent-scores.json returns empty (confirmed live). S1 operative instruction correct."},
+    {"objection": "logs/lifecycle.jsonl absent from files_to_create (iteration 1)", "status": "RESOLVED", "evidence": "Context files_to_create includes: logs/lifecycle.jsonl."},
+    {"objection": "diagnosis_layer L3 (iteration 1)", "status": "RESOLVED", "evidence": "diagnosis_layer = L5 confirmed."},
+    {"objection": "acceptance-criteria file missing (iteration 1)", "status": "RESOLVED", "evidence": "docs/dev/acceptance-criteria-20260522-000000.json exists, valid JSON, 5 ACs."},
+    {"objection": "blast_radius_map_path pointed to non-existent artifact (iteration 1)", "status": "RESOLVED", "evidence": "blast_radius_map_path = null with blast_radius_map_waived block documented."},
+    {"objection": "Context R2 used 12+ (greedy) (iteration 1)", "status": "RESOLVED", "evidence": "R2, AC1, and success_criteria[0] all now say 'exactly 12'."},
+    {"objection": "Context R3 missing tracking check (iteration 1)", "status": "RESOLVED", "evidence": "R3 includes git ls-files --error-unmatch tracking check."},
+    {"objection": "Context R4 byte count / wc -c (iteration 1)", "status": "RESOLVED", "evidence": "R4 uses tail-diff. No byte count."}
   ],
-  "objections": [
-    {
-      "id": "OBJ-1",
-      "dimension": "spec_text_vs_execution_drift",
-      "severity": "blocking",
-      "claim": "AC4 check command in acceptance-criteria-20260522-000000.json is executable",
-      "problem": "AC4 check.commands[0] uses unescaped inner double-quotes inside outer double-quotes. Shell splits the -c argument at first inner quote; Python receives: open(/tmp/test-scores.json) without string delimiters and d[agents][ba][history] with bare identifiers, producing SyntaxError: invalid syntax. VERIFIED: bash eval of exact stored command returns exit code 1 with SyntaxError.",
-      "required_fix": "Wrap python -c argument in single quotes: python3 -c 'import json; d=json.load(open(\"/tmp/test-scores.json\")); h=d[\"global\"][\"agents\"][\"ba\"][\"history\"][-1]; print(h.get(\"uncapped_delta\"), h.get(\"new_score\"))'  (also incorporates OBJ-2 schema path fix)",
-      "evidence": "bash eval of stored command: SyntaxError: invalid syntax, exit code 1. Verified 2026-05-22."
-    },
-    {
-      "id": "OBJ-2",
-      "dimension": "spec_text_vs_execution_drift",
-      "severity": "blocking",
-      "claim": "AC4 check command accesses history via correct schema path d[agents][ba][history][-1]",
-      "problem": "score-update.sh:57 initializes the file as {\"global\":{\"agents\":{}}, ...} and score-update.sh:146-147 accesses data[\"global\"][\"agents\"]. The correct path is d[\"global\"][\"agents\"][\"ba\"][\"history\"][-1]. The AC4 check uses d[\"agents\"][\"ba\"] which is the wrong top-level key. If dev creates a properly-structured mock file matching the real schema and runs score-update.sh, the check command will raise KeyError.",
-      "required_fix": "Change check command to use d[\"global\"][\"agents\"][\"ba\"][\"history\"][-1]",
-      "evidence": "score-update.sh:57: echo '{\"global\":{\"agents\":{}},...}'. score-update.sh:146: data.setdefault(\"global\",{}).setdefault(\"agents\",{}). agents = data[\"global\"][\"agents\"]"
-    },
-    {
-      "id": "OBJ-3",
-      "dimension": "spec_text_vs_execution_drift",
-      "severity": "blocking",
-      "claim": "AC1 and AC2 check commands can verify exit_code: 1 from git check-ignore",
-      "problem": "AC1 check.commands[0]: git check-ignore -q docs/reference/tmp-cleanup-convention.md; echo 0 with expected exit_code: 1. The ; echo 0 suffix unconditionally produces exit code 0 (from echo), overriding any exit code from git check-ignore. exit_code: 1 expectation is permanently unfalsifiable regardless of gitignore state. AC2 check.commands[0] has the identical ; echo 0 pattern with exit_code: 1 expected.",
-      "required_fix": "Remove ; echo 0 from commands where exit_code: 1 is expected. Or use explicit capture: git check-ignore -q <path>; rc=$?; test \"$rc\" -eq 1",
-      "evidence": "acceptance-criteria-20260522-000000.json: AC1 cmd ends with ; echo 0, expected exit_code: 1. AC2 first cmd same. echo always returns 0."
-    },
-    {
-      "id": "OBJ-4",
-      "dimension": "spec_text_vs_execution_drift",
-      "severity": "blocking",
-      "claim": "context success_criteria[0] is consistent with R2 and AC1",
-      "problem": "context requirement.success_criteria[0] says git ls-files docs/reference/ returns 12+ files. R2 acceptance_criterion says exactly 12. AC1 then says wc -l returns exactly 12. Three locations in the same context JSON / AC file, two different semantics. The success_criteria array was not updated when R2 was corrected in iteration 2.",
-      "required_fix": "Update context requirement.success_criteria[0] to: git ls-files docs/reference/ | wc -l returns exactly 12",
-      "evidence": "context success_criteria[0]: 12+ files. requirements_decomposition[R2]: exactly 12. AC1.then: exactly 12. Divergent semantics in same artifact."
-    }
-  ],
+  "objections": [],
   "observations_only": [
     {"id": "OBS-1", "source": "codex finding 5", "observation": "AC1/AC2 git check-ignore can false-pass after git add -f because check-ignore exits 1 for tracked files. Using --no-index tests the rule itself independently.", "classification": "OBSERVATION_ONLY — dev implementation risk, not BA analysis quality failure"},
     {"id": "OBS-2", "source": "codex finding 7 / arch-4 residual", "observation": "Ticket lines 26 and 62 still contain stale arch-4 wording (commit staged / uncommitted deletion). S1 operative instruction correct. Not blocking.", "classification": "OBSERVATION_ONLY"},
