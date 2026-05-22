@@ -4,7 +4,6 @@
   "timestamp": "2026-05-22T10:45:00Z",
   "qa_mode": "ba_validation",
   "iteration": 2,
-  "_iter1_report_preserved_below": true,
   "verdict": "pass",
   "codex_consult": {
     "invoked": true,
@@ -15,23 +14,23 @@
   "self_review_adversarial": [
     {
       "question": "Does OBJ-1 resolution actually prove 9 removed-* files, or just assert the count?",
-      "answer": "ticket.md line 62 lists 9 individual timestamps inline (1777491091, 17774916892, 1777492074, 1777492671, 1777492689, 1777492723, 1777493861, 1777493887, 1777938221). context.json scope_expansion.additional_found entry lists the same 9 timestamps. Count is derivable from enumerated items, not just asserted as a number. OBJ-1 is genuinely resolved."
+      "answer": "ticket.md line 62 lists 9 individual timestamps inline. context.json scope_expansion.additional_found entry lists the same 9 timestamps. Count is derivable from enumerated items, not just asserted."
     },
     {
       "question": "For OBJ-2, are lines 176-177 confirmed by actual file content, or only BA's claim?",
-      "answer": "QA independently read hooks/pretool-claude-config-guard.py lines 168-184. Lines 176-177 contain: 'if _sentinel_present():' and '    sys.exit(0)'. This is directly verified by live file read. Prior objection cited lines 47/77 which was incorrect — now correctly updated to 176-177."
+      "answer": "QA independently read hooks/pretool-claude-config-guard.py lines 168-184. Line 176='if _sentinel_present():'; line 177='    sys.exit(0)'. Directly verified by live file read."
     },
     {
       "question": "For OBJ-3, could there be additional sentinel files not in BA's inventory?",
-      "answer": "BA documents the search as 'find / -name .hook-refactor-allow 2>/dev/null' system-wide. The 8+2=10 count is documented with specific paths for all known projects. The scope statement is 'entire filesystem.' The ticket Finding 4 table now includes orchestra (mtime 2026-05-10), travel-planner (mtime 2026-05-06), archives copy, .claude.bak copy — all of which were missing from iter-1. Investigation appears complete for iter-2."
+      "answer": "BA now documents all 10 instances. Finding 4 table includes orchestra (mtime 2026-05-10), travel-planner (mtime 2026-05-06), .archives, .claude.bak — all previously missing from iter-1. System-wide find scope is stated. Investigation appears complete."
     },
     {
-      "question": "For OBJ-4, does BA actually demonstrate HOW condition 1 at :133 grants bypass, not just assert it?",
-      "answer": "ticket.md Finding 2 Hook B section reproduces the exact shell condition verbatim from line 133. It explains condition 1 evaluates to true when CLAUDE_PROJECT_DIR is set to each of the 4 live projects. States 'Confirmed by live hook invocation: when hooks/pretool-block-production-files.sh is invoked with CLAUDE_PROJECT_DIR set to each project directory and HOME pointing to a non-existent path (isolating condition 1), the hook exits 0 (not blocked) for all four.' AC6 provides a bash verification command with expected_count=4. The mechanism is explained with code path citation and a verification command. OBJ-4 is resolved."
+      "question": "For OBJ-4, does BA actually demonstrate HOW condition 1 at :133 grants bypass?",
+      "answer": "ticket.md Finding 2 reproduces the exact shell condition verbatim from line 133 and explains it evaluates to true for each of 4 live projects. States 'Confirmed by live hook invocation: hook exits 0 for all four.' AC6 provides bash verification command with expected_count=4. OBJ-4 is resolved."
     },
     {
-      "question": "For OBJ-5, do the 7 AC contents in ticket.md and acceptance-criteria.json actually match, or do they diverge in substance?",
-      "answer": "Both were read. ticket.md: 7 ACs (AC1-AC7) in the Acceptance Criteria section. acceptance-criteria JSON: 7 elements (AC1-AC7). Key content points match: AC1 states 10 total instances (8 exact + 2 unicode); AC3 states 'enforcement bypass gate at lines 176-177'; AC5 states '9 files' for .removed-*; AC6 covers condition-1 per-project risk with bash verification; AC7 covers post-deletion bypass-closed test. All 7 ACs align."
+      "question": "For OBJ-5, do the 7 AC contents in ticket.md and acceptance-criteria.json actually match?",
+      "answer": "Both were read. Both have 7 ACs. Key content points match: AC1=10 total instances (8+2), AC3='enforcement bypass gate at lines 176-177', AC5='9 files' for .removed-*, AC6=condition-1 per-project risk, AC7=post-deletion bypass-closed test. All 7 ACs align."
     }
   ],
   "objections": [
@@ -40,8 +39,8 @@
       "prior_id": "OBJ-1",
       "dimension": "evidence_quality",
       "status": "RESOLVED",
-      "finding_iter1": ".removed-* count was stated as 8 without listing individual files; could not be independently verified.",
-      "resolution_evidence": "ticket.md line 62 now lists 9 individual timestamps: 1777491091, 17774916892, 1777492074, 1777492671, 1777492689, 1777492723, 1777493861, 1777493887, 1777938221. context-20260521-090300.json scope_expansion.additional_found entry explicitly repeats the same 9 timestamps. Count is derivable from enumerated items.",
+      "finding_iter1": ".removed-* count was stated as 8 without listing individual files.",
+      "resolution_evidence": "ticket.md line 62 lists 9 individual timestamps: 1777491091, 17774916892, 1777492074, 1777492671, 1777492689, 1777492723, 1777493861, 1777493887, 1777938221. context-20260521-090300.json scope_expansion.additional_found repeats the same 9 timestamps. Count derivable from enumerated items.",
       "qa_disposition": "PASS"
     },
     {
@@ -49,8 +48,8 @@
       "prior_id": "OBJ-2",
       "dimension": "evidence_quality",
       "status": "RESOLVED",
-      "finding_iter1": "BA cited lines 47/77 as the enforcement gate, but line 77 is merely the _sentinel_present() function body. The actual sys.exit(0) bypass is at lines 176-177 inside main().",
-      "resolution_evidence": "ticket.md lines 65-66 now state 'actual enforcement gate (if _sentinel_present(): sys.exit(0)) at lines 176-177'. AC3 in acceptance-criteria JSON states 'enforcement bypass gate at lines 176-177'. context.json component_chain[0] has line_range '47,75-77,176-177'. QA independently confirmed via live file read: line 176 = 'if _sentinel_present():'; line 177 = '    sys.exit(0)'.",
+      "finding_iter1": "BA cited lines 47/77 as the enforcement gate. Line 77 is only the _sentinel_present() function body; the actual sys.exit(0) bypass is at lines 176-177 inside main().",
+      "resolution_evidence": "ticket.md lines 65-66 now state 'actual enforcement gate (if _sentinel_present(): sys.exit(0)) at lines 176-177'. AC3 in acceptance-criteria JSON states 'enforcement bypass gate at lines 176-177'. context.json component_chain[0] has line_range '47,75-77,176-177'. QA live file read confirmed: line 176='if _sentinel_present():'; line 177='    sys.exit(0)'.",
       "qa_disposition": "PASS"
     },
     {
@@ -59,7 +58,7 @@
       "dimension": "investigation_completeness",
       "status": "RESOLVED",
       "finding_iter1": "BA's iter-1 inventory did not include /root/orchestra/.claude/.hook-refactor-allow, /root/travel-planner/.claude/.hook-refactor-allow, or archive/backup instances.",
-      "resolution_evidence": "ticket.md Finding 4 table (lines 188-199) now explicitly lists all 10 instances: primary dot-claude (CRITICAL), happy-dev (HIGH), multi-asset-portfolio (HIGH), orchestra (HIGH, mtime 2026-05-10), travel-planner (HIGH, mtime 2026-05-06), happy-dev.bak (MEDIUM), .claude.bak (LOW), archives (LOW), plus 2 Unicode-suffix (INERT). AC1 names all 8 exact-name instances. context.json scope_expansion.all_occurrences lists all 10.",
+      "resolution_evidence": "ticket.md Finding 4 table now lists all 10 instances with paths, mtimes, and risk levels. Explicitly includes orchestra (mtime 2026-05-10 09:08:24, HIGH), travel-planner (mtime 2026-05-06 11:04:39, HIGH), .claude.bak (LOW), .archives (LOW), and 2 Unicode-suffix (INERT). AC1 names all 8 exact-name instances. context.json scope_expansion.all_occurrences lists all 10.",
       "qa_disposition": "PASS"
     },
     {
@@ -68,7 +67,7 @@
       "dimension": "investigation_completeness",
       "status": "RESOLVED",
       "finding_iter1": "BA characterized per-project sentinels as lower-risk and did not show they also activate pretool-block-production-files.sh bypass via condition 1 at :133.",
-      "resolution_evidence": "ticket.md Finding 2 (Hook B section) now quotes the exact shell condition at :133 verbatim, explains condition 1 fires when CLAUDE_PROJECT_DIR=/root/happy-dev (and the same for orchestra, travel-planner, multi-asset-portfolio). States 'Confirmed by live hook invocation: hook exits 0 (not blocked) for all four.' Finding 4 critical risk re-assessment: 'all live project sentinels activate pretool-block-production-files.sh bypass in their project context.' context.json R5 AC: '4 live per-project sentinels HIGH-RISK (each activates pretool-block-production-files.sh bypass in their project context — NOT lower-risk than primary).' AC6 provides bash verification command expecting count=4.",
+      "resolution_evidence": "ticket.md Finding 2 Hook B section quotes the exact shell condition at :133 verbatim and explains condition 1 fires when CLAUDE_PROJECT_DIR=/root/happy-dev (and similarly for orchestra, travel-planner, multi-asset-portfolio). States 'Confirmed by live hook invocation: hook exits 0 for all four.' Finding 4 re-assessment: 'all live project sentinels activate pretool-block-production-files.sh bypass in their project context.' context.json R5 AC: '4 live per-project sentinels HIGH-RISK (NOT lower-risk than primary).' AC6 provides bash verification command expecting count=4.",
       "qa_disposition": "PASS"
     },
     {
@@ -76,31 +75,31 @@
       "prior_id": "OBJ-5",
       "dimension": "spec_text_vs_execution_drift",
       "status": "RESOLVED",
-      "finding_iter1": "Ticket.md AC count (6) did not match acceptance-criteria.json AC count (7). AC7 was in the JSON but not in ticket.md.",
-      "resolution_evidence": "ticket-20260521-090300.md now has 7 ACs (AC1-AC7) in the Acceptance Criteria section. acceptance-criteria-20260521-090300.json has 7 ACs (AC1-AC7). Content verified as matching: AC1=10-instance inventory, AC2=primary file empty, AC3=hook grep with 176-177, AC4=bypass active HOME, AC5=9 removed+4 consumed, AC6=per-project risk condition 1, AC7=bypass closed after deletion.",
+      "finding_iter1": "Ticket.md had 6 ACs; acceptance-criteria.json had 7 ACs. AC7 existed in JSON but not ticket.",
+      "resolution_evidence": "ticket-20260521-090300.md now has 7 ACs (AC1-AC7). acceptance-criteria-20260521-090300.json has 7 ACs (AC1-AC7). Content verified as matching across all 7.",
       "qa_disposition": "PASS"
     }
   ],
   "new_dimension_check_iter2": {
     "dimension_1_evidence_quality": {
       "status": "pass",
-      "notes": "All factual claims have evidence. The 9 .removed-* timestamps are individually enumerated in both documents. The 10 filesystem instances are each listed with path and mtime. Line citations are specific to 47/75-77/176-177. 'Confirmed by live hook invocation' claim is backed by context.json Python trace. One minor stale-metadata issue: context.json reference_source.url_or_location says 'stat output for all 9 filesystem instances' (should be 10). This is a single metadata field left stale when count was bumped from 9 to 10; the body correctly states 10 everywhere. Does not affect any AC."
+      "notes": "All factual claims have evidence. 9 .removed-* timestamps individually enumerated in both documents. 10 filesystem instances each listed with path and mtime. Line citations exact at 47/75-77/176-177. Live-hook-invocation claim backed by context.json Python trace. One minor stale-metadata issue: context.json reference_source.url_or_location says '9 filesystem instances' (should be 10). Single metadata field left stale when count was bumped; body correctly states 10 everywhere. Does not affect any AC."
     },
     "dimension_2_scope_alignment": {
       "status": "pass",
-      "notes": "User verbatim requirement has 6 directives: (a) locate at actual path, (b) read full contents, (c) identify every hook file, (d) determine behavior/bypass, (e) assess risk, (f) remediation recommendation. BA requirements R1-R6 map 1:1. Won't Have excludes structural redesign, hook code modification in this cycle, and external repo auditing — none exclude anything the user asked for. No scope narrowing detected."
+      "notes": "User requirement has 6 directives: locate, read contents, identify hooks, determine behavior, assess risk, recommend remediation. BA R1-R6 map 1:1. Won't Have excludes structural redesign, hook code modification, external repos — none exclude anything user asked for."
     },
     "dimension_3_investigation_completeness": {
       "status": "pass",
-      "notes": "User asked to 'identify every hook file that reads, checks for existence of, or branches on this file.' BA grep is described as system-wide across hooks/ and confirms exactly 2 hooks. R3 AC requires exhaustive grep command that Dev must reproduce. The grep command in AC3 is specific. Investigation found and documented both hooks. Complete."
+      "notes": "User asked to 'identify every hook file'. BA grep is system-wide across hooks/ confirming exactly 2 hooks. R3 AC requires exhaustive grep command. Investigation found and documented both hooks with complete line citations."
     },
     "dimension_4_affected_file_accuracy": {
       "status": "pass",
-      "notes": "Both hook files are real (confirmed by QA live read). Line citations 47/75-77/176-177 are accurate per live file inspection of pretool-claude-config-guard.py. The 10 filesystem instances each have individual paths. No phantom files cited."
+      "notes": "Both hook files are real (confirmed by QA live read). Line citations 47/75-77/176-177 accurate per live inspection. All 10 filesystem instances have individual paths. No phantom files."
     },
     "dimension_5_spec_text_vs_execution_drift": {
       "status": "pass",
-      "notes": "AC3 verification command (grep -rln + grep -n) directly executes what the AC's then clause asserts, including the 176-177 citation. AC5 verification command (ls glob | wc -l) directly measures what the AC's then count declares. AC6 verification command (bash for loop testing file existence) directly tests what the AC's then clause asserts. No substitution of adjacent-but-different verification detected."
+      "notes": "AC3 command (grep -rln + grep -n) directly executes what the AC then-clause asserts. AC5 command (ls glob | wc -l) directly measures what the AC count declares. AC6 command (bash for loop) directly tests what the AC then-clause asserts. No substitution of adjacent-but-different verification detected."
     }
   },
   "qa": {
@@ -108,7 +107,7 @@
     "verified_against_complaint": true,
     "passed_user_requirement": true,
     "ac_alignment": true,
-    "overall_assessment": "ITER-2 VERDICT: PASS. All 5 prior objections are resolved with concrete evidence. OBJ-1: 9 .removed-* timestamps individually enumerated in both ticket and context JSON. OBJ-2: lines 176-177 enforcement gate confirmed by live file read (line 176='if _sentinel_present():', line 177='    sys.exit(0)'). OBJ-3: all 10 instances now inventoried including orchestra, travel-planner, and archive/backup copies with individual mtimes and risk levels. OBJ-4: per-project sentinel risk via condition 1 at :133 explicitly documented with code path citation and live-hook-invocation evidence; all 4 projects shown to carry the bypass. OBJ-5: ticket.md and acceptance-criteria.json both now have exactly 7 ACs with matching content. No new blocking issues from 5-dimension check on iter-2 deliverables. One non-blocking out-of-scope observation: context.json reference_source.url_or_location says '9 filesystem instances' (stale from pre-Codex-correction era; body correctly says 10). BA-QA loop done; orchestrator proceeds to Dev.",
+    "overall_assessment": "ITER-2 VERDICT: PASS. All 5 prior objections are resolved with concrete evidence. OBJ-1: 9 .removed-* timestamps individually enumerated in both ticket and context JSON. OBJ-2: lines 176-177 enforcement gate confirmed by live file read (line 176='if _sentinel_present():'; line 177='    sys.exit(0)'). OBJ-3: all 10 instances now inventoried including orchestra (mtime 2026-05-10), travel-planner (mtime 2026-05-06), and archive/backup copies — all previously missing. OBJ-4: per-project sentinel risk via condition 1 at :133 explicitly documented with code path citation and live-hook-invocation evidence; all 4 projects shown to carry the bypass. OBJ-5: ticket.md and acceptance-criteria.json both have exactly 7 ACs with matching content. No new blocking issues from 5-dimension check on iter-2 deliverables. One non-blocking out-of-scope observation: context.json reference_source.url_or_location metadata field says '9 filesystem instances' (body correctly says 10 everywhere). BA-QA loop done; orchestrator proceeds to Dev.",
     "summary": {
       "critical_issues": 0,
       "major_issues": 0,
@@ -123,111 +122,12 @@
       "ts": "2026-05-22T10:45:00Z",
       "file": "docs/dev/context-20260521-090300.json",
       "line": "261",
-      "observation": "context.json reference_source.url_or_location reads 'stat output for all 9 filesystem instances' but the body correctly documents 10 instances (8 exact-name + 2 Unicode-suffix). Single metadata field left stale when Codex finding bumped count from 9 to 10. Does not affect any AC verification command and has no operational impact. Minor audit-clarity drift only.",
+      "observation": "context.json reference_source.url_or_location reads 'stat output for all 9 filesystem instances' but the body correctly documents 10 instances (8 exact-name + 2 Unicode-suffix). Single metadata field left stale when Codex finding bumped count from 9 to 10. Does not affect any AC verification command and has no operational impact.",
       "in_user_path": false,
       "security_relevant": false,
       "blocks_close": false
     }
   ],
   "iteration_needed": false,
-  "refined_context": null,
-  "_iter1_report_follows": true,
-  "_iter1_verdict": "fail",
-  "_iter1_timestamp": "2026-05-22T08:45:00Z",
-  "iter1_objections": [
-  "objections": [
-    {
-      "dimension": "evidence_quality",
-      "claim": "BA cites '/tmp/.hook-refactor-allow.removed-* (8 files, Apr 29 – May 4)' in both the ticket (line 49) and context JSON (scope_expansion.additional_found)",
-      "problem": "Actual count is 9 files, not 8. QA verified: `ls /tmp/.hook-refactor-allow.removed-* | wc -l` returns 9. One of the 9 files is named `17774916892` (second file in listing), suggesting a May 4 artifact. BA's count is wrong. In a security audit, incorrect evidence counts undermine confidence in the completeness of the investigation — if the .removed-* count is wrong, what else in the inventory may be wrong?",
-      "required_evidence": "BA must rerun the inventory and list all 9 .removed-* files explicitly with timestamps, and confirm whether the extra file changes the staleness/history conclusion. The claim 'last removal was May 4' must be backed by explicit file stat output, not an inferred count."
-    },
-    {
-      "dimension": "evidence_quality",
-      "claim": "BA cites 'hooks/pretool-claude-config-guard.py:47,77' as the sentinel check locations, characterizing them as the hook files that 'read, check for existence of, or branches on' the sentinel (ticket Scope section line 51; context JSON all_occurrences)",
-      "problem": "Lines 47 and 77 are the SENTINEL_NAME constant definition and the _sentinel_present() function body (return statement), respectively. The actual enforcement — the conditional that calls sys.exit(0) when the sentinel is present — is at lines 176-177: `if _sentinel_present(): sys.exit(0)`. For a security audit, citing the definition and function body without citing the actual enforcement point is materially incomplete. A developer reading the ticket and going to line 77 sees only a function definition, not the enforcement gate. The context JSON `observations` field (line 80) also says 'pretool-claude-config-guard.py:77 checks $CLAUDE_PROJECT_DIR/.claude/.hook-refactor-allow' — but line 77 is only the return statement of _sentinel_present(), not the check that calls exit(0). The actual enforcement is line 176-177.",
-      "required_evidence": "BA must update the line citations to `hooks/pretool-claude-config-guard.py:47,75-77,176-177` — where 176-177 is the actual enforcement point. The distinction matters in a security audit: line 77 is the detection function; line 176-177 is the bypass gate."
-    },
-    {
-      "dimension": "investigation_completeness",
-      "claim": "BA states it performed exhaustive filesystem search for .hook-refactor-allow files and listed all instances in scope_expansion.additional_found. The ticket and context JSON list: dot-claude primary, dot-claude/.claude Unicode variant, happy-dev/.claude, happy-dev.bak/.claude, multi-asset-portfolio/.claude, tmp consumed/removed",
-      "problem": "QA verification via `find /root -name '.hook-refactor-allow' 2>/dev/null` found FOUR additional sentinel files BA did not inventory:\n1. `/root/orchestra/.claude/.hook-refactor-allow` — mtime 2026-05-10 09:08:24 (12 days old, ACTIVE-RISK project context)\n2. `/root/travel-planner/.claude/.hook-refactor-allow` — mtime 2026-05-06 11:04:39 (16 days old)\n3. `/root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow` — mtime 2026-04-27 (archive copy, low risk)\n4. `/root/.claude.bak/.hook-refactor-allow` — mtime 2026-04-27 (backup copy, low risk)\n\nThe orchestra sentinel (May 10, 12 days) is more recent than the multi-asset-portfolio one (May 1, 21 days) and was missed entirely. If BA's find command returned 8 hits (per ticket-20260521-085827-fa9f07.md line 74) but QA finds 9+ files, BA's investigation scope was incomplete. This is a blocking gap for a 'locate all .hook-refactor-allow files across the system' requirement (R1 per context JSON).",
-      "required_evidence": "BA must rerun `find / -name '.hook-refactor-allow' 2>/dev/null` and produce a complete inventory with path, mtime, size, and project association for every hit. The scope_expansion.additional_found list must be updated to include /root/orchestra/.claude/.hook-refactor-allow and /root/travel-planner/.claude/.hook-refactor-allow at minimum. Each must be classified: active-session (retain) or stale (delete candidate)."
-    },
-    {
-      "dimension": "investigation_completeness",
-      "claim": "BA characterizes per-project sentinels (happy-dev, multi-asset-portfolio) as 'lower-risk' because 'they do not activate pretool-block-production-files.sh HOME check' and 'each bypasses only the config-guard for their own project' (ticket Finding 4, line 160)",
-      "problem": "This risk characterization is incorrect. `pretool-block-production-files.sh:133` checks BOTH `$PROJECT_DIR_FOR_SENTINEL/.claude/.hook-refactor-allow` (per-project) AND `$HOME/.claude/.hook-refactor-allow` (global). The per-project check uses `CLAUDE_PROJECT_DIR` at runtime. If Claude Code is running WITH `CLAUDE_PROJECT_DIR=/root/happy-dev` (the happy-dev session), then `$PROJECT_DIR_FOR_SENTINEL/.claude/.hook-refactor-allow` = `/root/happy-dev/.claude/.hook-refactor-allow` — which EXISTS — and the bypass for editing the three critical hook files IS ACTIVE for that project session. In other words, stale per-project sentinels give subagents running in that project context full bypass capability to edit pretool-bash-safety.sh, pretool-block-production-files.sh, and pretool-orchestrator-prompt-purity.py. BA's characterization that they are 'lower-risk' understates the actual security exposure.",
-      "required_evidence": "BA must revise the risk assessment: per-project sentinels in `$PROJECT/.claude/` are NOT confined to config-guard bypass only — they also activate the pretool-block-production-files.sh subagent hook-self-modification bypass for sessions running in those projects. Finding 4 must be rewritten to reflect this. The remediation recommendation must treat all per-project sentinels as active security exceptions requiring deletion unless confirmed active."
-    },
-    {
-      "dimension": "spec_text_vs_execution_drift",
-      "claim": "BA's ticket.md lists 6 acceptance criteria (AC1-AC6). The ticket says 'THEN exactly two files match: hooks/pretool-claude-config-guard.py and hooks/pretool-block-production-files.sh, at the line numbers documented in Finding 2 above' (AC3 in ticket). The acceptance criteria JSON (acceptance-criteria-20260521-090300.json) contains 7 ACs including AC7 (post-deletion verification that hook exits 2).",
-      "problem": "The authoritative spec text (ticket-20260521-090300.md) lists AC1-AC6 only. The companion acceptance-criteria-20260521-090300.json file adds AC7 (post-deletion bypass-closed verification). This is a spec-text vs execution discrepancy: the BA spec text that dev will read says 6 ACs, but the machine-readable ACs file used for verification contains 7. A dev following the ticket would not know AC7 exists. This satisfies the spec_text_vs_execution_drift dimension: the ticket literal text (6 ACs) does not match the actually-runnable verification recipe (7 ACs in the JSON). BA must reconcile: either add AC7 to ticket.md, or remove it from the JSON and document why post-deletion verification is deferred.",
-      "required_evidence": "Add AC7 verbatim to ticket-20260521-090300.md to match the acceptance-criteria JSON, OR remove AC7 from the JSON with an explanation. The two documents must agree on the complete AC list."
-    }
-  ],
-  "summary": "FAIL on 5 objections across 3 dimensions. The BA analysis is well-structured and its core findings (file location, mtime, HOME bypass mechanism, staleness assessment) are factually correct and verified by QA. However, five blocking problems prevent passing: (1) The .removed-* file count is wrong (9, not 8) — a concrete evidence error in the investigation; (2) The sentinel-check line citations for pretool-claude-config-guard.py omit the actual enforcement point at lines 176-177, which is the specific code path that grants the bypass; (3) The filesystem inventory is incomplete — four additional sentinel files exist that BA did not find (/root/orchestra, /root/travel-planner, /root/.archives/..., /root/.claude.bak/...) directly contradicting R1's 'locate all .hook-refactor-allow files across the system'; (4) The risk characterization for per-project sentinels is factually wrong — they do activate pretool-block-production-files.sh's critical-hook bypass in their project contexts; (5) The ticket.md and acceptance-criteria.json disagree on the AC count (6 vs 7), constituting a spec-text-vs-execution drift. Items 3 and 4 are security-relevant investigation gaps that could lead dev to leave active bypass conditions in place.",
-  "codex_consult": {
-    "invoked": true,
-    "status": "ok",
-    "feedback_summary": "Codex identified 8 issues. Key confirmed-blocking issues: (1) .removed-* count mismatch is non-trivial in security audit context; (2) line citation 47,77 understates enforcement path — needs 176-177; (3) AC4 is simulation-only, not full hook-runtime verification; (4) deletion is containment only, not durable remediation; (5) cross-project sentinel inventory is incomplete — Codex independently found /root/orchestra and /root/travel-planner sentinels BA missed; (6) per-project sentinels risk is understated; (7) AC7 exists in JSON but not in ticket.md; (8) 'use Python os.remove() if rm blocked' is dangerous guidance resembling hook circumvention. QA classified items 1,2,3,5,6,7 as in_scope_blocking (contribute to FAIL verdict). Item 4 is out_of_scope (structural hardening already logged as BA out-of-scope observation). Item 8 is advisory (affects dev guidance quality, not BA investigation validity).",
-    "feedback_incorporated": "Items 1, 2, 5, 6, 7 mapped to objections in this report. Item 3 (AC4 simulation quality) noted but deferred — the AC4 command is executable and tests actual bypass logic; the QA role here is BA-validation, not verifying QA's own acceptance of dev simulation evidence. Item 4 confirmed already logged in BA's out_of_scope_observations. Item 8 flagged as advisory observation only (see out_of_scope_observations below)."
-  },
-  "out_of_scope_observations": [
-    {
-      "ts": "2026-05-22T08:45:00Z",
-      "file": "docs/dev/ticket-20260521-090300.md",
-      "line": "197",
-      "observation": "The tech hint 'rm may be blocked by pretool-bash-safety.sh; use Python os.remove()' could be read as endorsing hook-circumvention. Codex flagged this as potentially dangerous guidance. The safer framing is 'if rm is blocked by a hook, pause and request user approval via /do or manual intervention'. The edge case section notes this as 'Catch-22' but the resolution language leaves ambiguity about whether Python deletion is user-authorized or a circumvention path.",
-      "in_user_path": false,
-      "security_relevant": true
-    },
-    {
-      "ts": "2026-05-22T08:45:00Z",
-      "file": "docs/dev/acceptance-criteria-20260521-090300.json",
-      "line": null,
-      "observation": "AC4 verification recipe (pipe crafted JSON to pretool-block-production-files.sh and check exit code) is a script-level simulation. It proves the hook script's logic path, but does not verify Claude Code's hook registration or matcher behavior. For a security audit, noting 'simulation-level evidence' in the AC type field would improve audit trail quality.",
-      "in_user_path": false,
-      "security_relevant": false
-    }
-  ],
-  "dimension_verdicts": {
-    "evidence_quality": "fail",
-    "scope_alignment": "pass",
-    "investigation_completeness": "fail",
-    "affected_file_accuracy": "fail",
-    "spec_text_vs_execution_drift": "fail"
-  },
-  "verified_claims": [
-    "stat /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow: Size=0, mtime=2026-04-27 00:04:41, birth=2026-04-25 21:38:06 — CONFIRMED via bash stat command",
-    "Inode 1665207 identical between direct path and stat -L /root/.claude/.hook-refactor-allow — symlink claim CONFIRMED",
-    "HOME=/root, readlink /root/.claude = /dev/shm/dev-workspace/dot-claude — symlink chain CONFIRMED",
-    "pretool-block-production-files.sh:133 contains '$HOME/.claude/.hook-refactor-allow' check — CONFIRMED via grep and Read",
-    "pretool-claude-config-guard.py:47 = SENTINEL_NAME definition, line 77 = _sentinel_present() return statement — CONFIRMED",
-    "Actual enforcement (bypass) at lines 176-177: if _sentinel_present(): sys.exit(0) — CONFIRMED via grep",
-    "Anomalous Unicode file exists at /dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow with mtime 2026-05-09 — CONFIRMED",
-    "4 consumed-sentinel files in /tmp exist — CONFIRMED via ls",
-    ".removed-* files: ACTUAL COUNT IS 9, not 8 as BA claims — CONFIRMED via ls count",
-    "Cross-project sentinels BA missed: /root/orchestra/.claude/.hook-refactor-allow (mtime 2026-05-10), /root/travel-planner/.claude/.hook-refactor-allow (mtime 2026-05-06), /root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow (mtime 2026-04-27), /root/.claude.bak/.hook-refactor-allow (mtime 2026-04-27) — CONFIRMED via find",
-    "Ticket.md has 6 ACs (AC1-AC6), acceptance-criteria-20260521-090300.json has 7 ACs (AC1-AC7) — CONFIRMED via grep count and python3 parse",
-    "pretool-block-production-files.sh:133 checks BOTH $PROJECT_DIR_FOR_SENTINEL/.claude/.hook-refactor-allow AND $HOME/.claude/.hook-refactor-allow — CONFIRMED via Read, meaning per-project sentinels DO activate hook bypass in their project contexts"
-  ],
-  "iteration_needed": true,
-  "refined_context": {
-    "failed_dimensions": [
-      "evidence_quality",
-      "investigation_completeness",
-      "affected_file_accuracy",
-      "spec_text_vs_execution_drift"
-    ],
-    "critical_gaps": [
-      "BA inventory missed 4 sentinel files: /root/orchestra/.claude/.hook-refactor-allow (mtime 2026-05-10), /root/travel-planner/.claude/.hook-refactor-allow (mtime 2026-05-06), /root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow, /root/.claude.bak/.hook-refactor-allow",
-      ".removed-* count is 9 not 8 — rerun and list all with timestamps",
-      "Line citations for pretool-claude-config-guard.py must include 176-177 (the actual bypass enforcement gate, not just the function definition)",
-      "Per-project sentinels DO activate pretool-block-production-files.sh critical-hook bypass in their project contexts — risk assessment must be revised",
-      "AC7 (post-deletion verification) present in acceptance-criteria-20260521-090300.json but missing from ticket-20260521-090300.md — reconcile"
-    ],
-    "recommended_approach": "BA must: (1) rerun complete sentinel inventory across entire filesystem and update scope_expansion.additional_found; (2) correct .removed-* count to 9 and list each with stat data; (3) add lines 176-177 to pretool-claude-config-guard.py citation; (4) revise Finding 4 risk assessment to acknowledge that per-project sentinels in $PROJECT/.claude/ also activate pretool-block-production-files.sh subagent bypass in that project's session context; (5) add AC7 to ticket.md to match the JSON. The core security analysis (stale file, HOME bypass active, delete recommendation) is correct and does not need revision."
-  }
+  "refined_context": null
 }
