@@ -129,10 +129,10 @@
     "notes": "All 4 AC tests pass. All 40 test_allowlist_consolidation.py tests pass (40 total including 5 new). Syntax check: allowlist.py OK, posttool OK, write-guard bash -n OK."
   },
   "codex_consult": {
-    "invoked": false,
-    "status": "not_requested",
-    "feedback_summary": null,
-    "feedback_incorporated": null
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex found 2 real bugs both with PROPOSED_FIX, both in-scope. (1) CF-1 denial fired on new-file writes when sentinel exists but targets a different path — the exit 2 at the sentinel no-match branch preceded the file-existence check, so new writes were incorrectly blocked. (2) Sentinel existence detection used raw shell glob (ls *.json) which is broader than load_sentinel_grant_for_task() — expired/malformed/wrong-session/prefix-collision files triggered CF-1 and suppressed legacy /allow Write, even though match_sentinel_grant_for_write() would have returned None. Codex reproduced expired sentinel + legacy grant returning exit 2.",
+    "feedback_incorporated": "Both bugs fixed in hooks/pretool-write-guard.sh: (1) CF-1 denial now only fires for existing-file overwrites (added '&& [ -f \"$FILE_PATH\" ]' guard); (2) sentinel existence check replaced with Python-based load_sentinel_grant_for_task() call (validates expiry+schema+session), returning 3 states: none/match/valid_no_match. CF-1 only applied on valid_no_match. Both codex-reproduced edge cases now pass: new-file + unmatched sentinel exits 0; expired sentinel + legacy grant exits 0."
   },
   "blocking_issues": [],
   "recommendations": [
