@@ -76,11 +76,11 @@
     },
     "diff_stats": {
       "files_changed": 4,
-      "lines_added": 51,
-      "lines_removed": 0,
+      "lines_added": 58,
+      "lines_removed": 4,
       "new_symbols_introduced": ["baseline_head_sha", "baseline_dirty_snapshot", "observed_preexisting", "dev_provenance_violation", "provenance_anomaly"],
-      "minimum_possible_lines_estimate": 40,
-      "justification_for_overage": "Four separate additive insertions across four distinct files, each adding a distinct required contract clause to satisfy a separate acceptance criterion. No individual insertion can be removed without dropping an AC. The 51-line total is ~13 lines per file on average, which is the minimum prose needed to specify the behavior precisely (including the critical diff-command-form distinction between pre-commit and post-commit contexts)."
+      "minimum_possible_lines_estimate": 50,
+      "justification_for_overage": "Four separate additive insertions across four distinct files, each adding a distinct required contract clause to satisfy a separate acceptance criterion plus two codex-identified correctness fixes: (1) changelog-analyst diff form correction (working-tree vs committed), (2) baseline_dirty_snapshot top-level field mandate. No individual insertion can be removed without dropping an AC or reintroducing a real bug."
     },
     "fix_layer": "L4",
     "scope_review_requested": false,
