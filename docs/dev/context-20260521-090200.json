@@ -80,18 +80,20 @@
       "hooks/pretool-bash-safety.sh",
       "hooks/userprompt-consent-allowlist.sh"
     ],
-    "evidence_type": "observed",
+    "evidence_type": "mixed",
     "observations": [
-      "Codex runtime execution: python3 hooks/pretool-tool-policy.py with ba subagent + Bash command with > /root/orchestra/docs/research/case-3 → exit=2, BLOCKED (observed: Codex Python invocation in session)",
-      "Codex runtime execution: same payload with no agent_id (main agent) → exit=0 (observed)",
-      "Codex runtime execution: same payload with subagent_type=dev → exit=0 (observed)",
-      "is_allowed('ba', 'Write', '/root/orchestra/docs/research/case-3') = (False, 'write target not in allowed_write_path_prefixes') (observed: Codex Python test)",
-      "userprompt-consent-allowlist.sh:86-97: first bare token = PATTERN, subsequent = COMMENT (inferred: code reading)",
-      "userprompt-consent-allowlist.sh:200-205: single-part pattern → no args_contain in sentinel (inferred: code reading)",
-      "allowlist.py:470-472: op equality check works for /tmp paths (inferred: code reading + QA confirmation)",
-      "pretool-bash-safety.sh:483: IS_SUBAGENT != 1 guards entire sentinel block (inferred: code reading)"
+      "extract_bash_write_paths('/tmp/xlsx-venv/bin/python /root/orchestra/docs/dev/find_red_cells.py > /root/orchestra/docs/research/case-3') = ['/root/orchestra/docs/research/case-3'] — observed: direct Python execution (hooks/lib/bash_write_targets.py:375-399)",
+      "is_allowed('ba', 'Write', '/root/orchestra/docs/research/case-3') = (False, 'write target not in allowed_write_path_prefixes') — observed: direct Python execution (hooks/lib/policy_registry.py:260-276)",
+      "is_allowed('dev', 'Write', '/root/orchestra/docs/research/case-3') = (True, 'ok') — observed: direct Python execution",
+      "is_allowed('ba', 'Bash', None) = (True, 'ok') — observed: direct Python execution (Python executable itself not the denied object)",
+      "Codex session 019e4f2e-df64-7480-9845-6b965d0114cc: confirmed pretool-tool-policy.py as primary blocker via runtime file read of hooks/pretool-tool-policy.py and policies/tool-policy.v1.json",
+      "_looks_regex('/tmp/xlsx-venv/bin/python') = False — observed: direct Python test (no metacharacters)",
+      "userprompt-consent-allowlist.sh:86-97: first bare token = PATTERN, subsequent = COMMENT — inferred: code reading, confirmed by QA verification",
+      "userprompt-consent-allowlist.sh:200-205: single-part pattern → entry = {op: '/tmp/xlsx-venv/bin/python'} with NO args_contain — inferred: code reading",
+      "allowlist.py:470-472: head_op='/tmp/xlsx-venv/bin/python' == want_op='/tmp/xlsx-venv/bin/python' → True; args_contain=[] → all() over empty → True → MATCH — inferred: code reading",
+      "pretool-bash-safety.sh:483: IS_SUBAGENT != 1 guards entire sentinel block — inferred: code reading; sentinel WOULD match if reached"
     ],
-    "diagnosis_completeness": "complete (primary blocker confirmed by Codex runtime execution; secondary/tertiary confirmed by code reading)",
+    "diagnosis_completeness": "complete (primary blocker confirmed by direct Python execution; sentinel match logic confirmed by code reading; Codex confirms findings)",
     "complaint_location_keywords": [
       "/allow",
       "/tmp/xlsx-venv/bin/python",
