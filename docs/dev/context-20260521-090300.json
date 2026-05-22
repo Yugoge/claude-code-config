@@ -188,7 +188,8 @@
       "/tmp/.hook-refactor-allow.removed-* (9 files)"
     ],
     "out_of_path_observed_but_not_touched": [
-      "/dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。",
+      "/dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 (Unicode-suffix, INERT)",
+      "/root/.claude.bak/.claude/.hook-refactor-allow。 (Unicode-suffix backup, INERT)",
       "/root/happy-dev.bak/.claude/.hook-refactor-allow",
       "/root/.claude.bak/.hook-refactor-allow",
       "/root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow",
