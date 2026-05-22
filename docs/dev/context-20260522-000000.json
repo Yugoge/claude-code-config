@@ -211,6 +211,7 @@
   "development_approach": {
     "strategy": "Apply gitignore negation exceptions first (arch-1 + arch-8 together in one commit), then create scripts/install/ directory and tmp-cleanup-install.sh (arch-5), then patch score-update.sh with uncapped_delta (arch-7 phase 1), then commit spec and views directory (arch-2). Verify each step with the ACs before proceeding.",
     "files_to_create": [
+      "logs/lifecycle.jsonl (create empty file; git add; empty JSONL is valid — file must exist for git tracking AC to pass)",
       "scripts/install/tmp-cleanup-install.sh"
     ],
     "files_to_modify": [
