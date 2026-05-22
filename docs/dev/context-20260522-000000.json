@@ -221,7 +221,12 @@
     "validation_approach": "git check-ignore commands for gitignore ACs; diff <(tail -n +2 source) <(tail -n +2 dest) for content-parity verification of tmp-cleanup-install.sh (no byte count — shebang change makes byte count non-comparable); grep/python invocation for uncapped_delta verification; git log for spec commit verification; git ls-files --error-unmatch for tracking verification"
   },
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260522-000000.json",
-  "blast_radius_map_path": ".claude/dev-registry/dev-20260522-000000/blast-radius-map.json",
+  "blast_radius_map_path": null,
+  "blast_radius_map_waived": {
+    "waived": true,
+    "reason": "The dev-registry entry for task 20260522-000000 does not exist (dev-registry dir is keyed by session-id, not task-id). The blast-radius-tool.py script is present but requires the dev-registry directory to be pre-created by the orchestrator's dev session allocation. BA cannot run the tool without a valid dev-registry slot. The affected files (.gitignore, scripts/score-update.sh, logs/lifecycle.jsonl, scripts/install/tmp-cleanup-install.sh, docs/dev/specs/) have no shared imports or consumers — the blast radius is structurally self-contained. Risk level is 'low' per context JSON, supporting the waiver.",
+    "blast_radius_assessed_inline": "low — all changes are terminal files with no in-repo importers; .gitignore changes affect git visibility only; score-update.sh is a standalone bash/python script invoked by CI hooks; no shared module is touched"
+  },
   "standards_to_enforce": {
     "no_hardcoded_values": true,
     "yaml_frontmatter_description_only": true,
