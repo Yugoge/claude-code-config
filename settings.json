@@ -297,7 +297,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "SessionStart": [
       {
