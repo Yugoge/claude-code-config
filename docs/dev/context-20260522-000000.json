@@ -218,7 +218,7 @@
       ".gitignore",
       "scripts/score-update.sh"
     ],
-    "validation_approach": "git check-ignore commands for gitignore ACs; wc -c for byte count verification; grep/python invocation for uncapped_delta verification; git log for spec commit verification"
+    "validation_approach": "git check-ignore commands for gitignore ACs; diff <(tail -n +2 source) <(tail -n +2 dest) for content-parity verification of tmp-cleanup-install.sh (no byte count — shebang change makes byte count non-comparable); grep/python invocation for uncapped_delta verification; git log for spec commit verification; git ls-files --error-unmatch for tracking verification"
   },
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260522-000000.json",
   "blast_radius_map_path": ".claude/dev-registry/dev-20260522-000000/blast-radius-map.json",
