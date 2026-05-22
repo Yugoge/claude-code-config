@@ -72,7 +72,7 @@
     },
     "diff_stats": {
       "files_changed": 4,
-      "lines_added": 200,
+      "lines_added": 213,
       "lines_removed": 3,
       "new_symbols_introduced": ["match_sentinel_grant_for_write", "TestMatchSentinelGrantForWrite"],
       "minimum_possible_lines_estimate": 80,
