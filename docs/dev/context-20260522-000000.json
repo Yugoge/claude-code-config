@@ -42,7 +42,7 @@
       "DO NOT modify frozen spec: docs/dev/specs/spec-20260520-044700.md",
       "All new scripts: #!/usr/bin/env bash or #!/usr/bin/env python3 + chmod +x",
       "Lifecycle log MUST be at logs/lifecycle.jsonl (in-repo; .gitignore exception now being added)",
-      "Gitignore negation for logs/ must be path-specific (!logs/lifecycle.jsonl) not directory-wide (!logs/) to preserve existing log exclusions",
+      "Gitignore logs/ rule at line 46 MUST be changed to logs/* before !logs/lifecycle.jsonl negation can work — directory-level 'logs/' cannot be per-file negated (codex live-verified: logs/* + !logs/lifecycle.jsonl produces lifecycle=exit-1, checkpoint=exit-0)",
       "scripts/install/tmp-cleanup-install.sh shebang MUST be #!/usr/bin/env bash (live script uses #!/bin/bash — fix on copy)"
     ]
   },
