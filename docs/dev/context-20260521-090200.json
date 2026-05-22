@@ -295,14 +295,14 @@
     "environment": {}
   },
   "development_approach": {
-    "strategy": "Three targeted fixes: (M1) Add /root/orchestra/docs/research/ to ba and general-purpose allowed_write_path_prefixes in policies/tool-policy.v1.json; (M2) Extend sentinel block in pretool-bash-safety.sh to IS_SUBAGENT=1 for user-created grants; (M3) Align task ID derivation between writer and reader. Optional (S1): skip sentinel write for is_regex=true grants in userprompt-consent-allowlist.sh.",
+    "strategy": "Three targeted fixes: (M1) Add narrow prefix (*/docs/research/case- per Codex recommendation, or */docs/research/ for broader research output) to ba and general-purpose allowed_write_path_prefixes in policies/tool-policy.v1.json; (M2) Extend sentinel block in pretool-bash-safety.sh (remove IS_SUBAGENT guard at line 483) while keeping IS_SUBAGENT guard at line 145; (M3) Align task ID derivation: reader should use session_id as final fallback without preferring task_id field. Optional (S1): skip sentinel write for is_regex=true grants in userprompt-consent-allowlist.sh.",
     "files_to_create": [],
     "files_to_modify": [
       "policies/tool-policy.v1.json",
       "hooks/pretool-bash-safety.sh",
       "hooks/userprompt-consent-allowlist.sh"
     ],
-    "validation_approach": "AC1: python3 hooks/pretool-tool-policy.py with ba subagent payload + redirect → exit=0 after M1. AC3: pretool-bash-safety.sh reaches sentinel block for IS_SUBAGENT=1 and returns SENTINEL_OK after M2. AC4: task ID writer/reader produce same key for all four derivation scenarios after M3."
+    "validation_approach": "AC1: all PreToolUse hooks (bash-safety + tool-policy) exit 0 for ba subagent payload + valid sentinel after M1+M2+M3. AC4: tool-policy exits 0 for ba subagent + redirect to /root/orchestra/docs/research/case-3 after M1. AC3: pretool-bash-safety.sh reaches sentinel block for IS_SUBAGENT=1 and returns SENTINEL_OK after M2. AC5: task ID writer/reader produce same key for all four derivation scenarios after M3."
   },
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260521-090200.json",
   "blast_radius_map_path": ".claude/dev-registry/dev-20260521-090200/blast-radius-map.json",
