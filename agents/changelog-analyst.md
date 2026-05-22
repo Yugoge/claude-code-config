@@ -120,11 +120,11 @@ Read `baseline_head_sha` from the dev-report top-level field. If `baseline_head_
 
 When `baseline_head_sha` is present:
 
-1. Compute the committed diff since baseline: `git diff --name-only <baseline_head_sha>..HEAD` (at changelog-analyst time, changes are committed so `..HEAD` is the correct form).
-2. Read `baseline_dirty_snapshot` from the dev-report (may be absent in older reports — treat as empty).
-3. For every path in `dev.files_modified` and `dev.files_created` that is **absent** from the `git diff --name-only <baseline_head_sha>..HEAD` output **AND** absent from `baseline_dirty_snapshot`, classify it as `provenance_anomaly`.
+1. Compute the working-tree diff since baseline: `git -C "$GIT_ROOT" diff --name-only <baseline_head_sha>` (Phase 2 runs before staging/commit, so changes are uncommitted; `..HEAD` form is WRONG here and would return an empty set, falsely flagging all legitimate changes as anomalies).
+2. Read `baseline_dirty_snapshot` from the dev-report top-level field (may be absent in older reports — treat as empty).
+3. For every path in `dev.files_modified` and `dev.files_created` that is **absent** from the `git diff --name-only <baseline_head_sha>` output **AND** absent from `baseline_dirty_snapshot`, classify it as `provenance_anomaly`.
 4. **Exclude** `provenance_anomaly` paths from commit-message type/scope/summary enrichment derivation. Stage them if they appear in `git status` output (staging authority comes from git status, not dev-report), but do not use their paths to determine commit type or scope.
-5. Log each anomaly: `WARNING: provenance_anomaly — <path> claimed by dev-report but absent from git diff --name-only <baseline_head_sha>..HEAD; excluded from enrichment`.
+5. Log each anomaly: `WARNING: provenance_anomaly — <path> claimed by dev-report but absent from git diff --name-only <baseline_head_sha>; excluded from enrichment`.
 
 **Exclusions** (remove from candidate set regardless of source):
 - Files matching gitignore: check via `git -C "${GIT_ROOT}" check-ignore -q <repo-rel-path>`
