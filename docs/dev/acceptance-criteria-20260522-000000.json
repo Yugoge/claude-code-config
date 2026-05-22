@@ -5,7 +5,7 @@
   "acceptance_criteria": [
     {
       "id": "AC1",
-      "ac_uid": "45d8ff5b7075a16b",
+      "ac_uid": "927f9894faf67349",
       "type": "data",
       "given": ".gitignore has been modified to add negation exception for docs/reference/ below the docs/* rule",
       "when": "git check-ignore -q docs/reference/tmp-cleanup-convention.md is run AND git ls-files docs/reference/ | wc -l is run",
