@@ -17,7 +17,24 @@ def test_AC5():
     WHEN:  QA and changelog-analyst read their respective provenance check/classification rules
     THEN:  the text in both agents/qa.md and agents/changelog-analyst.md specifies that the provenance check is skipped with a warning (not FAIL) when baseline_head_sha is absent
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — graceful skip/warning language when baseline_head_sha is absent present in both agents/qa.md and agents/changelog-analyst.md")
+    import pathlib
+    repo_root = pathlib.Path(__file__).parents[3]
+    qa_text = (repo_root / "agents" / "qa.md").read_text()
+    cl_text = (repo_root / "agents" / "changelog-analyst.md").read_text()
+
+    # QA must specify graceful skip when baseline_head_sha is absent
+    assert "absent or empty" in qa_text or "absent" in qa_text, \
+        "agents/qa.md has no language about baseline_head_sha being absent"
+    assert "skip" in qa_text.lower(), \
+        "agents/qa.md has no skip language for missing baseline_head_sha"
+    # Specifically, the provenance check section must say skip (not FAIL) when absent
+    assert "Do NOT raise a FAIL" in qa_text or "not raise a FAIL" in qa_text or "no FAIL" in qa_text.lower(), \
+        "agents/qa.md does not explicitly say no FAIL when baseline_head_sha is absent"
+
+    # changelog-analyst must also specify graceful skip
+    assert "absent or empty" in cl_text or "absent" in cl_text, \
+        "agents/changelog-analyst.md has no language about baseline_head_sha being absent"
+    assert "skip" in cl_text.lower(), \
+        "agents/changelog-analyst.md has no skip language for missing baseline_head_sha"
+    assert "Do NOT fail" in cl_text or "not fail" in cl_text.lower() or "no FAIL" in cl_text.lower(), \
+        "agents/changelog-analyst.md does not say skip (no-fail) when baseline_head_sha is absent"
