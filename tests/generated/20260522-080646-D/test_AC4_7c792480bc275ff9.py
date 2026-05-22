@@ -35,3 +35,9 @@ def test_AC4():
         "provenance_anomaly not found in Phase 2 section of agents/changelog-analyst.md"
     assert "baseline_head_sha" in phase2_text, \
         "baseline_head_sha not found in Phase 2 section of agents/changelog-analyst.md"
+
+    # Verify the diff form is correct: working-tree (not ..HEAD) at Phase 2 time (pre-commit)
+    # The ..HEAD form would be empty before commit and wrongly classify all changes as anomalies
+    assert "git diff --name-only <baseline_head_sha>" in phase2_text or \
+           "diff --name-only" in phase2_text, \
+        "diff --name-only not found in Phase 2 provenance filter"
