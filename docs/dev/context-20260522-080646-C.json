@@ -25,7 +25,9 @@
       "grep -lF '<!-- spec-continuation-of: 20260519-211515 -->' docs/dev/specs/spec-20260518-225715.md returns no match",
       "grep -lF '<!-- spec-continuation-of: 20260519-211515 -->' docs/dev/specs/spec-20260520-221059.md returns no match",
       "commands/commit.md line 157 contains the marker pattern and prose says 'machine-readable marker grep'",
-      "commands/commit.md still contains 'multiple specs produced this cycle without context linkage' (fail-closed preserved)"
+      "commands/commit.md still contains 'multiple specs produced this cycle without context linkage' at line 162 (multi-candidate fail-closed preserved)",
+      "commands/commit.md still contains 'spec produced this cycle but not linked in context' at line 161 (single-candidate fail-closed preserved)",
+      "grep -lF '<!-- spec-continuation-of: 20260519-211515 -->' docs/dev/specs/spec-20260518-225715.md docs/dev/specs/spec-20260520-221059.md returns empty (exit 1) — stable recipe pinning specific task-id and specific false-positive files"
     ],
     "constraints": [
       "Marker string is `<!-- spec-continuation-of: <task-id> -->` — exact format as specified by user",
