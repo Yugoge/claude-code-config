@@ -83,7 +83,7 @@
     {
       "id": "R3",
       "source_phrase": "The fail-closed behavior (multiple candidates → no auto-pick, block commit) is CORRECT and must be preserved",
-      "acceptance_criterion": "Multi-candidate outcome block in commands/commit.md is unchanged"
+      "acceptance_criterion": "Multi-candidate outcome block (line 162) in commands/commit.md is unchanged; single-candidate outcome block (line 161) is also unchanged — AC3 and AC3b"
     }
   ],
   "component_chain": [
