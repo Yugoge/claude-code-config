@@ -17,8 +17,8 @@ import pytest
 AC_UID = "AC3-posttool-write-sentinel-consume"
 AC_TYPE = "hook"
 
-HOOKS_DIR = str(Path(__file__).parent.parent.parent / "hooks")
-POSTTOOL = str(Path(__file__).parent.parent.parent / "hooks" / "posttool-allowlist-consume.py")
+HOOKS_DIR = str(Path(__file__).parent.parent.parent.parent / "hooks")
+POSTTOOL = str(Path(__file__).parent.parent.parent.parent / "hooks" / "posttool-allowlist-consume.py")
 SENTINEL_GRANT_DIR = "/tmp/claude-grants"
 
 
