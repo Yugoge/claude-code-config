@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-22T08:20:17Z*
-**Total entries**: 349
+*Last updated: 2026-05-22T08:20:29Z*
+**Total entries**: 350
 **Convention**: kebab
 
 ## Tree
@@ -340,6 +340,7 @@ dev/
 ├── `ticket-20260521-090100.md` - BA Specification: Canonical Codex Output Path (docs/codex/)
 ├── `ticket-20260522-000000.md` - BA Specification: Gitignore fixes, spec commitment, tmp-cleanup.sh mirror, and score-update uncapped_delta
 ├── `ticket-20260522-080646-D.md` - BA Specification: Dev Self-Report Provenance (OOS Item D)
+├── `ticket-20260522-080646-F.md` - BA Specification: hooks/tests underscore-prefix rename + cleanup
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-d1e94e-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
