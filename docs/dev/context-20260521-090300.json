@@ -285,13 +285,17 @@
     "files_to_create": [],
     "files_to_modify": [],
     "files_to_delete": [
-      "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow",
-      "/dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。"
+      "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow (primary — CRITICAL)",
+      "/dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 (Unicode-suffix anomaly — INERT)",
+      "/root/happy-dev.bak/.claude/.hook-refactor-allow (bak dir)",
+      "/root/.claude.bak/.hook-refactor-allow (backup)",
+      "/root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow (archive)"
     ],
     "files_to_audit_user_confirmation": [
-      "/dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow",
-      "/root/multi-asset-portfolio/.claude/.hook-refactor-allow",
-      "/root/happy-dev.bak/.claude/.hook-refactor-allow"
+      "/dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow (mtime 2026-05-07, HIGH — confirm no active session)",
+      "/root/orchestra/.claude/.hook-refactor-allow (mtime 2026-05-10, HIGH — most recent, confirm if active session)",
+      "/root/travel-planner/.claude/.hook-refactor-allow (mtime 2026-05-06, HIGH — confirm no active session)",
+      "/root/multi-asset-portfolio/.claude/.hook-refactor-allow (mtime 2026-05-01, HIGH — confirm no active session)"
     ],
     "validation_approach": "Post-deletion: stat confirms file absent; Python test confirms pretool-block-production-files.sh would now block subagent hook edits (HOME check fails); git status shows no change (file was gitignored)."
   },
