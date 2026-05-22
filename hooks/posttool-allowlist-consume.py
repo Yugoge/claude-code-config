@@ -33,6 +33,7 @@ from lib.subagent import is_subagent_context  # noqa: E402
 from lib.allowlist import (  # noqa: E402
     consume_grant_for_posttool,
     consume_sentinel_grant_on_terminal_result,
+    match_sentinel_grant_for_write,
 )
 
 
