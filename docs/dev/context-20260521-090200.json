@@ -319,44 +319,37 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex performed runtime execution confirming pretool-tool-policy.py as primary blocker: exit=2 for ba subagent with /root/orchestra/ write target, exit=0 for main agent and dev role. Codex confirmed OBJ-4 (args_contain diagnosis wrong for bare-token /allow — extra tokens are COMMENT, not args_contain). Codex confirmed OBJ-5 (allowlist.py works correctly for /tmp paths). Codex confirmed OBJ-7 (task ID derivation mismatch is a real structural gap).",
+    "feedback_summary": "Codex session 019e4f2e-df64-7480-9845-6b965d0114cc confirmed 'root cause is basically correct'. Codex examined pretool-tool-policy.py and policies/tool-policy.v1.json at runtime and confirmed: (1) pretool-tool-policy.py extracts Bash redirect targets as Write targets and checks is_allowed; (2) ba role lacks /root/orchestra/ in allowed_write_path_prefixes; (3) IS_SUBAGENT guard makes sentinal check main-agent-only. PROPOSED_FIX: add narrow ba allowlist entry for this research artifact location, preferably */docs/research/case- or tighter. Also recommends improving block message to clarify 'Bash redirect target denied as Write target'.",
     "findings": [
       {
-        "issue": "pretool-tool-policy.py is the primary blocker, not pretool-bash-safety.sh — this hook fires for all tools and blocks the redirect write target for non-dev roles before any /allow sentinel logic can help",
-        "proposed_fix": "Add /root/orchestra/docs/research/ to ba and general-purpose allowed_write_path_prefixes in policies/tool-policy.v1.json",
+        "issue": "pretool-tool-policy.py blocks ba role writing to /root/orchestra/docs/research/ because ba.allowed_write_path_prefixes does not include that prefix",
+        "proposed_fix": "Add narrow prefix */docs/research/case- (or tighter) to ba and general-purpose allowed_write_path_prefixes in policies/tool-policy.v1.json. Do not add broad /root/orchestra/ access.",
         "classification": "blocker",
         "disposition": "applied",
-        "rationale": "Runtime execution evidence: exit=2 for ba role, exit=0 for dev and main agent. Incorporated as M1 (Must Have)."
+        "rationale": "Root cause confirmed by direct Python execution and Codex runtime file examination. Incorporated as M1 (Must Have) with Codex's narrowing recommendation."
       },
       {
-        "issue": "IS_SUBAGENT must be Must Have, not Could Have — no evidence command was main-agent-issued; typical subagent data-analysis work",
-        "proposed_fix": "Promote IS_SUBAGENT handling to Must Have: extend sentinel block to IS_SUBAGENT=1 for user-created grants",
+        "issue": "IS_SUBAGENT guard at pretool-bash-safety.sh:483 skips sentinel block entirely for subagents; sentinel check is main-agent-only",
+        "proposed_fix": "Remove or broaden IS_SUBAGENT guard at line 483 (for sentinel block only); keep IS_SUBAGENT guard at line 145 (legacy allowlist firewall)",
         "classification": "blocker",
         "disposition": "applied",
-        "rationale": "OBJ-3. Without session logs proving main-agent context, Must Have is required. Incorporated as M2."
+        "rationale": "OBJ-3. No evidence the command was main-agent-issued. Incorporated as M2 (Must Have)."
       },
       {
-        "issue": "args_contain diagnosis was wrong for bare-token /allow — extra tokens become COMMENT not args_contain; sentinel has empty args_contain which matches everything correctly",
-        "proposed_fix": "Remove Gap C (redirect contamination) as a diagnosis; this is not a real defect for bare-token /allow syntax",
-        "classification": "blocker",
-        "disposition": "applied",
-        "rationale": "OBJ-4. QA independently confirmed via userprompt-consent-allowlist.sh:86-97 code reading. Prior spec's Gap C was investigating wrong scenario."
-      },
-      {
-        "issue": "R4 mislocalized: allowlist.py works correctly for /tmp paths — pure string equality op match",
-        "proposed_fix": "Remove R4 from requirements decomposition; allowlist.py is not a bug location",
-        "classification": "blocker",
-        "disposition": "applied",
-        "rationale": "OBJ-5. allowlist.py:470-472 confirmed working by QA code reading. Removed from revised spec."
-      },
-      {
-        "issue": "Task ID derivation mismatch between writer (session_id from UserPromptSubmit) and reader (task_id field from PreToolUse or session_id fallback) is a real structural gap",
-        "proposed_fix": "Align fallback chain: reader should only use PreToolUse task_id field if it equals session_id (or is absent); otherwise both sides fall back to session_id",
+        "issue": "M1 prefix must be narrow — broad /root/orchestra/ access for ba is excessive",
+        "proposed_fix": "Use */docs/research/case- or tighter glob pattern rather than /root/orchestra/docs/research/",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "OBJ-7. Incorporated as M3 (Must Have)."
+        "rationale": "Codex PROPOSED_FIX verbatim recommendation. Incorporated into M1 wording."
+      },
+      {
+        "issue": "Block message does not clarify which part of the command is denied; could confuse future diagnostics",
+        "proposed_fix": "Improve pretool-tool-policy.py stderr output to say 'Bash redirect target denied as Write target' when the denial is from Bash redirect extraction",
+        "classification": "major",
+        "disposition": "logged",
+        "rationale": "Codex observation. Noted in Technical Hints for dev. Not a blocking issue; logging as out-of-scope improvement suggestion."
       }
     ],
-    "feedback_incorporated": "All five Codex findings incorporated: pretool-tool-policy.py as primary blocker (M1), IS_SUBAGENT promoted to Must Have (M2), args_contain diagnosis corrected (Gap C removed), R4 removed, task ID mismatch as M3."
+    "feedback_incorporated": "Codex findings 1+2 incorporated as M1+M2 (Must Have). Finding 3 (narrow prefix) incorporated into M1 wording. Finding 4 (block message) logged in Technical Hints. Prior spec errors (Gap C args_contain diagnosis, R4 allowlist.py) corrected based on direct Python testing before Codex consultation."
   }
 }
