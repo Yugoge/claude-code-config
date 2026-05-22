@@ -481,6 +481,42 @@ def match_sentinel_grant_for_bash_command(task_id: str, command: str) -> dict | 
     return None
 
 
+def match_sentinel_grant_for_write(task_id: str, session_id: str, target_path: str) -> dict | None:
+    """Structural match of a Write-overwrite operation against sentinel-grant allowed_operations[].
+
+    Mirrors match_sentinel_grant_for_bash_command() for the Write tool.
+    Match is exact on all three dimensions: session_id, op=='Write', and
+    entry['target'] == target_path (not substring — exact equality).
+
+    The 'target' field name mirrors the existing schema (allowlist.py:22);
+    do NOT use 'target_path'.
+
+    Args:
+        task_id: task whose sentinel grant to load.
+        session_id: current session_id; must equal grant['session_id'].
+        target_path: absolute path of the file being written.
+
+    Returns:
+        The matched allowed_operations[] entry dict on success, None otherwise.
+        Returns None if grant is missing, expired, session_id mismatches,
+        or no entry matches op=='Write' AND target==target_path exactly.
+    """
+    grant = load_sentinel_grant_for_task(task_id)
+    if grant is None:
+        return None
+    if grant.get("session_id") != session_id:
+        return None
+    ops = grant.get("allowed_operations", [])
+    for entry in ops:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("op") != "Write":
+            continue
+        if entry.get("target") == target_path:
+            return entry
+    return None
+
+
 def consume_sentinel_grant_on_terminal_result(task_id: str, terminal_result: str) -> bool:
     """Unlink the sentinel grant file on ANY terminal result.
 
