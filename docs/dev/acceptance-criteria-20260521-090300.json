@@ -5,15 +5,16 @@
     {
       "id": "AC1",
       "type": "data",
-      "given": "The filesystem at /dev/shm/dev-workspace/dot-claude",
-      "when": "stat /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow is run",
-      "then": "Output confirms file exists, size=0, mtime=2026-04-27, and /root/.claude/.hook-refactor-allow resolves to same inode via /root/.claude symlink",
+      "given": "The entire filesystem",
+      "when": "find / -name '.hook-refactor-allow' 2>/dev/null is run",
+      "then": "All 8 named filesystem instances are found: /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow, /dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow, /root/multi-asset-portfolio/.claude/.hook-refactor-allow, /root/orchestra/.claude/.hook-refactor-allow, /root/travel-planner/.claude/.hook-refactor-allow, /root/happy-dev.bak/.claude/.hook-refactor-allow, /root/.claude.bak/.hook-refactor-allow, /root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow; plus the Unicode-suffix variant /dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 found via targeted subdirectory search = 9 total instances",
       "check": {
         "method": "bash",
-        "command": "stat /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow && readlink -f /root/.claude/.hook-refactor-allow",
-        "expected_pattern": "Size: 0.*2026-04-27"
+        "command": "find / -name '.hook-refactor-allow' 2>/dev/null | sort | wc -l",
+        "expected": "8",
+        "note": "find returns 8; Unicode-suffix file found separately via find /dev/shm/dev-workspace/dot-claude/.claude/ -name '.hook-refactor-allow*'; total = 9"
       },
-      "ac_uid": "ac1-hook-refactor-allow-location-confirmed"
+      "ac_uid": "ac1-hook-refactor-allow-complete-inventory"
     },
     {
       "id": "AC2",
