@@ -93,7 +93,7 @@
       "security exception"
     ],
     "localization_evidence": "find / search located the file at /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow (and multiple other paths). grep -rn across hooks/ confirmed exactly two hooks read it. Python interpreter trace confirmed bypass activation status for each hook.",
-    "located_source": "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow (primary); hooks/pretool-block-production-files.sh:133 (active bypass); hooks/pretool-claude-config-guard.py:77 (partially inactive for current CLAUDE_PROJECT_DIR)",
+    "located_source": "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow (primary, CRITICAL); hooks/pretool-block-production-files.sh:133 (active bypass via HOME check); hooks/pretool-claude-config-guard.py:176-177 (enforcement gate, partially inactive for current CLAUDE_PROJECT_DIR); 4 live per-project sentinels: happy-dev, orchestra, travel-planner, multi-asset-portfolio (each activates pretool-block-production-files.sh bypass in their project context)",
     "localization_blocked": null,
     "git_bisect_result": {
       "triggered": false,
