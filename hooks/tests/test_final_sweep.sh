@@ -63,9 +63,9 @@ bash hooks/tests/test_push_sentinel_abort.sh >/dev/null 2>&1 && results+=("AC1 V
 # AC4
 grep -qE '^PUSH_ANALYST_GRANT_TTL_SECONDS[[:space:]]*=[[:space:]]*180[[:space:]]*$' agents/push-analyst.md && results+=("AC4 V1 PASS") || results+=("AC4 V1 FAIL")
 awk '/^```python$/,/^```$/' agents/push-analyst.md | grep -v '^```' > "$PHASE7_PY"
-python3 -c "
+python3 - "$PHASE7_PY" <<'PYEOF' && results+=("AC4 V2 PASS") || results+=("AC4 V2 FAIL")
 import ast, sys
-tree = ast.parse(open('$PHASE7_PY').read())
+tree = ast.parse(open(sys.argv[1]).read())
 const_assigns = [n for n in tree.body if isinstance(n, ast.Assign)
                  and any(isinstance(t, ast.Name) and t.id == 'PUSH_ANALYST_GRANT_TTL_SECONDS' for t in n.targets)]
 assert len(const_assigns) == 1
@@ -82,7 +82,7 @@ for n in ast.walk(tree):
         if func_name in import_aliases:
             for kw in n.keywords:
                 assert isinstance(kw.value, ast.Name) and kw.value.id == 'PUSH_ANALYST_GRANT_TTL_SECONDS'
-" && results+=("AC4 V2 PASS") || results+=("AC4 V2 FAIL")
+PYEOF
 grep -qE '180[[:space:]]*(s|seconds?)|TTL.*180|PUSH_ANALYST_GRANT_TTL_SECONDS' commands/push.md && results+=("AC4 V3 PASS") || results+=("AC4 V3 FAIL")
 grep -qF 'GRANT_TTL_MINUTES = 10' scripts/write-commit-grant.py && results+=("AC4 V4 PASS") || results+=("AC4 V4 FAIL")
 
