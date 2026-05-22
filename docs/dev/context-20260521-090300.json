@@ -250,7 +250,7 @@
   "reference_source": {
     "tier": "tier_2_verified",
     "description": "Hook source files read directly this session; sentinel file stat and contents confirmed; consumed sentinel files read; Python symlink trace executed",
-    "url_or_location": "hooks/pretool-claude-config-guard.py:25-29,47,75-77; hooks/pretool-block-production-files.sh:127-143; /tmp/.hook-refactor-allow-consumed-*",
+    "url_or_location": "hooks/pretool-claude-config-guard.py:25-29,47,75-77,176-177; hooks/pretool-block-production-files.sh:120-146; /tmp/.hook-refactor-allow-consumed-*; stat output for all 9 filesystem instances",
     "copy_allowed": true
   },
   "prior_attempts": {
