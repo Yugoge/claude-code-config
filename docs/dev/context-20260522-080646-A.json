@@ -27,7 +27,7 @@
       ]
     },
     "success_criteria": [
-      "AC10-AC14 (false-positive cases) all exit 0",
+      "AC10, AC11, AC12, AC13, AC14 (false-positive cases) all exit 0 (AC11 already exits 0 pre-fix — C1 forward-proofing; AC13 is the primary real-incident test for rule 715)",
       "AC1-AC9 (true-positive cases) all exit 2",
       "AC15-AC16 (regression guards for raw-COMMAND rules) all exit 2",
       "No Layer 1.A-E block is weakened"
