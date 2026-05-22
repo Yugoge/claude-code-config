@@ -315,7 +315,7 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex confirmed the finding is valid. Identified one additional scope concern: deletion alone is insufficient — the $HOME/.claude/.hook-refactor-allow fallback in pretool-block-production-files.sh is a structural weakness that allows any empty file at that path to become a permanent bypass. Also noted .gitignore masking as a contributing factor. Recommended: delete stale sentinel now, then scope a follow-up hardening task.",
+    "feedback_summary": "Iteration 2 (QA-rejected, now corrected). QA confirmed 5 blocking objections. Corrections applied: (1) .removed-* count corrected to 9 (was 8); (2) pretool-claude-config-guard.py enforcement gate cited at lines 176-177 (was 47,77 — missing the actual bypass gate); (3) filesystem inventory expanded to include /root/orchestra and /root/travel-planner sentinels; (4) per-project sentinel risk revised — all live project sentinels activate pretool-block-production-files.sh bypass in their project context (not lower-risk as previously stated); (5) ticket AC count now 7 (matches JSON). Core findings confirmed: Codex original analysis (deletion necessary, $HOME fallback structural weakness, .gitignore masking contributing factor) unchanged.",
     "findings": [
       {
         "issue": "Deletion is necessary immediate containment but insufficient as the full fix. The $HOME fallback in pretool-block-production-files.sh:133 means any persistent empty file at $HOME/.claude/ becomes a permanent global bypass.",
