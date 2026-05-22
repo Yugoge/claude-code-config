@@ -163,12 +163,14 @@
     {
       "id": "AC13",
       "type": "hook",
-      "given": "The hook processes a command where a non-shell binary's first argument contains 'killall' and a monitored process name as documentation text (e.g. a Skill invocation or documentation command with a prompt body)",
-      "when": "pretool-bash-safety.sh runs",
-      "then": "exit code is 0 (allowed) — token is in string argument to non-shell binary, stripped before matching",
+      "given": "The hook processes the confirmed real incident command: codex exec \"The hook documentation says killall and claude processes are monitored\"",
+      "when": "pretool-bash-safety.sh runs after the fix",
+      "then": "exit code is 0 (allowed) — 'killall' and 'claude' appear only in the quoted string argument to non-shell binary 'codex'; COMMAND_CONTEXT_STRIPPED strips that argument, leaving only 'codex exec' in the executable view; rule 715 does not match the stripped view",
+      "pre_fix_behavior": "exits 2 (BLOCKED) — before fix, rule 715 '(killall|pkill)\\s+.*(happy|claude|docker)' matches raw command string because 'killall' appears then 'claude' appears later via .* wildcard on same line",
+      "incident_evidence": "confirmed via Python regex simulation: rule 715 match=True on 'codex exec \"The hook documentation says killall and claude processes are monitored\"'",
       "check": {
         "method": "invoke_hook",
-        "command": "some-doc-tool \"document that killall and claude are monitored\"",
+        "command": "codex exec \"The hook documentation says killall and claude processes are monitored\"",
         "expected_exit": 0
       },
       "ac_uid": "ac13_killall_in_nonshell_argv"
