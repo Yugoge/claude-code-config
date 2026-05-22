@@ -400,11 +400,17 @@ def _do_heredoc_strip(cmd: str) -> str:
         if _SHELL_CONSUMERS_RE.search(consumer):
             is_shell_ctx = True
         elif consumer in ('cat', ''):
-            # Check for downstream pipe to shell on same line or next line
+            # Two cases:
+            # (a) "cat <<'EOF' | bash" — pipe to shell is on the SAME line as the heredoc
+            #     opener, AFTER the <<MARKER token.
+            # (b) "cat <<'EOF'\n...\nEOF\n| bash" — pipe is after the closing delimiter
+            #     (rare, but supported for completeness).
             after_heredoc = line[m.end():]
-            rest_of_cmd = after_heredoc + '\n' + '\n'.join(lines[i+1:])
-            # Look for the closing delimiter first, then check for | bash after it
-            is_shell_ctx = _has_shell_pipe_after_heredoc(rest_of_cmd, delimiter)
+            if re.search(r'\|\s*(bash|sh|zsh|dash)\b', after_heredoc):
+                is_shell_ctx = True
+            else:
+                rest_of_cmd = after_heredoc + '\n' + '\n'.join(lines[i+1:])
+                is_shell_ctx = _has_shell_pipe_after_heredoc(rest_of_cmd, delimiter)
 
         # Collect heredoc body
         result_lines.append(line)
