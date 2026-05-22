@@ -62,27 +62,29 @@
     {
       "id": "AC5",
       "type": "data",
-      "given": "The consumed-sentinel files at /tmp/.hook-refactor-allow-consumed-*",
-      "when": "their contents are read",
-      "then": "Each contains explicit user-authorized session text with intent to delete; all sessions are from 2026-04-27 or earlier; no session is dated after 2026-04-27",
+      "given": "The consumed-sentinel files at /tmp/.hook-refactor-allow-consumed-* (4 files) and removal records at /tmp/.hook-refactor-allow.removed-* (9 files)",
+      "when": "their contents and timestamps are read",
+      "then": "Consumed files (4) contain explicit user-authorized session text with intent to delete (all dated Apr 26-27); removal records (9 files) span Apr 29 14:21 to May 4 23:43; no authorized session exists after 2026-04-27",
       "check": {
         "method": "bash",
-        "command": "cat /tmp/.hook-refactor-allow-consumed-*",
-        "expected_pattern": "User-authorized hook refactor"
+        "command": "ls /tmp/.hook-refactor-allow-consumed-* | wc -l && ls /tmp/.hook-refactor-allow.removed-* | wc -l && cat /tmp/.hook-refactor-allow-consumed-*",
+        "expected": "4 consumed files, 9 removed files, consumed content = User-authorized hook refactor session text"
       },
-      "ac_uid": "ac5-historical-intent-confirmed"
+      "ac_uid": "ac5-historical-intent-confirmed-9-removed-4-consumed"
     },
     {
       "id": "AC6",
       "type": "data",
-      "given": "The findings in this spec",
-      "when": "dev processes this ticket",
-      "then": "A concrete action plan is produced covering: (1) delete stale root-level sentinel, (2) confirm or delete per-project sentinels in happy-dev and multi-asset-portfolio, (3) delete anomalous Unicode-suffix file, with follow-up hardening logged",
+      "given": "The per-project sentinels at /dev/shm/dev-workspace/happy-dev/.claude/, /root/orchestra/.claude/, /root/travel-planner/.claude/, /root/multi-asset-portfolio/.claude/",
+      "when": "pretool-block-production-files.sh:133 is evaluated with CLAUDE_PROJECT_DIR set to each of those project directories",
+      "then": "Condition 1 ($PROJECT_DIR_FOR_SENTINEL/.claude/.hook-refactor-allow) evaluates to true for each, granting the same critical-hook edit bypass as the global HOME check — per-project sentinels are NOT lower-risk than the primary file in their project contexts",
       "check": {
-        "method": "manual",
-        "description": "Dev report must list each of the 3 file categories addressed and confirm deletion or deferral with justification"
+        "method": "bash",
+        "command": "for d in /dev/shm/dev-workspace/happy-dev /root/orchestra /root/travel-planner /root/multi-asset-portfolio; do [ -f \"$d/.claude/.hook-refactor-allow\" ] && echo \"$d: sentinel EXISTS (bypass active)\" || echo \"$d: sentinel absent\"; done",
+        "expected_pattern": "sentinel EXISTS \\(bypass active\\)",
+        "expected_count": 4
       },
-      "ac_uid": "ac6-remediation-recommendation-actioned"
+      "ac_uid": "ac6-per-project-sentinel-risk-assessment"
     },
     {
       "id": "AC7",
