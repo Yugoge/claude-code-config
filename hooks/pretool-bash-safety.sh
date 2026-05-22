@@ -758,7 +758,10 @@ if echo "$COMMAND" | grep -qE 'systemctl\s+(stop|restart|disable|enable|reload|k
 fi
 
 # Block: rm/mv targeting workflow enforcement files (AF3+AF4 security fix)
-if echo "$COMMAND" | grep -qE '(rm|mv)\s' && echo "$COMMAND" | grep -qE '(workflow-[^/]*\.json|\.claude/todos/)'; then
+# CRITICAL: first grep uses COMMAND_CONTEXT_STRIPPED (danger-token check); second grep
+# uses raw COMMAND so that quoted paths like rm ".claude/todos/x" still match (the path
+# would be stripped by context stripping, losing the workflow-path signal).
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(rm|mv)\s' && echo "$COMMAND" | grep -qE '(workflow-[^/]*\.json|\.claude/todos/)'; then
   echo "BLOCKED: Deleting/moving workflow state files is forbidden" >&2
   echo "Command: $COMMAND" >&2
   echo "These files are required by the workflow enforcement system." >&2
