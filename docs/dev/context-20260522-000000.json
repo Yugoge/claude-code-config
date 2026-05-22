@@ -196,7 +196,7 @@
     "trigger_source": null,
     "attempts": [],
     "novelty_check": {
-      "this_attempt_layer": "L3",
+      "this_attempt_layer": "L5",
       "differs_from_all_priors": true,
       "rationale": "No prior attempt exists for this spec's implementation cycle."
     }
