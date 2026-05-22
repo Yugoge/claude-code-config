@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-22T08:22:07Z*
-**Total entries**: 353
+*Last updated: 2026-05-22T08:22:51Z*
+**Total entries**: 354
 **Convention**: kebab
 
 ## Tree
@@ -63,6 +63,7 @@ dev/
 ├── `ba-qa-report-20260520-221452.json` - json config
 ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 ├── `ba-qa-report-d1e94e.json` - json config
+├── `ba-report-spec-20260520-221059.json` - json config
 ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 ├── `cleanliness-inspector-report-20260517-155838.json` - json config
 ├── `cleanliness-inspector-report-20260517-172600.json` - json config
