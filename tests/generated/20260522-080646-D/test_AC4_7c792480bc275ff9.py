@@ -17,7 +17,21 @@ def test_AC4():
     WHEN:  a reader reads the dev-report enrichment procedure
     THEN:  the text specifies that paths in dev.files_modified/dev.files_created absent from the baseline diff AND not in baseline_dirty_snapshot are classified as 'provenance_anomaly' and excluded from commit-message type/scope/summary derivation
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — provenance_anomaly and baseline_head_sha both present in agents/changelog-analyst.md Phase 2 enrichment section")
+    import pathlib
+    repo_root = pathlib.Path(__file__).parents[3]
+    text = (repo_root / "agents" / "changelog-analyst.md").read_text()
+
+    assert "provenance_anomaly" in text, \
+        "provenance_anomaly not found in agents/changelog-analyst.md"
+    assert "baseline_head_sha" in text, \
+        "baseline_head_sha not found in agents/changelog-analyst.md"
+
+    # Both must appear in Phase 2 section
+    phase2_idx = text.find("### Phase 2")
+    assert phase2_idx >= 0, "Phase 2 section not found in agents/changelog-analyst.md"
+    phase2_text = text[phase2_idx:]
+
+    assert "provenance_anomaly" in phase2_text, \
+        "provenance_anomaly not found in Phase 2 section of agents/changelog-analyst.md"
+    assert "baseline_head_sha" in phase2_text, \
+        "baseline_head_sha not found in Phase 2 section of agents/changelog-analyst.md"
