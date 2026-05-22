@@ -36,30 +36,43 @@ print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" 
     exit 0
   fi
   # Sentinel-grant bypass (main-agent only) — must check BEFORE legacy /allow grant.
-  # CF-1 invariant: if a sentinel exists for this task but does NOT match the
-  # target file, suppress the legacy read_grant("Write") fallback entirely.
+  # CF-1 invariant: if a valid (unexpired, correct-session) sentinel exists for
+  # this task but does NOT match the target file, suppress the legacy
+  # read_grant("Write") fallback entirely. CF-1 only applies to overwrite
+  # attempts (existing files); new-file creation bypasses CF-1 denial.
   _WG_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  _WG_SENTINEL_DIR="/tmp/claude-grants"
-  if [ -n "$_WG_TASK_ID" ] && ls "${_WG_SENTINEL_DIR}/${_WG_TASK_ID}"*.json 2>/dev/null | grep -q .; then
-    _WG_SENTINEL_RESULT=$(HOOKS_DIR="$_WG_HOOKS_DIR" WG_SID="$_WG_SID" WG_TASK_ID="$_WG_TASK_ID" WG_FILE_PATH="$FILE_PATH" python3 - <<'WGEOF'
+  _WG_SENTINEL_RESULT=$(HOOKS_DIR="$_WG_HOOKS_DIR" WG_SID="$_WG_SID" WG_TASK_ID="$_WG_TASK_ID" WG_FILE_PATH="$FILE_PATH" python3 - <<'WGEOF'
 import os, sys
 sys.path.insert(0, os.environ["HOOKS_DIR"])
-from lib.allowlist import match_sentinel_grant_for_write, _enumerate_sentinel_grant_files
+from lib.allowlist import match_sentinel_grant_for_write, load_sentinel_grant_for_task
 task_id = os.environ["WG_TASK_ID"]
 session_id = os.environ["WG_SID"]
 target = os.environ["WG_FILE_PATH"]
-# Sentinel exists for this task — check if it matches this write target
-m = match_sentinel_grant_for_write(task_id, session_id, target)
-if m is not None:
-    print("match")
+# Use load_sentinel_grant_for_task for presence check — this validates expiry +
+# schema, so expired/malformed/prefix-collision files do NOT trigger CF-1.
+grant = load_sentinel_grant_for_task(task_id)
+if grant is None:
+    # No valid sentinel (absent, expired, malformed) — fall through to legacy /allow
+    print("none")
+elif grant.get("session_id") != session_id:
+    # Valid sentinel but wrong session — treat as none (different session's grant)
+    print("none")
 else:
-    print("sentinel_no_match")
+    # Valid sentinel, correct session — check if it matches this write target
+    m = match_sentinel_grant_for_write(task_id, session_id, target)
+    if m is not None:
+        print("match")
+    else:
+        print("valid_no_match")
 WGEOF
 )
-    if [ "$_WG_SENTINEL_RESULT" = "match" ]; then
-      exit 0
-    fi
-    # CF-1: sentinel exists but does not match this target — suppress legacy grant
+  if [ "$_WG_SENTINEL_RESULT" = "match" ]; then
+    exit 0
+  fi
+  # CF-1: valid same-session sentinel exists but does not match this target.
+  # Suppress legacy grant — but ONLY for overwrite attempts (existing files).
+  # New-file creation (non-existing file) must not be blocked by an unrelated sentinel.
+  if [ "$_WG_SENTINEL_RESULT" = "valid_no_match" ] && [ -f "$FILE_PATH" ]; then
     exit 2
   fi
   # /allow bypass (main-agent only) — delegates to lib/allowlist.read_grant("Write", sid)
