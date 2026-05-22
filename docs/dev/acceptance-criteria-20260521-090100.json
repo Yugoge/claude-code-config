@@ -58,7 +58,7 @@
       "type": "data",
       "given": "commands/codex.md AND /root/.agents/skills/codex/SKILL.md after the change",
       "when": "all physical tee invocations in both files are inspected (regardless of branch count)",
-      "then": "zero occurrences of 'tee \"$CODEX_OUT\"' or 'tee \"${CODEX_OUT}\"' exist in EITHER file; AND every physical tee target in both files is one of: '$CLAUDE_PROJECT_DIR/docs/codex/$CODEX_OUT_TASK_ID/$CODEX_OUT_ROLE.txt' (canonical branch), '${CLAUDE_PROJECT_DIR:-$PWD}/docs/codex/$CODEX_OUT_TASK_ID/$CODEX_OUT_ROLE.txt' (alternative canonical), or '/var/tmp/codex-outputs/codex-output-$$-$(date +%s).txt' (fallback literal); AND command-substitution tee forms 'tee \"$(...)\"' or 'tee $(...)' are absent from both files",
+      "then": "zero occurrences of 'tee \"$CODEX_OUT\"' or 'tee \"${CODEX_OUT}\"' exist in EITHER file; AND every physical tee target in both files is one of: '$CLAUDE_PROJECT_DIR/docs/codex/$CODEX_OUT_TASK_ID/$CODEX_OUT_ROLE.txt' (canonical branch), or '/var/tmp/codex-outputs/codex-output-$$-$(date +%s).txt' (fallback literal); AND command-substitution tee forms 'tee \"$(...)\"' or 'tee $(...)' are absent from both files",
       "check": {
         "tool": "bash_negative_grep",
         "checks": [
