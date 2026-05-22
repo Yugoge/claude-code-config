@@ -140,10 +140,10 @@
   "component_chain": [
     {
       "file": "hooks/pretool-claude-config-guard.py",
-      "line_range": "47,75-77",
-      "role": "Blocks agent Edit/Write/Bash to .claude/hooks/* and .claude/commands/* unless sentinel exists at $CLAUDE_PROJECT_DIR/.claude/.hook-refactor-allow",
+      "line_range": "47,75-77,176-177",
+      "role": "Blocks agent Edit/Write/Bash to .claude/hooks/* and .claude/commands/* unless sentinel exists at $CLAUDE_PROJECT_DIR/.claude/.hook-refactor-allow. SENTINEL_NAME defined at line 47; _sentinel_present() at lines 75-77; enforcement gate (sys.exit(0)) at lines 176-177.",
       "imports_from": ["leaf"],
-      "evidence": "grep -rn hook-refactor-allow hooks/pretool-claude-config-guard.py; Read lines 47,75-77",
+      "evidence": "Read lines 40-85 (SENTINEL_NAME=line 47, _sentinel_present()=lines 75-77); Read lines 168-189 (main() function; enforcement gate at lines 176-177)",
       "verified_via": "both"
     },
     {
