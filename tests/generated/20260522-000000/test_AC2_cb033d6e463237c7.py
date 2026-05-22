@@ -18,7 +18,37 @@ def test_AC2():
     WHEN:  git check-ignore -q logs/lifecycle.jsonl AND git check-ignore -q logs/checkpoint.log AND git ls-files --error-unmatch logs/lifecycle.jsonl are run
     THEN:  lifecycle.jsonl check exits 1 (NOT ignored) AND checkpoint.log check exits 0 (still ignored) AND error-unmatch exits 0 (file is tracked)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — logs/lifecycle.jsonl gitignore exception + file tracking: lifecycle.jsonl NOT ignored, checkpoint.log ignored, lifecycle.jsonl tracked")
+    repo = "/dev/shm/dev-workspace/dot-claude"
+
+    # lifecycle.jsonl must NOT be ignored (exit 1)
+    r1 = subprocess.run(
+        ["git", "check-ignore", "-q", "logs/lifecycle.jsonl"],
+        capture_output=True,
+        cwd=repo,
+    )
+    assert r1.returncode == 1, (
+        f"Expected logs/lifecycle.jsonl to be NOT ignored (exit 1), got {r1.returncode}. "
+        "Check that .gitignore line 46 is 'logs/*' and '!logs/lifecycle.jsonl' is below it."
+    )
+
+    # checkpoint.log must still be ignored (exit 0)
+    r2 = subprocess.run(
+        ["git", "check-ignore", "-q", "logs/checkpoint.log"],
+        capture_output=True,
+        cwd=repo,
+    )
+    assert r2.returncode == 0, (
+        f"Expected logs/checkpoint.log to still be ignored (exit 0), got {r2.returncode}. "
+        "The logs/* rule may have been removed."
+    )
+
+    # logs/lifecycle.jsonl must be tracked in git index
+    r3 = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "logs/lifecycle.jsonl"],
+        capture_output=True,
+        cwd=repo,
+    )
+    assert r3.returncode == 0, (
+        f"Expected logs/lifecycle.jsonl to be tracked (git ls-files --error-unmatch exit 0), "
+        f"got {r3.returncode}. Run: git add logs/lifecycle.jsonl"
+    )
