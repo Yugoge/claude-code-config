@@ -30,7 +30,7 @@
       "then": "lifecycle.jsonl check exits 1 (NOT ignored) AND checkpoint.log check exits 0 (still ignored) AND error-unmatch exits 0 (file is tracked)",
       "check": {
         "commands": [
-          "git check-ignore -q logs/lifecycle.jsonl; echo 0",
+          "git check-ignore -q logs/lifecycle.jsonl",
           "git check-ignore -q logs/checkpoint.log; echo 0",
           "git ls-files --error-unmatch logs/lifecycle.jsonl; echo 0"
         ],
