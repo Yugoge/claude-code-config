@@ -229,7 +229,7 @@
     "environment": {}
   },
   "development_approach": {
-    "strategy": "1) Create hooks/lib/bash_context_strip.py implementing strip_non_executable_contexts() using four layered passes (split on control operators, strip simple-command string args, classify heredoc bodies by consumer, strip shell comments). 2) Add a Python shim in hooks/pretool-bash-safety.sh immediately before line 714 to compute COMMAND_CONTEXT_STRIPPED via env-var passthrough. 3) Replace $COMMAND with $COMMAND_CONTEXT_STRIPPED in the four affected if-blocks (lines 715, 722, 743, 751). 4) Tighten kill\\s+- pattern to word-boundary form. 5) Add regression test file hooks/tests/test_bash_safety_context.py covering all 16 ACs.",
+    "strategy": "1) Create hooks/lib/bash_context_strip.py implementing strip_non_executable_contexts() using four layered passes (split on control operators, strip simple-command string args, classify heredoc bodies by consumer, strip shell comments). 2) Add a Python shim in hooks/pretool-bash-safety.sh immediately before line 714 to compute COMMAND_CONTEXT_STRIPPED via env-var passthrough. 3) Replace $COMMAND with $COMMAND_CONTEXT_STRIPPED in the four affected if-blocks (lines 715, 722, 743, 751) — CRITICAL for line 743: only the first grep (dangerous-token check) uses COMMAND_CONTEXT_STRIPPED; the second grep (workflow-path check) MUST remain on raw $COMMAND per M2 binding. 4) Tighten kill\\s+- pattern to word-boundary form. 5) Add regression test file hooks/tests/test_bash_safety_context.py covering all 16 ACs.",
     "files_to_create": [
       "hooks/lib/bash_context_strip.py",
       "hooks/tests/test_bash_safety_context.py"
