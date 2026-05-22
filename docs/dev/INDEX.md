@@ -1,6 +1,6 @@
 # dev
 
-*Last updated: 2026-05-22T09:02:08Z*
+*Last updated: 2026-05-22T09:03:32Z*
 **Total entries**: 380
 **Convention**: kebab
 
@@ -363,7 +363,7 @@ dev/
 ├── `ticket-20260520-allow-dh-7faae4.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H)
 ├── `ticket-20260521-085827-fa9f07.md` - BA Specification: Batched remediation — codex output relocation + sentinel investigation + /allow vs orchestra tracker-gate
 ├── `ticket-20260521-090100.md` - BA Specification: Canonical Codex Output Path (docs/codex/) — Corrected
-├── `ticket-20260521-090200.md` - BA Specification: /allow Grant Not Honored for /tmp Venv Interpreter + Redirect Commands
+├── `ticket-20260521-090200.md` - BA Specification: /allow Grant Not Honored — Hook Chain Investigation
 ├── `ticket-20260521-090300.md` - BA Specification: `.hook-refactor-allow` Sentinel Security Audit
 ├── `ticket-20260522-000000.md` - BA Specification: Gitignore fixes, spec commitment, tmp-cleanup.sh mirror, and score-update uncapped_delta
 ├── `ticket-20260522-080646-A.md` - BA Specification: bash-safety hook false positives — substring vs executable-context matching
