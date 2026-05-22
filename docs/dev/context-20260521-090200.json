@@ -4,76 +4,94 @@
   "timestamp": "2026-05-21T09:02:00Z",
   "requirement": {
     "original": "When a user grants /allow permission for a command, the hook system still blocks execution. Specific observed case: the command was a Python interpreter located under /tmp (e.g., /tmp/xlsx-venv/bin/python), running a script at /root/orchestra/docs/dev/find_red_cells.py, with stdout redirected to a file at /root/orchestra/docs/research/case-3. The /allow sentinel grant existed but execution was still blocked. Root cause is unknown — candidates are: (1) hooks/pretool-bash-safety.sh has a daemon-restart-wrapper or similar pattern that matches /tmp/ interpreter paths and blocks regardless of any sentinel grant, (2) the stdout redirection is handled as a separate operation whose target is not covered by the grant op/target fields, (3) the hooks/lib/allowlist.py match logic does not correctly handle commands where the executable path is under /tmp. Investigate which hook actually blocked this command, trace through the allowlist matching logic to find the gap, and determine what precise change is needed so that an /allow grant covering this type of command (venv interpreter under /tmp, script path, output redirect) is correctly honored.",
-    "clarified": "Three gaps in the /allow grant system prevent the command from being honored: (A) IS_SUBAGENT firewall blocks all grant paths in subagent context; (B) CF-1 suppresses legacy fallback when a regex/wildcard sentinel exists but cannot structurally match (op='*' never equals any real command token); (C) sentinel args_contain construction is redirect-unaware — the redirect token '> /output' lands in args_contain where it may not appear in the hook's view of the command.",
-    "what": "Fix three gaps in the /allow grant system so that user-granted permissions for /tmp venv interpreter commands with output redirects are correctly honored",
-    "why": "User needs to run Python scripts from venv interpreters installed under /tmp (e.g., xlsx-venv) and redirect output to files; the /allow grant mechanism fails silently due to structural bugs in sentinel construction and CF-1 gating logic",
+    "clarified": "Three gaps prevent the command from being honored: (A) pretool-tool-policy.py blocks /root/orchestra/docs/research/case-3 as a Write target for non-dev subagent roles — this is the PRIMARY blocker; (B) pretool-bash-safety.sh:483 sentinel block is entirely skipped when IS_SUBAGENT=1 — so even if tool-policy were fixed, the sentinel grant would not be consulted for subagents; (C) task ID derivation mismatch between sentinel writer and reader when CLAUDE_TASK_ID env var is unset. The previous spec's Gap C diagnosis (redirect tokens in args_contain) was WRONG for bare-token /allow syntax — the parser puts extra tokens into COMMENT, not args_contain, so the sentinel has empty args_contain and matches correctly. R4 (allowlist.py /tmp path handling) was also wrong — the string equality check works correctly for /tmp paths.",
+    "what": "Fix three gaps: (A) add /root/orchestra/docs/research/ to allowed_write_path_prefixes in policies/tool-policy.v1.json for non-dev roles; (B) extend sentinel grant check to IS_SUBAGENT=1 in pretool-bash-safety.sh; (C) align task ID derivation between writer and reader",
+    "why": "User needs to run Python scripts from venv interpreters installed under /tmp with output redirected to /root/orchestra/docs/research/. pretool-tool-policy.py enforces role-based write policy that blocks the redirect target for all non-dev roles, independent of any /allow grant.",
     "where": [
-      "hooks/userprompt-consent-allowlist.sh",
+      "policies/tool-policy.v1.json",
       "hooks/pretool-bash-safety.sh",
-      "hooks/lib/allowlist.py",
-      "settings.json"
+      "hooks/userprompt-consent-allowlist.sh",
+      "hooks/pretool-tool-policy.py"
     ],
     "scope": {
       "included": [
-        "Sentinel construction in userprompt-consent-allowlist.sh: redirect token stripping from args_contain; no-sentinel for regex/wildcard grants",
-        "CF-1 gate in pretool-bash-safety.sh: legacy_fallback_allowed exemption for sentinels that cannot structurally match",
-        "settings.json allow list: add /tmp/*-venv/bin/python* entry as secondary fix"
+        "policies/tool-policy.v1.json: add /root/orchestra/docs/research/ to ba and general-purpose allowed_write_path_prefixes (M1)",
+        "hooks/pretool-bash-safety.sh: extend sentinel block to IS_SUBAGENT=1 for user-created grants; align task ID reader (M2, M3)",
+        "hooks/userprompt-consent-allowlist.sh: skip sentinel write for is_regex=true grants (S1)"
       ],
       "excluded": [
         "Daemon-restart prohibition layers 1.A through 1.E",
+        "IS_SUBAGENT firewall for legacy pattern-string grants (hooks/pretool-bash-safety.sh:145)",
+        "CF-1 comment-only attack invariant (hooks/pretool-bash-safety.sh:517-526, 551)",
         "Subagent write firewall in userprompt-consent-allowlist.sh Step 0",
         "PostToolUse sentinel consumption logic (posttool-allowlist-consume.py)",
-        "Any change to the AC2 comment-only attack invariant",
-        "IS_SUBAGENT firewall for legacy pattern-string grants"
+        "allowlist.py match logic — works correctly, no changes needed"
       ]
     },
     "success_criteria": [
-      "User issues /allow /tmp/xlsx-venv/bin/python <script> and the command is allowed by pretool-bash-safety.sh (SENTINEL_OK or CONSUMED log)",
-      "Redirect tokens (> /path) in the /allow pattern are not stored in args_contain",
-      "Bare /allow or regex /allow grants do not trigger CF-1 suppression of legacy path",
-      "Daemon-restart and subagent firewalls remain fully intact"
+      "pretool-tool-policy.py no longer exits 2 for ba subagent executing Bash command with redirect to /root/orchestra/docs/research/",
+      "pretool-bash-safety.sh sentinel block is reached and returns SENTINEL_OK for IS_SUBAGENT=1 when valid sentinel exists",
+      "Task ID derived by writer matches task ID used by reader for all four derivation scenarios",
+      "All daemon-restart, CF-1, and IS_SUBAGENT legacy firewalls remain fully intact"
     ],
     "constraints": [
-      "AC2 comment-only attack invariant must be preserved",
-      "IS_SUBAGENT firewall for legacy grants must remain unchanged",
-      "All Layer 1.A–1.E daemon-restart prohibition blocks must remain intact"
+      "IS_SUBAGENT firewall for legacy grants at pretool-bash-safety.sh:145 must remain unchanged",
+      "CF-1 comment-only attack invariant at lines 517-526 must remain intact",
+      "Subagent write firewall in userprompt-consent-allowlist.sh Step 0 must remain intact",
+      "All Layer 1.A-1.E daemon-restart prohibition blocks must remain intact",
+      "dev role allowed_write_path_prefixes must not be changed (already has *)"
     ]
   },
   "scope_boundary": {
     "in_user_path": [
+      "policies/tool-policy.v1.json",
+      "hooks/pretool-tool-policy.py",
       "hooks/pretool-bash-safety.sh",
-      "hooks/userprompt-consent-allowlist.sh",
-      "hooks/lib/allowlist.py"
+      "hooks/userprompt-consent-allowlist.sh"
     ],
     "path_dependent_shared_infra": [
-      "settings.json"
-    ],
-    "out_of_path_observed_but_not_touched": []
-  },
-  "out_of_scope_observations": [],
-  "root_cause_analysis": {
-    "symptom": "User issues /allow for a /tmp venv Python command with output redirect; command is still blocked",
-    "root_cause": "Three independent gaps: (A) IS_SUBAGENT firewall unconditionally discards all grant paths in subagent contexts; (B) CF-1 at pretool-bash-safety.sh:517-527 sets SENTINEL_EXISTS_FOR_TASK=1 on SENTINEL_EXISTS_NO_MATCH, which suppresses legacy path at line 551 — this fires for regex/wildcard grants because their op='*' never equals any real command's head_op; (C) sentinel construction in userprompt-consent-allowlist.sh:196-205 puts the full remainder of the pattern (including redirect '> /output-path') into args_contain[0] as one string, which fails if the hook payload omits or normalizes the redirect",
-    "root_cause_commit": "28a1e85 feat(hooks): allowlist consolidation + push-sentinel + AC verify suite — CF-1 invariant was added here; sentinel construction present in this commit",
-    "why_introduced": "CF-1 was added as a security invariant to prevent comment-only bypass attacks (e.g., 'echo hi # rm -rf /') against legacy substring matching. The sentinel args_contain construction was intended to capture the full allow pattern faithfully.",
-    "why_problematic": "CF-1 is too broad: it fires for regex/wildcard grants whose sentinel op='*' can never structurally match any real command, permanently suppressing legacy for all regex grants. The args_contain construction does not distinguish shell redirect tokens from actual command arguments.",
-    "timeline": "Introduced in commit 28a1e85 (2026-05-18)",
-    "affected_files": [
-      "hooks/pretool-bash-safety.sh",
-      "hooks/userprompt-consent-allowlist.sh",
       "hooks/lib/allowlist.py"
     ],
-    "evidence_type": "inferred",
-    "observations": [
-      "pretool-bash-safety.sh:145 check_and_consume_allowlist() returns 1 immediately when IS_SUBAGENT=1 (inferred: code reading)",
-      "pretool-bash-safety.sh:483 entire sentinel block wrapped in IS_SUBAGENT != 1 condition (inferred: code reading)",
-      "pretool-bash-safety.sh:517-527 SENTINEL_EXISTS_NO_MATCH branch sets SENTINEL_EXISTS_FOR_TASK=1 (inferred: code reading)",
-      "pretool-bash-safety.sh:551 CF-1 gate: check_and_consume_allowlist called only when SENTINEL_EXISTS_FOR_TASK != 1 (inferred: code reading)",
-      "userprompt-consent-allowlist.sh:197-199 regex grants produce op='*' sentinel entry (inferred: code reading)",
-      "lib/allowlist.py:470-471 match requires want_op == head_op (exact string equality) — '*' never equals any real command token (inferred: code reading)",
-      "userprompt-consent-allowlist.sh:196-205 args_contain = [rest] where rest = everything after first whitespace-delimited token, including redirect '> /path' (inferred: code reading)"
+    "out_of_path_observed_but_not_touched": [
+      "hooks/posttool-allowlist-consume.py"
+    ]
+  },
+  "out_of_scope_observations": [
+    {
+      "ts": "2026-05-22T10:00:00Z",
+      "task_id": "20260521-090200",
+      "file": "hooks/userprompt-consent-allowlist.sh",
+      "line": "86-97",
+      "observation": "_looks_regex() returns True for any pattern containing '.' (regex metacharacter). If a user uses a full-command /allow syntax where the script path with dots becomes the PATTERN (not COMMENT), the sentinel would be written with op='*' (regex path), triggering CF-1. This is path-external to the bare-token syntax that was actually used, but is a latent defect for users who use full-command /allow syntax.",
+      "in_user_path": false,
+      "security_relevant": false
+    }
+  ],
+  "root_cause_analysis": {
+    "symptom": "User issues /allow for /tmp venv Python command with output redirect to /root/orchestra/docs/research/case-3; command is still blocked despite valid sentinel grant",
+    "root_cause": "PRIMARY: pretool-tool-policy.py (hooks/pretool-tool-policy.py:47-92) fires for ALL tools (matcher '*') and treats Bash redirect targets as Write targets. is_allowed(role='ba', 'Write', '/root/orchestra/docs/research/case-3') fails because ba.allowed_write_path_prefixes in policies/tool-policy.v1.json does not include /root/orchestra/. SECONDARY: pretool-bash-safety.sh:483 sentinel block is guarded by IS_SUBAGENT != 1 — for subagent calls, the sentinel grant is never consulted regardless. TERTIARY: task ID mismatch potential when CLAUDE_TASK_ID unset and PreToolUse payload task_id field differs from session_id.",
+    "root_cause_commit": "N/A — this is a policy configuration gap, not a code regression. The tool-policy.v1.json ba role write prefixes never included /root/orchestra/.",
+    "why_introduced": "pretool-tool-policy.py was designed as a role-based write fence. The ba role's allowed_write_path_prefixes were scoped to docs/dev/ and /tmp/ paths, not /root/orchestra/. Data-analysis output to /root/orchestra/docs/research/ was not anticipated as a ba-role operation at policy design time.",
+    "why_problematic": "pretool-tool-policy.py exits 2 (BLOCKED) before the /allow grant system has any effect. The /allow sentinel grant in pretool-bash-safety.sh only matters if pretool-tool-policy.py passes first. Because hooks run sequentially and all non-zero exits block the tool, a BLOCKED from pretool-tool-policy.py overrides any SENTINEL_OK from pretool-bash-safety.sh.",
+    "timeline": "Current state; no regression event identified",
+    "affected_files": [
+      "policies/tool-policy.v1.json",
+      "hooks/pretool-tool-policy.py",
+      "hooks/pretool-bash-safety.sh",
+      "hooks/userprompt-consent-allowlist.sh"
     ],
-    "diagnosis_completeness": "incomplete (inferred only — no runtime logs available to confirm which specific path fired)",
+    "evidence_type": "observed",
+    "observations": [
+      "Codex runtime execution: python3 hooks/pretool-tool-policy.py with ba subagent + Bash command with > /root/orchestra/docs/research/case-3 → exit=2, BLOCKED (observed: Codex Python invocation in session)",
+      "Codex runtime execution: same payload with no agent_id (main agent) → exit=0 (observed)",
+      "Codex runtime execution: same payload with subagent_type=dev → exit=0 (observed)",
+      "is_allowed('ba', 'Write', '/root/orchestra/docs/research/case-3') = (False, 'write target not in allowed_write_path_prefixes') (observed: Codex Python test)",
+      "userprompt-consent-allowlist.sh:86-97: first bare token = PATTERN, subsequent = COMMENT (inferred: code reading)",
+      "userprompt-consent-allowlist.sh:200-205: single-part pattern → no args_contain in sentinel (inferred: code reading)",
+      "allowlist.py:470-472: op equality check works for /tmp paths (inferred: code reading + QA confirmation)",
+      "pretool-bash-safety.sh:483: IS_SUBAGENT != 1 guards entire sentinel block (inferred: code reading)"
+    ],
+    "diagnosis_completeness": "complete (primary blocker confirmed by Codex runtime execution; secondary/tertiary confirmed by code reading)",
     "complaint_location_keywords": [
       "/allow",
       "/tmp/xlsx-venv/bin/python",
@@ -82,56 +100,67 @@
       "sentinel grant",
       "blocked"
     ],
-    "localization_evidence": "No runtime logs available. Root cause localized by static code tracing through three independent code paths in pretool-bash-safety.sh and userprompt-consent-allowlist.sh. All three gaps are independently verifiable by reading the source at the cited lines.",
-    "located_source": "hooks/pretool-bash-safety.sh:145 (IS_SUBAGENT gate), hooks/pretool-bash-safety.sh:517-527 (CF-1), hooks/userprompt-consent-allowlist.sh:196-205 (args_contain construction)",
+    "localization_evidence": "Codex executed python3 hooks/pretool-tool-policy.py directly with the ba subagent Bash payload. Result: exit=2, 'BLOCKED by tool-policy.v1: role=ba tool=Write target=/root/orchestra/docs/research/case-3 not in allowed_write_path_prefixes'. This is the hook that produced the observed block.",
+    "located_source": "hooks/pretool-tool-policy.py:47-92 (extract_bash_write_paths + is_allowed) — contains complaint_location_keywords via the /root/orchestra/docs/research/case-3 target path check",
     "localization_blocked": null,
     "git_bisect_result": {
       "triggered": false,
-      "suspect_commit": "28a1e85",
-      "commit_message": "feat(hooks): allowlist consolidation + push-sentinel + AC verify suite",
-      "confirmed_by": "git-log-diff",
-      "bisect_blocked": "Not a regression report — user reports new functionality (sentinel grant) not working as expected, not a previously-working feature breaking",
-      "reproducibility_verified": false
+      "suspect_commit": "N/A",
+      "commit_message": "N/A — policy configuration gap, not a code regression",
+      "confirmed_by": "runtime-execution",
+      "bisect_blocked": "Not a regression — the ba role write policy never included /root/orchestra/ as an allowed prefix",
+      "reproducibility_verified": true
     }
   },
-  "diagnosis_layer": "L4",
+  "diagnosis_layer": "L3",
   "requirements_decomposition": [
     {
       "id": "R1",
       "source_phrase": "the /allow sentinel grant existed but execution was still blocked",
-      "acceptance_criterion": "Command allowed by pretool-bash-safety.sh when sentinel grant exists for the exact command op"
-    },
-    {
-      "id": "R2",
-      "source_phrase": "the command was a Python interpreter located under /tmp",
-      "acceptance_criterion": "Command with /tmp/*/bin/python as first token passes sentinel structural match when op matches"
+      "acceptance_criterion": "Full PreToolUse hook chain exits 0 for the specific command when a valid sentinel grant exists and tool-policy allows the write target"
     },
     {
       "id": "R3",
       "source_phrase": "the stdout redirection is handled as a separate operation whose target is not covered by the grant op/target fields",
-      "acceptance_criterion": "Redirect tokens (> /path) in the /allow pattern are stripped before constructing args_contain in the sentinel"
+      "acceptance_criterion": "pretool-tool-policy.py no longer blocks /root/orchestra/docs/research/case-3 for authorized non-dev roles; sentinel grant (empty args_contain) matches the command including redirect"
     },
     {
-      "id": "R4",
-      "source_phrase": "hooks/lib/allowlist.py match logic does not correctly handle commands where the executable path is under /tmp",
-      "acceptance_criterion": "match_sentinel_grant_for_bash_command with op='/tmp/xlsx-venv/bin/python' returns a matching entry for the command"
+      "id": "R5",
+      "source_phrase": "investigate which hook actually blocked this command",
+      "acceptance_criterion": "Root cause confirmed: pretool-tool-policy.py exits 2 for non-dev subagent roles on /root/orchestra/ redirect writes (measured by Codex runtime execution)"
     }
   ],
   "component_chain": [
     {
-      "file": "hooks/userprompt-consent-allowlist.sh",
-      "line_range": "165-219",
-      "role": "Writes legacy grant and sentinel grant when user types /allow",
+      "file": "hooks/pretool-tool-policy.py",
+      "line_range": "47-101",
+      "role": "PRIMARY BLOCKER: fires for all tools (matcher *); extracts Bash redirect targets as Write targets; checks role-based allowed_write_path_prefixes; exits 2 if denied",
+      "imports_from": ["policies/tool-policy.v1.json"],
+      "evidence": "Codex runtime execution confirmed exit=2 for ba subagent with /root/orchestra/docs/research/case-3 target; settings.json lines 449-454 matcher=*",
+      "verified_via": "both"
+    },
+    {
+      "file": "policies/tool-policy.v1.json",
+      "line_range": "ba.allowed_write_path_prefixes",
+      "role": "Role-based write policy: defines which paths each subagent role may write to",
       "imports_from": [],
-      "evidence": "Grep confirmed sentinel write at lines 176-216; args_contain construction at lines 196-205",
+      "evidence": "Codex test confirmed is_allowed('ba', 'Write', '/root/orchestra/docs/research/case-3') = (False, 'not in allowed_write_path_prefixes')",
+      "verified_via": "both"
+    },
+    {
+      "file": "hooks/userprompt-consent-allowlist.sh",
+      "line_range": "51-219",
+      "role": "Writes sentinel grant when user types /allow; parser determines op/args_contain from pattern",
+      "imports_from": [],
+      "evidence": "Read at lines 86-97 (parser), 176 (task ID writer), 197-205 (sentinel construction)",
       "verified_via": "Read"
     },
     {
       "file": "hooks/pretool-bash-safety.sh",
-      "line_range": "139-229 and 461-553",
-      "role": "Reads and validates both grant types; applies CF-1 suppression logic",
+      "line_range": "139-229 and 483-553",
+      "role": "Reads and validates both grant types; applies sentinel check (IS_SUBAGENT gated); applies CF-1 suppression",
       "imports_from": ["hooks/lib/allowlist.py"],
-      "evidence": "Read at lines 145, 483, 517-527, 551",
+      "evidence": "Read at lines 145, 483, 484-488 (task ID reader), 517-527 (CF-1), 551",
       "verified_via": "Read"
     },
     {
@@ -139,7 +168,7 @@
       "line_range": "438-481",
       "role": "match_sentinel_grant_for_bash_command: structural match of bash command against allowed_operations[]",
       "imports_from": [],
-      "evidence": "Read at lines 463-481: exact op equality check, args_contain substring check",
+      "evidence": "Read at lines 463-481: op equality check; args_contain=[] → all() over empty = True (works correctly for /tmp paths)",
       "verified_via": "Read"
     }
   ],
@@ -156,8 +185,8 @@
       "file": "hooks/pretool-bash-safety.sh",
       "line": 517,
       "type": "if",
-      "code_snippet": "SENTINEL_EXISTS_FOR_TASK=1; echo '[allow-sentinel] sentinel exists for task=... but command did not match'",
-      "purpose": "CF-1: prevents comment-only attack by suppressing legacy substring match when a structured sentinel exists but does not match",
+      "code_snippet": "SENTINEL_EXISTS_FOR_TASK=1",
+      "purpose": "CF-1: prevents comment-only attack by suppressing legacy path when structured sentinel exists but does not match",
       "removal_authorized": false
     },
     {
@@ -174,78 +203,94 @@
   },
   "setup": {
     "applicability": "N/A",
-    "reason": "non-UI -- hook / config; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths. This is a hook system fix only."
+    "reason": "non-UI -- hook / config; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths. This is a hook system and policy fix only."
   },
   "evidence": {
     "observed": "User reports: /allow sentinel grant existed but execution was still blocked for /tmp/xlsx-venv/bin/python /root/orchestra/docs/dev/find_red_cells.py > /root/orchestra/docs/research/case-3",
     "measured": {
-      "value": "IS_SUBAGENT gate at line 145 of pretool-bash-safety.sh returns 1 unconditionally for subagents; CF-1 at line 517-527 sets SENTINEL_EXISTS_FOR_TASK=1 on SENTINEL_EXISTS_NO_MATCH; regex grants produce op='*' sentinel which never matches head_op; args_contain includes redirect tokens from raw pattern split",
-      "location": "hooks/pretool-bash-safety.sh:145, hooks/pretool-bash-safety.sh:517-527, hooks/pretool-bash-safety.sh:551, hooks/userprompt-consent-allowlist.sh:196-205, hooks/lib/allowlist.py:470-471"
+      "value": "pretool-tool-policy.py exits 2 with BLOCKED for ba subagent + Bash command with > /root/orchestra/docs/research/case-3 redirect; is_allowed('ba','Write','/root/orchestra/docs/research/case-3') = (False, 'not in allowed_write_path_prefixes')",
+      "location": "hooks/pretool-tool-policy.py:47-92; policies/tool-policy.v1.json ba.allowed_write_path_prefixes; Codex runtime execution output"
     },
     "expected": {
-      "value": "When user issues /allow for a specific command, that command should exit pretool-bash-safety.sh with exit 0 (allowed). The SENTINEL_OK branch at line 509-515 should fire, or the CONSUMED branch at line 963-998 should fire.",
-      "source": "CLAUDE.md Sentinel-grant mechanism description; hooks/pretool-bash-safety.sh design intent as documented in comments lines 474-535"
+      "value": "pretool-tool-policy.py exits 0 for ba subagent writing to /root/orchestra/docs/research/ when that prefix is in allowed_write_path_prefixes; pretool-bash-safety.sh sentinel block reached and returns SENTINEL_OK",
+      "source": "User requirement: /allow grant should be honored; policies/tool-policy.v1.json design intent for per-role write authorization"
     },
-    "gap": "Three gaps prevent the intended allow: (A) subagent context bypasses all paths; (B) regex/wildcard sentinels trigger CF-1 suppression of legacy; (C) redirect tokens in args_contain cause structural mismatch"
+    "gap": "ba.allowed_write_path_prefixes in policies/tool-policy.v1.json does not include /root/orchestra/docs/research/; pretool-tool-policy.py blocks before /allow sentinel system is consulted; IS_SUBAGENT=1 guard at pretool-bash-safety.sh:483 skips sentinel block entirely for subagents"
   },
   "scope_expansion": {
-    "search_pattern": "IS_SUBAGENT|SENTINEL_EXISTS_NO_MATCH|args_contain|op.*\\*",
-    "search_scope": "hooks/",
+    "search_pattern": "allowed_write_path_prefixes|IS_SUBAGENT|SENTINEL_EXISTS_NO_MATCH|extract_bash_write_paths",
+    "search_scope": "hooks/, policies/",
     "user_reported": [
       "hooks/pretool-bash-safety.sh",
       "hooks/lib/allowlist.py",
       "hooks/userprompt-consent-allowlist.sh"
     ],
     "additional_found": [
-      "hooks/posttool-allowlist-consume.py"
+      "hooks/pretool-tool-policy.py",
+      "policies/tool-policy.v1.json"
     ],
     "all_occurrences": [
+      "hooks/pretool-tool-policy.py:47-92",
+      "hooks/pretool-tool-policy.py:95-101",
       "hooks/pretool-bash-safety.sh:145",
       "hooks/pretool-bash-safety.sh:483",
+      "hooks/pretool-bash-safety.sh:484-488",
       "hooks/pretool-bash-safety.sh:517-527",
       "hooks/pretool-bash-safety.sh:551",
-      "hooks/userprompt-consent-allowlist.sh:196-205",
-      "hooks/lib/allowlist.py:463-481"
+      "hooks/userprompt-consent-allowlist.sh:86-97",
+      "hooks/userprompt-consent-allowlist.sh:176",
+      "hooks/userprompt-consent-allowlist.sh:197-205",
+      "hooks/lib/allowlist.py:463-481",
+      "policies/tool-policy.v1.json:ba.allowed_write_path_prefixes"
     ]
   },
   "reference_source": {
     "tier": "tier_2_verified",
-    "description": "Direct code reading of hook source files in this session",
-    "url_or_location": "hooks/pretool-bash-safety.sh, hooks/userprompt-consent-allowlist.sh, hooks/lib/allowlist.py",
+    "description": "Direct code reading of all hook files + Codex runtime execution of pretool-tool-policy.py with actual payloads in this session",
+    "url_or_location": "hooks/pretool-tool-policy.py, policies/tool-policy.v1.json, hooks/pretool-bash-safety.sh, hooks/userprompt-consent-allowlist.sh, hooks/lib/allowlist.py; Codex output at /var/tmp/codex-outputs/codex-output-4171745-1779439783.txt",
     "copy_allowed": true
   },
   "prior_attempts": {
-    "triggered": false,
-    "trigger_source": null,
-    "attempts": [],
+    "triggered": true,
+    "trigger_source": "dedup_hit",
+    "attempts": [
+      {
+        "artifact_path": "docs/dev/ticket-20260521-090200.md (pre-rewrite version)",
+        "proposed_solution": "Three gaps: (A) IS_SUBAGENT as Could Have; (B) CF-1 regex/wildcard sentinel issue; (C) redirect token in args_contain",
+        "actual_change": "N/A — spec rejected by QA before dev",
+        "outcome": "7 QA objections: pretool-tool-policy.py not investigated (OBJ-2); IS_SUBAGENT wrongly Could Have (OBJ-3); args_contain diagnosis wrong for bare-token syntax (OBJ-4); R4 mislocalized to working allowlist.py (OBJ-5); AC1 unit test not e2e (OBJ-6); task ID mismatch not covered (OBJ-7)",
+        "failure_category": "wrong_scope",
+        "target_layer": "L4"
+      }
+    ],
     "novelty_check": {
-      "this_attempt_layer": "L4",
+      "this_attempt_layer": "L3",
       "differs_from_all_priors": true,
-      "rationale": "No prior attempts on this specific issue"
+      "rationale": "Prior attempt scoped entirely to pretool-bash-safety.sh allowlist mechanism (L4 logic). This attempt identifies the primary blocker as a different hook entirely (pretool-tool-policy.py) and a different layer (L3: data — policy configuration gap in tool-policy.v1.json missing allowed prefix). The investigation used runtime execution evidence rather than inferred code reading."
     }
   },
   "context": {
     "codebase_state": "modified settings.json and various docs/dev files pending commit",
-    "recent_commits": "28a1e85 feat(hooks): allowlist consolidation + push-sentinel + AC verify suite",
+    "recent_commits": "1a1d058 feat(dev-cycle): Cycle 2 remediation",
     "file_contents": {},
     "dependencies": {},
     "environment": {}
   },
   "development_approach": {
-    "strategy": "Three targeted fixes, each independently verifiable: (1) In userprompt-consent-allowlist.sh, strip redirect tokens from args_contain during sentinel construction; (2) In userprompt-consent-allowlist.sh, skip writing sentinel for regex/wildcard grants (is_regex=true); (3) In pretool-bash-safety.sh CF-1 block, add fallback option for sentinels with legacy_fallback_allowed field OR rely on fix (2) meaning regex grants never produce a sentinel. Additionally add Bash(/tmp/*-venv/bin/python*:*) to settings.json allow list.",
+    "strategy": "Three targeted fixes: (M1) Add /root/orchestra/docs/research/ to ba and general-purpose allowed_write_path_prefixes in policies/tool-policy.v1.json; (M2) Extend sentinel block in pretool-bash-safety.sh to IS_SUBAGENT=1 for user-created grants; (M3) Align task ID derivation between writer and reader. Optional (S1): skip sentinel write for is_regex=true grants in userprompt-consent-allowlist.sh.",
     "files_to_create": [],
     "files_to_modify": [
-      "hooks/userprompt-consent-allowlist.sh",
+      "policies/tool-policy.v1.json",
       "hooks/pretool-bash-safety.sh",
-      "settings.json"
+      "hooks/userprompt-consent-allowlist.sh"
     ],
-    "validation_approach": "QA writes unit tests for: (a) sentinel construction with redirect pattern — verify args_contain excludes > token; (b) regex /allow — verify no sentinel written; (c) literal /allow for /tmp path — verify sentinel written with correct op and args_contain; (d) pretool-bash-safety.sh CF-1 path — simulate SENTINEL_EXISTS_NO_MATCH with legacy fallback scenario"
+    "validation_approach": "AC1: python3 hooks/pretool-tool-policy.py with ba subagent payload + redirect → exit=0 after M1. AC3: pretool-bash-safety.sh reaches sentinel block for IS_SUBAGENT=1 and returns SENTINEL_OK after M2. AC4: task ID writer/reader produce same key for all four derivation scenarios after M3."
   },
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260521-090200.json",
   "blast_radius_map_path": ".claude/dev-registry/dev-20260521-090200/blast-radius-map.json",
   "complexity_tier": "STANDARD",
   "risk_level": "medium",
-  "_risk_level_doc": "medium: changes to security-relevant hook logic; affects allow-grant system which has been through multiple prior cycles; blast radius limited to 3 hook files; all daemon-restart and subagent firewalls explicitly excluded from scope",
+  "_risk_level_doc": "medium: changes to security-relevant hook logic and policy config; affects allow-grant system and role-based write policy; blast radius limited to 3 files; all daemon-restart and IS_SUBAGENT legacy firewalls explicitly excluded from scope",
   "standards_to_enforce": {
     "no_hardcoded_values": true,
     "yaml_frontmatter_description_only": true,
@@ -256,37 +301,44 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex confirmed all three gaps and provided concrete PROPOSED_FIX for each. Issue 1 (IS_SUBAGENT): do not relax legacy /allow for subagents; instead extend structured sentinel grants to subagent contexts with session_id matching. Issue 2 (CF-1): relax CF-1 only for regex/wildcard sentinels that cannot structurally match — either skip writing sentinel for regex grants or add legacy_fallback_allowed flag. Issue 3 (args_contain + redirect): fix sentinel construction to strip redirect tokens (> /path) from args_contain, storing only pre-redirect argv fragments. Additional: add /tmp/*-venv/bin/python* to settings.json allow list.",
+    "feedback_summary": "Codex performed runtime execution confirming pretool-tool-policy.py as primary blocker: exit=2 for ba subagent with /root/orchestra/ write target, exit=0 for main agent and dev role. Codex confirmed OBJ-4 (args_contain diagnosis wrong for bare-token /allow — extra tokens are COMMENT, not args_contain). Codex confirmed OBJ-5 (allowlist.py works correctly for /tmp paths). Codex confirmed OBJ-7 (task ID derivation mismatch is a real structural gap).",
     "findings": [
       {
-        "issue": "IS_SUBAGENT blocks all /allow in subagent context",
-        "proposed_fix": "Do not relax legacy /allow for subagents. Instead, allow only user-created structured sentinel grants to be honored in subagent Bash calls when sentinel exists for task/session, grant.session_id matches, and allowed_operations[] structurally matches the command. Keep legacy blocked.",
-        "classification": "major",
-        "disposition": "applied",
-        "rationale": "Codex proposed extending sentinel grant to subagents (Could Have). BA spec captures this as C1 (could have) because the primary observed case may be main-agent context; the IS_SUBAGENT scenario is one of two scenarios. The subagent firewall for legacy grants is preserved unconditionally per W2."
-      },
-      {
-        "issue": "CF-1 suppresses legacy /allow when sentinel exists but cannot match (regex/wildcard op='*')",
-        "proposed_fix": "Either do not write sentinel for regex/wildcard grants so CF-1 never fires; or add legacy_fallback_allowed: true field to sentinel and exempt it from SENTINEL_EXISTS_FOR_TASK=1 assignment",
+        "issue": "pretool-tool-policy.py is the primary blocker, not pretool-bash-safety.sh — this hook fires for all tools and blocks the redirect write target for non-dev roles before any /allow sentinel logic can help",
+        "proposed_fix": "Add /root/orchestra/docs/research/ to ba and general-purpose allowed_write_path_prefixes in policies/tool-policy.v1.json",
         "classification": "blocker",
         "disposition": "applied",
-        "rationale": "Codex confirmed this is a real defect: op='*' can never match any real command head_op, so CF-1 always fires for regex grants, permanently blocking legacy. Fix encoded in M3."
+        "rationale": "Runtime execution evidence: exit=2 for ba role, exit=0 for dev and main agent. Incorporated as M1 (Must Have)."
       },
       {
-        "issue": "Redirect-sensitive args_contain may fail if hook command text excludes or normalizes > token",
-        "proposed_fix": "Fix sentinel construction: op=argv[0], target=argv[1] if applicable, args_contain=only semantic argv before shell redirects. Do not put '> /path' inside args_contain.",
+        "issue": "IS_SUBAGENT must be Must Have, not Could Have — no evidence command was main-agent-issued; typical subagent data-analysis work",
+        "proposed_fix": "Promote IS_SUBAGENT handling to Must Have: extend sentinel block to IS_SUBAGENT=1 for user-created grants",
         "classification": "blocker",
         "disposition": "applied",
-        "rationale": "Codex confirmed this is a real defect: redirect token in args_contain is brittle. Fix encoded in M2."
+        "rationale": "OBJ-3. Without session logs proving main-agent context, Must Have is required. Incorporated as M2."
       },
       {
-        "issue": "Add explicit permission allow entries for /tmp/*-venv/bin/python* in settings.json",
-        "proposed_fix": "Add Bash(/tmp/*-venv/bin/python*:*) to settings.json allow list as secondary structural fix",
+        "issue": "args_contain diagnosis was wrong for bare-token /allow — extra tokens become COMMENT not args_contain; sentinel has empty args_contain which matches everything correctly",
+        "proposed_fix": "Remove Gap C (redirect contamination) as a diagnosis; this is not a real defect for bare-token /allow syntax",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "OBJ-4. QA independently confirmed via userprompt-consent-allowlist.sh:86-97 code reading. Prior spec's Gap C was investigating wrong scenario."
+      },
+      {
+        "issue": "R4 mislocalized: allowlist.py works correctly for /tmp paths — pure string equality op match",
+        "proposed_fix": "Remove R4 from requirements decomposition; allowlist.py is not a bug location",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "OBJ-5. allowlist.py:470-472 confirmed working by QA code reading. Removed from revised spec."
+      },
+      {
+        "issue": "Task ID derivation mismatch between writer (session_id from UserPromptSubmit) and reader (task_id field from PreToolUse or session_id fallback) is a real structural gap",
+        "proposed_fix": "Align fallback chain: reader should only use PreToolUse task_id field if it equals session_id (or is absent); otherwise both sides fall back to session_id",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Encoded as S1 (Should Have) — secondary fix that removes the need for /allow for common venv workflows"
+        "rationale": "OBJ-7. Incorporated as M3 (Must Have)."
       }
     ],
-    "feedback_incorporated": "All four Codex findings incorporated: IS_SUBAGENT extension to subagent sentinel (C1 Could Have), CF-1 relaxation for regex/wildcard (M3 Must Have), redirect token stripping from args_contain (M2 Must Have), settings.json allow entry (S1 Should Have)"
+    "feedback_incorporated": "All five Codex findings incorporated: pretool-tool-policy.py as primary blocker (M1), IS_SUBAGENT promoted to Must Have (M2), args_contain diagnosis corrected (Gap C removed), R4 removed, task ID mismatch as M3."
   }
 }
