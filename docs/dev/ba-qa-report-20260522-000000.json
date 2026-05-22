@@ -1,0 +1,201 @@
+{
+  "request_id": "20260522-000000",
+  "task_id": "20260522-000000",
+  "timestamp": "2026-05-22T00:00:00Z",
+  "mode": "ba_validation",
+  "verdict": "fail",
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex confirmed missing acceptance-criteria and blast-radius-map artifacts; expanded spec_text_vs_execution_drift to cover R2/R3 divergences and validation_approach wc -c; flagged logs/lifecycle.jsonl missing from files_to_create; noted arch-4 internal inconsistency; flagged diagnosis_layer=L3 should be L5; noted AC4 wrong delta example (106 vs 108); noted AC4 field list mismatch vs actual schema.",
+    "feedback_incorporated": "Added blast-radius-map as a Dimension 3 gap; expanded Dimension 5 to cover all 4 context-vs-ticket divergences (R2 12+ vs exactly 12, R3 missing tracking check, R4 byte count, validation_approach wc -c); added Dimension 1 objection for logs/lifecycle.jsonl missing from files_to_create; added evidence_quality objection for arch-4 state inconsistency; added evidence_quality objection for diagnosis_layer mismatch."
+  },
+  "summary": "BA spec FAILS on investigation_completeness (acceptance-criteria and blast-radius-map files missing), spec_text_vs_execution_drift (4 context-vs-ticket AC divergences), and evidence_quality (arch-4 state misrepresented, logs/lifecycle.jsonl absent from files_to_create, diagnosis_layer wrong).",
+  "objections": [
+    {
+      "dimension": "investigation_completeness",
+      "claim": "BA declared complexity_tier=STANDARD and set acceptance_criteria_path to docs/dev/acceptance-criteria-20260522-000000.json in the context JSON",
+      "problem": "The file docs/dev/acceptance-criteria-20260522-000000.json does NOT exist on disk. STANDARD-tier BA is required to produce this file per the dev workflow contract (agents/ba.md Step 10). Without it, the test-writer and QA steps that consume this artifact cannot proceed. The context JSON self-declares the path but the artifact is absent.",
+      "required_evidence": "BA must produce docs/dev/acceptance-criteria-20260522-000000.json (or explicitly waive with documented rationale). The file must exist before dev proceeds."
+    },
+    {
+      "dimension": "investigation_completeness",
+      "claim": "Context JSON sets blast_radius_map_path to .claude/dev-registry/dev-20260522-000000/blast-radius-map.json",
+      "problem": "The directory .claude/dev-registry/dev-20260522-000000/ does not exist on disk and the blast-radius-map.json is absent. STANDARD-tier BA is expected to trigger blast-radius analysis per the cycle contract. The context JSON self-declares the path but the artifact is not present.",
+      "required_evidence": "BA must either produce .claude/dev-registry/dev-20260522-000000/blast-radius-map.json or explicitly declare blast_radius_not_applicable with rationale. The artifact or waiver must exist before dev proceeds."
+    },
+    {
+      "dimension": "spec_text_vs_execution_drift",
+      "claim": "Context JSON R4 requirements_decomposition says acceptance_criterion = 'scripts/install/tmp-cleanup-install.sh tracked in git, byte count matches 12077, execute permission set, shebang is #!/usr/bin/env bash'",
+      "problem": "Ticket AC3 drops the byte count and instead uses 'diff <(tail -n +2 /usr/local/sbin/tmp-cleanup.sh) <(tail -n +2 scripts/install/tmp-cleanup-install.sh) exits 0' as the verification recipe. The byte count claim in context R4 is directly contradicted by the shebang change (#!/bin/bash is 12 bytes, #!/usr/bin/env bash is 18 bytes — different lengths produce different file sizes). Ticket AC3 is correct; context R4 is stale and wrong. Additionally context development_approach.validation_approach still says 'wc -c for byte count verification' after BA incorporated the codex finding that dropped the byte count AC.",
+      "required_evidence": "BA must update context JSON R4 acceptance_criterion to match ticket AC3 verbatim (tail-diff verification, no byte count). The validation_approach field must also be updated to remove wc -c reference."
+    },
+    {
+      "dimension": "spec_text_vs_execution_drift",
+      "claim": "Context JSON R2 requirements_decomposition says acceptance_criterion = 'git ls-files docs/reference/ returns 12+ files after exception added'",
+      "problem": "Ticket AC1 says 'git ls-files docs/reference/ | wc -l returns exactly 12 (the pre-existing file count; no scope creep)'. The context uses '12+' (at-least) while the ticket uses 'exactly 12'. These are different verification recipes with different semantics. The ticket version is more restrictive and correct (prevents scope creep); the context version allows unbounded additional files.",
+      "required_evidence": "BA must update context JSON R2 acceptance_criterion to use 'exactly 12' (not '12+'), aligning with ticket AC1."
+    },
+    {
+      "dimension": "spec_text_vs_execution_drift",
+      "claim": "Context JSON R3 requirements_decomposition says acceptance_criterion = 'git check-ignore logs/lifecycle.jsonl exits 1; git check-ignore logs/checkpoint.log still exits 0'",
+      "problem": "Ticket AC2 adds a third verification step absent from context R3: 'git ls-files --error-unmatch logs/lifecycle.jsonl succeeds (file is tracked, not just un-ignored)'. This is a materially different and more complete verification recipe. The context version only checks ignore status; the ticket version also verifies tracking. BA incorporated this as a blocker from codex feedback but did not update the context JSON.",
+      "required_evidence": "BA must update context JSON R3 acceptance_criterion to include the git ls-files --error-unmatch tracking check, aligning with ticket AC2."
+    },
+    {
+      "dimension": "evidence_quality",
+      "claim": "Context ticket section says arch-4 status: 'agent-scores.json deletion staged but not committed — still in HEAD' and S1 Should Have says 'Commit the staged agent-scores.json deletion if it is still staged (arch-4)'",
+      "problem": "Live verification shows: (1) git show HEAD:agent-scores.json returns 'fatal: path exists on disk, but not in HEAD' — the file is NOT in HEAD; (2) git diff --cached shows nothing staged for agent-scores.json; (3) git status shows agent-scores.json is untracked on disk. The BA description says it is 'staged but not committed' or 'still in HEAD' — both are factually incorrect. The deletion has already propagated to HEAD. The BA ticket's own Edge Cases section correctly notes 'deletion may already be committed' and 'As of 2026-05-22 check, git ls-tree HEAD returns empty' — but the main ticket body still presents arch-4 as if action is needed.",
+      "required_evidence": "BA must reconcile the arch-4 description. Either: (a) remove arch-4 from the Must/Should/implementation ordering as already-resolved, or (b) add a conditional no-op AC: 'verify git ls-tree HEAD -- agent-scores.json returns empty; if already not in HEAD, no action needed'. The current wording sends dev to commit something that is already committed."
+    },
+    {
+      "dimension": "evidence_quality",
+      "claim": "AC2 requires 'git ls-files --error-unmatch logs/lifecycle.jsonl succeeds (file is tracked)' as an acceptance criterion for the gitignore exception",
+      "problem": "logs/lifecycle.jsonl does not exist on disk (verified: ls /dev/shm/dev-workspace/dot-claude/logs/lifecycle.jsonl returns not found). The file is neither tracked nor even created. BA's files_to_create in the context JSON lists only 'scripts/install/tmp-cleanup-install.sh' — logs/lifecycle.jsonl is absent from files_to_create. If dev only applies the gitignore exception and does not also create and git-add logs/lifecycle.jsonl, AC2's tracking check will fail. The file creation is an implicit prerequisite that BA has not made explicit in the dev instructions.",
+      "required_evidence": "BA must add logs/lifecycle.jsonl to files_to_create (or explicitly state that dev must create and git-add it as part of implementing AC2). The creation instruction must specify whether the file should be empty or contain valid initial JSONL content."
+    },
+    {
+      "dimension": "evidence_quality",
+      "claim": "Context JSON sets diagnosis_layer: 'L3'",
+      "problem": "The layer vocabulary defines L3 as 'data: coordinates, schema values, regex, constants'. The changes in this cycle are .gitignore rules (infrastructure configuration), production script installation (system-file management), git tracking state (version control infrastructure), and score-update script patching (operational tooling). These are L5 infrastructure changes, not L3 data changes. A diagnosis_layer=L3 claim would cause dev-layer validation to reject the implementation if it checks layer consistency.",
+      "required_evidence": "BA must correct diagnosis_layer to 'L5' (infrastructure: build, deploy, environment) to match the actual nature of the changes."
+    }
+  ],
+  "dimension_verdicts": {
+    "evidence_quality": "fail",
+    "scope_alignment": "pass",
+    "investigation_completeness": "fail",
+    "affected_file_accuracy": "pass",
+    "spec_text_vs_execution_drift": "fail"
+  },
+  "dimension_details": {
+    "evidence_quality": {
+      "verdict": "fail",
+      "verified_claims": [
+        ".gitignore:46 = 'logs/' (VERIFIED by cat -n .gitignore)",
+        ".gitignore:66 = 'docs/*' with only '!docs/dev/' exception (VERIFIED by cat -n .gitignore)",
+        "docs/reference/ has exactly 12 files (VERIFIED: ls | wc -l = 12)",
+        "scripts/score-update.sh line 152 = ceiling clamp (VERIFIED: grep -n confirms line 152)",
+        "/usr/local/sbin/tmp-cleanup.sh = 12077 bytes (VERIFIED: wc -c confirms)",
+        "git check-ignore -v docs/reference/tmp-cleanup-convention.md -> .gitignore:66:docs/* (VERIFIED)",
+        "git check-ignore -v logs/ -> .gitignore:46:logs/ (VERIFIED)",
+        "git ls-files docs/reference/ -> empty (VERIFIED)",
+        "agent-scores.json NOT in HEAD (VERIFIED: git show HEAD:agent-scores.json fails)"
+      ],
+      "failed_claims": [
+        "arch-4: 'deletion staged but not committed — still in HEAD' — REFUTED: not in HEAD, not staged",
+        "logs/lifecycle.jsonl implicitly required to be tracked (AC2) but not in files_to_create",
+        "diagnosis_layer=L3 does not match infrastructure changes"
+      ]
+    },
+    "scope_alignment": {
+      "verdict": "pass",
+      "notes": "BA correctly frames the user requirement as 'save issues as spec' (already done via spec-20260520-221059.md). The additional items (arch-1/2/4/5/7+8) are dispatch-authorized by the orchestrator. BA does not narrow or rename the user requirement. Layer A items are correctly excluded with K1 workflow conflict documented. All dispatch-authorized items are accounted for in MoSCoW."
+    },
+    "investigation_completeness": {
+      "verdict": "fail",
+      "notes": "acceptance-criteria-20260522-000000.json is missing (STANDARD tier required artifact). blast-radius-map.json directory does not exist. Both are referenced in context JSON but absent from disk."
+    },
+    "affected_file_accuracy": {
+      "verdict": "pass",
+      "verified": [
+        ".gitignore line 46 = 'logs/' VERIFIED",
+        ".gitignore line 66 = 'docs/*' VERIFIED (actual line 66 in file)",
+        "scripts/score-update.sh line 152 = 'new_score = max(0, min(100, old_score + delta))' VERIFIED",
+        "/usr/local/sbin/tmp-cleanup.sh exists at 12077 bytes VERIFIED",
+        "scripts/install/ directory does not exist VERIFIED (would need to be created)",
+        "agent-scores.json not in HEAD VERIFIED"
+      ]
+    },
+    "spec_text_vs_execution_drift": {
+      "verdict": "fail",
+      "drift_instances": [
+        {
+          "context_field": "requirements_decomposition[R4].acceptance_criterion",
+          "context_text": "byte count matches 12077",
+          "ticket_text": "diff <(tail -n +2 /usr/local/sbin/tmp-cleanup.sh) <(tail -n +2 scripts/install/tmp-cleanup-install.sh) exits 0",
+          "drift_type": "context_not_updated_after_ticket_correction"
+        },
+        {
+          "context_field": "development_approach.validation_approach",
+          "context_text": "wc -c for byte count verification",
+          "ticket_text": "diff <(tail -n +2 source) <(tail -n +2 dest) exits 0",
+          "drift_type": "context_validation_approach_stale"
+        },
+        {
+          "context_field": "requirements_decomposition[R2].acceptance_criterion",
+          "context_text": "git ls-files docs/reference/ returns 12+ files",
+          "ticket_text": "git ls-files docs/reference/ | wc -l returns exactly 12",
+          "drift_type": "greedy_vs_exact_count_semantic_divergence"
+        },
+        {
+          "context_field": "requirements_decomposition[R3].acceptance_criterion",
+          "context_text": "git check-ignore logs/lifecycle.jsonl exits 1; git check-ignore logs/checkpoint.log still exits 0",
+          "ticket_text": "same PLUS: git ls-files --error-unmatch logs/lifecycle.jsonl succeeds (file is tracked)",
+          "drift_type": "context_missing_tracking_check"
+        }
+      ]
+    }
+  },
+  "ac2_pre_dev_verifiability": {
+    "note": "AC2 requires 'git ls-files --error-unmatch logs/lifecycle.jsonl succeeds'. This AC is correctly structured as a post-dev verification (GIVEN implementation has been done). However, the file must be explicitly CREATED and git-added by dev — not just un-ignored. This creation step is currently absent from BA's files_to_create list, making it an investigation_completeness/evidence_quality gap, not a spec_text_vs_execution_drift issue."
+  },
+  "codex_findings_incorporated": [
+    {
+      "codex_finding": "Missing mandatory blast-radius artifact not flagged",
+      "action": "incorporated",
+      "objection_added": "investigation_completeness blast-radius-map"
+    },
+    {
+      "codex_finding": "Context-vs-ticket drift is broader than R4 — also R2 (12+ vs exactly 12), R3 (missing tracking check), validation_approach (wc -c)",
+      "action": "incorporated",
+      "objection_added": "spec_text_vs_execution_drift expanded to 4 instances"
+    },
+    {
+      "codex_finding": "logs/lifecycle.jsonl is implicit required created file but absent from BA file lists",
+      "action": "incorporated",
+      "objection_added": "evidence_quality objection for missing files_to_create entry"
+    },
+    {
+      "codex_finding": "Arch-4 state is internally inconsistent — ticket says staged/in-HEAD but evidence says not in HEAD",
+      "action": "incorporated",
+      "objection_added": "evidence_quality objection for arch-4 misrepresentation"
+    },
+    {
+      "codex_finding": "Diagnosis layer L3 wrong — should be L5 infrastructure",
+      "action": "incorporated",
+      "objection_added": "evidence_quality objection for diagnosis_layer mismatch"
+    },
+    {
+      "codex_finding": "AC4 example uses wrong delta (106 should be 108 for BA agent close_success_qa_pass event)",
+      "action": "noted_as_observation",
+      "disposition": "OBSERVATION_ONLY — delta value depends on current event table in score-update.sh; if BA event delta has changed from +6 to +8, the example is stale. QA cannot independently verify the delta table without running the script. Recommend BA verify the example value against the actual event table."
+    },
+    {
+      "codex_finding": "AC4 mentions history fields 'score'/'rank' that do not exist in history entries",
+      "action": "noted_as_observation",
+      "disposition": "OBSERVATION_ONLY — the BA ticket AC4 says 'score, rank, delta, old_score, new_score fields unchanged'; if actual history schema is {ts, event, delta, old_score, new_score, note}, then 'score' and 'rank' are agent-level fields not history-entry fields. This is an imprecise claim but does not change the verification outcome."
+    },
+    {
+      "codex_finding": "AC1/AC2 git check-ignore checks can false-pass after force-add",
+      "action": "noted_as_observation",
+      "disposition": "OBSERVATION_ONLY — valid edge case but not a BA analysis quality failure; this is a dev implementation risk. The AC wording is appropriate for pre-implementation spec."
+    },
+    {
+      "codex_finding": "Spec/views commit AC may omit .split-complete",
+      "action": "noted_as_observation",
+      "disposition": "OBSERVATION_ONLY — the stale-view guard depends on .split-complete marker. BA's AC5 does not explicitly address this. Low risk for this cycle since the spec is being committed for the first time."
+    }
+  ],
+  "remediation_required": [
+    "Produce docs/dev/acceptance-criteria-20260522-000000.json (STANDARD tier mandatory artifact)",
+    "Produce or waive .claude/dev-registry/dev-20260522-000000/blast-radius-map.json",
+    "Update context R4 acceptance_criterion to remove byte count and use tail-diff verification",
+    "Update context development_approach.validation_approach to remove wc -c",
+    "Update context R2 acceptance_criterion from '12+' to 'exactly 12'",
+    "Update context R3 acceptance_criterion to include git ls-files --error-unmatch tracking check",
+    "Add logs/lifecycle.jsonl to context files_to_create with creation instructions",
+    "Correct arch-4 description: deletion is already in HEAD; dev should verify-no-op, not re-commit",
+    "Correct diagnosis_layer from L3 to L5"
+  ]
+}
