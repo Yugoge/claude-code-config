@@ -23,7 +23,7 @@
     },
     {
       "id": "AC2",
-      "ac_uid": "16439c46d335007d",
+      "ac_uid": "cb033d6e463237c7",
       "type": "data",
       "given": ".gitignore rule at line 46 changed from logs/ to logs/* AND !logs/lifecycle.jsonl added below it AND logs/lifecycle.jsonl file created and git-added",
       "when": "git check-ignore -q logs/lifecycle.jsonl AND git check-ignore -q logs/checkpoint.log AND git ls-files --error-unmatch logs/lifecycle.jsonl are run",
