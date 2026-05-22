@@ -12,6 +12,10 @@
     "why": "File may be silently bypassing hook enforcement controls; §5.4 rule 2 mandates audit of security-exception artifacts",
     "where": [
       "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow",
+      "/dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow",
+      "/root/orchestra/.claude/.hook-refactor-allow",
+      "/root/travel-planner/.claude/.hook-refactor-allow",
+      "/root/multi-asset-portfolio/.claude/.hook-refactor-allow",
       "hooks/pretool-claude-config-guard.py",
       "hooks/pretool-block-production-files.sh"
     ],
