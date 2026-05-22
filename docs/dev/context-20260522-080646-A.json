@@ -14,7 +14,7 @@
     ],
     "scope": {
       "included": [
-        "hooks/pretool-bash-safety.sh — four affected if-blocks (lines 715, 722, 743, 751)",
+        "hooks/pretool-bash-safety.sh — four affected if-blocks (lines 715, 722, 743, 751); for line 743 compound condition, only the dangerous-token grep applies against COMMAND_CONTEXT_STRIPPED; the workflow-path grep MUST remain on raw $COMMAND (binding per M2)",
         "hooks/lib/bash_context_strip.py — new helper module",
         "hooks/tests/test_bash_safety_context.py — new regression tests"
       ],
