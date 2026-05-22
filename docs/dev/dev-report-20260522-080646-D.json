@@ -1,0 +1,113 @@
+{
+  "request_id": "20260522-080646-D",
+  "task_id": "20260522-080646-D",
+  "timestamp": "2026-05-22T08:30:00Z",
+  "baseline_head_sha": "1a1d058665a1f525b9e4c219c93f69ebb2ae90bb",
+  "dev_report_path": "docs/dev/dev-report-20260522-080646-D.json",
+  "dev": {
+    "status": "completed",
+    "files_modified": [
+      "commands/dev.md",
+      "agents/dev.md",
+      "agents/qa.md",
+      "agents/changelog-analyst.md"
+    ],
+    "files_created": [
+      "tests/generated/20260522-080646-D/test_AC1_23920de293060194.py",
+      "tests/generated/20260522-080646-D/test_AC2_9998512b9f5f0409.py",
+      "tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py",
+      "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py",
+      "tests/generated/20260522-080646-D/test_AC5_4c4904668b5bf00d.py"
+    ],
+    "observed_preexisting": [],
+    "tasks_completed": [
+      {
+        "id": 1,
+        "description": "Add pre-dispatch baseline capture to commands/dev.md Step 8",
+        "type": "spec",
+        "files_modified": ["commands/dev.md"],
+        "changes": "Added 'Pre-dispatch baseline capture' block with git rev-parse HEAD and git status --porcelain commands; added baseline_head_sha and baseline_dirty_snapshot fields to the dispatch payload body",
+        "rationale": "Without baseline capture, dev has no reference point to compute which files it actually changed vs which were pre-existing. Addresses root cause: no baseline SHA captured at dispatch time."
+      },
+      {
+        "id": 2,
+        "description": "Mandate git-diff derivation for files_modified in agents/dev.md Output Format",
+        "type": "spec",
+        "files_modified": ["agents/dev.md"],
+        "changes": "Added 'Git-diff derivation (MANDATORY)' paragraph; added 'observed_preexisting[]' field description; added 'baseline_head_sha' as top-level dev-report field; added baseline_head_sha and observed_preexisting fields to the JSON schema example",
+        "rationale": "Dev agents were performing work-tree inspection instead of diffing, causing inflated file counts. This mandates git diff --name-only <baseline_head_sha> as the source of truth."
+      },
+      {
+        "id": 3,
+        "description": "Add provenance check to agents/qa.md Step 5",
+        "type": "spec",
+        "files_modified": ["agents/qa.md"],
+        "changes": "Added 'Provenance check' subsection at the top of Step 5 Regression Testing. Specifies: read baseline_head_sha, compute git diff --name-only <baseline_head_sha>, raise critical FAIL with primary_cause: 'dev_implementation' and label 'dev_provenance_violation' for paths absent from diff and baseline_dirty_snapshot. Graceful skip when baseline_head_sha absent.",
+        "rationale": "QA is the last line of defense before changelog-analyst and commit chain consume the file list."
+      },
+      {
+        "id": 4,
+        "description": "Add provenance filter to agents/changelog-analyst.md Phase 2",
+        "type": "spec",
+        "files_modified": ["agents/changelog-analyst.md"],
+        "changes": "Added 'Provenance filter' subsection after dev-report extraction in Phase 2. Specifies: compute git diff --name-only <baseline_head_sha>..HEAD (committed diff at changelog-analyst time), classify absent paths as provenance_anomaly, exclude from type/scope/summary enrichment. Graceful skip when baseline_head_sha absent.",
+        "rationale": "Commit message attribution must reflect actual changes, not pre-existing files dev found in correct state. The ..HEAD form is critical because changelog-analyst runs post-commit."
+      },
+      {
+        "id": 5,
+        "description": "Implement skeleton test bodies for all 5 generated acceptance criteria tests",
+        "type": "test",
+        "files_created": [
+          "tests/generated/20260522-080646-D/test_AC1_23920de293060194.py",
+          "tests/generated/20260522-080646-D/test_AC2_9998512b9f5f0409.py",
+          "tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py",
+          "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py",
+          "tests/generated/20260522-080646-D/test_AC5_4c4904668b5bf00d.py"
+        ],
+        "rationale": "All 5 tests replaced TEST_INCOMPLETE sentinels with real grep/read assertions against the modified markdown files. All 5 pass."
+      }
+    ],
+    "scripts_created": [],
+    "git_rationale": {
+      "root_cause_commit": "N/A — spec omission, not a regression from a specific commit",
+      "why_issue_occurred": "agents/dev.md Output Format was designed for the common case where dev actually edits files; the pre-existing-state scenario (dev confirms correct state without diff) was not anticipated. No baseline SHA was captured at dispatch time and no diff-derivation was mandated.",
+      "how_fix_addresses_root": "Four additive contract clauses: (1) orchestrator captures baseline SHA at dispatch, (2) dev derives files_modified from git diff not work-tree inspection, (3) QA fails on inflated claims, (4) changelog-analyst excludes anomaly paths from enrichment."
+    },
+    "diff_stats": {
+      "files_changed": 4,
+      "lines_added": 51,
+      "lines_removed": 0,
+      "new_symbols_introduced": ["baseline_head_sha", "baseline_dirty_snapshot", "observed_preexisting", "dev_provenance_violation", "provenance_anomaly"],
+      "minimum_possible_lines_estimate": 40,
+      "justification_for_overage": "Four separate additive insertions across four distinct files, each adding a distinct required contract clause to satisfy a separate acceptance criterion. No individual insertion can be removed without dropping an AC. The 51-line total is ~13 lines per file on average, which is the minimum prose needed to specify the behavior precisely (including the critical diff-command-form distinction between pre-commit and post-commit contexts)."
+    },
+    "fix_layer": "L4",
+    "scope_review_requested": false,
+    "qa_ready": true,
+    "qa_notes": "Run pytest tests/generated/20260522-080646-D/ to verify all 5 ACs pass. Grep checks: (1) baseline_head_sha and baseline_dirty_snapshot inside Step 8 dispatch payload in commands/dev.md; (2) observed_preexisting, baseline_head_sha, git diff --name-only in agents/dev.md Output Format; (3) dev_provenance_violation, baseline_head_sha, primary_cause.*dev_implementation in agents/qa.md; (4) provenance_anomaly, baseline_head_sha in agents/changelog-analyst.md Phase 2; (5) graceful skip language (absent or empty, Do NOT raise a FAIL) in both qa.md and changelog-analyst.md.",
+    "permissions_to_add": []
+  },
+  "blast_radius": [
+    {"modified": "commands/dev.md", "imported_by": []},
+    {"modified": "agents/dev.md", "imported_by": []},
+    {"modified": "agents/qa.md", "imported_by": []},
+    {"modified": "agents/changelog-analyst.md", "imported_by": []}
+  ],
+  "blast_radius_declarations": [],
+  "self_verification": {
+    "build": "pass",
+    "smoke_check": "pass",
+    "notes": "All 5 pytest tests pass: 5 passed in 0.03s. All grep verifications confirmed. No build system for markdown-only changes."
+  },
+  "codex_consult": {
+    "invoked": false,
+    "status": "not_requested",
+    "feedback_summary": null,
+    "feedback_incorporated": null
+  },
+  "blocking_issues": [],
+  "recommendations": [
+    "A future cycle (OOS item D C1) could add a hook that enforces the baseline capture at dispatch time rather than relying on the markdown spec alone.",
+    "The two-repo scenario (main repo + nested repo at /dev/shm/dev-workspace/dot-claude) should be addressed in a follow-up: baseline_head_sha_root and baseline_head_sha_nested may be needed for cycles that touch both repos."
+  ]
+}
