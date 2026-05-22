@@ -643,6 +643,15 @@ After test-writer completes (or is skipped), the generated test file paths and m
 
 Run `bash ~/.claude/scripts/score-inject.sh --agent dev` and capture stdout into a variable `DEV_SCORE_HEADER`. Per spec 5.1 line 113, this injection text is inserted AFTER the role declaration and BEFORE the task instructions for the Dev dispatch.
 
+**Pre-dispatch baseline capture** (run BEFORE invoking the dev subagent):
+
+```bash
+baseline_head_sha=$(git -C "$CLAUDE_PROJECT_DIR" rev-parse HEAD 2>/dev/null || echo "")
+baseline_dirty_snapshot=$(git -C "$CLAUDE_PROJECT_DIR" status --porcelain 2>/dev/null || echo "")
+```
+
+Both values MUST be passed into the dev dispatch payload body (see below). If the repo has no commits yet, `baseline_head_sha` will be empty — pass it as empty string, not omitted.
+
 **Use Task tool to invoke dev subagent with file paths only**:
 
 ```
@@ -666,6 +675,8 @@ Use Task tool with:
   View file: <view_paths.dev or null — sibling views/dev.md if present>
   Generated tests (when test-writer ran): tests/generated/<task_id>/ + per-task active manifest at tests/generated/<task_id>/manifest.json. Global index file tests/generated/manifest.json (index) is a presence sentinel only — see Step 8 test-writer dispatch for full shape.
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
+  baseline_head_sha: <baseline_head_sha captured above>
+  baseline_dirty_snapshot: <baseline_dirty_snapshot captured above>
 
   If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
   If View file is not null: you may read the view instead of the full monolith — it contains only the sections relevant to dev (S1, S2, S3, S7, S8) and is a byte-slice of the monolith.
