@@ -118,18 +118,18 @@
   "requirements_decomposition": [
     {
       "id": "R1",
-      "source_phrase": "the /allow sentinel grant existed but execution was still blocked",
-      "acceptance_criterion": "Full PreToolUse hook chain exits 0 for the specific command when a valid sentinel grant exists and tool-policy allows the write target"
+      "source_phrase": "which hook blocks ... despite a valid /allow sentinel grant",
+      "acceptance_criterion": "pretool-tool-policy.py identified as PRIMARY blocker; sentinel works at allowlist.py level but not reached for subagents due to IS_SUBAGENT guard; confirmed by direct Python execution"
+    },
+    {
+      "id": "R2",
+      "source_phrase": "fix the gaps so this type of command is correctly honored",
+      "acceptance_criterion": "Full PreToolUse hook chain exits 0 for the specific command when a valid sentinel grant exists, for both IS_SUBAGENT=0 and IS_SUBAGENT=1 after M1+M2+M3 applied"
     },
     {
       "id": "R3",
-      "source_phrase": "the stdout redirection is handled as a separate operation whose target is not covered by the grant op/target fields",
-      "acceptance_criterion": "pretool-tool-policy.py no longer blocks /root/orchestra/docs/research/case-3 for authorized non-dev roles; sentinel grant (empty args_contain) matches the command including redirect"
-    },
-    {
-      "id": "R5",
-      "source_phrase": "investigate which hook actually blocked this command",
-      "acceptance_criterion": "Root cause confirmed: pretool-tool-policy.py exits 2 for non-dev subagent roles on /root/orchestra/ redirect writes (measured by Codex runtime execution)"
+      "source_phrase": "stdout redirected to /root/orchestra/docs/research/case-3",
+      "acceptance_criterion": "pretool-tool-policy.py no longer blocks redirect write target for ba role after M1 (narrow prefix added to tool-policy.v1.json)"
     }
   ],
   "component_chain": [
