@@ -39,7 +39,7 @@ sys.exit(0 if len(found) >= 4 else 1)
 python3 -m pytest hooks/tests/test_allowlist_consolidation.py -k 'success or failure or non_zero or malformed or comment_only or terminal_consume' --no-header -q >/dev/null 2>&1 && results+=("AC2 V3 PASS") || results+=("AC2 V3 FAIL")
 
 # AC1 V1
-sed -E 's/[[:space:]]*#.*$//' hooks/push.sh > /tmp/push.sh.exec
+sed -E 's/[[:space:]]*#.*$//' hooks/push.sh > "$PUSH_EXEC"
 if awk '
   BEGIN { abort = 0 }
   /(^|[[:space:]]|;|&&|\|\|)exit[[:space:]]+[1-9]/ { abort = 1 }
@@ -50,7 +50,7 @@ if awk '
     if (!abort) exit 1
   }
   END { exit 0 }
-' /tmp/push.sh.exec ; then
+' "$PUSH_EXEC" ; then
   results+=("AC1 V1 PASS")
 else
   results+=("AC1 V1 FAIL")
