@@ -34,16 +34,17 @@
       "type": "data",
       "given": "A grep of hook-refactor-allow across all files in hooks/",
       "when": "grep completes",
-      "then": "Exactly two hook files match: hooks/pretool-claude-config-guard.py and hooks/pretool-block-production-files.sh",
+      "then": "Exactly two hook files match: hooks/pretool-claude-config-guard.py (SENTINEL_NAME at line 47; _sentinel_present() at lines 75-77; enforcement bypass gate at lines 176-177) and hooks/pretool-block-production-files.sh (sentinel check at line 133)",
       "check": {
         "method": "bash",
-        "command": "grep -rln hook-refactor-allow /dev/shm/dev-workspace/dot-claude/hooks/",
+        "command": "grep -rln hook-refactor-allow /dev/shm/dev-workspace/dot-claude/hooks/ && grep -n hook-refactor-allow /dev/shm/dev-workspace/dot-claude/hooks/pretool-claude-config-guard.py",
         "expected_files": [
           "hooks/pretool-claude-config-guard.py",
           "hooks/pretool-block-production-files.sh"
-        ]
+        ],
+        "note": "pretool-claude-config-guard.py: line 47 (SENTINEL_NAME def), line 77 (_sentinel_present return), line 176 (enforcement gate if-condition)"
       },
-      "ac_uid": "ac3-hook-files-exhaustive-grep"
+      "ac_uid": "ac3-hook-files-exhaustive-grep-with-line-citations"
     },
     {
       "id": "AC4",
