@@ -20,12 +20,12 @@
       "id": "AC2",
       "type": "data",
       "given": "The file at /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow",
-      "when": "its size is checked",
-      "then": "File is 0 bytes (empty — contains no configuration, credentials, or active directives)",
+      "when": "its size is checked and /root/.claude/.hook-refactor-allow is resolved",
+      "then": "File is 0 bytes (empty — contains no configuration, credentials, or active directives) and symlink /root/.claude/.hook-refactor-allow resolves to the same inode (1665207)",
       "check": {
         "method": "bash",
-        "command": "wc -c /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow",
-        "expected": "0"
+        "command": "wc -c /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow && stat -c '%i' /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow && stat -c '%i' /root/.claude/.hook-refactor-allow",
+        "expected": "0 and matching inode 1665207"
       },
       "ac_uid": "ac2-hook-refactor-allow-contents-empty"
     },
