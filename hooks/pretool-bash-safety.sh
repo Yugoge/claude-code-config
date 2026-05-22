@@ -769,7 +769,9 @@ if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(rm|mv)\s' && echo "$COMMAND" | 
 fi
 
 # Block: filesystem rm (but NOT docker rm, which is handled above)
-if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(^|[;|&]\s*)rm\s' && ! echo "$COMMAND" | grep -qE 'docker\s+rm\s'; then
+# Pattern uses [\s;|&(] so that rm appearing after a space (e.g. inside a -c payload
+# that was unwrapped by context stripping) or inside $( ) is still detected.
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(^|[\s;|&(])rm\s' && ! echo "$COMMAND" | grep -qE 'docker\s+rm\s'; then
   echo "BLOCKED: rm is forbidden — delete files manually or ask the user" >&2
   echo "Command: $COMMAND" >&2
   exit 2
