@@ -495,6 +495,8 @@ If either check fails and you cannot fix it, report `"status": "blocked"` instea
 
 **`baseline_head_sha`** MUST appear as a top-level field in the dev-report JSON so downstream consumers (QA, changelog-analyst) can independently re-derive the diff without reading the context JSON.
 
+**`baseline_dirty_snapshot`** MUST also appear as a top-level field in the dev-report JSON. Copy the value verbatim from the dispatch payload `baseline_dirty_snapshot` field (the `git status --porcelain` output captured before dev started). QA and changelog-analyst read this field to exclude pre-dirty files from the provenance FAIL set. If the dispatch payload contained no `baseline_dirty_snapshot`, record it as an empty string `""`.
+
 **MUST write report to filesystem**: `docs/dev/dev-report-<timestamp>.json`
 
 The dev report MUST be written to the filesystem so QA can read it directly. Also return the report content in your response.
