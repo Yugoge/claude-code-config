@@ -1,0 +1,142 @@
+{
+  "request_id": "20260522-080646-B",
+  "task_id": "20260522-080646-B",
+  "timestamp": "2026-05-22T08:30:00Z",
+  "dev_report_path": "docs/dev/dev-report-20260522-080646-B.json",
+  "dev": {
+    "status": "completed",
+    "files_modified": [
+      "hooks/lib/allowlist.py",
+      "hooks/pretool-write-guard.sh",
+      "hooks/posttool-allowlist-consume.py",
+      "hooks/tests/test_allowlist_consolidation.py"
+    ],
+    "files_created": [
+      "tests/generated/20260522-080646-B/test_AC1_AC1-write-sentinel-matcher.py",
+      "tests/generated/20260522-080646-B/test_AC2_AC2-write-guard-sentinel-check.py",
+      "tests/generated/20260522-080646-B/test_AC3_AC3-posttool-write-sentinel-consume.py",
+      "tests/generated/20260522-080646-B/test_AC4_AC4-scope-integrity.py"
+    ],
+    "tasks_completed": [
+      {
+        "id": 1,
+        "description": "Add match_sentinel_grant_for_write() to allowlist.py",
+        "type": "code",
+        "files_modified": ["hooks/lib/allowlist.py"],
+        "changes": "Added match_sentinel_grant_for_write(task_id, session_id, target_path) at line 484 (before consume_sentinel_grant_on_terminal_result). Function mirrors match_sentinel_grant_for_bash_command() shape: calls load_sentinel_grant_for_task, validates grant['session_id'] == session_id, iterates allowed_operations[] for op=='Write' AND entry['target']==target_path (exact equality). Uses 'target' field name per existing schema (allowlist.py:22). Returns matched dict entry or None.",
+        "rationale": "Root cause: match_sentinel_grant_for_write() was entirely absent from allowlist.py; the sentinel-grant system only had Bash support. Architectural gap introduced deliberately as deferred scope in task 20260519-211515."
+      },
+      {
+        "id": 2,
+        "description": "Hoist FILE_PATH/task_id parsing and add sentinel check to pretool-write-guard.sh",
+        "type": "code",
+        "files_modified": ["hooks/pretool-write-guard.sh"],
+        "changes": "Hoisted FILE_PATH extraction and _WG_TASK_ID resolution to before the _WG_IS_SUB check (was at line 50, after the /allow block). Added sentinel check inside _WG_IS_SUB != '1' block: if sentinel exists for task_id, call match_sentinel_grant_for_write via inline Python; if match -> exit 0; if sentinel exists-but-no-match -> exit 2 immediately (CF-1 invariant — suppresses legacy read_grant('Write') fallback). Legacy /allow block only reached when no sentinel exists.",
+        "rationale": "Root cause: write-guard had no sentinel check path and FILE_PATH was parsed after the /allow block (so any sentinel check placed before /allow would lack the file path). Codex findings #3 (parse ordering) and #5 (CF-1 invariant) both incorporated."
+      },
+      {
+        "id": 3,
+        "description": "Extend posttool-allowlist-consume.py with Write sentinel consumption branch",
+        "type": "code",
+        "files_modified": ["hooks/posttool-allowlist-consume.py"],
+        "changes": "Added top-level import of match_sentinel_grant_for_write. Added elif tool_name == 'Write': branch parallel to the existing if task_id and tool_name == 'Bash': block. Write branch extracts file_path = (data.get('tool_input') or {}).get('file_path', ''), calls match_sentinel_grant_for_write(task_id, session_id, file_path), and on match calls consume_sentinel_grant_on_terminal_result(). Malformed-grant fallback also applied for Write. Uses file_path not command (Write has no command field).",
+        "rationale": "Root cause: posttool-allowlist-consume.py:105 gated sentinel consumption exclusively on tool_name == 'Bash'. Codex finding #4 (posttool must use file_path not command) incorporated."
+      },
+      {
+        "id": 4,
+        "description": "Add TestMatchSentinelGrantForWrite to hooks/tests/test_allowlist_consolidation.py",
+        "type": "test",
+        "files_modified": ["hooks/tests/test_allowlist_consolidation.py"],
+        "changes": "Added match_sentinel_grant_for_write to imports. Added TestMatchSentinelGrantForWrite class with 5 test cases: match_returns_entry, session_mismatch_returns_none, target_mismatch_returns_none, expired_sentinel_returns_none, op_mismatch_returns_none. All 5 pass.",
+        "rationale": "BA spec S1 (Should Have): test coverage for match_sentinel_grant_for_write."
+      },
+      {
+        "id": 5,
+        "description": "Implement AC test bodies in tests/generated/20260522-080646-B/",
+        "type": "test",
+        "files_modified": [
+          "tests/generated/20260522-080646-B/test_AC1_AC1-write-sentinel-matcher.py",
+          "tests/generated/20260522-080646-B/test_AC2_AC2-write-guard-sentinel-check.py",
+          "tests/generated/20260522-080646-B/test_AC3_AC3-posttool-write-sentinel-consume.py",
+          "tests/generated/20260522-080646-B/test_AC4_AC4-scope-integrity.py"
+        ],
+        "changes": "Replaced TEST_INCOMPLETE stubs with real test bodies. AC1: match/session-mismatch/target-mismatch/expired cases. AC2: bash smoke tests via subprocess (sentinel-match exit 0, CF-1 no-match exit 2, legacy-only exit 0, no-grant exit 2). AC3: posttool Write success/failure sentinel consumption via subprocess. AC4: git diff HEAD scope integrity check.",
+        "rationale": "Manifest requires active tests to pass. All 4 AC tests now pass."
+      }
+    ],
+    "scripts_created": [],
+    "git_rationale": {
+      "root_cause_commit": "N/A — architectural gap (sentinel-grant system task 20260519-211515 deferred Write support as CF2-10 OBSERVATION_ONLY)",
+      "why_issue_occurred": "Sentinel-grant system was designed for Bash commands only; Write-tool sentinel support was explicitly deferred as out-of-scope in the prior cycle. No match function existed in allowlist.py, no sentinel check existed in write-guard.sh, and posttool restricted sentinel consumption to tool_name == 'Bash' only.",
+      "how_fix_addresses_root": "Added match_sentinel_grant_for_write() to allowlist.py; added sentinel check before the existing-file block in write-guard.sh; extended posttool to consume Write sentinel grants. All three structural absences are now filled."
+    },
+    "diff_stats": {
+      "files_changed": 4,
+      "lines_added": 200,
+      "lines_removed": 3,
+      "new_symbols_introduced": ["match_sentinel_grant_for_write", "TestMatchSentinelGrantForWrite"],
+      "minimum_possible_lines_estimate": 80,
+      "justification_for_overage": "Three production files each require ~20-40 lines of additive change (not reducible: each implements a distinct path in a separate file). The test additions (test_allowlist_consolidation.py +102 lines) are the dominant contributor — required by BA spec S1 and manifest. The 200-line total reflects 4 file changes across 3 production files + 1 test file with 5 unit test cases."
+    },
+    "fix_layer": "L4",
+    "scope_review_requested": false,
+    "qa_ready": true,
+    "qa_notes": "Run 'python3 -m pytest tests/generated/20260522-080646-B/ hooks/tests/test_allowlist_consolidation.py -v' to verify all 44 tests pass. Key behavioral checks: (1) AC2 smoke test verifies CF-1 invariant: sentinel-exists-but-no-match suppresses legacy /allow grant and exits 2. (2) AC3 verifies sentinel is unlinked after Write PostToolUse. (3) Subagent exemption preserved: sentinel check only fires when _WG_IS_SUB != '1'. (4) hooks/userprompt-consent-allowlist.sh not modified (grant creation path unchanged).",
+    "blast_radius": [
+      {
+        "modified": "hooks/lib/allowlist.py",
+        "imported_by": ["hooks/posttool-allowlist-consume.py", "hooks/pretool-write-guard.sh", "hooks/pretool-bash-safety.sh", "hooks/pretool-orchestrator-gate.py", "hooks/pretool-git-privilege-guard.py", "hooks/stop-cleanup-allowlist.sh"]
+      },
+      {
+        "modified": "hooks/pretool-write-guard.sh",
+        "imported_by": []
+      },
+      {
+        "modified": "hooks/posttool-allowlist-consume.py",
+        "imported_by": []
+      }
+    ],
+    "blast_radius_declarations": [
+      {
+        "file": "hooks/pretool-write-guard.sh",
+        "coverage_gap_severity": "critical",
+        "addressed_by": "tests_run",
+        "tests": ["AC2 smoke test (4 cases via subprocess)", "AC1 unit test (match_sentinel_grant_for_write)"]
+      },
+      {
+        "file": "hooks/posttool-allowlist-consume.py",
+        "coverage_gap_severity": "critical",
+        "addressed_by": "tests_run",
+        "tests": ["AC3 smoke test (Write success, Write failure, Bash-with-Write-sentinel)"]
+      },
+      {
+        "file": "hooks/lib/allowlist.py",
+        "coverage_gap_severity": "critical",
+        "addressed_by": "new_tests_written",
+        "tests": ["TestMatchSentinelGrantForWrite (5 unit test cases in test_allowlist_consolidation.py)", "AC1 acceptance test"]
+      }
+    ],
+    "permissions_to_add": [],
+    "implementation_notes": [
+      "CF-1 invariant implemented in write-guard.sh: sentinel existence check via 'ls ${_WG_SENTINEL_DIR}/${_WG_TASK_ID}*.json | grep -q .' — if sentinel exists for the task but does NOT match the write target, the hook exits 2 without falling through to the legacy read_grant('Write') path.",
+      "The posttool Write branch is an elif (not a separate if) to prevent double-consumption when Bash and Write are both tool_name == same event. Each PostToolUse event has exactly one tool_name.",
+      "AC4 scope check uses hooks/-scoped diff assertion rather than full diff assertion because there are pre-existing uncommitted changes to INDEX.md and test_ac*.sh files from prior cycles — these are not scope violations for this cycle."
+    ]
+  },
+  "self_verification": {
+    "build": "pass",
+    "smoke_check": "pass",
+    "notes": "All 4 AC tests pass. All 40 test_allowlist_consolidation.py tests pass (40 total including 5 new). Syntax check: allowlist.py OK, posttool OK, write-guard bash -n OK."
+  },
+  "codex_consult": {
+    "invoked": false,
+    "status": "not_requested",
+    "feedback_summary": null,
+    "feedback_incorporated": null
+  },
+  "blocking_issues": [],
+  "recommendations": [
+    "Update /allow command (hooks/userprompt-consent-allowlist.sh) to support Write operation grants in the interactive consent flow — currently users cannot create Write sentinel grants without manual JSON editing. This is out-of-scope for this cycle per WN1.",
+    "Consider adding a CLAUDE.md note documenting the sentinel-grant Write bypass pattern so future dev cycles know the mechanism exists."
+  ]
+}
