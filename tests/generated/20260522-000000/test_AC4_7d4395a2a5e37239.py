@@ -18,7 +18,76 @@ def test_AC4():
     WHEN:  score-update.sh --agent ba --event close_success_qa_pass --scores-file /tmp/test-scores.json is invoked on the temporary file
     THEN:  appended history entry contains key uncapped_delta = 108 (100 + 8 = pre-clamp target; delta for ba/close_success_qa_pass is 8) AND new_score remains 100 (clamped) AND existing history entries are not rewritten AND ts/event/delta/old_score/new_score/note fields in history entries are unchanged
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — score-update.sh uncapped_delta field: history[-1].uncapped_delta==108, new_score==100 (clamped)")
+    import json
+    import os
+    import tempfile
+    repo = "/dev/shm/dev-workspace/dot-claude"
+
+    # Create temporary scores file with ba at score 100
+    tmp_scores = {
+        "global": {
+            "agents": {
+                "ba": {
+                    "score": 100,
+                    "rank": "Master",
+                    "history": [
+                        {
+                            "ts": "2026-01-01T00:00:00Z",
+                            "event": "seed",
+                            "delta": 0,
+                            "old_score": 50,
+                            "new_score": 100,
+                            "note": "pre-existing entry",
+                        }
+                    ],
+                }
+            }
+        }
+    }
+    fd, tmp_path = tempfile.mkstemp(suffix=".json", prefix="test-scores-ac4-")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(tmp_scores, f)
+
+        # Run score-update.sh with ba/close_success_qa_pass (delta=8) against the temp file
+        result = subprocess.run(
+            ["bash", "scripts/score-update.sh",
+             "--agent", "ba",
+             "--event", "close_success_qa_pass",
+             "--scores-file", tmp_path],
+            capture_output=True,
+            text=True,
+            cwd=repo,
+        )
+        assert result.returncode == 0, (
+            f"score-update.sh exited {result.returncode}; stderr: {result.stderr}"
+        )
+
+        # Read result
+        with open(tmp_path, "r") as f:
+            data = json.load(f)
+
+        history = data["global"]["agents"]["ba"]["history"]
+
+        # Existing entry must not be rewritten (additive-only check)
+        assert history[0]["event"] == "seed", "Pre-existing history entry was rewritten"
+        assert history[0]["note"] == "pre-existing entry", "Pre-existing entry note was modified"
+
+        # New (last) entry checks
+        last = history[-1]
+        assert "uncapped_delta" in last, (
+            f"Expected 'uncapped_delta' key in history entry, got keys: {list(last.keys())}"
+        )
+        assert last["uncapped_delta"] == 108, (
+            f"Expected uncapped_delta == 108 (100 + 8 = pre-clamp target), got {last['uncapped_delta']}"
+        )
+        assert last["new_score"] == 100, (
+            f"Expected new_score == 100 (clamped), got {last['new_score']}"
+        )
+        assert last["delta"] == 8, f"Expected delta == 8, got {last['delta']}"
+        assert last["old_score"] == 100, f"Expected old_score == 100, got {last['old_score']}"
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
