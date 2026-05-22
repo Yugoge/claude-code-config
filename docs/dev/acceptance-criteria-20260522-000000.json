@@ -65,7 +65,7 @@
     },
     {
       "id": "AC4",
-      "ac_uid": "a6bfbf3fa39e6642",
+      "ac_uid": "7d4395a2a5e37239",
       "type": "hook",
       "given": "scripts/score-update.sh has been modified to compute and append uncapped_delta AND a temporary mock scores file exists with ba score at 100",
       "when": "score-update.sh --agent ba --event close_success_qa_pass --scores-file /tmp/test-scores.json is invoked on the temporary file",
