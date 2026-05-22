@@ -42,7 +42,7 @@
           "hooks/pretool-claude-config-guard.py",
           "hooks/pretool-block-production-files.sh"
         ],
-        "note": "pretool-claude-config-guard.py: line 47 (SENTINEL_NAME def), line 77 (_sentinel_present return), line 176 (enforcement gate if-condition)"
+        "note": "pretool-claude-config-guard.py: line 47 (SENTINEL_NAME constant def), lines 75-77 (_sentinel_present() function definition and return statement), lines 176-177 (enforcement gate: if _sentinel_present(): sys.exit(0) — inside main(), after json.load)"
       },
       "ac_uid": "ac3-hook-files-exhaustive-grep-with-line-citations"
     },
