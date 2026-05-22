@@ -137,6 +137,33 @@ def main() -> None:
                 pass
         if should_consume:
             consume_sentinel_grant_on_terminal_result(task_id, terminal_result)
+    elif task_id and tool_name == "Write":
+        # Sentinel-grant consume for Write-overwrite grants (task 20260522-080646-B).
+        # Uses tool_input.file_path (not command — Write has no command field).
+        file_path = (data.get("tool_input") or {}).get("file_path", "")
+        terminal_result = _classify_terminal_result(data)
+        should_consume = False
+        try:
+            m = match_sentinel_grant_for_write(task_id, session_id, file_path)
+            if m is not None:
+                should_consume = True
+        except Exception:
+            should_consume = True
+            terminal_result = "malformed"
+        # Malformed-grant fallback: sentinel exists but load/match failed.
+        if not should_consume:
+            try:
+                from lib.allowlist import (  # noqa: E402
+                    load_sentinel_grant_for_task,
+                    _enumerate_sentinel_grant_files,
+                )
+                if _enumerate_sentinel_grant_files(task_id) and load_sentinel_grant_for_task(task_id) is None:
+                    should_consume = True
+                    terminal_result = "malformed"
+            except Exception:
+                pass
+        if should_consume:
+            consume_sentinel_grant_on_terminal_result(task_id, terminal_result)
     sys.exit(0)
 
 
