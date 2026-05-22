@@ -156,7 +156,7 @@
     "strategy": "Single-line edit at commands/commit.md:157: replace the grep fragment and update the prose label 'literal-task-id grep' to 'machine-readable marker grep'",
     "files_to_create": [],
     "files_to_modify": ["commands/commit.md"],
-    "validation_approach": "Static grep checks: (1) grep -lF of marker against false-positive specs returns no match; (2) commands/commit.md line 157 contains the new marker pattern; (3) 'multiple specs produced this cycle without context linkage' still present (fail-closed preserved)"
+    "validation_approach": "Static grep checks: (1) grep -lF of marker for task-id 20260519-211515 against the two specific false-positive specs (spec-20260518-225715.md, spec-20260520-221059.md) returns exit 1 — stable, pins specific task-id + specific files; (2) commands/commit.md line 157 contains the new marker pattern; (3) 'multiple specs produced this cycle without context linkage' still present at line 162 (multi-candidate fail-closed preserved, AC3); (4) 'spec produced this cycle but not linked in context' still present at line 161 (single-candidate fail-closed preserved, AC3b)"
   },
   "acceptance_criteria_path": null,
   "blast_radius_map_path": null,
