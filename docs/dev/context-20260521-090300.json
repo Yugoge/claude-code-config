@@ -294,6 +294,7 @@
     "files_to_delete": [
       "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow (primary — CRITICAL)",
       "/dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 (Unicode-suffix anomaly — INERT)",
+      "/root/.claude.bak/.claude/.hook-refactor-allow。 (Unicode-suffix backup — INERT)",
       "/root/happy-dev.bak/.claude/.hook-refactor-allow (bak dir)",
       "/root/.claude.bak/.hook-refactor-allow (backup)",
       "/root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow (archive)"
