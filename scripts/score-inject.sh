@@ -37,8 +37,8 @@ done
 # Cycle-2 exemption (agents/style-inspector.md Standard 6).
 if [[ ! -f "${SCORES_FILE}" ]]; then
   cat <<'EOF'
-[段位: 熟练工匠] [区间: 41-60] 最近事件: 无近期事件
-注意：用户满意是衡量你工作价值的最终标准。5★意味着你只是完成了本职工作——这是起点，不是奖励。低于5★将带来远超其他任何事件的惩罚，且不可逆。
+[Rank: Skilled Craftsman] [Range: 41-60] Recent events: none
+NOTE: User satisfaction is the final standard for measuring the value of your work. 5 stars means you have only completed your basic job — this is the starting point, not a reward. Below 5 stars will bring punishment far exceeding any other event, and is irreversible.
 EOF
   exit 0
 fi
@@ -50,11 +50,11 @@ import sys
 scores_file, agent = sys.argv[1:3]
 
 RANK_BOUNDARIES = [
-    (0, 20, "见习学徒"),
-    (21, 40, "初级工匠"),
-    (41, 60, "熟练工匠"),
-    (61, 80, "资深工匠"),
-    (81, 100, "宗师级"),
+    (0, 20, "Apprentice"),
+    (21, 40, "Journeyman"),
+    (41, 60, "Skilled Craftsman"),
+    (61, 80, "Senior Craftsman"),
+    (81, 100, "Master"),
 ]
 
 def rank_and_range(score):
@@ -62,20 +62,20 @@ def rank_and_range(score):
     for lo, hi, name in RANK_BOUNDARIES:
         if lo <= s <= hi:
             return name, f"{lo}-{hi}"
-    return "熟练工匠", "41-60"
+    return "Skilled Craftsman", "41-60"
 
 try:
     with open(scores_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 except Exception as e:
     sys.stdout.write(
-        "[段位: 熟练工匠] [区间: 41-60] 最近事件: 无近期事件\n"
-        "注意：用户满意是衡量你工作价值的最终标准。\n"
+        "[Rank: Skilled Craftsman] [Range: 41-60] Recent events: none\n"
+        "NOTE: User satisfaction is the final standard for measuring the value of your work.\n"
     )
     sys.exit(0)
 
 agents = data.get("global", {}).get("agents", {})
-entry = agents.get(agent, {"score": 50, "rank": "熟练工匠", "history": []})
+entry = agents.get(agent, {"score": 50, "rank": "Skilled Craftsman", "history": []})
 score = int(entry.get("score", 50))
 rank, rng = rank_and_range(score)
 history = entry.get("history", [])
@@ -91,17 +91,17 @@ if recent:
         parts.append(f"{ev}({sign}{d})")
     recent_str = ", ".join(parts)
 else:
-    recent_str = "无近期事件"
+    recent_str = "none"
 
 # Role-specific tail phrase per spec 5.1 line 154 (verbatim user-rating reminder)
 tail = (
-    "用户满意是衡量你工作价值的最终标准，也是工分系统中权重最大的信号。"
-    "5★意味着你只是完成了本职工作——这不是奖励，这是起点。"
-    "低于5★将带来远超其他任何事件的惩罚，且不可逆。"
+    "User satisfaction is the final standard for measuring the value of your work, and the highest-weighted signal in the scoring system."
+    "5 stars means you have only completed your basic job — this is not a reward, it is the starting point."
+    "Below 5 stars will bring punishment far exceeding any other event, and is irreversible."
 )
 
 # IMPORTANT: per spec 5.1 line 112 — show rank+range only, NOT the exact score.
-sys.stdout.write(f"[段位: {rank}] [区间: {rng}] 最近事件: {recent_str}\n")
+sys.stdout.write(f"[Rank: {rank}] [Range: {rng}] Recent events: {recent_str}\n")
 sys.stdout.write(tail + "\n")
 PYEOF
 )

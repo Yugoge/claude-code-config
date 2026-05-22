@@ -98,11 +98,11 @@ EVENT_DELTAS = {
 }
 
 RANK_BOUNDARIES = [
-    (0, 20, "见习学徒"),
-    (21, 40, "初级工匠"),
-    (41, 60, "熟练工匠"),
-    (61, 80, "资深工匠"),
-    (81, 100, "宗师级"),
+    (0, 20, "Apprentice"),
+    (21, 40, "Journeyman"),
+    (41, 60, "Skilled Craftsman"),
+    (61, 80, "Senior Craftsman"),
+    (81, 100, "Master"),
 ]
 
 def rank_for_score(score):
@@ -110,7 +110,7 @@ def rank_for_score(score):
     for lo, hi, name in RANK_BOUNDARIES:
         if lo <= score <= hi:
             return name
-    return "熟练工匠"
+    return "Skilled Craftsman"
 
 CANONICAL_AGENTS = {
     "ba", "dev", "qa",
@@ -146,7 +146,7 @@ with open(scores_file, "r", encoding="utf-8") as f:
 data.setdefault("global", {}).setdefault("agents", {})
 agents = data["global"]["agents"]
 if agent not in agents:
-    agents[agent] = {"score": 50, "rank": "熟练工匠", "history": []}
+    agents[agent] = {"score": 50, "rank": "Skilled Craftsman", "history": []}
 
 old_score = int(agents[agent].get("score", 50))
 new_score = max(0, min(100, old_score + delta))
