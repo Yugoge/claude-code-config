@@ -81,7 +81,7 @@
       "Python trace confirms /root/.claude/.hook-refactor-allow resolves to /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow via symlink (observed: Python Path.resolve())",
       "pretool-block-production-files.sh:133 checks $HOME/.claude/.hook-refactor-allow (inferred: source read)",
       "HOME=/root, /root/.claude -> /dev/shm/dev-workspace/dot-claude, so HOME check IS active for stale file (observed: Python Path.exists() trace)",
-      "pretool-claude-config-guard.py:77 checks $CLAUDE_PROJECT_DIR/.claude/.hook-refactor-allow; with CLAUDE_PROJECT_DIR=/dev/shm/dev-workspace/dot-claude, path is .claude/.hook-refactor-allow which does NOT exist (observed: Python trace)",
+      "pretool-claude-config-guard.py:75-77 defines _sentinel_present() which checks $CLAUDE_PROJECT_DIR/.claude/.hook-refactor-allow; enforcement gate at lines 176-177 (if _sentinel_present(): sys.exit(0)); with CLAUDE_PROJECT_DIR=/dev/shm/dev-workspace/dot-claude, path is .claude/.hook-refactor-allow which does NOT exist (observed: Read + Python trace)",
       "4 consumed-sentinel files in /tmp/ contain explicit human-authored session text stating intent to delete (observed: cat of /tmp/.hook-refactor-allow-consumed-*)"
     ],
     "diagnosis_completeness": "complete",
