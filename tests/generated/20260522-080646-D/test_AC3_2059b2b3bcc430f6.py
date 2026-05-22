@@ -17,7 +17,14 @@ def test_AC3():
     WHEN:  a reader reads the provenance check procedure
     THEN:  the text specifies: compute git diff --name-only <baseline_head_sha> (working tree vs baseline); for every path in dev.files_modified absent from this diff AND absent from baseline_dirty_snapshot, raise a critical finding with primary_cause: 'dev_implementation' and label 'dev_provenance_violation'
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — dev_provenance_violation, baseline_head_sha, and primary_cause.*dev_implementation all present in agents/qa.md provenance check section")
+    import pathlib
+    import re
+    repo_root = pathlib.Path(__file__).parents[3]
+    text = (repo_root / "agents" / "qa.md").read_text()
+
+    assert "dev_provenance_violation" in text, \
+        "dev_provenance_violation not found in agents/qa.md"
+    assert "baseline_head_sha" in text, \
+        "baseline_head_sha not found in agents/qa.md"
+    assert re.search(r'primary_cause.*dev_implementation', text), \
+        "primary_cause.*dev_implementation not found in agents/qa.md"
