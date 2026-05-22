@@ -18,7 +18,63 @@ def test_AC5():
     WHEN:  test -n "$(git log -1 --format=%H -- docs/dev/specs/spec-20260520-221059.md)" AND git ls-files docs/dev/specs/spec-20260520-221059/views/ | grep -q . AND git diff --name-only HEAD^..HEAD are run
     THEN:  log command exits 0 with non-empty SHA AND views grep exits 0 (views/ files are tracked) AND HEAD^..HEAD diff does NOT include unrelated docs/dev/*.json ticket files qa-report files or other cycle artifacts
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — spec file committed to git: spec md has commit SHA, views/ tracked, HEAD diff scoped to spec files only")
+    repo = "/dev/shm/dev-workspace/dot-claude"
+
+    # Spec file must appear in git log (has at least one commit SHA)
+    log_result = subprocess.run(
+        ["git", "log", "-1", "--format=%H", "--",
+         "docs/dev/specs/spec-20260520-221059.md"],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+    )
+    sha = log_result.stdout.strip()
+    assert sha, (
+        "Expected docs/dev/specs/spec-20260520-221059.md to have a commit SHA, "
+        "but git log returned empty. Run the spec+views commit first."
+    )
+
+    # views/ directory must have tracked files
+    ls_result = subprocess.run(
+        ["git", "ls-files",
+         "docs/dev/specs/spec-20260520-221059/views/"],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+    )
+    views_files = [f for f in ls_result.stdout.strip().split("\n") if f]
+    assert len(views_files) > 0, (
+        "Expected docs/dev/specs/spec-20260520-221059/views/ to have tracked files, "
+        "but git ls-files returned empty."
+    )
+
+    # The commit that introduced the spec must not include unrelated docs/dev artifacts
+    diff_result = subprocess.run(
+        ["git", "diff", "--name-only", f"{sha}^..{sha}"],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+    )
+    changed_files = [f for f in diff_result.stdout.strip().split("\n") if f]
+
+    FORBIDDEN_PATTERNS = [
+        "docs/dev/acceptance-criteria-",
+        "docs/dev/ba-qa-report-",
+        "docs/dev/close-report-",
+        "docs/dev/completion-",
+        "docs/dev/context-",
+        "docs/dev/dev-report-",
+        "docs/dev/prompt-inspector-report-",
+        "docs/dev/qa-report-",
+        "docs/dev/style-inspector-report-",
+        "docs/dev/ticket-",
+        "docs/dev/user-requirement-",
+    ]
+    forbidden_in_commit = [
+        f for f in changed_files
+        if any(pat in f for pat in FORBIDDEN_PATTERNS)
+    ]
+    assert not forbidden_in_commit, (
+        f"Spec commit includes unrelated docs/dev artifacts: {forbidden_in_commit}. "
+        "AC5 requires scope-contained commit with only spec + views files."
+    )
