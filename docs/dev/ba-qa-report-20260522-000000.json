@@ -1,16 +1,17 @@
 {
   "request_id": "20260522-000000",
   "task_id": "20260522-000000",
-  "timestamp": "2026-05-22T00:00:00Z",
+  "timestamp": "2026-05-22T09:00:00Z",
   "mode": "ba_validation",
+  "iteration": 2,
   "verdict": "fail",
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex confirmed missing acceptance-criteria and blast-radius-map artifacts; expanded spec_text_vs_execution_drift to cover R2/R3 divergences and validation_approach wc -c; flagged logs/lifecycle.jsonl missing from files_to_create; noted arch-4 internal inconsistency; flagged diagnosis_layer=L3 should be L5; noted AC4 wrong delta example (106 vs 108); noted AC4 field list mismatch vs actual schema.",
-    "feedback_incorporated": "Added blast-radius-map as a Dimension 3 gap; expanded Dimension 5 to cover all 4 context-vs-ticket divergences (R2 12+ vs exactly 12, R3 missing tracking check, R4 byte count, validation_approach wc -c); added Dimension 1 objection for logs/lifecycle.jsonl missing from files_to_create; added evidence_quality objection for arch-4 state inconsistency; added evidence_quality objection for diagnosis_layer mismatch."
+    "feedback_summary": "Codex confirmed FAIL verdict and identified additional issues beyond the original AC4 shell-quoting finding: (1) AC4 check uses wrong JSON schema path d[agents][ba] instead of d[global][agents][ba]; (2) ; echo 0 suffix in AC1/AC2 check commands masks exit codes making exit_code:1 expectations permanently unfalsifiable; (3) residual 12+ drift in context success_criteria[0] not updated when R2 was corrected; (4) arch-4 inconsistency broader than ticket line 26 — also at line 62. AC4 delta 108 confirmed correct (ba close_success_qa_pass = 8).",
+    "feedback_incorporated": "Codex findings 1-4 and 6 incorporated as blocking objections OBJ-1 through OBJ-4. Findings 5/7/8/9/10 classified as OBSERVATION_ONLY."
   },
-  "summary": "BA spec FAILS on investigation_completeness (acceptance-criteria and blast-radius-map files missing), spec_text_vs_execution_drift (4 context-vs-ticket AC divergences), and evidence_quality (arch-4 state misrepresented, logs/lifecycle.jsonl absent from files_to_create, diagnosis_layer wrong).",
+  "summary": "BA resolved all 7 prior blocking objections from iteration 1. However, 4 new blocking defects found in iteration 2: (1) AC4 check command is shell-broken (unescaped inner double-quotes cause SyntaxError); (2) AC4 check uses wrong JSON schema path d[agents][ba] instead of d[global][agents][ba]; (3) ; echo 0 suffix in AC1/AC2 check.commands makes exit_code:1 expectations permanently unfalsifiable; (4) residual 12+ drift in context success_criteria[0] contradicts the corrected exactly-12 in R2 and AC1. FAIL.",
   "objections": [
     {
       "dimension": "investigation_completeness",
