@@ -43,7 +43,9 @@ Thumbs.db
 *.backup
 *.bak
 
-logs/
+logs/*
+# PERMITTED DELIVERY PATH: logs/lifecycle.jsonl is the R9 in-repo lifecycle log (spec-20260520-221059 binding constraint)
+!logs/lifecycle.jsonl
 session-env/
 systemd/
 
