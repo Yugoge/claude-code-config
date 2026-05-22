@@ -489,6 +489,12 @@ If either check fails and you cannot fix it, report `"status": "blocked"` instea
 
 **Top-level non-null lists** (CRITICAL): `dev.files_modified` and `dev.files_created` MUST be non-null lists at the `dev` root level (in addition to any per-task `tasks_completed[].files_*` fields). Empty list `[]` is the documented acceptable value for no-edit cycles. `commit.sh` closure detection treats `null` as a missing field and refuses the report.
 
+**Git-diff derivation (MANDATORY)**: `dev.files_modified` and `dev.files_created` MUST be derived from `git diff --name-only <baseline_head_sha>` (comparing the working tree to the baseline SHA received in the dispatch payload), NOT from work-tree inspection of expected state. Run this command at the end of your implementation, before writing the report. If `baseline_head_sha` is empty or absent (unborn repo), use `git status --porcelain` to list changed files and note the fallback in `implementation_notes`.
+
+**`observed_preexisting[]`**: A separate informational list of file paths that dev confirmed are in the expected state but do NOT appear in `git diff --name-only <baseline_head_sha>` (i.e., already correct before this cycle ran). Files that were in `baseline_dirty_snapshot` at dispatch time and match expected state without appearing in the diff belong here. This field is informational only — it does NOT block QA or changelog-analyst.
+
+**`baseline_head_sha`** MUST appear as a top-level field in the dev-report JSON so downstream consumers (QA, changelog-analyst) can independently re-derive the diff without reading the context JSON.
+
 **MUST write report to filesystem**: `docs/dev/dev-report-<timestamp>.json`
 
 The dev report MUST be written to the filesystem so QA can read it directly. Also return the report content in your response.
