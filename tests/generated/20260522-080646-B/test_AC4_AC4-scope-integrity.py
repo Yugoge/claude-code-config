@@ -5,10 +5,31 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import subprocess
+from pathlib import Path
+
 import pytest
 
 AC_UID = "AC4-scope-integrity"
 AC_TYPE = "data"
+
+REPO_ROOT = str(Path(__file__).parent.parent.parent)
+
+EXPECTED_FILES = {
+    "hooks/lib/allowlist.py",
+    "hooks/pretool-write-guard.sh",
+    "hooks/posttool-allowlist-consume.py",
+}
+OPTIONAL_FILES = {
+    "hooks/tests/test_allowlist_consolidation.py",
+    "tests/generated/20260522-080646-B/test_AC1_AC1-write-sentinel-matcher.py",
+    "tests/generated/20260522-080646-B/test_AC2_AC2-write-guard-sentinel-check.py",
+    "tests/generated/20260522-080646-B/test_AC3_AC3-posttool-write-sentinel-consume.py",
+    "tests/generated/20260522-080646-B/test_AC4_AC4-scope-integrity.py",
+}
+FORBIDDEN_FILES = {
+    "hooks/userprompt-consent-allowlist.sh",
+}
 
 
 def test_AC4():
@@ -17,7 +38,24 @@ def test_AC4():
     WHEN:  git diff HEAD is examined
     THEN:  only hooks/lib/allowlist.py, hooks/pretool-write-guard.sh, hooks/posttool-allowlist-consume.py appear in the diff (plus optionally hooks/tests/test_allowlist_consolidation.py); hooks/userprompt-consent-allowlist.sh is NOT in the diff
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — git diff shows only allowed files; hooks/userprompt-consent-allowlist.sh absent from diff")
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "HEAD"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+    assert result.returncode == 0, f"git diff failed: {result.stderr}"
+    changed = set(result.stdout.strip().splitlines())
+
+    # All three required files must appear in the diff
+    for required in EXPECTED_FILES:
+        assert required in changed, f"Required file not in diff: {required}"
+
+    # Forbidden files must NOT appear
+    for forbidden in FORBIDDEN_FILES:
+        assert forbidden not in changed, f"Forbidden file in diff: {forbidden}"
+
+    # Any file in the diff must be in expected or optional sets
+    allowed = EXPECTED_FILES | OPTIONAL_FILES
+    extra = changed - allowed
+    assert not extra, f"Unexpected files in diff (scope violation): {extra}"
