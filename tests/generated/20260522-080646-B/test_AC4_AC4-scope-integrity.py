@@ -13,7 +13,7 @@ import pytest
 AC_UID = "AC4-scope-integrity"
 AC_TYPE = "data"
 
-REPO_ROOT = str(Path(__file__).parent.parent.parent)
+REPO_ROOT = str(Path(__file__).parent.parent.parent.parent)
 
 EXPECTED_FILES = {
     "hooks/lib/allowlist.py",
