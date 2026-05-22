@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-22T08:23:10Z*
-**Total entries**: 355
+*Last updated: 2026-05-22T08:23:15Z*
+**Total entries**: 356
 **Convention**: kebab
 
 ## Tree
@@ -342,6 +342,7 @@ dev/
 ├── `ticket-20260521-085827-fa9f07.md` - BA Specification: Batched remediation — codex output relocation + sentinel investigation + /allow vs orchestra tracker-gate
 ├── `ticket-20260521-090100.md` - BA Specification: Canonical Codex Output Path (docs/codex/)
 ├── `ticket-20260522-000000.md` - BA Specification: Gitignore fixes, spec commitment, tmp-cleanup.sh mirror, and score-update uncapped_delta
+├── `ticket-20260522-080646-A.md` - BA Specification: bash-safety hook false positives — substring vs executable-context matching
 ├── `ticket-20260522-080646-B.md` - BA Specification: Write-Guard Sentinel Integration
 ├── `ticket-20260522-080646-C.md` - BA Specification: Tighten Step 7 Stage-3 Candidate Predicate to Machine-Readable Marker
 ├── `ticket-20260522-080646-D.md` - BA Specification: Dev Self-Report Provenance (OOS Item D)
