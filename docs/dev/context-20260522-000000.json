@@ -126,7 +126,7 @@
   "diagnosis_layer": "L5",
   "requirements_decomposition": [
     {"id": "R1", "source_phrase": "将你说的问题全部保存为新的spec", "acceptance_criterion": "N/A — save already done via spec-20260520-221059.md; this decomposition covers implementation items"},
-    {"id": "R2", "source_phrase": "arch-1: docs/reference/ entirely gitignored at .gitignore:66", "acceptance_criterion": "git ls-files docs/reference/ returns 12+ files after exception added"},
+    {"id": "R2", "source_phrase": "arch-1: docs/reference/ entirely gitignored at .gitignore:66", "acceptance_criterion": "git ls-files docs/reference/ | wc -l returns exactly 12 after exception added (pre-existing file count enforced; prevents scope creep)"},
     {"id": "R3", "source_phrase": "arch-8: logs/ gitignored conflicts with mandated logs/lifecycle.jsonl placement", "acceptance_criterion": "git check-ignore logs/lifecycle.jsonl exits 1; git check-ignore logs/checkpoint.log still exits 0"},
     {"id": "R4", "source_phrase": "arch-5: /usr/local/sbin/tmp-cleanup.sh (12077 bytes) has no in-repo mirror", "acceptance_criterion": "scripts/install/tmp-cleanup-install.sh tracked in git, byte count matches 12077, execute permission set, shebang is #!/usr/bin/env bash"},
     {"id": "R5", "source_phrase": "arch-7 phase 1: score-update.sh:152 clamps to min(100), 51+ positive delta points silently lost", "acceptance_criterion": "score-update.sh history entries include uncapped_delta key equal to old_score + delta before clamping"},
