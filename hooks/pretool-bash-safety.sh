@@ -769,7 +769,7 @@ if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(rm|mv)\s' && echo "$COMMAND" | 
 fi
 
 # Block: filesystem rm (but NOT docker rm, which is handled above)
-if echo "$COMMAND" | grep -qE '(^|[;|&]\s*)rm\s' && ! echo "$COMMAND" | grep -qE 'docker\s+rm\s'; then
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(^|[;|&]\s*)rm\s' && ! echo "$COMMAND" | grep -qE 'docker\s+rm\s'; then
   echo "BLOCKED: rm is forbidden — delete files manually or ask the user" >&2
   echo "Command: $COMMAND" >&2
   exit 2
