@@ -17,7 +17,25 @@ def test_AC2():
     WHEN:  a reader reads the dev.files_modified and dev.files_created field descriptions
     THEN:  the description explicitly states these lists must be derived from 'git diff --name-only <baseline_head_sha>' comparing working tree to baseline, AND the schema includes an 'observed_preexisting[]' field with description, AND 'baseline_head_sha' appears as a top-level dev-report JSON field
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — observed_preexisting, baseline_head_sha, and git diff --name-only all present in agents/dev.md Output Format section")
+    import pathlib
+    repo_root = pathlib.Path(__file__).parents[3]
+    text = (repo_root / "agents" / "dev.md").read_text()
+
+    assert "observed_preexisting" in text, \
+        "observed_preexisting not found in agents/dev.md"
+    assert "baseline_head_sha" in text, \
+        "baseline_head_sha not found in agents/dev.md"
+    assert "git diff --name-only" in text, \
+        "git diff --name-only not found in agents/dev.md"
+
+    # All three must be in the Output Format section
+    output_format_idx = text.find("## Output Format")
+    assert output_format_idx >= 0, "Output Format section not found in agents/dev.md"
+    output_format_text = text[output_format_idx:]
+
+    assert "observed_preexisting" in output_format_text, \
+        "observed_preexisting not found in Output Format section of agents/dev.md"
+    assert "baseline_head_sha" in output_format_text, \
+        "baseline_head_sha not found in Output Format section of agents/dev.md"
+    assert "git diff --name-only" in output_format_text, \
+        "git diff --name-only not found in Output Format section of agents/dev.md"
