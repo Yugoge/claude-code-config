@@ -1,7 +1,7 @@
 {
   "request_id": "20260521-090300",
   "task_id": "20260521-090300",
-  "timestamp": "2026-05-21T09:03:00Z",
+  "timestamp": "2026-05-22T10:30:00Z",
   "complexity_tier": "STANDARD",
   "risk_level": "high",
   "_risk_level_doc": "High: the stale primary sentinel bypasses hook-self-modification guards globally via HOME symlink. Additionally, 4 live per-project sentinels (happy-dev, orchestra, travel-planner, multi-asset-portfolio) activate the same bypass for sessions running in those project contexts. The three affected hook files (pretool-bash-safety.sh, pretool-block-production-files.sh, pretool-orchestrator-prompt-purity.py) form the security enforcement floor. The enforcement gate in pretool-claude-config-guard.py is at lines 176-177 (not line 77 as previously cited — line 77 is the _sentinel_present() function body).",
