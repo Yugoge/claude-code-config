@@ -18,7 +18,7 @@
         "arch-5: scripts/install/tmp-cleanup-install.sh (verbatim copy of /usr/local/sbin/tmp-cleanup.sh)",
         "arch-7 phase 1: uncapped_delta field in score-update.sh history entries",
         "arch-2: git commit of spec-20260520-221059.md and views directory",
-        "arch-4 (conditional): commit staged agent-scores.json deletion if still staged"
+        "arch-4 (verify-no-op): confirm git ls-tree HEAD -- agent-scores.json is empty (deletion already committed to HEAD as of 2026-05-22 live verification; no action needed)"
       ],
       "excluded": [
         "arch-3: durable tmpfs mirror strategy (multi-cycle)",
