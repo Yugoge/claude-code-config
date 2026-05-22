@@ -737,7 +737,8 @@ fi
 
 # Block: kill with ANY signal targeting PIDs (kill -9, kill -TERM, kill -15, kill -HUP, etc.)
 # Word-boundary anchor ensures "kill" is a command word, not a substring.
-if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(^|[\s;|&])(kill)\s+-'; then
+# Note: \s inside bracket expressions is NOT whitespace in grep -E; use [ \t] instead.
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(^|[ \t;|&])(kill)[ \t]+-'; then
   echo "BLOCKED: kill with signals is forbidden — use graceful shutdown methods" >&2
   echo "Command: $COMMAND" >&2
   exit 2
