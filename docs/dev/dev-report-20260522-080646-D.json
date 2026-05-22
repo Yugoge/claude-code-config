@@ -3,6 +3,7 @@
   "task_id": "20260522-080646-D",
   "timestamp": "2026-05-22T08:30:00Z",
   "baseline_head_sha": "1a1d058665a1f525b9e4c219c93f69ebb2ae90bb",
+  "baseline_dirty_snapshot": "M .claude/INDEX.md\n M CLAUDE.md\n M agents/INDEX.md\n M commands/INDEX.md\n M commands/README.md\n M docs/dev/INDEX.md\n M docs/dev/cleanliness-inspector-report-20260520-085647-d1722b.json\n M docs/dev/close-report-d1e94e.md\n M docs/dev/completion-d1e94e.md\n M docs/dev/dev-report-d1e94e.json\n M docs/dev/prompt-inspector-report-20260520-085647-d1722b.json\n M docs/dev/qa-report-d1e94e.json\n M docs/dev/specs/INDEX.md\n M docs/dev/style-inspector-report-20260520-085647-d1722b.json\n M hooks/INDEX.md\n M hooks/doc_sync/INDEX.md\n M policies/INDEX.md\n M scripts/INDEX.md\n M scripts/README.md\n M settings.json",
   "dev_report_path": "docs/dev/dev-report-20260522-080646-D.json",
   "dev": {
     "status": "completed",
