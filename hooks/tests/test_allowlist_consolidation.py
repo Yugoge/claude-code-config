@@ -531,5 +531,106 @@ class TestSentinelGrantLifecycle(unittest.TestCase):
                 os.unlink(path)
 
 
+class TestMatchSentinelGrantForWrite(unittest.TestCase):
+    """Tests for match_sentinel_grant_for_write (task 20260522-080646-B / AC1).
+
+    Covers the four canonical cases: match, session mismatch, target mismatch,
+    and expired sentinel.
+    """
+
+    def setUp(self):
+        os.makedirs(SENTINEL_GRANT_DIR, exist_ok=True)
+
+    def _write_sentinel(self, task_id, session_id, ops, ttl=300):
+        path = os.path.join(SENTINEL_GRANT_DIR, f"{task_id}.json")
+        now = time.time()
+        grant = {
+            "task_id": task_id,
+            "session_id": session_id,
+            "allowed_operations": ops,
+            "created_at": now,
+            "expires_at": now + ttl,
+        }
+        with open(path, "w") as f:
+            json.dump(grant, f)
+        return path
+
+    def test_match_returns_entry(self):
+        """Session and target both match — returns the matched entry dict."""
+        task_id = "test-write-match"
+        session_id = "test-session-w1"
+        target = "/tmp/test-match-target.json"
+        path = self._write_sentinel(task_id, session_id, [{"op": "Write", "target": target}])
+        try:
+            result = match_sentinel_grant_for_write(task_id, session_id, target)
+            self.assertIsNotNone(result)
+            self.assertEqual(result.get("op"), "Write")
+            self.assertEqual(result.get("target"), target)
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_session_mismatch_returns_none(self):
+        """Wrong session_id — returns None regardless of target."""
+        task_id = "test-write-session-mismatch"
+        session_id = "correct-session"
+        target = "/tmp/test-session-mismatch.json"
+        path = self._write_sentinel(task_id, session_id, [{"op": "Write", "target": target}])
+        try:
+            result = match_sentinel_grant_for_write(task_id, "wrong-session", target)
+            self.assertIsNone(result)
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_target_mismatch_returns_none(self):
+        """Correct session but wrong target path — returns None."""
+        task_id = "test-write-target-mismatch"
+        session_id = "test-session-w3"
+        target = "/tmp/correct-target.json"
+        path = self._write_sentinel(task_id, session_id, [{"op": "Write", "target": target}])
+        try:
+            result = match_sentinel_grant_for_write(task_id, session_id, "/tmp/other-target.json")
+            self.assertIsNone(result)
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_expired_sentinel_returns_none(self):
+        """Expired sentinel (expires_at in the past) — load returns None."""
+        task_id = "test-write-expired"
+        session_id = "test-session-w4"
+        target = "/tmp/test-expired-target.json"
+        path = os.path.join(SENTINEL_GRANT_DIR, f"{task_id}.json")
+        now = time.time()
+        with open(path, "w") as f:
+            json.dump({
+                "task_id": task_id,
+                "session_id": session_id,
+                "allowed_operations": [{"op": "Write", "target": target}],
+                "created_at": now - 600,
+                "expires_at": now - 300,
+            }, f)
+        try:
+            result = match_sentinel_grant_for_write(task_id, session_id, target)
+            self.assertIsNone(result)
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_op_mismatch_returns_none(self):
+        """Grant has op='ls' not 'Write' — returns None even on target match."""
+        task_id = "test-write-op-mismatch"
+        session_id = "test-session-w5"
+        target = "/tmp/test-op-mismatch.json"
+        path = self._write_sentinel(task_id, session_id, [{"op": "ls", "target": target}])
+        try:
+            result = match_sentinel_grant_for_write(task_id, session_id, target)
+            self.assertIsNone(result)
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+
 if __name__ == "__main__":
     unittest.main()
