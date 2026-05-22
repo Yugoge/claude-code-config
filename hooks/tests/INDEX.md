@@ -1,22 +1,22 @@
 # tests
 
-*Last updated: 2026-05-20T09:40:06Z*
+*Last updated: 2026-05-22T08:55:24Z*
 **Total entries**: 11
 **Convention**: kebab
 
 ## Tree
 ```
 tests/
-├── `_ac10_verify.sh` - Shell script
-├── `_ac1_verify.sh` - Shell script
-├── `_ac3_verify.sh` - Shell script
-├── `_ac5_verify.sh` - Shell script
-├── `_ac6_verify.sh` - Shell script
-├── `_ac9_verify.sh` - Shell script
-├── `_final_sweep.sh` - Final sweep — invoke each AC's verifier and print PASS/FAIL summary.
+├── `test_ac10_verify.sh` - Shell script
+├── `test_ac1_verify.sh` - Shell script
+├── `test_ac3_verify.sh` - Shell script
+├── `test_ac5_verify.sh` - Shell script
+├── `test_ac6_verify.sh` - Shell script
+├── `test_ac9_verify.sh` - Shell script
 ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 ├── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
+├── `test_final_sweep.sh` - Final sweep — invoke each AC's verifier and print PASS/FAIL summary.
 └── `test_push_sentinel_abort.sh` - Unit test for AC1 V5: hooks/push.sh self-aborts before any real git push
 ```
 
