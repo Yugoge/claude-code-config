@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "spec_id": "spec-20260520-221059",
+  "monolith_path": "docs/dev/specs/spec-20260520-221059.md",
+  "monolith_sha256": "cf9117fd61cbbf4cf985cf49e575bb0d97aed75591312aa06cddc471c17ab543",
+  "monolith_bytes": 37538,
+  "monolith_lines": 283,
+  "created_at": "2026-05-21T00:00:00Z",
+  "agent_relevance": {
+    "ba": {
+      "included": true,
+      "reason": "Pipeline ba -> dev -> qa; will turn each Layer into prioritized tickets"
+    },
+    "dev": {
+      "included": true,
+      "reason": "Pipeline ba -> dev -> qa; implementation when scoped"
+    },
+    "qa": {
+      "included": true,
+      "reason": "Pipeline ba -> dev -> qa; verify gates + lifecycle log"
+    },
+    "architect": {
+      "included": true,
+      "reason": "Structural items: R6/D1/D3/D4/D5/E5/E10/E16/J3/J7/P1/P2/Q4/Q6/M3/M4/U3"
+    },
+    "ui-specialist": {
+      "included": false,
+      "reason": "No UI surface"
+    },
+    "pm": {
+      "included": false,
+      "reason": "No priority/timeline directives"
+    },
+    "product-owner": {
+      "included": false,
+      "reason": "No business-requirement frames"
+    },
+    "user": {
+      "included": false,
+      "reason": "No end-user scenarios"
+    },
+    "cleaner": {
+      "included": false,
+      "reason": "Not a cleanup execution task"
+    },
+    "cleanliness-inspector": {
+      "included": false,
+      "reason": "Not a file-organization inspection task"
+    },
+    "git-edge-case-analyst": {
+      "included": false,
+      "reason": "Not a git history analysis task"
+    },
+    "prompt-inspector": {
+      "included": false,
+      "reason": "Not a prompt audit task"
+    },
+    "rule-inspector": {
+      "included": false,
+      "reason": "Not a folder-rule discovery task"
+    },
+    "style-inspector": {
+      "included": false,
+      "reason": "Not a development-standards audit task"
+    },
+    "test-executor": {
+      "included": false,
+      "reason": "Not a test-execution task"
+    },
+    "test-validator": {
+      "included": false,
+      "reason": "Not a test-validation task"
+    }
+  },
+  "views": {
+    "ba": {
+      "path": "views/ba.md",
+      "bytes": 36852,
+      "lines": 229,
+      "sha256": "98768d1b2dbbb59ed89559caa6d7daaa707c8a56205bbc47a3cfe8031530b31a"
+    },
+    "dev": {
+      "path": "views/dev.md",
+      "bytes": 15102,
+      "lines": 106,
+      "sha256": "b687ca92c059620f6709ed1f3b1b94d43a9853967de2e7278d186de3402e0ca1"
+    },
+    "qa": {
+      "path": "views/qa.md",
+      "bytes": 25235,
+      "lines": 163,
+      "sha256": "797069af1920d0428850659f1996f1bbeabdcc020c433552312ba61758f7ad09"
+    },
+    "architect": {
+      "path": "views/architect.md",
+      "bytes": 6298,
+      "lines": 68,
+      "sha256": "2cfba0940b76b38ccfaf4368f68f9a1aad79864d5f1760b9f9d6fe6020858ab5"
+    },
+    "orchestrator": {
+      "path": "views/orchestrator.md",
+      "bytes": 1306,
+      "lines": 64,
+      "sha256": "78f823449a6602db77e056f8ae15902889f53ec59bc003ba43c0a63e60ca38cd"
+    }
+  },
+  "sections_present": {
+    "S1": true,
+    "S2": true,
+    "S3": true,
+    "S4": true,
+    "S5": true,
+    "S6": true,
+    "S7": true,
+    "S8": true
+  }
+}
