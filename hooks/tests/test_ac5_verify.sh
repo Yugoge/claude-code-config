@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -u
+TMPDIR_SELF=$(mktemp -d -t ac5-verify-XXXXXX)
+trap 'rm -rf "$TMPDIR_SELF" 2>/dev/null' EXIT INT TERM
+STEP7_MD="$TMPDIR_SELF/step7.md"
 awk '
   /^#{2,3}[[:space:]]+Step 7/ { in_section = 1; print; next }
   /^#{2,3}[[:space:]]+Step [0-9]/ && in_section { in_section = 0 }
   in_section { print }
-' commands/commit.md > /tmp/step7.md
+' commands/commit.md > "$STEP7_MD"
 
 echo "=== V1 ==="
 awk '
@@ -26,13 +29,13 @@ awk '
     print "AC5-V1 PASS s1=" s1 " s2=" s2 " s3=" s3 " s4a=" s4a " s4b=" s4b
     exit 0
   }
-' /tmp/step7.md
+' "$STEP7_MD"
 
 echo "=== V2 ==="
-grep -nE 'fence-aware|fenced code block|skip ranges between' /tmp/step7.md | head -3
+grep -nE 'fence-aware|fenced code block|skip ranges between' "$STEP7_MD" | head -3
 
 echo "=== V3 ==="
-if grep -niE 'dev chooses|one of:|either.*mtime.*or.*filename|pick latest|prefer newest|select any|most recent wins|any matching|the right one' /tmp/step7.md; then
+if grep -niE 'dev chooses|one of:|either.*mtime.*or.*filename|pick latest|prefer newest|select any|most recent wins|any matching|the right one' "$STEP7_MD"; then
   echo "AC5-V3 FAIL: nondeterminism phrase found"
   exit 1
 else
@@ -44,9 +47,9 @@ grep -nF "spec produced this cycle but not linked in context" commands/commit.md
 grep -nF "multiple specs produced this cycle without context linkage" commands/commit.md | head -1
 
 echo "=== V5(a) ==="
-grep -nF 'Continuation spec(\s*\([^)]*\))?\s*:' /tmp/step7.md >/dev/null && echo "V5(a-i) PASS" || echo "V5(a-i) FAIL"
-grep -nE '\^\[-\*\+\]\?|markdown list marker|list marker|bullet' /tmp/step7.md >/dev/null && echo "V5(a-ii) PASS" || echo "V5(a-ii) FAIL"
-grep -nF '`?(docs/dev/specs/spec-' /tmp/step7.md >/dev/null && echo "V5(a-iii) PASS" || echo "V5(a-iii) FAIL"
+grep -nF 'Continuation spec(\s*\([^)]*\))?\s*:' "$STEP7_MD" >/dev/null && echo "V5(a-i) PASS" || echo "V5(a-i) FAIL"
+grep -nE '\^\[-\*\+\]\?|markdown list marker|list marker|bullet' "$STEP7_MD" >/dev/null && echo "V5(a-ii) PASS" || echo "V5(a-ii) FAIL"
+grep -nF '`?(docs/dev/specs/spec-' "$STEP7_MD" >/dev/null && echo "V5(a-iii) PASS" || echo "V5(a-iii) FAIL"
 
 echo "=== V5(b) ==="
 python3 - <<'PYEOF'
