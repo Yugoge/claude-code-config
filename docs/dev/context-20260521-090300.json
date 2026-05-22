@@ -176,17 +176,23 @@
   "scope_boundary": {
     "in_user_path": [
       "/dev/shm/dev-workspace/dot-claude/.hook-refactor-allow",
+      "/dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow",
+      "/root/orchestra/.claude/.hook-refactor-allow",
+      "/root/travel-planner/.claude/.hook-refactor-allow",
+      "/root/multi-asset-portfolio/.claude/.hook-refactor-allow",
       "hooks/pretool-claude-config-guard.py",
       "hooks/pretool-block-production-files.sh"
     ],
     "path_dependent_shared_infra": [
-      "/tmp/.hook-refactor-allow-consumed-*"
+      "/tmp/.hook-refactor-allow-consumed-* (4 files)",
+      "/tmp/.hook-refactor-allow.removed-* (9 files)"
     ],
     "out_of_path_observed_but_not_touched": [
       "/dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。",
-      "/dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow",
       "/root/happy-dev.bak/.claude/.hook-refactor-allow",
-      "/root/multi-asset-portfolio/.claude/.hook-refactor-allow"
+      "/root/.claude.bak/.hook-refactor-allow",
+      "/root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow",
+      "/tmp/g4-cfg-test/.claude/.hook-refactor-allow.bak2"
     ]
   },
   "out_of_scope_observations": [
