@@ -17,7 +17,33 @@ def test_AC1():
     WHEN:  a reader inspects the dispatch payload body in Step 8
     THEN:  the literal string 'baseline_head_sha' appears inside the dispatch payload block (not only in a comment), AND 'baseline_dirty_snapshot' also appears in the same block
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — baseline_head_sha and baseline_dirty_snapshot present in Step 8 dispatch payload block of commands/dev.md")
+    import pathlib
+    repo_root = pathlib.Path(__file__).parents[3]
+    text = (repo_root / "commands" / "dev.md").read_text()
+
+    assert "baseline_head_sha" in text, \
+        "baseline_head_sha not found in commands/dev.md"
+    assert "baseline_dirty_snapshot" in text, \
+        "baseline_dirty_snapshot not found in commands/dev.md"
+
+    # Both fields must appear in the dispatch payload body, not only in comments.
+    lines = text.splitlines()
+    in_dispatch_block = False
+    found_sha_in_payload = False
+    found_dirty_in_payload = False
+    for line in lines:
+        if "Use Task tool to invoke dev subagent" in line:
+            in_dispatch_block = True
+        if in_dispatch_block:
+            stripped = line.strip()
+            if "baseline_head_sha" in line and not stripped.startswith("#"):
+                found_sha_in_payload = True
+            if "baseline_dirty_snapshot" in line and not stripped.startswith("#"):
+                found_dirty_in_payload = True
+        if in_dispatch_block and line.startswith("**Wait for dev subagent"):
+            break
+
+    assert found_sha_in_payload, \
+        "baseline_head_sha not found inside the Step 8 dispatch payload block"
+    assert found_dirty_in_payload, \
+        "baseline_dirty_snapshot not found inside the Step 8 dispatch payload block"
