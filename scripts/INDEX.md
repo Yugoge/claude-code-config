@@ -1,12 +1,14 @@
 # scripts
 
-*Last updated: 2026-05-21T00:33:02Z*
-**Total entries**: 74
+*Last updated: 2026-05-22T10:30:43Z*
+**Total entries**: 76
 **Convention**: kebab
 
 ## Tree
 ```
 scripts/
+├── install/
+│   └── `tmp-cleanup-install.sh` - /usr/local/sbin/tmp-cleanup.sh
 ├── todo/
 │   ├── `clean.py` - Preloaded TodoList for /clean workflow
 │   ├── `close.py` - Three user-visible TodoSteps (flat-integer per agents/style-inspector.md

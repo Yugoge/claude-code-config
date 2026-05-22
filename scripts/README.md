@@ -5,8 +5,8 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 54
-- **Subdirectories**: 2
+- **Total files**: 55
+- **Subdirectories**: 3
 - **Naming convention**: kebab
 
 ## Files
@@ -64,6 +64,7 @@ Organization and usage documentation for `scripts/`.
 - `write-qa-mode.sh` - Write or update qa_mode field in the QA sentinel file for a dev-registry session.
 
 ## Subdirectories
+- `install/`
 - `todo/`
 
 ---

@@ -149,6 +149,7 @@ if agent not in agents:
     agents[agent] = {"score": 50, "rank": "Skilled Craftsman", "history": []}
 
 old_score = int(agents[agent].get("score", 50))
+uncapped_delta = old_score + delta
 new_score = max(0, min(100, old_score + delta))
 
 agents[agent]["score"] = new_score
@@ -160,6 +161,7 @@ history.append({
     "delta": delta,
     "old_score": old_score,
     "new_score": new_score,
+    "uncapped_delta": uncapped_delta,
     "note": note or "",
 })
 
