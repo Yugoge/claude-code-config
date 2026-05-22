@@ -6,15 +6,15 @@
       "id": "AC1",
       "type": "data",
       "given": "The entire filesystem",
-      "when": "find / -name '.hook-refactor-allow' 2>/dev/null is run",
-      "then": "All 8 named filesystem instances are found: /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow, /dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow, /root/multi-asset-portfolio/.claude/.hook-refactor-allow, /root/orchestra/.claude/.hook-refactor-allow, /root/travel-planner/.claude/.hook-refactor-allow, /root/happy-dev.bak/.claude/.hook-refactor-allow, /root/.claude.bak/.hook-refactor-allow, /root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow; plus the Unicode-suffix variant /dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 found via targeted subdirectory search = 9 total instances",
+      "when": "find / -name '.hook-refactor-allow' 2>/dev/null is run (exact-name) AND find / -name '.hook-refactor-allow。' 2>/dev/null is run (Unicode-suffix)",
+      "then": "Exact-name search returns 8 instances: /dev/shm/dev-workspace/dot-claude/.hook-refactor-allow, /dev/shm/dev-workspace/happy-dev/.claude/.hook-refactor-allow, /root/multi-asset-portfolio/.claude/.hook-refactor-allow, /root/orchestra/.claude/.hook-refactor-allow, /root/travel-planner/.claude/.hook-refactor-allow, /root/happy-dev.bak/.claude/.hook-refactor-allow, /root/.claude.bak/.hook-refactor-allow, /root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow; Unicode-suffix search returns 2 instances: /dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 and /root/.claude.bak/.claude/.hook-refactor-allow。; total = 10 filesystem instances",
       "check": {
         "method": "bash",
-        "command": "find / -name '.hook-refactor-allow' 2>/dev/null | sort | wc -l",
-        "expected": "8",
-        "note": "find returns 8; Unicode-suffix file found separately via find /dev/shm/dev-workspace/dot-claude/.claude/ -name '.hook-refactor-allow*'; total = 9"
+        "command": "echo \"exact:\"; find / -name '.hook-refactor-allow' 2>/dev/null | sort | wc -l; echo \"unicode:\"; find / -name '.hook-refactor-allow。' 2>/dev/null | sort | wc -l",
+        "expected": "exact: 8; unicode: 2; total: 10",
+        "note": "find -name '.hook-refactor-allow' returns 8 (hooks only match exact name); Unicode-suffix files are INERT but must be counted for complete inventory"
       },
-      "ac_uid": "ac1-hook-refactor-allow-complete-inventory"
+      "ac_uid": "ac1-hook-refactor-allow-complete-inventory-10-total"
     },
     {
       "id": "AC2",
