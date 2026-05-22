@@ -72,7 +72,7 @@
       "then": "appended history entry contains key uncapped_delta = 108 (100 + 8 = pre-clamp target; delta for ba/close_success_qa_pass is 8) AND new_score remains 100 (clamped) AND existing history entries are not rewritten AND ts/event/delta/old_score/new_score/note fields in history entries are unchanged",
       "check": {
         "commands": [
-          "python3 -c \"import json; d=json.load(open(\"/tmp/test-scores.json\")); h=d[\"agents\"][\"ba\"][\"history\"][-1]; print(h.get(\"uncapped_delta\"), h.get(\"new_score\"))\""
+          "python3 -c 'import json; d=json.load(open(\"/tmp/test-scores.json\")); h=d[\"global\"][\"agents\"][\"ba\"][\"history\"][-1]; print(h.get(\"uncapped_delta\"), h.get(\"new_score\"))'"
         ],
         "expected": [
           "stdout: 108 100"
