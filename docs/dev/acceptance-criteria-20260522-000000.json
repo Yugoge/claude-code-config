@@ -12,7 +12,7 @@
       "then": "git check-ignore exits 1 (file is NOT ignored) AND wc -l returns exactly 12 (pre-existing file count; no scope creep)",
       "check": {
         "commands": [
-          "git check-ignore -q docs/reference/tmp-cleanup-convention.md; echo 0",
+          "git check-ignore -q docs/reference/tmp-cleanup-convention.md",
           "git ls-files docs/reference/ | wc -l"
         ],
         "expected": [
