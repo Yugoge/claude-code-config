@@ -28,49 +28,105 @@
   ],
   "objections": [],
   "observations_only": [
-    {"id": "OBS-1", "source": "codex finding 5", "observation": "AC1/AC2 git check-ignore can false-pass after git add -f because check-ignore exits 1 for tracked files. Using --no-index tests the rule itself independently.", "classification": "OBSERVATION_ONLY — dev implementation risk, not BA analysis quality failure"},
-    {"id": "OBS-2", "source": "codex finding 7 / arch-4 residual", "observation": "Ticket lines 26 and 62 still contain stale arch-4 wording (commit staged / uncommitted deletion). S1 operative instruction correct. Not blocking.", "classification": "OBSERVATION_ONLY"},
-    {"id": "OBS-3", "source": "codex finding 8", "observation": "logs/lifecycle.jsonl absent from requirement.where and scope_boundary.in_user_path. Minor completeness gap in context metadata.", "classification": "OBSERVATION_ONLY"},
-    {"id": "OBS-4", "source": "codex finding 9", "observation": "risk_level rationale says no schema change but uncapped_delta is an additive history-entry schema extension. Risk level is still correct.", "classification": "OBSERVATION_ONLY"},
-    {"id": "OBS-5", "source": "codex finding 10", "observation": "ac_uid must be regenerated for AC4 and any other modified ACs after blocking fixes are applied.", "classification": "OBSERVATION_ONLY — administrative follow-up"}
+    {
+      "id": "OBS-CODEX-1",
+      "source": "codex iteration 3",
+      "observation": "'; echo 0' on expected-0 checks (AC2 cmd[1]/cmd[2], AC3 cmd[0], AC5 cmd[0]/cmd[1]) makes those checks unfalsifiable. Iteration 3 dispatch explicitly authorized retaining '; echo 0' for exit_code:0 cases.",
+      "classification": "OBSERVATION_ONLY — authorized by iteration 3 dispatch"
+    },
+    {
+      "id": "OBS-CODEX-2",
+      "source": "codex iteration 3",
+      "observation": "AC4 check is not self-contained: it reads /tmp/test-scores.json but does not invoke score-update.sh. GIVEN clause governs preconditions. Dev execution concern.",
+      "classification": "OBSERVATION_ONLY"
+    },
+    {
+      "id": "OBS-CODEX-3",
+      "source": "codex iteration 3",
+      "observation": "AC4 additive-only claim (existing history not rewritten) is not directly verified by check commands which only print last entry's two fields.",
+      "classification": "OBSERVATION_ONLY"
+    },
+    {
+      "id": "OBS-CODEX-4",
+      "source": "codex iteration 3",
+      "observation": "git check-ignore --no-index would provide rule-level verification independent of git index state. Dev implementation guidance.",
+      "classification": "OBSERVATION_ONLY"
+    },
+    {
+      "id": "OBS-CODEX-5",
+      "source": "codex iteration 3",
+      "observation": "AC5 HEAD^..HEAD assumes spec commitment is the last commit. Ticket line 29 ('can go in same commit') is ambiguous, but Technical Hints section authoritatively says 'Each should be a separate commit'. AC is consistent with Technical Hints.",
+      "classification": "OBSERVATION_ONLY"
+    },
+    {"id": "OBS-1", "source": "iteration 2", "observation": "AC1/AC2 git check-ignore can false-pass after git add -f because check-ignore exits 1 for tracked files. Using --no-index tests the rule itself independently.", "classification": "OBSERVATION_ONLY — dev implementation risk, not BA analysis quality failure"},
+    {"id": "OBS-2", "source": "iteration 2", "observation": "Ticket lines 26 and 62 still contain stale arch-4 wording (commit staged / uncommitted deletion). S1 operative instruction correct. Not blocking.", "classification": "OBSERVATION_ONLY"},
+    {"id": "OBS-3", "source": "iteration 2", "observation": "logs/lifecycle.jsonl absent from requirement.where and scope_boundary.in_user_path. Minor completeness gap in context metadata.", "classification": "OBSERVATION_ONLY"},
+    {"id": "OBS-4", "source": "iteration 2", "observation": "risk_level rationale says no schema change but uncapped_delta is an additive history-entry schema extension. Risk level is still correct.", "classification": "OBSERVATION_ONLY"},
+    {"id": "OBS-5", "source": "iteration 2", "observation": "ac_uid not regenerated for modified ACs. Administrative follow-up.", "classification": "OBSERVATION_ONLY — administrative"}
   ],
   "dimension_verdicts": {
     "evidence_quality": "pass",
     "scope_alignment": "pass",
     "investigation_completeness": "pass",
     "affected_file_accuracy": "pass",
-    "spec_text_vs_execution_drift": "fail"
+    "spec_text_vs_execution_drift": "pass"
   },
   "dimension_details": {
     "evidence_quality": {
       "verdict": "pass",
-      "notes": "All prior evidence_quality objections resolved. arch-4 correctly framed as verify-no-op (git ls-tree HEAD empty confirmed). AC4 delta = 8 for ba close_success_qa_pass verified (score-update.sh:85). uncapped_delta = 100+8 = 108 arithmetic correct. diagnosis_layer=L5 confirmed. logs/lifecycle.jsonl in files_to_create confirmed."
+      "notes": "8 observations in root_cause_analysis. diagnosis_layer=L5. tier_2_verified reference source. localization_evidence confirmed at specific .gitignore line numbers. score-update.sh:152 ceiling clamp confirmed via grep. arch-4 verify-no-op correctly framed (git ls-tree HEAD empty confirmed)."
     },
     "scope_alignment": {
       "verdict": "pass",
-      "notes": "5 Must Have items map exactly to 5 ACs: M1/AC1=arch-1, M2/AC2=arch-8, M3/AC3=arch-5, M4/AC4=arch-7 phase 1, M5/AC5=arch-2. All dispatch-authorized items covered. User requirement correctly scoped. Won't Have correctly excludes non-dispatch items."
+      "notes": "User requirement '将你说的问题全部保存为新的spec' present in ticket and context. 5 Must Have items M1-M5 map exactly to 5 ACs. R1 correctly marked N/A (spec save already done). Won't Have correctly excludes non-dispatch items."
     },
     "investigation_completeness": {
       "verdict": "pass",
-      "notes": "All 3 STANDARD-tier mandatory artifacts present: ticket, context, acceptance-criteria. blast_radius_map_path=null with blast_radius_map_waived documented rationale. All prior investigation_completeness objections resolved."
+      "notes": "All 3 STANDARD-tier mandatory artifacts present: ticket, context, acceptance-criteria. blast_radius_map_path=null with blast_radius_map_waived documented rationale."
     },
     "affected_file_accuracy": {
       "verdict": "pass",
-      "notes": ".gitignore:46=logs/ VERIFIED; .gitignore:66=docs/* VERIFIED; score-update.sh:152=ceiling clamp VERIFIED; /usr/local/sbin/tmp-cleanup.sh 12077 bytes VERIFIED; scripts/install/ NOT PRESENT VERIFIED; agent-scores.json NOT IN HEAD VERIFIED."
+      "notes": ".gitignore EXISTS confirmed. scripts/score-update.sh EXISTS confirmed. /usr/local/sbin/tmp-cleanup.sh EXISTS 12077 bytes confirmed. scripts/install/ NOT PRESENT confirmed (current state). All component_chain file references verified."
     },
     "spec_text_vs_execution_drift": {
-      "verdict": "fail",
+      "verdict": "pass",
       "drift_instances": [
-        {"id": "DRIFT-1", "location": "acceptance-criteria-20260522-000000.json AC4 check.commands[0]", "problem": "Broken shell quoting (unescaped inner double-quotes cause SyntaxError) + wrong schema path d[agents][ba] vs d[global][agents][ba]", "blocks": true},
-        {"id": "DRIFT-2", "location": "acceptance-criteria-20260522-000000.json AC1 check.commands[0] and AC2 check.commands[0]", "problem": "; echo 0 suffix masks exit code, making exit_code:1 expectation permanently unfalsifiable", "blocks": true},
-        {"id": "DRIFT-3", "location": "context-20260522-000000.json requirement.success_criteria[0]", "problem": "12+ vs exactly 12 — residual semantic divergence, success_criteria not updated when R2 was corrected", "blocks": true}
+        {"id": "DRIFT-1", "location": "acceptance-criteria-20260522-000000.json AC4 check.commands[0]", "problem": "RESOLVED: single-quote outer wrapper present; correct schema path d['global']['agents']['ba']['history'][-1] used; live exec returns 108 100 exit 0", "blocks": false},
+        {"id": "DRIFT-2", "location": "acceptance-criteria-20260522-000000.json AC1 check.commands[0] and AC2 check.commands[0]", "problem": "RESOLVED: '; echo 0' suffix removed from AC1 cmd[0] and AC2 cmd[0] where exit_code:1 expected", "blocks": false},
+        {"id": "DRIFT-3", "location": "context-20260522-000000.json requirement.success_criteria[0]", "problem": "RESOLVED: 'exactly 12' now present; '12+' removed", "blocks": false}
       ]
     }
   },
-  "remediation_required": [
-    "Fix AC4 check.commands[0]: use single-quote wrapping for python -c; use correct schema path d['global']['agents']['ba']['history'][-1]",
-    "Fix AC1 check.commands[0] and AC2 check.commands[0]: remove ; echo 0 suffix from lines where exit_code: 1 is expected",
-    "Update context requirement.success_criteria[0] from '12+' to 'exactly 12'",
-    "Regenerate ac_uid for AC4 and any other ACs whose check.commands change after above fixes"
-  ]
+  "objection_fix_verification": {
+    "OBJ-1_OBJ-2": {
+      "fix_description": "AC4 check.commands[0] uses single-quote outer wrapper with schema path d['global']['agents']['ba']['history'][-1]",
+      "verified": true,
+      "evidence": [
+        "cmd starts with: python3 -c '",
+        "cmd ends with: '",
+        "inner section contains 0 unescaped single quotes",
+        "d[\"global\"][\"agents\"][\"ba\"][\"history\"][-1] present in command",
+        "live exec with mock data returns '108 100' exit 0"
+      ]
+    },
+    "OBJ-3": {
+      "fix_description": "'; echo 0' removed from AC1 cmd[0] and AC2 cmd[0]; AC2 cmd[1] and cmd[2] retain '; echo 0' as authorized",
+      "verified": true,
+      "evidence": [
+        "AC1 cmd[0]='git check-ignore -q docs/reference/tmp-cleanup-convention.md'",
+        "AC2 cmd[0]='git check-ignore -q logs/lifecycle.jsonl'",
+        "AC2 cmd[1] retains '; echo 0' (authorized)",
+        "AC2 cmd[2] retains '; echo 0' (authorized)"
+      ]
+    },
+    "OBJ-4": {
+      "fix_description": "context success_criteria[0] updated from '12+' to 'exactly 12'",
+      "verified": true,
+      "evidence": [
+        "success_criteria[0]='git ls-files docs/reference/ | wc -l returns exactly 12'",
+        "No '12+' substring present"
+      ]
+    }
+  },
+  "remediation_required": []
 }
