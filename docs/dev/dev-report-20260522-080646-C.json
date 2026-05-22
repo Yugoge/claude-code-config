@@ -54,11 +54,14 @@
     "notes": "Static grep checks: (1) new grep pattern confirmed at line 157; (2) old 'literal-task-id grep' prose absent; (3) 'machine-readable marker grep' present at line 157; (4) fail-closed branches at lines 161 and 162 unchanged; (5) marker grep against two known false-positive spec files returns exit 1 as expected"
   },
   "codex_consult": {
-    "invoked": false,
-    "status": "not_requested",
-    "feedback_summary": null,
-    "feedback_incorporated": null
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Two OBSERVATION_ONLY findings — zero blockers. (1) No requirement-blocking issue found; commands/commit.md:157 now uses the exact marker grep, removes the bare predicate, and preserves both fail-closed branches. (2) commands/commit.md:156 still says 'Mtime + literal-task-id glob (final stage)' — stale wording but not a blocker since scope was restricted to line 157 only by BA spec.",
+    "feedback_incorporated": "No changes required. Both findings are OBSERVATION_ONLY with no PROPOSED_FIX. Finding 2 (stale header on line 156) is already documented in implementation_notes and recommendations; it is out-of-scope per BA spec."
   },
+  "codex_observation_only": [
+    "commands/commit.md:156 still reads '(3) Mtime + literal-task-id glob (final stage).' — slightly stale wording relative to the new predicate. Not a blocker; BA spec scoped changes to line 157 only."
+  ],
   "blocking_issues": [],
   "recommendations": [
     "Update the stage-3 section header at line 156 from 'Mtime + literal-task-id glob' to 'Mtime + marker-grep' in a follow-on ticket to keep prose consistent with the new predicate.",
