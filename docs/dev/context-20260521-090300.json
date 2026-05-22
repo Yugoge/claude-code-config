@@ -158,10 +158,10 @@
   "pre_existing_guards": [
     {
       "file": "hooks/pretool-claude-config-guard.py",
-      "line": 75,
+      "line": 176,
       "type": "if",
-      "code_snippet": "if _sentinel_present(): sys.exit(0)",
-      "purpose": "exits 0 (allows tool use) when sentinel exists — this IS the bypass mechanism being audited",
+      "code_snippet": "if _sentinel_present():\n    sys.exit(0)",
+      "purpose": "enforcement gate — exits 0 (allows tool use) when sentinel exists at $CLAUDE_PROJECT_DIR/.claude/.hook-refactor-allow; this IS the bypass mechanism being audited; _sentinel_present() defined at lines 75-77; SENTINEL_NAME constant at line 47",
       "removal_authorized": false
     },
     {
