@@ -18,8 +18,8 @@ import pytest
 AC_UID = "AC2-write-guard-sentinel-check"
 AC_TYPE = "hook"
 
-HOOKS_DIR = str(Path(__file__).parent.parent.parent / "hooks")
-WRITE_GUARD = str(Path(__file__).parent.parent.parent / "hooks" / "pretool-write-guard.sh")
+HOOKS_DIR = str(Path(__file__).parent.parent.parent.parent / "hooks")
+WRITE_GUARD = str(Path(__file__).parent.parent.parent.parent / "hooks" / "pretool-write-guard.sh")
 SENTINEL_GRANT_DIR = "/tmp/claude-grants"
 
 
