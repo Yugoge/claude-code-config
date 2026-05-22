@@ -18,7 +18,26 @@ def test_AC1():
     WHEN:  git check-ignore -q docs/reference/tmp-cleanup-convention.md is run AND git ls-files docs/reference/ | wc -l is run
     THEN:  git check-ignore exits 1 (file is NOT ignored) AND wc -l returns exactly 12 (pre-existing file count; no scope creep)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — docs/reference/ gitignore exception: git check-ignore exits 1 AND git ls-files returns 12")
+    # Verify docs/reference/tmp-cleanup-convention.md is NOT ignored (exit 1)
+    result = subprocess.run(
+        ["git", "check-ignore", "-q", "docs/reference/tmp-cleanup-convention.md"],
+        capture_output=True,
+        cwd="/dev/shm/dev-workspace/dot-claude",
+    )
+    assert result.returncode == 1, (
+        f"Expected docs/reference/tmp-cleanup-convention.md to be NOT ignored (exit 1), "
+        f"got exit {result.returncode}. .gitignore !docs/reference/ negation may be missing."
+    )
+
+    # Verify exactly 12 files are tracked under docs/reference/
+    ls_result = subprocess.run(
+        ["git", "ls-files", "docs/reference/"],
+        capture_output=True,
+        text=True,
+        cwd="/dev/shm/dev-workspace/dot-claude",
+    )
+    tracked_files = [f for f in ls_result.stdout.strip().split("\n") if f]
+    assert len(tracked_files) == 12, (
+        f"Expected exactly 12 files tracked under docs/reference/, got {len(tracked_files)}. "
+        f"Files: {tracked_files}"
+    )
