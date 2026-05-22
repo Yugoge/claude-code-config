@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-21T09:14:37Z*
-**Total entries**: 343
+*Last updated: 2026-05-22T08:11:43Z*
+**Total entries**: 345
 **Convention**: kebab
 
 ## Tree
@@ -335,6 +335,7 @@ dev/
 ├── `ticket-20260520-allow-dh-7faae4.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H)
 ├── `ticket-20260521-085827-fa9f07.md` - BA Specification: Batched remediation — codex output relocation + sentinel investigation + /allow vs orchestra tracker-gate
 ├── `ticket-20260521-090100.md` - BA Specification: Canonical Codex Output Path (docs/codex/)
+├── `ticket-20260522-000000.md` - BA Specification: Gitignore fixes, spec commitment, tmp-cleanup.sh mirror, and score-update uncapped_delta
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-d1e94e-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
@@ -349,6 +350,7 @@ dev/
 ├── `user-requirement-dev-20260520-221452.md` - No description
 ├── `user-requirement-dev-20260521-085554.md` - No description
 ├── `user-requirement-dev-20260521-085627.md` - No description
+├── `user-requirement-dev-20260522-080646.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
