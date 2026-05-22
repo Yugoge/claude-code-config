@@ -91,7 +91,7 @@ awk '
   /^#{2,3}[[:space:]]+Step 7/ { in_section = 1; print; next }
   /^#{2,3}[[:space:]]+Step [0-9]/ && in_section { in_section = 0 }
   in_section { print }
-' commands/commit.md > /tmp/step7.md
+' commands/commit.md > "$STEP7_MD"
 if awk '
   /context\.spec_path first/ { if (!s1) s1 = NR }
   /\(2\)[[:space:]]*Continuation spec/ { if (!s2) s2 = NR }
@@ -103,19 +103,19 @@ if awk '
     if (!(s1 < s2 && s2 < s3 && s3 < s4a && s3 < s4b)) exit 1
     exit 0
   }
-' /tmp/step7.md; then
+' "$STEP7_MD"; then
   results+=("AC5 V1 PASS")
 else
   results+=("AC5 V1 FAIL")
 fi
-grep -qE 'fence-aware|fenced code block|skip ranges between' /tmp/step7.md && results+=("AC5 V2 PASS") || results+=("AC5 V2 FAIL")
-grep -qiE 'dev chooses|one of:|either.*mtime.*or.*filename|pick latest|prefer newest|select any|most recent wins|any matching|the right one' /tmp/step7.md && results+=("AC5 V3 FAIL") || results+=("AC5 V3 PASS")
+grep -qE 'fence-aware|fenced code block|skip ranges between' "$STEP7_MD" && results+=("AC5 V2 PASS") || results+=("AC5 V2 FAIL")
+grep -qiE 'dev chooses|one of:|either.*mtime.*or.*filename|pick latest|prefer newest|select any|most recent wins|any matching|the right one' "$STEP7_MD" && results+=("AC5 V3 FAIL") || results+=("AC5 V3 PASS")
 grep -qF "spec produced this cycle but not linked in context" commands/commit.md \
   && grep -qF "multiple specs produced this cycle without context linkage" commands/commit.md \
   && results+=("AC5 V4 PASS") || results+=("AC5 V4 FAIL")
-grep -qF 'Continuation spec(\s*\([^)]*\))?\s*:' /tmp/step7.md \
-  && grep -qE '\^\[-\*\+\]\?|markdown list marker|list marker|bullet' /tmp/step7.md \
-  && grep -qF '`?(docs/dev/specs/spec-' /tmp/step7.md \
+grep -qF 'Continuation spec(\s*\([^)]*\))?\s*:' "$STEP7_MD" \
+  && grep -qE '\^\[-\*\+\]\?|markdown list marker|list marker|bullet' "$STEP7_MD" \
+  && grep -qF '`?(docs/dev/specs/spec-' "$STEP7_MD" \
   && python3 -c "
 import re, sys
 line = open('docs/dev/close-report-20260519-175339.md').read().splitlines()[150]
