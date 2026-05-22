@@ -244,6 +244,11 @@
       "/root/orchestra/.claude/.hook-refactor-allow (live project, HIGH-RISK in project context)",
       "/root/travel-planner/.claude/.hook-refactor-allow (live project, HIGH-RISK in project context)",
       "/root/multi-asset-portfolio/.claude/.hook-refactor-allow (live project, HIGH-RISK in project context)",
+      "/root/happy-dev.bak/.claude/.hook-refactor-allow (bak directory, MEDIUM-RISK)",
+      "/root/.claude.bak/.hook-refactor-allow (backup copy, LOW-RISK)",
+      "/root/.archives/claude-bak-archived-2026-05-01/.hook-refactor-allow (archived copy, LOW-RISK)",
+      "/dev/shm/dev-workspace/dot-claude/.claude/.hook-refactor-allow。 (Unicode-suffix, INERT)",
+      "/root/.claude.bak/.claude/.hook-refactor-allow。 (Unicode-suffix backup, INERT)",
       "hooks/pretool-claude-config-guard.py:47,75-77,176-177 (reads sentinel; enforcement gate at 176-177)",
       "hooks/pretool-block-production-files.sh:133 (reads sentinel via PROJECT_DIR and HOME check)"
     ]
