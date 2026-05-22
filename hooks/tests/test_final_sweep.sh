@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# Final sweep — invoke each AC's verifier and print PASS/FAIL summary.
+# Final sweep — run inline AC checks and print PASS/FAIL summary.
 set -u
+TMPDIR_SELF=$(mktemp -d -t final-sweep-XXXXXX)
+trap 'rm -rf "$TMPDIR_SELF" 2>/dev/null' EXIT INT TERM
+PUSH_EXEC="$TMPDIR_SELF/push.sh.exec"
+PHASE7_PY="$TMPDIR_SELF/push-analyst-phase7.py"
+STEP7_MD="$TMPDIR_SELF/step7.md"
 results=()
 
 # AC7

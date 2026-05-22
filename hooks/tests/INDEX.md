@@ -1,6 +1,6 @@
 # tests
 
-*Last updated: 2026-05-22T08:55:50Z*
+*Last updated: 2026-05-22T08:56:07Z*
 **Total entries**: 11
 **Convention**: kebab
 
@@ -16,7 +16,7 @@ tests/
 ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 ├── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
-├── `test_final_sweep.sh` - Final sweep — invoke each AC's verifier and print PASS/FAIL summary.
+├── `test_final_sweep.sh` - Final sweep — run inline AC checks and print PASS/FAIL summary.
 └── `test_push_sentinel_abort.sh` - Unit test for AC1 V5: hooks/push.sh self-aborts before any real git push
 ```
 
