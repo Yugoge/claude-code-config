@@ -169,7 +169,7 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex confirmed no blocking issues with the proposed fix. One in-scope PROPOSED_FIX (finding 2): update prose on the same line 157 from 'literal-task-id grep' to 'machine-readable marker grep' since the description becomes inaccurate if only the grep fragment is replaced. Two OBSERVATION_ONLY findings: (1) AC1 regex comment confirmation (not applicable to this BA spec); (3) marker producer absence acknowledged as intentional per AC4 and non-goals.",
+    "feedback_summary": "Round 1 (original spec): Codex confirmed no blocking issues; one in-scope PROPOSED_FIX (prose update on line 157 from 'literal-task-id grep' to 'machine-readable marker grep'). Round 2 (QA remediation): Codex validated two proposed AC fixes for OBJ-1 and OBJ-2. Both fixes confirmed correct and stable. No blocking issues found. Note: Bash write to /var/tmp blocked by BA tool policy; consultation conducted via Skill(codex) and self-review of logical correctness per the graceful-fallback protocol.",
     "findings": [
       {
         "issue": "No blocking issues with the proposed fix",
@@ -191,9 +191,23 @@
         "classification": "observation_only",
         "disposition": "logged",
         "rationale": "Intentional per user requirement and AC4. Future BA cycle should add marker-placement instructions to the spec-creation workflow."
+      },
+      {
+        "issue": "OBJ-1: AC3 covered only line 162 (multi-candidate fail-closed). Line 161 (single-candidate fail-closed) also structurally affected by predicate change — needs AC3b",
+        "proposed_fix": "Add AC3b: GIVEN exactly one marker-bearing spec, WHEN stage 3 runs, THEN single-candidate branch (line 161) fires with 'spec produced this cycle but not linked in context' and exit non-zero. Verification: grep -nF of that string in commit.md returns >=1 match.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "QA objection OBJ-1 is correct. Line 161 and 162 both feed from the candidate set produced by the predicate; both need coverage. AC3b added."
+      },
+      {
+        "issue": "OBJ-2: AC4 verification recipe 'grep -rF spec-continuation-of docs/dev/specs/' is time-transient — exits 0 once any future spec ships a marker, causing the AC to appear to fail",
+        "proposed_fix": "Rewrite to: grep -lF '<!-- spec-continuation-of: 20260519-211515 -->' docs/dev/specs/spec-20260518-225715.md docs/dev/specs/spec-20260520-221059.md returns empty (exit 1). Stable because it pins the specific incident task-id and the specific false-positive files; future specs use different task-ids.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "QA objection OBJ-2 is correct. The rewritten recipe is stable and directly verifies the incident scenario without being affected by future spec additions."
       }
     ],
-    "feedback_incorporated": "Applied codex finding 2 (in-scope prose update): added AC5 requiring 'literal-task-id grep' to be replaced with 'machine-readable marker grep' in the prose description on line 157. Two OBSERVATION_ONLY findings logged without action."
+    "feedback_incorporated": "Round 1: Applied prose update AC5. Round 2 (QA remediation): Applied OBJ-1 fix (added AC3b covering single-candidate branch line 161) and OBJ-2 fix (rewrote AC4 verification recipe to pin specific task-id and specific false-positive files for permanent stability)."
   },
   "standards_to_enforce": {
     "no_hardcoded_values": true,
