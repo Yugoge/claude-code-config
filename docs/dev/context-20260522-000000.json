@@ -229,11 +229,82 @@
     "git_root_cause_reference": true
   },
   "codex_consult": {
-    "invoked": false,
-    "status": "not_requested",
-    "feedback_summary": null,
-    "findings": [],
-    "feedback_incorporated": null
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex returned 10 findings (all with PROPOSED_FIX). Key corrections: (1) scope framing — clarified that user requirement is satisfied by arch-2 (spec commit); other items are dispatch-authorized backlog implementation; (2) arch-2 greedy-add risk — added explicit AC constraint that only spec + views/ files are in the commit; (3) AC5 under-specified — replaced with stronger git log -1 --format=%H check + git ls-files check; (4) CRITICAL: logs/ gitignore pattern must change from 'logs/' to 'logs/*' — 'logs/' directory-level rule cannot be negated per-file; codex ran live test confirming lifecycle=1 (unignored), checkpoint=0 (still ignored) with the logs/* pattern; (5) arch-8 AC needs file tracking check not just ignore check; (6) AC1 should use exact file count not '12+'; (7) byte count in AC3 contradicts shebang change — replaced with diff check on lines 2..EOF; (8) tmp-cleanup-install.sh naming is OBSERVATION_ONLY — name follows spec R2 install-manifest pattern; (9) uncapped_delta field name is architect-mandated — clarified semantic meaning in AC4; (10) backward-compat constraint added to AC4.",
+    "findings": [
+      {
+        "issue": "Scope not minimal — user requirement is satisfied by arch-2 alone; other items are separately authorized",
+        "proposed_fix": "Spec wording should clarify: original user requirement is satisfied by committing the spec; the other items are dispatch-authorized backlog follow-up",
+        "classification": "observation_only",
+        "disposition": "applied",
+        "rationale": "Dispatch prompt from orchestrator explicitly authorizes implementing first-cycle-addressable items; wording clarified in Goal section"
+      },
+      {
+        "issue": "arch-2 greedy-add risk: many unrelated docs/dev/* artifacts are untracked; staging must be limited",
+        "proposed_fix": "Add AC: git diff --name-only HEAD^..HEAD must not include unrelated docs/dev/*.json, tickets, reports",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Applied to AC5 — added explicit check that only spec + views/ files are in the arch-2 commit"
+      },
+      {
+        "issue": "AC5 under-specified: git log path can exit 0 with no SHA; does not verify views directory",
+        "proposed_fix": "Replace with: test -n \"$(git log -1 --format=%H -- spec.md)\" and git ls-files views/ | grep -q .",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Applied — AC5 now uses stronger verification"
+      },
+      {
+        "issue": "CRITICAL: !logs/lifecycle.jsonl cannot override 'logs/' directory-level rule; codex verified this requires changing logs/ to logs/*",
+        "proposed_fix": "Change .gitignore rule from 'logs/' to 'logs/*'; then add '!logs/lifecycle.jsonl' below",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Applied to Edge Cases & Risks and Technical Hints; AC2 updated to use quiet git check-ignore exit codes"
+      },
+      {
+        "issue": "arch-8 AC proves only ignore behavior, not tracking; file must be tracked to satisfy 'must be in-repo'",
+        "proposed_fix": "Add: git ls-files --error-unmatch logs/lifecycle.jsonl succeeds",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Applied to AC2"
+      },
+      {
+        "issue": "AC1 allows greedy 'at least 12' expansion; should verify exact count",
+        "proposed_fix": "Require wc -l equals exactly 12 unless additional file is justified",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Applied to AC1 — changed to 'exactly 12'"
+      },
+      {
+        "issue": "Byte count 12077 contradicts shebang change — verbatim copy + shebang change cannot both be true",
+        "proposed_fix": "Remove fixed byte count; use diff <(tail -n +2 source) <(tail -n +2 dest) exits 0",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Applied to AC3 — replaced byte count with content-parity diff check"
+      },
+      {
+        "issue": "tmp-cleanup-install.sh name implies installer behavior but file is the runtime script mirror",
+        "proposed_fix": "Rename to scripts/install/tmp-cleanup.sh OR define as actual installer/manifest",
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Name follows the spec binding constraint pattern 'scripts/install/<deliverable>-install.sh' from spec item R2. Naming is intentional per the install-manifest pattern. Not changed."
+      },
+      {
+        "issue": "AC4 field semantics: old_score + delta is uncapped score, not uncapped delta",
+        "proposed_fix": "Use uncapped_score = old_score + delta; or clarify if field name is architect-mandated",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Field name 'uncapped_delta' is architect-mandated (architect-report explicitly names this field). Clarified in AC4 that the name is a mandate and the stored value is the pre-clamp target score."
+      },
+      {
+        "issue": "Backward-compatibility risk if existing history is rewritten or live score file is mutated during test",
+        "proposed_fix": "Spec: additive-only, future-entries-only; test with temporary file, not live agent-scores.json",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Applied to AC4 — added explicit constraint that test uses temporary file and patch is additive-only"
+      }
+    ],
+    "feedback_incorporated": "7 blockers applied (AC corrections for AC1/AC2/AC3/AC5, logs/* pattern fix, scope framing, greedy-add risk); 2 majors applied (AC4 semantics clarification + backward-compat constraint); 2 observation_only findings logged (scope framing wording + install script naming)."
   },
   "research_findings": {
     "searched": false,
