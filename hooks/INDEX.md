@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-22T10:26:21Z*
-**Total entries**: 128
+*Last updated: 2026-05-22T10:36:42Z*
+**Total entries**: 129
 **Convention**: kebab
 
 ## Tree
@@ -24,6 +24,7 @@ hooks/
 ├── lib/
 │   ├── `agent_resolver.py` - Refactored from pretool-subagent-code-block.py::_find_agent_type so that
 │   ├── `allowlist.py` - Single source of truth for grant-read, grant-match, and grant-consume
+│   ├── `bash_context_strip.py` - Purpose: enable danger-token safety rules to ignore tokens that appear inside
 │   ├── `bash_write_targets.py` - Provides two public functions used by tool-policy and overnight-hook-guard:
 │   ├── `checkpoint-core.sh` - ============================================================================
 │   ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.

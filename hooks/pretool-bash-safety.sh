@@ -711,15 +711,33 @@ if echo "$COMMAND" | grep -qE 'docker\s+system\s+prune\s+-a'; then
   exit 2
 fi
 
+# Context-strip: remove quoted string args to non-shell commands so danger-token
+# rules do not fire on tokens that appear inside string literals (e.g. codex exec
+# "The hook says killall claude processes are monitored").  Fail-safe: any
+# exception returns raw COMMAND unchanged.
+HOOKS_DIR_CTX="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMAND_CONTEXT_STRIPPED=$(CMD_INPUT="$COMMAND" HOOKS_DIR="$HOOKS_DIR_CTX" "$PYTHON_BIN" - <<'PYEOF'
+import os, sys
+sys.path.insert(0, os.environ['HOOKS_DIR'])
+from lib.bash_context_strip import strip_non_executable_contexts
+cmd = os.environ['CMD_INPUT']
+try:
+    print(strip_non_executable_contexts(cmd))
+except Exception:
+    print(cmd)  # fail-safe: return raw
+PYEOF
+)
+
 # Block: generic process killers targeting services
-if echo "$COMMAND" | grep -qE '(killall|pkill)\s+.*(happy|claude|docker)'; then
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(killall|pkill)\s+.*(happy|claude|docker)'; then
   echo "BLOCKED: Killing happy/claude/docker processes is forbidden" >&2
   echo "Command: $COMMAND" >&2
   exit 2
 fi
 
 # Block: kill with ANY signal targeting PIDs (kill -9, kill -TERM, kill -15, kill -HUP, etc.)
-if echo "$COMMAND" | grep -qE 'kill\s+-'; then
+# Word-boundary anchor ensures "kill" is a command word, not a substring.
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(^|[\s;|&])(kill)\s+-'; then
   echo "BLOCKED: kill with signals is forbidden — use graceful shutdown methods" >&2
   echo "Command: $COMMAND" >&2
   exit 2
