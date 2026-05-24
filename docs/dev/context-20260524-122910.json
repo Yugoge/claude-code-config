@@ -28,7 +28,9 @@
         "Cross-session commit isolation (Section 8 Note 5)",
         "Push-gate stale token (Section 8 Note 2)",
         "Orchestrator streak limit (Section 8 Note 4)",
-        "Any new harness components or features"
+        "Any new harness components or features",
+        "Removing canary advisory-only treatment of session-info.sh / session-git-init.sh (post-codex: S2 dropped — would force fail-hard on session-git-init.sh which is out of scope)",
+        "Modifying the Contract D novelty extension Jaccard logic at commands/dev.md:304-310 (post-codex: AC-10 scope tightened to lines 284-303 only — Contract D block PRESERVED VERBATIM)"
       ]
     },
     "success_criteria": [
