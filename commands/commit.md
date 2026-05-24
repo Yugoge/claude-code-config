@@ -222,8 +222,11 @@ Authorization flow for changelog-analyst commits:
 This would allow any agent that learns the commit format to bypass the guard — destroying the
 security model. The grant-file mechanism provides the correct narrow authorization.
 
-auto-bulk bridge commits (matching BLESSED_BRIDGE_RE) do NOT need a grant. changelog-analyst
-commits use the grant-file path. The BLESSED_BRIDGE_RE check runs first in `_evaluate_commit`.
+auto-bulk bridge commits (matching BLESSED_BRIDGE_RE) require a **bulk-commit sentinel**
+written by `/commit --bulk` Step 5 (`scripts/write-bulk-commit-sentinel.py`, 30 min TTL,
+multi-use). Without it the guard blocks the commit even if the message prefix is correct.
+changelog-analyst non-bulk commits use the single-use grant-file path.
+The BLESSED_BRIDGE_RE check runs first in `_evaluate_commit`, followed by the sentinel check.
 
 ## Related
 
