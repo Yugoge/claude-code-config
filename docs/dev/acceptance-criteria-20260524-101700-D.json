@@ -1,0 +1,59 @@
+{
+  "task_id": "20260524-101700-D",
+  "request_id": "20260524-101700-D",
+  "generated_at": "2026-05-24T10:17:00Z",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "type": "data",
+      "given": "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py updated per M1",
+      "when": "pytest runs test_AC4 against the current agents/changelog-analyst.md",
+      "then": "test passes AND the test body contains a regex negative assertion matching pattern 'diff\\s+--name-only\\s+\\S*\\.\\.\\S*HEAD' against the Phase 2 provenance filter section text, asserting the result is None",
+      "check": {
+        "type": "data",
+        "file": "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py",
+        "patterns_present": [
+          "diff --name-only",
+          "re.search",
+          "HEAD",
+          "None"
+        ],
+        "pattern_absent_as_actual_diff_command": "diff\\s+--name-only\\s+\\S*\\.\\.\\S*HEAD in agents/changelog-analyst.md Phase 2 provenance filter section"
+      },
+      "ac_uid": "ac1-20260524-101700-D"
+    },
+    {
+      "id": "AC2",
+      "type": "data",
+      "given": "tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py updated per M2",
+      "when": "pytest runs test_AC3 against the current agents/qa.md",
+      "then": "test passes AND the test body contains an assertion that 'files_created_provenance_violation' appears in the qa.md content read by the test",
+      "check": {
+        "type": "data",
+        "file": "tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py",
+        "patterns_present": [
+          "files_created_provenance_violation",
+          "dev_provenance_violation",
+          "primary_cause",
+          "baseline_head_sha"
+        ]
+      },
+      "ac_uid": "ac2-20260524-101700-D"
+    },
+    {
+      "id": "AC3",
+      "type": "data",
+      "given": "tests/generated/20260522-080646-D/ directory with updated test files",
+      "when": "pytest tests/generated/20260522-080646-D/ -v is run",
+      "then": "all 5 tests pass with exit_code 0 and zero failures",
+      "check": {
+        "type": "data",
+        "command": "pytest tests/generated/20260522-080646-D/ -v",
+        "expected_exit_code": 0,
+        "expected_pass_count": 5,
+        "expected_fail_count": 0
+      },
+      "ac_uid": "ac3-20260524-101700-D"
+    }
+  ]
+}

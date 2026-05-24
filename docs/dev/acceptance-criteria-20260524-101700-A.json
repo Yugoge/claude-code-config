@@ -1,0 +1,69 @@
+{
+  "task_id": "20260524-101700-A",
+  "timestamp": "2026-05-24T10:17:00Z",
+  "acceptance_criteria": [
+    {
+      "id": "AC-NEW-1",
+      "type": "hook",
+      "given": "hooks/pretool-bash-safety.sh is invoked with stdin JSON {\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"killall \\\"happy\\\"\"}}",
+      "when": "the hook processes the command",
+      "then": "exit code is 2 (BLOCKED)",
+      "check": {
+        "method": "subprocess_stdin",
+        "command": "echo '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"killall \\\"happy\\\"\"}}' | bash hooks/pretool-bash-safety.sh",
+        "expected_exit_code": 2
+      },
+      "ac_uid": "ac_new_1_killall_quoted"
+    },
+    {
+      "id": "AC-NEW-2",
+      "type": "hook",
+      "given": "hooks/pretool-bash-safety.sh is invoked with stdin JSON {\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"pkill -f \\\"claude\\\"\"}}",
+      "when": "the hook processes the command",
+      "then": "exit code is 2 (BLOCKED)",
+      "check": {
+        "method": "subprocess_stdin",
+        "command": "echo '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"pkill -f \\\"claude\\\"\"}}' | bash hooks/pretool-bash-safety.sh",
+        "expected_exit_code": 2
+      },
+      "ac_uid": "ac_new_2_pkill_quoted"
+    },
+    {
+      "id": "AC-NEW-3",
+      "type": "hook",
+      "given": "hooks/pretool-bash-safety.sh is invoked with stdin JSON {\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"kill \\\"-9\\\" 1234\"}}",
+      "when": "the hook processes the command",
+      "then": "exit code is 2 (BLOCKED)",
+      "check": {
+        "method": "subprocess_stdin",
+        "command": "echo '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"kill \\\"-9\\\" 1234\"}}' | bash hooks/pretool-bash-safety.sh",
+        "expected_exit_code": 2
+      },
+      "ac_uid": "ac_new_3_kill_quoted_signal"
+    },
+    {
+      "id": "AC-REGRESSION-1",
+      "type": "hook",
+      "given": "hooks/pretool-bash-safety.sh is invoked with stdin JSON containing command: codex exec \"The hook documentation says killall and claude processes are monitored\"",
+      "when": "the hook processes the command",
+      "then": "exit code is 0 (allowed) — false-positive fix is preserved",
+      "check": {
+        "method": "subprocess_stdin",
+        "expected_exit_code": 0
+      },
+      "ac_uid": "ac_regression_1_ac13_preserved"
+    },
+    {
+      "id": "AC-REGRESSION-2",
+      "type": "hook",
+      "given": "hooks/pretool-bash-safety.sh is invoked with stdin JSON containing command: killall happy",
+      "when": "the hook processes the command",
+      "then": "exit code is 2 (BLOCKED) — bare unquoted killall still blocked",
+      "check": {
+        "method": "subprocess_stdin",
+        "expected_exit_code": 2
+      },
+      "ac_uid": "ac_regression_2_bare_killall"
+    }
+  ]
+}

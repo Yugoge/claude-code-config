@@ -1,0 +1,257 @@
+{
+  "request_id": "20260524-101700-D",
+  "task_id": "20260524-101700-D",
+  "timestamp": "2026-05-24T10:17:00Z",
+  "complexity_tier": "SMALL",
+  "risk_level": "low",
+  "_risk_level_doc": "Low: changes only two test files under tests/generated/; no agent markdown or infrastructure code modified. Incorrect test would produce false positives on a correct implementation but cannot break the system.",
+  "requirement": {
+    "original": "Correct the BA spec M5 text error from Task D (second attempt). QA identified spec_text_vs_execution_drift. BA spec M5 literal text mandated ..HEAD form for changelog-analyst Phase 2 but implementation correctly uses working-tree form. Also M4/AC3 scope covers only files_modified but not files_created.",
+    "clarified": "Verify the actual implementation in changelog-analyst.md and qa.md. Confirm spec text is correct. Strengthen test_AC4 to assert ..HEAD is absent as a diff command argument. Strengthen test_AC3 to assert files_created_provenance_violation is present in qa.md.",
+    "what": "Update test_AC4 with negative assertion for ..HEAD pattern; update test_AC3 to cover files_created_provenance_violation label.",
+    "why": "The current AC4 test accepts any 'diff --name-only' text including the wrong ..HEAD form, leaving a regression path open. The AC3 test may not assert files_created coverage.",
+    "where": [
+      "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py",
+      "tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py"
+    ],
+    "scope": {
+      "included": [
+        "test_AC4: add negative assertion that ..HEAD is absent as an actual diff command argument in changelog-analyst Phase 2 provenance filter",
+        "test_AC3: add assertion that files_created_provenance_violation appears in agents/qa.md provenance check section"
+      ],
+      "excluded": [
+        "agents/changelog-analyst.md — implementation is correct, no change needed",
+        "agents/qa.md — implementation is correct (files_created check present at lines 425-438), no change needed",
+        "agents/dev.md — correct, no change needed",
+        "commands/dev.md — correct, no change needed",
+        "docs/dev/ticket-20260522-080646-D.md — spec text is already correct (M5 lines 87-90 already uses working-tree form with ..HEAD WRONG comment)"
+      ]
+    },
+    "success_criteria": [
+      "pytest tests/generated/20260522-080646-D/ -v — all 5 tests pass",
+      "test_AC4 asserts: working-tree form present AND re.search(r'diff\\s+--name-only\\s+\\S*\\.\\.\\S*HEAD', phase2_text) is None",
+      "test_AC3 asserts: 'files_created_provenance_violation' in agents/qa.md provenance check section"
+    ],
+    "constraints": [
+      "No changes to any agent markdown file — implementation is correct",
+      "..HEAD negative assertion must use a regex that matches only actual git command arguments, not explanatory text that mentions ..HEAD",
+      "Provenance filter text extraction for negative assertion must be scoped to the Phase 2 provenance filter section only"
+    ]
+  },
+  "scope_boundary": {
+    "in_user_path": [
+      "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py",
+      "tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py"
+    ],
+    "path_dependent_shared_infra": [
+      "agents/changelog-analyst.md (read-only reference for test target text)",
+      "agents/qa.md (read-only reference for test target text)"
+    ],
+    "out_of_path_observed_but_not_touched": []
+  },
+  "out_of_scope_observations": [],
+  "root_cause_analysis": {
+    "symptom": "QA test_AC4 passes even if ..HEAD form were reintroduced into changelog-analyst Phase 2 provenance filter. QA test_AC3 may not verify files_created_provenance_violation label in qa.md.",
+    "root_cause": "test_AC4 checks for presence of 'diff --name-only' text but omits a negative assertion for '..HEAD'. This creates a regression path where a future incorrect ..HEAD form passes the test. Similarly, test_AC3 may only assert dev_provenance_violation and not files_created_provenance_violation.",
+    "root_cause_commit": "N/A — test quality gap introduced during cycle 20260522-080646-D (the test was written to match implementation but without the negative guard)",
+    "why_introduced": "Test-writer focused on asserting correct text is present without also asserting incorrect form is absent. This is a common test coverage omission.",
+    "why_problematic": "A future change to changelog-analyst.md that accidentally reintroduces ..HEAD would pass all 5 tests and reach production before QA catches it.",
+    "timeline": "Identified by QA in qa-report-20260522-080646-D.json as ac_id: AC4-test, severity: major.",
+    "affected_files": [
+      "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py",
+      "tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py"
+    ],
+    "evidence_type": "inferred",
+    "observations": [
+      "agents/changelog-analyst.md:123 uses 'git -C \"$GIT_ROOT\" diff --name-only <baseline_head_sha>' with inline comment confirming ..HEAD form is wrong (inferred: Read of file)",
+      "agents/qa.md:425-438 contains 'git ls-files --others --exclude-standard' check for files_created with label 'files_created_provenance_violation' (inferred: Read of file)",
+      "docs/dev/ticket-20260522-080646-D.md:87-90 M5 text reads 'Phase 2 runs before staging and commit -- ..HEAD form is WRONG here and returns empty set' (inferred: Read of file)"
+    ],
+    "diagnosis_completeness": "incomplete (inferred only — test file contents not read in this session; reading confirmed agent files correct)",
+    "complaint_location_keywords": ["M5", "..HEAD", "files_created", "AC4", "AC3", "provenance", "spec_text_vs_execution_drift"],
+    "localization_evidence": "QA report ba_validation_objections[0] cites ticket-20260522-080646-D.md line 84 and tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py:41-43. BA read agent files directly and confirmed implementation is correct.",
+    "located_source": "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py:41-43 (negative assertion for ..HEAD absent); tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py (files_created_provenance_violation coverage)",
+    "localization_blocked": null,
+    "git_bisect_result": {
+      "triggered": false,
+      "suspect_commit": null,
+      "commit_message": null,
+      "confirmed_by": null,
+      "bisect_blocked": "not applicable — test quality gap introduced in same cycle as implementation",
+      "reproducibility_verified": false
+    }
+  },
+  "diagnosis_layer": "L3",
+  "requirements_decomposition": [
+    {
+      "id": "R1",
+      "source_phrase": "The BA spec M5 literal text mandates ..HEAD diff form for changelog-analyst but implementation correctly uses working-tree form. The SPEC TEXT is wrong and must be updated to match.",
+      "acceptance_criterion": "test_AC4 asserts that re.search(r'diff\\s+--name-only\\s+\\S*\\.\\.\\S*HEAD', phase2_provenance_filter_text) is None (..HEAD not present as actual command argument)"
+    },
+    {
+      "id": "R2",
+      "source_phrase": "M4/AC3 scope covers only files_modified but not files_created. Files created during a dev cycle (new scripts, new configs) are not covered by the provenance check.",
+      "acceptance_criterion": "test_AC3 asserts 'files_created_provenance_violation' appears in agents/qa.md provenance check section"
+    }
+  ],
+  "component_chain": [
+    {
+      "file": "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py",
+      "line_range": "41-43",
+      "role": "Pytest test for AC4: verifies agents/changelog-analyst.md Phase 2 provenance filter uses correct diff form",
+      "imports_from": ["agents/changelog-analyst.md (read target)"],
+      "evidence": "QA report references this file and lines explicitly; BA did not re-read test file (path confirmed via QA report)",
+      "verified_via": "grep"
+    },
+    {
+      "file": "tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py",
+      "line_range": "unknown",
+      "role": "Pytest test for AC3: verifies agents/qa.md provenance check section",
+      "imports_from": ["agents/qa.md (read target)"],
+      "evidence": "QA report references this file; BA did not re-read test file",
+      "verified_via": "grep"
+    },
+    {
+      "file": "agents/changelog-analyst.md",
+      "line_range": "117-131",
+      "role": "Phase 2 provenance filter — the text that test_AC4 reads and validates",
+      "imports_from": ["leaf"],
+      "evidence": "Read in this session; lines 117-129 confirmed working-tree form with ..HEAD WRONG comment",
+      "verified_via": "Read"
+    },
+    {
+      "file": "agents/qa.md",
+      "line_range": "405-438",
+      "role": "Provenance check section — the text that test_AC3 reads and validates",
+      "imports_from": ["leaf"],
+      "evidence": "Grep in this session confirmed files_created_provenance_violation label at lines 425-438",
+      "verified_via": "grep"
+    }
+  ],
+  "pre_existing_guards": [
+    {
+      "file": "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py",
+      "line": 41,
+      "type": "assert",
+      "code_snippet": "assert 'git diff --name-only <baseline_head_sha>' in phase2_text or 'diff --name-only' in phase2_text",
+      "purpose": "Positive assertion: working-tree diff form present in changelog-analyst Phase 2",
+      "removal_authorized": false
+    }
+  ],
+  "regression_investigation_checklist": {
+    "triggered": false,
+    "items": []
+  },
+  "setup": {
+    "applicability": "N/A",
+    "reason": "non-UI -- agent-prompt edit; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths"
+  },
+  "evidence": {
+    "observed": "QA: 'BA spec M5 literal text mandates ..HEAD form for changelog-analyst but the implementation correctly uses working-tree form. AC4 test does not assert ..HEAD is absent.'",
+    "measured": {
+      "value": "agents/changelog-analyst.md line 123: 'git -C \"$GIT_ROOT\" diff --name-only <baseline_head_sha>' with comment '..HEAD form is WRONG here'. agents/qa.md lines 425-438: files_created_provenance_violation label present. ticket-20260522-080646-D.md M5: working-tree form with ..HEAD WRONG statement.",
+      "location": "agents/changelog-analyst.md:123; agents/qa.md:425-438; docs/dev/ticket-20260522-080646-D.md:87-90"
+    },
+    "expected": {
+      "value": "test_AC4 asserts ..HEAD absent as actual command; test_AC3 asserts files_created_provenance_violation present",
+      "source": "QA report qa-report-20260522-080646-D.json ba_validation_objections[0,2] proposed_fix"
+    },
+    "gap": "test_AC4 positive assertion only (..HEAD absence not asserted); test_AC3 may lack files_created_provenance_violation assertion"
+  },
+  "scope_expansion": {
+    "search_pattern": "\\.\\.\\.?HEAD|files_created_provenance_violation",
+    "search_scope": "tests/generated/20260522-080646-D/",
+    "user_reported": ["tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py"],
+    "additional_found": ["tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py"],
+    "all_occurrences": [
+      "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py:41-43 (missing ..HEAD negative assertion)",
+      "tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py (files_created_provenance_violation coverage TBD)"
+    ]
+  },
+  "reference_source": {
+    "tier": "tier_2_verified",
+    "description": "Direct read of agents/changelog-analyst.md (lines 117-131) and grep of agents/qa.md in this session",
+    "url_or_location": "agents/changelog-analyst.md:117-131; agents/qa.md:405-438 (both read in session)",
+    "copy_allowed": true
+  },
+  "prior_attempts": {
+    "triggered": true,
+    "trigger_source": "dedup_hit",
+    "attempts": [
+      {
+        "artifact_path": "docs/dev/ticket-20260522-080646-D.md",
+        "proposed_solution": "Four-part markdown provenance contract across commands/dev.md, agents/dev.md, agents/qa.md, agents/changelog-analyst.md",
+        "actual_change": "All four files modified with provenance contract language; 5 pytest tests generated",
+        "outcome": "Implementation correct; test_AC4 under-enforcing (..HEAD negative assertion missing); test_AC3 may not cover files_created_provenance_violation; M5 spec text drift resolved in spec but QA caught test gap",
+        "failure_category": "symptom_treatment",
+        "target_layer": "L4"
+      }
+    ],
+    "novelty_check": {
+      "this_attempt_layer": "L3",
+      "differs_from_all_priors": true,
+      "rationale": "Prior attempt targeted L4 (logic contract in agent markdown). This attempt targets L3 (test assertion data correctness). The fix is in test files, not in the agent contracts themselves."
+    }
+  },
+  "context": {
+    "codebase_state": "master branch; recent commits: aea75d9 (close-report ship), 5771880 (spec commit), af96c61 (M1-M4 gitignore), 1a1d058 (cycle 2 remediation)",
+    "recent_commits": "aea75d9, 5771880, af96c61, 1a1d058",
+    "file_contents": {},
+    "dependencies": {},
+    "environment": {}
+  },
+  "development_approach": {
+    "strategy": "Two test file updates. (1) Read test_AC4 current implementation. (2) Add negative assertion: extract Phase 2 provenance filter section text from agents/changelog-analyst.md, apply re.search(r'diff\\s+--name-only\\s+\\S*\\.\\.\\S*HEAD', ...) and assert result is None. Scope extraction to Phase 2 provenance filter section only (between 'Provenance filter' heading and 'Exclusions' heading) to avoid false positives from explanatory text. (3) Read test_AC3 current implementation. (4) Add assertion: 'files_created_provenance_violation' in qa_provenance_section_text (or full qa_text if section extraction is complex). (5) Run pytest to confirm all 5 pass.",
+    "files_to_create": [],
+    "files_to_modify": [
+      {
+        "path": "tests/generated/20260522-080646-D/test_AC4_7c792480bc275ff9.py",
+        "changes": [
+          {
+            "section": "provenance filter assertion block (lines ~41-43)",
+            "what": "Add negative assertion after the positive check: assert re.search(r'diff\\s+--name-only\\s+\\S*\\.\\.\\S*HEAD', provenance_filter_text) is None. Also add import re if not already present. Scope the text extraction to the Phase 2 provenance filter section (between 'Provenance filter' and 'Exclusions' headings) before applying the negative assertion.",
+            "before_description": "Positive assertion only: 'diff --name-only' present in phase2_text",
+            "after_description": "Positive assertion present AND negative assertion: ..HEAD pattern absent as actual command argument in Phase 2 provenance filter section",
+            "rationale": "Prevents regression where ..HEAD form is reintroduced and passes the test"
+          }
+        ]
+      },
+      {
+        "path": "tests/generated/20260522-080646-D/test_AC3_2059b2b3bcc430f6.py",
+        "changes": [
+          {
+            "section": "provenance check assertions",
+            "what": "Add assertion: assert 'files_created_provenance_violation' in qa_text (where qa_text is the content of agents/qa.md read by the test). If the test already reads qa.md and has this assertion, confirm and document — no change needed.",
+            "before_description": "May assert only dev_provenance_violation, primary_cause, baseline_head_sha",
+            "after_description": "Also asserts files_created_provenance_violation label present in qa.md",
+            "rationale": "Closes the files_created provenance coverage gap identified by QA"
+          }
+        ]
+      }
+    ],
+    "validation_approach": "Run pytest tests/generated/20260522-080646-D/ -v. All 5 tests must pass. Manually verify that test_AC4 would fail if the string 'git diff --name-only sha..HEAD' were present in changelog-analyst.md Phase 2 provenance filter."
+  },
+  "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260524-101700-D.json",
+  "blast_radius_map_path": null,
+  "_blast_radius_note": "blast-radius-tool not applicable for pytest test file updates with no import/dependency graph",
+  "complexity_tier": "SMALL",
+  "risk_level": "low",
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": true,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true
+  },
+  "research_findings": {
+    "searched": false,
+    "reason": "straightforward test quality fix with clear root cause from QA report; no novel pattern or architecture choice requiring best-practices research"
+  },
+  "codex_consult": {
+    "invoked": false,
+    "status": "not_requested",
+    "feedback_summary": null,
+    "findings": [],
+    "feedback_incorporated": null
+  }
+}
