@@ -287,22 +287,28 @@ incomplete spec.
 
 **Location-complaint tokenization procedure** (shared with Contract D):
 
-1. `C` = complaint_location_keywords (prefer BA-extracted field; fallback:
-   tokenize user's original request text).
-2. `F` = tokens of `affected_files ∪ located_source`, split on `/ . - _`,
-   lowercased.
-3. `overlap = F ∩ C`. Pass iff `overlap` non-empty OR
-   `status == localization_blocked`.
-4. On fail: re-delegate BA with the mismatch report (list `C`, `F`, and
-   empty overlap). Do not advance to dev.
+Use semantic LLM judgment (natural-language reading), NOT mechanical
+character-set arithmetic. The orchestrator (you, in this turn) MUST read
+three fields from the BA context JSON — `complaint_location_keywords`,
+`affected_files`, and `located_source` — and form a single yes/no decision
+about whether the files BA identified plausibly match the place the user
+complained about. The decision is a natural-language semantic-overlap
+judgment: would a reasonable engineer, reading the user complaint and
+seeing BA's three fields side by side, agree that BA looked in the right
+place? Aliases, synonyms, hierarchical names, and indirect references all
+count toward the match — there is no token-splitting or set-intersection
+step. Pass iff the LLM judgment is "yes, plausible match" OR BA emitted
+`status == localization_blocked`. On a "no" verdict, re-delegate to BA
+with a one-sentence explanation of which complaint phrase did not find a
+believable home in `affected_files` or `located_source`, and do NOT
+advance to dev.
 
-<!-- Token examples across forms:
-     web          → page, route, view, component, header, nav, card
-     cli          → command, subcommand, flag, arg, stdout, stderr
-     library      → module, class, method, export, api
-     backend      → endpoint, handler, service, worker, queue, job
-     desktop      → window, dialog, menu, panel, shortcut
-     data         → table, column, migration, schema, index, query
+<!--
+Why semantic over mechanical: prior cycles used character-set splitting
+and threshold-based comparison, which produced false rejects on
+legitimate aliases ('login screen' vs. 'src/auth/SignIn.tsx') and false
+accepts on look-alike paths that point at the wrong subsystem. An LLM
+reading the three fields in context is more accurate than any rule.
 -->
 
 **Contract D novelty extension — two dimensions**:
