@@ -697,7 +697,7 @@ Use Task tool with:
 
 **Applies ONLY when N>1 parallel dev subagents were dispatched in Step 8.** Single-dev cycles SKIP this step entirely (the lone dev subagent writes `dev-report-<task-id>.json` directly).
 
-**Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files matching `dev-report-<role>-<task-id>.json` for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 11 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate.
+**Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 11 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate. Shard detection uses BOTH naming patterns: role-first (`dev-report-<role>-<task-id>.json`) and task-first (`dev-report-<task-id>-<worker>.json`).
 
 **Authoritative construction rule**: see the "Parallel Dev Aggregate" subsection below (Aggregate construction rule + Example aggregate JSON) for the full schema and union semantics. Summary:
 - `request_id` = `<task-id>`; `dev_report_path` = canonical singular path
@@ -706,7 +706,7 @@ Use Task tool with:
 - `baseline_head_sha` = equality-verified across all workers (aggregate status = `"blocked"` if any worker disagrees, citing `baseline_head_sha` mismatch); value taken from orchestrator dispatch
 - `baseline_dirty_snapshot` = equality-verified across all workers (aggregate status = `"blocked"` if any worker disagrees, citing `baseline_dirty_snapshot` mismatch); value taken verbatim from orchestrator dispatch
 - `dev.observed_preexisting` = UNION of all per-worker `dev.observed_preexisting` lists
-- The orchestrator writes the aggregate inline via `jq` or `python3` in a single Bash call — do NOT modify the `/commit` command implementation (`/root/.claude/commands/commit.md`), do NOT add a separate script
+- The orchestrator invokes `python3 scripts/aggregate-dev-report.py --task-id $TASK_ID` to write the canonical aggregate. Capture stdout JSON; action field will be `"aggregated"`, `"validated"`, or `"skipped"`. Do NOT modify the `/commit` command implementation (`/root/.claude/commands/commit.md`)
 
 **Single-dev cycles**: mark this todo step waived (skip). The aggregate-check hook does not fire for single-dev cycles because only one per-worker file pattern can match.
 
@@ -744,8 +744,7 @@ stays as-is.
 - `blocking_issues` = UNION of all per-worker `blocking_issues`
 - `recommendations` = UNION of all per-worker `recommendations`
 
-**Example aggregate JSON** (template; orchestrator writes inline via `jq` or
-Python in a single Bash call — no separate script):
+**Example aggregate JSON** (written by `python3 scripts/aggregate-dev-report.py --task-id $TASK_ID`):
 
 ```json
 {
