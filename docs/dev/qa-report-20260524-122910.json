@@ -213,7 +213,7 @@
       "issues": []
     },
     "hardcode_scan_results": {
-      "files_scanned": 11,
+      "files_scanned": 5,
       "violations": [],
       "summary": {
         "critical": 0,
@@ -270,27 +270,8 @@
         }
       }
     ],
-    "all_findings": [
-      {
-        "severity": "critical",
-        "location": "docs/dev/dev-report-20260524-122910.json:10-22 (files_modified[]) + line 32-47 (tasks_completed[0])",
-        "issue": "Provenance overstatement: 6 of 11 declared dev.files_modified entries (test_AC_07..test_AC_12 under tests/generated/20260520-221452/) have ZERO diff vs baseline_head_sha 787e3d4. They were realized in prior commit b189ad4 BEFORE baseline. baseline_dirty_snapshot field contains only a free-text disclaimer, not the path list required by Step 5 rule 5. tasks_completed[0].description claims 'Realized 7 remaining Cycle-2 test skeletons (AC-07 through AC-13)' but only AC-13 was realized this cycle.",
-        "recommendation": "Update dev-report-20260524-122910.json: remove the 6 unchanged paths from files_modified[]; add them to observed_preexisting[]; correct tasks_completed[0].description to 'Realized 1 test skeleton (AC-13); verified preexisting AC-07..AC-12 (from prior commit b189ad4)'; correct tasks_completed[0].files_modified[] to single entry test_AC_13; update diff_stats.files_changed from 11 to 5. No source/test changes needed.",
-        "blocks_release": true,
-        "primary_cause": "dev_implementation",
-        "_primary_cause_doc": "Dev authored the report; report provenance is dev's responsibility."
-      }
-    ],
-    "failures": [
-      {
-        "severity": "critical",
-        "location": "docs/dev/dev-report-20260524-122910.json:10-22 and :32-47",
-        "issue": "Step 5 Provenance Check failure: dev.files_modified[] declares 6 paths (test_AC_07_3619ae6db161fb50.py, test_AC_08_ea4c2e44ca7a4e55.py, test_AC_09_d7653985e85603ea.py, test_AC_10_aa2a911022c763f1.py, test_AC_11_5bbe970f97d071a1.py, test_AC_12_26a6449a5b99964c.py) that are absent from `git diff --name-only 787e3d40d92bd842a9d784e4e5a8d225ed358727` AND not enumerated as paths in baseline_dirty_snapshot (which is a free-text disclaimer, not a structured snapshot).",
-        "recommendation": "Dev: trim files_modified[] to the 5 paths actually changed this cycle (test_AC_13_546c22e4fddfaf20.py, agents/style-inspector.md, hooks/doc_sync/regen_readme.py, hooks/doc_sync/tree.py, scripts/blast-radius-tool.py). Move the 6 unchanged paths to observed_preexisting[]. Update tasks_completed[0] description and files_modified accordingly. Update diff_stats.files_changed to 5.",
-        "primary_cause": "dev_implementation",
-        "_primary_cause_doc": "Dev report integrity is the dev role's deliverable."
-      }
-    ],
+    "all_findings": [],
+    "failures": [],
     "manifest_verification": {
       "_doc": "Per-task manifest at tests/generated/20260524-122910/manifest.json exists (test-writer ran upstream per test_writer_expected=true).",
       "manifest_path": "tests/generated/20260524-122910/manifest.json",
@@ -316,8 +297,8 @@
       "gaps_note": "All 19 coverage_gaps are on docs/dev/*.json/.md files for other concurrent tasks (20260524-125300-*), not on this cycle's actually-modified files."
     },
     "self_verification": {
-      "claims_total": 18,
-      "claims_with_evidence": 18,
+      "claims_total": 19,
+      "claims_with_evidence": 19,
       "claims_superficial": 0,
       "superficial_details": [],
       "confidence": "high"
@@ -325,24 +306,17 @@
     "codex_consult": {
       "invoked": true,
       "status": "ok",
-      "feedback_summary": "Codex returned 1 PROPOSED_FIX and 6 OBSERVATION_ONLY. The single PROPOSED_FIX confirms provenance discrepancy is a critical FAIL under QA Step 5 as written ('a not captured verbatim disclaimer does NOT exempt paths'). Codex independently verified that the 6 test_AC_07-12 files are absent from baseline diff and baseline_dirty_snapshot contains only a free-text disclaimer. Observations: AC-04 subprocess fixtures are adequate (no return-code check, but fresh temp paths + JSON structure validation); generated AC-06 test does not execute canary (QA supplemented with runtime bash canary-verify.sh exit 0 check); canary 'advisory only' is NOT a band-aid for AC-06 (write/git guards still emit_failure + exit 2); no role-token / band-aid in modified source; no Dimension 5 drift.",
-      "feedback_incorporated": "PROPOSED_FIX (provenance) adopted as the sole verdict-determining finding. Verdict set to FAIL with section_7 prescriptive next step for dev: trim files_modified[] to 5 paths, move 6 unchanged paths to observed_preexisting[], correct task description. Observations logged in observation fields but do not block."
+      "feedback_summary": "Iter-1 codex consult: 1 PROPOSED_FIX (provenance discrepancy is critical FAIL under QA Step 5) + 6 OBSERVATION_ONLY. PROPOSED_FIX adopted as iter-1 verdict-determining finding. Iter-2 is verification-only of patch landing — per orchestrator dispatch and iter-1 pre-declared conditional, codex re-consult not required for verification-of-patch-landing dispatch.",
+      "feedback_incorporated": "Iter-1: provenance FAIL set as sole blocker with section_7 prescription. Iter-2: orchestrator applied prescribed patch verbatim; conditional satisfied; verdict flips to PASS without re-running tests."
     },
     "summary": {
-      "critical_issues": 1,
+      "critical_issues": 0,
       "major_issues": 0,
       "minor_issues": 0,
-      "total_findings": 1,
-      "release_recommendation": "reject"
+      "total_findings": 0,
+      "release_recommendation": "approve"
     }
   },
-  "iteration_needed": true,
-  "refined_context": {
-    "failed_criteria": ["Step 5 Provenance Check"],
-    "critical_issues": [
-      "dev.files_modified[] contains 6 paths (test_AC_07..test_AC_12) that have zero diff vs baseline_head_sha 787e3d4 and are absent from baseline_dirty_snapshot. Dev's 'Realized 7' claim overstates scope — only AC-13 was realized this cycle."
-    ],
-    "recommended_approach": "Update dev-report-20260524-122910.json ONLY (no source code changes needed). (1) Trim dev.files_modified to 5 paths: [test_AC_13_546c22e4fddfaf20.py, agents/style-inspector.md, hooks/doc_sync/regen_readme.py, hooks/doc_sync/tree.py, scripts/blast-radius-tool.py]. (2) Move the 6 removed paths to dev.observed_preexisting[] with explanation 'realized in prior commit b189ad4 before baseline'. (3) Update tasks_completed[0].description to 'Realized 1 remaining Cycle-2 test skeleton (AC-13); verified preexisting test bodies for AC-07..AC-12 (already in baseline from commit b189ad4)'. (4) Update tasks_completed[0].files_modified[] to single entry. (5) Update diff_stats.files_changed from 11 to 5. After report correction, all 10 ACs still PASS and verdict will be PASS.",
-    "additional_context": "All 23 tests still pass. All 10 AC literal predicates still pass. The deliverable is correct — the issue is purely the dev report's accounting of what was modified this cycle vs what was pre-existing."
-  }
+  "iteration_needed": false,
+  "refined_context": null
 }
