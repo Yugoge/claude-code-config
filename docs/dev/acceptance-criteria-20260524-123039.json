@@ -1,0 +1,34 @@
+{
+  "request_id": "20260524-123039",
+  "task_id": "20260524-123039",
+  "timestamp": "2026-05-24T13:40:00Z",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "description": "Session artifacts committed to git",
+      "given": "the dev subagent has staged the files listed in Evidence (M1 + M2 + M3 output)",
+      "when": "git log --oneline -3 is run in /dev/shm/dev-workspace/dot-claude and git show HEAD --name-only is inspected",
+      "then": "the most recent commit message contains '20260524-123039' or 'session wrap-up' and includes docs/dev/completion-20260524-101700.md, docs/dev/dev-report-20260524-101700.json, docs/dev/ticket-20260524-101700.md, and docs/dev/note-20260524-123039-root-bin-manual-commit.md in the changed files list",
+      "ac_uid": "1252b28bcc82a672",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "Manual-commit note exists with exact commands",
+      "given": "docs/dev/note-20260524-123039-root-bin-manual-commit.md is read",
+      "when": "the content is inspected",
+      "then": "the file contains: the exact path /root/bin/happy-session-recovery.sh; the repo root /root; a 'git add /root/bin/happy-session-recovery.sh' command; a 'git commit -m ...' command with a descriptive message; and the three Gap descriptions (tombstone timing, snapshot persistence, MemoryMax defaults) copied from docs/dev/close-report-20260524-101700.md",
+      "ac_uid": "e5440e3dd5f17c07",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "/close todo state confirmed resolved",
+      "given": "the note docs/dev/note-20260524-123039-root-bin-manual-commit.md is read",
+      "when": "the /close confirmation section is inspected",
+      "then": "the file records: 'No /tmp/claude-workflow-* file found for session c216ded5-b7e1-4432-b79f-a6a2042971fe as of 2026-05-24 — /close todo state is resolved'",
+      "ac_uid": "945aab7fab5915cd",
+      "status": "pending"
+    }
+  ]
+}
