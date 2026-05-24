@@ -2,8 +2,26 @@
   "request_id": "20260524-122910",
   "task_id": "20260524-122910",
   "timestamp": "2026-05-24T12:29:10Z",
+  "iteration": 2,
+  "revision_metadata": {
+    "iter_1_timestamp": "2026-05-24T12:29:10Z",
+    "iter_1_verdict": "fail",
+    "iter_1_qa_report": "docs/dev/ba-qa-report-20260524-122910.json",
+    "iter_2_timestamp": "2026-05-24T14:50:00Z",
+    "iter_2_changes": [
+      "AC-02: replaced substring tokens with NEW heading anchor '#### Active CJK Detection Algorithm' + numbered MUST-step body + positive invariant phrase (codex F1/F2)",
+      "AC-05: heading rename + semantic body gate on test_writer_expected==true + pytest gate widen at line 1036; iteration-1 marker token retracted (codex F3/F4)",
+      "AC-10: heading-anchor scoping via sed; semantic LLM body must reference complaint_location_keywords + affected_files + located_source; Contract D bounded to lines 308-314 (codex F5)",
+      "AC-04: dropped 500KB size threshold; added deterministic temp-git fixture (Fixture A) + high-fanout fixture (Fixture B); edge dedup is 3-tuple (from,to,edge_type) (codex F6/F7/F8)",
+      "AC-03: added top-level test_writer_expected boolean requirement with computed-vs-formula verification (codex F9)",
+      "AC-08: both BA prefixes required (existing + new); policy_version 4→5 with _note rationale (codex F10/F11)",
+      "component_chain: added agents/ba.md; added single glob entry for 13 test_AC_*.py files with verified_via=Glob + live-count; per-AC affected_files[] in acceptance-criteria JSON (codex F12)"
+    ]
+  },
   "complexity_tier": "STANDARD",
   "risk_level": "medium",
+  "test_writer_expected": true,
+  "_test_writer_expected_doc": "Computed = (complexity_tier in {STANDARD, COMPLEX}) OR (risk_level == 'high'). For this task: complexity_tier=STANDARD ∈ {STANDARD, COMPLEX} → true. Verifiable by jq '.test_writer_expected | type == \"boolean\"' (returns true) AND jq '.test_writer_expected' (returns true).",
   "requirement": {
     "original": "Implement Cycle 3 of spec-20260518-225715 — clear 10 known debts from Cycle 1+2.",
     "clarified": "Clear 10 enumerated debts from spec Section 7 'Cycle 2 -> Cycle 3': test-writer skeleton realization (13 files), style-inspector CJK hardening, BA gate-logic auto-check, blast-radius Phase 2 untracked-file detection + bloat reduction, QA Phase 5 trigger symmetry, canary fail-closed depth, AC-08 leak-check deepening, tool-policy BA prefix patch, session-info.sh stdout->stderr, location-complaint tokenization simplification.",
@@ -29,8 +47,9 @@
         "Push-gate stale token (Section 8 Note 2)",
         "Orchestrator streak limit (Section 8 Note 4)",
         "Any new harness components or features",
-        "Removing canary advisory-only treatment of session-info.sh / session-git-init.sh (post-codex: S2 dropped — would force fail-hard on session-git-init.sh which is out of scope)",
-        "Modifying the Contract D novelty extension Jaccard logic at commands/dev.md:304-310 (post-codex: AC-10 scope tightened to lines 284-303 only — Contract D block PRESERVED VERBATIM)"
+        "Removing canary advisory-only treatment of session-info.sh / session-git-init.sh (would force fail-hard on session-git-init.sh which is out of scope)",
+        "Modifying the Contract D novelty extension Jaccard logic at commands/dev.md:308-314 (iter 2 corrected line numbers from iter 1's 304-310; preservation is contractually required, verbatim byte-for-byte)",
+        "Marker-token ceremonial-proof patterns (e.g., iteration-1's `tested_trigger_asymmetry_eliminated: true`) — retracted per codex F4"
       ]
     },
     "success_criteria": [
@@ -147,9 +166,17 @@
   ],
   "component_chain": [
     {
+      "file_glob": "tests/generated/20260520-221452/test_AC_*.py",
+      "count": 13,
+      "role": "Test skeletons for AC-01..AC-13 (all 13 files have bare `pass` body; Debt 1 / AC-01 targets the full set)",
+      "imports_from": ["pytest"],
+      "evidence": "Glob('tests/generated/20260520-221452/test_AC_*.py') returns 13 files; Read of test_AC_01_efbe5ef12975e7e7.py:24 confirms body is bare pass (representative sample)",
+      "verified_via": "Glob"
+    },
+    {
       "file": "tests/generated/20260520-221452/test_AC_01_efbe5ef12975e7e7.py",
       "line_range": "1-25",
-      "role": "Test skeleton for AC-01 (tool-policy test-writer role verification)",
+      "role": "Representative test skeleton (sample from glob above; spot-checked for bare pass)",
       "imports_from": ["pytest"],
       "evidence": "Read confirmed body is bare pass at line 24",
       "verified_via": "Read"
@@ -157,9 +184,17 @@
     {
       "file": "agents/style-inspector.md",
       "line_range": "310-331",
-      "role": "Standard 6 English-only detection logic",
+      "role": "Standard 6 English-only detection logic — target of Debt 2 / AC-02 (new heading anchor `#### Active CJK Detection Algorithm` to be inserted between line 318 and 320)",
       "imports_from": ["leaf"],
-      "evidence": "Read confirmed CJK detection at line 316 uses grep U+4E00-U+9FFF, no content-type awareness",
+      "evidence": "Read confirmed CJK detection at line 316 uses grep U+4E00-U+9FFF; line 318 has Unconditional scan paragraph; line 320 has Exemption paragraph; the new heading anchor is currently absent (codex re-verified via grep)",
+      "verified_via": "Read"
+    },
+    {
+      "file": "agents/ba.md",
+      "line_range": "1128-1130, 1404-1422",
+      "role": "BA Quality Standards checklist (1404-1422) + JSON-context schema documentation (1128-1130) — target of Debt 3 / AC-03 (exact-match checklist line + test_writer_expected schema documentation)",
+      "imports_from": ["leaf"],
+      "evidence": "Read line 1404 confirmed `## Quality Standards` heading + checklist with no test_writer_expected item; Read line 1128-1130 confirmed JSON-context schema fields complexity_tier + risk_level documented but test_writer_expected absent",
       "verified_via": "Read"
     },
     {
@@ -437,6 +472,28 @@
       }
     ],
     "feedback_incorporated": "All 8 findings applied. Spec MoSCoW restructured (10 Must-Haves, no Should/Could). 5 ACs tightened with concrete verification logic (AC-01 anti-vacuity, AC-04 bloat measurement, AC-07 per-file executable check, AC-09 two-stage grep, AC-10 scope narrowing). 2 risks/hints corrected (write-guard payload semantics, scope-preservation note for Contract D). Acceptance-criteria JSON regenerated with same 10-item structure but tighter check fields."
+  },
+  "codex_consult_iter_2": {
+    "invoked": true,
+    "status": "ok",
+    "model": "gpt-5.5 (xhigh)",
+    "output_path": "docs/codex/20260524-122910/ba-iter2-adversarial.txt",
+    "feedback_summary": "Codex returned 12 verdict-relevant findings (F1-F12) against the iter-2 revised ACs. All 12 incorporated as structural changes.",
+    "findings": [
+      {"id": "F1", "issue": "AC-02 heading + phrase checks can pass without real algorithm", "proposed_fix": "Require numbered MUST steps under new heading (collect-then-classify-then-report ordering)", "classification": "blocker", "disposition": "applied", "rationale": "Body now mandates 4-step MUST list with scan-before-exemption ordering"},
+      {"id": "F2", "issue": "AC-02 literal ban 'skip detection' false-positives on legitimate 'MUST NOT skip detection'", "proposed_fix": "Use positive invariant 'MUST NOT skip CJK scanning for any in-scope file' instead of literal-ban", "classification": "blocker", "disposition": "applied", "rationale": "Replaced ban with positive invariant phrase; literal-ban check removed"},
+      {"id": "F3", "issue": "AC-05 heading rename + marker can pass while body stays manifest-gated", "proposed_fix": "Require Phase 5 body to gate on test_writer_expected==true even when manifests missing; widen pytest gate at line 1036 to OR risk_level==high", "classification": "blocker", "disposition": "applied", "rationale": "AC-05 now mandates semantic body change AND pytest gate widening"},
+      {"id": "F4", "issue": "AC-05 'tested_trigger_asymmetry_eliminated: true' marker is ceremonial proof, not behavior", "proposed_fix": "Drop marker requirement; replace with semantic body assertions", "classification": "blocker", "disposition": "applied", "rationale": "Marker requirement explicitly RETRACTED in AC-05 clause (e)"},
+      {"id": "F5", "issue": "AC-10 anchor scoping fixes brittleness but does not force substantive replacement", "proposed_fix": "Require scoped region to reference complaint_location_keywords, affected_files, located_source by name; bound Contract D preservation to lines 308-314 (not 'onward')", "classification": "blocker", "disposition": "applied", "rationale": "AC-10 clause (b) names all 3 fields; clause (c) bounds Contract D to 308-314"},
+      {"id": "F6", "issue": "AC-04 fixed --files invocation bypasses git_diff_files() — Dev could leave --git-diff broken", "proposed_fix": "Add deterministic temp-git fixture exercising --git-diff --base HEAD branch", "classification": "blocker", "disposition": "applied", "rationale": "AC-04 added Fixture A: temp git repo with tracked-modified + untracked-non-ignored files"},
+      {"id": "F7", "issue": "AC-04 edge cap can be dead code — defining constant does not prove application", "proposed_fix": "Add high-fanout fixture (>50 references); assert per-source edges <= 50 and omitted_edges_count > 0 with exact value", "classification": "blocker", "disposition": "applied", "rationale": "AC-04 added Fixture B: high-fanout with assertion on emitted count + exact omitted count"},
+      {"id": "F8", "issue": "AC-04 (from,to) dedup false-positives on legitimate distinct edge_types", "proposed_fix": "Use (from,to,edge_type) 3-tuple uniqueness", "classification": "major", "disposition": "applied", "rationale": "AC-04 clause (f) redefined dedup as 3-tuple"},
+      {"id": "F9", "issue": "AC-03 checklist line can be ceremonial without forcing field computation", "proposed_fix": "Require test_writer_expected boolean in context schema + Field Rule (BA computes from formula + emits with value=formula); jq-verify this task's context.json has true", "classification": "blocker", "disposition": "applied", "rationale": "AC-03 added clauses (c) and (d): jq returns boolean AND value equals formula"},
+      {"id": "F10", "issue": "AC-08 only checks new blast-radius prefix; existing acceptance-criteria prefix preservation also part of Debt 8", "proposed_fix": "jq-assert both prefixes present", "classification": "major", "disposition": "applied", "rationale": "AC-08 clauses (a) and (b) both required"},
+      {"id": "F11", "issue": "AC-08 exact policy_version 4→5 brittle if concurrent bump", "proposed_fix": "Pin baseline 4→5 with explicit baseline assertion (acceptable since live state is 4)", "classification": "major", "disposition": "applied", "rationale": "AC-08 clause (c) cites live baseline check; if concurrent bump, Dev rebases and ACs need refresh"},
+      {"id": "F12", "issue": "BAQA-07 per-AC affected_files can be empty/wrong arrays", "proposed_fix": "Require non-empty affected_files per AC; live-resolve each path/glob; test glob entry must be {file_glob, count=13, verified_via=Glob} with live count match", "classification": "major", "disposition": "applied", "rationale": "Acceptance-criteria JSON regenerated with affected_files[] per item; component_chain has glob entry with count=13"}
+    ],
+    "feedback_incorporated": "All 12 codex F1-F12 findings applied as structural changes to ACs. Spec is no longer satisfiable by no-op or marker-token edits."
   },
   "research_findings": {
     "searched": false,
