@@ -62,7 +62,7 @@ def test_AC5():
     # i.e., "absent from ... observed_preexisting" (the active exclusion condition pattern).
     import re as _re
     positive_exclusion = _re.search(
-        r"absent\s+from\s+[^.\n]*observed_preexisting",
+        r"absent\s+from[^;.\n]*observed_preexisting",
         reverse_block,
         _re.IGNORECASE,
     )
