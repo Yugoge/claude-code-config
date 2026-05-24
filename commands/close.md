@@ -167,14 +167,14 @@ Shard detection uses BOTH filename patterns (scoped to `$TASK_ID`'s bare timesta
 Count matching shard files in `docs/dev/` scoped to `BARE_TID` only.
 
 **Case 1 — canonical absent, 2+ task-scoped shards found**:
-Invoke `python3 scripts/aggregate-dev-report.py --task-id $TASK_ID` to build the canonical aggregate.
+Invoke `source venv/bin/activate && python3 scripts/aggregate-dev-report.py --task-id $TASK_ID` to build the canonical aggregate.
 Capture stdout JSON into `AGGREGATE_RESULT`. Parse `action` field from JSON.
 If exit non-zero: abort with error — parallel shards exist but aggregate could not be written.
 Set `PARALLEL_AGGREGATE_WRITTEN=true` (in-memory, used in Step 1 below).
 Write `AGGREGATE_RESULT` to a temp file (`mktemp`) for Step 1 to read if needed.
 
 **Case 2 — canonical present, 2+ task-scoped shards found**:
-Invoke `python3 scripts/aggregate-dev-report.py --task-id $TASK_ID` to validate consistency.
+Invoke `source venv/bin/activate && python3 scripts/aggregate-dev-report.py --task-id $TASK_ID` to validate consistency.
 Capture stdout JSON into `AGGREGATE_RESULT`. Parse `action` field.
 Set `PARALLEL_AGGREGATE_WRITTEN=true` if action is `"aggregated"` or `"validated"`.
 

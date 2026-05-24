@@ -181,14 +181,14 @@ triggers `exit 1` BEFORE any `git push` is reached.
 
 ```bash
 # Without --auto:
-python3 ~/.claude/scripts/execute-push.py \
+source venv/bin/activate && python3 ~/.claude/scripts/execute-push.py \
   --repo-hash "${REPO_HASH}" \
   --branch "${BRANCH}" \
   --remote "${RESOLVED_REMOTE}" \
   --request-id "${REQUEST_ID}"
 
 # With --auto (only when /push was invoked with --auto):
-python3 ~/.claude/scripts/execute-push.py \
+source venv/bin/activate && python3 ~/.claude/scripts/execute-push.py \
   --repo-hash "${REPO_HASH}" \
   --branch "${BRANCH}" \
   --remote "${RESOLVED_REMOTE}" \
