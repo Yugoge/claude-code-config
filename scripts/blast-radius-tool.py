@@ -37,6 +37,12 @@ EXCLUDE_FRAGMENTS = (
     "/.git/", "/__pycache__/", "/node_modules/",
 )
 
+# Per-source edge cap (spec-20260518-225715 Cycle 3 Debt 4 / AC-04): bound
+# the number of edges emitted with the same `from` value, so a high-fanout
+# source file (e.g., a widely-imported utility) cannot bloat the map. Edges
+# beyond this cap are skipped and counted into top-level omitted_edges_count.
+MAX_EDGES_PER_SOURCE_FILE = 50
+
 
 def in_scope(path: str) -> bool:
     norm = "/" + path.replace("\\", "/").lstrip("/") + "/"
@@ -150,7 +156,38 @@ def build_report(
     edges: list[dict] = []
     coverage_gaps: list[dict] = []
     required_validation: list[dict] = []
-    seen_edges: set[tuple] = set()
+    # Per spec-20260518-225715 Cycle 3 Debt 4 / AC-04: dedup key is the
+    # 3-tuple (from, to, edge_type). Two edges with the same (from, to) but
+    # different edge_type (e.g. python_import vs textual_reference) are
+    # legitimately distinct semantic relationships and MUST be preserved.
+    seen_edges: set[tuple[str, str, str]] = set()
+    # Per-source-file edge-count tracker for MAX_EDGES_PER_SOURCE_FILE cap.
+    # The "source file" here is the analyzed file `tf` being processed (the
+    # file the user passed via --files or that turned up in --git-diff). The
+    # cap bounds the number of edges contributed by a single analyzed file
+    # in either direction (outgoing python_import + incoming textual/test).
+    # This bounds a high-fanout source (e.g. a widely-imported util.py with
+    # >50 sibling callers) from bloating the map. Edges beyond the cap are
+    # skipped and counted into top-level omitted_edges_count.
+    edges_per_analyzed_source: dict[str, int] = {}
+    omitted_edges_count = 0
+    current_analyzed: list[str] = [""]  # mutable holder so closure can read
+
+    def _try_add_edge(edge: dict) -> None:
+        """Add edge if (from,to,edge_type) is unique AND the analyzed-source
+        cap is not exceeded; otherwise increment omitted_edges_count."""
+        nonlocal omitted_edges_count
+        key = (edge["from"], edge["to"], edge["edge_type"])
+        if key in seen_edges:
+            return
+        src = current_analyzed[0]
+        if src and edges_per_analyzed_source.get(src, 0) >= MAX_EDGES_PER_SOURCE_FILE:
+            omitted_edges_count += 1
+            return
+        seen_edges.add(key)
+        if src:
+            edges_per_analyzed_source[src] = edges_per_analyzed_source.get(src, 0) + 1
+        edges.append(edge)
 
     for tf in target_files:
         tf_norm = tf.replace("\\", "/")
@@ -158,12 +195,13 @@ def build_report(
             continue
         abs_p = root / tf_norm
         analyzed.append(tf_norm)
+        current_analyzed[0] = tf_norm
 
         # Import-based edges (Python files only)
         if tf_norm.endswith(".py") and abs_p.exists():
             for mod in python_imports(abs_p):
                 if mod:
-                    edges.append({
+                    _try_add_edge({
                         "from": tf_norm,
                         "to": mod,
                         "confidence": "high",
@@ -176,11 +214,7 @@ def build_report(
             for caller in find_callers_via_grep(root, bn):
                 if caller == tf_norm:
                     continue
-                key = (caller, tf_norm)
-                if key in seen_edges:
-                    continue
-                seen_edges.add(key)
-                edges.append({
+                _try_add_edge({
                     "from": caller,
                     "to": tf_norm,
                     "confidence": "medium",
@@ -196,15 +230,12 @@ def build_report(
         if dependent_tests:
             # Tests exist that reference this file — record edges, no gap.
             for t in dependent_tests:
-                key = (t, tf_norm)
-                if key not in seen_edges:
-                    seen_edges.add(key)
-                    edges.append({
-                        "from": t,
-                        "to": tf_norm,
-                        "confidence": "medium",
-                        "edge_type": "test_dependency",
-                    })
+                _try_add_edge({
+                    "from": t,
+                    "to": tf_norm,
+                    "confidence": "medium",
+                    "edge_type": "test_dependency",
+                })
         else:
             coverage_gaps.append({
                 "file": tf_norm,
@@ -245,6 +276,8 @@ def build_report(
         "files_to_modify": sorted(set(analyzed)),
         "files_to_create": [],
         "edges": edges,
+        "omitted_edges_count": omitted_edges_count,
+        "max_edges_per_source_file": MAX_EDGES_PER_SOURCE_FILE,
         "coverage_gaps": coverage_gaps,
         "required_validation": required_validation,
     }
@@ -255,18 +288,51 @@ def build_report(
 # Git diff source for Phase 2
 # ---------------------------------------------------------------------------
 def git_diff_files(base: str) -> list[str]:
+    """Phase-2 file list: union of (a) tracked-modified files from
+    `git diff --name-only <base>` and (b) untracked, non-ignored files from
+    `git ls-files --others --exclude-standard`. Returns a deduplicated list
+    preserving first-seen order so the output is stable across runs.
+
+    Per spec-20260518-225715 Cycle 3 Debt 4 / AC-04: previously this only
+    returned tracked-modified files, missing every new file the user added
+    but did not yet git-add. Untracked-non-ignored detection closes that gap.
+    """
+    seen: set[str] = set()
+    files: list[str] = []
+
+    def _add(line: str) -> None:
+        line = line.strip()
+        if not line:
+            return
+        if line in seen:
+            return
+        if not in_scope(line):
+            return
+        seen.add(line)
+        files.append(line)
+
+    # (a) Tracked-modified files
     try:
         result = subprocess.run(
             ["git", "diff", "--name-only", base],
             capture_output=True, text=True, timeout=20, check=False,
         )
+        for line in result.stdout.splitlines():
+            _add(line)
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        return []
-    files = []
-    for line in result.stdout.splitlines():
-        line = line.strip()
-        if line and in_scope(line):
-            files.append(line)
+        pass
+
+    # (b) Untracked-non-ignored files (gitignore-aware)
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            capture_output=True, text=True, timeout=20, check=False,
+        )
+        for line in result.stdout.splitlines():
+            _add(line)
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
     return files
 
 
