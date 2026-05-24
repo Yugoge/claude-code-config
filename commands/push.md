@@ -143,16 +143,16 @@ Wait for the subagent to complete before proceeding.
 
 **Step 4: Grant validation and sentinel write (Chain B) — performed by execute-push.py**
 
-The orchestrator MUST NOT read, validate, or unlink the push-analyst grant manually,
-and MUST NOT delegate this step to a subagent. All of Step 4 and Step 5 are performed
-atomically by `scripts/execute-push.py` in Step 5 below.
+`execute-push.py` (Step 5) is the sole grant validator and consumer. The orchestrator
+MUST NOT manually read, validate, or unlink the push-analyst grant file. Pass all Step 2
+snapshot values to the script directly. No subagent delegation.
 
 For reference, the script validates the following grant fields from
 `/tmp/agentic-commit/push-analyst/<REPO_HASH>/<SESSION_ID>/<REQUEST_ID>.json`:
 - File exists and is valid JSON
 - `nonce` field matches `REQUEST_ID`
-- `branch` field matches current `BRANCH`
-- `head_sha` field matches current `git rev-parse HEAD`
+- `branch` field matches `BRANCH`
+- `head_sha` field matches current `git rev-parse HEAD` (single drift check at step 9)
 - `remote_name` field matches `RESOLVED_REMOTE`
 - `session_id` field matches `SESSION_ID`
 - `verdict` field is one of: `"approved"`, `"warn"`, `"blocked"`
@@ -180,16 +180,35 @@ is read ONLY once from inside push.sh; missing / expired / FAIL / mismatched sen
 triggers `exit 1` BEFORE any `git push` is reached.
 
 ```bash
-python3 /root/.claude/scripts/execute-push.py --request-id "$REQUEST_ID" --repo-hash "$REPO_HASH" --remote "$RESOLVED_REMOTE"
+# Without --auto:
+python3 ~/.claude/scripts/execute-push.py \
+  --repo-hash "${REPO_HASH}" \
+  --branch "${BRANCH}" \
+  --remote "${RESOLVED_REMOTE}" \
+  --request-id "${REQUEST_ID}"
+
+# With --auto (only when /push was invoked with --auto):
+python3 ~/.claude/scripts/execute-push.py \
+  --repo-hash "${REPO_HASH}" \
+  --branch "${BRANCH}" \
+  --remote "${RESOLVED_REMOTE}" \
+  --request-id "${REQUEST_ID}" \
+  --auto
 ```
 
-If `--auto` is required, append the flag `--auto` (no value) to the invocation.
-Do NOT pass `--auto "$AUTO"` with a variable value — `--auto` is a boolean flag.
+This script validates the grant (non-head_sha fields), acts on verdict, checks HEAD drift
+(single check: grant.head_sha vs current HEAD), consumes the grant, writes the Chain-B
+sentinel atomically, and replaces itself with push.sh via `os.execv`. No subagent
+delegation. No `&&` chaining. The orchestrator calls this directly.
+
+`--auto` is a boolean flag with no value argument. Do NOT pass `--auto "$AUTO"`.
+`CLAUDE_SESSION_ID` is read from the environment automatically; do NOT pass it as a
+CLI argument.
 
 Note: `python3` is used directly (no venv activation needed) because the script
-uses only Python stdlib modules (argparse, hashlib, json, os, re, subprocess,
-sys, tempfile, datetime). This matches the `Bash(python3:*)` allow entry in
-settings.json — no additional permission is required.
+uses only Python stdlib modules (argparse, json, os, subprocess, sys, tempfile,
+datetime, pathlib). This matches the `Bash(python3:*)` allow entry in settings.json
+— no additional permission is required.
 
 ## Push-analyst grant TTL
 

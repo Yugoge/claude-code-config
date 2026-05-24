@@ -123,6 +123,52 @@ Constraints:
 
 Wait for changelog-analyst to complete. Echo its final status to the user.
 
+### Step 6b: Changelog-analyst result handling and retry protocol
+
+Parse changelog-analyst's structured status output (see `agents/changelog-analyst.md` §Structured Final Status Output). The machine-readable JSON block contains `commit_status` and, when applicable, `failure_code`, `failure_reason`, and `auto_bulk_commits[]`.
+
+**Handle each commit_status value:**
+
+#### status = `committed`
+Continue to Step 7 normally.
+
+#### status = `nothing_to_commit`
+Print: `WARNING: changelog-analyst found nothing to commit after exclusions. Verify the task cycle produced staged changes.`
+Continue to Step 7 (skip spec-continue if no real commit occurred — Step 7 skip conditions apply).
+
+#### status = `nothing_to_commit_precommitted`
+Record `auto_bulk_commits[]` from the structured output in the Step 7 summary.
+Print: `INFO: Changes were already committed in an auto-bulk commit. auto_bulk_commits: <auto_bulk_commits[]>`
+Continue to Step 7.
+
+#### status = `failed` — retryable grant codes
+
+Check `failure_code`:
+
+**Retryable** (`grant_missing`, `grant_expired`, `grant_consumed`):
+
+Retry exactly once (max 1 retry):
+1. Revoke stale grants by running (use `${CONTROL_ROOT}/scripts/write-commit-grant.py` — do NOT hardcode an absolute path):
+   ```bash
+   source venv/bin/activate && python "${CONTROL_ROOT}/scripts/write-commit-grant.py" \
+       --task-id "$TASK_ID" \
+       --revoke-existing-for-task "$TASK_ID"
+   ```
+   This revokes any stale grant for `$TASK_ID` and writes a fresh one atomically.
+2. Re-dispatch changelog-analyst (same prompt as Step 6).
+3. Parse the retry result using the same status table as the initial result:
+   - If `commit_status = committed` or `commit_status = nothing_to_commit_precommitted`: continue to Step 7 (handle as specified above for each status).
+   - If `commit_status = nothing_to_commit`: warn user and continue to Step 7.
+   - If retry `commit_status = failed` or unknown: print `ERROR: changelog-analyst retry failed (failure_code: <code>, reason: <reason>). Manual intervention required.` and stop — do NOT proceed to Step 7.
+
+**Non-retryable** (`git_error`, `staging_error`, `hook_blocked`, `scope_violation`, or any other code):
+
+Print: `ERROR: changelog-analyst failed with non-retryable failure_code: <failure_code>. Reason: <failure_reason>. Manual intervention required.`
+Stop — do NOT retry, do NOT proceed to Step 7.
+
+#### status unknown / unparseable
+Treat as non-retryable. Print the raw changelog-analyst output and stop.
+
 ### Step 7: Spec-continue dispatch (post-commit, deterministic fail-closed)
 
 **This step is dispatched by `/commit` from its own orchestrator context — NOT from within changelog-analyst.** changelog-analyst has already returned before this step executes.

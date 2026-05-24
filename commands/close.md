@@ -7,7 +7,7 @@ disable-model-invocation: true
 # /close
 
 True wrapper. Three TodoSteps (user-visible work):
-1. Dispatch three inspectors in parallel.
+1. Dispatch three inspectors (parallel for single-dev cycles; sequential for parallel-dev cycles).
 2. Delegate close debate to QA subagent.
 3. Generate close-report + spec/temp update (echo QA verdict + write report + emit next-step update).
 
@@ -156,6 +156,33 @@ Bind the resolved value as `TASK_ID` (e.g. `"$ARGUMENTS"` when timestamp form, o
 
 Also optionally note companion files if they exist at the same task-id: `context-<task-id>.json`, `dev-report-<task-id>.json`.
 
+### Step 0 (Parallel-Dev Only): Auto-aggregate missing canonical
+
+Before the Normal-path artifact preflight, detect and handle parallel-worker shard dev-reports.
+
+Shard detection uses BOTH filename patterns (scoped to `$TASK_ID`'s bare timestamp `BARE_TID`):
+- Role-first: `dev-report-<role>-<BARE_TID>.json` (role = alphanumeric, no dashes)
+- Task-first: `dev-report-<BARE_TID>-<worker>.json` (worker = alphanumeric+dot, excluding NON_WORKER_LABELS: draft, final, fix, continuation, wip, iter*, retry*, attempt*)
+
+Count matching shard files in `docs/dev/` scoped to `BARE_TID` only.
+
+**Case 1 — canonical absent, 2+ task-scoped shards found**:
+Invoke `python3 scripts/aggregate-dev-report.py --task-id $TASK_ID` to build the canonical aggregate.
+Capture stdout JSON into `AGGREGATE_RESULT`. Parse `action` field from JSON.
+If exit non-zero: abort with error — parallel shards exist but aggregate could not be written.
+Set `PARALLEL_AGGREGATE_WRITTEN=true` (in-memory, used in Step 1 below).
+Write `AGGREGATE_RESULT` to a temp file (`mktemp`) for Step 1 to read if needed.
+
+**Case 2 — canonical present, 2+ task-scoped shards found**:
+Invoke `python3 scripts/aggregate-dev-report.py --task-id $TASK_ID` to validate consistency.
+Capture stdout JSON into `AGGREGATE_RESULT`. Parse `action` field.
+Set `PARALLEL_AGGREGATE_WRITTEN=true` if action is `"aggregated"` or `"validated"`.
+
+**Case 3 — ≤1 task-scoped shard found**:
+Skip Step 0 entirely. Set `PARALLEL_AGGREGATE_WRITTEN=false`.
+
+The `PARALLEL_AGGREGATE_WRITTEN` flag (and `AGGREGATE_RESULT` JSON) must be held in memory within the same close workflow and passed to Step 1's conditional logic below.
+
 ### Normal-path artifact preflight (non-force)
 
 After `TASK_ID` is resolved and before Step 1 dispatches inspectors, `/close` MUST run the same Codex-native artifact contract used by `/dev` completion. This preflight applies to `/close <task-id>`, `/close <task-id> --claude-code`, and bare `/close` only when active workflow state/context already resolved `<task-id>`. Bare `/close` with no active task-id keeps the `No spec identified...` failure and MUST NOT scan/default-to-newest.
@@ -178,7 +205,7 @@ When `SPEC_ID` is non-empty, `/close` MUST hand the QA subagent
 `.claude/specs/<SPEC_ID>/cp-state-qa.json`; this is what makes the close gate
 participate in the same check-in/checklist/Stop-block chain as `/dev`.
 
-### Step 1: Agent dispatch — three inspectors in parallel (orchestrator authority — `commands/close.md` itself, NOT QA)
+### Step 1: Agent dispatch — three inspectors (orchestrator authority — `commands/close.md` itself, NOT QA)
 
 **TodoWrite ordering reminder (task 20260519-211515 R3 / AC3)**: TodoWrite mark-as-in_progress for step N must precede any Agent() call dispatched within step N.
 The orchestrator MUST emit a TodoWrite call updating the Step-N todo item to `in_progress` BEFORE invoking any Agent() in Step N. REQUIRED ordering: TodoWrite first, then Agent(). Always update the in_progress marker BEFORE dispatch. Before dispatch of any inspector (or any subagent in any Step), the matching Todo item MUST already be in_progress; otherwise do not dispatch.
@@ -191,7 +218,20 @@ The orchestrator MUST emit a TodoWrite call updating the Step-N todo item to `in
 - **Irregular path** (no dev-report-<TASK_ID>.json — e.g., orchestrator-direct edits under `/do`, or hand-edits): run `git diff --name-only` against the relevant repo's cycle commit range to compute the file list. For nested-`.claude` edits the relevant repo is the nested git repo at `/root/.claude` (working-tree root); for parent-repo edits use `/root`.
 - If both paths yield an empty list, record `<cycle-diff-file-list>=` (empty) and proceed with dispatch — inspectors will return findings=[] and Step 5 will treat all cleanliness branches as non-blocking.
 
-**Dispatch all three inspectors in parallel** — emit ONE message containing THREE Agent tool calls (concurrent, not sequential):
+**Parallel detection check** — before dispatch, evaluate whether a parallel-dev cycle was detected:
+
+A parallel cycle is detected if ANY of the following hold:
+- `PARALLEL_AGGREGATE_WRITTEN=true` (set by Step 0 when 2+ task-scoped shards were found)
+- The canonical `docs/dev/dev-report-<TASK_ID>.json` has a non-empty `parallel_workers` array
+- A fresh shard scan (same two patterns as Step 0, scoped to `TASK_ID`'s bare timestamp) finds 2+ valid worker shards in `docs/dev/`
+
+**If a parallel cycle is detected** — dispatch inspectors SEQUENTIALLY (one Agent call at a time, wait for each to return before the next):
+
+- Agent call 1: `subagent_type: style-inspector`, prompt includes `--changed-files <cycle-diff-file-list>`, instructs the inspector to write its report to `docs/dev/style-inspector-report-<TASK_ID>.json`, and (if `codex_required = true`) includes the literal line `codex_required: true`. Wait for completion.
+- Agent call 2: `subagent_type: cleanliness-inspector`, prompt includes `--changed-files <cycle-diff-file-list>`, instructs the inspector to write its report to `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`, and (if `codex_required = true`) includes the literal line `codex_required: true`. Wait for completion.
+- Agent call 3: `subagent_type: prompt-inspector`, prompt includes `--changed-files <cycle-diff-file-list>`, instructs the inspector to write its report to `docs/dev/prompt-inspector-report-<TASK_ID>.json`, and (if `codex_required = true`) includes the literal line `codex_required: true`. Wait for completion.
+
+**If no parallel cycle is detected** — dispatch all three inspectors in parallel (original behavior): emit ONE message containing THREE Agent tool calls (concurrent, not sequential):
 
 - Agent tool call 1: `subagent_type: style-inspector`, prompt includes `--changed-files <cycle-diff-file-list>`, instructs the inspector to write its report to `docs/dev/style-inspector-report-<TASK_ID>.json`, and (if `codex_required = true`) includes the literal line `codex_required: true`.
 - Agent tool call 2: `subagent_type: cleanliness-inspector`, prompt includes `--changed-files <cycle-diff-file-list>`, instructs the inspector to write its report to `docs/dev/cleanliness-inspector-report-<TASK_ID>.json`, and (if `codex_required = true`) includes the literal line `codex_required: true`.
@@ -362,35 +402,57 @@ Return value: print to stdout exactly ONE of these lines as the final line of yo
 
 ### Step 3: Generate close-report + workflow update
 
-Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it to stdout as the last line of /close. The close-report itself is written by QA inside Step 2; this step is the verdict echo + ensures the report file exists at `docs/dev/close-report-<task-id>.md`.
+Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it as the verdict line in the orchestrator's text message to the user. The close-report itself is written by QA inside Step 2; this step is the verdict echo + ensures the report file exists at `docs/dev/close-report-<task-id>.md`.
+
+**Two distinct final-line contracts — DO NOT confuse**:
+- **Close-report FILE** (`docs/dev/close-report-<task-id>.md`): the LAST non-empty line of the FILE must be EXACTLY one of the legal `CLOSE:` forms listed in Step 2's Return value section. This is the runtime-parser contract consumed by `hooks/lib/close-verdict.py` and `/commit`'s admission check. This contract is enforced INSIDE the file QA wrote in Step 2; nothing in Step 3 alters it.
+- **Orchestrator's stdout text message to the user**: the orchestrator's response stream in Step 3 begins with the `CLOSE:` verdict echo, continues with the Session Summary (CLOSE:YES branch only — see below), and ends with the rating `<options>` XML block (CLOSE:YES branch only — see below). On the CLOSE:NO and CLOSE:YES (FORCED) paths there is no Session Summary and no `<options>` block, so the verdict echo is itself the last line of the orchestrator's message. The `<options>` block being the literal final stdout content on CLOSE:YES does NOT violate the close-report FILE contract — they are two different output channels.
 
 **Mascot scoring — close outcome (spec-20260518-225715 §5.1)**:
 
-After the verdict is determined (but BEFORE the AskUserQuestion below), apply close-event score updates based on the CLOSE verdict crossed with whether QA ever rejected this cycle (read `qa-report-<task-id>.json` history if present):
+After the verdict is determined (but BEFORE the user rating below), apply close-event score updates based on the CLOSE verdict crossed with whether QA ever rejected this cycle (read `qa-report-<task-id>.json` history if present):
 
-- `CLOSE: YES*` AND QA never rejected → `bash ~/.claude/scripts/score-update.sh --agent dev --event close_success_qa_pass --note "<task-id>"`; same for `--agent ba`; same for `--agent qa`. (dev +15, ba +8, qa +8.)
-- `CLOSE: YES*` AND QA previously rejected then was fixed → `score-update.sh --event close_success_qa_fail_fixed` for ba/dev/qa. (dev +15, ba +8, qa +6.)
+- `CLOSE: YES*` AND QA never rejected → `bash ~/.claude/scripts/score-update.sh --agent dev --event close_success_qa_pass --note "<task-id>"`; same for `--agent ba`; same for `--agent qa`. (dev +5, ba +3, qa +3.)
+- `CLOSE: YES*` AND QA previously rejected then was fixed → `score-update.sh --event close_success_qa_fail_fixed` for ba/dev/qa. (dev +5, ba +3, qa +2.)
 - `CLOSE: NO` AND QA had passed (PM/inspector or codex caught issue post-QA) → `score-update.sh --event close_fail_qa_pass` for ba/dev/qa. (dev -10, ba -5, qa -12.)
 - `CLOSE: NO` AND QA had failed (rejection upstream) → `score-update.sh --event close_fail_qa_fail` for ba/dev/qa. (dev -10, ba -5, qa 0.)
 - `CLOSE: YES (FORCED)` (the `--force` short-circuit path) → SKIP close-event score updates entirely; --force bypasses scoring just as it bypasses QA debate.
 
+**Session self-summary — CLOSE:YES branch only (mandatory before rating)**:
+
+- If the verdict is **`CLOSE: YES`** (the non-forced YES forms — `YES`, `YES - degraded ...`, `YES — codex disabled ...`) AND `--force` was NOT passed in `$ARGUMENTS`:
+  - The orchestrator MUST produce a **Session Summary** section in its text output to the user. Generate this summary by reviewing the dev-report, QA-report, and close-report artifacts for the task-id. The summary MUST cover:
+    - **What was accomplished** this session
+    - **What was NOT accomplished** (gaps, deferred items)
+    - **User needs satisfied** vs **user needs not satisfied**
+    - **Bugs encountered** during the session
+    - **Improvement opportunities** identified
+  - This summary appears in the orchestrator's text message to the user, AFTER the `CLOSE:` verdict echo and BEFORE the rating `<options>` block below.
+- If the verdict is **`CLOSE: NO`** or **`CLOSE: YES (FORCED)`**: SKIP the session summary.
+
 **User rating prompt — CLOSE:YES branch only (spec-20260518-225715 §5.1 line 136 verbatim: "Only fires after CLOSE:YES; CLOSE:NO does NOT prompt." (translated from spec))**:
 
 - If the verdict is **`CLOSE: YES`** (the non-forced YES forms — `YES`, `YES - degraded ...`, `YES — codex disabled ...`) AND `--force` was NOT passed in `$ARGUMENTS`:
-  - Use the `AskUserQuestion` tool to prompt the user for a rating with the literal choices:
-    - `"5 stars — Excellent"`
-    - `"4 stars — Good"`
-    - `"3 stars — Average"`
-    - `"2 stars — Below average"`
-    - `"1 star — Poor"`
-    - `"Skip"`
-  - On a non-skip answer N ∈ {1,2,3,4,5}, run three score-update calls in parallel:
+  - Output the following `<options>` XML block at the VERY END of the orchestrator's text message to the user (after the verdict echo and session summary above). This block is in the orchestrator's text output only — NOT in the close-report file, which retains its `CLOSE:` final-line contract:
+
+    ```
+    <options>
+    <option value="5">5 stars -- Excellent</option>
+    <option value="4">4 stars -- Good</option>
+    <option value="3">3 stars -- Average</option>
+    <option value="2">2 stars -- Below average</option>
+    <option value="1">1 star -- Poor</option>
+    <option value="skip">Skip rating</option>
+    </options>
+    ```
+
+  - **Post-option handling contract**: the task-id MUST be retained in the orchestrator's context across the user's response. When the user selects a non-skip option N (where N ∈ {1,2,3,4,5}), the orchestrator runs three `score-update.sh` calls:
     - `bash ~/.claude/scripts/score-update.sh --agent ba --event user_rating_<N> --note "<task-id>"`
     - `bash ~/.claude/scripts/score-update.sh --agent dev --event user_rating_<N> --note "<task-id>"`
     - `bash ~/.claude/scripts/score-update.sh --agent qa --event user_rating_<N> --note "<task-id>"`
-  - On `"Skip"` (Skip): NO score-update calls are made. (Skip does NOT produce a separate event — spec 5.1.)
-- If the verdict is **`CLOSE: NO`** in ANY form: SKIP the AskUserQuestion entirely. Per spec 5.1 line 136 verbatim, the rating prompt fires only after CLOSE:YES, NOT after CLOSE:NO.
-- If the verdict is **`CLOSE: YES (FORCED)`** (`--force` was passed): SKIP the AskUserQuestion entirely. The --force short-circuit at Step 2 line 54 means no QA debate occurred, so no user rating is collected and no score is updated.
+  - When the user selects `value="skip"`: NO score-update calls are made. (Skip does NOT produce a separate event — spec 5.1.)
+- If the verdict is **`CLOSE: NO`** in ANY form: SKIP the rating entirely. Per spec 5.1 line 136 verbatim, the rating prompt fires only after CLOSE:YES, NOT after CLOSE:NO.
+- If the verdict is **`CLOSE: YES (FORCED)`** (`--force` was passed): SKIP the rating entirely. The --force short-circuit at Step 2 line 54 means no QA debate occurred, so no user rating is collected and no score is updated.
 
 Then branch the workflow update:
 
