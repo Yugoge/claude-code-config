@@ -375,11 +375,68 @@
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260524-122910.json",
   "blast_radius_map_path": ".claude/dev-registry/dev-20260524-122910/blast-radius-map.json",
   "codex_consult": {
-    "invoked": false,
-    "status": "pending",
-    "feedback_summary": null,
-    "findings": [],
-    "feedback_incorporated": null
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex returned 8 substantive findings, all with PROPOSED_FIX: (1) MoSCoW vs success_criteria mismatch; (2) AC-01 satisfiable by vacuous tests; (3) AC-04 missing bloat-reduction verification; (4) AC-07 too weak (must_contain_any allows comment or one pattern in one file to pass); (5) AC-09 grep false-positive on lines ending in '2'; (6) S2 expansionist (would force fail-hard on out-of-scope session-git-init.sh); (7) AC-06 write-guard payload hint wrong (guard blocks overwriting existing files, not arbitrary protected paths); (8) AC-10 greedy on Contract D (line range 270-320 reaches the adjacent Contract D novelty extension block).",
+    "findings": [
+      {
+        "issue": "Debt 9 and Debt 10 are listed as Should/Could but the user requirement is to clear all 10 debts; context lists them as required success criteria",
+        "proposed_fix": "Move Debt 9 and Debt 10 into Must Have, or state explicitly that AC-01 through AC-10 are all blocking regardless of MoSCoW labels",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "User said 'clear 10 known debts' — all 10 must block. Moved Debt 9 to M9, Debt 10 to M10, added binding-contract preamble to MoSCoW section, removed S/C sections"
+      },
+      {
+        "issue": "AC-01 can be satisfied by vacuous tests (assert True passes the substring check)",
+        "proposed_fix": "Add explicit anti-vacuity checks: forbid assert True/constant assertions/skips, require each test body to reference target files/commands from docstring and assert actual expected behavior",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Critical for AC integrity. Added forbidden_patterns for assert True, assert 1==1, pytest.skip, @pytest.mark.skip; added required_per_file checks for references_docstring_target_file and non_constant_assertion"
+      },
+      {
+        "issue": "Blast-radius bloat reduction (6.1MB) is in M4 but not in AC-04",
+        "proposed_fix": "Add measurable bloat AC: dedup edges, cap edges[] with documented limit, record omitted counts, preserve required fields, stay under defined size on known workload",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "M4 promises it; AC must verify. Added runtime_checks for dedup, omitted_edges_count field, per-file cap, and 500KB size limit"
+      },
+      {
+        "issue": "AC-07 must_contain_any across [cp-state, spec-2026, startswith] allows a comment or one pattern in one file to pass",
+        "proposed_fix": "Require each file to contain executable suppression logic for both cp-state- and spec-2026 patterns plus fixture asserting generated output excludes both",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Tightened to per_file_must_contain_all for both patterns, per_file_must_contain_any for prefix-aware filtering, must_be_executable_not_comment flag, fixture_check"
+      },
+      {
+        "issue": "AC-09 grep '^[[:space:]]*(echo|printf).*[^>]$' false-positives on 'echo x >&2' because the line ends with '2'",
+        "proposed_fix": "Use two-stage check: collect echo|printf lines, then fail only those not containing >&2 or 1>&2",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Real bug in the AC regex. Replaced with two_stage_check explicit structure forbidding the broken regex"
+      },
+      {
+        "issue": "S2 'Remove canary advisory-only treatment' is expansionist; would force fail-hard on session-git-init.sh which still emits stdout and is out of scope",
+        "proposed_fix": "Drop S2 entirely, or limit to stale wording about session-info.sh only",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Dropped S2; added to Won't Have / excluded list to make the exclusion explicit"
+      },
+      {
+        "issue": "Write-guard deny-payload hint suggests /.claude/hooks/somefile but the guard blocks overwriting EXISTING files, not arbitrary protected paths",
+        "proposed_fix": "Use existing temp file or existing hook file as Write payload, assert rc==2, cleanup",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Concrete implementation correction. Updated Risk 4 and Technical Hints to use mktemp-created existing file as the deny target"
+      },
+      {
+        "issue": "AC-10 scans lines 270-320 and bans Jaccard, reaching the adjacent Contract D novelty extension block at lines 304-310 which independently uses Jaccard",
+        "proposed_fix": "State explicitly whether Contract D novelty is part of Debt 10; if no, narrow AC range and forbidden terms to location-overlap block only",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Contract D is NOT part of Debt 10 per user's deferred 'not a big deal' framing. Narrowed AC-10 scope to lines 284-303 only; explicitly preserves Contract D block at 304-310 verbatim; added scope_preserved field to verification"
+      }
+    ],
+    "feedback_incorporated": "All 8 findings applied. Spec MoSCoW restructured (10 Must-Haves, no Should/Could). 5 ACs tightened with concrete verification logic (AC-01 anti-vacuity, AC-04 bloat measurement, AC-07 per-file executable check, AC-09 two-stage grep, AC-10 scope narrowing). 2 risks/hints corrected (write-guard payload semantics, scope-preservation note for Contract D). Acceptance-criteria JSON regenerated with same 10-item structure but tighter check fields."
   },
   "research_findings": {
     "searched": false,
