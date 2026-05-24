@@ -8,7 +8,7 @@
       "description": "Session artifacts committed to git",
       "given": "the dev subagent has staged the files listed in Evidence (M1 + M2 + M3 output)",
       "when": "git log --oneline -3 is run in /dev/shm/dev-workspace/dot-claude and git show HEAD --name-only is inspected",
-      "then": "the most recent commit message contains '20260524-123039' or 'session wrap-up' and includes docs/dev/completion-20260524-101700.md, docs/dev/dev-report-20260524-101700.json, docs/dev/ticket-20260524-101700.md, and docs/dev/note-20260524-123039-root-bin-manual-commit.md in the changed files list",
+      "then": "the most recent commit message contains '20260524-123039' or 'session wrap-up' and git show HEAD --name-only includes commands/INDEX.md, commands/commit.md, hooks/INDEX.md, hooks/pretool-git-privilege-guard.py, docs/dev/INDEX.md, docs/dev/ticket-20260524-122910.md, docs/dev/acceptance-criteria-20260524-123039.json, docs/dev/context-20260524-123039.json, docs/dev/style-inspector-report-20260524-101700.json, docs/dev/ticket-20260524-123039.md, and docs/dev/note-20260524-123039-root-bin-manual-commit.md",
       "ac_uid": "1252b28bcc82a672",
       "status": "pending"
     },
@@ -26,7 +26,7 @@
       "description": "/close todo state confirmed resolved",
       "given": "the note docs/dev/note-20260524-123039-root-bin-manual-commit.md is read",
       "when": "the /close confirmation section is inspected",
-      "then": "the file records: 'No /tmp/claude-workflow-* file found for session c216ded5-b7e1-4432-b79f-a6a2042971fe as of 2026-05-24 — /close todo state is resolved'",
+      "then": "the file records that .claude/workflow-c216ded5-b7e1-4432-b79f-a6a2042971fe.json contains \"command\": \"redev\" (not \"close\"), confirming the /close stuck state for session c216ded5 was replaced by the /redev invocation and is therefore resolved",
       "ac_uid": "945aab7fab5915cd",
       "status": "pending"
     }

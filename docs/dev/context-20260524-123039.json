@@ -12,31 +12,32 @@
   "requirement": {
     "original": "好的彻底修复 — fix the 4 Codex-identified unfinished items from session 20260524-101700; provide exact git commands for user to run the hook-blocked /root/bin script commit manually; confirm Item 3 (/close todo state) is already resolved",
     "clarified": "Commit remaining uncommitted artifacts from sessions 20260524-101700 and 20260524-122910; write a static note with manual git commands for /root/bin/happy-session-recovery.sh (permanently hook-blocked); confirm /close todo state for session c216ded5 is resolved",
-    "what": "Stage and commit 2 tracked-modified + 6 untracked docs/dev files; create note file with manual commit instructions for hook-blocked script",
+    "what": "Stage and commit 6 tracked-modified files + 3 existing untracked files + 2 files to be created; create note file with manual commit instructions for hook-blocked script",
     "why": "Auto-bulk commits in the prior series (becffc6–67a19b7) left post-run artifacts uncommitted; /root/bin changes cannot be committed by agent (hook permanently blocks); /close state needs confirmation record",
     "where": ["docs/dev/"],
     "scope": {
       "included": [
+        "commands/INDEX.md (tracked-modified)",
+        "commands/commit.md (tracked-modified)",
         "docs/dev/INDEX.md (tracked-modified)",
-        "docs/dev/dev-report-20260524-101700.json (tracked-modified)",
-        "docs/dev/completion-20260524-101700.md (untracked)",
-        "docs/dev/context-20260524-101700.json (untracked)",
-        "docs/dev/qa-report-20260524-101700.json (untracked)",
-        "docs/dev/ticket-20260524-101700.md (untracked)",
-        "docs/dev/ticket-20260524-122910.md (untracked)",
-        "docs/dev/context-20260524-122910.json (untracked)",
+        "docs/dev/ticket-20260524-122910.md (tracked-modified)",
+        "hooks/INDEX.md (tracked-modified)",
+        "hooks/pretool-git-privilege-guard.py (tracked-modified)",
+        "docs/dev/acceptance-criteria-20260524-123039.json (untracked)",
+        "docs/dev/context-20260524-123039.json (untracked)",
+        "docs/dev/style-inspector-report-20260524-101700.json (untracked)",
+        "docs/dev/ticket-20260524-123039.md (untracked)",
         "docs/dev/note-20260524-123039-root-bin-manual-commit.md (to create)"
       ],
       "excluded": [
         "/root/bin/happy-session-recovery.sh (hook-blocked — manual only)",
         "arch-6 preflight gate implementation",
         "spec-20260518-225715 Cycle 3 implementation",
-        "Layer A items (K1 directive blocked)",
-        "Any file outside docs/dev/"
+        "Layer A items (K1 directive blocked)"
       ]
     },
     "success_criteria": [
-      "All 8 files staged; note file contains exact manual git commands; /close state confirmed resolved"
+      "All 11 files staged; note file contains exact manual git commands; /close state confirmed resolved via workflow file content check"
     ],
     "constraints": [
       "No git add . or git add -A — path-limited staging only",
@@ -47,14 +48,16 @@
   },
   "scope_boundary": {
     "in_user_path": [
+      "commands/INDEX.md",
+      "commands/commit.md",
       "docs/dev/INDEX.md",
-      "docs/dev/dev-report-20260524-101700.json",
-      "docs/dev/completion-20260524-101700.md",
-      "docs/dev/context-20260524-101700.json",
-      "docs/dev/qa-report-20260524-101700.json",
-      "docs/dev/ticket-20260524-101700.md",
       "docs/dev/ticket-20260524-122910.md",
-      "docs/dev/context-20260524-122910.json",
+      "hooks/INDEX.md",
+      "hooks/pretool-git-privilege-guard.py",
+      "docs/dev/acceptance-criteria-20260524-123039.json",
+      "docs/dev/context-20260524-123039.json",
+      "docs/dev/style-inspector-report-20260524-101700.json",
+      "docs/dev/ticket-20260524-123039.md",
       "docs/dev/note-20260524-123039-root-bin-manual-commit.md"
     ],
     "path_dependent_shared_infra": [],
@@ -64,27 +67,35 @@
   },
   "out_of_scope_observations": [],
   "root_cause_analysis": {
-    "symptom": "2 tracked-modified + 6 untracked docs/dev files uncommitted after auto-bulk series; /root/bin changes have no documented manual-commit path; /close todo state unrecorded",
+    "symptom": "6 tracked-modified + 3 untracked files uncommitted; /root/bin changes have no documented manual-commit path; /close todo state unrecorded",
     "root_cause": "Auto-bulk commit runs (becffc6–67a19b7) swept files available at execution time; post-run file creation (completion reports, aggregate tickets, Cycle 3 artifacts) created a new gap. /root/bin is in a separate repo permanently blocked by hook.",
     "root_cause_commit": "67a19b7 — last auto-bulk commit; gap created by subsequent file writes",
     "why_introduced": "Auto-bulk pattern commits a point-in-time snapshot; files written after that point are not captured",
     "why_problematic": "Uncommitted artifacts break the audit trail for sessions 20260524-101700 and 20260524-122910",
     "timeline": "2026-05-24: sessions 101700 and 122910 ran, auto-bulk swept most artifacts; post-run writes created gap; Codex advisory flagged 4 unfinished items",
     "affected_files": [
+      "commands/INDEX.md",
+      "commands/commit.md",
       "docs/dev/INDEX.md",
-      "docs/dev/dev-report-20260524-101700.json",
-      "docs/dev/completion-20260524-101700.md",
-      "docs/dev/context-20260524-101700.json",
-      "docs/dev/qa-report-20260524-101700.json",
-      "docs/dev/ticket-20260524-101700.md",
       "docs/dev/ticket-20260524-122910.md",
-      "docs/dev/context-20260524-122910.json"
+      "hooks/INDEX.md",
+      "hooks/pretool-git-privilege-guard.py",
+      "docs/dev/acceptance-criteria-20260524-123039.json",
+      "docs/dev/context-20260524-123039.json",
+      "docs/dev/style-inspector-report-20260524-101700.json",
+      "docs/dev/ticket-20260524-123039.md"
     ],
     "evidence_type": "observed",
     "observations": [
-      "git status --porcelain at 2026-05-24T13:35Z shows ' M docs/dev/INDEX.md' (tracked-modified)",
-      "git status --porcelain shows ' M docs/dev/dev-report-20260524-101700.json' (tracked-modified, status field changed blocked→completed)",
-      "git status --porcelain shows 6 untracked docs/dev files from sessions 101700 and 122910"
+      "git status --porcelain (QA measurement) shows ' M commands/INDEX.md' (tracked-modified)",
+      "git status --porcelain shows ' M commands/commit.md' (tracked-modified)",
+      "git status --porcelain shows ' M docs/dev/INDEX.md' (tracked-modified)",
+      "git status --porcelain shows ' M docs/dev/ticket-20260524-122910.md' (tracked-modified)",
+      "git status --porcelain shows ' M hooks/INDEX.md' (tracked-modified)",
+      "git status --porcelain shows ' M hooks/pretool-git-privilege-guard.py' (tracked-modified)",
+      "git status --porcelain shows '?? docs/dev/acceptance-criteria-20260524-123039.json' (untracked)",
+      "git status --porcelain shows '?? docs/dev/context-20260524-123039.json' (untracked)",
+      "git status --porcelain shows '?? docs/dev/style-inspector-report-20260524-101700.json' (untracked)"
     ],
     "diagnosis_completeness": "complete",
     "complaint_location_keywords": ["20260524-101700", "20260524-122910", "c216ded5", "happy-session-recovery.sh"],
@@ -107,29 +118,31 @@
   "evidence": {
     "observed": "好的彻底修复 — Codex identified 4 unfinished items from session 20260524-101700",
     "measured": {
-      "value": "2 tracked-modified files + 6 untracked files in docs/dev/; no note file for /root/bin manual commit",
-      "location": "git status --porcelain at 2026-05-24T13:35Z"
+      "value": "6 tracked-modified files (commands/INDEX.md, commands/commit.md, docs/dev/INDEX.md, docs/dev/ticket-20260524-122910.md, hooks/INDEX.md, hooks/pretool-git-privilege-guard.py) + 3 untracked files (acceptance-criteria-20260524-123039.json, context-20260524-123039.json, style-inspector-report-20260524-101700.json); no note file for /root/bin manual commit",
+      "location": "git status --porcelain (QA-verified measurement)"
     },
     "expected": {
       "value": "All session artifacts committed; manual-commit note exists; /close state confirmation recorded",
       "source": "Codex advisory + user requirement 2026-05-24T13:30Z"
     },
-    "gap": "8 files uncommitted; 0 manual-commit notes exist"
+    "gap": "9 files uncommitted (6 tracked-modified + 3 untracked) + 2 to create; 0 manual-commit notes exist"
   },
   "scope_expansion": {
     "search_pattern": "20260524-101700|20260524-122910|20260524-123039",
     "search_scope": "docs/dev/",
     "user_reported": ["session 20260524-101700 artifacts"],
-    "additional_found": ["docs/dev/ticket-20260524-122910.md", "docs/dev/context-20260524-122910.json"],
+    "additional_found": ["commands/INDEX.md", "commands/commit.md", "hooks/INDEX.md", "hooks/pretool-git-privilege-guard.py", "docs/dev/acceptance-criteria-20260524-123039.json", "docs/dev/context-20260524-123039.json", "docs/dev/style-inspector-report-20260524-101700.json"],
     "all_occurrences": [
+      "commands/INDEX.md",
+      "commands/commit.md",
       "docs/dev/INDEX.md",
-      "docs/dev/dev-report-20260524-101700.json",
-      "docs/dev/completion-20260524-101700.md",
-      "docs/dev/context-20260524-101700.json",
-      "docs/dev/qa-report-20260524-101700.json",
-      "docs/dev/ticket-20260524-101700.md",
       "docs/dev/ticket-20260524-122910.md",
-      "docs/dev/context-20260524-122910.json"
+      "hooks/INDEX.md",
+      "hooks/pretool-git-privilege-guard.py",
+      "docs/dev/acceptance-criteria-20260524-123039.json",
+      "docs/dev/context-20260524-123039.json",
+      "docs/dev/style-inspector-report-20260524-101700.json",
+      "docs/dev/ticket-20260524-123039.md"
     ]
   },
   "reference_source": {
@@ -158,7 +171,7 @@
     }
   },
   "context": {
-    "codebase_state": "2 tracked-modified + 6 untracked files in docs/dev/; master branch; last auto-bulk commit 67a19b7",
+    "codebase_state": "6 tracked-modified (commands/, docs/dev/, hooks/) + 3 untracked docs/dev/ files; master branch; last auto-bulk commit 67a19b7",
     "recent_commits": "67a19b7 auto-bulk series; aea75d9 chore(docs): ship cycle 20260522-000000 close-report",
     "file_contents": {},
     "dependencies": {},
@@ -168,19 +181,17 @@
     }
   },
   "development_approach": {
-    "strategy": "Create note file (M3); stage all 8 files + this BA cycle's own artifacts with path-limited git add; leave commit step to orchestrator via /commit 20260524-123039",
+    "strategy": "Create note file (M3); stage all 11 files with path-limited git add; leave commit step to orchestrator via /commit 20260524-123039",
     "files_to_create": [
-      "docs/dev/completion-20260524-101700.md",
-      "docs/dev/context-20260524-101700.json",
-      "docs/dev/qa-report-20260524-101700.json",
-      "docs/dev/ticket-20260524-101700.md",
-      "docs/dev/ticket-20260524-122910.md",
-      "docs/dev/context-20260524-122910.json",
       "docs/dev/note-20260524-123039-root-bin-manual-commit.md"
     ],
     "files_to_modify": [
+      "commands/INDEX.md",
+      "commands/commit.md",
       "docs/dev/INDEX.md",
-      "docs/dev/dev-report-20260524-101700.json"
+      "docs/dev/ticket-20260524-122910.md",
+      "hooks/INDEX.md",
+      "hooks/pretool-git-privilege-guard.py"
     ],
     "validation_approach": "git show HEAD --name-only after /commit confirms all staged files present; cat note file confirms manual commands and /close confirmation text"
   },
