@@ -57,8 +57,8 @@
         "verification_method": "grep AskUserQuestion → 0 matches; grep <options> → present at line 435; Read post-option contract at 445-449",
         "status": "pass",
         "result": "pass",
-        "details": "All 6 clauses (a-e) of AC-03 satisfied IN ISOLATION. However see FIND-2 below: stdout-final-line contract contradiction (line 405 vs 432) is a separate threat to AC-03's user-facing rendering.",
-        "evidence": "lines 435-442 contain all 6 options with machine-readable value attrs; lines 445-449 document three score-update.sh calls and skip-no-op"
+        "details": "All 6 clauses (a-e) of AC-03 satisfied. FIND-2 stdout-vs-file contradiction RESOLVED iter-2 by close.md:407-409 dual-contract clarification block.",
+        "evidence": "lines 435-442 contain all 6 options with machine-readable value attrs; lines 445-449 document three score-update.sh calls and skip-no-op; lines 407-409 add 'two different output channels' distinction"
       },
       {
         "requirement_id": "R6",
@@ -75,9 +75,9 @@
         "source_phrase": "changelog-analyst bulk-commit bug -- BULK=false时仍执行bulk行为",
         "criterion": "AC-05: BULK=false stages only task files (whitelist + ABORT guard)",
         "verification_method": "Read agents/changelog-analyst.md:81-118",
-        "status": "pass_with_concern",
+        "status": "pass",
         "result": "pass",
-        "details": "AC-05 literal clauses all satisfied: whitelist (line 87-101), +30 ABORT guard (108-113), no-dev-report fallback with WARNING (115-118), baseline-absent preserves whitelist (154). However see FIND-3: Phase 0 lines 75-77 'staging anyway' contradicts Phase 2 'foreign_session_candidate excluded'.",
+        "details": "AC-05 literal clauses all satisfied: whitelist (line 87-101), +30 ABORT guard (108-113), no-dev-report fallback with WARNING (115-118), baseline-absent preserves whitelist (154). FIND-3 Phase 0 contradiction RESOLVED iter-2: lines 75-77 now defer staging decision to Phase 2.",
         "evidence": "lines 87-118 contain the whitelist logic; line 110 contains the +30 guard formula; line 154 contains baseline-absent preservation"
       },
       {
@@ -85,9 +85,9 @@
         "source_phrase": "跨session commit干扰无隔离机制",
         "criterion": "AC-06: Cross-session isolation (foreign_session_candidate classification, dev-report as primary whitelist)",
         "verification_method": "Read agents/changelog-analyst.md:102-106 + 147-168",
-        "status": "pass_with_concern",
+        "status": "pass",
         "result": "pass",
-        "details": "AC-06 literal clauses all satisfied. Same concern as AC-05: Phase 0 dispatch-snapshot check at lines 75-77 says 'staging anyway' which conflicts with Phase 2 exclusion at 102-106.",
+        "details": "AC-06 literal clauses all satisfied. Phase 0 vs Phase 2 contradiction RESOLVED iter-2: Phase 0 now defers to Phase 2 authority; no instruction conflict remains.",
         "evidence": "lines 102-106 contain foreign_session_candidate classification; lines 166-168 confirm baseline_head_sha is provenance-only, never inclusion source"
       },
       {
@@ -103,14 +103,14 @@
     ],
     "root_cause_verification": {
       "addressed": true,
-      "confidence": "medium",
-      "rationale": "Root causes (inflated positive deltas, AskUserQuestion limitation, missing summary, BULK=false stage-all, no cross-session isolation) are all addressed at the EVENT_DELTAS and prose level. Confidence is medium (not high) because two in-file contradictions (FIND-2 stdout contract, FIND-3 changelog-analyst Phase 0 vs Phase 2) could undermine the fix at runtime."
+      "confidence": "high",
+      "rationale": "Root causes all addressed at EVENT_DELTAS and prose level. Iter-2 resolved the two in-file contradictions (FIND-2 stdout contract, FIND-3 changelog-analyst Phase 0 vs Phase 2) that previously held confidence at medium. Codex adversarial review (gpt-5.5 xhigh) confirmed all 3 fixes resolved with zero blocking findings."
     },
     "build_verification": {
       "status": "pass",
       "build_command": "bash -n scripts/score-update.sh",
       "deploy_command": null,
-      "build_output_summary": "Syntax check passes; end-to-end smoke runs OK (50->55 delta=5)",
+      "build_output_summary": "Syntax check passes; EVENT_DELTAS parse OK (max=5, min=-40, n=39); pytest tests/generated/20260524-172805/ → 10 passed in 0.03s",
       "service_healthy": true,
       "changes_verified_live": true,
       "skip_reason": null
@@ -163,18 +163,18 @@
     "ui_test_results": [],
     "generated_tests": [],
     "manifest_verification": {
-      "_doc": "STANDARD tier + test_writer_expected=true in context, but per-task active manifest tests/generated/20260524-172805/manifest.json is ABSENT and global index has no entry for this task. This is a Phase 5 item 5 critical finding.",
+      "_doc": "ITER-2: per-task active manifest now PRESENT and global index entry exists. All 10 active tests importable and pytest 10/10 pass. FIND-1 RESOLVED.",
       "manifest_path": "tests/generated/20260524-172805/manifest.json",
       "global_index_path": "tests/generated/manifest.json",
       "global_index_kind": "index",
-      "manifest_exists": false,
-      "active_tests_count": 0,
-      "active_tests_importable": false,
-      "pytest_collected_ok": false,
+      "manifest_exists": true,
+      "active_tests_count": 10,
+      "active_tests_importable": true,
+      "pytest_collected_ok": true,
       "pytest_failures": [],
       "test_writer_expected": true,
       "test_writer_report_path": "docs/dev/test-writer-report-20260524-172805.json",
-      "test_writer_report_exists": false
+      "test_writer_report_exists": true
     },
     "blast_radius_phase2": {
       "_doc": "Skipped — blast-radius-tool.py invocation not part of this cycle (BA did not produce a Phase 1 map; blast_radius_map_path is null in context).",
