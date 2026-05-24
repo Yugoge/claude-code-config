@@ -4,7 +4,7 @@
   "timestamp": "2026-05-24T12:30:00Z",
   "requirement": {
     "original": "Fix the bash-safety hook false-positive problem (Task A, second attempt). bash_context_strip.py incorrectly strips quoted arguments from DANGER COMMANDS themselves (killall, pkill, kill, rm). Result: killall \"happy\" is reduced to killall \"\" or killall, which no longer matches the danger pattern. The bypass is confirmed: killall \"happy\" exits 0 instead of 2.",
-    "clarified": "The DANGER_COMMANDS branch in hooks/lib/bash_context_strip.py _process_segment() must unquote (expose content) rather than blank quoted arguments when the command word is in the danger set. The on-disk code already implements this correctly. Dev must verify correctness, add 3 new integration-level ACs (hook exit-code tests for killall \"happy\", pkill -f \"claude\", kill \"-9\" 1234), and commit the two untracked files.",
+    "clarified": "The DANGER_COMMANDS branch in hooks/lib/bash_context_strip.py _process_segment() is correctly implemented and committed (commit becffc6). Dev must: (1) confirm the branch is present at lines 264-273; (2) confirm pytest hooks/tests/test_bash_safety_context.py reports 30 passed; (3) append AC17, AC18, and AC19 to tests/generated/20260522-080646-A/manifest.json active_tests[]. No code changes. No new test file creation. No git commit of source files needed.",
     "what": "Register AC17, AC18, and AC19 in tests/generated/20260522-080646-A/manifest.json active_tests[]; confirm DANGER_COMMANDS fix is committed and correct; confirm 30 unit tests pass",
     "why": "Without the fix, a subagent can bypass the hook by quoting the target argument: killall \"happy\" exits 0 instead of 2. This is a security regression introduced by the prior cycle's fix.",
     "where": [
