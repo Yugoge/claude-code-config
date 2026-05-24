@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-24T11:53:19Z*
-**Total entries**: 446
+*Last updated: 2026-05-24T12:13:09Z*
+**Total entries**: 456
 **Convention**: kebab
 
 ## Tree
@@ -83,6 +83,12 @@ dev/
 ├── `ba-qa-report-20260522-080646-D-iter3.json` - json config
 ├── `ba-qa-report-20260522-080646-D.json` - json config
 ├── `ba-qa-report-20260522-080646-F.json` - json config
+├── `ba-qa-report-20260524-101700-A.json` - json config
+├── `ba-qa-report-20260524-101700-B-iter2.json` - json config
+├── `ba-qa-report-20260524-101700-B.json` - json config
+├── `ba-qa-report-20260524-101700-D-iter2.json` - json config
+├── `ba-qa-report-20260524-101700-D.json` - json config
+├── `ba-qa-report-20260524-101700-H.json` - json config
 ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 ├── `ba-qa-report-d1e94e.json` - json config
 ├── `ba-report-spec-20260520-221059.json` - json config
@@ -106,6 +112,7 @@ dev/
 ├── `cleanliness-inspector-report-20260520-085647-d1722b.json` - json config
 ├── `cleanliness-inspector-report-20260520-221452.json` - json config
 ├── `cleanliness-inspector-report-20260521-090100.json` - json config
+├── `cleanliness-inspector-report-20260521-090200.json` - json config
 ├── `cleanliness-inspector-report-20260522-000000.json` - json config
 ├── `cleanliness-inspector-report-20260522-080646.json` - json config
 ├── `cleanliness-inspector-report-d1e94e.json` - json config
@@ -265,6 +272,7 @@ dev/
 ├── `dev-report-20260522-080646-D.json` - json config
 ├── `dev-report-20260522-080646-F.json` - json config
 ├── `dev-report-20260522-080646.json` - json config
+├── `dev-report-20260524-101700-H.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
@@ -296,6 +304,7 @@ dev/
 ├── `prompt-inspector-report-20260520-085647-d1722b.json` - json config
 ├── `prompt-inspector-report-20260520-221452.json` - json config
 ├── `prompt-inspector-report-20260521-090100.json` - json config
+├── `prompt-inspector-report-20260521-090200.json` - json config
 ├── `prompt-inspector-report-20260522-000000.json` - json config
 ├── `prompt-inspector-report-20260522-080646.json` - json config
 ├── `prompt-inspector-report-d1e94e.json` - json config
@@ -388,6 +397,7 @@ dev/
 ├── `style-inspector-report-20260520-085647-d1722b.json` - json config
 ├── `style-inspector-report-20260520-221452.json` - json config
 ├── `style-inspector-report-20260521-090100.json` - json config
+├── `style-inspector-report-20260521-090200.json` - json config
 ├── `style-inspector-report-20260522-000000.json` - json config
 ├── `style-inspector-report-20260522-080646.json` - json config
 ├── `style-inspector-report-d1e94e.json` - json config
@@ -432,8 +442,8 @@ dev/
 ├── `ticket-20260522-080646-D.md` - BA Specification: Dev Self-Report Provenance (OOS Item D)
 ├── `ticket-20260522-080646-F.md` - BA Specification: hooks/tests underscore-prefix rename + cleanup
 ├── `ticket-20260524-101700-A.md` - BA Specification: bash-safety hook — DANGER_COMMANDS quoted-arg bypass (second attempt)
-├── `ticket-20260524-101700-B.md` - BA Specification: Write-Guard Sentinel Integration — Bug Fixes (Second Attempt)
-├── `ticket-20260524-101700-D.md` - BA Specification: Spec Text Correction — Task D M5 + AC4 + AC3 (Provenance)
+├── `ticket-20260524-101700-B.md` - BA Specification: Write-Guard Sentinel Integration — Add Missing Wildcard Test
+├── `ticket-20260524-101700-D.md` - BA Specification: Spec Text/Test Correction — Task D (test_AC3 provenance gap only)
 ├── `ticket-20260524-101700-H.md` - BA Specification: Three Structural Gaps in happy-session-recovery.sh
 ├── `ticket-20260524-101700-X.md` - BA Specification: Infrastructure Audit — daily-trade, swap-drain, post-start, disk-monitor
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3

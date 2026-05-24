@@ -1,22 +1,22 @@
 {
   "request_id": "20260524-101700-A",
   "task_id": "20260524-101700-A",
-  "timestamp": "2026-05-24T10:17:00Z",
+  "timestamp": "2026-05-24T12:30:00Z",
   "requirement": {
     "original": "Fix the bash-safety hook false-positive problem (Task A, second attempt). bash_context_strip.py incorrectly strips quoted arguments from DANGER COMMANDS themselves (killall, pkill, kill, rm). Result: killall \"happy\" is reduced to killall \"\" or killall, which no longer matches the danger pattern. The bypass is confirmed: killall \"happy\" exits 0 instead of 2.",
     "clarified": "The DANGER_COMMANDS branch in hooks/lib/bash_context_strip.py _process_segment() must unquote (expose content) rather than blank quoted arguments when the command word is in the danger set. The on-disk code already implements this correctly. Dev must verify correctness, add 3 new integration-level ACs (hook exit-code tests for killall \"happy\", pkill -f \"claude\", kill \"-9\" 1234), and commit the two untracked files.",
-    "what": "Confirm and finalize the DANGER_COMMANDS quoted-arg unquoting fix; add 3 new integration ACs; commit untracked files",
+    "what": "Register AC17, AC18, and AC19 in tests/generated/20260522-080646-A/manifest.json active_tests[]; confirm DANGER_COMMANDS fix is committed and correct; confirm 30 unit tests pass",
     "why": "Without the fix, a subagent can bypass the hook by quoting the target argument: killall \"happy\" exits 0 instead of 2. This is a security regression introduced by the prior cycle's fix.",
     "where": [
-      "hooks/lib/bash_context_strip.py (DANGER_COMMANDS branch at lines 264-273)",
-      "hooks/tests/test_bash_safety_context.py (unit tests already present)",
-      "tests/generated/20260524-101700-A/ (3 new integration test files)"
+      "hooks/lib/bash_context_strip.py (DANGER_COMMANDS branch at lines 264-273 — committed, no change needed)",
+      "hooks/tests/test_bash_safety_context.py (30 unit tests — committed, no change needed)",
+      "tests/generated/20260522-080646-A/manifest.json (append AC17-19 to active_tests[])"
     ],
     "scope": {
       "included": [
-        "hooks/lib/bash_context_strip.py — DANGER_COMMANDS branch at lines 264-273 (verify correct, no code change expected)",
-        "hooks/tests/test_bash_safety_context.py — unit tests (commit untracked; no additions needed beyond what is present)",
-        "tests/generated/20260524-101700-A/ — 3 new integration test files for AC-NEW-1, AC-NEW-2, AC-NEW-3"
+        "hooks/lib/bash_context_strip.py — DANGER_COMMANDS branch at lines 264-273 (verify correct; committed in becffc6; no code change needed)",
+        "hooks/tests/test_bash_safety_context.py — 30 unit tests (committed in becffc6; no change needed; verify 30 pass)",
+        "tests/generated/20260522-080646-A/manifest.json — append AC17, AC18, AC19 to active_tests[] (these test files exist and pass but are absent from the manifest)"
       ],
       "excluded": [
         "hooks/pretool-bash-safety.sh — no changes; prior cycle's changes are complete",
@@ -26,12 +26,13 @@
       ]
     },
     "success_criteria": [
-      "AC-NEW-1: killall \"happy\" exits 2 via hook integration test",
-      "AC-NEW-2: pkill -f \"claude\" exits 2 via hook integration test",
-      "AC-NEW-3: kill \"-9\" 1234 exits 2 via hook integration test",
+      "AC-NEW-1: test_AC17 passes (killall \"happy\" exits 2) and AC17 registered in manifest active_tests[]",
+      "AC-NEW-2: test_AC18 passes (pkill -f \"claude\" exits 2) and AC18 registered in manifest active_tests[]",
+      "AC-NEW-3: test_AC19 passes (kill \"-9\" 1234 exits 2) and AC19 registered in manifest active_tests[]",
+      "AC-MANIFEST: tests/generated/20260522-080646-A/manifest.json active_tests[] contains 19 entries (AC1-AC19)",
+      "AC-UNIT: pytest hooks/tests/test_bash_safety_context.py reports 30 passed",
       "AC-REGRESSION-1: codex exec with killall+claude in prompt body still exits 0 (false-positive fix preserved)",
-      "AC-REGRESSION-2: killall happy (bare) still exits 2",
-      "All 16 prior ACs from 20260522-080646-A still pass"
+      "AC-REGRESSION-2: killall happy (bare) still exits 2"
     ],
     "constraints": [
       "stdlib-only Python (no bashlex or other non-stdlib packages)",
@@ -44,7 +45,7 @@
     "in_user_path": [
       "hooks/lib/bash_context_strip.py",
       "hooks/tests/test_bash_safety_context.py",
-      "tests/generated/20260524-101700-A/"
+      "tests/generated/20260522-080646-A/manifest.json"
     ],
     "path_dependent_shared_infra": [
       "hooks/lib/__init__.py"
@@ -198,17 +199,23 @@
       "value": "Hook exits 2 for killall \"happy\"; exits 0 for codex exec with killall in prompt body",
       "source": "User requirement and QA iter2 refined_context; confirmed correct by Python execution in BA session"
     },
-    "gap": "iter2 code: no DANGER_COMMANDS branch -> quoted args blanked -> pattern no match -> exit 0 (bypass). Current on-disk code: DANGER_COMMANDS branch unquotes -> content exposed -> pattern matches -> exit 2 (correct). Gap in current code: no integration-level ACs testing exit codes for the three quoted-arg cases."
+    "gap": "iter2 code: no DANGER_COMMANDS branch -> quoted args blanked -> pattern no match -> exit 0 (bypass). Current on-disk code: DANGER_COMMANDS branch unquotes -> content exposed -> pattern matches -> exit 2 (correct). Code gap is closed. Remaining gap: tests/generated/20260522-080646-A/manifest.json active_tests[] contains only AC1-AC16 (16 entries). AC17, AC18, AC19 test files exist on disk and pass (confirmed by QA) but are absent from the manifest registry."
   },
   "scope_expansion": {
     "search_pattern": "DANGER_COMMANDS|cmd_word in",
-    "search_scope": "hooks/lib/bash_context_strip.py",
+    "search_scope": "hooks/lib/bash_context_strip.py, tests/generated/20260522-080646-A/manifest.json",
     "user_reported": ["hooks/lib/bash_context_strip.py", "hooks/pretool-bash-safety.sh"],
-    "additional_found": ["hooks/tests/test_bash_safety_context.py (unit tests already present)", "tests/generated/20260524-101700-A/ (to be created with 3 integration ACs)"],
+    "additional_found": [
+      "hooks/tests/test_bash_safety_context.py (30 unit tests, committed, all pass)",
+      "tests/generated/20260522-080646-A/test_AC17_ac17_killall_quoted_happy.py (committed, passes, orphaned from manifest)",
+      "tests/generated/20260522-080646-A/test_AC18_ac18_pkill_quoted_claude.py (committed, passes, orphaned from manifest)",
+      "tests/generated/20260522-080646-A/test_AC19_ac19_kill_quoted_signal.py (committed, passes, orphaned from manifest)"
+    ],
     "all_occurrences": [
       "hooks/lib/bash_context_strip.py:24 (DANGER_COMMANDS declaration)",
       "hooks/lib/bash_context_strip.py:264-273 (DANGER_COMMANDS branch in _process_segment)",
-      "hooks/tests/test_bash_safety_context.py:213-239 (TestDangerCommandArgPreservation unit tests)"
+      "hooks/tests/test_bash_safety_context.py:213-239 (TestDangerCommandArgPreservation unit tests)",
+      "tests/generated/20260522-080646-A/manifest.json (active_tests[] ends at AC16; AC17-19 absent)"
     ]
   },
   "reference_source": {
@@ -228,30 +235,36 @@
         "outcome": "Primary false-positive (AC13: codex exec with killall+claude in prompt body) fixed. But DANGER_COMMANDS were treated as non-shell binaries — their quoted arguments were blanked, creating a bypass: killall \"happy\" -> killall \"\" -> no pattern match -> exit 0",
         "failure_category": "wrong_scope",
         "target_layer": "L4"
+      },
+      {
+        "artifact_path": "docs/dev/ticket-20260524-101700-A.md (prior BA spec, 10:17 UTC) + docs/dev/ba-qa-report-20260524-101700-A.json",
+        "proposed_solution": "Verify DANGER_COMMANDS fix; create 3 new integration test files under tests/generated/20260524-101700-A/; commit two untracked source files",
+        "actual_change": "BA spec only; not dispatched to dev. Rejected by QA validation.",
+        "outcome": "Rejected for four material inaccuracies: (1) both source files were already committed (commit becffc6); (2) AC17-19 already existed in tests/generated/20260522-080646-A/ and passed; (3) AC17-19 manifest gap not mentioned; (4) unit test count stated as 26, actual is 30",
+        "failure_category": "wrong_scope",
+        "target_layer": "L4"
       }
     ],
     "novelty_check": {
       "this_attempt_layer": "L4",
       "differs_from_all_priors": true,
-      "rationale": "Prior attempt applied uniform stripping to all non-shell commands. This attempt adds a DANGER_COMMANDS conditional that unquotes (not blanks) arguments, making the fix precise: only truly non-shell LLM CLI commands get their quoted args blanked."
+      "rationale": "Prior BA attempt would have created duplicate test files and performed a stale commit. This attempt targets the manifest registration gap (tests/generated/20260522-080646-A/manifest.json active_tests[] missing AC17-19) as the actual remaining deliverable. Action is categorically different: no file creation, no git commit of source files, only manifest update."
     }
   },
   "context": {
-    "codebase_state": "hooks/lib/bash_context_strip.py is untracked (not committed). hooks/tests/test_bash_safety_context.py is untracked. hooks/pretool-bash-safety.sh is committed and contains the four COMMAND_CONTEXT_STRIPPED rules from the prior cycle. Current on-disk bash_context_strip.py has the DANGER_COMMANDS branch at lines 264-273.",
+    "codebase_state": "hooks/lib/bash_context_strip.py is committed (git ls-files confirms; commit becffc6 ~11:50 UTC). hooks/tests/test_bash_safety_context.py is committed (git ls-files confirms; commit becffc6). hooks/pretool-bash-safety.sh is committed and contains the four COMMAND_CONTEXT_STRIPPED rules from the prior cycle. tests/generated/20260522-080646-A/test_AC17_ac17_killall_quoted_happy.py, test_AC18_ac18_pkill_quoted_claude.py, test_AC19_ac19_kill_quoted_signal.py are committed (commit 20a45af ~11:51 UTC) and pass. tests/generated/20260522-080646-A/manifest.json active_tests[] contains only AC1-AC16 (16 entries); AC17-19 are absent.",
     "recent_commits": "aea75d9 chore: ship cycle 20260522-000000; af96c61 fix: M1-M4 gitignore",
     "file_contents": {},
     "dependencies": {},
     "environment": {}
   },
   "development_approach": {
-    "strategy": "1) Verify bash_context_strip.py DANGER_COMMANDS branch (lines 264-273) is correct — confirmed by BA (no code change expected). 2) Create tests/generated/20260524-101700-A/ directory with 3 integration test files covering AC-NEW-1, AC-NEW-2, AC-NEW-3. Each test invokes the hook via stdin JSON and asserts exit code 2. 3) Run full test suite: pytest hooks/tests/test_bash_safety_context.py (26 unit tests) + pytest tests/generated/20260524-101700-A/ (3 new integration tests) + any regression test covering prior ACs. 4) Commit both untracked files (hooks/lib/bash_context_strip.py and hooks/tests/test_bash_safety_context.py) plus the new generated test directory.",
-    "files_to_create": [
-      "tests/generated/20260524-101700-A/test_ac_new_1_killall_quoted_blocked.py",
-      "tests/generated/20260524-101700-A/test_ac_new_2_pkill_quoted_blocked.py",
-      "tests/generated/20260524-101700-A/test_ac_new_3_kill_quoted_signal_blocked.py"
+    "strategy": "1) Verify hooks/lib/bash_context_strip.py DANGER_COMMANDS branch (lines 264-273) is committed and correct — no code change needed. 2) Run pytest hooks/tests/test_bash_safety_context.py and confirm 30 passed (not 26; TestDollarVariableRegression class adds 3 tests). 3) Append AC17, AC18, and AC19 entries to tests/generated/20260522-080646-A/manifest.json active_tests[] — the test files already exist on disk and pass. Do NOT create new test files under tests/generated/20260524-101700-A/. 4) Run pytest tests/generated/20260522-080646-A/ to confirm 19 tests pass (AC1-AC19). No git commit needed for source files — both are already committed (becffc6). The manifest update itself needs to be committed.",
+    "files_to_create": [],
+    "files_to_modify": [
+      "tests/generated/20260522-080646-A/manifest.json (append AC17, AC18, AC19 to active_tests[])"
     ],
-    "files_to_modify": [],
-    "validation_approach": "QA invokes hook with three new quoted-arg commands via stdin JSON and verifies exit code 2. Also re-runs AC13 regression to confirm exit code 0 (false-positive fix preserved). All 16 prior AC tests + 3 new integration ACs must pass."
+    "validation_approach": "QA verifies: (1) manifest active_tests[] contains 19 entries; (2) pytest tests/generated/20260522-080646-A/ reports 19 passed; (3) pytest hooks/tests/test_bash_safety_context.py reports 30 passed; (4) hook exits 2 for killall \"happy\", pkill -f \"claude\", kill \"-9\" 1234; (5) hook exits 0 for codex exec with killall+claude in prompt body (AC-REGRESSION-1)."
   },
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260524-101700-A.json",
   "blast_radius_map_path": ".claude/dev-registry/dev-20260524-101700-A/blast-radius-map.json",
