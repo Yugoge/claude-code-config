@@ -102,9 +102,15 @@ elif bare:
         is_regex = False
         comment = ' '.join(bare[2:])
     else:
-        pattern = ' '.join(bare)
+        ascii_bare = []
+        for t in bare:
+            if any(ord(c) >= 128 for c in t):
+                break
+            ascii_bare.append(t)
+        comment_bare = bare[len(ascii_bare):]
+        pattern = ' '.join(ascii_bare) if ascii_bare else '.*'
         is_regex = _looks_regex(pattern)
-        comment = ''
+        comment = ' '.join(comment_bare)
 else:
     pattern, is_regex = '.*', True
     comment = ''
@@ -222,7 +228,7 @@ else:
         # Matcher key-presence logic requires this field name. (ORIGINAL fix)
         entry['target'] = rest
     elif rest:
-        entry['args_contain'] = [rest]
+        entry['args_contain'] = rest.split()
 ops = [entry]
 grant = {
     'task_id': os.environ['TASK_ID'],

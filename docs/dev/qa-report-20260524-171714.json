@@ -239,8 +239,9 @@
       "script_path": null,
       "health_check_url": null,
       "health_check_result": "n/a — no web service",
-      "status": "skipped_no_ui",
-      "blocking_reason": null
+      "status": "legitimately_skipped",
+      "blocking_reason": null,
+      "skip_rationale": "Non-UI cycle. Changes are PreToolUse/UserPromptSubmit hooks and settings.json registration. BA spec explicitly marks applicability: N/A with reason: non-UI — hook/config. No web service, no browser interaction, no rendered UI, no pipeline steps, no API endpoints, no user-triggered code paths. Verification performed entirely via pytest subprocess tests (14/14 pass) and bash -n syntax checks."
     },
 
     "app_understanding_flow": {

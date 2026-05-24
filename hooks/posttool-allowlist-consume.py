@@ -67,8 +67,11 @@ def main() -> None:
         data = json.loads(raw) if raw.strip() else {}
     except Exception:
         # Malformed posttool input — still reap the sentinel for the
-        # comment_only / malformed terminal case.
-        task_id = os.environ.get("CLAUDE_TASK_ID", "")
+        # comment_only / malformed terminal case. Mirror writer priority:
+        # CLAUDE_TASK_ID > CLAUDE_SESSION_ID (session_id fallback).
+        _env_tid = os.environ.get("CLAUDE_TASK_ID", "")
+        _env_sid = os.environ.get("CLAUDE_SESSION_ID", "default")
+        task_id = _env_tid if _env_tid else _env_sid
         if task_id:
             consume_sentinel_grant_on_terminal_result(task_id, "malformed")
         sys.exit(0)
@@ -96,11 +99,8 @@ def main() -> None:
     # The four mandated terminal cases (success/failure/non_zero/malformed)
     # are all hit only when Bash itself fires; non-Bash tool events skip the
     # sentinel-consume path entirely.
-    task_id = (
-        data.get("task_id")
-        or os.environ.get("CLAUDE_TASK_ID")
-        or session_id
-    )
+    env_task_id = os.environ.get("CLAUDE_TASK_ID", "")
+    task_id = env_task_id if env_task_id else session_id
     if task_id and tool_name == "Bash":
         try:
             from lib.allowlist import (  # noqa: E402
