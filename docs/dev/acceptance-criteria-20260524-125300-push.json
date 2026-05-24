@@ -1,0 +1,164 @@
+{
+  "request_id": "20260524-125300-push",
+  "task_id": "20260524-125300-push",
+  "iteration": 2,
+  "notes": "Revised after QA rejection. All 5 blocking (QA-1 through QA-5) and 2 major (QA-6, QA-7) issues fixed. Codex iteration 2 consulted; 3 additional findings incorporated.",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "type": "api",
+      "given": "A valid push-analyst grant JSON at /tmp/agentic-commit/push-analyst/<repo-hash>/<session-id>/<request-id>.json with verdict=approved, all fields correct, expires_at in the future using Z-suffix (e.g. '2099-01-01T00:00:00Z'); CLAUDE_SESSION_ID set; current HEAD matches the pre-head value used in grant head_sha; test harness writes mock push.sh (chmod 0755) at ~/.claude/hooks/push.sh that reads EXECUTE_PUSH_TEST_CAPTURE env var and writes {\"argv\": \"$@\", \"CLAUDE_PUSH_REQUEST_ID\": \"$CLAUDE_PUSH_REQUEST_ID\"} as JSON to that path then exits 0; test harness sets EXECUTE_PUSH_TEST_CAPTURE=/tmp/execute-push-test-capture-<pid>.json",
+      "when": "python3 /dev/shm/dev-workspace/dot-claude/scripts/execute-push.py --repo-hash <hash> --remote <remote> --request-id <id> is invoked (absolute path)",
+      "then": "EXECUTE_PUSH_TEST_CAPTURE file exists containing CLAUDE_PUSH_REQUEST_ID matching request-id AND argv containing the remote value; Chain-B sentinel exists at correct path with exactly the 5 keys {result, request_id, head, branch, remote} and result=PASS with all values matching; grant file is absent (consumed)",
+      "check": {
+        "capture_file_exists": true,
+        "capture_CLAUDE_PUSH_REQUEST_ID_matches_request_id": true,
+        "capture_argv_contains_remote": true,
+        "sentinel_exists": true,
+        "sentinel_exact_keys": ["result", "request_id", "head", "branch", "remote"],
+        "sentinel_result": "PASS",
+        "grant_consumed": true
+      },
+      "ac_uid": "ac1-execute-push-happy-path-v2"
+    },
+    {
+      "id": "AC2",
+      "type": "api",
+      "given": "A push-analyst grant where expires_at is in the past OR any mandatory field is wrong/missing/mismatched (e.g. nonce does not match request-id); all other conditions valid",
+      "when": "python3 /dev/shm/dev-workspace/dot-claude/scripts/execute-push.py is invoked with correct arguments (absolute path)",
+      "then": "Exit code is 1; no Chain-B sentinel file exists at the sentinel path; stderr contains a descriptive message naming the failing field",
+      "check": {
+        "exit_code": 1,
+        "sentinel_absent": true,
+        "stderr_contains_field_name": true
+      },
+      "ac_uid": "ac2-execute-push-grant-invalid-v2"
+    },
+    {
+      "id": "AC3",
+      "type": "api",
+      "given": "The --pre-head argument does not match current git HEAD (step 5 early drift check); the grant head_sha is set to the same stale SHA as --pre-head so step 9 would also fail but step 5 fires first; grant is otherwise valid",
+      "when": "python3 /dev/shm/dev-workspace/dot-claude/scripts/execute-push.py is invoked (absolute path)",
+      "then": "Exit code is 1; no Chain-B sentinel file exists; stderr contains a message indicating HEAD or pre-head mismatch",
+      "check": {
+        "exit_code": 1,
+        "sentinel_absent": true,
+        "stderr_indicates_head_mismatch": true
+      },
+      "ac_uid": "ac3-execute-push-pre-head-mismatch-v2"
+    },
+    {
+      "id": "AC4",
+      "type": "api",
+      "given": "A valid grant with verdict=blocked and a non-empty risks[] array; all other fields correct",
+      "when": "python3 /dev/shm/dev-workspace/dot-claude/scripts/execute-push.py is invoked (absolute path)",
+      "then": "Exit code is 1; no Chain-B sentinel file exists; stderr displays the risks[] contents; grant file still exists at grant path (blocked grant intentionally not consumed)",
+      "check": {
+        "exit_code": 1,
+        "sentinel_absent": true,
+        "stderr_contains_risks": true,
+        "grant_still_exists": true
+      },
+      "ac_uid": "ac4-execute-push-blocked-verdict-v2"
+    },
+    {
+      "id": "AC5a",
+      "type": "api",
+      "given": "All grant conditions valid (approved verdict, correct fields, future expiry); CLAUDE_SESSION_ID set; HOME redirected to a temp directory that contains no .claude/hooks/push.sh; script invoked by absolute path so HOME redirection only affects push.sh lookup",
+      "when": "HOME=<tmpdir> python3 /dev/shm/dev-workspace/dot-claude/scripts/execute-push.py --repo-hash <hash> --remote <remote> --request-id <id> is invoked",
+      "then": "Exit code is 2; no Chain-B sentinel file exists (abort at step 6 before sentinel write); grant file still exists at grant path (grant not consumed; abort before step 10); stderr mentions push.sh",
+      "check": {
+        "exit_code": 2,
+        "sentinel_absent": true,
+        "grant_still_exists": true,
+        "stderr_mentions_push_sh": true
+      },
+      "ac_uid": "ac5a-execute-push-push-sh-absent-v2"
+    },
+    {
+      "id": "AC5b",
+      "type": "api",
+      "given": "All grant conditions valid (approved verdict, correct fields, future expiry); CLAUDE_SESSION_ID set; ~/.claude/hooks/push.sh exists and is chmod 0755 (passes step 6 check) but its shebang points to a path the harness has asserted does not exist (e.g. #!/tmp/execute-push-nointerp-<pid>), making os.execv raise OSError",
+      "when": "python3 /dev/shm/dev-workspace/dot-claude/scripts/execute-push.py is invoked (absolute path)",
+      "then": "Exit code is 2; Chain-B sentinel file does NOT exist at the sentinel path (M11 handler unlinked it); grant file is absent (was consumed at step 10 before sentinel write)",
+      "check": {
+        "exit_code": 2,
+        "sentinel_absent": true,
+        "grant_consumed": true,
+        "comment": "M11: execv OSError handler must unlink sentinel before returning exit 2"
+      },
+      "ac_uid": "ac5b-execute-push-execv-oserror-sentinel-cleanup-v2"
+    },
+    {
+      "id": "AC6",
+      "type": "api",
+      "given": "Current git HEAD equals the value supplied as --pre-head (step 5 passes); grant.head_sha contains a different SHA (not the current HEAD) so step 9 binding check fails; all other grant fields correct (verdict=approved, nonce correct, branch correct, etc.)",
+      "when": "python3 /dev/shm/dev-workspace/dot-claude/scripts/execute-push.py is invoked (absolute path)",
+      "then": "Exit code is 1; no Chain-B sentinel file exists; stderr contains a message indicating head_sha mismatch or grant binding failure",
+      "check": {
+        "exit_code": 1,
+        "sentinel_absent": true,
+        "stderr_indicates_head_sha_mismatch": true
+      },
+      "ac_uid": "ac6-execute-push-grant-head-sha-mismatch-v2"
+    },
+    {
+      "id": "AC7",
+      "type": "api",
+      "given": "A valid grant with verdict=warn and a non-empty risks[] array; all other fields correct; CLAUDE_SESSION_ID set; mock push.sh (same capture protocol as AC1); EXECUTE_PUSH_TEST_CAPTURE set to a temp path",
+      "when": "python3 /dev/shm/dev-workspace/dot-claude/scripts/execute-push.py is invoked (absolute path)",
+      "then": "Mock push.sh is exec'd (process replaced); EXECUTE_PUSH_TEST_CAPTURE file exists with CLAUDE_PUSH_REQUEST_ID matching request-id; Chain-B sentinel exists with result=PASS; grant file is absent (consumed); stderr output captured before execv contains the warn risks[] contents",
+      "check": {
+        "capture_file_exists": true,
+        "capture_CLAUDE_PUSH_REQUEST_ID_matches_request_id": true,
+        "sentinel_exists": true,
+        "sentinel_result": "PASS",
+        "grant_consumed": true,
+        "stderr_contains_warn_risks": true
+      },
+      "ac_uid": "ac7-execute-push-warn-verdict-v2"
+    },
+    {
+      "id": "AC8",
+      "type": "api",
+      "given": "CLAUDE_SESSION_ID is unset or empty in the environment; all other arguments otherwise valid",
+      "when": "env -u CLAUDE_SESSION_ID python3 /dev/shm/dev-workspace/dot-claude/scripts/execute-push.py --repo-hash <hash> --remote <remote> --request-id <id> is invoked",
+      "then": "Exit code is exactly 2 (not 1); stderr contains 'CLAUDE_SESSION_ID'; no grant file is read; no sentinel file is written",
+      "check": {
+        "exit_code": 2,
+        "exit_code_is_not_1": true,
+        "stderr_contains": "CLAUDE_SESSION_ID",
+        "sentinel_absent": true,
+        "grant_not_read": true
+      },
+      "ac_uid": "ac8-execute-push-session-id-unset-v2"
+    },
+    {
+      "id": "AC9",
+      "type": "data",
+      "given": "commands/push.md has been updated by the dev cycle (M12 applied)",
+      "when": "grep -E 'rm -f.*push-analyst' commands/push.md is run from the repo root",
+      "then": "grep exits with code 1 (no match — old manual unlink instruction is absent); grep 'execute-push.py' commands/push.md returns output confirming the script is referenced as the sole handler",
+      "check": {
+        "grep_rm_f_push_analyst_exit_code": 1,
+        "grep_execute_push_py_present": true
+      },
+      "ac_uid": "ac9-push-md-old-unlink-removed-v2"
+    },
+    {
+      "id": "AC10",
+      "type": "data",
+      "given": "commands/push.md has been updated by the dev cycle (M13 applied)",
+      "when": "grep 'execute-push.py' commands/push.md is run, and grep -E '&&.*push\\.sh|validate_sentinel\\.py|bash[[:space:]].*push\\.sh' commands/push.md is run",
+      "then": "First grep output includes python3.*execute-push.py with --request-id AND --repo-hash AND --remote arguments visible; second grep exits with code 1 (no old && pattern, no validate_sentinel.py reference, no direct bash push.sh invocation remains in Step 5)",
+      "check": {
+        "invocation_line_present": true,
+        "invocation_contains_request_id": true,
+        "invocation_contains_repo_hash": true,
+        "invocation_contains_remote": true,
+        "old_and_pattern_absent_exit_code": 1
+      },
+      "ac_uid": "ac10-push-md-new-invocation-present-v2"
+    }
+  ]
+}
