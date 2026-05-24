@@ -5,6 +5,30 @@
     {
       "task_id": "20260520-221452",
       "manifest_path": "tests/generated/20260520-221452/manifest.json"
+    },
+    {
+      "task_id": "20260522-080646-D",
+      "manifest_path": "tests/generated/20260522-080646-D/manifest.json"
+    },
+    {
+      "task_id": "20260522-000000",
+      "manifest_path": "tests/generated/20260522-000000/manifest.json"
+    },
+    {
+      "task_id": "20260522-080646-A",
+      "manifest_path": "tests/generated/20260522-080646-A/manifest.json"
+    },
+    {
+      "task_id": "20260521-090300",
+      "manifest_path": "tests/generated/20260521-090300/manifest.json"
+    },
+    {
+      "task_id": "20260521-090100",
+      "manifest_path": "tests/generated/20260521-090100/manifest.json"
+    },
+    {
+      "task_id": "20260521-090200",
+      "manifest_path": "tests/generated/20260521-090200/manifest.json"
     }
   ]
 }

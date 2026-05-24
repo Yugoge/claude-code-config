@@ -66,6 +66,7 @@
       "Bash(cat > /tmp/*.md:*)",
       "Bash(source venv/bin/activate:*)",
       "Bash(source venv/bin/activate && python*)",
+      "Bash(/tmp/*-venv/bin/python*)",
       "Bash(grep:*)",
       "Bash(find:*)",
       "Bash(which:*)",
@@ -262,7 +263,7 @@
       "Skill(spec:*)",
       "Skill(stop:*)",
       "Skill(test:*)",
-      "Skill(spec-continue:*)"
+      "Skill(spec-update:*)"
     ],
     "ask": [
       "Bash(docker run:*)",
@@ -297,7 +298,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "SessionStart": [
       {
@@ -530,6 +531,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-daily-trade-agent-concurrency.py\""
+          },
+          {
+            "type": "command",
             "command": "bash \"$HOME/.claude/hooks/pretool-layer-escalation-check.sh\""
           },
           {
@@ -754,6 +759,6 @@
     ]
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "theme": "dark"
 }

@@ -1,0 +1,82 @@
+{
+  "request_id": "20260521-090100",
+  "timestamp": "2026-05-24T00:00:00Z",
+  "inspector": "cleanliness-inspector",
+  "mode": "changed-files",
+  "changed_files": [
+    "commands/codex.md",
+    "policies/tool-policy.v1.json"
+  ],
+  "findings": {
+    "misplaced_docs": [],
+    "naming_violations": [],
+    "archive_candidates": [],
+    "dev_context_files": [],
+    "temp_files": [],
+    "duplicate_scripts": [],
+    "duplicate_tests": [],
+    "non_functional_files": [],
+    "non_functional_folders": [],
+    "orphaned_subagents": [],
+    "unreferenced_scripts": [],
+    "orphaned_tests": [],
+    "historical_docs": [],
+    "docs_categorization": [],
+    "obsolete_functionality": [],
+    "orphan_commands": [],
+    "dead_functions": [],
+    "duplicate_content": [
+      {
+        "file": "policies/tool-policy.v1.json.bak.1778564751",
+        "reason": "Backup file alongside policies/tool-policy.v1.json; content differs from current (MD5: 30e6665d vs 8fdf9f44), last modified 2026-05-12 (12 days ago), 4 commits, only referenced in INDEX.md and session tool-result caches (historical/documentary references only — no functional code references)",
+        "severity": "minor",
+        "introduced_in_diff": false,
+        "recommendation": "delete",
+        "safe_to_delete": true,
+        "archive_note": "Not documentation — JSON config backup; safe_to_delete per Safety Rules (no functional code references, >7 days old)"
+      }
+    ]
+  },
+  "changed_files_assessment": {
+    "commands/codex.md": {
+      "verdict": "clean",
+      "introduced_in_diff": false,
+      "notes": [
+        "Correct location: commands/ folder per naming convention (lowercase)",
+        "Content is functional: describes codex CLI integration with canonical output path routing",
+        "No archive candidate patterns in filename",
+        "No temp/draft markers in content",
+        "Change: expanded Step 2 output-path logic to support CODEX_OUT_TASK_ID/CODEX_OUT_ROLE env vars for canonical docs/codex/<task_id>/<role>.txt path; fallback to /var/tmp/codex-outputs/ preserved"
+      ]
+    },
+    "policies/tool-policy.v1.json": {
+      "verdict": "clean",
+      "introduced_in_diff": false,
+      "notes": [
+        "Correct location: policies/ folder",
+        "policy_version bumped 3 -> 4 with full audit trail in _note field",
+        "Change: adds */docs/codex/ to allowed_write_path_prefixes for 11 codex-consultation roles (ba, qa, pm, architect, product-owner, user, ui-specialist, spec, prompt-inspector, cleanliness-inspector, style-inspector); adds */docs/research/ for ba role",
+        "Well-structured JSON; no formatting issues",
+        "No cleanliness violations introduced by this diff"
+      ]
+    }
+  },
+  "summary": {
+    "total_issues": 1,
+    "critical": 0,
+    "major": 0,
+    "minor": 1,
+    "new_in_diff": 0,
+    "pre_existing": 1,
+    "estimated_space_saved": "< 1 MB",
+    "blocking_close": false,
+    "note": "The single finding (backup JSON file) is pre-existing (introduced_in_diff: false) and advisory/non-blocking per AC-12.1 default-safe rule. Both changed files are clean."
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "failed_parse",
+    "feedback_summary": "Skill(codex) executed the /codex command instead of acting as a consultant — the skill misinterpreted the args as $ARGUMENTS and ran in exec mode, producing a reprintof the codex.md command body rather than feedback. Output was unparseable as CODEX_FEEDBACK.",
+    "findings": [],
+    "feedback_incorporated": "self-review substituted — 5 adversarial questions addressed: (1) False positives: none found; backup file is correctly identified as pre-existing. (2) Severity calibration: corrected duplicate_scripts/major to duplicate_content/minor — backup has different MD5 from original (not byte-identical), so 'major' (identical duplicates) was wrong. (3) Safety Rules compliance: .json.bak is not documentation, safe_to_delete applies with no functional references; Safety Rules 'Archive Rather Than Delete' applies only to documentation files. (4) Scope accuracy: both changed files have zero cleanliness violations in this diff; assessment is correct. (5) Wording precision: reclassified finding from duplicate_scripts to duplicate_content (rule 17) which matches a non-script JSON backup."
+  }
+}

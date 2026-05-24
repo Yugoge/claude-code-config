@@ -1,5 +1,78 @@
 # Changelog
 
+## 2.1.150
+
+- Internal infrastructure improvements (no user-facing changes)
+
+## 2.1.149
+
+- `/usage` now shows a per-category breakdown of what's driving your limits usage — skills, subagents, plugins, and per-MCP-server cost
+- `/diff` detail view can now be scrolled with the keyboard (arrows, `j`/`k`, `PgUp`/`PgDn`, `Space`, `Home`/`End`)
+- Markdown output now renders GFM task list checkboxes (`- [ ] todo` / `- [x] done`) instead of plain bullets
+- Enterprise: added the `allowAllClaudeAiMcps` managed setting to load claude.ai cloud MCP connectors alongside `managed-mcp.json`
+- Fixed a PowerShell permission bypass: built-in `cd` functions (`cd..`, `cd\`, `cd~`, `X:`) changed the working directory undetected, letting a later command read outside the workspace
+- Fixed the sandbox write allowlist in git worktrees covering the entire main repository root instead of only the shared `.git` directory (with `hooks/` and `config` denied)
+- Fixed PowerShell prefix/wildcard allow rules (e.g. `PowerShell(dotnet.exe build *)`) not pre-approving native executables and scripts
+- Fixed a permission-analysis gap where the parser trusted stale variable-tracking values for `PWD`/`OLDPWD`/`DIRSTACK` across `cd`/`pushd`/`popd`
+- Fixed `find` in the Bash tool exhausting the macOS system file/vnode table and crashing the host on large directory trees
+- Fixed the managed-settings approval dialog leaving the terminal frozen after accepting at startup
+- Fixed `/ultraplan` and remote session creation failing with "Could not capture uncommitted changes" when the working tree has no real changes
+- Fixed `otelHeadersHelper` failing silently when the script path contains spaces; helper failures are now reported in `/doctor` and the debug log
+- Fixed the thinking spinner staying amber across tool calls and onto fresh thinking bursts
+- Fixed collapsed Bash output reporting the wrong hidden-line count for outputs with many short lines
+- Fixed slash-command argument-hint clipping trailing typed characters when the hint overflows the input box
+- Fixed argument-hint and progressive arg suggestions not appearing after Tab-completing a skill whose frontmatter `name:` differs from its directory basename
+- Fixed the status bar showing the user's baseline `/effort` setting instead of the effort level applied by skill/agent `effort:` frontmatter
+- Fixed Ctrl+O transcript view freezing at the moment it was opened instead of tailing new messages
+- Fixed editing a recalled prompt-history entry losing the edit when navigating further up/down with arrow keys
+- Fixed `/config` exit summary reporting phantom changes to auto-compact and theme when toggling unrelated settings
+- Fixed `/insights` crashing when cached session-meta files are missing optional fields
+- Fixed malformed PowerShell and History tool calls with missing input being misclassified as reads in transcript collapsing
+- Fixed renaming a Remote Control session from claude.ai or the Claude mobile app not updating the local session name for `claude --resume`
+- Fixed a race where a just-submitted prompt could appear twice in the up-arrow history
+- Fixed tapping the "Jump to bottom" pill in fullscreen mode not dismissing it immediately
+- Improved `/feedback` reports to include the conversation that happened before context compaction, making issues from earlier in long sessions easier to triage
+
+## 2.1.148
+
+- Fixed the Bash tool returning exit code 127 on every command for some users (a regression introduced in 2.1.147)
+
+## 2.1.147
+
+- Pinned background sessions (`Ctrl+T` in `claude agents`) now stay alive when idle, are restarted in place to apply Claude Code updates, and are shed under memory pressure only after non-pinned sessions
+- Renamed `/simplify` to `/code-review`. It now reports correctness bugs at a chosen effort level (e.g., `/code-review high`); pass `--comment` to post findings as inline GitHub PR comments. The old cleanup-and-fix behavior has been removed
+- Improved auto-updater: retries transient network failures, reports specific error categories and OS error codes on failure, and shows the current version when an update fails
+- Improved diff rendering performance for large file edits
+- Prompt history no longer records consecutive duplicate entries — recalling a prompt with arrow-up and submitting it again won't add another copy
+- Fixed enterprise login restrictions (`forceLoginOrgUUID` and `forceLoginMethod` managed-settings) not being enforced against third-party-provider and API-key sessions
+- Fixed `&` in `!` command output displaying as `&amp;`, which broke copy-pasting URLs from commands like `gcloud auth login` on headless machines
+- Fixed unknown slash commands silently doing nothing in headless/SDK mode — they now show an error message
+- Fixed `/help` rendering a broken tab header and showing only one command per page on small terminals when not in fullscreen mode
+- Fixed shell snapshot dropping user functions whose names start with a single underscore, which broke aliases referencing them
+- Fixed plugin agents that declare multiple `Agent(...)` types in `tools:` frontmatter dropping all but the last entry
+- Fixed hook `if` conditions like `PowerShell(git push*)` never matching — only `PowerShell(*)` worked
+- Fixed PowerShell tool dropping output for commands that rely on the default formatter
+- Fixed: on Windows, "Yes, and don't ask again" for a PowerShell script invocation now writes a rule that actually matches on subsequent runs
+- Fixed PowerShell tool failing on Windows with exit code 1 when `pwsh` is installed via winget or the Microsoft Store
+- Fixed `/effort` opening with the slider on the wrong level — it now starts at your current effort
+- Fixed paginating MCP servers dropping resources, templates, and prompts past page 1
+- Fixed full-screen strobing in attached background sessions on Windows Terminal while Claude is streaming
+- Fixed: on Windows, removing a background-job worktree no longer follows NTFS junctions into the main repo
+- Fixed `/background` refusing sessions whose only typed input was a skill or custom slash command
+- Fixed auto mode suppressing `AskUserQuestion` when the user or a skill explicitly relies on it; the auto-mode classifier now sees the user's answers as intent signal
+- Fixed `/theme` "New custom theme" and color editor dialogs not responding to Esc
+- Fixed an uncaught exception at the end of streaming sessions when running via the Agent SDK
+- Fixed a rare hang when waiting for scroll to settle on Windows
+- Fixed stale and doubled rows in the agent view list on Windows when background session results contain wide (CJK) characters
+- Fixed pasted text being delivered to agents as an unreadable `[Pasted text #N]` placeholder instead of the actual content
+- Fixed plugin component counts in `claude plugin details` and `/plugin` being doubled when a plugin's manifest listed paths overlapping its default directories
+- Fixed backgrounded sessions re-prompting for tool permissions you already granted with "don't ask again"
+- Fixed GNOME Terminal right-click and middle-click paste not inserting text
+- Fixed `CLAUDE_CODE_SUBAGENT_MODEL` not applying to teammate processes spawned by agent teams
+- Fixed slash commands followed by a tab or newline being treated as an unknown command
+- Fixed several spacing and layout glitches in the `/plugin`, `/status`, `/mobile`, `/sandbox`, and `/permissions` menus
+- Fixed stripped images prompting the model to repeatedly re-read media that was no longer present
+
 ## 2.1.145
 
 - Added `claude agents --json` to list live Claude sessions as JSON for scripting (tmux-resurrect, status bars, session pickers)

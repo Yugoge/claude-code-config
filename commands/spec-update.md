@@ -1,19 +1,19 @@
 ---
-description: Continuation spec update or temp session note (was /update — renamed to avoid collision with MAP's /update portfolio mutation command)
+description: Continuation spec update or temp session note (was /update then /spec-continue — renamed to avoid collision with MAP's /update portfolio mutation command)
 argument-hint: "[--temp] [--spec <path>] [what the next session should focus on]"
 disable-model-invocation: true
 ---
 
-# /spec-continue — Continuation Spec Update
+# /spec-update — Continuation Spec Update
 
 Turn unfinished work into a continuation spec that a fresh Claude Code or Codex
 session can continue with `/dev`. Use a compact temp note only when explicitly
 requested for non-development session continuity.
 
-**Migration note**: This command was previously `/update` at `~/.claude/commands/update.md`.
-It was renamed to `/spec-continue` to resolve a name collision with MAP's `/update`
-portfolio mutation command. Users with muscle-memory for `/update --temp` should
-now use `/spec-continue --temp` instead.
+**Migration note**: This command was previously `/update` at `~/.claude/commands/update.md`,
+then renamed to `/spec-continue`, and is now `/spec-update`. The renames resolve name
+collisions and improve clarity. Users with muscle-memory for `/update --temp` should
+now use `/spec-update --temp` instead.
 
 Inspired by Matt Pocock's `mattpocock/skills` handoff skill; renamed and adapted here for
 our `spec → dev → close → commit → push` workflow.

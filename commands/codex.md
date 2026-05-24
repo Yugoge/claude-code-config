@@ -79,40 +79,69 @@ Otherwise, proceed:
 
 ### 2. Generate unique output path
 
-Run this first to get a collision-safe output file. Codex outputs are routed to
-`/var/tmp/codex-outputs/` (disk-backed, 601G) instead of `/tmp/` (4G tmpfs in
-RAM) to prevent ENOSPC from heavy outputs filling the tmpfs. A daily cron
-(`/etc/cron.d/tmp-cleanup-daily`) prunes files older than 7 days.
+Run this first to establish where output will be written. The canonical path is
+`$CLAUDE_PROJECT_DIR/docs/codex/<task_id>/<role>.txt` when `CODEX_OUT_TASK_ID`
+and `CODEX_OUT_ROLE` env vars are set, safe, and non-empty. Falls back to
+`/var/tmp/codex-outputs/` (disk-backed, 601G) otherwise.
 
 ```bash
-mkdir -p /var/tmp/codex-outputs
-echo "/var/tmp/codex-outputs/codex-output-$$-$(date +%s).txt"
+_safe_re='^[A-Za-z0-9._-]+$'
+if [ -n "${CODEX_OUT_TASK_ID:-}" ] && [ -n "${CODEX_OUT_ROLE:-}" ] \
+    && [[ "$CODEX_OUT_TASK_ID" =~ $_safe_re ]] \
+    && [[ "$CODEX_OUT_ROLE" =~ $_safe_re ]] \
+    && [[ "$CODEX_OUT_TASK_ID" != "." && "$CODEX_OUT_TASK_ID" != ".." ]] \
+    && [[ "$CODEX_OUT_ROLE" != "." && "$CODEX_OUT_ROLE" != ".." ]]; then
+  _CODEX_USE_CANONICAL=1
+  _base="$CLAUDE_PROJECT_DIR/docs/codex/$CODEX_OUT_TASK_ID"
+  mkdir -p "$_base"
+  echo "$_base/$CODEX_OUT_ROLE.txt"
+else
+  _CODEX_USE_CANONICAL=0
+  if [ -n "${CODEX_OUT_TASK_ID:-}${CODEX_OUT_ROLE:-}" ]; then
+    echo "[codex skill] warning: env vars present but unsafe; falling back to /var/tmp/codex-outputs/" >&2
+  fi
+  mkdir -p /var/tmp/codex-outputs
+  echo "/var/tmp/codex-outputs/codex-output-$$-$(date +%s).txt"
+fi
 ```
 
-Capture the printed path. Use it as `$CODEX_OUT` in all subsequent commands.
+Capture the printed path as `$CODEX_OUT` if needed for the Read step, but do
+NOT pass `$CODEX_OUT` as the tee argument. Steps 3 and 4 branch directly.
 
 ### 3. Review mode
 
 ```bash
-codex review -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' < /dev/null 2>&1 | tee "$CODEX_OUT"
+if [ "${_CODEX_USE_CANONICAL:-0}" = "1" ]; then
+  codex review -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' < /dev/null 2>&1 | tee "$CLAUDE_PROJECT_DIR/docs/codex/$CODEX_OUT_TASK_ID/$CODEX_OUT_ROLE.txt"
+else
+  codex review -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' < /dev/null 2>&1 | tee "/var/tmp/codex-outputs/codex-output-$$-$(date +%s).txt"
+fi
 ```
 
-Use 10 minute Bash timeout. Then Read `$CODEX_OUT` with the Read tool.
+Use 10 minute Bash timeout. Then Read the output file with the Read tool.
 
 ### 4. Exec mode
 
 **Without --model (default gpt-5.5):**
 ```bash
-codex exec -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' "$PROMPT" < /dev/null 2>&1 | tee "$CODEX_OUT"
+if [ "${_CODEX_USE_CANONICAL:-0}" = "1" ]; then
+  codex exec -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' "$PROMPT" < /dev/null 2>&1 | tee "$CLAUDE_PROJECT_DIR/docs/codex/$CODEX_OUT_TASK_ID/$CODEX_OUT_ROLE.txt"
+else
+  codex exec -c 'model="gpt-5.5"' -c 'reasoning_effort="xhigh"' "$PROMPT" < /dev/null 2>&1 | tee "/var/tmp/codex-outputs/codex-output-$$-$(date +%s).txt"
+fi
 ```
 
 **With --model (user-specified model, still xhigh reasoning):**
 ```bash
-codex exec -c 'model="<model>"' -c 'reasoning_effort="xhigh"' "$PROMPT" < /dev/null 2>&1 | tee "$CODEX_OUT"
+if [ "${_CODEX_USE_CANONICAL:-0}" = "1" ]; then
+  codex exec -c 'model="<model>"' -c 'reasoning_effort="xhigh"' "$PROMPT" < /dev/null 2>&1 | tee "$CLAUDE_PROJECT_DIR/docs/codex/$CODEX_OUT_TASK_ID/$CODEX_OUT_ROLE.txt"
+else
+  codex exec -c 'model="<model>"' -c 'reasoning_effort="xhigh"' "$PROMPT" < /dev/null 2>&1 | tee "/var/tmp/codex-outputs/codex-output-$$-$(date +%s).txt"
+fi
 ```
 
-Use 10 minute Bash timeout. Then Read `$CODEX_OUT` with the Read tool.
+Use 10 minute Bash timeout. Then Read the output file with the Read tool.
 
 ### 5. Present results
 
-Read `$CODEX_OUT` with the Read tool. Show the complete Codex output to the user. If Codex made file changes, summarize what was modified. If it failed, show the error and suggest corrections.
+Read the output file (path printed in Step 2) with the Read tool. Show the complete Codex output to the user. If Codex made file changes, summarize what was modified. If it failed, show the error and suggest corrections.
