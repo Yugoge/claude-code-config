@@ -112,13 +112,21 @@ decision=$(
       # cannot delete an actively-saturated counter mid-session and reset
       # the ≤3/session guarantee for long-lived sessions. This is NOT slot
       # consumption — only mtime refresh.
-      printf '%s\n' "$n" > "$COUNTER_FILE"
+      # arch-3 (spec R5a): ENOSPC/EISDIR guard — if write fails, skip rather
+      # than crashing the subshell. 2>/dev/null placed before > so EISDIR stderr
+      # is suppressed before the output redirect is evaluated (Bash left-to-right).
+      printf '%s\n' "$n" 2>/dev/null > "$COUNTER_FILE" || { printf 'skip'; exit 0; }
       printf 'skip'
     else
-      echo $((n + 1)) > "$COUNTER_FILE"
+      # arch-3 (spec R5a): ENOSPC/EISDIR guard — if counter write fails, emit
+      # 'skip' so the warning is suppressed rather than misfiring on every prompt.
+      if ! printf '%s\n' "$((n + 1))" 2>/dev/null > "$COUNTER_FILE"; then
+        printf 'skip'
+        exit 0
+      fi
       printf 'emit'
     fi
-  } 9> "$LOCK_FILE"
+  } 9> "$LOCK_FILE" 2>/dev/null
 )
 
 [ "$decision" = "emit" ] || exit 0

@@ -51,6 +51,21 @@ from typing import NamedTuple
 SENTINEL_GRANT_DIR = "/tmp/claude-grants"
 
 
+def _regex_safe(pattern: str, text: str, timeout: int = 1) -> bool:
+    """re.search with SIGALRM timeout. Returns False on re.error or timeout."""
+    def _handler(signum, frame):
+        raise TimeoutError("regex timeout")
+    old = signal.signal(signal.SIGALRM, _handler)
+    signal.alarm(timeout)
+    try:
+        return bool(re.search(pattern, text))
+    except (re.error, TimeoutError):
+        return False
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
+
+
 class MatchResult(NamedTuple):
     """Result of a grant-pattern match."""
     pattern: str
@@ -62,7 +77,7 @@ def _match_loaded_grant(
     grant: dict,
     candidates: list[str],
     literal_policy: str,
-    regex_timeout: int | None,
+    regex_timeout: int = 1,
 ) -> MatchResult | None:
     """Pure match step: takes an already-loaded grant dict, no file I/O.
 
@@ -75,8 +90,7 @@ def _match_loaded_grant(
                         "exact_only" (pattern==cand only — used by PreTool
                         read_grant to mirror PostTool consume_grant_for_posttool
                         Branch 3 exact-only semantics)
-        regex_timeout: SIGALRM timeout in seconds for regex match; None = no
-                       timeout
+        regex_timeout: SIGALRM timeout in seconds for regex match (default 1).
 
     Returns:
         MatchResult on first match, None if no candidate matches or grant
@@ -87,27 +101,10 @@ def _match_loaded_grant(
         return None
     is_regex = bool(grant.get("is_regex", False))
 
-    def _alarm_handler(signum, frame):
-        raise TimeoutError("regex timeout")
-
     for cand in candidates:
         matched = False
         if is_regex:
-            if regex_timeout is not None:
-                old_handler = signal.signal(signal.SIGALRM, _alarm_handler)
-                signal.alarm(regex_timeout)
-                try:
-                    matched = bool(re.search(pattern, cand))
-                except (re.error, TimeoutError):
-                    matched = False
-                finally:
-                    signal.alarm(0)
-                    signal.signal(signal.SIGALRM, old_handler)
-            else:
-                try:
-                    matched = bool(re.search(pattern, cand))
-                except re.error:
-                    matched = False
+            matched = _regex_safe(pattern, cand, regex_timeout)
         else:
             if literal_policy == "exact_or_substr":
                 matched = pattern == cand or pattern in cand
@@ -126,7 +123,7 @@ def _load_and_match(
     sid: str,
     candidates: list[str],
     literal_policy: str,
-    regex_timeout: int | None,
+    regex_timeout: int = 1,
 ) -> MatchResult | None:
     """Blocking-lock wrapper: acquire LOCK_EX on grant file, json.load,
     then delegate to _match_loaded_grant.
@@ -169,7 +166,7 @@ def read_grant(tool_name: str, sid: str) -> bool:
     Deletion is deferred to posttool-allowlist-consume.py (PostToolUse).
     Returns True if grant matches, False otherwise (missing file = False).
     """
-    result = _load_and_match(sid, [tool_name], "exact_only", None)
+    result = _load_and_match(sid, [tool_name], "exact_only", 1)
     if result is not None:
         sys.stderr.write(f"[ALLOW] grant matched for {tool_name}, consume deferred to PostToolUse\n")
         return True
@@ -185,7 +182,7 @@ def read_grant_for_git_command(command: str, sid: str) -> bool:
     Subagent firewall check stays in the caller (_check_git_allowlist).
     Returns True if grant matches, False otherwise.
     """
-    result = _load_and_match(sid, [command], "substr_only", None)
+    result = _load_and_match(sid, [command], "substr_only", 1)
     if result is not None:
         sys.stderr.write("[ALLOW] grant matched, consume deferred to PostToolUse\n")
         return True
@@ -306,7 +303,7 @@ def consume_grant_for_posttool(sid: str, tool_name: str, command: str) -> bool:
                 candidates = subcommands + [command]
                 for part in candidates:
                     if is_regex:
-                        if re.search(pattern, part):
+                        if _regex_safe(pattern, part):
                             matched = True
                             break
                     else:
@@ -319,7 +316,7 @@ def consume_grant_for_posttool(sid: str, tool_name: str, command: str) -> bool:
             else:
                 if is_regex:
                     # Branch 4
-                    matched = bool(re.search(pattern, tool_name))
+                    matched = _regex_safe(pattern, tool_name)
                 else:
                     # Branch 3: exact-only — prevents /allow Write consuming TodoWrite
                     matched = (pattern == tool_name)
@@ -438,15 +435,20 @@ def _bash_subcommands(command: str) -> list[str]:
 def match_sentinel_grant_for_bash_command(task_id: str, command: str) -> dict | None:
     """Structural match of bash command against sentinel-grant allowed_operations[].
 
-    The match is STRUCTURAL: for each entry in allowed_operations[], the entry
-    must be a dict with at minimum {"op": <token>}. The candidate sub-token
-    (the first whitespace-separated word of a sub-command after compound
-    splitting) must EQUAL entry["op"]. Optional entry["target"] (if present)
-    must EQUAL the second whitespace-separated word of the same sub-command.
-    Optional entry["args_contain"] (if present, list[str]) must each appear
-    as a literal substring of the remainder of the sub-command (this is the
-    only substring-style predicate, and it is scoped to a single declared
-    arg-fragment, NOT the entire command line).
+    Two entry types are supported:
+
+    1. Structural entries (op != "*"): the first whitespace-separated token of
+       each sub-command after compound splitting is compared against entry["op"]
+       by exact equality. Leading KEY=VALUE env-var assignments are skipped
+       before extracting the head token so that `GIT_DIR=/tmp git push` matches
+       an entry with op="git". Optional entry["target"] (second token) and
+       entry["args_contain"] (list[str] of arg-fragment substrings) apply as
+       before.
+
+    2. Regex entries (op="*" with "regex" field): the "regex" value is tested
+       with re.search() against the full subcommand string (before env-var
+       stripping). This allows regex /allow grants to reach subagents, which
+       cannot use the legacy grant path.
 
     The function NEVER substring-matches the entry["op"] against the raw
     command line — that was the legacy bash-safety bypass closed by R2.
@@ -458,9 +460,36 @@ def match_sentinel_grant_for_bash_command(task_id: str, command: str) -> dict | 
         return None
     ops = grant.get("allowed_operations", [])
     for sub in _bash_subcommands(command):
+        # Pass 1: regex sentinel entries (op="*" with "regex" field).
+        for entry in ops:
+            if not isinstance(entry, dict) or entry.get("op") != "*":
+                continue
+            regex_pattern = entry.get("regex")
+            if isinstance(regex_pattern, str):
+                def _alarm_handler(signum, frame):
+                    raise TimeoutError("regex timeout")
+                old_handler = signal.signal(signal.SIGALRM, _alarm_handler)
+                signal.alarm(1)
+                try:
+                    matched = bool(re.search(regex_pattern, sub))
+                except (re.error, TimeoutError):
+                    matched = False
+                finally:
+                    signal.alarm(0)
+                    signal.signal(signal.SIGALRM, old_handler)
+                if matched:
+                    return entry
+
+        # Pass 2: structural match — skip leading KEY=VALUE env-var tokens.
         tokens = sub.split()
         if not tokens:
             continue
+        env_skip = 0
+        while env_skip < len(tokens) and re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', tokens[env_skip]):
+            env_skip += 1
+        if env_skip >= len(tokens):
+            continue
+        tokens = tokens[env_skip:]
         head_op = tokens[0]
         head_target = tokens[1] if len(tokens) >= 2 else None
         rest = " ".join(tokens[1:]) if len(tokens) >= 2 else ""
@@ -468,7 +497,7 @@ def match_sentinel_grant_for_bash_command(task_id: str, command: str) -> dict | 
             if not isinstance(entry, dict):
                 continue
             want_op = entry.get("op")
-            if not isinstance(want_op, str) or want_op != head_op:
+            if not isinstance(want_op, str) or want_op == "*" or want_op != head_op:
                 continue
             want_target = entry.get("target")
             if want_target is not None and want_target != head_target:

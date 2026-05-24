@@ -3,8 +3,8 @@
 PreToolUse Hook: Orchestrator Gate (Unified)
 
 Three-tier policy for the main agent:
-  1. ALWAYS_ALLOWED whitelist tools pass, but Bash is capped at 3
-     consecutive same-name calls (4th blocked).
+  1. ALWAYS_ALLOWED whitelist tools pass, but Bash is capped at 5
+     consecutive same-name calls (6th blocked).
   2. Non-whitelist tools are allowed once TOTAL per tool name per turn
      (2nd same-name call blocked regardless of intervening tool calls).
   3. PERMANENTLY_BLOCKED (EnterPlanMode, ExitPlanMode) are always
@@ -51,7 +51,7 @@ PERMANENTLY_BLOCKED = {
     "ExitPlanMode",
 }
 
-BASH_MAX_CONSECUTIVE = 3
+BASH_MAX_CONSECUTIVE = 5
 NON_WHITELIST_MAX_CONSECUTIVE = 1
 
 
