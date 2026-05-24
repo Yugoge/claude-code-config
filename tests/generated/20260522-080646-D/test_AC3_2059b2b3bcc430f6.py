@@ -28,3 +28,5 @@ def test_AC3():
         "baseline_head_sha not found in agents/qa.md"
     assert re.search(r'primary_cause.*dev_implementation', text), \
         "primary_cause.*dev_implementation not found in agents/qa.md"
+    assert "files_created_provenance_violation" in text, \
+        "files_created_provenance_violation not found in agents/qa.md"
