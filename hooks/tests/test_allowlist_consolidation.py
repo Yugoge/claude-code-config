@@ -631,6 +631,27 @@ class TestMatchSentinelGrantForWrite(unittest.TestCase):
             if os.path.exists(path):
                 os.unlink(path)
 
+    def test_targetless_wildcard_matches_any_path(self):
+        """Sentinel with no 'target' field acts as wildcard — matches any write target.
+
+        Root cause (task 20260522-080646-B): entry_target is None (absent key) and
+        None == target_path evaluated False, causing CF-1 denial for all targetless
+        grants. Fix at allowlist.py:521-523: entry_target is None or entry_target ==
+        target_path. This test proves the wildcard path.
+        """
+        task_id = "test-write-wildcard"
+        session_id = "test-session-w6"
+        # Sentinel has no 'target' key — targetless grant (wildcard)
+        path = self._write_sentinel(task_id, session_id, [{"op": "Write"}])
+        try:
+            result = match_sentinel_grant_for_write(task_id, session_id, "/any/path/file.py")
+            self.assertIsNotNone(result)
+            self.assertEqual(result.get("op"), "Write")
+            self.assertNotIn("target", result)
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
 
 if __name__ == "__main__":
     unittest.main()
