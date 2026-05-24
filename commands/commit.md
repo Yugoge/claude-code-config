@@ -93,6 +93,7 @@ Use the Agent tool with `subagent_type: changelog-analyst`. Pass a structured pr
 
 ```
 CONTROL_ROOT=/root
+NESTED_REPO=/dev/shm/dev-workspace/dot-claude
 TASK_ID=<resolved task-id or empty for bulk>
 BULK=<true|false>
 DRYRUN=<true|false>
@@ -154,7 +155,7 @@ The algorithm is total-ordered and mandatory. Implementers MUST NOT introduce wo
     If exactly one such line matches AND the captured path exists on disk, dispatch `/dev` with that path, emit a WARNING `linked via close-report, not context.spec_path`. STOP.
 
 (3) Mtime + literal-task-id glob (final stage).
-    Else glob `docs/dev/specs/spec-YYYYMMDD-HHMMSS.md` (basename pattern enforced) with mtime in [close-report mtime - 24h, close-report mtime + 1h]. For each candidate, run `grep -lF "${TASK_ID}" candidate.md` — this is the ONLY content predicate allowed; no other grep, no free-form content scan. Collect the set of candidates that pass both the basename pattern, mtime window, and literal-task-id grep.
+    Else glob `docs/dev/specs/spec-YYYYMMDD-HHMMSS.md` (basename pattern enforced) with mtime in [close-report mtime - 24h, close-report mtime + 1h]. For each candidate, run `grep -lF "<!-- spec-continuation-of: ${TASK_ID} -->" candidate.md` — this is the ONLY content predicate allowed; no other grep, no free-form content scan. Collect the set of candidates that pass both the basename pattern, mtime window, and machine-readable marker grep.
 
 (4) Outcome (fail-closed).
     - If set is empty: print `No spec associated with task-id ${TASK_ID}` and exit 0 (silent, unchanged from prior behavior).
@@ -163,7 +164,7 @@ The algorithm is total-ordered and mandatory. Implementers MUST NOT introduce wo
 
 **Dispatch payload (when stage 1 or 2 selects a path)**
 
-Dispatch an inline Agent (do NOT invoke `/spec-continue` as a slash-command) with the following prompt, substituting `TASK_ID`, `SPEC_PATH`, and `DEV_DOCS_ROOT`:
+Dispatch an inline Agent (do NOT invoke `/spec-update` as a slash-command) with the following prompt, substituting `TASK_ID`, `SPEC_PATH`, and `DEV_DOCS_ROOT`:
 
 ```
 You are executing the spec-continuation logic for task-id=<TASK_ID>.
@@ -171,14 +172,14 @@ You are executing the spec-continuation logic for task-id=<TASK_ID>.
 Target spec file: <SPEC_PATH> (absolute path — this file exists; update it in place).
 
 DO NOT:
-- Invoke /spec-continue as a slash command
+- Invoke /spec-update as a slash command
 - Create a new spec file; only update the existing one at <SPEC_PATH>
 - Overwrite or delete prior "### Cycle N" sections
 - Modify any git state, commit grants, push tokens, or command files
 - Write any artifacts outside <SPEC_PATH>
-- Read or modify files outside <DEV_DOCS_ROOT>/, <SPEC_PATH>, and /root/.claude/commands/spec-continue.md (allowed: read spec-continue.md for instructions)
+- Read or modify files outside <DEV_DOCS_ROOT>/, <SPEC_PATH>, and /root/.claude/commands/spec-update.md (allowed: read spec-update.md for instructions)
 
-Follow the ## Continuation-spec mode instructions from /root/.claude/commands/spec-continue.md exactly:
+Follow the ## Continuation-spec mode instructions from /root/.claude/commands/spec-update.md exactly:
 
 - The active task-id is <TASK_ID>.
 - The target spec to update is <SPEC_PATH>. Update this spec; do not create a new one.
@@ -187,11 +188,11 @@ Follow the ## Continuation-spec mode instructions from /root/.claude/commands/sp
     close-report-<TASK_ID>.md, completion-<TASK_ID>.md
 - Determine the next cycle number: max(existing "### Cycle N" headings) + 1; if none exist, use Cycle 1.
 - Append the new cycle block to the spec. Never overwrite prior cycles.
-- Populate sections 2-8 per the spec-continue continuation-spec instructions.
+- Populate sections 2-8 per the spec-update continuation-spec instructions.
 - Output the spec path when done.
 ```
 
-If the Agent dispatch fails for any reason (error, timeout, or exception), print `WARNING: spec-continue dispatch failed for task-id=${TASK_ID} — spec not updated` and continue. The commit is already recorded; Step 7 failure does NOT roll back or affect the commit.
+If the Agent dispatch fails for any reason (error, timeout, or exception), print `WARNING: spec-update dispatch failed for task-id=${TASK_ID} — spec not updated` and continue. The commit is already recorded; Step 7 failure does NOT roll back or affect the commit.
 
 **Reversal-rationale guidance for changelog-analyst (R9 cross-reference)**: the binding rule that any forward-fix commit which intentionally reverses prior behavior MUST include `Reverses <SHA>: <one-line rationale for why prior reasoning no longer holds>` in the commit-message body lives in `agents/changelog-analyst.md` Phase 6 (the SOLE binding landing). `/commit` orchestrator does NOT enforce the rule directly; changelog-analyst owns commit-message construction and is the contract holder.
 
