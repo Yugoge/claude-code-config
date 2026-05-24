@@ -425,11 +425,57 @@ def _block_default_deny_commit(msg):
     )
 
 
+def _has_bulk_commit_sentinel(data):
+    """Return True if a valid non-expired bulk-commit sentinel exists.
+
+    Written by /commit --bulk (scripts/write-bulk-commit-sentinel.py) before
+    dispatching changelog-analyst. Multi-use: NOT consumed on validation so
+    that multiple auto-bulk commits in a single session all succeed.
+    Expires 30 minutes after creation (SENTINEL_TTL_MINUTES in the writer).
+    """
+    sid = _get_session_id(data)
+    patterns = []
+    if sid:
+        patterns.append('/tmp/claude-bulk-commit-sentinel-%s-*.json' % sid)
+    patterns.append('/tmp/claude-bulk-commit-sentinel-*-*.json')
+    seen = set()
+    for pattern in patterns:
+        try:
+            candidates = glob.glob(pattern)
+        except Exception:
+            continue
+        try:
+            candidates.sort(key=lambda p: os.stat(p).st_mtime, reverse=True)
+        except Exception:
+            candidates.sort(reverse=True)
+        for path in candidates:
+            if path in seen:
+                continue
+            seen.add(path)
+            sentinel = _load_grant(path)
+            if sentinel is None:
+                continue
+            if sentinel.get('kind') != 'bulk-commit':
+                continue
+            if not _end_time_passed(sentinel.get('expires_at', '')):
+                return True
+    return False
+
+
 def _evaluate_commit(command, data):
-    # AC-A12: blessed-bridge regex commit STILL ALLOWED (regression).
     msg = _extract_commit_message(command)
     if msg and BLESSED_BRIDGE_RE.search(msg):
-        return
+        # Require a valid bulk-commit sentinel (written by /commit --bulk).
+        # Without it, any agent that knows the prefix could bypass the guard.
+        if _has_bulk_commit_sentinel(data):
+            return
+        _block(
+            '\nBLOCKED: auto-bulk commit requires a bulk-commit sentinel.\n'
+            'The `auto-bulk:` prefix is only authorized when changelog-analyst '
+            'is dispatched by the user via /commit --bulk, which writes '
+            '/tmp/claude-bulk-commit-sentinel-<sid>-<nonce>.json (30 min TTL).\n'
+            'To run bulk commits: invoke /commit --bulk from your Claude session.\n'
+        )
     if _check_git_allowlist(command, data):
         return
     # Grant-file mechanism: SID-specific search first, then any-SID fallback.
