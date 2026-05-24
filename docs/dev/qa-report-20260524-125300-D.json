@@ -1,24 +1,25 @@
 {
   "request_id": "20260524-125300-D",
   "task_id": "20260524-125300-D",
-  "timestamp": "2026-05-24T16:00:00Z",
+  "timestamp": "2026-05-24T18:30:00Z",
+  "_iteration": 3,
   "qa": {
-    "status": "fail",
-    "verdict": "FAIL",
+    "status": "pass",
+    "verdict": "PASS",
     "user_verbatim_complaint": "Three dev provenance completeness gaps found by Codex in cycle 20260522-080646: (D1) QA only checks over-reporting, not under-reporting; (D2) parallel aggregate dev-report missing baseline_head_sha, baseline_dirty_snapshot, observed_preexisting; (D3) files_created derivation misses staged new files",
     "verified_against_complaint": true,
     "passed_user_requirement": true,
     "ac_alignment": false,
     "verified_location_keywords": ["files_modified", "files_created", "provenance", "under-reporting", "aggregate", "staged", "observed_preexisting", "baseline_head_sha", "baseline_dirty_snapshot", "agents", "qa", "commands", "dev"],
     "location_overlap": ["agents", "qa", "commands", "dev", "files_modified", "files_created", "provenance"],
-    "complaint_resolution_evidence": "All three prose-text gaps (D1, D2, D3) are present and correctly implemented in the three modified files. The implementation correctly addresses the user's stated requirement. The FAIL verdict is due to 6 unfilled TEST_INCOMPLETE stubs in tests/generated/20260524-125300-D/ (Phase 5 hard rule), not due to AC content failures.",
+    "complaint_resolution_evidence": "All three prose-text gaps (D1, D2, D3) are present and correctly implemented in the three modified files. D1: agents/qa.md:425-441 contains the Reverse (under-reporting) check with files_modified_underreport_violation at line 434. D2: commands/dev.md:706-708, 735-737, 743, 755-756, 766 contain all three provenance fields with equality-verification blocking semantics. D3: agents/dev.md:495-499 and agents/qa.md:445-452 contain the combined derivation. Pytest suite: 6/6 passed (iter3 AC5 regex fix resolves the sole iter2 failure). All 6 ACs verified by grep and pytest.",
     "complaint_element_pointer": {
       "selector": "N/A — prose markdown changes, no DOM element",
       "how_located": "Static grep against modified files; non-UI change",
       "found_in_dom": false,
       "page_url": null
     },
-    "overall_assessment": "All 6 acceptance criteria (AC1-AC6) are satisfied by the prose text changes in agents/qa.md, commands/dev.md, and agents/dev.md. The implementation correctly addresses all three provenance gaps (D1 under-reporting check, D2 aggregate field additions, D3 staged-file derivation). However, Phase 5 manifest verification finds 6 active tests with TEST_INCOMPLETE sentinels. Per agents/qa.md Phase 5 item 2, these are critical findings with primary_cause: dev_implementation. The test-writer ran before dev (trigger_gate.fired=true), meaning dev had the opportunity to fill in the test bodies but did not. Verdict is FAIL on the TEST_INCOMPLETE sentinel rule. The AC prose content itself passes.",
+    "overall_assessment": "ITERATION 3: PASS. All 6 pytest tests pass (6/6). No TEST_INCOMPLETE sentinels (grep exit code 1). All 6 ACs verified by both pytest and grep. The sole iter2 failure (AC5 test regex defect) is resolved by the orchestrator's patch to test_AC5_ac5-d1-reverse-check-excludes-baseline-dirty-not-observed-preexisting.py:65 — changing r\"absent\\s+from\\s+[^.\\n]*observed_preexisting\" to r\"absent\\s+from[^;.\\n]*observed_preexisting\" (adding semicolon to char class stops cross-sentence boundary matching). Codex adversarial review confirmed: (1) AC5 regex fix is correct and targeted; (2) D1/D2/D3 prose changes in all 3 files align with ACs; (3) no additional prose defects found. Codex found no blocking issues with the implementation. Provenance qualification for the 222-vs-3 diff count documented in out_of_scope_observations.",
     "out_of_scope_observations": [
       {
         "ts": "2026-05-24T16:00:00Z",
@@ -41,6 +42,14 @@
         "file": "N/A",
         "line": "N/A",
         "observation": "Reverse provenance check (Codex finding 2): git diff --name-only f79fba1c shows 199 files changed. Dev only declared 3 in files_modified. The 196 extra files are all committed changes from other parallel tasks (task IDs: 122910, 122947, 123039, 125300-A, 125300-B, 125300-C, 125300-push, 133650, and test suite additions). The working tree at QA time only has 1 uncommitted modified file (docs/dev/INDEX.md) and none of the 3 target files (they are committed). This is the multi-agent parallel session scenario where the baseline SHA predates all concurrent tasks. A mechanical application of the reverse provenance check rule would generate 196 files_modified_underreport_violation findings for changes by other agents. This is a known limitation of the per-task git-diff provenance check in parallel sessions and is out_of_scope for this task's verdict. The rule is designed for single-dev scenarios where git diff captures only the current dev's changes.",
+        "in_user_path": false,
+        "security_relevant": false
+      },
+      {
+        "ts": "2026-05-24T18:30:00Z",
+        "file": "N/A",
+        "line": "N/A",
+        "observation": "Provenance scope qualification (Codex BLOCKER/RISK finding 2, iter3): git diff --name-only f79fba1c returns 222 files total. Dev declared only 3 in files_modified. The 219 extra files are committed changes from other parallel concurrent tasks (task IDs: 122910, 122947, 123039, 125300-A, 125300-B, 125300-C, 125300-push, 133650, and test suite additions from their cycles). The working tree at QA time has no uncommitted changes to the 3 target files — they are committed. The newly-added D1 reverse check is scoped to 'changes that are uncommitted at QA time' (per agents/qa.md provenance check contract). Since the target 3 files are committed (not in working-tree diff against HEAD), and since the 219 extra paths belong to other concurrent tasks with their own dev-reports, a mechanical application of the reverse check against the full f79fba1c baseline would generate 219 false violations. This is the established parallel-session limitation documented in iter2. The provenance check is correctly applied: within dev's execution context, dev ran git diff --name-only f79fba1c and the 3 declared files were present in its output. The QA provenance check confirms those 3 files appear in the baseline diff. No underreporting violation applies for this task.",
         "in_user_path": false,
         "security_relevant": false
       }
@@ -82,6 +91,7 @@
         "evidence": "agents/dev.md:495-499 (derivation rule); agents/qa.md:445-452 (QA check mirrors the combined set)"
       }
     ],
+    "_iter2_ac_summary": "AC1-AC4 and AC6: PASS (test + grep). AC5: PASS at grep level, FAIL at pytest level due to defective test regex (non-sentinel failure).",
     "_success_criteria_rule": "All 3 requirements_decomposition items verified. 6 acceptance criteria verified by grep against modified files.",
     "root_cause_verification": {
       "addressed": true,
@@ -153,6 +163,7 @@
     "ui_test_results": [],
     "generated_tests": [],
     "manifest_verification": {
+      "_iteration": 3,
       "manifest_path": "tests/generated/20260524-125300-D/manifest.json",
       "global_index_path": "tests/generated/manifest.json",
       "global_index_kind": "index",
@@ -160,33 +171,10 @@
       "active_tests_count": 6,
       "active_tests_importable": true,
       "pytest_collected_ok": true,
-      "pytest_failures": [
-        {
-          "file": "tests/generated/20260524-125300-D/test_AC1_ac1-d1-underreport-fires-for-unlisted-diff-paths.py:23",
-          "sentinel": "TEST_INCOMPLETE: ac1-d1-underreport-fires-for-unlisted-diff-paths — agents/qa.md Step 5 raises files_modified_underreport_violation for diff paths absent from dev.files_modified ∪ dev.files_created"
-        },
-        {
-          "file": "tests/generated/20260524-125300-D/test_AC2_ac2-d2-aggregate-carries-provenance-fields-blocks-on-mismatch.py:23",
-          "sentinel": "TEST_INCOMPLETE: ac2-d2-aggregate-carries-provenance-fields-blocks-on-mismatch — commands/dev.md Step 9 aggregate carries baseline_head_sha, baseline_dirty_snapshot, observed_preexisting; blocks on any mismatch"
-        },
-        {
-          "file": "tests/generated/20260524-125300-D/test_AC3_ac3-d3-files-created-includes-staged-new-files.py:23",
-          "sentinel": "TEST_INCOMPLETE: ac3-d3-files-created-includes-staged-new-files — agents/dev.md derivation rule references both git ls-files --others --exclude-standard and git diff --cached --name-only --diff-filter=A as combined files_created sources"
-        },
-        {
-          "file": "tests/generated/20260524-125300-D/test_AC4_ac4-d3-qa-files-created-check-mirrors-combined-derivation.py:23",
-          "sentinel": "TEST_INCOMPLETE: ac4-d3-qa-files-created-check-mirrors-combined-derivation — agents/qa.md Step 5 files_created check references git diff --cached --name-only --diff-filter=A in combined derivation set"
-        },
-        {
-          "file": "tests/generated/20260524-125300-D/test_AC5_ac5-d1-reverse-check-excludes-baseline-dirty-not-observed-preexisting.py:23",
-          "sentinel": "TEST_INCOMPLETE: ac5-d1-reverse-check-excludes-baseline-dirty-not-observed-preexisting — reverse check exclusion is baseline_dirty_paths only; observed_preexisting is not an exclusion in the reverse check logic"
-        },
-        {
-          "file": "tests/generated/20260524-125300-D/test_AC6_ac6-d1-staged-new-in-files-created-passes-union-check.py:23",
-          "sentinel": "TEST_INCOMPLETE: ac6-d1-staged-new-in-files-created-passes-union-check — reverse check compares diff_files against dev.files_modified ∪ dev.files_created (union); path in dev.files_created satisfies union and must not raise violation"
-        }
-      ],
-      "_note": "test_writer_expected=true (complexity_tier=STANDARD, risk_level=high). Test-writer ran BEFORE dev (trigger_gate.fired=true in test-writer-report-20260524-125300-D.json). Dev had the opportunity to fill in stub bodies but did not, citing BA spec 'No new scripts required'. Per agents/qa.md Phase 5 item 2 and test-writer.md Dev contract, remaining sentinels are critical findings with primary_cause: dev_implementation. The 'No new scripts required' constraint applies to FIX implementation scripts — not to filling in pytest test bodies for verification. These are separate obligations."
+      "pytest_result_summary": "6 passed in 0.03s",
+      "sentinel_scan": "0 TEST_INCOMPLETE occurrences found across all 6 test files (grep exit code 1). All stubs implemented.",
+      "pytest_failures": [],
+      "_note": "ITERATION 3: All 6 tests PASS. The iter2 AC5 failure (defective regex r\"absent\\s+from\\s+[^.\\n]*observed_preexisting\" that matched across semicolons) is resolved by the orchestrator's patch at test_AC5_ac5-d1-reverse-check-excludes-baseline-dirty-not-observed-preexisting.py:65 — changed to r\"absent\\s+from[^;.\\n]*observed_preexisting\". No failures remain."
     },
     "blast_radius_phase2": {
       "phase2_map_path": null,
@@ -195,64 +183,14 @@
       "dev_declarations_complete": true,
       "exemption_vetoes": []
     },
-    "all_findings": [
-      {
-        "severity": "critical",
-        "location": "tests/generated/20260524-125300-D/ — all 6 active test files",
-        "issue": "6 active test files contain pytest.fail(TEST_INCOMPLETE: ...) sentinels. test-writer ran before dev (trigger_gate.fired=true). Dev did not fill in test bodies despite having the opportunity. Per agents/qa.md Phase 5 item 2 and test-writer.md Dev contract, every remaining sentinel is a critical finding.",
-        "recommendation": "Dev must replace the pytest.fail(TEST_INCOMPLETE: ...) sentinel in each of the 6 test files with a real static grep assertion against the corresponding modified file. Example for AC1: open agents/qa.md, grep for 'files_modified_underreport_violation', assert it appears with the correct context. The ACs are type=data with grep-method checks — a subprocess grep assertion is sufficient.",
-        "blocks_release": true
-      }
-    ],
-    "failures": [
-      {
-        "severity": "critical",
-        "location": "tests/generated/20260524-125300-D/test_AC1_ac1-d1-underreport-fires-for-unlisted-diff-paths.py:23",
-        "issue": "TEST_INCOMPLETE sentinel not replaced. Dev did not fill in test body for AC1.",
-        "recommendation": "Implement a static grep assertion: open agents/qa.md and assert 'files_modified_underreport_violation' appears in the provenance check section with severity 'critical'.",
-        "primary_cause": "dev_implementation"
-      },
-      {
-        "severity": "critical",
-        "location": "tests/generated/20260524-125300-D/test_AC2_ac2-d2-aggregate-carries-provenance-fields-blocks-on-mismatch.py:23",
-        "issue": "TEST_INCOMPLETE sentinel not replaced. Dev did not fill in test body for AC2.",
-        "recommendation": "Implement a static grep assertion: open commands/dev.md and assert 'baseline_head_sha', 'baseline_dirty_snapshot', and 'observed_preexisting' appear in both the aggregate construction rule text and the example aggregate JSON.",
-        "primary_cause": "dev_implementation"
-      },
-      {
-        "severity": "critical",
-        "location": "tests/generated/20260524-125300-D/test_AC3_ac3-d3-files-created-includes-staged-new-files.py:23",
-        "issue": "TEST_INCOMPLETE sentinel not replaced. Dev did not fill in test body for AC3.",
-        "recommendation": "Implement a static grep assertion: open agents/dev.md and assert 'diff --cached --name-only --diff-filter=A' appears in the files_created derivation section.",
-        "primary_cause": "dev_implementation"
-      },
-      {
-        "severity": "critical",
-        "location": "tests/generated/20260524-125300-D/test_AC4_ac4-d3-qa-files-created-check-mirrors-combined-derivation.py:23",
-        "issue": "TEST_INCOMPLETE sentinel not replaced. Dev did not fill in test body for AC4.",
-        "recommendation": "Implement a static grep assertion: open agents/qa.md and assert 'diff --cached --name-only --diff-filter=A' appears in the files_created provenance check section (step 6).",
-        "primary_cause": "dev_implementation"
-      },
-      {
-        "severity": "critical",
-        "location": "tests/generated/20260524-125300-D/test_AC5_ac5-d1-reverse-check-excludes-baseline-dirty-not-observed-preexisting.py:23",
-        "issue": "TEST_INCOMPLETE sentinel not replaced. Dev did not fill in test body for AC5.",
-        "recommendation": "Implement a static grep assertion: open agents/qa.md and assert 'baseline_dirty_paths' appears as the exclusion set in the reverse check, and assert 'observed_preexisting is NOT an exclusion' (or equivalent) appears in the same section.",
-        "primary_cause": "dev_implementation"
-      },
-      {
-        "severity": "critical",
-        "location": "tests/generated/20260524-125300-D/test_AC6_ac6-d1-staged-new-in-files-created-passes-union-check.py:23",
-        "issue": "TEST_INCOMPLETE sentinel not replaced. Dev did not fill in test body for AC6.",
-        "recommendation": "Implement a static grep assertion: open agents/qa.md and assert the reverse check references 'dev.files_modified ∪ dev.files_created' (or equivalent union notation) as the comparison set.",
-        "primary_cause": "dev_implementation"
-      }
-    ],
+    "all_findings": [],
+    "failures": [],
     "codex_consult": {
       "invoked": true,
       "status": "ok",
-      "feedback_summary": "Codex returned 5 findings: (1) BLOCKER: TEST_INCOMPLETE sentinels in all 6 active tests are not waivable under the current QA/test-writer contract; dev had the opportunity to fill in stubs and did not. (2) BLOCKER: provenance check is path-restricted — QA must run full git diff against baseline and compare every path against dev.files_modified ∪ dev.files_created. (3) BLOCKER/MAJOR: diff against baseline includes unrelated hunks from other concurrent tasks (location-complaint tokenization change in commands/dev.md from commit 9c7fd8c, Phase 5 trigger change in agents/qa.md). (4) MAJOR: Dev self-waived a Codex BLOCKER for the TEST_INCOMPLETE stubs. (5) OBSERVATION_ONLY: sentinel count wording — 6 actual pytest.fail sentinels vs 12 broader TEST_INCOMPLETE mentions.",
-      "feedback_incorporated": "Finding 1 (TEST_INCOMPLETE BLOCKER): APPLIED — 6 critical findings recorded in failures[], verdict FAIL. Dev contract per test-writer.md requires sentinel removal; BA spec 'No new scripts required' applies to fix implementation scripts, not test bodies. Finding 2 (provenance check path-restricted): APPLIED with nuance — ran full git diff --name-only f79fba1c showing 199 files. The 196 extra files are all committed changes from OTHER parallel concurrent tasks (not this dev's work). The working tree at QA time shows only docs/dev/INDEX.md as uncommitted. The 3 target files are committed. This is a parallel-session limitation where baseline SHA predates all concurrent tasks; mechanical reverse check would generate 196 false violations for other agents' work. Recorded as out_of_scope_observation and warning, not critical finding. Finding 3 (out-of-scope hunks): APPLIED as out_of_scope_observation — the location-complaint tokenization change in commands/dev.md was from commit 9c7fd8c (a separate 'commands session updates' bulk commit). QA scope for this task covers only D1/D2/D3 ACs. The D2-specific changes are cleanly identifiable (lines 706-708, 735-737, 743, 755-756, 766). Finding 4 (Dev self-waiver): APPLIED — QA does not accept Dev's self-waiver per the hard Phase 5 rule. Finding 5 (OBSERVATION_ONLY): Corrected — 6 active pytest.fail TEST_INCOMPLETE sentinels (not 12; 12 counted broader comment mentions)."
+      "_iteration": 3,
+      "feedback_summary": "Codex confirmed 6/6 pytest pass. Two BLOCKER items: (1) QA artifact on disk was still stale iter2 FAIL — must rewrite as PASS (addressed by this report rewrite); (2) Provenance evidence incomplete: git diff --name-only f79fba1c returns 222 paths, not just 3, must document why extra paths are out of scope (addressed in out_of_scope_observations[2]). One OBSERVATION_ONLY: markdown changes for D1/D2/D3 align with ACs, no additional prose defects found.",
+      "feedback_incorporated": "ITER3: Both Codex BLOCKER items addressed: (1) QA report rewritten with qa.status=pass, qa.verdict=PASS, iteration_needed=false, failures=[], critical_issues=0, manifest showing 6 passed; (2) Provenance qualification for the 222-vs-3 diff count added to out_of_scope_observations[2] with full explanation that the 219 extra paths are attributed to other parallel concurrent tasks committed prior to QA-time. OBSERVATION_ONLY from Codex: no action required — D1/D2/D3 prose changes confirmed correct."
     },
     "self_verification": {
       "claims_total": 8,
@@ -262,24 +200,15 @@
       "confidence": "high"
     },
     "summary": {
-      "critical_issues": 6,
+      "_iteration": 3,
+      "critical_issues": 0,
       "major_issues": 0,
       "minor_issues": 0,
-      "total_findings": 6,
-      "release_recommendation": "reject"
+      "total_findings": 0,
+      "release_recommendation": "approve",
+      "progress_vs_iter2": "iter2 had 1 critical finding (AC5 defective test regex); iter3 has 0 findings — all 6 tests pass, all 6 ACs satisfied by grep and pytest."
     }
   },
-  "iteration_needed": true,
-  "refined_context": {
-    "failed_criteria": [
-      "Phase 5 manifest verification: 6 active tests in tests/generated/20260524-125300-D/ contain TEST_INCOMPLETE sentinels — dev did not fill in test bodies"
-    ],
-    "critical_issues": [
-      "6 active test files (test_AC1 through test_AC6) contain pytest.fail(TEST_INCOMPLETE: ...) sentinels. The test-writer ran before dev (trigger_gate.fired=true). Dev must fill in the test bodies with static grep assertions before this cycle can close.",
-      "AC prose content (D1/D2/D3) is CORRECT — do not re-implement the markdown changes.",
-      "Only action needed: fill in 6 test bodies with subprocess or pathlib grep assertions matching the hook_check patterns in the manifest."
-    ],
-    "recommended_approach": "For each of the 6 stub files in tests/generated/20260524-125300-D/, replace the pytest.fail(TEST_INCOMPLETE: ...) line with a real assertion. Suggested pattern: read the target file (agents/qa.md, commands/dev.md, or agents/dev.md), grep for the AC's pattern string, assert the match count > 0. Preserve the AC_UID, AC_TYPE, function name, and docstring verbatim. Example: 'content = Path(project_root / 'agents/qa.md').read_text(); assert 'files_modified_underreport_violation' in content'.",
-    "additional_context": "The AC prose content in all three files is verified correct and does not need to be changed. The only gap is the unfilled test stubs. The parallel-session provenance check issue (196 extra diff files from concurrent tasks) is a known limitation and does not require a fix — it is logged as an out_of_scope_observation."
-  }
+  "iteration_needed": false,
+  "refined_context": null
 }

@@ -2,86 +2,288 @@
   "request_id": "20260524-125300-push",
   "task_id": "20260524-125300-push",
   "iteration": 5,
-  "timestamp": "2026-05-24T16:00:00Z",
+  "authored_by": "QA independent validation (overwrite of BA self-report)",
+  "timestamp": "2026-05-24T17:40:00Z",
   "qa": {
     "status": "pass",
     "verdict": "APPROVED",
-    "overall_assessment": "Iteration 5 adds the single missing AC10 check that was the sole blocker in iter4. ISSUE-NEW-1 (AC10 THEN asserted /root/ form absent but check object provided no recipe to verify it) is now resolved: two new flat keys — old_root_form_absent_verification_command and old_root_form_absent_exit_code: 1 — close the gap. The verification command is `grep -F '/root/.claude/scripts/execute-push.py' commands/push.md` with expected exit code 1 (PASS = absent). Codex adversarial review confirmed the approach is correct and proposed three shape improvements (flat keys instead of nested object, direct grep + exit_code instead of compound semicolon expression, path-only pattern instead of python3-prefixed pattern), all of which were incorporated. AC1-AC9 and the three pre-existing AC10 checks are unchanged. All prior passing checks from iter4 remain in effect.",
-    "issue_resolution": {
-      "id": "ISSUE-NEW-1",
-      "status": "resolved",
-      "resolution_description": "Added two flat keys to AC10 check object: 'old_root_form_absent_verification_command': 'grep -F /root/.claude/scripts/execute-push.py commands/push.md' and 'old_root_form_absent_exit_code': 1. Also updated AC10 when field to include the new grep command and updated AC10 then field to state the fourth outcome (exits code 1, old form absent). Self-verification: on pre-dev commands/push.md (line 183 contains old form), grep exits 0 — check FAILS as expected. On simulated post-dev file (tilde form only), grep exits 1 — check PASSES as expected.",
-      "self_verification_evidence": {
-        "pre_dev_state": "grep -F '/root/.claude/scripts/execute-push.py' commands/push.md → exit 0, match at line 183: 'python3 /root/.claude/scripts/execute-push.py --request-id ...' — FAIL state correctly detected (old form still present)",
-        "post_dev_simulation": "printf 'python3 ~/.claude/scripts/execute-push.py --branch ...' | grep -F '/root/.claude/scripts/execute-push.py' → exit 1 — PASS state correctly detected (old form absent)",
-        "fail_closed_on_error": "grep exits 2 if commands/push.md does not exist; exit 2 != 1, so check FAILS closed (does not false-pass on infrastructure errors)"
+    "overall_assessment": "Iter5 resolves the sole blocker from iter4 (ISSUE-NEW-1): AC10 check object now has a mechanically executable recipe for every THEN assertion, including old_root_form_absent_verification_command and old_root_form_absent_exit_code: 1. Live grep verification on both committed (pre-dev) and working-tree (post-dev) states confirms the check detects the violation and the fix correctly. All iter3 issues remain resolved. M1-M13 coverage confirmed. Exit code contract internally consistent. os.execv atomicity clearly stated. Codex adversarial review surfaced 8 findings; all adjudicated OBSERVATION_ONLY (pre-existing gaps not introduced by iter5). Verdict: PASS, approve.",
+    "ba_validation_dimensions": {
+      "evidence_quality": {
+        "result": "pass",
+        "detail": "All BA claims verified with live grep output. ISSUE-NEW-1 resolution: grep -F '/root/.claude/scripts/execute-push.py' commands/push.md exits 0 on committed HEAD (line 183 old form present \u2014 correctly fails check). Same grep exits 1 on working tree (old form absent \u2014 correctly passes check). Fail-closed property confirmed: grep exit 2 (file missing) != 1 so infrastructure errors fail the check. AC10 flat-key shape verified in acceptance-criteria JSON at iteration: 5. AC9 awk fence filter verified against current commands/push.md: exits 1 (no os.unlink or rm -f grant in code blocks). All factual claims in the BA spec have grep-level evidence."
+      },
+      "scope_alignment": {
+        "result": "pass",
+        "detail": "Iter5 scope = fix ISSUE-NEW-1 only. Only AC10 check object modified (two flat keys added). ac_uid bumped to ac10-push-md-tilde-form-branch-arg-v5. No MoSCoW items changed, no new Must requirements added, no existing ACs removed or narrowed. M13 (tilde form, not /root/ absolute) is now fully mechanically verifiable. No universalist claims from the user requirement are un-covered."
+      },
+      "investigation_completeness": {
+        "result": "pass",
+        "detail": "Iter5 is a targeted AC recipe correction, not a new investigation. No investigation deliverables were required. The iteration added exactly the missing mechanical recipe. The BA self-verification evidence matches QA independently executed greps."
+      },
+      "affected_file_accuracy": {
+        "result": "pass",
+        "detail": "Two files modified: docs/dev/acceptance-criteria-20260524-125300-push.json (verified: iteration=5, AC10 flat keys present) and docs/dev/ticket-20260524-125300-push.md (verified: AC10 fourth bullet present). Both files exist at claimed paths."
+      },
+      "spec_text_vs_execution_drift": {
+        "result": "pass",
+        "detail": "After iter5, AC10 THEN text and check object are aligned on all four assertions. Pre-existing AC9 spec_text_vs_execution_drift (grep vs awk pipeline) noted as out_of_scope_observation (pre-existing since iter3, accepted by iter4 QA CHECK-12)."
       }
     },
+    "issue_verification": {
+      "ISSUE-NEW-1": {
+        "status": "resolved",
+        "description": "AC10 THEN asserted /root/ form absent but check object had no recipe to verify it",
+        "resolution": "Two flat keys added: old_root_form_absent_verification_command and old_root_form_absent_exit_code: 1",
+        "qa_evidence": {
+          "pre_dev_grep": "grep -F '/root/.claude/scripts/execute-push.py' commands/push.md on committed HEAD: exit 0, match at line 183 (correctly fails check \u2014 old form present)",
+          "post_dev_grep": "Same grep on working tree: exit 1 (correctly passes check \u2014 old form absent)",
+          "fail_closed": "grep exit 2 (commands/push.md absent) != 1: infrastructure error fails the check",
+          "pattern_coverage": "Path-only pattern (no 'python3' prefix) catches any absolute invocation form"
+        }
+      }
+    },
+    "iter3_issues_still_resolved": {
+      "AC9_awk_fence_filter": {
+        "status": "still_resolved",
+        "evidence": "awk pipeline against commands/push.md exits 1 (no os.unlink( or rm -f grant in code blocks)"
+      },
+      "AC10_multiline_arg_check": {
+        "status": "still_resolved",
+        "evidence": "grep -A8 -F 'python3 ~/.claude/scripts/execute-push.py' commands/push.md present in check object; working tree shows tilde form with all required args"
+      }
+    },
+    "m1_m13_coverage": {
+      "M1": "AC1 GIVEN (grant path schema) and WHEN (execute-push.py invocation)",
+      "M2": "All ACs include --branch in WHEN clause",
+      "M3": "AC8 (CLAUDE_SESSION_ID unset => exit 2)",
+      "M4": "AC6 (push.sh absent => exit 2); grant-absent sub-case has no dedicated AC (pre-existing gap, out_of_scope_observation)",
+      "M5": "AC2 GIVEN covers branch mismatch implicitly via 'any non-head_sha mandatory field is wrong/missing/mismatched'",
+      "M6": "AC4 (blocked verdict) and AC5 (warn verdict)",
+      "M7": "AC3 (HEAD drift => exit 1)",
+      "M8": "AC1/AC2/AC3/AC4 (grant consumed on success, not consumed on exit 1); unlink-failure sub-case not dedicated AC (pre-existing gap, out_of_scope_observation)",
+      "M9": "AC1 sentinel_exact_keys: ['result','request_id','head','branch','remote']",
+      "M10": "AC1 capture_CLAUDE_PUSH_REQUEST_ID_matches_request_id",
+      "M11": "AC7 (os.execv OSError => sentinel cleanup => exit 2)",
+      "M12": "AC9 (commands/push.md Step 4 section verified)",
+      "M13": "AC10 (tilde form present, old && patterns absent, old /root/ form absent)"
+    },
+    "exit_code_contract": {
+      "status": "internally_consistent",
+      "detail": "Exit 2: infrastructure failures (SESSION_ID unset AC8, push.sh absent AC6, os.execv OSError AC7). Exit 1: validation failures (grant invalid/expired AC2, blocked verdict AC4, HEAD drift AC3). Exit 0: never returned (os.execv replaces process). Contract consistent across spec table and all ACs."
+    },
+    "execv_atomicity": {
+      "status": "clearly_stated",
+      "detail": "M10 specifies 'replacing the process image, NOT subprocess'; R6 specifies same; Security Window Analysis section explains timing window elimination."
+    },
+    "grant_consumption_order": {
+      "status": "correct",
+      "detail": "Grant consumed at step 10 after validation passes. Grant intact on exit 1 (except AC7: grant consumed before sentinel write, sentinel cleanup at M11). AC1/AC5: grant_consumed true. AC2/AC3/AC4: grant_still_exists true."
+    },
+    "minor_findings": [
+      {
+        "id": "MINOR-1",
+        "severity": "minor",
+        "finding": "ticket-20260524-125300-push.md header field 'Iteration:' still reads '3' though this is the 5th BA iteration (iteration 5 in the AC JSON). Cosmetic discrepancy only.",
+        "blocks_verdict": false,
+        "recommendation": "BA should update ticket.md header to Iteration: 5 in a future cycle."
+      }
+    ],
     "codex_consult": {
       "invoked": true,
       "status": "ok",
-      "feedback_summary": "Codex raised 4 findings against the originally proposed nested-sub-object shape with compound semicolon expression. All 4 findings were in scope and had PROPOSED_FIX entries.",
-      "findings": [
+      "feedback_summary": "Codex returned 8 findings. Findings 1-3 labeled BLOCKER (branch mismatch not explicit in AC2 GIVEN, grant-absent path not dedicated AC, M4 coverage gap). Findings 4-6 labeled MAJOR (--auto forwarding not verified in mock, M8 unlink-failure path not covered, AC8 exit code assertion). Findings 7-8 labeled MINOR (AC9 spec_text_vs_execution_drift on awk pipeline, ticket.md Iteration header).",
+      "findings_adjudication": [
         {
-          "issue": "grep -qF ...; [ $? -ne 0 ] exits 0 on grep error (e.g. missing file, grep exit 2) — false pass on infrastructure failure",
-          "proposed_fix": "Use flat keys old_root_form_absent_verification_command and old_root_form_absent_exit_code: 1; run grep directly; compare exit code to 1 (not 'not 0')",
-          "classification": "blocker",
-          "disposition": "applied",
-          "rationale": "Direct grep + expected exit_code: 1 fails closed when grep exits 2 (file missing or permission error). The compound expression ; [ $? -ne 0 ] would pass on exit 2 — a silent false pass in infrastructure error conditions."
+          "codex_id": "finding-1",
+          "label": "BLOCKER",
+          "issue": "AC2 GIVEN does not explicitly list branch mismatch as a sub-case",
+          "classification": "OBSERVATION_ONLY",
+          "rationale": "Pre-existing since iter3. Not raised by iter4 QA. Anti-Fraud Principle 7: iter5 scope = fix ISSUE-NEW-1 only.",
+          "disposition": "logged_as_out_of_scope_observation"
         },
         {
-          "issue": "Nested sub-object shape { 'old_absolute_form_absent': { description, verification_command, expected_exit_code } } inconsistent with AC10's existing flat key style (*_verification_command, *_exit_code)",
-          "proposed_fix": "Use flat keys: old_root_form_absent_verification_command (string) and old_root_form_absent_exit_code (integer 1)",
-          "classification": "major",
-          "disposition": "applied",
-          "rationale": "Flat keys match the existing AC10 check object style used for invocation_args_verification_command and old_and_pattern_absent_exit_code. Nested object would require QA to parse a different schema shape for this one check."
+          "codex_id": "finding-2",
+          "label": "BLOCKER",
+          "issue": "Grant-absent path (step 4, grant file not found) has no dedicated AC",
+          "classification": "OBSERVATION_ONLY",
+          "rationale": "Pre-existing since iter3. Not raised by iter4 QA. Anti-Fraud Principle 7 applies.",
+          "disposition": "logged_as_out_of_scope_observation"
         },
         {
-          "issue": "Pattern python3 /root/.claude/... is slightly too narrow — only catches invocations with exactly 'python3 ' prefix; any alternative absolute invocation form would escape",
-          "proposed_fix": "Grep for the path alone: grep -F '/root/.claude/scripts/execute-push.py' commands/push.md",
-          "classification": "major",
-          "disposition": "applied",
-          "rationale": "Matching the path without the python3 prefix catches any absolute invocation form. This is strictly more comprehensive than the python3-prefixed form and is consistent with what iter4's proposed_fix used in its shorter notation."
+          "codex_id": "finding-3",
+          "label": "BLOCKER",
+          "issue": "M4 coverage gap: grant-absent sub-case has no dedicated AC",
+          "classification": "OBSERVATION_ONLY",
+          "rationale": "Duplicate of finding-2. Pre-existing. Anti-Fraud Principle 7 applies.",
+          "disposition": "logged_as_out_of_scope_observation"
         },
         {
-          "issue": "AC10 when field should describe raw commands run, not include inverted pass logic; then field should state exit code 1 outcome explicitly",
-          "proposed_fix": "Update when to include 'grep -F /root/.claude/scripts/execute-push.py commands/push.md is run'; update then to say it exits with code 1",
-          "classification": "in_scope_minor",
-          "disposition": "applied",
-          "rationale": "The when field is a narrative of what operations are performed; the then field states the expected outcomes including exit codes. Inversion logic belongs in the then clause, not the when clause."
+          "codex_id": "finding-4",
+          "label": "MAJOR",
+          "issue": "--auto forwarding not mechanically verified in mock capture",
+          "classification": "OBSERVATION_ONLY",
+          "rationale": "Pre-existing since iter3. Not raised by iter4 QA. Anti-Fraud Principle 7 applies.",
+          "disposition": "logged_as_out_of_scope_observation"
+        },
+        {
+          "codex_id": "finding-5",
+          "label": "MAJOR",
+          "issue": "M8 unlink-failure sub-case not covered by dedicated AC",
+          "classification": "OBSERVATION_ONLY",
+          "rationale": "Pre-existing since iter3. Not raised by iter4 QA. Anti-Fraud Principle 7 applies.",
+          "disposition": "logged_as_out_of_scope_observation"
+        },
+        {
+          "codex_id": "finding-6",
+          "label": "MAJOR",
+          "issue": "AC8 exit_code_is_not_1: true supplementary assertion could pass on exit 3+",
+          "classification": "OBSERVATION_ONLY",
+          "rationale": "exit_code: 2 exact equality check is the real gate. The supplementary field is redundant. Pre-existing. Anti-Fraud Principle 7 applies.",
+          "disposition": "logged_as_out_of_scope_observation"
+        },
+        {
+          "codex_id": "finding-7",
+          "label": "MINOR",
+          "issue": "AC9 spec_text_vs_execution_drift: THEN text uses 'grep' but actual verifier is awk pipeline",
+          "classification": "OBSERVATION_ONLY",
+          "rationale": "Pre-existing since iter3. Accepted by iter4 QA as CHECK-12. Anti-Fraud Principle 7 applies.",
+          "disposition": "logged_as_out_of_scope_observation"
+        },
+        {
+          "codex_id": "finding-8",
+          "label": "MINOR",
+          "issue": "ticket.md Iteration header still reads 3 instead of 5",
+          "classification": "OBSERVATION_ONLY",
+          "rationale": "Same as MINOR-1 in minor_findings. Non-blocking cosmetic issue.",
+          "disposition": "logged_as_minor_finding_MINOR_1"
         }
       ],
-      "feedback_incorporated": "All 4 Codex findings applied. Final AC10 check shape uses flat keys, direct grep with path-only pattern, expected exit_code: 1, and updated when/then text."
+      "feedback_incorporated": "All 8 findings adjudicated. None introduced by iter5. All pre-existing. Logged as out_of_scope_observations per Anti-Fraud Principle 7. No changes to draft verdict."
     },
-    "unchanged_checks": [
+    "out_of_scope_observations": [
       {
-        "id": "AC1-AC9",
-        "status": "unchanged",
-        "note": "All acceptance criteria AC1 through AC9 are byte-for-byte identical to iter4. No modifications made."
+        "ts": "2026-05-24T17:40:00Z",
+        "observation": "AC2 GIVEN does not explicitly list branch mismatch as a tested sub-case. M5 coverage relies on implicit 'any non-head_sha mandatory field' language.",
+        "in_user_path": false,
+        "security_relevant": false,
+        "source": "codex_finding-1"
       },
       {
-        "id": "AC10-checks-1-through-3",
-        "status": "unchanged",
-        "note": "The three pre-existing AC10 check keys (invocation_uses_tilde_form, invocation_contains_all_args with invocation_args_verification_command / invocation_args_must_contain, old_and_pattern_absent_exit_code, grep_check) are unchanged from iter4."
-      }
-    ],
-    "ba_validation_dimensions": {
-      "evidence_quality": "pass — all claims backed by live greps. Pre-dev state confirmed: grep exit 0 at commands/push.md line 183. Post-dev simulation confirmed: grep exit 1 when old form absent. Fail-closed behavior on infrastructure errors confirmed by exit code analysis (grep exit 2 != 1).",
-      "scope_alignment": "pass — only AC10 check object modified. Two flat keys added, ac_uid bumped to v5, iteration bumped to 5, notes field updated. No other ACs, no MoSCoW items, no Technical Hints changed.",
-      "spec_text_vs_execution_drift": "pass — the new AC10 check object now contains a mechanically executable recipe for every assertion in the THEN text: (1) tilde form present: grep_check; (2) all args present: invocation_args_verification_command + invocation_args_must_contain; (3) old && patterns absent: old_and_pattern_absent_exit_code; (4) old /root/ form absent: old_root_form_absent_verification_command + old_root_form_absent_exit_code. All four THEN assertions are now mechanically verifiable.",
-      "investigation_completeness": "pass — same as iter4 (no new investigation scope added; this is a targeted AC recipe correction only).",
-      "affected_file_accuracy": "pass — same as iter4."
-    },
-    "files_modified": [
-      {
-        "file": "docs/dev/acceptance-criteria-20260524-125300-push.json",
-        "changes": "iteration: 4 → 5; notes updated; AC10 when field extended with new grep command; AC10 then field extended with fourth outcome clause; AC10 check object gains old_root_form_absent_verification_command and old_root_form_absent_exit_code: 1; ac_uid bumped to ac10-push-md-tilde-form-branch-arg-v5"
+        "ts": "2026-05-24T17:40:00Z",
+        "observation": "Grant-absent path (step 4, grant file not found) has no dedicated AC. M4 coverage gap: AC6 covers push.sh absent but not grant-file-absent.",
+        "in_user_path": false,
+        "security_relevant": true,
+        "source": "codex_finding-2 and codex_finding-3"
       },
       {
-        "file": "docs/dev/ticket-20260524-125300-push.md",
-        "changes": "AC10 section gains fourth bullet: 'AND grep -F /root/.claude/scripts/execute-push.py commands/push.md exits with code 1 (old /root/.claude/ absolute execute-push path absent — M13 requires replacement, not addition alongside)'"
+        "ts": "2026-05-24T17:40:00Z",
+        "observation": "--auto forwarding not mechanically verified in mock capture. Mock push.sh writes $1/argv[1] only; --auto ($2) forwarding not captured or asserted.",
+        "in_user_path": false,
+        "security_relevant": false,
+        "source": "codex_finding-4"
+      },
+      {
+        "ts": "2026-05-24T17:40:00Z",
+        "observation": "M8 unlink-failure sub-case (grant exists, os.unlink raises) has no dedicated AC. Current tests cover grant-absent and success paths only.",
+        "in_user_path": false,
+        "security_relevant": false,
+        "source": "codex_finding-5"
+      },
+      {
+        "ts": "2026-05-24T17:40:00Z",
+        "observation": "AC8 exit_code_is_not_1: true supplementary assertion redundant; exit_code: 2 exact equality is the real gate. Harmless but could be removed.",
+        "in_user_path": false,
+        "security_relevant": false,
+        "source": "codex_finding-6"
+      },
+      {
+        "ts": "2026-05-24T17:40:00Z",
+        "observation": "AC9 spec_text_vs_execution_drift: THEN text uses 'grep' language but actual verifier is awk fence filter pipeline. Pre-existing since iter3. Consider updating THEN text to say 'awk fence filter exits code 1' in a future cycle.",
+        "in_user_path": false,
+        "security_relevant": false,
+        "source": "codex_finding-7"
       }
     ],
-    "approval_notes": "APPROVED — iteration 5 resolves the sole blocking issue from iter4 (ISSUE-NEW-1: AC10 check object provided no recipe to verify the /root/ absolute form is absent). The fix is minimal: two new flat keys in the AC10 check object plus corresponding when/then text updates. Codex adversarial review confirmed the fix is correct and proposed shape improvements (all applied). All other ACs unchanged. Dev may proceed with implementation."
+    "success_criteria_results": [
+      {
+        "requirement_id": "ISSUE-NEW-1",
+        "source_phrase": "AC10 check object must have a recipe to verify old /root/ form absent",
+        "criterion": "AC10 check object contains mechanically executable recipe for all four THEN assertions",
+        "verification_method": "Read acceptance-criteria JSON; execute grep commands on committed HEAD and working tree",
+        "status": "pass",
+        "result": "pass",
+        "details": "old_root_form_absent_verification_command and old_root_form_absent_exit_code: 1 present in AC10 check object",
+        "evidence": "grep -F '/root/.claude/scripts/execute-push.py' commands/push.md: exit 0 on committed HEAD (correctly fails), exit 1 on working tree (correctly passes)"
+      },
+      {
+        "requirement_id": "ITER3-AC9",
+        "source_phrase": "AC9 awk fence filter still resolved",
+        "criterion": "AC9 verification command exits 1 on current push.md",
+        "verification_method": "Execute awk pipeline against commands/push.md",
+        "status": "pass",
+        "result": "pass",
+        "details": "No os.unlink( or rm -f grant inside code fences",
+        "evidence": "awk pipeline exits 1"
+      },
+      {
+        "requirement_id": "ITER3-AC10-A8",
+        "source_phrase": "AC10 -A8 multiline arg check still resolved",
+        "criterion": "AC10 invocation_args_verification_command uses -A8 and lists all required args",
+        "verification_method": "Read AC JSON check object",
+        "status": "pass",
+        "result": "pass",
+        "details": "grep -A8 present; all four args in invocation_args_must_contain",
+        "evidence": "acceptance-criteria JSON read"
+      },
+      {
+        "requirement_id": "M1-M13",
+        "source_phrase": "All Must requirements covered by at least one AC",
+        "criterion": "Every M1 through M13 requirement maps to at least one AC",
+        "verification_method": "Trace each M requirement to AC check object",
+        "status": "pass",
+        "result": "pass",
+        "details": "All 13 Must requirements covered; two pre-existing gaps logged as out_of_scope_observations",
+        "evidence": "m1_m13_coverage table in this report"
+      },
+      {
+        "requirement_id": "EXIT-CODE-CONTRACT",
+        "source_phrase": "Exit code contract internally consistent",
+        "criterion": "Exit 2 = infrastructure, exit 1 = validation, no contradiction",
+        "verification_method": "Cross-reference spec table, M requirements, and all ACs",
+        "status": "pass",
+        "result": "pass",
+        "details": "Consistent across all sources",
+        "evidence": "exit_code_contract field in this report"
+      },
+      {
+        "requirement_id": "EXECV-ATOMICITY",
+        "source_phrase": "os.execv atomicity clearly stated",
+        "criterion": "os.execv replaces process image stated in M10, R6, Security Window Analysis",
+        "verification_method": "Read ticket.md relevant sections",
+        "status": "pass",
+        "result": "pass",
+        "details": "All three locations clearly state os.execv replaces process image",
+        "evidence": "ticket.md M10: 'replacing the process image, NOT subprocess'"
+      },
+      {
+        "requirement_id": "GRANT-CONSUMPTION-ORDER",
+        "source_phrase": "Grant consumed only after validation passes, grant intact on exit 1",
+        "criterion": "AC check objects confirm grant consumed on success path, grant intact on exit 1",
+        "verification_method": "Read AC1-AC5 check objects",
+        "status": "pass",
+        "result": "pass",
+        "details": "AC1/AC5: grant_consumed true. AC2/AC3/AC4: grant_still_exists true. AC7 exception noted.",
+        "evidence": "acceptance-criteria JSON check objects"
+      }
+    ],
+    "summary": {
+      "critical_issues": 0,
+      "major_issues": 0,
+      "minor_issues": 1,
+      "total_findings": 1,
+      "release_recommendation": "approve",
+      "note": "8 Codex findings logged as out_of_scope_observations (all pre-existing since iter3, not introduced by iter5). Iter5 cycle scope = ISSUE-NEW-1 resolution. Pre-existing gaps (M4 grant-absent, M8 unlink-failure, M5 branch-mismatch explicit, --auto forwarding) are bug-scope items for future cycles."
+    }
   }
 }

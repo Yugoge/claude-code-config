@@ -1,0 +1,274 @@
+{
+  "request_id": "dev-20260524-170335",
+  "timestamp": "2026-05-24T19:50:00Z",
+  "inspector": "cleanliness-inspector",
+  "scope_contract": "In --changed-files mode this inspector emits findings for the listed files and tags each finding with introduced_in_diff: bool per Mechanism (ii). Findings with introduced_in_diff: false are advisory/non-blocking per the default-safe rule (AC-2.6(b)). Global detector results are reported in mandatory_script_outputs.observations, NOT in findings.* arrays.",
+  "diff_aware_contract": "Mechanism (ii): inspector-side tagging. Each finding in --changed-files mode carries an explicit introduced_in_diff field. Absent/null/untagged findings are non-blocking per AC-2.6 default-safe rule.",
+  "changed_files_scope": [
+    "CLAUDE.md",
+    "agents/changelog-analyst.md",
+    "commands/close.md",
+    "commands/commit.md",
+    "commands/dev.md",
+    "hooks/pretool-orchestrator-gate.py",
+    "scripts/write-commit-grant.py",
+    "scripts/aggregate-dev-report.py"
+  ],
+  "dev_cycle": "dev-20260524-170335",
+  "findings": {
+    "misplaced_docs": [],
+    "naming_violations": [],
+    "archive_candidates": [],
+    "dev_context_files": [],
+    "temp_files": [],
+    "duplicate_scripts": [],
+    "duplicate_tests": [],
+    "non_functional_files": [],
+    "non_functional_folders": [],
+    "orphaned_subagents": [],
+    "unreferenced_scripts": [],
+    "orphaned_tests": [],
+    "historical_docs": [],
+    "docs_categorization": [],
+    "obsolete_functionality": [],
+    "orphan_commands": [],
+    "dead_functions": [],
+    "duplicate_content": []
+  },
+  "per_file_audit": [
+    {
+      "file": "CLAUDE.md",
+      "introduced_in_diff": true,
+      "change": "Updated BASH_MAX_CONSECUTIVE cap text: 3 consecutive -> 5 consecutive",
+      "checks": ["misplaced_docs", "naming_violations", "duplicate_scripts", "non_functional_files", "orphaned_subagents", "dead_functions"],
+      "verdict": "clean",
+      "notes": "CLAUDE.md is in the protected exception list (official Claude Code file). Correctly placed in project root. Content update aligns CLAUDE.md with hooks/pretool-orchestrator-gate.py BASH_MAX_CONSECUTIVE=5. No cleanliness violation introduced."
+    },
+    {
+      "file": "agents/changelog-analyst.md",
+      "introduced_in_diff": true,
+      "change": "Added structured commit_status output contract (Structured Final Status Output section)",
+      "checks": ["misplaced_docs", "naming_violations", "orphaned_subagents", "duplicate_scripts"],
+      "verdict": "clean",
+      "notes": "Correctly placed in agents/ folder. Kebab-case naming compliant. Agent is referenced by commands/commit.md (dispatched exclusively by /commit). Not orphaned. No cleanliness violation introduced."
+    },
+    {
+      "file": "commands/close.md",
+      "introduced_in_diff": true,
+      "change": "Added Step 0 parallel auto-aggregate + conditional Step 1 inspector serialization",
+      "checks": ["misplaced_docs", "naming_violations", "orphan_commands", "duplicate_scripts"],
+      "verdict": "clean",
+      "notes": "Correctly placed in commands/ folder. Kebab-case naming compliant. Active command with functional references. references scripts/aggregate-dev-report.py at lines 170 and 177. No cleanliness violation introduced."
+    },
+    {
+      "file": "commands/commit.md",
+      "introduced_in_diff": true,
+      "change": "Added Step 6b retry protocol with --revoke-existing-for-task support",
+      "checks": ["misplaced_docs", "naming_violations", "orphan_commands", "duplicate_scripts"],
+      "verdict": "clean",
+      "notes": "Correctly placed in commands/ folder. Kebab-case naming compliant. Active command. References scripts/write-commit-grant.py at lines 89, 151, 153. No cleanliness violation introduced."
+    },
+    {
+      "file": "commands/dev.md",
+      "introduced_in_diff": true,
+      "change": "Replaced inline-script references with named script invocation (aggregate-dev-report.py)",
+      "checks": ["misplaced_docs", "naming_violations", "orphan_commands", "duplicate_scripts"],
+      "verdict": "clean",
+      "notes": "Correctly placed in commands/ folder. Kebab-case naming compliant. Active command. References scripts/aggregate-dev-report.py at lines 709 and 747. No cleanliness violation introduced."
+    },
+    {
+      "file": "hooks/pretool-orchestrator-gate.py",
+      "introduced_in_diff": true,
+      "change": "BASH_MAX_CONSECUTIVE changed from 3 to 5",
+      "checks": ["misplaced_docs", "naming_violations", "dead_functions", "non_functional_files"],
+      "verdict": "clean",
+      "notes": "Correctly placed in hooks/ folder. Snake_case naming matches hook convention. Active hook referenced in CLAUDE.md and settings.json. BASH_MAX_CONSECUTIVE=5 at line 54 now consistent with CLAUDE.md. No cleanliness violation introduced."
+    },
+    {
+      "file": "scripts/write-commit-grant.py",
+      "introduced_in_diff": true,
+      "change": "Added --revoke-existing-for-task option and _revoke_grants_for_task() function",
+      "checks": ["misplaced_docs", "naming_violations", "unreferenced_scripts", "dead_functions"],
+      "verdict": "clean",
+      "notes": "Correctly placed in scripts/ folder. Kebab-case naming compliant. Actively referenced by commands/commit.md (lines 89, 151, 153) and commands/push.md (line 224). New --revoke-existing-for-task option is called by the Step 6b retry protocol in commit.md. No cleanliness violation introduced."
+    },
+    {
+      "file": "scripts/aggregate-dev-report.py",
+      "introduced_in_diff": true,
+      "change": "New file: canonical aggregate writer for parallel-dev cycles",
+      "checks": ["misplaced_docs", "naming_violations", "unreferenced_scripts", "dead_functions"],
+      "verdict": "clean",
+      "notes": "Correctly placed in scripts/ folder. Kebab-case naming compliant. Newly created script (untracked in git at time of inspection — normal for a new file in the current cycle's working tree). Referenced by commands/close.md (Step 0, lines 170/177) and commands/dev.md (lines 709/747). Indexed in scripts/README.md and scripts/INDEX.md. No cleanliness violation introduced."
+    }
+  ],
+  "mandatory_script_outputs": {
+    "discover_folders": {
+      "script": "~/.claude/scripts/discover-folders.sh",
+      "status": "executed",
+      "note": "Folder rules loaded. All changed files conform to their respective folder README naming conventions."
+    },
+    "detect_orphan_agents": {
+      "script": "~/.claude/scripts/detect-orphan-agents.sh",
+      "status": "executed",
+      "raw_output": {
+        "orphan_agents": [
+          {
+            "file": "/root/.claude/agents/product-owner.md",
+            "reason": "Not referenced by any command",
+            "last_modified": "7 days ago",
+            "commit_count": 19,
+            "severity": "minor"
+          }
+        ],
+        "summary": {"total": 1}
+      },
+      "diff_scoping_note": "agents/product-owner.md is NOT in the changed-files scope for this cycle. This is a pre-existing global-scan finding. introduced_in_diff: false. Non-blocking under --changed-files mode. NOTE: Codex also identified this as a false positive — product-owner.md is referenced by commands/dev.md (lines 139, 183, 193, 209) and commands/dev-command.md as a specialist agent. The detect-orphan-agents.sh script may not be checking all reference forms for this agent."
+    },
+    "detect_orphan_scripts": {
+      "script": "~/.claude/scripts/detect-orphan-scripts.sh",
+      "status": "executed",
+      "raw_output": {
+        "orphan_scripts": [
+          {"file": "scripts/install/tmp-cleanup-install.sh", "reason": "No references in commands/agents/scripts", "one_time_fix": true, "has_report": false, "last_modified": "2 days ago", "commit_count": 1, "severity": "minor"},
+          {"file": "scripts/bulk-commit-nested-run.sh", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "6 days ago", "commit_count": 1, "severity": "minor"},
+          {"file": "scripts/todo/site-navigate.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "72 days ago", "commit_count": 1, "severity": "major"},
+          {"file": "scripts/todo/security-check.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "72 days ago", "commit_count": 1, "severity": "major"},
+          {"file": "scripts/todo/research-deep.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "72 days ago", "commit_count": 1, "severity": "major"},
+          {"file": "scripts/todo/refactor.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "72 days ago", "commit_count": 1, "severity": "major"},
+          {"file": "scripts/todo/redev.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "35 days ago", "commit_count": 1, "severity": "minor"},
+          {"file": "scripts/todo/playwright-helper.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "72 days ago", "commit_count": 1, "severity": "major"},
+          {"file": "scripts/todo/optimize.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "72 days ago", "commit_count": 1, "severity": "major"},
+          {"file": "scripts/todo/explain-code.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "72 days ago", "commit_count": 1, "severity": "major"},
+          {"file": "scripts/todo/doc-gen.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "72 days ago", "commit_count": 1, "severity": "major"},
+          {"file": "scripts/todo/deep-search.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "72 days ago", "commit_count": 1, "severity": "major"},
+          {"file": "scripts/todo/code-review.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "72 days ago", "commit_count": 1, "severity": "major"},
+          {"file": "scripts/todo/dev-command.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "17 days ago", "commit_count": 6, "severity": "minor"},
+          {"file": "scripts/todo/dev-overnight.py", "reason": "No references in commands/agents/scripts", "one_time_fix": false, "has_report": false, "last_modified": "17 days ago", "commit_count": 9, "severity": "minor"}
+        ],
+        "summary": {"total": 17, "one_time_fixes": 2, "general_orphans": 15}
+      },
+      "diff_scoping_note": "None of these orphan scripts are in the changed-files scope for cycle dev-20260524-170335. All are pre-existing global-scan findings. introduced_in_diff: false for all. scripts/write-commit-grant.py and scripts/aggregate-dev-report.py (the two scripts in this diff) have confirmed functional references and are NOT in this list. All orphan-script findings here are pre-existing advisory, non-blocking under --changed-files mode.",
+      "false_positive_note": "Codex identified the 13 scripts/todo/*.py entries as false positives: these scripts are dynamically loaded by hooks/hook-todo-injection.py via the pattern scripts/todo/{command}.py. Deleting them would break the todo-injection hook convention. They are NOT true orphans. scripts/bulk-commit-nested-run.sh and scripts/install/tmp-cleanup-install.sh modified < 7 days ago are protected by the Safety Rules age threshold.",
+      "in_changed_files_count": 0,
+      "observations": [
+        {
+          "file": "scripts/install/tmp-cleanup-install.sh",
+          "detector": "detect-orphan-scripts",
+          "severity_per_detector": "minor",
+          "introduced_in_diff": false,
+          "blocking": false,
+          "cleanliness_finding": false,
+          "safe_to_delete": false,
+          "recommendation": "Do not delete now — last_modified 2 days ago (below 7-day Safety Rules threshold). Re-check after age threshold."
+        },
+        {
+          "file": "scripts/bulk-commit-nested-run.sh",
+          "detector": "detect-orphan-scripts",
+          "severity_per_detector": "minor",
+          "introduced_in_diff": false,
+          "blocking": false,
+          "cleanliness_finding": false,
+          "safe_to_delete": false,
+          "recommendation": "Do not delete now — last_modified 6 days ago (below 7-day Safety Rules threshold). Re-check after age threshold and reference verification."
+        },
+        {
+          "file": "scripts/todo/*.py (13 files)",
+          "detector": "detect-orphan-scripts",
+          "severity_per_detector": "major/minor per file",
+          "introduced_in_diff": false,
+          "blocking": false,
+          "cleanliness_finding": false,
+          "safe_to_delete": false,
+          "classification": "dynamic_todo_script_convention",
+          "recommendation": "Keep — dynamically loaded by hooks/hook-todo-injection.py via scripts/todo/{command}.py pattern. The detect-orphan-scripts.sh script does not recognize dynamic hook-based loading. These are NOT orphans."
+        }
+      ]
+    },
+    "detect_orphan_commands": {
+      "script": "~/.claude/scripts/detect-orphan-commands.sh",
+      "status": "executed",
+      "raw_output": {"orphan_commands": [], "summary": {"total": 0}},
+      "diff_scoping_note": "No orphan commands. All changed commands (close.md, commit.md, dev.md) have functional references and active invocations."
+    },
+    "detect_dead_functions": {
+      "script": "~/.claude/scripts/detect-dead-functions.sh",
+      "status": "executed",
+      "raw_output": {
+        "detector": "dead-functions",
+        "project_root": "/dev/shm/dev-workspace/dot-claude",
+        "scan_dir": "/dev/shm/dev-workspace/dot-claude/scripts",
+        "findings": [],
+        "summary": {"total": 0, "severity": "none"}
+      },
+      "diff_scoping_note": "No dead functions detected in scripts/. Both changed Python files (write-commit-grant.py, aggregate-dev-report.py) pass the dead-function check."
+    },
+    "detect_duplicate_content": {
+      "script": "~/.claude/scripts/detect-duplicate-content.sh",
+      "status": "executed_large_output",
+      "note": "Output exceeded size limit (1.6MB). All duplicate groups identified are in projects/*/tool-results/ and todos/ session data — runtime artifacts, not source files. None of the 8 changed files appear in duplicate groups."
+    }
+  },
+  "summary": {
+    "total_issues": 0,
+    "critical": 0,
+    "major": 0,
+    "minor": 0,
+    "estimated_space_saved": "0 MB",
+    "issues_introduced_in_diff": 0,
+    "advisory_observations_count": 17,
+    "close_gate_rationale": "Zero cleanliness violations introduced in this diff. All 8 changed files are correctly placed, correctly named per their folder conventions, and actively referenced. scripts/aggregate-dev-report.py is a new file in scripts/ (correctly placed, kebab-case, referenced by close.md and dev.md). BASH_MAX_CONSECUTIVE update in both CLAUDE.md and pretool-orchestrator-gate.py is consistent. All global detector findings are pre-existing and non-blocking per default-safe rule."
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "model": "gpt-5.5",
+    "reasoning_effort": "xhigh",
+    "tokens_used": 138783,
+    "feedback_summary": "Codex returned 5 findings (4 with PROPOSED_FIX, 1 OBSERVATION_ONLY). F1: scope error — global pre-existing rows should not appear under findings.* arrays in --changed-files mode; move to mandatory_script_outputs.observations. F2: false positive — product-owner.md is referenced by commands/dev.md and commands/dev-command.md as a specialist agent. F3: false positives — scripts/todo/*.py are dynamically loaded by hooks/hook-todo-injection.py via the {command}.py convention, not true orphans. F4: safety calibration — bulk-commit-nested-run.sh and tmp-cleanup-install.sh are < 7 days old; safe_to_delete:false required. F5: summary overcounts — total_issues should reflect changed-file scope only (0), not global advisory count. OBSERVATION_ONLY: all 8 changed files are correctly placed and named; aggregate-dev-report.py is a new functional script with confirmed references.",
+    "findings": [
+      {
+        "issue": "Scope error in --changed-files mode: global pre-existing rows placed under findings.* even though none of those files is in the 8-file changed set",
+        "proposed_fix": "Keep findings.orphaned_subagents and findings.unreferenced_scripts empty for this run; move detector output to mandatory_script_outputs.observations with introduced_in_diff:false, blocking:false, cleanliness_finding:false",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "This matches the established pattern from prior cycle reports (20260524-122947, 20260524-125300). findings.* arrays must be empty when no changed file has a cleanliness violation. Global detector results go to mandatory_script_outputs.observations only."
+      },
+      {
+        "issue": "False positive: agents/product-owner.md is not truly orphaned; it is referenced by commands/dev.md and commands/dev-command.md as a specialist agent",
+        "proposed_fix": "Remove the product-owner.md item from orphaned_subagents, or reclassify as detector_false_positive / keep",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Verified via grep: commands/dev.md lines 139, 183, 193, 209 reference product-owner as a named specialist. The detect-orphan-agents.sh script does not recognize this reference form. The finding is a detector false positive and has been moved to the diff_scoping_note of the detect_orphan_agents mandatory script output."
+      },
+      {
+        "issue": "False positives: all 13 scripts/todo/*.py rows correspond to slash commands and are dynamically loaded by hooks/hook-todo-injection.py via scripts/todo/{command}.py pattern; deleting them would violate Safety Rules",
+        "proposed_fix": "Remove the 13 scripts/todo/*.py entries from unreferenced_scripts, or mark them as dynamic_todo_script_convention, safe_to_delete:false, recommendation:keep",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Verified via grep: hooks/hook-todo-injection.py line 66 and surrounding context loads scripts/todo/{cmd_name}.py. The detect-orphan-scripts.sh script does not detect this dynamic loading pattern. All todo scripts are functional and must be retained. Marked as false_positive_note in mandatory_script_outputs.detect_orphan_scripts."
+      },
+      {
+        "issue": "Safety calibration: scripts/bulk-commit-nested-run.sh (6 days) and scripts/install/tmp-cleanup-install.sh (2 days) are recent; delete recommendation would violate the <7 days Safety Rule",
+        "proposed_fix": "Add safe_to_delete:false, blocking:false, recommendation:'do not delete now; re-check after age threshold and reference verification'",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Safety Rules state files modified <7 days must not be deleted. Both scripts are within that window. Applied safe_to_delete:false in observations entries."
+      },
+      {
+        "issue": "Summary overstates changed-file cleanliness findings: total_issues:16, major:10, minor:6 counts out-of-scope advisory/global detector output as findings",
+        "proposed_fix": "Set changed-file summary to total_issues:0, critical:0, major:0, minor:0; optionally add advisory_observations_count",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "The summary must reflect only introduced_in_diff findings for the --changed-files scope. All 16 previously counted items are pre-existing advisory global scan results. Corrected to 0 + advisory_observations_count:17."
+      },
+      {
+        "issue": "OBSERVATION_ONLY: The 8 changed files appear correctly placed/named. scripts/aggregate-dev-report.py is a new functional script, correctly in scripts/, kebab-case, and referenced by commands/close.md and commands/dev.md; no cleanliness finding needed.",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirms the inspector's verdict that aggregate-dev-report.py has no cleanliness issues. Logged for completeness."
+      }
+    ],
+    "feedback_incorporated": "All 5 PROPOSED_FIX items applied: (1) findings.* arrays cleared; global detector results moved to mandatory_script_outputs.observations with introduced_in_diff/blocking/cleanliness_finding tags; (2) product-owner.md false positive documented in detect_orphan_agents diff_scoping_note; (3) scripts/todo/*.py false positives documented with dynamic_todo_script_convention classification and safe_to_delete:false; (4) bulk-commit-nested-run.sh and tmp-cleanup-install.sh observations now carry safe_to_delete:false and age-threshold note; (5) summary corrected to total_issues:0 with advisory_observations_count:17. OBSERVATION_ONLY item logged."
+  }
+}
