@@ -210,6 +210,45 @@
         "command": "cat session_dirs.txt",
         "expected_exit": 2
       }
+    },
+    {
+      "task_id": "20260522-080646-A",
+      "ac_id": "AC17",
+      "ac_uid": "ac17_killall_quoted_happy",
+      "type": "hook",
+      "file": "tests/generated/20260522-080646-A/test_AC17_ac17_killall_quoted_happy.py",
+      "status": "active",
+      "hook_check": {
+        "method": "invoke_hook",
+        "command": "killall \"happy\"",
+        "expected_exit": 2
+      }
+    },
+    {
+      "task_id": "20260522-080646-A",
+      "ac_id": "AC18",
+      "ac_uid": "ac18_pkill_quoted_claude",
+      "type": "hook",
+      "file": "tests/generated/20260522-080646-A/test_AC18_ac18_pkill_quoted_claude.py",
+      "status": "active",
+      "hook_check": {
+        "method": "invoke_hook",
+        "command": "pkill -f \"claude\"",
+        "expected_exit": 2
+      }
+    },
+    {
+      "task_id": "20260522-080646-A",
+      "ac_id": "AC19",
+      "ac_uid": "ac19_kill_quoted_signal",
+      "type": "hook",
+      "file": "tests/generated/20260522-080646-A/test_AC19_ac19_kill_quoted_signal.py",
+      "status": "active",
+      "hook_check": {
+        "method": "invoke_hook",
+        "command": "kill \"-9\" 1234",
+        "expected_exit": 2
+      }
     }
   ],
   "archived_tests": []
