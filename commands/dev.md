@@ -55,12 +55,16 @@ Emit spec continuation or temp closure update
 - Unfinished work is handed off into a continuation spec; only complete work
   heading to `/close` uses a compact temp update.
 
-**No-Multitasking Rule (MANDATORY)**:
-- Each subagent invocation handles exactly ONE issue/task
-- BA analyzes ONE requirement, Dev implements ONE fix, QA verifies ONE fix
-- The orchestrator may launch multiple subagents in parallel for different issues
+**Orchestrator Dispatch Model**:
+- N independent tasks → dispatch N subagents **in parallel**, one per task — this is the standard multi-task path
+- 1 task → 1 subagent (sequential is only correct when there is genuinely one task)
 - NEVER bundle multiple issues into a single subagent prompt
 - If QA fails and iteration is needed, re-invoke Dev with the SAME single issue, not a batch
+
+**Per-Subagent Single-Task Rule (MANDATORY)**:
+- Each individual subagent invocation handles exactly ONE issue/task
+- BA analyzes ONE requirement, Dev implements ONE fix, QA verifies ONE fix
+- Multitasking within a single subagent is forbidden regardless of how many subagents are running
 
 ---
 
