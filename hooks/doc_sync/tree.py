@@ -2,7 +2,22 @@
 """Build directory trees for INDEX.md."""
 
 from pathlib import Path
-from .extract import extract_description
+
+# Dual-mode import: relative when loaded as `hooks.doc_sync.tree`
+# (production), package-context fallback when loaded standalone via
+# importlib.util spec_from_file_location (spec-20260518-225715 Cycle 3
+# Debt 7 / AC-07 test).
+try:
+    from .extract import extract_description
+except ImportError:
+    import importlib as _importlib
+    import os as _os
+    import sys as _sys
+    _pkg_root = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+    if _pkg_root not in _sys.path:
+        _sys.path.insert(0, _pkg_root)
+    _extract = _importlib.import_module("hooks.doc_sync.extract")
+    extract_description = _extract.extract_description  # type: ignore[no-redef]
 
 SKIP_FILES = {
     'INDEX.md', 'README.md', '__init__.py', '.DS_Store',

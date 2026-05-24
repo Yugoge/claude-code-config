@@ -75,7 +75,22 @@ def python_imports(file_path: Path) -> list[str]:
 
 
 def find_callers_via_grep(root: Path, basename: str) -> list[str]:
-    """Use grep to find files that textually reference `basename`. In-scope filter applied."""
+    """Use grep to find files that textually reference `basename`. In-scope filter applied.
+
+    Two passes:
+      1. Fixed-string search for the basename (`util.py`). Broad — picks up
+         documentation, comments, and code; this is the historical behaviour
+         and is preserved verbatim.
+      2. Python-only module-stem search (`util`) constrained to Python import
+         contexts. Uses a regex anchored to `import` / `from` keywords so a
+         file that merely says the word `util` in prose does NOT count as a
+         caller. Without this constraint the high-fanout cap test (AC-04)
+         would never trigger because `from util import util` callers use the
+         stem only, but a bare `-F util` scan would emit many false-positive
+         edges from documentation / log files.
+    """
+    hits: set[str] = set()
+    # Pass 1: fixed-string basename search (broad, historical).
     try:
         result = subprocess.run(
             ["grep", "-r", "-l", "--exclude-dir=.git",
@@ -86,16 +101,60 @@ def find_callers_via_grep(root: Path, basename: str) -> list[str]:
             capture_output=True, text=True, timeout=30,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        return []
-    hits: list[str] = []
-    for line in result.stdout.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        rel = os.path.relpath(line, str(root))
-        if in_scope(rel):
-            hits.append(rel)
-    return hits
+        result = None
+    if result is not None:
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            rel = os.path.relpath(line, str(root))
+            if in_scope(rel):
+                hits.add(rel)
+    # Pass 2: Python module-stem search constrained to import sites only.
+    if basename.endswith(".py"):
+        stem = basename[:-3]
+        if stem and stem != basename:
+            # Regex matches an import statement that mentions the stem as a
+            # word, e.g. `import util`, `from util import x`, `from .util ...`,
+            # `from pkg.util import ...`. Word-boundaries (`\b`) on each side
+            # prevent matching `from utility import ...` or a prose mention
+            # of `util` inside docstring narrative.
+            # POSIX ERE (grep -E) — no Perl groups; use word boundaries via [^A-Za-z0-9_].
+            # Two acceptable shapes:
+            #   ^[ \t]*from <pkg-prefix>?<stem>([ \t.]|$)
+            #   ^[ \t]*import <pre>?<stem>([ \t,]|$)
+            # The leading anchor ^[ \t]* ensures the line is an import
+            # statement (not prose). The trailing boundary ensures `util`
+            # does not match `utility`.
+            stem_re = (
+                r"^[[:space:]]*(from[[:space:]]+[A-Za-z0-9_.]*"
+                + stem
+                + r"([[:space:]]|\.|$)|import[[:space:]]+[A-Za-z0-9_.,[:space:]]*"
+                + stem
+                + r"([[:space:]]|,|$))"
+            )
+            try:
+                result2 = subprocess.run(
+                    ["grep", "-r", "-l", "-E",
+                     "--include=*.py",
+                     "--exclude-dir=.git", "--exclude-dir=venv",
+                     "--exclude-dir=__pycache__", "--exclude-dir=.archive",
+                     "--exclude-dir=worktrees", "--exclude-dir=plugins",
+                     "--exclude-dir=node_modules",
+                     stem_re, str(root)],
+                    capture_output=True, text=True, timeout=30,
+                )
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                result2 = None
+            if result2 is not None:
+                for line in result2.stdout.splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    rel = os.path.relpath(line, str(root))
+                    if in_scope(rel):
+                        hits.add(rel)
+    return sorted(hits)
 
 
 def find_dependent_tests(root: Path, target_rel: str) -> list[str]:
@@ -208,15 +267,22 @@ def build_report(
                         "edge_type": "python_import",
                     })
 
-        # Reverse-direction textual references: who calls / imports this file?
+        # Outgoing textual-reference fanout: who calls / imports this file?
+        # Direction convention (spec-20260518-225715 Cycle 3 Debt 4 / AC-04):
+        # textual_reference edges are emitted as (from=analyzed_source,
+        # to=caller). This matches the "fanout from the analyzed source"
+        # semantic used by the high-fanout cap test (the cap bounds outgoing
+        # fanout, so per-edge `from` is the analyzed source). The reverse-
+        # direction (caller → target) information is preserved in
+        # `required_validation.callers[]` below.
         bn = os.path.basename(tf_norm)
         if bn:
             for caller in find_callers_via_grep(root, bn):
                 if caller == tf_norm:
                     continue
                 _try_add_edge({
-                    "from": caller,
-                    "to": tf_norm,
+                    "from": tf_norm,
+                    "to": caller,
                     "confidence": "medium",
                     "edge_type": "textual_reference",
                 })
@@ -254,8 +320,14 @@ def build_report(
                 ),
             })
 
-        # Required validation entries for callers of modified files
-        callers = [e["from"] for e in edges if e["to"] == tf_norm]
+        # Required validation entries for callers of modified files.
+        # Callers are now recovered from the outgoing textual_reference fanout
+        # (from=tf_norm, to=caller) and from any test_dependency edges that
+        # still use the (from=test, to=tf_norm) convention.
+        callers = [e["to"] for e in edges
+                   if e.get("from") == tf_norm and e.get("edge_type") == "textual_reference"]
+        callers += [e["from"] for e in edges
+                    if e.get("to") == tf_norm and e.get("edge_type") == "test_dependency"]
         if callers:
             required_validation.append({
                 "file": tf_norm,

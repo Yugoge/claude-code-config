@@ -239,6 +239,84 @@ class TestDangerCommandArgPreservation:
         assert "killall is bad" not in result
 
 
+# ── BUG 1: Combined short-option flag containing 'c' ─────────────────────────
+
+class TestBug1CombinedFlagWithC:
+    """BUG 1 regression: _process_shell_interp must detect -c inside any short-option cluster."""
+
+    def test_ac1_combined_lc_exposes_rm(self):
+        """AC1: bash -lc 'rm /tmp/x' — rm must be visible as executable text."""
+        cmd = "bash -lc 'rm /tmp/x'"
+        result = strip_non_executable_contexts(cmd)
+        assert grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm not visible in: {result!r}"
+
+    def test_ac2_combined_ce_exposes_rm(self):
+        """AC2: bash -ce 'rm /tmp/x' — rm must be visible as executable text."""
+        cmd = "bash -ce 'rm /tmp/x'"
+        result = strip_non_executable_contexts(cmd)
+        assert grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm not visible in: {result!r}"
+
+    def test_ac10_plus_c_form_exposes_rm(self):
+        """AC10: bash +c 'rm /tmp/x' — POSIX +c variant must be recognised."""
+        cmd = "bash +c 'rm /tmp/x'"
+        result = strip_non_executable_contexts(cmd)
+        assert grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm not visible in: {result!r}"
+
+
+# ── BUG 2: Wrapper command options in _find_command_word ─────────────────────
+
+class TestBug2WrapperCommandOptions:
+    """BUG 2 regression: _find_command_word must skip sudo option-arg pairs."""
+
+    def test_ac3_sudo_u_root_shifts_to_bash_rm_exposed(self):
+        """AC3: sudo -u root bash -c 'rm /tmp/x' — rm must be visible."""
+        cmd = "sudo -u root bash -c 'rm /tmp/x'"
+        result = strip_non_executable_contexts(cmd)
+        assert grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm not visible in: {result!r}"
+
+    def test_ac4_sudo_H_no_arg_flag_no_over_skip(self):
+        """AC4: sudo -H bash -c 'rm /tmp/x' — -H is no-arg flag; bash must be cmd word."""
+        cmd = "sudo -H bash -c 'rm /tmp/x'"
+        result = strip_non_executable_contexts(cmd)
+        assert grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm not visible in: {result!r}"
+
+    def test_ac5_sudo_double_dash_terminates_options(self):
+        """AC5: sudo -- bash -c 'rm /tmp/x' — '--' terminates options; bash is cmd word."""
+        cmd = "sudo -- bash -c 'rm /tmp/x'"
+        result = strip_non_executable_contexts(cmd)
+        assert grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm not visible in: {result!r}"
+
+
+# ── BUG 3: Absolute-path shell in pipe not detected ───────────────────────────
+
+class TestBug3AbsolutePathShellInPipe:
+    """BUG 3 regression: heredoc piped to absolute-path shell must be preserved."""
+
+    def test_ac6_heredoc_piped_to_bin_bash_preserves_body(self):
+        """AC6: cat <<'EOF' | /bin/bash — heredoc body must be preserved."""
+        cmd = "cat <<'EOF' | /bin/bash\nrm /tmp/x\nEOF"
+        result = strip_non_executable_contexts(cmd)
+        assert 'rm /tmp/x' in result, f"heredoc body not preserved in: {result!r}"
+
+    def test_ac7_heredoc_piped_to_usr_bin_bash_preserves_body(self):
+        """AC7: cat <<'EOF' | /usr/bin/bash — heredoc body must be preserved."""
+        cmd = "cat <<'EOF' | /usr/bin/bash\nkill -9 1234\nEOF"
+        result = strip_non_executable_contexts(cmd)
+        assert grep_match(r'(^|[ \t;|&])(kill)[ \t]+-', result), f"kill not visible in: {result!r}"
+
+    def test_ac8_non_shell_absolute_path_does_not_preserve_body(self):
+        """AC8: cat <<'EOF' | /tmp/bash.old — 'bash.old' not in _SHELL_INTERPS; body stripped."""
+        cmd = "cat <<'EOF' | /tmp/bash.old\nrm /tmp/x\nEOF"
+        result = strip_non_executable_contexts(cmd)
+        assert not grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm incorrectly visible in: {result!r}"
+
+    def test_bare_bash_dot_old_does_not_preserve_body(self):
+        """Regression: 'bash.old' without path prefix must not match via old regex \\b boundary."""
+        cmd = "cat <<'EOF' | bash.old\nrm /tmp/x\nEOF"
+        result = strip_non_executable_contexts(cmd)
+        assert not grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm incorrectly visible in: {result!r}"
+
+
 class TestDollarVariableRegression:
     """2026-05-24 OOM regression: ordinary shell variables must advance."""
 

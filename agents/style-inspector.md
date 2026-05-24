@@ -319,16 +319,18 @@ Step 4: Next thing
 
 #### Active CJK Detection Algorithm
 
-The detection step is ALWAYS executed for every in-scope file; exemptions filter the REPORT, never the scan. The inspector MUST NOT skip CJK scanning for any in-scope file. Concretely, on each invocation the inspector MUST execute the following ordered procedure:
+The detection step is ALWAYS executed for every in-scope file; allowlisted carve-outs filter the REPORT, never the scan. The inspector MUST NOT skip CJK scanning for any in-scope file. Concretely, on each invocation the inspector MUST execute the following ordered procedure:
 
-1. Collect: scan every in-scope file (per the Scope list above) and emit a raw hit list of every match of the CJK Unicode range U+4E00–U+9FFF, recorded as (file, line, character).
-2. Classify: for each raw hit, evaluate the documented exemption rules (verbatim user-binding quote within `docs/dev/ticket-*.md`, or other documented exemption clauses below) to decide whether the hit will appear in the final report.
-3. Suppress (report-only): exemptions remove hits from the REPORT output ONLY; they MUST NOT short-circuit the scan in step 1, and MUST NOT cause whole files to be excluded from scanning unless that file path is already outside the Scope list.
-4. Report: emit a structured finding for every non-exempt hit with `file:line` location and the offending character; if the raw hit list was non-empty but the report is empty, log the exemption count so QA can audit why nothing was reported.
+1. Collect: scan every in-scope file (per the Scope list above) and collect all U+4E00–U+9FFF code-point matches into a raw hit list, recorded as (file, line, character).
+2. Classify: for each raw hit, classify it against the documented exemption rules (verbatim user-binding quote within `docs/dev/ticket-*.md`, or other documented exemption clauses below) to decide whether the hit will appear in the final report.
+3. Suppress (report-only): the exemption rules remove hits from the REPORT output ONLY; they MUST NOT short-circuit the scan in step 1, and MUST NOT cause whole files to be excluded from scanning unless that file path is already outside the Scope list.
+4. Report: emit a structured finding (report entry) for every non-exempt hit with `file:line` location and the offending character; if the raw hit list was non-empty but the report is empty, log the exemption count so QA can audit why nothing was reported.
 
 Anti-pattern (FORBIDDEN): "the file contains an Exemption paragraph, therefore skip the scan" — this collapses scope and classification into one early-exit and is the precise failure mode that motivated this section (see ba.md incident task-id 20260517-121150). The Collect step has no awareness of exemption clauses; only the Classify step does.
 
 **Exemption (verbatim user-binding quotes)**: Verbatim non-English user-binding quotes belong in `docs/dev/ticket-*.md` only (already in the `docs/` scope-exclusion zone above). Code/script comments and user-visible diagnostic strings (BLOCKED stderr, REASON lines, error messages) must be English with task-id attribution citing the ticket where the verbatim text is preserved. Authoring cycle: task-id 20260509-153155. Precipitating failure: 5 violations in pretool-bash-safety.sh from cycle 20260509-113838.
+
+**Exemption (Cycle-2 user-facing mascot rank labels per spec-20260518-225715 §5.1)**: The five canonical mascot rank labels — 见习学徒, 初级工匠, 熟练工匠, 资深工匠, 宗师级 — are user-binding identifiers fixed by spec-20260518-225715 §5.1 and are surfaced to humans via the AskUserQuestion mascot-greeting flow. The labels themselves may appear in agent/command prompts that render the AskUserQuestion menu and in fixed copies of the spec; they are EXEMPT from the English-only rule in those binding sites. This exemption is paragraph-scoped to the mascot rank labels; all other agent/command code MUST remain English, and in particular BOTH code comments AND stderr/diagnostic strings remain English-only across the entire scope (the existing exemption above covers verbatim user-binding quotes in `docs/dev/ticket-*.md` only and does not relax the comments-and-stderr requirement). Authoring cycle: task-id 20260520-221452 (Cycle 2 spec-20260518-225715 §5.1 codification).
 
 **Report**:
 ```json

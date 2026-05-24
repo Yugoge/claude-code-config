@@ -2,8 +2,27 @@
 """Regenerate README.md for a directory."""
 
 from pathlib import Path
-from .extract import extract_description
-from .patch import _replace_section
+
+# Dual-mode import: relative when loaded as `hooks.doc_sync.regen_readme`
+# (production), package-context fallback when loaded standalone via
+# importlib.util spec_from_file_location (spec-20260518-225715 Cycle 3
+# Debt 7 / AC-07 test). The fallback installs the parent of `hooks/` onto
+# sys.path and imports the full package, so transitive relative imports
+# (regen_readme -> patch -> claude/docker/systemd) all resolve.
+try:
+    from .extract import extract_description
+    from .patch import _replace_section
+except ImportError:
+    import importlib as _importlib
+    import os as _os
+    import sys as _sys
+    _pkg_root = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+    if _pkg_root not in _sys.path:
+        _sys.path.insert(0, _pkg_root)
+    _extract = _importlib.import_module("hooks.doc_sync.extract")
+    _patch = _importlib.import_module("hooks.doc_sync.patch")
+    extract_description = _extract.extract_description  # type: ignore[no-redef]
+    _replace_section = _patch._replace_section  # type: ignore[no-redef]
 
 SKIP_NAMES = {
     'INDEX.md', 'README.md', '__init__.py', '.DS_Store',
