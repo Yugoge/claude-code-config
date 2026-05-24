@@ -1128,6 +1128,7 @@ Must be compatible with `agents/dev.md` input format:
   "complexity_tier": "MICRO | SMALL | STANDARD | COMPLEX",
   "risk_level": "low | medium | high",
   "_risk_level_doc": "Required top-level field. high = security-sensitive, infrastructure-critical, or affects > 5 files / pipeline orchestrators. Used by commands/dev.md Step 8 to gate test-writer dispatch (test-writer fires when complexity_tier >= STANDARD OR risk_level == high).",
+  "test_writer_expected": "boolean — REQUIRED. Computed as (complexity_tier in {STANDARD, COMPLEX}) OR (risk_level == \"high\"). BA MUST emit this boolean at the top level of context.json so QA's Phase 5 trigger and the orchestrator's test-writer dispatch gate read the same precomputed value rather than re-deriving the formula. Value MUST equal the formula evaluated on the same context's complexity_tier and risk_level (spec-20260518-225715 Cycle 3 Debt 3 / AC-03).",
   "standards_to_enforce": {
     "no_hardcoded_values": true,
     "yaml_frontmatter_description_only": true,
@@ -1406,6 +1407,7 @@ sufficient; the cycle proceeds without codex token cost.
 Before returning output, verify:
 
 - [ ] Complexity tier declared (`Tier:` in spec header, `complexity_tier` in context JSON)
+- [ ] test_writer_expected boolean emitted in context.json: (complexity_tier in {STANDARD, COMPLEX}) OR (risk_level == "high")
 - [ ] Requirement fully decomposed (what/why/where/scope/success)
 - [ ] `setup` section populated. For UI / browser-rendered cycles all seven fields (viewport, theme, locale, auth_state, data_state, browser, url_path) are present in both spec and JSON. For non-UI cycles (hooks, config, CLI, agent-prompt edits, doc-only, build-CI — NOT "pure backend") the compact form is allowed: `applicability: N/A` plus a `reason` string; the seven detail fields may be omitted. Pipeline steps, API endpoints, and any user-triggered code path are NEVER non-UI — use full form. Mixed cycles use the full form.
 - [ ] **(STANDARD/COMPLEX only)** For regression bugs ("used to work"), git bisect + global CSS/middleware ruled out before component-local code
