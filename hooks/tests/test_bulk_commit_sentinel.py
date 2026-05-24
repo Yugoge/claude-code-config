@@ -204,5 +204,44 @@ class TestWriteBulkCommitSentinelScript(unittest.TestCase):
             self.assertAlmostEqual(delta_minutes, 30, delta=0.1)
 
 
+class TestExtractCommitMessageFFlag(unittest.TestCase):
+    """Guard correctly extracts subject from -F <tmpfile> (changelog-analyst's real commit path)."""
+
+    def test_f_flag_blessed_bridge_allowed_with_sentinel(self):
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write("auto-bulk: end-of-cycle commit for master — hooks updates\n\nsome body\n")
+            tmppath = f.name
+        try:
+            cmd = f'git -C /tmp commit -F {tmppath}'
+            with patch.object(guard, "_has_bulk_commit_sentinel", return_value=True):
+                try:
+                    guard._evaluate_commit(cmd, _make_data())
+                except SystemExit as e:
+                    self.fail(f"Blocked -F bulk commit with sentinel: {e}")
+        finally:
+            os.unlink(tmppath)
+
+    def test_f_flag_blessed_bridge_blocked_without_sentinel(self):
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write("auto-bulk: end-of-cycle commit for master — hooks updates\n")
+            tmppath = f.name
+        try:
+            cmd = f'git -C /tmp commit -F {tmppath}'
+            with patch.object(guard, "_has_bulk_commit_sentinel", return_value=False):
+                with self.assertRaises(SystemExit) as ctx:
+                    guard._evaluate_commit(cmd, _make_data())
+                self.assertEqual(ctx.exception.code, 2)
+        finally:
+            os.unlink(tmppath)
+
+    def test_f_flag_nonexistent_file_does_not_crash(self):
+        cmd = 'git commit -F /tmp/nonexistent-commit-msg-xyz.txt'
+        with patch.object(guard, "_find_grant", return_value=(None, None)):
+            with patch.object(guard, "_find_grant_any", return_value=(None, None)):
+                with self.assertRaises(SystemExit) as ctx:
+                    guard._evaluate_commit(cmd, _make_data())
+                self.assertEqual(ctx.exception.code, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

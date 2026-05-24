@@ -364,6 +364,16 @@ def _extract_commit_message(command):
     m = re.search(r'-m\s+(\S+)', command)
     if m:
         return m.group(1)
+    # -F / --file: changelog-analyst always uses git commit -F <tmpfile>.
+    # Read the subject line from the file so BLESSED_BRIDGE_RE can match.
+    for p in [r'(?:^|\s)-F\s+(\S+)', r'--file[= ](\S+)']:
+        m = re.search(p, command)
+        if m:
+            try:
+                with open(m.group(1)) as fh:
+                    return fh.readline().strip()
+            except OSError:
+                pass
     return ''
 
 

@@ -413,8 +413,9 @@ while ITERATION < MAX_ITERATIONS:
         #   $(git -C "${GIT_ROOT}" diff --stat --cached)"
         Commit message format: "auto-bulk: end-of-cycle commit for <branch> — <scope> updates"
 
-    # Orphan files (no subsystem match): commit separately
-    chore(orphan): unattributed session changes
+    # Orphan files (no subsystem match): commit separately with auto-bulk: prefix
+    # (bulk mode requires this prefix for the privilege guard sentinel check)
+    auto-bulk: end-of-cycle commit for <branch> — orphan changes
 
     # Also handle nested repo in each iteration
     Run nested repo check and commit (Phase 9) in each bulk iteration
