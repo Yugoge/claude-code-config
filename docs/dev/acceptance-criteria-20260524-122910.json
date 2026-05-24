@@ -2,6 +2,7 @@
   "schema_version": "1.0",
   "task_id": "20260524-122910",
   "generated_at": "2026-05-24T12:29:10Z",
+  "revision": "post-codex (8 PROPOSED_FIX findings incorporated)",
   "spec_ref": "docs/dev/specs/spec-20260518-225715.md Section 7 (Cycle 3 debt clearance)",
   "ac_uid_algorithm": "sha256(type + given + when + then + json.dumps(check, sort_keys=True, separators=(',',':'), ensure_ascii=False))[:16]",
   "items": [
@@ -9,14 +10,26 @@
       "id": "AC-01",
       "type": "data",
       "given": "All 13 tests/generated/20260520-221452/test_AC_*.py files exist",
-      "when": "Each file is read and its test function body is inspected",
-      "then": "Zero test files contain bare 'pass' as the sole body statement; zero contain 'TEST_INCOMPLETE:' sentinel; each test function contains at least one assert statement or pytest assertion",
+      "when": "Each file is read AND pytest tests/generated/20260520-221452/ -q is run",
+      "then": "Zero files contain bare 'pass' as sole body; zero contain 'TEST_INCOMPLETE:' sentinel; zero contain vacuous assertions (assert True, assert 1 == 1, assert constant); zero use pytest.skip or @pytest.mark.skip; each test body references the target file/path/symbol named in its docstring GIVEN clause; each test body contains at least one assertion exercising the THEN clause specific predicate (not just file existence)",
       "check": {
         "directory": "tests/generated/20260520-221452/",
         "file_pattern": "test_AC_*.py",
         "expected_count": 13,
-        "forbidden_patterns": ["^    pass$", "TEST_INCOMPLETE:"],
-        "required_pattern": "assert"
+        "forbidden_patterns": [
+          "^    pass$",
+          "TEST_INCOMPLETE:",
+          "assert True",
+          "assert 1 == 1",
+          "assert 1==1",
+          "pytest\\.skip",
+          "@pytest\\.mark\\.skip"
+        ],
+        "required_per_file": [
+          "at_least_one_assert",
+          "references_docstring_target_file",
+          "non_constant_assertion"
+        ]
       }
     },
     {
@@ -47,14 +60,20 @@
     {
       "id": "AC-04",
       "type": "data",
-      "given": "scripts/blast-radius-tool.py is read",
-      "when": "The git_diff_files function is inspected",
-      "then": "Function unions git diff --name-only with git ls-files --others --exclude-standard, deduplicates, and applies in_scope filtering to both sources",
+      "given": "scripts/blast-radius-tool.py is read AND blast-radius-tool.py --git-diff --output <tmp> is invoked on a representative working tree",
+      "when": "The git_diff_files function is inspected AND the output JSON is parsed",
+      "then": "Function unions git diff --name-only with git ls-files --others --exclude-standard, deduplicates, in_scope filtering; output JSON preserves all required top-level keys; edges[] deduplicated by (from, to) tuple; edges[] capped at documented per-file limit with overflow in omitted_edges_count; output JSON for typical Phase 2 run (5-10 modified files) under 500KB",
       "check": {
         "file": "scripts/blast-radius-tool.py",
         "function": "git_diff_files",
         "must_contain": ["ls-files", "--others", "--exclude-standard"],
-        "must_not_contain": []
+        "runtime_checks": [
+          "output_json_has_required_keys",
+          "edges_are_deduplicated_by_from_to_tuple",
+          "omitted_edges_count_field_present_as_integer",
+          "edges_per_source_file_under_documented_cap",
+          "output_size_under_500KB_on_typical_workload"
+        ]
       }
     },
     {
@@ -72,24 +91,28 @@
     {
       "id": "AC-06",
       "type": "hook",
-      "given": "scripts/canary-verify.sh verify_write_guard and verify_git_privilege_guard functions are read",
-      "when": "The negative-payload test logic is inspected",
-      "then": "Each function contains a deny-payload test with a payload the hook MUST block AND asserts rc == 2, matching the pattern in verify_bash_safety",
+      "given": "scripts/canary-verify.sh verify_write_guard and verify_git_privilege_guard functions are read; canary-verify.sh is executed in a sandboxed environment",
+      "when": "The negative-payload test logic is inspected AND the canary is run",
+      "then": "verify_write_guard contains a deny-payload test (Write payload targeting an EXISTING file created via mktemp, since the guard blocks overwriting existing files per hooks/pretool-write-guard.sh:120-128) and asserts rc==2; verify_git_privilege_guard contains a deny-payload test (destructive git command e.g. 'git push --force') and asserts rc==2; both functions emit_failure when their respective deny-payload is NOT blocked",
       "check": {
         "file": "scripts/canary-verify.sh",
         "functions": ["verify_write_guard", "verify_git_privilege_guard"],
-        "pattern_per_function": "emit_failure.*FAILED to block.*rc.*2"
+        "pattern_per_function": "emit_failure.*FAILED to block",
+        "runtime_check": "canary-verify.sh exit code is 0 when all hooks correctly enforce denies"
       }
     },
     {
       "id": "AC-07",
       "type": "data",
-      "given": "hooks/doc_sync/regen_readme.py SKIP_NAMES and hooks/doc_sync/tree.py SKIP_FILES are read",
-      "when": "The skip logic is inspected",
-      "then": "Both files contain suppression logic for filenames matching cp-state-* and spec-2026*-* patterns (either via startswith checks or equivalent prefix filtering)",
+      "given": "hooks/doc_sync/regen_readme.py and hooks/doc_sync/tree.py are read AND a fixture tree containing cp-state-foo.json + spec-20260524-test.json is provided",
+      "when": "The skip logic is inspected AND doc_sync is run against the fixture",
+      "then": "Both files contain executable suppression logic (not comments) for BOTH cp-state- prefix AND spec-2026 prefix patterns; generated README and INDEX tree output exclude any file matching either pattern; suppression uses startswith or equivalent prefix-aware filtering (not exact-name set membership)",
       "check": {
         "files": ["hooks/doc_sync/regen_readme.py", "hooks/doc_sync/tree.py"],
-        "must_contain_any": ["cp-state", "spec-2026", "startswith"]
+        "per_file_must_contain_all": ["cp-state", "spec-2026"],
+        "per_file_must_contain_any": ["startswith", "match", "regex", "prefix"],
+        "must_be_executable_not_comment": true,
+        "fixture_check": "fixture files matching cp-state-* and spec-2026* are absent from generated tree/README output"
       }
     },
     {
