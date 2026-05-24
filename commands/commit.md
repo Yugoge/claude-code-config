@@ -19,7 +19,7 @@ branch commit. Handles nested repo (`/dev/shm/dev-workspace/dot-claude/`) automa
 |------|---------|
 | `<task-id>` | Required unless `--force` or `--bulk`. Task-id from the completed `/dev` cycle (e.g. `20260516-212024`). |
 | `--force` | Bypass close-gate check. Human-only (enforced by `disable-model-invocation: true`). Audited. |
-| `--bulk` | Batch mode — explore full diff, group by subsystem, commit until zero diff. |
+| `--bulk` | Batch mode — explore full diff, group by subsystem, commit until zero diff. Human-only (enforced by `disable-model-invocation: true`). |
 | `--dry-run` | Print what would be staged/committed; do not execute. |
 
 ## Step-by-step workflow
@@ -75,7 +75,13 @@ Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/l
 
 ### Step 5: Write commit grant and dispatch-snapshot manifest
 
-Before dispatching changelog-analyst, write a single-use commit grant (skip this entire grant-write block when `BULK=true` — BULK commits use the `auto-bulk:` prefix which bypasses the guard via `BLESSED_BRIDGE_RE`; no grant is needed or written): activate venv and run Python to write the grant. First, resolve the session ID: `sid = os.environ.get("CLAUDE_SESSION_ID")`. If `sid` is empty or `None`, abort immediately with: `Cannot write commit grant: CLAUDE_SESSION_ID not set. Invoke /commit from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst. If `sid` is set, generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at`, and `created_at`. The guard IS registered and active — grant absence WILL block the changelog-analyst commit.
+Before dispatching changelog-analyst, write the appropriate authorization token:
+- **BULK=true**: write a **multi-use bulk-commit sentinel** (NOT a single-use grant) so that changelog-analyst can make multiple auto-bulk commits within the 30-minute window. Activate venv and run:
+  ```bash
+  source venv/bin/activate && python /root/.claude/scripts/write-bulk-commit-sentinel.py
+  ```
+  If CLAUDE_SESSION_ID is not set, abort immediately with: `Cannot write bulk-commit sentinel: CLAUDE_SESSION_ID not set. Invoke /commit --bulk from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst.
+- **BULK=false**: write a **single-use commit grant** (original behavior). Activate venv and run Python to write the grant. First, resolve the session ID: `sid = os.environ.get("CLAUDE_SESSION_ID")`. If `sid` is empty or `None`, abort immediately with: `Cannot write commit grant: CLAUDE_SESSION_ID not set. Invoke /commit from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst. If `sid` is set, generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at`, and `created_at`. The guard IS registered and active — grant absence WILL block the changelog-analyst commit.
 
 **Grant timestamp format (NON-NEGOTIABLE)**: The `expires_at` and `created_at` fields MUST be ISO-8601 strings produced from timezone-aware UTC datetimes (e.g. `(datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()` yields `"2026-05-19T16:18:56.123456+00:00"`). Epoch integers and epoch floats (e.g. `int(time.time()) + 600`, `time.time() + 600`) are NOT accepted by the privilege guard. The guard at `/root/.claude/hooks/pretool-git-privilege-guard.py:377-384` parses these fields via `datetime.fromisoformat(end_str.replace('Z', '+00:00'))`; on `ValueError`/`TypeError`/`AttributeError` the helper `_end_time_passed` returns `True` (i.e. "already expired"), which silently rejects the grant and blocks the commit. The expiration window is 10 minutes from `created_at` — bake the offset into `expires_at` at write time. Activate the venv and invoke the grant-writer script (resolves `CLAUDE_SESSION_ID` from the environment, generates a fresh nonce, writes timezone-aware ISO-8601 `created_at` and `expires_at` on a 10-minute window, and emits the resulting grant path on stdout):
 
@@ -112,7 +118,7 @@ Constraints:
 - Write push-gate token after each successful commit
 - Push-gate token path MUST be: `/tmp/agentic-commit/push/<sha256(os.path.realpath(GIT_ROOT))[:16]>/<BRANCH with / replaced by __>.json`
 - Push-gate validates commit_sha only; expires_at is no longer written or checked
-- **BULK mode commit message prefix (REQUIRED when BULK=true)**: every commit message MUST begin with `auto-bulk: end-of-cycle commit for <current-branch>` where `<current-branch>` is the actual current git branch of the repo being committed (run `git rev-parse --abbrev-ref HEAD`). This prefix matches `BLESSED_BRIDGE_RE` and bypasses the privilege guard — no grant file is needed. Do NOT use this prefix when BULK=false.
+- **BULK mode commit message prefix (REQUIRED when BULK=true)**: every commit message MUST begin with `auto-bulk: end-of-cycle commit for <current-branch>` where `<current-branch>` is the actual current git branch of the repo being committed (run `git rev-parse --abbrev-ref HEAD`). This prefix matches `BLESSED_BRIDGE_RE`; the privilege guard requires a valid bulk-commit sentinel (written in Step 5) to allow the commit. Do NOT use this prefix when BULK=false.
 ```
 
 Wait for changelog-analyst to complete. Echo its final status to the user.
