@@ -7,13 +7,23 @@
 
 import re
 import sys
+from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "hooks/lib")
+sys.path.insert(0, str(Path(__file__).parents[3]))
+
+from hooks.lib.bash_context_strip import strip_non_executable_contexts
 
 AC_UID = "873cab03"
 AC_TYPE = "hook"
+
+
+def grep_match(pattern, text):
+    for line in text.split('\n'):
+        if re.search(pattern, line):
+            return True
+    return False
 
 
 def test_AC_10():
@@ -22,7 +32,6 @@ def test_AC_10():
     WHEN:  strip_non_executable_contexts processes the option word +c (POSIX-legal variant with + prefix)
     THEN:  The returned string matches grep -qE '(^|[ \t;|&(])rm\s' — rm is visible as executable text; + prefix is accepted by the fix alongside - prefix
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — +c POSIX variant exposes rm as executable text")
+    cmd = "bash +c 'rm /tmp/x'"
+    result = strip_non_executable_contexts(cmd)
+    assert grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm not visible in: {result!r}"

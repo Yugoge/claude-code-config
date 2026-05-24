@@ -6,6 +6,7 @@
 # trace each test back to its source AC entry.
 
 import pytest
+from pathlib import Path
 
 AC_UID = "1cac8538f4fa4289"
 AC_TYPE = "data"
@@ -17,7 +18,21 @@ def test_AC2():
     WHEN:  Stage 3 content predicate runs grep -lF '<!-- spec-continuation-of: T -->' <spec_path>
     THEN:  grep exits 0 and returns the spec path (content predicate passes; basename pattern and mtime window are enforced by commit.md separately and not tested here)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — Stage 3 grep -lF content predicate exits 0 for marker-bearing spec")
+    # Static verification: commands/spec-update.md must contain the full marker
+    # template with the exact shape that Stage 3 grep -lF will match. The presence
+    # of the full template in the instruction ensures the agent writes a marker that
+    # passes the Stage 3 content predicate.
+    spec_update = Path(__file__).parents[3] / "commands" / "spec-update.md"
+    content = spec_update.read_text()
+
+    # Full template must be present so the agent writes the correct marker shape
+    assert "<!-- spec-continuation-of: <resolved-task-id> -->" in content, (
+        "commands/spec-update.md does not contain the full marker template "
+        "'<!-- spec-continuation-of: <resolved-task-id> -->' — "
+        "the agent may write a differently-shaped marker that Stage 3 grep -lF would miss"
+    )
+    # The instruction must say the agent writes the marker as the first line
+    assert "write it as the very" in content or "first line of the new cycle block" in content, (
+        "commands/spec-update.md does not instruct writing the marker as the first line "
+        "of the cycle block — Stage 3 grep may miss a buried marker"
+    )

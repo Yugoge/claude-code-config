@@ -12,10 +12,13 @@
 # This test verifies the corrected BUG3 implementation.
 
 import sys
+from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "hooks/lib")
+sys.path.insert(0, str(Path(__file__).parents[3]))
+
+from hooks.lib.bash_context_strip import strip_non_executable_contexts
 
 AC_UID = "253728c5"
 AC_TYPE = "hook"
@@ -27,13 +30,6 @@ def test_AC_06():
     WHEN:  strip_non_executable_contexts processes the heredoc whose consumer line contains | /bin/bash
     THEN:  The returned string contains 'rm /tmp/x' — the heredoc body is preserved as executable text, not zeroed out
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # Dev implementation note: the fix must use
-    #   any(_first_word(seg) in _SHELL_INTERPS for seg in after.split("|")[1:])
-    # NOT _first_word(after) — because _first_word(" | /bin/bash") returns "|",
-    # not "bash". Splitting on "|" and checking each post-pipe segment is the
-    # QA-corrected approach (ba-qa-report-20260524-125300-A.json issue I1).
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — heredoc piped to /bin/bash preserves body; rm /tmp/x visible")
+    cmd = "cat <<'EOF' | /bin/bash\nrm /tmp/x\nEOF"
+    result = strip_non_executable_contexts(cmd)
+    assert 'rm /tmp/x' in result, f"heredoc body not preserved in: {result!r}"

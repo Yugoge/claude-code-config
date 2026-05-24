@@ -7,13 +7,23 @@
 
 import re
 import sys
+from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "hooks/lib")
+sys.path.insert(0, str(Path(__file__).parents[3]))
+
+from hooks.lib.bash_context_strip import strip_non_executable_contexts
 
 AC_UID = "9601d0f3"
 AC_TYPE = "hook"
+
+
+def grep_match(pattern, text):
+    for line in text.split('\n'):
+        if re.search(pattern, line):
+            return True
+    return False
 
 
 def test_AC_05():
@@ -22,7 +32,6 @@ def test_AC_05():
     WHEN:  strip_non_executable_contexts processes sudo followed by -- (option terminator) and then bash
     THEN:  The returned string matches grep -qE '(^|[ \t;|&(])rm\s' — rm is visible; -- causes immediate stop of option parsing and the next token (bash) is recognised as the command word
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — sudo -- terminates option parsing and rm is exposed")
+    cmd = "sudo -- bash -c 'rm /tmp/x'"
+    result = strip_non_executable_contexts(cmd)
+    assert grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm not visible in: {result!r}"

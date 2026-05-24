@@ -6,6 +6,7 @@
 # trace each test back to its source AC entry.
 
 import pytest
+from pathlib import Path
 
 AC_UID = "ac1-d1-underreport-fires-for-unlisted-diff-paths"
 AC_TYPE = "data"
@@ -17,7 +18,10 @@ def test_AC1():
     WHEN:  git diff --name-only <baseline_head_sha> returns agents/qa.md, commands/dev.md, agents/dev.md
     THEN:  agents/qa.md Step 5 provenance check raises files_modified_underreport_violation for commands/dev.md and agents/dev.md (both in diff, both absent from dev.files_modified ∪ dev.files_created, not in baseline_dirty_paths); severity: critical; agents/qa.md does NOT raise the violation for itself (listed in files_modified)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — agents/qa.md Step 5 raises files_modified_underreport_violation for diff paths absent from dev.files_modified ∪ dev.files_created")
+    project_root = Path(__file__).parents[3]
+    qa_md = (project_root / "agents" / "qa.md").read_text(encoding="utf-8")
+
+    assert "files_modified_underreport_violation" in qa_md, (
+        "agents/qa.md must contain 'files_modified_underreport_violation' "
+        "describing the reverse-direction underreport check (Step 5a)"
+    )

@@ -5,12 +5,14 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import re
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "hooks/lib")
+sys.path.insert(0, str(Path(__file__).parents[3]))
 
 AC_UID = "3e46954a"
 AC_TYPE = "hook"
@@ -22,11 +24,19 @@ def test_AC_09():
     WHEN:  pytest is run against the test file after applying all three bug fixes
     THEN:  All tests pass with exit code 0; no previously-passing test may be demoted to fail; the test count must be >= 30 (new tests added by M4 are additive)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # Dev implementation note: run subprocess call to
-    #   python3 -m pytest hooks/tests/test_bash_safety_context.py -v --tb=short
-    # and assert returncode == 0, plus parse output to verify >= 30 tests passed.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — existing test suite (>= 30 tests) all pass after bug fixes applied")
+    project_root = str(Path(__file__).parents[3])
+    test_file = str(Path(__file__).parents[3] / 'hooks' / 'tests' / 'test_bash_safety_context.py')
+    proc = subprocess.run(
+        [sys.executable, '-m', 'pytest', test_file, '-v', '--tb=short'],
+        capture_output=True,
+        text=True,
+        cwd=project_root,
+    )
+    assert proc.returncode == 0, (
+        f"test suite exited {proc.returncode}\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
+    )
+    # Parse passed count from summary line like "40 passed in 0.05s"
+    match = re.search(r'(\d+) passed', proc.stdout)
+    assert match, f"could not find pass count in output:\n{proc.stdout}"
+    passed = int(match.group(1))
+    assert passed >= 30, f"expected >= 30 passed, got {passed}\n{proc.stdout}"
