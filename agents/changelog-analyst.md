@@ -403,11 +403,15 @@ while ITERATION < MAX_ITERATIONS:
     #   Acquire lock, pre-staged verify, stage, build message, commit, push-gate write
     For each subsystem_group in groups:
         Perform Phase 3–10 for this group only
-        # Build COMMIT_MSG AFTER staging this group's files (inside Phase 6):
-        #   COMMIT_MSG="chore(${scope}): <subsystem> changes — batch ${ITERATION} of ${MAX_ITERATIONS}
+        # Build COMMIT_MSG AFTER staging this group's files (inside Phase 6).
+        # BULK mode REQUIRES the auto-bulk: prefix (dispatched via commit.md Step 6);
+        # this prefix is checked by BLESSED_BRIDGE_RE in pretool-git-privilege-guard.py
+        # alongside the bulk-commit sentinel written by /commit --bulk Step 5.
+        # Without the prefix the privilege guard will block the commit.
+        #   COMMIT_MSG="auto-bulk: end-of-cycle commit for ${BRANCH} — ${SCOPE} updates
         #
         #   $(git -C "${GIT_ROOT}" diff --stat --cached)"
-        Commit message format: "chore(<scope>): <subsystem> changes — batch ${ITERATION} of ${MAX_ITERATIONS}"
+        Commit message format: "auto-bulk: end-of-cycle commit for <branch> — <scope> updates"
 
     # Orphan files (no subsystem match): commit separately
     chore(orphan): unattributed session changes
