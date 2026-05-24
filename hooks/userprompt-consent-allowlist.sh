@@ -85,16 +85,26 @@ def _looks_regex(s):
 
 if flag_pattern is not None:
     pattern = flag_pattern
-    is_regex = _looks_regex(flag_pattern)
+    # --tool declares an explicit literal pattern; force is_regex=False
+    # unconditionally regardless of _looks_regex() output. Dotted filenames
+    # (e.g. /tmp/file.json) must not be misclassified as regex. (CRITICAL-2 fix)
+    is_regex = False
     comment = ' '.join(bare)
 elif bare:
     first = bare[0]
     if first.startswith('re:'):
         pattern, is_regex = first[3:], True
+        comment = ' '.join(bare[1:])
+    elif first == 'Write' and len(bare) >= 2 and bare[1].startswith('/'):
+        # Bare /allow Write /path form: treat second token as path argument,
+        # not as a comment. Emit scoped sentinel with target=path. (CRITICAL-1 fix)
+        pattern = 'Write ' + bare[1]
+        is_regex = False
+        comment = ' '.join(bare[2:])
     else:
         pattern = first
         is_regex = _looks_regex(first)
-    comment = ' '.join(bare[1:])
+        comment = ' '.join(bare[1:])
 else:
     pattern, is_regex = '.*', True
     comment = ''
@@ -200,7 +210,11 @@ parts = pattern.split(None, 1)
 op = parts[0] if parts else pattern
 rest = parts[1] if len(parts) >= 2 else ''
 entry = {'op': op}
-if rest:
+if op == 'Write' and rest:
+    # Write ops use 'target' for exact-path scoping (not args_contain).
+    # Matcher key-presence logic requires this field name. (ORIGINAL fix)
+    entry['target'] = rest
+elif rest:
     entry['args_contain'] = [rest]
 ops = [entry]
 grant = {

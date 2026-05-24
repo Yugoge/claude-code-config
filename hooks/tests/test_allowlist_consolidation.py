@@ -7,6 +7,7 @@ Task: 20260518-155948 — consolidate 5 independent grant-read implementations.
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -651,6 +652,197 @@ class TestMatchSentinelGrantForWrite(unittest.TestCase):
         finally:
             if os.path.exists(path):
                 os.unlink(path)
+
+    # ── AC4: legacy args_contain sentinel — exact equality denies other path ──
+
+    def test_ac4_legacy_args_contain_denies_other_path(self):
+        """AC4: Legacy broken-schema sentinel {op:Write, args_contain:[/specific/path]}
+        must return None for a different path (exact equality, no substring).
+
+        Regression for task 20260524-125300-B ORIGINAL bug: old writer emitted
+        args_contain instead of target; matcher must enforce exact equality for
+        this legacy shape.
+        """
+        task_id = "test-ac4-args-contain-deny"
+        session_id = "test-session-ac4"
+        path = self._write_sentinel(task_id, session_id,
+                                    [{"op": "Write", "args_contain": ["/specific/path"]}])
+        try:
+            result = match_sentinel_grant_for_write(task_id, session_id, "/other/path")
+            self.assertIsNone(result)
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    # ── AC5: exploit-shape regression — no wildcard leakage from args_contain ──
+
+    def test_ac5_exploit_shape_regression_no_wildcard_leakage(self):
+        """AC5: Legacy args_contain sentinel allows exact path, denies others including
+        prefix-suffix paths. Prevents privilege escalation via substring matching.
+
+        Tests three sub-cases: (a) exact match → non-None, (b) different path → None,
+        (c) path-suffix → None (substring must not match).
+        """
+        task_id = "test-ac5-exploit-shape"
+        session_id = "test-session-ac5"
+        path = self._write_sentinel(task_id, session_id,
+                                    [{"op": "Write", "args_contain": ["/specific/path"]}])
+        try:
+            # (a) exact match allows
+            result_a = match_sentinel_grant_for_write(task_id, session_id, "/specific/path")
+            self.assertIsNotNone(result_a)
+            # (b) different path denies
+            result_b = match_sentinel_grant_for_write(task_id, session_id, "/other/path")
+            self.assertIsNone(result_b)
+            # (c) path-suffix denies — no prefix substring matching
+            result_c = match_sentinel_grant_for_write(task_id, session_id, "/specific/path-suffix")
+            self.assertIsNone(result_c)
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    # ── AC6: bare /allow Write sentinel preserves wildcard behavior ──
+
+    def test_ac6_bare_write_sentinel_wildcard_preserved(self):
+        """AC6 (non-regression): Bare {op:Write} sentinel (no target, no args_contain)
+        still matches any file path — intentional wildcard shape is preserved.
+        """
+        task_id = "test-ac6-bare-wildcard"
+        session_id = "test-session-ac6"
+        path = self._write_sentinel(task_id, session_id, [{"op": "Write"}])
+        try:
+            result = match_sentinel_grant_for_write(task_id, session_id, "/any/file.py")
+            self.assertIsNotNone(result)
+            self.assertEqual(result.get("op"), "Write")
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    # ── AC7: end-to-end — /allow --tool "Write /tmp/file.json" writes scoped sentinel ──
+
+    def test_ac7_e2e_tool_flag_dotted_path_sentinel(self):
+        """AC7: Full stack test — userprompt-consent-allowlist.sh invoked via subprocess
+        with /allow --tool "Write /tmp/file.json" produces a sentinel with
+        target=/tmp/file.json (not args_contain, not missing).
+
+        Verifies CRITICAL-2 fix (is_regex=False for --tool) and ORIGINAL fix (target field).
+        Then verifies the matcher allows the named file and denies others.
+        """
+        task_id = "test-ac7-e2e-tool-dotted"
+        session_id = "test-session-ac7"
+        sentinel_path = os.path.join(SENTINEL_GRANT_DIR, f"{task_id}.json")
+        legacy_path = f"/tmp/claude-bash-allowlist-{session_id}.json"
+        # Clean up any leftover from a previous run
+        for p in (sentinel_path, legacy_path):
+            if os.path.exists(p):
+                os.unlink(p)
+
+        hook = os.path.join(HOOKS_DIR, "userprompt-consent-allowlist.sh")
+        payload = json.dumps({
+            "prompt": '/allow --tool "Write /tmp/file.json"',
+            "session_id": session_id,
+        })
+        env = dict(os.environ)
+        env["CLAUDE_TASK_ID"] = task_id
+        try:
+            result = subprocess.run(
+                ["bash", hook],
+                input=payload,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=10,
+            )
+            self.assertEqual(result.returncode, 0,
+                             f"Hook exited non-zero: {result.stderr}")
+            # Sentinel must exist
+            self.assertTrue(os.path.exists(sentinel_path),
+                            f"Sentinel file missing: {sentinel_path}\nhook stdout: {result.stdout}")
+            with open(sentinel_path) as f:
+                grant = json.load(f)
+            ops = grant.get("allowed_operations", [])
+            self.assertEqual(len(ops), 1, f"Expected 1 op entry, got: {ops}")
+            entry = ops[0]
+            self.assertEqual(entry.get("op"), "Write")
+            self.assertEqual(entry.get("target"), "/tmp/file.json",
+                             f"Expected target=/tmp/file.json, got entry={entry}")
+            self.assertNotIn("args_contain", entry,
+                             f"args_contain must not be present: {entry}")
+            # Matcher allow/deny
+            allow_result = match_sentinel_grant_for_write(task_id, session_id, "/tmp/file.json")
+            self.assertIsNotNone(allow_result,
+                                 "Matcher should allow /tmp/file.json but returned None")
+            # Reload sentinel (matcher consumed it? No — matcher is read-only)
+            # Re-write for the deny check since matcher is non-destructive
+            deny_result = match_sentinel_grant_for_write(task_id, session_id, "/tmp/other.json")
+            self.assertIsNone(deny_result,
+                              "Matcher should deny /tmp/other.json but returned non-None")
+        finally:
+            for p in (sentinel_path, legacy_path):
+                if os.path.exists(p):
+                    os.unlink(p)
+
+    # ── AC8: end-to-end — bare /allow Write /tmp/file.json writes scoped sentinel ──
+
+    def test_ac8_e2e_bare_syntax_scoped_sentinel(self):
+        """AC8: Full stack test — userprompt-consent-allowlist.sh invoked via subprocess
+        with bare /allow Write /tmp/file.json produces a sentinel with target=/tmp/file.json
+        (not a bare wildcard {op:Write}).
+
+        Verifies CRITICAL-1 fix (bare Write /path treated as path, not comment).
+        Then verifies the matcher allows the named file and denies others.
+        """
+        task_id = "test-ac8-e2e-bare-syntax"
+        session_id = "test-session-ac8"
+        sentinel_path = os.path.join(SENTINEL_GRANT_DIR, f"{task_id}.json")
+        legacy_path = f"/tmp/claude-bash-allowlist-{session_id}.json"
+        for p in (sentinel_path, legacy_path):
+            if os.path.exists(p):
+                os.unlink(p)
+
+        hook = os.path.join(HOOKS_DIR, "userprompt-consent-allowlist.sh")
+        payload = json.dumps({
+            "prompt": "/allow Write /tmp/file.json",
+            "session_id": session_id,
+        })
+        env = dict(os.environ)
+        env["CLAUDE_TASK_ID"] = task_id
+        try:
+            result = subprocess.run(
+                ["bash", hook],
+                input=payload,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=10,
+            )
+            self.assertEqual(result.returncode, 0,
+                             f"Hook exited non-zero: {result.stderr}")
+            self.assertTrue(os.path.exists(sentinel_path),
+                            f"Sentinel file missing: {sentinel_path}\nhook stdout: {result.stdout}")
+            with open(sentinel_path) as f:
+                grant = json.load(f)
+            ops = grant.get("allowed_operations", [])
+            self.assertEqual(len(ops), 1, f"Expected 1 op entry, got: {ops}")
+            entry = ops[0]
+            self.assertEqual(entry.get("op"), "Write")
+            self.assertEqual(entry.get("target"), "/tmp/file.json",
+                             f"Expected target=/tmp/file.json, got entry={entry}")
+            self.assertNotIn("args_contain", entry,
+                             f"args_contain must not be present: {entry}")
+            # Sentinel must not be bare wildcard — 'target' key required
+            self.assertIn("target", entry, "Entry must have 'target' key (not bare wildcard)")
+            # Matcher allow/deny
+            allow_result = match_sentinel_grant_for_write(task_id, session_id, "/tmp/file.json")
+            self.assertIsNotNone(allow_result,
+                                 "Matcher should allow /tmp/file.json but returned None")
+            deny_result = match_sentinel_grant_for_write(task_id, session_id, "/tmp/other.json")
+            self.assertIsNone(deny_result,
+                              "Matcher should deny /tmp/other.json but returned non-None")
+        finally:
+            for p in (sentinel_path, legacy_path):
+                if os.path.exists(p):
+                    os.unlink(p)
 
 
 if __name__ == "__main__":

@@ -49,8 +49,18 @@ Gather source artifacts from the active task-id when available:
 
 When updating an existing spec, append; never overwrite prior cycles. Determine
 the next cycle number as `max(existing "### Cycle N" headings across Sections
-1-7) + 1`; if none exist, use Cycle 1. Populate the 8-section template as
-follows:
+1-7) + 1`; if none exist, use Cycle 1.
+
+Before appending the first new `### Cycle N` heading for this run, check whether
+the spec file already contains `<!-- spec-continuation-of: <resolved-task-id> -->`
+(substituting the actual task-id value — never a literal `${TASK_ID}` or
+`<task-id>` placeholder). If that exact line is absent, write it as the very
+first line of the new cycle block, before any section headings. If it is already
+present, do not write a second copy. This marker is written exactly once per
+(task-id, spec file) pair and must appear only in this continuation-spec mode,
+never in temp-note mode.
+
+Populate the 8-section template as follows:
 
 - Section 2: what was attempted and why it did not finish.
 - Section 3: changed files or artifact references, not raw diffs.

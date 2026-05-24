@@ -492,7 +492,11 @@ If either check fails and you cannot fix it, report `"status": "blocked"` instea
 **Git-diff derivation (MANDATORY)**: `dev.files_modified` and `dev.files_created` MUST be derived from git commands run at the end of your implementation, before writing the report — NOT from work-tree inspection of expected state.
 
 - `dev.files_modified`: paths from `git diff --name-only <baseline_head_sha>` (working-tree diff against the baseline SHA received in the dispatch payload — lists modified tracked files).
-- `dev.files_created`: paths from `git ls-files --others --exclude-standard` (untracked new files at end of dev execution), EXCLUDING any paths that appear in `baseline_dirty_snapshot` (those were untracked before this task started, not created by it).
+- `dev.files_created`: UNION of two sources, minus `baseline_dirty_paths` (paths parsed from the `baseline_dirty_snapshot` porcelain output — those were already new/untracked before this task started):
+  - `git ls-files --others --exclude-standard` (untracked new files at end of dev execution)
+  - `git diff --cached --name-only --diff-filter=A` (staged new files not yet committed — a staged file is tracked by the index and does NOT appear in `--others` output)
+
+  Note: `dev.files_modified` (from `git diff --name-only`) and `dev.files_created` (from the combined derivation above) are not required to be disjoint. A staged new file appears in the working-tree diff (listed in `dev.files_modified`) AND in `git diff --cached --diff-filter=A` (listed in `dev.files_created`). Both lists are non-exclusive by design.
 
 If `baseline_head_sha` is empty or absent (unborn repo), skip git-diff derivation and use `git status --porcelain` to list changed files; note the fallback in `implementation_notes`.
 

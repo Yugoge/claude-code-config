@@ -408,34 +408,51 @@ Read `baseline_head_sha` from the dev-report top-level field (or context JSON). 
 
 When `baseline_head_sha` is present:
 
-1. Compute the set of files actually changed since the baseline: `git diff --name-only <baseline_head_sha>` (working tree vs baseline SHA — changes are uncommitted at QA time).
-2. Read `dev.files_modified` from the dev-report.
-3. Read `baseline_dirty_snapshot` from the dev-report or context JSON.
-4. For every path in `dev.files_modified` that is **absent** from the `git diff --name-only <baseline_head_sha>` output **AND** absent from `baseline_dirty_snapshot`, raise a critical FAIL finding:
+1. Compute the set of files actually changed since the baseline: `git diff --name-only <baseline_head_sha>` (working tree vs baseline SHA — changes are uncommitted at QA time). Collect this as `diff_files`.
+2. Read `dev.files_modified` and `dev.files_created` from the dev-report.
+3. Read `baseline_dirty_snapshot` from the dev-report or context JSON. Parse it into `baseline_dirty_paths`: for each porcelain line, extract the path field (columns 4+ of the line). For rename entries where the path field contains ` -> `, add **both** the source path and the destination path to `baseline_dirty_paths` to avoid false positives across `git diff --name-only` variants. Use this set (not the raw string) in all exclusion checks below.
+4. For every path in `dev.files_modified` that is **absent** from `diff_files` **AND** absent from `baseline_dirty_paths`, raise a critical FAIL finding:
    ```json
    {
      "label": "dev_provenance_violation",
      "primary_cause": "dev_implementation",
      "severity": "critical",
-     "detail": "<path> appears in dev.files_modified but is not in git diff --name-only <baseline_head_sha> and was not in baseline_dirty_snapshot"
+     "detail": "<path> appears in dev.files_modified but is not in git diff --name-only <baseline_head_sha> and was not in baseline_dirty_paths"
    }
    ```
-5. Paths that appear in `baseline_dirty_snapshot` are excluded from the FAIL set even if absent from the diff — dev may have confirmed them without modifying them.
+5. Paths in `baseline_dirty_paths` are excluded from the FAIL set even if absent from the diff — dev may have confirmed them without modifying them.
+
+**Reverse (under-reporting) check** — run immediately after step 5 (uses `diff_files` and `baseline_dirty_paths` computed above):
+
+5a. For every path in `diff_files` that is:
+   - **absent** from `dev.files_modified ∪ dev.files_created` (union of both lists), AND
+   - **absent** from `baseline_dirty_paths`
+
+   raise a critical FAIL finding:
+   ```json
+   {
+     "label": "files_modified_underreport_violation",
+     "primary_cause": "dev_implementation",
+     "severity": "critical",
+     "detail": "<path> appears in git diff --name-only <baseline_head_sha> but is absent from dev.files_modified ∪ dev.files_created and was not in baseline_dirty_paths — dev under-reported its file footprint"
+   }
+   ```
+   Note: the union check (`dev.files_modified ∪ dev.files_created`) prevents false positives for staged new files, which appear in both the diff output (as added files) and in `dev.files_created`. A path satisfies the check if it appears in either list.
+   Note: `dev.observed_preexisting` is NOT an exclusion for this check. By definition (`agents/dev.md` derivation rules), `observed_preexisting` contains only paths absent from `git diff --name-only`; a path cannot logically be both in `diff_files` and in `observed_preexisting`. Using it as an exclusion would create an escape hatch where dev claims a changed file is "preexisting" to suppress a violation.
 
 Also check `dev.files_created` for provenance:
 
-6. Compute the set of new untracked files: `git ls-files --others --exclude-standard` (lists files not tracked by git).
-7. Read `dev.files_created` from the dev-report.
-8. For every path in `dev.files_created` that is **absent** from the `git ls-files --others --exclude-standard` output **AND** absent from `baseline_dirty_snapshot`, raise a critical FAIL finding:
+6. Compute the combined set of new files: UNION of `git ls-files --others --exclude-standard` (untracked files not in git index) and `git diff --cached --name-only --diff-filter=A` (staged new files added to the index but not yet committed). A staged file is NOT returned by `--others`, so both commands are required.
+7. For every path in `dev.files_created` that is **absent** from the combined new-files set (step 6) **AND** absent from `baseline_dirty_paths`, raise a critical FAIL finding:
    ```json
    {
      "label": "files_created_provenance_violation",
      "primary_cause": "dev_implementation",
      "severity": "critical",
-     "detail": "<path> appears in dev.files_created but is not in git ls-files --others --exclude-standard and was not in baseline_dirty_snapshot"
+     "detail": "<path> appears in dev.files_created but is not in (git ls-files --others --exclude-standard ∪ git diff --cached --name-only --diff-filter=A) and was not in baseline_dirty_paths"
    }
    ```
-9. Paths that appear in `baseline_dirty_snapshot` are excluded from the FAIL set even if absent from the untracked list — they were already new/untracked at baseline time.
+8. Paths in `baseline_dirty_paths` are excluded from the FAIL set even if absent from the combined new-files set — they were already new/untracked at baseline time.
 
 **Check related functionality not broken**:
 

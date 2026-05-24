@@ -3,11 +3,11 @@
   "task_id": "20260524-125300-push",
   "timestamp": "2026-05-24T12:53:00Z",
   "baseline_head_sha": "f79fba1c1684d246928a3cfb39bf1ed7a9a5c8a5",
-  "iteration": 2,
-  "iteration_notes": "Revised after QA rejection. All 5 blocking (QA-1 through QA-5) and 2 major (QA-6, QA-7) issues fixed. Codex iteration 2 consulted and 3 additional findings incorporated. ACs expanded from 5 to 10 (AC1-AC10 with AC5 split into AC5a+AC5b).",
+  "iteration": 3,
+  "iteration_notes": "Clean rewrite after QA rejection of iteration 2. All 5 NEW-B blockers and 5 NEW-M majors resolved. Codex iteration 3 consulted; 5 in-scope findings applied. AC numbering simplified: AC1-AC10 flat (no AC5a/AC5b split). AC5=warn verdict, AC6=push.sh absent, AC7=execv OSError. All mock push.sh tests use HOME isolation. --branch arg added throughout.",
   "requirement": {
     "original": "Create scripts/execute-push.py — an atomic push script that eliminates the timing window in the current /push Step 5 implementation. The &&-chained pattern (python3 validate_sentinel.py && bash push.sh) has a window between validator exit and push.sh start. os.execv eliminates this window. Update commands/push.md Step 5 to call this script directly.",
-    "clarified": "Create scripts/execute-push.py that accepts grant params as CLI args, validates the push-analyst grant, consumes it (approved/warn only), writes the Chain-B sentinel atomically, checks HEAD drift at two points, and replaces itself with push.sh via os.execv. Update commands/push.md Steps 4+5: Step 4 delegates all grant validation/consume to the script; Step 5 replaces any &&-chained invocation or validate_sentinel.py reference with the python3 invocation.",
+    "clarified": "Create scripts/execute-push.py with CLI args --repo-hash --branch --remote --request-id [--auto]; SESSION_ID from CLAUDE_SESSION_ID env var only; 13-step operation order (parse args, read SESSION_ID, compute grant path, check push.sh, read grant, parse JSON, validate non-head_sha fields, act on verdict, check HEAD drift at step 9 ONLY, consume grant, write sentinel, set env, execv). Update commands/push.md Steps 4+5 to single python3 ~/.claude/scripts/execute-push.py invocation (tilde form) with --branch arg; Step 4 MUST NOT instruct orchestrator to manually unlink grant.",
     "what": "New script scripts/execute-push.py that atomically transitions from grant validation to push.sh execution within one process via os.execv",
     "why": "Eliminate timing window between validator exit and push.sh start that exists in && chaining; prevent subagent delegation of Steps 4+5 which causes both sentinel-write refusal (auth boundary) and dispatch latency exceeding TTL windows",
     "where": ["scripts/execute-push.py", "commands/push.md"],
@@ -26,25 +26,28 @@
       ]
     },
     "success_criteria": [
-      "execute-push.py with valid grant (approved) + no HEAD drift writes Chain-B sentinel and exec()s push.sh as single process",
-      "execute-push.py with verdict=warn displays risks[] to stderr, flushes, then exec()s push.sh",
-      "execute-push.py exits non-zero when grant is expired or any field mismatches, before sentinel is written",
-      "execute-push.py exits non-zero (exit 1) when HEAD has drifted (pre-head mismatch at step 5), before sentinel is written",
-      "execute-push.py exits non-zero (exit 1) when grant.head_sha mismatches current HEAD (step 9), before sentinel is written",
-      "execute-push.py exits non-zero (exit 1) when verdict=blocked; blocked grant is intentionally NOT consumed",
-      "execute-push.py exits exit 2 when CLAUDE_SESSION_ID is unset",
-      "execute-push.py exits exit 2 when push.sh is absent; grant not consumed",
-      "orphaned sentinel is cleaned up (exit 2) when os.execv raises OSError; grant was consumed",
-      "commands/push.md Step 5 invokes python3 ~/.claude/scripts/execute-push.py directly; no &&-chained pattern remains"
+      "execute-push.py with valid grant (approved) + no HEAD drift writes Chain-B sentinel and exec()s push.sh as single process (AC1)",
+      "execute-push.py with verdict=warn displays risks[] to stderr, flushes, then exec()s push.sh (AC5)",
+      "execute-push.py exits 1 when grant is expired or any non-head_sha field mismatches, before sentinel is written, grant preserved (AC2)",
+      "execute-push.py exits 1 when grant.head_sha mismatches current HEAD at step 9 (single drift check only), before sentinel is written, grant preserved (AC3)",
+      "execute-push.py exits 1 when verdict=blocked; blocked grant is intentionally NOT consumed (AC4)",
+      "execute-push.py exits 2 when CLAUDE_SESSION_ID is unset (AC8)",
+      "execute-push.py exits 2 when push.sh is absent; grant not consumed (AC6)",
+      "orphaned sentinel is cleaned up (exit 2) when os.execv raises OSError; grant was consumed at step 10 before sentinel write (AC7)",
+      "commands/push.md Step 4 states execute-push.py is sole handler (MUST NOT manually validate or unlink) (AC9)",
+      "commands/push.md Step 5 invokes python3 ~/.claude/scripts/execute-push.py (tilde form) with --branch --request-id --repo-hash --remote args (AC10)"
     ],
     "constraints": [
       "Sentinel schema must match exactly what hooks/push.sh:118-152 expects: exactly 5 fields — result, request_id, head, branch (raw), remote — all mandatory non-empty strings",
       "SESSION_ID must come from CLAUDE_SESSION_ID env var, not CLI arg",
-      "Invocation path must be ~/.claude/scripts/execute-push.py (tilde-expanded), not relative",
+      "Invocation path must be ~/.claude/scripts/execute-push.py (tilde-expanded), not /root/.claude/ form",
+      "--branch is a required CLI argument (not re-derived from git); used in grant field validation and sentinel",
+      "Single HEAD drift check at step 9 ONLY; no --pre-head CLI arg",
       "Python 3.8+ compatible (expires_at Z-suffix parsing via replace('Z', '+00:00'))",
       "os.execv, not subprocess.run — process image replacement is the core guarantee",
-      "Exit code taxonomy: exit 2 for setup/infrastructure failures; exit 1 for grant validation failures",
-      "Flush stderr before os.execv so warn-path output is not buffered away"
+      "Exit code taxonomy: exit 2 for setup/infrastructure failures (SESSION_ID unset, push.sh absent, execv OSError); exit 1 for grant validation failures",
+      "Flush stderr before os.execv so warn-path output is not buffered away",
+      "Test isolation: HOME=<tmpdir> for all tests needing mock push.sh; mock uses MOCK_CAPTURE_PATH env var; NEVER write to ~/.claude/hooks/push.sh"
     ]
   },
   "scope_boundary": {
@@ -115,7 +118,7 @@
     {"id": "R2", "source_phrase": "Validates the push-analyst grant at the expected path (read, check all fields, expire check)", "acceptance_criterion": "All 9 grant fields validated per commands/push.md Step 4; any failure exits non-zero before sentinel write"},
     {"id": "R3", "source_phrase": "Consumes (unlinks) the push-analyst grant", "acceptance_criterion": "Grant file is absent after execute-push.py run (on success path; after validation on abort path)"},
     {"id": "R4", "source_phrase": "Writes Chain-B sentinel atomically (mkstemp + rename)", "acceptance_criterion": "Sentinel appears atomically at correct path with all 5 required binding fields (result, request_id, head, branch, remote)"},
-    {"id": "R5", "source_phrase": "Checks for HEAD drift (git rev-parse HEAD == pre-head argument)", "acceptance_criterion": "HEAD drift → exit 1, no sentinel written"},
+    {"id": "R5", "source_phrase": "Checks for HEAD drift: git rev-parse HEAD == grant.head_sha (step 9 only, single check)", "acceptance_criterion": "HEAD drift at step 9 → exit 1, no sentinel written, grant preserved"},
     {"id": "R6", "source_phrase": "exec()s push.sh (os.execv — replaces process, NOT subprocess) with CLAUDE_PUSH_REQUEST_ID set", "acceptance_criterion": "os.environ has CLAUDE_PUSH_REQUEST_ID before execv; push.sh is exec'd not subprocess'd"},
     {"id": "R7", "source_phrase": "commands/push.md Step 5 is updated to call this script directly (not delegate to subagent)", "acceptance_criterion": "Step 5 in commands/push.md references python3 ~/.claude/scripts/execute-push.py with all params from Step 2 snapshot"}
   ],
@@ -221,15 +224,19 @@
     "files_to_create": ["scripts/execute-push.py"],
     "files_to_modify": ["commands/push.md"],
     "key_implementation_notes": [
-      "Exit code taxonomy: exit 2 for setup/infrastructure errors (CLAUDE_SESSION_ID unset, bad args, push.sh missing, execv OSError); exit 1 for grant validation failures",
-      "Blocked verdict: do NOT consume grant; leave it on disk for audit (replay only re-blocks)",
-      "Warn verdict: display risks[] to stderr, flush stderr, then proceed to consume+sentinel+execv",
-      "os.execv argv: [push_sh_path, remote] + (['--auto'] if auto else []); push_sh_path is the full expanded path, not just 'push.sh'",
+      "13-step operation order: (1) parse args, (2) read CLAUDE_SESSION_ID, (3) compute grant path, (4) check push.sh executable, (5) read grant file, (6) parse JSON, (7) validate non-head_sha fields, (8) act on verdict, (9) single HEAD drift check, (10) consume grant, (11) write sentinel atomically, (12) set CLAUDE_PUSH_REQUEST_ID, (13) os.execv",
+      "Exit code taxonomy: exit 2 for setup/infrastructure errors (CLAUDE_SESSION_ID unset, push.sh absent, execv OSError); exit 1 for grant validation failures",
+      "Blocked verdict: do NOT consume grant; leave it on disk for audit (replay always re-blocks; new /push generates new request-id)",
+      "Warn verdict: display risks[] to stderr, flush stderr, then proceed to step 10 (consume+sentinel+execv)",
+      "os.execv argv: [push_sh_path, remote] + (['--auto'] if auto else []); push_sh_path is expanded ~/.claude/hooks/push.sh path",
       "Flush sys.stderr before os.execv so warn-path output is not buffered away on process image replacement",
-      "Sentinel cleanup on execv OSError: unlink sentinel then return exit 2 (not exit 1)",
-      "Step 6 (push.sh check) must abort before step 10 (grant consume) so grant is preserved when push.sh is absent"
+      "Sentinel cleanup on execv OSError: unlink sentinel, then exit 2; grant WAS consumed at step 10 before sentinel write",
+      "Step 4 (push.sh check) must abort before step 10 (grant consume) so grant is preserved when push.sh is absent",
+      "Sentinel path: /tmp/agentic-commit/push-analyst/<repo-hash>/<branch_encoded>-chainB.validated.sentinel.json where branch_encoded = branch.replace('/', '__')",
+      "Sentinel head field = grant.head_sha (proved equal to current HEAD by step 9; using grant field value avoids double git rev-parse)",
+      "HOME isolation for tests: mock push.sh at <tmpdir>/.claude/hooks/push.sh; script invoked by absolute path; MOCK_CAPTURE_PATH written by mock"
     ],
-    "validation_approach": "AC1-AC10: invoke execute-push.py with mock push.sh and fixture grant files using EXECUTE_PUSH_TEST_CAPTURE protocol; assert sentinel contents, CLAUDE_PUSH_REQUEST_ID in env, grant consumed/preserved per verdict, correct exit codes (2 vs 1) on abort conditions. Grep-based AC9/AC10 verify commands/push.md changes."
+    "validation_approach": "AC1-AC10: invoke execute-push.py by absolute path with HOME=<tmpdir> isolation for mock push.sh tests; fixture grant files written to /tmp/agentic-commit/push-analyst/; assert sentinel contents, MOCK_CAPTURE_PATH contents, grant consumed/preserved per verdict, correct exit codes (2 vs 1). Grep-based AC9/AC10 verify commands/push.md changes."
   },
   "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260524-125300-push.json",
   "blast_radius_map_path": null,
@@ -257,37 +264,49 @@
       {
         "iteration": 2,
         "feedback_summary": "Codex confirmed AC5a simulation correct; AC5b broken-shebang approach is sound; AC6 correctly isolates step 9; blocked grant unconsumed is safe. Three new in_scope_real_bug findings: (1) AC5a THEN must also assert grant still exists (abort before consume); (2) AC5b exit code must be 2 per exit-code taxonomy not 1; (3) stderr must be flushed before os.execv for warn-path correctness. One finding classified out_of_scope: no AC for os.execv vs subprocess proof (R6 already specifies; test quality gap for dev).",
+        "feedback_incorporated": "3 in_scope_real_bug findings applied: AC5a THEN adds grant_still_exists; AC5b exit code corrected to 2; operation order step 13 (stderr flush) added and M10 updated. 1 out_of_scope finding logged."
+      },
+      {
+        "iteration": 3,
+        "feedback_summary": "Codex reviewed the clean iteration 3 draft (all NEW-B/NEW-M blockers resolved, --pre-head removed, single drift check at step 9). Five in-scope findings applied: (1) AC2 GIVEN must scope to non-head_sha mismatches only to avoid overlap with AC3; (2) AC6 (push.sh absent) and AC7 (execv OSError) must use HOME=<tmpdir> isolation; (3) --branch arg must be included in all AC invocation forms; (4) Q2 (AC7 isolation) resolved: use HOME=<tmpdir> with bad-shebang mock push.sh; (5) Q3 (sentinel head field) confirmed: use grant.head_sha (proved equal by step 9). Q1 (--branch vs HEAD branch): spec should note --branch comes from Step 2 snapshot in commands/push.md, not re-derived from git.",
         "findings": [
           {
-            "issue": "AC5a should assert grant still exists (abort before consume) not just sentinel absent",
-            "proposed_fix": "AC5a THEN: exit 2, no sentinel, grant file still exists, stderr mentions push.sh",
+            "issue": "AC2 GIVEN does not scope to non-head_sha fields; could overlap with AC3",
+            "proposed_fix": "AC2 GIVEN explicitly states 'any non-head_sha mandatory field is wrong/missing/mismatched; head_sha is set to current HEAD so step 9 would pass'",
             "classification": "in_scope_real_bug",
             "disposition": "applied",
-            "rationale": "Push.sh absent triggers step-6 abort before step-10 consume; grant must remain unconsumed. AC5a THEN updated."
+            "rationale": "Without this scoping, a test with mismatched branch AND mismatched head_sha would satisfy both AC2 and AC3. The GIVEN must isolate which step fires."
           },
           {
-            "issue": "AC5b exit code must be 2 per exit-code taxonomy, not exit 1",
-            "proposed_fix": "Align AC5b with exit-code table: execv OSError after sentinel write is a setup failure → exit 2",
+            "issue": "AC6 and AC7 must also use HOME=<tmpdir> isolation (not write to ~/.claude/hooks/push.sh)",
+            "proposed_fix": "Both ACs: test harness sets HOME=<tmpdir>; AC6 does NOT create push.sh; AC7 creates push.sh with bad shebang at <tmpdir>/.claude/hooks/push.sh",
             "classification": "in_scope_real_bug",
             "disposition": "applied",
-            "rationale": "M11 says 'exit non-zero'; exit-code table says setup/infrastructure failures are exit 2. AC5b corrected to exit_code: 2."
+            "rationale": "Same isolation contract as AC1/AC2/AC3/AC4/AC5. Mock must never write to live ~/.claude/hooks/push.sh (symlink to repo)."
           },
           {
-            "issue": "Stderr flush required before os.execv for warn-path correctness",
-            "proposed_fix": "Add sys.stderr.flush() (or print(..., flush=True)) before os.execv; operation order step 13 added",
+            "issue": "--branch arg missing from several AC invocation forms",
+            "proposed_fix": "All AC WHEN clauses: add --branch <branch> to the python3 execute-push.py invocation",
             "classification": "in_scope_real_bug",
             "disposition": "applied",
-            "rationale": "Python stderr may buffer when not connected to TTY. Operation order step 13 added: 'Flush sys.stderr'. M10 updated. AC7 notes stderr capture before execv."
+            "rationale": "--branch is a required CLI arg per user constraints; omitting it causes argparse failure before any AC logic executes."
           },
           {
-            "issue": "No AC proves os.execv rather than subprocess",
-            "proposed_fix": "Add static check: scripts/execute-push.py uses os.execv( not subprocess.*push.sh",
-            "classification": "out_of_scope",
-            "disposition": "logged",
-            "rationale": "R6 explicitly specifies os.execv. This is a test quality gap for dev, not a BA spec defect. The AC1 capture mechanism (mock push.sh running means exec replaced process) implicitly validates this."
+            "issue": "Q2: AC7 broken-shebang approach — HOME isolation or separate tmpdir path?",
+            "proposed_fix": "Use HOME=<tmpdir>; create <tmpdir>/.claude/hooks/push.sh (chmod 0755) with shebang #!/tmp/execute-push-nointerp-<pid> (asserted non-existent); this causes os.execv OSError",
+            "classification": "in_scope_real_bug",
+            "disposition": "applied",
+            "rationale": "HOME isolation is cleaner; consistent with other ACs; avoids any ambiguity about which path the script resolves."
+          },
+          {
+            "issue": "Q3: sentinel head field should use grant.head_sha not independently re-read git HEAD",
+            "proposed_fix": "Sentinel head = grant.head_sha (step 9 proved equality; using grant field avoids double git invocation and is semantically correct)",
+            "classification": "in_scope_real_bug",
+            "disposition": "applied",
+            "rationale": "Step 9 already proved grant.head_sha == current HEAD. Using grant.head_sha in the sentinel is correct and avoids a second subprocess call."
           }
         ],
-        "feedback_incorporated": "3 in_scope_real_bug findings applied: AC5a THEN adds grant_still_exists; AC5b exit code corrected to 2; operation order step 13 (stderr flush) added and M10 updated. 1 out_of_scope finding logged."
+        "feedback_incorporated": "5 in-scope findings applied: AC2 GIVEN scoped to non-head_sha; AC6/AC7 HOME isolation; --branch added throughout; AC7 bad-shebang approach confirmed; sentinel head = grant.head_sha confirmed."
       }
     ]
   }
