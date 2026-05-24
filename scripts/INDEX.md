@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-22T10:30:43Z*
-**Total entries**: 76
+*Last updated: 2026-05-24T12:25:51Z*
+**Total entries**: 77
 **Convention**: kebab
 
 ## Tree
@@ -79,6 +79,7 @@ scripts/
 ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 ├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
+├── `write-bulk-commit-sentinel.py` - Invoked from commands/commit.md Step 5 (BULK=true) to authorize the
 ├── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
 ├── `write-commit-grant.py` - Invoked from `commands/commit.md` Step 5 (non-bulk mode) to author a
 ├── `write-e2e-enforce.sh` - Writes e2e-enforce.json into the dev-registry for the given session.
