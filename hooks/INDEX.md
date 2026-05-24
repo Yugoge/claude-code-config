@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-24T12:44:07Z*
-**Total entries**: 134
+*Last updated: 2026-05-24T13:50:41Z*
+**Total entries**: 135
 **Convention**: kebab
 
 ## Tree
@@ -44,6 +44,7 @@ hooks/
 │   ├── `test_ac9_verify.sh` - Shell script
 │   ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 │   ├── `test_bash_safety_context.py` - Tests strip_non_executable_contexts() in isolation, covering the main
+│   ├── `test_bulk_commit_sentinel.py` - Covers:
 │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 │   ├── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
 │   ├── `test_final_sweep.sh` - Final sweep — run inline AC checks and print PASS/FAIL summary.

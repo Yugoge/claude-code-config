@@ -89,7 +89,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from lib.allowlist import read_grant_for_git_command  # noqa: E402
+from lib.allowlist import read_grant_for_git_command, match_sentinel_grant_for_bash_command  # noqa: E402
 
 
 BLESSED_BRIDGE_RE = re.compile(r'auto-bulk:\s*end-of-cycle commit for\b')
@@ -144,13 +144,20 @@ def _has_do_consent(data: dict) -> bool:
 def _check_git_allowlist(command: str, data: dict) -> bool:
     """Check /allow grant for non-push git operations. Read-only.
 
-    Main-agent only. Returns True if grant matched (consume deferred to PostToolUse).
-    IS_SUBAGENT check fires here before calling the library function.
+    Main-agent only for LEGACY grants. Sentinel grants (task 20260524-133650):
+    extend to subagents — mirrors M2 decision in pretool-bash-safety.sh:484.
+    IS_SUBAGENT check preserved for legacy path only.
     """
-    if data.get('agent_id'):
-        return False
     sid = _get_session_id(data)
     if not sid:
+        return False
+    # Sentinel grant check (task 20260524-133650): NOT gated by subagent firewall.
+    # User-granted sentinels must be honored in subagent context per M2 (20260521-090200).
+    task_id = os.environ.get('CLAUDE_TASK_ID') or sid
+    if match_sentinel_grant_for_bash_command(task_id, command) is not None:
+        return True
+    # Legacy grant check: subagent firewall preserved (original behavior).
+    if data.get('agent_id'):
         return False
     return read_grant_for_git_command(command, sid)
 

@@ -48,4 +48,24 @@ from lib.allowlist import reap_expired_sentinel_grants
 print('[stop-cleanup] reaped', reap_expired_sentinel_grants(), '/tmp/claude-grants/* sentinel grants', file=sys.stderr)
 " 2>>"$CONSENT_LOG" || true
 
+# ── Bulk-commit sentinel reap ──
+# /commit --bulk writes /tmp/claude-bulk-commit-sentinel-<sid>-<nonce>.json
+# (30 min TTL, multi-use). Reap any that have expired at session end.
+python3 -c "
+import glob, json, os
+from datetime import datetime, timezone
+reaped = 0
+for p in glob.glob('/tmp/claude-bulk-commit-sentinel-*.json'):
+    try:
+        d = json.loads(open(p).read())
+        exp = d.get('expires_at', '')
+        end = datetime.fromisoformat(exp.replace('Z', '+00:00'))
+        if datetime.now(timezone.utc) > end:
+            os.unlink(p)
+            reaped += 1
+    except Exception:
+        pass
+print('[stop-cleanup] reaped', reaped, 'bulk-commit sentinels', flush=True)
+" 2>>"$CONSENT_LOG" || true
+
 exit 0
