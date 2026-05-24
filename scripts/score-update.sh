@@ -82,15 +82,15 @@ scores_file, agent, event, note = sys.argv[1:5]
 
 # Canonical event delta table (spec 5.1)
 EVENT_DELTAS = {
-    "close_success_qa_pass":       {"dev": 15, "ba": 8,  "qa": 8},
-    "close_success_qa_fail_fixed": {"dev": 15, "ba": 8,  "qa": 6},
+    "close_success_qa_pass":       {"dev": 5,  "ba": 3,  "qa": 3},
+    "close_success_qa_fail_fixed": {"dev": 5,  "ba": 3,  "qa": 2},
     "close_fail_qa_pass":          {"dev": -10, "ba": -5, "qa": -12},
     "close_fail_qa_fail":          {"dev": -10, "ba": -5, "qa": 0},
-    "qa_first_pass":               {"dev": 6,  "ba": 3,  "qa": 0},
+    "qa_first_pass":               {"dev": 2,  "ba": 1,  "qa": 0},
     "qa_reject_dev":               {"dev": -12, "ba": 0,  "qa": 0},
     "qa_reject_ba":                {"dev": -5, "ba": -8, "qa": 0},
-    "qa_second_pass":              {"dev": 3,  "ba": 0,  "qa": 0},
-    "user_rating_5":               {"dev": 2,  "ba": 1,  "qa": 1},
+    "qa_second_pass":              {"dev": 1,  "ba": 0,  "qa": 0},
+    "user_rating_5":               {"dev": 1,  "ba": 0,  "qa": 0},
     "user_rating_4":               {"dev": -5, "ba": -3, "qa": -3},
     "user_rating_3":               {"dev": -15, "ba": -8, "qa": -8},
     "user_rating_2":               {"dev": -25, "ba": -12, "qa": -12},
