@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-24T12:33:23Z*
-**Total entries**: 472
+*Last updated: 2026-05-24T12:38:35Z*
+**Total entries**: 478
 **Convention**: kebab
 
 ## Tree
@@ -174,6 +174,7 @@ dev/
 ├── `completion-20260521-090300.md` - Development Completion Report — 20260521-090300
 ├── `completion-20260522-000000.md` - Dev Cycle Completion Report
 ├── `completion-20260522-080646.md` - Dev Cycle Completion — 20260522-080646
+├── `completion-20260524-101700.md` - Dev Completion — 20260524-101700
 ├── `completion-d1e94e.md` - Development Completion Report — d1e94e
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
@@ -212,6 +213,8 @@ dev/
 ├── `context-20260524-101700-D.json` - json config
 ├── `context-20260524-101700-H.json` - json config
 ├── `context-20260524-101700-X.json` - json config
+├── `context-20260524-101700.json` - json config
+├── `context-20260524-122910.json` - json config
 ├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
@@ -378,6 +381,7 @@ dev/
 ├── `qa-report-20260524-101700-A.json` - json config
 ├── `qa-report-20260524-101700-B.json` - json config
 ├── `qa-report-20260524-101700-D.json` - json config
+├── `qa-report-20260524-101700.json` - json config
 ├── `qa-report-d1e94e.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
 ├── `qa-report-dev-20260107-100221.json` - json config
@@ -459,6 +463,8 @@ dev/
 ├── `ticket-20260524-101700-D.md` - BA Specification: Spec Text/Test Correction — Task D (test_AC3 provenance gap only)
 ├── `ticket-20260524-101700-H.md` - BA Specification: Three Structural Gaps in happy-session-recovery.sh
 ├── `ticket-20260524-101700-X.md` - BA Specification: Infrastructure Audit — daily-trade, swap-drain, post-start, disk-monitor
+├── `ticket-20260524-101700.md` - BA Specification Aggregate: dev-20260524-101700
+├── `ticket-20260524-122910.md` - BA Specification: spec-20260518-225715 Cycle 3 — 10-Debt Clearance
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-d1e94e-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
