@@ -6,6 +6,7 @@
 # trace each test back to its source AC entry.
 
 import pytest
+from pathlib import Path
 
 AC_UID = "ac4-d3-qa-files-created-check-mirrors-combined-derivation"
 AC_TYPE = "data"
@@ -17,7 +18,10 @@ def test_AC4():
     WHEN:  QA runs the files_created provenance check at agents/qa.md Step 5
     THEN:  QA checks against the combined set (git ls-files --others --exclude-standard UNION git diff --cached --name-only --diff-filter=A) and does NOT raise files_created_provenance_violation for staged-new.py
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — agents/qa.md Step 5 files_created check references git diff --cached --name-only --diff-filter=A in combined derivation set")
+    project_root = Path(__file__).parents[3]
+    qa_md = (project_root / "agents" / "qa.md").read_text(encoding="utf-8")
+
+    assert "diff --cached --name-only --diff-filter=A" in qa_md, (
+        "agents/qa.md must contain 'diff --cached --name-only --diff-filter=A' "
+        "as part of the QA files_created combined derivation set check"
+    )

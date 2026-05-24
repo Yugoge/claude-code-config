@@ -6,6 +6,7 @@
 # trace each test back to its source AC entry.
 
 import pytest
+from pathlib import Path
 
 AC_UID = "21508659cd0bd681"
 AC_TYPE = "data"
@@ -17,7 +18,17 @@ def test_AC1():
     WHEN:  agent appends a new cycle block to a spec file at docs/dev/specs/spec-*.md
     THEN:  the spec file contains the literal string <!-- spec-continuation-of: T --> where T is the resolved task-id value (not a placeholder)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — continuation run writes marker with resolved task-id")
+    # Static verification: the full marker template and resolved-task-id substitution
+    # instruction must appear in spec-update.md for the continuation run to produce
+    # a spec with the marker in it.
+    spec_update = Path(__file__).parents[3] / "commands" / "spec-update.md"
+    content = spec_update.read_text()
+    assert "<!-- spec-continuation-of: <resolved-task-id> -->" in content, (
+        "commands/spec-update.md does not contain the full marker template "
+        "'<!-- spec-continuation-of: <resolved-task-id> -->' — "
+        "the agent may not know the correct marker shape"
+    )
+    assert "substituting the actual task-id value" in content, (
+        "commands/spec-update.md does not include 'substituting the actual task-id value' — "
+        "the agent may write a literal placeholder instead of the resolved task-id"
+    )

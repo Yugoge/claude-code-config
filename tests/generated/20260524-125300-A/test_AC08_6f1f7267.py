@@ -7,13 +7,23 @@
 
 import re
 import sys
+from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "hooks/lib")
+sys.path.insert(0, str(Path(__file__).parents[3]))
+
+from hooks.lib.bash_context_strip import strip_non_executable_contexts
 
 AC_UID = "6f1f7267"
 AC_TYPE = "hook"
+
+
+def grep_match(pattern, text):
+    for line in text.split('\n'):
+        if re.search(pattern, line):
+            return True
+    return False
 
 
 def test_AC_08():
@@ -22,7 +32,6 @@ def test_AC_08():
     WHEN:  strip_non_executable_contexts processes the heredoc whose consumer line contains | /tmp/bash.old
     THEN:  The returned string does NOT match grep -qE '(^|[ \t;|&(])rm\s' — basename 'bash.old' is not in _SHELL_INTERPS; the heredoc body is stripped (treated as non-shell context)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — non-shell absolute path /tmp/bash.old in pipe does NOT preserve body")
+    cmd = "cat <<'EOF' | /tmp/bash.old\nrm /tmp/x\nEOF"
+    result = strip_non_executable_contexts(cmd)
+    assert not grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm incorrectly visible in: {result!r}"
