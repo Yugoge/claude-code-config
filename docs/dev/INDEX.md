@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-24T12:38:35Z*
-**Total entries**: 478
+*Last updated: 2026-05-24T12:44:45Z*
+**Total entries**: 484
 **Convention**: kebab
 
 ## Tree
@@ -38,6 +38,8 @@ dev/
 ├── `acceptance-criteria-20260524-101700-B.json` - json config
 ├── `acceptance-criteria-20260524-101700-D.json` - json config
 ├── `acceptance-criteria-20260524-101700-H.json` - json config
+├── `acceptance-criteria-20260524-122910.json` - json config
+├── `acceptance-criteria-20260524-123039.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2.json` - json config
 ├── `acceptance-criteria-d1e94e.json` - json config
@@ -215,6 +217,7 @@ dev/
 ├── `context-20260524-101700-X.json` - json config
 ├── `context-20260524-101700.json` - json config
 ├── `context-20260524-122910.json` - json config
+├── `context-20260524-123039.json` - json config
 ├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
@@ -417,6 +420,7 @@ dev/
 ├── `style-inspector-report-20260521-090300.json` - json config
 ├── `style-inspector-report-20260522-000000.json` - json config
 ├── `style-inspector-report-20260522-080646.json` - json config
+├── `style-inspector-report-20260524-101700.json` - json config
 ├── `style-inspector-report-d1e94e.json` - json config
 ├── `test-writer-report-20260520-221452.json` - json config
 ├── `test-writer-report-20260521-090100.json` - json config
@@ -465,6 +469,8 @@ dev/
 ├── `ticket-20260524-101700-X.md` - BA Specification: Infrastructure Audit — daily-trade, swap-drain, post-start, disk-monitor
 ├── `ticket-20260524-101700.md` - BA Specification Aggregate: dev-20260524-101700
 ├── `ticket-20260524-122910.md` - BA Specification: spec-20260518-225715 Cycle 3 — 10-Debt Clearance
+├── `ticket-20260524-122947.md` - BA Specification: /push execute-push.py Script + Step 5 Delegation Warning
+├── `ticket-20260524-123039.md` - BA Specification: Session Wrap-Up — Commit Remaining Artifacts + Document Manual Action
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-d1e94e-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
