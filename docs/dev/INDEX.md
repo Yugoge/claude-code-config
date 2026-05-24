@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-24T12:13:09Z*
-**Total entries**: 456
+*Last updated: 2026-05-24T12:25:33Z*
+**Total entries**: 463
 **Convention**: kebab
 
 ## Tree
@@ -83,6 +83,7 @@ dev/
 ├── `ba-qa-report-20260522-080646-D-iter3.json` - json config
 ├── `ba-qa-report-20260522-080646-D.json` - json config
 ├── `ba-qa-report-20260522-080646-F.json` - json config
+├── `ba-qa-report-20260524-101700-A-iter2.json` - json config
 ├── `ba-qa-report-20260524-101700-A.json` - json config
 ├── `ba-qa-report-20260524-101700-B-iter2.json` - json config
 ├── `ba-qa-report-20260524-101700-B.json` - json config
@@ -113,6 +114,7 @@ dev/
 ├── `cleanliness-inspector-report-20260520-221452.json` - json config
 ├── `cleanliness-inspector-report-20260521-090100.json` - json config
 ├── `cleanliness-inspector-report-20260521-090200.json` - json config
+├── `cleanliness-inspector-report-20260521-090300.json` - json config
 ├── `cleanliness-inspector-report-20260522-000000.json` - json config
 ├── `cleanliness-inspector-report-20260522-080646.json` - json config
 ├── `cleanliness-inspector-report-d1e94e.json` - json config
@@ -140,6 +142,7 @@ dev/
 ├── `close-report-20260520-085647-d1722b.md` - Close Debate Report
 ├── `close-report-20260520-221452.md` - Close Debate Report (RE-EVALUATION)
 ├── `close-report-20260521-090100.md` - Close Debate Report
+├── `close-report-20260521-090200.md` - Close Debate Report
 ├── `close-report-20260522-000000.md` - Close Debate Report
 ├── `close-report-20260522-080646.md` - Close Debate Report
 ├── `close-report-d1e94e-prior.md` - Close Debate Report
@@ -272,7 +275,10 @@ dev/
 ├── `dev-report-20260522-080646-D.json` - json config
 ├── `dev-report-20260522-080646-F.json` - json config
 ├── `dev-report-20260522-080646.json` - json config
+├── `dev-report-20260524-101700-B.json` - json config
+├── `dev-report-20260524-101700-D.json` - json config
 ├── `dev-report-20260524-101700-H.json` - json config
+├── `dev-report-20260524-101700.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
@@ -305,6 +311,7 @@ dev/
 ├── `prompt-inspector-report-20260520-221452.json` - json config
 ├── `prompt-inspector-report-20260521-090100.json` - json config
 ├── `prompt-inspector-report-20260521-090200.json` - json config
+├── `prompt-inspector-report-20260521-090300.json` - json config
 ├── `prompt-inspector-report-20260522-000000.json` - json config
 ├── `prompt-inspector-report-20260522-080646.json` - json config
 ├── `prompt-inspector-report-d1e94e.json` - json config
