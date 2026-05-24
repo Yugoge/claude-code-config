@@ -75,18 +75,35 @@ verify_write_guard() {
     emit_failure "missing: ${hook}"
     return
   fi
-  # Exec-error detection (>=126 = exec failure, 127 = command not found).
-  # Use mktemp for the synthetic file_path payload per spec-20260518-225715
-  # Cycle 2 P3.8 (replaces former hardcoded temp-dir literal — mktemp keeps
-  # the path tooling-portable and parameterized).
-  local safe_file
-  safe_file=$(mktemp -t canary-safe.XXXXXX)
-  local safe="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"${safe_file}\",\"content\":\"ok\"}}"
+  # Allow case: Write to a path that does NOT yet exist must NOT exit 2.
+  # mktemp is used here only to GENERATE a unique path; we delete the file
+  # before the test so the path is non-existent at the moment of the Write
+  # call, matching the guard's "new file creation" allow path
+  # (hooks/pretool-write-guard.sh:127-128).
+  local new_path
+  new_path=$(mktemp -u -t canary-write-new.XXXXXX)
+  local safe="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"${new_path}\",\"content\":\"ok\"}}"
   echo "${safe}" | bash "${hook}" >/dev/null 2>&1
   local rc=$?
-  rm -f "${safe_file}"
   if [[ "${rc}" -ge 126 ]]; then
     emit_failure "pretool-write-guard.sh exec error rc=${rc}"
+  fi
+  if [[ "${rc}" -eq 2 ]]; then
+    emit_failure "pretool-write-guard.sh BLOCKED a new-file Write (false-positive guard)"
+  fi
+  # Deny case (spec-20260518-225715 Cycle 3 Debt 6 / AC-06): the guard MUST
+  # block Write attempts that target an EXISTING file (per
+  # hooks/pretool-write-guard.sh:120-128). Synthesize the payload by
+  # creating an existing file via mktemp, then send a Write payload that
+  # targets that path. Guard MUST exit 2.
+  local existing_file
+  existing_file=$(mktemp -t canary-write-existing.XXXXXX)
+  local deny="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"${existing_file}\",\"content\":\"overwrite\"}}"
+  echo "${deny}" | bash "${hook}" >/dev/null 2>&1
+  rc=$?
+  rm -f "${existing_file}"
+  if [[ "${rc}" -ne 2 ]]; then
+    emit_failure "pretool-write-guard.sh FAILED to block Write to existing file (rc=${rc}, expected 2; fail-open guard)"
   fi
 }
 
@@ -143,6 +160,16 @@ verify_git_privilege_guard() {
   fi
   if [[ "${rc}" -eq 2 ]]; then
     emit_failure "pretool-git-privilege-guard.py BLOCKED 'git status' (false-positive — should be allowed)"
+  fi
+  # Deny case (spec-20260518-225715 Cycle 3 Debt 6 / AC-06): the guard MUST
+  # block destructive privileged git commands. 'git push --force' is the
+  # canonical destructive write that rewrites history on the remote — the
+  # guard MUST exit 2 when it sees this payload.
+  local deny='{"tool_name":"Bash","tool_input":{"command":"git push --force origin master"}}'
+  echo "${deny}" | ( source ~/.claude/venv/bin/activate && python3 "${hook}" >/dev/null 2>&1 )
+  rc=$?
+  if [[ "${rc}" -ne 2 ]]; then
+    emit_failure "pretool-git-privilege-guard.py FAILED to block 'git push --force' (rc=${rc}, expected 2; fail-open guard)"
   fi
 }
 
