@@ -63,5 +63,122 @@
     "feedback_summary": null,
     "feedback_incorporated": null
   },
-  "_note": "codex_required: true was set in the dispatch prompt, but this is a BA-validation invocation (not a dev-implementation QA), and codex consultation is scoped to dev-QA post-implementation review per the agent file's Codex adversarial consultation section (OPT-IN for post-dev verification). BA-validation mode does not invoke codex. Proceeding with self-review."
+  "_note": "codex_required: true was set in the dispatch prompt, but this is a BA-validation invocation (not a dev-implementation QA), and codex consultation is scoped to dev-QA post-implementation review per the agent file's Codex adversarial consultation section (OPT-IN for post-dev verification). BA-validation mode does not invoke codex. Proceeding with self-review.",
+  "iteration_2": {
+    "timestamp": "2026-05-24T14:10:00Z",
+    "verdict": "fail",
+    "objections_re_evaluated": [
+      {
+        "id": "OBJ-1",
+        "original_title": "Ticket file list is stale — majority of listed files are already committed",
+        "resolution_claimed_by_ba": "Evidence section updated to list 9 dirty files: commands/INDEX.md (M), commands/commit.md (M), docs/dev/INDEX.md (M), docs/dev/ticket-20260524-122910.md (M), hooks/INDEX.md (M), hooks/pretool-git-privilege-guard.py (M), docs/dev/acceptance-criteria-20260524-123039.json (??), docs/dev/context-20260524-123039.json (??), docs/dev/style-inspector-report-20260524-101700.json (??)",
+        "qa_verification": {
+          "git_status_actual": [
+            " M docs/dev/INDEX.md",
+            " M docs/dev/acceptance-criteria-20260524-123039.json",
+            " M docs/dev/context-20260524-123039.json",
+            "?? docs/dev/acceptance-criteria-20260524-122947.json",
+            "?? docs/dev/close-report-20260521-090300.md"
+          ],
+          "commits_after_ba_revision": [
+            "b58b4bc: committed commands/INDEX.md, commands/commit.md, hooks/INDEX.md, hooks/pretool-git-privilege-guard.py",
+            "5baece0: committed docs/dev/acceptance-criteria-20260524-123039.json (now tracked+modified), docs/dev/context-20260524-123039.json (now tracked+modified), docs/dev/style-inspector-report-20260524-101700.json (CLEAN), docs/dev/ticket-20260524-122910.md (CLEAN)",
+            "2346aea: committed docs/dev/INDEX.md (re-dirtied since by current BA-QA write)"
+          ],
+          "files_in_ba_list_that_are_now_clean": [
+            "commands/INDEX.md — committed by b58b4bc, now clean",
+            "commands/commit.md — committed by b58b4bc, now clean",
+            "hooks/INDEX.md — committed by b58b4bc, now clean",
+            "hooks/pretool-git-privilege-guard.py — committed by b58b4bc, now clean",
+            "docs/dev/ticket-20260524-122910.md — committed by 5baece0, now clean",
+            "docs/dev/style-inspector-report-20260524-101700.json — committed by 5baece0, now clean"
+          ],
+          "files_in_ba_list_that_are_still_dirty": [
+            "docs/dev/INDEX.md — M (tracked-modified, re-dirtied)",
+            "docs/dev/acceptance-criteria-20260524-123039.json — M (tracked-modified, was untracked in BA list; committed then re-modified by this QA cycle write)",
+            "docs/dev/context-20260524-123039.json — M (tracked-modified, was untracked in BA list; committed then re-modified by this QA cycle write)"
+          ],
+          "files_dirty_but_NOT_in_ba_list": [
+            "?? docs/dev/acceptance-criteria-20260524-122947.json (untracked, not mentioned in ticket)",
+            "?? docs/dev/close-report-20260521-090300.md (untracked, not mentioned in ticket)"
+          ]
+        },
+        "resolution_status": "NOT_RESOLVED",
+        "dimension": "evidence_quality",
+        "severity": "critical",
+        "detail": "The revised Evidence file list in the BA ticket is still stale. Auto-bulk commits b58b4bc and 5baece0 — which ran AFTER BA wrote the revision — swept 6 of the 9 files BA listed as dirty. The actual current git status --porcelain shows only 3 dirty files from the BA list (docs/dev/INDEX.md M, acceptance-criteria-20260524-123039.json M, context-20260524-123039.json M) plus 2 untracked files (acceptance-criteria-20260524-122947.json, close-report-20260521-090300.md) that are NOT in the BA list at all. The file list the ticket instructs dev to stage is 60% already-committed files. Staging them is a no-op at best; the AC1 verification (git show HEAD --name-only includes 11 named files) would FAIL because the already-committed files will not appear in the new commit's diff. This is the same class of staleness defect as iteration 1, not a resolved OBJ-1.",
+        "blocks_dispatch": true,
+        "required_fix": "BA must run git status --porcelain immediately before finalizing the spec, replace the Evidence file list with the live output, update M1 and Technical Hints staging list to match, update AC1's 'THEN' clause to list only the files that will actually appear in the new commit's show HEAD --name-only output. Additionally, BA must address the 2 new untracked files (acceptance-criteria-20260524-122947.json, close-report-20260521-090300.md) that are currently untracked — either include them in scope or explicitly exclude them with rationale."
+      },
+      {
+        "id": "OBJ-2",
+        "original_title": "AC3 asserts /close todo state is resolved but workflow file proves it is ACTIVE",
+        "resolution_claimed_by_ba": "AC3 now asserts .claude/workflow-c216ded5-b7e1-4432-b79f-a6a2042971fe.json contains 'command': 'redev' (not 'close'), confirming the /close stuck state was replaced",
+        "qa_verification": {
+          "file_location": ".claude/workflow-c216ded5-b7e1-4432-b79f-a6a2042971fe.json — CONFIRMED EXISTS at correct location",
+          "command_field": "\"command\": \"redev\" — CONFIRMED PRESENT",
+          "todo_state_at_qa_time": "Step 7 (BA-QA iteration loop) in_progress; steps 8-15 pending — this is a /redev workflow, NOT a /close workflow",
+          "close_stuck_state_assessment": "The /close workflow was genuinely replaced: the workflow file command is 'redev', not 'close'. The prior /close stuck state no longer persists. The /redev workflow is actively running (that is this very cycle)."
+        },
+        "resolution_status": "RESOLVED",
+        "dimension": "evidence_quality",
+        "detail": "BA corrected both the file location (/tmp -> .claude/) and the assertion content. The file .claude/workflow-c216ded5-b7e1-4432-b79f-a6a2042971fe.json confirmed to contain 'command': 'redev'. The /close stuck state was replaced by the /redev invocation. AC3's assertion is factually accurate and the note will record a true statement. OBJ-2 is resolved.",
+        "blocks_dispatch": false
+      },
+      {
+        "id": "OBJ-3",
+        "original_title": "Ticket scope omits newly-dirty files outside docs/dev/",
+        "resolution_claimed_by_ba": "commands/*.md and hooks/*.py files now declared in scope in the Scope section and Evidence section",
+        "qa_verification": {
+          "files_declared_in_scope": ["commands/INDEX.md", "commands/commit.md", "hooks/INDEX.md", "hooks/pretool-git-privilege-guard.py"],
+          "current_status_of_declared_files": "ALL committed by auto-bulk commit b58b4bc — not currently dirty; staging them is a no-op",
+          "actual_dirty_files_outside_docs_dev": "NONE — all commands/ and hooks/ files are now clean"
+        },
+        "resolution_status": "PARTIALLY_RESOLVED_BUT_SUPERSEDED_BY_OBJ1_RECURRENCE",
+        "dimension": "scope_alignment",
+        "detail": "BA added the commands/ and hooks/ files to scope, which addresses the original OBJ-3 concern. However, those files were committed by auto-bulk b58b4bc after BA wrote the revision, so the scope declaration is now historically accurate but operationally irrelevant — there is nothing dirty to stage in those directories. The actual unresolved scope issue is now the 2 new untracked files (docs/dev/acceptance-criteria-20260524-122947.json, docs/dev/close-report-20260521-090300.md) that appear in the current git status but are absent from the ticket entirely. OBJ-3 is technically addressed for the originally-flagged files, but the same silent-omission problem has recurred for two new files.",
+        "blocks_dispatch": false,
+        "required_fix": "BA must explicitly acknowledge docs/dev/acceptance-criteria-20260524-122947.json and docs/dev/close-report-20260521-090300.md in the Evidence section and either include them in the staging list or add them to Won't Have with documented rationale."
+      }
+    ],
+    "new_findings": [
+      {
+        "id": "OBJ-4",
+        "dimension": "evidence_quality",
+        "severity": "critical",
+        "title": "Two untracked files present in current git status are absent from ticket Evidence and staging list",
+        "detail": "git status --porcelain at QA re-validation time shows: '?? docs/dev/acceptance-criteria-20260524-122947.json' and '?? docs/dev/close-report-20260521-090300.md'. Neither file appears anywhere in the ticket's Evidence section, M1 requirement, Technical Hints staging list, or AC1 assertion. If the dev agent follows the ticket literally, these 2 files will remain untracked after the commit, breaking the audit trail for those sessions. The ticket goal ('commit all remaining uncommitted artifacts') is incompatible with silently leaving these files untracked.",
+        "blocks_dispatch": true,
+        "required_fix": "BA must run git status --porcelain, add these 2 files to the Evidence section, and either include them in the M1 staging list + AC1 verification or explicitly exclude them in Won't Have with rationale explaining why they belong to a different session/cycle."
+      }
+    ],
+    "self_verification": {
+      "adversarial_questions_checked": [
+        "Does the revised Evidence list match actual current git status? NO — 6 of 9 BA-listed files are now clean; 2 new untracked files are not in the list.",
+        "Is the OBJ-2 correction factually accurate? YES — workflow file contains 'command':'redev' at correct path .claude/.",
+        "Did OBJ-3 scope expansion address the originally-flagged files? YES — but those files are now committed; the scope problem has shifted to 2 new unlisted files.",
+        "Does AC1 name-only check pass as written? NO — it names 11 files, 6 of which are already committed and will not appear in the new commit's HEAD show output.",
+        "Is the commit authorization constraint still correct? YES — dev stages only; orchestrator dispatches /commit.",
+        "Are there new auto-bulk commits that could sweep the remaining dirty files before dev runs? POSSIBLE — this is the structural race condition. BA must snapshot git status immediately before dispatch."
+      ],
+      "claims_total": 6,
+      "claims_with_evidence": 6,
+      "claims_superficial": 0,
+      "confidence": "high"
+    },
+    "codex_consult": {
+      "invoked": true,
+      "status": "failed_hook_block",
+      "feedback_summary": "Codex exec blocked by pretool-bash-safety.sh hook: pattern match on '.claude/workflow-' substring in the PROMPT variable caused a false-positive 'Deleting/moving workflow state files is forbidden' block. The codex command itself was not destructive; the hook pattern-matched on the prompt content.",
+      "feedback_incorporated": "self-review substituted — 6 adversarial questions generated and checked"
+    },
+    "summary": {
+      "obj1_resolved": false,
+      "obj2_resolved": true,
+      "obj3_resolved": "partial — original files addressed but problem has recurred for 2 new untracked files",
+      "new_critical_findings": 1,
+      "verdict": "fail",
+      "release_recommendation": "reject — Evidence file list is stale again (auto-bulk committed most listed files after BA wrote revision); AC1 names 6 files that are already committed and will not appear in new commit HEAD; 2 untracked files absent from ticket entirely. BA must re-snapshot git status immediately before finalizing and re-issue the spec."
+    }
+  }
 }
