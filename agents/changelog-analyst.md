@@ -73,15 +73,49 @@ After running git status in both repos, read the dispatch manifest if it exists 
 Set `SID="${CLAUDE_SESSION_ID:-unknown}"`. In non-bulk mode, check for `/tmp/claude-commit-manifest-${SID}.json`. If it exists, activate the venv and parse it with Python to extract `files_at_dispatch` as a newline-separated list. If missing, treat DISPATCH_FILES as empty. Skip this check entirely when `BULK=true`.
 
 For each file in the current git status that is NOT in `DISPATCH_FILES` (and `DISPATCH_FILES` is non-empty):
-Print: `WARNING: file <path> appeared after dispatch (possible foreign session); staging anyway.`
-Do NOT exclude these files — warn only. Bulk mode (BULK=true): skip this check entirely.
+Print: `WARNING: file <path> appeared after dispatch (possible foreign session); deferring staging decision to Phase 2.`
+Phase 0 is **warn-only / classification**: do NOT make any staging or exclusion decision here. The authoritative staging decision is made in Phase 2 below, where the BULK=false dev-report whitelist filter and the `foreign_session_candidate` exclusion are applied. This warning is informational only and surfaces dispatch-time vs current-time drift; whether a flagged file is ultimately staged is determined by the Phase 2 whitelist (when BULK=false and dev-report exists) or by the BULK=true include-all behavior. Bulk mode (BULK=true): skip this check entirely.
 
 ### Phase 2: File classification
 
-**Candidate set** — build from `git status --porcelain=v1` for all statuses:
-Include all entries regardless of status code. Untracked (`??`) entries are
-candidates and will be staged explicitly after exclusions — they do NOT require
-a matching dev-report entry. The dev-report is attribution enrichment only.
+**Candidate set** — scope depends on BULK flag and dev-report availability:
+
+**When BULK=true**: Include all entries from `git status --porcelain=v1` regardless
+of status code. Untracked (`??`) entries are candidates. This is the existing
+bulk-mode behavior and is UNCHANGED.
+
+**When BULK=false AND a dev-report exists** (at the resolved `dev_report_path` below):
+The candidate set is restricted to a **staging whitelist** consisting of:
+
+1. All files listed in `dev.files_modified[]` from the dev-report.
+2. All files listed in `dev.files_created[]` from the dev-report.
+3. Cycle artifacts matching **anchored patterns** for THIS `TASK_ID` under `docs/dev/`:
+   - `ticket-<TASK_ID>.md`
+   - `context-<TASK_ID>.json`
+   - `dev-report-<TASK_ID>.json`
+   - `qa-report-<TASK_ID>.json`
+   - `completion-<TASK_ID>.md`
+   - `close-report-<TASK_ID>.md`
+   - `acceptance-criteria-<TASK_ID>.json`
+   - `*-inspector-report-*<TASK_ID>*` (glob pattern under `docs/dev/` only)
+
+Only files that appear in BOTH the git status output AND this whitelist are
+candidates for staging. Files that appear in git status but are NOT in this
+whitelist are classified as `foreign_session_candidate` and **excluded from
+staging** with a warning:
+`WARNING: excluding <path> — not attributable to task <TASK_ID> (possible foreign session artifact)`
+
+**Staged-file count guard** (BULK=false only, when dev-report exists): after
+building the candidate set, count the files. If the count exceeds
+`len(dev.files_modified) + len(dev.files_created) + 30` (artifact overhead),
+**ABORT** with a scope violation report:
+`ABORT: scope violation — staged file count (<N>) exceeds whitelist limit (<limit>). Possible cross-session contamination.`
+Exit with `failure_code: scope_violation`.
+
+**When BULK=false AND no dev-report exists**: fall back to the original behavior
+(include all entries from `git status --porcelain=v1` regardless of status code)
+with a warning:
+`WARNING: no dev-report found for task <TASK_ID> — falling back to stage-all behavior (no whitelist enforcement)`
 
 **Path normalization** (apply before any comparison or staging):
 - Resolve symlinks: `real_root = os.path.realpath(GIT_ROOT)`
@@ -94,7 +128,7 @@ a matching dev-report entry. The dev-report is attribution enrichment only.
   is the canonical root; dev-report paths like `/root/.claude/agents/foo.md`
   must be realpath-resolved to check repo membership.
 
-**Dev-report enrichment** (attribution only, not authority):
+**Dev-report resolution** (used by both whitelist and enrichment):
 If `TASK_ID` is non-empty, resolve the dev-report path using the subproject path-walk:
 
 Pipe the `git status --porcelain=v1` output for the repo being committed into
@@ -110,13 +144,14 @@ it falls back to `CONTROL_ROOT/docs/dev/dev-report-${TASK_ID}.json`. The script
 prints the resolved path to stdout (empty if not found). Assign the output to
 `dev_report_path`.
 
-Extract `dev.files_modified[]` and `dev.files_created[]` arrays from the resolved path. These paths are
-used for commit message enrichment (deriving type/scope/summary). They do NOT
-add files to the commit that are not already in git status output.
+Extract `dev.files_modified[]` and `dev.files_created[]` arrays from the resolved path.
+When BULK=false, these arrays form the **primary staging whitelist** (along with
+anchored task-id cycle artifacts). When BULK=true, they are used for commit
+message enrichment only (existing behavior).
 
 **Provenance filter** (apply before using dev-report for enrichment):
 
-Read `baseline_head_sha` from the dev-report top-level field. If `baseline_head_sha` is absent or empty, skip the provenance filter and log: `WARNING: baseline_head_sha absent — provenance filter skipped`. Do NOT fail on a missing baseline.
+Read `baseline_head_sha` from the dev-report top-level field. If `baseline_head_sha` is absent or empty, skip the provenance filter and log: `WARNING: baseline_head_sha absent — provenance filter skipped`. Do NOT fail on a missing baseline. When BULK=false and dev-report exists but `baseline_head_sha` is absent, the staging whitelist and foreign-session exclusion are STILL enforced — only the provenance sanity check is skipped.
 
 When `baseline_head_sha` is present:
 
@@ -125,8 +160,12 @@ When `baseline_head_sha` is present:
 3. Apply a split provenance filter:
    - For every path in `dev.files_modified` that is **absent** from the `git diff --name-only <baseline_head_sha>` output **AND** absent from `baseline_dirty_snapshot`, classify it as `provenance_anomaly`.
    - For every path in `dev.files_created`, check via `git ls-files --others --exclude-standard`. If the path is **absent** from that output **AND** absent from `baseline_dirty_snapshot`, classify it as `provenance_anomaly`. (New untracked files do not appear in `git diff --name-only` output; using ls-files is the correct check for this set.)
-4. **Exclude** `provenance_anomaly` paths from commit-message type/scope/summary enrichment derivation. Stage them if they appear in `git status` output (staging authority comes from git status, not dev-report), but do not use their paths to determine commit type or scope.
+4. **Exclude** `provenance_anomaly` paths from commit-message type/scope/summary enrichment derivation. Stage them if they appear in the candidate set (for BULK=true, staging authority comes from git status; for BULK=false, staging authority comes from the whitelist), but do not use their paths to determine commit type or scope.
 5. Log each anomaly with the appropriate source: for `files_modified` paths: `WARNING: provenance_anomaly — <path> claimed by dev.files_modified but absent from git diff --name-only <baseline_head_sha>; excluded from enrichment`. For `files_created` paths: `WARNING: provenance_anomaly — <path> claimed by dev.files_created but absent from git ls-files --others --exclude-standard; excluded from enrichment`.
+
+The `baseline_head_sha` diff is used ONLY as a provenance sanity check for
+already-whitelisted files. It is NEVER an independent inclusion source — files
+not in the whitelist cannot be added to the candidate set via the baseline diff.
 
 **Exclusions** (remove from candidate set regardless of source):
 - Files matching gitignore: check via `git -C "${GIT_ROOT}" check-ignore -q <repo-rel-path>`
@@ -518,6 +557,89 @@ Per-commit staged file set must stay below BULK_THRESHOLD=3 subsystem prefixes
 (`hooks/`, `commands/`, `scripts/`, `packages/`, `docs/`). In bulk mode, commit one
 subsystem per batch. In normal mode, if a single task touches 3+ subsystems, still
 use a single commit but note the risk in the output.
+
+---
+
+## Structured Final Status Output
+
+After completing the commit workflow (or determining nothing needs to be committed),
+emit a machine-readable JSON block on stdout so that `/commit`'s retry protocol can
+parse the result without screen-scraping human-readable text.
+
+### commit_status values
+
+| Value | Meaning |
+|-------|---------|
+| `committed` | At least one git commit was successfully created and a push-gate token was written. |
+| `nothing_to_commit` | No files remained after exclusions (candidate set empty). |
+| `nothing_to_commit_precommitted` | Candidate set was empty AND the HEAD commit was an auto-bulk commit that already covered the task cycle files. |
+| `failed` | The commit attempt failed (see `failure_code`). |
+
+### nothing_to_commit_precommitted detection (THREE-STEP SHA-STABLE CHECK)
+
+Use this exact procedure to avoid TOCTOU and blank-line ambiguity:
+
+```
+HEAD_SHA=$(git rev-parse --verify HEAD)
+```
+
+If the `git rev-parse` command fails (unborn repo, detached HEAD error, etc.),
+do NOT classify as `nothing_to_commit_precommitted` — fall back to `nothing_to_commit`.
+
+```
+COMMIT_SUBJECT=$(git show -s --format=%s "$HEAD_SHA")
+```
+
+Check whether `COMMIT_SUBJECT` matches the pattern `/^auto-bulk:/`.
+Note: `git show --name-only --format= "$HEAD_SHA"` suppresses the commit header and outputs
+filenames ONLY — it CANNOT be used to check the commit subject line; the subject requires this
+separate `git show -s --format=%s` call.
+
+```
+COMMIT_FILES=$(git show --name-only --format= "$HEAD_SHA" | grep -v '^$')
+```
+
+Compute `task_cycle_files` = normalized union of `dev.files_modified` + `dev.files_created`
+from the canonical dev-report (`docs/dev/dev-report-<TASK_ID>.json`).
+
+Trigger `nothing_to_commit_precommitted` only when ALL THREE conditions hold:
+1. The candidate set is empty after exclusions.
+2. `COMMIT_SUBJECT` matches `/^auto-bulk:/`.
+3. `COMMIT_FILES` (blank lines filtered) intersects `task_cycle_files` (at least one file in common).
+
+### auto_bulk_commits array
+
+When status is `nothing_to_commit_precommitted`, populate `auto_bulk_commits` as an array
+of objects `{repo_root, branch, sha}` — one per repo in which the auto-bulk commit was
+detected. Do not use a singular `sha` field (ambiguous in multi-repo setups).
+
+### failure_code values (present only when status=failed)
+
+| Code | Meaning | Retryable by /commit? |
+|------|---------|----------------------|
+| `grant_missing` | No usable commit grant file found at commit time (not present, or already unlinked by a prior successful validation). | Yes |
+| `grant_expired` | A parseable grant exists but `expires_at` is in the past or invalid. | Yes |
+| `grant_consumed` | Grant was already unlinked by a prior successful commit attempt. If the grant path from Step 5 is not recorded, emit `grant_missing` as the fallback. | Yes |
+| `git_error` | `git commit` exited non-zero for a non-grant reason (merge conflict, lock, index error, etc.). | No |
+| `staging_error` | `git add` failed for one or more files in the classified set. | No |
+| `hook_blocked` | A non-grant PreToolUse hook (e.g. `pretool-bash-safety.sh`) blocked the commit command. | No |
+| `scope_violation` | The staged file set contained files outside the authorized task cycle scope. | No |
+
+### Output schema
+
+```json
+{
+  "commit_status": "committed | nothing_to_commit | nothing_to_commit_precommitted | failed",
+  "auto_bulk_commits": [
+    {"repo_root": "<path>", "branch": "<branch>", "sha": "<sha>"}
+  ],
+  "failure_reason": "<human-readable string, present only when status=failed>",
+  "failure_code": "<code from table above, present only when status=failed>"
+}
+```
+
+`auto_bulk_commits` is present (and non-empty) only when `commit_status = nothing_to_commit_precommitted`.
+`failure_reason` and `failure_code` are present only when `commit_status = failed`.
 
 ---
 
