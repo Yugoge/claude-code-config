@@ -461,25 +461,24 @@ def match_sentinel_grant_for_bash_command(task_id: str, command: str) -> dict | 
     ops = grant.get("allowed_operations", [])
     subcommands = _bash_subcommands(command)
 
-    # Pass 1: regex sentinel entries (op="*" with "regex" field).
-    # Applied per-subcommand — regex grants consciously accept broader scope.
-    for sub in subcommands:
-        for entry in ops:
-            if not isinstance(entry, dict) or entry.get("op") != "*":
-                continue
-            regex_pattern = entry.get("regex")
-            if isinstance(regex_pattern, str):
-                if _regex_safe(regex_pattern, sub):
-                    return entry
-
-    # Pass 2: structural entries — only match single-subcommand commands.
-    # Compound commands (len > 1) are denied to prevent compound-command
-    # injection: "git push origin; systemctl restart" must not match a
-    # structural {op:"git"} grant. The sentinel authorizes the granted
-    # operation, not everything chained after it.
+    # Compound-command guard (applies to BOTH regex and structural grants):
+    # a single grant authorizes exactly one operation. Compound commands like
+    # "git push origin; echo PWNED" or "git push && rm -rf /" would otherwise
+    # let an attacker chain an unauthorized operation after the authorized one.
     if len(subcommands) != 1:
         return None
 
+    # Pass 1: regex sentinel entries (op="*" with "regex" field).
+    # Single subcommand already guaranteed above.
+    for entry in ops:
+        if not isinstance(entry, dict) or entry.get("op") != "*":
+            continue
+        regex_pattern = entry.get("regex")
+        if isinstance(regex_pattern, str):
+            if _regex_safe(regex_pattern, subcommands[0]):
+                return entry
+
+    # Pass 2: structural entries.
     sub = subcommands[0]
     # Skip leading KEY=VALUE env-var tokens.
     tokens = sub.split()
