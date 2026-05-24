@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-24T20:00:26Z*
-**Total entries**: 594
+*Last updated: 2026-05-24T20:28:22Z*
+**Total entries**: 609
 **Convention**: kebab
 
 ## Tree
@@ -144,6 +144,8 @@ dev/
 ├── `cleanliness-inspector-report-20260524-123039.json` - json config
 ├── `cleanliness-inspector-report-20260524-125300.json` - json config
 ├── `cleanliness-inspector-report-20260524-133650.json` - json config
+├── `cleanliness-inspector-report-20260524-171714.json` - json config
+├── `cleanliness-inspector-report-20260524-172805.json` - json config
 ├── `cleanliness-inspector-report-d1e94e.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-170335.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
@@ -178,9 +180,14 @@ dev/
 ├── `close-report-20260524-122910.md` - Close Report — Task 20260524-122910
 ├── `close-report-20260524-122947.md` - Close Report: task 20260524-122947
 ├── `close-report-20260524-123039.md` - Close Report: task 20260524-123039
+├── `close-report-20260524-125300.md` - Close Debate Report
 ├── `close-report-20260524-133650.md` - Close Debate Report — Task 20260524-133650
+├── `close-report-20260524-171714.md` - Close Report: task 20260524-171714
+├── `close-report-20260524-172805.md` - Close Report — Task 20260524-172805
+├── `close-report-20260524-allow-gaps.md` - Close Report: /allow gaps cycle (2026-05-24)
 ├── `close-report-d1e94e-prior.md` - Close Debate Report
 ├── `close-report-d1e94e.md` - Close Debate Report — d1e94e
+├── `close-report-dev-20260524-170335.md` - Close Debate Report
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
@@ -213,6 +220,8 @@ dev/
 ├── `completion-20260524-123039.md` - Dev Cycle Completion Report
 ├── `completion-20260524-125300.md` - Completion Report — Cycle 20260524-125300
 ├── `completion-20260524-133650.md` - Completion Report
+├── `completion-20260524-171714.md` - Dev Cycle Completion Report
+├── `completion-20260524-172805.md` - Development Completion Report -- 20260524-172805
 ├── `completion-d1e94e.md` - Development Completion Report — d1e94e
 ├── `completion-dev-20260524-170335.md` - Completion Report: dev-20260524-170335
 ├── `context-20260416-063500.json` - json config
@@ -391,6 +400,8 @@ dev/
 ├── `prompt-inspector-report-20260524-123039.json` - json config
 ├── `prompt-inspector-report-20260524-125300.json` - json config
 ├── `prompt-inspector-report-20260524-133650.json` - json config
+├── `prompt-inspector-report-20260524-171714.json` - json config
+├── `prompt-inspector-report-20260524-172805.json` - json config
 ├── `prompt-inspector-report-d1e94e.json` - json config
 ├── `prompt-inspector-report-dev-20260524-170335.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
@@ -463,6 +474,7 @@ dev/
 ├── `qa-report-20260524-125300-C.json` - json config
 ├── `qa-report-20260524-125300-D.json` - json config
 ├── `qa-report-20260524-125300-push.json` - json config
+├── `qa-report-20260524-125300.json` - json config
 ├── `qa-report-20260524-133650.json` - json config
 ├── `qa-report-20260524-171714.json` - json config
 ├── `qa-report-20260524-172805.json` - json config
@@ -508,6 +520,8 @@ dev/
 ├── `style-inspector-report-20260524-123039.json` - json config
 ├── `style-inspector-report-20260524-125300.json` - json config
 ├── `style-inspector-report-20260524-133650.json` - json config
+├── `style-inspector-report-20260524-171714.json` - json config
+├── `style-inspector-report-20260524-172805.json` - json config
 ├── `style-inspector-report-d1e94e.json` - json config
 ├── `style-inspector-report-dev-20260524-170335.json` - json config
 ├── `test-writer-report-20260520-221452.json` - json config
@@ -576,6 +590,7 @@ dev/
 ├── `ticket-20260524-171714.md` - BA Specification: arch-6 Gitignore Preflight Gate + arch-3 ENOSPC Fallback
 ├── `ticket-20260524-172805.md` - BA Specification: Scoring Rebalance, Rating UX Fix, Session Summary, and Commit Isolation
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
+├── `ticket-close-cont-20260524-170335.md` - Continuation: Fix bare python3 invocations introduced in dev-20260524-170335
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-d1e94e-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-d1e94e.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3

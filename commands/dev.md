@@ -706,7 +706,7 @@ Use Task tool with:
 - `baseline_head_sha` = equality-verified across all workers (aggregate status = `"blocked"` if any worker disagrees, citing `baseline_head_sha` mismatch); value taken from orchestrator dispatch
 - `baseline_dirty_snapshot` = equality-verified across all workers (aggregate status = `"blocked"` if any worker disagrees, citing `baseline_dirty_snapshot` mismatch); value taken verbatim from orchestrator dispatch
 - `dev.observed_preexisting` = UNION of all per-worker `dev.observed_preexisting` lists
-- The orchestrator invokes `python3 scripts/aggregate-dev-report.py --task-id $TASK_ID` to write the canonical aggregate. Capture stdout JSON; action field will be `"aggregated"`, `"validated"`, or `"skipped"`. Do NOT modify the `/commit` command implementation (`/root/.claude/commands/commit.md`)
+- The orchestrator invokes `source venv/bin/activate && python3 scripts/aggregate-dev-report.py --task-id $TASK_ID` to write the canonical aggregate. Capture stdout JSON; action field will be `"aggregated"`, `"validated"`, or `"skipped"`. Do NOT modify the `/commit` command implementation (`/root/.claude/commands/commit.md`)
 
 **Single-dev cycles**: mark this todo step waived (skip). The aggregate-check hook does not fire for single-dev cycles because only one per-worker file pattern can match.
 
@@ -744,7 +744,7 @@ stays as-is.
 - `blocking_issues` = UNION of all per-worker `blocking_issues`
 - `recommendations` = UNION of all per-worker `recommendations`
 
-**Example aggregate JSON** (written by `python3 scripts/aggregate-dev-report.py --task-id $TASK_ID`):
+**Example aggregate JSON** (written by `source venv/bin/activate && python3 scripts/aggregate-dev-report.py --task-id $TASK_ID`):
 
 ```json
 {

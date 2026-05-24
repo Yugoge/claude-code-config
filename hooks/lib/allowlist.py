@@ -459,54 +459,65 @@ def match_sentinel_grant_for_bash_command(task_id: str, command: str) -> dict | 
     if grant is None:
         return None
     ops = grant.get("allowed_operations", [])
-    for sub in _bash_subcommands(command):
-        # Pass 1: regex sentinel entries (op="*" with "regex" field).
+    subcommands = _bash_subcommands(command)
+
+    # Pass 1: regex sentinel entries (op="*" with "regex" field).
+    # Applied per-subcommand — regex grants consciously accept broader scope.
+    for sub in subcommands:
         for entry in ops:
             if not isinstance(entry, dict) or entry.get("op") != "*":
                 continue
             regex_pattern = entry.get("regex")
             if isinstance(regex_pattern, str):
-                def _alarm_handler(signum, frame):
-                    raise TimeoutError("regex timeout")
-                old_handler = signal.signal(signal.SIGALRM, _alarm_handler)
-                signal.alarm(1)
-                try:
-                    matched = bool(re.search(regex_pattern, sub))
-                except (re.error, TimeoutError):
-                    matched = False
-                finally:
-                    signal.alarm(0)
-                    signal.signal(signal.SIGALRM, old_handler)
-                if matched:
+                if _regex_safe(regex_pattern, sub):
                     return entry
 
-        # Pass 2: structural match — skip leading KEY=VALUE env-var tokens.
-        tokens = sub.split()
-        if not tokens:
+    # Pass 2: structural entries — only match single-subcommand commands.
+    # Compound commands (len > 1) are denied to prevent compound-command
+    # injection: "git push origin; systemctl restart" must not match a
+    # structural {op:"git"} grant. The sentinel authorizes the granted
+    # operation, not everything chained after it.
+    if len(subcommands) != 1:
+        return None
+
+    sub = subcommands[0]
+    # Skip leading KEY=VALUE env-var tokens.
+    tokens = sub.split()
+    if not tokens:
+        return None
+    env_skip = 0
+    while env_skip < len(tokens) and re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', tokens[env_skip]):
+        env_skip += 1
+    if env_skip >= len(tokens):
+        return None
+    tokens = tokens[env_skip:]
+    head_op = tokens[0]
+    head_target = tokens[1] if len(tokens) >= 2 else None
+    for entry in ops:
+        if not isinstance(entry, dict):
             continue
-        env_skip = 0
-        while env_skip < len(tokens) and re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', tokens[env_skip]):
-            env_skip += 1
-        if env_skip >= len(tokens):
+        want_op = entry.get("op")
+        if not isinstance(want_op, str) or want_op == "*" or want_op != head_op:
             continue
-        tokens = tokens[env_skip:]
-        head_op = tokens[0]
-        head_target = tokens[1] if len(tokens) >= 2 else None
-        rest = " ".join(tokens[1:]) if len(tokens) >= 2 else ""
-        for entry in ops:
-            if not isinstance(entry, dict):
-                continue
-            want_op = entry.get("op")
-            if not isinstance(want_op, str) or want_op == "*" or want_op != head_op:
-                continue
-            want_target = entry.get("target")
-            if want_target is not None and want_target != head_target:
-                continue
-            args_contain = entry.get("args_contain") or []
-            if not isinstance(args_contain, list):
-                continue
-            if all(isinstance(a, str) and a in rest for a in args_contain):
-                return entry
+        want_target = entry.get("target")
+        if want_target is not None and want_target != head_target:
+            continue
+        args_contain = entry.get("args_contain") or []
+        if not isinstance(args_contain, list):
+            continue
+        # Normalize: split multi-word entries into individual tokens for
+        # prefix matching. Prevents comment-injection bypass via substring
+        # matching (e.g. "push origin" in "commit -m push origin").
+        normalized_ac: list[str] = []
+        for a in args_contain:
+            if isinstance(a, str):
+                normalized_ac.extend(a.split())
+        if not normalized_ac:
+            return entry
+        rest_tokens_list = tokens[1:]
+        if (len(rest_tokens_list) >= len(normalized_ac)
+                and rest_tokens_list[:len(normalized_ac)] == normalized_ac):
+            return entry
     return None
 
 
