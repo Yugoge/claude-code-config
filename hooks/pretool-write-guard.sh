@@ -14,6 +14,15 @@ if [ "$TOOL_NAME" != "Write" ]; then
   exit 0
 fi
 
+# Extract file_path and task_id before any bypass checks (required by sentinel check)
+FILE_PATH=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))" 2>/dev/null)
+# _WG_TASK_ID is passed into the sentinel lookup for backward compat.
+# The sentinel lookup uses a de-duped candidate list (see inline Python below).
+_WG_TASK_ID=$(echo "$INPUT" | python3 -c \
+  "import json,sys; d=json.load(sys.stdin); print(d.get('task_id',''))" \
+  2>/dev/null)
+_WG_ENV_TASK_ID="${CLAUDE_TASK_ID:-}"
+
 # /do bypass (main-agent only)
 _WG_IS_SUB=$(echo "$INPUT" | python3 -c \
   "import json,sys; d=json.load(sys.stdin); print('1' if d.get('agent_id') else '0')" \
@@ -27,6 +36,63 @@ print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" 
   _WG_DO_FLAG="/tmp/claude-orchestrator-consent-${_WG_SID}.flag"
   if [ -f "$_WG_DO_FLAG" ] && [ "$(cat "$_WG_DO_FLAG" 2>/dev/null)" = "true" ]; then
     exit 0
+  fi
+  # Sentinel-grant bypass (main-agent only) — must check BEFORE legacy /allow grant.
+  # CF-1 invariant: if a valid (unexpired, correct-session) sentinel exists for
+  # this task but does NOT match the target file, suppress the legacy
+  # read_grant("Write") fallback entirely. CF-1 only applies to overwrite
+  # attempts (existing files); new-file creation bypasses CF-1 denial.
+  _WG_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  _WG_SENTINEL_RESULT=$(HOOKS_DIR="$_WG_HOOKS_DIR" WG_SID="$_WG_SID" WG_TASK_ID="$_WG_TASK_ID" WG_ENV_TASK_ID="$_WG_ENV_TASK_ID" WG_FILE_PATH="$FILE_PATH" python3 - <<'WGEOF'
+import os, sys
+sys.path.insert(0, os.environ["HOOKS_DIR"])
+from lib.allowlist import match_sentinel_grant_for_write, load_sentinel_grant_for_task
+data_task_id = os.environ.get("WG_TASK_ID", "")
+env_task_id = os.environ.get("WG_ENV_TASK_ID", "")
+session_id = os.environ["WG_SID"]
+target = os.environ["WG_FILE_PATH"]
+# Build a writer-aligned candidate list (de-duped, preserving priority).
+# The sentinel writer (userprompt-consent-allowlist.sh) keys by CLAUDE_TASK_ID:-SID.
+# Priority: (1) writer-preferred key (env CLAUDE_TASK_ID, else session_id),
+#           (2) data.task_id (for grants written during subagent/task context),
+#           (3) session_id (already covered by #1 when CLAUDE_TASK_ID unset).
+writer_key = env_task_id if env_task_id else session_id
+seen = set()
+candidates = []
+for k in [writer_key, data_task_id, session_id]:
+    if k and k not in seen:
+        seen.add(k)
+        candidates.append(k)
+# Attempt lookup against all candidates. Return match if any matches;
+# valid_no_match if at least one valid same-session sentinel exists but
+# none match; none if no valid sentinel found for any candidate.
+match_result = None
+any_valid_sentinel = False
+for key in candidates:
+    g = load_sentinel_grant_for_task(key)
+    if g is None or g.get("session_id") != session_id:
+        continue
+    any_valid_sentinel = True
+    m = match_sentinel_grant_for_write(key, session_id, target)
+    if m is not None:
+        match_result = "match"
+        break
+if match_result == "match":
+    print("match")
+elif any_valid_sentinel:
+    print("valid_no_match")
+else:
+    print("none")
+WGEOF
+)
+  if [ "$_WG_SENTINEL_RESULT" = "match" ]; then
+    exit 0
+  fi
+  # CF-1: valid same-session sentinel exists but does not match this target.
+  # Suppress legacy grant — but ONLY for overwrite attempts (existing files).
+  # New-file creation (non-existing file) must not be blocked by an unrelated sentinel.
+  if [ "$_WG_SENTINEL_RESULT" = "valid_no_match" ] && [ -f "$FILE_PATH" ]; then
+    exit 2
   fi
   # /allow bypass (main-agent only) — delegates to lib/allowlist.read_grant("Write", sid)
   _WG_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,9 +111,6 @@ WGEOF
     fi
   fi
 fi
-
-# Extract file_path from tool_input
-FILE_PATH=$(echo "$INPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))" 2>/dev/null)
 
 # If we couldn't extract a file path, allow (don't block on parse errors)
 if [ -z "$FILE_PATH" ]; then

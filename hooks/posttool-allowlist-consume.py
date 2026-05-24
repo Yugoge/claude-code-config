@@ -33,6 +33,7 @@ from lib.subagent import is_subagent_context  # noqa: E402
 from lib.allowlist import (  # noqa: E402
     consume_grant_for_posttool,
     consume_sentinel_grant_on_terminal_result,
+    match_sentinel_grant_for_write,
 )
 
 
@@ -136,6 +137,57 @@ def main() -> None:
                 pass
         if should_consume:
             consume_sentinel_grant_on_terminal_result(task_id, terminal_result)
+    elif tool_name == "Write":
+        # Sentinel-grant consume for Write-overwrite grants (task 20260522-080646-B).
+        # Uses tool_input.file_path (not command — Write has no command field).
+        #
+        # 3-candidate task_id lookup (iter3 B1 fix): mirrors pretool write-guard.sh
+        # candidate list so we find the sentinel regardless of whether userprompt-
+        # consent-allowlist.sh keyed it by CLAUDE_TASK_ID or by session_id.
+        # Candidate order must match writer: [CLAUDE_TASK_ID or session_id, data.task_id, session_id].
+        env_task_id = os.environ.get("CLAUDE_TASK_ID", "")
+        writer_primary = env_task_id if env_task_id else session_id
+        data_task_id = data.get("task_id") or ""
+        seen: set = set()
+        candidates = []
+        for c in [writer_primary, data_task_id, session_id]:
+            if c and c not in seen:
+                seen.add(c)
+                candidates.append(c)
+        file_path = (data.get("tool_input") or {}).get("file_path", "")
+        terminal_result = _classify_terminal_result(data)
+        should_consume = False
+        consumed_task_id = ""
+        for candidate in candidates:
+            try:
+                m = match_sentinel_grant_for_write(candidate, session_id, file_path)
+                if m is not None:
+                    should_consume = True
+                    consumed_task_id = candidate
+                    break
+            except Exception:
+                should_consume = True
+                consumed_task_id = candidate
+                terminal_result = "malformed"
+                break
+        # Malformed-grant fallback: sentinel exists for some candidate but
+        # load/match failed (expired, parse error).
+        if not should_consume:
+            try:
+                from lib.allowlist import (  # noqa: E402
+                    load_sentinel_grant_for_task,
+                    _enumerate_sentinel_grant_files,
+                )
+                for candidate in candidates:
+                    if _enumerate_sentinel_grant_files(candidate) and load_sentinel_grant_for_task(candidate) is None:
+                        should_consume = True
+                        consumed_task_id = candidate
+                        terminal_result = "malformed"
+                        break
+            except Exception:
+                pass
+        if should_consume:
+            consume_sentinel_grant_on_terminal_result(consumed_task_id or session_id, terminal_result)
     sys.exit(0)
 
 

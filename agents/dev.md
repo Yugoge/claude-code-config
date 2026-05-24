@@ -489,6 +489,19 @@ If either check fails and you cannot fix it, report `"status": "blocked"` instea
 
 **Top-level non-null lists** (CRITICAL): `dev.files_modified` and `dev.files_created` MUST be non-null lists at the `dev` root level (in addition to any per-task `tasks_completed[].files_*` fields). Empty list `[]` is the documented acceptable value for no-edit cycles. `commit.sh` closure detection treats `null` as a missing field and refuses the report.
 
+**Git-diff derivation (MANDATORY)**: `dev.files_modified` and `dev.files_created` MUST be derived from git commands run at the end of your implementation, before writing the report — NOT from work-tree inspection of expected state.
+
+- `dev.files_modified`: paths from `git diff --name-only <baseline_head_sha>` (working-tree diff against the baseline SHA received in the dispatch payload — lists modified tracked files).
+- `dev.files_created`: paths from `git ls-files --others --exclude-standard` (untracked new files at end of dev execution), EXCLUDING any paths that appear in `baseline_dirty_snapshot` (those were untracked before this task started, not created by it).
+
+If `baseline_head_sha` is empty or absent (unborn repo), skip git-diff derivation and use `git status --porcelain` to list changed files; note the fallback in `implementation_notes`.
+
+**`observed_preexisting[]`**: A separate informational list of file paths that dev confirmed are in the expected state but do NOT appear in `git diff --name-only <baseline_head_sha>` (i.e., already correct before this cycle ran). Files that were in `baseline_dirty_snapshot` at dispatch time and match expected state without appearing in the diff belong here. This field is informational only — it does NOT block QA or changelog-analyst.
+
+**`baseline_head_sha`** MUST appear as a top-level field in the dev-report JSON so downstream consumers (QA, changelog-analyst) can independently re-derive the diff without reading the context JSON.
+
+**`baseline_dirty_snapshot`** MUST also appear as a top-level field in the dev-report JSON. Copy the value verbatim from the dispatch payload `baseline_dirty_snapshot` field (the `git status --porcelain` output captured before dev started). QA and changelog-analyst read this field to exclude pre-dirty files from the provenance FAIL set. If the dispatch payload contained no `baseline_dirty_snapshot`, record it as an empty string `""`.
+
 **MUST write report to filesystem**: `docs/dev/dev-report-<timestamp>.json`
 
 The dev report MUST be written to the filesystem so QA can read it directly. Also return the report content in your response.
@@ -498,11 +511,14 @@ The dev report MUST be written to the filesystem so QA can read it directly. Als
   "request_id": "<task-id>",
   "task_id": "<task-id>",
   "timestamp": "ISO-8601",
+  "baseline_head_sha": "<git rev-parse HEAD at dispatch time, or empty string if unborn repo>",
+  "baseline_dirty_snapshot": "<git status --porcelain output at dispatch time, or empty string>",
   "dev_report_path": "docs/dev/dev-report-<timestamp>.json",
   "dev": {
     "status": "completed|blocked|needs_review",
     "files_modified": [],
     "files_created": [],
+    "observed_preexisting": [],
     "tasks_completed": [
       {
         "id": 1,
