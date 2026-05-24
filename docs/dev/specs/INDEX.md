@@ -1,7 +1,7 @@
 # specs
 
-*Last updated: 2026-05-20T04:50:40Z*
-**Total entries**: 12
+*Last updated: 2026-05-24T11:25:58Z*
+**Total entries**: 22
 **Convention**: kebab
 
 ## Tree
@@ -16,9 +16,19 @@ specs/
 │   │   ├── `orchestrator.md` - orchestrator view of spec-20260518-225715
 │   │   └── `qa.md` - qa view of spec-20260518-225715
 │   └── `split-qa-unresolved.json` - json config
+├── spec-20260520-221059/
+│   └── views/
+│       ├── `architect.md` - architect view of spec-20260520-221059
+│       ├── `ba.md` - ba view of spec-20260520-221059
+│       ├── `dev.md` - dev view of spec-20260520-221059
+│       ├── `mandate-omissions.json` - json config
+│       ├── `manifest.json` - json config
+│       ├── `orchestrator.md` - orchestrator view of spec-20260520-221059
+│       └── `qa.md` - qa view of spec-20260520-221059
 ├── `spec-20260517-210806.md` - Spec: Add working /push ending-workflow to clean.md (cleaner push-gate fix)
 ├── `spec-20260518-225715.md` - Spec: Dev Harness 扩展计划 — 工分系统、Test-Writer、Blast Radius、Executable AC、Canary
-└── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
+├── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
+└── `spec-20260520-221059.md` - Spec: Unresolved issues backlog from session 88dfdcea — TOP 3 cluster stranded by scope hot-swap + post-session confession
 ```
 
 ---

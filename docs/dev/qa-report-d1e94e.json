@@ -1,6 +1,6 @@
 {
-  "request_id": "20260519-211515",
-  "task_id": "20260519-211515",
+  "request_id": "d1e94e",
+  "task_id": "d1e94e",
   "timestamp": "2026-05-20T10:30:00Z",
   "qa_mode": "final_verification",
   "qa": {
@@ -9,8 +9,19 @@
     "verified_against_complaint": true,
     "passed_user_requirement": true,
     "ac_alignment": true,
-    "verified_location_keywords": ["retrospective", "cycle", "20260519-175339", "9-items", "fix-all"],
-    "location_overlap": ["retrospective", "cycle", "20260519-175339", "fix"],
+    "verified_location_keywords": [
+      "retrospective",
+      "cycle",
+      "20260519-175339",
+      "9-items",
+      "fix-all"
+    ],
+    "location_overlap": [
+      "retrospective",
+      "cycle",
+      "20260519-175339",
+      "fix"
+    ],
     "complaint_resolution_evidence": "All 9 retrospective items (1, 2, 3, 4, 5, 6, 7, 9, 10) have concrete code/spec/doc landings empirically verified. Item 8 correctly remains ACCEPTABLE-DEBT per user 就地部署 directive. NO scope leak from prior task 20260519-161035 (grep all 17 modified files: 0 hits). 4 binding constraints all preserved: (a) docs/dev/specs/spec-20260520-044700.md zero diff vs d988d4a; (b) d988d4a SHA unchanged; (c) all 14 d988d4a-committed docs/dev/* artifacts zero diff; (d) .gitignore zero diff.",
     "complaint_element_pointer": {
       "selector": "ALL files in dev-report.files_modified + files_created",
@@ -165,26 +176,105 @@
     },
     "ui_test_results": [],
     "regression_test_results": [
-      {"test": "Frozen-spec zero-diff invariant", "result": "pass", "details": "git diff d988d4a -- docs/dev/specs/spec-20260520-044700.md | wc -l → 0"},
-      {"test": "Frozen-commit d988d4a invariant", "result": "pass", "details": "d988d4aef0eace9968f45d595f841f06f560a450 SHA + message unchanged"},
-      {"test": "All 14 d988d4a-committed docs/dev/* artifacts zero diff (broader frozen-artifact check per codex #7)", "result": "pass", "details": "git diff d988d4a -- docs/dev/ | wc -l → 0"},
-      {"test": ".gitignore zero diff vs d988d4a", "result": "pass", "details": "git diff d988d4a -- .gitignore | wc -l → 0"},
-      {"test": "/usr/local/bin/playwright-mcp-stealth wrapper preserved", "result": "pass", "details": "File exists (9924 bytes), unchanged from prior cycle's deliverable"},
-      {"test": "NO scope leak from prior task 20260519-161035", "result": "pass", "details": "grep '20260519-161035' in all 17 modified files → 0 hits"},
-      {"test": "scripts/write-commit-grant.py:38 GRANT_TTL_MINUTES = 10 unchanged", "result": "pass", "details": "grep -F returns exactly 1 match at line 38 (R4 didn't bleed into wrong file)"},
-      {"test": "Allowlist-files scope investigation (suspicion in orchestrator prompt)", "result": "pass", "details": "hooks/lib/allowlist.py header documents /tmp/claude-grants/<task_id>-<nonce>.json sentinel grant lifecycle — the EXACT mechanism AC1.2 R2 requires. 4 new library functions implement structured grant matching. Legitimate AC1.2 R2 implementation, NOT D+H scope leak."}
+      {
+        "test": "Frozen-spec zero-diff invariant",
+        "result": "pass",
+        "details": "git diff d988d4a -- docs/dev/specs/spec-20260520-044700.md | wc -l → 0"
+      },
+      {
+        "test": "Frozen-commit d988d4a invariant",
+        "result": "pass",
+        "details": "d988d4aef0eace9968f45d595f841f06f560a450 SHA + message unchanged"
+      },
+      {
+        "test": "All 14 d988d4a-committed docs/dev/* artifacts zero diff (broader frozen-artifact check per codex #7)",
+        "result": "pass",
+        "details": "git diff d988d4a -- docs/dev/ | wc -l → 0"
+      },
+      {
+        "test": ".gitignore zero diff vs d988d4a",
+        "result": "pass",
+        "details": "git diff d988d4a -- .gitignore | wc -l → 0"
+      },
+      {
+        "test": "/usr/local/bin/playwright-mcp-stealth wrapper preserved",
+        "result": "pass",
+        "details": "File exists (9924 bytes), unchanged from prior cycle's deliverable"
+      },
+      {
+        "test": "NO scope leak from prior task 20260519-161035",
+        "result": "pass",
+        "details": "grep '20260519-161035' in all 17 modified files → 0 hits"
+      },
+      {
+        "test": "scripts/write-commit-grant.py:38 GRANT_TTL_MINUTES = 10 unchanged",
+        "result": "pass",
+        "details": "grep -F returns exactly 1 match at line 38 (R4 didn't bleed into wrong file)"
+      },
+      {
+        "test": "Allowlist-files scope investigation (suspicion in orchestrator prompt)",
+        "result": "pass",
+        "details": "hooks/lib/allowlist.py header documents /tmp/claude-grants/<task_id>-<nonce>.json sentinel grant lifecycle — the EXACT mechanism AC1.2 R2 requires. 4 new library functions implement structured grant matching. Legitimate AC1.2 R2 implementation, NOT D+H scope leak."
+      }
     ],
     "code_quality_findings": [],
-    "permissions_verification": {"status": "pass", "permissions_count": 0, "validated_permissions": [], "issues": []},
-    "hardcode_scan_results": {"files_scanned": 17, "violations": [], "summary": {"critical": 0, "major": 0, "minor": 0}},
-    "standards_compliance": {"checked": true, "role_table_source": "N/A — no UI role table in scope; non-UI cycle", "violations": []},
-    "e2e_enforcement": {"required": false, "attempted": false, "status": "skipped_carve_out", "blocking_reason": null, "skip_reason": "Non-UI cycle: agent-prompt edit / config / hook edit; no Playwright invocation. Per BA Setup/Environment 'applicability: N/A'."},
-    "manifest_verification": {"_doc": "test-writer correctly skipped per _test_writer_skip_reason non-empty in context. V_TW verifier confirmed commands/dev.md Step 8 honors the sentinel.", "manifest_exists": false, "active_tests_count": 0, "active_tests_importable": "N/A", "pytest_collected_ok": "N/A", "pytest_failures": []},
-    "blast_radius_phase2": {"_doc": "Dev declared blast_radius_declarations for 6 hook files. 2 with new_tests_written, 4 with behavioral_test_only:true exemption. Exemptions reasonable. Codex finding #5 surfaced as follow-on observation.", "dev_declarations_complete": true, "exemption_vetoes": []},
+    "permissions_verification": {
+      "status": "pass",
+      "permissions_count": 0,
+      "validated_permissions": [],
+      "issues": []
+    },
+    "hardcode_scan_results": {
+      "files_scanned": 17,
+      "violations": [],
+      "summary": {
+        "critical": 0,
+        "major": 0,
+        "minor": 0
+      }
+    },
+    "standards_compliance": {
+      "checked": true,
+      "role_table_source": "N/A — no UI role table in scope; non-UI cycle",
+      "violations": []
+    },
+    "e2e_enforcement": {
+      "required": false,
+      "attempted": false,
+      "status": "skipped_carve_out",
+      "blocking_reason": null,
+      "skip_reason": "Non-UI cycle: agent-prompt edit / config / hook edit; no Playwright invocation. Per BA Setup/Environment 'applicability: N/A'."
+    },
+    "manifest_verification": {
+      "_doc": "test-writer correctly skipped per _test_writer_skip_reason non-empty in context. V_TW verifier confirmed commands/dev.md Step 8 honors the sentinel.",
+      "manifest_exists": false,
+      "active_tests_count": 0,
+      "active_tests_importable": "N/A",
+      "pytest_collected_ok": "N/A",
+      "pytest_failures": []
+    },
+    "blast_radius_phase2": {
+      "_doc": "Dev declared blast_radius_declarations for 6 hook files. 2 with new_tests_written, 4 with behavioral_test_only:true exemption. Exemptions reasonable. Codex finding #5 surfaced as follow-on observation.",
+      "dev_declarations_complete": true,
+      "exemption_vetoes": []
+    },
     "all_findings": [],
     "failures": [],
-    "self_verification": {"claims_total": 14, "claims_with_evidence": 14, "claims_superficial": 0, "superficial_details": [], "confidence": "high"},
-    "summary": {"critical_issues": 0, "major_issues": 0, "minor_issues": 0, "total_findings": 0, "out_of_scope_observations": 5, "release_recommendation": "approve"}
+    "self_verification": {
+      "claims_total": 14,
+      "claims_with_evidence": 14,
+      "claims_superficial": 0,
+      "superficial_details": [],
+      "confidence": "high"
+    },
+    "summary": {
+      "critical_issues": 0,
+      "major_issues": 0,
+      "minor_issues": 0,
+      "total_findings": 0,
+      "out_of_scope_observations": 5,
+      "release_recommendation": "approve"
+    }
   },
   "codex_consult": {
     "invoked": true,
@@ -192,13 +282,55 @@
     "feedback_summary": "Codex returned 7 findings (3 BLOCKER, 3 MAJOR, 1 OBSERVATION_ONLY) all targeting AC1.2 sentinel-grant security model and AC10 verification-coverage gaps. Per Rule 3 (caller filters codex output) and Rule 4 (requirement wins), 5 findings classified as out_of_scope_observations (adjacent attack vectors / coexistence-transition / race-window not in user's reported symptom). 1 finding addressed by AC10's 'OR N/A if no playwright in cycle surface' carve-out. 1 finding confirmed broader binding-constraint check passes. No codex finding contradicts a user-stated AC.",
     "feedback_incorporated": "Codex #7 confirmation incorporated into regression_test_results (broader frozen-artifact check). Other 6 findings logged as out_of_scope_observations[] for orchestrator surface to user.",
     "findings": [
-      {"id": "codex-1", "severity": "blocker", "title": "Bash self-authors sentinel JSON file", "classification": "out_of_scope", "rationale": "Adjacent attack vector — user's reported symptom was command-text comment-stuffing, NOT defense against orchestrator writing sentinel JSON via Bash. AC1.2 verifiable criterion satisfied for user's pattern. Defense-in-depth not requested."},
-      {"id": "codex-2", "severity": "blocker", "title": "Expired/missing sentinel falls through to legacy /allow", "classification": "in_scope_minor", "rationale": "Real defect: R2 says 'instead of grepping command text' but legacy still runs when SENTINEL_NONE. HOWEVER: legacy requires pre-existing /tmp/claude-bash-allowlist-${sid}.json (line 156 returns 1 if absent), so user's reported attack (pure comment-only with no prior grant) cannot succeed. Surfaced as follow-on for full legacy retirement."},
-      {"id": "codex-3", "severity": "blocker", "title": "PreTool/PostTool race allows double-consume", "classification": "in_scope_minor", "rationale": "Real defect under concurrent Bash dispatch. Not user's sequential pattern-stuffing symptom. Surfaced as follow-on for atomic claim/rename in PreTool."},
-      {"id": "codex-4", "severity": "major", "title": "Comment-only attempt doesn't consume sentinel", "classification": "in_scope_minor", "rationale": "AC2 invariant (line 525) BLOCKS the comment-only attack itself; sentinel persists for later valid use. Defensible behavior — not user's reported symptom."},
-      {"id": "codex-5", "severity": "major", "title": "behavioral_test_only:true exemptions for 4 hook files", "classification": "in_scope_minor", "rationale": "Library functions ARE tested; hooks delegate to library. Integration tests would strengthen coverage. Surfaced as follow-on."},
-      {"id": "codex-6", "severity": "major", "title": "AC10 template-only doesn't prove runtime cleanup", "classification": "out_of_scope_carve_out", "rationale": "AC10 verifiable text includes 'OR N/A if no playwright in this cycle's surface'. This cycle entirely file-content-grep — no playwright. Carve-out applies. Template landing per BA iter-3 scope reconciliation is the binding deliverable."},
-      {"id": "codex-7", "severity": "observation_only", "title": "Broader frozen-artifact check", "classification": "applied", "rationale": "Confirmed: zero diff vs d988d4a for .gitignore, all 14 docs/dev/* artifacts, the spec file. Wrapper preserved. No 161035 scope leak. Incorporated into regression_test_results."}
+      {
+        "id": "codex-1",
+        "severity": "blocker",
+        "title": "Bash self-authors sentinel JSON file",
+        "classification": "out_of_scope",
+        "rationale": "Adjacent attack vector — user's reported symptom was command-text comment-stuffing, NOT defense against orchestrator writing sentinel JSON via Bash. AC1.2 verifiable criterion satisfied for user's pattern. Defense-in-depth not requested."
+      },
+      {
+        "id": "codex-2",
+        "severity": "blocker",
+        "title": "Expired/missing sentinel falls through to legacy /allow",
+        "classification": "in_scope_minor",
+        "rationale": "Real defect: R2 says 'instead of grepping command text' but legacy still runs when SENTINEL_NONE. HOWEVER: legacy requires pre-existing /tmp/claude-bash-allowlist-${sid}.json (line 156 returns 1 if absent), so user's reported attack (pure comment-only with no prior grant) cannot succeed. Surfaced as follow-on for full legacy retirement."
+      },
+      {
+        "id": "codex-3",
+        "severity": "blocker",
+        "title": "PreTool/PostTool race allows double-consume",
+        "classification": "in_scope_minor",
+        "rationale": "Real defect under concurrent Bash dispatch. Not user's sequential pattern-stuffing symptom. Surfaced as follow-on for atomic claim/rename in PreTool."
+      },
+      {
+        "id": "codex-4",
+        "severity": "major",
+        "title": "Comment-only attempt doesn't consume sentinel",
+        "classification": "in_scope_minor",
+        "rationale": "AC2 invariant (line 525) BLOCKS the comment-only attack itself; sentinel persists for later valid use. Defensible behavior — not user's reported symptom."
+      },
+      {
+        "id": "codex-5",
+        "severity": "major",
+        "title": "behavioral_test_only:true exemptions for 4 hook files",
+        "classification": "in_scope_minor",
+        "rationale": "Library functions ARE tested; hooks delegate to library. Integration tests would strengthen coverage. Surfaced as follow-on."
+      },
+      {
+        "id": "codex-6",
+        "severity": "major",
+        "title": "AC10 template-only doesn't prove runtime cleanup",
+        "classification": "out_of_scope_carve_out",
+        "rationale": "AC10 verifiable text includes 'OR N/A if no playwright in this cycle's surface'. This cycle entirely file-content-grep — no playwright. Carve-out applies. Template landing per BA iter-3 scope reconciliation is the binding deliverable."
+      },
+      {
+        "id": "codex-7",
+        "severity": "observation_only",
+        "title": "Broader frozen-artifact check",
+        "classification": "applied",
+        "rationale": "Confirmed: zero diff vs d988d4a for .gitignore, all 14 docs/dev/* artifacts, the spec file. Wrapper preserved. No 161035 scope leak. Incorporated into regression_test_results."
+      }
     ],
     "session_artifact_path": "/var/tmp/codex-outputs/codex-output-qa-211515-1779274500.txt"
   },

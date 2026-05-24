@@ -108,7 +108,7 @@ The forced-override todo list has exactly **2 steps** (no Step 2 / QA dispatch):
 
    Append to `~/.claude/logs/close-overrides.log`: a line with ISO timestamp, task-id, mode=force, and the reason string. Create `~/.claude/logs/` if needed. If the append fails, the close-report write still succeeds; the audit log is best-effort.
 
-6. **Create forced-path update and clean up sentinel**: Create the update using `/spec-continue --temp`. Default to `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless the user explicitly asks. It must state that closure was forced by the user, reference `docs/dev/close-report-<task-id>.md`, and suggest `/commit <task-id> -m "<summary>"` only if the user still intends to ship despite the skipped debate.
+6. **Create forced-path update and clean up sentinel**: Create the update using `/spec-update --temp`. Default to `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless the user explicitly asks. It must state that closure was forced by the user, reference `docs/dev/close-report-<task-id>.md`, and suggest `/commit <task-id> -m "<summary>"` only if the user still intends to ship despite the skipped debate.
 
    After the update is created, remove the sentinel file by running `scripts/cleanup-close-force-sentinel.sh` with the resolved sentinel path (e.g. `/tmp/claude-close-force-<DEV_SESSION_ID>.flag`). Errors are swallowed so the close still completes. This cleanup is mandatory, not best-effort.
 
@@ -374,34 +374,34 @@ After the verdict is determined (but BEFORE the AskUserQuestion below), apply cl
 - `CLOSE: NO` AND QA had failed (rejection upstream) → `score-update.sh --event close_fail_qa_fail` for ba/dev/qa. (dev -10, ba -5, qa 0.)
 - `CLOSE: YES (FORCED)` (the `--force` short-circuit path) → SKIP close-event score updates entirely; --force bypasses scoring just as it bypasses QA debate.
 
-**User rating prompt — CLOSE:YES branch only (spec-20260518-225715 §5.1 line 136 verbatim: "仅 CLOSE:YES 后触发，CLOSE:NO 不询问.")**:
+**User rating prompt — CLOSE:YES branch only (spec-20260518-225715 §5.1 line 136 verbatim: "Only fires after CLOSE:YES; CLOSE:NO does NOT prompt." (translated from spec))**:
 
 - If the verdict is **`CLOSE: YES`** (the non-forced YES forms — `YES`, `YES - degraded ...`, `YES — codex disabled ...`) AND `--force` was NOT passed in `$ARGUMENTS`:
   - Use the `AskUserQuestion` tool to prompt the user for a rating with the literal choices:
-    - `"5★ — 完美"`
-    - `"4★ — 良好"`
-    - `"3★ — 一般"`
-    - `"2★ — 较差"`
-    - `"1★ — 很差"`
-    - `"跳过"`
+    - `"5 stars — Excellent"`
+    - `"4 stars — Good"`
+    - `"3 stars — Average"`
+    - `"2 stars — Below average"`
+    - `"1 star — Poor"`
+    - `"Skip"`
   - On a non-skip answer N ∈ {1,2,3,4,5}, run three score-update calls in parallel:
     - `bash ~/.claude/scripts/score-update.sh --agent ba --event user_rating_<N> --note "<task-id>"`
     - `bash ~/.claude/scripts/score-update.sh --agent dev --event user_rating_<N> --note "<task-id>"`
     - `bash ~/.claude/scripts/score-update.sh --agent qa --event user_rating_<N> --note "<task-id>"`
-  - On `"跳过"` (skip): NO score-update calls are made. (Skip does NOT produce a separate event — spec 5.1.)
+  - On `"Skip"` (Skip): NO score-update calls are made. (Skip does NOT produce a separate event — spec 5.1.)
 - If the verdict is **`CLOSE: NO`** in ANY form: SKIP the AskUserQuestion entirely. Per spec 5.1 line 136 verbatim, the rating prompt fires only after CLOSE:YES, NOT after CLOSE:NO.
 - If the verdict is **`CLOSE: YES (FORCED)`** (`--force` was passed): SKIP the AskUserQuestion entirely. The --force short-circuit at Step 2 line 54 means no QA debate occurred, so no user rating is collected and no score is updated.
 
 Then branch the workflow update:
 
 - If the final verdict is `CLOSE: YES*`, create a compact temp update using
-  `/spec-continue --temp`. The update is for the next `/commit` attempt and MUST
+  `/spec-update --temp`. The update is for the next `/commit` attempt and MUST
   reference, not duplicate: `docs/dev/close-report-<task-id>.md`,
   `docs/dev/dev-report-<task-id>.json`, `docs/dev/qa-report-<task-id>.json`,
   and the three inspector report paths from Step 1. Next action: `/commit
   <task-id> -m "<real session summary>"`.
 - If the final verdict is `CLOSE: NO`, create or update a continuation spec
-  using `/spec-continue` default continuation-spec mode. If the dev context has a
+  using `/spec-update` default continuation-spec mode. If the dev context has a
   source spec, append the close dissent and unresolved gaps to that spec;
   otherwise create a new spec. Next action: `/dev --spec <spec_path>`. Do NOT
   direct a failed close to `/commit`.

@@ -1,6 +1,6 @@
 # commands
 
-*Last updated: 2026-05-20T21:07:40Z*
+*Last updated: 2026-05-24T11:22:44Z*
 **Total entries**: 35
 **Convention**: kebab
 
@@ -31,14 +31,14 @@ commands/
 ├── `push.md` - Push Command
 ├── `quick-commit.md` - Create a well-formatted git commit with auto-generated message
 ├── `quick-prototype.md` - Rapidly create interactive prototypes and demos combining multiple artifact capabilities
-├── `redev.md` - dev workflow, skip prompt injection — for re-invocation with /dev context already loaded. Pass --codex to enable adversarial codex consultation on each subagent's draft; default is self-review only.
+├── `redev.md` - dev workflow, context-light invocation — same task semantics as /dev, but assumes the /dev workflow instructions are already loaded. Pass --codex to enable adversarial codex consultation on each subagent's draft; default is self-review only.
 ├── `refactor.md` - Suggest refactoring improvements for code quality
 ├── `reflect-search.md` - Reflection-driven iterative search with goal evaluation
 ├── `research-deep.md` - Multi-source deep research with 15-20 iterative searches
 ├── `search-tree.md` - Tree search exploration with MCTS-inspired path evaluation
 ├── `security-check.md` - Security vulnerability analysis and recommendations
 ├── `site-navigate.md` - Intelligent site navigation simulating "click-through" exploration
-├── `spec-continue.md` - Continuation spec update or temp session note (was /update — renamed to avoid collision with MAP's /update portfolio mutation command)
+├── `spec-update.md` - Continuation spec update or temp session note (was /update then /spec-continue — renamed to avoid collision with MAP's /update portfolio mutation command)
 ├── `spec.md` - Create spec files for any dev workflow (/dev, /dev-overnight, or standalone reference). Pass --codex to enable adversarial codex consultation on each spec-subagent / QA dispatch; default is self-review only.
 ├── `stop.md` - Cancel active overnight time-lock + workflow-enforce so the session can terminate normally. User-invoked only — agents cannot self-stop.
 └── `test.md` - Test validation workflow with edge case detection, systematic validation, and quality enforcement
