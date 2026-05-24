@@ -131,25 +131,29 @@
       "id": "AC-09",
       "type": "hook",
       "given": "hooks/session-info.sh is read",
-      "when": "All echo and printf calls are inspected",
-      "then": "Every output statement redirects to stderr (>&2); zero bare stdout output statements remain",
+      "when": "All echo and printf calls are inspected via a two-stage check",
+      "then": "Stage 1 collects all lines matching 'echo|printf'; stage 2 filters to those NOT containing '>&2' or '1>&2'; the stage-2 filtered list MUST be empty (every echo/printf has an explicit stderr redirect); trailing comments after the redirect are allowed; the simple regex pattern ending in [^>]$ is FORBIDDEN as the gate because it false-positives on lines ending in '2'",
       "check": {
         "file": "hooks/session-info.sh",
-        "grep_must_be_empty": "^[[:space:]]*(echo|printf).*[^>]$",
-        "grep_comment": "No echo/printf without >&2 redirect"
+        "two_stage_check": {
+          "stage_1": "grep -E '^[[:space:]]*(echo|printf)'",
+          "stage_2_filter_out": "grep -v -E '(>&2|1>&2)'",
+          "stage_2_must_be_empty": true
+        }
       }
     },
     {
       "id": "AC-10",
       "type": "data",
-      "given": "commands/dev.md lines 284-310 are read",
-      "when": "The location-complaint overlap procedure is inspected",
-      "then": "The mechanical tokenize + set-intersection + Jaccard + domain-token table has been replaced with an LLM-judgment instruction; no Jaccard threshold or domain-token table remains",
+      "given": "commands/dev.md lines 284-303 are read (the 'Location-complaint tokenization procedure' block ONLY)",
+      "when": "The location-complaint overlap procedure is inspected; the Contract D novelty extension block at lines 304-310 is also read for preservation verification",
+      "then": "Within lines 284-303 the mechanical tokenize + set-intersection + Jaccard + domain-token table is replaced with an LLM-judgment instruction directing the orchestrator to assess semantic overlap using natural language reasoning; the adjacent Contract D novelty extension block at lines 304-310 (which independently uses Jaccard for layer/target_location novelty) is PRESERVED VERBATIM",
       "check": {
         "file": "commands/dev.md",
-        "line_range": "270-320",
-        "must_not_contain": ["Jaccard", "jaccard", "domain.*token.*table"],
-        "must_contain": ["semantic", "judgment"]
+        "scope_in": "lines 284-303 only",
+        "scope_in_must_not_contain": ["Jaccard", "jaccard", "domain.*token.*table"],
+        "scope_in_must_contain": ["semantic", "judgment"],
+        "scope_preserved": "lines 304-310 (Contract D novelty extension) MUST contain Jaccard verbatim — its preservation is verified separately"
       }
     }
   ]
