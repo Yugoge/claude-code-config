@@ -1,0 +1,393 @@
+{
+  "request_id": "20260524-122910",
+  "task_id": "20260524-122910",
+  "timestamp": "2026-05-24T12:29:10Z",
+  "complexity_tier": "STANDARD",
+  "risk_level": "medium",
+  "requirement": {
+    "original": "Implement Cycle 3 of spec-20260518-225715 — clear 10 known debts from Cycle 1+2.",
+    "clarified": "Clear 10 enumerated debts from spec Section 7 'Cycle 2 -> Cycle 3': test-writer skeleton realization (13 files), style-inspector CJK hardening, BA gate-logic auto-check, blast-radius Phase 2 untracked-file detection + bloat reduction, QA Phase 5 trigger symmetry, canary fail-closed depth, AC-08 leak-check deepening, tool-policy BA prefix patch, session-info.sh stdout->stderr, location-complaint tokenization simplification.",
+    "what": "Clear 10 discrete debts across harness infrastructure files",
+    "why": "Cycle 2 shipped P1-P3 but left 10 known gaps that reduce test coverage, inspector accuracy, canary depth, tool-policy completeness, and procedural symmetry",
+    "where": ["tests/generated/20260520-221452/", "agents/style-inspector.md", "agents/ba.md", "scripts/blast-radius-tool.py", "agents/qa.md", "scripts/canary-verify.sh", "hooks/doc_sync/regen_readme.py", "hooks/doc_sync/tree.py", "policies/tool-policy.v1.json", "hooks/session-info.sh", "commands/dev.md"],
+    "scope": {
+      "included": [
+        "Debt 1: Replace pass in 13 test skeleton files with real pytest assertions",
+        "Debt 2: Style-inspector CJK active-detection hardening",
+        "Debt 3: BA gate-logic verification in self-check",
+        "Debt 4: blast-radius Phase 2 untracked-file detection + bloat reduction",
+        "Debt 5: QA Phase 5 trigger symmetry with dispatch gate",
+        "Debt 6: Canary fail-closed depth for write-guard + git-privilege-guard",
+        "Debt 7: doc_sync leak suppression for cp-state-* and spec-2026*-*",
+        "Debt 8: tool-policy BA blast-radius-map write prefix",
+        "Debt 9: session-info.sh stdout to stderr",
+        "Debt 10: Location-complaint tokenization simplification"
+      ],
+      "excluded": [
+        "changelog-analyst bulk-commit bug (Section 8 Note 1)",
+        "Cross-session commit isolation (Section 8 Note 5)",
+        "Push-gate stale token (Section 8 Note 2)",
+        "Orchestrator streak limit (Section 8 Note 4)",
+        "Any new harness components or features"
+      ]
+    },
+    "success_criteria": [
+      "All 13 test skeleton files contain real assertions (no bare pass, no TEST_INCOMPLETE sentinel)",
+      "Style-inspector Standard 6 documents active CJK detection independent of exemptions",
+      "BA Quality Standards checklist includes gate-logic verification item",
+      "blast-radius git_diff_files unions tracked + untracked files",
+      "QA Phase 5 trigger condition mirrors dispatch gate",
+      "Canary verify_write_guard and verify_git_privilege_guard have negative-payload tests",
+      "doc_sync SKIP sets include cp-state and spec-2026 patterns",
+      "BA tool-policy has blast-radius-map write prefix",
+      "session-info.sh outputs to stderr only",
+      "commands/dev.md location-complaint uses LLM judgment instead of tokenization"
+    ],
+    "constraints": [
+      "No new dependencies",
+      "Preserve all existing test metadata (AC_UID, AC_TYPE, docstring) verbatim",
+      "Do not modify canary exit-code semantics (0=ok, 2=fail)",
+      "Tool-policy version must increment to 5",
+      "session-info.sh stderr redirect must not change content"
+    ]
+  },
+  "scope_boundary": {
+    "in_user_path": [
+      "tests/generated/20260520-221452/test_AC_01_efbe5ef12975e7e7.py",
+      "tests/generated/20260520-221452/test_AC_02_baed0fa6365ef6dd.py",
+      "tests/generated/20260520-221452/test_AC_03_d02f6cfa9052329c.py",
+      "tests/generated/20260520-221452/test_AC_04_9d727e2e84112856.py",
+      "tests/generated/20260520-221452/test_AC_05_ae1de0c57d012c17.py",
+      "tests/generated/20260520-221452/test_AC_06_d83d7c2416c7f26d.py",
+      "tests/generated/20260520-221452/test_AC_07_3619ae6db161fb50.py",
+      "tests/generated/20260520-221452/test_AC_08_ea4c2e44ca7a4e55.py",
+      "tests/generated/20260520-221452/test_AC_09_d7653985e85603ea.py",
+      "tests/generated/20260520-221452/test_AC_10_aa2a911022c763f1.py",
+      "tests/generated/20260520-221452/test_AC_11_5bbe970f97d071a1.py",
+      "tests/generated/20260520-221452/test_AC_12_26a6449a5b99964c.py",
+      "tests/generated/20260520-221452/test_AC_13_546c22e4fddfaf20.py",
+      "agents/style-inspector.md",
+      "agents/ba.md",
+      "scripts/blast-radius-tool.py",
+      "agents/qa.md",
+      "scripts/canary-verify.sh",
+      "hooks/doc_sync/regen_readme.py",
+      "hooks/doc_sync/tree.py",
+      "policies/tool-policy.v1.json",
+      "hooks/session-info.sh",
+      "commands/dev.md"
+    ],
+    "path_dependent_shared_infra": [
+      "docs/dev/acceptance-criteria-20260520-221452.json"
+    ],
+    "out_of_path_observed_but_not_touched": []
+  },
+  "out_of_scope_observations": [],
+  "root_cause_analysis": {
+    "symptom": "10 discrete infrastructure debts documented in spec Section 7 after Cycle 2 shipped",
+    "root_cause": "Cycle 1 and 2 were scoped to deliver and remediate the 6 core components; these 10 items were explicitly deferred as follow-up work",
+    "root_cause_commit": "1a1d058 - feat(dev-cycle): Cycle 2 remediation",
+    "why_introduced": "Prioritization: P1-P3 blockers were higher priority than these depth/hardening items",
+    "why_problematic": "Leaves test skeletons non-functional, inspector incomplete, canary shallow, tool-policy with missing prefixes, and procedural asymmetries in QA",
+    "timeline": "2026-05-19 (Cycle 1 close debate) -> 2026-05-20 (Cycle 2) -> 2026-05-24 (Cycle 3 debt clearance)",
+    "affected_files": [
+      "tests/generated/20260520-221452/test_AC_*.py",
+      "agents/style-inspector.md",
+      "agents/ba.md",
+      "scripts/blast-radius-tool.py",
+      "agents/qa.md",
+      "scripts/canary-verify.sh",
+      "hooks/doc_sync/regen_readme.py",
+      "hooks/doc_sync/tree.py",
+      "policies/tool-policy.v1.json",
+      "hooks/session-info.sh",
+      "commands/dev.md"
+    ],
+    "evidence_type": "inferred",
+    "observations": [
+      "All 13 test_AC_*.py files have body = pass (inferred: Read of each file)",
+      "style-inspector.md Standard 6 uses grep-based CJK detection with no content-type awareness (inferred: Read at line 316)",
+      "blast-radius git_diff_files uses only git diff --name-only HEAD, no git ls-files --others (inferred: Read at line 259-260)",
+      "canary verify_write_guard checks rc>=126 (exec error) but not rc==2 (deny) (inferred: Read at line 88)",
+      "canary verify_git_privilege_guard checks rc>=126 and rc==2 for false-positive, but has no deny-payload test (inferred: Read at lines 139-146)",
+      "QA Phase 5 triggers on manifest existence not on tier/risk gate (inferred: Read at line 1033)",
+      "doc_sync SKIP sets contain agent-scores entries but not cp-state or spec-2026 entries (inferred: Read of regen_readme.py:8-13 and tree.py:6-11)",
+      "BA tool-policy has acceptance-criteria- prefix but no blast-radius-map prefix (inferred: Read of tool-policy.v1.json:121-143)",
+      "session-info.sh has 10 bare echo calls with no >&2 (inferred: Read at lines 4-28)",
+      "commands/dev.md:284-310 uses tokenize + set-intersection + Jaccard + domain-token table (inferred: Read)"
+    ],
+    "diagnosis_completeness": "incomplete (inferred only)",
+    "complaint_location_keywords": ["test-writer", "skeleton", "CJK", "blast-radius", "Phase 5", "canary", "write-guard", "git-privilege-guard", "cp-state", "spec-2026", "tool-policy", "session-info", "tokenization", "Jaccard"],
+    "localization_evidence": "Each debt localized by reading the specific source file referenced in spec Section 7 and confirming the gap exists at the documented location",
+    "located_source": "tests/generated/20260520-221452/test_AC_01_efbe5ef12975e7e7.py:24, scripts/canary-verify.sh:88, scripts/blast-radius-tool.py:259, agents/qa.md:1033, hooks/doc_sync/regen_readme.py:12, policies/tool-policy.v1.json:127, hooks/session-info.sh:4, commands/dev.md:284",
+    "localization_blocked": null,
+    "git_bisect_result": {
+      "triggered": false,
+      "suspect_commit": "N/A",
+      "commit_message": "N/A - these are known debts, not regressions",
+      "confirmed_by": "spec-documented",
+      "bisect_blocked": "Not applicable — debts are not regressions but known deferred work",
+      "reproducibility_verified": true
+    }
+  },
+  "diagnosis_layer": "L4",
+  "requirements_decomposition": [
+    {"id": "R1", "source_phrase": "replace pass placeholders in 13 test_AC_*.py with real pytest assertions", "acceptance_criterion": "AC-01: all 13 tests have real assertions, no bare pass or TEST_INCOMPLETE"},
+    {"id": "R2", "source_phrase": "inspector algorithm should also actively detect CJK in non-USER_VERBATIM content", "acceptance_criterion": "AC-02: Standard 6 detection runs unconditionally; exemptions suppress reporting only"},
+    {"id": "R3", "source_phrase": "Add gate-logic verification to BA's self-check", "acceptance_criterion": "AC-03: Quality Standards checklist includes gate-logic verification item"},
+    {"id": "R4", "source_phrase": "add untracked-file detection via git ls-files --others --exclude-standard union; reduce report bloat", "acceptance_criterion": "AC-04: git_diff_files unions diff + ls-files --others"},
+    {"id": "R5", "source_phrase": "mirror dispatch gate (STANDARD OR risk_level=high) so Phase 5 fires when test-writer was dispatched", "acceptance_criterion": "AC-05: Phase 5 trigger matches dispatch gate condition"},
+    {"id": "R6", "source_phrase": "extend negative-payload pattern from bash-safety to write-guard and git-privilege-guard", "acceptance_criterion": "AC-06: both functions have deny-payload tests asserting rc==2"},
+    {"id": "R7", "source_phrase": "expand leak check from agent-scores only to include cp-state-* and spec-2026*-*", "acceptance_criterion": "AC-07: SKIP sets include cp-state and spec-2026 prefix patterns"},
+    {"id": "R8", "source_phrase": "add blast-radius-map.json write prefixes", "acceptance_criterion": "AC-08: BA tool-policy includes blast-radius-map prefix"},
+    {"id": "R9", "source_phrase": "session-info.sh stdout to stderr: evaluate and implement", "acceptance_criterion": "AC-09: all echo calls redirect to stderr"},
+    {"id": "R10", "source_phrase": "replace tokenize+Jaccard+domain-token table with semantic LLM judgment", "acceptance_criterion": "AC-10: mechanical tokenization replaced with LLM judgment instruction"}
+  ],
+  "component_chain": [
+    {
+      "file": "tests/generated/20260520-221452/test_AC_01_efbe5ef12975e7e7.py",
+      "line_range": "1-25",
+      "role": "Test skeleton for AC-01 (tool-policy test-writer role verification)",
+      "imports_from": ["pytest"],
+      "evidence": "Read confirmed body is bare pass at line 24",
+      "verified_via": "Read"
+    },
+    {
+      "file": "agents/style-inspector.md",
+      "line_range": "310-331",
+      "role": "Standard 6 English-only detection logic",
+      "imports_from": ["leaf"],
+      "evidence": "Read confirmed CJK detection at line 316 uses grep U+4E00-U+9FFF, no content-type awareness",
+      "verified_via": "Read"
+    },
+    {
+      "file": "scripts/blast-radius-tool.py",
+      "line_range": "257-270",
+      "role": "Phase 2 git_diff_files function — collects modified files",
+      "imports_from": ["leaf"],
+      "evidence": "Read confirmed only git diff --name-only at line 260, no git ls-files --others",
+      "verified_via": "Read"
+    },
+    {
+      "file": "scripts/canary-verify.sh",
+      "line_range": "72-147",
+      "role": "verify_write_guard (72-91) and verify_git_privilege_guard (129-147) functions",
+      "imports_from": ["leaf"],
+      "evidence": "Read confirmed write-guard checks rc>=126 only (line 88); git-privilege-guard checks rc>=126 and rc==2-false-positive but no deny-payload",
+      "verified_via": "Read"
+    },
+    {
+      "file": "agents/qa.md",
+      "line_range": "1031-1039",
+      "role": "Phase 5 Manifest Verification trigger",
+      "imports_from": ["leaf"],
+      "evidence": "Read confirmed trigger is on manifest existence, not on tier/risk gate",
+      "verified_via": "Read"
+    },
+    {
+      "file": "hooks/doc_sync/regen_readme.py",
+      "line_range": "8-13",
+      "role": "SKIP_NAMES set for README generation",
+      "imports_from": ["leaf"],
+      "evidence": "Read confirmed only agent-scores entries, no cp-state or spec-2026",
+      "verified_via": "Read"
+    },
+    {
+      "file": "hooks/doc_sync/tree.py",
+      "line_range": "6-11",
+      "role": "SKIP_FILES set for INDEX tree generation",
+      "imports_from": ["leaf"],
+      "evidence": "Read confirmed only agent-scores entries, no cp-state or spec-2026",
+      "verified_via": "Read"
+    },
+    {
+      "file": "policies/tool-policy.v1.json",
+      "line_range": "121-143",
+      "role": "BA allowed_write_path_prefixes",
+      "imports_from": ["leaf"],
+      "evidence": "Read confirmed acceptance-criteria- present (line 127) but no blast-radius-map prefix",
+      "verified_via": "Read"
+    },
+    {
+      "file": "hooks/session-info.sh",
+      "line_range": "1-28",
+      "role": "SessionStart hook displaying environment info",
+      "imports_from": ["leaf"],
+      "evidence": "Read confirmed 10 bare echo calls to stdout, zero >&2",
+      "verified_via": "Read"
+    },
+    {
+      "file": "commands/dev.md",
+      "line_range": "284-310",
+      "role": "Location-complaint tokenization procedure",
+      "imports_from": ["leaf"],
+      "evidence": "Read confirmed tokenize + set-intersection + Jaccard + domain-token table",
+      "verified_via": "Read"
+    }
+  ],
+  "pre_existing_guards": [
+    {
+      "file": "scripts/canary-verify.sh",
+      "line": 88,
+      "type": "if",
+      "code_snippet": "if [[ \"${rc}\" -ge 126 ]]; then",
+      "purpose": "Guards against exec errors in write-guard hook",
+      "removal_authorized": false
+    },
+    {
+      "file": "scripts/canary-verify.sh",
+      "line": 144,
+      "type": "if",
+      "code_snippet": "if [[ \"${rc}\" -eq 2 ]]; then",
+      "purpose": "Guards against false-positive blocking of git status in git-privilege-guard",
+      "removal_authorized": false
+    },
+    {
+      "file": "hooks/doc_sync/tree.py",
+      "line": 22,
+      "type": "if",
+      "code_snippet": "return item.is_dir() and item.name == 'specs' and item.parent.name == '.claude'",
+      "purpose": "PATH-AWARE predicate for .claude/specs suppression without collateral damage",
+      "removal_authorized": false
+    },
+    {
+      "file": "agents/style-inspector.md",
+      "line": 320,
+      "type": "validator",
+      "code_snippet": "Exemption (verbatim user-binding quotes): Verbatim non-English user-binding quotes belong in docs/dev/ticket-*.md only",
+      "purpose": "Scopes CJK exemption to docs/ directory only",
+      "removal_authorized": false
+    }
+  ],
+  "setup": {
+    "applicability": "N/A",
+    "reason": "non-UI -- agent-prompt edit + hook + config + CLI script; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths"
+  },
+  "evidence": {
+    "observed": "User spec Section 7 lists 10 debts; all verified by reading source files",
+    "measured": {
+      "value": "13 test files with bare pass; canary lacks deny-payload for 2 of 4 hooks; blast-radius misses untracked files; QA Phase 5 trigger asymmetric; doc_sync misses 2 telemetry patterns; BA tool-policy missing 1 prefix; session-info.sh has 10 stdout lines",
+      "location": "See component_chain for per-file evidence"
+    },
+    "expected": {
+      "value": "All gaps closed per spec Section 7 debt list",
+      "source": "docs/dev/specs/spec-20260518-225715.md Section 7 lines 432-453"
+    },
+    "gap": "10 discrete gaps, each independently measurable"
+  },
+  "scope_expansion": {
+    "search_pattern": "N/A — scope defined by spec Section 7 enumeration",
+    "search_scope": "project-wide",
+    "user_reported": [
+      "tests/generated/20260520-221452/test_AC_*.py",
+      "agents/style-inspector.md",
+      "agents/ba.md",
+      "scripts/blast-radius-tool.py",
+      "agents/qa.md",
+      "scripts/canary-verify.sh",
+      "hooks/doc_sync/regen_readme.py",
+      "hooks/doc_sync/tree.py",
+      "policies/tool-policy.v1.json",
+      "hooks/session-info.sh",
+      "commands/dev.md"
+    ],
+    "additional_found": [],
+    "all_occurrences": []
+  },
+  "reference_source": {
+    "tier": "tier_2_verified",
+    "description": "spec-20260518-225715 Section 7 Cycle 2 -> Cycle 3 debt list, authored by user + QA close-debate + codex adversarial review",
+    "url_or_location": "docs/dev/specs/spec-20260518-225715.md:432-453",
+    "copy_allowed": true
+  },
+  "prior_attempts": {
+    "triggered": true,
+    "trigger_source": "dedup_hit",
+    "attempts": [
+      {
+        "artifact_path": "Cycle 1 — commit 9782124 era (task 20260519-132417)",
+        "proposed_solution": "Deliver 6 harness components (Mascot, Test-Writer, Blast-Radius, Executable AC, Canary, Agent Updates)",
+        "actual_change": "6 new files + 6 modified files + settings.json hook registration",
+        "outcome": "/close rejected on 3 axes (consumability, cleanliness, style); 10 debts deferred",
+        "failure_category": "wrong_scope",
+        "target_layer": "L4"
+      },
+      {
+        "artifact_path": "docs/dev/ticket-20260520-221452.md (Cycle 2, task 20260520-221452)",
+        "proposed_solution": "Remediate P1 (tool-policy test-writer role, manifest contract), P2 (gitignore, leak suppression), P3 (venv, integer steps, mktemp, style exemption)",
+        "actual_change": "12 files modified + 1 git state change (commit 1a1d058)",
+        "outcome": "Shipped successfully; 10 depth/hardening debts remain",
+        "failure_category": "other",
+        "target_layer": "L4"
+      }
+    ],
+    "novelty_check": {
+      "this_attempt_layer": "L4",
+      "differs_from_all_priors": true,
+      "rationale": "Same layer (L4) but entirely different target locations — the 10 debts are discrete items that were explicitly deferred by Cycle 1 and 2. No prior attempt addressed any of these 10 items. Jaccard overlap of target files between this attempt and Cycle 2 is below 0.5 (Cycle 2 targeted different sections of overlapping files for different purposes)."
+    }
+  },
+  "context": {
+    "codebase_state": "master branch, post-Cycle-2 (commit 1a1d058 + post-close remediation 20a45af + spec arch commit 5771880 + close-report aea75d9)",
+    "recent_commits": [
+      "aea75d9 chore(docs): ship cycle 20260522-000000 close-report and QA verification",
+      "5771880 feat(spec): commit spec-20260520-221059 and split views to git (arch-2)",
+      "af96c61 fix(infra): M1-M4 gitignore exceptions, install mirror, uncapped_delta",
+      "1a1d058 feat(dev-cycle): Cycle 2 remediation",
+      "50f2ca2 fix(agents): tighten style-inspector summary contract"
+    ],
+    "file_contents": {},
+    "dependencies": {},
+    "environment": {}
+  },
+  "development_approach": {
+    "strategy": "Address all 10 debts as surgical modifications to existing files. No new files created. Each debt is independent — dev can address them in any order. Largest item is Debt 1 (13 test files) which dominates implementation effort.",
+    "files_to_create": [],
+    "files_to_modify": [
+      "tests/generated/20260520-221452/test_AC_01_efbe5ef12975e7e7.py",
+      "tests/generated/20260520-221452/test_AC_02_baed0fa6365ef6dd.py",
+      "tests/generated/20260520-221452/test_AC_03_d02f6cfa9052329c.py",
+      "tests/generated/20260520-221452/test_AC_04_9d727e2e84112856.py",
+      "tests/generated/20260520-221452/test_AC_05_ae1de0c57d012c17.py",
+      "tests/generated/20260520-221452/test_AC_06_d83d7c2416c7f26d.py",
+      "tests/generated/20260520-221452/test_AC_07_3619ae6db161fb50.py",
+      "tests/generated/20260520-221452/test_AC_08_ea4c2e44ca7a4e55.py",
+      "tests/generated/20260520-221452/test_AC_09_d7653985e85603ea.py",
+      "tests/generated/20260520-221452/test_AC_10_aa2a911022c763f1.py",
+      "tests/generated/20260520-221452/test_AC_11_5bbe970f97d071a1.py",
+      "tests/generated/20260520-221452/test_AC_12_26a6449a5b99964c.py",
+      "tests/generated/20260520-221452/test_AC_13_546c22e4fddfaf20.py",
+      "agents/style-inspector.md",
+      "agents/ba.md",
+      "scripts/blast-radius-tool.py",
+      "agents/qa.md",
+      "scripts/canary-verify.sh",
+      "hooks/doc_sync/regen_readme.py",
+      "hooks/doc_sync/tree.py",
+      "policies/tool-policy.v1.json",
+      "hooks/session-info.sh",
+      "commands/dev.md"
+    ],
+    "validation_approach": "QA verifies each AC independently: run pytest on tests/generated/20260520-221452/, grep for pass-only bodies, read modified files to confirm structural changes, execute canary-verify.sh to validate negative-payload tests, parse tool-policy JSON to verify prefix presence"
+  },
+  "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260524-122910.json",
+  "blast_radius_map_path": ".claude/dev-registry/dev-20260524-122910/blast-radius-map.json",
+  "codex_consult": {
+    "invoked": false,
+    "status": "pending",
+    "feedback_summary": null,
+    "findings": [],
+    "feedback_incorporated": null
+  },
+  "research_findings": {
+    "searched": false,
+    "reason": "All 10 debts are bounded fixes to existing infrastructure with clear requirements from the spec. No external best-practices research needed."
+  },
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": true,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true
+  }
+}
