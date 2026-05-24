@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 56
+- **Total files**: 57
 - **Subdirectories**: 3
 - **Naming convention**: kebab
 
@@ -38,6 +38,7 @@ Organization and usage documentation for `scripts/`.
 - `detect-orphan-commands.sh` - Description: Detect orphan commands (one-time patterns, no todo script, unused)
 - `detect-orphan-scripts.sh` - Description: Detect scripts not referenced by any command/agent/other script
 - `discover-folders.sh` - Description: Dynamically discover project folders excluding system directories
+- `execute-push.py` - Encapsulates the entire Chain-B grant validation → consume → sentinel write →
 - `generate-folder-index.sh` - Description: Generate INDEX.md for folder (inventory of contents)
 - `generate-folder-readme.sh` - Description: Generate README.md for folder (purpose and organization rules)
 - `install-checkpoint-refspec.sh` - install-checkpoint-refspec.sh — idempotently add refs/checkpoints/* to
