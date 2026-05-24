@@ -1,255 +1,213 @@
-# Close Debate Report
+# Close Debate Report — d1e94e
 
-**Task-id**: 20260519-211515
-
-**Cycle scope**: /redev --codex 好的开完成全部 — fix do-next items D + H from codex triage of prior cycle 20260519-151734:
-- D = `hooks/lib/allowlist.py` PreTool/PostTool literal-match asymmetry (`/allow` grant leakage via substring matching)
-- H = `hooks/posttool-subagent-track.py` legacy Path B bookmark-inference race on parallel TodoWrite + Agent dispatch
-
+**Task-id**: d1e94e
 **Debate date**: 2026-05-20
+**Debate channel**: QA-Codex multi-round adversarial protocol (per `commands/close.md` Step 2)
+**codex_required**: true
+**codex_status**: ok
 
 ---
 
-## Input files
+## Cycle scope (as understood by orchestrator dispatch)
 
-- BA spec ticket: `docs/dev/ticket-20260519-211515.md`
-- Context JSON: `docs/dev/context-20260519-211515.json`
-- AC JSON: `docs/dev/acceptance-criteria-20260519-211515.json`
-- Dev report: `docs/dev/dev-report-20260519-211515.json`
-- QA report (final-verification): `docs/dev/qa-report-20260519-211515.json`
-- Completion: `docs/dev/completion-20260519-211515.md`
-- Inspector reports:
-  - `docs/dev/style-inspector-report-20260519-211515.json` (PASS — 0 critical, 2 advisory non-blocking)
-  - `docs/dev/cleanliness-inspector-report-20260519-211515.json` (1 MAJOR `blocks_close: true` — `_resolve_context` dead function; orchestrator fix-forward removed at ~07:55Z, audit comment preserved)
-  - `docs/dev/prompt-inspector-report-20260519-211515.json` (out_of_domain — no `.md` in diff)
-- Ghost quarantine artifacts:
-  - `docs/dev/ticket-20260519-211515-CYCLE2.md`, `-CYCLE2-round2.md`, `-CYCLE2-round3.md`
-  - `docs/dev/context-20260519-211515-CYCLE2.json`, `-CYCLE2-round2.json`, `-CYCLE2-round3.json`
+Recovery cycle for the prior collision-blocked task-id `20260519-211515`. The original multi-session allocator collision (parallel happy-coder sessions writing to identical canonical artifact slots) split the artifact chain. The orchestrator recovered the D+H BA-iter3 artifact chain from git checkpoint 2ba5eaa, re-tagged it as `d1e94e`, fixed the harness allocator bug in `hooks/prompt-workflow.py` via /do, and archived the prior `close-report-d1e94e.md` (which had given CLOSE: NO due to split-source chain) to `close-report-d1e94e-prior.md`.
+
+Orchestrator framing: this is a recovery cycle where dev+QA+completion describe the actual landed work, the BA ticket prose is the original D+H scope before hot-swap, and the chain should be internally consistent at the JSON-field level for `request_id`/`task_id`.
+
+---
+
+## Input artifacts (chain on disk at debate time)
+
+| Artifact | Path | Content scope | request_id / task_id |
+|---|---|---|---|
+| BA spec ticket | `docs/dev/ticket-d1e94e.md` | **D+H** (3 files: hooks/lib/allowlist.py, hooks/posttool-subagent-track.py, hooks/tests/test_allowlist_consolidation.py) | d1e94e (in header) |
+| Context | `docs/dev/context-d1e94e.json` | **D+H** (where[] = 3 D+H files) | d1e94e |
+| Dev report | `docs/dev/dev-report-d1e94e.json` | **9-item retrospective** (17 files modified, 8 created, AC1–AC10) | d1e94e |
+| QA report | `docs/dev/qa-report-d1e94e.json` | **9-item retrospective** (status=pass, AC1.1–AC2.3 = 9 ACs) | d1e94e |
+| Completion | `docs/dev/completion-d1e94e.md` | **9-item retrospective** | d1e94e |
+| Style inspector | `docs/dev/style-inspector-report-d1e94e.json` | Audits 3 D+H files | **20260519-211515** (NOT d1e94e) |
+| Cleanliness inspector | `docs/dev/cleanliness-inspector-report-d1e94e.json` | Audits 3 D+H files | **20260519-211515** (NOT d1e94e) |
+| Prompt inspector | `docs/dev/prompt-inspector-report-d1e94e.json` | not_applicable (no .md in 3-file D+H scope) | **20260519-211515** (NOT d1e94e) |
+| Style recheck | `docs/dev/style-inspector-report-20260519-211515-recheck.json` | Audits 25 files matching the 17-file 9-item scope | 20260519-211515-recheck (NOT d1e94e) |
+| Cleanliness recheck | `docs/dev/cleanliness-inspector-report-20260519-211515-recheck.json` | Audits 25 files | 20260519-211515-recheck |
+| Prompt recheck | `docs/dev/prompt-inspector-report-20260519-211515-recheck.json` | Audits 25 files | 20260519-211515-recheck |
+| Prior close-report (archived) | `docs/dev/close-report-d1e94e-prior.md` | Prior CLOSE: NO debate | — |
+
+Independent live verification:
+- `bash hooks/tests/_final_sweep.sh` → 27 PASS lines (all 9 ACs of retrospective + V_TW)
+- `pytest hooks/tests/test_allowlist_consolidation.py -q` → 35 passed
+- `hooks/prompt-workflow.py` is COMMITTED in commit 28a1e85 (no working-tree diff)
+- All 3 d1e94e JSON artifacts have `request_id == task_id == d1e94e` at JSON-field level
 
 ---
 
 ## Rounds run
 
-- Round 1: QA initial position + workflow-integrity self-audit + Round 1b cleanliness fix-forward verification + Round 1b' codex adversarial consultation
-- Round 2: not run — codex returned actionable artifact-integrity blocker on first pass; the finding is independently reproducible and a verdict change is warranted without further iteration
-
-## Verdict
-
-**CLOSE: NO**
-
-Reason: artifact-integrity split-source — canonical task-id slot for `ticket-20260519-211515.md` (`mtime 08:14Z`) and `context-20260519-211515.json` (`mtime 08:16Z`) currently contain the 9-item retrospective scope (`/redev --codex 修复全部建议的内容`, `requirement.where` spans 17 files across policies/hooks/agents/commands), while AC JSON (07:05Z), dev report (07:24Z), QA report (07:45Z), and completion (07:47Z) all describe D+H scope (3 files modified: `hooks/lib/allowlist.py`, `hooks/posttool-subagent-track.py`, `hooks/tests/test_allowlist_consolidation.py`). A 4th ghost overwrite occurred AFTER QA completed and was NOT re-reconstructed.
+- **Round 1**: QA initial draft + Skill(codex) Round 1 → CODEX: implicit NO (CODEX_FEEDBACK with 5 PROPOSED_FIX + 1 OBSERVATION_ONLY)
+- **Round 2**: QA presented counter-positions C1–C5 + Skill(codex) Round 2 → CODEX: NO (explicit, hold-firm, 4 action items to flip)
+- **Round 3**: not run — codex unanimous NO across Rounds 1+2 with independently reproducible factual basis; no further iteration warranted under close.md Branch 3 protocol
 
 ---
 
-## Workflow Integrity per-bullet status
+## Round 1 — QA initial position + codex Round 1
 
-### Bullet 1 — Downstream consumability: **BROKEN**
+### QA Round 1 draft
 
-`/commit` Step 7 (or any future consumer that reads ticket/context to determine scope) will see retrospective scope while QA/dev/AC describe D+H. The task-id chain is split-source. Per Anti-Fraud Principle 6, this contradicts the completion-report's claim of "recovered ticket+context".
+Initial draft considered the orchestrator framing favorably: all 3 d1e94e JSON artifacts have `request_id`/`task_id` = d1e94e at the JSON-field level, the 9-item retrospective code work is independently verified (27 PASS lines + 35 pytest), and the orchestrator declared this a "recovery cycle where the d1e94e rename escapes the prior collision". Per dispatch prompt, the orchestrator's framing was "proceed if the d1e94e chain is internally consistent (which it IS at the JSON-field level)".
 
-Sub-claim from dispatch prompt — "Argument NO: reconstruction was recovery from an unrelated background bug, not artifact field fix" — does not hold: a 4th ghost overwrite happened POST-QA (timestamps prove it: QA 07:45Z, ticket 08:14Z, context 08:16Z) and the orchestrator did NOT re-reconstruct after that fourth event. The on-disk state right now is contaminated.
+### Codex Round 1 feedback (verbatim, from `/var/tmp/codex-outputs/codex-output-d1e94e-r1-1322983-1779314303.txt`)
 
-The orchestrator's earlier Edit removing `_resolve_context` from `hooks/posttool-subagent-track.py` is acceptable close cleanup (newly-dead code introduced by the cycle's own diff, per AC-2.6 `introduced_in_diff: true` resolution) — that's not the integrity problem. The problem is the un-reconstructed ticket+context.
+**F1 — PROPOSED_FIX (BLOCKER)**: Verdict should be CLOSE: NO in the current artifact state. Code verification is strong: `_final_sweep.sh` prints 27 PASS lines and pytest reports 35 passed. But the canonical chain is content-split: `docs/dev/ticket-d1e94e.md:1-16` and `docs/dev/context-d1e94e.json:10-31` describe D+H, while `docs/dev/dev-report-d1e94e.json:8-37`, `docs/dev/qa-report-d1e94e.json:7-25`, and `docs/dev/completion-d1e94e.md:11-33` describe the 9-item retrospective. This is not merely prose drift; `/close`'s BA-spec input is the wrong cycle. Repair by regenerating/copying the 9-item retrospective BA ticket + context into `ticket-d1e94e.md` and `context-d1e94e.json`, or close NO.
+
+**F2 — PROPOSED_FIX (BLOCKER)**: Do not use AC-deviation-PASS to waive the ticket/context mismatch. `commands/close.md:311-316` requires an explicit dev-report deviation block and a deviation from AC mechanics, not a different BA source of truth. Current `dev-report-d1e94e.json` does not record `ac_deviation_with_user_need_satisfied`, and the mismatch is source-cycle drift. Add the proper 9-item ticket/context, then rerun close.
+
+**F3 — PROPOSED_FIX (BLOCKER)**: The inspector evidence is not canonical for d1e94e. The `*-inspector-report-d1e94e.json` files internally point at old `20260519-211515` / D+H and only audit the 3-file scope; the useful rechecks are `*-20260519-211515-recheck.json` and audit 25 files. But `commands/close.md:202-208` requires exact `*-<TASK_ID>.json` paths. Regenerate or re-home the 25-file inspector reports as `*-d1e94e.json` with `request_id/task_id=d1e94e`.
+
+**F4 — PROPOSED_FIX (MAJOR)**: Close Step 1 currently derives inspector scope from only `dev.files_modified` (`commands/close.md:190`), excluding `dev.files_created`. For this cycle that drops 8 verifier scripts from cleanliness/style review. Change the close contract to use `files_modified + files_created`, then rerun inspectors.
+
+**F5 — PROPOSED_FIX (MAJOR)**: If the `hooks/prompt-workflow.py` allocator fix is still part of the same uncommitted change set, it cannot silently ride along while absent from `dev-report.files_modified`. Either split it into a separate orchestrator-side mitigation/commit, or add it to dev-report scope and rerun QA/inspectors. If it is already separately landed and not in the d1e94e diff, mark OBSERVATION_ONLY in the close report.
+
+**F6 — OBSERVATION_ONLY**: `/commit` downstream staging appears likely consumable from dev/QA/completion once a valid `close-report-d1e94e.md` exists, because commit uses dev-report/qa/completion rather than BA prose. That does not rescue Workflow Integrity Bullet 2: the predecessor artifact chain still has the wrong BA/context content.
+
+---
+
+## QA independent verification of codex Round 1 claims
+
+| Codex claim | Verification | Result |
+|---|---|---|
+| ticket-d1e94e.md describes D+H | `head -3 docs/dev/ticket-d1e94e.md` → "# BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3" | **CONFIRMED** |
+| context-d1e94e.json `where` lists 3 D+H files | grep `"where"` in context → exactly `hooks/lib/allowlist.py`, `hooks/posttool-subagent-track.py`, `hooks/tests/test_allowlist_consolidation.py` | **CONFIRMED** |
+| dev-report describes 9-item retrospective with 17 files | grep `"description"` → AC1-AC10 with tool-policy, sentinel-grant, push, commit, push-analyst, qa/ba, changelog-analyst items | **CONFIRMED** |
+| Inspector reports at -d1e94e.json have wrong task-id | `head` of each → all 3 read `"request_id": "20260519-211515"` and audit only 3 D+H files | **CONFIRMED** |
+| Recheck reports at -20260519-211515-recheck audit 25 files | Read of cleanliness-recheck → `files_inspected` = 25 entries matching the 17-modified + 8-created scope | **CONFIRMED** |
+| close.md:190 only uses `dev.files_modified` | Read of close.md Step 1 → "Closed-task path... read the `dev.files_modified` array (top-level non-null list per the dev-report contract); use that list verbatim" | **CONFIRMED** |
+| hooks/prompt-workflow.py is committed (not uncommitted) | `git status hooks/prompt-workflow.py` → clean; `git log -1 hooks/prompt-workflow.py` → 28a1e85 | **CONFIRMED — F5 is moot, mark OBSERVATION_ONLY** |
+
+All 6 codex Round 1 factual claims independently verified true.
+
+---
+
+## Round 2 — QA counter-positions + codex hold-firm
+
+### QA Round 2 counter-positions
+
+- **C1 (vs F1+F2)**: Codex is factually correct. This is the EXACT same split-source chain that the prior CLOSE: NO flagged for task 20260519-211515. The only thing that changed is the task-id was renamed to d1e94e — the content mismatch (D+H BA spec vs 9-item retrospective dev work) remains. Per close.md Workflow Integrity Bullet 2 (task-id chain consistency): the chain is split across content layers. Per Anti-Fraud Principle 6: completion-d1e94e.md claims 9-item retrospective work while the on-disk BA ticket describes D+H — completion claim contradicts BA evidence.
+- **C2 (vs F3)**: Inspector evidence layer is also broken. The 17-file scope (9-item retrospective) has only been audited under recheck filenames that do not satisfy close.md's exact-path requirement at `*-d1e94e.json`. The inspector reports actually at `*-d1e94e.json` audit the wrong (3-file D+H) scope.
+- **C3 (vs F4)**: close.md:190 contract gap (files_modified excluding files_created) is a real but follow-up contract improvement, not a current-cycle violation. Mark as OBSERVATION_ONLY.
+- **C4 (vs F5)**: hooks/prompt-workflow.py is COMMITTED in 28a1e85 with no working-tree diff. Mark as OBSERVATION_ONLY.
+- **C5 (additional QA finding)**: The cycle has accumulated significant cruft from the recovery process — 75463e-DH ghost artifacts, recheck files at -20260519-211515, prior close-report archived to -d1e94e-prior. Three different naming conventions in use simultaneously. Compounding artifact-integrity risk.
+
+### Codex Round 2 verdict (verbatim, from `/var/tmp/codex-outputs/codex-output-d1e94e-r2-1622675-1779314636.txt:743-752`)
+
+> **CODEX: NO**
+>
+> I agree with QA's CLOSE: NO verdict and hold firm on Round 1's blocking position. C1 is fatal: the canonical BA ticket/context describe the D+H scope while dev/QA/completion describe the 9-item retrospective, so the d1e94e chain is not internally consistent. C2 is also fatal: the exact `*-d1e94e.json` inspector reports internally reference the old `20260519-211515`/D+H scope, while the broader recheck reports are not at the required d1e94e paths. AC-deviation-PASS cannot waive this because the issue is not a documented AC mechanics deviation; it is a contradictory source-of-truth chain. I revise F4 to observation-only: `files_created` exclusion is a real contract gap but not a current-cycle violation under the existing close contract. F5 is likewise observation-only because the file is committed. C5 is supporting evidence of artifact-integrity risk, not an additional independent blocker beyond C1/C2.
+>
+> Action items to flip to YES:
+> 1. Regenerate `ticket-d1e94e.md` and `context-d1e94e.json` for the actual 9-item retrospective scope.
+> 2. Regenerate the three inspector reports at exact `*-d1e94e.json` paths with internal `task_id/request_id=d1e94e` and the actual cycle file scope.
+> 3. Re-run close evaluation against only the repaired d1e94e chain.
+> 4. Archive or clearly quarantine ghost/recheck artifacts so they cannot be cited as canonical evidence.
+
+---
+
+## Round 3 — not run
+
+Codex unanimous NO across Rounds 1 + 2. Round 2 explicitly hold-firm with the QA position incorporated and acknowledged. Codex Round 2's factual basis (split-source ticket/context vs dev/QA, inspector-evidence-path mismatch) is independently reproducible by direct file reads. Per close.md Branch 3 protocol, when codex's NO verdict is independently verifiable and the disagreement is acknowledged on both sides, escalating to Round 3 adds no new information.
+
+---
+
+## Workflow Integrity Dimension evaluation
+
+### Bullet 1 — Downstream consumability: **PASS-with-caveat**
+
+`/commit` reads dev-report-d1e94e.json, qa-report-d1e94e.json, completion-d1e94e.md — all describe the 17-file 9-item retrospective consistently and have request_id=d1e94e at JSON-field level. /commit Step 7's PRIMARY closure-detection path (which reads close-report verdict via close-verdict.py) would also work once this close-report exists. However, any consumer that reads the BA ticket prose for human-readable context (audit tools, retrospective analysis, future BA reads) gets the wrong cycle's prose. Not a hard /commit blocker, but a clear audit-trail integrity concern.
 
 ### Bullet 2 — Task-id chain consistency: **FAIL**
 
-All 5 file slots are present under task-id `20260519-211515`, BUT two of them (ticket + context) describe a different scope than the other three (AC + dev-report + QA-report). Codex's adversarial reading of `context.requirement.original` and `context.affected_files[0:5]` confirms the on-disk content is the 9-item retrospective. Filename-presence is NOT sufficient; scope coherence is required.
+Filename-presence is uniform under `d1e94e`, AND JSON `request_id`/`task_id` fields all say `d1e94e`. BUT content-level chain split:
+- BA layer (ticket + context): describes D+H, 3 files
+- Dev/QA/completion layer: describes 9-item retrospective, 17 files
+- Inspector layer at `*-d1e94e.json` paths: describes D+H, 3 files, internally tagged with OLD task-id `20260519-211515`
+- Inspector recheck layer: describes 25-file scope, internally tagged `20260519-211515-recheck` (NOT d1e94e)
 
-### Bullet 3 — Pre-existing-defect rule (§5.4 rule d): N/A as blocker
+The chain is split into AT LEAST THREE incoherent content layers under the same task-id slot. This is the SAME split-source pattern that forced the prior CLOSE: NO on `20260519-211515` — the rename to d1e94e at JSON-field level did NOT repair the content-level split. Per close.md Workflow Integrity Dimension Bullet 2 (the predecessor artifacts MUST describe the same cycle), this is FAIL.
 
-The recurring task-id allocator collision IS an out-of-scope, pre-existing defect that should not block close. The completion report and dev-report's `codex_consult.findings_detail[3]` correctly classify it as "orchestrator-side (per dispatch prompt)". However, the issue here is not the bug itself — it's that the recovery did not persist on disk for the canonical ticket+context slots after the 4th overwrite. That's a workflow-integrity bullet-1/bullet-2 failure, not a §5.4 rule-d violation.
+### Bullet 3 — Pre-existing defect rule (§5.4 rule 3): **PASS**
 
-### Bullet 4 — Self-deployability:
+The recurring task-id allocator collision IS an out-of-scope, pre-existing harness defect. The orchestrator's hooks/prompt-workflow.py allocator fix (commit 28a1e85) addresses the root cause as an orchestrator-side mitigation outside this cycle's BA scope — which is acceptable per §5.4 rule 3. F5 from codex Round 1 was revised to OBSERVATION_ONLY in Round 2 once the committed state was confirmed.
 
-- (i) `/commit` consumability: **FAIL** (see bullet 1)
-- (ii) Push permission: PASS (unchanged)
-- (iii) No commit-channel bypass: PASS (no auto-bulk smuggle, no `CLAUDE_PROJECT_DIR` override)
-- (iv) User-only physical filesystem actions: PASS (the `/.hook-refactor-allow` sentinel was verified absent; no user-grant-required cleanup)
+### Bullet 4 — Self-deployability: PARTIAL
+
+- (i) `/commit` consumability: PASS-with-caveat (see Bullet 1)
+- (ii) Push permission: PASS (orchestrator has write access)
+- (iii) No commit-channel bypass: PASS (no auto-bulk smuggle, no CLAUDE_PROJECT_DIR override)
+- (iv) User-only physical filesystem actions: N/A (no user-grant-required cleanup involved)
 
 ---
 
 ## Codex consultation (`codex_status`)
 
 - **invoked**: true
-- **status**: ok
-- **channel**: Skill(codex) → bash codex exec gpt-5.5 xhigh (no-tee form to `/var/tmp/codex-outputs/`)
-- **artifact**: `/var/tmp/codex-outputs/codex-output-3716899-1779264954.txt`
-- **verdict returned**: `CODEX: NO`
-- **summary**: "The D+H code itself looks closeable: pytest is 27/27, the `_resolve_context` cleanup is acceptable fix-forward, and the K=3/test-path advisories are not critical. The blocker is artifact integrity: current `docs/dev/ticket-20260519-211515.md` and `docs/dev/context-20260519-211515.json` are for the later 9-item retrospective, not D+H, while AC/dev/QA are D+H. That makes the task-id chain split-source and contradicts the completion report's 'recovered ticket+context' claim. BA-QA max-3 escape is acceptable only if orchestrator recovery persisted; on disk it did not."
-- **action items returned** (verbatim from codex):
-  1. Restore or quarantine D+H ticket and context so canonical artifacts all describe the same D+H scope.
-  2. Add a close-time consistency check: ticket/context/AC/dev/QA must share the same requirement and modified-file set.
-  3. Log the recurring allocator overwrite as separate blocking infra follow-up, then rerun close after artifact repair.
-- **caller filter classification** (per Skill(codex) Rule 3):
-  - Action #1: `in_scope_real_bug` — required for close consistency
-  - Action #2: `in_scope_minor` — future hardening but blocker for THIS close because integrity violation is what's blocking
-  - Action #3: `out_of_scope` — already logged in completion report; this is the orchestrator's allocator-bug ticket, not the dev cycle's
-
----
-
-## Per-round entries
-
-### Round 1 — QA initial position
-
-**1a. Initial draft**: YES (close the cycle)
-
-Rationale draft:
-1. 10 ACs all PASS empirically (66 independent verification checks: 27/27 pytest + 12 AC-D smoke + 15 AC-H smoke + 12 codex-adversarial-response smoke)
-2. User-need "好的开完成全部" honored for D+H code-fix (A is orchestrator-post-cycle by design)
-3. Diagnosis layer L3+L4 — distinct from prior cycle's surface
-4. Security-relevant grant leakage closed (D = §5.4 rule 2 security exception territory)
-
-Workflow integrity per-bullet draft:
-- Bullet 1 downstream consumability: tentatively PASS — artifacts shape-valid, orchestrator-direct Edit of `_resolve_context` is canonical close cleanup
-- Bullet 2 task-id chain consistency: tentatively PASS — all 5 artifacts present under task-id slot
-- Bullet 3 pre-existing defects: PASS — 6 out-of-scope items + allocator collision + codex /var/tmp/ block all fall under §5.4 rule (d)
-- Bullet 4 self-deployability: tentatively PASS — sentinel verified absent, no user-grant-required cleanup
-
-**1b. Cleanliness preconditions check**:
-- Style: PASS (0 critical, 2 advisory non-blocking — K=3 magic + test fixture literals; both `introduced_in_diff: true` but advisory-only severity)
-- Cleanliness: 1 MAJOR was `blocks_close: true` (dead `_resolve_context`). Orchestrator fix-forward landed.
-  - Verified via grep on `hooks/posttool-subagent-track.py`:
-    - Line 417: docstring backref ("`_resolve_context` gate-and-bail pattern for the legacy path. Case A")
-    - Line 440: audit comment ("# NOTE: `_resolve_context` removed by cycle 20260519-211515 close cleanup")
-    - Only `def _resolve_base_context` remains (line 413); no `def _resolve_context` exists
-  - `python3 -m py_compile` PASS (syntax intact)
-  - `python3 -m pytest hooks/tests/test_allowlist_consolidation.py -q` PASS (27/27 in 0.03s)
-  - Fix-forward landed correctly. Cleanliness blocker RESOLVED per AC-2.6 (`introduced_in_diff: true` cycle-introduced finding has been remediated within the cycle).
-- Prompt: out_of_domain (no `.md` in diff). PASS.
-
-**1b'. Codex adversarial consultation**:
-
-Invoked Skill(codex) → bash `codex exec gpt-5.5 xhigh` (no-tee form). Codex returned `CODEX: NO`.
-
-The decisive finding was independently verifiable: reading `context-20260519-211515.json:11` shows `"original": "/redev --codex 修复全部建议的内容"` (NOT the D+H complaint), and reading `context-20260519-211515.json:15-33` shows `where: ["policies/tool-policy.v1.json", "hooks/lib/allowlist.py", "hooks/userprompt-consent-allowlist.sh", "hooks/pretool-bash-safety.sh", "hooks/posttool-allowlist-consume.py", "hooks/stop-cleanup-allowlist.sh", "hooks/tests/test_allowlist_consolidation.py", "hooks/push.sh", "CLAUDE.md", "commands/commit.md", "commands/push.md", "commands/close.md", "commands/dev.md", "agents/push-analyst.md", "agents/qa.md", "agents/ba.md", "docs/dev/specs/spec-20260520-044700.md"]` — 17 files vs dev-report's 3 files (`hooks/lib/allowlist.py`, `hooks/posttool-subagent-track.py`, `hooks/tests/test_allowlist_consolidation.py`).
-
-**Mtime timeline proves a 4th ghost overwrite occurred POST-QA**:
-- AC JSON: 07:05:14Z (D+H scope)
-- Dev report: 07:24:56Z (D+H scope, post-3rd-collision)
-- QA report: 07:45:19Z (D+H scope)
-- Completion: 07:47Z (claims "recovered ticket+context")
-- Ticket: **08:14:24Z** (4th overwrite, retrospective scope — POST-QA, POST-completion)
-- Context: **08:16:24Z** (4th overwrite, retrospective scope — POST-QA, POST-completion)
-
-The completion report's claim of "recovered ticket+context" was true at 07:47Z but the recovery did not persist through the 4th overwrite at 08:14-08:16Z. The orchestrator did NOT re-reconstruct after that fourth event.
-
-Codex's verdict overrides my Round 1 draft on workflow-integrity bullets 1+2. The verdict shifts from YES → NO.
-
-### Round 2 — not run
-
-Codex's Round 1b' finding was independently reproducible (`requirement.original` field text, affected_files count, mtime evidence all directly grepped from disk). The integrity violation is a hard fact, not an opinion that needs another adversarial pass. Per close.md branch 2 protocol, when the codex finding is correct on factual grounds and provides actionable repair items, accept the verdict and document the repair path.
-
-### Round 3 — not run
-
-Earlier rounds resolved the verdict.
+- **status**: `ok`
+- **rounds**: 2
+- **channel**: Skill(codex) → `codex exec gpt-5.5 xhigh` (tee form to `/var/tmp/codex-outputs/`)
+- **Round 1 artifact**: `/var/tmp/codex-outputs/codex-output-d1e94e-r1-1322983-1779314303.txt` (session 019e4766-1139-7df2-9b81-bdc153992032)
+- **Round 2 artifact**: `/var/tmp/codex-outputs/codex-output-d1e94e-r2-1622675-1779314636.txt` (session 019e476b-5c71-7303-9215-7b9288788dc8)
+- **Round 1 verdict**: NO (5 PROPOSED_FIX + 1 OBSERVATION_ONLY, all factual claims independently verified true)
+- **Round 2 verdict**: NO (explicit hold-firm; revised F4+F5 to observation-only; C1 + C2 confirmed as fatal blockers)
+- **Caller filter classification** (per Skill(codex) Rule 3):
+  - F1, F2, F3 → `in_scope_real_bug` (artifact-integrity violations directly threaten close consumability)
+  - F4 → `in_scope_minor` (close.md contract gap — follow-up improvement, not current-cycle violation)
+  - F5 → `out_of_scope` (file already committed; not a d1e94e dev-report scope issue)
+  - F6 → `observation_only` (informational; does not rescue Bullet 2)
 
 ---
 
 ## Why this is NOT close.md branch 2 `ac_deviation_with_user_need_satisfied`
 
-I considered whether this qualifies as a PASS-via-AC-deviation: the user's verbatim "好的开完成全部" was empirically satisfied for D+H code-fix (`passed_user_requirement: true`, `ac_alignment: true` per QA report), and the ticket-content mismatch is an artifact-state issue not a code-behavior issue.
+Considered branch: the 9-item retrospective code work IS independently verified (27 PASS + 35 pytest), so `passed_user_requirement: true`. The mismatch is at the ARTIFACT chain layer, not at the AC layer.
 
-It does NOT qualify, because:
-1. The integrity violation affects DOWNSTREAM CONSUMABILITY (Workflow Integrity bullet 1) — `/commit` Step 7 and any cycle audit will read the wrong scope.
-2. Anti-Fraud Principle 6 — the completion-report's "recovered ticket+context" claim is contradicted by current on-disk state. Process-section claim contradicts findings section.
-3. AC-deviation-PASS requires `passed_user_requirement = true AND ac_alignment = false`. Here, user_requirement satisfied AND ac_alignment is true — the deviation is NOT in the AC text, it's in the ARTIFACT INTEGRITY. The close.md AC-deviation branch does not cover artifact-content drift.
+Branch 2 does NOT apply because:
+1. AC-deviation-PASS requires `ac_alignment: false` with explicit dev-report record of deviation rationale. dev-report-d1e94e.json does NOT record `ac_deviation_with_user_need_satisfied` — and the deviation here is not in the AC mechanics but in the source-of-truth chain (BA spec describes one cycle, dev/QA describe a different cycle).
+2. Per close.md branch 2 anti-fraud clause: "if the deviated AC directly encodes the user-need test itself, OR a security check, OR a cleanliness-of-THIS-diff check, the deviation collapses to plain AC-FAIL". Here the issue is structural artifact integrity, not AC mechanics — outside branch 2 scope.
+3. Per Anti-Fraud Principle 6: completion-d1e94e.md claims completion of 9-item retrospective work while the on-disk BA ticket (the source-of-truth for what the cycle was supposed to do) describes a completely different scope. The completion claim contradicts the BA-spec evidence.
 
-The correct branch is CLOSE: NO with concrete artifact-repair action items, allowing the orchestrator to repair and reconvene the close debate.
+The correct branch is **Branch 3 (Substantive Codex dissent unresolved)** AND **Branch 4 (Workflow Integrity Bullet 2 FAIL)** — either independently forces CLOSE: NO; both together make the verdict unambiguous.
+
+---
+
+## Verdict rationale
+
+The 9-item retrospective CODE itself is functionally correct and verified today (27 PASS lines from _final_sweep.sh, 35/35 pytest pass, all 9 user-stated ACs empirically pass per QA report). The fix substantively addresses the retrospective items.
+
+However, the close gate is NOT just code-correctness. close.md's Workflow Integrity Dimension Bullet 2 is an artifact-chain invariant: the BA spec describing the cycle's intent and the dev/QA/completion describing what was done must describe the same cycle. Currently:
+- Canonical `ticket-d1e94e.md` describes D+H (3 files)
+- Canonical `context-d1e94e.json` describes D+H (3 files)
+- Canonical `dev-report-d1e94e.json` describes 9-item retrospective (17 files)
+- Canonical `qa-report-d1e94e.json` verifies 9-item retrospective
+- Canonical `completion-d1e94e.md` describes 9-item retrospective
+- Canonical inspector reports at `*-d1e94e.json` audit D+H scope with old task-id 20260519-211515
+- Recheck inspector reports at `*-20260519-211515-recheck.json` audit the actual 25-file scope but at non-canonical filenames
+
+This is a 3-way content split under one task-id name. It is the SAME split-source defect that forced the prior CLOSE: NO under task-id 20260519-211515 — only the JSON `request_id`/`task_id` fields were renamed; the underlying content alignment was NOT repaired.
+
+Codex independently identified the split in Round 1 and held firm in Round 2. QA verified all 6 codex factual claims as true via direct file reads. Verdict is unanimous CLOSE: NO across both rounds.
 
 ---
 
 ## Recommended next steps for orchestrator
 
-1. **Repair canonical ticket**: re-write `docs/dev/ticket-20260519-211515.md` from the D+H content that produced AC JSON + dev report + QA report. Source for D+H content: dev-report's `tasks_completed[].description/changes/rationale`, AC JSON's 10 ACs, and the original dispatch prompt's verbatim D+H wording.
-2. **Repair canonical context**: re-write `docs/dev/context-20260519-211515.json` with `requirement.original` = the D+H complaint text (verbatim from QA report's `user_verbatim_complaint`), `requirement.where` = the 3 modified files, and the rest of the BA-QA-cycle history preserved.
-3. **Add a close-time integrity check** (codex action #2): cross-validate that `ticket.requirement.original ⊇ context.requirement.original` and that `dev-report.files_modified ⊆ context.affected_files` before allowing close. (Future ticket; not blocking this close attempt but should be filed.)
-4. **Mitigate ghost overwrites**: either (a) write artifacts with O_EXCL flock or (b) quarantine the canonical slot before each close-attempt re-read, so that any post-QA ghost write is detected and rolled back. (Already logged as out-of-scope future ticket in completion report.)
-5. After repair, re-run `/close 20260519-211515` for a fresh debate — the code-fix correctness is solid and should pass cleanly once integrity is restored.
+1. **Decide on chain-repair direction** — two options:
+   - **Option A (recommended)**: Regenerate `ticket-d1e94e.md` and `context-d1e94e.json` from the 9-item retrospective content (the actually-landed work). Source material: the prior cycle's BA spec for the 9-item retrospective at `docs/dev/ticket-20260520-085647-d1722b.md` (Cycle 2 of spec-20260518-225715) which IS the 9-item retrospective spec — re-tag it as d1e94e and harmonize. Then re-run close.
+   - **Option B**: Reduce dev-report/qa-report/completion-d1e94e.json to ONLY describe the D+H scope (3 files). This would require reverting 14 of the 17 file modifications — impractical and would discard substantial verified work.
+2. **Regenerate inspector reports at canonical `*-d1e94e.json` paths** with internal `request_id`/`task_id` = `d1e94e` and the actual 17-modified + 8-created file scope (i.e., re-home the recheck reports). The Step 1 inspector dispatch (or a Step 1 redo) should use `dev.files_modified` from the actual dev-report (the 17-file list).
+3. **Archive or quarantine ghost artifacts** so they cannot be cited as canonical evidence:
+   - `docs/dev/ticket-75463e-DH.md` / `context-75463e-DH.json` (older recovery ghosts)
+   - `docs/dev/*-inspector-report-20260519-211515-recheck.json` (after their content is migrated to `-d1e94e.json`)
+4. **File a follow-up cycle** to address the close.md:190 contract gap (inspector scope should include `dev.files_created` not just `dev.files_modified`). This is F4 from codex Round 1, revised to observation-only.
+5. After steps 1–3, re-run `/close d1e94e` for a fresh debate. The CODE correctness is solid (independently verified); the close should pass cleanly once the artifact chain is repaired.
 
 ---
 
-CLOSE: NO - canonical ticket and context were ghost-overwritten with retrospective scope after QA completed and were not re-reconstructed; on-disk task-id chain is split-source (ticket+context describe 9-item retrospective; AC+dev+QA describe D+H)
-
----
-
-# Close Debate Report — Re-debate 2026-05-20T09:15Z (D+H iter3)
-
-**Triggered by**: orchestrator re-dispatch of QA + codex debate after prior CLOSE: NO; the orchestrator wanted to confirm whether the artifact-repair recommendation had been actioned or whether D+H code-correctness alone could now justify CLOSE: YES.
-
-**Debate date**: 2026-05-20T09:15Z
-
-## Input files (re-debate)
-
-- BA spec ticket (canonical on disk, NON-AUTHORITATIVE for D+H): `docs/dev/ticket-20260519-211515.md` — contains 9-item retrospective spec, NOT D+H
-- D+H human-readable spec (NONCANONICAL, exists on disk): `docs/dev/ticket-20260520-allow-dh.md` — verified exists (43194 bytes, 2026-05-20T06:41)
-- Context (canonical on disk, NON-AUTHORITATIVE for D+H): `docs/dev/context-20260519-211515.json` — describes 9-item retrospective
-- AC JSON (canonical, AUTHORITATIVE for D+H): `docs/dev/acceptance-criteria-20260519-211515.json` — 10 D+H ACs (D1/D2/D3/D4/H1/H2/H3a/H3b/H4/D-H)
-- Dev report (canonical, AUTHORITATIVE for D+H): `docs/dev/dev-report-20260519-211515.json` — 3 files modified, status=completed
-- QA report (canonical, AUTHORITATIVE for D+H): `docs/dev/qa-report-20260519-211515.json` — qa.status=pass, 10/10 ACs verified
-- Completion report (canonical, AUTHORITATIVE for D+H): `docs/dev/completion-20260519-211515.md`
-- Inspector reports: style/cleanliness/prompt — all `-20260519-211515.json`
-
-## Rounds run
-
-- **Round 1**: QA draft YES + Skill(codex) Round 1 → CODEX response YES with 1 MAJOR (audit clarity wording) + 3 MINORs + 3 OBSERVATION_ONLYs; no BLOCKERs.
-- **Round 2**: QA presented Round 1 incorporations (accepted codex's wording fixes) + Skill(codex) Round 2 → CODEX flipped to NO with 2 BLOCKERs.
-
-## Codex consultation (re-debate)
-
-- **codex_status**: `ok` (both rounds returned parseable verdicts)
-- **Round 1 codex artifact**: `/var/tmp/codex-outputs/codex-output-1720398-1779267787.txt` (session 019e44a0-5453-7870-b763-8a0b48d662aa)
-- **Round 2 codex artifact**: `/var/tmp/codex-outputs/codex-output-1720398-round2-1779268138.txt` (session 019e44a5-35e5-78a0-b410-45c6cf3a08a9)
-- **Round 1 verdict**: YES (close can remain YES if close-report fixes ticket-collision audit wording)
-- **Round 2 verdict**: NO with 2 BLOCKERs:
-  1. **BLOCKER 1 — artifact-chain split-source is still real, not just wording.** Current canonical `docs/dev/ticket-20260519-211515.md:1-15` describes the 9-item retrospective, not D+H. Current `docs/dev/context-20260519-211515.json:12-16` also describes the retrospective. Normal `/close` requires the same-task ticket/context/dev/QA/completion chain (`commands/close.md:161-165`), so marking ticket/context "non-authoritative" does not preserve downstream consumability. Contrary to my Round-1 acceptance wording, `docs/dev/ticket-20260520-allow-dh.md` **does exist** locally (verified — 43194 bytes) and carries the human-readable D+H prose, but it is noncanonical. PROPOSED_FIX: restore canonical `ticket-20260519-211515.md` and `context-20260519-211515.json` from the D+H backup/AC/dev/QA/completion artifacts, then re-run close. Do not list the current context JSON as authoritative for D+H.
-  2. **BLOCKER 2 — cleanliness AC-2.6 treats F1/F2 as close-blocking despite `blocks_close:false`.** `commands/close.md:266-271` says a file-level finding with explicit `introduced_in_diff: true` is the positive marker that can force `CLOSE: NO`; close.md does NOT recognize a `blocks_close:false` override from the inspector. Current cleanliness report has F1 (test docstring contradiction) and F2 (stale `_resolve_context` breadcrumb) both `introduced_in_diff: true` (`docs/dev/cleanliness-inspector-report-20260519-211515.json:22-45`). PROPOSED_FIX: apply the tiny cleanup — update `hooks/tests/test_allowlist_consolidation.py:113`; reword/delete the stale `_resolve_context` breadcrumb at `hooks/posttool-subagent-track.py:416-442`; re-run the cleanliness inspector so no `introduced_in_diff:true` findings remain.
-- **Round 2 OBSERVATION_ONLYs (codex independently verified D+H code correctness)**:
-  3. No D/H functional AC miss. Codex re-ran `pytest hooks/tests/test_allowlist_consolidation.py -q` → **27/27 pass**. `/var/tmp/dev-test/test_h.py` still exists and **ALL TESTS PASS**. Direct smoke confirmed D4 regex grants and D2 exact PostTool consumption.
-  4. H AC-H3b / contract-present behavior looks safe. Case A has no fall-through, helper returns None on no anchor/miss, multi-in-progress is guarded, contract-present routing happens before legacy Case A/B.
-
-## QA position (re-debate)
-
-- **Round 1 QA draft verdict**: YES (D+H code correctness independently verified — pytest 27/27, 12 AC-D direct calls, 15 AC-H direct calls, AC-H4 file untouched per git diff; no blocking inspector findings)
-- **Round 2 QA reassessment**: NO. Codex Round 2 surfaced 2 substantive BLOCKERs I had not weighted correctly:
-  - The artifact-chain split-source is NOT just wording — close.md Workflow Integrity Dimension Bullet 2 requires the predecessor artifacts (BA spec → context → dev-report → completion → qa-report → close-report) to ALL be present under the SAME task-id (`commands/close.md:237`). The on-disk BA spec (ticket) and context describe a different cycle than the dev/QA/completion chain. This is **task-id chain consistency = FAIL**.
-  - The cleanliness inspector's `blocks_close:false` editorial classification on F1/F2 does NOT override close.md's AC-2.6 (b) "NEW-violation → CLOSE: NO" rule. The rule says `introduced_in_diff:true` IS the positive marker that forces NO. F1 + F2 both carry `introduced_in_diff:true`. close.md plumbing recognizes the inspector's tagging only, not the editorial `blocks_close` override.
-
-## Workflow Integrity Dimension (re-debate)
-
-1. **Downstream consumability**: PASS-with-caveat. `/commit` reads dev-report-, qa-report-, completion-, AC JSON — all under canonical task-id 20260519-211515 with correct contents. However the BA-spec layer (ticket + context) describes a different cycle; if downstream tools consume the ticket/context for human-readable spec context, they will get the wrong cycle's prose. /commit itself does not strictly read the ticket; the consumability gap is at the audit-trail layer.
-2. **task-id chain consistency**: **FAIL.** `docs/dev/ticket-20260519-211515.md` line 1 reads "# BA Specification: Implement 9 retrospective remediation items from cycle 20260519-175339" (the parallel Cycle 2 / 9-item retrospective spec). `docs/dev/context-20260519-211515.json` lines 12-16 confirm the same retrospective scope. Meanwhile `dev-report-20260519-211515.json` line 7 lists D+H files (`hooks/lib/allowlist.py`, `hooks/posttool-subagent-track.py`, `hooks/tests/test_allowlist_consolidation.py`), and `qa-report-20260519-211515.json` line 8 cites D+H verbatim complaint. The chain is split-source — same task-id slot, two different cycle contents.
-3. **Pre-existing-defect rule**: PASS. No pre-existing-defect critique was raised in Round 1; the cleanliness F3 + F4 are pre-existing but properly tagged `introduced_in_diff:false` so default-safe ignore applies.
-4. **Self-deployability**: PASS (i) /commit consumability — the dev-report/qa-report/completion artifacts have correct shape and would pass /commit's PRIMARY-path lookup. (ii) Push permission — orchestrator has write access. (iii) No commit-channel bypass. (iv) N/A — no user-only physical action required for this close.
-
-**Per `commands/close.md:312` Branch 4: any Workflow Integrity Dimension FAIL forces CLOSE: NO regardless of QA / codex positions.** Bullet 2 FAIL is decisive.
-
-Additionally **Branch 3 (Substantive Codex dissent)**: codex_status=ok AND Round 2 ended with `CLOSE: NO` AND the disagreement was not resolved → CLOSE: NO. Both blocker chains independently force the same verdict.
-
-## Verdict rationale
-
-- The D+H code itself is **functionally correct and verifiable today**. pytest 27/27, my own QA-time AC-D + AC-H direct smoke tests all PASS, codex independently re-ran pytest in Round 2 and confirmed 27/27. The fix substantively addresses the user's complaint (PreTool/PostTool grant asymmetry + parallel TodoWrite/Agent race).
-- However, the close gate is NOT just code-correctness. Close.md's Workflow Integrity Dimension Bullet 2 is an artifact-chain invariant: the BA spec describing the cycle's intent and the dev/QA/completion describing what was done must be the same cycle. Right now the on-disk canonical ticket + context describe the retrospective cycle while the rest of the chain describes D+H. This is the audit-trail split that Bullet 2 forbids.
-- Codex Round 2 ALSO surfaces a second independent close-blocker: the cleanliness inspector's F1 + F2 carry `introduced_in_diff: true`, and close.md AC-2.6 (b) rules that this positive marker forces CLOSE: NO; the inspector's editorial `blocks_close:false` is not recognized by close.md's plumbing.
-- Either blocker on its own forces CLOSE: NO. Both together make the verdict unambiguous.
-
-## Recommended next steps for orchestrator (re-debate)
-
-1. **Repair canonical ticket + context**: rewrite `docs/dev/ticket-20260519-211515.md` and `docs/dev/context-20260519-211515.json` from the D+H backup spec at `docs/dev/ticket-20260520-allow-dh.md` (which exists and carries the full human-readable D+H prose) + the AC JSON + dev report. After repair, every artifact under task-id 20260519-211515 describes the same cycle (D+H).
-2. **Apply the 2-line cleanup** to flip F1 + F2 to `introduced_in_diff:false`:
-   - `hooks/tests/test_allowlist_consolidation.py:113` — update `TestReadGrant` class docstring from "exact_or_substr semantics" to "exact_only literal semantics".
-   - `hooks/posttool-subagent-track.py:416-442` — delete or reword the stale `_resolve_context` breadcrumb (the function no longer exists; the NOTE block is archaeology).
-   - Then re-run cleanliness-inspector with `--changed-files` so the new report shows zero `introduced_in_diff:true` findings.
-3. **Re-run /close 20260519-211515** after steps 1 + 2. The D+H code correctness is solid (independently verified) and the close should pass cleanly once the artifact chain is repaired and the 2 cleanup items are landed.
-4. **Optionally** (separate cycle): file the ghost-overwrite mitigation for the recurring task-id allocator collision — same recommendation as the prior CLOSE: NO close-report; not blocking this close.
-
-## Authoritative D+H artifacts (for the orchestrator's repair guidance)
-
-- D+H backup spec (full human-readable prose): `docs/dev/ticket-20260520-allow-dh.md`
-- D+H acceptance criteria JSON: `docs/dev/acceptance-criteria-20260519-211515.json` (10 ACs)
-- D+H dev report: `docs/dev/dev-report-20260519-211515.json` (3 files modified, status=completed)
-- D+H QA report: `docs/dev/qa-report-20260519-211515.json` (qa.status=pass, 10/10 ACs verified)
-- D+H completion report: `docs/dev/completion-20260519-211515.md`
-
----
-
-CLOSE: NO - task-id chain consistency FAIL (Workflow Integrity Bullet 2): on-disk ticket-20260519-211515.md and context-20260519-211515.json describe the 9-item retrospective cycle while dev-report+qa-report+completion describe D+H — split-source chain. Compounded by AC-2.6 (b): cleanliness F1+F2 carry introduced_in_diff:true (close.md does not honor the inspector's editorial blocks_close:false override). Codex Round 2 substantive dissent independently confirms. D+H code itself remains functionally correct (pytest 27/27, AC-D+AC-H smoke pass) — repair the canonical ticket+context from docs/dev/ticket-20260520-allow-dh.md backup, apply 2-line cleanup at test_allowlist_consolidation.py:113 + posttool-subagent-track.py:416-442, then re-run /close.
+CLOSE: NO - task-id chain consistency FAIL (Workflow Integrity Bullet 2): on-disk canonical ticket-d1e94e.md + context-d1e94e.json describe D+H scope (3 files) while canonical dev-report-d1e94e.json + qa-report-d1e94e.json + completion-d1e94e.md describe 9-item retrospective (17 files); canonical *-inspector-report-d1e94e.json files internally tagged 20260519-211515 and audit only 3 D+H files while the 25-file recheck audits live at non-canonical -20260519-211515-recheck.json paths; same split-source pattern as the prior CLOSE: NO on 20260519-211515, only the JSON request_id/task_id fields were renamed. Branch 3 (substantive Codex dissent unresolved across Rounds 1+2) AND Branch 4 (Bullet 2 FAIL) both independently force NO. Retrospective code itself is functionally verified (27 PASS sweep + 35 pytest); repair the BA-layer artifacts and re-home the 25-file inspector evidence to canonical -d1e94e.json paths, then re-run /close.

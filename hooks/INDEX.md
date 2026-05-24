@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-20T15:45:28Z*
-**Total entries**: 128
+*Last updated: 2026-05-24T10:44:59Z*
+**Total entries**: 134
 **Convention**: kebab
 
 ## Tree
@@ -24,6 +24,7 @@ hooks/
 ├── lib/
 │   ├── `agent_resolver.py` - Refactored from pretool-subagent-code-block.py::_find_agent_type so that
 │   ├── `allowlist.py` - Single source of truth for grant-read, grant-match, and grant-consume
+│   ├── `bash_context_strip.py` - This is deliberately NOT a full shell parser.  It only computes a conservative
 │   ├── `bash_write_targets.py` - Provides two public functions used by tool-policy and overnight-hook-guard:
 │   ├── `checkpoint-core.sh` - ============================================================================
 │   ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.
@@ -35,16 +36,17 @@ hooks/
 │   ├── `subagent.py` - Single source of truth for is_subagent_context() and supporting helpers
 │   └── `todo_canonical.py` - Shared canonical todo validation utilities
 ├── tests/
-│   ├── `_ac10_verify.sh` - Shell script
-│   ├── `_ac1_verify.sh` - Shell script
-│   ├── `_ac3_verify.sh` - Shell script
-│   ├── `_ac5_verify.sh` - Shell script
-│   ├── `_ac6_verify.sh` - Shell script
-│   ├── `_ac9_verify.sh` - Shell script
-│   ├── `_final_sweep.sh` - Final sweep — invoke each AC's verifier and print PASS/FAIL summary.
+│   ├── `test_ac10_verify.sh` - Shell script
+│   ├── `test_ac1_verify.sh` - Shell script
+│   ├── `test_ac3_verify.sh` - Shell script
+│   ├── `test_ac5_verify.sh` - Shell script
+│   ├── `test_ac6_verify.sh` - Shell script
+│   ├── `test_ac9_verify.sh` - Shell script
 │   ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
+│   ├── `test_bash_safety_context.py` - Tests strip_non_executable_contexts() in isolation, covering the main
 │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 │   ├── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
+│   ├── `test_final_sweep.sh` - Final sweep — run inline AC checks and print PASS/FAIL summary.
 │   └── `test_push_sentinel_abort.sh` - Unit test for AC1 V5: hooks/push.sh self-aborts before any real git push
 ├── `audit-slashcommand.sh` - audit-slashcommand.sh
 ├── `auto-commit.sh` - ============================================================================
@@ -92,6 +94,10 @@ hooks/
 ├── `pretool-claude-config-guard.py` - PreToolUse Hook: Claude config (.claude/hooks + .claude/commands) protection
 ├── `pretool-cp-checkin.py` - cp-state file read
 ├── `pretool-cp-state-write-guard.py` - Cycle-3 slim form (2026-05-14): Bash-extractor removed — 22-form adversarial
+├── `pretool-daily-trade-agent-concurrency.py` - Blocks the pathological failure mode from 2026-05-23: the daily-trade command
+├── `pretool-daily-trade-agent-concurrency.py.bak-exactdesc-20260523-194734` - bak-exactdesc-20260523-194734 file
+├── `pretool-daily-trade-agent-concurrency.py.bak-fix-20260523-194312` - bak-fix-20260523-194312 file
+├── `pretool-daily-trade-agent-concurrency.py.bak-narrow2-20260523-194350` - bak-narrow2-20260523-194350 file
 ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
 ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
 ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh

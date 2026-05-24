@@ -170,40 +170,39 @@ fi
 # load_sentinel_grant_for_task() — predicate never substring-matches against
 # the command line. allowed_operations[] is bootstrapped from the legacy
 # pattern as a single {op,target,args_contain} entry when the pattern is
-# literal; regex patterns produce a wildcard entry that requires a manual
-# allowed_operations[] follow-up. Atomic write-temp+rename so partial files
-# never appear.
+# literal.
+# S1 (task 20260521-090200): skip sentinel write for is_regex=true grants.
+# Rationale: a regex sentinel writes op:"*" which never structurally matches
+# (structured predicate requires op equality), causing CF-1 to fire and
+# suppress the legacy /allow path — defeating the user's regex grant. By not
+# writing a sentinel for regex grants, the legacy path is consulted as
+# expected. Atomic write-temp+rename so partial files never appear.
+if [ "$IS_REGEX" = "true" ]; then
+  exit 0
+fi
 TASK_ID="${CLAUDE_TASK_ID:-${SID}}"
 SENTINEL_DIR="/tmp/claude-grants"
 mkdir -p "$SENTINEL_DIR" 2>/dev/null
 SENTINEL_FILE="${SENTINEL_DIR}/${TASK_ID}.json"
 SENTINEL_TMP="${SENTINEL_FILE}.tmp.$$"
 ALLOW_PATTERN="$PATTERN" \
-  ALLOW_IS_REGEX="$IS_REGEX" \
   SENTINEL_TMP="$SENTINEL_TMP" \
   SID="$SID" \
   TASK_ID="$TASK_ID" \
   python3 -c "
 import json, os, time
 pattern = os.environ['ALLOW_PATTERN']
-is_regex = os.environ['ALLOW_IS_REGEX'] == 'true'
 now = time.time()
 # Default sentinel TTL: 300s. Aligns with bash-safety grant window.
 ttl = 300
-# Literal patterns produce a single structured op entry; regex patterns
-# produce a wildcard placeholder so the legacy regex path still works
-# while the structured predicate forbids substring-style command-line
-# matches (per AC2).
-if is_regex:
-    ops = [{'op': '*', 'note': 'legacy regex pattern', 'pattern': pattern}]
-else:
-    parts = pattern.split(None, 1)
-    op = parts[0] if parts else pattern
-    rest = parts[1] if len(parts) >= 2 else ''
-    entry = {'op': op}
-    if rest:
-        entry['args_contain'] = [rest]
-    ops = [entry]
+# Literal patterns produce a single structured op entry.
+parts = pattern.split(None, 1)
+op = parts[0] if parts else pattern
+rest = parts[1] if len(parts) >= 2 else ''
+entry = {'op': op}
+if rest:
+    entry['args_contain'] = [rest]
+ops = [entry]
 grant = {
     'task_id': os.environ['TASK_ID'],
     'session_id': os.environ['SID'],

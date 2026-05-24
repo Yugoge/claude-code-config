@@ -1,7 +1,7 @@
 # lib
 
-*Last updated: 2026-05-20T09:14:13Z*
-**Total entries**: 12
+*Last updated: 2026-05-24T10:28:20Z*
+**Total entries**: 13
 **Convention**: kebab
 
 ## Tree
@@ -9,6 +9,7 @@
 lib/
 ├── `agent_resolver.py` - Refactored from pretool-subagent-code-block.py::_find_agent_type so that
 ├── `allowlist.py` - Single source of truth for grant-read, grant-match, and grant-consume
+├── `bash_context_strip.py` - This is deliberately NOT a full shell parser.  It only computes a conservative
 ├── `bash_write_targets.py` - Provides two public functions used by tool-policy and overnight-hook-guard:
 ├── `checkpoint-core.sh` - ============================================================================
 ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.

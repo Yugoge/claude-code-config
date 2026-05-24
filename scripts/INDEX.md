@@ -1,12 +1,14 @@
 # scripts
 
-*Last updated: 2026-05-19T16:23:05Z*
-**Total entries**: 72
+*Last updated: 2026-05-22T10:30:43Z*
+**Total entries**: 76
 **Convention**: kebab
 
 ## Tree
 ```
 scripts/
+├── install/
+│   └── `tmp-cleanup-install.sh` - /usr/local/sbin/tmp-cleanup.sh
 ├── todo/
 │   ├── `clean.py` - Preloaded TodoList for /clean workflow
 │   ├── `close.py` - Three user-visible TodoSteps (flat-integer per agents/style-inspector.md
@@ -68,15 +70,17 @@ scripts/
 ├── `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
 ├── `quick-excel` - unknown file
 ├── `refine-context.sh` - refine-context.sh — merge QA-refined context with original context
+├── `resolve-close-report.sh` - Resolve the close-report path for a given TASK_ID using subproject path-walk.
 ├── `resolve-dev-report.py` - Usage:
 ├── `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 ├── `scan-project.sh` - Description: Scan project structure and detect project type
 ├── `score-inject.sh` - Description: Emit a prompt-injection text block describing an agent's current rank/range
-├── `score-update.sh` - Description: Update agent score in ~/.claude/agent-scores.json based on a canonical event.
+├── `score-update.sh` - Description: Update agent score state file based on a canonical event.
 ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 ├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 ├── `write-codex-enforce.sh` - Writes codex-enforce.json into the dev-registry for the given session.
+├── `write-commit-grant.py` - Invoked from `commands/commit.md` Step 5 (non-bulk mode) to author a
 ├── `write-e2e-enforce.sh` - Writes e2e-enforce.json into the dev-registry for the given session.
 └── `write-qa-mode.sh` - Write or update qa_mode field in the QA sentinel file for a dev-registry session.
 ```

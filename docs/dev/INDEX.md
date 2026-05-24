@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-20T20:45:48Z*
-**Total entries**: 311
+*Last updated: 2026-05-24T11:51:46Z*
+**Total entries**: 441
 **Convention**: kebab
 
 ## Tree
@@ -18,16 +18,29 @@ dev/
 │   ├── spec-20260518-225715/
 │   │   ├── views/
 │   │   └── `split-qa-unresolved.json` - json config
+│   ├── spec-20260520-221059/
+│   │   └── views/
 │   ├── `spec-20260517-210806.md` - Spec: Add working /push ending-workflow to clean.md (cleaner push-gate fix)
 │   ├── `spec-20260518-225715.md` - Spec: Dev Harness 扩展计划 — 工分系统、Test-Writer、Blast Radius、Executable AC、Canary
-│   └── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
+│   ├── `spec-20260520-044700.md` - Spec — Continuation: Clear QA-test orphan wrapper holding /run/playwright-mcp.lock
+│   └── `spec-20260520-221059.md` - Spec: Unresolved issues backlog from session 88dfdcea — TOP 3 cluster stranded by scope hot-swap + post-session confession
 ├── `acceptance-criteria-20260519-132417.json` - json config
 ├── `acceptance-criteria-20260520-085647-d1722b.json` - json config
+├── `acceptance-criteria-20260520-221452.json` - json config
+├── `acceptance-criteria-20260521-090100.json` - json config
+├── `acceptance-criteria-20260521-090200.json` - json config
+├── `acceptance-criteria-20260521-090300.json` - json config
+├── `acceptance-criteria-20260522-000000.json` - json config
+├── `acceptance-criteria-20260522-080646-A.json` - json config
+├── `acceptance-criteria-20260522-080646-B.json` - json config
+├── `acceptance-criteria-20260522-080646-D.json` - json config
+├── `acceptance-criteria-20260524-101700-D.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2.json` - json config
 ├── `acceptance-criteria-d1e94e.json` - json config
 ├── `architect-report-20260517-155838.json` - json config
 ├── `architect-report-dev-20260517-215114.json` - json config
+├── `architect-report-spec-20260520-221059.json` - json config
 ├── `ba-qa-report-20260416-063500.json` - json config
 ├── `ba-qa-report-20260416-073000.json` - json config
 ├── `ba-qa-report-20260517-153856.json` - json config
@@ -53,8 +66,23 @@ dev/
 ├── `ba-qa-report-20260520-085647-d1722b-iter2.json` - json config
 ├── `ba-qa-report-20260520-085647-d1722b-iter3.json` - json config
 ├── `ba-qa-report-20260520-085647-d1722b.json` - json config
+├── `ba-qa-report-20260520-221452.json` - json config
+├── `ba-qa-report-20260521-090100.json` - json config
+├── `ba-qa-report-20260521-090200.json` - json config
+├── `ba-qa-report-20260521-090300.json` - json config
+├── `ba-qa-report-20260522-000000.json` - json config
+├── `ba-qa-report-20260522-080646-A-iter2.json` - json config
+├── `ba-qa-report-20260522-080646-A.json` - json config
+├── `ba-qa-report-20260522-080646-B.json` - json config
+├── `ba-qa-report-20260522-080646-C-iter2.json` - json config
+├── `ba-qa-report-20260522-080646-C.json` - json config
+├── `ba-qa-report-20260522-080646-D-iter2.json` - json config
+├── `ba-qa-report-20260522-080646-D-iter3.json` - json config
+├── `ba-qa-report-20260522-080646-D.json` - json config
+├── `ba-qa-report-20260522-080646-F.json` - json config
 ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 ├── `ba-qa-report-d1e94e.json` - json config
+├── `ba-report-spec-20260520-221059.json` - json config
 ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 ├── `cleanliness-inspector-report-20260517-155838.json` - json config
 ├── `cleanliness-inspector-report-20260517-172600.json` - json config
@@ -70,8 +98,13 @@ dev/
 ├── `cleanliness-inspector-report-20260519-151734.json` - json config
 ├── `cleanliness-inspector-report-20260519-161035.json` - json config
 ├── `cleanliness-inspector-report-20260519-175339.json` - json config
+├── `cleanliness-inspector-report-20260519-211515-recheck.json` - json config
 ├── `cleanliness-inspector-report-20260519-211515.json` - json config
 ├── `cleanliness-inspector-report-20260520-085647-d1722b.json` - json config
+├── `cleanliness-inspector-report-20260520-221452.json` - json config
+├── `cleanliness-inspector-report-20260521-090100.json` - json config
+├── `cleanliness-inspector-report-20260522-000000.json` - json config
+├── `cleanliness-inspector-report-20260522-080646.json` - json config
 ├── `cleanliness-inspector-report-d1e94e.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
 ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
@@ -94,7 +127,13 @@ dev/
 ├── `close-report-20260519-161035.md` - Close Debate Report — 20260519-161035
 ├── `close-report-20260519-175339.md` - Close Report — 20260519-175339
 ├── `close-report-20260519-211515.md` - Close Report — task-id 20260519-211515
-├── `close-report-d1e94e.md` - Close Debate Report
+├── `close-report-20260520-085647-d1722b.md` - Close Debate Report
+├── `close-report-20260520-221452.md` - Close Debate Report (RE-EVALUATION)
+├── `close-report-20260521-090100.md` - Close Debate Report
+├── `close-report-20260522-000000.md` - Close Debate Report
+├── `close-report-20260522-080646.md` - Close Debate Report
+├── `close-report-d1e94e-prior.md` - Close Debate Report
+├── `close-report-d1e94e.md` - Close Debate Report — d1e94e
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
@@ -115,7 +154,13 @@ dev/
 ├── `completion-20260519-211515-redev9items.md` - Development Completion Report — 20260519-211515 (redev 9-item retrospective)
 ├── `completion-20260519-211515.md` - Development Completion Report — 20260519-211515
 ├── `completion-20260520-085647-d1722b.md` - Development Completion Report — 20260520-085647-d1722b
-├── `completion-d1e94e.md` - Development Completion Report — 20260519-211515
+├── `completion-20260520-221452.md` - Development Completion Report — 20260520-221452
+├── `completion-20260521-090100.md` - Development Completion Report — 20260521-090100
+├── `completion-20260521-090200.md` - Development Completion Report — 20260521-090200
+├── `completion-20260521-090300.md` - Development Completion Report — 20260521-090300
+├── `completion-20260522-000000.md` - Dev Cycle Completion Report
+├── `completion-20260522-080646.md` - Dev Cycle Completion — 20260522-080646
+├── `completion-d1e94e.md` - Development Completion Report — d1e94e
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
 ├── `context-20260510-191533.json` - json config
@@ -138,8 +183,23 @@ dev/
 ├── `context-20260519-211515-CYCLE2-round3.json` - json config
 ├── `context-20260519-211515.json` - json config
 ├── `context-20260520-085647-d1722b.json` - json config
+├── `context-20260520-221452.json` - json config
+├── `context-20260521-090100.json` - json config
+├── `context-20260521-090200.json` - json config
+├── `context-20260521-090300.json` - json config
+├── `context-20260522-000000.json` - json config
+├── `context-20260522-080646-A.json` - json config
+├── `context-20260522-080646-B.json` - json config
+├── `context-20260522-080646-C.json` - json config
+├── `context-20260522-080646-D.json` - json config
+├── `context-20260522-080646-F.json` - json config
+├── `context-20260524-101700-D.json` - json config
+├── `context-20260524-101700-H.json` - json config
+├── `context-20260524-101700-X.json` - json config
+├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
+├── `context-d1e94e.json` - json config
 ├── `context-dev-20260107-091716.json` - json config
 ├── `context-dev-20260107-100221.json` - json config
 ├── `context-dev-20260107-104430.json` - json config
@@ -188,6 +248,18 @@ dev/
 ├── `dev-report-20260519-211515-iter3.json` - json config
 ├── `dev-report-20260519-211515.json` - json config
 ├── `dev-report-20260520-085647-d1722b.json` - json config
+├── `dev-report-20260520-221452.json` - json config
+├── `dev-report-20260521-085554.json` - json config
+├── `dev-report-20260521-090100.json` - json config
+├── `dev-report-20260521-090200.json` - json config
+├── `dev-report-20260521-090300.json` - json config
+├── `dev-report-20260522-000000.json` - json config
+├── `dev-report-20260522-080646-A.json` - json config
+├── `dev-report-20260522-080646-B.json` - json config
+├── `dev-report-20260522-080646-C.json` - json config
+├── `dev-report-20260522-080646-D.json` - json config
+├── `dev-report-20260522-080646-F.json` - json config
+├── `dev-report-20260522-080646.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
@@ -213,9 +285,14 @@ dev/
 ├── `prompt-inspector-report-20260519-151734.json` - json config
 ├── `prompt-inspector-report-20260519-161035.json` - json config
 ├── `prompt-inspector-report-20260519-175339.json` - json config
+├── `prompt-inspector-report-20260519-211515-recheck.json` - json config
 ├── `prompt-inspector-report-20260519-211515-redev9items.json` - json config
 ├── `prompt-inspector-report-20260519-211515.json` - json config
 ├── `prompt-inspector-report-20260520-085647-d1722b.json` - json config
+├── `prompt-inspector-report-20260520-221452.json` - json config
+├── `prompt-inspector-report-20260521-090100.json` - json config
+├── `prompt-inspector-report-20260522-000000.json` - json config
+├── `prompt-inspector-report-20260522-080646.json` - json config
 ├── `prompt-inspector-report-d1e94e.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
@@ -258,6 +335,23 @@ dev/
 ├── `qa-report-20260519-211515-final.json` - json config
 ├── `qa-report-20260519-211515.json` - json config
 ├── `qa-report-20260520-085647-d1722b.json` - json config
+├── `qa-report-20260520-221452.json` - json config
+├── `qa-report-20260521-085554.json` - json config
+├── `qa-report-20260521-090100.json` - json config
+├── `qa-report-20260521-090200.json` - json config
+├── `qa-report-20260521-090300.json` - json config
+├── `qa-report-20260522-000000.json` - json config
+├── `qa-report-20260522-080646-A-iter2.json` - json config
+├── `qa-report-20260522-080646-A-iter3.json` - json config
+├── `qa-report-20260522-080646-A.json` - json config
+├── `qa-report-20260522-080646-B-iter2.json` - json config
+├── `qa-report-20260522-080646-B-iter3.json` - json config
+├── `qa-report-20260522-080646-B.json` - json config
+├── `qa-report-20260522-080646-C.json` - json config
+├── `qa-report-20260522-080646-D-iter2.json` - json config
+├── `qa-report-20260522-080646-D.json` - json config
+├── `qa-report-20260522-080646-F.json` - json config
+├── `qa-report-20260522-080646.json` - json config
 ├── `qa-report-d1e94e.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
 ├── `qa-report-dev-20260107-100221.json` - json config
@@ -284,9 +378,22 @@ dev/
 ├── `style-inspector-report-20260519-151734.json` - json config
 ├── `style-inspector-report-20260519-161035.json` - json config
 ├── `style-inspector-report-20260519-175339.json` - json config
+├── `style-inspector-report-20260519-211515-recheck.json` - json config
 ├── `style-inspector-report-20260519-211515.json` - json config
 ├── `style-inspector-report-20260520-085647-d1722b.json` - json config
+├── `style-inspector-report-20260520-221452.json` - json config
+├── `style-inspector-report-20260521-090100.json` - json config
+├── `style-inspector-report-20260522-000000.json` - json config
+├── `style-inspector-report-20260522-080646.json` - json config
 ├── `style-inspector-report-d1e94e.json` - json config
+├── `test-writer-report-20260520-221452.json` - json config
+├── `test-writer-report-20260521-090100.json` - json config
+├── `test-writer-report-20260521-090200.json` - json config
+├── `test-writer-report-20260521-090300.json` - json config
+├── `test-writer-report-20260522-000000.json` - json config
+├── `test-writer-report-20260522-080646-A.json` - json config
+├── `test-writer-report-20260522-080646-B.json` - json config
+├── `test-writer-report-20260522-080646-D.json` - json config
 ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence
@@ -307,9 +414,27 @@ dev/
 ├── `ticket-20260519-211515-CYCLE2-round3.md` - BA Specification: 3-Cluster Harness Fixes (Shippability Gate / Real-Fixture Verification / Event-Sourced Lifecycle Log)
 ├── `ticket-20260519-211515.md` - BA Specification: Implement 9 retrospective remediation items from cycle 20260519-175339
 ├── `ticket-20260520-085647-d1722b.md` - BA Specification: Close /allow grant leakage (D) and PostToolUse:Agent tracker race (H) — TRANSFERRED
+├── `ticket-20260520-221452.md` - BA Specification: spec-20260518-225715 Cycle 2 — P1+P2+P3 Close-Gate Remediation
 ├── `ticket-20260520-allow-dh-7faae4.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H)
+├── `ticket-20260521-085827-fa9f07.md` - BA Specification: Batched remediation — codex output relocation + sentinel investigation + /allow vs orchestra tracker-gate
+├── `ticket-20260521-090100.md` - BA Specification: Canonical Codex Output Path (docs/codex/)
+├── `ticket-20260521-090200.md` - BA Specification: /allow Grant Not Honored — Hook Chain Investigation
+├── `ticket-20260521-090300.md` - BA Specification: `.hook-refactor-allow` Sentinel Security Audit
+├── `ticket-20260522-000000.md` - BA Specification: Gitignore fixes, spec commitment, tmp-cleanup.sh mirror, and score-update uncapped_delta
+├── `ticket-20260522-080646-A.md` - BA Specification: bash-safety hook false positives — substring vs executable-context matching
+├── `ticket-20260522-080646-B.md` - BA Specification: Write-Guard Sentinel Integration
+├── `ticket-20260522-080646-C.md` - BA Specification: Tighten Step 7 Stage-3 Candidate Predicate to Machine-Readable Marker
+├── `ticket-20260522-080646-D.md` - BA Specification: Dev Self-Report Provenance (OOS Item D)
+├── `ticket-20260522-080646-F.md` - BA Specification: hooks/tests underscore-prefix rename + cleanup
+├── `ticket-20260524-101700-A.md` - BA Specification: bash-safety hook — DANGER_COMMANDS quoted-arg bypass (second attempt)
+├── `ticket-20260524-101700-B.md` - BA Specification: Write-Guard Sentinel Integration — Bug Fixes (Second Attempt)
+├── `ticket-20260524-101700-D.md` - BA Specification: Spec Text Correction — Task D M5 + AC4 + AC3 (Provenance)
+├── `ticket-20260524-101700-H.md` - BA Specification: Three Structural Gaps in happy-session-recovery.sh
+├── `ticket-20260524-101700-X.md` - BA Specification: Infrastructure Audit — daily-trade, swap-drain, post-start, disk-monitor
+├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
 ├── `ticket-d1e94e-CYCLE2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
+├── `ticket-d1e94e.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
 ├── `user-requirement-dev-20260518-214050.md` - No description
@@ -317,6 +442,11 @@ dev/
 ├── `user-requirement-dev-20260519-151734.md` - No description
 ├── `user-requirement-dev-20260519-161035.md` - User Requirement — dev-20260519-161035
 ├── `user-requirement-dev-20260519-175339.md` - No description
+├── `user-requirement-dev-20260520-221452.md` - No description
+├── `user-requirement-dev-20260521-085554.md` - No description
+├── `user-requirement-dev-20260521-085627.md` - No description
+├── `user-requirement-dev-20260522-080646.md` - No description
+├── `user-requirement-dev-20260524-101700.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 

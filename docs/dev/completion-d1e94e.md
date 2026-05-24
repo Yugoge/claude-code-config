@@ -1,7 +1,7 @@
-# Development Completion Report — 20260519-211515
+# Development Completion Report — d1e94e
 
-**Request ID**: 20260519-211515
-**Task ID**: 20260519-211515
+**Request ID**: d1e94e
+**Task ID**: d1e94e
 **Completed**: 2026-05-20T11:15:00Z
 **Iterations**: dev=1 (first-try pass), BA-QA validation=2 (iter0 fail → iter1 pass after scope hot-swap)
 **Codex enforcement**: ACTIVE (--codex) — codex at BA stage (10 findings iter0, 4 follow-ons iter1), dev stage, QA stage (7 findings classified per Rule 3/4 — none contradicting user ACs)
@@ -12,7 +12,7 @@
 
 **Clarified**: Implement remediation for 9 of 10 shortcomings from Chrome CDP page-target deadlock fix cycle (task-id 20260519-175339). 6 SYSTEMIC (items 7, 2, 1, 5, 4, 10) + 3 NEED-TO-FIX (items 6, 3, 9). Item 8 ACCEPTABLE-DEBT skipped.
 
-**Scope hot-swap**: task-id slot 20260519-211515 had been polluted by 3 concurrent scopes (D+H from 20260519-151734, 3-cluster harness from 20260519-161035, present 9-item retrospective). User directive `禁止加载任何非本cycle的内容` — BA regenerated artifacts for the 9-item scope only.
+**Scope hot-swap**: task-id slot d1e94e had been polluted by 3 concurrent scopes (D+H from 20260519-151734, 3-cluster harness from 20260519-161035, present 9-item retrospective). User directive `禁止加载任何非本cycle的内容` — BA regenerated artifacts for the 9-item scope only.
 
 ## Success criteria — 9 ACs all PASS empirically
 
@@ -50,14 +50,14 @@ Item 7 (tool-policy Skill gap + QA write-prefix limits) fired 9 times across BA 
 
 | Artifact | Path |
 |---|---|
-| User requirement | docs/dev/user-requirement-dev-20260519-211515.md |
+| User requirement | docs/dev/user-requirement-dev-d1e94e.md |
 | Source-of-truth retrospective | docs/dev/qa-output-retrospective-classification-20260519-175339.json |
-| BA ticket | docs/dev/ticket-20260519-211515.md |
-| BA context | docs/dev/context-20260519-211515.json |
-| BA-validation QA | docs/dev/ba-qa-report-20260519-211515.json |
-| Dev report | docs/dev/dev-report-20260519-211515.json |
-| QA final | docs/dev/qa-report-20260519-211515.json |
-| Completion (this file) | docs/dev/completion-20260519-211515.md |
+| BA ticket | docs/dev/ticket-d1e94e.md |
+| BA context | docs/dev/context-d1e94e.json |
+| BA-validation QA | docs/dev/ba-qa-report-d1e94e.json |
+| Dev report | docs/dev/dev-report-d1e94e.json |
+| QA final | docs/dev/qa-report-d1e94e.json |
+| Completion (this file) | docs/dev/completion-d1e94e.md |
 
 ## Mascot Score Changes
 
@@ -70,8 +70,8 @@ Item 7 (tool-policy Skill gap + QA write-prefix limits) fired 9 times across BA 
 
 ## Next Steps
 
-1. `/close --codex 20260519-211515`
-2. `/commit 20260519-211515 -m "..."`
+1. `/close --codex d1e94e`
+2. `/commit d1e94e -m "..."`
 3. `/push`
 
 Out-of-scope follow-ons logged:
