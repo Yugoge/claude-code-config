@@ -486,10 +486,13 @@ def match_sentinel_grant_for_write(task_id: str, session_id: str, target_path: s
 
     Mirrors match_sentinel_grant_for_bash_command() for the Write tool.
     Match requires session_id equality and op=='Write'. Target matching:
-      - If entry['target'] is absent or null: wildcard — matches any target_path.
-        This preserves backward compatibility: /allow Write (no target) allows
-        any Write; /allow Write /specific/path allows only that exact path.
-      - If entry['target'] is a non-empty string: exact equality with target_path.
+      - 'target' key present: exact string equality with target_path required;
+        absent or null or non-string 'target' values deny (fail-closed).
+      - 'args_contain' key present (no 'target'): legacy fallback — allow only
+        if args_contain is a one-item list whose sole element exactly equals
+        target_path (no substring matching).
+      - Neither key present (bare {"op":"Write"}): intentional wildcard — matches
+        any target_path. This preserves /allow Write (no path) wildcard behavior.
 
     The 'target' field name mirrors the existing schema (allowlist.py:22);
     do NOT use 'target_path'.
@@ -515,11 +518,21 @@ def match_sentinel_grant_for_write(task_id: str, session_id: str, target_path: s
             continue
         if entry.get("op") != "Write":
             continue
-        # Absent or null target is a wildcard — matches any target_path.
-        # This preserves backward compatibility: /allow Write (no target) allows
-        # any Write; /allow Write /specific/path allows only that exact path.
-        entry_target = entry.get("target")
-        if entry_target is None or entry_target == target_path:
+        # Key-presence branching (ORIGINAL matcher fix):
+        #   'target' present  → exact equality required; fail-closed on non-string/empty
+        #   'args_contain' present (no 'target') → legacy compat: one-item exact equality
+        #   neither → intentional wildcard (bare /allow Write)
+        if "target" in entry:
+            t = entry["target"]
+            if isinstance(t, str) and t and t == target_path:
+                return entry
+            # else: target present but null/empty/wrong path — deny (fail-closed)
+        elif "args_contain" in entry:
+            ac = entry["args_contain"]
+            if isinstance(ac, list) and len(ac) == 1 and isinstance(ac[0], str) and ac[0] == target_path:
+                return entry
+        else:
+            # Bare {"op":"Write"} — intentional wildcard
             return entry
     return None
 

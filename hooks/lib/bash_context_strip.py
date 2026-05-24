@@ -20,6 +20,8 @@ from pathlib import Path
 MAX_COMMAND_CHARS = int(os.environ.get("CLAUDE_HOOK_CONTEXT_MAX_CHARS", "262144"))
 _SHELL_INTERPS = {"bash", "sh", "zsh", "dash"}
 _WRAPPER_PREFIXES = {"env", "time", "sudo", "nice", "ionice", "nohup", "timeout", "doas", "run0"}
+# Options that consume one following argument when sudo is the wrapper.
+_SUDO_OPTS_WITH_ARG = frozenset({"-u", "--user", "-g", "--group", "-C", "--close-from", "-D", "--chdir"})
 # Commands whose arguments are the dangerous payload — do NOT strip their args.
 DANGER_COMMANDS = frozenset({"killall", "pkill", "kill", "rm", "mv"})
 _HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
@@ -218,6 +220,28 @@ def _find_command_word(tokens: list[tuple[str, str]]) -> int | None:
             continue
         if word in _WRAPPER_PREFIXES:
             idx += 1
+            # For sudo: consume its option-argument pairs before resuming.
+            if word == "sudo":
+                while idx < len(tokens):
+                    t2, k2 = tokens[idx]
+                    if k2 == "space":
+                        idx += 1
+                        continue
+                    opt = t2.strip()
+                    if opt == "--":
+                        idx += 1  # consume "--" terminator, next token is cmd
+                        break
+                    if not (opt.startswith("-") or opt.startswith("+")):
+                        break  # not an option; this is the command word
+                    if opt in _SUDO_OPTS_WITH_ARG:
+                        idx += 1  # consume the flag
+                        # consume its value argument
+                        while idx < len(tokens) and tokens[idx][1] == "space":
+                            idx += 1
+                        if idx < len(tokens):
+                            idx += 1
+                    else:
+                        idx += 1  # no-arg flag (e.g. -H, -n, -S); skip flag only
             # env VAR=val cmd: skip assignments after env-like wrappers too.
             continue
         return idx
@@ -295,7 +319,8 @@ def _process_shell_interp(tokens: list[tuple[str, str]], cmd_idx: int) -> str:
     while i < len(tokens):
         text, kind = tokens[i]
         out.append(text)
-        if i > cmd_idx and kind == "word" and text.strip() == "-c":
+        t = text.strip()
+        if i > cmd_idx and kind == "word" and (t.startswith("-") or t.startswith("+")) and not t.startswith("--") and "c" in t[1:]:
             i += 1
             while i < len(tokens) and tokens[i][1] == "space":
                 out.append(tokens[i][0])
@@ -350,7 +375,9 @@ def _process_heredocs(cmd: str) -> str:
         before = line[:m.start()]
         after = line[m.end():]
         consumer = _first_word(before)
-        shell_ctx = consumer in _SHELL_INTERPS or bool(re.search(r"\|\s*(bash|sh|zsh|dash)\b", after))
+        shell_ctx = consumer in _SHELL_INTERPS or any(
+            _first_word(seg) in _SHELL_INTERPS for seg in after.split("|")[1:]
+        )
         out.append(line)
         i += 1
         body: list[str] = []

@@ -703,6 +703,9 @@ Use Task tool with:
 - `request_id` = `<task-id>`; `dev_report_path` = canonical singular path
 - `parallel_workers` = list of per-worker ids
 - `dev.status`, `dev.tasks_completed`, `dev.scripts_created`, `dev.permissions_to_add`, `dev.files_modified`, `dev.files_created`, `blocking_issues`, `recommendations` = unions of per-worker reports
+- `baseline_head_sha` = equality-verified across all workers (aggregate status = `"blocked"` if any worker disagrees, citing `baseline_head_sha` mismatch); value taken from orchestrator dispatch
+- `baseline_dirty_snapshot` = equality-verified across all workers (aggregate status = `"blocked"` if any worker disagrees, citing `baseline_dirty_snapshot` mismatch); value taken verbatim from orchestrator dispatch
+- `dev.observed_preexisting` = UNION of all per-worker `dev.observed_preexisting` lists
 - The orchestrator writes the aggregate inline via `jq` or `python3` in a single Bash call — do NOT modify the `/commit` command implementation (`/root/.claude/commands/commit.md`), do NOT add a separate script
 
 **Single-dev cycles**: mark this todo step waived (skip). The aggregate-check hook does not fire for single-dev cycles because only one per-worker file pattern can match.
@@ -729,13 +732,15 @@ stays as-is.
 - `dev_report_path` = `docs/dev/dev-report-<task-id>.json` (the canonical path)
 - `parallel_workers` = list of per-worker ids `["<worker-id>", ...]`
   (top-level field for traceability; sources the per-worker reports)
-- `dev.status` = `"completed"` iff ALL workers reported `"completed"`,
-  otherwise `"blocked"` with first-failure rationale in `blocking_issues`
+- `baseline_head_sha` = equality-verified across all workers: assert every worker's `baseline_head_sha` equals the orchestrator's dispatch value; if any worker differs, set aggregate `dev.status = "blocked"` and append a `blocking_issues` entry citing `baseline_head_sha` mismatch. Value in the aggregate is taken from the orchestrator dispatch (not unioned from workers).
+- `baseline_dirty_snapshot` = equality-verified across all workers: assert every worker's `baseline_dirty_snapshot` equals the orchestrator's dispatch value (the `git status --porcelain` string captured pre-dispatch); if any worker differs, set aggregate `dev.status = "blocked"` and append a `blocking_issues` entry citing `baseline_dirty_snapshot` mismatch. Value in the aggregate is taken verbatim from the orchestrator dispatch.
+- `dev.status` = `"completed"` iff ALL workers reported `"completed"` **and** no `baseline_head_sha` / `baseline_dirty_snapshot` mismatch was found during equality verification above; otherwise `"blocked"` with rationale in `blocking_issues`
 - `dev.tasks_completed` = UNION of all per-worker `dev.tasks_completed`
 - `dev.scripts_created` = UNION of all per-worker `dev.scripts_created`
 - `dev.permissions_to_add` = UNION of all per-worker `dev.permissions_to_add`
 - `dev.files_modified` = UNION of all per-worker `dev.files_modified`
 - `dev.files_created` = UNION of all per-worker `dev.files_created`
+- `dev.observed_preexisting` = UNION of all per-worker `dev.observed_preexisting` lists (informational; QA reads this field from the aggregate)
 - `blocking_issues` = UNION of all per-worker `blocking_issues`
 - `recommendations` = UNION of all per-worker `recommendations`
 
@@ -747,6 +752,8 @@ Python in a single Bash call — no separate script):
   "request_id": "<task-id>",
   "task_id": "<task-id>",
   "timestamp": "<ISO-8601>",
+  "baseline_head_sha": "<orchestrator dispatch value — equality-verified across all workers>",
+  "baseline_dirty_snapshot": "<orchestrator dispatch value — equality-verified across all workers>",
   "dev_report_path": "docs/dev/dev-report-<task-id>.json",
   "parallel_workers": ["pcwd", "ppush"],
   "dev": {
@@ -755,7 +762,8 @@ Python in a single Bash call — no separate script):
     "scripts_created": [],
     "permissions_to_add": [],
     "files_modified": [],
-    "files_created": []
+    "files_created": [],
+    "observed_preexisting": []
   },
   "blocking_issues": [],
   "recommendations": []
