@@ -12,13 +12,30 @@ SKIP_NAMES = {
     'agent-scores.json', 'agent-scores.json.lock',
 }
 SKIP_DIRS = {'__pycache__', '.git', 'node_modules'}
+# Prefix-aware suppression (spec-20260518-225715 Cycle 3 Debt 7 / AC-07):
+# cp-state-*.json and spec-2026*-* artifacts are runtime telemetry / spec
+# views that must NOT appear in any generated README. Set membership cannot
+# match timestamped variants (cp-state-ba.json, cp-state-qa.json, cp-state-
+# dev.json, spec-20260520-221059, spec-20260524-test ...), so we use a
+# prefix-aware `startswith` filter applied in _build_stats and _list_files.
+SKIP_PREFIXES = ('cp-state-', 'spec-2026')
+
+
+def _is_skipped(name: str) -> bool:
+    """True iff the basename matches an exact SKIP_NAMES entry or a SKIP_PREFIXES prefix."""
+    if name in SKIP_NAMES:
+        return True
+    for prefix in SKIP_PREFIXES:
+        if name.startswith(prefix):
+            return True
+    return False
 
 
 def _build_stats(dir_path: Path) -> dict:
     total = 0
     dirs = 0
     for item in dir_path.iterdir():
-        if item.name in SKIP_NAMES or item.name.startswith('.'):
+        if _is_skipped(item.name) or item.name.startswith('.'):
             continue
         total += 1
         if item.is_dir():
@@ -44,13 +61,15 @@ def _readme_needs_update(readme_path: Path) -> bool:
 
 def _list_files(dir_path: Path) -> list[str]:
     files = sorted(f for f in dir_path.iterdir()
-                   if f.is_file() and f.name not in SKIP_NAMES and not f.name.startswith('.'))
+                   if f.is_file() and not _is_skipped(f.name) and not f.name.startswith('.'))
     return [f'- `{f.name}` - {extract_description(f)}' for f in files]
 
 
 def _list_subdirs(dir_path: Path) -> list[str]:
     subdirs = sorted(d for d in dir_path.iterdir()
-                     if d.is_dir() and d.name not in SKIP_DIRS and not d.name.startswith('.'))
+                     if d.is_dir() and d.name not in SKIP_DIRS
+                     and not _is_skipped(d.name)
+                     and not d.name.startswith('.'))
     return [f'- `{d.name}/`' for d in subdirs]
 
 

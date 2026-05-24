@@ -14,6 +14,22 @@ IGNORE_DIRS = {
     'node_modules', '.git', '__pycache__', '.venv', 'venv',
     'dist', 'build', '.next', '.cache', 'coverage',
 }
+# Prefix-aware leak suppression (spec-20260518-225715 Cycle 3 Debt 7 / AC-07):
+# cp-state-*.json runtime telemetry and spec-2026*-* spec views must NOT
+# appear in any rendered INDEX tree. We use a `startswith` prefix filter
+# applied via _matches_skip_prefix because timestamped variants cannot be
+# enumerated as exact set members.
+SKIP_PREFIXES = ('cp-state-', 'spec-2026')
+
+
+def _matches_skip_prefix(name: str) -> bool:
+    """True iff name begins with any SKIP_PREFIXES entry (prefix-aware filter)."""
+    for prefix in SKIP_PREFIXES:
+        if name.startswith(prefix):
+            return True
+    return False
+
+
 # PATH-AWARE leak suppression (spec-20260518-225715 Cycle 2 P2.4b): suppress
 # `.claude/specs/...` cp-state telemetry subtrees while preserving any
 # legitimate non-.claude `specs/` sibling (e.g. `ordinary/specs/`). The
@@ -38,6 +54,7 @@ def build_tree(dir_path: Path, prefix: str = '', depth: int = 0,
         and i.name not in IGNORE_DIRS
         and not i.name.startswith('.')
         and not _is_dot_claude_specs(i)
+        and not _matches_skip_prefix(i.name)
     ]
     lines = []
     for idx, item in enumerate(items):
