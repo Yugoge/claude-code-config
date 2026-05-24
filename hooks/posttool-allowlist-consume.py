@@ -73,10 +73,6 @@ def main() -> None:
             consume_sentinel_grant_on_terminal_result(task_id, "malformed")
         sys.exit(0)
 
-    # Main-agent only — subagents are exempt
-    if is_subagent_context(data):
-        sys.exit(0)
-
     tool_name = data.get("tool_name", "")
     session_id = data.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "default")
 
@@ -85,7 +81,9 @@ def main() -> None:
     else:
         command = ""
 
-    consume_grant_for_posttool(session_id, tool_name, command)
+    # Legacy grant: main-agent only (subagents use sentinel path).
+    if not is_subagent_context(data):
+        consume_grant_for_posttool(session_id, tool_name, command)
 
     # Sentinel-grant consume-on-any-terminal-result (task 20260519-211515 R2 / AC2).
     #

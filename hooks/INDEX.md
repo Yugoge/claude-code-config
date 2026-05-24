@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-24T15:27:21Z*
-**Total entries**: 135
+*Last updated: 2026-05-24T19:48:53Z*
+**Total entries**: 136
 **Convention**: kebab
 
 ## Tree
@@ -100,6 +100,7 @@ hooks/
 ├── `pretool-daily-trade-agent-concurrency.py.bak-fix-20260523-194312` - bak-fix-20260523-194312 file
 ├── `pretool-daily-trade-agent-concurrency.py.bak-narrow2-20260523-194350` - bak-narrow2-20260523-194350 file
 ├── `pretool-git-privilege-guard.py` - PreToolUse Hook: Agent git-privilege guard
+├── `pretool-gitignore-preflight.py` - pretool-gitignore-preflight.py — PreToolUse hook (matcher: Agent)
 ├── `pretool-layer-escalation-check.sh` - pretool-layer-escalation-check.sh
 ├── `pretool-layer-match-gate.sh` - pretool-layer-match-gate.sh
 ├── `pretool-orchestrator-gate.py` - PreToolUse Hook: Orchestrator Gate (Unified)

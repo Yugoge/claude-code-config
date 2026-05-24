@@ -102,9 +102,9 @@ elif bare:
         is_regex = False
         comment = ' '.join(bare[2:])
     else:
-        pattern = first
-        is_regex = _looks_regex(first)
-        comment = ' '.join(bare[1:])
+        pattern = ' '.join(bare)
+        is_regex = _looks_regex(pattern)
+        comment = ''
 else:
     pattern, is_regex = '.*', True
     comment = ''
@@ -178,44 +178,51 @@ fi
 # The legacy pattern-string grant (above) remains for back-compat; the new
 # sentinel is a STRUCTURED grant that hooks/lib/allowlist.py reads via
 # load_sentinel_grant_for_task() — predicate never substring-matches against
-# the command line. allowed_operations[] is bootstrapped from the legacy
-# pattern as a single {op,target,args_contain} entry when the pattern is
-# literal.
-# S1 (task 20260521-090200): skip sentinel write for is_regex=true grants.
-# Rationale: a regex sentinel writes op:"*" which never structurally matches
-# (structured predicate requires op equality), causing CF-1 to fire and
-# suppress the legacy /allow path — defeating the user's regex grant. By not
-# writing a sentinel for regex grants, the legacy path is consulted as
-# expected. Atomic write-temp+rename so partial files never appear.
-if [ "$IS_REGEX" = "true" ]; then
-  exit 0
-fi
+# the command line.
+#
+# Literal patterns: single {op, target?, args_contain?} entry.
+# Regex patterns: {op:"*", regex:<pattern>} entry. match_sentinel_grant_for_bash_command()
+#   tests re.search(regex, subcommand) for op="*" entries, enabling regex grants to
+#   reach subagents (which cannot use the legacy grant path).
+#   S1 early-exit removed (task 20260524-133650 gap-1 fix): regex grants now write a
+#   sentinel so subagents are covered. CF-1 (sentinel-exists-but-no-match suppresses
+#   legacy path) no longer applies because the matcher now returns a match for regex.
+#
+# Atomic write-temp+rename so partial files never appear.
 TASK_ID="${CLAUDE_TASK_ID:-${SID}}"
 SENTINEL_DIR="/tmp/claude-grants"
 mkdir -p "$SENTINEL_DIR" 2>/dev/null
 SENTINEL_FILE="${SENTINEL_DIR}/${TASK_ID}.json"
 SENTINEL_TMP="${SENTINEL_FILE}.tmp.$$"
 ALLOW_PATTERN="$PATTERN" \
+  ALLOW_IS_REGEX="$IS_REGEX" \
   SENTINEL_TMP="$SENTINEL_TMP" \
   SID="$SID" \
   TASK_ID="$TASK_ID" \
   python3 -c "
 import json, os, time
 pattern = os.environ['ALLOW_PATTERN']
+is_regex = os.environ.get('ALLOW_IS_REGEX') == 'true'
 now = time.time()
 # Default sentinel TTL: 300s. Aligns with bash-safety grant window.
 ttl = 300
-# Literal patterns produce a single structured op entry.
-parts = pattern.split(None, 1)
-op = parts[0] if parts else pattern
-rest = parts[1] if len(parts) >= 2 else ''
-entry = {'op': op}
-if op == 'Write' and rest:
-    # Write ops use 'target' for exact-path scoping (not args_contain).
-    # Matcher key-presence logic requires this field name. (ORIGINAL fix)
-    entry['target'] = rest
-elif rest:
-    entry['args_contain'] = [rest]
+if is_regex:
+    # Regex sentinel: op='*' with 'regex' field. The matcher (allowlist.py
+    # match_sentinel_grant_for_bash_command) runs re.search(regex, subcommand)
+    # for op='*' entries, allowing regex grants to reach subagents.
+    entry = {'op': '*', 'regex': pattern}
+else:
+    # Literal patterns produce a single structured op entry.
+    parts = pattern.split(None, 1)
+    op = parts[0] if parts else pattern
+    rest = parts[1] if len(parts) >= 2 else ''
+    entry = {'op': op}
+    if op == 'Write' and rest:
+        # Write ops use 'target' for exact-path scoping (not args_contain).
+        # Matcher key-presence logic requires this field name. (ORIGINAL fix)
+        entry['target'] = rest
+    elif rest:
+        entry['args_contain'] = [rest]
 ops = [entry]
 grant = {
     'task_id': os.environ['TASK_ID'],
