@@ -432,11 +432,21 @@ def _has_bulk_commit_sentinel(data):
     dispatching changelog-analyst. Multi-use: NOT consumed on validation so
     that multiple auto-bulk commits in a single session all succeed.
     Expires 30 minutes after creation (SENTINEL_TTL_MINUTES in the writer).
+
+    SID fallback rationale (mirrors _find_grant_any for regular commits):
+    changelog-analyst subagents carry a different session_id than the
+    orchestrator that wrote the sentinel. The SID-specific glob is tried
+    first (fast path); the global glob is the fallback so subagents can
+    always find the sentinel written by the user's orchestrator session.
+    Acceptable because: (a) sentinels require user-invoked /commit --bulk
+    to be created at all; (b) 30-min TTL bounds exposure; (c) kind=
+    'bulk-commit' check prevents other JSON files in /tmp from matching.
     """
     sid = _get_session_id(data)
     patterns = []
     if sid:
         patterns.append('/tmp/claude-bulk-commit-sentinel-%s-*.json' % sid)
+    # Global fallback — see docstring above for rationale.
     patterns.append('/tmp/claude-bulk-commit-sentinel-*-*.json')
     seen = set()
     for pattern in patterns:
