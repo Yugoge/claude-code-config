@@ -481,6 +481,49 @@ def match_sentinel_grant_for_bash_command(task_id: str, command: str) -> dict | 
     return None
 
 
+def match_sentinel_grant_for_write(task_id: str, session_id: str, target_path: str) -> dict | None:
+    """Structural match of a Write-overwrite operation against sentinel-grant allowed_operations[].
+
+    Mirrors match_sentinel_grant_for_bash_command() for the Write tool.
+    Match requires session_id equality and op=='Write'. Target matching:
+      - If entry['target'] is absent or null: wildcard — matches any target_path.
+        This preserves backward compatibility: /allow Write (no target) allows
+        any Write; /allow Write /specific/path allows only that exact path.
+      - If entry['target'] is a non-empty string: exact equality with target_path.
+
+    The 'target' field name mirrors the existing schema (allowlist.py:22);
+    do NOT use 'target_path'.
+
+    Args:
+        task_id: task whose sentinel grant to load.
+        session_id: current session_id; must equal grant['session_id'].
+        target_path: absolute path of the file being written.
+
+    Returns:
+        The matched allowed_operations[] entry dict on success, None otherwise.
+        Returns None if grant is missing, expired, session_id mismatches,
+        or no entry matches op=='Write' with a compatible target.
+    """
+    grant = load_sentinel_grant_for_task(task_id)
+    if grant is None:
+        return None
+    if grant.get("session_id") != session_id:
+        return None
+    ops = grant.get("allowed_operations", [])
+    for entry in ops:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("op") != "Write":
+            continue
+        # Absent or null target is a wildcard — matches any target_path.
+        # This preserves backward compatibility: /allow Write (no target) allows
+        # any Write; /allow Write /specific/path allows only that exact path.
+        entry_target = entry.get("target")
+        if entry_target is None or entry_target == target_path:
+            return entry
+    return None
+
+
 def consume_sentinel_grant_on_terminal_result(task_id: str, terminal_result: str) -> bool:
     """Unlink the sentinel grant file on ANY terminal result.
 
