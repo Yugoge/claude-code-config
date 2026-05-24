@@ -77,7 +77,7 @@
     ],
     "diagnosis_completeness": "complete (has observations)",
     "complaint_location_keywords": ["execute-push.py", "Steps 4+5", "delegate", "Bash streak", "sentinel", "push.sh"],
-    "localization_evidence": "User ran the /push sequence and documented exact failure modes in user-requirement-dev-20260524-122947.md; commands/push.md Steps 4+5 read and confirmed manual multi-Bash structure; hooks/push.sh lines 551-651 read and confirmed Chain-B sentinel gate contract.",
+    "localization_evidence": "User ran the /push sequence and documented exact failure modes in user-requirement-dev-20260524-122947.md; commands/push.md Steps 4+5 read and confirmed manual multi-Bash structure; hooks/push.sh lines 84-184 read and confirmed Chain-B sentinel gate contract (file has 461 total lines; wc -l verified).",
     "located_source": "commands/push.md:144-218 (Steps 4+5 as the two-in-scope files needing change); scripts/execute-push.py (absent — new file needed)",
     "localization_blocked": null,
     "git_bisect_result": {
@@ -121,22 +121,22 @@
       "line_range": "new file",
       "role": "Single-invocation Python wrapper: validate Chain-B grant, consume it, write sentinel, os.execv into push.sh",
       "imports_from": ["hooks/push.sh (via os.execv)"],
-      "evidence": "Absent file confirmed; pattern derived from scripts/write-commit-grant.py (Read lines 1-105) and hooks/push.sh sentinel contract (Read lines 551-651)",
+      "evidence": "Absent file confirmed; pattern derived from scripts/write-commit-grant.py (Read lines 1-105) and hooks/push.sh sentinel contract (Read lines 84-184)",
       "verified_via": "Read"
     },
     {
       "file": "hooks/push.sh",
-      "line_range": "551-651",
+      "line_range": "84-184",
       "role": "Chain-B sentinel gate: reads sentinel, validates binding fields, unlinks, proceeds to git push",
       "imports_from": ["leaf"],
-      "evidence": "Read hooks/push.sh lines 551-651 confirmed sentinel path, mtime gate (60s), field validation, os.execv target path",
+      "evidence": "Read hooks/push.sh lines 84-184 confirmed sentinel path (_CHAIN_B_SENTINEL_PATH at line 98), mtime gate (60s at line 110), binding-field validation via Python inline at lines 118-153, consume-unlink at line 160. File has 461 total lines (wc -l confirmed); prior citation of lines 551-651 was incorrect.",
       "verified_via": "Read"
     }
   ],
   "pre_existing_guards": [
     {
       "file": "hooks/push.sh",
-      "line": 567,
+      "line": 100,
       "type": "if",
       "code_snippet": "if [ ! -f \"$_CHAIN_B_SENTINEL_PATH\" ]; then ... exit 1; fi",
       "purpose": "Chain-B sentinel presence gate — push.sh self-aborts if sentinel missing",
@@ -144,7 +144,7 @@
     },
     {
       "file": "hooks/push.sh",
-      "line": 577,
+      "line": 110,
       "type": "if",
       "code_snippet": "if [ \"$_CHAIN_B_AGE\" -gt 60 ]; then ... exit 1; fi",
       "purpose": "60-second mtime gate on Chain-B sentinel — prevents stale sentinel reuse",
@@ -152,9 +152,9 @@
     },
     {
       "file": "hooks/push.sh",
-      "line": 585,
+      "line": 118,
       "type": "assert",
-      "code_snippet": "Python inline validator checking result=PASS + all binding fields (request_id, head, branch, remote)",
+      "code_snippet": "Python inline validator checking result=PASS + all binding fields (request_id, head, branch, remote) — lines 118-153",
       "purpose": "Chain-B binding-field validation — malformed/mismatched sentinel aborts push",
       "removal_authorized": false
     }
@@ -189,7 +189,7 @@
   "reference_source": {
     "tier": "tier_2_verified",
     "description": "commands/push.md Step 4 field list, hooks/push.sh Chain-B sentinel verification, agents/push-analyst.md Phase 7 grant schema, scripts/write-commit-grant.py Python style pattern — all read in this session",
-    "url_or_location": "commands/push.md:144-218, hooks/push.sh:551-651, agents/push-analyst.md:147-188, scripts/write-commit-grant.py:1-105",
+    "url_or_location": "commands/push.md:144-218, hooks/push.sh:84-184, agents/push-analyst.md:147-188, scripts/write-commit-grant.py:1-105",
     "copy_allowed": true
   },
   "prior_attempts": {
@@ -236,7 +236,7 @@
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex confirmed scope is correct. Repo-hash validation is not over-engineered. Nine issues raised: missing positive-path AC, --auto wording clarification, exit code 3 omission, AC3 validation-order sensitivity, operation-order ambiguity around unlink/sentinel/blocked, expires_at Z-suffix underspecification, execv OSError sentinel cleanup, makedirs explicitness, and AC8 Step-4 instruction-cleanup coverage.",
+    "feedback_summary": "Initial spec cycle: Codex confirmed scope is correct. Nine issues raised and incorporated (positive-path AC, --auto, exit code 3, AC3 validation order, execution order, expires_at Z-suffix, execv OSError cleanup, makedirs, AC8 imperative phrase removal). Re-spec cycle (QA rejection response): Codex found 2 additional issues: (1) AC6 two-grep approach still matches pre-existing '60s' occurrences at lines 181/227 and does not scope to Step 5; replaced with Python inline check that extracts Step 5 section and verifies required phrases within it. (2) component_chain[1] evidence text still cited 'hooks/push.sh lines 551-651' — corrected to '84-184'.",
     "findings": [
       {
         "issue": "ACs do not prove the successful path works — only failure modes and docs/compile are tested",

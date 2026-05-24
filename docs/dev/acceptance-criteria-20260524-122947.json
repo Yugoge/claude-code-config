@@ -74,12 +74,14 @@
       "id": "AC6",
       "type": "data",
       "given": "commands/push.md at HEAD after dev commit",
-      "when": "grep -A5 \"WARNING\" commands/push.md is run",
-      "then": "output contains both \"MUST NOT be delegated to a subagent\" and either \"privilege escalation\" or \"60-second\" (or \"60s\")",
+      "when": "the Step 5 section (text between '**Step 5:' heading and its first ```bash code block) is extracted and checked for required phrases",
+      "then": "all required phrases appear within the Step 5 pre-bash text: '> **WARNING', 'MUST NOT be delegated to a subagent', 'privilege escalation', and ('60-second' OR '60s')",
       "check": {
         "method": "bash",
-        "command": "grep -A5 \"WARNING\" commands/push.md",
-        "expected_stdout_contains": ["MUST NOT be delegated to a subagent"]
+        "command": "python3 - <<'PY'\nfrom pathlib import Path\ntext = Path('commands/push.md').read_text()\nstep5 = text.split('**Step 5:', 1)[1].split('```bash', 1)[0]\nassert '> **WARNING' in step5, 'missing WARNING blockquote marker'\nassert 'MUST NOT be delegated to a subagent' in step5, 'missing delegation prohibition phrase'\nassert 'privilege escalation' in step5, 'missing privilege escalation reason'\nassert ('60-second' in step5) or ('60s' in step5), 'missing 60-second/60s TTL reason'\nprint('AC6 PASS')\nPY",
+        "expected_exit_code": 0,
+        "expected_stdout_contains": ["AC6 PASS"],
+        "note": "Checks that required phrases are within the Step 5 section before its bash code block, not just anywhere in the file. Addresses OBJ-1 (eliminates context-window dependency) and correctly scopes to Step 5. commands/push.md already contains '60s' at lines 181 and 227 (unrelated) — this check verifies the phrase is in Step 5's WARNING block, not those unrelated occurrences."
       },
       "ac_uid": "6bee0d2644cda5c0"
     },
