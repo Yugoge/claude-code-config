@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0",
+  "task_id": "20260524-122910",
+  "generated_at": "2026-05-24T12:29:10Z",
+  "spec_ref": "docs/dev/specs/spec-20260518-225715.md Section 7 (Cycle 3 debt clearance)",
+  "ac_uid_algorithm": "sha256(type + given + when + then + json.dumps(check, sort_keys=True, separators=(',',':'), ensure_ascii=False))[:16]",
+  "items": [
+    {
+      "id": "AC-01",
+      "type": "data",
+      "given": "All 13 tests/generated/20260520-221452/test_AC_*.py files exist",
+      "when": "Each file is read and its test function body is inspected",
+      "then": "Zero test files contain bare 'pass' as the sole body statement; zero contain 'TEST_INCOMPLETE:' sentinel; each test function contains at least one assert statement or pytest assertion",
+      "check": {
+        "directory": "tests/generated/20260520-221452/",
+        "file_pattern": "test_AC_*.py",
+        "expected_count": 13,
+        "forbidden_patterns": ["^    pass$", "TEST_INCOMPLETE:"],
+        "required_pattern": "assert"
+      }
+    },
+    {
+      "id": "AC-02",
+      "type": "data",
+      "given": "agents/style-inspector.md Standard 6 section is read",
+      "when": "The Detection subsection is inspected",
+      "then": "Detection logic states CJK detection (U+4E00-U+9FFF) runs unconditionally in scoped files; exemption clauses suppress reporting only, not detection",
+      "check": {
+        "file": "agents/style-inspector.md",
+        "section": "Standard 6",
+        "must_contain": ["unconditional", "detection"],
+        "must_not_contain": ["skip detection"]
+      }
+    },
+    {
+      "id": "AC-03",
+      "type": "data",
+      "given": "agents/ba.md Quality Standards checklist is read",
+      "when": "The checklist items are enumerated",
+      "then": "A checklist item exists verifying complexity_tier and risk_level fields are populated AND that the test-writer trigger gate (complexity_tier >= STANDARD OR risk_level == high) is correctly evaluated",
+      "check": {
+        "file": "agents/ba.md",
+        "section": "Quality Standards",
+        "must_contain": ["complexity_tier", "risk_level", "test-writer", "gate"]
+      }
+    },
+    {
+      "id": "AC-04",
+      "type": "data",
+      "given": "scripts/blast-radius-tool.py is read",
+      "when": "The git_diff_files function is inspected",
+      "then": "Function unions git diff --name-only with git ls-files --others --exclude-standard, deduplicates, and applies in_scope filtering to both sources",
+      "check": {
+        "file": "scripts/blast-radius-tool.py",
+        "function": "git_diff_files",
+        "must_contain": ["ls-files", "--others", "--exclude-standard"],
+        "must_not_contain": []
+      }
+    },
+    {
+      "id": "AC-05",
+      "type": "data",
+      "given": "agents/qa.md Phase 5 section is read",
+      "when": "The trigger condition is inspected",
+      "then": "The trigger explicitly checks complexity_tier >= STANDARD OR risk_level == high, mirroring the dispatch gate in commands/dev.md Step 8",
+      "check": {
+        "file": "agents/qa.md",
+        "section": "Phase 5",
+        "must_contain": ["complexity_tier", "STANDARD", "risk_level", "high"]
+      }
+    },
+    {
+      "id": "AC-06",
+      "type": "hook",
+      "given": "scripts/canary-verify.sh verify_write_guard and verify_git_privilege_guard functions are read",
+      "when": "The negative-payload test logic is inspected",
+      "then": "Each function contains a deny-payload test with a payload the hook MUST block AND asserts rc == 2, matching the pattern in verify_bash_safety",
+      "check": {
+        "file": "scripts/canary-verify.sh",
+        "functions": ["verify_write_guard", "verify_git_privilege_guard"],
+        "pattern_per_function": "emit_failure.*FAILED to block.*rc.*2"
+      }
+    },
+    {
+      "id": "AC-07",
+      "type": "data",
+      "given": "hooks/doc_sync/regen_readme.py SKIP_NAMES and hooks/doc_sync/tree.py SKIP_FILES are read",
+      "when": "The skip logic is inspected",
+      "then": "Both files contain suppression logic for filenames matching cp-state-* and spec-2026*-* patterns (either via startswith checks or equivalent prefix filtering)",
+      "check": {
+        "files": ["hooks/doc_sync/regen_readme.py", "hooks/doc_sync/tree.py"],
+        "must_contain_any": ["cp-state", "spec-2026", "startswith"]
+      }
+    },
+    {
+      "id": "AC-08",
+      "type": "data",
+      "given": "policies/tool-policy.v1.json is parsed as JSON",
+      "when": ".roles.ba.allowed_write_path_prefixes is enumerated",
+      "then": "The list contains a prefix matching blast-radius-map.json writes (e.g., '*/.claude/dev-registry/*/blast-radius-map' or equivalent glob)",
+      "check": {
+        "file": "policies/tool-policy.v1.json",
+        "path": ".roles.ba.allowed_write_path_prefixes",
+        "must_include_substring": "blast-radius-map"
+      }
+    },
+    {
+      "id": "AC-09",
+      "type": "hook",
+      "given": "hooks/session-info.sh is read",
+      "when": "All echo and printf calls are inspected",
+      "then": "Every output statement redirects to stderr (>&2); zero bare stdout output statements remain",
+      "check": {
+        "file": "hooks/session-info.sh",
+        "grep_must_be_empty": "^[[:space:]]*(echo|printf).*[^>]$",
+        "grep_comment": "No echo/printf without >&2 redirect"
+      }
+    },
+    {
+      "id": "AC-10",
+      "type": "data",
+      "given": "commands/dev.md lines 284-310 are read",
+      "when": "The location-complaint overlap procedure is inspected",
+      "then": "The mechanical tokenize + set-intersection + Jaccard + domain-token table has been replaced with an LLM-judgment instruction; no Jaccard threshold or domain-token table remains",
+      "check": {
+        "file": "commands/dev.md",
+        "line_range": "270-320",
+        "must_not_contain": ["Jaccard", "jaccard", "domain.*token.*table"],
+        "must_contain": ["semantic", "judgment"]
+      }
+    }
+  ]
+}
