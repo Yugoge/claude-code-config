@@ -80,7 +80,7 @@
       "bug": "BUG3",
       "fix_location": "hooks/lib/bash_context_strip.py:353 — same fix as AC6; _first_word('/usr/bin/bash') = 'bash' (via _basename), so any(_first_word(seg) in _SHELL_INTERPS for seg in after.split('|')[1:]) correctly detects /usr/bin/bash",
       "fix_note": "QA correction (ba-qa-report I1): after.split('|')[1:] yields [' /usr/bin/bash']; _first_word(' /usr/bin/bash') calls _basename and returns 'bash'; 'bash' in _SHELL_INTERPS is True",
-      "verification_command": "python3 -c \"import sys; sys.path.insert(0, 'hooks/lib'); from bash_context_strip import strip_non_executable_contexts; import re; cmd = \\\"cat <<'EOF' | /usr/bin/bash\\nkill -9 1234\\nEOF\\\"; out = strip_non_executable_contexts(cmd); assert re.search(r'(^|[ \\t;|&])(kill)[ \\t]+-', out), f'kill not visible in: {out!r}'; print('AC7 PASS:', repr(out))\""
+      "verification_command": "python3 -c \"import sys; sys.path.insert(0, 'hooks/lib'); from bash_context_strip import strip_non_executable_contexts; import re; cmd = \\\"cat <<'EOF' | /usr/bin/bash\\nkill -9 1234\\nEOF\\\"; out = strip_non_executable_contexts(cmd); assert re.search(r'(^|[ \\t;|&])(kill)[ \\t]+-', out, re.MULTILINE), f'kill not visible in: {out!r}'; print('AC7 PASS:', repr(out))\""
     },
     {
       "ac_uid": "6f1f7267",

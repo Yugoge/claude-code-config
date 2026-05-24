@@ -1,0 +1,87 @@
+{
+  "request_id": "20260524-125300-push",
+  "task_id": "20260524-125300-push",
+  "iteration": 5,
+  "timestamp": "2026-05-24T16:00:00Z",
+  "qa": {
+    "status": "pass",
+    "verdict": "APPROVED",
+    "overall_assessment": "Iteration 5 adds the single missing AC10 check that was the sole blocker in iter4. ISSUE-NEW-1 (AC10 THEN asserted /root/ form absent but check object provided no recipe to verify it) is now resolved: two new flat keys — old_root_form_absent_verification_command and old_root_form_absent_exit_code: 1 — close the gap. The verification command is `grep -F '/root/.claude/scripts/execute-push.py' commands/push.md` with expected exit code 1 (PASS = absent). Codex adversarial review confirmed the approach is correct and proposed three shape improvements (flat keys instead of nested object, direct grep + exit_code instead of compound semicolon expression, path-only pattern instead of python3-prefixed pattern), all of which were incorporated. AC1-AC9 and the three pre-existing AC10 checks are unchanged. All prior passing checks from iter4 remain in effect.",
+    "issue_resolution": {
+      "id": "ISSUE-NEW-1",
+      "status": "resolved",
+      "resolution_description": "Added two flat keys to AC10 check object: 'old_root_form_absent_verification_command': 'grep -F /root/.claude/scripts/execute-push.py commands/push.md' and 'old_root_form_absent_exit_code': 1. Also updated AC10 when field to include the new grep command and updated AC10 then field to state the fourth outcome (exits code 1, old form absent). Self-verification: on pre-dev commands/push.md (line 183 contains old form), grep exits 0 — check FAILS as expected. On simulated post-dev file (tilde form only), grep exits 1 — check PASSES as expected.",
+      "self_verification_evidence": {
+        "pre_dev_state": "grep -F '/root/.claude/scripts/execute-push.py' commands/push.md → exit 0, match at line 183: 'python3 /root/.claude/scripts/execute-push.py --request-id ...' — FAIL state correctly detected (old form still present)",
+        "post_dev_simulation": "printf 'python3 ~/.claude/scripts/execute-push.py --branch ...' | grep -F '/root/.claude/scripts/execute-push.py' → exit 1 — PASS state correctly detected (old form absent)",
+        "fail_closed_on_error": "grep exits 2 if commands/push.md does not exist; exit 2 != 1, so check FAILS closed (does not false-pass on infrastructure errors)"
+      }
+    },
+    "codex_consult": {
+      "invoked": true,
+      "status": "ok",
+      "feedback_summary": "Codex raised 4 findings against the originally proposed nested-sub-object shape with compound semicolon expression. All 4 findings were in scope and had PROPOSED_FIX entries.",
+      "findings": [
+        {
+          "issue": "grep -qF ...; [ $? -ne 0 ] exits 0 on grep error (e.g. missing file, grep exit 2) — false pass on infrastructure failure",
+          "proposed_fix": "Use flat keys old_root_form_absent_verification_command and old_root_form_absent_exit_code: 1; run grep directly; compare exit code to 1 (not 'not 0')",
+          "classification": "blocker",
+          "disposition": "applied",
+          "rationale": "Direct grep + expected exit_code: 1 fails closed when grep exits 2 (file missing or permission error). The compound expression ; [ $? -ne 0 ] would pass on exit 2 — a silent false pass in infrastructure error conditions."
+        },
+        {
+          "issue": "Nested sub-object shape { 'old_absolute_form_absent': { description, verification_command, expected_exit_code } } inconsistent with AC10's existing flat key style (*_verification_command, *_exit_code)",
+          "proposed_fix": "Use flat keys: old_root_form_absent_verification_command (string) and old_root_form_absent_exit_code (integer 1)",
+          "classification": "major",
+          "disposition": "applied",
+          "rationale": "Flat keys match the existing AC10 check object style used for invocation_args_verification_command and old_and_pattern_absent_exit_code. Nested object would require QA to parse a different schema shape for this one check."
+        },
+        {
+          "issue": "Pattern python3 /root/.claude/... is slightly too narrow — only catches invocations with exactly 'python3 ' prefix; any alternative absolute invocation form would escape",
+          "proposed_fix": "Grep for the path alone: grep -F '/root/.claude/scripts/execute-push.py' commands/push.md",
+          "classification": "major",
+          "disposition": "applied",
+          "rationale": "Matching the path without the python3 prefix catches any absolute invocation form. This is strictly more comprehensive than the python3-prefixed form and is consistent with what iter4's proposed_fix used in its shorter notation."
+        },
+        {
+          "issue": "AC10 when field should describe raw commands run, not include inverted pass logic; then field should state exit code 1 outcome explicitly",
+          "proposed_fix": "Update when to include 'grep -F /root/.claude/scripts/execute-push.py commands/push.md is run'; update then to say it exits with code 1",
+          "classification": "in_scope_minor",
+          "disposition": "applied",
+          "rationale": "The when field is a narrative of what operations are performed; the then field states the expected outcomes including exit codes. Inversion logic belongs in the then clause, not the when clause."
+        }
+      ],
+      "feedback_incorporated": "All 4 Codex findings applied. Final AC10 check shape uses flat keys, direct grep with path-only pattern, expected exit_code: 1, and updated when/then text."
+    },
+    "unchanged_checks": [
+      {
+        "id": "AC1-AC9",
+        "status": "unchanged",
+        "note": "All acceptance criteria AC1 through AC9 are byte-for-byte identical to iter4. No modifications made."
+      },
+      {
+        "id": "AC10-checks-1-through-3",
+        "status": "unchanged",
+        "note": "The three pre-existing AC10 check keys (invocation_uses_tilde_form, invocation_contains_all_args with invocation_args_verification_command / invocation_args_must_contain, old_and_pattern_absent_exit_code, grep_check) are unchanged from iter4."
+      }
+    ],
+    "ba_validation_dimensions": {
+      "evidence_quality": "pass — all claims backed by live greps. Pre-dev state confirmed: grep exit 0 at commands/push.md line 183. Post-dev simulation confirmed: grep exit 1 when old form absent. Fail-closed behavior on infrastructure errors confirmed by exit code analysis (grep exit 2 != 1).",
+      "scope_alignment": "pass — only AC10 check object modified. Two flat keys added, ac_uid bumped to v5, iteration bumped to 5, notes field updated. No other ACs, no MoSCoW items, no Technical Hints changed.",
+      "spec_text_vs_execution_drift": "pass — the new AC10 check object now contains a mechanically executable recipe for every assertion in the THEN text: (1) tilde form present: grep_check; (2) all args present: invocation_args_verification_command + invocation_args_must_contain; (3) old && patterns absent: old_and_pattern_absent_exit_code; (4) old /root/ form absent: old_root_form_absent_verification_command + old_root_form_absent_exit_code. All four THEN assertions are now mechanically verifiable.",
+      "investigation_completeness": "pass — same as iter4 (no new investigation scope added; this is a targeted AC recipe correction only).",
+      "affected_file_accuracy": "pass — same as iter4."
+    },
+    "files_modified": [
+      {
+        "file": "docs/dev/acceptance-criteria-20260524-125300-push.json",
+        "changes": "iteration: 4 → 5; notes updated; AC10 when field extended with new grep command; AC10 then field extended with fourth outcome clause; AC10 check object gains old_root_form_absent_verification_command and old_root_form_absent_exit_code: 1; ac_uid bumped to ac10-push-md-tilde-form-branch-arg-v5"
+      },
+      {
+        "file": "docs/dev/ticket-20260524-125300-push.md",
+        "changes": "AC10 section gains fourth bullet: 'AND grep -F /root/.claude/scripts/execute-push.py commands/push.md exits with code 1 (old /root/.claude/ absolute execute-push path absent — M13 requires replacement, not addition alongside)'"
+      }
+    ],
+    "approval_notes": "APPROVED — iteration 5 resolves the sole blocking issue from iter4 (ISSUE-NEW-1: AC10 check object provided no recipe to verify the /root/ absolute form is absent). The fix is minimal: two new flat keys in the AC10 check object plus corresponding when/then text updates. Codex adversarial review confirmed the fix is correct and proposed shape improvements (all applied). All other ACs unchanged. Dev may proceed with implementation."
+  }
+}

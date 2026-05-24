@@ -1,0 +1,499 @@
+{
+  "request_id": "20260524-125300-A",
+  "task_id": "20260524-125300-A",
+  "timestamp": "2026-05-24T15:45:00Z",
+  "qa": {
+    "status": "fail",
+    "verdict": "fail",
+    "user_verbatim_complaint": "Three bypass paths in hooks/lib/bash_context_strip.py: BUG1 _process_shell_interp detected -c only via exact equality; BUG2 _find_command_word skipped only the sudo token itself; BUG3 pipe-to-shell detection used regex with false-positive on | bash.old and did not detect absolute-path shells like /bin/bash",
+    "verified_against_complaint": true,
+    "passed_user_requirement": true,
+    "ac_alignment": false,
+    "verified_location_keywords": ["hooks", "lib", "bash_context_strip", "py", "shell", "interp", "sudo", "pipe"],
+    "location_overlap": ["hooks", "lib", "bash_context_strip", "py"],
+    "complaint_resolution_evidence": "All three bypass paths are fixed in the implementation. BUG1: compound predicate replaces == '-c'. BUG2: _SUDO_OPTS_WITH_ARG frozenset + inner loop added. BUG3: regex removed, replaced with any(_first_word(seg) in _SHELL_INTERPS for seg in after.split('|')[1:]). Full pytest suite 40 passed.",
+    "complaint_element_pointer": {
+      "selector": "hooks/lib/bash_context_strip.py",
+      "how_located": "file path from task context — pure Python library, no DOM",
+      "found_in_dom": false,
+      "page_url": null
+    },
+    "overall_assessment": "The implementation correctly fixes all three bugs and 40 pytest tests pass. However, two blocking findings prevent PASS: (1) AC7's literal verification_command uses re.search() without re.MULTILINE and fails when executed as specified, while the pytest test passes via grep_match() line-splitting — this is a spec_text_vs_execution_drift violation requiring BA to update AC7's verification_command; (2) the per-task test-writer manifest (tests/generated/20260524-125300-A/) lists 10 active tests, all of which contain TEST_INCOMPLETE sentinels that Dev was required to fill in — pytest reports 10 FAILED.",
+    "success_criteria_results": [
+      {
+        "requirement_id": "AC1",
+        "source_phrase": "Combined flag -lc exposes rm",
+        "criterion": "strip_non_executable_contexts('bash -lc \\'rm /tmp/x\\'') output matches grep -qE '(^|[ \\t;|&(])rm\\s'",
+        "verification_method": "Ran AC1 verification_command verbatim as specified in acceptance-criteria JSON",
+        "status": "pass",
+        "result": "pass",
+        "details": "AC1 PASS: 'bash -lc  rm /tmp/x' — rm visible as executable text",
+        "evidence": "python3 -c output: AC1 PASS: 'bash -lc  rm /tmp/x'"
+      },
+      {
+        "requirement_id": "AC2",
+        "source_phrase": "Combined flag -ce exposes rm",
+        "criterion": "strip_non_executable_contexts('bash -ce \\'rm /tmp/x\\'') output matches grep -qE '(^|[ \\t;|&(])rm\\s'",
+        "verification_method": "Ran AC2 verification_command verbatim",
+        "status": "pass",
+        "result": "pass",
+        "details": "AC2 PASS: 'bash -ce  rm /tmp/x'",
+        "evidence": "python3 -c output: AC2 PASS: 'bash -ce  rm /tmp/x'"
+      },
+      {
+        "requirement_id": "AC3",
+        "source_phrase": "sudo -u root shifts to bash — rm exposed",
+        "criterion": "strip_non_executable_contexts('sudo -u root bash -c \\'rm /tmp/x\\'') output matches grep -qE '(^|[ \\t;|&(])rm\\s'",
+        "verification_method": "Ran AC3 verification_command verbatim",
+        "status": "pass",
+        "result": "pass",
+        "details": "AC3 PASS: 'sudo -u root bash -c  rm /tmp/x'",
+        "evidence": "python3 -c output: AC3 PASS: 'sudo -u root bash -c  rm /tmp/x'"
+      },
+      {
+        "requirement_id": "AC4",
+        "source_phrase": "sudo -H (no-argument flag) does not over-skip — rm exposed",
+        "criterion": "strip_non_executable_contexts('sudo -H bash -c \\'rm /tmp/x\\'') output matches grep -qE '(^|[ \\t;|&(])rm\\s'",
+        "verification_method": "Ran AC4 verification_command verbatim",
+        "status": "pass",
+        "result": "pass",
+        "details": "AC4 PASS: 'sudo -H bash -c  rm /tmp/x'",
+        "evidence": "python3 -c output: AC4 PASS: 'sudo -H bash -c  rm /tmp/x'"
+      },
+      {
+        "requirement_id": "AC5",
+        "source_phrase": "sudo -- terminates options — rm exposed",
+        "criterion": "strip_non_executable_contexts('sudo -- bash -c \\'rm /tmp/x\\'') output matches grep -qE '(^|[ \\t;|&(])rm\\s'",
+        "verification_method": "Ran AC5 verification_command verbatim",
+        "status": "pass",
+        "result": "pass",
+        "details": "AC5 PASS: 'sudo -- bash -c  rm /tmp/x'",
+        "evidence": "python3 -c output: AC5 PASS: 'sudo -- bash -c  rm /tmp/x'"
+      },
+      {
+        "requirement_id": "AC6",
+        "source_phrase": "Heredoc piped to /bin/bash preserves body",
+        "criterion": "'rm /tmp/x' in output of strip_non_executable_contexts(\"cat <<'EOF' | /bin/bash\\nrm /tmp/x\\nEOF\")",
+        "verification_method": "Ran AC6 verification_command verbatim",
+        "status": "pass",
+        "result": "pass",
+        "details": "AC6 PASS: 'cat <<|/bin/bash\\nrm /tmp/x\\nEOF' — body preserved",
+        "evidence": "python3 -c output: AC6 PASS: 'cat <<|/bin/bash\\nrm /tmp/x\\nEOF'"
+      },
+      {
+        "requirement_id": "AC7",
+        "source_phrase": "Heredoc piped to /usr/bin/bash preserves body",
+        "criterion": "output of strip_non_executable_contexts(\"cat <<'EOF' | /usr/bin/bash\\nkill -9 1234\\nEOF\") matches re.search(r'(^|[ \\t;|&])(kill)[ \\t]+-', out)",
+        "verification_method": "Ran AC7 verification_command verbatim as specified in acceptance-criteria JSON",
+        "status": "fail",
+        "result": "fail",
+        "details": "DRIFT DETECTED. The AC7 verification_command uses bare re.search() without re.MULTILINE flag. Output is 'cat <<|/usr/bin/bash\\nkill -9 1234\\nEOF'. The 'kill -9 1234' token appears after a literal newline character. Without re.MULTILINE, ^ only matches start-of-string (before 'cat'), not start-of-line (before 'kill'). The regex (^|[ \\t;|&])(kill)[ \\t]+- does not match because \\n is not in the char class and ^ fails. Command exits non-zero: AssertionError. The implementation IS correct — the fix works. The pytest test test_ac7_heredoc_piped_to_usr_bin_bash_preserves_body PASSES because it uses grep_match() which splits text on \\n and tests each line. This is a spec_text_vs_execution_drift: AC literal text specifies re.search() but the only runnable formulation is re.search() with re.MULTILINE or 'kill -9 1234' in out.",
+        "evidence": "python3 -c exit code 1: AssertionError: kill not visible in: 'cat <<|/usr/bin/bash\\nkill -9 1234\\nEOF'. pytest test: PASSED (uses grep_match with line split)."
+      },
+      {
+        "requirement_id": "AC8",
+        "source_phrase": "Non-shell absolute path in pipe does NOT preserve body",
+        "criterion": "output does NOT match grep -qE '(^|[ \\t;|&(])rm\\s' when command is cat <<'EOF' | /tmp/bash.old\\nrm /tmp/x\\nEOF",
+        "verification_method": "Ran AC8 verification_command verbatim",
+        "status": "pass",
+        "result": "pass",
+        "details": "AC8 PASS (body correctly stripped): 'cat <<|/tmp/bash.old\\n\\nEOF' — rm not visible",
+        "evidence": "python3 -c output: AC8 PASS (body correctly stripped): 'cat <<|/tmp/bash.old\\n\\nEOF'"
+      },
+      {
+        "requirement_id": "AC9",
+        "source_phrase": "Existing tests still pass (no regression)",
+        "criterion": "pytest hooks/tests/test_bash_safety_context.py -v --tb=short exits 0 with >= 30 tests passing",
+        "verification_method": "Ran full pytest suite",
+        "status": "pass",
+        "result": "pass",
+        "details": "40 passed in 0.04s — 30 original + 10 new tests, all green. No regressions.",
+        "evidence": "pytest output: 40 passed in 0.04s (all 40 test IDs listed individually as PASSED)"
+      },
+      {
+        "requirement_id": "AC10",
+        "source_phrase": "+c form (POSIX-compliant variant) exposes rm",
+        "criterion": "strip_non_executable_contexts('bash +c \\'rm /tmp/x\\'') output matches grep -qE '(^|[ \\t;|&(])rm\\s'",
+        "verification_method": "Ran AC10 verification_command verbatim",
+        "status": "pass",
+        "result": "pass",
+        "details": "AC10 PASS: 'bash +c  rm /tmp/x'",
+        "evidence": "python3 -c output: AC10 PASS: 'bash +c  rm /tmp/x'"
+      }
+    ],
+    "_success_criteria_rule": "10 ACs in acceptance-criteria-20260524-125300-A.json; 10 entries produced here.",
+    "root_cause_verification": {
+      "addressed": true,
+      "confidence": "high",
+      "rationale": "All three bypass paths are fixed. BUG1: line 323 of bash_context_strip.py now uses compound predicate '(t.startswith(\"-\") or t.startswith(\"+\")) and not t.startswith(\"--\") and \"c\" in t[1:]' replacing exact equality. BUG2: _SUDO_OPTS_WITH_ARG frozenset at module level, inner loop in _find_command_word consuming option-arg pairs after sudo detection. BUG3: shell_ctx computation now uses any(_first_word(seg) in _SHELL_INTERPS for seg in after.split(\"|\")[1:]) replacing the removed regex. git diff from baseline f79fba1c confirms all changes are present."
+    },
+    "build_verification": {
+      "status": "skipped",
+      "build_command": null,
+      "deploy_command": null,
+      "build_output_summary": null,
+      "service_healthy": null,
+      "changes_verified_live": null,
+      "skip_reason": "Pure Python library — no build or deploy step. Module is imported directly. Verified by running python3 -c import statements and pytest."
+    },
+    "provenance_check": {
+      "baseline_head_sha": "f79fba1c1684d246928a3cfb39bf1ed7a9a5c8a5",
+      "git_diff_command": "git diff f79fba1c1684d246928a3cfb39bf1ed7a9a5c8a5 --name-only",
+      "files_modified_in_dev_report": [
+        "hooks/lib/bash_context_strip.py",
+        "hooks/tests/test_bash_safety_context.py"
+      ],
+      "files_in_git_diff": [
+        "hooks/lib/bash_context_strip.py",
+        "hooks/tests/test_bash_safety_context.py"
+      ],
+      "provenance_status": "pass",
+      "detail": "Both files listed in dev.files_modified appear in git diff --name-only output from baseline SHA. No provenance violation."
+    },
+    "script_quality_results": [],
+    "regression_test_results": [
+      {
+        "test": "Full pytest suite hooks/tests/test_bash_safety_context.py",
+        "result": "pass",
+        "details": "40 passed in 0.04s. All 30 pre-existing tests pass (no regressions). All 10 new tests pass."
+      }
+    ],
+    "code_quality_findings": [],
+    "band_aid_scan": {
+      "checked": true,
+      "patterns_checked": ["threshold_lowering", "error_swallowing", "severity_downgrade", "validation_skip", "check_removal", "default_substitution"],
+      "findings": [],
+      "verdict": "pass",
+      "detail": "The BUG1 fix tightens detection (now catches more combined-flag forms). The BUG2 fix adds option-arg pair consumption logic. The BUG3 fix replaces a regex with a more precise membership-based check that both fixes a false-positive and adds capability. No weakening of any existing check detected. The removed regex is replaced by a stricter formulation, not loosened."
+    },
+    "hardcode_scan_results": {
+      "files_scanned": 2,
+      "violations": [],
+      "summary": {
+        "critical": 0,
+        "major": 0,
+        "minor": 0
+      }
+    },
+    "standards_compliance": {
+      "checked": true,
+      "role_table_source": "CLAUDE.md — no role table declared for this project",
+      "role_table": "absent",
+      "violations": []
+    },
+    "permissions_verification": {
+      "status": "pass",
+      "permissions_count": 0,
+      "validated_permissions": [],
+      "issues": [],
+      "detail": "dev.permissions_to_add is empty — correct, no new scripts created."
+    },
+    "app_understanding_flow": {
+      "executed": false,
+      "core_flow_completed": false,
+      "steps_completed": 0,
+      "baseline_screenshots": [],
+      "errors_found_during_flow": [],
+      "app_not_running": true,
+      "skip_reason": "No web application. Change is a pure Python hook library with no UI surface."
+    },
+    "e2e_enforcement": {
+      "required": false,
+      "attempted": false,
+      "script_discovered": false,
+      "script_path": null,
+      "health_check_url": null,
+      "health_check_result": "N/A — library-only change, no HTTP service",
+      "status": "skipped_no_ui",
+      "blocking_reason": null,
+      "skip_justification": "hooks/lib/bash_context_strip.py is a pure Python library invoked as a subprocess by a shell hook. It has no HTTP interface, no frontend, and no user-visible UI surface. The user requirement is to fix three bypass paths in a hook library. Playwright testing is not applicable."
+    },
+    "e2e_script_results": [],
+    "ui_test_results": [],
+    "manifest_verification": {
+      "manifest_path": "tests/generated/20260524-125300-A/manifest.json",
+      "global_index_path": "tests/generated/manifest.json",
+      "global_index_kind": "index",
+      "manifest_exists": true,
+      "active_tests_count": 10,
+      "active_tests_importable": true,
+      "pytest_collected_ok": false,
+      "pytest_failures": [
+        "tests/generated/20260524-125300-A/test_AC01_58549cee.py::test_AC_01 FAILED — TEST_INCOMPLETE: 58549cee — combined flag -lc exposes rm as executable text",
+        "tests/generated/20260524-125300-A/test_AC02_babe4261.py::test_AC_02 FAILED — TEST_INCOMPLETE: babe4261 — combined flag -ce exposes rm as executable text",
+        "tests/generated/20260524-125300-A/test_AC03_0275970f.py::test_AC_03 FAILED — TEST_INCOMPLETE: 0275970f — sudo -u root shifts to bash and rm is exposed",
+        "tests/generated/20260524-125300-A/test_AC04_f46bf5d1.py::test_AC_04 FAILED — TEST_INCOMPLETE: f46bf5d1 — sudo -H no-argument flag does not over-skip; rm is exposed",
+        "tests/generated/20260524-125300-A/test_AC05_9601d0f3.py::test_AC_05 FAILED — TEST_INCOMPLETE: 9601d0f3 — sudo -- terminates option parsing and rm is exposed",
+        "tests/generated/20260524-125300-A/test_AC06_253728c5.py::test_AC_06 FAILED — TEST_INCOMPLETE: 253728c5 — heredoc piped to /bin/bash preserves body; rm /tmp/x visible",
+        "tests/generated/20260524-125300-A/test_AC07_78f31626.py::test_AC_07 FAILED — TEST_INCOMPLETE: 78f31626 — heredoc piped to /usr/bin/bash preserves body; kill visible",
+        "tests/generated/20260524-125300-A/test_AC08_6f1f7267.py::test_AC_08 FAILED — TEST_INCOMPLETE: 6f1f7267 — non-shell absolute path /tmp/bash.old in pipe does NOT preserve body",
+        "tests/generated/20260524-125300-A/test_AC09_3e46954a.py::test_AC_09 FAILED — TEST_INCOMPLETE: 3e46954a — existing test suite (>= 30 tests) all pass after bug fixes applied",
+        "tests/generated/20260524-125300-A/test_AC10_873cab03.py::test_AC_10 FAILED — TEST_INCOMPLETE: 873cab03 — +c POSIX variant exposes rm as executable text"
+      ],
+      "sentinel_grep_matches": 10,
+      "finding_primary_cause": "dev_implementation",
+      "detail": "pytest tests/generated/20260524-125300-A/ -q: 10 failed in 0.04s. Every active test contains pytest.fail('TEST_INCOMPLETE: ...') sentinel. Dev was required to replace stub bodies with real assertions per test-writer comment '# Dev is free to REPLACE the body of test_AC_01() with a real implementation'. Dev instead wrote 10 real tests in hooks/tests/test_bash_safety_context.py but did not fill the test-writer scaffolding. Both are required."
+    },
+    "blast_radius_phase2": {
+      "phase2_map_path": null,
+      "git_diff_files": [
+        "hooks/lib/bash_context_strip.py",
+        "hooks/tests/test_bash_safety_context.py"
+      ],
+      "phase1_phase2_delta": [],
+      "dev_declarations_complete": true,
+      "exemption_vetoes": [],
+      "detail": "git diff from baseline shows exactly the two files declared in dev.files_modified. No undeclared files changed. blast-radius-tool.py not run (not present in repo); manual git diff used as equivalent. Dev blast_radius_declarations cover both files with adequate rationale."
+    },
+    "generated_tests": [
+      {
+        "path": "tests/generated/20260524-125300-A/test_AC01_58549cee.py",
+        "type": "test_writer_scaffold",
+        "description": "TEST_INCOMPLETE — dev did not fill in body",
+        "request_id": "20260524-125300-A",
+        "edge_case_id": "AC1",
+        "execution": {
+          "status": "fail",
+          "exit_code": 1,
+          "total_checks": 1,
+          "violations_found": 1,
+          "violations": ["TEST_INCOMPLETE sentinel present"],
+          "error_message": "pytest.fail: TEST_INCOMPLETE: 58549cee"
+        }
+      },
+      {
+        "path": "tests/generated/20260524-125300-A/test_AC02_babe4261.py",
+        "type": "test_writer_scaffold",
+        "description": "TEST_INCOMPLETE — dev did not fill in body",
+        "request_id": "20260524-125300-A",
+        "edge_case_id": "AC2",
+        "execution": {
+          "status": "fail",
+          "exit_code": 1,
+          "total_checks": 1,
+          "violations_found": 1,
+          "violations": ["TEST_INCOMPLETE sentinel present"],
+          "error_message": "pytest.fail: TEST_INCOMPLETE: babe4261"
+        }
+      },
+      {
+        "path": "tests/generated/20260524-125300-A/test_AC03_0275970f.py",
+        "type": "test_writer_scaffold",
+        "description": "TEST_INCOMPLETE — dev did not fill in body",
+        "request_id": "20260524-125300-A",
+        "edge_case_id": "AC3",
+        "execution": {
+          "status": "fail",
+          "exit_code": 1,
+          "total_checks": 1,
+          "violations_found": 1,
+          "violations": ["TEST_INCOMPLETE sentinel present"],
+          "error_message": "pytest.fail: TEST_INCOMPLETE: 0275970f"
+        }
+      },
+      {
+        "path": "tests/generated/20260524-125300-A/test_AC04_f46bf5d1.py",
+        "type": "test_writer_scaffold",
+        "description": "TEST_INCOMPLETE — dev did not fill in body",
+        "request_id": "20260524-125300-A",
+        "edge_case_id": "AC4",
+        "execution": {
+          "status": "fail",
+          "exit_code": 1,
+          "total_checks": 1,
+          "violations_found": 1,
+          "violations": ["TEST_INCOMPLETE sentinel present"],
+          "error_message": "pytest.fail: TEST_INCOMPLETE: f46bf5d1"
+        }
+      },
+      {
+        "path": "tests/generated/20260524-125300-A/test_AC05_9601d0f3.py",
+        "type": "test_writer_scaffold",
+        "description": "TEST_INCOMPLETE — dev did not fill in body",
+        "request_id": "20260524-125300-A",
+        "edge_case_id": "AC5",
+        "execution": {
+          "status": "fail",
+          "exit_code": 1,
+          "total_checks": 1,
+          "violations_found": 1,
+          "violations": ["TEST_INCOMPLETE sentinel present"],
+          "error_message": "pytest.fail: TEST_INCOMPLETE: 9601d0f3"
+        }
+      },
+      {
+        "path": "tests/generated/20260524-125300-A/test_AC06_253728c5.py",
+        "type": "test_writer_scaffold",
+        "description": "TEST_INCOMPLETE — dev did not fill in body",
+        "request_id": "20260524-125300-A",
+        "edge_case_id": "AC6",
+        "execution": {
+          "status": "fail",
+          "exit_code": 1,
+          "total_checks": 1,
+          "violations_found": 1,
+          "violations": ["TEST_INCOMPLETE sentinel present"],
+          "error_message": "pytest.fail: TEST_INCOMPLETE: 253728c5"
+        }
+      },
+      {
+        "path": "tests/generated/20260524-125300-A/test_AC07_78f31626.py",
+        "type": "test_writer_scaffold",
+        "description": "TEST_INCOMPLETE — dev did not fill in body",
+        "request_id": "20260524-125300-A",
+        "edge_case_id": "AC7",
+        "execution": {
+          "status": "fail",
+          "exit_code": 1,
+          "total_checks": 1,
+          "violations_found": 1,
+          "violations": ["TEST_INCOMPLETE sentinel present"],
+          "error_message": "pytest.fail: TEST_INCOMPLETE: 78f31626"
+        }
+      },
+      {
+        "path": "tests/generated/20260524-125300-A/test_AC08_6f1f7267.py",
+        "type": "test_writer_scaffold",
+        "description": "TEST_INCOMPLETE — dev did not fill in body",
+        "request_id": "20260524-125300-A",
+        "edge_case_id": "AC8",
+        "execution": {
+          "status": "fail",
+          "exit_code": 1,
+          "total_checks": 1,
+          "violations_found": 1,
+          "violations": ["TEST_INCOMPLETE sentinel present"],
+          "error_message": "pytest.fail: TEST_INCOMPLETE: 6f1f7267"
+        }
+      },
+      {
+        "path": "tests/generated/20260524-125300-A/test_AC09_3e46954a.py",
+        "type": "test_writer_scaffold",
+        "description": "TEST_INCOMPLETE — dev did not fill in body",
+        "request_id": "20260524-125300-A",
+        "edge_case_id": "AC9",
+        "execution": {
+          "status": "fail",
+          "exit_code": 1,
+          "total_checks": 1,
+          "violations_found": 1,
+          "violations": ["TEST_INCOMPLETE sentinel present"],
+          "error_message": "pytest.fail: TEST_INCOMPLETE: 3e46954a"
+        }
+      },
+      {
+        "path": "tests/generated/20260524-125300-A/test_AC10_873cab03.py",
+        "type": "test_writer_scaffold",
+        "description": "TEST_INCOMPLETE — dev did not fill in body",
+        "request_id": "20260524-125300-A",
+        "edge_case_id": "AC10",
+        "execution": {
+          "status": "fail",
+          "exit_code": 1,
+          "total_checks": 1,
+          "violations_found": 1,
+          "violations": ["TEST_INCOMPLETE sentinel present"],
+          "error_message": "pytest.fail: TEST_INCOMPLETE: 873cab03"
+        }
+      }
+    ],
+    "failures": [
+      {
+        "severity": "critical",
+        "location": "docs/dev/acceptance-criteria-20260524-125300-A.json:AC7.verification_command",
+        "issue": "spec_text_vs_execution_drift: AC7 verification_command uses bare re.search(pattern, out) without re.MULTILINE. The output of strip_non_executable_contexts is a multiline string 'cat <<|/usr/bin/bash\\nkill -9 1234\\nEOF'. The pattern (^|[ \\t;|&])(kill)[ \\t]+- requires either re.MULTILINE (so ^ matches line starts) or line-split iteration to match 'kill -9 1234' which appears after \\n. Without this, re.search returns None and the assertion raises AssertionError. The implementation IS correct — the fix works, /usr/bin/bash is detected as a shell, and kill -9 1234 IS preserved. The pytest test passes via grep_match() which splits on newlines. The AC7 literal verification_command text does not match what actually produces evidence. Per QA agent contract: 'if dev verification recipe differs from AC literal text, raise spec_text_vs_execution_drift regardless of equivalence judgment. QA MUST raise a blocking objection; verdict MUST be FAIL.'",
+        "recommendation": "BA must update AC7 verification_command to: python3 -c \"import sys; sys.path.insert(0, 'hooks/lib'); from bash_context_strip import strip_non_executable_contexts; import re; cmd = \\\"cat <<'EOF' | /usr/bin/bash\\nkill -9 1234\\nEOF\\\"; out = strip_non_executable_contexts(cmd); assert re.search(r'(^|[ \\t;|&])(kill)[ \\t]+-', out, re.MULTILINE), f'kill not visible in: {out!r}'; print('AC7 PASS:', repr(out))\" (add re.MULTILINE as third argument to re.search). Alternatively, replace with: assert 'kill -9 1234' in out.",
+        "primary_cause": "ba_spec",
+        "dimension": "spec_text_vs_execution_drift",
+        "blocks_release": true
+      },
+      {
+        "severity": "critical",
+        "location": "tests/generated/20260524-125300-A/ (all 10 test files)",
+        "issue": "10 TEST_INCOMPLETE sentinels in test-writer-generated active tests. Dev was required to fill in the test bodies per the comment in each file: '# Dev is free to REPLACE the body of test_AC_01() with a real implementation that asserts the GIVEN/WHEN/THEN behaviour.' Dev wrote 10 correct tests in hooks/tests/test_bash_safety_context.py but did NOT fill in the test-writer scaffolding. pytest tests/generated/20260524-125300-A/ -q reports: 10 failed in 0.04s. Per QA agent Step 11 Phase 5: 'Any remaining pytest.fail(\"TEST_INCOMPLETE: ...\") sentinel in an active test is a Dev incompleteness — Dev was supposed to fill in the body. Every match is a critical QA finding with primary_cause: dev_implementation.'",
+        "recommendation": "Dev must fill in the bodies of all 10 test files under tests/generated/20260524-125300-A/, replacing the pytest.fail('TEST_INCOMPLETE: ...') line with real assertions. The AC_UID, AC_TYPE, function names, and docstrings must be preserved verbatim. The logic is already available from the passing tests in hooks/tests/test_bash_safety_context.py. For AC9, the test should subprocess-run pytest and assert return code 0 with >= 30 tests passed.",
+        "primary_cause": "dev_implementation",
+        "blocks_release": true
+      }
+    ],
+    "all_findings": [
+      {
+        "severity": "critical",
+        "location": "docs/dev/acceptance-criteria-20260524-125300-A.json:AC7.verification_command",
+        "issue": "spec_text_vs_execution_drift: AC7 verification_command fails when executed as specified (re.search without re.MULTILINE on multiline output). Implementation is correct; BA spec text must be updated.",
+        "recommendation": "Add re.MULTILINE flag as third argument to re.search in AC7 verification_command.",
+        "primary_cause": "ba_spec",
+        "dimension": "spec_text_vs_execution_drift",
+        "blocks_release": true
+      },
+      {
+        "severity": "critical",
+        "location": "tests/generated/20260524-125300-A/ (10 files)",
+        "issue": "Dev left all 10 test-writer-generated test stubs as TEST_INCOMPLETE. pytest reports 10 failed.",
+        "recommendation": "Dev fills in test bodies in tests/generated/20260524-125300-A/ using logic from hooks/tests/test_bash_safety_context.py.",
+        "primary_cause": "dev_implementation",
+        "blocks_release": true
+      }
+    ],
+    "out_of_scope_observations": [
+      {
+        "ts": "2026-05-24T15:45:00Z",
+        "file": "hooks/lib/bash_context_strip.py",
+        "line": 220,
+        "observation": "doas and run0 are in _WRAPPER_PREFIXES but lack option-argument pair skipping analogous to the BUG2 fix for sudo. 'doas -u root bash -c ...' and 'run0 --user root bash -c ...' produce the same bypass class as the original sudo -u root bypass. Codex confirmed this at runtime. Per BA spec C1 deferral class (explicitly listed in dev.recommendations).",
+        "in_user_path": false,
+        "security_relevant": true
+      },
+      {
+        "ts": "2026-05-24T15:45:00Z",
+        "file": "hooks/lib/bash_context_strip.py",
+        "line": 378,
+        "observation": "BUG3 fix uses raw after.split('|') without respecting shell quoting. A heredoc consumer line like \"cat <<'EOF' | tee 'a|b' | /bin/bash\" would split into three segments on '|', but 'a|b' contains a pipe inside a quoted string and should not be a split point. This is a precision gap in the same class as the three original bugs. Per BA spec C1 deferral class (same pipe-to-shell area).",
+        "in_user_path": false,
+        "security_relevant": false
+      }
+    ],
+    "self_verification": {
+      "claims_total": 14,
+      "claims_with_evidence": 14,
+      "claims_superficial": 0,
+      "superficial_details": [],
+      "confidence": "high",
+      "notes": "All AC verification commands were executed directly and results captured. Pytest was run directly. git diff was captured. Manifest sentinel grep was run. No claims are based solely on code reading."
+    },
+    "codex_consult": {
+      "invoked": true,
+      "status": "ok",
+      "feedback_summary": "Codex confirmed both findings are real and blocking. Finding 1 (AC7 drift): confirmed 'PROPOSED_FIX: update AC7 verification_command to use re.MULTILINE'. Finding 2 (TEST_INCOMPLETE): confirmed 'PROPOSED_FIX: replace all 10 generated test bodies with real assertions'. Codex also surfaced two out-of-scope findings: (a) doas/run0 option-arg skipping gap (same C1 deferral class as sudo -p/-T); (b) BUG3 after.split('|') lacks quote-awareness. Both codex out-of-scope findings moved to out_of_scope_observations with security_relevant flags. Codex verdict on draft: both findings are blocking; FAIL is correct.",
+      "feedback_incorporated": "Finding 1 and Finding 2 confirmed as blocking, incorporated unchanged. Out-of-scope findings (doas/run0 gap, pipe-split quote awareness) added to out_of_scope_observations rather than failures. No verdict change from codex challenge."
+    },
+    "summary": {
+      "critical_issues": 2,
+      "major_issues": 0,
+      "minor_issues": 0,
+      "total_findings": 2,
+      "release_recommendation": "reject",
+      "pass_criteria_met": {
+        "build_compile": "pass (skipped: library, no build step)",
+        "success_criteria_all_verified": "fail (AC7 verification_command is broken as specified; 9/10 ACs pass on literal command execution)",
+        "root_cause_addressed": "pass (implementation correct for all three bugs)",
+        "zero_critical_issues": "fail (2 critical: BA spec drift on AC7, dev TEST_INCOMPLETE stubs)",
+        "zero_major_issues": "pass",
+        "regression_tests_pass": "pass (hooks/tests/test_bash_safety_context.py: 40 passed)"
+      }
+    },
+    "iteration_needed": true,
+    "refined_context": {
+      "failed_criteria": [
+        "AC7 literal verification_command exits non-zero (re.search without re.MULTILINE fails on multiline output)",
+        "tests/generated/20260524-125300-A/ — all 10 test-writer test stubs contain TEST_INCOMPLETE sentinels and fail"
+      ],
+      "critical_issues": [
+        "FINDING 1 (ba_spec / spec_text_vs_execution_drift): BA must update docs/dev/acceptance-criteria-20260524-125300-A.json AC7 verification_command to add re.MULTILINE as third argument to re.search. Proposed fix: replace 're.search(r\\'(^|[ \\\\t;|&])(kill)[ \\\\t]+-\\', out)' with 're.search(r\\'(^|[ \\\\t;|&])(kill)[ \\\\t]+-\\', out, re.MULTILINE)'. Same fix needed in tests/generated/20260524-125300-A/manifest.json AC7 entry if that file is kept in sync.",
+        "FINDING 2 (dev_implementation): Dev must fill in all 10 test bodies under tests/generated/20260524-125300-A/, replacing pytest.fail('TEST_INCOMPLETE: ...') with real assertions. Logic from hooks/tests/test_bash_safety_context.py (which passes) can be adapted directly. Metadata (AC_UID, AC_TYPE, function names, docstrings) must be preserved verbatim."
+      ],
+      "recommended_approach": "Two separate micro-fixes are needed: (1) BA updates AC7 verification_command in acceptance-criteria JSON (1-line change adding re.MULTILINE); (2) Dev fills in 10 test stubs in tests/generated/20260524-125300-A/. These can be dispatched in parallel. The core implementation in hooks/lib/bash_context_strip.py does NOT need to change.",
+      "additional_context": "The implementation is correct and the pytest suite in hooks/tests/test_bash_safety_context.py is clean (40 passed). Only the BA spec text and the test-writer scaffolding need remediation. The AC7 drift was independently confirmed by Codex."
+    }
+  }
+}

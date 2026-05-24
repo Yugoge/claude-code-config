@@ -1,8 +1,8 @@
 {
   "request_id": "20260524-125300-push",
   "task_id": "20260524-125300-push",
-  "iteration": 4,
-  "notes": "Iteration 4 patch: AC9 negative grep scoped to code blocks only (awk fence filter) to avoid false match on Step 4 prose text containing 'unlink' and 'grant'. AC10 plain grep replaced with grep -A8 to capture multiline backslash-continuation invocation args (--branch, --request-id, --repo-hash, --remote). No other ACs changed.",
+  "iteration": 5,
+  "notes": "Iteration 5 patch: AC10 check object gains two flat keys — old_root_form_absent_verification_command and old_root_form_absent_exit_code: 1 — to verify that the old /root/.claude/ absolute invocation form is absent from commands/push.md after M13 is applied. AC10 when and then text updated accordingly. ac_uid bumped to v5. No other ACs changed. Codex-reviewed: nested-sub-object shape rejected in favour of flat keys; compound-semicolon expression rejected in favour of direct grep + expected exit_code: 1; path-only pattern used instead of python3-prefixed pattern to catch any absolute invocation form.",
   "test_isolation_contract": "All ACs that require a mock push.sh use HOME=<tmpdir> isolation. Mock push.sh at <tmpdir>/.claude/hooks/push.sh. Script invoked by absolute path /dev/shm/dev-workspace/dot-claude/scripts/execute-push.py. NEVER write to ~/.claude/hooks/push.sh. Mock uses MOCK_CAPTURE_PATH env var (not EXECUTE_PUSH_TEST_CAPTURE). Mock must NOT write to stderr.",
   "acceptance_criteria": [
     {
@@ -142,17 +142,19 @@
       "id": "AC10",
       "type": "data",
       "given": "commands/push.md has been updated by the dev cycle (M13 applied)",
-      "when": "grep 'execute-push.py' commands/push.md is run, and grep -E '&&.*push\\.sh|validate_sentinel\\.py|bash[[:space:]].*push\\.sh' commands/push.md is run",
-      "then": "grep -F 'python3 ~/.claude/scripts/execute-push.py' commands/push.md returns at least one match (tilde form, NOT /root/.claude/); grep -A8 -F 'python3 ~/.claude/scripts/execute-push.py' commands/push.md output contains --branch AND --request-id AND --repo-hash AND --remote (continuation lines captured via -A8); second grep exits with code 1 (no old && pattern, no validate_sentinel.py reference, no direct bash push.sh invocation)",
+      "when": "grep 'execute-push.py' commands/push.md is run, grep -E '&&.*push\\.sh|validate_sentinel\\.py|bash[[:space:]].*push\\.sh' commands/push.md is run, and grep -F '/root/.claude/scripts/execute-push.py' commands/push.md is run",
+      "then": "grep -F 'python3 ~/.claude/scripts/execute-push.py' commands/push.md returns at least one match (tilde form, NOT /root/.claude/); grep -A8 -F 'python3 ~/.claude/scripts/execute-push.py' commands/push.md output contains --branch AND --request-id AND --repo-hash AND --remote (continuation lines captured via -A8); grep -E '&&.*push\\.sh|validate_sentinel\\.py|bash[[:space:]].*push\\.sh' commands/push.md exits with code 1 (no old && pattern, no validate_sentinel.py reference, no direct bash push.sh invocation); grep -F '/root/.claude/scripts/execute-push.py' commands/push.md exits with code 1 (old /root/.claude/ absolute execute-push path absent)",
       "check": {
         "invocation_uses_tilde_form": true,
         "invocation_contains_all_args": true,
         "invocation_args_verification_command": "grep -A8 -F 'python3 ~/.claude/scripts/execute-push.py' commands/push.md",
         "invocation_args_must_contain": ["--branch", "--request-id", "--repo-hash", "--remote"],
         "old_and_pattern_absent_exit_code": 1,
-        "grep_check": "grep -F 'python3 ~/.claude/scripts/execute-push.py' commands/push.md must return at least one match"
+        "grep_check": "grep -F 'python3 ~/.claude/scripts/execute-push.py' commands/push.md must return at least one match",
+        "old_root_form_absent_verification_command": "grep -F '/root/.claude/scripts/execute-push.py' commands/push.md",
+        "old_root_form_absent_exit_code": 1
       },
-      "ac_uid": "ac10-push-md-tilde-form-branch-arg-v3"
+      "ac_uid": "ac10-push-md-tilde-form-branch-arg-v5"
     }
   ]
 }

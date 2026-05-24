@@ -146,5 +146,73 @@
     "approval_notes": "The BA spec is approved for dev dispatch with two required corrections: (1) The Technical Hints for BUG 3 must be updated to replace '_first_word(after)' with the pipe-splitting approach — '_first_word(after)' returns '|' not 'bash', which would silently fail AC6 and AC7 if followed literally. The corrected hint should use any(_first_word(seg) in _SHELL_INTERPS for seg in after.split('|')[1:]). (2) The Technical Hints should recommend replacing the existing regex rather than keeping it as a fast-path, to avoid the '| bash.old' false-positive edge case. Neither issue affects the correctness of the ACs or the bug existence — both are Technical Hints inaccuracies. M3's requirement text ('segment after |') is correctly stated. Dev who reads M3 carefully can implement correctly even without the corrected hint, but the Hints as written create a trap that would produce a silently wrong implementation passing no AC tests. These corrections are required before dev dispatch."
   },
   "iteration_needed": false,
-  "refined_context": null
+  "refined_context": null,
+  "amendments": [
+    {
+      "amendment_id": "A1",
+      "timestamp": "2026-05-24T15:00:00Z",
+      "amended_artifact": "docs/dev/acceptance-criteria-20260524-125300-A.json",
+      "amended_ac": "AC7",
+      "amended_field": "verification_command",
+      "finding_source": "QA-impl-A spec_text_vs_execution_drift",
+      "problem": "re.search(r'(^|[ \\t;|&])(kill)[ \\t]+-', out) without re.MULTILINE. The out string contains 'kill -9 1234' on the second line (after \\n). Without re.MULTILINE, ^ anchors only at position 0 of the string, not at line starts. \\n is not in [ \\t;|&], so no branch of the alternation matches kill on line 2. The command exits 1 even when the implementation is correct.",
+      "fix_applied": "Added re.MULTILINE as the third argument to re.search(). With re.MULTILINE, ^ matches at the start of each line, so the pattern correctly matches 'kill -9 1234' on line 2.",
+      "fix_option_chosen": "A — re.MULTILINE (over Fix B split-on-newline), per Codex confirmation that Fix A is minimal, preserves grep-style regex semantics, and is consistent with the existing re.search(...) style used across all other ACs",
+      "codex_consult": {
+        "invoked": true,
+        "status": "ok",
+        "session_id": "019e5aa1-f2e5-7f73-bdaa-7133f4ab8e18",
+        "feedback_summary": "All four Codex findings were OBSERVATION_ONLY. Fix A confirmed correct and sufficient by live execution (original=False, multiline=True). No PROPOSED_FIX items raised. Codex noted AC8 has an analogous pattern but classified it out of scope per task constraints.",
+        "feedback_incorporated": "No changes required beyond the Fix A application already planned. Codex AC8 note recorded as out_of_scope_observation below.",
+        "findings": [
+          {
+            "issue": "Fix A is sufficient and correct — re.MULTILINE makes ^ match after \\n, matching kill on line 2",
+            "proposed_fix": null,
+            "classification": "observation_only",
+            "disposition": "logged",
+            "rationale": "confirms Fix A; no action needed"
+          },
+          {
+            "issue": "Fix A preferable to Fix B — preserves grep-style regex semantics and existing re.search style; Fix B splits/strips lines and loses inline separator matching",
+            "proposed_fix": null,
+            "classification": "observation_only",
+            "disposition": "logged",
+            "rationale": "confirms Fix A selection; no action needed"
+          },
+          {
+            "issue": "No ambiguity introduced by Fix A — only expands ^ from start-of-string to start-of-line; [ \\t;|&] branch unchanged",
+            "proposed_fix": null,
+            "classification": "observation_only",
+            "disposition": "logged",
+            "rationale": "confirms no edge-case regression; no action needed"
+          },
+          {
+            "issue": "Fix A is the minimal targeted correction — no further changes to AC7 needed",
+            "proposed_fix": null,
+            "classification": "observation_only",
+            "disposition": "logged",
+            "rationale": "confirms scope constraint satisfied; no action needed"
+          },
+          {
+            "issue": "AC8 negative regex also lacks re.MULTILINE — if body were preserved on line 2 the negative assert would not detect it",
+            "proposed_fix": null,
+            "classification": "observation_only",
+            "disposition": "logged",
+            "rationale": "out of scope per task constraint (fix AC7 only); recorded for visibility"
+          }
+        ]
+      },
+      "out_of_scope_observations": [
+        {
+          "ts": "2026-05-24T15:00:00Z",
+          "task_id": "20260524-125300-A",
+          "file": "docs/dev/acceptance-criteria-20260524-125300-A.json",
+          "line": "94",
+          "observation": "AC8 negative-match verification_command uses re.search without re.MULTILINE. If the heredoc body for /tmp/bash.old were incorrectly preserved on line 2, the assert-not would not detect it. This is the symmetric case to the AC7 bug. Task constraint limits this amendment to AC7 only.",
+          "in_user_path": false,
+          "security_relevant": false
+        }
+      ]
+    }
+  ]
 }

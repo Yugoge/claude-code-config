@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-24T15:16:16Z*
-**Total entries**: 549
+*Last updated: 2026-05-24T15:43:37Z*
+**Total entries**: 561
 **Convention**: kebab
 
 ## Tree
@@ -102,6 +102,8 @@ dev/
 ├── `ba-qa-report-20260524-125300-D.json` - json config
 ├── `ba-qa-report-20260524-125300-push-iter2.json` - json config
 ├── `ba-qa-report-20260524-125300-push-iter3.json` - json config
+├── `ba-qa-report-20260524-125300-push-iter4.json` - json config
+├── `ba-qa-report-20260524-125300-push-iter5.json` - json config
 ├── `ba-qa-report-20260524-125300-push.json` - json config
 ├── `ba-qa-report-20260524-133650.json` - json config
 ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
@@ -131,6 +133,7 @@ dev/
 ├── `cleanliness-inspector-report-20260521-090300.json` - json config
 ├── `cleanliness-inspector-report-20260522-000000.json` - json config
 ├── `cleanliness-inspector-report-20260522-080646.json` - json config
+├── `cleanliness-inspector-report-20260524-122910.json` - json config
 ├── `cleanliness-inspector-report-20260524-122947.json` - json config
 ├── `cleanliness-inspector-report-20260524-123039.json` - json config
 ├── `cleanliness-inspector-report-20260524-133650.json` - json config
@@ -164,6 +167,7 @@ dev/
 ├── `close-report-20260522-000000.md` - Close Debate Report
 ├── `close-report-20260522-080646.md` - Close Debate Report
 ├── `close-report-20260524-101700.md` - Close Debate Report — 20260524-101700
+├── `close-report-20260524-122910.md` - Close Report — Task 20260524-122910
 ├── `close-report-20260524-122947.md` - Close Report: task 20260524-122947
 ├── `close-report-20260524-123039.md` - Close Report: task 20260524-123039
 ├── `close-report-20260524-133650.md` - Close Debate Report — Task 20260524-133650
@@ -320,8 +324,10 @@ dev/
 ├── `dev-report-20260524-122910.json` - json config
 ├── `dev-report-20260524-122947.json` - json config
 ├── `dev-report-20260524-123039.json` - json config
+├── `dev-report-20260524-125300-A-stubs.json` - json config
 ├── `dev-report-20260524-125300-A.json` - json config
 ├── `dev-report-20260524-125300-B.json` - json config
+├── `dev-report-20260524-125300-C-stubs.json` - json config
 ├── `dev-report-20260524-125300-C.json` - json config
 ├── `dev-report-20260524-125300-D.json` - json config
 ├── `dev-report-20260524-125300.json` - json config
@@ -363,6 +369,7 @@ dev/
 ├── `prompt-inspector-report-20260521-090300.json` - json config
 ├── `prompt-inspector-report-20260522-000000.json` - json config
 ├── `prompt-inspector-report-20260522-080646.json` - json config
+├── `prompt-inspector-report-20260524-122910.json` - json config
 ├── `prompt-inspector-report-20260524-122947.json` - json config
 ├── `prompt-inspector-report-20260524-123039.json` - json config
 ├── `prompt-inspector-report-20260524-133650.json` - json config
@@ -432,6 +439,10 @@ dev/
 ├── `qa-report-20260524-122910.json` - json config
 ├── `qa-report-20260524-122947.json` - json config
 ├── `qa-report-20260524-123039.json` - json config
+├── `qa-report-20260524-125300-A.json` - json config
+├── `qa-report-20260524-125300-B.json` - json config
+├── `qa-report-20260524-125300-C.json` - json config
+├── `qa-report-20260524-125300-D.json` - json config
 ├── `qa-report-20260524-133650.json` - json config
 ├── `qa-report-d1e94e.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
@@ -469,6 +480,7 @@ dev/
 ├── `style-inspector-report-20260522-000000.json` - json config
 ├── `style-inspector-report-20260522-080646.json` - json config
 ├── `style-inspector-report-20260524-101700.json` - json config
+├── `style-inspector-report-20260524-122910.json` - json config
 ├── `style-inspector-report-20260524-122947.json` - json config
 ├── `style-inspector-report-20260524-123039.json` - json config
 ├── `style-inspector-report-20260524-133650.json` - json config
