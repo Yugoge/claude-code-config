@@ -1,0 +1,279 @@
+{
+  "request_id": "20260524-101700-A",
+  "task_id": "20260524-101700-A",
+  "timestamp": "2026-05-24T10:17:00Z",
+  "requirement": {
+    "original": "Fix the bash-safety hook false-positive problem (Task A, second attempt). bash_context_strip.py incorrectly strips quoted arguments from DANGER COMMANDS themselves (killall, pkill, kill, rm). Result: killall \"happy\" is reduced to killall \"\" or killall, which no longer matches the danger pattern. The bypass is confirmed: killall \"happy\" exits 0 instead of 2.",
+    "clarified": "The DANGER_COMMANDS branch in hooks/lib/bash_context_strip.py _process_segment() must unquote (expose content) rather than blank quoted arguments when the command word is in the danger set. The on-disk code already implements this correctly. Dev must verify correctness, add 3 new integration-level ACs (hook exit-code tests for killall \"happy\", pkill -f \"claude\", kill \"-9\" 1234), and commit the two untracked files.",
+    "what": "Confirm and finalize the DANGER_COMMANDS quoted-arg unquoting fix; add 3 new integration ACs; commit untracked files",
+    "why": "Without the fix, a subagent can bypass the hook by quoting the target argument: killall \"happy\" exits 0 instead of 2. This is a security regression introduced by the prior cycle's fix.",
+    "where": [
+      "hooks/lib/bash_context_strip.py (DANGER_COMMANDS branch at lines 264-273)",
+      "hooks/tests/test_bash_safety_context.py (unit tests already present)",
+      "tests/generated/20260524-101700-A/ (3 new integration test files)"
+    ],
+    "scope": {
+      "included": [
+        "hooks/lib/bash_context_strip.py — DANGER_COMMANDS branch at lines 264-273 (verify correct, no code change expected)",
+        "hooks/tests/test_bash_safety_context.py — unit tests (commit untracked; no additions needed beyond what is present)",
+        "tests/generated/20260524-101700-A/ — 3 new integration test files for AC-NEW-1, AC-NEW-2, AC-NEW-3"
+      ],
+      "excluded": [
+        "hooks/pretool-bash-safety.sh — no changes; prior cycle's changes are complete",
+        "Fix for bash -lc not recognized as shell interp (QA iter2 out-of-scope finding C9)",
+        "Fix for /bin/bash absolute-path heredoc consumer (QA iter2 out-of-scope finding C10)",
+        "settings.json and all other hooks"
+      ]
+    },
+    "success_criteria": [
+      "AC-NEW-1: killall \"happy\" exits 2 via hook integration test",
+      "AC-NEW-2: pkill -f \"claude\" exits 2 via hook integration test",
+      "AC-NEW-3: kill \"-9\" 1234 exits 2 via hook integration test",
+      "AC-REGRESSION-1: codex exec with killall+claude in prompt body still exits 0 (false-positive fix preserved)",
+      "AC-REGRESSION-2: killall happy (bare) still exits 2",
+      "All 16 prior ACs from 20260522-080646-A still pass"
+    ],
+    "constraints": [
+      "stdlib-only Python (no bashlex or other non-stdlib packages)",
+      "Fail-safe: any exception in stripper falls back to raw command (safe side = block)",
+      "Do NOT remove context-strip capability — it fixes legitimate false positives on safe commands",
+      "Do NOT add rmdir to DANGER_COMMANDS unless user explicitly requests it"
+    ]
+  },
+  "scope_boundary": {
+    "in_user_path": [
+      "hooks/lib/bash_context_strip.py",
+      "hooks/tests/test_bash_safety_context.py",
+      "tests/generated/20260524-101700-A/"
+    ],
+    "path_dependent_shared_infra": [
+      "hooks/lib/__init__.py"
+    ],
+    "out_of_path_observed_but_not_touched": [
+      "hooks/pretool-bash-safety.sh (no code changes needed)"
+    ]
+  },
+  "out_of_scope_observations": [
+    {
+      "ts": "2026-05-24T10:17:00Z",
+      "task_id": "20260524-101700-A",
+      "file": "hooks/lib/bash_context_strip.py",
+      "line": 282,
+      "observation": "Shell interpreter detection in _process_shell_interp() only matches exact '-c' flag, not combined forms like '-lc', '-ec', '-euxc'. bash -lc 'rm /tmp/x' is not recognized as shell-interp, so rm is stripped. This was flagged in QA iter2 as out-of-scope observation C9.",
+      "in_user_path": false,
+      "security_relevant": false
+    },
+    {
+      "ts": "2026-05-24T10:17:00Z",
+      "task_id": "20260524-101700-A",
+      "file": "hooks/lib/bash_context_strip.py",
+      "line": 337,
+      "observation": "Heredoc consumer detection in _process_heredocs() matches '| bash'/'| sh' but not '| /bin/bash', '| /usr/bin/bash', '| sudo bash'. Absolute-path shell consumers are not recognized, causing heredoc body to be treated as non-shell content. Flagged in QA iter2 as out-of-scope observation C10.",
+      "in_user_path": false,
+      "security_relevant": false
+    }
+  ],
+  "root_cause_analysis": {
+    "symptom": "killall \"happy\", pkill -f \"claude\", kill \"-9\" 1234 exit 0 (allowed) instead of 2 (blocked)",
+    "root_cause": "In the iter2 code state, _process_segment() had no DANGER_COMMANDS branch. All commands not in _SHELL_INTERPS fell through to the non-shell stripping path (lines 275-289 in the current code), which replaced quoted arguments with empty string or stripped command-substitution-only content. killall \"happy\" -> killall \"\", leaving the argument blank so the pattern (killall|pkill)\\s+.*(happy|claude|docker) did not match. Current on-disk code (lines 264-273) adds DANGER_COMMANDS branch that unquotes instead of blanks: killall \"happy\" -> killall happy, which matches the hook pattern.",
+    "root_cause_commit": "N/A — untracked files; the DANGER_COMMANDS fix is already present on disk but not committed",
+    "why_introduced": "The prior cycle correctly identified that non-shell binaries' quoted arguments should be stripped to prevent false positives. The DANGER_COMMANDS set was defined (line 24) but initially not used in _process_segment() to create an exception — danger commands' arguments ARE the payload the hook checks, not documentation text.",
+    "why_problematic": "Without the DANGER_COMMANDS exception, the stripper applies the same 'blank quoted args' logic to the commands being blocked as it does to the LLM CLI commands whose prompt bodies are false positives. The concepts are opposite: for codex/git, quoted args are documentation text (strip); for killall/pkill/kill, quoted args are the dangerous target (preserve).",
+    "timeline": "2026-05-22: prior cycle created bash_context_strip.py without DANGER_COMMANDS branch in _process_segment(). 2026-05-24: QA iter2 confirmed the bypass. On-disk code was updated (untracked) to add the DANGER_COMMANDS unquoting branch.",
+    "affected_files": [
+      "hooks/lib/bash_context_strip.py"
+    ],
+    "evidence_type": "observed",
+    "observations": [
+      "strip_non_executable_contexts('killall \"happy\"') returns 'killall happy' (observed: Python execution in BA session; line 264-273 DANGER_COMMANDS branch unquotes)",
+      "strip_non_executable_contexts('pkill -f \"claude\"') returns 'pkill -f claude' (observed: Python execution in BA session)",
+      "strip_non_executable_contexts('kill \"-9\" 1234') returns 'kill -9 1234' (observed: Python execution in BA session)",
+      "re.search('(killall|pkill)\\\\s+.*(happy|claude|docker)', 'killall happy') matches (observed: Python execution in BA session)",
+      "strip_non_executable_contexts('codex exec \"...killall...claude...\"') returns 'codex exec \"\"' (observed: Python execution in BA session) — false-positive fix preserved"
+    ],
+    "diagnosis_completeness": "complete (has observations from live Python execution of the library)",
+    "complaint_location_keywords": ["bash_context_strip", "killall", "pkill", "kill", "DANGER_COMMANDS", "quoted", "bypass"],
+    "localization_evidence": "QA iter2 confirmed via subprocess test: killall \"happy\" exits 0. BA session: executed strip_non_executable_contexts() directly and verified all three cases return unquoted content that matches hook patterns. DANGER_COMMANDS branch at hooks/lib/bash_context_strip.py:264-273 is the fix location.",
+    "located_source": "hooks/lib/bash_context_strip.py:264-273 (_process_segment DANGER_COMMANDS branch)",
+    "localization_blocked": null,
+    "git_bisect_result": {
+      "triggered": false,
+      "suspect_commit": null,
+      "commit_message": null,
+      "confirmed_by": null,
+      "bisect_blocked": "N/A — files are untracked; no commit history to bisect",
+      "reproducibility_verified": true
+    }
+  },
+  "diagnosis_layer": "L4",
+  "requirements_decomposition": [
+    {
+      "id": "R1",
+      "source_phrase": "bash_context_strip.py incorrectly strips quoted arguments from DANGER COMMANDS themselves (killall, pkill, kill, rm)",
+      "acceptance_criterion": "strip_non_executable_contexts('killall \"happy\"') returns a string containing 'happy'; hook exits 2 for killall \"happy\""
+    },
+    {
+      "id": "R2",
+      "source_phrase": "bypass is confirmed: killall \"happy\" exits 0 instead of 2",
+      "acceptance_criterion": "Hook integration test: killall \"happy\" exits 2 (AC-NEW-1)"
+    },
+    {
+      "id": "R3",
+      "source_phrase": "3 new tests (killall \"happy\", pkill -f \"claude\", kill \"-9\")",
+      "acceptance_criterion": "Three new integration-level ACs each exit 2 (AC-NEW-1, AC-NEW-2, AC-NEW-3)"
+    },
+    {
+      "id": "R4",
+      "source_phrase": "do not remove the context_strip capability entirely",
+      "acceptance_criterion": "AC-REGRESSION-1: codex exec with killall+claude in prompt body still exits 0 — false-positive fix intact"
+    }
+  ],
+  "component_chain": [
+    {
+      "file": "hooks/lib/bash_context_strip.py",
+      "line_range": "249-289",
+      "role": "_process_segment(): classifies command word; dispatches to _process_shell_interp for shell interpreters, DANGER_COMMANDS branch for danger tokens (unquote), or non-shell stripping for everything else",
+      "imports_from": ["leaf"],
+      "evidence": "Read hooks/lib/bash_context_strip.py lines 249-289 directly in this session",
+      "verified_via": "Read"
+    },
+    {
+      "file": "hooks/pretool-bash-safety.sh",
+      "line_range": "719-788",
+      "role": "Python shim computes COMMAND_CONTEXT_STRIPPED; four danger-token rules use it",
+      "imports_from": ["hooks/lib/bash_context_strip.py"],
+      "evidence": "Read hooks/pretool-bash-safety.sh lines 700-788 directly in this session",
+      "verified_via": "Read"
+    }
+  ],
+  "pre_existing_guards": [
+    {
+      "file": "hooks/lib/bash_context_strip.py",
+      "line": 24,
+      "type": "if",
+      "code_snippet": "DANGER_COMMANDS = frozenset({\"killall\", \"pkill\", \"kill\", \"rm\", \"mv\"})",
+      "purpose": "Declares the set of commands whose arguments must NOT be stripped — they are the dangerous payload",
+      "removal_authorized": false
+    },
+    {
+      "file": "hooks/lib/bash_context_strip.py",
+      "line": 264,
+      "type": "if",
+      "code_snippet": "if cmd_word in DANGER_COMMANDS:",
+      "purpose": "Guards against stripping arguments to danger commands; instead unquotes to expose content for hook pattern matching",
+      "removal_authorized": false
+    },
+    {
+      "file": "hooks/pretool-bash-safety.sh",
+      "line": 740,
+      "type": "if",
+      "code_snippet": "if echo \"$COMMAND_CONTEXT_STRIPPED\" | grep -qE '(killall|pkill)\\s+.*(happy|claude|docker)'; then",
+      "purpose": "Blocks process killers targeting monitored services — uses COMMAND_CONTEXT_STRIPPED per prior cycle fix",
+      "removal_authorized": false
+    },
+    {
+      "file": "hooks/pretool-bash-safety.sh",
+      "line": 749,
+      "type": "if",
+      "code_snippet": "if echo \"$COMMAND_CONTEXT_STRIPPED\" | grep -qE '(^|[ \\t;|&])(kill)[ \\t]+-'; then",
+      "purpose": "Blocks kill with any signal — uses COMMAND_CONTEXT_STRIPPED; word-boundary form per prior cycle fix",
+      "removal_authorized": false
+    }
+  ],
+  "regression_investigation_checklist": {
+    "triggered": false,
+    "items": []
+  },
+  "setup": {
+    "applicability": "N/A",
+    "reason": "non-UI -- hook edit; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths (pipeline steps / API endpoints reachable by users). PreToolUse hook runs in the dev harness only."
+  },
+  "evidence": {
+    "observed": "QA iter2 confirmed killall \"happy\" exits 0 (bypass). BA session confirmed current on-disk code exits 2 for the same input via Python execution of strip_non_executable_contexts().",
+    "measured": {
+      "value": "strip_non_executable_contexts('killall \"happy\"') -> 'killall happy'; re.search('(killall|pkill)\\\\s+.*(happy)', 'killall happy') -> match",
+      "location": "hooks/lib/bash_context_strip.py:264-273 (DANGER_COMMANDS branch)"
+    },
+    "expected": {
+      "value": "Hook exits 2 for killall \"happy\"; exits 0 for codex exec with killall in prompt body",
+      "source": "User requirement and QA iter2 refined_context; confirmed correct by Python execution in BA session"
+    },
+    "gap": "iter2 code: no DANGER_COMMANDS branch -> quoted args blanked -> pattern no match -> exit 0 (bypass). Current on-disk code: DANGER_COMMANDS branch unquotes -> content exposed -> pattern matches -> exit 2 (correct). Gap in current code: no integration-level ACs testing exit codes for the three quoted-arg cases."
+  },
+  "scope_expansion": {
+    "search_pattern": "DANGER_COMMANDS|cmd_word in",
+    "search_scope": "hooks/lib/bash_context_strip.py",
+    "user_reported": ["hooks/lib/bash_context_strip.py", "hooks/pretool-bash-safety.sh"],
+    "additional_found": ["hooks/tests/test_bash_safety_context.py (unit tests already present)", "tests/generated/20260524-101700-A/ (to be created with 3 integration ACs)"],
+    "all_occurrences": [
+      "hooks/lib/bash_context_strip.py:24 (DANGER_COMMANDS declaration)",
+      "hooks/lib/bash_context_strip.py:264-273 (DANGER_COMMANDS branch in _process_segment)",
+      "hooks/tests/test_bash_safety_context.py:213-239 (TestDangerCommandArgPreservation unit tests)"
+    ]
+  },
+  "reference_source": {
+    "tier": "tier_2_verified",
+    "description": "Live Python execution of strip_non_executable_contexts() in BA session; confirmed unquoting behavior for all three new AC cases",
+    "url_or_location": "hooks/lib/bash_context_strip.py:264-273 (observed in this session)",
+    "copy_allowed": true
+  },
+  "prior_attempts": {
+    "triggered": true,
+    "trigger_source": "user_phrasing",
+    "attempts": [
+      {
+        "artifact_path": "docs/dev/ticket-20260522-080646-A.md",
+        "proposed_solution": "Create bash_context_strip.py to strip quoted args from non-shell commands; pipe stripped view to four danger-token rules in pretool-bash-safety.sh",
+        "actual_change": "Created hooks/lib/bash_context_strip.py (untracked); added Python shim and COMMAND_CONTEXT_STRIPPED variable in pretool-bash-safety.sh; four grep rules now use stripped view",
+        "outcome": "Primary false-positive (AC13: codex exec with killall+claude in prompt body) fixed. But DANGER_COMMANDS were treated as non-shell binaries — their quoted arguments were blanked, creating a bypass: killall \"happy\" -> killall \"\" -> no pattern match -> exit 0",
+        "failure_category": "wrong_scope",
+        "target_layer": "L4"
+      }
+    ],
+    "novelty_check": {
+      "this_attempt_layer": "L4",
+      "differs_from_all_priors": true,
+      "rationale": "Prior attempt applied uniform stripping to all non-shell commands. This attempt adds a DANGER_COMMANDS conditional that unquotes (not blanks) arguments, making the fix precise: only truly non-shell LLM CLI commands get their quoted args blanked."
+    }
+  },
+  "context": {
+    "codebase_state": "hooks/lib/bash_context_strip.py is untracked (not committed). hooks/tests/test_bash_safety_context.py is untracked. hooks/pretool-bash-safety.sh is committed and contains the four COMMAND_CONTEXT_STRIPPED rules from the prior cycle. Current on-disk bash_context_strip.py has the DANGER_COMMANDS branch at lines 264-273.",
+    "recent_commits": "aea75d9 chore: ship cycle 20260522-000000; af96c61 fix: M1-M4 gitignore",
+    "file_contents": {},
+    "dependencies": {},
+    "environment": {}
+  },
+  "development_approach": {
+    "strategy": "1) Verify bash_context_strip.py DANGER_COMMANDS branch (lines 264-273) is correct — confirmed by BA (no code change expected). 2) Create tests/generated/20260524-101700-A/ directory with 3 integration test files covering AC-NEW-1, AC-NEW-2, AC-NEW-3. Each test invokes the hook via stdin JSON and asserts exit code 2. 3) Run full test suite: pytest hooks/tests/test_bash_safety_context.py (26 unit tests) + pytest tests/generated/20260524-101700-A/ (3 new integration tests) + any regression test covering prior ACs. 4) Commit both untracked files (hooks/lib/bash_context_strip.py and hooks/tests/test_bash_safety_context.py) plus the new generated test directory.",
+    "files_to_create": [
+      "tests/generated/20260524-101700-A/test_ac_new_1_killall_quoted_blocked.py",
+      "tests/generated/20260524-101700-A/test_ac_new_2_pkill_quoted_blocked.py",
+      "tests/generated/20260524-101700-A/test_ac_new_3_kill_quoted_signal_blocked.py"
+    ],
+    "files_to_modify": [],
+    "validation_approach": "QA invokes hook with three new quoted-arg commands via stdin JSON and verifies exit code 2. Also re-runs AC13 regression to confirm exit code 0 (false-positive fix preserved). All 16 prior AC tests + 3 new integration ACs must pass."
+  },
+  "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260524-101700-A.json",
+  "blast_radius_map_path": ".claude/dev-registry/dev-20260524-101700-A/blast-radius-map.json",
+  "complexity_tier": "SMALL",
+  "risk_level": "high",
+  "_risk_level_doc": "high because this hook runs on every Bash tool call; a regression could under-block (security regression). The three new tests specifically verify that the quoted-arg bypass does not exist.",
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": false,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": false
+  },
+  "research_findings": {
+    "searched": false,
+    "reason": "Root cause is fully diagnosed by QA iter2 report and confirmed by live Python execution of the library. No best-practices research needed for this targeted L4 fix."
+  },
+  "codex_consult": {
+    "invoked": false,
+    "status": "not_requested",
+    "feedback_summary": null,
+    "findings": [],
+    "feedback_incorporated": null
+  }
+}
