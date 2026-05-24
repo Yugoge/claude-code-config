@@ -190,8 +190,25 @@ single-process pattern (one PID, unconditional short-circuit) eliminates the
 window by construction.
 
 ```bash
-# Single-process pattern (RECOMMENDED): validator wrapper exec's push.sh.
-exec ~/.claude/hooks/push.sh "${RESOLVED_REMOTE}"
+# HEAD-drift check: abort if HEAD has moved since pre-push snapshot
+CURRENT_HEAD=$(git rev-parse HEAD)
+if [ "$CURRENT_HEAD" != "$PRE_HEAD" ]; then
+  echo "ERROR: HEAD drifted since push-analyst grant — aborting push" >&2
+  exit 1
+fi
+
+# Write Chain-B success sentinel (atomic temp+rename)
+BRANCH_ENCODED="${BRANCH//\//__}"
+CHAIN_B_SENTINEL_DIR="/tmp/agentic-commit/push-analyst/${REPO_HASH}"
+CHAIN_B_SENTINEL_PATH="${CHAIN_B_SENTINEL_DIR}/${BRANCH_ENCODED}-chainB.validated.sentinel.json"
+mkdir -p "${CHAIN_B_SENTINEL_DIR}"
+CHAIN_B_TMP=$(mktemp "${CHAIN_B_SENTINEL_DIR}/.sentinel-XXXXXX.tmp")
+printf '{"result":"PASS","request_id":"%s","head":"%s","branch":"%s","remote":"%s"}' \
+  "${REQUEST_ID}" "${CURRENT_HEAD}" "${BRANCH}" "${RESOLVED_REMOTE}" > "${CHAIN_B_TMP}"
+mv -f "${CHAIN_B_TMP}" "${CHAIN_B_SENTINEL_PATH}"
+
+# Single-process pattern: exec push.sh in same PID so sentinel stays fresh
+CLAUDE_PUSH_REQUEST_ID="${REQUEST_ID}" exec ~/.claude/hooks/push.sh "${RESOLVED_REMOTE}"
 ```
 
 If `--auto` is required, append it to the `exec` line. The legacy
