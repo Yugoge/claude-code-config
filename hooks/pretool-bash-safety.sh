@@ -9,7 +9,7 @@ CLAUDE_HOME="${CLAUDE_HOME:-${HOME}/.claude}"
 CLAUDE_TMPDIR="${CLAUDE_TMPDIR:-${TMPDIR:-/tmp}}"
 PYTHON_BIN="${CLAUDE_PYTHON_BIN:-${CLAUDE_HOME}/venv/bin/python}"
 if [ ! -x "$PYTHON_BIN" ]; then
-  PYTHON_BIN="${CLAUDE_PYTHON_FALLBACK:-python}"
+  PYTHON_BIN="${CLAUDE_PYTHON_FALLBACK:-python3}"
 fi
 DAEMON_RESTART_GRANT_DIR="${CLAUDE_DAEMON_RESTART_GRANT_DIR:-${CLAUDE_TMPDIR}}"
 DAEMON_RESTART_SENTINEL_RE="$(printf '%s' "${DAEMON_RESTART_GRANT_DIR%/}/claude-allow-daemon-restart-" | sed 's/[][\\.^$*+?{}|()]/\\&/g')"
@@ -480,16 +480,22 @@ fi
 # performs the unlink for all four terminal cases (success, non_zero,
 # malformed, comment_only).
 SENTINEL_EXISTS_FOR_TASK=0
-if [ "$IS_SUBAGENT" != "1" ]; then
-  TASK_ID_FOR_SENTINEL="${CLAUDE_TASK_ID:-}"
-  if [ -z "$TASK_ID_FOR_SENTINEL" ]; then
-    TASK_ID_FOR_SENTINEL=$(echo "$INPUT" | "$PYTHON_BIN" -c \
-      "import json,sys,os; d=json.load(sys.stdin); print(d.get('task_id','') or d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
-      2>/dev/null)
-  fi
-  if [ -n "$TASK_ID_FOR_SENTINEL" ]; then
-    HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    SENTINEL_QUERY=$(HOOKS_DIR="$HOOKS_DIR" CMD_INPUT="$COMMAND" TASK_ID="$TASK_ID_FOR_SENTINEL" "$PYTHON_BIN" - <<'PYEOF' 2>/dev/null
+# M2 (task 20260521-090200): sentinel check extended to IS_SUBAGENT=1 so user-created
+# structured grants are honored in subagent context. The IS_SUBAGENT guard at line 145
+# (legacy pattern-string grants) REMAINS UNCHANGED — only structured sentinel grants
+# (user-created via /allow, written by userprompt-consent-allowlist.sh) are extended here.
+TASK_ID_FOR_SENTINEL="${CLAUDE_TASK_ID:-}"
+if [ -z "$TASK_ID_FOR_SENTINEL" ]; then
+  # M3 (task 20260521-090200): align reader fallback to session_id (same as writer).
+  # Writer (userprompt-consent-allowlist.sh:176) uses CLAUDE_TASK_ID:-SID where SID=session_id.
+  # Previously reader fell back to task_id field first, causing mismatch when task_id != session_id.
+  TASK_ID_FOR_SENTINEL=$(echo "$INPUT" | "$PYTHON_BIN" -c \
+    "import json,sys,os; d=json.load(sys.stdin); print(d.get('session_id','') or os.environ.get('CLAUDE_SESSION_ID','default'))" \
+    2>/dev/null)
+fi
+if [ -n "$TASK_ID_FOR_SENTINEL" ]; then
+  HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  SENTINEL_QUERY=$(HOOKS_DIR="$HOOKS_DIR" CMD_INPUT="$COMMAND" TASK_ID="$TASK_ID_FOR_SENTINEL" "$PYTHON_BIN" - <<'PYEOF' 2>/dev/null
 import os, sys
 sys.path.insert(0, os.environ['HOOKS_DIR'])
 from lib.allowlist import load_sentinel_grant_for_task, match_sentinel_grant_for_bash_command
@@ -506,31 +512,30 @@ else:
         print('SENTINEL_EXISTS_NO_MATCH')
 PYEOF
 )
-    case "$SENTINEL_QUERY" in
-      SENTINEL_OK)
-        mkdir -p "$(dirname "$CONSENT_LOG")"
-        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=$TASK_ID_FOR_SENTINEL SENTINEL_GRANT_MATCHED command='$COMMAND'" >> "$CONSENT_LOG"
-        echo "[allow-sentinel] structured grant matched for task=$TASK_ID_FOR_SENTINEL. consume-on-any-terminal-result deferred to PostToolUse." >&2
-        "$PYTHON_BIN" -c 'import json; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": "/allow sentinel grant consumed (structured allowed_operations[] match)"}}))'
-        exit 0
-        ;;
-      SENTINEL_EXISTS_NO_MATCH)
-        # AC2 invariant (CF-1, codex iter-1 adversarial review): when a
-        # structured sentinel exists for this task but does NOT match the
-        # current bash command structurally, the legacy /allow short-circuit
-        # MUST NOT be consulted. Substring-matching the comment-only attack
-        # (e.g. `echo hi # rm -rf /` against a legacy `rm` pattern) would
-        # otherwise succeed via the legacy path. We mark this and skip the
-        # legacy short-circuit below.
-        SENTINEL_EXISTS_FOR_TASK=1
-        echo "[allow-sentinel] sentinel exists for task=$TASK_ID_FOR_SENTINEL but command did not match allowed_operations[] — legacy /allow path suppressed for this Bash call (AC2 invariant)." >&2
-        ;;
-      SENTINEL_NONE|*)
-        # No sentinel: legacy /allow short-circuit may proceed.
-        :
-        ;;
-    esac
-  fi
+  case "$SENTINEL_QUERY" in
+    SENTINEL_OK)
+      mkdir -p "$(dirname "$CONSENT_LOG")"
+      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task=$TASK_ID_FOR_SENTINEL SENTINEL_GRANT_MATCHED command='$COMMAND'" >> "$CONSENT_LOG"
+      echo "[allow-sentinel] structured grant matched for task=$TASK_ID_FOR_SENTINEL. consume-on-any-terminal-result deferred to PostToolUse." >&2
+      "$PYTHON_BIN" -c 'import json; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": "/allow sentinel grant consumed (structured allowed_operations[] match)"}}))'
+      exit 0
+      ;;
+    SENTINEL_EXISTS_NO_MATCH)
+      # AC2 invariant (CF-1, codex iter-1 adversarial review): when a
+      # structured sentinel exists for this task but does NOT match the
+      # current bash command structurally, the legacy /allow short-circuit
+      # MUST NOT be consulted. Substring-matching the comment-only attack
+      # (e.g. `echo hi # rm -rf /` against a legacy `rm` pattern) would
+      # otherwise succeed via the legacy path. We mark this and skip the
+      # legacy short-circuit below.
+      SENTINEL_EXISTS_FOR_TASK=1
+      echo "[allow-sentinel] sentinel exists for task=$TASK_ID_FOR_SENTINEL but command did not match allowed_operations[] — legacy /allow path suppressed for this Bash call (AC2 invariant)." >&2
+      ;;
+    SENTINEL_NONE|*)
+      # No sentinel: legacy /allow short-circuit may proceed.
+      :
+      ;;
+  esac
 fi
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -711,15 +716,37 @@ if echo "$COMMAND" | grep -qE 'docker\s+system\s+prune\s+-a'; then
   exit 2
 fi
 
+# Context-strip: remove string-content false positives for the four generic
+# danger-token rules below.  This is intentionally a bounded classifier, NOT a
+# full shell parser.  It runs from a file path (not `python -`) and is wrapped by
+# timeout + virtual-memory limits; on any failure the raw command is used, so the
+# hook fails closed and never drops potentially executable text.
+COMMAND_CONTEXT_STRIPPED="$COMMAND"
+HOOKS_DIR_CTX="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -r "$HOOKS_DIR_CTX/lib/bash_context_strip.py" ]; then
+  _ctx_out=$(
+    ulimit -v "${CLAUDE_HOOK_CONTEXT_MEM_KB:-262144}" 2>/dev/null || true
+    CMD_INPUT="$COMMAND" timeout "${CLAUDE_HOOK_CONTEXT_TIMEOUT:-2s}" \
+      "$PYTHON_BIN" "$HOOKS_DIR_CTX/lib/bash_context_strip.py" 2>/dev/null
+  )
+  _ctx_status=$?
+  if [ "$_ctx_status" -eq 0 ]; then
+    COMMAND_CONTEXT_STRIPPED="$_ctx_out"
+  fi
+  unset _ctx_out _ctx_status
+fi
+
 # Block: generic process killers targeting services
-if echo "$COMMAND" | grep -qE '(killall|pkill)\s+.*(happy|claude|docker)'; then
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(killall|pkill)\s+.*(happy|claude|docker)'; then
   echo "BLOCKED: Killing happy/claude/docker processes is forbidden" >&2
   echo "Command: $COMMAND" >&2
   exit 2
 fi
 
 # Block: kill with ANY signal targeting PIDs (kill -9, kill -TERM, kill -15, kill -HUP, etc.)
-if echo "$COMMAND" | grep -qE 'kill\s+-'; then
+# Word-boundary anchor ensures "kill" is a command word, not a substring.
+# Note: \s inside bracket expressions is NOT whitespace in grep -E; use [ \t] instead.
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(^|[ \t;|&])(kill)[ \t]+-'; then
   echo "BLOCKED: kill with signals is forbidden — use graceful shutdown methods" >&2
   echo "Command: $COMMAND" >&2
   exit 2
@@ -740,7 +767,10 @@ if echo "$COMMAND" | grep -qE 'systemctl\s+(stop|restart|disable|enable|reload|k
 fi
 
 # Block: rm/mv targeting workflow enforcement files (AF3+AF4 security fix)
-if echo "$COMMAND" | grep -qE '(rm|mv)\s' && echo "$COMMAND" | grep -qE '(workflow-[^/]*\.json|\.claude/todos/)'; then
+# CRITICAL: first grep uses COMMAND_CONTEXT_STRIPPED (danger-token check); second grep
+# uses raw COMMAND so that quoted paths like rm ".claude/todos/x" still match (the path
+# would be stripped by context stripping, losing the workflow-path signal).
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(rm|mv)\s' && echo "$COMMAND" | grep -qE '(workflow-[^/]*\.json|\.claude/todos/)'; then
   echo "BLOCKED: Deleting/moving workflow state files is forbidden" >&2
   echo "Command: $COMMAND" >&2
   echo "These files are required by the workflow enforcement system." >&2
@@ -748,7 +778,10 @@ if echo "$COMMAND" | grep -qE '(rm|mv)\s' && echo "$COMMAND" | grep -qE '(workfl
 fi
 
 # Block: filesystem rm (but NOT docker rm, which is handled above)
-if echo "$COMMAND" | grep -qE '(^|[;|&]\s*)rm\s' && ! echo "$COMMAND" | grep -qE 'docker\s+rm\s'; then
+# Pattern uses [ \t;|&(] so that rm appearing after a space (e.g. inside a -c payload
+# that was unwrapped by context stripping) or inside $( ) is still detected.
+# Note: \s inside bracket expressions is NOT whitespace in grep -E; use [ \t] instead.
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(^|[ \t;|&(])rm\s' && ! echo "$COMMAND" | grep -qE 'docker\s+rm\s'; then
   echo "BLOCKED: rm is forbidden — delete files manually or ask the user" >&2
   echo "Command: $COMMAND" >&2
   exit 2

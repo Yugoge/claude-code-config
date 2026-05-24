@@ -402,6 +402,41 @@ For each script in `dev.scripts_created`:
 
 ### Step 5: Regression Testing
 
+**Provenance check** (run BEFORE other regression steps):
+
+Read `baseline_head_sha` from the dev-report top-level field (or context JSON). If `baseline_head_sha` is absent or empty, skip this check and log: `WARNING: baseline_head_sha absent — provenance check skipped (unborn repo or pre-first-commit cycle)`. Do NOT raise a FAIL for a missing baseline.
+
+When `baseline_head_sha` is present:
+
+1. Compute the set of files actually changed since the baseline: `git diff --name-only <baseline_head_sha>` (working tree vs baseline SHA — changes are uncommitted at QA time).
+2. Read `dev.files_modified` from the dev-report.
+3. Read `baseline_dirty_snapshot` from the dev-report or context JSON.
+4. For every path in `dev.files_modified` that is **absent** from the `git diff --name-only <baseline_head_sha>` output **AND** absent from `baseline_dirty_snapshot`, raise a critical FAIL finding:
+   ```json
+   {
+     "label": "dev_provenance_violation",
+     "primary_cause": "dev_implementation",
+     "severity": "critical",
+     "detail": "<path> appears in dev.files_modified but is not in git diff --name-only <baseline_head_sha> and was not in baseline_dirty_snapshot"
+   }
+   ```
+5. Paths that appear in `baseline_dirty_snapshot` are excluded from the FAIL set even if absent from the diff — dev may have confirmed them without modifying them.
+
+Also check `dev.files_created` for provenance:
+
+6. Compute the set of new untracked files: `git ls-files --others --exclude-standard` (lists files not tracked by git).
+7. Read `dev.files_created` from the dev-report.
+8. For every path in `dev.files_created` that is **absent** from the `git ls-files --others --exclude-standard` output **AND** absent from `baseline_dirty_snapshot`, raise a critical FAIL finding:
+   ```json
+   {
+     "label": "files_created_provenance_violation",
+     "primary_cause": "dev_implementation",
+     "severity": "critical",
+     "detail": "<path> appears in dev.files_created but is not in git ls-files --others --exclude-standard and was not in baseline_dirty_snapshot"
+   }
+   ```
+9. Paths that appear in `baseline_dirty_snapshot` are excluded from the FAIL set even if absent from the untracked list — they were already new/untracked at baseline time.
+
 **Check related functionality not broken**:
 
 1. **Git diff analysis**: Run `git diff HEAD~1` to see what changed. Look for modified files beyond expected scope, deleted functions still referenced, and changed API signatures.

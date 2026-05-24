@@ -249,19 +249,17 @@ Before delegating to BA, scan the user's request and repo state for retry
 signals. BA will independently check these, but the orchestrator must
 provide them explicitly so BA starts with ground truth:
 
-- **Retry phrasing** in user text: "again", "still", "didn't fix",
-  "Nth time", <USER_VERBATIM>"又", "还是", "没修好", "第 N 次"</USER_VERBATIM>
-- **Recent related commits**: `git log --oneline --grep="<keyword>" -20`
-- **Existing BA specs**: files matching `docs/dev/ticket-*.md` (or legacy `docs/dev/ba-spec-*.md`) with
-  keywords from the current request
+- **Retry intent**: judge semantically whether the user's message signals a prior attempt failed — explicit complaint, reference to prior commits/specs, repetition of a previously-stated requirement, or any other contextual cue (language- and phrasing-agnostic; do not pattern-match a fixed phrase list).
+- **Recent related commits**: enumerate recent commits whose subjects touch the same area as the current request.
+- **Existing BA specs**: prior `docs/dev/ticket-*.md` (legacy: `docs/dev/ba-spec-*.md`) covering the same area.
 
 Pass findings to BA in the delegation prompt under an explicit
 `prior_attempt_signals` block:
 
     prior_attempt_signals:
-      retry_phrase: "<matched phrase or null>"
+      retry_intent: "<one-line semantic summary, or null if none>"
       recent_commits: ["<hash> <subject>", ...]
-      existing_specs: ["docs/dev/ticket-<ts>.md", ...] (legacy historical artifacts also accepted: docs/dev/ba-spec-<ts>.md)
+      existing_specs: ["docs/dev/ticket-<ts>.md", ...] (legacy: docs/dev/ba-spec-<ts>.md)
 
 ### Post-BA: verify contract compliance
 
@@ -354,7 +352,7 @@ Use Task tool with:
 
   You are the BA subagent. Follow .claude/agents/ba.md instructions precisely.
 
-  <BA_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: 注入位置：角色声明之后、任务指令之前>
+  <BA_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: Injection position: after role declaration, before task instructions>
 
 
   Requirement: '<requirement from Step 1>'
@@ -365,9 +363,9 @@ Use Task tool with:
   Spec file: <spec_path or null>
   View file: <view_paths.ba or null — sibling views/ba.md if present>
   Prior attempt signals:
-    retry_phrase: <matched phrase or null>
+    retry_intent: <one-line semantic summary, or null if none>
     recent_commits: [<hash> <subject>, ...]
-    existing_specs: [docs/dev/ticket-<ts>.md, ...] (legacy historical artifacts also accepted: docs/dev/ba-spec-<ts>.md)
+    existing_specs: [docs/dev/ticket-<ts>.md, ...] (legacy: docs/dev/ba-spec-<ts>.md)
 
   If Spec file is not null: Read the spec file FIRST. Use Section 5 (User's Acceptance Criterion) as the primary requirement source. Use Sections 1-4 as baseline context. If Section 7 (What Must Be Done) is populated, treat it as prescriptive guidance.
 
@@ -606,7 +604,7 @@ Use Agent tool with:
 **TodoWrite ordering reminder (task 20260519-211515 R3 / AC3)**: TodoWrite mark-as-in_progress for step N must precede any Agent() call dispatched within step N.
 The orchestrator MUST emit a TodoWrite call updating the Step-N todo item to `in_progress` BEFORE invoking any Agent() (or Task tool) dispatch in Step N. REQUIRED ordering: TodoWrite first, Agent() second. Always update the in_progress marker BEFORE dispatch. Before dispatch of test-writer or Dev (or any subagent in any Step), the matching Todo item MUST already be in_progress; otherwise do not dispatch.
 
-**Pre-dispatch — Test-Writer dispatch (conditional, between BA and Dev per spec-20260518-225715 §5.2 line 167: "位置：BA → [test-writer] → Dev → QA")**:
+**Pre-dispatch — Test-Writer dispatch (conditional, between BA and Dev per spec-20260518-225715 §5.2 line 167: "Position: BA -> [test-writer] -> Dev -> QA")**:
 
 **Test-writer skip-sentinel honor (task 20260519-211515 R4 / V_TW, CF2-14)**: BEFORE evaluating the gate below, read `_test_writer_skip_reason` from BA's context JSON. If that field is a non-empty string, the test-writer dispatch MUST be skipped on this cycle regardless of complexity_tier / risk_level — the sentinel is an explicit BA-authored skip signal. Record `test_writer_expected = false` and the skip reason in the todo list. Do NOT route a stale-content acceptance-criteria JSON to test-writer; doing so generates wrong-cycle pytest skeletons. This honor-clause is the V_TW enforcement; commands/dev.md Step 8 must reference `_test_writer_skip_reason` or `skip test-writer` language so the sentinel is not decorative.
 
@@ -643,6 +641,15 @@ After test-writer completes (or is skipped), the generated test file paths and m
 
 Run `bash ~/.claude/scripts/score-inject.sh --agent dev` and capture stdout into a variable `DEV_SCORE_HEADER`. Per spec 5.1 line 113, this injection text is inserted AFTER the role declaration and BEFORE the task instructions for the Dev dispatch.
 
+**Pre-dispatch baseline capture** (run BEFORE invoking the dev subagent):
+
+```bash
+baseline_head_sha=$(git -C "$CLAUDE_PROJECT_DIR" rev-parse HEAD 2>/dev/null || echo "")
+baseline_dirty_snapshot=$(git -C "$CLAUDE_PROJECT_DIR" status --porcelain 2>/dev/null || echo "")
+```
+
+Both values MUST be passed into the dev dispatch payload body (see below). If the repo has no commits yet, `baseline_head_sha` will be empty — pass it as empty string, not omitted.
+
 **Use Task tool to invoke dev subagent with file paths only**:
 
 ```
@@ -658,7 +665,7 @@ Use Task tool with:
 
   You are the dev subagent. Follow agents/dev.md instructions precisely.
 
-  <DEV_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: 注入位置：角色声明之后、任务指令之前>
+  <DEV_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: Injection position: after role declaration, before task instructions>
 
   Context file: docs/dev/context-<timestamp>.json
   BA spec file: docs/dev/ticket-<timestamp>.md (legacy: docs/dev/ba-spec-<timestamp>.md)
@@ -666,6 +673,8 @@ Use Task tool with:
   View file: <view_paths.dev or null — sibling views/dev.md if present>
   Generated tests (when test-writer ran): tests/generated/<task_id>/ + per-task active manifest at tests/generated/<task_id>/manifest.json. Global index file tests/generated/manifest.json (index) is a presence sentinel only — see Step 8 test-writer dispatch for full shape.
   Write your implementation report to: docs/dev/dev-report-<timestamp>.json
+  baseline_head_sha: <baseline_head_sha captured above>
+  baseline_dirty_snapshot: <baseline_dirty_snapshot captured above>
 
   If Spec file is not null: Read the spec file FIRST for context. After implementation, update the spec: Section 2 (What Was Attempted) with your approach and rationale. Section 3 (What Was Changed) with exact file:line edits.
   If View file is not null: you may read the view instead of the full monolith — it contains only the sections relevant to dev (S1, S2, S3, S7, S8) and is a byte-slice of the monolith.
@@ -798,7 +807,7 @@ Use Task tool with:
 
   You are the QA subagent. Follow agents/qa.md instructions precisely.
 
-  <QA_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: 注入位置：角色声明之后、任务指令之前>
+  <QA_SCORE_HEADER prepended here — score-inject output is placed AFTER the role declaration above and BEFORE the task instructions below, per spec 5.1 line 113: Injection position: after role declaration, before task instructions>
 
 
   Context file: docs/dev/context-<timestamp>.json
@@ -1003,7 +1012,7 @@ Would you like to:
 ```
 
 Before presenting those options, create or update a continuation spec using the
-`/spec-continue` default continuation-spec mode:
+`/spec-update` default continuation-spec mode:
 - If this `/dev` cycle had a `spec_path`, append to that spec.
 - If there was no source spec, create a new spec from
   `~/.claude/templates/overnight-spec.md`.
@@ -1154,11 +1163,11 @@ Subagent final messages, lifecycle records, and JSON-like stdout are not complet
 - If there is any unfinished development work (non-empty follow-up work in
   "Next Steps", known unmet acceptance criteria, accepted AC-deviation with
   future work, max-iteration exit, or user asks to keep improving), use
-  `/spec-continue` default continuation-spec mode. If a source spec exists, update it;
+  `/spec-update` default continuation-spec mode. If a source spec exists, update it;
   otherwise create a new spec. The next command is `/dev --spec <spec_path>`.
   Do NOT hand unfinished work to `/close` or `/commit`.
 - If all requested development is complete and only closure/shipping remains,
-  create a compact temp update using `/spec-continue --temp`. Default to
+  create a compact temp update using `/spec-update --temp`. Default to
   `mktemp -t update-XXXXXX.md`; do not write this update into the repo unless
   the user explicitly asks. Include `Task ID: <timestamp>`,
   ticket/spec/context/dev-report/QA-report/completion paths, QA status,
@@ -1477,13 +1486,3 @@ The rule does NOT apply to:
 A PreToolUse hook scans every `Agent` dispatch's `prompt` field. On any blacklist hit, the hook exits with code 2 (Claude Code's blocking convention) and writes a stderr message beginning with the literal substring `orchestrator must not specify HOW; rewrite prompt to describe WHAT only.` followed by the matched category, a redacted snippet of the offending text, and a pointer back to this section.
 
 Self-test fixtures live at `/root/docs/dev/redev-prompt-purity-20260426-self-test.md`.
-
-### User's verbatim motivation (recorded for traceability)
-
-The rule originates from the user's explicit instruction (Chinese, preserved verbatim from the redev parent prompt):
-
-<USER_VERBATIM>
-> 修改 /root/.claude/commands/dev.md（/dev orchestrator 命令），在 prompt 主体加入强制规则：orchestrator 给 BA/dev/QA 派单时只能描述 WHAT （要解决什么问题、约束、acceptance criteria），不允许提示 HOW（不能写 "Use Write tool"、"use sed -i"、"use jq"、"call curl with"、"run python3 -c" 等任何工具名 / 命令片段 / 具体方法论 / shell 语法）。subagent 自己根据 agent.md 决定用什么工具。
-
-> 设计并部署 hook：PreToolUse 拦截 Agent 工具调用，扫描 prompt 字段，匹配工具名黑名单（Write/Edit/Read/Bash/Glob/Grep/sed/curl/jq/python3/node/npm/git/...）+ shell 语法（`bash` fenced block, `$(...)`, `cat <<EOF`, `>`, `>>`, `&&`, `|`, `mkdir`, `chmod`...）→ 命中即 exit 2 阻断派单。
-</USER_VERBATIM>
