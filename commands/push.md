@@ -141,81 +141,55 @@ REPO_HASH=<REPO_HASH>
 
 Wait for the subagent to complete before proceeding.
 
-**Step 4: Read and validate push-analyst grant (Chain B)**
+**Step 4: Grant validation and sentinel write (Chain B) — performed by execute-push.py**
 
-Read the grant at:
-```
-/tmp/agentic-commit/push-analyst/<REPO_HASH>/<SESSION_ID>/<REQUEST_ID>.json
-```
+The orchestrator MUST NOT read, validate, or unlink the push-analyst grant manually,
+and MUST NOT delegate this step to a subagent. All of Step 4 and Step 5 are performed
+atomically by `scripts/execute-push.py` in Step 5 below.
 
-Validate the following fields:
-- File exists (if absent: abort with "push-analyst did not write a grant — aborting push")
-- Grant is valid JSON (if not: abort with "push-analyst grant is not valid JSON — aborting push")
+For reference, the script validates the following grant fields from
+`/tmp/agentic-commit/push-analyst/<REPO_HASH>/<SESSION_ID>/<REQUEST_ID>.json`:
+- File exists and is valid JSON
 - `nonce` field matches `REQUEST_ID`
 - `branch` field matches current `BRANCH`
-- `head_sha` field matches current `git rev-parse HEAD` (must still equal `PRE_HEAD`)
+- `head_sha` field matches current `git rev-parse HEAD`
 - `remote_name` field matches `RESOLVED_REMOTE`
 - `session_id` field matches `SESSION_ID`
-- `verdict` field is one of: `"approved"`, `"warn"`, `"blocked"` (reject unknown verdicts)
-- `risks` field is a JSON array (even if empty)
-- `expires_at` is in the future (parse ISO-8601, compare to current UTC time)
+- `verdict` field is one of: `"approved"`, `"warn"`, `"blocked"`
+- `risks` field is a JSON array
+- `expires_at` is in the future (ISO-8601 UTC, Z-suffix normalized)
 
-If any field mismatches, is absent, has wrong type, or grant is expired: abort with a descriptive error message naming the failing field.
+The script applies verdict logic, consumes the grant, writes the Chain-B sentinel
+atomically, and exec's push.sh — all in a single process. See Step 5.
 
-Consume (unlink) the grant:
-```bash
-rm -f "/tmp/agentic-commit/push-analyst/${REPO_HASH}/${SESSION_ID}/${REQUEST_ID}.json"
-```
+**Step 5: Call push.sh via execute-push.py (single-process pattern)**
 
-Act on verdict:
-- `verdict=blocked`: display `risks[]` to the user and abort. Do NOT call push.sh.
-- `verdict=warn`: display `risks[]` to the user with a warning, then proceed.
-- `verdict=approved`: proceed.
-
-**Step 5: Call push.sh via the single-process pattern (Chain A push-gate token consumed here)**
+> **WARNING — ORCHESTRATOR MUST EXECUTE DIRECTLY, NOT VIA SUBAGENT**: Steps 4 and 5
+> MUST NOT be delegated to a subagent. Two reasons: (a) subagents legitimately reject
+> writing the Chain-B sentinel as a privilege escalation; (b) the Chain-B sentinel's
+> 60-second mtime gate in `push.sh` cannot survive two sequential agent dispatch delays
+> (30-90s each). The orchestrator MUST run the bash invocation below directly.
 
 Per task 20260519-211515 R1 / AC1, validate-push and the actual push MUST be a
-**single-process exec pattern** — the validator wrapper writes a Chain-B success
+**single-process exec pattern** — `execute-push.py` writes a Chain-B success
 sentinel at
-`/tmp/agentic-commit/push-analyst/<REPO_HASH>/<BRANCH>-chainB.validated.sentinel.json`
+`/tmp/agentic-commit/push-analyst/<REPO_HASH>/<BRANCH_ENCODED>-chainB.validated.sentinel.json`
 (atomic temp+rename, mtime ≤ 60s, bound to `request_id` + `head` + `branch` + `remote`)
-and then `exec`s `~/.claude/hooks/push.sh` so both commands run as ONE PID. Read
-the sentinel ONLY once from inside push.sh; missing / expired / FAIL / mismatched
-sentinel triggers `exit 1` BEFORE any executable `git push` is reached.
-
-Do **NOT** chain validate + push.sh with `&&` from the orchestrator. The orchestrator
-chaining model has a window where the validator passes but the agent dispatch is
-re-entered with stale state — the push-analyst grant Chain-B bypass. The
-single-process pattern (one PID, unconditional short-circuit) eliminates the
-window by construction.
+and then `os.execv`s `~/.claude/hooks/push.sh` so both run as ONE PID. The sentinel
+is read ONLY once from inside push.sh; missing / expired / FAIL / mismatched sentinel
+triggers `exit 1` BEFORE any `git push` is reached.
 
 ```bash
-# HEAD-drift check: abort if HEAD has moved since pre-push snapshot
-CURRENT_HEAD=$(git rev-parse HEAD)
-if [ "$CURRENT_HEAD" != "$PRE_HEAD" ]; then
-  echo "ERROR: HEAD drifted since push-analyst grant — aborting push" >&2
-  exit 1
-fi
-
-# Write Chain-B success sentinel (atomic temp+rename)
-BRANCH_ENCODED="${BRANCH//\//__}"
-CHAIN_B_SENTINEL_DIR="/tmp/agentic-commit/push-analyst/${REPO_HASH}"
-CHAIN_B_SENTINEL_PATH="${CHAIN_B_SENTINEL_DIR}/${BRANCH_ENCODED}-chainB.validated.sentinel.json"
-mkdir -p "${CHAIN_B_SENTINEL_DIR}"
-CHAIN_B_TMP=$(mktemp "${CHAIN_B_SENTINEL_DIR}/.sentinel-XXXXXX.tmp")
-printf '{"result":"PASS","request_id":"%s","head":"%s","branch":"%s","remote":"%s"}' \
-  "${REQUEST_ID}" "${CURRENT_HEAD}" "${BRANCH}" "${RESOLVED_REMOTE}" > "${CHAIN_B_TMP}"
-mv -f "${CHAIN_B_TMP}" "${CHAIN_B_SENTINEL_PATH}"
-
-# Single-process pattern: exec push.sh in same PID so sentinel stays fresh
-CLAUDE_PUSH_REQUEST_ID="${REQUEST_ID}" exec ~/.claude/hooks/push.sh "${RESOLVED_REMOTE}"
+python3 /root/.claude/scripts/execute-push.py --request-id "$REQUEST_ID" --repo-hash "$REPO_HASH" --remote "$RESOLVED_REMOTE"
 ```
 
-If `--auto` is required, append it to the `exec` line. The legacy
-`bash ~/.claude/hooks/push.sh "${RESOLVED_REMOTE}"` form is acceptable ONLY when
-called from a validator wrapper that has already written the Chain-B sentinel in
-the SAME process tree; the sentinel-gate at hooks/push.sh:84 enforces that
-constraint and self-aborts if violated.
+If `--auto` is required, append the flag `--auto` (no value) to the invocation.
+Do NOT pass `--auto "$AUTO"` with a variable value — `--auto` is a boolean flag.
+
+Note: `python3` is used directly (no venv activation needed) because the script
+uses only Python stdlib modules (argparse, hashlib, json, os, re, subprocess,
+sys, tempfile, datetime). This matches the `Bash(python3:*)` allow entry in
+settings.json — no additional permission is required.
 
 ## Push-analyst grant TTL
 
