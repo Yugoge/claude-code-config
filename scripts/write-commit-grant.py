@@ -58,7 +58,48 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         default="/tmp",
         help="Directory to write the grant JSON into. Default: /tmp.",
     )
+    parser.add_argument(
+        "--revoke-existing-for-task",
+        metavar="TASK_ID_TO_REVOKE",
+        default=None,
+        help=(
+            "Before writing a new grant, revoke (delete) any existing stale grants "
+            "in --output-dir whose task_id matches TASK_ID_TO_REVOKE. "
+            "Use the same value as --task-id for the normal retry flow. "
+            "Revocation is best-effort: individual delete failures are logged but "
+            "do not abort grant creation."
+        ),
+    )
     return parser.parse_args(argv)
+
+
+def _revoke_grants_for_task(output_dir: str, task_id_to_revoke: str, sid: str) -> None:
+    """Delete stale grant files matching task_id_to_revoke AND sid in output_dir.
+
+    Iterates over claude-commit-grant-*.json files; loads each to check
+    task_id and sid; deletes matching files. Scoped to sid to avoid deleting
+    grants that belong to other sessions (e.g. parallel /commit invocations).
+    Best-effort: errors are printed to stderr but do not raise.
+    """
+    import glob as _glob
+
+    pattern = str(Path(output_dir) / "claude-commit-grant-*.json")
+    candidates = _glob.glob(pattern)
+    for candidate in candidates:
+        try:
+            with open(candidate) as fp:
+                data = json.load(fp)
+            if data.get("task_id") == task_id_to_revoke and data.get("sid") == sid:
+                Path(candidate).unlink()
+                print(
+                    f"[revoke] Deleted stale grant: {candidate}",
+                    file=sys.stderr,
+                )
+        except (OSError, json.JSONDecodeError, KeyError) as exc:
+            print(
+                f"[revoke] WARNING: could not process {candidate}: {exc}",
+                file=sys.stderr,
+            )
 
 
 def _resolve_sid(cli_sid: str | None) -> str:
@@ -84,7 +125,13 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
+    # Resolve SID first — if SID is missing we cannot write a grant OR safely
+    # scope revocation; fail before touching any grant files.
     sid = _resolve_sid(args.sid)
+    # Revoke stale grants for task before writing a fresh one (retry flow).
+    # Scoped to current sid to avoid deleting grants for other sessions.
+    if args.revoke_existing_for_task:
+        _revoke_grants_for_task(args.output_dir, args.revoke_existing_for_task, sid)
     nonce = secrets.token_hex(8)
     now = datetime.now(timezone.utc)
     grant = {

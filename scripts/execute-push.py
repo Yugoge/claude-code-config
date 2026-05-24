@@ -1,58 +1,49 @@
 #!/usr/bin/env python3
-"""Single-invocation /push Steps 4+5 wrapper for the orchestrator.
+"""Atomic push script: validate grant, consume it, write Chain-B sentinel, exec push.sh.
 
-Encapsulates the entire Chain-B grant validation → consume → sentinel write →
-os.execv(push.sh) sequence in one Bash call, eliminating the need to delegate
-Steps 4+5 to a subagent.
+Eliminates the timing window that exists when validate + push are && -chained.
+All 13 steps run in one Python process; os.execv replaces the process image so
+the Chain-B sentinel write and push.sh sentinel-read occur within the same PID
+lifetime — the 60s mtime gate in push.sh cannot expire between them.
 
-WHY THIS MUST BE A SINGLE ORCHESTRATOR-LAYER BASH INVOCATION:
-  1. The orchestrator's 3-consecutive-Bash budget is exhausted by Steps 0-2;
-     delegating Steps 4+5 to a subagent causes three compounding failures:
-     (a) HOW-prescriptive prompts cause the subagent to delete the wrong file
-         (Chain-A push-gate token instead of the Chain-B push-analyst grant);
-     (b) subagents legitimately reject writing the Chain-B sentinel as a
-         privilege escalation;
-     (c) the Chain-B sentinel's 60-second mtime gate in push.sh cannot survive
-         two sequential agent dispatch delays (30-90s each).
-  2. os.execv keeps this and push.sh in the SAME PID — the sentinel written
-     here is unconditionally fresh when push.sh reads it (< 1s mtime age).
-
-Parameters:
-  --request-id  REQUEST_ID from the orchestrator's Step 2 snapshot (required)
-  --repo-hash   16-char hex sha256(realpath(git_root))[:16] (required)
-  --remote      push remote name, e.g. "origin" (required)
-  --auto        forward --auto flag to push.sh for non-interactive lock handling
+Usage:
+    python3 ~/.claude/scripts/execute-push.py \\
+        --repo-hash <REPO_HASH> \\
+        --branch <BRANCH> \\
+        --remote <RESOLVED_REMOTE> \\
+        --request-id <REQUEST_ID> \\
+        [--auto]
 
 Exit codes:
-  0   os.execv succeeded; process becomes push.sh (returns push.sh's exit code)
-  1   Chain-B validation failure: grant missing/expired/mismatched/blocked verdict
-  2   Setup/argument error: bad args, missing CLAUDE_SESSION_ID, bad repo-hash,
-      push.sh not found/executable, os.execv failed after sentinel write
+    0   Never returned — successful path calls os.execv (process replaced by push.sh)
+    1   Grant validation failed, HEAD drift, blocked verdict, or grant-consume failure
+    2   Infrastructure failure: CLAUDE_SESSION_ID unset, push.sh missing/not executable,
+        os.execv raised OSError after sentinel write
 """
 
 import argparse
-import hashlib
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
+
+# Sentinel/grant base directory — push.sh reads from here (push.sh:97-98)
+_SENTINEL_BASE = "/tmp/agentic-commit/push-analyst"
+
+# Push.sh location — tilde-expanded at runtime; never hardcoded to /root
+_PUSH_SH_TILDE = "~/.claude/hooks/push.sh"
 
 
-def _parse_args(argv: list[str]) -> argparse.Namespace:
+def _parse_args(argv: list) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="execute-push.py",
         description=(
-            "Validate Chain-B push-analyst grant, write sentinel, and exec push.sh "
-            "in a single process — avoids delegating Steps 4+5 to a subagent."
+            "Atomic push: validate Chain-B grant, consume it, write sentinel, "
+            "exec push.sh — all in one process. Eliminates the && timing window."
         ),
-    )
-    parser.add_argument(
-        "--request-id",
-        required=True,
-        help="REQUEST_ID from orchestrator Step 2 snapshot.",
     )
     parser.add_argument(
         "--repo-hash",
@@ -60,9 +51,19 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="16-char hex sha256(realpath(git_root))[:16] from orchestrator Step 2.",
     )
     parser.add_argument(
+        "--branch",
+        required=True,
+        help="Branch name snapshot from Step 2 (used for grant field validation and sentinel).",
+    )
+    parser.add_argument(
         "--remote",
         required=True,
-        help="Push remote name (e.g. 'origin').",
+        help="Resolved push remote name (e.g. 'origin' or 'fork').",
+    )
+    parser.add_argument(
+        "--request-id",
+        required=True,
+        help="REQUEST_ID from orchestrator Step 2 snapshot (matches grant.nonce field).",
     )
     parser.add_argument(
         "--auto",
@@ -73,262 +74,235 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _get_git_head() -> str:
-    """Return the current HEAD sha (40 hex chars). Exits 2 on failure."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as exc:
-        print(f"execute-push: cannot read git HEAD: {exc}", file=sys.stderr)
-        sys.exit(2)
-
-
-def _get_git_branch() -> str:
-    """Return the current branch name. Exits 2 on failure."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as exc:
-        print(f"execute-push: cannot read git branch: {exc}", file=sys.stderr)
-        sys.exit(2)
-
-
-def _get_git_root() -> str:
-    """Return the repo root path. Exits 2 on failure."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as exc:
-        print(f"execute-push: cannot read git root: {exc}", file=sys.stderr)
-        sys.exit(2)
-
-
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list = None) -> int:
+    # Step 1: Parse CLI arguments
     args = _parse_args(sys.argv[1:] if argv is None else argv)
+    repo_hash = args.repo_hash
+    branch = args.branch
+    remote = args.remote
+    request_id = args.request_id
+    auto = args.auto
 
-    # Step 1: Validate CLAUDE_SESSION_ID FIRST (before repo-hash check per AC3
-    # ordering requirement: env var check must precede repo-hash validation).
+    # Step 2: Read SESSION_ID from environment (NOT a CLI arg)
     session_id = os.environ.get("CLAUDE_SESSION_ID", "")
     if not session_id:
         print(
-            "execute-push: CLAUDE_SESSION_ID is not set. "
+            "execute-push: CLAUDE_SESSION_ID is not set or empty. "
             "Invoke /push from within a Claude Code session.",
             file=sys.stderr,
         )
         return 2
 
-    # Step 2: Validate repo-hash format and match against computed hash.
-    if not re.fullmatch(r"[0-9a-f]{16}", args.repo_hash):
+    # Step 3: Compute grant path
+    grant_path = Path(_SENTINEL_BASE) / repo_hash / session_id / f"{request_id}.json"
+
+    # Step 4: Check push.sh exists and is executable — infrastructure check before
+    # any grant file is touched. Abort exit 2 on failure (not a validation failure).
+    push_sh_path = str(Path(_PUSH_SH_TILDE).expanduser())
+    if not os.path.isfile(push_sh_path) or not os.access(push_sh_path, os.X_OK):
         print(
-            f"execute-push: --repo-hash must be 16 lowercase hex chars, got: {args.repo_hash!r}",
+            f"execute-push: push.sh not found or not executable at {push_sh_path}. "
+            "Infrastructure failure — cannot exec push.sh.",
             file=sys.stderr,
         )
         return 2
 
-    git_root = _get_git_root()
-    computed_hash = hashlib.sha256(os.path.realpath(git_root).encode()).hexdigest()[:16]
-    if computed_hash != args.repo_hash:
+    # Step 5: Read grant file
+    if not grant_path.exists():
         print(
-            f"execute-push: repo-hash mismatch — computed {computed_hash!r}, "
-            f"got {args.repo_hash!r}. Ensure --repo-hash was captured in Step 2 "
-            f"from the same repository.",
-            file=sys.stderr,
-        )
-        return 2
-
-    # Step 3: Read and validate the push-analyst grant.
-    grant_path = (
-        f"/tmp/agentic-commit/push-analyst/{args.repo_hash}"
-        f"/{session_id}/{args.request_id}.json"
-    )
-    if not os.path.isfile(grant_path):
-        print(
-            f"execute-push: push-analyst did not write a grant at {grant_path} — "
-            "aborting push. Ensure push-analyst subagent completed successfully.",
+            f"execute-push: grant file not found at {grant_path}. "
+            "Ensure push-analyst subagent completed successfully.",
             file=sys.stderr,
         )
         return 1
 
+    # Step 6: Parse grant JSON
     try:
-        with open(grant_path) as fp:
-            grant = json.load(fp)
-    except (OSError, json.JSONDecodeError) as exc:
-        print(
-            f"execute-push: push-analyst grant is not valid JSON — aborting push: {exc}",
-            file=sys.stderr,
-        )
+        grant_text = grant_path.read_text()
+        grant = json.loads(grant_text)
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"execute-push: grant file is malformed JSON: {exc}", file=sys.stderr)
         return 1
-
     if not isinstance(grant, dict):
-        print(
-            "execute-push: push-analyst grant is not a JSON object — aborting push.",
-            file=sys.stderr,
-        )
+        print("execute-push: grant file is not a JSON object.", file=sys.stderr)
         return 1
 
-    # Read HEAD and branch for grant field validation.
-    head_sha = _get_git_head()
-    branch_raw = _get_git_branch()
-
-    # Validate required grant fields (nonce=request_id per push-analyst schema).
-    def _field_err(msg: str) -> int:
-        print(f"execute-push: grant validation failed — {msg}", file=sys.stderr)
-        return 1
-
-    nonce = grant.get("nonce")
-    if nonce != args.request_id:
-        return _field_err(f"nonce {nonce!r} does not match request_id {args.request_id!r}")
-
-    grant_branch = grant.get("branch")
-    if grant_branch != branch_raw:
-        return _field_err(f"branch {grant_branch!r} does not match current branch {branch_raw!r}")
-
-    grant_head = grant.get("head_sha")
-    if grant_head != head_sha:
-        return _field_err(f"head_sha {grant_head!r} does not match current HEAD {head_sha!r}")
-
-    grant_remote = grant.get("remote_name")
-    if grant_remote != args.remote:
-        return _field_err(f"remote_name {grant_remote!r} does not match --remote {args.remote!r}")
-
-    grant_session = grant.get("session_id")
-    if grant_session != session_id:
-        return _field_err(
-            f"session_id {grant_session!r} does not match CLAUDE_SESSION_ID {session_id!r}"
-        )
-
-    verdict = grant.get("verdict")
-    if verdict not in ("approved", "warn", "blocked"):
-        return _field_err(f"verdict {verdict!r} is not one of approved/warn/blocked")
-
-    risks = grant.get("risks")
-    if not isinstance(risks, list):
-        return _field_err(f"risks field is not a JSON array: {risks!r}")
-
+    # Step 7: Validate grant fields (grant NOT consumed on any failure here)
+    # expires_at — Z-suffix compatible with Python 3.8-3.10
     expires_at_raw = grant.get("expires_at", "")
     try:
-        # Normalize Z-suffix (push-analyst writes YYYY-MM-DDTHH:MM:SSZ which
-        # Python's fromisoformat does not accept until 3.11; replace Z → +00:00).
-        expires_at_str = expires_at_raw.replace("Z", "+00:00")
-        expires_at = datetime.fromisoformat(expires_at_str)
-    except (ValueError, AttributeError) as exc:
-        return _field_err(f"expires_at {expires_at_raw!r} is not valid ISO-8601: {exc}")
+        expires_at = datetime.fromisoformat(expires_at_raw.replace("Z", "+00:00"))
+        # Require timezone-aware datetime; tz-naive grants cannot be safely compared.
+        if expires_at.tzinfo is None or expires_at.utcoffset() is None:
+            raise ValueError("expires_at is timezone-naive; UTC offset required")
+        expires_at = expires_at.astimezone(timezone.utc)
+    except (ValueError, AttributeError, TypeError):
+        print(
+            f"execute-push: grant field 'expires_at' is not a valid timezone-aware ISO-8601 datetime: "
+            f"{expires_at_raw!r}",
+            file=sys.stderr,
+        )
+        return 1
+    if expires_at <= datetime.now(timezone.utc):
+        print(
+            f"execute-push: grant field 'expires_at' is in the past ({expires_at_raw}). "
+            "Grant expired — run /push again.",
+            file=sys.stderr,
+        )
+        return 1
 
-    if datetime.now(timezone.utc) >= expires_at:
-        return _field_err(f"grant is expired (expires_at={expires_at_raw!r})")
+    # Validate non-head_sha binding fields
+    field_checks = [
+        ("nonce", request_id, "--request-id"),
+        ("branch", branch, "--branch"),
+        ("remote_name", remote, "--remote"),
+        ("session_id", session_id, "CLAUDE_SESSION_ID"),
+    ]
+    for field, expected, source in field_checks:
+        actual = grant.get(field)
+        if not isinstance(actual, str) or not actual:
+            print(
+                f"execute-push: grant field '{field}' is missing or empty.",
+                file=sys.stderr,
+            )
+            return 1
+        if actual != expected:
+            print(
+                f"execute-push: grant field '{field}' mismatch — "
+                f"grant has {actual!r}, {source} is {expected!r}.",
+                file=sys.stderr,
+            )
+            return 1
 
-    # Step 4: Apply verdict logic.
-    # blocked → print risks, exit 1 WITHOUT writing sentinel or exec'ing push.sh.
+    # Validate verdict and risks before acting
+    verdict = grant.get("verdict")
+    if verdict not in ("approved", "warn", "blocked"):
+        print(
+            f"execute-push: grant field 'verdict' is invalid: {verdict!r}. "
+            "Expected one of: approved, warn, blocked.",
+            file=sys.stderr,
+        )
+        return 1
+    risks = grant.get("risks")
+    if not isinstance(risks, list):
+        print(
+            f"execute-push: grant field 'risks' must be a JSON array, got: {risks!r}.",
+            file=sys.stderr,
+        )
+        return 1
+
+    # Step 8: Act on verdict
     if verdict == "blocked":
-        print(
-            "execute-push: push-analyst verdict is BLOCKED — aborting push.",
-            file=sys.stderr,
-        )
+        # Grant intentionally NOT consumed — blocked grant cannot authorize a push;
+        # it will always re-block if replayed. A new /push generates a fresh grant.
+        print("execute-push: push BLOCKED by push-analyst. Risks:", file=sys.stderr)
         for risk in risks:
-            print(f"  blocked risk: {risk}", file=sys.stderr)
+            print(f"  - {risk}", file=sys.stderr)
         return 1
-
-    # warn → print risks as warnings, then proceed.
     if verdict == "warn":
-        print("execute-push: push-analyst verdict is WARN — proceeding with warnings:", file=sys.stderr)
+        print("execute-push: WARNING — push-analyst flagged risks:", file=sys.stderr)
         for risk in risks:
-            print(f"  warning: {risk}", file=sys.stderr)
+            print(f"  - {risk}", file=sys.stderr)
+        sys.stderr.flush()
+        # Proceed to step 9 (do not abort)
 
-    # Step 5: Verify push.sh exists and is executable BEFORE consuming the grant.
-    push_sh = os.path.expanduser("~/.claude/hooks/push.sh")
-    if not os.path.isfile(push_sh) or not os.access(push_sh, os.X_OK):
+    # Step 9: Check HEAD drift — single check at this step only; grant NOT consumed
+    # on mismatch. The sentinel head field uses grant.head_sha (proved equal to
+    # current HEAD here; avoids a second subprocess call later).
+    head_sha_from_grant = grant.get("head_sha", "")
+    if not isinstance(head_sha_from_grant, str) or not head_sha_from_grant:
         print(
-            f"execute-push: push.sh not found or not executable at {push_sh}",
+            "execute-push: grant field 'head_sha' is missing or empty.",
             file=sys.stderr,
         )
-        return 2
-
-    # Step 6: Re-read HEAD for drift check at sentinel-write time.
-    current_head = _get_git_head()
-    if current_head != head_sha:
+        return 1
+    try:
+        current_head = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except subprocess.CalledProcessError:
+        print("execute-push: failed to run 'git rev-parse HEAD'.", file=sys.stderr)
+        return 1
+    if current_head != head_sha_from_grant:
         print(
-            f"execute-push: HEAD drifted since grant was written "
-            f"(grant head_sha={head_sha!r}, current HEAD={current_head!r}) — "
-            "aborting push.",
+            f"execute-push: HEAD drift detected — grant.head_sha is {head_sha_from_grant!r} "
+            f"but current HEAD is {current_head!r}. Aborting push; grant preserved.",
             file=sys.stderr,
         )
         return 1
 
-    # Step 7: Consume (unlink) the grant — only AFTER verdict check passes
-    # (not on blocked) and BEFORE writing the sentinel.
+    # Step 10: Consume (unlink) grant file — only after steps 5-9 all pass
     try:
         os.unlink(grant_path)
     except OSError as exc:
-        print(f"execute-push: failed to unlink grant at {grant_path}: {exc}", file=sys.stderr)
+        print(
+            f"execute-push: failed to consume (unlink) grant at {grant_path}: {exc}",
+            file=sys.stderr,
+        )
         return 1
 
-    # Step 8: Atomically write the Chain-B success sentinel.
-    branch_encoded = branch_raw.replace("/", "__")
-    sentinel_dir = f"/tmp/agentic-commit/push-analyst/{args.repo_hash}"
-    sentinel_path = f"{sentinel_dir}/{branch_encoded}-chainB.validated.sentinel.json"
-
-    sentinel_content = json.dumps({
+    # Step 11: Write Chain-B sentinel atomically (mkstemp + os.replace)
+    # branch_encoded is used for the sentinel FILE PATH only; the sentinel JSON
+    # 'branch' field carries the RAW branch name (push.sh:94 reads raw branch).
+    branch_encoded = branch.replace("/", "__")
+    sentinel_dir = Path(_SENTINEL_BASE) / repo_hash
+    sentinel_path = sentinel_dir / f"{branch_encoded}-chainB.validated.sentinel.json"
+    sentinel_data = {
         "result": "PASS",
-        "request_id": args.request_id,
-        "head": current_head,
-        "branch": branch_raw,
-        "remote": args.remote,
-    })
-
-    tmp_path = None
+        "request_id": request_id,
+        "head": head_sha_from_grant,   # proved equal to current HEAD at step 9
+        "branch": branch,              # raw branch name — NOT the encoded form
+        "remote": remote,
+    }
+    sentinel_bytes = json.dumps(sentinel_data).encode()
+    sentinel_dir.mkdir(parents=True, exist_ok=True)
+    tmp_sentinel = None
     try:
-        os.makedirs(sentinel_dir, exist_ok=True)
-        fd, tmp_path = tempfile.mkstemp(dir=sentinel_dir, prefix=".sentinel-", suffix=".tmp")
-        try:
-            os.write(fd, sentinel_content.encode())
-        finally:
-            os.close(fd)
-        os.replace(tmp_path, sentinel_path)
-        tmp_path = None  # os.replace succeeded; no cleanup needed
+        fd, tmp_sentinel = tempfile.mkstemp(
+            dir=str(sentinel_dir), prefix=".sentinel-", suffix=".tmp"
+        )
+        os.write(fd, sentinel_bytes)
+        os.close(fd)
+        os.replace(tmp_sentinel, str(sentinel_path))
+        tmp_sentinel = None  # os.replace succeeded; no temp to clean up
     except OSError as exc:
-        if tmp_path is not None:
+        if tmp_sentinel is not None:
             try:
-                os.unlink(tmp_path)
+                os.unlink(tmp_sentinel)
             except OSError:
                 pass
         print(f"execute-push: failed to write Chain-B sentinel: {exc}", file=sys.stderr)
-        return 2
+        return 1
 
-    # Step 9: Set CLAUDE_PUSH_REQUEST_ID BEFORE os.execv, then exec push.sh.
-    os.environ["CLAUDE_PUSH_REQUEST_ID"] = args.request_id
-    push_argv = [push_sh, args.remote]
-    if args.auto:
-        push_argv.append("--auto")
+    # Step 12: Set CLAUDE_PUSH_REQUEST_ID in environment and flush stderr so
+    # warn-path risk messages are not lost when the process image is replaced.
+    os.environ["CLAUDE_PUSH_REQUEST_ID"] = request_id
+    sys.stderr.flush()
 
+    # Step 13: exec push.sh — replaces this process image (NOT subprocess).
+    # argv[0] must be the program path; remote is argv[1]; --auto optional argv[2].
+    push_argv = [push_sh_path, remote] + (["--auto"] if auto else [])
     try:
-        os.execv(push_sh, push_argv)
+        print(f"execute-push: sentinel written, exec push.sh pid={os.getpid()}", flush=True)
+    except BrokenPipeError:
+        pass
+    try:
+        os.execv(push_sh_path, push_argv)
     except OSError as exc:
-        # execv failed after sentinel was written — unlink sentinel to avoid
-        # a stale sentinel being picked up by a subsequent push attempt.
+        # M11: sentinel cleanup on execv failure — prevent orphaned sentinel.
+        # Grant was already consumed at step 10 before sentinel write.
         try:
-            os.unlink(sentinel_path)
+            os.unlink(str(sentinel_path))
         except OSError:
             pass
-        print(f"execute-push: os.execv failed: {exc}", file=sys.stderr)
+        print(
+            f"execute-push: os.execv raised OSError: {exc}. Sentinel cleaned up.",
+            file=sys.stderr,
+        )
         return 2
 
-    # Unreachable: os.execv replaces this process on success.
-    return 0
+    # os.execv never returns on success; this line is unreachable.
+    return 0  # pragma: no cover
 
 
 if __name__ == "__main__":
