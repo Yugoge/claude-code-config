@@ -12,13 +12,23 @@
 
 import re
 import sys
+from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "hooks/lib")
+sys.path.insert(0, str(Path(__file__).parents[3]))
+
+from hooks.lib.bash_context_strip import strip_non_executable_contexts
 
 AC_UID = "78f31626"
 AC_TYPE = "hook"
+
+
+def grep_match(pattern, text):
+    for line in text.split('\n'):
+        if re.search(pattern, line):
+            return True
+    return False
 
 
 def test_AC_07():
@@ -27,11 +37,6 @@ def test_AC_07():
     WHEN:  strip_non_executable_contexts processes the heredoc whose consumer line contains | /usr/bin/bash
     THEN:  The returned string matches grep -qE '(^|[ \t;|&])(kill)[ \t]+-' — kill is visible as executable text; /usr/bin/bash basename resolves to bash which is in _SHELL_INTERPS
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # Dev implementation note: after.split("|")[1:] yields [" /usr/bin/bash"];
-    # _first_word(" /usr/bin/bash") returns "bash" (via _basename); "bash" in
-    # _SHELL_INTERPS is True — so the body is preserved and kill is visible.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — heredoc piped to /usr/bin/bash preserves body; kill visible")
+    cmd = "cat <<'EOF' | /usr/bin/bash\nkill -9 1234\nEOF"
+    result = strip_non_executable_contexts(cmd)
+    assert grep_match(r'(^|[ \t;|&])(kill)[ \t]+-', result), f"kill not visible in: {result!r}"

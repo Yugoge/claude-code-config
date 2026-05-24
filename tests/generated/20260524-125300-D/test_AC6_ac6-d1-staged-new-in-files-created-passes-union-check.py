@@ -6,6 +6,8 @@
 # trace each test back to its source AC entry.
 
 import pytest
+from pathlib import Path
+import re
 
 AC_UID = "ac6-d1-staged-new-in-files-created-passes-union-check"
 AC_TYPE = "data"
@@ -17,7 +19,21 @@ def test_AC6():
     WHEN:  git diff --name-only <baseline_head_sha> returns staged-new.py
     THEN:  QA does NOT raise files_modified_underreport_violation for staged-new.py (it is present in dev.files_created, satisfying the dev.files_modified ∪ dev.files_created union check); no violation is fired for a diff path that appears in dev.files_created even if absent from dev.files_modified
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — reverse check compares diff_files against dev.files_modified ∪ dev.files_created (union); path in dev.files_created satisfies union and must not raise violation")
+    project_root = Path(__file__).parents[3]
+    qa_md = (project_root / "agents" / "qa.md").read_text(encoding="utf-8")
+
+    # The reverse check must compare against the union of files_modified AND files_created.
+    # Acceptable textual forms: "∪" or "UNION" appearing near both field names (with or
+    # without "dev." prefix on one or both sides).
+    union_patterns = [
+        r"files_modified\s*∪\s*(?:dev\.)?files_created",
+        r"files_created\s*∪\s*(?:dev\.)?files_modified",
+        r"files_modified UNION (?:dev\.)?files_created",
+        r"files_created UNION (?:dev\.)?files_modified",
+    ]
+    found_union = any(re.search(p, qa_md) for p in union_patterns)
+    assert found_union, (
+        "agents/qa.md must reference 'dev.files_modified ∪ dev.files_created' (or UNION) "
+        "in the reverse underreport check so that a path in dev.files_created satisfies "
+        "the check and does not raise files_modified_underreport_violation"
+    )

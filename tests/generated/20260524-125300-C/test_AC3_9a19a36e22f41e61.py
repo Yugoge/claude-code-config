@@ -6,6 +6,7 @@
 # trace each test back to its source AC entry.
 
 import pytest
+from pathlib import Path
 
 AC_UID = "9a19a36e22f41e61"
 AC_TYPE = "data"
@@ -17,7 +18,17 @@ def test_AC3():
     WHEN:  checking for literal placeholder forms of the marker
     THEN:  the spec file does NOT contain the literal strings <!-- spec-continuation-of: ${TASK_ID} --> or <!-- spec-continuation-of: <task-id> -->
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — no literal placeholder form written in spec file")
+    # Static verification: the instruction text in spec-update.md must contain the
+    # exact prohibition phrase. Checking '<task-id>' alone is insufficient because
+    # that string appears in artifact path examples unrelated to the marker.
+    spec_update = Path(__file__).parents[3] / "commands" / "spec-update.md"
+    content = spec_update.read_text()
+
+    # The exact prohibition phrase must appear as a unit, proving both placeholders
+    # are named together in the context of the marker instruction.
+    assert "never a literal `${TASK_ID}` or\n`<task-id>` placeholder" in content or \
+           "never a literal `${TASK_ID}` or `<task-id>` placeholder" in content, (
+        "commands/spec-update.md does not contain the exact prohibition phrase "
+        "'never a literal `${TASK_ID}` or `<task-id>` placeholder' — "
+        "the agent may write a literal placeholder form of the marker"
+    )

@@ -7,13 +7,23 @@
 
 import re
 import sys
+from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "hooks/lib")
+sys.path.insert(0, str(Path(__file__).parents[3]))
+
+from hooks.lib.bash_context_strip import strip_non_executable_contexts
 
 AC_UID = "58549cee"
 AC_TYPE = "hook"
+
+
+def grep_match(pattern, text):
+    for line in text.split('\n'):
+        if re.search(pattern, line):
+            return True
+    return False
 
 
 def test_AC_01():
@@ -22,7 +32,6 @@ def test_AC_01():
     WHEN:  strip_non_executable_contexts processes the combined short-option word -lc
     THEN:  The returned string matches grep -qE '(^|[ \t;|&(])rm\s' — rm is visible as executable text and not hidden inside a quoted token
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — combined flag -lc exposes rm as executable text")
+    cmd = "bash -lc 'rm /tmp/x'"
+    result = strip_non_executable_contexts(cmd)
+    assert grep_match(r'(^|[ \t;|&(])rm\s', result), f"rm not visible in: {result!r}"

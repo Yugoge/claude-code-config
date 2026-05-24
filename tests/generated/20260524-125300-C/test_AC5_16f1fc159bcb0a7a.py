@@ -6,6 +6,7 @@
 # trace each test back to its source AC entry.
 
 import pytest
+from pathlib import Path
 
 AC_UID = "16f1fc159bcb0a7a"
 AC_TYPE = "data"
@@ -17,7 +18,33 @@ def test_AC5():
     WHEN:  spec-update continuation mode is invoked again for the same task-id T on the same spec
     THEN:  the spec file contains exactly one occurrence of <!-- spec-continuation-of: T -->
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — idempotent re-run produces exactly one marker occurrence")
+    # Static verification: the idempotency instruction must appear in the same
+    # paragraph as the marker template, not elsewhere in the file. We find the
+    # marker paragraph and assert the full check-then-skip sequence is present.
+    spec_update = Path(__file__).parents[3] / "commands" / "spec-update.md"
+    content = spec_update.read_text()
+
+    # Locate the paragraph containing the marker instruction
+    marker_idx = content.find("<!-- spec-continuation-of: <resolved-task-id> -->")
+    assert marker_idx != -1, (
+        "commands/spec-update.md does not contain the marker template — "
+        "idempotency check cannot be verified"
+    )
+
+    # Extract up to 600 chars of context around the marker instruction
+    paragraph = content[max(0, marker_idx - 50): marker_idx + 600]
+
+    # Normalize whitespace to handle line wrapping
+    paragraph_normalized = " ".join(paragraph.split())
+    assert "If it is already present" in paragraph_normalized or "already present" in paragraph_normalized, (
+        "The marker instruction paragraph does not contain 'If it is already present' — "
+        "the idempotency pre-check is missing"
+    )
+    assert "do not write a second copy" in paragraph_normalized, (
+        "The marker instruction paragraph does not contain 'do not write a second copy' — "
+        "the agent may write duplicate markers on repeated continuation runs"
+    )
+    assert "exactly once per" in paragraph_normalized, (
+        "The marker instruction paragraph does not contain 'exactly once per' — "
+        "the per-(task-id, spec-file) uniqueness guarantee is missing"
+    )

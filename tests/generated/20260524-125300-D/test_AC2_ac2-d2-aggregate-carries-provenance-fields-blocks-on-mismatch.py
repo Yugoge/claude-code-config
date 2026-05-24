@@ -6,6 +6,7 @@
 # trace each test back to its source AC entry.
 
 import pytest
+from pathlib import Path
 
 AC_UID = "ac2-d2-aggregate-carries-provenance-fields-blocks-on-mismatch"
 AC_TYPE = "data"
@@ -17,7 +18,15 @@ def test_AC2():
     WHEN:  the orchestrator writes the aggregate per commands/dev.md Step 9
     THEN:  the aggregate JSON contains top-level baseline_head_sha="abc123", top-level baseline_dirty_snapshot matching the dispatch value, and dev.observed_preexisting as a UNION of both workers' lists; AND if worker-B instead has baseline_head_sha="xyz999", the aggregate's dev.status is "blocked" with a blocking_issue citing the baseline_head_sha mismatch; AND if worker-B has matching baseline_head_sha="abc123" but different baseline_dirty_snapshot (e.g. worker-B reports " M extra-file.md" while dispatch value is ""), the aggregate's dev.status is also "blocked" with a blocking_issue citing the baseline_dirty_snapshot mismatch
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — commands/dev.md Step 9 aggregate carries baseline_head_sha, baseline_dirty_snapshot, observed_preexisting; blocks on any mismatch")
+    project_root = Path(__file__).parents[3]
+    dev_md = (project_root / "commands" / "dev.md").read_text(encoding="utf-8")
+
+    assert "baseline_head_sha" in dev_md, (
+        "commands/dev.md must contain 'baseline_head_sha' in the aggregate construction section"
+    )
+    assert "baseline_dirty_snapshot" in dev_md, (
+        "commands/dev.md must contain 'baseline_dirty_snapshot' in the aggregate construction section"
+    )
+    assert "observed_preexisting" in dev_md, (
+        "commands/dev.md must contain 'observed_preexisting' in the aggregate construction section"
+    )

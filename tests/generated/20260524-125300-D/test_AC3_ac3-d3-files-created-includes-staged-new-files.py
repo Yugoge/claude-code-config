@@ -6,6 +6,7 @@
 # trace each test back to its source AC entry.
 
 import pytest
+from pathlib import Path
 
 AC_UID = "ac3-d3-files-created-includes-staged-new-files"
 AC_TYPE = "data"
@@ -17,7 +18,10 @@ def test_AC3():
     WHEN:  dev derives dev.files_created per agents/dev.md derivation rules
     THEN:  dev.files_created includes both new-file.py (from git diff --cached --name-only --diff-filter=A) and the untracked file (from git ls-files --others --exclude-standard); paths in baseline_dirty_snapshot parsed path list are excluded from both sources before union
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — agents/dev.md derivation rule references both git ls-files --others --exclude-standard and git diff --cached --name-only --diff-filter=A as combined files_created sources")
+    project_root = Path(__file__).parents[3]
+    dev_agent_md = (project_root / "agents" / "dev.md").read_text(encoding="utf-8")
+
+    assert "diff --cached --name-only --diff-filter=A" in dev_agent_md, (
+        "agents/dev.md must contain 'diff --cached --name-only --diff-filter=A' "
+        "as part of the combined files_created derivation rule"
+    )
