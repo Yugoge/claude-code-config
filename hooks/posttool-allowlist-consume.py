@@ -146,6 +146,15 @@ def main() -> None:
                 legacy_path.unlink()
             except (FileNotFoundError, OSError):
                 pass
+            # Cross-SID: orchestrator SID may differ from subagent SID.
+            # Unlink orchestrator's legacy grant too if the SIDs diverge.
+            orch_sid = os.environ.get("CLAUDE_SESSION_ID", "")
+            if orch_sid and orch_sid != session_id:
+                orch_legacy = Path(f"/tmp/claude-bash-allowlist-{orch_sid}.json")
+                try:
+                    orch_legacy.unlink()
+                except (FileNotFoundError, OSError):
+                    pass
     elif tool_name == "Write":
         # Sentinel-grant consume for Write-overwrite grants (task 20260522-080646-B).
         # Uses tool_input.file_path (not command — Write has no command field).
