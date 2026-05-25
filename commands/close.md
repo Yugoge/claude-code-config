@@ -432,7 +432,7 @@ After the verdict is determined (but BEFORE the user rating below), apply close-
   - **Source binding**:
     - Primary source for `User need:` lines: `docs/dev/user-requirement-<DEV_SESSION_ID>.md` (verbatim user text captured at /dev dispatch time), plus any user-clarification artifacts written this session.
     - Source for `Design response:` lines: `docs/dev/dev-report-<task-id>.json`, `docs/dev/qa-report-<task-id>.json`, and `docs/dev/close-report-<task-id>.md` only — do NOT improvise outcomes not present in these artifacts.
-  - **Content quality** is orchestrator-improvisational — this spec constrains FORMAT only (chronological timeline + 2-line entries + <= 15 lines + forbidden narrative). The user has explicitly delegated content quality to the orchestrator's judgment ("自我总结的内容质量靠 orchestrator 即兴生成：无所谓").
+  - **Content quality** is orchestrator-improvisational — this spec constrains FORMAT only (chronological timeline + 2-line entries + <= 15 lines + forbidden narrative). The user has explicitly delegated content quality to the orchestrator's judgment ("user explicitly delegated content quality to orchestrator's improvisation").
   - This summary appears in the orchestrator's text message to the user, AFTER the `CLOSE:` verdict echo and BEFORE the rating `<options>` block below.
 - If the verdict is **`CLOSE: NO`** or **`CLOSE: YES (FORCED)`**: SKIP the session summary.
 
