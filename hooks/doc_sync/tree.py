@@ -24,6 +24,9 @@ SKIP_FILES = {
     # Runtime telemetry — gitignored per spec-20260518-225715 Cycle 2 P2.3;
     # excluding from the rendered tree prevents re-leakage on regen.
     'agent-scores.json', 'agent-scores.json.lock',
+    # Lifecycle JSONL score log and its lock file (arch-7 phase 2, task 20260525-050824).
+    # lifecycle.jsonl is tracked in git but must not appear in rendered INDEX trees.
+    'lifecycle.jsonl', 'lifecycle.jsonl.lock',
 }
 IGNORE_DIRS = {
     'node_modules', '.git', '__pycache__', '.venv', 'venv',

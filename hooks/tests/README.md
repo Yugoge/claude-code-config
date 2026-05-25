@@ -2,11 +2,12 @@
 
 <!-- AUTO:readme-stats -->
 ## Overview
-- **Total files**: 1
+- **Total files**: 2
 - **Subdirectories**: 0
 - **Naming convention**: lower
 
 ## Files
+- `test_bash_safety_context.py` - pytest suite for bash_context_strip.py including TestScriptInterpArgStripping (49 tests)
 - `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
 
 ---
