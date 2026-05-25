@@ -32,6 +32,14 @@ Parse `$ARGUMENTS`:
 - Strip `--dry-run` if present → set `DRYRUN=true`; else `DRYRUN=false`
 - Remaining token (if any) is `TASK_ID`
 
+**BULK user-authorization precondition (M4.2 / AC-04 — task 20260524-205206)**: if `BULK=true`, the user-authorization flag `/tmp/claude-bulk-allowed-${CLAUDE_SESSION_ID}.flag` MUST exist BEFORE Step 5 runs. If absent, abort immediately with the literal stderr message:
+
+```
+BULK mode requires explicit user authorization. The user (not an agent) must run: touch /tmp/claude-bulk-allowed-$CLAUDE_SESSION_ID.flag
+```
+
+and exit non-zero. The same gate is also enforced inside `scripts/write-bulk-commit-sentinel.py` (Step 5) — the script will refuse to write the bulk-commit sentinel and unlink the auth flag IMMEDIATELY upon observation (single-use semantics; one auth grant authorizes exactly one bulk operation). The auth flag may ONLY be created by a human user typing directly in a terminal session — `hooks/pretool-write-guard.sh` and `hooks/pretool-bash-safety.sh` deny ALL model tool calls (regardless of `agent_id` — main agent NOT exempt) that target `/tmp/claude-bulk-allowed-*.flag` or `/tmp/claude-bulk-commit-sentinel-*.json`.
+
 ### Step 2: Resolve task-id (unless --bulk)
 
 If `BULK=false`:
