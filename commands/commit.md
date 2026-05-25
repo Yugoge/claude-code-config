@@ -123,7 +123,7 @@ Constraints:
 
 Wait for changelog-analyst to complete. Echo its final status to the user.
 
-### Step 6b: Changelog-analyst result handling and retry protocol
+#### Changelog-analyst result handling and retry protocol
 
 Parse changelog-analyst's structured status output (see `agents/changelog-analyst.md` §Structured Final Status Output). The machine-readable JSON block contains `commit_status` and, when applicable, `failure_code`, `failure_reason`, and `auto_bulk_commits[]`.
 

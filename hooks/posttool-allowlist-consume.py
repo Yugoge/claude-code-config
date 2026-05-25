@@ -4,7 +4,9 @@ PostToolUse Hook: /allow grant consumption.
 
 Atomically deletes the /allow grant file after a tool executes successfully.
 PreToolUse hooks are now read-only grant checkers; this hook is the sole
-consume point. Main-agent only (subagents are exempt).
+consume point. Applies to any matching PostToolUse event (subagent or
+main-agent); legacy grant cleanup is unconditional. Subagent write-grant
+firewall remains in `hooks/userprompt-consent-allowlist.sh` Step 0.
 
 PostToolUse fires only when all PreToolUse hooks exit 0 (tool was allowed).
 If any PreToolUse hook exits 2, PostToolUse never fires — grant persists
@@ -29,7 +31,6 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from lib.subagent import is_subagent_context  # noqa: E402
 from lib.allowlist import (  # noqa: E402
     consume_grant_for_posttool,
     consume_sentinel_grant_on_terminal_result,
@@ -84,9 +85,10 @@ def main() -> None:
     else:
         command = ""
 
-    # Legacy grant: main-agent only (subagents use sentinel path).
-    if not is_subagent_context(data):
-        consume_grant_for_posttool(session_id, tool_name, command)
+    # Legacy grant: always consume on any terminal result, regardless of context.
+    # Both main-agent and subagent Bash executions unlink the legacy grant so
+    # the main agent cannot reuse a stale grant after a subagent consumed the sentinel.
+    consume_grant_for_posttool(session_id, tool_name, command)
 
     # Sentinel-grant consume-on-any-terminal-result (task 20260519-211515 R2 / AC2).
     #
@@ -135,6 +137,15 @@ def main() -> None:
                 pass
         if should_consume:
             consume_sentinel_grant_on_terminal_result(task_id, terminal_result)
+        # Sentinel consumed — also unlink legacy grant unconditionally.
+        # Closes the whitespace-normalization divergence: sentinel uses tokenized
+        # matching (handles "git   push") but legacy uses literal substring match.
+        if should_consume:
+            legacy_path = Path(f"/tmp/claude-bash-allowlist-{session_id}.json")
+            try:
+                legacy_path.unlink()
+            except (FileNotFoundError, OSError):
+                pass
     elif tool_name == "Write":
         # Sentinel-grant consume for Write-overwrite grants (task 20260522-080646-B).
         # Uses tool_input.file_path (not command — Write has no command field).

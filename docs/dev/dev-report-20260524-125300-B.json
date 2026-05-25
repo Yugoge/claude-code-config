@@ -3,7 +3,7 @@
   "task_id": "20260524-125300-B",
   "timestamp": "2026-05-24T14:00:00Z",
   "baseline_head_sha": "f79fba1c1684d246928a3cfb39bf1ed7a9a5c8a5",
-  "baseline_dirty_snapshot": "D  .claude/.hook-refactor-allow\343\200\202\n M .claude/INDEX.md\n M CLAUDE.md\n M INDEX.md\n M README.md\n M agents/INDEX.md\n M agents/changelog-analyst.md\n M agents/dev.md\n M agents/qa.md\n M agents/style-inspector.md\n M cache/changelog.md\n M commands/INDEX.md\n M commands/README.md\n M commands/close.md\n M commands/codex.md\n M commands/commit.md\n M commands/dev.md\n M commands/push.md\n M docs/dev/INDEX.md",
+  "baseline_dirty_snapshot": "D  .claude/.hook-refactor-allow。\n M .claude/INDEX.md\n M CLAUDE.md\n M INDEX.md\n M README.md\n M agents/INDEX.md\n M agents/changelog-analyst.md\n M agents/dev.md\n M agents/qa.md\n M agents/style-inspector.md\n M cache/changelog.md\n M commands/INDEX.md\n M commands/README.md\n M commands/close.md\n M commands/codex.md\n M commands/commit.md\n M commands/dev.md\n M commands/push.md\n M docs/dev/INDEX.md",
   "dev_report_path": "docs/dev/dev-report-20260524-125300-B.json",
   "dev": {
     "status": "completed",
