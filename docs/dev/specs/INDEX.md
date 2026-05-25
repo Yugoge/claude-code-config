@@ -1,12 +1,13 @@
 # specs
 
-*Last updated: 2026-05-24T20:36:48Z*
-**Total entries**: 0
+*Last updated: 2026-05-25T05:06:34Z*
+**Total entries**: 1
 **Convention**: kebab
 
 ## Tree
 ```
 specs/
+└── `spec-dev-cross-sid-grant-leak.md` - Spec: Cross-SID Legacy Grant Leak — Follow-on Cycle
 ```
 
 ---

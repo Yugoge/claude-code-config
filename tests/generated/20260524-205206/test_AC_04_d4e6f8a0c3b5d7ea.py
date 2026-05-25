@@ -113,6 +113,16 @@ def test_AC_04_g_script_evidence():
      {"tool_name": "Bash", "agent_id": "qa-12345",
       "tool_input": {"command": "touch /tmp/some-other-file.txt"}},
      False),
+    # Codex Cycle-5 finding #2 regression: python/node/perl one-liners that
+    # write the protected globs must ALSO be blocked.
+    ("g_hook_7_python_one_liner_writes_sentinel",
+     {"tool_name": "Bash", "agent_id": "qa-12345",
+      "tool_input": {"command": "python3 -c 'open(\"/tmp/claude-bulk-commit-sentinel-foo-bar.json\",\"w\").write(\"{}\")'"}},
+     True),
+    ("g_hook_8_node_one_liner_writes_flag",
+     {"tool_name": "Bash", "agent_id": "qa-12345",
+      "tool_input": {"command": "node -e 'require(\"fs\").writeFileSync(\"/tmp/claude-bulk-allowed-foo.flag\",\"\")'"}},
+     True),
 ])
 def test_AC_04_g_hook_bash(case_id, payload, expect_nonzero):
     hook = REPO_ROOT / "hooks" / "pretool-bash-safety.sh"
