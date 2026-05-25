@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-25T05:02:28Z*
-**Total entries**: 637
+*Last updated: 2026-05-25T05:13:03Z*
+**Total entries**: 643
 **Convention**: kebab
 
 ## Tree
@@ -15,6 +15,7 @@ dev/
 │       ├── `completion-20251226-160000.md` - /dev Workflow Completion Report
 │       └── `completion-dev-20251228-143334.md` - Development Completion Report
 ├── specs/
+│   └── `spec-dev-cross-sid-grant-leak.md` - Spec: Cross-SID Legacy Grant Leak — Follow-on Cycle
 ├── `acceptance-criteria-20260519-132417.json` - json config
 ├── `acceptance-criteria-20260520-085647-d1722b.json` - json config
 ├── `acceptance-criteria-20260520-221452.json` - json config
@@ -197,6 +198,7 @@ dev/
 ├── `close-report-d1e94e.md` - Close Debate Report — d1e94e
 ├── `close-report-dev-20260524-170335.md` - Close Debate Report
 ├── `close-report-dev-20260524-205811.md` - Close Report: dev-20260524-205811
+├── `close-report-do-20260525-050636.md` - Close Debate Report (FORCED)
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
@@ -371,6 +373,7 @@ dev/
 ├── `dev-report-20260524-133650.json` - json config
 ├── `dev-report-20260524-171714.json` - json config
 ├── `dev-report-20260524-172805.json` - json config
+├── `dev-report-20260524-205206.json` - json config
 ├── `dev-report-20260524-205459.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
@@ -562,6 +565,7 @@ dev/
 ├── `test-writer-report-20260524-125300-D.json` - json config
 ├── `test-writer-report-20260524-125300-push.json` - json config
 ├── `test-writer-report-20260524-172805.json` - json config
+├── `test-writer-report-20260524-205206.json` - json config
 ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence
@@ -643,6 +647,8 @@ dev/
 ├── `user-requirement-dev-20260524-205206.md` - No description
 ├── `user-requirement-dev-20260524-205459.md` - No description
 ├── `user-requirement-dev-20260524-205811.md` - No description
+├── `user-requirement-dev-20260525-050824.md` - No description
+├── `user-requirement-dev-20260525-050935.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
