@@ -499,6 +499,7 @@ If `DRYRUN=true`, at Phase 8:
 - Print the commit message
 - Print the staged file list
 - Stop. Do NOT execute `git commit`. Do NOT write push-gate token.
+- Emit the structured output block with `commit_status: dryrun` (see `## Structured Final Status Output`).
 
 ---
 
@@ -573,6 +574,7 @@ parse the result without screen-scraping human-readable text.
 | `committed` | At least one git commit was successfully created and a push-gate token was written. |
 | `nothing_to_commit` | No files remained after exclusions (candidate set empty). |
 | `nothing_to_commit_precommitted` | Candidate set was empty AND the HEAD commit was an auto-bulk commit that already covered the task cycle files. |
+| `dryrun` | `DRYRUN=true` was set; no commit was attempted; the staged file list was printed. |
 | `failed` | The commit attempt failed (see `failure_code`). |
 
 ### nothing_to_commit_precommitted detection (THREE-STEP SHA-STABLE CHECK)
@@ -629,7 +631,7 @@ detected. Do not use a singular `sha` field (ambiguous in multi-repo setups).
 
 ```json
 {
-  "commit_status": "committed | nothing_to_commit | nothing_to_commit_precommitted | failed",
+  "commit_status": "committed | nothing_to_commit | nothing_to_commit_precommitted | failed | dryrun",
   "auto_bulk_commits": [
     {"repo_root": "<path>", "branch": "<branch>", "sha": "<sha>"}
   ],
@@ -640,6 +642,27 @@ detected. Do not use a singular `sha` field (ambiguous in multi-repo setups).
 
 `auto_bulk_commits` is present (and non-empty) only when `commit_status = nothing_to_commit_precommitted`.
 `failure_reason` and `failure_code` are present only when `commit_status = failed`.
+
+### Structured output sentinel
+
+The JSON block MUST be wrapped with fixed delimiter lines so that `/commit`'s
+retry-protocol parser can locate it without screen-scraping human-readable text:
+
+```
+--- CHANGELOG-ANALYST-STATUS-BEGIN ---
+{ ... JSON payload ... }
+--- CHANGELOG-ANALYST-STATUS-END ---
+```
+
+Both delimiter lines MUST appear on their own line with no leading or trailing
+whitespace. The JSON payload occupies the lines between the two delimiters.
+No other content may appear between the delimiters.
+
+Consumers locate the block by scanning for the exact string
+`--- CHANGELOG-ANALYST-STATUS-BEGIN ---`. If the `BEGIN` sentinel is absent
+from the output, `/commit` treats the result as unparseable (non-retryable,
+manual intervention required — see `/commit` Step 6 status table for the
+"status unknown / unparseable" branch).
 
 ---
 
