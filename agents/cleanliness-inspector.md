@@ -268,6 +268,24 @@ Use Read tool to examine docs and Glob to check if referenced files exist.
 
 **Severity**: minor
 
+### 18. Gitignore Coverage and Repo Dirty State (`--changed-files` mode only)
+
+**Rule**: Every Claude Code project repo must cover the standard harness-generated paths in its `.gitignore`, and must not have untracked files that should be ignored.
+
+**Only runs in `--changed-files` mode.** Skip entirely in full-repo scans.
+
+**What to detect**:
+
+1. **Missing harness rules**: For each unique git root touched by `--changed-files`, read `HARNESS_RULES` from `~/.claude/hooks/session-gitignore-propagate.sh` (parse the bash array — do NOT hardcode the list here). For each rule, check whether the repo's `.gitignore` contains it. Flag any gaps.
+
+2. **Untracked harness paths**: Run `git -C <repo_root> status --porcelain` and flag any `??`-prefixed paths whose name matches a pattern from `HARNESS_RULES`.
+
+**`introduced_in_diff` tagging**:
+- If the repo's `.gitignore` was itself in `--changed-files` AND a harness rule is still missing → `introduced_in_diff: true` (the diff touched the file but left coverage incomplete — this is an incomplete fix)
+- Otherwise → `introduced_in_diff: false` (pre-existing gap, advisory only)
+
+**Severity**: major
+
 ---
 
 ## Output Format
@@ -295,7 +313,8 @@ Use Read tool to examine docs and Glob to check if referenced files exist.
     "obsolete_functionality": [],
     "orphan_commands": [],
     "dead_functions": [],
-    "duplicate_content": []
+    "duplicate_content": [],
+    "gitignore_coverage": []
   },
   "summary": {
     "total_issues": 0,

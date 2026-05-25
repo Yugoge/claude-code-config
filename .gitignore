@@ -89,10 +89,11 @@ settings.json.bak-*
 /.claude/specs/spec-*/
 
 # Harness-generated output (transient per-cycle; not for version control)
-tests/generated/
+# tests/generated/ intentionally tracked — test-writer contract version-controls per-cycle pytest files
 docs/codex/
+.playwright-mcp/
+
+# dot-claude-specific: screenshots from browser tools (not propagated to child repos)
 *.png
 # harness-propagated by session-gitignore-propagate.sh
 .claude/dev-registry/dev-*/
-# harness-propagated by session-gitignore-propagate.sh
-.playwright-mcp/
