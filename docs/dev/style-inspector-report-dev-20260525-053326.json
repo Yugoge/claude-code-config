@@ -11,7 +11,9 @@
     "tests/test-lock-detection.sh",
     "tests/verify-stop-spec-session-isolation.sh",
     "hooks/smart-checkpoint.sh",
-    "hooks/ensure-git-repo.sh"
+    "hooks/ensure-git-repo.sh",
+    "hooks/lib/README.md",
+    "hooks/tests/README.md"
   ],
   "violations": [
     {
@@ -76,67 +78,110 @@
       "recommendation": "Use: HOOK=\"${HOOK:-/root/.claude/hooks/stop-spec-coverage-enforce.py}\"",
       "introduced_in_diff": false,
       "blocks_current_diff": false
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "agents/ba.md:777",
+      "finding": "Contains CJK characters '行动 (act), not just 读 (read)' in prose explanation of 'Why four fields?'. These are NOT mascot rank labels (exempt list: 见习学徒, 初级工匠, 熟练工匠, 资深工匠, 宗师级 only) and have no ticket attribution in docs/dev/ticket-*.md.",
+      "recommendation": "Replace with English-only prose, e.g.: 'The free-text action proves behavioral follow-through, not merely reading.'",
+      "introduced_in_diff": false,
+      "blocks_current_diff": false
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "agents/qa.md:1297",
+      "finding": "Contains CJK characters '行动 (act), not just 读 (read)' in prose explanation of 'Why four fields?'. Same non-exempt CJK boilerplate as agents/ba.md:777.",
+      "recommendation": "Replace with English-only prose, e.g.: 'The free-text action proves behavioral follow-through, not merely reading.'",
+      "introduced_in_diff": false,
+      "blocks_current_diff": false
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "agents/dev.md:497",
+      "finding": "Contains CJK characters '行动 (act), not just 读 (read)' in prose explanation of 'Why four fields?'. Same non-exempt CJK boilerplate as agents/ba.md:777.",
+      "recommendation": "Replace with English-only prose, e.g.: 'The free-text action proves behavioral follow-through, not merely reading.'",
+      "introduced_in_diff": false,
+      "blocks_current_diff": false
+    },
+    {
+      "standard": "english-only",
+      "severity": "critical",
+      "location": "commands/close.md:435",
+      "finding": "Contains verbatim non-English user quote '自我总结的内容质量靠 orchestrator 即兴生成：无所谓' inline in command file. Verbatim user-binding quotes must be stored in docs/dev/ticket-*.md; command files must use English with ticket attribution.",
+      "recommendation": "Replace the parenthetical Chinese text with English attribution: 'Original user wording preserved in docs/dev/ticket-20260524-205206.md under R5.'",
+      "introduced_in_diff": false,
+      "blocks_current_diff": false
     }
   ],
   "standards_passed": [
-    "no-inline-code (Standard 1) — N/A: no .md files in changed set",
-    "integer-step-numbering (Standard 4) — no decimal or lettered step numbering found",
-    "meaningful-naming (Standard 5) — no forbidden naming patterns (enhance-*, fast-*, *-v2, etc.)",
-    "english-only (Standard 6) — no CJK/Chinese characters found in in-scope files (non-ASCII box-drawing chars in test-lock-detection.sh are not CJK)",
-    "merge-similar-scripts (Standard 7) — no obvious duplicate functionality among changed scripts",
-    "concise-documentation (Standard 8) — N/A: no .md files in changed set",
-    "dangling-references (Standard 10) — hooks/stop-spec-coverage-enforce.py referenced at tests/verify-stop-spec-session-isolation.sh:9 exists on disk",
-    "merge-conflicts (Standard 11) — no conflict markers (<<<<<<</=======/>>>>>>>) found in any changed file"
+    "no-inline-code (Standard 1) — N/A for hooks/lib/README.md and hooks/tests/README.md (auto-generated index files, not command/agent prompts); no command/agent .md files in changed-files set",
+    "integer-step-numbering (Standard 4) — no decimal or lettered step numbering found in any changed file",
+    "meaningful-naming (Standard 5) — no forbidden naming patterns (enhance-*, fast-*, *-v2, etc.) found",
+    "english-only (Standard 6 — changed files only) — no CJK/Chinese characters found in the 10 changed files themselves; Standard 6 unconditional scan of agents/* and commands/* produced 4 pre-existing violations listed above (agents/ba.md:777, agents/qa.md:1297, agents/dev.md:497, commands/close.md:435); style-inspector.md:333 mascot rank labels are exempt per spec-20260518-225715 §5.1",
+    "merge-similar-scripts (Standard 7) — N/A for hooks/lib/README.md and hooks/tests/README.md (not scripts); no duplicate functionality among changed scripts",
+    "concise-documentation (Standard 8) — N/A for hooks/lib/README.md and hooks/tests/README.md (auto-generated index files, not command/agent prompts); no .md command/agent files in the changed set",
+    "dangling-references (Standard 10) — all files referenced in hooks/lib/README.md (allowlist.py, bash_context_strip.py, subagent.py, todo_canonical.py) and hooks/tests/README.md (test_bash_safety_context.py, test_cp_checkin.py) verified to exist on disk; hooks/stop-spec-coverage-enforce.py referenced at tests/verify-stop-spec-session-isolation.sh:9 also exists",
+    "merge-conflicts (Standard 11) — no conflict markers (<<<<<<</=======/>>>>>>>) found in any of the 10 changed files"
   ],
   "summary": {
     "standards_checked": 11,
-    "violations_found": 7,
-    "critical": 7,
-    "files_audited": 8,
-    "files_total": 8,
-    "rounds_completed": 1
+    "violations_found": 11,
+    "critical": 11,
+    "files_audited": 10,
+    "files_total": 10,
+    "rounds_completed": 2
   },
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex identified 3 issues: (1) Standard 9 listed as 'confirmed passing' while also saying 'same findings as Standard 2' — inconsistency requiring explicit Standard 9 violations; (2) all violations are pre-existing/outside changed hunks, recommended blocks_current_diff field; (3) Standard 6 PASS wording said 'no non-ASCII characters' which is factually wrong (box-drawing chars exist) vs the actual CJK-scoped rule. Two OBSERVATION_ONLY items confirmed draft Standard 3 classifications are correct.",
+    "feedback_summary": "Codex confirmed 5 issues: (1) Findings #8-10 (行动/读 in ba.md, qa.md, dev.md) are genuine Standard 6 violations, not covered by mascot-label exemption — prose translations are not the five exempt rank labels; (2) Finding #11 (close.md Chinese quote) is genuine — verbatim user-binding quotes must be in docs/dev/ticket-*.md, not inline in command files; (3) Findings #1-3 (python3 in tests/*.sh) are correctly classified; (4) Findings #4-7 (hardcoded paths) are not false positives; (5) README all-pass wording for Standards 1/7/8/9 should say N/A rather than 'passed' since those standards do not apply to auto-generated index files. One OBSERVATION_ONLY: no missed Standard 7 or 9 violations in README files.",
     "findings": [
       {
-        "issue": "Standard 9 listed as 'confirmed passing' while draft simultaneously says 'Same findings as Standard 2' — logically inconsistent; Standard 9 violations should be explicitly listed for resolve-close-report.sh:22 and verify-stop-spec-session-isolation.sh:9",
-        "proposed_fix": "Add explicit parameterized-scripts violations for scripts/resolve-close-report.sh:22 and tests/verify-stop-spec-session-isolation.sh:9",
+        "issue": "Findings #8-10 (行动/读 in ba.md:777, qa.md:1297, dev.md:497): genuine Standard 6 violations; prose translations are NOT covered by mascot rank label exemption (exempt list is 见习学徒, 初级工匠, 熟练工匠, 资深工匠, 宗师级 only)",
+        "proposed_fix": "Replace each sentence with: 'The free-text action proves behavioral follow-through, not merely reading.'",
         "classification": "blocker",
         "disposition": "applied",
-        "rationale": "Draft was internally inconsistent; codex correctly identified the contradiction. Explicit Standard 9 violations added to the violations array."
+        "rationale": "Confirmed genuine violations. Added findings #8-10 to the violations array."
       },
       {
-        "issue": "All 5 draft violations are pre-existing / outside changed hunks; recommended adding blocks_current_diff: false field",
-        "proposed_fix": "Add blocks_current_diff: false to each pre-existing violation",
+        "issue": "Finding #11 (commands/close.md:435): verbatim non-English user quote must be in docs/dev/ticket-*.md only; command file must use English with ticket attribution",
+        "proposed_fix": "Replace the parenthetical with: 'Original user wording preserved in docs/dev/ticket-20260524-205206.md under R5.'",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Confirmed genuine violation. Added as finding #11."
+      },
+      {
+        "issue": "Findings #1-3 (python3 in tests/*.sh): correctly classified; tests/*.sh is in Standard 3 scope; bare python3 calls are violations even in test harnesses",
+        "proposed_fix": "Activate venv once near top; set PYTHON_BIN=\"${PYTHON_BIN:-python}\"; replace bare python3 calls with $PYTHON_BIN.",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Helpful for downstream close.md diff-overlap check; applied to all violations."
+        "rationale": "Codex confirmed no false positives; recommendation text updated in findings #1-3."
       },
       {
-        "issue": "Standard 6 PASS wording 'no non-ASCII characters found' is factually inaccurate — test-lock-detection.sh contains box-drawing and check-mark characters. Standard 6 targets CJK/Chinese characters only.",
-        "proposed_fix": "Change wording to: 'english-only (Standard 6) — no CJK/Chinese characters found in in-scope files (non-ASCII box-drawing chars in test-lock-detection.sh are not CJK)'",
+        "issue": "Findings #4-7 (hardcoded /root/.claude/... paths): confirmed not false positives",
+        "proposed_fix": "Use CLAUDE_ROOT=\"${CLAUDE_ROOT:-${CONTROL_ROOT:-/root}/.claude}\" and derive paths from it.",
         "classification": "major",
         "disposition": "applied",
-        "rationale": "Factual inaccuracy in PASS description corrected."
+        "rationale": "Confirmed genuine violations; recommendation text updated in findings #4-7."
       },
       {
-        "issue": "OBSERVATION_ONLY: Draft Standard 3 findings at lines 65, 105, and 210 are not false positives under the written rule; introduced_in_diff: false classification is correct",
+        "issue": "README all-pass wording for Standards 1/7/8/9 overclaims 'passed'; should say N/A for auto-generated index files not in command/agent/script scope",
+        "proposed_fix": "Report 'N/A: not command/agent/script scope' for Standards 1, 7, 8, 9 on README files.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "standards_passed descriptions updated to clearly say N/A where applicable."
+      },
+      {
+        "issue": "OBSERVATION_ONLY: No missed Standard 7 or Standard 9 violations in hooks/lib/README.md or hooks/tests/README.md; all referenced files verified to exist",
         "proposed_fix": null,
         "classification": "observation_only",
         "disposition": "logged",
-        "rationale": "Confirmation that Standard 3 findings are correctly identified."
-      },
-      {
-        "issue": "OBSERVATION_ONLY: resolve-close-report.sh:22 and verify-stop-spec-session-isolation.sh:9 are genuine parameterization concerns if full-file style auditing is allowed; proposed fixes are directionally correct",
-        "proposed_fix": null,
-        "classification": "observation_only",
-        "disposition": "logged",
-        "rationale": "Confirmation that Standard 2/9 findings are genuine."
+        "rationale": "Confirmation that README all-pass assessment is correct (after N/A wording fix)."
       }
     ],
-    "feedback_incorporated": "Applied all 3 blockers/major findings: (1) added explicit Standard 9 violations for resolve-close-report.sh:22 and verify-stop-spec-session-isolation.sh:9; (2) added blocks_current_diff: false to all pre-existing violations; (3) corrected Standard 6 PASS wording from 'no non-ASCII' to 'no CJK/Chinese characters'."
+    "feedback_incorporated": "Applied all 5 blocker/major findings: (1-2) added Standard 6 violations for ba.md:777, qa.md:1297, dev.md:497, close.md:435; (3) confirmed Standard 3 findings are correct, updated recommendation text; (4) confirmed Standard 2/9 hardcoded-path findings are genuine, updated recommendation text; (5) corrected standards_passed wording for README files to say N/A where Standards 1/7/8/9 do not apply."
   }
 }
