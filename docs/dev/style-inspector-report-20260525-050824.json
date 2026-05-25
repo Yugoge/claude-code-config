@@ -1,18 +1,17 @@
 {
   "request_id": "20260525-050824",
-  "timestamp": "2026-05-25T09:00:00Z",
+  "timestamp": "2026-05-25T21:26:54Z",
   "inspector": "style-inspector",
   "changed_files_mode": true,
+  "cycle_context": "R9 re-inspection. Prior close (close-report-20260525-050824.md) was CLOSE:NO solely due to bare python3 at test-lifecycle-cas.sh:151,194. Those lines were fixed in task 20260525-095245 (commit d7061447). This report audits the current file state.",
   "changed_files": [
     "scripts/score-update.sh",
     "scripts/score-inject.sh",
+    "scripts/lifecycle-baseline-import.sh",
     "hooks/doc_sync/tree.py",
     "hooks/doc_sync/regen_readme.py",
-    "tests/score-inject-contract/test-inject-branches.sh",
-    "tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py",
-    "logs/lifecycle.jsonl",
-    "scripts/lifecycle-baseline-import.sh",
     "tests/score-lifecycle-contract/test-lifecycle-cas.sh",
+    "tests/score-inject-contract/test-inject-branches.sh",
     "tests/generated/20260525-050824/test_AC1_ac1_lifecycle_jsonl_append_9fields.py",
     "tests/generated/20260525-050824/test_AC2_ac2_cas_conflict_exit3_no_append.py",
     "tests/generated/20260525-050824/test_AC3_ac3_score_inject_reads_jsonl_not_agentscores.py",
@@ -22,31 +21,44 @@
     "tests/generated/20260525-050824/test_AC7_ac7_doc_sync_skip_files_includes_lifecycle_jsonl.py",
     "tests/generated/20260525-050824/test_AC8_ac8_baseline_import_populates_21_agents.py",
     "tests/generated/20260525-050824/test_AC9_ac9_lifecycle_jsonl_tracked_in_git.py",
-    "tests/generated/20260525-050824/test_AC10_ac10_malformed_jsonl_exit1_with_stderr.py"
+    "tests/generated/20260525-050824/test_AC10_ac10_malformed_jsonl_exit1_with_stderr.py",
+    "tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py",
+    "logs/lifecycle.jsonl"
   ],
   "violations": [
     {
-      "standard": "use-source-venv",
+      "standard": "no-hardcoded-values",
       "severity": "critical",
-      "location": "tests/score-lifecycle-contract/test-lifecycle-cas.sh:151",
-      "finding": "Bare `python3 - \"$FAKE_SCORES\" <<'PYEOF'` call at line 151 without `source ~/.claude/venv/bin/activate &&` prefix. The call creates a fake agent-scores.json fixture for test (d) without venv activation.",
-      "recommendation": "Replace bare `python3` with `( source ~/.claude/venv/bin/activate && python3 - \"$FAKE_SCORES\" <<'PYEOF'` ... `PYEOF )` to match the compliant pattern used at line 86 of the same file.",
-      "introduced_in_diff": true
+      "location": "scripts/score-update.sh:76-77",
+      "finding": "Hardcoded flock timeout: `flock -w 10` with error message `within 10s`. Standard 2 explicitly lists timeouts as a category requiring parameterization. No environment variable or CLI parameter override is provided.",
+      "recommendation": "Add `LOCK_TIMEOUT=\"${LOCK_TIMEOUT:-10}\"` near top of script; replace `flock -w 10` with `flock -w \"${LOCK_TIMEOUT}\"` and update the error message to `within ${LOCK_TIMEOUT}s`.",
+      "introduced_in_diff": true,
+      "blocking_for_close": true
     },
     {
-      "standard": "use-source-venv",
+      "standard": "no-hardcoded-values",
       "severity": "critical",
-      "location": "tests/score-lifecycle-contract/test-lifecycle-cas.sh:194",
-      "finding": "Bare `python3 - \"$FAKE_SCORES\" <<'PYEOF'` call at line 194 without `source ~/.claude/venv/bin/activate &&` prefix. The call creates a fake agent-scores.json fixture for test (e) without venv activation.",
-      "recommendation": "Replace bare `python3` with `( source ~/.claude/venv/bin/activate && python3 - \"$FAKE_SCORES\" <<'PYEOF'` ... `PYEOF )` to match the compliant pattern used at line 86 of the same file.",
-      "introduced_in_diff": true
+      "location": "scripts/score-inject.sh:64-65",
+      "finding": "Hardcoded flock timeout: `flock -s -w 10` with error message `within 10s`. Standard 2 explicitly lists timeouts as a category requiring parameterization. No environment variable or CLI parameter override is provided.",
+      "recommendation": "Add `LOCK_TIMEOUT=\"${LOCK_TIMEOUT:-10}\"` near top of script; replace `flock -s -w 10` with `flock -s -w \"${LOCK_TIMEOUT}\"` and update the error message to `within ${LOCK_TIMEOUT}s`.",
+      "introduced_in_diff": true,
+      "blocking_for_close": true
+    },
+    {
+      "standard": "no-hardcoded-values",
+      "severity": "critical",
+      "location": "scripts/lifecycle-baseline-import.sh:52-53",
+      "finding": "Hardcoded flock timeout: `flock -w 10` with error message `within 10s`. Standard 2 explicitly lists timeouts as a category requiring parameterization. No environment variable or CLI parameter override is provided.",
+      "recommendation": "Add `LOCK_TIMEOUT=\"${LOCK_TIMEOUT:-10}\"` near top of script; replace `flock -w 10` with `flock -w \"${LOCK_TIMEOUT}\"` and update the error message to `within ${LOCK_TIMEOUT}s`.",
+      "introduced_in_diff": true,
+      "blocking_for_close": true
     },
     {
       "standard": "english-only",
       "severity": "critical",
       "location": "agents/qa.md:1297",
-      "finding": "Pre-existing Chinese characters in agent prompt: \"行动 (act), not just 读 (read)\" in a prompt prose paragraph explaining why four INJECTION_PROOF fields are required. Not exempt under the mascot-rank-labels exemption (those are 见习学徒/初级工匠 etc.) or the verbatim-quote exemption (restricted to docs/dev/ticket-*.md). This is a real Standard 6 violation.",
-      "recommendation": "Rewrite in English: replace the inline Chinese parentheticals with English: e.g. \"proves genuine action (not mere reading)\".",
+      "finding": "Pre-existing Chinese characters in agent prompt prose paragraph. Not exempt under the mascot-rank-labels exemption or the verbatim-quote exemption (restricted to docs/dev/ticket-*.md).",
+      "recommendation": "Rewrite the affected line in English, replacing inline Chinese parentheticals with English equivalents.",
       "introduced_in_diff": false,
       "blocking_for_close": false,
       "advisory_note": "Pre-existing in HEAD and HEAD~1; not introduced by task 20260525-050824 diff. Under AC-2.6(b) this finding is advisory/non-blocking for this cycle."
@@ -55,8 +67,8 @@
       "standard": "english-only",
       "severity": "critical",
       "location": "agents/dev.md:497",
-      "finding": "Pre-existing Chinese characters in agent prompt: \"行动 (act), not just 读 (read)\" — same text as qa.md:1297, present in a prompt prose paragraph. Not exempt under any documented exemption clause.",
-      "recommendation": "Rewrite in English: replace the inline Chinese parentheticals with English: e.g. \"proves genuine action (not mere reading)\".",
+      "finding": "Pre-existing Chinese characters in agent prompt prose paragraph. Same pattern as qa.md:1297. Not exempt under any documented exemption clause.",
+      "recommendation": "Rewrite the affected line in English, replacing inline Chinese parentheticals with English equivalents.",
       "introduced_in_diff": false,
       "blocking_for_close": false,
       "advisory_note": "Pre-existing in HEAD and HEAD~1; not introduced by task 20260525-050824 diff. Under AC-2.6(b) this finding is advisory/non-blocking for this cycle."
@@ -65,8 +77,8 @@
       "standard": "english-only",
       "severity": "critical",
       "location": "agents/ba.md:777",
-      "finding": "Pre-existing Chinese characters in agent prompt: \"行动 (act), not just 读 (read)\" — same pattern as qa.md and dev.md. Not in the changed-files list for this cycle.",
-      "recommendation": "Rewrite in English: replace the inline Chinese parentheticals with English: e.g. \"proves genuine action (not mere reading)\".",
+      "finding": "Pre-existing Chinese characters in agent prompt prose paragraph. Same pattern as qa.md and dev.md. Not in the changed-files list for this cycle.",
+      "recommendation": "Rewrite the affected line in English, replacing inline Chinese parentheticals with English equivalents.",
       "introduced_in_diff": false,
       "blocking_for_close": false,
       "advisory_note": "ba.md is not in the --changed-files list for this task. Pre-existing violation; advisory/non-blocking under AC-2.6(b)."
@@ -75,89 +87,62 @@
       "standard": "english-only",
       "severity": "critical",
       "location": "commands/close.md:435",
-      "finding": "Pre-existing Chinese text: \"自我总结的内容质量靠 orchestrator 即兴生成：无所谓\" — a verbatim user quote embedded in orchestrator instructions inside commands/close.md. The verbatim-quote exemption applies only to docs/dev/ticket-*.md, not to commands/*.md files.",
+      "finding": "Pre-existing Chinese text embedded in orchestrator instructions. The verbatim-quote exemption applies only to docs/dev/ticket-*.md, not to commands/*.md files.",
       "recommendation": "Move the verbatim Chinese user quote to docs/dev/ticket-*.md and replace the commands/close.md line with an English paraphrase plus a task-id attribution citing the ticket where the verbatim text is preserved.",
       "introduced_in_diff": false,
       "blocking_for_close": false,
       "advisory_note": "Pre-existing in HEAD and HEAD~1; not introduced by task 20260525-050824 diff. Under AC-2.6(b) this finding is advisory/non-blocking for this cycle."
     }
   ],
-  "observations": {
-    "standard_2_generated_tests": "OBSERVATION_ONLY — advisory portability debt: tests/generated/20260525-050824/test_AC*.py files all hardcode repo = \"/dev/shm/dev-workspace/dot-claude\". Standard 2 formally targets scripts/ files; test-writer-generated test bodies in tests/generated/ are outside formal Standard 2 scope per prior close precedent. The pre-existing 20260522-000000/test_AC4_7d4395a2a5e37239.py instance is introduced_in_diff:false. Concrete fix for next cycle: use `from pathlib import Path; REPO = Path(__file__).resolve().parents[3]` instead of hardcoded path.",
-    "standard_1": "CLEAN — no inline bash/python implementation logic in any command or agent .md file in the changed-files set. hooks/doc_sync/tree.py and regen_readme.py are Python modules, not .md files.",
-    "standard_2_scripts": "CLEAN — score-update.sh, score-inject.sh, and lifecycle-baseline-import.sh all use ${HOME}/.claude/... defaults with --lifecycle-file/--scores-file CLI override parameters. No hardcoded env-specific values.",
-    "standard_3_scripts": "CLEAN — all three scripts use `( source ~/.claude/venv/bin/activate && python3 - ... )` with venv co-located on the same line as python3 per spec-20260518-225715 Cycle 2 P3.6. tests/score-inject-contract/test-inject-branches.sh contains no python3 calls. test_AC6 Python subprocess command string includes venv activation and is in a .py file (outside Standard 3 .sh/.md scope).",
-    "standard_4": "CLEAN — no .md files in the changed-files set. No decimal or lettered step numbering observed.",
-    "standard_5": "CLEAN — score-update.sh, score-inject.sh, lifecycle-baseline-import.sh use descriptive names. No forbidden patterns (enhance-*, fast-*, optimize-*, *-v2, etc.).",
-    "standard_6_scan_result": "Unconditional scan of agents/*.md and commands/*.md found 4 genuine pre-existing CJK violations (qa.md:1297, dev.md:497, ba.md:777, close.md:435). All are introduced_in_diff:false. No new CJK characters in any changed file.",
-    "standard_7": "CLEAN — score-update.sh (write path), score-inject.sh (read path), and lifecycle-baseline-import.sh (one-time migration) serve distinct purposes and cannot be reasonably merged. No duplicate functionality detected.",
-    "standard_8": "CLEAN — no .md command or agent files in the changed-files set. Hook files (tree.py, regen_readme.py) are Python modules without documentation prose. Test scripts are concise and functional.",
-    "standard_9": "CLEAN — same assessment as Standard 2. All script parameters are fully parameterized.",
-    "standard_10": "CLEAN — commands/close.md and commands/dev.md reference ~/.claude/scripts/score-update.sh, ~/.claude/scripts/score-inject.sh, and scripts/lifecycle-baseline-import.sh; all three files exist on disk. test_AC6 references tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py which exists and has been updated in this cycle.",
-    "standard_11": "CLEAN — detect-merge-conflicts.sh confirms no merge conflict markers in any changed file. (Conflict markers exist in INDEX.md and docs/dev/ files but those are out of the changed-files scope.)"
+  "prior_blocking_violations_status": {
+    "use-source-venv at test-lifecycle-cas.sh:151": "FIXED — current file has `( source ~/.claude/venv/bin/activate && python3 - \"$FAKE_SCORES\" <<'PYEOF'` at line 151. Prior close-report was CLOSE:NO for this; fix confirmed in commit d7061447.",
+    "use-source-venv at test-lifecycle-cas.sh:194": "FIXED — current file has `( source ~/.claude/venv/bin/activate && python3 - \"$FAKE_SCORES\" <<'PYEOF'` at line 195 (renumbered). Fix confirmed in commit d7061447."
   },
+  "observations_only": [
+    {
+      "note": "Standard 2 — generated pytest files (tests/generated/20260525-050824/test_AC*.py and tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py) all hardcode repo = \"/dev/shm/dev-workspace/dot-claude\". This is an established pattern in this project's generated test framework (prior cycle 20260522-000000 uses same pattern). Standard 2 formally targets scripts/ files; tests/generated/ is outside formal Standard 2 blocking scope per prior close precedent. Advisory portability debt for future cycles: use `from pathlib import Path; REPO = str(Path(__file__).resolve().parents[3])` instead."
+    }
+  ],
   "standards_passed": [
-    "no-inline-code",
-    "no-hardcoded-values (scripts)",
-    "integer-step-numbering",
-    "meaningful-naming",
-    "merge-similar-scripts",
-    "concise-documentation",
-    "parameterized-scripts",
-    "dangling-references",
-    "merge-conflicts"
+    "no-inline-code (Standard 1 — not applicable; changed files are scripts and pytest files, not .md command/agent files)",
+    "use-source-venv (Standard 3 — all python3 calls in shell scripts are preceded by 'source ~/.claude/venv/bin/activate &&' on the same line; test-lifecycle-cas.sh lines 86, 151, 195 all have venv activation; prior violations at :151/:194 confirmed fixed in current file state)",
+    "integer-step-numbering (Standard 4 — no decimal or lettered step numbering found in any changed file)",
+    "meaningful-naming (Standard 5 — all filenames are descriptive and functional; no forbidden patterns found)",
+    "merge-similar-scripts (Standard 7 — score-update.sh appends events, score-inject.sh reads and emits injection block, lifecycle-baseline-import.sh is one-time migration; distinct purposes, no overlap warranting merge)",
+    "concise-documentation (Standard 8 — not applicable; changed files are scripts and pytest files, not .md command/agent files)",
+    "dangling-references (Standard 10 — all scripts referenced in test files exist on disk; test_AC6 references tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py which exists; imports in hooks/doc_sync files resolve correctly)",
+    "merge-conflicts (Standard 11 — no merge conflict markers found in any changed file)"
   ],
   "summary": {
     "standards_checked": 11,
-    "violations_found": 6,
-    "critical": 6,
+    "violations_found": 7,
+    "critical": 7,
     "files_audited": 19,
     "files_total": 19,
     "rounds_completed": 1,
-    "violations_blocking_close": 2,
+    "violations_blocking_close": 3,
     "violations_advisory_preexisting": 4
   },
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex confirmed Finding #1 (Standard 3 bare python3 at lines 151 and 194 of test-lifecycle-cas.sh) as a genuine critical violation with a proposed fix. Finding #2 (hardcoded repo path in generated tests) was downgraded to OBSERVATION_ONLY advisory — Standard 2 formally targets scripts/, not tests/generated/, per prior close precedent. Finding #3 (Standard 6 CJK hits) was confirmed as genuine violations but clarified as advisory/non-blocking for this cycle (all introduced_in_diff:false). No missed violations found in hook files or generated test files.",
+    "feedback_summary": "Codex identified one missed critical finding (hardcoded flock timeout `-w 10` in three scripts) as MISSED CRITICAL with a concrete PROPOSED_FIX. The generated test files' hardcoded repo path was classified OBSERVATION_ONLY. No other missed violations were identified. Standard 3 violations at test-lifecycle-cas.sh:151/194 from the prior close were confirmed fixed in the current file state.",
     "findings": [
       {
-        "issue": "Finding #1 (Standard 3 bare python3 at lines 151/194) confirmed as genuine violation",
-        "proposed_fix": "Replace bare `python3 - \"$FAKE_SCORES\" <<'PYEOF'...PYEOF` with venv-wrapped form: `( source ~/.claude/venv/bin/activate && python3 - \"$FAKE_SCORES\" <<'PYEOF'...PYEOF )`",
+        "issue": "MISSED CRITICAL — Standard 2/9: hardcoded, non-parameterized lock timeout at scripts/score-update.sh:76-77, scripts/score-inject.sh:64-65, and scripts/lifecycle-baseline-import.sh:52-53. `flock -w 10` and `within 10s` are hardcoded timeouts; Standard 2 explicitly includes timeouts as a category requiring parameterization.",
+        "proposed_fix": "Add `LOCK_TIMEOUT=\"${LOCK_TIMEOUT:-10}\"` or parse `--lock-timeout <seconds>` in each script; use `flock -w \"${LOCK_TIMEOUT}\"` / `flock -s -w \"${LOCK_TIMEOUT}\"`, and change stderr to `within ${LOCK_TIMEOUT}s`.",
         "classification": "blocker",
         "disposition": "applied",
-        "rationale": "Codex confirmed the bare python3 calls in test-lifecycle-cas.sh are genuine Standard 3 violations. Violations retained in violations[] with introduced_in_diff:true."
+        "rationale": "Finding is correct and in scope. Standard 2 explicitly includes timeouts as requiring parameterization. Three violations added to violations[] with introduced_in_diff:true and blocking_for_close:true."
       },
       {
-        "issue": "Finding #2 (hardcoded /dev/shm repo path in test_AC*.py) should be advisory/non-blocking, not a formal Standard 2 violation. Standard 2 formally targets scripts/ files; tests/generated/ is outside formal Standard 2 scope per prior close precedent.",
-        "proposed_fix": "Reword to OBSERVATION_ONLY advisory portability debt. Concrete fix: use `from pathlib import Path; REPO = Path(__file__).resolve().parents[3]` instead of hardcoded path. Mark 20260522 test_AC4 instance introduced_in_diff:false.",
-        "classification": "major",
-        "disposition": "applied",
-        "rationale": "Finding #2 has been moved to observations section as advisory portability debt rather than a formal violation. Standard 2 violation classification rejected per Codex's scope analysis."
-      },
-      {
-        "issue": "Finding #3 (Standard 6 CJK hits) are genuine non-exempt violations, but the original wording called them 'code comments' — Codex clarifies they are 'prompt prose', not code comments in the technical sense",
-        "proposed_fix": "Reword to: 'Standard 6 unconditional scan found four genuine pre-existing CJK violations. All are introduced_in_diff:false / blocking_for_close:false under AC-2.6(b). The agent hits are in prompt prose paragraphs.'",
-        "classification": "major",
-        "disposition": "applied",
-        "rationale": "Wording updated in violations[] to accurately describe the location as 'agent prompt' prose, not 'code comments'. The blocking_for_close:false and introduced_in_diff:false fields are explicit in the violations."
-      },
-      {
-        "issue": "No missed violations in hooks/doc_sync/tree.py or hooks/doc_sync/regen_readme.py; the lifecycle.jsonl/lifecycle.jsonl.lock skip-list additions are intentional required changes.",
-        "proposed_fix": null,
+        "issue": "OBSERVATION_ONLY — generated pytest files hardcode `repo = \"/dev/shm/dev-workspace/dot-claude\"`. Prior precedent may keep this outside formal Standard 2 blocking scope for generated tests.",
+        "proposed_fix": "Replace with `repo = str(Path(__file__).resolve().parents[3])` after importing `Path` from `pathlib`, or allow an env override.",
         "classification": "observation_only",
         "disposition": "logged",
-        "rationale": "Hook files confirmed clean by Codex. No action required."
-      },
-      {
-        "issue": "No additional Standard 3 violations in the new generated test_AC*.py files. test_AC6's python3 reference is inside a Python subprocess command string with venv activation included, and the file is a .py file outside Standard 3 scope.",
-        "proposed_fix": null,
-        "classification": "observation_only",
-        "disposition": "logged",
-        "rationale": "Generated test files confirmed clean by Codex. No action required."
+        "rationale": "Standard 2 formally targets scripts/ files; tests/generated/ is outside formal Standard 2 blocking scope per prior close precedent confirmed by Codex. Logged in observations_only[] as advisory portability debt for future cycles."
       }
     ],
-    "feedback_incorporated": "Finding #1 retained as critical violation (introduced_in_diff:true). Finding #2 downgraded from formal Standard 2 violation to advisory observation per Codex scope analysis. Finding #3 wording updated to accurately describe violations as 'agent prompt prose' rather than 'code comments', and blocking_for_close:false made explicit. Two observation-only Codex findings logged."
+    "feedback_incorporated": "Three violations added for hardcoded flock timeout (Standard 2) in score-update.sh:76-77, score-inject.sh:64-65, and lifecycle-baseline-import.sh:52-53. Hardcoded repo path in generated tests kept as observation_only per Codex scope analysis and prior close precedent. Pre-existing english-only violations retained from prior report with introduced_in_diff:false / advisory status."
   }
 }
