@@ -229,12 +229,16 @@ def _validate_shards(shards: list[tuple[str, dict]], task_id: str) -> list[str]:
                 f"shard '{label}': missing baseline_dirty_snapshot key"
             )
         dirty = data.get("baseline_dirty_snapshot", "")
-        if baseline_dirty is None:
-            baseline_dirty = dirty
-        elif dirty != baseline_dirty:
-            errors.append(
-                f"shard '{label}': baseline_dirty_snapshot mismatch"
-            )
+        # Empty string means the worker did not capture git status (parallel
+        # dispatch timing); skip it as a comparison candidate so it does not
+        # become the reference value that causes non-empty shards to mismatch.
+        if dirty:
+            if baseline_dirty is None:
+                baseline_dirty = dirty
+            elif dirty != baseline_dirty:
+                errors.append(
+                    f"shard '{label}': baseline_dirty_snapshot mismatch"
+                )
 
     return errors
 
