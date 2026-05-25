@@ -11,8 +11,5 @@
 # that already have history.
 #
 # This stub exits 0 immediately so any stale manual invocation is a no-op.
-# The dev subagent attempted `rm` but the global bash-safety hook blocks it;
-# the user may delete this file manually with:
-#     rm ~/.claude/hooks/ensure-git-repo.sh
 
 exit 0
