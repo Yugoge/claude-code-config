@@ -483,6 +483,21 @@ If either check fails and you cannot fix it, report `"status": "blocked"` instea
 
 ---
 
+## Score-injection echo contract (M2 / AC-02 — task 20260524-205206)
+
+When the orchestrator prepends a score-inject block to your dispatch prompt, the block ends with an `INJECTION_PROOF:` clause that cites four JSON fields. You MUST include these FOUR fields in your primary structured output artifact (`dev-report-<task-id>.json`):
+
+- `"rank_acknowledged": "<exact RANK_LABEL value from the injection — e.g. Skilled Craftsman>"`
+- `"range_acknowledged": "<exact RANGE value from the injection — e.g. 41-60>"`
+- `"recent_events_digest_acknowledged": "<8-char hex prefix you INDEPENDENTLY computed by running sha256 over the exact Recent events text the injection emitted; do NOT copy the digest verbatim from the INJECTION_PROOF line — recompute it>"`
+- `"score_injection_action": "<non-empty 1-line free-text, min 20 chars, MUST cite at least ONE concrete signal from the injection (the rank label, the range bucket, or a named recent-event) AND at least ONE concrete behavioral adjustment you took or will take this run; placeholder values are REJECTED: 'no action needed', 'no action', 'none', 'n/a', 'na', 'nothing', 'skip', 'no-op', 'tbd', 'ok', 'acknowledged'>"`
+
+**Fail-safe**: if the injected header is absent or malformed (no `INJECTION_PROOF:` line present, or fields cannot be parsed), set ALL FOUR fields to `null` and do NOT fabricate values.
+
+**Why four fields?** rank + range alone are low entropy (~5 buckets each) and could be mechanically copied. The digest forces processing of the dynamic recent-events payload. The free-text action proves 行动 (act), not just 读 (read).
+
+---
+
 ## Output Format
 
 **Task-ID Convention** (canonical from /redev5 onward): the `task-id` is a single literal string (e.g. `20260426-095000-wid`) that appears identically in (a) artifact filename suffix, (b) `request_id` field of every artifact JSON, (c) `task_id` field of every artifact JSON, (d) completion-report heading 1, (e) all artifact JSON files. No prefixed forms (`dev-`, `qa-`, `ba-`, `ui-`) are permitted in NEW artifacts. Past artifacts are not retroactively rewritten.
