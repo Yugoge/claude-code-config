@@ -630,6 +630,26 @@ if echo "$COMMAND" | grep -qE "${DAEMON_RESTART_SENTINEL_RE}[A-Za-z0-9_-]+\.flag
   exit 2
 fi
 
+# Layer 1.F — bulk-commit auth-flag / sentinel write block (M4.3 / AC-04,
+# task 20260524-205206). Deny ANY model tool call (regardless of agent_id;
+# main agent NOT exempt — codex finding #7 fix) that targets
+# /tmp/claude-bulk-allowed-*.flag or /tmp/claude-bulk-commit-sentinel-*.json
+# via Bash (touch / echo > / cat > / printf > / tee > / cp / mv / ln). The
+# auth flag may ONLY be created by a human user typing directly in a terminal
+# session (which does NOT flow through Claude hooks). The test-only path
+# override (CLAUDE_BULK_AUTH_FLAG_PATH_OVERRIDE) uses a different filename
+# pattern (e.g. /tmp/claude-bulk-test-flag-*.flag) and is intentionally OUTSIDE
+# this protected glob. Stable label: bulk-commit-auth-flag-write.
+if echo "$COMMAND" | grep -qE '/tmp/claude-bulk-(allowed-[A-Za-z0-9_.\-]+\.flag|commit-sentinel-[A-Za-z0-9_.\-]+\.json)' \
+   && echo "$COMMAND" | grep -qE '(^|[[:space:];|&])((touch|tee|cp|mv|ln|cat|printf|echo)[[:space:]]|>|>>)'; then
+  echo "BLOCKED: bulk-commit-auth-flag-write — writing to /tmp/claude-bulk-allowed-*.flag or /tmp/claude-bulk-commit-sentinel-*.json is FORBIDDEN" >&2
+  echo "Command: $COMMAND" >&2
+  echo "REASON: per task 20260524-205206 M4.3, only a human user typing directly in a terminal may" >&2
+  echo "        create the bulk-auth flag or the bulk-commit sentinel. ALL model tool calls are denied" >&2
+  echo "        regardless of agent_id (main agent and subagent equally blocked)." >&2
+  exit 2
+fi
+
 # ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
 # On 2026-04-09, editing session_dirs.txt triggered full restore and killed all sessions.
 # These files must NEVER be touched by Claude under any circumstances.
