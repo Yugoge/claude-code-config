@@ -6,7 +6,13 @@
   "baseline_dirty_snapshot": "D  .claude/.hook-refactor-allow。\n M .claude/INDEX.md\n M CLAUDE.md\n M INDEX.md\n M README.md\n M agents/INDEX.md\n M agents/changelog-analyst.md\n M agents/dev.md\n M agents/qa.md\n M agents/style-inspector.md\n M cache/changelog.md\n M commands/INDEX.md\n M commands/README.md\n M commands/close.md\n M commands/codex.md\n M commands/commit.md\n M commands/dev.md\n M commands/push.md\n M docs/dev/INDEX.md",
   "dev_report_path": "docs/dev/dev-report-20260524-125300.json",
   "overall_status": "completed",
-  "items_completed": ["A", "B", "C", "D", "push"],
+  "items_completed": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "push"
+  ],
   "items_pending": [],
   "items_failed": [],
   "baseline_consistency": {
@@ -104,5 +110,12 @@
         "observed_preexisting": []
       }
     }
-  }
+  },
+  "parallel_workers": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "push"
+  ]
 }
