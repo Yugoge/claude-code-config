@@ -10,18 +10,46 @@
     "clarified": "Replace agent-scores.json write path in score-update.sh with append-only JSONL writes to logs/lifecycle.jsonl (remove agent-scores.json write — lifecycle.jsonl is sole source of truth). Add optional CAS validation (--expected-prev-score) that exits 3 on conflict. Switch score-inject.sh to read lifecycle.jsonl. Run baseline-import migration to anchor existing scores. Fully rewrite test_AC4 to target JSONL semantics. Update doc-sync SKIP_FILES. No .gitignore changes needed (logs/lifecycle.jsonl.lock already covered by logs/* at .gitignore:46).",
     "what": "Append-only JSONL score log with optional CAS, baseline migration, and reader migration",
     "why": "Prevent score drift (dev 81→73 undetected) and provide per-event audit trail",
-    "where": ["scripts/score-update.sh", "scripts/score-inject.sh", "scripts/lifecycle-baseline-import.sh", "logs/lifecycle.jsonl", "hooks/doc_sync/tree.py", "hooks/doc_sync/regen_readme.py", ".gitignore", "tests/score-inject-contract/test-inject-branches.sh", "tests/score-lifecycle-contract/test-lifecycle-cas.sh", "tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py"],
+    "where": [
+      "scripts/score-update.sh",
+      "scripts/score-inject.sh",
+      "scripts/lifecycle-baseline-import.sh",
+      "logs/lifecycle.jsonl",
+      "hooks/doc_sync/tree.py",
+      "hooks/doc_sync/regen_readme.py",
+      ".gitignore",
+      "tests/score-inject-contract/test-inject-branches.sh",
+      "tests/score-lifecycle-contract/test-lifecycle-cas.sh",
+      "tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py"
+    ],
     "scope": {
-      "included": ["score-update.sh JSONL write path + CAS + removal of agent-scores.json write", "score-inject.sh JSONL read path", "lifecycle-baseline-import.sh migration", "doc-sync SKIP_FILES update", "test-inject-branches.sh JSONL fixtures", "test-lifecycle-cas.sh new CAS tests", "test_AC4 stale delta fix"],
-      "excluded": ["W3/W5 quota-wall events", "JSONL rotation/compaction", "agent-scores.json retained as parallel write target (eliminated — OBJ-3 fix)", ".gitignore modification for lifecycle.jsonl.lock (no-op — OBJ-4 fix; already covered by logs/* at .gitignore:46)", "event_id/seq/prev_event_id as mandatory JSONL schema fields (advisory only — OBJ-2 fix)", "batch transaction enforcement", "--expected-prev-event-id ABA enforcement (schema field optional only)", "commands/close.md and commands/dev.md behavioral changes (documentation note only)"]
+      "included": [
+        "score-update.sh JSONL write path + CAS + removal of agent-scores.json write",
+        "score-inject.sh JSONL read path",
+        "lifecycle-baseline-import.sh migration",
+        "doc-sync SKIP_FILES update",
+        "test-inject-branches.sh JSONL fixtures",
+        "test-lifecycle-cas.sh new CAS tests",
+        "test_AC4 stale delta fix"
+      ],
+      "excluded": [
+        "W3/W5 quota-wall events",
+        "JSONL rotation/compaction",
+        "agent-scores.json retained as parallel write target (eliminated — OBJ-3 fix)",
+        ".gitignore modification for lifecycle.jsonl.lock (no-op — OBJ-4 fix; already covered by logs/* at .gitignore:46)",
+        "event_id/seq/prev_event_id as mandatory JSONL schema fields (advisory only — OBJ-2 fix); unclamped_score promoted from advisory to mandatory (FINAL-1 fix)",
+        "batch transaction enforcement",
+        "--expected-prev-event-id ABA enforcement (schema field optional only)",
+        "commands/close.md and commands/dev.md behavioral changes (documentation note only)"
+      ]
     },
     "success_criteria": [
-      "score-update.sh appends one JSONL line per event to logs/lifecycle.jsonl under exclusive flock using the 8-field schema {ts, agent, event, prev_score, new_score, delta, actor, reason} — no 'note' field in emitted JSON",
+      "score-update.sh appends one JSONL line per event to logs/lifecycle.jsonl under exclusive flock using the 9-field mandatory schema {ts, agent, event, prev_score, new_score, delta, unclamped_score, actor, reason} — no 'note' or 'uncapped_delta' field in emitted JSON; unclamped_score = prev_score + delta (pre-clamp arithmetic target)",
       "score-update.sh does NOT write to agent-scores.json after M1 lands; lifecycle.jsonl is the sole score source of truth",
       "score-inject.sh reads from lifecycle.jsonl (not agent-scores.json) under shared flock",
       "CAS conflict (wrong --expected-prev-score) exits 3 with no JSONL append",
       "lifecycle-baseline-import.sh runs idempotently and anchors all 21 canonical agents",
-      "test_AC4 body AND docstring fully rewritten to lifecycle JSONL semantics (only AC_UID and AC_TYPE constants preserved verbatim); asserts delta==1 and unclamped_score==101",
+      "test_AC4 body AND docstring fully rewritten to lifecycle JSONL semantics (only AC_UID and AC_TYPE constants preserved verbatim); seeds temporary lifecycle JSONL with ba new_score=100; asserts delta==1 and unclamped_score==101",
       "lifecycle.jsonl and lifecycle.jsonl.lock are in SKIP_FILES/SKIP_NAMES in both doc-sync files",
       "lifecycle-baseline-import.sh populates all 21 canonical agents on first run (logs/lifecycle.jsonl has 21 lines each with event=score_baseline_import)",
       "git ls-files --error-unmatch -- logs/lifecycle.jsonl exits 0 (file IS tracked; the !logs/lifecycle.jsonl exception in .gitignore is working correctly). No .gitignore modification needed for logs/lifecycle.jsonl.lock — already covered by logs/* at line 46."
@@ -91,7 +119,11 @@
     "why_introduced": "Original score-update.sh was designed for single-writer scenarios. Multi-call close cycles were added later without updating the consistency model.",
     "why_problematic": "Six independent lock acquisitions in close.md:415-459 create six windows for concurrent interleaving. No audit log means drift is invisible.",
     "timeline": "Issue existed before cycle 20260522-000000; arch-7 phase 2 was deferred from that cycle as requiring dedicated implementation",
-    "affected_files": ["scripts/score-update.sh", "scripts/score-inject.sh", "logs/lifecycle.jsonl"],
+    "affected_files": [
+      "scripts/score-update.sh",
+      "scripts/score-inject.sh",
+      "logs/lifecycle.jsonl"
+    ],
     "evidence_type": "mixed",
     "observations": [
       "logs/lifecycle.jsonl: 0 bytes (observed: architect runtime inspection, confirmed by Codex)",
@@ -101,7 +133,12 @@
       "test_AC4: asserts uncapped_delta==108 and delta==8; current EVENT_DELTAS gives ba/close_success_qa_pass=+1 so actual values are 101 and 1 (observed: Codex runtime failure AssertionError at line 81)"
     ],
     "diagnosis_completeness": "incomplete (inferred for drift mechanism; observed for file sizes, JSONL state, test failure)",
-    "complaint_location_keywords": ["score drift", "dev 81", "dev 73", "no event-log explanation"],
+    "complaint_location_keywords": [
+      "score drift",
+      "dev 81",
+      "dev 73",
+      "no event-log explanation"
+    ],
     "localization_evidence": "Drift mechanism is structural (design of lock-release between calls); cannot be directly reproduced in this CLI environment without introducing concurrent writes. Test_AC4 failure confirmed by Codex runtime execution.",
     "located_source": "scripts/score-update.sh:63-68 (lock acquisition/release) and commands/close.md:415-459 (six sequential independent calls)",
     "localization_blocked": null,
@@ -119,7 +156,7 @@
     {
       "id": "R1",
       "source_phrase": "replace direct score writes with append-only log entries {ts, agent, event, prev_score, new_score, delta, actor, reason}",
-      "acceptance_criterion": "score-update.sh appends one JSONL line per invocation to logs/lifecycle.jsonl under exclusive flock, containing all 8 mandatory fields: ts, agent, event, prev_score, new_score, delta, actor, reason. The existing --note CLI param populates the 'reason' field. The emitted JSON must contain a field named 'reason' (not 'note') — this requires renaming the field in score-update.sh line 171 from '\"note\"' to '\"reason\"'."
+      "acceptance_criterion": "score-update.sh appends one JSONL line per invocation to logs/lifecycle.jsonl under exclusive flock, containing all 9 mandatory fields: ts, agent, event, prev_score, new_score, delta, unclamped_score, actor, reason. unclamped_score = prev_score + delta (pre-clamp; may exceed 100 or be below 0). new_score = max(0, min(100, unclamped_score)). The existing --note CLI param populates the 'reason' field. The emitted JSON must contain 'reason' (not 'note') and 'unclamped_score' (not 'uncapped_delta')."
     },
     {
       "id": "R2",
@@ -137,7 +174,9 @@
       "file": "commands/close.md",
       "line_range": "415-459",
       "role": "Orchestrator: calls score-update.sh 3-6 times sequentially per close cycle",
-      "imports_from": ["scripts/score-update.sh"],
+      "imports_from": [
+        "scripts/score-update.sh"
+      ],
       "evidence": "grep -n score-update commands/close.md lines 415,416,417,418,455,456,457,458",
       "verified_via": "grep"
     },
@@ -145,7 +184,10 @@
       "file": "commands/dev.md",
       "line_range": "348,652,810,897-904",
       "role": "Orchestrator: calls score-inject.sh 3x per cycle (pre-dispatch) and score-update.sh 1-2x (post-QA)",
-      "imports_from": ["scripts/score-inject.sh", "scripts/score-update.sh"],
+      "imports_from": [
+        "scripts/score-inject.sh",
+        "scripts/score-update.sh"
+      ],
       "evidence": "grep -n score-inject commands/dev.md lines 348,652,810; grep -n score-update lines 897-904",
       "verified_via": "grep"
     },
@@ -153,7 +195,10 @@
       "file": "scripts/score-update.sh",
       "line_range": "1-196",
       "role": "Writer: acquires exclusive flock, reads agent-scores.json, mutates, writes atomically. Must become: acquires exclusive flock, appends to lifecycle.jsonl.",
-      "imports_from": ["logs/lifecycle.jsonl (new)", "agent-scores.json (current)"],
+      "imports_from": [
+        "logs/lifecycle.jsonl (new)",
+        "agent-scores.json (current)"
+      ],
       "evidence": "Read tool: score-update.sh full content",
       "verified_via": "Read"
     },
@@ -161,7 +206,10 @@
       "file": "scripts/score-inject.sh",
       "line_range": "1-147",
       "role": "Reader: reads agent-scores.json, emits rank/range/recent-events injection block. Must become: reads lifecycle.jsonl under shared flock.",
-      "imports_from": ["agent-scores.json (current)", "logs/lifecycle.jsonl (target)"],
+      "imports_from": [
+        "agent-scores.json (current)",
+        "logs/lifecycle.jsonl (target)"
+      ],
       "evidence": "Read tool: score-inject.sh full content",
       "verified_via": "Read"
     },
@@ -169,7 +217,9 @@
       "file": "logs/lifecycle.jsonl",
       "line_range": "1",
       "role": "Primary score store (currently empty; will receive all new score events)",
-      "imports_from": ["leaf"],
+      "imports_from": [
+        "leaf"
+      ],
       "evidence": "Read tool: file is 0 bytes (single empty line returned by Read)",
       "verified_via": "Read"
     },
@@ -177,7 +227,9 @@
       "file": "hooks/doc_sync/tree.py",
       "line_range": "22-27",
       "role": "Doc-sync: SKIP_FILES set prevents runtime-telemetry files from appearing in INDEX.md",
-      "imports_from": ["leaf"],
+      "imports_from": [
+        "leaf"
+      ],
       "evidence": "Read tool: tree.py lines 22-27 show SKIP_FILES set with agent-scores.json, agent-scores.json.lock",
       "verified_via": "Read"
     }
@@ -238,8 +290,17 @@
   "scope_expansion": {
     "search_pattern": "score-update|score-inject|lifecycle.jsonl|agent-scores.json",
     "search_scope": "scripts/, commands/, hooks/doc_sync/, tests/",
-    "user_reported": ["scripts/score-update.sh", "logs/lifecycle.jsonl"],
-    "additional_found": ["scripts/score-inject.sh", "hooks/doc_sync/tree.py", "hooks/doc_sync/regen_readme.py", "tests/score-inject-contract/test-inject-branches.sh", "tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py"],
+    "user_reported": [
+      "scripts/score-update.sh",
+      "logs/lifecycle.jsonl"
+    ],
+    "additional_found": [
+      "scripts/score-inject.sh",
+      "hooks/doc_sync/tree.py",
+      "hooks/doc_sync/regen_readme.py",
+      "tests/score-inject-contract/test-inject-branches.sh",
+      "tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py"
+    ],
     "all_occurrences": [
       "commands/close.md:415-459",
       "commands/dev.md:348,652,810,897-904",
@@ -279,7 +340,11 @@
   },
   "context": {
     "codebase_state": "lifecycle.jsonl empty (0 bytes, tracked in git); agent-scores.json has 208 history entries across ba/dev/qa; score-update.sh uses agent-scores.json write path; score-inject.sh reads agent-scores.json",
-    "recent_commits": ["aea75d9 chore(docs): ship cycle 20260522-000000 close-report", "5771880 feat(spec): commit spec-20260520-221059", "af96c61 fix(infra): M1-M4 gitignore exceptions, install mirror, uncapped_delta"],
+    "recent_commits": [
+      "aea75d9 chore(docs): ship cycle 20260522-000000 close-report",
+      "5771880 feat(spec): commit spec-20260520-221059",
+      "af96c61 fix(infra): M1-M4 gitignore exceptions, install mirror, uncapped_delta"
+    ],
     "file_contents": {},
     "dependencies": {
       "python3": "venv at ~/.claude/venv/bin/activate",
@@ -405,7 +470,7 @@
         "rationale": "ACs must be concrete and testable"
       }
     ],
-    "feedback_incorporated": "Round 1 (Codex session 019e5d9b): All 12 findings addressed. Round 2 (QA objections + Codex session 019e5dbc): OBJ-1: JSONL field 'note' renamed to 'reason' — M1 now explicitly requires renaming score-update.sh:171 field; AC1 verifies no 'note' in emitted JSON. OBJ-2: mandatory JSONL schema reduced to 8 R9-verbatim fields; event_id/seq/prev_event_id/kind marked advisory. OBJ-3: agent-scores.json write REMOVED from M1; contradicting constraint at ticket:288 and context:30 both fixed; agent-scores.json is now migration-input-only. OBJ-4: M5 eliminated (no-op); AC8 became AC9 (preflight precondition) with --error-unmatch flag added; new AC8 added for live baseline import verification (all 21 canonical agents). Additional Codex findings: Issue 1 (contradicting constraint) fixed; Issue 2 (CAS optional) acknowledged as intentional scope deviation documented in S1; Issue 3 (test_AC4 reads agent-scores.json history) — M8 expanded to full body rewrite targeting JSONL semantics; Issue 4 (malformed branch expectation) — M6 expanded with explicit malformed branch exit code 1 expectation; Issue 5 (AC8 non-discriminating) — fixed with --error-unmatch; Issue 6 (stale .gitignore in scope) — line 47 corrected; Issue 7 (hermetic test paths) — out_of_scope_observations (enhancement); Issue 8 (baseline import live execution) — new AC8 added; Issue 9 (kind wording in M2) — M2 and idempotency rule reworded to reference 'agent' field match, not kind. Round 3 (QA objections iteration 2): NEW-1: AC6 THEN clause field name corrected from 'uncapped_delta' to 'unclamped_score' (unclamped_score is the correct semantics per M8; uncapped_delta is the legacy score-update.sh emitted field name from before this cycle). NEW-2: M8 three-way contradiction resolved — only AC_UID and AC_TYPE constants are preserved verbatim; test body AND docstring must be rewritten entirely (the old docstring describes agent-scores.json semantics which are obsolete post-JSONL-rewrite); Technical Hints 'only the assertion values change' phrase removed. NEW-3: AC10 added to formally verify malformed JSONL causes exit code 1 with non-empty stderr and no INJECTION_PROOF in stdout — closes the gap where M6 prescribes the behavior but no AC enforced it."
+    "feedback_incorporated": "Round 1 (Codex session 019e5d9b): All 12 findings addressed. Round 2 (QA objections + Codex session 019e5dbc): OBJ-1: JSONL field 'note' renamed to 'reason' — M1 now explicitly requires renaming score-update.sh:171 field; AC1 verifies no 'note' in emitted JSON. OBJ-2: mandatory JSONL schema reduced to 8 R9-verbatim fields; event_id/seq/prev_event_id/kind marked advisory. OBJ-3: agent-scores.json write REMOVED from M1; contradicting constraint at ticket:288 and context:30 both fixed; agent-scores.json is now migration-input-only. OBJ-4: M5 eliminated (no-op); AC8 became AC9 (preflight precondition) with --error-unmatch flag added; new AC8 added for live baseline import verification (all 21 canonical agents). Additional Codex findings: Issue 1 (contradicting constraint) fixed; Issue 2 (CAS optional) acknowledged as intentional scope deviation documented in S1; Issue 3 (test_AC4 reads agent-scores.json history) — M8 expanded to full body rewrite targeting JSONL semantics; Issue 4 (malformed branch expectation) — M6 expanded with explicit malformed branch exit code 1 expectation; Issue 5 (AC8 non-discriminating) — fixed with --error-unmatch; Issue 6 (stale .gitignore in scope) — line 47 corrected; Issue 7 (hermetic test paths) — out_of_scope_observations (enhancement); Issue 8 (baseline import live execution) — new AC8 added; Issue 9 (kind wording in M2) — M2 and idempotency rule reworded to reference 'agent' field match, not kind. Round 3 (QA objections iteration 2): NEW-1: AC6 THEN clause field name corrected from 'uncapped_delta' to 'unclamped_score' (unclamped_score is the correct semantics per M8; uncapped_delta is the legacy score-update.sh emitted field name from before this cycle). NEW-2: M8 three-way contradiction resolved — only AC_UID and AC_TYPE constants are preserved verbatim; test body AND docstring must be rewritten entirely (the old docstring describes agent-scores.json semantics which are obsolete post-JSONL-rewrite); Technical Hints 'only the assertion values change' phrase removed. NEW-3: AC10 added to formally verify malformed JSONL causes exit code 1 with non-empty stderr and no INJECTION_PROOF in stdout — closes the gap where M6 prescribes the behavior but no AC enforced it. Round 4 (FINAL-1 + Codex session 019e5e18): FINAL-1 resolved: unclamped_score promoted from advisory to mandatory derived 9th lifecycle schema field. 8 R9-verbatim fields plus unclamped_score = prev_score + delta (pre-clamp arithmetic target; may exceed 100 or fall below 0). Schema header updated from '8 verbatim from R9' to '9 mandatory fields = 8 R9-verbatim + 1 derived clamp-audit field'. M1 now computes unclamped_score before clamping and emits it as mandatory field; does not emit legacy 'uncapped_delta'. M2 baseline entries use 9-field schema (unclamped_score = prev_score, delta=0). AC1 asserts all 9 fields including unclamped_score=prev_score+delta. AC6 GIVEN now requires the test to seed the temporary lifecycle JSONL with ba new_score=100 (so unclamped_score=101 is achievable). M8 rewrite instruction now explicitly seeds ba at new_score=100 before score-update.sh invocation. Advisory fields reduced to: kind, event_id, seq, prev_event_id."
   },
   "rank_acknowledged": "Senior Craftsman",
   "range_acknowledged": "61-80",
