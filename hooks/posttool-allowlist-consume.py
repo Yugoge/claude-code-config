@@ -25,10 +25,68 @@ contract documented verbatim below.
 Exit 0 always (fail-open). Silently exits if no grant or no match.
 """
 
+import glob as _glob
 import json
 import os
+import re as _re
 import sys
 from pathlib import Path
+
+# Pattern to detect git commit commands (used by deferred-grant finalization).
+_GIT_COMMIT_CMD_RE = _re.compile(r'\bgit\b.*\bcommit\b', _re.DOTALL)
+
+
+def _finalize_deferred_commit_grant(session_id: str, terminal_result: str) -> None:
+    """Consume or restore a deferred commit grant (Fix B).
+
+    PreToolUse renames the grant to <path>.lck and writes a pointer at
+    /tmp/claude-commit-grant-active-<sid>.json.  This function:
+      - terminal_result='success' → unlinks the .lck file (grant consumed)
+      - anything else            → renames .lck back to original (retry OK)
+    Always removes the pointer file.
+    """
+    # Collect pointer candidates: session-specific first, then any-SID.
+    candidates: list[str] = []
+    if session_id:
+        candidates.append(f'/tmp/claude-commit-grant-active-{session_id}.json')
+    for p in _glob.glob('/tmp/claude-commit-grant-active-*.json'):
+        if p not in candidates:
+            candidates.append(p)
+
+    for pointer_path in candidates:
+        try:
+            with open(pointer_path, 'r') as fp:
+                pointer = json.load(fp)
+        except (OSError, json.JSONDecodeError):
+            try:
+                os.unlink(pointer_path)
+            except OSError:
+                pass
+            continue
+
+        locked_path = pointer.get('locked_path', '')
+        original_path = pointer.get('original_path', '')
+
+        if terminal_result == 'success':
+            try:
+                os.unlink(locked_path)
+            except OSError:
+                pass
+        elif locked_path and original_path and os.path.exists(locked_path):
+            try:
+                os.rename(locked_path, original_path)
+            except OSError:
+                # Restore failed — unlink to prevent stale .lck accumulation.
+                try:
+                    os.unlink(locked_path)
+                except OSError:
+                    pass
+
+        try:
+            os.unlink(pointer_path)
+        except OSError:
+            pass
+        break
 
 sys.path.insert(0, str(Path(__file__).parent))
 from lib.allowlist import (  # noqa: E402
@@ -155,6 +213,12 @@ def main() -> None:
                     orch_legacy.unlink()
                 except (FileNotFoundError, OSError):
                     pass
+    # Deferred commit grant finalization (Fix B): PostToolUse is the sole
+    # consume point for commit grants.  PreToolUse locked the grant (.lck);
+    # here we either delete it (success) or restore it (failure, retry OK).
+    if tool_name == "Bash" and command and _GIT_COMMIT_CMD_RE.search(command):
+        _finalize_deferred_commit_grant(session_id, _classify_terminal_result(data))
+
     elif tool_name == "Write":
         # Sentinel-grant consume for Write-overwrite grants (task 20260522-080646-B).
         # Uses tool_input.file_path (not command — Write has no command field).

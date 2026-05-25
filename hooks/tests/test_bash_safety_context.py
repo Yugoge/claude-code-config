@@ -335,3 +335,43 @@ class TestDollarVariableRegression:
         assert isinstance(result, str)
         assert "$$" in result
         assert "$CLAUDE_PROJECT_DIR" in result
+
+
+class TestScriptInterpArgStripping:
+    """Argv tokens to non-shell script interpreters are stripped from danger-token scan."""
+
+    def test_python3_rm_argv_stripped(self):
+        result = strip_non_executable_contexts("python3 cleanup.py rm /tmp/old")
+        assert "rm" not in result.split()
+
+    def test_node_pkill_argv_stripped(self):
+        result = strip_non_executable_contexts("node server.js pkill happy")
+        assert "pkill" not in result.split()
+
+    def test_process_subst_preserved(self):
+        result = strip_non_executable_contexts("python3 script.py <(rm /tmp/x)")
+        assert "rm" in result
+
+    def test_bash_c_payload_unchanged(self):
+        result = strip_non_executable_contexts("bash -c 'rm /tmp/foo'")
+        assert "rm" in result
+
+    def test_compound_second_segment(self):
+        result = strip_non_executable_contexts("python3 script.py && rm /tmp/x")
+        assert "rm" in result
+
+    def test_versioned_interp(self):
+        result = strip_non_executable_contexts("python3.12 manage.py rm session-123")
+        assert "rm" not in result.split()
+
+    def test_ruby_kill_argv_stripped(self):
+        result = strip_non_executable_contexts("ruby app.rb killall happy")
+        assert "killall" not in result.split()
+
+    def test_rscript_canonical_case_stripped(self):
+        result = strip_non_executable_contexts("Rscript cleanup.R rm /tmp/old")
+        assert "rm" not in result.split()
+
+    def test_r_canonical_case_stripped(self):
+        result = strip_non_executable_contexts("R --vanilla run.R rm /tmp/old")
+        assert "rm" not in result.split()

@@ -83,8 +83,16 @@ def _revoke_grants_for_task(output_dir: str, task_id_to_revoke: str, sid: str) -
     """
     import glob as _glob
 
-    pattern = str(Path(output_dir) / "claude-commit-grant-*.json")
-    candidates = _glob.glob(pattern)
+    # Revoke both active .json grants and in-flight .lck grants (Fix B deferred-consume).
+    # .lck files are grants locked by PreToolUse; if revocation runs mid-commit the
+    # PostToolUse handler will attempt to restore them — revoking here prevents that.
+    patterns = [
+        str(Path(output_dir) / "claude-commit-grant-*.json"),
+        str(Path(output_dir) / "claude-commit-grant-*.json.lck"),
+    ]
+    candidates = []
+    for pat in patterns:
+        candidates.extend(_glob.glob(pat))
     for candidate in candidates:
         try:
             with open(candidate) as fp:
@@ -95,6 +103,12 @@ def _revoke_grants_for_task(output_dir: str, task_id_to_revoke: str, sid: str) -
                     f"[revoke] Deleted stale grant: {candidate}",
                     file=sys.stderr,
                 )
+                # Clean up pointer file left by _lock_grant_for_posttool (Fix B).
+                pointer = Path(f"/tmp/claude-commit-grant-active-{sid}.json")
+                try:
+                    pointer.unlink()
+                except (FileNotFoundError, OSError):
+                    pass
         except (OSError, json.JSONDecodeError, KeyError) as exc:
             print(
                 f"[revoke] WARNING: could not process {candidate}: {exc}",

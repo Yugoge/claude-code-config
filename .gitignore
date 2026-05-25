@@ -87,3 +87,12 @@ settings.json.bak-*
 /agent-scores.json
 /agent-scores.json.lock
 /.claude/specs/spec-*/
+
+# Harness-generated output (transient per-cycle; not for version control)
+tests/generated/
+docs/codex/
+*.png
+# harness-propagated by session-gitignore-propagate.sh
+.claude/dev-registry/dev-*/
+# harness-propagated by session-gitignore-propagate.sh
+.playwright-mcp/

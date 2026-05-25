@@ -187,6 +187,18 @@ Skip this step entirely if ANY of the following are true:
 - `TASK_ID` is empty
 - changelog-analyst did not report a successful real commit (no push-gate token written, or changelog-analyst reported an error)
 
+**Observable Step 7 trace (AC-05 Phase B contract — task 20260524-205206 iter-2)**: when env var `COMMIT_STEP7_TRACE=1` is set, Step 7 MUST emit a deterministic single-line marker to **stderr** at every decision point. The markers are:
+
+- `STEP7_SKIPPED: bulk=true` — at the BULK=true skip branch
+- `STEP7_SKIPPED: dryrun=true` — at the DRYRUN=true skip branch
+- `STEP7_SKIPPED: task_id_empty` — at the empty-TASK_ID skip branch
+- `STEP7_SKIPPED: changelog_no_real_commit` — at the no-push-gate / changelog-error skip branch
+- `STEP7_SPEC_CONTINUE_DISPATCHED: task-id=<TASK_ID> stage=<1|2> spec_path=<SPEC_PATH>` — emitted IMMEDIATELY BEFORE the Agent dispatch in stages (1) and (2)
+- `STEP7_NO_SPEC: task-id=<TASK_ID>` — at stage (3) empty-set outcome
+- `STEP7_UNLINKED_SPEC: task-id=<TASK_ID> count=<N> paths=<paths>` — at stage (3) one-or-more-element outcome (fail-closed)
+
+This trace is OFF by default (no env var). When ON, the markers are emitted to stderr only; they MUST NOT affect stdout, exit codes, or dispatch behavior. The trace is consumed by the AC-05 Phase B test harness (tests/generated/20260524-205206/test_AC_05_e5f7a9b1c4d6e8fb.py) which exercises the Step 7 SELECTION + TRACE algorithm via `scripts/step7-spec-continue.py` — the executable reference embodiment of the SELECTION portion of this Step 7 specification (stages 1-4 + STEP7_* markers). The script does NOT perform the Agent dispatch described in the "Dispatch payload" subsection below — that step is the orchestrator's responsibility, performed as a Claude Code Agent call after the selection marker emits. The orchestrator MAY either follow the prose directly OR invoke the harness to compute the selection; in both cases the orchestrator must perform the real Agent dispatch when a stage 1 or stage 2 path is selected.
+
 When `BULK=false` AND `DRYRUN=false` AND `TASK_ID` is set AND changelog-analyst reported success:
 
 Set `DEV_DOCS_ROOT` using the same CONTROL_ROOT logic as Step 6: `DEV_DOCS_ROOT=${CONTROL_ROOT}/docs/dev` (where `CONTROL_ROOT=/root`). Use absolute paths throughout Step 7.
@@ -196,7 +208,7 @@ Set `DEV_DOCS_ROOT` using the same CONTROL_ROOT logic as Step 6: `DEV_DOCS_ROOT=
 The algorithm is total-ordered and mandatory. Implementers MUST NOT introduce wording that admits implementer discretion; every nondeterminism alias is forbidden by AC5-V3. Prior-cycle artifacts MUST NOT be matched: the glob and content predicates are anchored to the CURRENT cycle's `${TASK_ID}`; no cross-cycle drag-in. This operationalizes the user binding directive that prohibits loading any non-current-cycle content (verbatim Chinese phrasing preserved at `docs/dev/ticket-20260519-211515.md`, Standard 6 exemption scope).
 
 (1) context.spec_path first.
-    If `${DEV_DOCS_ROOT}/context-${TASK_ID}.json` field `spec_path` is non-null AND the file at that path exists as a regular file, dispatch `/dev` with that `spec_path`. STOP.
+    If `${DEV_DOCS_ROOT}/context-${TASK_ID}.json` field `spec_path` is non-null AND the file at that path exists as a regular file, dispatch `/dev` with that `spec_path` (when `COMMIT_STEP7_TRACE=1`, emit `STEP7_SPEC_CONTINUE_DISPATCHED: task-id=${TASK_ID} stage=1 spec_path=<SPEC_PATH>` to stderr immediately before the dispatch). STOP.
 
 (2) Continuation spec line (parenthetical-qualifier + markdown-bullet + backtick tolerant).
     Else parse `${DEV_DOCS_ROOT}/close-report-${TASK_ID}.md` fence-aware: read each line outside a fenced code block (skip ranges between ``` and ```). Apply the regex
@@ -212,15 +224,15 @@ The algorithm is total-ordered and mandatory. Implementers MUST NOT introduce wo
         - Continuation spec (from prior NO): `docs/dev/specs/spec-20260520-044700.md`
 
     Note the leading dash AND the backticks AND the parenthetical qualifier — ALL THREE must be tolerated.
-    If exactly one such line matches AND the captured path exists on disk, dispatch `/dev` with that path, emit a WARNING `linked via close-report, not context.spec_path`. STOP.
+    If exactly one such line matches AND the captured path exists on disk, dispatch `/dev` with that path, emit a WARNING `linked via close-report, not context.spec_path` (when `COMMIT_STEP7_TRACE=1`, also emit `STEP7_SPEC_CONTINUE_DISPATCHED: task-id=${TASK_ID} stage=2 spec_path=<SPEC_PATH>` to stderr immediately before the dispatch). STOP.
 
 (3) Mtime + literal-task-id glob (final stage).
     Else glob `docs/dev/specs/spec-YYYYMMDD-HHMMSS.md` (basename pattern enforced) with mtime in [close-report mtime - 24h, close-report mtime + 1h]. For each candidate, run `grep -lF "<!-- spec-continuation-of: ${TASK_ID} -->" candidate.md` — this is the ONLY content predicate allowed; no other grep, no free-form content scan. Collect the set of candidates that pass both the basename pattern, mtime window, and machine-readable marker grep.
 
 (4) Outcome (fail-closed).
-    - If set is empty: print `No spec associated with task-id ${TASK_ID}` and exit 0 (silent, unchanged from prior behavior).
-    - If set has exactly one element: print `spec produced this cycle but not linked in context: <path>` and exit non-zero (fail-closed).
-    - If set has multiple elements: print `multiple specs produced this cycle without context linkage: <paths>; explicit context.spec_path required` and exit non-zero (fail-closed).
+    - If set is empty: print `No spec associated with task-id ${TASK_ID}` and exit 0 (silent, unchanged from prior behavior). When `COMMIT_STEP7_TRACE=1`, also emit `STEP7_NO_SPEC: task-id=${TASK_ID}` to stderr.
+    - If set has exactly one element: print `spec produced this cycle but not linked in context: <path>` and exit non-zero (fail-closed). When `COMMIT_STEP7_TRACE=1`, also emit `STEP7_UNLINKED_SPEC: task-id=${TASK_ID} count=1 paths=<path>` to stderr.
+    - If set has multiple elements: print `multiple specs produced this cycle without context linkage: <paths>; explicit context.spec_path required` and exit non-zero (fail-closed). When `COMMIT_STEP7_TRACE=1`, also emit `STEP7_UNLINKED_SPEC: task-id=${TASK_ID} count=<N> paths=<paths>` to stderr.
 
 **Dispatch payload (when stage 1 or 2 selects a path)**
 

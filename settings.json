@@ -329,6 +329,11 @@
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/session-tmpfs-banner.sh\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/session-gitignore-propagate.sh\"",
+            "timeout": 10
           }
         ]
       }
