@@ -632,22 +632,42 @@ fi
 
 # Layer 1.F — bulk-commit auth-flag / sentinel write block (M4.3 / AC-04,
 # task 20260524-205206). Deny ANY model tool call (regardless of agent_id;
-# main agent NOT exempt — codex finding #7 fix) that targets
+# main agent NOT exempt — codex iter-2 finding #7 fix) that even MENTIONS
 # /tmp/claude-bulk-allowed-*.flag or /tmp/claude-bulk-commit-sentinel-*.json
-# via Bash (touch / echo > / cat > / printf > / tee > / cp / mv / ln). The
-# auth flag may ONLY be created by a human user typing directly in a terminal
-# session (which does NOT flow through Claude hooks). The test-only path
-# override (CLAUDE_BULK_AUTH_FLAG_PATH_OVERRIDE) uses a different filename
-# pattern (e.g. /tmp/claude-bulk-test-flag-*.flag) and is intentionally OUTSIDE
-# this protected glob. Stable label: bulk-commit-auth-flag-write.
-if echo "$COMMAND" | grep -qE '/tmp/claude-bulk-(allowed-[A-Za-z0-9_.\-]+\.flag|commit-sentinel-[A-Za-z0-9_.\-]+\.json)' \
-   && echo "$COMMAND" | grep -qE '(^|[[:space:];|&])((touch|tee|cp|mv|ln|cat|printf|echo)[[:space:]]|>|>>)'; then
-  echo "BLOCKED: bulk-commit-auth-flag-write — writing to /tmp/claude-bulk-allowed-*.flag or /tmp/claude-bulk-commit-sentinel-*.json is FORBIDDEN" >&2
-  echo "Command: $COMMAND" >&2
-  echo "REASON: per task 20260524-205206 M4.3, only a human user typing directly in a terminal may" >&2
-  echo "        create the bulk-auth flag or the bulk-commit sentinel. ALL model tool calls are denied" >&2
-  echo "        regardless of agent_id (main agent and subagent equally blocked)." >&2
-  exit 2
+# in a Bash command. The deny is path-mention-based (not write-verb-based)
+# because codex Cycle-5 finding #2 showed write-verb-only patterns are
+# trivially bypassed via `python3 -c 'open(...).write(...)'`, `node -e ...`,
+# `perl -e ...`, here-docs, base64, etc. The user's directive is "permanently
+# forbid bulk without user auth"; the only legitimate writer of these paths
+# is a human typing in a real TTY (which does NOT flow through Claude
+# hooks). Two safelist exceptions: (a) the official sentinel-writer
+# `scripts/write-bulk-commit-sentinel.py` invocation (handled by Layer 1.G
+# below — recognized by full path), and (b) read-only operations
+# (`ls /tmp/claude-bulk-*`, `stat /tmp/claude-bulk-*`, `cat /tmp/claude-bulk-*`
+# WITHOUT a redirect). Stable label: bulk-commit-auth-flag-write.
+if echo "$COMMAND" | grep -qE '/tmp/claude-bulk-(allowed-[A-Za-z0-9_.\-]*\.flag|commit-sentinel-[A-Za-z0-9_.\-]*\.json)'; then
+  # Allowlist (b): pure read with NO redirect or write-pipe. Match read-only
+  # verbs ls/stat/cat/file/wc/head/tail/grep/jq/find that do NOT contain
+  # `>`, `>>`, `tee`, or assignment to a bulk path.
+  if echo "$COMMAND" | grep -qE '(^|[[:space:];|&])(ls|stat|cat|file|wc|head|tail|grep|jq|find|test|\[)\s+[^>]*/tmp/claude-bulk-' \
+     && ! echo "$COMMAND" | grep -qE '(>|>>|tee\b)'; then
+    : # read-only inspection allowed
+  # Allowlist (a): the official sentinel-writer script. The script enforces
+  # the auth-flag gate internally; allowing this invocation does NOT bypass
+  # the gate, it routes through it.
+  elif echo "$COMMAND" | grep -qE 'scripts/write-bulk-commit-sentinel\.py'; then
+    : # official sentinel-writer routed through script-level gate
+  else
+    echo "BLOCKED: bulk-commit-auth-flag-write — Bash command references /tmp/claude-bulk-allowed-*.flag or /tmp/claude-bulk-commit-sentinel-*.json — FORBIDDEN" >&2
+    echo "Command: $COMMAND" >&2
+    echo "REASON: per task 20260524-205206 M4.3 (codex Cycle-5 finding #2 fix), ANY Bash command that" >&2
+    echo "        mentions the protected globs in a writable context is denied — pattern-based deny" >&2
+    echo "        catches python3 -c, node -e, perl -e, here-docs, base64 decode, etc., which all" >&2
+    echo "        evade write-verb-only patterns. ALL model tool calls are denied regardless of agent_id." >&2
+    echo "        Read-only inspection (ls/stat/cat/grep without redirect) IS permitted." >&2
+    echo "        Only a human user typing directly in a terminal may create the auth flag." >&2
+    exit 2
+  fi
 fi
 
 # ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
