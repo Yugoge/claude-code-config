@@ -894,8 +894,8 @@ This post-decision-tree pass applies the canonical score-update events for this 
 
 After the verdict is known, apply score-update events based on QA outcome and iteration count:
 
-- First-round PASS (iteration 0 + qa.status=pass) → `bash ~/.claude/scripts/score-update.sh --agent dev --event qa_first_pass --note "<task_id>"` AND `--agent ba --event qa_first_pass`. (dev +6, ba +3, qa 0.)
-- Second-or-later-round PASS (iteration ≥1 + qa.status=pass) → `--agent dev --event qa_second_pass --note "<task_id>"`. (dev +3.)
+- First-round PASS (iteration 0 + qa.status=pass) → `bash ~/.claude/scripts/score-update.sh --agent dev --event qa_first_pass --note "<task_id>"` AND `--agent ba --event qa_first_pass`. (dev 0, ba 0, qa 0 — Path A rebalance task 20260524-205206 M1; per-iteration nudge collapsed into close events.)
+- Second-or-later-round PASS (iteration ≥1 + qa.status=pass) → `--agent dev --event qa_second_pass --note "<task_id>"`. (dev 0 — Path A rebalance task 20260524-205206 M1.)
 - FAIL (qa.status=fail) — read `qa.failures[].primary_cause` to attribute the rejection:
   - Any failure with `primary_cause = "dev_implementation"` → `score-update.sh --agent dev --event qa_reject_dev --note "<task_id>"`. (dev -12.)
   - Any failure with `primary_cause = "ba_spec"` → `score-update.sh --agent ba --event qa_reject_ba --note "<task_id>"` AND `--agent dev --event qa_reject_ba` (dev -5, ba -8).
@@ -1148,8 +1148,8 @@ Summarise score-update events from Step 12 and any user-rating events from `/clo
 
 | Agent | Event | Delta | Old → New |
 |-------|-------|-------|-----------|
-| ba    | qa_first_pass | +3 | 50 → 53 |
-| dev   | qa_first_pass | +6 | 50 → 56 |
+| ba    | qa_first_pass | 0  | 50 → 50 |
+| dev   | qa_first_pass | 0  | 50 → 50 |
 
 The current rank+range per agent is read by injecting `bash ~/.claude/scripts/score-inject.sh --agent <name>` (rank+range only — exact score is intentionally hidden per spec 5.1 line 112).
 
