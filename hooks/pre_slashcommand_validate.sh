@@ -41,5 +41,5 @@ ASK_COMMANDS=(
   "/fswatch"
 )
 
-# Allow by default (hook serves as documentation for future implementation)
+# Allow by default (no-op policy stub; validation logic not yet implemented)
 exit 0
