@@ -8,6 +8,7 @@
 
 ## Files
 - `allowlist.py` - Read-only /allow grant check (read_grant); no deletion
+- `bash_context_strip.py` - Strips non-executable bash contexts; _SCRIPT_INTERPS branch for non-shell interpreter argv stripping
 - `subagent.py` - Subagent detection (is_subagent_context) for all hooks
 - `todo_canonical.py` - Shared canonical todo validation utilities
 
