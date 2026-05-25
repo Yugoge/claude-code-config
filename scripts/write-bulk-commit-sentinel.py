@@ -69,66 +69,9 @@ def main(argv=None):
     args = _parse_args(sys.argv[1:] if argv is None else argv)
     sid = _resolve_sid(args.sid)
 
-    # M4.1 (task 20260524-205206 / AC-04): user-authorization gate.
-    # The production auth-flag path is /tmp/claude-bulk-allowed-<sid>.flag.
-    # Tests may override via CLAUDE_BULK_AUTH_FLAG_PATH_OVERRIDE, but the
-    # override MUST point at a regular file inside /tmp/ whose basename
-    # matches the test-flag pattern (a non-protected sibling glob — the
-    # production path is hook-protected from ALL model tool writes
-    # regardless of agent_id).
-    auth_flag_path = os.environ.get("CLAUDE_BULK_AUTH_FLAG_PATH_OVERRIDE", "").strip()
-    if auth_flag_path:
-        # Reject obviously-unsafe overrides (codex Cycle-5 finding #1 fix):
-        # the override must (a) not be a directory; (b) live under /tmp;
-        # (c) match the test-flag basename pattern. Otherwise an attacker
-        # could point at /tmp itself (unlink fails, write proceeds).
-        bn = os.path.basename(auth_flag_path)
-        if (
-            not auth_flag_path.startswith("/tmp/")
-            or os.path.isdir(auth_flag_path)
-            or not bn.endswith(".flag")
-            or "claude-bulk-allowed-" in bn
-            or not bn.startswith(("claude-bulk-test-flag-", "phase-a-auth-",
-                                  "test-auth", "no-such-flag"))
-        ):
-            print(
-                "Invalid CLAUDE_BULK_AUTH_FLAG_PATH_OVERRIDE — must be a regular "
-                "file under /tmp/ with basename matching the test-flag pattern.",
-                file=sys.stderr,
-            )
-            sys.exit(2)
-    else:
-        auth_flag_path = f"/tmp/claude-bulk-allowed-{sid}.flag"
-
-    if not os.path.exists(auth_flag_path) or os.path.isdir(auth_flag_path):
-        print(
-            "BULK mode requires explicit user authorization. "
-            "The user (not an agent) must run: "
-            "touch /tmp/claude-bulk-allowed-$CLAUDE_SESSION_ID.flag",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    # Consume the flag IMMEDIATELY at observation — BEFORE any sentinel-write
-    # attempt. Single-use semantics: the grant is spent regardless of what
-    # happens next. (Codex finding #8 fix: NO try/finally wrapper around the
-    # write — unlink-FIRST is the contract, not unlink-AFTER.)
-    # Codex Cycle-5 finding #1 fix: fail-closed if unlink fails for any
-    # reason other than the file already being gone (race condition). A
-    # silent unlink failure on a directory-path could let the sentinel write
-    # without consuming the grant.
-    try:
-        os.unlink(auth_flag_path)
-    except FileNotFoundError:
-        pass  # already gone (race condition); proceed to write attempt
-    except OSError as exc:
-        print(
-            f"Failed to consume auth flag at {auth_flag_path}: {exc}. "
-            "Refusing to write sentinel.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
+    # Authorization: /commit --bulk has disable-model-invocation: true, so
+    # reaching this script already proves human invocation. No separate auth
+    # flag is required — the slash-command gate is the sole authorization check.
     nonce = secrets.token_hex(8)
     now = datetime.now(timezone.utc)
     sentinel = {

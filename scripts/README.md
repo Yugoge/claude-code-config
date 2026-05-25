@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 59
+- **Total files**: 60
 - **Subdirectories**: 3
 - **Naming convention**: kebab
 
@@ -44,6 +44,7 @@ Organization and usage documentation for `scripts/`.
 - `generate-folder-readme.sh` - Description: Generate README.md for folder (purpose and organization rules)
 - `install-checkpoint-refspec.sh` - install-checkpoint-refspec.sh — idempotently add refs/checkpoints/* to
 - `iterate-failed-pipelines.py` - Reads pipelines JSON path; outputs iteration plan JSON to stdout. The orchestrator
+- `lifecycle-baseline-import.sh` - Description: One-time idempotent migration — import current agent scores from agent-scores.json
 - `migrate-test-to-tests.sh` - Description: Merge test/ folder into tests/ preserving all content (idempotent)
 - `normalize-doc-names.sh` - normalize-doc-names.sh - Detect and report non-compliant documentation file names
 - `orchestrator.sh` - Description: Agent orchestration coordinator for development and cleanup workflows
@@ -56,7 +57,7 @@ Organization and usage documentation for `scripts/`.
 - `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 - `scan-project.sh` - Description: Scan project structure and detect project type
 - `score-inject.sh` - Description: Emit a prompt-injection text block describing an agent's current rank/range
-- `score-update.sh` - Description: Update agent score state file based on a canonical event.
+- `score-update.sh` - Description: Update agent score by appending an entry to the lifecycle JSONL log.
 - `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 - `step7-spec-continue.py` - Step 7 (Spec-continue dispatch) reference harness — task 20260524-205206 iter-2
 - `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules

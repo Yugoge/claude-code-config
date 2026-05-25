@@ -1,42 +1,45 @@
 #!/usr/bin/env bash
 # Description: Emit a prompt-injection text block describing an agent's current rank/range
-#              and last 3 history events, plus a role-specific tail phrase.
-# Usage: score-inject.sh --agent <name> [--scores-file <path>]
+#              and last 3 behavioral history events, plus a role-specific tail phrase.
+# Usage: score-inject.sh --agent <name> [--lifecycle-file <path>]
 # Output: stdout = injection text block (rank + range + last-3 events + tail phrase)
 #         stderr = empty on success
-# Exit codes: 0 = ok, 1 = bad argument
+# Exit codes: 0 = ok, 1 = bad argument or malformed JSONL
+#
+# Root cause ref: arch-7 phase 2 (task 20260525-050824) — switched read path from
+# agent-scores.json to logs/lifecycle.jsonl under shared flock.
 
 set -euo pipefail
 
 SCRIPT_NAME="$(basename "$0")"
-SCORES_FILE_DEFAULT="${HOME}/.claude/agent-scores.json"
+LIFECYCLE_FILE_DEFAULT="${HOME}/.claude/logs/lifecycle.jsonl"
 
 usage() {
-  echo "Usage: ${SCRIPT_NAME} --agent <name> [--scores-file <path>]" >&2
+  echo "Usage: ${SCRIPT_NAME} --agent <name> [--lifecycle-file <path>]" >&2
   exit 1
 }
 
 AGENT=""
-SCORES_FILE="${SCORES_FILE_DEFAULT}"
+LIFECYCLE_FILE="${LIFECYCLE_FILE_DEFAULT}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --agent)       AGENT="${2:?missing value for --agent}"; shift 2 ;;
-    --scores-file) SCORES_FILE="${2:?missing value for --scores-file}"; shift 2 ;;
-    -h|--help)     usage ;;
-    *)             echo "Unknown argument: $1" >&2; usage ;;
+    --agent)          AGENT="${2:?missing value for --agent}"; shift 2 ;;
+    --lifecycle-file) LIFECYCLE_FILE="${2:?missing value for --lifecycle-file}"; shift 2 ;;
+    # Legacy --scores-file param: accepted but ignored (read path switched to lifecycle.jsonl)
+    --scores-file)    shift 2 ;;
+    -h|--help)        usage ;;
+    *)                echo "Unknown argument: $1" >&2; usage ;;
   esac
 done
 
 [[ -z "${AGENT}" ]] && usage
 
-# If the scores file doesn't exist, emit a neutral mid-tier header (rank-3 /
+# If the lifecycle file doesn't exist, emit a neutral mid-tier header (rank-3 /
 # range 41-60 / no-recent-events) rather than fail — the orchestrator can run
-# the inject in fresh checkouts. The CJK rank label inside the cat heredoc
-# below is the bound user-facing prompt-output per spec-20260518-225715 §5.1
-# Cycle-2 exemption (agents/style-inspector.md Standard 6).
-if [[ ! -f "${SCORES_FILE}" ]]; then
-  # Neutral mid-tier fallback when no scores file exists. INJECTION_PROOF
+# the inject in fresh checkouts.
+if [[ ! -f "${LIFECYCLE_FILE}" ]]; then
+  # Neutral mid-tier fallback when lifecycle file is missing. INJECTION_PROOF
   # contract requires the 8-hex sha256 prefix to be computed over the same
   # recent-events text that score-inject emits — here that text is the
   # literal string "none". (M2.1 / AC-02 / task 20260524-205206)
@@ -55,12 +58,20 @@ EOF
   exit 0
 fi
 
-( source ~/.claude/venv/bin/activate && python3 - "${SCORES_FILE}" "${AGENT}" <<'PYEOF'
+# Acquire shared flock on lifecycle.jsonl.lock (compatible with other readers; blocks exclusive writers)
+LOCK_FILE="${LIFECYCLE_FILE}.lock"
+exec 8>"${LOCK_FILE}"
+if ! flock -s -w 10 8; then
+  echo "${SCRIPT_NAME}: failed to acquire shared lock on ${LOCK_FILE} within 10s" >&2
+  exit 1
+fi
+
+( source ~/.claude/venv/bin/activate && python3 - "${LIFECYCLE_FILE}" "${AGENT}" <<'PYEOF'
 import hashlib
 import json
 import sys
 
-scores_file, agent = sys.argv[1:3]
+lifecycle_file, agent = sys.argv[1:3]
 
 RANK_BOUNDARIES = [
     (0, 20, "Apprentice"),
@@ -94,30 +105,66 @@ def injection_proof_block(rank_label, range_str, recent_events_text):
         "The digest above is the first 8 hex chars of sha256 over the literal Recent events text emitted by score-inject for this run. You MUST recompute it independently and include the same value in recent_events_digest_acknowledged. Without all four fields your output is considered non-compliant with the score-injection contract.\n"
     )
 
-try:
-    with open(scores_file, "r", encoding="utf-8") as f:
-        data = json.load(f)
-except Exception:
-    # Malformed scores file: emit the same neutral mid-tier header as the
-    # missing-file branch, with INJECTION_PROOF computed over "none".
+def emit_neutral_fallback():
     fb_rank = "Skilled Craftsman"
     fb_range = "41-60"
     fb_recent = "none"
-    sys.stdout.write(
-        f"[Rank: {fb_rank}] [Range: {fb_range}] Recent events: {fb_recent}\n"
-        "NOTE: User satisfaction is the final standard for measuring the value of your work.\n"
+    tail = (
+        "User satisfaction is the final standard for measuring the value of your work, and the highest-weighted signal in the scoring system."
+        "5 stars means you have only completed your basic job — this is not a reward, it is the starting point."
+        "Below 5 stars will bring punishment far exceeding any other event, and is irreversible."
     )
+    sys.stdout.write(f"[Rank: {fb_rank}] [Range: {fb_range}] Recent events: {fb_recent}\n")
+    sys.stdout.write(tail + "\n")
     sys.stdout.write(injection_proof_block(fb_rank, fb_range, fb_recent))
+
+# Read lifecycle.jsonl under shared flock (flock already acquired by bash caller).
+# Scan all lines; take latest new_score for rank/range computation.
+# For recent-events, take last 3 entries where event != "score_baseline_import".
+# Malformed non-final JSONL line: exit 1 with stderr message (not silent fallback).
+try:
+    with open(lifecycle_file, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+except OSError as e:
+    sys.stderr.write(f"score-inject.sh: cannot read {lifecycle_file}: {e}\n")
+    sys.exit(1)
+
+score = 50
+agent_found = False
+behavioral_events = []  # events with event != "score_baseline_import"
+
+for i, raw_line in enumerate(lines):
+    stripped = raw_line.rstrip("\n")
+    if not stripped:
+        continue
+    is_final = (i == len(lines) - 1)
+    try:
+        entry = json.loads(stripped)
+    except json.JSONDecodeError:
+        if is_final:
+            # Silently skip partial final line (crash-recovery path)
+            continue
+        # Non-final malformed line: audit corruption — exit 1 with stderr
+        sys.stderr.write(
+            f"score-inject.sh: malformed JSONL at line {i+1} of {lifecycle_file} (not final line) — possible audit corruption\n"
+        )
+        sys.exit(1)
+    if entry.get("agent") == agent:
+        score = int(entry.get("new_score", 50))
+        agent_found = True
+        ev = entry.get("event", "")
+        if ev != "score_baseline_import":
+            behavioral_events.append(entry)
+
+if not agent_found:
+    # No entry for this agent: neutral mid-tier fallback (same as missing-file behavior)
+    emit_neutral_fallback()
     sys.exit(0)
 
-agents = data.get("global", {}).get("agents", {})
-entry = agents.get(agent, {"score": 50, "rank": "Skilled Craftsman", "history": []})
-score = int(entry.get("score", 50))
 rank, rng = rank_and_range(score)
-history = entry.get("history", [])
 
-# Take only the last 3 events. Each event presented compactly: event name (delta).
-recent = history[-3:] if history else []
+# Take only the last 3 behavioral events (baseline_import filtered out per M3)
+recent = behavioral_events[-3:] if behavioral_events else []
 if recent:
     parts = []
     for h in recent:
@@ -142,5 +189,9 @@ sys.stdout.write(tail + "\n")
 sys.stdout.write(injection_proof_block(rank, rng, recent_str))
 PYEOF
 )
+python_exit=$?
+if [[ $python_exit -ne 0 ]]; then
+  exit $python_exit
+fi
 
 exit 0
