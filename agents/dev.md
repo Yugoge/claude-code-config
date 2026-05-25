@@ -494,7 +494,7 @@ When the orchestrator prepends a score-inject block to your dispatch prompt, the
 
 **Fail-safe**: if the injected header is absent or malformed (no `INJECTION_PROOF:` line present, or fields cannot be parsed), set ALL FOUR fields to `null` and do NOT fabricate values.
 
-**Why four fields?** rank + range alone are low entropy (~5 buckets each) and could be mechanically copied. The digest forces processing of the dynamic recent-events payload. The free-text action proves 行动 (act), not just 读 (read).
+**Why four fields?** rank + range alone are low entropy (~5 buckets each) and could be mechanically copied. The digest forces processing of the dynamic recent-events payload. The free-text action proves act, not just read.
 
 ---
 
