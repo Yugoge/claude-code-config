@@ -19,7 +19,7 @@ branch commit. Handles nested repo (`/dev/shm/dev-workspace/dot-claude/`) automa
 |------|---------|
 | `<task-id>` | Required unless `--force` or `--bulk`. Task-id from the completed `/dev` cycle (e.g. `20260516-212024`). |
 | `--force` | Bypass close-gate check. Human-only (enforced by `disable-model-invocation: true`). Audited. |
-| `--bulk` | Batch mode — explore full diff, group by subsystem, commit until zero diff. Human-only (enforced by `disable-model-invocation: true`). |
+| `--bulk` | Smart batch mode — group by task-id then subsystem, commit coherently, flag orphan files separately. Human-only (enforced by `disable-model-invocation: true`). |
 | `--dry-run` | Print what would be staged/committed; do not execute. |
 
 ## Step-by-step workflow
@@ -31,14 +31,6 @@ Parse `$ARGUMENTS`:
 - Strip `--bulk` if present → set `BULK=true`; else `BULK=false`
 - Strip `--dry-run` if present → set `DRYRUN=true`; else `DRYRUN=false`
 - Remaining token (if any) is `TASK_ID`
-
-**BULK user-authorization precondition (M4.2 / AC-04 — task 20260524-205206)**: if `BULK=true`, the user-authorization flag `/tmp/claude-bulk-allowed-${CLAUDE_SESSION_ID}.flag` MUST exist BEFORE Step 5 runs. If absent, abort immediately with the literal stderr message:
-
-```
-BULK mode requires explicit user authorization. The user (not an agent) must run: touch /tmp/claude-bulk-allowed-$CLAUDE_SESSION_ID.flag
-```
-
-and exit non-zero. The same gate is also enforced inside `scripts/write-bulk-commit-sentinel.py` (Step 5) — the script will refuse to write the bulk-commit sentinel and unlink the auth flag IMMEDIATELY upon observation (single-use semantics; one auth grant authorizes exactly one bulk operation). The auth flag may ONLY be created by a human user typing directly in a terminal session — `hooks/pretool-write-guard.sh` and `hooks/pretool-bash-safety.sh` deny ALL model tool calls (regardless of `agent_id` — main agent NOT exempt) that target `/tmp/claude-bulk-allowed-*.flag` or `/tmp/claude-bulk-commit-sentinel-*.json`.
 
 ### Step 2: Resolve task-id (unless --bulk)
 
@@ -142,7 +134,7 @@ Continue to Step 7 normally.
 
 #### status = `nothing_to_commit`
 Print: `WARNING: changelog-analyst found nothing to commit after exclusions. Verify the task cycle produced staged changes.`
-Continue to Step 7 (skip spec-continue if no real commit occurred — Step 7 skip conditions apply).
+Continue to Step 7 (skip spec-update if no real commit occurred — Step 7 skip conditions apply).
 
 #### status = `nothing_to_commit_precommitted`
 Record `auto_bulk_commits[]` from the structured output in the Step 7 summary.
@@ -177,7 +169,7 @@ Stop — do NOT retry, do NOT proceed to Step 7.
 #### status unknown / unparseable
 Treat as non-retryable. Print the raw changelog-analyst output and stop.
 
-### Step 7: Spec-continue dispatch (post-commit, deterministic fail-closed)
+### Step 7: Spec-update dispatch (post-commit, deterministic fail-closed)
 
 **This step is dispatched by `/commit` from its own orchestrator context — NOT from within changelog-analyst.** changelog-analyst has already returned before this step executes.
 

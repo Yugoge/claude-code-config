@@ -80,9 +80,16 @@ Phase 0 is **warn-only / classification**: do NOT make any staging or exclusion 
 
 **Candidate set** — scope depends on BULK flag and dev-report availability:
 
-**When BULK=true**: Include all entries from `git status --porcelain=v1` regardless
-of status code. Untracked (`??`) entries are candidates. This is the existing
-bulk-mode behavior and is UNCHANGED.
+**When BULK=true**: Apply smart grouping — do NOT blindly include all entries.
+
+1. **Task-id clusters** (highest priority): scan `docs/dev/` entries in `git status --porcelain=v1` and extract the task-id suffix (e.g. `close-report-20260524-205206.md` → task-id `20260524-205206`). Group all `docs/dev/` artifacts sharing the same task-id into one commit cluster per task-id. Never mix artifacts from different task-ids in the same commit.
+
+2. **Subsystem files** (non-docs/dev entries): group by subsystem prefix (`hooks/`, `commands/`, `agents/`, `scripts/`, `tests/`, `logs/`, other). Commit one subsystem group at a time.
+
+3. **Orphan files** (untracked files with no task-id pattern and no clear subsystem match, OR files whose content cannot be attributed to any active task): **do NOT auto-commit**. Print a warning for each:
+   `WARNING: bulk skipping orphan file <path> — no task-id affinity and no clear subsystem. Stage manually if needed.`
+
+This prevents cross-task contamination (impurities). The invariant is: every file in a bulk commit must share either the same task-id cluster OR the same subsystem scope as all other files in that commit.
 
 **When BULK=false AND a dev-report exists** (at the resolved `dev_report_path` below):
 The candidate set is restricted to a **staging whitelist** consisting of:
@@ -452,9 +459,10 @@ while ITERATION < MAX_ITERATIONS:
         #   $(git -C "${GIT_ROOT}" diff --stat --cached)"
         Commit message format: "auto-bulk: end-of-cycle commit for <branch> — <scope> updates"
 
-    # Orphan files (no subsystem match): commit separately with auto-bulk: prefix
-    # (bulk mode requires this prefix for the privilege guard sentinel check)
-    auto-bulk: end-of-cycle commit for <branch> — orphan changes
+    # Orphan files (no subsystem match and no task-id affinity): DO NOT auto-commit.
+    # Print a warning for each orphan file and skip it.
+    # The user must stage and commit orphans manually.
+    WARNING: bulk skipping orphan file <path> — no task-id affinity and no clear subsystem.
 
     # Also handle nested repo in each iteration
     Run nested repo check and commit (Phase 9) in each bulk iteration
