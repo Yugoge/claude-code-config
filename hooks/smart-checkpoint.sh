@@ -10,8 +10,5 @@
 # refs/checkpoints/<branch> instead of branch HEAD.
 #
 # This stub exits 0 immediately so any stale reference is a no-op.
-# The dev subagent attempted to `rm` this file but the global bash-safety
-# hook blocks `rm`. The user may delete it manually with:
-#     rm ~/.claude/hooks/smart-checkpoint.sh
 
 exit 0

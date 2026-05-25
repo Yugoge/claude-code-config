@@ -25,6 +25,20 @@ _SUDO_OPTS_WITH_ARG = frozenset({"-u", "--user", "-g", "--group", "-C", "--close
 # Commands whose arguments are the dangerous payload — do NOT strip their args.
 DANGER_COMMANDS = frozenset({"killall", "pkill", "kill", "rm", "mv"})
 _HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+_SCRIPT_INTERPS: frozenset[str] = frozenset({
+    "python", "python3", "python2",
+    "node", "nodejs",
+    "ruby", "perl", "php", "lua",
+    "rscript", "Rscript", "r", "R",
+    "java", "kotlin", "scala", "groovy",
+    "swift", "dotnet",
+})
+
+
+def _is_script_interp(name: str) -> bool:
+    """Return True for versioned interpreter names like python3.12, node20."""
+    base = re.split(r"[\d.]", name)[0]
+    return base in _SCRIPT_INTERPS or name in _SCRIPT_INTERPS
 
 
 def strip_non_executable_contexts(cmd: str) -> str:
@@ -282,6 +296,9 @@ def _process_segment(segment: str) -> str:
     if cmd_word in _SHELL_INTERPS:
         return _process_shell_interp(tokens, cmd_idx)
 
+    if _is_script_interp(cmd_word):
+        return _process_script_interp(tokens, cmd_idx)
+
     # Danger commands' arguments ARE the dangerous payload — unquote them so that
     # hook patterns like (killall|pkill)\s+.*(happy|claude|docker) and kill[ \t]+-
     # match against the content (e.g. killall "happy" → killall happy, kill "-9" → kill -9).
@@ -343,6 +360,34 @@ def _process_shell_interp(tokens: list[tuple[str, str]], cmd_idx: int) -> str:
                 i += 1
             break
         i += 1
+    return "".join(out)
+
+
+_SHELL_METAS = frozenset("<>()`")
+
+
+def _process_script_interp(tokens: list[tuple[str, str]], cmd_idx: int) -> str:
+    """Strip argv tokens after a non-shell script interpreter.
+
+    Word-kind tokens after cmd_idx that contain no shell metacharacters are
+    pure argv data — strip them so they cannot trigger danger-token patterns.
+    Tokens containing metacharacters (e.g. process substitution <(...)) are
+    kept so genuine embedded shell execution remains detectable.
+    """
+    out: list[str] = []
+    for i, (text, kind) in enumerate(tokens):
+        if i <= cmd_idx:
+            out.append(text)
+        elif kind == "word" and not any(c in text for c in _SHELL_METAS):
+            pass  # pure argv data; do not append
+        elif kind == "single":
+            out.append("")
+        elif kind == "double":
+            out.append(_strip_double_content(text))
+        elif kind == "comment":
+            out.append("")
+        else:
+            out.append(text)
     return "".join(out)
 
 

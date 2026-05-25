@@ -1,7 +1,7 @@
 # hooks
 
-*Last updated: 2026-05-25T05:10:01Z*
-**Total entries**: 136
+*Last updated: 2026-05-25T06:11:16Z*
+**Total entries**: 137
 **Convention**: kebab
 
 ## Tree
@@ -126,6 +126,7 @@ hooks/
 ├── `README-TODO-INJECTION.md` - Global Todo Injection Hook
 ├── `sentinel-lint.sh` - sentinel-lint.sh - Guards the dev-registry sentinel anchor in orchestrator files
 ├── `session-git-init.sh` - ============================================================================
+├── `session-gitignore-propagate.sh` - SessionStart hook: append missing standard harness gitignore rules to project repo
 ├── `session-info.sh` - s-info.sh — SessionStart: display environment info + tool quick reference
 ├── `session-promote-hook.sh` - Description: SessionStart hook that promotes a cold session back to ramdisk.
 ├── `session-tmpfs-banner.sh` - session-tmpfs-banner.sh — SessionStart hook (6th in the SessionStart hooks block).

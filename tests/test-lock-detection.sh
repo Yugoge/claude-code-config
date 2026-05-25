@@ -16,6 +16,10 @@ echo ""
 
 # Create temporary test repository
 TEST_REPO="/tmp/lock-test-repo-$$"
+_cleanup_repo() { rm -rf "$TEST_REPO" 2>/dev/null; }
+trap '_cleanup_repo' EXIT
+trap '_cleanup_repo; exit 130' INT
+trap '_cleanup_repo; exit 143' TERM
 mkdir -p "$TEST_REPO"
 cd "$TEST_REPO"
 

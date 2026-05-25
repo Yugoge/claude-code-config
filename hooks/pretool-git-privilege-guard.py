@@ -263,6 +263,40 @@ def _unlink_grant(grant_path):
         pass
 
 
+# Pointer-file path template for deferred commit-grant consumption (Fix B).
+# PreToolUse locks the grant (rename → .lck) and writes this pointer so
+# PostToolUse can locate it for finalization.
+_COMMIT_GRANT_ACTIVE_TEMPLATE = '/tmp/claude-commit-grant-active-{sid}.json'
+
+
+def _lock_grant_for_posttool(grant_path, effective_sid):
+    """Lock a commit grant for deferred PostToolUse consumption (Fix B).
+
+    Renames grant_path → grant_path + ".lck" to atomically remove it from
+    _find_grant / _find_grant_any searches (prevents double-use), then writes
+    a pointer at _COMMIT_GRANT_ACTIVE_TEMPLATE so posttool-allowlist-consume.py
+    can finalize:
+      - exit 0  → unlink the .lck file (consumed)
+      - non-zero → rename .lck back to original (grant preserved for retry)
+
+    Falls back to immediate _unlink_grant if the rename fails (e.g., cross-
+    device move or permission error) so the guard stays fail-closed.
+    """
+    locked_path = grant_path + '.lck'
+    try:
+        os.rename(grant_path, locked_path)
+    except OSError:
+        _unlink_grant(grant_path)
+        return
+    pointer_key = effective_sid or 'any'
+    pointer_path = _COMMIT_GRANT_ACTIVE_TEMPLATE.format(sid=pointer_key)
+    try:
+        with open(pointer_path, 'w') as fp:
+            json.dump({'locked_path': locked_path, 'original_path': grant_path}, fp)
+    except OSError:
+        pass
+
+
 def _git_output(args):
     """Run `git <args...>` and return stripped stdout, or '' on any error.
 
@@ -489,12 +523,41 @@ def _has_bulk_commit_sentinel(data):
     return False
 
 
+def _has_active_commit_grant():
+    """Return True if any single-use commit grant is pending or in-flight (Fix E).
+
+    Used to defer auto-bulk commits while a concurrent /commit cycle is active.
+    Checks .json (written, not yet locked) and .lck (locked by PreToolUse;
+    git commit subprocess is running) grant files.
+    """
+    for pattern in ('/tmp/claude-commit-grant-*.json',
+                    '/tmp/claude-commit-grant-*.lck'):
+        try:
+            for path in glob.glob(pattern):
+                grant = _load_grant(path)
+                if grant is not None and not _end_time_passed(
+                        grant.get('expires_at', '')):
+                    return True
+        except Exception:
+            pass
+    return False
+
+
 def _evaluate_commit(command, data):
     msg = _extract_commit_message(command)
     if msg and BLESSED_BRIDGE_RE.search(msg):
         # Require a valid bulk-commit sentinel (written by /commit --bulk).
         # Without it, any agent that knows the prefix could bypass the guard.
         if _has_bulk_commit_sentinel(data):
+            # Fix E: defer auto-bulk if a single-use /commit grant is active.
+            # A concurrent /commit cycle is in progress; let it finish first.
+            if _has_active_commit_grant():
+                _block(
+                    '\nDEFERRED: auto-bulk commit skipped — an active single-use '
+                    'commit grant exists (/tmp/claude-commit-grant-*.json or *.lck).\n'
+                    'A /commit cycle is in progress; auto-bulk will retry on the '
+                    'next scheduled cycle.\n'
+                )
             return
         _block(
             '\nBLOCKED: auto-bulk commit requires a bulk-commit sentinel.\n'
@@ -513,13 +576,14 @@ def _evaluate_commit(command, data):
         grant_path, grant = _find_grant('commit', sid)
         if grant is not None:
             if not _end_time_passed(grant.get('expires_at', '')):
-                _unlink_grant(grant_path)
+                _lock_grant_for_posttool(grant_path, sid)
                 return
     # Fallback: any valid unexpired commit grant (written by /commit close-gate).
     grant_path, grant = _find_grant_any('commit')
     if grant is not None:
         if not _end_time_passed(grant.get('expires_at', '')):
-            _unlink_grant(grant_path)
+            effective_sid = grant.get('sid') or sid or 'any'
+            _lock_grant_for_posttool(grant_path, effective_sid)
             return
     # AC-A13: default-deny all other agent git commit calls.
     _block_default_deny_commit(msg)

@@ -80,4 +80,26 @@ for p in glob.glob('/tmp/claude-bulk-commit-sentinel-*.json'):
 print('[stop-cleanup] reaped', reaped, 'bulk-commit sentinels', flush=True)
 " 2>>"$CONSENT_LOG" || true
 
+# ── Deferred commit-grant reap (Fix B) ──
+# PreToolUse renames grants to .lck for PostToolUse finalization.
+# At session end, sweep any orphaned .lck files and pointer files so a
+# crashed commit does not leave stale locks that block future grants.
+python3 -c "
+import glob, os
+reaped = 0
+for p in glob.glob('/tmp/claude-commit-grant-active-*.json'):
+    try:
+        os.unlink(p)
+        reaped += 1
+    except OSError:
+        pass
+for p in glob.glob('/tmp/claude-commit-grant-*.json.lck'):
+    try:
+        os.unlink(p)
+        reaped += 1
+    except OSError:
+        pass
+print('[stop-cleanup] reaped', reaped, 'deferred commit-grant files')
+" 2>>"$CONSENT_LOG" || true
+
 exit 0

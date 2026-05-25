@@ -8,6 +8,10 @@ set -uo pipefail
 
 HOOK="/root/.claude/hooks/stop-spec-coverage-enforce.py"
 WORK="$(mktemp -d -t stop-spec-qa-XXXXXX)"
+_cleanup_work() { rm -rf "$WORK" 2>/dev/null; }
+trap '_cleanup_work' EXIT
+trap '_cleanup_work; exit 130' INT
+trap '_cleanup_work; exit 143' TERM
 export CLAUDE_PROJECT_DIR="$WORK"
 mkdir -p "$WORK/.claude"
 mkdir -p "$WORK/docs/dev/specs/spec-20260423-080000/views"
