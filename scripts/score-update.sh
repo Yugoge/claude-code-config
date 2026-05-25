@@ -80,16 +80,22 @@ import datetime
 
 scores_file, agent, event, note = sys.argv[1:5]
 
-# Canonical event delta table (spec 5.1)
+# Canonical event delta table (spec 5.1).
+# Path A rebalance (task 20260524-205206 M1, cycle-total <= +5 across {dev,ba,qa}):
+# - qa_first_pass / qa_second_pass zeroed (per-iteration nudges collapsed into close events)
+# - close_success_qa_pass / close_success_qa_fail_fixed reduced to cross-agent sum = 4
+# - user_rating_5 kept at {dev:1,ba:0,qa:0} so the cycle scenario
+#   (qa_first_pass + close_success_qa_pass + user_rating_5) sums to 0+4+1 = 5
+# - All negative-valued entries UNCHANGED (user directive: minimum stays -40)
 EVENT_DELTAS = {
-    "close_success_qa_pass":       {"dev": 5,  "ba": 3,  "qa": 3},
-    "close_success_qa_fail_fixed": {"dev": 5,  "ba": 3,  "qa": 2},
+    "close_success_qa_pass":       {"dev": 2,  "ba": 1,  "qa": 1},
+    "close_success_qa_fail_fixed": {"dev": 2,  "ba": 1,  "qa": 1},
     "close_fail_qa_pass":          {"dev": -10, "ba": -5, "qa": -12},
     "close_fail_qa_fail":          {"dev": -10, "ba": -5, "qa": 0},
-    "qa_first_pass":               {"dev": 2,  "ba": 1,  "qa": 0},
+    "qa_first_pass":               {"dev": 0,  "ba": 0,  "qa": 0},
     "qa_reject_dev":               {"dev": -12, "ba": 0,  "qa": 0},
     "qa_reject_ba":                {"dev": -5, "ba": -8, "qa": 0},
-    "qa_second_pass":              {"dev": 1,  "ba": 0,  "qa": 0},
+    "qa_second_pass":              {"dev": 0,  "ba": 0,  "qa": 0},
     "user_rating_5":               {"dev": 1,  "ba": 0,  "qa": 0},
     "user_rating_4":               {"dev": -5, "ba": -3, "qa": -3},
     "user_rating_3":               {"dev": -15, "ba": -8, "qa": -8},

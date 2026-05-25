@@ -412,21 +412,27 @@ Take the final line QA returned (`CLOSE: YES` or `CLOSE: NO - ...`) and echo it 
 
 After the verdict is determined (but BEFORE the user rating below), apply close-event score updates based on the CLOSE verdict crossed with whether QA ever rejected this cycle (read `qa-report-<task-id>.json` history if present):
 
-- `CLOSE: YES*` AND QA never rejected → `bash ~/.claude/scripts/score-update.sh --agent dev --event close_success_qa_pass --note "<task-id>"`; same for `--agent ba`; same for `--agent qa`. (dev +5, ba +3, qa +3.)
-- `CLOSE: YES*` AND QA previously rejected then was fixed → `score-update.sh --event close_success_qa_fail_fixed` for ba/dev/qa. (dev +5, ba +3, qa +2.)
+- `CLOSE: YES*` AND QA never rejected → `bash ~/.claude/scripts/score-update.sh --agent dev --event close_success_qa_pass --note "<task-id>"`; same for `--agent ba`; same for `--agent qa`. (dev +2, ba +1, qa +1 — Path A rebalance task 20260524-205206 M1; cycle-total cross-agent sum = +4.)
+- `CLOSE: YES*` AND QA previously rejected then was fixed → `score-update.sh --event close_success_qa_fail_fixed` for ba/dev/qa. (dev +2, ba +1, qa +1 — Path A rebalance task 20260524-205206 M1; cycle-total cross-agent sum = +4.)
 - `CLOSE: NO` AND QA had passed (PM/inspector or codex caught issue post-QA) → `score-update.sh --event close_fail_qa_pass` for ba/dev/qa. (dev -10, ba -5, qa -12.)
 - `CLOSE: NO` AND QA had failed (rejection upstream) → `score-update.sh --event close_fail_qa_fail` for ba/dev/qa. (dev -10, ba -5, qa 0.)
 - `CLOSE: YES (FORCED)` (the `--force` short-circuit path) → SKIP close-event score updates entirely; --force bypasses scoring just as it bypasses QA debate.
 
-**Session self-summary — CLOSE:YES branch only (mandatory before rating)**:
+**Session Summary — CLOSE:YES branch only (mandatory before rating, timeline format)**:
 
 - If the verdict is **`CLOSE: YES`** (the non-forced YES forms — `YES`, `YES - degraded ...`, `YES — codex disabled ...`) AND `--force` was NOT passed in `$ARGUMENTS`:
-  - The orchestrator MUST produce a **Session Summary** section in its text output to the user. Generate this summary by reviewing the dev-report, QA-report, and close-report artifacts for the task-id. The summary MUST cover:
-    - **What was accomplished** this session
-    - **What was NOT accomplished** (gaps, deferred items)
-    - **User needs satisfied** vs **user needs not satisfied**
-    - **Bugs encountered** during the session
-    - **Improvement opportunities** identified
+  - The orchestrator MUST produce a `## Session Summary` section in its text output to the user. The summary MUST be a **chronological timeline** of the user's stated requests this session — NOT a 5-bucket free-form write-up.
+  - **Format (M3 / AC-03 — task 20260524-205206)**:
+    - Heading line: `## Session Summary`
+    - Each entry is exactly TWO lines:
+      - `User need: <verbatim user phrasing or close paraphrase>`
+      - `Design response: <1-line description of what this cycle did to address it>`
+    - Entries are ordered chronologically (earliest user request first).
+    - **Total length: <= 15 lines** (including the heading and any blank separators). Narrative paragraphs are FORBIDDEN.
+  - **Source binding**:
+    - Primary source for `User need:` lines: `docs/dev/user-requirement-<DEV_SESSION_ID>.md` (verbatim user text captured at /dev dispatch time), plus any user-clarification artifacts written this session.
+    - Source for `Design response:` lines: `docs/dev/dev-report-<task-id>.json`, `docs/dev/qa-report-<task-id>.json`, and `docs/dev/close-report-<task-id>.md` only — do NOT improvise outcomes not present in these artifacts.
+  - **Content quality** is orchestrator-improvisational — this spec constrains FORMAT only (chronological timeline + 2-line entries + <= 15 lines + forbidden narrative). The user has explicitly delegated content quality to the orchestrator's judgment ("自我总结的内容质量靠 orchestrator 即兴生成：无所谓").
   - This summary appears in the orchestrator's text message to the user, AFTER the `CLOSE:` verdict echo and BEFORE the rating `<options>` block below.
 - If the verdict is **`CLOSE: NO`** or **`CLOSE: YES (FORCED)`**: SKIP the session summary.
 
