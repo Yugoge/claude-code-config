@@ -4,8 +4,13 @@
 # implementation that asserts the GIVEN/WHEN/THEN behaviour. The metadata
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
+# REWRITTEN: arch-7 phase 2 (task 20260525-050824) — targets lifecycle JSONL
+# semantics; test body and docstring fully rewritten; only AC_UID and AC_TYPE preserved.
 
+import json
+import os
 import subprocess
+import tempfile
 import pytest
 
 AC_UID = "7d4395a2a5e37239"
@@ -14,47 +19,40 @@ AC_TYPE = "hook"
 
 def test_AC4():
     """
-    GIVEN: scripts/score-update.sh has been modified to compute and append uncapped_delta AND a temporary mock scores file exists with ba score at 100
-    WHEN:  score-update.sh --agent ba --event close_success_qa_pass --scores-file /tmp/test-scores.json is invoked on the temporary file
-    THEN:  appended history entry contains key uncapped_delta = 108 (100 + 8 = pre-clamp target; delta for ba/close_success_qa_pass is 8) AND new_score remains 100 (clamped) AND existing history entries are not rewritten AND ts/event/delta/old_score/new_score/note fields in history entries are unchanged
+    GIVEN: a temporary lifecycle JSONL file seeded with a score_baseline_import entry
+           for agent ba with new_score=100, AND score-update.sh has been updated (M1)
+           to append JSONL entries with unclamped_score and reason fields
+    WHEN:  score-update.sh --agent ba --event close_success_qa_pass --lifecycle-file <tmp>
+           is invoked (delta for ba/close_success_qa_pass is +1 per current EVENT_DELTAS)
+    THEN:  the last JSONL line in the temporary file has delta==1 and unclamped_score==101
+           (pre-clamp arithmetic: prev_score=100 + delta=1 = 101; new_score clamped to 100);
+           no field named uncapped_delta or note appears in the emitted JSON
     """
-    import json
-    import os
-    import tempfile
     repo = "/dev/shm/dev-workspace/dot-claude"
 
-    # Create temporary scores file with ba at score 100
-    tmp_scores = {
-        "global": {
-            "agents": {
-                "ba": {
-                    "score": 100,
-                    "rank": "Master",
-                    "history": [
-                        {
-                            "ts": "2026-01-01T00:00:00Z",
-                            "event": "seed",
-                            "delta": 0,
-                            "old_score": 50,
-                            "new_score": 100,
-                            "note": "pre-existing entry",
-                        }
-                    ],
-                }
-            }
-        }
-    }
-    fd, tmp_path = tempfile.mkstemp(suffix=".json", prefix="test-scores-ac4-")
+    # Create temporary lifecycle JSONL seeded with ba at new_score=100
+    fd, tmp_lifecycle = tempfile.mkstemp(suffix=".jsonl", prefix="test-lifecycle-ac4-")
     try:
+        seed_entry = {
+            "ts": "2026-01-01T00:00:00Z",
+            "agent": "ba",
+            "event": "score_baseline_import",
+            "prev_score": 100,
+            "new_score": 100,
+            "delta": 0,
+            "unclamped_score": 100,
+            "actor": "migration",
+            "reason": "seed for test_AC4",
+        }
         with os.fdopen(fd, "w") as f:
-            json.dump(tmp_scores, f)
+            f.write(json.dumps(seed_entry) + "\n")
 
-        # Run score-update.sh with ba/close_success_qa_pass (delta=8) against the temp file
+        # Run score-update.sh with ba/close_success_qa_pass (delta=+1) against temp file
         result = subprocess.run(
             ["bash", "scripts/score-update.sh",
              "--agent", "ba",
              "--event", "close_success_qa_pass",
-             "--scores-file", tmp_path],
+             "--lifecycle-file", tmp_lifecycle],
             capture_output=True,
             text=True,
             cwd=repo,
@@ -63,31 +61,34 @@ def test_AC4():
             f"score-update.sh exited {result.returncode}; stderr: {result.stderr}"
         )
 
-        # Read result
-        with open(tmp_path, "r") as f:
-            data = json.load(f)
-
-        history = data["global"]["agents"]["ba"]["history"]
-
-        # Existing entry must not be rewritten (additive-only check)
-        assert history[0]["event"] == "seed", "Pre-existing history entry was rewritten"
-        assert history[0]["note"] == "pre-existing entry", "Pre-existing entry note was modified"
-
-        # New (last) entry checks
-        last = history[-1]
-        assert "uncapped_delta" in last, (
-            f"Expected 'uncapped_delta' key in history entry, got keys: {list(last.keys())}"
+        # Read the last non-empty line from the temporary lifecycle JSONL
+        with open(tmp_lifecycle, "r") as f:
+            lines = [ln.rstrip("\n") for ln in f if ln.strip()]
+        assert len(lines) >= 2, (
+            f"Expected at least 2 JSONL lines (seed + new entry), got {len(lines)}"
         )
-        assert last["uncapped_delta"] == 108, (
-            f"Expected uncapped_delta == 108 (100 + 8 = pre-clamp target), got {last['uncapped_delta']}"
+        last = json.loads(lines[-1])
+
+        # Assert corrected delta and unclamped_score (arch-7 phase 2 semantics)
+        assert last["delta"] == 1, (
+            f"Expected delta == 1 (ba/close_success_qa_pass), got {last['delta']}"
         )
+        assert last["unclamped_score"] == 101, (
+            f"Expected unclamped_score == 101 (prev_score=100 + delta=1), got {last['unclamped_score']}"
+        )
+        # new_score is clamped: max(0, min(100, 101)) = 100
         assert last["new_score"] == 100, (
-            f"Expected new_score == 100 (clamped), got {last['new_score']}"
+            f"Expected new_score == 100 (clamped from 101), got {last['new_score']}"
         )
-        assert last["delta"] == 8, f"Expected delta == 8, got {last['delta']}"
-        assert last["old_score"] == 100, f"Expected old_score == 100, got {last['old_score']}"
+        # Mandatory 9-field schema check
+        for field in ("ts", "agent", "event", "prev_score", "new_score", "delta",
+                      "unclamped_score", "actor", "reason"):
+            assert field in last, f"Mandatory field '{field}' missing from JSONL entry"
+        # Forbidden legacy fields must not appear
+        assert "note" not in last, "Forbidden legacy field 'note' found in JSONL entry"
+        assert "uncapped_delta" not in last, "Forbidden legacy field 'uncapped_delta' found in JSONL entry"
     finally:
         try:
-            os.unlink(tmp_path)
+            os.unlink(tmp_lifecycle)
         except OSError:
             pass
