@@ -631,40 +631,143 @@ if echo "$COMMAND" | grep -qE "${DAEMON_RESTART_SENTINEL_RE}[A-Za-z0-9_-]+\.flag
 fi
 
 # Layer 1.F — bulk-commit auth-flag / sentinel write block (M4.3 / AC-04,
-# task 20260524-205206). Deny ANY model tool call (regardless of agent_id;
-# main agent NOT exempt — codex iter-2 finding #7 fix) that even MENTIONS
+# task 20260524-205206 + 20260525-095242 iter-3 compound-bypass hardening).
+# Deny ANY model tool call (regardless of agent_id; main agent NOT exempt —
+# codex iter-2 finding #7 fix) that even MENTIONS the protected globs
 # /tmp/claude-bulk-allowed-*.flag or /tmp/claude-bulk-commit-sentinel-*.json
-# in a Bash command. The deny is path-mention-based (not write-verb-based)
-# because codex Cycle-5 finding #2 showed write-verb-only patterns are
-# trivially bypassed via `python3 -c 'open(...).write(...)'`, `node -e ...`,
-# `perl -e ...`, here-docs, base64, etc. The user's directive is "permanently
-# forbid bulk without user auth"; the only legitimate writer of these paths
-# is a human typing in a real TTY (which does NOT flow through Claude
-# hooks). Two safelist exceptions: (a) the official sentinel-writer
-# `scripts/write-bulk-commit-sentinel.py` invocation (handled by Layer 1.G
-# below — recognized by full path), and (b) read-only operations
-# (`ls /tmp/claude-bulk-*`, `stat /tmp/claude-bulk-*`, `cat /tmp/claude-bulk-*`
-# WITHOUT a redirect). Stable label: bulk-commit-auth-flag-write.
-if echo "$COMMAND" | grep -qE '/tmp/claude-bulk-(allowed-[A-Za-z0-9_.\-]*\.flag|commit-sentinel-[A-Za-z0-9_.\-]*\.json)'; then
-  # Allowlist (b): pure read with NO redirect or write-pipe. Match read-only
-  # verbs ls/stat/cat/file/wc/head/tail/grep/jq/find that do NOT contain
-  # `>`, `>>`, `tee`, or assignment to a bulk path.
-  if echo "$COMMAND" | grep -qE '(^|[[:space:];|&])(ls|stat|cat|file|wc|head|tail|grep|jq|find|test|\[)\s+[^>]*/tmp/claude-bulk-' \
-     && ! echo "$COMMAND" | grep -qE '(>|>>|tee\b)'; then
-    : # read-only inspection allowed
-  # Allowlist (a): the official sentinel-writer script. The script enforces
-  # the auth-flag gate internally; allowing this invocation does NOT bypass
-  # the gate, it routes through it.
-  elif echo "$COMMAND" | grep -qE 'scripts/write-bulk-commit-sentinel\.py'; then
-    : # official sentinel-writer routed through script-level gate
+# in a Bash command, UNLESS the WHOLE command is a single pure-read
+# invocation OR a BARE official-writer invocation.
+#
+# This cycle (20260525-095242) tightens the allowlist semantics from
+# PREFIX-read to WHOLE-COMMAND-read. The prior allowlist matched the
+# read-only verb at the start of the command and only vetoed redirect
+# tokens (> / >> / tee), allowing compound bypasses such as
+# `ls <flag> ; python3 -c '...write...'` to slip through (the suffix
+# write segment was never evaluated). The new predicate asserts the
+# entire command shape:
+#   (a) Bare official-writer: `python3 scripts/write-bulk-commit-sentinel.py [args]`
+#       — script's own internal auth-flag check is the next gate. STARTS-WITH
+#       match (not substring) to defeat comment-spoof attacks.
+#   (b) Single pure-read: command begins with one of
+#       ls|stat|cat|file|wc|head|tail|grep|jq|find|test|[
+#       AND contains NO shell control structure (`;`, `&&`, `||`, `|`,
+#       bare `&`, `|&`, newline, `$(`, backtick, `<(`, `>(`, `<<`, `<<<`,
+#       shell keywords if/then/else/fi/for/while/do/done/case/esac/function)
+#       AND NO redirect (`>`, `>>`, `<>`, `tee`) AND NO recursive shell
+#       (`bash|sh|zsh|dash|python|node|perl|ruby` with `-c`/`-e`;
+#       `eval`; `source`) AND NO leading variable assignment (`VAR=...`)
+#       AND NO `xargs`/`-exec`/`-delete`/`-execdir`/`-ok`/`-okdir` write
+#       surface targeting the protected path.
+# Anything else → DENY with stable stderr token `bulk-commit-auth-flag-write`.
+if echo "$COMMAND" | grep -qE '/tmp/claude-bulk-(allowed-[A-Za-z0-9_\-]*\.flag|commit-sentinel-[A-Za-z0-9_\-]*\.json)([^A-Za-z0-9._\-]|$)'; then
+  # Trim leading whitespace for STARTS-WITH predicates below. (printf avoids
+  # the trailing-newline ambiguity that echo introduces.)
+  _bulk_trimmed_cmd="$(printf '%s' "$COMMAND" | sed -E 's/^[[:space:]]+//')"
+
+  # Compound-shape detection. Each predicate is evaluated against the trimmed
+  # command (raw $COMMAND for newline detection because newlines may be lost
+  # through pipes). If ANY matches the command is NOT a single bare invocation.
+  _bulk_is_compound=0
+
+  # Newline separator — detect via parameter expansion (case match against the
+  # literal newline byte). We use a $'\n' ANSI-C quoted literal here because
+  # $(printf '\n') strips its trailing newline inside command substitution,
+  # which would collapse the pattern to `*""*` and match every command.
+  _bulk_nl=$'\n'
+  case "$COMMAND" in
+    *"$_bulk_nl"*) _bulk_is_compound=1 ;;
+  esac
+
+  # Shell control structure: ; && || | & |& $( ` <( >( << <<<
+  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
+       | grep -qE '(;|&&|\|\||\||&|\$\(|`|<\(|>\(|<<|<<<)'; then
+    _bulk_is_compound=1
+  fi
+
+  # Redirect tokens: > >> <> tee
+  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
+       | grep -qE '(>|>>|<>|\btee\b)'; then
+    _bulk_is_compound=1
+  fi
+
+  # Recursive shell: bash|sh|zsh|dash|python|python3|node|perl|ruby + -c/-e
+  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
+       | grep -qE '\b(bash|sh|zsh|dash|python3?|node|perl|ruby)[[:space:]]+-[ce]\b'; then
+    _bulk_is_compound=1
+  fi
+
+  # eval / source / dot-source
+  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
+       | grep -qE '(^|[[:space:];|&])(eval|source|\.)[[:space:]]'; then
+    _bulk_is_compound=1
+  fi
+
+  # Leading variable assignment (VAR=value).
+  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
+       | grep -qE '^[A-Za-z_][A-Za-z0-9_]*='; then
+    _bulk_is_compound=1
+  fi
+
+  # Shell keywords: if/then/else/elif/fi/for/while/until/do/done/case/esac/function/select.
+  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
+       | grep -qE '(^|[[:space:];|&])(if|then|else|elif|fi|for|while|until|do|done|case|esac|function|select)([[:space:];|&]|$)'; then
+    _bulk_is_compound=1
+  fi
+
+  # xargs (write surface fed via stdin).
+  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
+       | grep -qE '\bxargs\b'; then
+    _bulk_is_compound=1
+  fi
+
+  # Allowlist (a): BARE official-writer invocation — STARTS-WITH match on
+  # `python3 scripts/write-bulk-commit-sentinel.py` or
+  # `scripts/write-bulk-commit-sentinel.py`. Substring match (anywhere in the
+  # command) is forbidden — it allows comment-spoof
+  # (`touch <flag> # scripts/write-bulk-commit-sentinel.py`) and compound-with-
+  # script (`scripts/write-bulk-commit-sentinel.py ; touch <flag>`) forms to evade.
+  _bulk_is_bare_writer=0
+  if [ "$_bulk_is_compound" = "0" ] && \
+     printf '%s' "$_bulk_trimmed_cmd" \
+       | grep -qE '^(python3?[[:space:]]+)?scripts/write-bulk-commit-sentinel\.py([[:space:]]|$)'; then
+    _bulk_is_bare_writer=1
+  fi
+
+  # Allowlist (b): single pure-read invocation. Same compound denylist applies.
+  # PLUS: bare `find` is OK; `find ... -exec/-delete/-execdir/-ok/-okdir` is NOT
+  # (those open a write surface and must be denied even though the leading verb
+  # is in the read allowlist).
+  _bulk_is_pure_read=0
+  if [ "$_bulk_is_compound" = "0" ] && \
+     printf '%s' "$_bulk_trimmed_cmd" \
+       | grep -qE '^(ls|stat|cat|file|wc|head|tail|grep|jq|find|test|\[)([[:space:]]|$)'; then
+    # find write-action veto: -exec/-execdir/-delete/-ok/-okdir/-fprint/
+    # -fprint0/-fprintf/-fls all open a write surface. -fprint*/-fls were
+    # added per codex iter-2 finding #2 (write-surface family is wider
+    # than the BA M1 enumeration listed).
+    if ! printf '%s' "$_bulk_trimmed_cmd" \
+         | grep -qE '\-(exec|execdir|delete|ok|okdir|fprint0?|fprintf|fls)\b'; then
+      _bulk_is_pure_read=1
+    fi
+  fi
+
+  if [ "$_bulk_is_bare_writer" = "1" ]; then
+    : # bare official-writer — script-level gate handles auth
+  elif [ "$_bulk_is_pure_read" = "1" ]; then
+    : # single pure-read inspection allowed
   else
-    echo "BLOCKED: bulk-commit-auth-flag-write — Bash command references /tmp/claude-bulk-allowed-*.flag or /tmp/claude-bulk-commit-sentinel-*.json — FORBIDDEN" >&2
+    echo "BLOCKED: bulk-commit-auth-flag-write — Bash command references /tmp/claude-bulk-allowed-*.flag or /tmp/claude-bulk-commit-sentinel-*.json in a compound or write context — FORBIDDEN" >&2
     echo "Command: $COMMAND" >&2
-    echo "REASON: per task 20260524-205206 M4.3 (codex Cycle-5 finding #2 fix), ANY Bash command that" >&2
-    echo "        mentions the protected globs in a writable context is denied — pattern-based deny" >&2
-    echo "        catches python3 -c, node -e, perl -e, here-docs, base64 decode, etc., which all" >&2
-    echo "        evade write-verb-only patterns. ALL model tool calls are denied regardless of agent_id." >&2
-    echo "        Read-only inspection (ls/stat/cat/grep without redirect) IS permitted." >&2
+    echo "REASON: per task 20260525-095242 (fix for prior cycle 20260524-205206 AC-04 BLOCKER)," >&2
+    echo "        the allowlist branch is tightened from PREFIX-read to WHOLE-COMMAND-read — any" >&2
+    echo "        shell control structure (; && || | & |& \$() backtick <(...) >(...) <<HEREDOC" >&2
+    echo "        newline shell-keyword), recursive shell (-c/-e/eval/source), variable assignment," >&2
+    echo "        or write-surface operator (xargs, find -exec/-delete/-execdir/-ok/-okdir, > >> tee)" >&2
+    echo "        causes the command to be denied. Only a single bare 'ls|stat|cat|file|wc|head|tail|" >&2
+    echo "        grep|jq|find|test|[' invocation of the protected path (with NO compound shape) is" >&2
+    echo "        allowed for inspection. The official sentinel-writer scripts/write-bulk-commit-" >&2
+    echo "        sentinel.py is allowed ONLY as a bare invocation (STARTS-WITH match — comment-spoof" >&2
+    echo "        and compound-with-script forms are denied)." >&2
     echo "        Only a human user typing directly in a terminal may create the auth flag." >&2
     exit 2
   fi
@@ -844,7 +947,7 @@ fi
 # Block: docker build of Dockerfile.webapp without HAPPY_SERVER_URL
 if echo "$COMMAND" | grep -qE 'docker\s+build' && echo "$COMMAND" | grep -q "Dockerfile.webapp"; then
   if ! echo "$COMMAND" | grep -q "HAPPY_SERVER_URL"; then
-    echo "BLOCKED: docker build for Dockerfile.webapp MUST include --build-arg HAPPY_SERVER_URL=https://api.life-ai.app" >&2
+    echo "BLOCKED: docker build for Dockerfile.webapp MUST include --build-arg HAPPY_SERVER_URL=https://api-dev.life-ai.app" >&2
     echo "Without this, the web app defaults to api.cluster-fluster.com (WRONG)." >&2
     echo "Command: $COMMAND" >&2
     exit 2
@@ -854,6 +957,42 @@ if echo "$COMMAND" | grep -qE 'docker\s+build' && echo "$COMMAND" | grep -q "Doc
     echo "Command: $COMMAND" >&2
     exit 2
   fi
+  if echo "$COMMAND" | grep -qE 'HAPPY_SERVER_URL=https://api\.life-ai\.app([^-]|$)'; then
+    echo "BLOCKED: HAPPY_SERVER_URL=https://api.life-ai.app is the PRODUCTION URL. Dev builds must use https://api-dev.life-ai.app" >&2
+    echo "Only web-prod builds targeting happy-app:message-fixes may use the production URL." >&2
+    echo "Command: $COMMAND" >&2
+    exit 2
+  fi
+fi
+
+# Block: wrong dev deployment patterns (2026-05-24 incident)
+# Pattern A: docker build targeting happy-app:dev but using the production HAPPY_SERVER_URL.
+#   This bakes api.life-ai.app into the dev image, breaking happy-dev by pointing it at production.
+# Pattern B: /root/happy/scripts/deploy.sh web-dev — that script's web-dev case uses the
+#   production URL and builds from /root/happy, both of which violate CLAUDE.md rules.
+# Neither pattern has a legitimate use. No IS_SUBAGENT bypass.
+_wrong_dev_deploy=0
+# Pattern A: docker build command targeting happy-app:dev with production HAPPY_SERVER_URL.
+#   All three must be true: (1) actual docker build invocation, (2) production URL, (3) dev image tag.
+#   Commands that merely quote or reference the URL in variable text do NOT trigger this.
+if echo "$COMMAND" | grep -q '\bdocker\b' && \
+   echo "$COMMAND" | grep -q '\bbuild\b' && \
+   echo "$COMMAND" | grep -q 'HAPPY_SERVER_URL=https://api\.life-ai\.app' && \
+   echo "$COMMAND" | grep -q 'happy-app:dev'; then
+  _wrong_dev_deploy=1
+fi
+# Pattern B: invokes /root/happy/scripts/deploy.sh with web-dev argument
+if echo "$COMMAND" | sed 's/&&/\n/g; s/||/\n/g; s/;/\n/g' | grep -qE '/root/happy/scripts/deploy\.sh.*\bweb-dev\b'; then
+  _wrong_dev_deploy=1
+fi
+if [ "$_wrong_dev_deploy" = "1" ]; then
+  echo "BLOCKED: Wrong dev deployment method." >&2
+  echo "  Pattern A: HAPPY_SERVER_URL=https://api.life-ai.app must NOT be used for happy-app:dev (that's the production URL)." >&2
+  echo "  Pattern B: /root/happy/scripts/deploy.sh web-dev is a production script with a hardcoded wrong URL." >&2
+  echo "Use instead: bash scripts/deploy-services.sh web-dev   (from /dev/shm/dev-workspace/happy-dev)" >&2
+  echo "         or: bash scripts/dev-overnight-build-deploy.sh <worktree-path> frontend" >&2
+  echo "Command: $COMMAND" >&2
+  exit 2
 fi
 
 # Block: direct SQL writes to production happy DB (INSERT/UPDATE/DELETE on Session, Account, etc.)
