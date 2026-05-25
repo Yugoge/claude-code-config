@@ -126,7 +126,7 @@ decision=$(
       fi
       printf 'emit'
     fi
-  } 9> "$LOCK_FILE" 2>/dev/null
+  } 2>/dev/null 9> "$LOCK_FILE"
 )
 
 [ "$decision" = "emit" ] || exit 0
