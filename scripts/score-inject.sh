@@ -60,9 +60,10 @@ fi
 
 # Acquire shared flock on lifecycle.jsonl.lock (compatible with other readers; blocks exclusive writers)
 LOCK_FILE="${LIFECYCLE_FILE}.lock"
+LOCK_TIMEOUT="${LOCK_TIMEOUT:-10}"
 exec 8>"${LOCK_FILE}"
-if ! flock -s -w 10 8; then
-  echo "${SCRIPT_NAME}: failed to acquire shared lock on ${LOCK_FILE} within 10s" >&2
+if ! flock -s -w "${LOCK_TIMEOUT}" 8; then
+  echo "${SCRIPT_NAME}: failed to acquire shared lock on ${LOCK_FILE} within ${LOCK_TIMEOUT}s" >&2
   exit 1
 fi
 
@@ -82,7 +83,9 @@ RANK_BOUNDARIES = [
 ]
 
 def rank_and_range(score):
-    s = max(0, min(100, score))
+    if score < 0:
+        return "Disgraced", "<0"
+    s = min(100, score)
     for lo, hi, name in RANK_BOUNDARIES:
         if lo <= s <= hi:
             return name, f"{lo}-{hi}"
@@ -171,7 +174,11 @@ if recent:
         ev = h.get("event", "?")
         d = h.get("delta", 0)
         sign = "+" if d >= 0 else ""
-        parts.append(f"{ev}({sign}{d})")
+        n = h.get("reason", "") or h.get("note", "")
+        if d < 0 and n:
+            parts.append(f'{ev}({sign}{d}): "{n}"')
+        else:
+            parts.append(f"{ev}({sign}{d})")
     recent_str = ", ".join(parts)
 else:
     recent_str = "none"

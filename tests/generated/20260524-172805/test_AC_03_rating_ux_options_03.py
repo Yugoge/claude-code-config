@@ -26,9 +26,10 @@ def test_AC_03():
     assert "<options>" in text and "</options>" in text, "options XML block missing"
     for label in ("5 stars", "4 stars", "3 stars", "2 stars", "1 star", "Skip"):
         assert label in text, f"option label {label!r} missing"
-    # (c) machine-readable value attrs
-    for v in ('value="5"', 'value="4"', 'value="3"', 'value="2"', 'value="1"', 'value="skip"'):
-        assert v in text, f"option {v} missing"
+    # (c) plain-text options (no value= attributes — happy renderer doesn't support them)
+    for label in ("5 stars -- Excellent", "4 stars -- Good", "3 stars -- Average",
+                  "2 stars -- Below average", "1 star -- Poor", "Skip rating"):
+        assert label in text, f"option label {label!r} missing from <options> block"
     # (d) explicit statement that options block is in orchestrator text, not file
     assert re.search(r"orchestrator'?s text", text, re.IGNORECASE), "missing orchestrator-text scoping note"
     # (e) post-option handling: three score-update.sh calls for ba/dev/qa user_rating_<N>
