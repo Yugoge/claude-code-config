@@ -48,18 +48,6 @@ from lib.allowlist import reap_expired_sentinel_grants
 print('[stop-cleanup] reaped', reap_expired_sentinel_grants(), '/tmp/claude-grants/* sentinel grants', file=sys.stderr)
 " 2>>"$CONSENT_LOG" || true
 
-# ── Bulk auth-flag reap (M4.4 / AC-04, task 20260524-205206) ──
-# /tmp/claude-bulk-allowed-<sid>.flag is created by a human user typing
-# directly in a terminal to authorize a single /commit --bulk operation.
-# At session end, sweep any leftover flag for the closing session so a
-# crashed bulk attempt does not silently authorize a later bulk in the
-# same session. Best-effort; never blocks agent stop.
-BULK_AUTH_FLAG="/tmp/claude-bulk-allowed-${SID}.flag"
-if [ -f "$BULK_AUTH_FLAG" ]; then
-  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) sid=$SID BULK_AUTH_FLAG_REAPED (turn ended)" >> "$CONSENT_LOG"
-  rm -f "$BULK_AUTH_FLAG"
-fi
-
 # ── Bulk-commit sentinel reap ──
 # /commit --bulk writes /tmp/claude-bulk-commit-sentinel-<sid>-<nonce>.json
 # (30 min TTL, multi-use). Reap any that have expired at session end.

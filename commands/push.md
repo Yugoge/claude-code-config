@@ -117,7 +117,8 @@ mismatched, abort and instruct the user to run `/commit` first.
 PRE_HEAD=$(git rev-parse HEAD)
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 REMOTE_URL=$(git remote get-url "${RESOLVED_REMOTE}" 2>/dev/null || echo "unknown")
-REPO_HASH=$(printf '%s' "$(realpath "$(git rev-parse --show-toplevel)")" | sha256sum | cut -c1-16)
+REPO_ROOT=$(realpath "$(git rev-parse --show-toplevel)")
+REPO_HASH=$(printf '%s' "${REPO_ROOT}" | sha256sum | cut -c1-16)
 REQUEST_ID=$(openssl rand -hex 16)
 SESSION_ID="${CLAUDE_SESSION_ID}"
 ```
@@ -181,18 +182,20 @@ triggers `exit 1` BEFORE any `git push` is reached.
 
 ```bash
 # Without --auto:
-source venv/bin/activate && python3 ~/.claude/scripts/execute-push.py \
-  --repo-hash "${REPO_HASH}" \
-  --branch "${BRANCH}" \
-  --remote "${RESOLVED_REMOTE}" \
-  --request-id "${REQUEST_ID}"
-
-# With --auto (only when /push was invoked with --auto):
-source venv/bin/activate && python3 ~/.claude/scripts/execute-push.py \
+python3 ~/.claude/scripts/execute-push.py \
   --repo-hash "${REPO_HASH}" \
   --branch "${BRANCH}" \
   --remote "${RESOLVED_REMOTE}" \
   --request-id "${REQUEST_ID}" \
+  --repo-root "${REPO_ROOT}"
+
+# With --auto (only when /push was invoked with --auto):
+python3 ~/.claude/scripts/execute-push.py \
+  --repo-hash "${REPO_HASH}" \
+  --branch "${BRANCH}" \
+  --remote "${RESOLVED_REMOTE}" \
+  --request-id "${REQUEST_ID}" \
+  --repo-root "${REPO_ROOT}" \
   --auto
 ```
 
