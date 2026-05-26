@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-26T05:39:47Z*
-**Total entries**: 742
+*Last updated: 2026-05-26T06:37:35Z*
+**Total entries**: 758
 **Convention**: kebab
 
 ## Tree
@@ -47,6 +47,8 @@ dev/
 ├── `acceptance-criteria-20260525-095242.json` - json config
 ├── `acceptance-criteria-20260525-095245.json` - json config
 ├── `acceptance-criteria-20260526-042454.json` - json config
+├── `acceptance-criteria-20260526-052559.json` - json config
+├── `acceptance-criteria-20260526-053746.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2.json` - json config
 ├── `acceptance-criteria-d1e94e.json` - json config
@@ -130,6 +132,9 @@ dev/
 ├── `ba-qa-report-20260525-095242.json` - json config
 ├── `ba-qa-report-20260525-095245.json` - json config
 ├── `ba-qa-report-20260526-042454.json` - json config
+├── `ba-qa-report-20260526-052545.json` - json config
+├── `ba-qa-report-20260526-052559.json` - json config
+├── `ba-qa-report-20260526-053746.json` - json config
 ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 ├── `ba-qa-report-d1e94e.json` - json config
 ├── `ba-qa-report-dev-20260524-170335.json` - json config
@@ -171,6 +176,7 @@ dev/
 ├── `cleanliness-inspector-report-20260525-050824.json` - json config
 ├── `cleanliness-inspector-report-20260525-095242.json` - json config
 ├── `cleanliness-inspector-report-20260525-095245.json` - json config
+├── `cleanliness-inspector-report-20260526-042454.json` - json config
 ├── `cleanliness-inspector-report-d1e94e.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-170335.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-205811.json` - json config
@@ -219,6 +225,7 @@ dev/
 ├── `close-report-20260525-050824.md` - Close Report — Task 20260525-050824
 ├── `close-report-20260525-095242.md` - Close Report: 20260525-095242 (Cycle 6 — Layer 1.F compound-command bypass fix)
 ├── `close-report-20260525-095245.md` - Close Report — Task 20260525-095245
+├── `close-report-20260526-042454.md` - Close Report — Task 20260526-042454
 ├── `close-report-d1e94e-prior.md` - Close Debate Report
 ├── `close-report-d1e94e.md` - Close Debate Report — d1e94e
 ├── `close-report-dev-20260524-170335.md` - Close Debate Report
@@ -328,6 +335,9 @@ dev/
 ├── `context-20260525-095242.json` - json config
 ├── `context-20260525-095245.json` - json config
 ├── `context-20260526-042454.json` - json config
+├── `context-20260526-052545.json` - json config
+├── `context-20260526-052559.json` - json config
+├── `context-20260526-053746.json` - json config
 ├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
@@ -480,6 +490,7 @@ dev/
 ├── `prompt-inspector-report-20260525-050824.json` - json config
 ├── `prompt-inspector-report-20260525-095242.json` - json config
 ├── `prompt-inspector-report-20260525-095245.json` - json config
+├── `prompt-inspector-report-20260526-042454.json` - json config
 ├── `prompt-inspector-report-d1e94e.json` - json config
 ├── `prompt-inspector-report-dev-20260524-170335.json` - json config
 ├── `prompt-inspector-report-dev-20260524-205811.json` - json config
@@ -568,6 +579,7 @@ dev/
 ├── `qa-report-20260526-042454.json` - json config
 ├── `qa-report-close-20260525-050824.json` - json config
 ├── `qa-report-close-20260525-095245.json` - json config
+├── `qa-report-close-20260526-042454.json` - json config
 ├── `qa-report-d1e94e.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
 ├── `qa-report-dev-20260107-100221.json` - json config
@@ -624,6 +636,7 @@ dev/
 ├── `style-inspector-report-20260525-050824.json` - json config
 ├── `style-inspector-report-20260525-095242.json` - json config
 ├── `style-inspector-report-20260525-095245.json` - json config
+├── `style-inspector-report-20260526-042454.json` - json config
 ├── `style-inspector-report-d1e94e.json` - json config
 ├── `style-inspector-report-dev-20260524-170335.json` - json config
 ├── `style-inspector-report-dev-20260524-205811.json` - json config
@@ -704,6 +717,9 @@ dev/
 ├── `ticket-20260525-095242.md` - BA Specification: Fix Layer 1.F compound-command bypass in pretool-bash-safety.sh
 ├── `ticket-20260525-095245.md` - BA Specification: Wrap bare python3 heredoc calls with venv activation
 ├── `ticket-20260526-042454.md` - BA Specification: Parameterize flock timeout constants (Standard 2/9 fix)
+├── `ticket-20260526-052545.md` - BA Specification: Privilege Guard Security Gap — auto-bulk: Bypass in BULK=false Mode
+├── `ticket-20260526-052559.md` - BA Specification: Close Layer 1.F bypass paths for write-bulk-commit-sentinel.py
+├── `ticket-20260526-053746.md` - BA Specification: Fix 6 Outstanding Items from Cycle 1-6
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-close-cont-20260524-170335.md` - Continuation: Fix bare python3 invocations introduced in dev-20260524-170335
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
