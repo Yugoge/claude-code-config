@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-26T14:44:00Z*
-**Total entries**: 775
+*Last updated: 2026-05-26T21:08:42Z*
+**Total entries**: 806
 **Convention**: kebab
 
 ## Tree
@@ -49,6 +49,7 @@ dev/
 ├── `acceptance-criteria-20260526-042454.json` - json config
 ├── `acceptance-criteria-20260526-052559.json` - json config
 ├── `acceptance-criteria-20260526-053746.json` - json config
+├── `acceptance-criteria-20260526-202532.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2.json` - json config
 ├── `acceptance-criteria-d1e94e.json` - json config
@@ -58,6 +59,9 @@ dev/
 ├── `acceptance-criteria-dev-20260525-053326-A.json` - json config
 ├── `acceptance-criteria-dev-20260525-053326-B.json` - json config
 ├── `acceptance-criteria-dev-20260525-053326-F.json` - json config
+├── `acceptance-criteria-dev-20260526-203808-issubagent.json` - json config
+├── `acceptance-criteria-dev-20260526-203808-manifest.json` - json config
+├── `acceptance-criteria-dev-20260526-203808.json` - json config
 ├── `architect-report-20260517-155838.json` - json config
 ├── `architect-report-dev-20260517-215114.json` - json config
 ├── `architect-report-dev-20260525-050824.json` - json config
@@ -135,10 +139,13 @@ dev/
 ├── `ba-qa-report-20260526-052545.json` - json config
 ├── `ba-qa-report-20260526-052559.json` - json config
 ├── `ba-qa-report-20260526-053746.json` - json config
+├── `ba-qa-report-20260526-202532.json` - json config
 ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 ├── `ba-qa-report-d1e94e.json` - json config
 ├── `ba-qa-report-dev-20260524-170335.json` - json config
 ├── `ba-qa-report-dev-20260525-050935.json` - json config
+├── `ba-qa-report-dev-20260526-203808-manifest.json` - json config
+├── `ba-qa-report-dev-20260526-203808.json` - json config
 ├── `ba-report-spec-20260520-221059.json` - json config
 ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 ├── `cleanliness-inspector-report-20260517-155838.json` - json config
@@ -185,8 +192,10 @@ dev/
 ├── `cleanliness-inspector-report-dev-20260525-050935.json` - json config
 ├── `cleanliness-inspector-report-dev-20260525-053326.json` - json config
 ├── `cleanliness-inspector-report-dev-20260526-044731.json` - json config
+├── `cleanliness-inspector-report-dev-20260526-200855.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
 ├── `close-debate-20260526-052559.md` - Close Debate Transcript -- 20260526-052559
+├── `close-debate-20260526-053746.md` - Close Debate Transcript — 20260526-053746
 ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
 ├── `close-report-20260510-191533.md` - Close Debate Report
 ├── `close-report-20260511-094500.md` - Close Report — 20260511-094500
@@ -287,6 +296,7 @@ dev/
 ├── `completion-dev-20260525-050935.md` - Dev Cycle Completion Report
 ├── `completion-dev-20260525-053326.md` - Completion Report
 ├── `completion-dev-20260526-044731.md` - Completion Report
+├── `completion-dev-20260526-200855.md` - Completion Report: dev-20260526-200855
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
 ├── `context-20260510-191533.json` - json config
@@ -345,6 +355,7 @@ dev/
 ├── `context-20260526-052545.json` - json config
 ├── `context-20260526-052559.json` - json config
 ├── `context-20260526-053746.json` - json config
+├── `context-20260526-202532.json` - json config
 ├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
@@ -365,6 +376,10 @@ dev/
 ├── `context-dev-20260525-053326-B.json` - json config
 ├── `context-dev-20260525-053326-F.json` - json config
 ├── `context-dev-20260526-044731.json` - json config
+├── `context-dev-20260526-200855.json` - json config
+├── `context-dev-20260526-203808-issubagent.json` - json config
+├── `context-dev-20260526-203808-manifest.json` - json config
+├── `context-dev-20260526-203808.json` - json config
 ├── `context-iter2-dev-20260111-193314.json` - json config
 ├── `dev-report-20260110-001044.json` - json config
 ├── `dev-report-20260416-063500-iter2.json` - json config
@@ -443,6 +458,7 @@ dev/
 ├── `dev-report-20260526-042454.json` - json config
 ├── `dev-report-20260526-052559.json` - json config
 ├── `dev-report-20260526-053746.json` - json config
+├── `dev-report-20260526-202532.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
@@ -460,6 +476,7 @@ dev/
 ├── `dev-report-dev-20260525-053326-F.json` - json config
 ├── `dev-report-dev-20260525-053326.json` - json config
 ├── `dev-report-dev-20260526-044731.json` - json config
+├── `dev-report-dev-20260526-200855.json` - json config
 ├── `meta-assessment-20260519-161035.json` - json config
 ├── `note-20260524-123039-root-bin-manual-commit.md` - Manual Commit Instructions: /root/bin/happy-session-recovery.sh
 ├── `observations-ledger.md` - Observations Ledger
@@ -502,12 +519,14 @@ dev/
 ├── `prompt-inspector-report-20260526-042454.json` - json config
 ├── `prompt-inspector-report-20260526-052559.json` - json config
 ├── `prompt-inspector-report-20260526-053746.json` - json config
+├── `prompt-inspector-report-20260526-202532.json` - json config
 ├── `prompt-inspector-report-d1e94e.json` - json config
 ├── `prompt-inspector-report-dev-20260524-170335.json` - json config
 ├── `prompt-inspector-report-dev-20260524-205811.json` - json config
 ├── `prompt-inspector-report-dev-20260525-050935.json` - json config
 ├── `prompt-inspector-report-dev-20260525-053326.json` - json config
 ├── `prompt-inspector-report-dev-20260526-044731.json` - json config
+├── `prompt-inspector-report-dev-20260526-200855.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
 ├── `qa-input-dev-20260107-091716.json` - json config
@@ -590,6 +609,7 @@ dev/
 ├── `qa-report-20260526-042454.json` - json config
 ├── `qa-report-20260526-052559.json` - json config
 ├── `qa-report-20260526-053746.json` - json config
+├── `qa-report-20260526-202532.json` - json config
 ├── `qa-report-close-20260525-050824.json` - json config
 ├── `qa-report-close-20260525-095245.json` - json config
 ├── `qa-report-close-20260526-042454.json` - json config
@@ -610,6 +630,7 @@ dev/
 ├── `qa-report-dev-20260525-053326-F.json` - json config
 ├── `qa-report-dev-20260525-053326.json` - json config
 ├── `qa-report-dev-20260526-044731.json` - json config
+├── `qa-report-dev-20260526-200855.json` - json config
 ├── `qa-report-iter2-dev-20260107-091716.json` - json config
 ├── `refined-context-dev-20260111-193314.json` - json config
 ├── `style-inspector-report-20260517-153856.json` - json config
@@ -652,12 +673,14 @@ dev/
 ├── `style-inspector-report-20260526-042454.json` - json config
 ├── `style-inspector-report-20260526-052559.json` - json config
 ├── `style-inspector-report-20260526-053746.json` - json config
+├── `style-inspector-report-20260526-202532.json` - json config
 ├── `style-inspector-report-d1e94e.json` - json config
 ├── `style-inspector-report-dev-20260524-170335.json` - json config
 ├── `style-inspector-report-dev-20260524-205811.json` - json config
 ├── `style-inspector-report-dev-20260525-050935.json` - json config
 ├── `style-inspector-report-dev-20260525-053326.json` - json config
 ├── `style-inspector-report-dev-20260526-044731.json` - json config
+├── `style-inspector-report-dev-20260526-200855.json` - json config
 ├── `test-writer-report-20260520-221452.json` - json config
 ├── `test-writer-report-20260521-090100.json` - json config
 ├── `test-writer-report-20260521-090200.json` - json config
@@ -737,6 +760,7 @@ dev/
 ├── `ticket-20260526-052545.md` - BA Specification: Privilege Guard Security Gap — auto-bulk: Bypass in BULK=false Mode
 ├── `ticket-20260526-052559.md` - BA Specification: Close Layer 1.F bypass paths for write-bulk-commit-sentinel.py
 ├── `ticket-20260526-053746.md` - BA Specification: Fix 6 Outstanding Items from Cycle 1-6
+├── `ticket-20260526-202532.md` - BA Specification: Remove dead auth-flag code from hooks
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-close-cont-20260524-170335.md` - Continuation: Fix bare python3 invocations introduced in dev-20260524-170335
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
@@ -749,6 +773,10 @@ dev/
 ├── `ticket-dev-20260525-053326-B.md` - BA Specification: Write-Guard Sentinel Integration (worker B)
 ├── `ticket-dev-20260525-053326-F.md` - BA Specification: Shell Cleanliness Fixes — Permissions, mktemp+trap, Stale Comments
 ├── `ticket-dev-20260526-044731.md` - BA Specification: Rename spec-continue → spec-update + Verify Flock Timeout Parameterization
+├── `ticket-dev-20260526-200855.md` - BA Specification: Fix execute-push.py CWD dependency via --repo-root
+├── `ticket-dev-20260526-203808-issubagent.md` - BA Specification: IS_SUBAGENT Gate on BLESSED_BRIDGE_RE Commit Path
+├── `ticket-dev-20260526-203808-manifest.md` - BA Specification: Register AC7 and AC7b in per-task manifest (task 20260526-052559)
+├── `ticket-dev-20260526-203808.md` - BA Specification: Fix stale M5 allowlist regex in ticket-20260526-052559 Edge Cases
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
 ├── `user-requirement-dev-20260518-214050.md` - No description
@@ -781,6 +809,9 @@ dev/
 ├── `user-requirement-dev-20260526-044731.md` - No description
 ├── `user-requirement-dev-20260526-052559.md` - No description
 ├── `user-requirement-dev-20260526-053746.md` - No description
+├── `user-requirement-dev-20260526-200855.md` - No description
+├── `user-requirement-dev-20260526-202532.md` - No description
+├── `user-requirement-dev-20260526-203808.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
