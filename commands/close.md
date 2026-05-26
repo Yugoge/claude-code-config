@@ -443,20 +443,20 @@ After the verdict is determined (but BEFORE the user rating below), apply close-
 
     ```
     <options>
-    <option value="5">5 stars -- Excellent</option>
-    <option value="4">4 stars -- Good</option>
-    <option value="3">3 stars -- Average</option>
-    <option value="2">2 stars -- Below average</option>
-    <option value="1">1 star -- Poor</option>
-    <option value="skip">Skip rating</option>
+        <option>5 stars -- Excellent</option>
+        <option>4 stars -- Good</option>
+        <option>3 stars -- Average</option>
+        <option>2 stars -- Below average</option>
+        <option>1 star -- Poor</option>
+        <option>Skip rating</option>
     </options>
     ```
 
-  - **Post-option handling contract**: the task-id MUST be retained in the orchestrator's context across the user's response. When the user selects a non-skip option N (where N ∈ {1,2,3,4,5}), the orchestrator runs three `score-update.sh` calls:
+  - **Post-option handling contract**: the task-id MUST be retained in the orchestrator's context across the user's response. Parse the selected option text to extract the star count: "5 stars" → N=5, "4 stars" → N=4, etc. When N ∈ {1,2,3,4,5}, the orchestrator runs three `score-update.sh` calls:
     - `bash ~/.claude/scripts/score-update.sh --agent ba --event user_rating_<N> --note "<task-id>"`
     - `bash ~/.claude/scripts/score-update.sh --agent dev --event user_rating_<N> --note "<task-id>"`
     - `bash ~/.claude/scripts/score-update.sh --agent qa --event user_rating_<N> --note "<task-id>"`
-  - When the user selects `value="skip"`: NO score-update calls are made. (Skip does NOT produce a separate event — spec 5.1.)
+  - When the user selects "Skip rating": NO score-update calls are made. (Skip does NOT produce a separate event — spec 5.1.)
 - If the verdict is **`CLOSE: NO`** in ANY form: SKIP the rating entirely. Per spec 5.1 line 136 verbatim, the rating prompt fires only after CLOSE:YES, NOT after CLOSE:NO.
 - If the verdict is **`CLOSE: YES (FORCED)`** (`--force` was passed): SKIP the rating entirely. The --force short-circuit at Step 2 line 54 means no QA debate occurred, so no user rating is collected and no score is updated.
 

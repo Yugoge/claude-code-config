@@ -46,11 +46,12 @@ if [[ ! -f "${LIFECYCLE_FILE}" ]]; then
 fi
 
 LOCK_FILE="${LIFECYCLE_FILE}.lock"
+LOCK_TIMEOUT="${LOCK_TIMEOUT:-10}"
 
 # Acquire exclusive lock; auto-release on FD close
 exec 9>"${LOCK_FILE}"
-if ! flock -w 10 9; then
-  echo "${SCRIPT_NAME}: failed to acquire lock on ${LOCK_FILE} within 10s" >&2
+if ! flock -w "${LOCK_TIMEOUT}" 9; then
+  echo "${SCRIPT_NAME}: failed to acquire lock on ${LOCK_FILE} within ${LOCK_TIMEOUT}s" >&2
   exit 2
 fi
 
