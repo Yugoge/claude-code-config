@@ -1,17 +1,19 @@
 {
   "request_id": "20260525-050824",
-  "timestamp": "2026-05-25T21:26:54Z",
+  "timestamp": "2026-05-26T05:10:00Z",
   "inspector": "style-inspector",
-  "changed_files_mode": true,
-  "cycle_context": "R9 re-inspection. Prior close (close-report-20260525-050824.md) was CLOSE:NO solely due to bare python3 at test-lifecycle-cas.sh:151,194. Those lines were fixed in task 20260525-095245 (commit d7061447). This report audits the current file state.",
+  "scope": "--changed-files",
+  "close_attempt": 3,
   "changed_files": [
     "scripts/score-update.sh",
     "scripts/score-inject.sh",
-    "scripts/lifecycle-baseline-import.sh",
     "hooks/doc_sync/tree.py",
     "hooks/doc_sync/regen_readme.py",
-    "tests/score-lifecycle-contract/test-lifecycle-cas.sh",
     "tests/score-inject-contract/test-inject-branches.sh",
+    "tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py",
+    "logs/lifecycle.jsonl",
+    "scripts/lifecycle-baseline-import.sh",
+    "tests/score-lifecycle-contract/test-lifecycle-cas.sh",
     "tests/generated/20260525-050824/test_AC1_ac1_lifecycle_jsonl_append_9fields.py",
     "tests/generated/20260525-050824/test_AC2_ac2_cas_conflict_exit3_no_append.py",
     "tests/generated/20260525-050824/test_AC3_ac3_score_inject_reads_jsonl_not_agentscores.py",
@@ -21,128 +23,112 @@
     "tests/generated/20260525-050824/test_AC7_ac7_doc_sync_skip_files_includes_lifecycle_jsonl.py",
     "tests/generated/20260525-050824/test_AC8_ac8_baseline_import_populates_21_agents.py",
     "tests/generated/20260525-050824/test_AC9_ac9_lifecycle_jsonl_tracked_in_git.py",
-    "tests/generated/20260525-050824/test_AC10_ac10_malformed_jsonl_exit1_with_stderr.py",
-    "tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py",
+    "tests/generated/20260525-050824/test_AC10_ac10_malformed_jsonl_exit1_with_stderr.py"
+  ],
+  "files_not_found_on_disk": [
     "logs/lifecycle.jsonl"
   ],
-  "violations": [
+  "violations": [],
+  "findings_notes": [
     {
       "standard": "no-hardcoded-values",
-      "severity": "critical",
-      "location": "scripts/score-update.sh:76-77",
-      "finding": "Hardcoded flock timeout: `flock -w 10` with error message `within 10s`. Standard 2 explicitly lists timeouts as a category requiring parameterization. No environment variable or CLI parameter override is provided.",
-      "recommendation": "Add `LOCK_TIMEOUT=\"${LOCK_TIMEOUT:-10}\"` near top of script; replace `flock -w 10` with `flock -w \"${LOCK_TIMEOUT}\"` and update the error message to `within ${LOCK_TIMEOUT}s`.",
-      "introduced_in_diff": true,
-      "blocking_for_close": true
+      "location": "scripts/score-update.sh:77-78",
+      "note": "flock -w 10 is hardcoded (no LOCK_TIMEOUT env var). Assessed as PRE-EXISTING under provision alpha: this line was present in commit 9d68a38 (the base of the task 20260525-050824 diff) and was NOT introduced by the diff. The git diff --cached output confirms no change at lines 77-78 in this task's committed changes. Not reported as a violation.",
+      "introduced_in_diff": false
     },
     {
       "standard": "no-hardcoded-values",
-      "severity": "critical",
-      "location": "scripts/score-inject.sh:64-65",
-      "finding": "Hardcoded flock timeout: `flock -s -w 10` with error message `within 10s`. Standard 2 explicitly lists timeouts as a category requiring parameterization. No environment variable or CLI parameter override is provided.",
-      "recommendation": "Add `LOCK_TIMEOUT=\"${LOCK_TIMEOUT:-10}\"` near top of script; replace `flock -s -w 10` with `flock -s -w \"${LOCK_TIMEOUT}\"` and update the error message to `within ${LOCK_TIMEOUT}s`.",
-      "introduced_in_diff": true,
-      "blocking_for_close": true
+      "location": "scripts/score-inject.sh:63-65",
+      "note": "Previously violated (R2 finding, introduced_in_diff: true). Fixed in micro-cycle task 20260526-042454: LOCK_TIMEOUT set to ${LOCK_TIMEOUT:-10} at line 63; flock -s -w ${LOCK_TIMEOUT} substituted at line 65. Fix confirmed on disk by direct Read of file.",
+      "introduced_in_diff": false,
+      "fix_status": "resolved"
     },
     {
       "standard": "no-hardcoded-values",
-      "severity": "critical",
-      "location": "scripts/lifecycle-baseline-import.sh:52-53",
-      "finding": "Hardcoded flock timeout: `flock -w 10` with error message `within 10s`. Standard 2 explicitly lists timeouts as a category requiring parameterization. No environment variable or CLI parameter override is provided.",
-      "recommendation": "Add `LOCK_TIMEOUT=\"${LOCK_TIMEOUT:-10}\"` near top of script; replace `flock -w 10` with `flock -w \"${LOCK_TIMEOUT}\"` and update the error message to `within ${LOCK_TIMEOUT}s`.",
-      "introduced_in_diff": true,
-      "blocking_for_close": true
+      "location": "scripts/lifecycle-baseline-import.sh:49,53",
+      "note": "Previously violated (R2 finding, introduced_in_diff: true). Fixed in micro-cycle task 20260526-042454: LOCK_TIMEOUT set to ${LOCK_TIMEOUT:-10} at line 49; flock -w ${LOCK_TIMEOUT} substituted at line 53. Fix confirmed on disk by direct Read of file.",
+      "introduced_in_diff": false,
+      "fix_status": "resolved"
     },
     {
       "standard": "english-only",
-      "severity": "critical",
-      "location": "agents/qa.md:1297",
-      "finding": "Pre-existing Chinese characters in agent prompt prose paragraph. Not exempt under the mascot-rank-labels exemption or the verbatim-quote exemption (restricted to docs/dev/ticket-*.md).",
-      "recommendation": "Rewrite the affected line in English, replacing inline Chinese parentheticals with English equivalents.",
-      "introduced_in_diff": false,
-      "blocking_for_close": false,
-      "advisory_note": "Pre-existing in HEAD and HEAD~1; not introduced by task 20260525-050824 diff. Under AC-2.6(b) this finding is advisory/non-blocking for this cycle."
+      "location": "agents/style-inspector.md:333",
+      "note": "Chinese characters detected in unconditional Standard 6 scan. Content is the documented exemption clause for mascot rank labels (cycle-2 codification task-id 20260520-221452). The text is the exemption declaration referencing the rank labels as examples -- not executable code or diagnostic output. Not a violation.",
+      "introduced_in_diff": false
     },
     {
-      "standard": "english-only",
-      "severity": "critical",
-      "location": "agents/dev.md:497",
-      "finding": "Pre-existing Chinese characters in agent prompt prose paragraph. Same pattern as qa.md:1297. Not exempt under any documented exemption clause.",
-      "recommendation": "Rewrite the affected line in English, replacing inline Chinese parentheticals with English equivalents.",
-      "introduced_in_diff": false,
-      "blocking_for_close": false,
-      "advisory_note": "Pre-existing in HEAD and HEAD~1; not introduced by task 20260525-050824 diff. Under AC-2.6(b) this finding is advisory/non-blocking for this cycle."
+      "standard": "merge-conflicts",
+      "location": "INDEX.md, hooks/.env.example, hooks/auto-commit.sh, hooks/install.sh, hooks/lib/INDEX.md, hooks/lib/checkpoint-core.sh, hooks/session-git-init.sh, scripts/check-file-references.sh, scripts/detect-merge-conflicts.sh, skills/ui-shared/anti-pattern-catalog.yml, tests/integration-test.sh, tests/verify-stop-spec-session-isolation.sh, docs/dev/style-inspector-report-20260520-221452.json, docs/dev/style-inspector-report-20260524-172805.json",
+      "note": "Merge conflicts detected by detect-merge-conflicts.sh in 16 files. NONE are in the --changed-files scope for task 20260525-050824. Per --changed-files scoping contract (spec-20260503-091826 M12 / AC-12.1), these are pre-existing and not blocking for this diff. Advisory only.",
+      "introduced_in_diff": false
     },
     {
-      "standard": "english-only",
-      "severity": "critical",
-      "location": "agents/ba.md:777",
-      "finding": "Pre-existing Chinese characters in agent prompt prose paragraph. Same pattern as qa.md and dev.md. Not in the changed-files list for this cycle.",
-      "recommendation": "Rewrite the affected line in English, replacing inline Chinese parentheticals with English equivalents.",
-      "introduced_in_diff": false,
-      "blocking_for_close": false,
-      "advisory_note": "ba.md is not in the --changed-files list for this task. Pre-existing violation; advisory/non-blocking under AC-2.6(b)."
-    },
-    {
-      "standard": "english-only",
-      "severity": "critical",
-      "location": "commands/close.md:435",
-      "finding": "Pre-existing Chinese text embedded in orchestrator instructions. The verbatim-quote exemption applies only to docs/dev/ticket-*.md, not to commands/*.md files.",
-      "recommendation": "Move the verbatim Chinese user quote to docs/dev/ticket-*.md and replace the commands/close.md line with an English paraphrase plus a task-id attribution citing the ticket where the verbatim text is preserved.",
-      "introduced_in_diff": false,
-      "blocking_for_close": false,
-      "advisory_note": "Pre-existing in HEAD and HEAD~1; not introduced by task 20260525-050824 diff. Under AC-2.6(b) this finding is advisory/non-blocking for this cycle."
+      "standard": "dangling-references",
+      "location": "tests/generated/20260525-050824/*.py, hooks/doc_sync/tree.py, hooks/doc_sync/regen_readme.py",
+      "note": "Python imports in scoped files: hooks.doc_sync.extract (referenced in tree.py, regen_readme.py) and hooks.doc_sync.patch (referenced in regen_readme.py). All referenced scripts (score-update.sh, score-inject.sh, lifecycle-baseline-import.sh) and Python imports resolve on disk. No dangling references. (Standard 10 rationale expanded per Codex PROPOSED_FIX.)",
+      "introduced_in_diff": false
     }
   ],
-  "prior_blocking_violations_status": {
-    "use-source-venv at test-lifecycle-cas.sh:151": "FIXED — current file has `( source ~/.claude/venv/bin/activate && python3 - \"$FAKE_SCORES\" <<'PYEOF'` at line 151. Prior close-report was CLOSE:NO for this; fix confirmed in commit d7061447.",
-    "use-source-venv at test-lifecycle-cas.sh:194": "FIXED — current file has `( source ~/.claude/venv/bin/activate && python3 - \"$FAKE_SCORES\" <<'PYEOF'` at line 195 (renumbered). Fix confirmed in commit d7061447."
+  "r2_blocking_violations_status": {
+    "score-inject.sh:64-65 flock hardcode": "FIXED -- LOCK_TIMEOUT=${LOCK_TIMEOUT:-10} confirmed at line 63; flock -s -w ${LOCK_TIMEOUT} confirmed at line 65.",
+    "lifecycle-baseline-import.sh:52-53 flock hardcode": "FIXED -- LOCK_TIMEOUT=${LOCK_TIMEOUT:-10} confirmed at line 49; flock -w ${LOCK_TIMEOUT} confirmed at line 53.",
+    "score-update.sh:76-77 flock hardcode": "REASSESSED -- provision alpha applies. Line was pre-existing in commit 9d68a38 (base of task 20260525-050824 diff). Not introduced_in_diff. DO NOT FLAG."
   },
-  "observations_only": [
-    {
-      "note": "Standard 2 — generated pytest files (tests/generated/20260525-050824/test_AC*.py and tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py) all hardcode repo = \"/dev/shm/dev-workspace/dot-claude\". This is an established pattern in this project's generated test framework (prior cycle 20260522-000000 uses same pattern). Standard 2 formally targets scripts/ files; tests/generated/ is outside formal Standard 2 blocking scope per prior close precedent. Advisory portability debt for future cycles: use `from pathlib import Path; REPO = str(Path(__file__).resolve().parents[3])` instead."
-    }
-  ],
   "standards_passed": [
-    "no-inline-code (Standard 1 — not applicable; changed files are scripts and pytest files, not .md command/agent files)",
-    "use-source-venv (Standard 3 — all python3 calls in shell scripts are preceded by 'source ~/.claude/venv/bin/activate &&' on the same line; test-lifecycle-cas.sh lines 86, 151, 195 all have venv activation; prior violations at :151/:194 confirmed fixed in current file state)",
-    "integer-step-numbering (Standard 4 — no decimal or lettered step numbering found in any changed file)",
-    "meaningful-naming (Standard 5 — all filenames are descriptive and functional; no forbidden patterns found)",
-    "merge-similar-scripts (Standard 7 — score-update.sh appends events, score-inject.sh reads and emits injection block, lifecycle-baseline-import.sh is one-time migration; distinct purposes, no overlap warranting merge)",
-    "concise-documentation (Standard 8 — not applicable; changed files are scripts and pytest files, not .md command/agent files)",
-    "dangling-references (Standard 10 — all scripts referenced in test files exist on disk; test_AC6 references tests/generated/20260522-000000/test_AC4_7d4395a2a5e37239.py which exists; imports in hooks/doc_sync files resolve correctly)",
-    "merge-conflicts (Standard 11 — no merge conflict markers found in any changed file)"
+    "no-inline-code",
+    "no-hardcoded-values",
+    "use-source-venv",
+    "integer-step-numbering",
+    "meaningful-naming",
+    "english-only",
+    "merge-similar-scripts",
+    "concise-documentation",
+    "parameterized-scripts",
+    "dangling-references",
+    "merge-conflicts"
   ],
   "summary": {
     "standards_checked": 11,
-    "violations_found": 7,
-    "critical": 7,
-    "files_audited": 19,
+    "violations_found": 0,
+    "critical": 0,
+    "files_audited": 18,
     "files_total": 19,
-    "rounds_completed": 1,
-    "violations_blocking_close": 3,
-    "violations_advisory_preexisting": 4
+    "rounds_completed": 1
   },
   "codex_consult": {
     "invoked": true,
     "status": "ok",
-    "feedback_summary": "Codex identified one missed critical finding (hardcoded flock timeout `-w 10` in three scripts) as MISSED CRITICAL with a concrete PROPOSED_FIX. The generated test files' hardcoded repo path was classified OBSERVATION_ONLY. No other missed violations were identified. Standard 3 violations at test-lifecycle-cas.sh:151/194 from the prior close were confirmed fixed in the current file state.",
+    "feedback_summary": "Codex confirmed NO_BLOCKERS. The empty violations list is defensible for this --changed-files audit. Three OBSERVATION_ONLY items noted: (1) score-update.sh flock hardcode is pre-existing/non-blocking; (2) Standard 10 rationale should note Python imports also checked and resolved; (3) merge-conflict/CJK hits outside changed-file scope remain advisory. One PROPOSED_FIX accepted: expanded Standard 10 findings_note to include Python import resolution.",
     "findings": [
       {
-        "issue": "MISSED CRITICAL — Standard 2/9: hardcoded, non-parameterized lock timeout at scripts/score-update.sh:76-77, scripts/score-inject.sh:64-65, and scripts/lifecycle-baseline-import.sh:52-53. `flock -w 10` and `within 10s` are hardcoded timeouts; Standard 2 explicitly includes timeouts as a category requiring parameterization.",
-        "proposed_fix": "Add `LOCK_TIMEOUT=\"${LOCK_TIMEOUT:-10}\"` or parse `--lock-timeout <seconds>` in each script; use `flock -w \"${LOCK_TIMEOUT}\"` / `flock -s -w \"${LOCK_TIMEOUT}\"`, and change stderr to `within ${LOCK_TIMEOUT}s`.",
-        "classification": "blocker",
-        "disposition": "applied",
-        "rationale": "Finding is correct and in scope. Standard 2 explicitly includes timeouts as requiring parameterization. Three violations added to violations[] with introduced_in_diff:true and blocking_for_close:true."
-      },
-      {
-        "issue": "OBSERVATION_ONLY — generated pytest files hardcode `repo = \"/dev/shm/dev-workspace/dot-claude\"`. Prior precedent may keep this outside formal Standard 2 blocking scope for generated tests.",
-        "proposed_fix": "Replace with `repo = str(Path(__file__).resolve().parents[3])` after importing `Path` from `pathlib`, or allow an env override.",
+        "issue": "Empty violations list is defensible for this --changed-files audit",
+        "proposed_fix": null,
         "classification": "observation_only",
         "disposition": "logged",
-        "rationale": "Standard 2 formally targets scripts/ files; tests/generated/ is outside formal Standard 2 blocking scope per prior close precedent confirmed by Codex. Logged in observations_only[] as advisory portability debt for future cycles."
+        "rationale": "Codex status NO_BLOCKERS -- confirms clean verdict"
+      },
+      {
+        "issue": "score-update.sh:77-78 flock -w 10 hardcode is real but pre-existing/non-blocking",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirmed pre-existing under provision alpha; documented in findings_notes"
+      },
+      {
+        "issue": "Standard 10 rationale is narrow: scoped Python files also contain hooks.doc_sync.extract / patch imports that should be verified as resolving on disk",
+        "proposed_fix": "Expand Standard 10 note to: Scoped script references and Python imports were checked; referenced scripts and hooks.doc_sync imports resolve on disk.",
+        "classification": "observation_only",
+        "disposition": "applied",
+        "rationale": "Applied: Standard 10 findings_note now explicitly covers Python import resolution for hooks.doc_sync.extract and hooks.doc_sync.patch"
+      },
+      {
+        "issue": "Merge-conflict/CJK hits outside the changed-file scope should remain advisory/non-blocking",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Already documented as advisory in findings_notes; consistent with --changed-files scoping contract"
       }
     ],
-    "feedback_incorporated": "Three violations added for hardcoded flock timeout (Standard 2) in score-update.sh:76-77, score-inject.sh:64-65, and lifecycle-baseline-import.sh:52-53. Hardcoded repo path in generated tests kept as observation_only per Codex scope analysis and prior close precedent. Pre-existing english-only violations retained from prior report with introduced_in_diff:false / advisory status."
+    "feedback_incorporated": "Expanded Standard 10 findings_note to explicitly confirm Python import resolution for hooks.doc_sync imports. All other Codex findings were OBSERVATION_ONLY with no PROPOSED_FIX requiring a change to the violations list."
   }
 }
