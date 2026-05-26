@@ -26,9 +26,10 @@ Canonical events (from spec 5.1 table):
   qa_first_pass, qa_reject_dev, qa_reject_ba, qa_second_pass,
   user_rating_5, user_rating_4, user_rating_3, user_rating_2, user_rating_1
 
-Score is clamped to [0,100]. Rank is recomputed from final score:
-  0-20 = rank-1 (Apprentice), 21-40 = rank-2 (Journeyman), 41-60 = rank-3 (Skilled Craftsman),
-  61-80 = rank-4 (Senior Craftsman), 81-100 = rank-5 (Master)
+Score has no lower bound (negative scores accumulate), upper bound 100.
+Rank is recomputed from final score:
+  <0 = rank-0 (Disgraced), 0-20 = rank-1 (Apprentice), 21-40 = rank-2 (Journeyman),
+  41-60 = rank-3 (Skilled Craftsman), 61-80 = rank-4 (Senior Craftsman), 81-100 = rank-5 (Master)
 
 --expected-prev-score: optional CAS guard. If supplied and latest score for agent
   does not match, exit 3 (no append). Normal callers omit this flag.
@@ -187,7 +188,7 @@ if expected_prev_score_str and latest_entry_found:
 # Compute unclamped_score BEFORE clamping (arch-7 clamp-audit field, mandatory per M1)
 unclamped_score = prev_score + delta
 # Apply clamp for new_score
-new_score = max(0, min(100, unclamped_score))
+new_score = min(100, unclamped_score)
 
 # Build the 9-field mandatory JSONL entry (R9 verbatim: ts,agent,event,prev_score,new_score,delta,actor,reason + unclamped_score)
 ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

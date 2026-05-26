@@ -1,6 +1,6 @@
 # scripts
 
-*Last updated: 2026-05-25T21:12:35Z*
+*Last updated: 2026-05-26T04:59:58Z*
 **Total entries**: 81
 **Convention**: kebab
 
@@ -80,7 +80,7 @@ scripts/
 ├── `score-inject.sh` - Description: Emit a prompt-injection text block describing an agent's current rank/range
 ├── `score-update.sh` - Description: Update agent score by appending an entry to the lifecycle JSONL log.
 ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
-├── `step7-spec-continue.py` - Step 7 (Spec-continue dispatch) reference harness — task 20260524-205206 iter-2
+├── `step7-spec-update.py` - Step 7 (Spec-update dispatch) reference harness — task 20260524-205206 iter-2
 ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 ├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 ├── `write-bulk-commit-sentinel.py` - Invoked from commands/commit.md Step 5 (BULK=true) to authorize the
