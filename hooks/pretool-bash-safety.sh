@@ -630,11 +630,11 @@ if echo "$COMMAND" | grep -qE "${DAEMON_RESTART_SENTINEL_RE}[A-Za-z0-9_-]+\.flag
   exit 2
 fi
 
-# Layer 1.F — bulk-commit auth-flag / sentinel write block (M4.3 / AC-04,
+# Layer 1.F — bulk-commit sentinel write block (M4.3 / AC-04,
 # task 20260524-205206 + 20260525-095242 iter-3 compound-bypass hardening).
 # Deny ANY model tool call (regardless of agent_id; main agent NOT exempt —
-# codex iter-2 finding #7 fix) that even MENTIONS the protected globs
-# /tmp/claude-bulk-allowed-*.flag or /tmp/claude-bulk-commit-sentinel-*.json
+# codex iter-2 finding #7 fix) that even MENTIONS the protected glob
+# /tmp/claude-bulk-commit-sentinel-*.json
 # in a Bash command, UNLESS the WHOLE command is a single pure-read
 # invocation OR a BARE official-writer invocation.
 #
@@ -642,11 +642,11 @@ fi
 # PREFIX-read to WHOLE-COMMAND-read. The prior allowlist matched the
 # read-only verb at the start of the command and only vetoed redirect
 # tokens (> / >> / tee), allowing compound bypasses such as
-# `ls <flag> ; python3 -c '...write...'` to slip through (the suffix
+# `ls <sentinel> ; python3 -c '...write...'` to slip through (the suffix
 # write segment was never evaluated). The new predicate asserts the
 # entire command shape:
 #   (a) Bare official-writer: `python3 scripts/write-bulk-commit-sentinel.py [args]`
-#       — script's own internal auth-flag check is the next gate. STARTS-WITH
+#       — /commit --bulk Step 5 invocation. STARTS-WITH
 #       match (not substring) to defeat comment-spoof attacks.
 #   (b) Single pure-read: command begins with one of
 #       ls|stat|cat|file|wc|head|tail|grep|jq|find|test|[
@@ -658,16 +658,15 @@ fi
 #       `eval`; `source`) AND NO leading variable assignment (`VAR=...`)
 #       AND NO `xargs`/`-exec`/`-delete`/`-execdir`/`-ok`/`-okdir` write
 #       surface targeting the protected path.
-# Anything else → DENY with stable stderr token `bulk-commit-auth-flag-write`.
+# Anything else → DENY with stable stderr token `bulk-commit-sentinel-write`.
 # Entry gate: protected path mention. Uses TWO grep -F substring matches
 # (item 5 fix, task 20260526-053746 AC-05/AC-05b) to match BOTH literal session-id
 # paths AND glob forms (*, ?, [abc], [!abc]) — POSIX shell-glob bracket syntax.
-# Prior regex `[A-Za-z0-9_\-]*` excluded glob metachars, so `cat /tmp/claude-bulk-allowed-*.flag`
+# Prior regex `[A-Za-z0-9_\-]*` excluded glob metachars, so `cat /tmp/claude-bulk-commit-sentinel-*.json`
 # entirely skipped Layer 1.F protection. The substring approach is wider but the
 # Layer 1.F entry gate is intentionally permissive — actual write/compound detection
 # happens inside the block via shlex tokenization (items 3+4).
-if echo "$COMMAND" | grep -qF '/tmp/claude-bulk-allowed-' \
-   || echo "$COMMAND" | grep -qF '/tmp/claude-bulk-commit-sentinel-' \
+if echo "$COMMAND" | grep -qF '/tmp/claude-bulk-commit-sentinel-' \
    || echo "$COMMAND" | grep -qF 'write-bulk-commit-sentinel.py'; then
   # M5 (task 20260526-052559): canonical /commit --bulk Step 5 venv-activate form.
   # Must be checked in bash BEFORE the Python compound-detection helper because the
@@ -930,13 +929,13 @@ PYEOF
 
   case "$_bulk_decision" in
     BARE_WRITER)
-      : # bare official-writer — script-level gate handles auth
+      : # bare official-writer — /commit --bulk Step 5 invocation
       ;;
     PURE_READ)
       : # single pure-read inspection allowed
       ;;
     TOKENIZER_ERROR)
-      echo "BLOCKED: bulk-commit-auth-flag-write — Bash command failed tokenization (likely unterminated quote) — FORBIDDEN (fail-closed)" >&2
+      echo "BLOCKED: bulk-commit-sentinel-write — Bash command failed tokenization (likely unterminated quote) — FORBIDDEN (fail-closed)" >&2
       echo "Command: $COMMAND" >&2
       echo "REASON: per task 20260526-053746 AC-08, the shlex tokenizer raised ValueError" >&2
       echo "        while parsing this command. Per codex iter-2 C11, the helper exhausts" >&2
@@ -944,7 +943,7 @@ PYEOF
       exit 2
       ;;
     DENY|*)
-      echo "BLOCKED: bulk-commit-auth-flag-write — Bash command references protected bulk sentinel path OR sentinel-writer script (write-bulk-commit-sentinel.py) in a compound or write context — FORBIDDEN" >&2
+      echo "BLOCKED: bulk-commit-sentinel-write — Bash command references protected bulk sentinel path OR sentinel-writer script (write-bulk-commit-sentinel.py) in a compound or write context — FORBIDDEN" >&2
       echo "Command: $COMMAND" >&2
       echo "REASON: per task 20260526-053746 (fix for prior cycle 20260525-095242 ANSI-C bypass +" >&2
       echo "        over-blocking regressions), the compound/write detector now uses Python" >&2
@@ -958,7 +957,6 @@ PYEOF
       echo "        shape) is allowed for inspection. The official sentinel-writer scripts/write-bulk-" >&2
       echo "        commit-sentinel.py is allowed ONLY as a bare invocation (STARTS-WITH match —" >&2
       echo "        comment-spoof and compound-with-script forms are denied)." >&2
-      echo "        Only a human user typing directly in a terminal may create the auth flag." >&2
       exit 2
       ;;
   esac

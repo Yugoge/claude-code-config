@@ -12,13 +12,14 @@ Usage:
         --branch <BRANCH> \\
         --remote <RESOLVED_REMOTE> \\
         --request-id <REQUEST_ID> \\
+        [--repo-root <REPO_ROOT>] \\
         [--auto]
 
 Exit codes:
     0   Never returned — successful path calls os.execv (process replaced by push.sh)
     1   Grant validation failed, HEAD drift, blocked verdict, or grant-consume failure
     2   Infrastructure failure: CLAUDE_SESSION_ID unset, push.sh missing/not executable,
-        os.execv raised OSError after sentinel write
+        os.execv raised OSError after sentinel write, or invalid --repo-root path (OSError on chdir)
 """
 
 import argparse
@@ -66,6 +67,12 @@ def _parse_args(argv: list) -> argparse.Namespace:
         help="REQUEST_ID from orchestrator Step 2 snapshot (matches grant.nonce field).",
     )
     parser.add_argument(
+        "--repo-root",
+        required=False,
+        default=None,
+        help="Repo root to chdir into before any git operations. Eliminates CWD dependency.",
+    )
+    parser.add_argument(
         "--auto",
         action="store_true",
         default=False,
@@ -77,6 +84,19 @@ def _parse_args(argv: list) -> argparse.Namespace:
 def main(argv: list = None) -> int:
     # Step 1: Parse CLI arguments
     args = _parse_args(sys.argv[1:] if argv is None else argv)
+
+    # Step 1b: chdir to --repo-root before any git operations (and before os.execv
+    # which inherits CWD into push.sh). Must fire before session_id check and grant access.
+    if args.repo_root is not None:
+        try:
+            os.chdir(args.repo_root)
+        except OSError as e:
+            print(
+                f"execute-push: cannot chdir to --repo-root {args.repo_root!r}: {e}",
+                file=sys.stderr,
+            )
+            return 2
+
     repo_hash = args.repo_hash
     branch = args.branch
     remote = args.remote
