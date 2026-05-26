@@ -81,3 +81,6 @@
 {"ts": "2026-05-26T14:44:39Z", "agent": "dev", "event": "close_success_qa_pass", "prev_score": -7, "new_score": -5, "delta": 2, "unclamped_score": -5, "actor": "orchestrator", "reason": "20260526-053746"}
 {"ts": "2026-05-26T14:44:39Z", "agent": "ba", "event": "close_success_qa_pass", "prev_score": -4, "new_score": -3, "delta": 1, "unclamped_score": -3, "actor": "orchestrator", "reason": "20260526-053746"}
 {"ts": "2026-05-26T14:44:39Z", "agent": "qa", "event": "close_success_qa_pass", "prev_score": -4, "new_score": -3, "delta": 1, "unclamped_score": -3, "actor": "orchestrator", "reason": "20260526-053746"}
+{"ts": "2026-05-26T20:03:31Z", "agent": "ba", "event": "user_rating_1", "prev_score": -3, "new_score": -23, "delta": -20, "unclamped_score": -23, "actor": "orchestrator", "reason": "20260526-051826"}
+{"ts": "2026-05-26T20:03:31Z", "agent": "dev", "event": "user_rating_1", "prev_score": -5, "new_score": -45, "delta": -40, "unclamped_score": -45, "actor": "orchestrator", "reason": "20260526-051826"}
+{"ts": "2026-05-26T20:03:31Z", "agent": "qa", "event": "user_rating_1", "prev_score": -3, "new_score": -23, "delta": -20, "unclamped_score": -23, "actor": "orchestrator", "reason": "20260526-051826"}
