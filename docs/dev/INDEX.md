@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-25T21:31:09Z*
-**Total entries**: 720
+*Last updated: 2026-05-26T04:54:41Z*
+**Total entries**: 732
 **Convention**: kebab
 
 ## Tree
@@ -46,6 +46,7 @@ dev/
 ├── `acceptance-criteria-20260525-050824.json` - json config
 ├── `acceptance-criteria-20260525-095242.json` - json config
 ├── `acceptance-criteria-20260525-095245.json` - json config
+├── `acceptance-criteria-20260526-042454.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2.json` - json config
 ├── `acceptance-criteria-d1e94e.json` - json config
@@ -128,6 +129,7 @@ dev/
 ├── `ba-qa-report-20260525-050824.json` - json config
 ├── `ba-qa-report-20260525-095242.json` - json config
 ├── `ba-qa-report-20260525-095245.json` - json config
+├── `ba-qa-report-20260526-042454.json` - json config
 ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 ├── `ba-qa-report-d1e94e.json` - json config
 ├── `ba-qa-report-dev-20260524-170335.json` - json config
@@ -214,6 +216,7 @@ dev/
 ├── `close-report-20260524-205459.md` - Close Report: task 20260524-205459
 ├── `close-report-20260524-allow-gaps.md` - Close Debate Report (FORCED)
 ├── `close-report-20260525-050824.md` - Close Report — Task 20260525-050824
+├── `close-report-20260525-095242.md` - Close Report: 20260525-095242 (Cycle 6 — Layer 1.F compound-command bypass fix)
 ├── `close-report-20260525-095245.md` - Close Report — Task 20260525-095245
 ├── `close-report-d1e94e-prior.md` - Close Debate Report
 ├── `close-report-d1e94e.md` - Close Debate Report — d1e94e
@@ -261,6 +264,7 @@ dev/
 ├── `completion-20260525-050824.md` - Completion Report: task 20260525-050824
 ├── `completion-20260525-095242.md` - Development Completion Report -- 20260525-095242
 ├── `completion-20260525-095245.md` - Completion Report: task 20260525-095245
+├── `completion-20260526-042454.md` - Completion Report — Task 20260526-042454
 ├── `completion-d1e94e.md` - Development Completion Report — d1e94e
 ├── `completion-dev-20260524-170335.md` - Completion Report: dev-20260524-170335
 ├── `completion-dev-20260524-205811.md` - Completion Report
@@ -320,6 +324,7 @@ dev/
 ├── `context-20260525-050824.json` - json config
 ├── `context-20260525-095242.json` - json config
 ├── `context-20260525-095245.json` - json config
+├── `context-20260526-042454.json` - json config
 ├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
@@ -339,6 +344,7 @@ dev/
 ├── `context-dev-20260525-053326-A.json` - json config
 ├── `context-dev-20260525-053326-B.json` - json config
 ├── `context-dev-20260525-053326-F.json` - json config
+├── `context-dev-20260526-044731.json` - json config
 ├── `context-iter2-dev-20260111-193314.json` - json config
 ├── `dev-report-20260110-001044.json` - json config
 ├── `dev-report-20260416-063500-iter2.json` - json config
@@ -414,6 +420,7 @@ dev/
 ├── `dev-report-20260525-050824.json` - json config
 ├── `dev-report-20260525-095242.json` - json config
 ├── `dev-report-20260525-095245.json` - json config
+├── `dev-report-20260526-042454.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
@@ -553,6 +560,7 @@ dev/
 ├── `qa-report-20260525-050824.json` - json config
 ├── `qa-report-20260525-095242.json` - json config
 ├── `qa-report-20260525-095245.json` - json config
+├── `qa-report-20260526-042454.json` - json config
 ├── `qa-report-close-20260525-095245.json` - json config
 ├── `qa-report-d1e94e.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
@@ -687,6 +695,7 @@ dev/
 ├── `ticket-20260525-050824.md` - BA Specification: Score CAS Architecture (arch-7 phase 2, R9)
 ├── `ticket-20260525-095242.md` - BA Specification: Fix Layer 1.F compound-command bypass in pretool-bash-safety.sh
 ├── `ticket-20260525-095245.md` - BA Specification: Wrap bare python3 heredoc calls with venv activation
+├── `ticket-20260526-042454.md` - BA Specification: Parameterize flock timeout constants (Standard 2/9 fix)
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-close-cont-20260524-170335.md` - Continuation: Fix bare python3 invocations introduced in dev-20260524-170335
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
@@ -698,6 +707,7 @@ dev/
 ├── `ticket-dev-20260525-053326-A.md` - BA Specification: Context-Aware Dangerous Token Stripping for Script Interpreter Argv
 ├── `ticket-dev-20260525-053326-B.md` - BA Specification: Write-Guard Sentinel Integration (worker B)
 ├── `ticket-dev-20260525-053326-F.md` - BA Specification: Shell Cleanliness Fixes — Permissions, mktemp+trap, Stale Comments
+├── `ticket-dev-20260526-044731.md` - BA Specification: Rename spec-continue → spec-update + Verify Flock Timeout Parameterization
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
 ├── `user-requirement-dev-20260518-214050.md` - No description
@@ -726,6 +736,8 @@ dev/
 ├── `user-requirement-dev-20260525-053326.md` - No description
 ├── `user-requirement-dev-20260525-095242.md` - No description
 ├── `user-requirement-dev-20260525-095245.md` - No description
+├── `user-requirement-dev-20260526-042454.md` - No description
+├── `user-requirement-dev-20260526-044731.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
