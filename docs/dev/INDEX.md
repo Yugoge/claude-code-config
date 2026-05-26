@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-26T06:43:29Z*
-**Total entries**: 758
+*Last updated: 2026-05-26T14:44:00Z*
+**Total entries**: 775
 **Convention**: kebab
 
 ## Tree
@@ -177,6 +177,8 @@ dev/
 ├── `cleanliness-inspector-report-20260525-095242.json` - json config
 ├── `cleanliness-inspector-report-20260525-095245.json` - json config
 ├── `cleanliness-inspector-report-20260526-042454.json` - json config
+├── `cleanliness-inspector-report-20260526-052559.json` - json config
+├── `cleanliness-inspector-report-20260526-053746.json` - json config
 ├── `cleanliness-inspector-report-d1e94e.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-170335.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-205811.json` - json config
@@ -184,6 +186,7 @@ dev/
 ├── `cleanliness-inspector-report-dev-20260525-053326.json` - json config
 ├── `cleanliness-inspector-report-dev-20260526-044731.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
+├── `close-debate-20260526-052559.md` - Close Debate Transcript -- 20260526-052559
 ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
 ├── `close-report-20260510-191533.md` - Close Debate Report
 ├── `close-report-20260511-094500.md` - Close Report — 20260511-094500
@@ -226,6 +229,8 @@ dev/
 ├── `close-report-20260525-095242.md` - Close Report: 20260525-095242 (Cycle 6 — Layer 1.F compound-command bypass fix)
 ├── `close-report-20260525-095245.md` - Close Report — Task 20260525-095245
 ├── `close-report-20260526-042454.md` - Close Report — Task 20260526-042454
+├── `close-report-20260526-052559.md` - Close Debate Report
+├── `close-report-20260526-053746.md` - Close Report -- 20260526-053746
 ├── `close-report-d1e94e-prior.md` - Close Debate Report
 ├── `close-report-d1e94e.md` - Close Debate Report — d1e94e
 ├── `close-report-dev-20260524-170335.md` - Close Debate Report
@@ -274,6 +279,8 @@ dev/
 ├── `completion-20260525-095242.md` - Development Completion Report -- 20260525-095242
 ├── `completion-20260525-095245.md` - Completion Report: task 20260525-095245
 ├── `completion-20260526-042454.md` - Completion Report — Task 20260526-042454
+├── `completion-20260526-052559.md` - Development Completion Report — 20260526-052559
+├── `completion-20260526-053746.md` - Development Completion Report -- 20260526-053746
 ├── `completion-d1e94e.md` - Development Completion Report — d1e94e
 ├── `completion-dev-20260524-170335.md` - Completion Report: dev-20260524-170335
 ├── `completion-dev-20260524-205811.md` - Completion Report
@@ -434,6 +441,8 @@ dev/
 ├── `dev-report-20260525-095242.json` - json config
 ├── `dev-report-20260525-095245.json` - json config
 ├── `dev-report-20260526-042454.json` - json config
+├── `dev-report-20260526-052559.json` - json config
+├── `dev-report-20260526-053746.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
@@ -491,6 +500,8 @@ dev/
 ├── `prompt-inspector-report-20260525-095242.json` - json config
 ├── `prompt-inspector-report-20260525-095245.json` - json config
 ├── `prompt-inspector-report-20260526-042454.json` - json config
+├── `prompt-inspector-report-20260526-052559.json` - json config
+├── `prompt-inspector-report-20260526-053746.json` - json config
 ├── `prompt-inspector-report-d1e94e.json` - json config
 ├── `prompt-inspector-report-dev-20260524-170335.json` - json config
 ├── `prompt-inspector-report-dev-20260524-205811.json` - json config
@@ -577,6 +588,8 @@ dev/
 ├── `qa-report-20260525-095242.json` - json config
 ├── `qa-report-20260525-095245.json` - json config
 ├── `qa-report-20260526-042454.json` - json config
+├── `qa-report-20260526-052559.json` - json config
+├── `qa-report-20260526-053746.json` - json config
 ├── `qa-report-close-20260525-050824.json` - json config
 ├── `qa-report-close-20260525-095245.json` - json config
 ├── `qa-report-close-20260526-042454.json` - json config
@@ -637,6 +650,8 @@ dev/
 ├── `style-inspector-report-20260525-095242.json` - json config
 ├── `style-inspector-report-20260525-095245.json` - json config
 ├── `style-inspector-report-20260526-042454.json` - json config
+├── `style-inspector-report-20260526-052559.json` - json config
+├── `style-inspector-report-20260526-053746.json` - json config
 ├── `style-inspector-report-d1e94e.json` - json config
 ├── `style-inspector-report-dev-20260524-170335.json` - json config
 ├── `style-inspector-report-dev-20260524-205811.json` - json config
@@ -662,6 +677,8 @@ dev/
 ├── `test-writer-report-20260524-205206.json` - json config
 ├── `test-writer-report-20260525-050824.json` - json config
 ├── `test-writer-report-20260525-095242.json` - json config
+├── `test-writer-report-20260526-052559.json` - json config
+├── `test-writer-report-20260526-053746.json` - json config
 ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence

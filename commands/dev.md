@@ -442,11 +442,69 @@ Read BA output files:
 - [ ] Success criteria are measurable
 - [ ] Affected files identified
 
+**spec_path patch (mandatory post-BA-validation step — task 20260526-053746 AC-01)**:
+
+After the sanity checks pass and BEFORE proceeding to Step 6, the orchestrator MUST patch the `spec_path` field into `docs/dev/context-<timestamp>.json` so downstream consumers (dev, QA, close) can reference the spec.
+
+The orchestrator-resolved `spec_path` is the value derived from either the explicit `--spec <path>` flag or the auto-detection fallback (whichever the orchestrator ran in Step 1). Call this resolved value `$orchestrator_resolved_spec_path`. It is either a non-null string OR null (when `--spec` was not passed AND auto-detection returned null).
+
+Apply this patch logic verbatim (AC-01 four-condition matrix + negative case):
+
+```bash
+# Step 5 spec_path patch — task 20260526-053746 AC-01 (5-row fixture matrix)
+# Overwrites context.json.spec_path when orchestrator-resolved value is non-null
+# AND the current context.spec_path is absent / null / empty / different.
+# Negative case: when orchestrator-resolved spec_path == null, do NOT invent a value
+# (key remains absent or null in output context.json) — codex iter-2 C3.
+CONTEXT_JSON="docs/dev/context-${timestamp}.json"
+if [ -n "$orchestrator_resolved_spec_path" ]; then
+  # Orchestrator-resolved spec_path is non-null — overwrite context.spec_path
+  # in ALL four positive conditions (absent / null / empty / different).
+  # Env vars CONTEXT_JSON_PATH and NEW_SPEC_PATH are passed inline to python3 so
+  # the heredoc is fully self-contained — the Python source itself is static
+  # (codex iter-3 F1: bare heredoc without inline env vars fails KeyError).
+  CONTEXT_JSON_PATH="$CONTEXT_JSON" NEW_SPEC_PATH="$orchestrator_resolved_spec_path" python3 - <<'PYEOF'
+import json, sys, os
+path = os.environ['CONTEXT_JSON_PATH']
+new_spec = os.environ['NEW_SPEC_PATH']
+with open(path) as fh:
+    ctx = json.load(fh)
+current = ctx.get('spec_path')
+# Apply patch when current is absent / null / empty-string / different.
+# All four conditions reduce to: current != new_spec (since None/missing/'' are all != new_spec).
+if current != new_spec:
+    ctx['spec_path'] = new_spec
+    with open(path, 'w') as fh:
+        json.dump(ctx, fh, indent=2)
+    print(f"[step5-patch] context.spec_path: {current!r} -> {new_spec!r}", file=sys.stderr)
+else:
+    print(f"[step5-patch] context.spec_path already correct: {current!r}", file=sys.stderr)
+PYEOF
+else
+  # Orchestrator-resolved spec_path is null — DO NOT invent a value.
+  # The key may remain absent or null in context.json (whatever BA wrote).
+  # This is the AC-01 (e) negative case per codex iter-2 C3.
+  echo "[step5-patch] orchestrator-resolved spec_path is null — no patch applied" >&2
+fi
+```
+
+The four positive conditions all reduce to the single check `current != new_spec_path`:
+
+| Case | context.json initial state | After patch |
+|------|---------------------------|-------------|
+| a | `spec_path` key absent | `spec_path == "<orchestrator-resolved>"` |
+| b | `"spec_path": null` | `spec_path == "<orchestrator-resolved>"` |
+| c | `"spec_path": ""` | `spec_path == "<orchestrator-resolved>"` |
+| d | `"spec_path": "wrong.md"` (different) | `spec_path == "<orchestrator-resolved>"` |
+| e | (orchestrator-resolved is null) | `spec_path` remains absent or null (no invention) |
+
+The patch MUST run after BA validation passes but BEFORE QA (Step 6) is dispatched — QA reads `context-<timestamp>.json` and must see the patched value.
+
 **If validation fails**:
 - Re-invoke BA with specific feedback about what's missing
 - Maximum 2 re-invocations for validation fixes
 
-**If validation passes**: Proceed to Step 6
+**If validation passes**: Apply the spec_path patch above, then proceed to Step 6
 
 ### Step 6: QA Validates BA Conclusions
 
