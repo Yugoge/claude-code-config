@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Step 7 (Spec-continue dispatch) reference harness — task 20260524-205206 iter-2.
+Step 7 (Spec-update dispatch) reference harness — task 20260524-205206 iter-2.
 
 This script implements the Step 7 algorithm specified verbatim in commands/commit.md
-section "### Step 7: Spec-continue dispatch (post-commit, deterministic fail-closed)".
+section "### Step 7: Spec-update dispatch (post-commit, deterministic fail-closed)".
 
 It is the executable embodiment of the algorithm that the /commit orchestrator runs
 in stages (1) context.spec_path -> (2) close-report continuation line -> (3) mtime+marker
@@ -12,7 +12,7 @@ prose directly OR invoke this harness; both paths satisfy the AC-05 contract bec
 they execute identical decision logic.
 
 USAGE:
-  python3 scripts/step7-spec-continue.py \\
+  python3 scripts/step7-spec-update.py \\
       --task-id <TASK_ID> \\
       --dev-docs-root <DEV_DOCS_ROOT> \\
       [--bulk true|false] [--dryrun true|false] \\
@@ -34,7 +34,7 @@ NOTE: This harness implements ONLY the Step 7 SELECTION + TRACE logic — stages
 (1)-(4) — and the corresponding STEP7_* stderr markers. It does NOT execute the
 "Dispatch payload" Agent call described in commands/commit.md (an inline
 spec-update Agent invocation requires the orchestrator's Claude Code session).
-The harness emits the STEP7_SPEC_CONTINUE_DISPATCHED marker IMMEDIATELY before
+The harness emits the STEP7_SPEC_UPDATE_DISPATCHED marker IMMEDIATELY before
 the point at which the orchestrator would perform the real Agent dispatch.
 QA contract: the AC-05 marker assertion verifies the selection contract, not
 the Agent-dispatch contract. The Agent-dispatch contract is implicit in the
@@ -153,7 +153,7 @@ def _stage3_mtime_glob(task_id: str, dev_docs_root: pathlib.Path):
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Step 7 spec-continue harness (commit.md)")
+    ap = argparse.ArgumentParser(description="Step 7 spec-update harness (commit.md)")
     ap.add_argument("--task-id", required=True)
     ap.add_argument("--dev-docs-root", required=True)
     ap.add_argument("--bulk", default="false", choices=["true", "false"])
@@ -200,7 +200,7 @@ def main() -> int:
     sp1 = _stage1_context_spec_path(task_id, dev_docs_root)
     if sp1 is not None:
         _emit(
-            f"STEP7_SPEC_CONTINUE_DISPATCHED: task-id={task_id} stage=1 "
+            f"STEP7_SPEC_UPDATE_DISPATCHED: task-id={task_id} stage=1 "
             f"spec_path={sp1}"
         )
         print(f"Stage 1 dispatch: {sp1}")
@@ -214,7 +214,7 @@ def main() -> int:
             file=sys.stderr,
         )
         _emit(
-            f"STEP7_SPEC_CONTINUE_DISPATCHED: task-id={task_id} stage=2 "
+            f"STEP7_SPEC_UPDATE_DISPATCHED: task-id={task_id} stage=2 "
             f"spec_path={sp2}"
         )
         print(f"Stage 2 dispatch: {sp2}")

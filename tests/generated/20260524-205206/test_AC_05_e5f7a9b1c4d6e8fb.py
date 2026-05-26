@@ -18,7 +18,7 @@ AC_UID = "e5f7a9b1c4d6e8fb"
 AC_TYPE = "data"
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
-STEP7_HARNESS = REPO_ROOT / "scripts" / "step7-spec-continue.py"
+STEP7_HARNESS = REPO_ROOT / "scripts" / "step7-spec-update.py"
 COMMIT_MD = REPO_ROOT / "commands" / "commit.md"
 
 
@@ -27,11 +27,11 @@ def test_AC_05_phase_a_blocked_bulk_no_step7_marker():
     Phase A: invoke write-bulk-commit-sentinel.py without an auth flag and
     assert (1) non-zero exit, (2) no sentinel file written, (3) no
     push-gate token created. Step 7 SKIP is documented in commit.md
-    (BULK=true unconditionally skips Step 7), so no spec-continue marker
+    (BULK=true unconditionally skips Step 7), so no spec-update marker
     can be emitted for this scenario.
 
     Iter-2: ALSO exercise the Step 7 harness BULK=true SKIP path to prove
-    no STEP7_SPEC_CONTINUE_DISPATCHED marker emits.
+    no STEP7_SPEC_UPDATE_DISPATCHED marker emits.
     """
     script = REPO_ROOT / "scripts" / "write-bulk-commit-sentinel.py"
     assert script.exists()
@@ -75,7 +75,7 @@ def test_AC_05_phase_a_blocked_bulk_no_step7_marker():
     )
     assert proc.returncode == 0
     assert "STEP7_SKIPPED: bulk=true" in proc.stderr
-    assert "STEP7_SPEC_CONTINUE_DISPATCHED" not in proc.stderr
+    assert "STEP7_SPEC_UPDATE_DISPATCHED" not in proc.stderr
 
 
 def test_AC_05_phase_b_static_step7_dispatch_present():
@@ -85,7 +85,7 @@ def test_AC_05_phase_b_static_step7_dispatch_present():
     Iter-2: also asserts the trace contract is documented in Step 7 region.
     """
     commit_md = COMMIT_MD.read_text(encoding="utf-8")
-    assert "### Step 7: Spec-continue dispatch" in commit_md
+    assert "### Step 7: Spec-update dispatch" in commit_md
     skip_region = commit_md[
         commit_md.find("### Step 7"):commit_md.find("### Step 7") + 4000
     ]
@@ -93,7 +93,7 @@ def test_AC_05_phase_b_static_step7_dispatch_present():
     assert "context.spec_path" in skip_region, "Step 7 dispatch logic missing"
     # iter-2: trace contract documented in Step 7 region
     assert "COMMIT_STEP7_TRACE" in skip_region
-    assert "STEP7_SPEC_CONTINUE_DISPATCHED" in skip_region
+    assert "STEP7_SPEC_UPDATE_DISPATCHED" in skip_region
     assert "STEP7_SKIPPED" in skip_region
 
 
@@ -227,9 +227,9 @@ def test_AC_05_phase_b_e2e_stage1_context_spec_path_dispatch():
     Phase B real end-to-end (stage 1): synthetic dirty git repo + real
     simulated-changelog commit + push-gate token written + context.spec_path
     pointing at a real spec file => Step 7 stage-1 dispatch fires AND
-    STEP7_SPEC_CONTINUE_DISPATCHED marker is observed on stderr.
+    STEP7_SPEC_UPDATE_DISPATCHED marker is observed on stderr.
 
-    Step 7 is executed via scripts/step7-spec-continue.py — the executable
+    Step 7 is executed via scripts/step7-spec-update.py — the executable
     reference embodiment of commit.md Step 7 (cited from commit.md trace section).
     """
     with tempfile.TemporaryDirectory(prefix="ac05-phaseb-s1-") as tmp:
@@ -278,7 +278,7 @@ def test_AC_05_phase_b_e2e_stage1_context_spec_path_dispatch():
         assert proc.returncode == 0, (
             f"Step 7 must succeed; stdout={proc.stdout!r} stderr={proc.stderr!r}"
         )
-        assert "STEP7_SPEC_CONTINUE_DISPATCHED" in proc.stderr, (
+        assert "STEP7_SPEC_UPDATE_DISPATCHED" in proc.stderr, (
             f"Phase B stage-1 dispatch marker missing.\n"
             f"stdout: {proc.stdout}\nstderr: {proc.stderr}"
         )
@@ -324,7 +324,7 @@ def test_AC_05_phase_b_e2e_stage2_close_report_continuation_dispatch():
         assert proc.returncode == 0, (
             f"stdout={proc.stdout!r}\nstderr={proc.stderr!r}"
         )
-        assert "STEP7_SPEC_CONTINUE_DISPATCHED" in proc.stderr, proc.stderr
+        assert "STEP7_SPEC_UPDATE_DISPATCHED" in proc.stderr, proc.stderr
         assert "stage=2" in proc.stderr, proc.stderr
         assert f"task-id={task_id}" in proc.stderr
 
@@ -358,7 +358,7 @@ def test_AC_05_phase_b_e2e_stage4_no_spec_outcome():
         assert proc.returncode == 0
         assert "STEP7_NO_SPEC" in proc.stderr
         assert f"task-id={task_id}" in proc.stderr
-        assert "STEP7_SPEC_CONTINUE_DISPATCHED" not in proc.stderr
+        assert "STEP7_SPEC_UPDATE_DISPATCHED" not in proc.stderr
 
 
 def test_AC_05_phase_b_e2e_step7_skipped_when_no_push_gate():
@@ -382,7 +382,7 @@ def test_AC_05_phase_b_e2e_step7_skipped_when_no_push_gate():
                           changelog_status="committed")
         assert proc.returncode == 0
         assert "STEP7_SKIPPED: changelog_no_real_commit" in proc.stderr
-        assert "STEP7_SPEC_CONTINUE_DISPATCHED" not in proc.stderr
+        assert "STEP7_SPEC_UPDATE_DISPATCHED" not in proc.stderr
 
 
 def test_AC_05_phase_AB_sequential_same_dirty_repo_primary():
@@ -399,7 +399,7 @@ def test_AC_05_phase_AB_sequential_same_dirty_repo_primary():
         (the production script that /commit Step 5 invokes in --bulk mode).
       - Phase B: direct invocation of git plumbing (mirroring changelog-analyst
         Phase 5 commit creation) + push-gate write at canonical path (mirroring
-        changelog-analyst Phase 6) + scripts/step7-spec-continue.py (the
+        changelog-analyst Phase 6) + scripts/step7-spec-update.py (the
         reference embodiment of /commit Step 7 selection + trace).
 
     The LLM-driven changelog-analyst dispatch (Step 6) is simulated via direct
@@ -521,7 +521,7 @@ def test_AC_05_phase_AB_sequential_same_dirty_repo_primary():
         assert proc_b.returncode == 0, (
             f"Step 7 must succeed; stderr={proc_b.stderr!r}"
         )
-        assert "STEP7_SPEC_CONTINUE_DISPATCHED" in proc_b.stderr, (
+        assert "STEP7_SPEC_UPDATE_DISPATCHED" in proc_b.stderr, (
             f"Phase B: dispatch marker missing from stderr={proc_b.stderr!r}"
         )
         assert f"task-id={task_id}" in proc_b.stderr
@@ -592,6 +592,6 @@ def test_AC_05_phase_b_trace_off_parity():
         assert "STEP7_" not in off.stderr, (
             f"trace-off must emit no STEP7_ markers; got {off.stderr!r}"
         )
-        assert "STEP7_SPEC_CONTINUE_DISPATCHED" in on.stderr, (
-            f"trace-on must emit STEP7_SPEC_CONTINUE_DISPATCHED; got {on.stderr!r}"
+        assert "STEP7_SPEC_UPDATE_DISPATCHED" in on.stderr, (
+            f"trace-on must emit STEP7_SPEC_UPDATE_DISPATCHED; got {on.stderr!r}"
         )

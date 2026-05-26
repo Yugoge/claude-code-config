@@ -352,7 +352,7 @@
             "exit code non-zero",
             "no file matching /tmp/claude-bulk-commit-sentinel-${CLAUDE_SESSION_ID}-*.json was created",
             "no file matching the push-gate token path was created",
-            "no spec-continue marker emitted to stderr / trace log"
+            "no spec-update marker emitted to stderr / trace log"
           ]
         },
         "runtime_test_phase_b_non_bulk_fallback": {
