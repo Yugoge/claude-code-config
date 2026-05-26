@@ -659,118 +659,309 @@ fi
 #       AND NO `xargs`/`-exec`/`-delete`/`-execdir`/`-ok`/`-okdir` write
 #       surface targeting the protected path.
 # Anything else → DENY with stable stderr token `bulk-commit-auth-flag-write`.
-if echo "$COMMAND" | grep -qE '/tmp/claude-bulk-(allowed-[A-Za-z0-9_\-]*\.flag|commit-sentinel-[A-Za-z0-9_\-]*\.json)([^A-Za-z0-9._\-]|$)'; then
-  # Trim leading whitespace for STARTS-WITH predicates below. (printf avoids
-  # the trailing-newline ambiguity that echo introduces.)
-  _bulk_trimmed_cmd="$(printf '%s' "$COMMAND" | sed -E 's/^[[:space:]]+//')"
+# Entry gate: protected path mention. Uses TWO grep -F substring matches
+# (item 5 fix, task 20260526-053746 AC-05/AC-05b) to match BOTH literal session-id
+# paths AND glob forms (*, ?, [abc], [!abc]) — POSIX shell-glob bracket syntax.
+# Prior regex `[A-Za-z0-9_\-]*` excluded glob metachars, so `cat /tmp/claude-bulk-allowed-*.flag`
+# entirely skipped Layer 1.F protection. The substring approach is wider but the
+# Layer 1.F entry gate is intentionally permissive — actual write/compound detection
+# happens inside the block via shlex tokenization (items 3+4).
+if echo "$COMMAND" | grep -qF '/tmp/claude-bulk-allowed-' \
+   || echo "$COMMAND" | grep -qF '/tmp/claude-bulk-commit-sentinel-' \
+   || echo "$COMMAND" | grep -qF 'write-bulk-commit-sentinel.py'; then
+  # M5 (task 20260526-052559): canonical /commit --bulk Step 5 venv-activate form.
+  # Must be checked in bash BEFORE the Python compound-detection helper because the
+  # canonical form contains && (compound) and source (shell keyword) — the Python
+  # helper correctly DENYs those. [[ =~ ]] is used (NOT echo|grep -qE) to prevent
+  # newline-injection bypass: bash [[ =~ ]] matches the WHOLE string; grep -qE is
+  # line-oriented and would match a second line after an injected newline.
+  _BULK_CANONICAL_RE='^source[[:space:]]+venv/bin/activate[[:space:]]*&&[[:space:]]*python3?[[:space:]]+/root/\.claude/scripts/write-bulk-commit-sentinel\.py$'
+  if [[ $COMMAND =~ $_BULK_CANONICAL_RE ]]; then
+    exit 0
+  fi
+  # Items 3+4 (task 20260526-053746): replace raw-text grep compound/write
+  # detectors with a Python helper using shlex.shlex(posix=True, punctuation_chars=True)
+  # tokenizer. The helper:
+  #   (a) tokenizes the command with shlex.shlex(posix=True, punctuation_chars=True);
+  #       lex.commenters='', lex.whitespace_split=True set via attribute assignment
+  #       (NOT constructor kwarg — codex iter-2 C1).
+  #   (b) exhausts the lexer via list(lex) inside try/except ValueError to fail-closed
+  #       on unterminated-quote inputs (AC-08 / codex iter-2 C11).
+  #   (c) inspects tokens for compound separators (;, &&, ||, |, &, |&, $(, `, <(, >(, <<, <<<, newline)
+  #       — punctuation_chars=True correctly splits unspaced separators (AC-07).
+  #   (d) detects write-action tokens (-exec, -execdir, -delete, -ok, -okdir,
+  #       -fprint, -fprint0, -fprintf, -fls) AND their $-prefixed ANSI-C reassembled
+  #       forms ($-delete, $-fprint, etc.) per codex iter-2 C9 / AC-03.
+  #   (e) for cmd-sub/process-sub distinction (AC-04): runs a raw-text inspection
+  #       pass that finds unquoted or double-quoted $( <( >( forms — these survive
+  #       shlex with retained leading $/</> on token OR appear outside single-quotes
+  #       in the raw text. Single-quoted bodies tokenize WITH the metachar but the
+  #       raw text shows the metachar inside '...' — these are ALLOWED for pure-read.
+  #   (f) returns the decision via stdout: BARE_WRITER | PURE_READ | DENY | TOKENIZER_ERROR.
+  HOOKS_DIR_BULK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  _bulk_decision=$(CMD_INPUT="$COMMAND" "$PYTHON_BIN" - <<'PYEOF' 2>/dev/null
+import os, sys, shlex, re
 
-  # Compound-shape detection. Each predicate is evaluated against the trimmed
-  # command (raw $COMMAND for newline detection because newlines may be lost
-  # through pipes). If ANY matches the command is NOT a single bare invocation.
-  _bulk_is_compound=0
+cmd = os.environ.get('CMD_INPUT', '')
 
-  # Newline separator — detect via parameter expansion (case match against the
-  # literal newline byte). We use a $'\n' ANSI-C quoted literal here because
-  # $(printf '\n') strips its trailing newline inside command substitution,
-  # which would collapse the pattern to `*""*` and match every command.
-  _bulk_nl=$'\n'
-  case "$COMMAND" in
-    *"$_bulk_nl"*) _bulk_is_compound=1 ;;
+# Whitespace-trim for STARTS-WITH predicates on the raw text.
+trimmed = cmd.lstrip()
+
+# Canonical tokenizer recipe per ticket Reference Source / context constraints.
+# MUST exhaust the lexer via list(lex) — construction alone does not raise
+# (iter-2 C11). On ValueError (e.g. unterminated quote), fail-closed (AC-08).
+def tokenize_or_deny(text):
+    lex = shlex.shlex(text, posix=True, punctuation_chars=True)
+    lex.commenters = ''        # attribute assignment, NOT constructor kwarg (C1)
+    lex.whitespace_split = True
+    try:
+        return list(lex)       # MUST exhaust; construction alone will not raise
+    except ValueError:
+        return None            # signal fail-closed DENY (AC-08)
+
+# Raw-text quote-state walk: detect unquoted OR double-quoted $( <( >( ` substrings.
+# Single-quoted bodies are NOT active subshells (single quotes inhibit expansion).
+# Double-quoted bodies ARE active subshells (double quotes do NOT inhibit $() or
+# backticks — codex iter-2 C6 + iter-3 F4). Single quotes inside double quotes
+# are LITERAL — they do NOT toggle single-quote state (iter-3 F4 closure).
+# State machine: 4 states tracked explicitly:
+#   - UNQUOTED (default): $( / <( / >( / ` are ACTIVE
+#   - SINGLE: nothing is active; only ' exits to UNQUOTED
+#   - DOUBLE: $( and ` are ACTIVE; <( / >( are inert (treated as literal inside "...")
+#             only " exits to UNQUOTED. \ escapes the next char (mostly for \" and \\).
+#   - ANSI_C: $'...' bash extension. Backslash escapes the next char. Only ' exits.
+#             Body is literal; no expansion. Treat like SINGLE for active-form purposes.
+def has_active_cmdsub_or_procsub(text):
+    UNQUOTED, SINGLE, DOUBLE, ANSI_C = 0, 1, 2, 3
+    state = UNQUOTED
+    i = 0
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if state == UNQUOTED:
+            # ANSI-C quoting start: $'...'
+            if c == '$' and i + 1 < n and text[i+1] == "'":
+                state = ANSI_C
+                i += 2
+                continue
+            # Active forms in UNQUOTED state:
+            if c == '$' and i + 1 < n and text[i+1] == '(':
+                return True
+            if c == '<' and i + 1 < n and text[i+1] == '(':
+                return True
+            if c == '>' and i + 1 < n and text[i+1] == '(':
+                return True
+            if c == '`':
+                return True
+            # State transitions.
+            if c == "'":
+                state = SINGLE
+                i += 1
+                continue
+            if c == '"':
+                state = DOUBLE
+                i += 1
+                continue
+            # Backslash in UNQUOTED state escapes the next char.
+            if c == '\\' and i + 1 < n:
+                i += 2
+                continue
+            i += 1
+            continue
+        if state == SINGLE:
+            # Inside single quotes nothing is active and nothing escapes.
+            if c == "'":
+                state = UNQUOTED
+            i += 1
+            continue
+        if state == DOUBLE:
+            # Inside double quotes: $( and backticks ARE active; <( and >( are
+            # NOT active (literal). Single quotes are LITERAL (do not toggle).
+            # Backslash escapes \, $, `, " and newline (per bash); for our scan
+            # treating \X as a 2-char skip is safe.
+            if c == '\\' and i + 1 < n:
+                i += 2
+                continue
+            if c == '$' and i + 1 < n and text[i+1] == '(':
+                return True
+            if c == '`':
+                return True
+            if c == '"':
+                state = UNQUOTED
+            i += 1
+            continue
+        if state == ANSI_C:
+            # Inside $'...': backslash escapes the next char (\', \\, \n, etc.).
+            # Only an unescaped ' exits.
+            if c == '\\' and i + 1 < n:
+                i += 2
+                continue
+            if c == "'":
+                state = UNQUOTED
+            i += 1
+            continue
+    return False
+
+# Tokenize FIRST so all subsequent checks (including bare-writer + pure-read)
+# operate on the parsed token list. Bare-writer regression iter-3 F3: the prior
+# anchored regex `^(python3?\s+)?scripts/write-bulk-commit-sentinel\.py(\s|$)`
+# matched `script.py ; touch <flag>` because `(\s|$)` accepted the space before
+# `;`. Tokenizing first lets us run all compound/redirect/write checks before
+# the bare-writer decision is made.
+tokens = tokenize_or_deny(cmd)
+if tokens is None:
+    print('TOKENIZER_ERROR')
+    sys.exit(0)
+
+# Newline check via raw text (shlex collapses newlines as whitespace).
+if '\n' in cmd:
+    print('DENY')
+    sys.exit(0)
+
+# Active cmd-sub / process-sub raw-text scan with 4-state quote machine.
+# Runs BEFORE shlex token analysis because shlex strips quotes uniformly and
+# cannot distinguish single-quoted '$(cmd)' (inactive — AC-04 d) from
+# unquoted/double-quoted $(cmd)/"$(cmd)" (active — AC-04 g/h/i/j).
+if has_active_cmdsub_or_procsub(cmd):
+    print('DENY')
+    sys.exit(0)
+
+# Compound separator tokens as standalone tokens after punctuation_chars=True.
+COMPOUND_TOKENS = {';', '&&', '||', '|', '&', '|&', ';;'}
+for t in tokens:
+    if t in COMPOUND_TOKENS:
+        print('DENY')
+        sys.exit(0)
+
+# Recursive shell: <interpreter> -c|-e
+RECURSIVE_SHELLS = {'bash', 'sh', 'zsh', 'dash', 'python', 'python3', 'node', 'perl', 'ruby'}
+for i, t in enumerate(tokens):
+    if t in RECURSIVE_SHELLS and i + 1 < len(tokens) and tokens[i+1] in ('-c', '-e'):
+        print('DENY')
+        sys.exit(0)
+
+# eval / source / dot-source as standalone command tokens.
+for i, t in enumerate(tokens):
+    if t in ('eval', 'source', '.'):
+        if i == 0 or tokens[i-1] in COMPOUND_TOKENS:
+            print('DENY')
+            sys.exit(0)
+
+# Leading variable assignment (VAR=value).
+if tokens and re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', tokens[0]):
+    print('DENY')
+    sys.exit(0)
+
+# Shell keywords as standalone tokens.
+SHELL_KEYWORDS = {'if', 'then', 'else', 'elif', 'fi', 'for', 'while',
+                  'until', 'do', 'done', 'case', 'esac', 'function', 'select'}
+for t in tokens:
+    if t in SHELL_KEYWORDS:
+        print('DENY')
+        sys.exit(0)
+
+# xargs anywhere.
+if 'xargs' in tokens:
+    print('DENY')
+    sys.exit(0)
+
+# Redirect tokens — extended set per codex iter-3 F6. Bash redirections that
+# tokenize as standalone tokens under punctuation_chars=True include the full
+# set below. tee is a separate verb. Any of these on the protected path is a
+# write surface.
+REDIRECT_TOKENS = {
+    '>', '>>', '<', '<>', '>|',
+    '&>', '&>>', '>&', '<&',
+    '<<', '<<-', '<<<',
+}
+for t in tokens:
+    if t in REDIRECT_TOKENS:
+        print('DENY')
+        sys.exit(0)
+if 'tee' in tokens:
+    print('DENY')
+    sys.exit(0)
+
+# Write-action veto for find. Codex iter-2 C9 + iter-1 F2 + iter-3 F5: shlex
+# does NOT expand ANSI-C `$'...'`, and bash accepts many equivalent concatenated
+# forms like `-de$'lete'` (tokenizes to `-de$lete`) and `$'-de'$'lete'` (tokenizes
+# to `$-de$lete`). The previous { -delete, $-delete } match is too narrow.
+# General rule per F5: normalize the candidate token by stripping all '$' bytes
+# and compare against the bare set.
+WRITE_ACTION_FLAGS = {
+    '-exec', '-execdir', '-delete', '-ok', '-okdir',
+    '-fprint', '-fprint0', '-fprintf', '-fls',
+}
+for t in tokens:
+    if t in WRITE_ACTION_FLAGS:
+        print('DENY')
+        sys.exit(0)
+    # Strip all $ bytes for ANSI-C concatenated forms.
+    if '$' in t:
+        normalized = t.replace('$', '')
+        if normalized in WRITE_ACTION_FLAGS:
+            print('DENY')
+            sys.exit(0)
+
+# Now that all compound/write/dangerous shapes have been ruled out, decide the
+# allowlist branch. Bare-writer (a) and pure-read (b) decisions happen LAST,
+# AFTER the deny gauntlet above (codex iter-3 F3 fix).
+
+# Allowlist (a): BARE official-writer — first token (or first 2 tokens for
+# `python3 scripts/...`) must match the official writer path EXACTLY. The
+# regex form is preserved on the trimmed text but ONLY reaches here when the
+# command has no compound/write/dangerous shape.
+BARE_WRITER_RE = re.compile(r'^(python3?\s+)?scripts/write-bulk-commit-sentinel\.py(\s|$)')
+if BARE_WRITER_RE.match(trimmed):
+    print('BARE_WRITER')
+    sys.exit(0)
+
+# Allowlist (b): single pure-read invocation. First token must be a pure-read verb.
+PURE_READ_VERBS = {'ls', 'stat', 'cat', 'file', 'wc', 'head', 'tail',
+                   'grep', 'jq', 'find', 'test', '['}
+if tokens and tokens[0] in PURE_READ_VERBS:
+    print('PURE_READ')
+    sys.exit(0)
+
+# Default: anything that is not BARE_WRITER or PURE_READ is DENY.
+print('DENY')
+PYEOF
+)
+
+  case "$_bulk_decision" in
+    BARE_WRITER)
+      : # bare official-writer — script-level gate handles auth
+      ;;
+    PURE_READ)
+      : # single pure-read inspection allowed
+      ;;
+    TOKENIZER_ERROR)
+      echo "BLOCKED: bulk-commit-auth-flag-write — Bash command failed tokenization (likely unterminated quote) — FORBIDDEN (fail-closed)" >&2
+      echo "Command: $COMMAND" >&2
+      echo "REASON: per task 20260526-053746 AC-08, the shlex tokenizer raised ValueError" >&2
+      echo "        while parsing this command. Per codex iter-2 C11, the helper exhausts" >&2
+      echo "        list(lex) inside try/except ValueError and fails CLOSED (deny, not allow)." >&2
+      exit 2
+      ;;
+    DENY|*)
+      echo "BLOCKED: bulk-commit-auth-flag-write — Bash command references protected bulk sentinel path OR sentinel-writer script (write-bulk-commit-sentinel.py) in a compound or write context — FORBIDDEN" >&2
+      echo "Command: $COMMAND" >&2
+      echo "REASON: per task 20260526-053746 (fix for prior cycle 20260525-095242 ANSI-C bypass +" >&2
+      echo "        over-blocking regressions), the compound/write detector now uses Python" >&2
+      echo "        shlex.shlex(posix=True, punctuation_chars=True) tokenization. Any" >&2
+      echo "        shell control structure (; && || | & |& \$() backtick <(...) >(...) <<HEREDOC" >&2
+      echo "        newline shell-keyword), recursive shell (-c/-e/eval/source), variable assignment," >&2
+      echo "        or write-surface operator (xargs, find -exec/-delete/-execdir/-ok/-okdir/-fprint*/-fls" >&2
+      echo "        — including ANSI-C-quoted forms like \$'-fpr''int' which shlex reassembles," >&2
+      echo "        > >> tee) causes the command to be denied. Only a single bare 'ls|stat|cat|file|wc|" >&2
+      echo "        head|tail|grep|jq|find|test|[' invocation of the protected path (with NO compound" >&2
+      echo "        shape) is allowed for inspection. The official sentinel-writer scripts/write-bulk-" >&2
+      echo "        commit-sentinel.py is allowed ONLY as a bare invocation (STARTS-WITH match —" >&2
+      echo "        comment-spoof and compound-with-script forms are denied)." >&2
+      echo "        Only a human user typing directly in a terminal may create the auth flag." >&2
+      exit 2
+      ;;
   esac
-
-  # Shell control structure: ; && || | & |& $( ` <( >( << <<<
-  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
-       | grep -qE '(;|&&|\|\||\||&|\$\(|`|<\(|>\(|<<|<<<)'; then
-    _bulk_is_compound=1
-  fi
-
-  # Redirect tokens: > >> <> tee
-  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
-       | grep -qE '(>|>>|<>|\btee\b)'; then
-    _bulk_is_compound=1
-  fi
-
-  # Recursive shell: bash|sh|zsh|dash|python|python3|node|perl|ruby + -c/-e
-  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
-       | grep -qE '\b(bash|sh|zsh|dash|python3?|node|perl|ruby)[[:space:]]+-[ce]\b'; then
-    _bulk_is_compound=1
-  fi
-
-  # eval / source / dot-source
-  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
-       | grep -qE '(^|[[:space:];|&])(eval|source|\.)[[:space:]]'; then
-    _bulk_is_compound=1
-  fi
-
-  # Leading variable assignment (VAR=value).
-  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
-       | grep -qE '^[A-Za-z_][A-Za-z0-9_]*='; then
-    _bulk_is_compound=1
-  fi
-
-  # Shell keywords: if/then/else/elif/fi/for/while/until/do/done/case/esac/function/select.
-  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
-       | grep -qE '(^|[[:space:];|&])(if|then|else|elif|fi|for|while|until|do|done|case|esac|function|select)([[:space:];|&]|$)'; then
-    _bulk_is_compound=1
-  fi
-
-  # xargs (write surface fed via stdin).
-  if [ "$_bulk_is_compound" = "0" ] && printf '%s' "$_bulk_trimmed_cmd" \
-       | grep -qE '\bxargs\b'; then
-    _bulk_is_compound=1
-  fi
-
-  # Allowlist (a): BARE official-writer invocation — STARTS-WITH match on
-  # `python3 scripts/write-bulk-commit-sentinel.py` or
-  # `scripts/write-bulk-commit-sentinel.py`. Substring match (anywhere in the
-  # command) is forbidden — it allows comment-spoof
-  # (`touch <flag> # scripts/write-bulk-commit-sentinel.py`) and compound-with-
-  # script (`scripts/write-bulk-commit-sentinel.py ; touch <flag>`) forms to evade.
-  _bulk_is_bare_writer=0
-  if [ "$_bulk_is_compound" = "0" ] && \
-     printf '%s' "$_bulk_trimmed_cmd" \
-       | grep -qE '^(python3?[[:space:]]+)?scripts/write-bulk-commit-sentinel\.py([[:space:]]|$)'; then
-    _bulk_is_bare_writer=1
-  fi
-
-  # Allowlist (b): single pure-read invocation. Same compound denylist applies.
-  # PLUS: bare `find` is OK; `find ... -exec/-delete/-execdir/-ok/-okdir` is NOT
-  # (those open a write surface and must be denied even though the leading verb
-  # is in the read allowlist).
-  _bulk_is_pure_read=0
-  if [ "$_bulk_is_compound" = "0" ] && \
-     printf '%s' "$_bulk_trimmed_cmd" \
-       | grep -qE '^(ls|stat|cat|file|wc|head|tail|grep|jq|find|test|\[)([[:space:]]|$)'; then
-    # find write-action veto: -exec/-execdir/-delete/-ok/-okdir/-fprint/
-    # -fprint0/-fprintf/-fls all open a write surface. -fprint*/-fls were
-    # added per codex iter-2 finding #2 (write-surface family is wider
-    # than the BA M1 enumeration listed).
-    if ! printf '%s' "$_bulk_trimmed_cmd" \
-         | grep -qE '\-(exec|execdir|delete|ok|okdir|fprint0?|fprintf|fls)\b'; then
-      _bulk_is_pure_read=1
-    fi
-  fi
-
-  if [ "$_bulk_is_bare_writer" = "1" ]; then
-    : # bare official-writer — script-level gate handles auth
-  elif [ "$_bulk_is_pure_read" = "1" ]; then
-    : # single pure-read inspection allowed
-  else
-    echo "BLOCKED: bulk-commit-auth-flag-write — Bash command references /tmp/claude-bulk-allowed-*.flag or /tmp/claude-bulk-commit-sentinel-*.json in a compound or write context — FORBIDDEN" >&2
-    echo "Command: $COMMAND" >&2
-    echo "REASON: per task 20260525-095242 (fix for prior cycle 20260524-205206 AC-04 BLOCKER)," >&2
-    echo "        the allowlist branch is tightened from PREFIX-read to WHOLE-COMMAND-read — any" >&2
-    echo "        shell control structure (; && || | & |& \$() backtick <(...) >(...) <<HEREDOC" >&2
-    echo "        newline shell-keyword), recursive shell (-c/-e/eval/source), variable assignment," >&2
-    echo "        or write-surface operator (xargs, find -exec/-delete/-execdir/-ok/-okdir, > >> tee)" >&2
-    echo "        causes the command to be denied. Only a single bare 'ls|stat|cat|file|wc|head|tail|" >&2
-    echo "        grep|jq|find|test|[' invocation of the protected path (with NO compound shape) is" >&2
-    echo "        allowed for inspection. The official sentinel-writer scripts/write-bulk-commit-" >&2
-    echo "        sentinel.py is allowed ONLY as a bare invocation (STARTS-WITH match — comment-spoof" >&2
-    echo "        and compound-with-script forms are denied)." >&2
-    echo "        Only a human user typing directly in a terminal may create the auth flag." >&2
-    exit 2
-  fi
 fi
 
 # ── ABSOLUTE BAN: session_dirs.txt, happy-session-recovery.sh, happy-restart.sh ──
