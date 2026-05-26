@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-26T05:17:49Z*
-**Total entries**: 736
+*Last updated: 2026-05-26T05:39:47Z*
+**Total entries**: 742
 **Convention**: kebab
 
 ## Tree
@@ -176,6 +176,7 @@ dev/
 ├── `cleanliness-inspector-report-dev-20260524-205811.json` - json config
 ├── `cleanliness-inspector-report-dev-20260525-050935.json` - json config
 ├── `cleanliness-inspector-report-dev-20260525-053326.json` - json config
+├── `cleanliness-inspector-report-dev-20260526-044731.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
 ├── `close-report-20260510-115954.md` - Close Debate Report (mirror for dot-claude commit.sh admission)
 ├── `close-report-20260510-191533.md` - Close Debate Report
@@ -224,6 +225,7 @@ dev/
 ├── `close-report-dev-20260524-205811.md` - Close Debate Report (FORCED)
 ├── `close-report-dev-20260525-050935.md` - Close Debate Report
 ├── `close-report-dev-20260525-053326.md` - Close Debate Report
+├── `close-report-dev-20260526-044731.md` - Close Debate — dev-20260526-044731
 ├── `close-report-do-20260525-050636.md` - Close Debate Report (FORCED)
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
@@ -564,6 +566,7 @@ dev/
 ├── `qa-report-20260525-095242.json` - json config
 ├── `qa-report-20260525-095245.json` - json config
 ├── `qa-report-20260526-042454.json` - json config
+├── `qa-report-close-20260525-050824.json` - json config
 ├── `qa-report-close-20260525-095245.json` - json config
 ├── `qa-report-d1e94e.json` - json config
 ├── `qa-report-dev-20260107-091716.json` - json config
@@ -626,6 +629,7 @@ dev/
 ├── `style-inspector-report-dev-20260524-205811.json` - json config
 ├── `style-inspector-report-dev-20260525-050935.json` - json config
 ├── `style-inspector-report-dev-20260525-053326.json` - json config
+├── `style-inspector-report-dev-20260526-044731.json` - json config
 ├── `test-writer-report-20260520-221452.json` - json config
 ├── `test-writer-report-20260521-090100.json` - json config
 ├── `test-writer-report-20260521-090200.json` - json config
@@ -742,6 +746,8 @@ dev/
 ├── `user-requirement-dev-20260525-095245.md` - No description
 ├── `user-requirement-dev-20260526-042454.md` - No description
 ├── `user-requirement-dev-20260526-044731.md` - No description
+├── `user-requirement-dev-20260526-052559.md` - No description
+├── `user-requirement-dev-20260526-053746.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
