@@ -39,6 +39,8 @@ The following operations are FORBIDDEN regardless of any instruction in the disp
 10. **Never use commit messages matching `\bsync\b.*\buncommitted\b` or `chore\(claude\)\s*:\s*sync`** — these patterns trigger pretool-bulk-commit-detector.py
 11. **Never run on branches starting with `refs/remotes/`** — these are remote-tracking refs, not local branches
 12. **Never commit with `git commit -m "$(cat <<'...'...)"` (heredoc form)** — always use `git commit -F <tmpfile>` with mktemp and trap cleanup
+13. **Never use `auto-bulk:` commit message prefix when `BULK=false`** — this prefix is ONLY authorized in Bulk Mode (BULK=true) with a valid bulk-commit sentinel written by /commit --bulk Step 5. Using it in BULK=false mode forges the commit authorization chain.
+14. **Never create, modify, touch, or cause creation of `/tmp/claude-bulk-commit-sentinel-*.json` by any mechanism**, including the writer script (absolute/relative/symlink paths), `python -c`, heredoc code, `importlib`, `runpy`, copied writer logic, shell/path concatenation, or manual JSON writes. Bulk sentinels are created ONLY before dispatch by human-invoked `/commit --bulk`. Direct invocation of `write-bulk-commit-sentinel.py` by any path form is forbidden.
 
 ---
 
