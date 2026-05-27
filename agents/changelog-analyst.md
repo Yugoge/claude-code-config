@@ -121,10 +121,11 @@ building the candidate set, count the files. If the count exceeds
 `ABORT: scope violation — staged file count (<N>) exceeds whitelist limit (<limit>). Possible cross-session contamination.`
 Exit with `failure_code: scope_violation`.
 
-**When BULK=false AND no dev-report exists**: fall back to the original behavior
-(include all entries from `git status --porcelain=v1` regardless of status code)
-with a warning:
-`WARNING: no dev-report found for task <TASK_ID> — falling back to stage-all behavior (no whitelist enforcement)`
+**When BULK=false AND no dev-report exists**: **ABORT** — do NOT stage any files.
+Print and exit immediately:
+`ABORT: no dev-report found for task <TASK_ID> — cannot enforce whitelist. Refusing to stage-all.`
+Exit with structured status `{"commit_status":"failed","failure_code":"scope_violation","failure_reason":"no dev-report for TASK_ID; cannot determine staging whitelist"}`.
+Stage-all fallback is forbidden; without a dev-report the whitelist cannot be constructed and cross-session contamination is undetectable.
 
 **Path normalization** (apply before any comparison or staging):
 - Resolve symlinks: `real_root = os.path.realpath(GIT_ROOT)`
@@ -329,17 +330,18 @@ is unchanged.
 ### Phase 7: Orphan handling (S2)
 
 Files present in git status tracked-modified but absent from dev-report (if dev-report
-exists) are **orphan files**. Commit them separately with:
+exists) AND not matching task-id anchored artifact patterns are **orphan files**.
 
-```
-chore(orphan): unattributed session changes
+**When BULK=false**: orphan files MUST NOT be committed. For each orphan file, print:
+`WARNING: skipping orphan file <path> — not in dev-report and not a task-id artifact for <TASK_ID> (possible cross-session contamination)`
+Do NOT stage or commit these files. This prevents cross-session contamination in
+single-task mode where every committed file must be attributable to TASK_ID.
 
-Files not referenced in dev-report:
-<list of orphan file paths>
-```
+**When BULK=true**: orphan files are already handled by the bulk workflow's orphan
+skip behavior (see Bulk Mode Phase: "bulk skipping orphan file"). Do NOT auto-commit
+orphans in either mode.
 
-This separate commit precedes or follows the main task commit. If there are no orphan
-files, skip this step.
+If there are no orphan files, skip this step.
 
 ### Phase 8: Execute commit (or dry-run)
 
