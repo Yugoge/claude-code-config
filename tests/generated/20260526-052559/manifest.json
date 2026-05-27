@@ -14,7 +14,7 @@
         "method": "pytest or bash subprocess",
         "command": "COMMAND='python3 /root/.claude/scripts/write-bulk-commit-sentinel.py' bash hooks/pretool-bash-safety.sh",
         "expected_exit": 2,
-        "expected_stderr_token": "bulk-commit-auth-flag-write"
+        "expected_stderr_token": "bulk-commit-sentinel-write"
       }
     },
     {
@@ -27,7 +27,7 @@
       "hook_check": {
         "method": "pytest or bash subprocess",
         "expected_exit": 2,
-        "expected_stderr_token": "bulk-commit-auth-flag-write"
+        "expected_stderr_token": "bulk-commit-sentinel-write"
       }
     },
     {
@@ -105,7 +105,7 @@
       "hook_check": {
         "method": "pytest or bash subprocess",
         "expected_exit": 2,
-        "expected_stderr_token": "bulk-commit-auth-flag-write"
+        "expected_stderr_token": "bulk-commit-sentinel-write"
       }
     }
   ],
