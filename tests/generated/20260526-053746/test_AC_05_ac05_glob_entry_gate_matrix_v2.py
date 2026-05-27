@@ -17,7 +17,7 @@ AC_TYPE = "hook"
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 HOOK_PATH = REPO_ROOT / "hooks" / "pretool-bash-safety.sh"
-STABLE_STDERR_TOKEN = "bulk-commit-auth-flag-write"
+STABLE_STDERR_TOKEN = "bulk-commit-sentinel-write"
 
 
 def _run_hook_with_payload(hook_path, command):

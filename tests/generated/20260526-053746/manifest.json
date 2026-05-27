@@ -81,14 +81,14 @@
             "case": "a_fprint",
             "command_payload_template": "find <FLAG> $'-fpr''int' /tmp/out",
             "expected_exit_code": 2,
-            "expected_stderr_contains": "bulk-commit-auth-flag-write",
+            "expected_stderr_contains": "bulk-commit-sentinel-write",
             "note": "Iter-1 baseline. Token after ANSI-C reassembly via shlex.shlex is $-fprint; write-action veto must match this form per iter-1 codex F2."
           },
           {
             "case": "b_delete",
             "command_payload_template": "find <FLAG> $'-de''lete'",
             "expected_exit_code": 2,
-            "expected_stderr_contains": "bulk-commit-auth-flag-write",
+            "expected_stderr_contains": "bulk-commit-sentinel-write",
             "note": "Iter-2 codex C9. Prevents a special-case $-fprint-only patch from passing — write-action handler must generalize across the find write-action family ({-delete, -exec, -execdir, -fprint, -fprint0, -fprintf, -fls, -ok, -okdir, ...})."
           }
         ]
@@ -113,10 +113,10 @@
           {"case": "f_quoted_procsub", "command_payload_template": "grep -E '<(cmd)' <FLAG>", "expected_exit_code": 0, "note": "Iter-2 codex C8 ALLOW counterpart. shlex token: <(cmd)"}
         ],
         "deny_fixtures": [
-          {"case": "g_active_cmdsub_unquoted", "command_payload_template": "cat <FLAG> $(cmd)", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write", "note": "Iter-2 codex C6."},
-          {"case": "h_active_cmdsub_doublequoted", "command_payload_template": "cat <FLAG> \"$(cmd)\"", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write", "note": "Iter-2 codex C6. CRITICAL: double-quotes do NOT inhibit $() expansion."},
-          {"case": "i_active_procsub_read", "command_payload_template": "cat <FLAG> <(cmd)", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write", "note": "Iter-2 codex C8 DENY counterpart."},
-          {"case": "j_active_procsub_write", "command_payload_template": "cat <FLAG> >(cmd)", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write", "note": "Iter-2 codex C8 DENY counterpart."}
+          {"case": "g_active_cmdsub_unquoted", "command_payload_template": "cat <FLAG> $(cmd)", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write", "note": "Iter-2 codex C6."},
+          {"case": "h_active_cmdsub_doublequoted", "command_payload_template": "cat <FLAG> \"$(cmd)\"", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write", "note": "Iter-2 codex C6. CRITICAL: double-quotes do NOT inhibit $() expansion."},
+          {"case": "i_active_procsub_read", "command_payload_template": "cat <FLAG> <(cmd)", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write", "note": "Iter-2 codex C8 DENY counterpart."},
+          {"case": "j_active_procsub_write", "command_payload_template": "cat <FLAG> >(cmd)", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write", "note": "Iter-2 codex C8 DENY counterpart."}
         ],
         "should_have_caveat": "Backtick `cmd` and here-string <<< distinguishing (quoted vs unquoted) is NOT in the must-have set per iter-2 codex C7 — shlex tokenizes them identically. Dev MAY add raw-text inspection for these if cost is low (SHOULD_HAVE)."
       }
@@ -151,10 +151,10 @@
         "method": "fixture_matrix_hook_invocation",
         "hook": "hooks/pretool-bash-safety.sh",
         "fixtures": [
-          {"case": "a_star_compound", "command_payload_template": "cat <FLAG with * glob>;rm /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write"},
-          {"case": "b_question_compound", "command_payload_template": "cat <FLAG with ? glob>;rm /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write"},
-          {"case": "c_bracket_positive_compound", "command_payload_template": "cat <FLAG with [abc] glob>;rm /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write"},
-          {"case": "d_bracket_negation_compound", "command_payload_template": "cat <FLAG with [!abc] glob>;rm /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write"}
+          {"case": "a_star_compound", "command_payload_template": "cat <FLAG with * glob>;rm /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write"},
+          {"case": "b_question_compound", "command_payload_template": "cat <FLAG with ? glob>;rm /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write"},
+          {"case": "c_bracket_positive_compound", "command_payload_template": "cat <FLAG with [abc] glob>;rm /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write"},
+          {"case": "d_bracket_negation_compound", "command_payload_template": "cat <FLAG with [!abc] glob>;rm /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write"}
         ],
         "discriminating_note": "Iter-1 codex F4 + iter-2 OBJ-5. Before fix: all 4 cases exit rc=0 because entry gate misses the glob char and Layer 1.F is entirely skipped. After fix: all 4 cases exit rc=2 because entry gate matches AND compound is detected."
       }
@@ -185,10 +185,10 @@
         "method": "fixture_matrix_hook_invocation",
         "hook": "hooks/pretool-bash-safety.sh",
         "fixtures": [
-          {"case": "a_unspaced_semi", "command_payload_template": "ls <FLAG>;python3 -c 'open(\"/tmp/x\",\"w\")'", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write", "note": "Iter-2 OBJ-2. Plain shlex.split yields ['ls', '<FLAG>;python3', ...] — ; glued to token. punctuation_chars=True yields ['ls', '<FLAG>', ';', 'python3', ...]."},
-          {"case": "b_unspaced_andand", "command_payload_template": "ls <FLAG>&&touch /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write"},
-          {"case": "c_unspaced_oror", "command_payload_template": "ls <FLAG>||touch /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write", "note": "Iter-2 codex C5. || is in the existing Layer 1.F compound separator contract; must be in regression matrix."},
-          {"case": "d_unspaced_pipe", "command_payload_template": "cat <FLAG>|cat", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write", "note": "Unquoted pipe with no whitespace."}
+          {"case": "a_unspaced_semi", "command_payload_template": "ls <FLAG>;python3 -c 'open(\"/tmp/x\",\"w\")'", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write", "note": "Iter-2 OBJ-2. Plain shlex.split yields ['ls', '<FLAG>;python3', ...] — ; glued to token. punctuation_chars=True yields ['ls', '<FLAG>', ';', 'python3', ...]."},
+          {"case": "b_unspaced_andand", "command_payload_template": "ls <FLAG>&&touch /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write"},
+          {"case": "c_unspaced_oror", "command_payload_template": "ls <FLAG>||touch /tmp/x", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write", "note": "Iter-2 codex C5. || is in the existing Layer 1.F compound separator contract; must be in regression matrix."},
+          {"case": "d_unspaced_pipe", "command_payload_template": "cat <FLAG>|cat", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write", "note": "Unquoted pipe with no whitespace."}
         ]
       }
     },
@@ -203,8 +203,8 @@
         "method": "fixture_matrix_hook_invocation",
         "hook": "hooks/pretool-bash-safety.sh",
         "fixtures": [
-          {"case": "a_unterminated_single_quote", "command_payload_template": "cat <FLAG> 'unterminated", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write", "note": "Iter-2 OBJ-4. shlex.shlex(posix=True, punctuation_chars=True) raises ValueError: No closing quotation when list(lex) consumes the lexer."},
-          {"case": "b_unterminated_double_quote", "command_payload_template": "cat <FLAG> \"unterminated", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-auth-flag-write", "note": "Same failure mode for double-quote."}
+          {"case": "a_unterminated_single_quote", "command_payload_template": "cat <FLAG> 'unterminated", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write", "note": "Iter-2 OBJ-4. shlex.shlex(posix=True, punctuation_chars=True) raises ValueError: No closing quotation when list(lex) consumes the lexer."},
+          {"case": "b_unterminated_double_quote", "command_payload_template": "cat <FLAG> \"unterminated", "expected_exit_code": 2, "expected_stderr_contains": "bulk-commit-sentinel-write", "note": "Same failure mode for double-quote."}
         ],
         "implementation_hint_for_dev": "Iter-2 codex C11: the helper MUST exhaust the lexer via `list(lex)` (or equivalent for-loop consuming all tokens) inside a `try/except ValueError: deny()` block."
       }

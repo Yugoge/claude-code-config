@@ -20,7 +20,7 @@ AC_TYPE = "hook"
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 HOOK_PATH = REPO_ROOT / "hooks" / "pretool-bash-safety.sh"
-STABLE_STDERR_TOKEN = "bulk-commit-auth-flag-write"
+STABLE_STDERR_TOKEN = "bulk-commit-sentinel-write"
 
 
 def _run_hook_with_payload(hook_path, payload):
@@ -159,7 +159,7 @@ def test_AC_01_layer1f_compound_bypass_matrix(
            predicate (M1) and M2 official-writer safelist tightening applied.
     WHEN:  the hook is invoked with the per-case JSON payload on stdin.
     THEN:  exit code matches expected_exit EXACTLY (0 for ALLOW, 2 for DENY)
-           AND the stable stderr token 'bulk-commit-auth-flag-write' presence
+           AND the stable stderr token 'bulk-commit-sentinel-write' presence
            matches expected_token_present EXACTLY.
     """
     payload = {

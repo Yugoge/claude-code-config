@@ -33,10 +33,10 @@ def test_ac_01():
     """
     GIVEN: pretool-bash-safety.sh is the active PreToolUse hook
     WHEN:  a Bash command is 'python3 /root/.claude/scripts/write-bulk-commit-sentinel.py' (absolute path, bare, no compound structure)
-    THEN:  the hook exits 2 and stderr contains the token 'bulk-commit-auth-flag-write'
+    THEN:  the hook exits 2 and stderr contains the token 'bulk-commit-sentinel-write'
     """
     rc, combined = _run_hook("python3 /root/.claude/scripts/write-bulk-commit-sentinel.py")
     assert rc == 2, f"Expected exit 2 (blocked), got {rc}. Output: {combined[:400]}"
-    assert "bulk-commit-auth-flag-write" in combined, (
-        f"Expected stderr token 'bulk-commit-auth-flag-write' not found. Output: {combined[:400]}"
+    assert "bulk-commit-sentinel-write" in combined, (
+        f"Expected stderr token 'bulk-commit-sentinel-write' not found. Output: {combined[:400]}"
     )
