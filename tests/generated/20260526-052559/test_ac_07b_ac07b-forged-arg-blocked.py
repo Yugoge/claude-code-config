@@ -35,7 +35,7 @@ def test_ac_07b():
     WHEN:  a Bash command is the canonical venv-activate form PLUS '--sid FORGED' argument:
            'source venv/bin/activate && python3 /root/.claude/scripts/write-bulk-commit-sentinel.py --sid FORGED'
            (M5 allowlist regex is anchored with $ — extra args do NOT match the pattern)
-    THEN:  the hook exits 2 and stderr contains the token 'bulk-commit-auth-flag-write'
+    THEN:  the hook exits 2 and stderr contains the token 'bulk-commit-sentinel-write'
            (forged --sid argument causes non-canonical form to be denied)
     """
     forged_cmd = "source venv/bin/activate && python3 /root/.claude/scripts/write-bulk-commit-sentinel.py --sid FORGED"
@@ -44,6 +44,6 @@ def test_ac_07b():
         f"Expected exit 2 (forged --sid blocked), got {rc}. "
         f"Output: {combined[:400]}"
     )
-    assert "bulk-commit-auth-flag-write" in combined, (
-        f"Expected stderr token 'bulk-commit-auth-flag-write' not found. Output: {combined[:400]}"
+    assert "bulk-commit-sentinel-write" in combined, (
+        f"Expected stderr token 'bulk-commit-sentinel-write' not found. Output: {combined[:400]}"
     )

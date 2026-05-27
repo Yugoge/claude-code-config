@@ -30,7 +30,7 @@ DEV_REPORT_PATHS = [
     REPO_ROOT / "docs" / "dev" / "dev-report-20260525-095242.json",
 ]
 
-STABLE_STDERR_TOKEN = "bulk-commit-auth-flag-write"
+STABLE_STDERR_TOKEN = "bulk-commit-sentinel-write"
 REQUIRED_NEW_CASE_IDS = [
     "C1", "C2", "C3", "C3b",
     "C4", "C5", "C6",
@@ -144,8 +144,8 @@ def test_AC_02_target_file_contains_all_33_case_ids():
 def test_AC_02_target_file_uses_locked_assertion_shapes():
     """
     GIVEN: AC-02(d)(e) — DENY assertion shape EXACTLY `assert rc == 2` AND
-           `assert 'bulk-commit-auth-flag-write' in stderr`; ALLOW shape
-           EXACTLY `assert rc == 0` AND `assert 'bulk-commit-auth-flag-write'
+           `assert 'bulk-commit-sentinel-write' in stderr`; ALLOW shape
+           EXACTLY `assert rc == 0` AND `assert 'bulk-commit-sentinel-write'
            not in stderr`. Codex iter-1 finding #9 forbids `rc != 0` and
            forbids regex over a longer message.
     WHEN:  the chosen target file is grep'd.
