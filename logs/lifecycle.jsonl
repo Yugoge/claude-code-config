@@ -105,3 +105,15 @@
 {"ts": "2026-05-26T21:02:05Z", "agent": "ba", "event": "user_rating_3", "prev_score": -71, "new_score": -79, "delta": -8, "unclamped_score": -79, "actor": "orchestrator", "reason": "dev-20260525-212741"}
 {"ts": "2026-05-26T21:02:05Z", "agent": "dev", "event": "user_rating_3", "prev_score": -141, "new_score": -156, "delta": -15, "unclamped_score": -156, "actor": "orchestrator", "reason": "dev-20260525-212741"}
 {"ts": "2026-05-26T21:02:05Z", "agent": "qa", "event": "user_rating_3", "prev_score": -85, "new_score": -93, "delta": -8, "unclamped_score": -93, "actor": "orchestrator", "reason": "dev-20260525-212741"}
+{"ts": "2026-05-26T21:17:50Z", "agent": "dev", "event": "close_success_qa_fail_fixed", "prev_score": -156, "new_score": -154, "delta": 2, "unclamped_score": -154, "actor": "orchestrator", "reason": "dev-20260526-200855"}
+{"ts": "2026-05-26T21:17:51Z", "agent": "ba", "event": "close_success_qa_fail_fixed", "prev_score": -79, "new_score": -78, "delta": 1, "unclamped_score": -78, "actor": "orchestrator", "reason": "dev-20260526-200855"}
+{"ts": "2026-05-26T21:17:51Z", "agent": "qa", "event": "close_success_qa_fail_fixed", "prev_score": -93, "new_score": -92, "delta": 1, "unclamped_score": -92, "actor": "orchestrator", "reason": "dev-20260526-200855"}
+{"ts": "2026-05-26T21:20:32Z", "agent": "dev", "event": "close_success_qa_pass", "prev_score": -154, "new_score": -152, "delta": 2, "unclamped_score": -152, "actor": "orchestrator", "reason": "20260526-202532"}
+{"ts": "2026-05-26T21:20:32Z", "agent": "ba", "event": "close_success_qa_pass", "prev_score": -78, "new_score": -77, "delta": 1, "unclamped_score": -77, "actor": "orchestrator", "reason": "20260526-202532"}
+{"ts": "2026-05-26T21:20:32Z", "agent": "qa", "event": "close_success_qa_pass", "prev_score": -92, "new_score": -91, "delta": 1, "unclamped_score": -91, "actor": "orchestrator", "reason": "20260526-202532"}
+{"ts": "2026-05-26T21:22:38Z", "agent": "dev", "event": "user_rating_1", "prev_score": -152, "new_score": -192, "delta": -40, "unclamped_score": -192, "actor": "orchestrator", "reason": "20260526-202532"}
+{"ts": "2026-05-26T21:22:38Z", "agent": "ba", "event": "user_rating_1", "prev_score": -77, "new_score": -97, "delta": -20, "unclamped_score": -97, "actor": "orchestrator", "reason": "20260526-202532"}
+{"ts": "2026-05-26T21:22:38Z", "agent": "qa", "event": "user_rating_1", "prev_score": -91, "new_score": -111, "delta": -20, "unclamped_score": -111, "actor": "orchestrator", "reason": "20260526-202532"}
+{"ts": "2026-05-26T21:22:51Z", "agent": "ba", "event": "user_rating_2", "prev_score": -97, "new_score": -109, "delta": -12, "unclamped_score": -109, "actor": "orchestrator", "reason": "dev-20260526-200855"}
+{"ts": "2026-05-26T21:22:51Z", "agent": "dev", "event": "user_rating_2", "prev_score": -192, "new_score": -217, "delta": -25, "unclamped_score": -217, "actor": "orchestrator", "reason": "dev-20260526-200855"}
+{"ts": "2026-05-26T21:22:52Z", "agent": "qa", "event": "user_rating_2", "prev_score": -111, "new_score": -123, "delta": -12, "unclamped_score": -123, "actor": "orchestrator", "reason": "dev-20260526-200855"}
