@@ -39,11 +39,11 @@ def _static_assertions():
 
     # (d) hooks deny protected globs
     bash_safety = (REPO_ROOT / "hooks" / "pretool-bash-safety.sh").read_text(encoding="utf-8")
-    assert "bulk-commit-auth-flag-write" in bash_safety
+    assert "bulk-commit-sentinel-write" in bash_safety
     assert "claude-bulk-allowed" in bash_safety and "claude-bulk-commit-sentinel" in bash_safety
 
     write_guard = (REPO_ROOT / "hooks" / "pretool-write-guard.sh").read_text(encoding="utf-8")
-    assert "bulk-commit-auth-flag-write" in write_guard
+    assert "bulk-commit-sentinel-write" in write_guard
     assert "claude-bulk-allowed" in write_guard and "claude-bulk-commit-sentinel" in write_guard
 
     # (e) stop-cleanup reaps closing session flag
@@ -129,12 +129,12 @@ def test_AC_04_g_hook_bash(case_id, payload, expect_nonzero):
     rc, out, err = _run_hook_with_payload(hook, payload)
     if expect_nonzero:
         assert rc != 0, f"{case_id}: expected non-zero exit, got {rc}\nstderr:\n{err}"
-        assert "bulk-commit-auth-flag-write" in err or "BLOCKED" in err
+        assert "bulk-commit-sentinel-write" in err or "BLOCKED" in err
     else:
         # control case: hook may still return 0 OR may block on unrelated rules
         # (e.g. `rm` patterns). Only require that THIS bulk-rule is NOT the reason.
         if rc != 0:
-            assert "bulk-commit-auth-flag-write" not in err, (
+            assert "bulk-commit-sentinel-write" not in err, (
                 f"{case_id}: bulk-rule incorrectly fired for unrelated path:\n{err}"
             )
 
@@ -154,4 +154,4 @@ def test_AC_04_g_hook_write(case_id, payload, expect_nonzero):
     rc, out, err = _run_hook_with_payload(hook, payload)
     if expect_nonzero:
         assert rc != 0, f"{case_id}: expected non-zero exit, got {rc}\nstderr:\n{err}"
-        assert "bulk-commit-auth-flag-write" in err or "FORBIDDEN" in err
+        assert "bulk-commit-sentinel-write" in err or "FORBIDDEN" in err

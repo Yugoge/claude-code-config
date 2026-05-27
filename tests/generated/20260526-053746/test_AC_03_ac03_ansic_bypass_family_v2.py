@@ -17,7 +17,7 @@ AC_TYPE = "hook"
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 HOOK_PATH = REPO_ROOT / "hooks" / "pretool-bash-safety.sh"
-STABLE_STDERR_TOKEN = "bulk-commit-auth-flag-write"
+STABLE_STDERR_TOKEN = "bulk-commit-sentinel-write"
 
 # Protected-path flag per Layer 1.F entry gate (pretool-bash-safety.sh:662).
 _FLAG = "/tmp/claude-bulk-allowed-testsid.flag"

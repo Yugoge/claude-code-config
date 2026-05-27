@@ -33,12 +33,12 @@ def test_ac_02():
     """
     GIVEN: pretool-bash-safety.sh is the active PreToolUse hook
     WHEN:  a Bash command is "python3 -c 'import subprocess; subprocess.run([\"python3\", \"scripts/write-bulk-commit-sentinel.py\"])'" (python3 -c with literal script name in command text)
-    THEN:  the hook exits 2 and stderr contains the token 'bulk-commit-auth-flag-write'
+    THEN:  the hook exits 2 and stderr contains the token 'bulk-commit-sentinel-write'
     """
     # arch-2a: script name appears as a literal string token in the command text.
     cmd = "python3 -c 'import subprocess; subprocess.run([\"python3\", \"scripts/write-bulk-commit-sentinel.py\"])'"
     rc, combined = _run_hook(cmd)
     assert rc == 2, f"Expected exit 2 (blocked), got {rc}. Output: {combined[:400]}"
-    assert "bulk-commit-auth-flag-write" in combined, (
-        f"Expected stderr token 'bulk-commit-auth-flag-write' not found. Output: {combined[:400]}"
+    assert "bulk-commit-sentinel-write" in combined, (
+        f"Expected stderr token 'bulk-commit-sentinel-write' not found. Output: {combined[:400]}"
     )
