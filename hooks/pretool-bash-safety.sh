@@ -891,6 +891,34 @@ WRITE_ACTION_FLAGS = {
     '-exec', '-execdir', '-delete', '-ok', '-okdir',
     '-fprint', '-fprint0', '-fprintf', '-fls',
 }
+
+def normalize_ansic_token(s):
+    """Decode ANSI-C escape sequences that shlex does not expand.
+    Fail-closed: return original token on any decode error."""
+    try:
+        import re as _re
+        C_ESCAPES = {'n':'\n','t':'\t','r':'\r','a':'\a','b':'\b',
+                     'f':'\f','v':'\v','\\':'\\','\'':'\'','"':'"'}
+        def _repl(m):
+            g = m.group(0)
+            if g[1] == 'x':
+                return chr(int(g[2:], 16))
+            if g[1] == 'U':
+                return chr(int(g[2:], 16))
+            if g[1] == 'u':
+                return chr(int(g[2:], 16))
+            if g[1] == '0':
+                return chr(int(g[2:], 8))
+            if g[1] in '1234567':
+                return chr(int(g[1:], 8))
+            if g[1] in C_ESCAPES:
+                return C_ESCAPES[g[1]]
+            return g
+        pat = r'\\(?:x[0-9a-fA-F]{2}|U[0-9a-fA-F]{8}|u[0-9a-fA-F]{4}|0[0-7]{1,3}|[0-7]{1,3}|[ntrabfv\\\'"])'
+        return _re.sub(pat, _repl, s)
+    except Exception:
+        return None  # fail-closed: caller treats None as suspicious
+
 for t in tokens:
     if t in WRITE_ACTION_FLAGS:
         print('DENY')
@@ -901,6 +929,16 @@ for t in tokens:
         if normalized in WRITE_ACTION_FLAGS:
             print('DENY')
             sys.exit(0)
+    # Decode ANSI-C hex/octal/unicode escapes that shlex leaves unexpanded.
+    # Combine $-strip + escape decode for concatenated forms like -de$'\x6c'ete.
+    stripped = t.replace('$', '')
+    decoded = normalize_ansic_token(stripped)
+    if decoded is None:  # decode error: fail-closed
+        print('DENY')
+        sys.exit(0)
+    if decoded in WRITE_ACTION_FLAGS:
+        print('DENY')
+        sys.exit(0)
 
 # Now that all compound/write/dangerous shapes have been ruled out, decide the
 # allowlist branch. Bare-writer (a) and pure-read (b) decisions happen LAST,
