@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "spec_id": "spec-20260527-061433",
+  "monolith_path": "docs/dev/specs/spec-20260527-061433.md",
+  "monolith_sha256": "fc3f73b261c8cba9918e162b1426f3c317539611a30252dcb25ca7623abec42e",
+  "monolith_bytes": 10547,
+  "monolith_lines": 241,
+  "created_at": "2026-05-27T06:19:13.610426+00:00",
+  "agent_relevance": {
+    "ba": {
+      "relevant": true,
+      "reason": "BA Reference Resolution Rule, implicit reference detection, new BA-QA fail gates"
+    },
+    "dev": {
+      "relevant": true,
+      "reason": "Primary implementer: 32 files across 3 PRs, scripts, schemas, hooks, feature flags"
+    },
+    "qa": {
+      "relevant": true,
+      "reason": "QA Final Verification Enhancement, BA-QA validation fail gates"
+    },
+    "architect": {
+      "relevant": true,
+      "reason": "Dual-touchpoint architecture, storage layout, data flow, failure state machine, cache design"
+    },
+    "pm": {
+      "relevant": false,
+      "reason": "No priority rankings or timeline constraints"
+    },
+    "product-owner": {
+      "relevant": false,
+      "reason": "No user stories or business requirements"
+    },
+    "ui-specialist": {
+      "relevant": false,
+      "reason": "No visual design or UI component work"
+    },
+    "user": {
+      "relevant": false,
+      "reason": "No end-user scenarios"
+    },
+    "cleaner": {
+      "relevant": false,
+      "reason": "No cleanup actions"
+    },
+    "cleanliness-inspector": {
+      "relevant": false,
+      "reason": "No file organization inspection"
+    },
+    "git-edge-case-analyst": {
+      "relevant": false,
+      "reason": "No git history edge cases"
+    },
+    "rule-inspector": {
+      "relevant": false,
+      "reason": "No folder rule discovery"
+    },
+    "style-inspector": {
+      "relevant": false,
+      "reason": "Style constraint is a dev risk note"
+    },
+    "prompt-inspector": {
+      "relevant": false,
+      "reason": "No prompt inspection task"
+    },
+    "test-executor": {
+      "relevant": false,
+      "reason": "No tests to execute yet"
+    },
+    "test-validator": {
+      "relevant": false,
+      "reason": "No test files to validate yet"
+    }
+  },
+  "views": {
+    "ba": {
+      "file": "views/ba.md"
+    },
+    "dev": {
+      "file": "views/dev.md"
+    },
+    "qa": {
+      "file": "views/qa.md"
+    },
+    "architect": {
+      "file": "views/architect.md"
+    },
+    "orchestrator": {
+      "file": "views/orchestrator.md"
+    }
+  },
+  "sections_present": {
+    "Section 1": "Before",
+    "Section 2": "What Was Attempted",
+    "Section 3": "What Was Changed",
+    "Section 4": "Current State",
+    "Section 5": "User's Acceptance Criterion",
+    "Section 6": "Why Not Met",
+    "Section 7": "What Must Be Done",
+    "Section 8": "Attention Notes"
+  }
+}
