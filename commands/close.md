@@ -418,21 +418,19 @@ After the verdict is determined (but BEFORE the user rating below), apply close-
 - `CLOSE: NO` AND QA had failed (rejection upstream) → `score-update.sh --event close_fail_qa_fail` for ba/dev/qa. (dev -10, ba -5, qa 0.)
 - `CLOSE: YES (FORCED)` (the `--force` short-circuit path) → SKIP close-event score updates entirely; --force bypasses scoring just as it bypasses QA debate.
 
-**Session Summary — CLOSE:YES branch only (mandatory before rating, timeline format)**:
+**Session Summary — CLOSE:YES branch only (mandatory before rating)**:
 
-- If the verdict is **`CLOSE: YES`** (the non-forced YES forms — `YES`, `YES - degraded ...`, `YES — codex disabled ...`) AND `--force` was NOT passed in `$ARGUMENTS`:
-  - The orchestrator MUST produce a `## Session Summary` section in its text output to the user. The summary MUST be a **chronological timeline** of the user's stated requests this session — NOT a 5-bucket free-form write-up.
-  - **Format (M3 / AC-03 — task 20260524-205206)**:
-    - Heading line: `## Session Summary`
-    - Each entry is exactly TWO lines:
-      - `User need: <verbatim user phrasing or close paraphrase>`
-      - `Design response: <1-line description of what this cycle did to address it>`
-    - Entries are ordered chronologically (earliest user request first).
-    - **Total length: <= 15 lines** (including the heading and any blank separators). Narrative paragraphs are FORBIDDEN.
-  - **Source binding**:
-    - Primary source for `User need:` lines: `docs/dev/user-requirement-<DEV_SESSION_ID>.md` (verbatim user text captured at /dev dispatch time), plus any user-clarification artifacts written this session.
-    - Source for `Design response:` lines: `docs/dev/dev-report-<task-id>.json`, `docs/dev/qa-report-<task-id>.json`, and `docs/dev/close-report-<task-id>.md` only — do NOT improvise outcomes not present in these artifacts.
-  - **Content quality** is orchestrator-improvisational — this spec constrains FORMAT only (chronological timeline + 2-line entries + <= 15 lines + forbidden narrative). The user has explicitly delegated content quality to the orchestrator's judgment ("user explicitly delegated content quality to orchestrator's improvisation").
+- If the verdict is **`CLOSE: YES`** (non-forced YES forms) AND `--force` was NOT passed in `$ARGUMENTS`:
+  - The orchestrator MUST produce a `## Session Summary` section in its text output to the user.
+  - Format: chronological order, 6 buckets, each entry CONCISE (1–2 sentences max per bullet):
+    - **Accomplished**: what was done this session
+    - **Not accomplished**: gaps, deferred items, out-of-scope decisions
+    - **User needs satisfied**: which stated user requirements were met
+    - **User needs not satisfied**: which stated user requirements remain unmet
+    - **Bugs encountered**: bugs surfaced during the session (if none, omit or write "none")
+    - **Improvement opportunities**: technical debt, UX gaps, or follow-up items worth noting
+  - **Conciseness rule**: each bullet MUST be exactly 1 sentence. Narrative paragraphs are FORBIDDEN. The entire summary MUST fit within 20 lines including the heading. Exception: if the bullet contains a verbatim user quote, reproduce it exactly as stated (no paraphrase, no truncation), then the quote itself counts as the sentence.
+  - **Source binding**: read `docs/dev/dev-report-<task-id>.json`, `docs/dev/qa-report-<task-id>.json`, `docs/dev/user-requirement-<DEV_SESSION_ID>.md`, and `docs/dev/close-report-<task-id>.md`. Do NOT improvise outcomes not present in these artifacts. `docs/dev/user-requirement-<DEV_SESSION_ID>.md` is the primary source for "User needs satisfied" and "User needs not satisfied" bullets.
   - This summary appears in the orchestrator's text message to the user, AFTER the `CLOSE:` verdict echo and BEFORE the rating `<options>` block below.
 - If the verdict is **`CLOSE: NO`** or **`CLOSE: YES (FORCED)`**: SKIP the session summary.
 

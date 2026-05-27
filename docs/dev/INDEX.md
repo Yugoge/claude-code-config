@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-26T21:08:42Z*
-**Total entries**: 806
+*Last updated: 2026-05-26T21:32:50Z*
+**Total entries**: 818
 **Convention**: kebab
 
 ## Tree
@@ -186,6 +186,7 @@ dev/
 ├── `cleanliness-inspector-report-20260526-042454.json` - json config
 ├── `cleanliness-inspector-report-20260526-052559.json` - json config
 ├── `cleanliness-inspector-report-20260526-053746.json` - json config
+├── `cleanliness-inspector-report-20260526-202532.json` - json config
 ├── `cleanliness-inspector-report-d1e94e.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-170335.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-205811.json` - json config
@@ -193,6 +194,7 @@ dev/
 ├── `cleanliness-inspector-report-dev-20260525-053326.json` - json config
 ├── `cleanliness-inspector-report-dev-20260526-044731.json` - json config
 ├── `cleanliness-inspector-report-dev-20260526-200855.json` - json config
+├── `cleanliness-inspector-report-dev-20260526-203808.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
 ├── `close-debate-20260526-052559.md` - Close Debate Transcript -- 20260526-052559
 ├── `close-debate-20260526-053746.md` - Close Debate Transcript — 20260526-053746
@@ -240,6 +242,7 @@ dev/
 ├── `close-report-20260526-042454.md` - Close Report — Task 20260526-042454
 ├── `close-report-20260526-052559.md` - Close Debate Report
 ├── `close-report-20260526-053746.md` - Close Report -- 20260526-053746
+├── `close-report-20260526-202532.md` - Close Report: 20260526-202532
 ├── `close-report-d1e94e-prior.md` - Close Debate Report
 ├── `close-report-d1e94e.md` - Close Debate Report — d1e94e
 ├── `close-report-dev-20260524-170335.md` - Close Debate Report
@@ -247,6 +250,7 @@ dev/
 ├── `close-report-dev-20260525-050935.md` - Close Debate Report
 ├── `close-report-dev-20260525-053326.md` - Close Debate Report
 ├── `close-report-dev-20260526-044731.md` - Close Debate — dev-20260526-044731
+├── `close-report-dev-20260526-200855.md` - Close Debate Report: dev-20260526-200855
 ├── `close-report-do-20260525-050636.md` - Close Debate Report (FORCED)
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
@@ -297,6 +301,8 @@ dev/
 ├── `completion-dev-20260525-053326.md` - Completion Report
 ├── `completion-dev-20260526-044731.md` - Completion Report
 ├── `completion-dev-20260526-200855.md` - Completion Report: dev-20260526-200855
+├── `completion-dev-20260526-203808-manifest.md` - Development Completion Report — dev-20260526-203808-manifest
+├── `completion-dev-20260526-203808.md` - Development Completion Report — dev-20260526-203808
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
 ├── `context-20260510-191533.json` - json config
@@ -477,6 +483,8 @@ dev/
 ├── `dev-report-dev-20260525-053326.json` - json config
 ├── `dev-report-dev-20260526-044731.json` - json config
 ├── `dev-report-dev-20260526-200855.json` - json config
+├── `dev-report-dev-20260526-203808-manifest.json` - json config
+├── `dev-report-dev-20260526-203808.json` - json config
 ├── `meta-assessment-20260519-161035.json` - json config
 ├── `note-20260524-123039-root-bin-manual-commit.md` - Manual Commit Instructions: /root/bin/happy-session-recovery.sh
 ├── `observations-ledger.md` - Observations Ledger
@@ -527,6 +535,7 @@ dev/
 ├── `prompt-inspector-report-dev-20260525-053326.json` - json config
 ├── `prompt-inspector-report-dev-20260526-044731.json` - json config
 ├── `prompt-inspector-report-dev-20260526-200855.json` - json config
+├── `prompt-inspector-report-dev-20260526-203808.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
 ├── `qa-input-dev-20260107-091716.json` - json config
@@ -631,6 +640,8 @@ dev/
 ├── `qa-report-dev-20260525-053326.json` - json config
 ├── `qa-report-dev-20260526-044731.json` - json config
 ├── `qa-report-dev-20260526-200855.json` - json config
+├── `qa-report-dev-20260526-203808-manifest.json` - json config
+├── `qa-report-dev-20260526-203808.json` - json config
 ├── `qa-report-iter2-dev-20260107-091716.json` - json config
 ├── `refined-context-dev-20260111-193314.json` - json config
 ├── `style-inspector-report-20260517-153856.json` - json config
@@ -681,6 +692,7 @@ dev/
 ├── `style-inspector-report-dev-20260525-053326.json` - json config
 ├── `style-inspector-report-dev-20260526-044731.json` - json config
 ├── `style-inspector-report-dev-20260526-200855.json` - json config
+├── `style-inspector-report-dev-20260526-203808.json` - json config
 ├── `test-writer-report-20260520-221452.json` - json config
 ├── `test-writer-report-20260521-090100.json` - json config
 ├── `test-writer-report-20260521-090200.json` - json config
