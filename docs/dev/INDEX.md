@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-26T21:32:50Z*
-**Total entries**: 818
+*Last updated: 2026-05-27T06:21:57Z*
+**Total entries**: 831
 **Convention**: kebab
 
 ## Tree
@@ -50,6 +50,7 @@ dev/
 ├── `acceptance-criteria-20260526-052559.json` - json config
 ├── `acceptance-criteria-20260526-053746.json` - json config
 ├── `acceptance-criteria-20260526-202532.json` - json config
+├── `acceptance-criteria-20260527-054705.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2.json` - json config
 ├── `acceptance-criteria-d1e94e.json` - json config
@@ -140,6 +141,7 @@ dev/
 ├── `ba-qa-report-20260526-052559.json` - json config
 ├── `ba-qa-report-20260526-053746.json` - json config
 ├── `ba-qa-report-20260526-202532.json` - json config
+├── `ba-qa-report-20260527-054705.json` - json config
 ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 ├── `ba-qa-report-d1e94e.json` - json config
 ├── `ba-qa-report-dev-20260524-170335.json` - json config
@@ -194,6 +196,7 @@ dev/
 ├── `cleanliness-inspector-report-dev-20260525-053326.json` - json config
 ├── `cleanliness-inspector-report-dev-20260526-044731.json` - json config
 ├── `cleanliness-inspector-report-dev-20260526-200855.json` - json config
+├── `cleanliness-inspector-report-dev-20260526-203808-manifest.json` - json config
 ├── `cleanliness-inspector-report-dev-20260526-203808.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
 ├── `close-debate-20260526-052559.md` - Close Debate Transcript -- 20260526-052559
@@ -251,6 +254,8 @@ dev/
 ├── `close-report-dev-20260525-053326.md` - Close Debate Report
 ├── `close-report-dev-20260526-044731.md` - Close Debate — dev-20260526-044731
 ├── `close-report-dev-20260526-200855.md` - Close Debate Report: dev-20260526-200855
+├── `close-report-dev-20260526-203808-manifest.md` - Close Debate Report — dev-20260526-203808-manifest
+├── `close-report-dev-20260526-203808.md` - Close Debate Transcript — dev-20260526-203808
 ├── `close-report-do-20260525-050636.md` - Close Debate Report (FORCED)
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
@@ -294,6 +299,7 @@ dev/
 ├── `completion-20260526-042454.md` - Completion Report — Task 20260526-042454
 ├── `completion-20260526-052559.md` - Development Completion Report — 20260526-052559
 ├── `completion-20260526-053746.md` - Development Completion Report -- 20260526-053746
+├── `completion-20260527-054705.md` - Completion Report: 20260527-054705
 ├── `completion-d1e94e.md` - Development Completion Report — d1e94e
 ├── `completion-dev-20260524-170335.md` - Completion Report: dev-20260524-170335
 ├── `completion-dev-20260524-205811.md` - Completion Report
@@ -362,6 +368,7 @@ dev/
 ├── `context-20260526-052559.json` - json config
 ├── `context-20260526-053746.json` - json config
 ├── `context-20260526-202532.json` - json config
+├── `context-20260527-054705.json` - json config
 ├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
@@ -465,6 +472,7 @@ dev/
 ├── `dev-report-20260526-052559.json` - json config
 ├── `dev-report-20260526-053746.json` - json config
 ├── `dev-report-20260526-202532.json` - json config
+├── `dev-report-20260527-054705.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
@@ -535,6 +543,7 @@ dev/
 ├── `prompt-inspector-report-dev-20260525-053326.json` - json config
 ├── `prompt-inspector-report-dev-20260526-044731.json` - json config
 ├── `prompt-inspector-report-dev-20260526-200855.json` - json config
+├── `prompt-inspector-report-dev-20260526-203808-manifest.json` - json config
 ├── `prompt-inspector-report-dev-20260526-203808.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
@@ -619,6 +628,7 @@ dev/
 ├── `qa-report-20260526-052559.json` - json config
 ├── `qa-report-20260526-053746.json` - json config
 ├── `qa-report-20260526-202532.json` - json config
+├── `qa-report-20260527-054705.json` - json config
 ├── `qa-report-close-20260525-050824.json` - json config
 ├── `qa-report-close-20260525-095245.json` - json config
 ├── `qa-report-close-20260526-042454.json` - json config
@@ -692,6 +702,7 @@ dev/
 ├── `style-inspector-report-dev-20260525-053326.json` - json config
 ├── `style-inspector-report-dev-20260526-044731.json` - json config
 ├── `style-inspector-report-dev-20260526-200855.json` - json config
+├── `style-inspector-report-dev-20260526-203808-manifest.json` - json config
 ├── `style-inspector-report-dev-20260526-203808.json` - json config
 ├── `test-writer-report-20260520-221452.json` - json config
 ├── `test-writer-report-20260521-090100.json` - json config
@@ -773,6 +784,7 @@ dev/
 ├── `ticket-20260526-052559.md` - BA Specification: Close Layer 1.F bypass paths for write-bulk-commit-sentinel.py
 ├── `ticket-20260526-053746.md` - BA Specification: Fix 6 Outstanding Items from Cycle 1-6
 ├── `ticket-20260526-202532.md` - BA Specification: Remove dead auth-flag code from hooks
+├── `ticket-20260527-054705.md` - BA Specification: Fix 3 Codex Assessment Residuals
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-close-cont-20260524-170335.md` - Continuation: Fix bare python3 invocations introduced in dev-20260524-170335
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
@@ -824,6 +836,7 @@ dev/
 ├── `user-requirement-dev-20260526-200855.md` - No description
 ├── `user-requirement-dev-20260526-202532.md` - No description
 ├── `user-requirement-dev-20260526-203808.md` - No description
+├── `user-requirement-dev-20260527-054705.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 

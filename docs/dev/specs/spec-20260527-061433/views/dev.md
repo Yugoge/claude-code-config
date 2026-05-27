@@ -1,0 +1,139 @@
+<!-- AUTO-GENERATED VIEW for dev | source: docs/dev/specs/spec-20260527-061433.md | extracted: 2026-05-27T06:30:00+00:00 -->
+
+# dev view of spec-20260527-061433
+
+**Monolith**: docs/dev/specs/spec-20260527-061433.md
+**Extraction**: content-block level (no section-level mapping)
+
+---
+
+## Role Mandate
+
+> DEV consumes graph_context but NEVER runs Graphify itself
+
+---
+
+## Architecture: Dual Touchpoint
+
+**Step 1.5 — Pre-BA Graph Pre-query (deterministic context hydrator)**
+- Orchestrator directly calls `graphify-query.py` via Bash (NOT a subagent — avoids adding another LLM interpretation layer that could propagate confirmation bias)
+- Extracts file/concept mentions from user requirement text using 3-layer extraction: deterministic rules → repo alias index → graph/fuzzy query
+- Queries the global Graphify cache (read-only) and returns `structural_context` (800-1500 tokens, 2000 hard cap)
+- Must include `ambiguity_hypotheses` when implicit reference words detected (之前/已有/现有/原来的/previous/existing/original)
+- Output: `dev-registry/{task_id}/graphify/pre_query.json`
+- Injected into BA's input so BA sees repo structure BEFORE forming its initial interpretation
+
+**Step 7.5 — Pre-DEV Graph Enrichment (graphify subagent)**
+- Dispatched as `graphify` subagent (mode=enrich) after BA-QA validation passes, before DEV
+- Runs `graphify --update` for incremental refresh, then extracts focused subgraph based on BA's blast-radius-map.json
+- Output: `dev-registry/{task_id}/graphify/` containing `graphify-run.json`, `focused-subgraph.json`, `graph-summary.json`, `graph-report.md`
+- Patches `context-{ts}.json` with `graph_context` field (summary + path references)
+- DEV consumes graph_context but NEVER runs Graphify itself
+
+---
+
+## Global Graph Maintenance (A+B Scheme)
+
+- Initial build: user manually runs `scripts/graphify-maintain.py init` (one-time, 2-15 min)
+- /dev Step 7.5: `graphify --update` incremental refresh per task
+- /pull: post-pull trigger `graphify-maintain.py update` (non-blocking advisory)
+- Step 1.5 without global cache: `status=unavailable`, skip silently, BA runs original flow
+- First full build NEVER auto-triggered inside /dev flow
+
+---
+
+## Storage Layout
+
+```
+/var/tmp/claude-graphify/<repo_key>/     # Global cache (disk, not /dev/shm)
+├── manifest.json                         # branch, HEAD, graphify_version, file_hashes
+├── graph.json
+├── index/
+└── cache/
+
+.claude/dev-registry/{task_id}/graphify/  # Per-task immutable artifacts
+├── pre_query.json                        # Step 1.5 output
+├── graphify-run.json                     # Step 7.5 run manifest
+├── focused-subgraph.json                 # Task-scoped subgraph
+├── graph-summary.json                    # Compact summary
+└── graph-report.md                       # Human-readable report
+```
+
+---
+
+## Failure Strategy
+
+- `graph_context.status` state machine: `ok | degraded | failed | unavailable | skipped`
+- Graphify tool failure is **advisory** — never blocks DEV
+- Requirement ambiguity is **NOT advisory** — BA must block and ask user for clarification
+- Timeout: 5 min (incremental) / 15 min (first build)
+- CLI not installed → `status=unavailable`; parse errors → `status=degraded`; no cache → `status=unavailable`
+
+---
+
+## Feature Flags
+
+- `CLAUDE_GRAPHIFY_ENABLED=auto|1|0` (default: auto — run if cache/tool available, degrade gracefully if not)
+- `/dev --no-graphify` — explicit per-invocation disable
+- `GRAPHIFY_BIN` — override CLI path
+- `CLAUDE_GRAPHIFY_CACHE_ROOT` — override `/var/tmp/claude-graphify`
+
+---
+
+## Command Coverage
+
+- `/dev`: default enabled (Step 1.5 + Step 7.5)
+- `/dev-overnight`: enabled, shares global update
+- `/redev`: inherits /dev behavior
+- `/refactor`: optional
+- `/clean`: disabled
+- `/pull`: post-pull incremental update trigger
+
+---
+
+## Implementation Plan (3 PRs, 32 files)
+
+**PR1: Infrastructure** (independent, no behavior change)
+- schemas/graphify-prequery.v1.json, graphify-run.v1.json, graphify-focused-subgraph.v1.json (new)
+- schemas/context.v1.json, qa-report.v1.json, registry.json (modify — add graph fields)
+- scripts/graphify_lib.py (new — shared library)
+- scripts/graphify-maintain.py (new — init/update/status)
+- scripts/graphify-query.py (new — Step 1.5 deterministic hydrator)
+- scripts/graphify-enrich.py (new — Step 7.5 focused subgraph)
+- agents/graphify.md (new — subagent prompt, mode=enrich only)
+- hooks/pretool-cp-checkin.py (modify — register graphify agent)
+- scripts/spec-check.py (modify — add to ALLOWED_AGENTS)
+- hooks/prompt-workflow.py (modify — init graphify.json sentinel)
+- tests/test_graphify_scripts.py (new)
+- tests/test_graphify_workflow_contract.py (new)
+- hooks/tests/test_cp_checkin.py (modify)
+
+**PR2: /dev Core Integration** (dual-touchpoint + BA/QA rules)
+- settings.json (modify — CLAUDE_GRAPHIFY_ENABLED=auto env)
+- scripts/todo/dev.py, dev-command.py (modify — add graphify todos)
+- commands/dev.md (modify — insert Step 1.5 + Step 7.5)
+- commands/dev-command.md, redev.md (modify — sync graphify flow)
+- agents/ba.md (modify — Reference Resolution rule + implicit reference detection)
+- agents/qa.md (modify — BA-validation fail gate + graph_verification)
+- agents/dev.md (modify — consume graph_context, prohibit running Graphify)
+
+**PR3: Maintenance, Docs, Cleanup**
+- .gitignore (modify — ignore graphify-out/)
+- commands/pull.md (modify — post-pull update trigger)
+- docs/reference/graphify-integration.md (new — architecture doc)
+- docs/reference/slashcommand-quick-reference.md (modify)
+- docs/reference/configuration-summary.md (modify)
+- INDEX.md/README.md series (doc-sync)
+
+---
+
+## Risk Checklist
+
+1. No decimal Step headings in files (style-inspector rejects) — use "between Step N and Step N+1"
+2. Cache cross-branch pollution — manifest records branch + HEAD + graphify_version
+3. Global cache concurrent writes — file lock on /var/tmp/claude-graphify/<repo_key>
+4. structural_context too large — hard cap 2000 tokens
+5. DEV accidentally runs Graphify — dev.md explicitly prohibits
+6. Advisory vs ambiguity confusion — tool failure advisory; requirement ambiguity blocking
+7. Sensitive data in graph cache — exclude .env, credentials, keys, logs
+8. /dev-command parity — must sync structural_context and graphify enrichment
