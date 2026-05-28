@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-27T06:21:57Z*
-**Total entries**: 831
+*Last updated: 2026-05-28T14:16:24Z*
+**Total entries**: 884
 **Convention**: kebab
 
 ## Tree
@@ -51,6 +51,7 @@ dev/
 ├── `acceptance-criteria-20260526-053746.json` - json config
 ├── `acceptance-criteria-20260526-202532.json` - json config
 ├── `acceptance-criteria-20260527-054705.json` - json config
+├── `acceptance-criteria-20260527-132200.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2.json` - json config
 ├── `acceptance-criteria-d1e94e.json` - json config
@@ -63,7 +64,12 @@ dev/
 ├── `acceptance-criteria-dev-20260526-203808-issubagent.json` - json config
 ├── `acceptance-criteria-dev-20260526-203808-manifest.json` - json config
 ├── `acceptance-criteria-dev-20260526-203808.json` - json config
+├── `acceptance-criteria-dev-20260527-063758-T1.json` - json config
+├── `acceptance-criteria-dev-20260527-063758-T2.json` - json config
+├── `acceptance-criteria-dev-20260527-063758-T3.json` - json config
+├── `acceptance-criteria-dev-20260527-063758-T4.json` - json config
 ├── `architect-report-20260517-155838.json` - json config
+├── `architect-report-20260527-061433.json` - json config
 ├── `architect-report-dev-20260517-215114.json` - json config
 ├── `architect-report-dev-20260525-050824.json` - json config
 ├── `architect-report-spec-20260520-221059.json` - json config
@@ -142,12 +148,20 @@ dev/
 ├── `ba-qa-report-20260526-053746.json` - json config
 ├── `ba-qa-report-20260526-202532.json` - json config
 ├── `ba-qa-report-20260527-054705.json` - json config
+├── `ba-qa-report-20260527-132200-pass2.json` - json config
+├── `ba-qa-report-20260527-132200-pass3.json` - json config
+├── `ba-qa-report-20260527-132200.json` - json config
 ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 ├── `ba-qa-report-d1e94e.json` - json config
 ├── `ba-qa-report-dev-20260524-170335.json` - json config
 ├── `ba-qa-report-dev-20260525-050935.json` - json config
 ├── `ba-qa-report-dev-20260526-203808-manifest.json` - json config
 ├── `ba-qa-report-dev-20260526-203808.json` - json config
+├── `ba-qa-report-dev-20260527-063758-T1.json` - json config
+├── `ba-qa-report-dev-20260527-063758-T2.json` - json config
+├── `ba-qa-report-dev-20260527-063758-T3.json` - json config
+├── `ba-qa-report-dev-20260527-063758-T4-pass5.json` - json config
+├── `ba-qa-report-dev-20260527-063758-T4.json` - json config
 ├── `ba-report-spec-20260520-221059.json` - json config
 ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 ├── `cleanliness-inspector-report-20260517-155838.json` - json config
@@ -189,6 +203,7 @@ dev/
 ├── `cleanliness-inspector-report-20260526-052559.json` - json config
 ├── `cleanliness-inspector-report-20260526-053746.json` - json config
 ├── `cleanliness-inspector-report-20260526-202532.json` - json config
+├── `cleanliness-inspector-report-20260527-054705.json` - json config
 ├── `cleanliness-inspector-report-d1e94e.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-170335.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-205811.json` - json config
@@ -198,6 +213,7 @@ dev/
 ├── `cleanliness-inspector-report-dev-20260526-200855.json` - json config
 ├── `cleanliness-inspector-report-dev-20260526-203808-manifest.json` - json config
 ├── `cleanliness-inspector-report-dev-20260526-203808.json` - json config
+├── `cleanliness-inspector-report-dev-20260527-063758.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
 ├── `close-debate-20260526-052559.md` - Close Debate Transcript -- 20260526-052559
 ├── `close-debate-20260526-053746.md` - Close Debate Transcript — 20260526-053746
@@ -246,16 +262,20 @@ dev/
 ├── `close-report-20260526-052559.md` - Close Debate Report
 ├── `close-report-20260526-053746.md` - Close Report -- 20260526-053746
 ├── `close-report-20260526-202532.md` - Close Report: 20260526-202532
+├── `close-report-20260527-054705.md` - Close Report: 20260527-054705
+├── `close-report-20260527-133200.md` - Close Report — 20260527-133200
 ├── `close-report-d1e94e-prior.md` - Close Debate Report
 ├── `close-report-d1e94e.md` - Close Debate Report — d1e94e
 ├── `close-report-dev-20260524-170335.md` - Close Debate Report
 ├── `close-report-dev-20260524-205811.md` - Close Debate Report (FORCED)
+├── `close-report-dev-20260525-050824.md` - Close Debate Report (FORCED)
 ├── `close-report-dev-20260525-050935.md` - Close Debate Report
 ├── `close-report-dev-20260525-053326.md` - Close Debate Report
 ├── `close-report-dev-20260526-044731.md` - Close Debate — dev-20260526-044731
 ├── `close-report-dev-20260526-200855.md` - Close Debate Report: dev-20260526-200855
 ├── `close-report-dev-20260526-203808-manifest.md` - Close Debate Report — dev-20260526-203808-manifest
 ├── `close-report-dev-20260526-203808.md` - Close Debate Transcript — dev-20260526-203808
+├── `close-report-dev-20260527-063758.md` - Close Report — dev-20260527-063758
 ├── `close-report-do-20260525-050636.md` - Close Debate Report (FORCED)
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
@@ -299,7 +319,7 @@ dev/
 ├── `completion-20260526-042454.md` - Completion Report — Task 20260526-042454
 ├── `completion-20260526-052559.md` - Development Completion Report — 20260526-052559
 ├── `completion-20260526-053746.md` - Development Completion Report -- 20260526-053746
-├── `completion-20260527-054705.md` - Completion Report: 20260527-054705
+├── `completion-20260527-054705.md` - Development Completion Report -- 20260527-054705
 ├── `completion-d1e94e.md` - Development Completion Report — d1e94e
 ├── `completion-dev-20260524-170335.md` - Completion Report: dev-20260524-170335
 ├── `completion-dev-20260524-205811.md` - Completion Report
@@ -309,6 +329,7 @@ dev/
 ├── `completion-dev-20260526-200855.md` - Completion Report: dev-20260526-200855
 ├── `completion-dev-20260526-203808-manifest.md` - Development Completion Report — dev-20260526-203808-manifest
 ├── `completion-dev-20260526-203808.md` - Development Completion Report — dev-20260526-203808
+├── `completion-dev-20260527-063758.md` - Completion Report — dev-20260527-063758
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
 ├── `context-20260510-191533.json` - json config
@@ -369,6 +390,8 @@ dev/
 ├── `context-20260526-053746.json` - json config
 ├── `context-20260526-202532.json` - json config
 ├── `context-20260527-054705.json` - json config
+├── `context-20260527-132200.json` - json config
+├── `context-20260527-133200.json` - json config
 ├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
@@ -393,6 +416,10 @@ dev/
 ├── `context-dev-20260526-203808-issubagent.json` - json config
 ├── `context-dev-20260526-203808-manifest.json` - json config
 ├── `context-dev-20260526-203808.json` - json config
+├── `context-dev-20260527-063758-T1.json` - json config
+├── `context-dev-20260527-063758-T2.json` - json config
+├── `context-dev-20260527-063758-T3.json` - json config
+├── `context-dev-20260527-063758-T4.json` - json config
 ├── `context-iter2-dev-20260111-193314.json` - json config
 ├── `dev-report-20260110-001044.json` - json config
 ├── `dev-report-20260416-063500-iter2.json` - json config
@@ -473,6 +500,7 @@ dev/
 ├── `dev-report-20260526-053746.json` - json config
 ├── `dev-report-20260526-202532.json` - json config
 ├── `dev-report-20260527-054705.json` - json config
+├── `dev-report-20260527-133200.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
 ├── `dev-report-dev-20260107-100221.json` - json config
@@ -493,6 +521,11 @@ dev/
 ├── `dev-report-dev-20260526-200855.json` - json config
 ├── `dev-report-dev-20260526-203808-manifest.json` - json config
 ├── `dev-report-dev-20260526-203808.json` - json config
+├── `dev-report-dev-20260527-063758-T1.json` - json config
+├── `dev-report-dev-20260527-063758-T2.json` - json config
+├── `dev-report-dev-20260527-063758-T3.json` - json config
+├── `dev-report-dev-20260527-063758-T4.json` - json config
+├── `dev-report-dev-20260527-063758.json` - json config
 ├── `meta-assessment-20260519-161035.json` - json config
 ├── `note-20260524-123039-root-bin-manual-commit.md` - Manual Commit Instructions: /root/bin/happy-session-recovery.sh
 ├── `observations-ledger.md` - Observations Ledger
@@ -536,6 +569,7 @@ dev/
 ├── `prompt-inspector-report-20260526-052559.json` - json config
 ├── `prompt-inspector-report-20260526-053746.json` - json config
 ├── `prompt-inspector-report-20260526-202532.json` - json config
+├── `prompt-inspector-report-20260527-054705.json` - json config
 ├── `prompt-inspector-report-d1e94e.json` - json config
 ├── `prompt-inspector-report-dev-20260524-170335.json` - json config
 ├── `prompt-inspector-report-dev-20260524-205811.json` - json config
@@ -545,6 +579,7 @@ dev/
 ├── `prompt-inspector-report-dev-20260526-200855.json` - json config
 ├── `prompt-inspector-report-dev-20260526-203808-manifest.json` - json config
 ├── `prompt-inspector-report-dev-20260526-203808.json` - json config
+├── `prompt-inspector-report-dev-20260527-063758.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
 ├── `qa-input-dev-20260107-091716.json` - json config
@@ -629,6 +664,7 @@ dev/
 ├── `qa-report-20260526-053746.json` - json config
 ├── `qa-report-20260526-202532.json` - json config
 ├── `qa-report-20260527-054705.json` - json config
+├── `qa-report-20260527-133200.json` - json config
 ├── `qa-report-close-20260525-050824.json` - json config
 ├── `qa-report-close-20260525-095245.json` - json config
 ├── `qa-report-close-20260526-042454.json` - json config
@@ -652,6 +688,10 @@ dev/
 ├── `qa-report-dev-20260526-200855.json` - json config
 ├── `qa-report-dev-20260526-203808-manifest.json` - json config
 ├── `qa-report-dev-20260526-203808.json` - json config
+├── `qa-report-dev-20260527-063758-T1.json` - json config
+├── `qa-report-dev-20260527-063758-T2.json` - json config
+├── `qa-report-dev-20260527-063758-T3.json` - json config
+├── `qa-report-dev-20260527-063758-T4.json` - json config
 ├── `qa-report-iter2-dev-20260107-091716.json` - json config
 ├── `refined-context-dev-20260111-193314.json` - json config
 ├── `style-inspector-report-20260517-153856.json` - json config
@@ -695,6 +735,7 @@ dev/
 ├── `style-inspector-report-20260526-052559.json` - json config
 ├── `style-inspector-report-20260526-053746.json` - json config
 ├── `style-inspector-report-20260526-202532.json` - json config
+├── `style-inspector-report-20260527-054705.json` - json config
 ├── `style-inspector-report-d1e94e.json` - json config
 ├── `style-inspector-report-dev-20260524-170335.json` - json config
 ├── `style-inspector-report-dev-20260524-205811.json` - json config
@@ -704,6 +745,7 @@ dev/
 ├── `style-inspector-report-dev-20260526-200855.json` - json config
 ├── `style-inspector-report-dev-20260526-203808-manifest.json` - json config
 ├── `style-inspector-report-dev-20260526-203808.json` - json config
+├── `style-inspector-report-dev-20260527-063758.json` - json config
 ├── `test-writer-report-20260520-221452.json` - json config
 ├── `test-writer-report-20260521-090100.json` - json config
 ├── `test-writer-report-20260521-090200.json` - json config
@@ -725,6 +767,7 @@ dev/
 ├── `test-writer-report-20260525-095242.json` - json config
 ├── `test-writer-report-20260526-052559.json` - json config
 ├── `test-writer-report-20260526-053746.json` - json config
+├── `test-writer-report-20260527-132200.json` - json config
 ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence
@@ -785,6 +828,8 @@ dev/
 ├── `ticket-20260526-053746.md` - BA Specification: Fix 6 Outstanding Items from Cycle 1-6
 ├── `ticket-20260526-202532.md` - BA Specification: Remove dead auth-flag code from hooks
 ├── `ticket-20260527-054705.md` - BA Specification: Fix 3 Codex Assessment Residuals
+├── `ticket-20260527-132200.md` - BA Specification: Graphify Knowledge Graph Integration — Dual-Touchpoint Architecture
+├── `ticket-20260527-133200.md` - BA Specification: Changelog-analyst warn-and-skip for provenance-anomaly files in BULK=false mode
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-close-cont-20260524-170335.md` - Continuation: Fix bare python3 invocations introduced in dev-20260524-170335
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
@@ -801,6 +846,10 @@ dev/
 ├── `ticket-dev-20260526-203808-issubagent.md` - BA Specification: IS_SUBAGENT Gate on BLESSED_BRIDGE_RE Commit Path
 ├── `ticket-dev-20260526-203808-manifest.md` - BA Specification: Register AC7 and AC7b in per-task manifest (task 20260526-052559)
 ├── `ticket-dev-20260526-203808.md` - BA Specification: Fix stale M5 allowlist regex in ticket-20260526-052559 Edge Cases
+├── `ticket-dev-20260527-063758-T1.md` - BA Spec: Fix push-gate token session_id mismatch in changelog-analyst
+├── `ticket-dev-20260527-063758-T2.md` - BA Specification: Increase Commit Grant TTL from 10 to 30 Minutes
+├── `ticket-dev-20260527-063758-T3.md` - BA Specification: Push-analyst grant TTL increase 180s -> 600s
+├── `ticket-dev-20260527-063758-T4.md` - BA Specification: Fix `python` → `python3` and `CLAUDE_SESSION_ID` fallback
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
 ├── `user-requirement-dev-20260518-214050.md` - No description
@@ -837,6 +886,10 @@ dev/
 ├── `user-requirement-dev-20260526-202532.md` - No description
 ├── `user-requirement-dev-20260526-203808.md` - No description
 ├── `user-requirement-dev-20260527-054705.md` - No description
+├── `user-requirement-dev-20260527-063758.md` - No description
+├── `user-requirement-dev-20260527-132135.md` - No description
+├── `user-requirement-dev-20260527-132200.md` - No description
+├── `user-requirement-dev-20260527-132220.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
