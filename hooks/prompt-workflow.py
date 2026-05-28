@@ -600,10 +600,29 @@ def _init_dev_registry(cmd_name: str, user_input: str, claude_session_id: str, p
         'git-edge-case-analyst', 'pm', 'product-owner', 'prompt-inspector',
         'qa', 'rule-inspector', 'style-inspector', 'test-executor',
         'test-validator', 'test-writer', 'ui-specialist', 'user',
+        # graphify enrichment subagent (spec-20260527-061433): registered here
+        # symmetrically with CP_AGENTS and ALLOWED_AGENTS per arch-2 precedent.
+        # No-op guard: graphify.json sentinel is only written when
+        # CLAUDE_GRAPHIFY_ENABLED != '0' AND GRAPHIFY_BIN is resolvable, OR
+        # we write it unconditionally (sentinel is cheap) because the subagent
+        # checks feature flags at runtime.  The guard below is advisory only.
+        'graphify',
     ]
+    # Graphify no-op guard (arch-7): when GRAPHIFY_BIN is absent or
+    # CLAUDE_GRAPHIFY_ENABLED=0, skip writing the graphify sentinel entirely
+    # (no file write, no subprocess spawn).  Existing UserPromptSubmit
+    # behaviour is unaffected — all other agent sentinels are written normally.
+    _graphify_enabled = os.environ.get('CLAUDE_GRAPHIFY_ENABLED', 'auto').strip().lower() != '0'
+    import shutil as _shutil
+    _graphify_bin = os.environ.get('GRAPHIFY_BIN', '').strip() or _shutil.which('graphify')
+    _write_graphify_sentinel = _graphify_enabled and bool(_graphify_bin)
+
     try:
         registry_dir.mkdir(parents=True, exist_ok=True)
         for agent in agent_types:
+            # No-op guard: skip graphify sentinel when binary absent or disabled
+            if agent == 'graphify' and not _write_graphify_sentinel:
+                continue
             sentinel = registry_dir / f'{agent}.json'
             sentinel.write_text(
                 json.dumps({'agent_type': agent, 'session_id': dev_session_id}) + '\n'
