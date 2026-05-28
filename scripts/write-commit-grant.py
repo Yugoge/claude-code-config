@@ -35,7 +35,7 @@ from pathlib import Path
 # Grant validity window. The privilege guard expires the grant at
 # created_at + GRANT_TTL_MINUTES; do not duplicate this literal at the
 # operational call site (use the constant symbolically).
-GRANT_TTL_MINUTES = 10
+GRANT_TTL_MINUTES = 30
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
@@ -119,10 +119,10 @@ def _revoke_grants_for_task(output_dir: str, task_id_to_revoke: str, sid: str) -
 def _resolve_sid(cli_sid: str | None) -> str:
     if cli_sid:
         return cli_sid
-    env_sid = os.environ.get("CLAUDE_SESSION_ID", "")
+    env_sid = os.environ.get("CLAUDE_SESSION_ID", "") or os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     if not env_sid:
         print(
-            "Cannot write commit grant: CLAUDE_SESSION_ID is not set and "
+            "Cannot write commit grant: CLAUDE_SESSION_ID and CLAUDE_CODE_SESSION_ID are not set and "
             "--sid was not supplied. Invoke /commit from within a Claude "
             "Code session or pass --sid explicitly.",
             file=sys.stderr,

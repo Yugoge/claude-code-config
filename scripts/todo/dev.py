@@ -15,12 +15,16 @@ def get_todos():
     """
     return [
         {"content": "Step 1: Parse development requirement", "activeForm": "Step 1: Parsing development requirement", "status": "pending"},
+        # graphify pre-BA Bash hydrator runs between Step 1 and Step 2 (advisory)
+        {"content": "Graphify pre-BA: run graphify-query.py Bash hydrator (advisory, between Step 1 and Step 2)", "activeForm": "Graphify pre-BA: running graphify-query.py Bash hydrator", "status": "pending"},
         {"content": "Step 2: Consult specialists (optional)", "activeForm": "Step 2: Consulting specialists", "status": "pending"},
         {"content": "Step 3: Delegate to BA subagent", "activeForm": "Step 3: Delegating to BA subagent", "status": "pending", "subagent_call": {"agent": "ba", "subagent_type": "ba"}},
         {"content": "Step 4: BA clarification loop (if needed)", "activeForm": "Step 4: Running BA clarification loop", "status": "pending"},
         {"content": "Step 5: Validate BA output", "activeForm": "Step 5: Validating BA output", "status": "pending"},
         {"content": "Step 6: QA validates BA conclusions", "activeForm": "Step 6: QA validating BA conclusions", "status": "pending", "subagent_call": {"agent": "qa", "subagent_type": "qa"}},
         {"content": "Step 7: BA-QA iteration loop (if QA rejects BA)", "activeForm": "Step 7: Iterating BA analysis based on QA objections", "status": "pending"},
+        # graphify enrichment subagent runs between Step 7 and Step 8 (advisory)
+        {"content": "Graphify enrichment: dispatch graphify subagent (advisory, between Step 7 and Step 8)", "activeForm": "Graphify enrichment: dispatching graphify subagent", "status": "pending", "subagent_call": {"agent": "graphify", "subagent_type": "graphify"}},
         {"content": "Step 8: Delegate to dev subagent", "activeForm": "Step 8: Delegating to dev subagent", "status": "pending", "subagent_call": {"agent": "dev", "subagent_type": "dev"}},
         {"content": "Step 9: Write canonical aggregate dev-report (parallel-dev only)", "activeForm": "Step 9: Writing canonical aggregate dev-report", "status": "pending"},
         {"content": "Step 10: Validate dev implementation", "activeForm": "Step 10: Validating dev implementation", "status": "pending"},
