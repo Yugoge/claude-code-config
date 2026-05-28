@@ -156,12 +156,14 @@ mkdir -p "${GRANT_DIR}"
 ```
 
 Compute `expires_at`: current UTC time + `PUSH_ANALYST_GRANT_TTL_SECONDS` (ISO-8601 format).
-The TTL was raised from 120s to 180s per task 20260519-211515 R4 / AC4 to absorb
-subagent dispatch latency on cold paths.
+The TTL is 600s to cover the orchestrator -> push-analyst -> orchestrator
+result-processing -> execute-push.py round trip, which frequently exceeded the
+previous 180s window (task dev-20260527-063758-T3; raised from 120s to 180s in
+task 20260519-211515 R4 / AC4, then to 600s here).
 
 ```python
 from datetime import datetime, timedelta, timezone
-PUSH_ANALYST_GRANT_TTL_SECONDS = 180
+PUSH_ANALYST_GRANT_TTL_SECONDS = 600
 expires_at = (datetime.now(timezone.utc) + timedelta(seconds=PUSH_ANALYST_GRANT_TTL_SECONDS)).strftime("%Y-%m-%dT%H:%M:%SZ")
 ```
 
