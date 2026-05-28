@@ -70,6 +70,11 @@ CP_AGENTS = {
     # Test-writer agent (spec-20260518-225715 §5.2): generates pytest
     # skeletons from BA-produced acceptance-criteria JSON between BA and Dev.
     "test-writer",
+    # Graphify enrichment subagent (spec-20260527-061433): runs at Step 7.5
+    # after BA-QA validation, before DEV.  Registered here alongside
+    # ALLOWED_AGENTS (scripts/spec-check.py) and agent_types
+    # (hooks/prompt-workflow.py) per arch-2 precedent (test-writer pattern).
+    "graphify",
     # Agentic commit role.
     "changelog-analyst",
     # Agentic git workflow analyst roles (push, merge, pull).

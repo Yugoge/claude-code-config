@@ -349,6 +349,34 @@ def test_ac10d_concurrent_bump_generation(td):
            f"OBJ-2 invariant: read-modify-write must be under exclusive lock")
 
 
+# -------------------- graphify registration (spec-20260527-061433) ----------
+
+
+def test_graphify_in_cp_agents(td):
+    """Verify 'graphify' is registered in CP_AGENTS (pretool-cp-checkin.py).
+    AC5 from spec-20260527-061433: graphify must appear in CP_AGENTS, ALLOWED_AGENTS,
+    and agent_types list together (arch-2 precedent: test-writer pattern).
+    """
+    hook_text = HOOK.read_text(encoding="utf-8")
+    expect(
+        "graphify-reg.cp-agents-contains-graphify",
+        '"graphify"' in hook_text or "'graphify'" in hook_text,
+        "CP_AGENTS in pretool-cp-checkin.py must include 'graphify' (spec-20260527-061433 AC5)",
+    )
+
+
+def test_graphify_in_allowed_agents(td):
+    """Verify 'graphify' is registered in ALLOWED_AGENTS (scripts/spec-check.py).
+    Symmetry with CP_AGENTS per arch-2 precedent.
+    """
+    spec_check_text = SPEC_CHECK.read_text(encoding="utf-8")
+    expect(
+        "graphify-reg.allowed-agents-contains-graphify",
+        '"graphify"' in spec_check_text or "'graphify'" in spec_check_text,
+        "ALLOWED_AGENTS in scripts/spec-check.py must include 'graphify' (spec-20260527-061433 AC5)",
+    )
+
+
 # -------------------- runner ---------------------
 
 ALL_TESTS = [
@@ -364,6 +392,9 @@ ALL_TESTS = [
     test_ac10b_missing_tool_name,
     test_ac10c_missing_agent_id_for_sentinel,
     test_ac10d_concurrent_bump_generation,
+    # graphify registration tests (spec-20260527-061433 AC5)
+    test_graphify_in_cp_agents,
+    test_graphify_in_allowed_agents,
 ]
 
 
