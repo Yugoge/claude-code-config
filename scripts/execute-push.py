@@ -104,10 +104,10 @@ def main(argv: list = None) -> int:
     auto = args.auto
 
     # Step 2: Read SESSION_ID from environment (NOT a CLI arg)
-    session_id = os.environ.get("CLAUDE_SESSION_ID", "")
+    session_id = os.environ.get("CLAUDE_SESSION_ID", "") or os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     if not session_id:
         print(
-            "execute-push: CLAUDE_SESSION_ID is not set or empty. "
+            "execute-push: CLAUDE_SESSION_ID and CLAUDE_CODE_SESSION_ID are not set or empty. "
             "Invoke /push from within a Claude Code session.",
             file=sys.stderr,
         )
