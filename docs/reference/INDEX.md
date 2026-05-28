@@ -1,7 +1,7 @@
 # reference
 
-*Last updated: 2026-05-19T19:40:41Z*
-**Total entries**: 10
+*Last updated: 2026-05-28T14:16:59Z*
+**Total entries**: 11
 **Convention**: kebab
 
 ## Tree
@@ -11,6 +11,7 @@ reference/
 ├── `configuration-summary.md` - Claude Code 全局配置总结
 ├── `fswatch-quickref.md` - FSWatch 快速参考卡片
 ├── `git-fswatch.md` - Git File Watcher (fswatch) 使用文档
+├── `graphify-integration.md` - Graphify Knowledge Graph Integration
 ├── `incidents-2026-03-28.md` - Overnight Incident — 2026-03-28
 ├── `incidents-2026-04-04.md` - Production Catastrophe Incident — 2026-04-04
 ├── `lock-file-handling.md` - Git Lock File Handling
