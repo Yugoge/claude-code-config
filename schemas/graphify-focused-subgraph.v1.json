@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "graphify-focused-subgraph.v1",
+  "title": "Graphify Focused Subgraph",
+  "description": "Task-scoped subgraph extracted from the global Graphify knowledge graph, focused on files in the BA blast-radius-map. Written to .claude/dev-registry/{task_id}/graphify/focused-subgraph.json by graphify-enrich.py.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["status", "task_id", "nodes", "edges"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "degraded", "skipped"],
+      "description": "ok=full subgraph; degraded=partial extraction; skipped=nil blast-radius-map or disabled"
+    },
+    "task_id": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "source_blast_radius_map": {
+      "type": "string",
+      "description": "Path to the blast-radius-map.json that seeded this subgraph. Null when status=skipped."
+    },
+    "nodes": {
+      "type": "array",
+      "description": "File nodes in the focused subgraph",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "path": {"type": "string"},
+          "centrality_score": {"type": "number"},
+          "node_type": {"type": "string", "enum": ["source", "dependency", "dependent"]},
+          "language": {"type": "string"}
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "Import/dependency edges between nodes",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "from": {"type": "string"},
+          "to": {"type": "string"},
+          "edge_type": {"type": "string", "enum": ["import", "call", "inherit", "compose"]}
+        }
+      }
+    },
+    "module_boundaries": {
+      "type": "array",
+      "description": "Detected module/package boundary crossings relevant to the task",
+      "items": {"type": "string"}
+    },
+    "skip_reason": {
+      "type": "string",
+      "description": "Populated when status=skipped; explains why subgraph was not extracted"
+    }
+  }
+}
