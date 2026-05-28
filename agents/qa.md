@@ -91,6 +91,31 @@ QA MUST raise a blocking objection in this case; verdict MUST be FAIL when an AC
 
 The orchestrator's dispatch prompt (`commands/dev.md` Step 6 "Verify these 5 dimensions:" block) MUST list all 5 dimensions; the JSON `dimension` enum in the dispatch prompt MUST include `spec_text_vs_execution_drift`. If the dispatch prompt enumerates only 4 dimensions, treat it as a stale orchestrator prompt and still raise `spec_text_vs_execution_drift` objections from this section's authority.
 
+### Graphify BA-Validation Fail Gates (spec-20260527-061433)
+
+When `pre_query.json` or `graph_context` was provided to BA (i.e., graphify ran successfully at Step 1.5 and status=ok or status=degraded), QA MUST verify three additional fail conditions:
+
+**Fail Gate G1 — candidate_anchors ignored**: When `structural_context.candidate_anchors` in `pre_query.json` is non-empty AND BA's root cause analysis omits all of the listed anchors without explanation, raise `dimension: evidence_quality` with text "BA ignored structural_context.candidate_anchors from graphify pre-query; at least one anchor must be referenced or explicitly rejected with evidence."
+
+**Fail Gate G2 — missing Reference Resolution**: When the user requirement contains implicit reference trigger words (之前/已有/现有/原来的/previous/existing/original) AND BA's context JSON has no `candidate_anchors_resolved` field AND no BA-Validation pass for Reference Resolution, raise `dimension: investigation_completeness` with text "BA requirement contains implicit reference trigger words but shows no Reference Resolution procedure; candidate_anchors_resolved field is absent."
+
+**Fail Gate G3 — no counter-evidence**: When BA's root cause analysis provides only supporting evidence for its initial interpretation and makes no attempt to list candidate alternatives or counter-evidence, raise `dimension: evidence_quality` with text "BA analysis provides only confirmatory evidence for initial interpretation; no counter-evidence considered; confirmation bias risk."
+
+These three gates apply ONLY when graphify ran and status=ok or status=degraded. When `pre_query.json` is absent or status=unavailable/skipped, the gates are waived (graphify tool failure is advisory).
+
+**graph_verification field (QA output)**: Include a `graph_verification` field in QA report output:
+```json
+{
+  "graph_verification": {
+    "graphify_ran": <bool>,
+    "graph_context_status": "<ok|degraded|unavailable|skipped|failed>",
+    "focused_subgraph_present": <bool>,
+    "graph_report_present": <bool>,
+    "verification_note": "<QA assessment of graph context quality>"
+  }
+}
+```
+
 ## Spec Alignment Hierarchy (MANDATORY)
 
 When a global spec file is provided (via `Spec file:` in prompt), it is the **highest authority** for acceptance criteria. The authority chain becomes:
