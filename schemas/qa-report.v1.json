@@ -137,6 +137,18 @@
         }
       }
     },
+    "graph_verification": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "QA graph verification summary (v1: presence check only — full graph diff deferred). Present when graphify enrichment ran.",
+      "properties": {
+        "graphify_ran": {"type": "boolean"},
+        "graph_context_status": {"type": "string", "enum": ["ok", "degraded", "failed", "unavailable", "skipped"]},
+        "focused_subgraph_present": {"type": "boolean"},
+        "graph_report_present": {"type": "boolean"},
+        "verification_note": {"type": "string", "description": "QA note on graph context quality"}
+      }
+    },
     "ac_status": {
       "type": "object",
       "patternProperties": {
