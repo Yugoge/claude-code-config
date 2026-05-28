@@ -1,6 +1,6 @@
 {
   "request_id": "20260527-054705",
-  "timestamp": "2026-05-27T06:27:08Z",
+  "timestamp": "2026-05-27T07:32:00Z",
   "inspector": "style-inspector",
   "changed_files_mode": true,
   "changed_files": [
@@ -98,10 +98,32 @@
     "rounds_completed": 1
   },
   "codex_consult": {
-    "invoked": false,
-    "status": "not_requested",
-    "feedback_summary": null,
-    "findings": [],
-    "feedback_incorporated": null
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex (gpt-5.5, xhigh reasoning) confirmed zero blocking style-standard violations within --changed-files scope. Returned 3 OBSERVATION_ONLY items: (1) Std 8 — PUSH_GATE_SID derivation duplicated between DO-NOT #7 and Phase 10, suggested hoisting to named constant; (2) Std 1 — confirmed inline os.environ.get(...) expression does NOT meet Std 1 inline-code threshold; (3) Std 2 — confirmed C_ESCAPES/regex are intrinsic ANSI-C grammar, not parameterizable. Codex independently surfaced the pre-existing CJK at hooks/pretool-bash-safety.sh:1271 — already recorded in advisory_pre_existing[0]. Full codex output captured at /var/tmp/codex-outputs/codex-output-1664289-1779888418.txt.",
+    "findings": [
+      {
+        "issue": "Std 8 readability — PUSH_GATE_SID env-var chain duplicated between DO-NOT #7 (agents/changelog-analyst.md:36) and Phase 10 push-gate token paragraph (line 394); inline form makes the forbidden-action list harder to scan.",
+        "proposed_fix": "Define PUSH_GATE_SID derivation once near Phase 10 (canonical site already does this in the diff). Change DO-NOT #7 to: 'if existing token session_id differs from PUSH_GATE_SID (see Phase 10 for the derivation), print a WARNING and skip the token write for this repo.'",
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Codex explicitly marked this OBSERVATION_ONLY and non-blocking. The current inline duplication is load-bearing — self-contained DO-NOT bullets are robust against later Phase 10 refactoring. Style standards as codified do not classify this as a violation; trade-off is a judgment call. Not actioned in this cycle."
+      },
+      {
+        "issue": "Std 1 — inline os.environ.get(...) expression in DO-NOT #7 bullet (agents/changelog-analyst.md:36).",
+        "proposed_fix": "Same as Std 8 fix above (hoisting to named constant would side-step the question).",
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Codex confirmed this is NOT a Std 1 violation under codified detection rules (no code block, no shell command, no runnable implementation — just a quoted Python expression as technical reference). No action required."
+      },
+      {
+        "issue": "Std 2 — C_ESCAPES map and ANSI-C regex pattern in normalize_ansic_token (hooks/pretool-bash-safety.sh:895-918) are hardcoded.",
+        "proposed_fix": "Optional readability-only: hoist to named module-level constants like ANSI_C_ESCAPES and ANSI_C_ESCAPE_RE inside the embedded Python block. Do NOT parameterize (intrinsic spec constants).",
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Codex explicitly confirmed these are intrinsic-to-spec constants (ANSI-C escape grammar is fixed by the bash language spec, not environment-configurable). Std 2 does not apply. Readability nit only."
+      }
+    ],
+    "feedback_incorporated": "Inspector verdict unchanged (zero blocking violations). All 3 codex findings were OBSERVATION_ONLY with explicit non-blocking classification by codex itself; logged per protocol with rationale for non-action. Codex's independent rediscovery of the pre-existing CJK at bash-safety:1271 corroborates the inspector's standard6_scan classification as advisory_pre_existing (out-of-diff)."
   }
 }
