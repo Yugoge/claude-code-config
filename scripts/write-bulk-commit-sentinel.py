@@ -53,10 +53,10 @@ def _parse_args(argv):
 def _resolve_sid(cli_sid):
     if cli_sid:
         return cli_sid
-    env_sid = os.environ.get("CLAUDE_SESSION_ID", "")
+    env_sid = os.environ.get("CLAUDE_SESSION_ID", "") or os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     if not env_sid:
         print(
-            "Cannot write bulk-commit sentinel: CLAUDE_SESSION_ID is not set and "
+            "Cannot write bulk-commit sentinel: CLAUDE_SESSION_ID and CLAUDE_CODE_SESSION_ID are not set and "
             "--sid was not supplied. Invoke /commit --bulk from within a Claude "
             "Code session or pass --sid explicitly.",
             file=sys.stderr,

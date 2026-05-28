@@ -57,6 +57,10 @@ ALLOWED_AGENTS = (
     # with hooks/pretool-cp-checkin.py CP_AGENTS + hooks/prompt-workflow.py
     # agent_types. Without this, test-writer's cp-state lifecycle would 404.
     "test-writer",
+    # Graphify enrichment subagent (spec-20260527-061433): registered here
+    # symmetrically with CP_AGENTS (hooks/pretool-cp-checkin.py) and
+    # agent_types (hooks/prompt-workflow.py) per arch-2 precedent.
+    "graphify",
 )
 
 ALLOWED_STATES = ("pending", "done", "waived-with-reason")
