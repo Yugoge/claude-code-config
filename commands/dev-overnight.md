@@ -248,6 +248,7 @@ Create sentinel files for every agent type this orchestrator can launch, includi
 ```text
 Write(file_path="/root/.claude/dev-registry/<session_id>/architect.json", content='{"agent_type": "architect", "session_id": "<session_id>"}')
 Write(file_path="/root/.claude/dev-registry/<session_id>/ba.json", content='{"agent_type": "ba", "session_id": "<session_id>"}')
+Write(file_path="/root/.claude/dev-registry/<session_id>/graphify.json", content='{"agent_type": "graphify", "session_id": "<session_id>"}')
 ... (one Write per agent type)
 ```
 
@@ -259,6 +260,7 @@ Write(file_path="/root/.claude/dev-registry/<session_id>/ba.json", content='{"ag
 mkdir -p "$CLAUDE_PROJECT_DIR/.claude/dev-registry/<session_id>"
 printf '{"agent_type": "architect", "session_id": "<session_id>"}\n' > "$CLAUDE_PROJECT_DIR/.claude/dev-registry/<session_id>/architect.json"
 printf '{"agent_type": "ba", "session_id": "<session_id>"}\n' > "$CLAUDE_PROJECT_DIR/.claude/dev-registry/<session_id>/ba.json"
+printf '{"agent_type": "graphify", "session_id": "<session_id>"}\n' > "$CLAUDE_PROJECT_DIR/.claude/dev-registry/<session_id>/graphify.json"
 # ... (one printf per agent type; substitute the literal session_id read from the state file)
 ```
 

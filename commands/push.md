@@ -120,11 +120,11 @@ REMOTE_URL=$(git remote get-url "${RESOLVED_REMOTE}" 2>/dev/null || echo "unknow
 REPO_ROOT=$(realpath "$(git rev-parse --show-toplevel)")
 REPO_HASH=$(printf '%s' "${REPO_ROOT}" | sha256sum | cut -c1-16)
 REQUEST_ID=$(openssl rand -hex 16)
-SESSION_ID="${CLAUDE_SESSION_ID}"
+SESSION_ID="${CLAUDE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"
 ```
 
 If `SESSION_ID` is empty or unset, abort immediately with:
-"Cannot dispatch push-analyst: CLAUDE_SESSION_ID not set. Invoke /push from within a Claude Code session."
+"Cannot dispatch push-analyst: CLAUDE_SESSION_ID (and CLAUDE_CODE_SESSION_ID) not set. Invoke /push from within a Claude Code session."
 
 **Step 3: Dispatch push-analyst subagent**
 
@@ -216,16 +216,14 @@ datetime, pathlib). This matches the `Bash(python3:*)` allow entry in settings.j
 ## Push-analyst grant TTL
 
 The push-analyst writes its Chain-B grant with a default TTL of
-`PUSH_ANALYST_GRANT_TTL_SECONDS = 180` seconds — raised from 120 to 180 in
-task 20260519-211515 R4 / AC4 to absorb subagent dispatch latency observed on
-cold-path invocations where the orchestrator → push-analyst → grant-write
-round-trip exceeded the prior 120s window. Rationale: subagent dispatch latency
-on first invocation can take 60s+; combining with grant validation + sentinel
-write puts the effective end-to-end deadline above the 120s threshold, causing
-intermittent Chain-B grant expirations. The 180s TTL is the named constant
-defined in `agents/push-analyst.md` Phase 7. The commit-grant mechanism at
-`scripts/write-commit-grant.py` (`GRANT_TTL_MINUTES = 10`) is a DIFFERENT
-mechanism and was not changed.
+`PUSH_ANALYST_GRANT_TTL_SECONDS = 600` seconds (10 minutes) — raised from 120s
+to 180s in task 20260519-211515 R4 / AC4, then raised from 180s to 600s in task
+dev-20260527-063758-T3 to cover the full orchestrator → push-analyst →
+orchestrator result-processing → execute-push.py round trip, which frequently
+exceeded the previous 180s window. The 600s TTL is the named constant defined in
+`agents/push-analyst.md` Phase 7. The commit-grant mechanism at
+`scripts/write-commit-grant.py` (`GRANT_TTL_MINUTES = 30`) is a DIFFERENT
+mechanism and has since been updated to 30.
 
 ## Related
 

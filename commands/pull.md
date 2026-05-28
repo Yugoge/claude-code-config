@@ -102,6 +102,16 @@ Wait for the subagent to complete.
 Display the pull-analyst advisory report to the user. The report is informational only —
 it does not gate any future command.
 
+### Post-pull Graphify update (advisory, non-blocking)
+
+After displaying the pull-analyst report, run a non-blocking incremental Graphify cache update. This ensures the global knowledge graph reflects the newly pulled commits.
+
+```bash
+python3 "$CLAUDE_PROJECT_DIR/scripts/graphify-maintain.py" update
+```
+
+This call is advisory: if GRAPHIFY_BIN is absent, CLAUDE_GRAPHIFY_ENABLED=0, or the cache is unavailable, it exits 0 immediately with a status=unavailable message. The update MUST NOT block the pull workflow or require user confirmation. Failure is silent (logged to stderr only).
+
 ## Related Commands
 
 - `/push` - Push changes with untracked file detection
