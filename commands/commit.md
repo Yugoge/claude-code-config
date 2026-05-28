@@ -78,15 +78,15 @@ Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/l
 Before dispatching changelog-analyst, write the appropriate authorization token:
 - **BULK=true**: write a **multi-use bulk-commit sentinel** (NOT a single-use grant) so that changelog-analyst can make multiple auto-bulk commits within the 30-minute window. Activate venv and run:
   ```bash
-  source venv/bin/activate && python /root/.claude/scripts/write-bulk-commit-sentinel.py
+  source venv/bin/activate && python3 /root/.claude/scripts/write-bulk-commit-sentinel.py
   ```
-  If CLAUDE_SESSION_ID is not set, abort immediately with: `Cannot write bulk-commit sentinel: CLAUDE_SESSION_ID not set. Invoke /commit --bulk from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst.
-- **BULK=false**: write a **single-use commit grant** (original behavior). Activate venv and run Python to write the grant. First, resolve the session ID: `sid = os.environ.get("CLAUDE_SESSION_ID")`. If `sid` is empty or `None`, abort immediately with: `Cannot write commit grant: CLAUDE_SESSION_ID not set. Invoke /commit from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst. If `sid` is set, generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at`, and `created_at`. The guard IS registered and active — grant absence WILL block the changelog-analyst commit.
+  If neither CLAUDE_CODE_SESSION_ID nor CLAUDE_SESSION_ID is set, abort immediately with: `Cannot write bulk-commit sentinel: CLAUDE_CODE_SESSION_ID (and CLAUDE_SESSION_ID) not set. Invoke /commit --bulk from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst.
+- **BULK=false**: write a **single-use commit grant** (original behavior). Activate venv and run Python to write the grant. The script resolves the session ID from `CLAUDE_CODE_SESSION_ID` (primary) or `CLAUDE_SESSION_ID` (fallback). If neither is set, abort immediately with: `Cannot write commit grant: CLAUDE_CODE_SESSION_ID (and CLAUDE_SESSION_ID) not set. Invoke /commit from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst. If `sid` is set, generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at`, and `created_at`. The guard IS registered and active — grant absence WILL block the changelog-analyst commit.
 
-**Grant timestamp format (NON-NEGOTIABLE)**: The `expires_at` and `created_at` fields MUST be ISO-8601 strings produced from timezone-aware UTC datetimes (e.g. `(datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()` yields `"2026-05-19T16:18:56.123456+00:00"`). Epoch integers and epoch floats (e.g. `int(time.time()) + 600`, `time.time() + 600`) are NOT accepted by the privilege guard. The guard at `/root/.claude/hooks/pretool-git-privilege-guard.py:377-384` parses these fields via `datetime.fromisoformat(end_str.replace('Z', '+00:00'))`; on `ValueError`/`TypeError`/`AttributeError` the helper `_end_time_passed` returns `True` (i.e. "already expired"), which silently rejects the grant and blocks the commit. The expiration window is 10 minutes from `created_at` — bake the offset into `expires_at` at write time. Activate the venv and invoke the grant-writer script (resolves `CLAUDE_SESSION_ID` from the environment, generates a fresh nonce, writes timezone-aware ISO-8601 `created_at` and `expires_at` on a 10-minute window, and emits the resulting grant path on stdout):
+**Grant timestamp format (NON-NEGOTIABLE)**: The `expires_at` and `created_at` fields MUST be ISO-8601 strings produced from timezone-aware UTC datetimes (e.g. `(datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()` yields `"2026-05-19T16:18:56.123456+00:00"`). Epoch integers and epoch floats (e.g. `int(time.time()) + 600`, `time.time() + 600`) are NOT accepted by the privilege guard. The guard at `/root/.claude/hooks/pretool-git-privilege-guard.py:377-384` parses these fields via `datetime.fromisoformat(end_str.replace('Z', '+00:00'))`; on `ValueError`/`TypeError`/`AttributeError` the helper `_end_time_passed` returns `True` (i.e. "already expired"), which silently rejects the grant and blocks the commit. The expiration window is 30 minutes from `created_at` — bake the offset into `expires_at` at write time. Activate the venv and invoke the grant-writer script (resolves `CLAUDE_SESSION_ID` from the environment, generates a fresh nonce, writes timezone-aware ISO-8601 `created_at` and `expires_at` on a 30-minute window, and emits the resulting grant path on stdout):
 
 ```bash
-source venv/bin/activate && python /root/.claude/scripts/write-commit-grant.py --task-id "$TASK_ID"
+source venv/bin/activate && python3 /root/.claude/scripts/write-commit-grant.py --task-id "$TASK_ID"
 ```
 
 Both `created_at` and `expires_at` MUST match the regex `^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(\+\d{2}:\d{2}|Z)$`. Do NOT substitute `time.time()`, `int(time.time())`, or `datetime.utcnow()` (the last returns a naive datetime whose `.isoformat()` omits the TZ offset and falls into the naive-comparison branch at line 382).
@@ -150,7 +150,7 @@ Check `failure_code`:
 Retry exactly once (max 1 retry):
 1. Revoke stale grants by running (use `${CONTROL_ROOT}/scripts/write-commit-grant.py` — do NOT hardcode an absolute path):
    ```bash
-   source venv/bin/activate && python "${CONTROL_ROOT}/scripts/write-commit-grant.py" \
+   source venv/bin/activate && python3 "${CONTROL_ROOT}/scripts/write-commit-grant.py" \
        --task-id "$TASK_ID" \
        --revoke-existing-for-task "$TASK_ID"
    ```
@@ -274,7 +274,7 @@ Authorization flow for changelog-analyst commits:
 1. `/commit` writes `/tmp/claude-commit-grant-<SID>-<nonce>.json` before dispatching changelog-analyst (Step 5).
 2. `_evaluate_commit(command, data)` calls `_find_grant('commit', sid)` using the subagent's session_id from the PreToolUse payload.
 3. If SID-specific grant not found (subagent session_id differs from orchestrator's CLAUDE_SESSION_ID), falls back to `_find_grant_any('commit')` — any valid unexpired commit grant is accepted.
-4. Grant validates: expires_at (10 min window), single-use unlink. No message-hash validation.
+4. Grant validates: expires_at (30 min window), single-use unlink. No message-hash validation.
 
 **DO NOT extend `BLESSED_BRIDGE_RE` with conventional commit patterns** (e.g. `^feat\(`, `^fix\(`).
 This would allow any agent that learns the commit format to bypass the guard — destroying the

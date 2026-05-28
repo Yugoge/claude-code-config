@@ -759,3 +759,5 @@ The orchestrator will guide you through all steps interactively.
 ---
 
 **Remember**: This is an aggressive cleanup command with safety features. First-time users should select "Report only" mode to review findings before executing cleanup actions.
+
+**Graphify**: Graphify knowledge graph integration is **disabled** for /clean. No graphify-query.py or graphify-enrich.py calls are made during clean cycles. (Command Coverage: spec-20260527-061433 §5, /clean: disabled.)
