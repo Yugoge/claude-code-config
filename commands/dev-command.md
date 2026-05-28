@@ -174,6 +174,10 @@ SECOND ACTION: Read $CLAUDE_PROJECT_DIR/.claude/specs/<SPEC_ID>/cp-state-<agent>
 This is the checklist-stop handoff: dev-registry handles role registration for
 write-policy, while cp-state handles required atomic actions for Stop enforcement.
 
+**Graphify pre-BA Bash hydrator** (between Step 1 and Step 2, mirrors commands/dev.md):
+
+Run `scripts/graphify-query.py` as a direct Bash call to inject structural context before BA analysis. Advisory — skips silently when binary absent. Output: `.claude/dev-registry/$DEV_SESSION_ID/graphify/pre_query.json`. When `status=ok` or `status=degraded`, include the pre_query.json reference in the BA dispatch prompt. See `commands/dev.md` graphify hydrator block for the canonical Bash invocation.
+
 ### Step 2: Specialist Consultation (always evaluate, never silently skip)
 
 Before touching any specialist, you MUST evaluate each one's relevance to the issue and document the decision. Silently skipping is forbidden — skipping without assessment is itself a workflow violation.
@@ -545,6 +549,10 @@ Use Agent tool with:
 **Rule**: Every BA invocation MUST be followed by QA validation. No exceptions.
 
 **Iteration tracking**: Update TodoWrite with BA-QA iteration number.
+
+**Graphify enrichment** (between Step 7 and Step 8, mirrors commands/dev.md):
+
+After BA-QA validation passes, dispatch the graphify subagent (mode=enrich) to extract a focused subgraph and patch the context JSON with `graph_context`. Advisory — if graphify is unavailable or returns status=skipped, proceed to Step 8 without delay. See `commands/dev.md` graphify enrichment block for the canonical dispatch prompt template.
 
 ### Step 8: Delegate to Dev Subagent
 

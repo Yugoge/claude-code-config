@@ -174,6 +174,20 @@ When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a c
 
 **Regression guard**: do NOT change the `subagentstop-cp-enforce.py` matcher in `settings.json` back to a custom string like `"cp-enforce"`. Per <https://code.claude.com/docs/en/hooks>, `SubagentStop` matchers match subagent type names, not hook roles; the wildcard `"*"` is the canonical form and is what causes the hook to actually fire.
 
+**Graphify pre-BA Bash hydrator** (between Step 1 and Step 2):
+
+Run `scripts/graphify-query.py` as a direct Bash call (NOT a subagent — avoids adding an LLM interpretation layer that could propagate confirmation bias). This is advisory: if the binary is absent or cache is unavailable, the script exits 0 with `status=unavailable` and BA proceeds with its original flow.
+
+```bash
+python3 "$CLAUDE_PROJECT_DIR/scripts/graphify-query.py" \
+  --task-id "$DEV_SESSION_ID" \
+  --requirement-file "$REQUIREMENT_DOC"
+```
+
+Output is written to `.claude/dev-registry/$DEV_SESSION_ID/graphify/pre_query.json`. When this file exists with `status=ok` or `status=degraded`, include it in the BA dispatch prompt (Step 3) as `Pre-query context file: .claude/dev-registry/$DEV_SESSION_ID/graphify/pre_query.json` so BA sees repo structure BEFORE forming its initial interpretation. When `status=unavailable` or `status=skipped`, omit the pre-query context from the BA prompt — BA runs its original flow unchanged.
+
+If `--no-graphify` was passed in `$ARGUMENTS`, add `--no-graphify` to the Bash call above.
+
 ### Step 2: Specialist Consultation (always evaluate, never silently skip)
 
 Before touching any specialist, you MUST evaluate each one's relevance to the issue and document the decision. Silently skipping is forbidden — skipping without assessment is itself a workflow violation.
@@ -666,6 +680,27 @@ Use Agent tool with:
 **Rule**: Every BA invocation MUST be followed by QA validation. No exceptions.
 
 **Iteration tracking**: Update TodoWrite with BA-QA iteration number.
+
+**Graphify enrichment** (between Step 7 and Step 8):
+
+After BA-QA validation passes, dispatch the graphify subagent (mode=enrich) to extract a focused subgraph seeded by the BA's blast-radius-map, then patch the context JSON with `graph_context`. This is advisory — if graphify is unavailable or returns status=skipped, proceed to Step 8 without delay.
+
+```
+Use Agent tool with:
+- subagent_type: "graphify"
+- description: "Graphify enrichment: extract focused subgraph for task"
+- prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/graphify.json to register with the enforcement system. Do this BEFORE any other tool call.
+
+  You are the graphify subagent. Follow agents/graphify.md instructions precisely.
+
+  Run: python3 $CLAUDE_PROJECT_DIR/scripts/graphify-enrich.py --task-id <DEV_SESSION_ID> --context-file <context_json_path>
+
+  This is advisory — if the binary is absent or blast-radius-map is missing, exit 0 with status=skipped.
+  "
+```
+
+When graphify completes (or is skipped), check `.claude/dev-registry/<DEV_SESSION_ID>/graphify/graph-summary.json` for the status field and record it in the todo list. Then continue to Step 8.
 
 ### Step 8: Agent dispatch — Delegate to Dev Subagent
 
