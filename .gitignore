@@ -97,3 +97,6 @@ docs/codex/
 *.png
 # harness-propagated by session-gitignore-propagate.sh
 .claude/dev-registry/dev-*/
+
+# Graphify knowledge graph transient output (spec-20260527-061433)
+graphify-out/

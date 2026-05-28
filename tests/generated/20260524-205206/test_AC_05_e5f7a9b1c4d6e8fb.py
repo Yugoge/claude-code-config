@@ -36,24 +36,20 @@ def test_AC_05_phase_a_blocked_bulk_no_step7_marker():
     script = REPO_ROOT / "scripts" / "write-bulk-commit-sentinel.py"
     assert script.exists()
 
-    fake_sid = f"phase-a-{uuid.uuid4().hex[:8]}"
     with tempfile.TemporaryDirectory() as tmp:
-        override_path = os.path.join(tmp, f"phase-a-auth-{fake_sid}.flag")
-        assert not os.path.exists(override_path)
-
         env = os.environ.copy()
-        env["CLAUDE_SESSION_ID"] = fake_sid
-        env["CLAUDE_BULK_AUTH_FLAG_PATH_OVERRIDE"] = override_path
+        env.pop("CLAUDE_SESSION_ID", None)
+        env.pop("CLAUDE_CODE_SESSION_ID", None)
 
         proc = subprocess.run(
             [sys.executable, str(script), "--output-dir", tmp],
             capture_output=True, text=True, env=env, timeout=10,
         )
         assert proc.returncode != 0, (
-            f"Phase A: script must exit non-zero when auth flag absent\n"
+            f"Phase A: script must exit non-zero when CLAUDE_SESSION_ID absent\n"
             f"stdout: {proc.stdout}\nstderr: {proc.stderr}"
         )
-        assert "BULK mode requires explicit user authorization" in proc.stderr
+        assert "Cannot write bulk-commit sentinel" in proc.stderr
 
         leftover = list(pathlib.Path(tmp).glob("claude-bulk-commit-sentinel-*.json"))
         assert leftover == [], f"Phase A: sentinel must not be written; found {leftover}"
@@ -421,18 +417,11 @@ def test_AC_05_phase_AB_sequential_same_dirty_repo_primary():
         initial_sha = _init_synthetic_repo(repo_root)
 
         # ----- Phase A: blocked /commit --bulk on dirty tree -----
-        fake_sid = f"phaseAB-{uuid.uuid4().hex[:8]}"
-        # write-bulk-commit-sentinel.py override validator requires /tmp/
-        # rooted path with a whitelisted basename prefix (see scripts/
-        # write-bulk-commit-sentinel.py lines ~80-100).
-        bulk_override = f"/tmp/claude-bulk-test-flag-AC05-AB-{fake_sid}.flag"
-        if os.path.exists(bulk_override):
-            os.unlink(bulk_override)
-        assert not os.path.exists(bulk_override)
         sentinel_script = REPO_ROOT / "scripts" / "write-bulk-commit-sentinel.py"
         env_a = os.environ.copy()
-        env_a["CLAUDE_SESSION_ID"] = fake_sid
-        env_a["CLAUDE_BULK_AUTH_FLAG_PATH_OVERRIDE"] = bulk_override
+        env_a.pop("CLAUDE_SESSION_ID", None)
+        env_a.pop("CLAUDE_CODE_SESSION_ID", None)
+        env_a.pop("CLAUDE_BULK_AUTH_FLAG_PATH_OVERRIDE", None)
         env_a["COMMIT_STEP7_TRACE"] = "1"
         proc_a = subprocess.run(
             [sys.executable, str(sentinel_script), "--output-dir", tmp],
@@ -440,9 +429,9 @@ def test_AC_05_phase_AB_sequential_same_dirty_repo_primary():
         )
         # Phase A assertions
         assert proc_a.returncode != 0, (
-            "Phase A: bulk-sentinel script must reject when auth flag absent"
+            "Phase A: bulk-sentinel script must reject when CLAUDE_SESSION_ID absent"
         )
-        assert "BULK mode requires explicit user authorization" in proc_a.stderr
+        assert "Cannot write bulk-commit sentinel" in proc_a.stderr
         # Tree still dirty (no commit happened)
         head_after_a = subprocess.run(
             ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
