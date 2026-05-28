@@ -170,8 +170,14 @@ When `baseline_head_sha` is present:
 3. Apply a split provenance filter:
    - For every path in `dev.files_modified` that is **absent** from the `git diff --name-only <baseline_head_sha>` output **AND** absent from `baseline_dirty_snapshot`, classify it as `provenance_anomaly`.
    - For every path in `dev.files_created`, check via `git ls-files --others --exclude-standard`. If the path is **absent** from that output **AND** absent from `baseline_dirty_snapshot`, classify it as `provenance_anomaly`. (New untracked files do not appear in `git diff --name-only` output; using ls-files is the correct check for this set.)
-4. **Exclude** `provenance_anomaly` paths from commit-message type/scope/summary enrichment derivation. Stage them if they appear in the candidate set (for BULK=true, staging authority comes from git status; for BULK=false, staging authority comes from the whitelist), but do not use their paths to determine commit type or scope.
-5. Log each anomaly with the appropriate source: for `files_modified` paths: `WARNING: provenance_anomaly — <path> claimed by dev.files_modified but absent from git diff --name-only <baseline_head_sha>; excluded from enrichment`. For `files_created` paths: `WARNING: provenance_anomaly — <path> claimed by dev.files_created but absent from git ls-files --others --exclude-standard; excluded from enrichment`.
+4. **Exclude** `provenance_anomaly` paths from commit-message type/scope/summary enrichment derivation. Apply BULK-mode-aware staging behavior:
+   - **BULK=false**: remove each `provenance_anomaly` path from the staging candidate set (warn-and-skip). Print a WARNING for each excluded path. The commit proceeds for remaining eligible files.
+   - **BULK=true**: stage the path if it appears in the candidate set (staging authority is git status, not dev-report); provenance filter is enrichment-only in bulk mode. Do not use anomalous paths for commit type/scope determination.
+5. Log each anomaly with BULK-mode-appropriate message:
+   - BULK=false `files_modified`: `WARNING: provenance_anomaly — <path> claimed by dev.files_modified but absent from git diff --name-only <baseline_head_sha>; excluded from staging (BULK=false warn-and-skip)`
+   - BULK=false `files_created`: `WARNING: provenance_anomaly — <path> claimed by dev.files_created but absent from git ls-files --others --exclude-standard; excluded from staging (BULK=false warn-and-skip)`
+   - BULK=true `files_modified`: `WARNING: provenance_anomaly — <path> claimed by dev.files_modified but absent from git diff --name-only <baseline_head_sha>; excluded from enrichment (staged under BULK=true git-status authority)`
+   - BULK=true `files_created`: `WARNING: provenance_anomaly — <path> claimed by dev.files_created but absent from git ls-files --others --exclude-standard; excluded from enrichment (staged under BULK=true git-status authority)`
 
 The `baseline_head_sha` diff is used ONLY as a provenance sanity check for
 already-whitelisted files. It is NEVER an independent inclusion source — files
