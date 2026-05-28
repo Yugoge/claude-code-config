@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "graphify-run.v1",
+  "title": "Graphify Run Manifest",
+  "description": "Step 7.5 run manifest. Records the graphify subagent's execution: update run, focused subgraph extraction, and context patching status.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["status", "task_id"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "degraded", "failed", "unavailable", "skipped"],
+      "description": "ok=full enrichment done; degraded=partial (subgraph extracted, update failed); failed=runtime error; unavailable=binary/cache absent; skipped=disabled or nil blast-radius-map"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "update_run": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Result of graphify --update incremental refresh",
+      "properties": {
+        "attempted": {"type": "boolean"},
+        "duration_seconds": {"type": "number"},
+        "files_updated": {"type": "integer"},
+        "exit_code": {"type": "integer"},
+        "error": {"type": "string"}
+      }
+    },
+    "subgraph_extraction": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Result of focused subgraph extraction from blast-radius-map.json",
+      "properties": {
+        "attempted": {"type": "boolean"},
+        "blast_radius_map_path": {"type": "string"},
+        "blast_radius_map_present": {"type": "boolean"},
+        "nodes_extracted": {"type": "integer"},
+        "edges_extracted": {"type": "integer"}
+      }
+    },
+    "context_patch": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Status of in-place patching of context-{ts}.json with graph_context field (arch-6 accepted divergence from sidecar)",
+      "properties": {
+        "patched": {"type": "boolean"},
+        "context_path": {"type": "string"},
+        "graph_context_size_tokens": {"type": "integer"}
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Per-task artifact paths under .claude/dev-registry/{task_id}/graphify/",
+      "properties": {
+        "focused_subgraph": {"type": "string"},
+        "graph_summary": {"type": "string"},
+        "graph_report": {"type": "string"}
+      }
+    },
+    "error_detail": {
+      "type": "string"
+    }
+  }
+}

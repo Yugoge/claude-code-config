@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "graphify-prequery.v1",
+  "title": "Graphify Pre-Query Output",
+  "description": "Step 1.5 output from graphify-query.py. Contains structural_context extracted from the global Graphify cache before BA analysis. Status field drives BA behaviour: ok/degraded proceed, unavailable/skipped silently bypass.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["status", "structural_context"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "degraded", "unavailable", "skipped"],
+      "description": "ok=cache hit with full data; degraded=partial parse; unavailable=binary/cache absent; skipped=explicitly disabled"
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Dev session task ID that generated this pre-query"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "structural_context": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Extracted structural context (800-1500 tokens, 2000 hard cap). Empty object when status=unavailable/skipped.",
+      "properties": {
+        "candidate_anchors": {
+          "type": "array",
+          "description": "Resolved file/module references found in the user requirement",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "mention": {"type": "string"},
+              "resolved_path": {"type": "string"},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        },
+        "import_graph_excerpt": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Key import/dependency edges relevant to mentioned files"
+        },
+        "high_centrality_nodes": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Files with high betweenness centrality that are likely affected"
+        },
+        "token_count": {
+          "type": "integer",
+          "description": "Approximate token count of structural_context content"
+        },
+        "truncated": {
+          "type": "boolean",
+          "description": "true if context was truncated to stay under 2000-token hard cap"
+        }
+      }
+    },
+    "ambiguity_hypotheses": {
+      "type": "array",
+      "description": "Populated when implicit reference words detected (之前/已有/现有/原来的/previous/existing/original). Each entry represents a candidate interpretation.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "trigger_word": {"type": "string"},
+          "candidate_a": {"type": "string"},
+          "candidate_b": {"type": "string"},
+          "evidence": {"type": "string"}
+        }
+      }
+    },
+    "extraction_layers_used": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["deterministic_rules", "repo_alias_index", "graph_fuzzy_query"]},
+      "description": "Which of the 3 extraction layers successfully contributed data"
+    },
+    "cache_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "cache_root": {"type": "string"},
+        "repo_key": {"type": "string"},
+        "branch": {"type": "string"},
+        "head_sha": {"type": "string"},
+        "graphify_version": {"type": "string"},
+        "cache_age_seconds": {"type": "number"}
+      }
+    },
+    "error_detail": {
+      "type": "string",
+      "description": "Present when status=degraded; describes partial failure"
+    }
+  }
+}
