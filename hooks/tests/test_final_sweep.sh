@@ -61,7 +61,7 @@ grep -qE 'single.process|validator wrapper|exec[[:space:]]+.*push\.sh' commands/
 bash hooks/tests/test_push_sentinel_abort.sh >/dev/null 2>&1 && results+=("AC1 V5 PASS") || results+=("AC1 V5 FAIL")
 
 # AC4
-grep -qE '^PUSH_ANALYST_GRANT_TTL_SECONDS[[:space:]]*=[[:space:]]*180[[:space:]]*$' agents/push-analyst.md && results+=("AC4 V1 PASS") || results+=("AC4 V1 FAIL")
+grep -qE '^PUSH_ANALYST_GRANT_TTL_SECONDS[[:space:]]*=[[:space:]]*600[[:space:]]*$' agents/push-analyst.md && results+=("AC4 V1 PASS") || results+=("AC4 V1 FAIL")
 awk '/^```python$/,/^```$/' agents/push-analyst.md | grep -v '^```' > "$PHASE7_PY"
 python3 - "$PHASE7_PY" <<'PYEOF' && results+=("AC4 V2 PASS") || results+=("AC4 V2 FAIL")
 import ast, sys
@@ -70,7 +70,7 @@ const_assigns = [n for n in tree.body if isinstance(n, ast.Assign)
                  and any(isinstance(t, ast.Name) and t.id == 'PUSH_ANALYST_GRANT_TTL_SECONDS' for t in n.targets)]
 assert len(const_assigns) == 1
 val = const_assigns[0].value
-assert isinstance(val, ast.Constant) and val.value == 180
+assert isinstance(val, ast.Constant) and val.value == 600
 import_aliases = {'timedelta'}
 for n in ast.walk(tree):
     if isinstance(n, ast.alias) and n.asname: import_aliases.add(n.asname)
@@ -83,8 +83,8 @@ for n in ast.walk(tree):
             for kw in n.keywords:
                 assert isinstance(kw.value, ast.Name) and kw.value.id == 'PUSH_ANALYST_GRANT_TTL_SECONDS'
 PYEOF
-grep -qE '180[[:space:]]*(s|seconds?)|TTL.*180|PUSH_ANALYST_GRANT_TTL_SECONDS' commands/push.md && results+=("AC4 V3 PASS") || results+=("AC4 V3 FAIL")
-grep -qF 'GRANT_TTL_MINUTES = 10' scripts/write-commit-grant.py && results+=("AC4 V4 PASS") || results+=("AC4 V4 FAIL")
+grep -qE '600[[:space:]]*(s|seconds?)|TTL.*600|PUSH_ANALYST_GRANT_TTL_SECONDS.*600' commands/push.md && results+=("AC4 V3 PASS") || results+=("AC4 V3 FAIL")
+grep -qF 'GRANT_TTL_MINUTES = 30' scripts/write-commit-grant.py && results+=("AC4 V4 PASS") || results+=("AC4 V4 FAIL")
 
 # AC5
 awk '
