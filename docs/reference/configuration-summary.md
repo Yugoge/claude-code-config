@@ -408,3 +408,17 @@ python3 -m json.tool ~/.claude/settings.json
 - [x] 文档和使用指南
 
 **状态: ✅ 完成并可用**
+
+## Graphify Integration (spec-20260527-061433)
+
+Feature flags in `settings.json`:
+- `CLAUDE_GRAPHIFY_ENABLED=auto` — run if binary+cache available; degrade gracefully if not
+- `GRAPHIFY_BIN` — override CLI path (default: PATH search)
+- `CLAUDE_GRAPHIFY_CACHE_ROOT` — override `/var/tmp/claude-graphify`
+
+Initial build (one-time, user-triggered):
+```bash
+python3 scripts/graphify-maintain.py init
+```
+
+See `docs/reference/graphify-integration.md` for full architecture.

@@ -224,6 +224,10 @@ grep "knowledge-system" ~/.claude/logs/slashcommand-audit.log
 
 ---
 
-**Last Updated**: 2025-10-30
-**Version**: 1.0
+**Last Updated**: 2026-05-28
+**Version**: 1.1
 **Total Commands**: 28
+
+## Graphify Integration
+
+The `/dev`, `/dev-command`, `/dev-overnight`, and `/redev` commands include Graphify knowledge graph integration (spec-20260527-061433). Pass `--no-graphify` to disable per-invocation. `/pull` triggers a non-blocking incremental cache update. `/clean` has graphify disabled. See `docs/reference/graphify-integration.md` for full architecture.
