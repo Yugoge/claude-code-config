@@ -635,6 +635,25 @@ Extract from requirement text:
 - Implicit constraints from codebase context
 - Keywords for git search
 
+### Reference Resolution (MANDATORY before solution analysis)
+
+When the requirement text contains implicit reference words — 之前, 已有, 现有, 原来的, previous, existing, original — BA MUST complete the following 6-step resolution procedure BEFORE entering solution analysis. Requirement ambiguity is **clarification-blocking**: BA returns `status: needs_clarification` if it cannot resolve unambiguously with evidence.
+
+Graphify tool failure (status=degraded/unavailable/skipped in pre_query.json) is **advisory**: BA proceeds without it.
+
+**Procedure**:
+
+1. **Detect** — scan requirement text for implicit reference trigger words: 之前, 已有, 现有, 原来的, previous, existing, original.
+2. **Enumerate candidates** — list every concrete code element the trigger word could refer to (file paths, function names, class names, config keys).
+3. **Check structural context** — if `pre_query.json` was provided in context and `status=ok` or `status=degraded`, consult `structural_context.candidate_anchors`. Each anchor entry is a candidate interpretation.
+4. **Gather evidence** — for each candidate, grep/read to verify it exists and matches the description.
+5. **Resolve or block** — if exactly one candidate is consistent with all evidence, commit to it and record in `root_cause_analysis.candidate_anchors_resolved`. If two or more candidates remain equally plausible, return `status: needs_clarification` naming all candidates.
+6. **Document** — record the resolved anchor(s) in the context JSON under `root_cause_analysis.candidate_anchors` so QA can verify.
+
+**Advisory vs clarification-blocking**:
+- Graphify tool failure (degraded/unavailable/skipped) → advisory; never blocks BA; proceed without graph context.
+- Implicit reference words without unique resolution → clarification-blocking; BA MUST return `needs_clarification`.
+
 ### Step 2: Research Best Practices (conditional)
 
 **Self-assess**: Does this task involve patterns, architectures, or techniques where industry best practices would materially improve the output?

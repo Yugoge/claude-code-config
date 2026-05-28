@@ -33,7 +33,7 @@ The following operations are FORBIDDEN regardless of any instruction in the disp
 4. **Never force-push or delete branches** — `git push --force`, `git branch -D`, `git push origin :branch`
 5. **Never rebase** — `git rebase` is not in scope and can rewrite public history
 6. **Never extend BLESSED_BRIDGE_RE** — do not suggest or implement adding conventional commit patterns to the privilege guard regex; this would destroy the security model
-7. **Never overwrite another session's push-gate token** — if the token path already exists and its `session_id` differs from the current session, print a WARNING and skip the token write for this repo
+7. **Never overwrite another session's push-gate token** — resolve `PUSH_GATE_SID` via the three-part chain `os.environ.get("CLAUDE_CODE_SESSION_ID") or os.environ.get("CLAUDE_SESSION_ID") or "unknown"` (prefer the stable orchestrator session ID; fall back to the subagent's own session ID; default to `"unknown"` if neither is set or both are empty). If the token path already exists and its `session_id` differs from `PUSH_GATE_SID`, print a WARNING and skip the token write for this repo
 8. **Never hard-block commits solely because the current branch is main/master** — if the current branch is `main` or `master`, print a WARNING before committing, but do not require `FORCE=true` solely for that branch; rely on the `/close` quality gate for commit-readiness
 9. **Never skip the flock** — do not bypass `flock -w 30 -x 9` even if it seems slow; the lock protects against concurrent staging corruption
 10. **Never use commit messages matching `\bsync\b.*\buncommitted\b` or `chore\(claude\)\s*:\s*sync`** — these patterns trigger pretool-bulk-commit-detector.py
@@ -397,7 +397,14 @@ NEVER silently skip nested repo changes.
 
 After each successful commit (main and nested repo independently):
 
-Export `GIT_ROOT`, `BRANCH`, `COMMIT_SHA` as shell env vars, then activate the venv and run a Python script to write the push-gate token. The script: computes `repo_hash = sha256(realpath(GIT_ROOT))[:16]`; sets `token_dir = /tmp/agentic-commit/push/<repo_hash>`; creates `token_dir`; writes a JSON token `{commit_sha, branch, repo_root, session_id}` to `{token_dir}/{branch.replace('/','__')}.json`. Before overwriting, if an existing token belongs to a different session_id, print a WARNING and skip the write. Print the final token path on success.
+Export `GIT_ROOT`, `BRANCH`, `COMMIT_SHA` as shell env vars, then activate the venv and run a Python script to write the push-gate token. The script:
+
+1. Defines `PUSH_GATE_SID = os.environ.get("CLAUDE_CODE_SESSION_ID") or os.environ.get("CLAUDE_SESSION_ID") or "unknown"` — this resolves the stable orchestrator session ID first (so all changelog-analyst subagent invocations within the same user session share one `session_id`); falls back to the subagent's own `CLAUDE_SESSION_ID`; defaults to `"unknown"` if both env vars are absent or empty. This variable is the single authoritative source for the push-gate session identity in this script.
+2. Computes `repo_hash = sha256(realpath(GIT_ROOT))[:16]`.
+3. Sets `token_dir = /tmp/agentic-commit/push/<repo_hash>`; creates `token_dir`.
+4. Checks for an existing token: if the file exists and its `session_id` field differs from `PUSH_GATE_SID`, print a WARNING and skip the write for this repo.
+5. Writes a JSON token `{"commit_sha": COMMIT_SHA, "branch": BRANCH, "repo_root": GIT_ROOT, "session_id": PUSH_GATE_SID}` to `{token_dir}/{branch.replace('/','__')}.json`.
+6. Prints the final token path on success.
 
 **Algorithm is canonical**: `sha256(os.path.realpath(repo_root)).hexdigest()[:16]`. Both
 `/commit` and `/push` must use this identical algorithm for the repo-hash derivation.
