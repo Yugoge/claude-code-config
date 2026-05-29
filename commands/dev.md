@@ -694,7 +694,7 @@ Use Agent tool with:
 
   You are the graphify subagent. Follow agents/graphify.md instructions precisely.
 
-  Run: python3 $CLAUDE_PROJECT_DIR/scripts/graphify-enrich.py --task-id <DEV_SESSION_ID> --context-file <context_json_path>
+  Run: source "${CLAUDE_PROJECT_DIR}/venv/bin/activate" && python3 $CLAUDE_PROJECT_DIR/scripts/graphify-enrich.py --task-id <DEV_SESSION_ID> --context-file <context_json_path>
 
   This is advisory — if the binary is absent or blast-radius-map is missing, exit 0 with status=skipped.
   "
