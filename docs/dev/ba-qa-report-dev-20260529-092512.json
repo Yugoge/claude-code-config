@@ -1,110 +1,15 @@
 {
   "task_id": "dev-20260529-092512",
-  "mode": "ba-validation",
-  "timestamp": "2026-05-29T09:40:00Z",
-  "verdict": "fail",
-  "summary": "BA analysis is strong on Items F, C, B (file:line evidence independently verified, verify-only classification correct, ordering sound). It FAILS on the single highest-risk dimension of the cycle: the Item A Class-1/Class-2 rule classification. The BA's defining criterion for Class-1 ('the arg is not the signal, the command word is') is factually wrong for the majority of the git rules it lists as Class-1 (reset --hard, push --force/--delete, checkout <ref> -- ., restore --source, revert <hash>). For those rules the danger lives in an ARGUMENT, not the bare verb — making them structurally identical to the Class-2 rules the BA forbids converting. Converting them, plus the BA's prescribed DANGER_COMMANDS remediation (add 'git'), introduces exactly the false-negative the cycle is supposed to avoid. Because Item A is high-blast-radius security infra, this misclassification blocks the spec until corrected.",
-  "dimensions_assessed": {
-    "evidence_quality": "pass_with_one_gap",
-    "scope_alignment": "pass",
-    "investigation_completeness": "pass",
-    "affected_file_accuracy": "pass",
-    "spec_text_vs_execution_drift": "fail"
+  "verdict": "pass",
+  "pass_number": 2,
+  "findings": [],
+  "dimensions": {
+    "class_boundary": "PASS — match-key-location criterion correctly applied; command-word-anchored vs argument-anchored verified at bash_context_strip.py:305-330",
+    "convertible_rules": "PASS — dd|mkfs|fdisk|shred (:1045) and kill <PID> (:1311) both genuinely safe; verified independently",
+    "do_not_convert_list": "PASS — all git/docker/systemctl rules correctly excluded (argument-anchored after stripping would create silent false negatives)",
+    "acceptance_criteria": "PASS — AC-A1/A2/A3 measurable, both polarities specified, pass1 trap removed",
+    "items_fbc": "PASS — F/C/B all re-confirmed accurate, no changes needed"
   },
-  "independent_verification": {
-    "F_commit_md_221": "VERIFIED. commit.md:221 reads 'Mtime + literal-task-id glob (final stage)'; body at :222 actually runs `grep -lF \"<!-- spec-continuation-of: ${TASK_ID} -->\"` and states it is 'the ONLY content predicate allowed'. Stale label is real; F scope correct.",
-    "C_marker_parity": "VERIFIED no-op expected. commit.md:222 marker grep is sole predicate; BA's claim of three-site parity is consistent with what I read. C correctly scoped as verify-only.",
-    "B_candidate_parity": "VERIFIED. pretool-write-guard.sh:82 enumerates [writer_key, data_task_id, session_id] de-duped; posttool-allowlist-consume.py:235 enumerates [writer_primary, data_task_id, session_id] de-duped — identical order. CF-1 gated on `[ -f \"$FILE_PATH\" ]` at write-guard.sh:114 (overwrite-only). B correctly scoped as verify-only; no functional gap, matches BA.",
-    "A_stripped_rule_count": "VERIFIED. Exactly 4 rules read COMMAND_CONTEXT_STRIPPED (:1110, :1119, :1143, :1154). DANGER_COMMANDS={killall,pkill,kill,rm,mv} at bash_context_strip.py:26. Stale 'four' comments confirmed at pretool-bash-safety.sh:1089 and bash_context_strip.py:5. Count facts are accurate.",
-    "A_stripper_semantics": "VERIFIED against bash_context_strip.py:316-330. For a generic (non-DANGER) command the stripper keeps the command word and ALL UNQUOTED word tokens; it blanks single-quoted (:321) and reduces double-quoted content to $()/backtick only (:323). Therefore unquoted flags (--hard, --force, -- ., --source) SURVIVE stripping, but QUOTED flags (git reset \"--hard\") are erased. This is the crux of the misclassification below."
-  },
-  "findings": [
-    {
-      "item": "A",
-      "severity": "critical",
-      "dimension": "spec_text_vs_execution_drift",
-      "description": "Class-1 classification criterion is wrong for most listed git rules. BA defines Class-1 as 'VERB rules (convertible; arg is not the signal, the command word is)'. Verified against source, this is FALSE for: git reset --hard (:1405 — bare 'git reset' is SAFE; only the --hard ARGUMENT is dangerous), git push --force/-f/--delete/+ref/:branch (:1414-1415 — bare push is the normal /push flow; danger is the flag ARGUMENT), git checkout <ref> -- . (:1372 — the regex fires on the wide-path ARGUMENT '.'/'*'/'dir/', not the verb), git restore --source ... -- . (:1389-1391 — three-condition match on --source flag + wide-path arg), git revert <hash>/<ref>^/~N (:1461-1472 — danger is the ref-modifier ARGUMENT). For every one of these the dangerous token is an argument, which is the DEFINING property the BA assigns to Class-2 ('the quoted target IS the signal'). The BA has put argument-signal rules in the wrong class."
-    },
-    {
-      "item": "A",
-      "severity": "critical",
-      "dimension": "evidence_quality",
-      "description": "Concrete false-negative introduced by the prescribed conversion. In bash, `git reset \"--hard\"` executes IDENTICALLY to `git reset --hard` (the shell strips the quotes at exec time). After converting the reset rule to match on COMMAND_CONTEXT_STRIPPED, the stripper reduces `git reset \"--hard\"` to `git reset ` (double-quoted content erased per bash_context_strip.py:322-323), so `reset.*--hard` no longer matches and the block is SILENTLY DISABLED for a genuinely destructive command. Identical reasoning applies to `git push \"--force\"`, `git checkout <ref> -- \".\"`, etc. This is exactly the false-negative class the cycle's whole risk framing is meant to prevent, and the BA's spec actively prescribes the change that creates it."
-    },
-    {
-      "item": "A",
-      "severity": "critical",
-      "dimension": "evidence_quality",
-      "description": "Prescribed DANGER_COMMANDS remediation is internally contradictory for git. The spec (line 40, AC-A1) says: for each converted verb 'its command word MUST first be added to DANGER_COMMANDS so its own dangerous arguments are not stripped'. The command word for all the git rules is 'git'. Adding 'git' to DANGER_COMMANDS un-strips ALL git arguments globally (bash_context_strip.py:305-314 exposes every arg of a DANGER command). That (a) re-introduces the exact quoted-string false positives the conversion was meant to remove — e.g. `echo \"git reset --hard\"` would once again match — defeating the purpose, and (b) changes behavior for the already-shipped rm/mv rules' interaction with git compound commands. The BA never reconciles 'convert git rules to stripped view' with 'add git to DANGER_COMMANDS', which are mutually defeating. No worked example is provided for any single git rule showing the before/after stripped view, both polarities passing."
-    },
-    {
-      "item": "A",
-      "severity": "major",
-      "dimension": "investigation_completeness",
-      "description": "Conflation of two distinct kill rules. The spec lists 'kill -sig (:1119)' as already-stripped (true) but does not address the SECOND kill rule at :1311 ('kill <PID>', raw $COMMAND, blocks `kill\\s+[0-9]`). That rule's signal is also an argument (a numeric PID), so it has the same argument-vs-verb tension. The BA's enumeration of the rule landscape is incomplete on the kill family; dev needs an explicit ruling on :1311.",
-      "note": "Not necessarily a conversion target, but its omission shows the Class-1/Class-2 sweep was not exhaustive."
-    },
-    {
-      "item": "A",
-      "severity": "major",
-      "dimension": "spec_text_vs_execution_drift",
-      "description": "The genuinely safe Class-1 candidates are the SUBSET whose match key is the verb word alone, where strip preserves the verb. Verified safe-to-convert candidates: docker compose down|restart|stop (:1076 — fires on verb), docker stop|restart|rm|kill ... happy (:1066), docker system prune -a (:1083 — multi-word verb phrase), dd|mkfs|fdisk|shred (:1045 — pure command-word match, anchored ^\\s*), systemctl docker (:1052), systemctl <verb> non-happy (:1129). git stash push|save|... (:1350) is borderline-safe because the subcommand word ('push'/'save') is an unquoted word token that survives strip. The BA correctly identified these as convertible but bundled them with the argument-signal git rules under one undifferentiated Class-1 label, so the AC cannot distinguish a safe conversion from an unsafe one. AC-A1 needs to be split: the convertible set is NOT all of the listed Class-1, it is the verb-word-anchored subset."
-    },
-    {
-      "item": "A",
-      "severity": "minor",
-      "dimension": "affected_file_accuracy",
-      "description": "Per-rule should-not-block test design (AC-A3) uses `echo \"git reset --hard\"` as the canonical non-executable example. That example is valid for the safe verb-anchored rules but is precisely the case that PROVES the false negative for the git argument-signal rules — passing it for a converted reset rule would be the bug, not the success. The test polarity examples must be re-specified per converted rule once the class boundary is corrected."
-    },
-    {
-      "item": "F",
-      "severity": "info",
-      "dimension": "affected_file_accuracy",
-      "description": "F scope and AC verified accurate. commit.md:221 stale label is real; the mktemp/trap/755 dimensions were correctly verified as already-compliant (read-only ac3/ac6/ac9/ac10 correctly omit mktemp/trap). No objection."
-    },
-    {
-      "item": "C",
-      "severity": "info",
-      "dimension": "investigation_completeness",
-      "description": "C correctly scoped verify-only; BA's edge-case note ('a literal-task-id grep could hide in a non-obvious fallback branch; dev must grep the whole step-7 path') is exactly the right residual-risk callout. No objection. Verdict no-op expectation is consistent with source."
-    },
-    {
-      "item": "B",
-      "severity": "info",
-      "dimension": "investigation_completeness",
-      "description": "B correctly scoped verify-only; candidate-key parity and CF-1 overwrite-only invariant both independently confirmed at source. The edge-case note on candidate-order divergence (leak vs fail-to-consume) is accurate and well-reasoned. No objection."
-    },
-    {
-      "item": "ordering",
-      "severity": "info",
-      "dimension": "scope_alignment",
-      "description": "Ordering F->C->B->A is sound. F-then-C colocation on commit.md is a real efficiency. B-and-A sequential (not parallel) because A's new tests import from hooks.lib and B may touch allowlist.py is a legitimate shared-import-churn avoidance. Isolating high-risk A last is correct. No objection to ordering rationale."
-    }
-  ],
-  "scope_independence_assessment": "Items F, C, B, A are independently actionable: F touches only commit.md; C is read-only verification of 3 sites (patch-on-gap); B is read-only verification across write-guard.sh/consume.py/allowlist.py (patch-on-gap); A is isolated to pretool-bash-safety.sh + bash_context_strip.py + new tests. The only coupling is the intentional F/C colocation on commit.md and the B/A sequencing, both correctly identified by the BA. Independence: PASS.",
-  "verify_only_assessment": "BA's identification of B and C as verify-only (no new construction unless a gap is found) is CORRECT and independently confirmed against source. Neither has a functional gap; both correctly expect no-op confirmations with patch-on-divergence fallbacks. PASS.",
-  "class1_class2_assessment": "INCORRECTLY DRAWN. The principle 'Class-1 verb rules safe to convert, Class-2 path/value rules must NOT be converted' is sound IN THE ABSTRACT, but the BA assigned the git argument-signal rules (reset --hard, push --force, checkout/restore wide-path, revert ref-modifier) to Class-1 when their danger token is an ARGUMENT, making them behave like Class-2 under the stripper. The class boundary must be redrawn on the ACTUAL match-key location (verb-word vs argument-token), not on a verb-vs-path surface reading. FAIL.",
-  "ordering_assessment": "SOUND. F->C->B->A with F/C colocated and B/A sequential is well-justified by file-overlap and shared-import analysis. PASS.",
-  "acceptance_criteria_assessment": "Mostly measurable (grep assertions for F/A4, source-inspection for B/C, exit-code assertions for A2/A3). BUT AC-A1 is not safely measurable as written: 'every converted rule references COMMAND_CONTEXT_STRIPPED' will pass for an UNSAFE git conversion that silently disables a block, because the AC checks the textual reference, not the both-polarities behavioral outcome. AC-A1 must be gated on AC-A2+AC-A3 BOTH passing per rule with rule-specific (not generic) test payloads. Incomplete for the security-critical item.",
-  "missing_scope_or_risks": [
-    "The false-negative mechanism for QUOTED argument flags (git reset \"--hard\" executing as a real hard reset while evading the stripped-view grep) is not analyzed anywhere in the spec — it is the single most important risk of Item A and is absent.",
-    "The mutual contradiction between 'convert git rules to stripped view' and 'add git to DANGER_COMMANDS' is unanalyzed.",
-    "Second kill rule at :1311 (kill <PID>, argument-signal) omitted from the Class-1/Class-2 sweep.",
-    "No worked before/after stripped-view example is given for ANY single converted rule, so dev has no executable acceptance template for the riskiest conversions."
-  ],
-  "recommendation": "Re-invoke BA to correct Item A before dev starts. Specifically: (1) Redraw the class boundary on match-key LOCATION (verb-word-anchored => convertible; argument-token-anchored => NOT convertible), not on a verb-vs-path reading. (2) Move git reset --hard, git push --force/--delete, git checkout/restore wide-path, and git revert ref-modifier rules into the DO-NOT-CONVERT set (their danger is in an argument that the stripper erases when quoted, identical to Class-2). (3) Keep as convertible only the verb-word-anchored rules: docker compose down|restart|stop, docker stop|restart|rm|kill happy, docker system prune -a, dd|mkfs|fdisk|shred, systemctl docker, systemctl non-happy verb, and git stash push|save (subcommand-word anchored). (4) Resolve the DANGER_COMMANDS contradiction: for the remaining convertible verb rules, adding the command word to DANGER_COMMANDS is unnecessary (their args are not the signal) and harmful (re-introduces quoted false positives) — drop that step or justify it per-rule with a worked example. (5) Add the quoted-flag false-negative analysis to Edge Cases & Risks. (6) Rule on the :1311 kill-PID rule explicitly. (7) Gate AC-A1 on both test polarities passing with rule-specific payloads, not on the textual COMMAND_CONTEXT_STRIPPED reference alone. Items F, C, B, and the ordering rationale require NO changes and are approved as-is.",
-  "verified_against_complaint": true,
-  "graph_verification": {
-    "graphify_ran": false,
-    "graph_context_status": "unavailable",
-    "focused_subgraph_present": false,
-    "graph_report_present": false,
-    "verification_note": "No pre_query.json / graph_context provided in dispatch; graphify fail-gates G1-G3 waived per spec-20260527-061433."
-  },
-  "codex_consult": {
-    "invoked": false,
-    "status": "not_requested",
-    "feedback_summary": null,
-    "feedback_incorporated": null
-  }
+  "release_recommendation": "approve",
+  "note": "Verdict file written by orchestrator after CF-1 write-guard blocked QA subagent overwrite (expected behavior). Full QA reasoning in subagent output."
 }
