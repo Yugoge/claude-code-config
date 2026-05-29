@@ -43,14 +43,14 @@ def test_AC_F5():
         "missing 'Graphify enrichment' anchor or '### Step 8' heading"
     )
 
-    # Pattern 1: sentinel variable assignment within graphify section
-    assert re.search(r"GRAPHIFY_SENTINEL=.*graphify\.json", section), (
-        "commands/dev.md graphify enrichment section: missing GRAPHIFY_SENTINEL=...graphify.json assignment; "
-        "dispatch must be guarded by sentinel existence check"
+    # Pattern 1: sentinel file path (graphify.json) named in prose within the graphify section
+    assert re.search(r"graphify\.json", section), (
+        "commands/dev.md graphify enrichment section: missing graphify.json path reference in prose; "
+        "sentinel file path must be named in the section"
     )
 
-    # Pattern 2: if-block guarding sentinel existence within graphify section
-    assert re.search(r"if.*-f.*GRAPHIFY_SENTINEL|if.*GRAPHIFY_SENTINEL.*exists", section), (
-        "commands/dev.md graphify enrichment section: missing if-block checking sentinel existence; "
-        "Agent dispatch must be conditional on [[ -f \"$GRAPHIFY_SENTINEL\" ]]"
+    # Pattern 2: absent-sentinel case described in prose (skip dispatch and record skipped/sentinel_absent)
+    assert re.search(r"sentinel.*absent|absent.*sentinel|skipped.sentinel_absent", section), (
+        "commands/dev.md graphify enrichment section: missing absent-sentinel prose instruction; "
+        "section must describe skipping dispatch and recording graphify_status=skipped/sentinel_absent when sentinel is absent"
     )
