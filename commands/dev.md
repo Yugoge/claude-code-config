@@ -687,29 +687,31 @@ After BA-QA validation passes, check whether the graphify sentinel file exists b
 
 ```bash
 GRAPHIFY_SENTINEL="$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/graphify.json"
-```
-
-If the sentinel exists, dispatch the graphify subagent:
-
-```
 if [[ -f "$GRAPHIFY_SENTINEL" ]]; then
-  Use Agent tool with:
-  - subagent_type: "graphify"
-  - description: "Graphify enrichment: extract focused subgraph for task"
-  - prompt: "
-    FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/graphify.json to register with the enforcement system. Do this BEFORE any other tool call.
-
-    You are the graphify subagent. Follow agents/graphify.md instructions precisely.
-
-    Run: source "${CLAUDE_PROJECT_DIR}/venv/bin/activate" && python3 $CLAUDE_PROJECT_DIR/scripts/graphify-enrich.py --task-id <DEV_SESSION_ID> --context-file <context_json_path>
-
-    This is advisory — if the binary is absent or blast-radius-map is missing, exit 0 with status=skipped.
-    "
+  echo "graphify sentinel exists — dispatching graphify subagent"
 else
   echo "graphify-enrich: skipping subagent dispatch — sentinel absent (GRAPHIFY_BIN not installed)"
-  Record graphify_status=skipped/sentinel_absent in the todo list.
 fi
 ```
+
+If the sentinel exists (i.e., `[[ -f "$GRAPHIFY_SENTINEL" ]]` is true), dispatch the graphify subagent:
+
+```
+Use Agent tool with:
+- subagent_type: "graphify"
+- description: "Graphify enrichment: extract focused subgraph for task"
+- prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/<DEV_SESSION_ID>/graphify.json to register with the enforcement system. Do this BEFORE any other tool call.
+
+  You are the graphify subagent. Follow agents/graphify.md instructions precisely.
+
+  Run: source "${CLAUDE_PROJECT_DIR}/venv/bin/activate" && python3 $CLAUDE_PROJECT_DIR/scripts/graphify-enrich.py --task-id <DEV_SESSION_ID> --context-file <context_json_path>
+
+  This is advisory — if the binary is absent or blast-radius-map is missing, exit 0 with status=skipped.
+  "
+```
+
+If the sentinel is absent, record `graphify_status=skipped/sentinel_absent` in the todo list.
 
 When sentinel existed and graphify completes (or is skipped), check `.claude/dev-registry/<DEV_SESSION_ID>/graphify/graph-summary.json` for the status field and record it in the todo list. Then continue to Step 8.
 
