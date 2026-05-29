@@ -1107,25 +1107,7 @@ if echo "$COMMAND" | grep -qE 'docker\s+system\s+prune\s+-a'; then
   exit 2
 fi
 
-# Context-strip: remove string-content false positives for the generic
-# danger-token rules below.  This is intentionally a bounded classifier, NOT a
-# full shell parser.  It runs from a file path (not `python -`) and is wrapped by
-# timeout + virtual-memory limits; on any failure the raw command is used, so the
-# hook fails closed and never drops potentially executable text.
-COMMAND_CONTEXT_STRIPPED="$COMMAND"
-HOOKS_DIR_CTX="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -r "$HOOKS_DIR_CTX/lib/bash_context_strip.py" ]; then
-  _ctx_out=$(
-    ulimit -v "${CLAUDE_HOOK_CONTEXT_MEM_KB:-262144}" 2>/dev/null || true
-    CMD_INPUT="$COMMAND" timeout "${CLAUDE_HOOK_CONTEXT_TIMEOUT:-2s}" \
-      "$PYTHON_BIN" "$HOOKS_DIR_CTX/lib/bash_context_strip.py" 2>/dev/null
-  )
-  _ctx_status=$?
-  if [ "$_ctx_status" -eq 0 ]; then
-    COMMAND_CONTEXT_STRIPPED="$_ctx_out"
-  fi
-  unset _ctx_out _ctx_status
-fi
+# COMMAND_CONTEXT_STRIPPED is initialised earlier (before Layer 1.F, dev-20260529-210759).
 
 # Block: destructive disk operations (command-word-anchored on the stripped view)
 # The verb is preserved verbatim by the stripper, so echo "dd if=..." erases to a
