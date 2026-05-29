@@ -1106,7 +1106,7 @@ fi
 # Block: destructive disk operations (command-word-anchored on the stripped view)
 # The verb is preserved verbatim by the stripper, so echo "dd if=..." erases to a
 # no-match while a real dd/mkfs/fdisk/shred command word still fires (Item A).
-if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '^\s*(dd |mkfs|fdisk|shred )'; then
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '^\s*(dd|mkfs|fdisk|shred)\b'; then
   echo "BLOCKED: Destructive disk operation detected" >&2
   echo "Command: $COMMAND" >&2
   exit 2
@@ -1274,7 +1274,7 @@ fi
 
 # Block: curl/wget POST to happy-server API that creates/modifies sessions
 if echo "$COMMAND" | grep -qE '(curl|wget).*(/v1/sessions|/v1/machines|/session-started|/spawn-session)' && echo "$COMMAND" | grep -qiE '(-X\s*POST|-X\s*PUT|-X\s*PATCH|-X\s*DELETE|-d\s|--data)'; then
-  echo "BLOCKED: 必须使用正常的UI流程创建session，永远不允许使用代码创建session！" >&2
+  echo "BLOCKED: Session creation via API is forbidden. Use the UI flow instead." >&2
   echo "Command: $COMMAND" >&2
   echo "Hint: Open https://dev.life-ai.app -> click Start New Session -> type message -> send. NEVER use curl/API to create sessions." >&2
   exit 2
