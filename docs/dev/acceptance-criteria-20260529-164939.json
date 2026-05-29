@@ -54,6 +54,18 @@
       "type": "grep",
       "patterns": [
         {
+          "file": "docs/dev/ticket-20260529-080709.md",
+          "pattern": "GRAPHIFY_SENTINEL=",
+          "expect": "no_match",
+          "rationale": "ticket spec AC-F5 VERIFICATION section must not reference bash assignment syntax after prose conversion"
+        },
+        {
+          "file": "docs/dev/ticket-20260529-080709.md",
+          "pattern": "if.*-f.*GRAPHIFY_SENTINEL",
+          "expect": "no_match",
+          "rationale": "ticket spec AC-F5 VERIFICATION section must not reference bash if-test syntax after prose conversion"
+        },
+        {
           "file": "docs/dev/acceptance-criteria-20260529-080709.json",
           "pattern": "GRAPHIFY_SENTINEL=",
           "expect": "no_match",
