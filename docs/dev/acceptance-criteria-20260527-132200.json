@@ -154,6 +154,23 @@
         "expect": "match"
       },
       "ac_uid": "ac11-prompt-workflow-noop-guard"
+    },
+    {
+      "id": "AC12",
+      "type": "data",
+      "given": "commands/dev.md, commands/redev.md, commands/pull.md, commands/clean.md, commands/dev-overnight.md after all PRs",
+      "when": "reading each command file to verify graphify integration coverage",
+      "then": "commands/dev.md references both graphify-query.py and graphify-enrich.py; commands/redev.md references graphify; commands/pull.md references graphify-maintain.py; commands/clean.md explicitly marks graphify as disabled; commands/dev-overnight.md references graphify in sentinel fanout",
+      "check": {
+        "type": "grep",
+        "patterns": [
+          {"file": "commands/dev.md", "pattern": "graphify-query\\.py", "expect": "match"},
+          {"file": "commands/dev.md", "pattern": "graphify-enrich\\.py", "expect": "match"},
+          {"file": "commands/pull.md", "pattern": "graphify-maintain\\.py", "expect": "match"},
+          {"file": "commands/clean.md", "pattern": "disabled", "expect": "match"}
+        ]
+      },
+      "ac_uid": "ac12-command-coverage"
     }
   ]
 }
