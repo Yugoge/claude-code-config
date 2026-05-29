@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-29T15:23:55Z*
-**Total entries**: 939
+*Last updated: 2026-05-29T15:25:53Z*
+**Total entries**: 940
 **Convention**: kebab
 
 ## Tree
@@ -899,6 +899,7 @@ dev/
 ├── `ticket-dev-20260527-063758-T4.md` - BA Specification: Fix `python` → `python3` and `CLAUDE_SESSION_ID` fallback
 ├── `ticket-dev-20260529-081000.md` - BA Specification: Fix failing test — write-bulk-commit-sentinel.py session-ID fallback
 ├── `ticket-dev-20260529-092512.md` - BA Specification: Backlog batch — context-strip extension, write-guard hardening, step-7 marker parity, test cleanliness
+├── `ticket-dev-20260529-152050.md` - BA Specification: Positive regression test for CLAUDE_CODE_SESSION_ID fallback
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
 ├── `user-requirement-dev-20260518-214050.md` - No description
