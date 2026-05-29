@@ -1103,6 +1103,15 @@ if [ -r "$HOOKS_DIR_CTX/lib/bash_context_strip.py" ]; then
   unset _ctx_out _ctx_status
 fi
 
+# Block: destructive disk operations (command-word-anchored on the stripped view)
+# The verb is preserved verbatim by the stripper, so echo "dd if=..." erases to a
+# no-match while a real dd/mkfs/fdisk/shred command word still fires (Item A).
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '^\s*(dd |mkfs|fdisk|shred )'; then
+  echo "BLOCKED: Destructive disk operation detected" >&2
+  echo "Command: $COMMAND" >&2
+  exit 2
+fi
+
 # Block: generic process killers targeting services
 if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(killall|pkill)\s+.*(happy|claude|docker)'; then
   echo "BLOCKED: Killing happy/claude/docker processes is forbidden" >&2
