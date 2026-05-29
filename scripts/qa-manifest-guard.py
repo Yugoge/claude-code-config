@@ -272,18 +272,9 @@ def _run_cycle_diff_mode(cycle_diff_files: str, collect_only_cmd: str) -> int:
     # Split paths; empty string -> empty list.
     paths = [p.strip() for p in cycle_diff_files.split(",") if p.strip()]
 
-    # Filter to .py files; non-.py are not pytest-collectable.
-    py_paths = [p for p in paths if _is_py_file(p)]
-
-    # If no .py paths at all, emit ok_vacuous_acknowledged with the canonical reason.
-    if not py_paths:
-        return _emit_cycle_diff_result(
-            VERDICT_OK_VACUOUS,
-            "no pytest-collectable files in cycle diff",
-            extra={"active_tests_count": 0},
-        )
-
-    # Tokenize the collect-only command once.
+    # Tokenize and validate the collect-only command BEFORE any vacuous-acknowledged early
+    # return — otherwise a no-.py diff + bogus command exits 0, violating the fail-closed
+    # contract (codex finding #1).
     try:
         collect_cmd_argv = shlex.split(collect_only_cmd)
     except ValueError as e:
@@ -295,6 +286,31 @@ def _run_cycle_diff_mode(cycle_diff_files: str, collect_only_cmd: str) -> int:
         return _emit_cycle_diff_result(
             VERDICT_GUARD_BLOCKED,
             "--collect-only-cmd is empty",
+        )
+    # Verify the command's executable is on PATH (or is an absolute path that exists).
+    cmd0 = collect_cmd_argv[0]
+    import shutil
+    if not (os.path.isabs(cmd0) and os.access(cmd0, os.X_OK)) and shutil.which(cmd0) is None:
+        return _emit_cycle_diff_result(
+            VERDICT_GUARD_BLOCKED,
+            f"collect-only command not found on PATH: {cmd0!r} (errno 2: No such file or directory)",
+        )
+
+    # Filter to .py files; non-.py are not pytest-collectable.
+    py_paths = [p for p in paths if _is_py_file(p)]
+
+    # If no .py paths at all, emit ok_vacuous_acknowledged with the canonical reason.
+    # Per codex finding #2: emit the full explicit-vacuous shape so QA can copy these
+    # fields verbatim into manifest_verification without racy semantics.
+    if not py_paths:
+        return _emit_cycle_diff_result(
+            VERDICT_OK_VACUOUS,
+            "no pytest-collectable files in cycle diff",
+            extra={
+                "active_tests_count": 0,
+                "pytest_collected_ok": None,
+                "vacuous_due_to_empty_active_set": True,
+            },
         )
 
     active_tests_count = 0
