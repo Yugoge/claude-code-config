@@ -183,8 +183,27 @@
       "manifest_exists": false,
       "active_tests_count": 0,
       "active_tests_importable": true,
-      "pytest_collected_ok": true,
-      "pytest_failures": []
+      "pytest_collected_ok": null,
+      "pytest_failures": null,
+      "correction_note": "Original AC3 verification was grep-only on stale-token replacement; it did NOT run the modified tests. The pytest_collected_ok/pytest_failures fields are nulled because active_tests_count:0 (empty global active set) made the original 'true'/'[]' values vacuous and misleading. The real pytest execution of the cycle-modified files happens in real_test_run below (added during close CONDITIONAL remediation, task 20260527-054705).",
+      "real_test_run": {
+        "run_during": "close CONDITIONAL remediation (task 20260527-054705)",
+        "executed_at": "2026-05-28",
+        "command": "python3 -m pytest tests/generated/20260524-205206 20260525-095242 20260526-052559 20260526-053746",
+        "collected": 125,
+        "passed": 120,
+        "failed": 5,
+        "fix_scope_dir": "tests/generated/20260526-053746/",
+        "fix_scope_result": "34 passed, 0 failed (post-rename, was 67 failed pre-rename)",
+        "pre_existing_failures_outside_fix_scope": [
+          {"test": "tests/generated/20260525-095242/test_AC_01_f1a2b3c4d5e6f7a8.py::test_AC_01_layer1f_compound_bypass_matrix[C15b]", "reason": "Cycle 095242 expected '.bak' lookalike path to skip entry-gate; Cycle 053746 widened the gate to grep -F substring match. Pre-existing test/code divergence (also red pre-rename)."},
+          {"test": "tests/generated/20260525-095242/test_AC_04_bypass_20260525.py::test_AC_04_bypass_allow_rows[C15b]", "reason": "Same as C15b above — pre-existing entry-gate widening regression."},
+          {"test": "tests/generated/20260525-095242/test_AC_02_a9b8c7d6e5f4a3b2.py::test_AC_02_prior_21_cases_still_pass", "reason": "Asserts directory 20260524-205206 still collects >=21 cases; only 11 collected after retired AC-04 file (auth-flag mechanism) was deleted in Cycle 8 cleanup."},
+          {"test": "tests/generated/20260525-095242/test_AC_02_a9b8c7d6e5f4a3b2.py::test_AC_02_pytest_directory_invocation_exits_zero", "reason": "Cascades from the prior_21_cases_still_pass failure above."},
+          {"test": "tests/generated/20260524-205206/test_AC_03_c3d5e7f9b2a4c6d8.py::test_AC_03", "reason": "Asserts 'timeline' string present in commands/close.md; current close.md uses 'Session Summary' with chronological buckets, not the literal word 'timeline'. Pre-existing string drift (also red pre-rename)."}
+        ],
+        "note": "Fix scope (tests/generated/20260526-053746/) is fully green. Five failures outside fix scope are pre-existing (confirmed red against pre-rename HEAD via git stash); they are tracked for a follow-up cycle but DO NOT block this close."
+      }
     },
     "blast_radius_phase2": {
       "phase2_map_path": null,
