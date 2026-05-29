@@ -659,6 +659,27 @@ fi
 #       AND NO `xargs`/`-exec`/`-delete`/`-execdir`/`-ok`/`-okdir` write
 #       surface targeting the protected path.
 # Anything else → DENY with stable stderr token `bulk-commit-sentinel-write`.
+# Context-strip: remove string-content false positives for Layer 1.F entry gate.
+# Moved here (dev-20260529-210759) so COMMAND_CONTEXT_STRIPPED is available to the
+# Layer 1.F entry gate below. This is intentionally a bounded classifier, NOT a
+# full shell parser.  It runs from a file path (not `python -`) and is wrapped by
+# timeout + virtual-memory limits; on any failure the raw command is used, so the
+# hook fails closed and never drops potentially executable text.
+COMMAND_CONTEXT_STRIPPED="$COMMAND"
+HOOKS_DIR_CTX="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -r "$HOOKS_DIR_CTX/lib/bash_context_strip.py" ]; then
+  _ctx_out=$(
+    ulimit -v "${CLAUDE_HOOK_CONTEXT_MEM_KB:-262144}" 2>/dev/null || true
+    CMD_INPUT="$COMMAND" timeout "${CLAUDE_HOOK_CONTEXT_TIMEOUT:-2s}" \
+      "$PYTHON_BIN" "$HOOKS_DIR_CTX/lib/bash_context_strip.py" 2>/dev/null
+  )
+  _ctx_status=$?
+  if [ "$_ctx_status" -eq 0 ]; then
+    COMMAND_CONTEXT_STRIPPED="$_ctx_out"
+  fi
+  unset _ctx_out _ctx_status
+fi
+
 # Entry gate: protected path mention. Uses TWO grep -F substring matches
 # (item 5 fix, task 20260526-053746 AC-05/AC-05b) to match BOTH literal session-id
 # paths AND glob forms (*, ?, [abc], [!abc]) — POSIX shell-glob bracket syntax.
@@ -666,8 +687,11 @@ fi
 # entirely skipped Layer 1.F protection. The substring approach is wider but the
 # Layer 1.F entry gate is intentionally permissive — actual write/compound detection
 # happens inside the block via shlex tokenization (items 3+4).
-if echo "$COMMAND" | grep -qF '/tmp/claude-bulk-commit-sentinel-' \
-   || echo "$COMMAND" | grep -qF 'write-bulk-commit-sentinel.py'; then
+# Uses COMMAND_CONTEXT_STRIPPED (not raw $COMMAND) so that quoted string arguments
+# to unrelated commands (e.g. --prompt "...write-bulk-commit-sentinel.py...") do not
+# trigger a false positive (dev-20260529-210759). Inner L1.F logic still uses $COMMAND.
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qF '/tmp/claude-bulk-commit-sentinel-' \
+   || echo "$COMMAND_CONTEXT_STRIPPED" | grep -qF 'write-bulk-commit-sentinel.py'; then
   # M5 (task 20260526-052559): canonical /commit --bulk Step 5 venv-activate form.
   # Must be checked in bash BEFORE the Python compound-detection helper because the
   # canonical form contains && (compound) and source (shell keyword) — the Python
