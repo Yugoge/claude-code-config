@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-29T21:04:28Z*
-**Total entries**: 972
+*Last updated: 2026-05-29T21:10:49Z*
+**Total entries**: 980
 **Convention**: kebab
 
 ## Tree
@@ -364,6 +364,7 @@ dev/
 ├── `completion-dev-20260529-081000.md` - Completion Report — dev-20260529-081000
 ├── `completion-dev-20260529-092512.md` - Completion Report — dev-20260529-092512
 ├── `completion-dev-20260529-152050.md` - Completion Report — dev-20260529-152050
+├── `completion-do-20260529-210815.md` - Completion Report — do-20260529-210815
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
 ├── `context-20260510-191533.json` - json config
@@ -460,6 +461,7 @@ dev/
 ├── `context-dev-20260529-081000.json` - json config
 ├── `context-dev-20260529-092512.json` - json config
 ├── `context-dev-20260529-152050.json` - json config
+├── `context-do-20260529-210815.json` - json config
 ├── `context-iter2-dev-20260111-193314.json` - json config
 ├── `dev-report-20260110-001044.json` - json config
 ├── `dev-report-20260416-063500-iter2.json` - json config
@@ -577,6 +579,7 @@ dev/
 ├── `dev-report-dev-20260529-092512-F.json` - json config
 ├── `dev-report-dev-20260529-092512.json` - json config
 ├── `dev-report-dev-20260529-152050.json` - json config
+├── `dev-report-do-20260529-210815.json` - json config
 ├── `meta-assessment-20260519-161035.json` - json config
 ├── `note-20260524-123039-root-bin-manual-commit.md` - Manual Commit Instructions: /root/bin/happy-session-recovery.sh
 ├── `observations-ledger.md` - Observations Ledger
@@ -639,6 +642,7 @@ dev/
 ├── `prompt-inspector-report-dev-20260529-081000.json` - json config
 ├── `prompt-inspector-report-dev-20260529-092512.json` - json config
 ├── `prompt-inspector-report-dev-20260529-152050.json` - json config
+├── `prompt-inspector-report-do-20260529-210815.json` - json config
 ├── `qa-final-blame-audit-20260416-063500.json` - json config
 ├── `qa-input-20260110-001044.json` - json config
 ├── `qa-input-dev-20260107-091716.json` - json config
@@ -758,6 +762,7 @@ dev/
 ├── `qa-report-dev-20260529-081000.json` - json config
 ├── `qa-report-dev-20260529-092512.json` - json config
 ├── `qa-report-dev-20260529-152050.json` - json config
+├── `qa-report-do-20260529-210815.json` - json config
 ├── `qa-report-iter2-dev-20260107-091716.json` - json config
 ├── `refined-context-dev-20260111-193314.json` - json config
 ├── `style-inspector-report-20260517-153856.json` - json config
@@ -930,6 +935,7 @@ dev/
 ├── `ticket-dev-20260529-081000.md` - BA Specification: Fix failing test — write-bulk-commit-sentinel.py session-ID fallback
 ├── `ticket-dev-20260529-092512.md` - BA Specification: Backlog batch — context-strip extension, write-guard hardening, step-7 marker parity, test cleanliness
 ├── `ticket-dev-20260529-152050.md` - BA Specification: Positive regression test for CLAUDE_CODE_SESSION_ID fallback
+├── `ticket-do-20260529-210815.md` - /do Fix: bare dd/shred gap + Chinese diagnostic string
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
 ├── `user-requirement-dev-20260518-214050.md` - No description
@@ -978,6 +984,8 @@ dev/
 ├── `user-requirement-dev-20260529-152050.md` - No description
 ├── `user-requirement-dev-20260529-164939.md` - No description
 ├── `user-requirement-dev-20260529-204939.md` - No description
+├── `user-requirement-dev-20260529-210616.md` - No description
+├── `user-requirement-dev-20260529-210759.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
