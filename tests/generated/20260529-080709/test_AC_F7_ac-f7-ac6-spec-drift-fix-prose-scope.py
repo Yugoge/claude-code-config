@@ -39,26 +39,42 @@ def test_AC_F7():
            heading-only pattern '##+ Step [0-9]+\\.[0-9]' (verified via jq); the AC6 WHEN line in
            ticket-20260527-132200.md, extracted from the ### AC6 heading block, contains 'prose'
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # IMPLEMENTATION NOTES (from BA check spec — jq path MUST use .acceptance_criteria[]):
-    #
-    # jq check 1 — AC6 when field contains 'prose':
-    #   cmd: jq '.acceptance_criteria[] | select(.id=="AC6") | .when | test("prose";"i")'
-    #         docs/dev/acceptance-criteria-20260527-132200.json
-    #   Assert output.strip() == "true"
-    #
-    # jq check 2 — old heading-only pattern gone from check.pattern:
-    #   cmd: jq '.acceptance_criteria[] | select(.id=="AC6") | .check.pattern | test("##[+] Step")'
-    #         docs/dev/acceptance-criteria-20260527-132200.json
-    #   Assert output.strip() == "false"
-    #
-    # Markdown section check — AC6 block in ticket contains 'prose':
-    #   Use _extract_ac6_ticket_section() to extract text from ### AC6 to ### AC7.
-    #   Assert section is non-empty.
-    #   Assert re.search(r"prose", section, re.IGNORECASE) is not None
-    #
-    # IMPORTANT: use .acceptance_criteria[] path (NOT .[] | ...) per BA constraint.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — AC6 when field contains 'prose' (jq), old ##+ Step pattern absent (jq), ticket AC6 section contains 'prose' (section-scoped grep)")
+    # jq check 1 — AC6 when field contains 'prose'
+    result1 = subprocess.run(
+        ["jq", ".acceptance_criteria[] | select(.id==\"AC6\") | .when | test(\"prose\";\"i\")",
+         str(AC_JSON_PATH)],
+        capture_output=True, text=True
+    )
+    assert result1.returncode == 0, (
+        f"jq check 1 failed (returncode={result1.returncode}): {result1.stderr}"
+    )
+    assert result1.stdout.strip() == "true", (
+        f"AC6 'when' field in acceptance-criteria-20260527-132200.json does not contain 'prose'; "
+        f"jq output: {result1.stdout.strip()!r}"
+    )
+
+    # jq check 2 — old heading-only pattern must be gone
+    result2 = subprocess.run(
+        ["jq", ".acceptance_criteria[] | select(.id==\"AC6\") | .check.pattern | test(\"##[+] Step\")",
+         str(AC_JSON_PATH)],
+        capture_output=True, text=True
+    )
+    assert result2.returncode == 0, (
+        f"jq check 2 failed (returncode={result2.returncode}): {result2.stderr}"
+    )
+    assert result2.stdout.strip() == "false", (
+        f"AC6 check.pattern in acceptance-criteria-20260527-132200.json still contains the old "
+        f"heading-only pattern '##+ Step'; jq output: {result2.stdout.strip()!r}"
+    )
+
+    # Markdown section check — ticket AC6 block must contain 'prose'
+    ticket_text = TICKET_PATH.read_text(encoding="utf-8")
+    section = _extract_ac6_ticket_section(ticket_text)
+    assert section, (
+        "Could not extract AC6 section from ticket-20260527-132200.md — "
+        "missing '### AC6' or '### AC7' heading"
+    )
+    assert re.search(r"prose", section, re.IGNORECASE), (
+        "ticket-20260527-132200.md AC6 section does not contain 'prose'; "
+        "WHEN clause must be updated to cover prose references"
+    )
