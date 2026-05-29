@@ -227,10 +227,12 @@
     },
     "summary": {
       "critical_issues": 0,
-      "major_issues": 2,
-      "minor_issues": 1,
-      "total_findings": 3,
-      "release_recommendation": "approve-with-warnings"
+      "major_issues": 0,
+      "minor_issues": 0,
+      "total_findings": 0,
+      "release_recommendation": "approve",
+      "iter2_provenance_verdict": "PASS — all 3 iter-1 provenance findings resolved by dev iter-2",
+      "iter1_substantive_verdict": "PASS — 5/5 ACs verified live (preserved from iter-1)"
     }
   },
   "self_verification": {
