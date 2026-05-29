@@ -1,0 +1,1 @@
+/redev 系统性修复： 坦白本次问题：close 跑歪了一次。 - Not accomplished：5 个跨周期预先存在的失败仍 carried-forward（你之前确认不值得花限额修）。 - Bugs encountered：codex 抓到的 repair-venv.sh 真实文件 rm -f 漏洞，已修；orchestrator 提前加成功分。 - Improvement opportunities：score-update.sh 加 --delta 反转/--undo 接口；/close 加守卫禁止在 QA 出判决前 issue 成功事件；下一周期清 5 个 carried-forward 失败。
