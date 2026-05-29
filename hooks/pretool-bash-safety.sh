@@ -687,11 +687,12 @@ fi
 # entirely skipped Layer 1.F protection. The substring approach is wider but the
 # Layer 1.F entry gate is intentionally permissive — actual write/compound detection
 # happens inside the block via shlex tokenization (items 3+4).
-# Uses COMMAND_CONTEXT_STRIPPED (not raw $COMMAND) so that quoted string arguments
-# to unrelated commands (e.g. --prompt "...write-bulk-commit-sentinel.py...") do not
-# trigger a false positive (dev-20260529-210759). Inner L1.F logic still uses $COMMAND.
-if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qF '/tmp/claude-bulk-commit-sentinel-' \
-   || echo "$COMMAND_CONTEXT_STRIPPED" | grep -qF 'write-bulk-commit-sentinel.py'; then
+# Note: raw $COMMAND is used for the entry gate (not COMMAND_CONTEXT_STRIPPED) to
+# preserve coverage for compound commands where the context stripper removes the
+# script path from python3 segment tokens. False positives from quoted string
+# arguments are resolved inside the block by _bulk_decision (dev-20260529-210759).
+if echo "$COMMAND" | grep -qF '/tmp/claude-bulk-commit-sentinel-' \
+   || echo "$COMMAND" | grep -qF 'write-bulk-commit-sentinel.py'; then
   # M5 (task 20260526-052559): canonical /commit --bulk Step 5 venv-activate form.
   # Must be checked in bash BEFORE the Python compound-detection helper because the
   # canonical form contains && (compound) and source (shell keyword) — the Python
