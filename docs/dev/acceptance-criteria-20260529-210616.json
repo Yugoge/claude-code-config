@@ -1,0 +1,101 @@
+{
+  "$schema": "executable-ac/v1",
+  "task_id": "20260529-210616",
+  "spec_path": "docs/dev/ticket-20260529-210616.md",
+  "items": [
+    {
+      "id": "AC-1",
+      "type": "data",
+      "ac_uid": "ac1-delta-reversal",
+      "given": "tmp lifecycle file with one prior entry for agent dev with new_score=52",
+      "when": "bash scripts/score-update.sh --agent dev --delta -2 --reason 'test reversal' --lifecycle-file <tmp>",
+      "then": "exit 0; lifecycle gains exactly 1 new line; line 1 byte-identical pre/post; new line is valid 9-field JSON with prev_score=52, delta=-2, unclamped_score=50, new_score=50, event='manual_reversal', reason='test reversal', agent='dev'. Also: --delta -2 without --reason exits 1 stderr '--reason'; --delta with --event exits 1 stderr 'mutually exclusive' (codex F4); empty lifecycle + --delta +3 --expected-prev-score 50 produces prev_score=50 (codex F6 fresh-file baseline); wrong --expected-prev-score 40 exits 3 (CAS).",
+      "check": {
+        "kind": "subprocess-exit-and-jsonl-diff",
+        "script": "scripts/score-update.sh",
+        "preconditions": ["tmp lifecycle file with 1 dev entry @ new_score=52"],
+        "assertions": [
+          "exit code matches expected per sub-scenario",
+          "lifecycle JSONL byte-identical except for appended last line where applicable",
+          "appended line is valid JSON with all 9 fields in canonical order",
+          "field values match scenario expectation"
+        ]
+      }
+    },
+    {
+      "id": "AC-2",
+      "type": "data",
+      "ac_uid": "ac2-undo-named-entry",
+      "given": "tmp lifecycle file with TWO entries for agent ba: A(ts=2026-05-29T20:00:00Z, delta=+1, new_score=51) and B(ts=2026-05-29T20:05:00Z, delta=+2, new_score=53)",
+      "when": "bash scripts/score-update.sh --agent ba --undo '2026-05-29T20:05:00Z' --reason 'premature scoring' --lifecycle-file <tmp>",
+      "then": "exit 0; third line appended with prev_score=53, delta=-2, unclamped_score=51, new_score=51, event='manual_reversal', reason='premature scoring', agent='ba'; lines 1+2 byte-identical pre/post. Also: --undo of non-existent ts exits 4 stderr 'not found'; ambiguous (ts,agent) pair exits 4 stderr 'ambiguous' (codex F7); malformed target delta exits 2 (codex F7); --undo without --reason exits 1; --undo with --delta exits 1 stderr 'mutually exclusive' (codex F4); chain undo of a manual_reversal entry exits 0 (codex F8).",
+      "check": {
+        "kind": "subprocess-exit-and-jsonl-diff",
+        "script": "scripts/score-update.sh",
+        "assertions": [
+          "exit code matches per sub-scenario (0/1/2/4)",
+          "no append on failure paths; lifecycle byte-identical",
+          "on success, appended line has delta = -target.delta, agent unchanged, event='manual_reversal'"
+        ]
+      }
+    },
+    {
+      "id": "AC-3",
+      "type": "data",
+      "ac_uid": "ac3-script-side-success-gate",
+      "given": "tmp lifecycle file + test-controlled docs/dev/close-report-99999999-999999.md path",
+      "when": "bash scripts/score-update.sh --agent dev --event close_success_qa_pass --note '99999999-999999' --lifecycle-file <tmp> under varied close-report states",
+      "then": "no close-report exists -> exit 5 stderr 'precondition unmet'; CLOSE: NO last line -> exit 5; CLOSE: YES last line -> exit 0 with proper append; CLOSE: YES (FORCED) -> exit 5 (codex F9 FORCED excluded); --note '' -> exit 5 stderr 'task-id'; --note 'not-a-task-id' -> exit 5 stderr 'YYYYMMDD-HHMMSS' (codex F11); --event close_fail_qa_pass with no close-report -> exit 0 (close_fail_* NOT gated); --allow-close-success-without-report -> exit 1 stderr 'Unknown argument' (codex F1 — flag removed). In all failure modes, lifecycle byte-identical.",
+      "check": {
+        "kind": "subprocess-exit-and-jsonl-diff",
+        "script": "scripts/score-update.sh",
+        "assertions": [
+          "FORCED detection via 'FORCED' in last_line.upper() (codex F9)",
+          "verdict classified via hooks/lib/close-verdict.py:last_nonempty+classify_line",
+          "close-report path = <repo>/docs/dev/close-report-<note>.md (codex F11)",
+          "no override flag recognized (codex F1)"
+        ]
+      }
+    },
+    {
+      "id": "AC-4",
+      "type": "data",
+      "ac_uid": "ac4-orchestrator-side-success-gate",
+      "given": "commands/close.md after the M4 edit",
+      "when": "Step 3 'Mascot scoring -- close outcome' section is read",
+      "then": "contains phrase 'last non-empty line'; explicit conditional 'if close-report file does not exist OR last non-empty line does not classify as yes OR contains FORCED, SKIP all close_success_* score updates'; references shared helper hooks/lib/close-verdict (or hooks.lib.close_verdict) by name; 4 scoring branches still named (close_success_qa_pass, close_success_qa_fail_fixed, close_fail_qa_pass, close_fail_qa_fail); close_fail_* not gated; --force CLOSE: YES (FORCED) skip text intact.",
+      "check": {
+        "kind": "static-read",
+        "file": "commands/close.md",
+        "assertions": [
+          "regex match for 'last non-empty line' OR equivalent",
+          "regex match for 'classify_line' OR 'close_verdict' OR 'close-verdict'",
+          "regex match for 'FORCED' AND skip-text proximity",
+          "all 4 event names still present",
+          "no inline regex implementation"
+        ]
+      }
+    },
+    {
+      "id": "AC-5",
+      "type": "hook",
+      "ac_uid": "ac5-clear-5-failures-no-regress",
+      "given": "current HEAD with 5 carried-forward failures reproduced",
+      "when": "python3 -m pytest tests/generated/20260524-205206/ tests/generated/20260525-095242/ -q",
+      "then": "exit 0 (all 5 cleared via test-update only). AND python3 -m pytest tests/generated/20260526-052559/ tests/generated/20260526-053746/ tests/generated/20260527-054705/ tests/generated/20260527-132200/ tests/generated/20260529-081014/ -q exits 0 (codex F14 exact sibling-dir set). AND per-failure disposition is update_test (codex F12); commands/close.md Session Summary at lines 421-433 NOT reverted (codex F13/NG7). AND dev-report records item_3_resolutions[] with 5 entries each {test_id, chosen_path: 'update_test', files_changed, justification}.",
+      "check": {
+        "kind": "pytest-multi-dir",
+        "primary_command": "python3 -m pytest tests/generated/20260524-205206/ tests/generated/20260525-095242/ -q",
+        "sibling_command": "python3 -m pytest tests/generated/20260526-052559/ tests/generated/20260526-053746/ tests/generated/20260527-054705/ tests/generated/20260527-132200/ tests/generated/20260529-081014/ -q",
+        "expected_primary_exit": 0,
+        "expected_sibling_exit": 0,
+        "disposition_constraint": "all 5 must be update_test",
+        "no_source_rollback_check": "commands/close.md still contains 6-bucket labels (Accomplished, Not accomplished, User needs satisfied, User needs not satisfied, Bugs encountered, Improvement opportunities)"
+      }
+    }
+  ],
+  "codex_findings_applied": 14,
+  "codex_findings_blocker": ["F1", "F9"],
+  "codex_findings_major": ["F2", "F4", "F5", "F6", "F7", "F11", "F12", "F13", "F14"],
+  "codex_findings_observation_only": ["F3", "F8", "F10"]
+}
