@@ -23,22 +23,32 @@ def test_AC_F1():
            style-inspector use-source-venv standard finds 0 critical violations for these files in the diff;
            no bare (non-venv-prefixed) python3 invocation of any graphify script exists in any target file
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # IMPLEMENTATION NOTES (from BA check spec):
-    # Positive checks — these patterns MUST match (source venv prefix present):
-    #   agents/graphify.md  : source.*venv.*activate.*&&.*python3.*graphify-enrich
-    #   commands/dev.md     : source.*venv.*activate.*&&.*python3.*graphify-query
-    #   commands/dev.md     : source.*venv.*activate.*&&.*python3.*graphify-enrich
-    #   commands/pull.md    : source.*venv.*activate.*&&.*python3.*graphify-maintain
-    #
-    # Negative checks — these patterns MUST NOT match (bare python3 calls absent):
-    #   agents/graphify.md  : ^[[:space:]]*python3[[:space:]].*graphify-enrich
-    #   commands/dev.md     : ^[[:space:]]*python3[[:space:]].*graphify-query
-    #   commands/dev.md     : ^[[:space:]]*Run:[[:space:]]*python3[[:space:]].*graphify-enrich
-    #   commands/pull.md    : ^[[:space:]]*python3[[:space:]].*graphify-maintain
-    #
-    # Use re.search() against file text; assert match/no-match accordingly.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — venv-prefix positive checks AND bare-python3 negative checks for all 4 graphify invocation sites")
+    graphify_md = (PROJECT_DIR / "agents/graphify.md").read_text(encoding="utf-8")
+    dev_md = (PROJECT_DIR / "commands/dev.md").read_text(encoding="utf-8")
+    pull_md = (PROJECT_DIR / "commands/pull.md").read_text(encoding="utf-8")
+
+    # Positive checks — venv-prefixed calls must exist
+    assert re.search(r"source.*venv.*activate.*&&.*python3.*graphify-enrich", graphify_md), \
+        "agents/graphify.md: missing venv-prefixed python3 graphify-enrich call"
+
+    assert re.search(r"source.*venv.*activate.*&&.*python3.*graphify-query", dev_md), \
+        "commands/dev.md: missing venv-prefixed python3 graphify-query call"
+
+    assert re.search(r"source.*venv.*activate.*&&.*python3.*graphify-enrich", dev_md), \
+        "commands/dev.md: missing venv-prefixed python3 graphify-enrich call (in dispatch prompt)"
+
+    assert re.search(r"source.*venv.*activate.*&&.*python3.*graphify-maintain", pull_md), \
+        "commands/pull.md: missing venv-prefixed python3 graphify-maintain call"
+
+    # Negative checks — bare (non-venv-prefixed) python3 graphify calls must NOT exist
+    assert not re.search(r"^[ \t]*python3[ \t].*graphify-enrich", graphify_md, re.MULTILINE), \
+        "agents/graphify.md: bare python3 graphify-enrich call found (not venv-prefixed)"
+
+    assert not re.search(r"^[ \t]*python3[ \t].*graphify-query", dev_md, re.MULTILINE), \
+        "commands/dev.md: bare python3 graphify-query call found (not venv-prefixed)"
+
+    assert not re.search(r"^[ \t]*Run:[ \t]*python3[ \t].*graphify-enrich", dev_md, re.MULTILINE), \
+        "commands/dev.md: bare 'Run: python3' graphify-enrich call found (not venv-prefixed)"
+
+    assert not re.search(r"^[ \t]*python3[ \t].*graphify-maintain", pull_md, re.MULTILINE), \
+        "commands/pull.md: bare python3 graphify-maintain call found (not venv-prefixed)"
