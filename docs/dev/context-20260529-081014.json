@@ -148,7 +148,7 @@
   },
   "diagnosis_layer": "L4",
   "requirements_decomposition": [
-    {"id": "R1", "source_phrase": "QA `manifest_verification` 用空 active 集刷绿 …… 下一周期加守卫（active_tests_count==0 时禁止 pytest_collected_ok:true，或者强制把 cycle-diff 文件加入 active 集）。", "classification": "user-need", "acceptance_criterion": "AC1 + AC3 + AC4 (guard rejects vacuous fixture at runtime, qa.md carries invariant in both regions, regression matrix)"},
+    {"id": "R1", "source_phrase": "QA `manifest_verification` 用空 active 集刷绿 …… 下一周期加守卫（active_tests_count==0 时禁止 pytest_collected_ok:true，或者强制把 cycle-diff 文件加入 active 集）。", "classification": "user-need", "acceptance_criterion": "AC1 + AC3 + AC4 + AC5 (AC1: guard rejects vacuous fixture in manifest mode; AC3: qa.md carries invariant + enforcement clause in both structural regions; AC4: manifest-mode regression matrix across all vacuous shapes; AC5: cycle-diff mode force-include rule + per-file collection + fail-closed environment handling — covers the '强制把 cycle-diff 文件加入 active 集' branch of the user directive)"},
     {"id": "R2", "source_phrase": "venv 全 broken symlink …… 修这个 = 同时可能消除 #1 的诱因。", "classification": "user-need", "acceptance_criterion": "AC2 (repair-venv.sh restores pytest --version exit 0 + idempotent + no hardcoded interpreter path)"},
     {"id": "R3", "source_phrase": "本次只修了这一次的报告，没修 agent 行为。", "classification": "background", "acceptance_criterion": "N/A — frames Contract D layer-differentiation; applied via the requirement that the fix lands at L4 (agent contract + executable guard), not L3 (single report)."}
   ],
