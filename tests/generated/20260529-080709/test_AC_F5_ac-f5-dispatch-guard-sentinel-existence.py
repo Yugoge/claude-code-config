@@ -35,19 +35,22 @@ def test_AC_F5():
            dispatch is skipped and graphify is recorded as skipped/sentinel_absent; (3) the
            graph-summary.json read after dispatch is conditional on sentinel having existed
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # IMPLEMENTATION NOTES (from BA check spec — section-anchored grep):
-    # 1. Read commands/dev.md as text.
-    # 2. Extract the section between 'Graphify enrichment' and '### Step 8' using
-    #    _extract_graphify_section() above (or equivalent).
-    # 3. Assert the extracted section is non-empty (anchor and end heading both exist).
-    # 4. Pattern 1 (sentinel variable assignment):
-    #      re.search(r"GRAPHIFY_SENTINEL=.*graphify\.json", section)  -- must match
-    # 5. Pattern 2 (if-block guard on sentinel existence):
-    #      re.search(r"if.*-f.*GRAPHIFY_SENTINEL|if.*GRAPHIFY_SENTINEL.*exists", section) -- must match
-    # Both checks are SCOPED to the extracted section only — not the full file —
-    # to prevent false passes from the test-writer skip-sentinel at line ~712.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — section-anchored checks: GRAPHIFY_SENTINEL=*graphify.json assignment AND if-block guard within Graphify enrichment block of commands/dev.md")
+    dev_md_text = (PROJECT_DIR / "commands/dev.md").read_text(encoding="utf-8")
+
+    section = _extract_graphify_section(dev_md_text)
+    assert section, (
+        "Could not extract graphify enrichment section from commands/dev.md — "
+        "missing 'Graphify enrichment' anchor or '### Step 8' heading"
+    )
+
+    # Pattern 1: sentinel variable assignment within graphify section
+    assert re.search(r"GRAPHIFY_SENTINEL=.*graphify\.json", section), (
+        "commands/dev.md graphify enrichment section: missing GRAPHIFY_SENTINEL=...graphify.json assignment; "
+        "dispatch must be guarded by sentinel existence check"
+    )
+
+    # Pattern 2: if-block guarding sentinel existence within graphify section
+    assert re.search(r"if.*-f.*GRAPHIFY_SENTINEL|if.*GRAPHIFY_SENTINEL.*exists", section), (
+        "commands/dev.md graphify enrichment section: missing if-block checking sentinel existence; "
+        "Agent dispatch must be conditional on [[ -f \"$GRAPHIFY_SENTINEL\" ]]"
+    )
