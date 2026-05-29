@@ -1,0 +1,111 @@
+{
+  "task_id": "20260529-211406",
+  "generated_at": "2026-05-29T21:14:06+00:00",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "type": "data",
+      "given": "changelog-analyst is run with BULK=false and detects nothing_to_commit_precommitted (candidate set empty, HEAD~N..HEAD contains an auto-bulk commit intersecting task_cycle_files)",
+      "when": "recovery path executes",
+      "then": "git log HEAD -1 --format='%s' shows a subject containing TASK_ID but not starting with 'auto-bulk:'; git show HEAD --stat shows empty diff; push-gate token file exists at expected path; structured output contains commit_status: committed",
+      "check": {
+        "git_log_subject_contains_task_id": true,
+        "git_log_subject_not_auto_bulk": true,
+        "git_show_stat_empty": true,
+        "push_gate_token_exists": true,
+        "structured_output_commit_status": "committed"
+      },
+      "ac_uid": "ac1-recovery-commit-created"
+    },
+    {
+      "id": "AC2",
+      "type": "data",
+      "given": "recovery commit was created (AC1)",
+      "when": "git log HEAD~1 -1 --format='%s' is inspected",
+      "then": "output starts with 'auto-bulk:' — prior bulk commit SHA unchanged, it is HEAD~1",
+      "check": {
+        "head_minus_1_subject_starts_with_auto_bulk": true
+      },
+      "ac_uid": "ac2-prior-bulk-untouched"
+    },
+    {
+      "id": "AC3",
+      "type": "data",
+      "given": "recovery commit was created (AC1)",
+      "when": "git show HEAD --format='%B' -s is read",
+      "then": "body contains 'Task-id: <TASK_ID>', at least one 'Precommitted-by: <sha>' line, and an 'Attributed-files:' block with at least one file path from dev-report files_modified or files_created",
+      "check": {
+        "body_contains_task_id_line": true,
+        "body_contains_precommitted_by_line": true,
+        "body_contains_attributed_files_block": true
+      },
+      "ac_uid": "ac3-recovery-commit-attribution"
+    },
+    {
+      "id": "AC4",
+      "type": "data",
+      "given": "recovery commit was created (AC1)",
+      "when": "push-gate token at /tmp/agentic-commit/push/<repo_hash>/<branch>.json is read",
+      "then": "commit_sha field equals git rev-parse HEAD (the recovery commit); token is valid JSON",
+      "check": {
+        "push_gate_token_commit_sha_equals_recovery_head": true,
+        "push_gate_token_valid_json": true
+      },
+      "ac_uid": "ac4-push-gate-token-recovery-sha"
+    },
+    {
+      "id": "AC5",
+      "type": "data",
+      "given": "both root and nested repo have nothing_to_commit_precommitted detected; commands/commit.md Step 5 wrote two commit grants",
+      "when": "changelog-analyst processes both repos",
+      "then": "two recovery commits created (one per repo); both push-gate tokens written; commit_status: committed returned; no grant_missing or grant_expired failure in structured output",
+      "check": {
+        "root_repo_recovery_commit_exists": true,
+        "nested_repo_recovery_commit_exists": true,
+        "root_push_gate_token_exists": true,
+        "nested_push_gate_token_exists": true,
+        "no_grant_failure_in_output": true
+      },
+      "ac_uid": "ac5-multi-repo-recovery"
+    },
+    {
+      "id": "AC6",
+      "type": "data",
+      "given": "only nested repo has precommitted content; root repo has normal staged changes",
+      "when": "changelog-analyst runs",
+      "then": "root repo gets a normal real commit (non-empty diff); nested repo gets a recovery commit (empty diff with attribution); both push-gate tokens written; commit_status: committed",
+      "check": {
+        "root_repo_real_commit": true,
+        "nested_repo_recovery_commit": true,
+        "both_push_gate_tokens_written": true
+      },
+      "ac_uid": "ac6-mixed-repo-recovery"
+    },
+    {
+      "id": "AC7",
+      "type": "data",
+      "given": "recovery path detects precommitted state but git commit --allow-empty fails (hook blocked or git error)",
+      "when": "git commit returns non-zero",
+      "then": "structured output contains commit_status: failed; failure_code is 'hook_blocked' or 'git_error'; failure_reason mentions precommitted recovery context",
+      "check": {
+        "structured_output_commit_status": "failed",
+        "failure_code_in": ["hook_blocked", "git_error"],
+        "failure_reason_mentions_recovery": true
+      },
+      "ac_uid": "ac7-recovery-fail-path"
+    },
+    {
+      "id": "AC8",
+      "type": "data",
+      "given": "normal /commit <task-id> run where working tree has staged changes (no precommit situation)",
+      "when": "changelog-analyst runs",
+      "then": "behavior is identical to pre-change — real diff-based commit created; recovery path never entered; commit_status: committed with non-empty diff stat",
+      "check": {
+        "non_empty_diff_stat": true,
+        "recovery_path_not_entered": true,
+        "commit_status": "committed"
+      },
+      "ac_uid": "ac8-non-precommitted-regression-guard"
+    }
+  ]
+}
