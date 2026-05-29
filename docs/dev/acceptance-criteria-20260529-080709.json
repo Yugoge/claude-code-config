@@ -129,7 +129,7 @@
         },
         {
           "file": "docs/dev/acceptance-criteria-20260527-132200.json",
-          "jq_filter": ".[] | select(.id==\"AC6\") | .check.pattern | test(\"##[+] Step\")",
+          "jq_filter": ".acceptance_criteria[] | select(.id==\"AC6\") | .check.pattern | test(\"##[+] Step\")",
           "expect": "false",
           "rationale": "old heading-only pattern '##+ Step ...' must be gone from check.pattern after fix"
         },
