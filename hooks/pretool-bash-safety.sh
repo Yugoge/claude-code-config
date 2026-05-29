@@ -1041,16 +1041,9 @@ if echo "$COMMAND" | grep -qE '(\.env|credentials|secret|password)\S*\s*(>|>>)';
   exit 2
 fi
 
-# Block: destructive disk operations
-# Uses COMMAND_CONTEXT_STRIPPED (command-word-anchored): the verb itself is the
-# danger signal and is preserved verbatim by the stripper, so quoted mentions
-# like echo "dd if=..." are erased to no-match while a real dd/mkfs/fdisk/shred
-# command word survives. See context-strip block below + Item A (dev-20260529-092512).
-if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '^\s*(dd |mkfs|fdisk|shred )'; then
-  echo "BLOCKED: Destructive disk operation detected" >&2
-  echo "Command: $COMMAND" >&2
-  exit 2
-fi
+# Block: destructive disk operations — see the context-stripped variant below
+# (moved past the COMMAND_CONTEXT_STRIPPED setup so the dd|mkfs|fdisk|shred verb
+# rule can read the stripped view; Item A, dev-20260529-092512).
 
 # Block: Docker daemon operations
 if echo "$COMMAND" | grep -qE 'systemctl\s+(restart|stop|disable)\s+docker'; then
