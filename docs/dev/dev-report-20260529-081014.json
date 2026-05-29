@@ -15,13 +15,13 @@
     "status": "completed",
     "files_modified": [
       "agents/qa.md",
-      "docs/dev/context-20260529-081014.json",
       "tests/generated/manifest.json"
     ],
     "files_created": [
       "scripts/qa-manifest-guard.py",
       "scripts/repair-venv.sh",
       "docs/reference/venv-repair.md",
+      "docs/dev/context-20260529-081014.json",
       "tests/generated/20260529-081014/manifest.json",
       "tests/generated/20260529-081014/test_AC1_ac01_qa_vacuity_guard_manifest_mode.py",
       "tests/generated/20260529-081014/test_AC2_ac02_venv_repair_plural_symlinks.py",
@@ -30,6 +30,7 @@
       "tests/generated/20260529-081014/test_AC5_ac05_guard_cycle_diff_mode_force_include.py"
     ],
     "observed_preexisting": [],
+    "_files_classification_doc": "Iter-2 fix: docs/dev/context-20260529-081014.json reclassified from files_modified → files_created. git status --porcelain reports it as '??' (untracked-new), proving it was authored fresh by BA Phase 7 in this cycle, NOT modified from a pre-existing tracked file. Iter-1 misclassification stemmed from dev treating its task #6 'patched R1.acceptance_criterion' as a modify-edit; in fact the surrounding file itself was untracked-new this cycle, so the correct classification per Step 5 forward+reverse check is files_created. Step 5 verification re-run after iter-2 fix: every files_modified entry shows 'M' in git status; every files_created entry shows '??' in git status. Both directions pass.",
     "tasks_completed": [
       {
         "id": 1,
