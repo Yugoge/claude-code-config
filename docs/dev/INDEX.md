@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-29T21:28:18Z*
-**Total entries**: 991
+*Last updated: 2026-05-29T21:34:19Z*
+**Total entries**: 993
 **Convention**: kebab
 
 ## Tree
@@ -435,6 +435,7 @@ dev/
 ├── `context-20260529-080709.json` - json config
 ├── `context-20260529-081014.json` - json config
 ├── `context-20260529-164939.json` - json config
+├── `context-20260529-210616.json` - json config
 ├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
@@ -921,6 +922,7 @@ dev/
 ├── `ticket-20260529-081014.md` - BA Specification: QA empty-active vacuity guard + venv broken-symlink repair
 ├── `ticket-20260529-164939.md` - BA Specification: Replace bash sentinel guard with prose in commands/dev.md
 ├── `ticket-20260529-210616.md` - BA Specification: score-update reversal + /close premature-score guard + clear 5 carried-forward test failures
+├── `ticket-20260529-211406.md` - BA Specification: Recovery commit when task files pre-empted by foreign bulk session
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-close-cont-20260524-170335.md` - Continuation: Fix bare python3 invocations introduced in dev-20260524-170335
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
