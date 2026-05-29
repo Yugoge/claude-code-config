@@ -1,0 +1,168 @@
+{
+  "task_id": "dev-20260529-210759",
+  "request_id": "dev-20260529-210759",
+  "timestamp": "2026-05-29T21:15:00Z",
+  "qa_verdict": "pass",
+
+  "codex_consult": {
+    "invoked": true,
+    "status": "failed_quota",
+    "feedback_summary": "Codex exec invocation was itself blocked by Layer 1.F (the script name in the PROMPT='' variable assignment triggered the entry gate) — a live second reproduction of the exact bug under analysis. Self-review substituted.",
+    "feedback_incorporated": "self-review substituted; five adversarial questions self-generated and answered (see self_review section)"
+  },
+
+  "rank_acknowledged": null,
+  "range_acknowledged": null,
+  "recent_events_digest_acknowledged": null,
+  "score_injection_action": null,
+
+  "dimensions_checked": [
+    "evidence_quality",
+    "scope_alignment",
+    "investigation_completeness",
+    "affected_file_accuracy",
+    "spec_text_vs_execution_drift"
+  ],
+
+  "dimension_results": [
+    {
+      "dimension": "evidence_quality",
+      "verdict": "pass",
+      "findings": [],
+      "notes": "All factual claims verified against live source. Layer 1.F entry gate confirmed at lines 669-670 (grep -qF on raw $COMMAND). COMMAND_CONTEXT_STRIPPED initialization confirmed at line 1091. Context-strip block spans lines 1091-1104. bash_context_strip.py generic path confirmed at lines 316-330. Fail-closed invariant confirmed at line 1100-1101. Graphify gate G1/G2/G3 not applicable (no pre_query.json)."
+    },
+    {
+      "dimension": "scope_alignment",
+      "verdict": "pass",
+      "findings": [],
+      "notes": "User requirement: commands where the protected name appears only in quoted string argument text must NOT be blocked. BA MoSCoW Must Have directly encodes this (R1, R2). No universalist claims narrowed without user authorization. Should Have (VAR= form) is additive, not a narrowing. Won't Have items (bash_context_strip.py changes, other hook files) are legitimately excluded — stripping logic is already correct, no other hook references this rule."
+    },
+    {
+      "dimension": "investigation_completeness",
+      "verdict": "pass",
+      "findings": [],
+      "notes": "BA performed Read tool verification of all three named files (pretool-bash-safety.sh lines 669-670 and 1091-1104; bash_context_strip.py lines 316-330; test file). BA reproduced the false positive live during self-review (PROMPT= variable assignment blocked by Layer 1.F). Root cause deep-dive section covers all three adversarial nesting cases (python3 -c, bash -c nesting, pure VAR= assignment). Investigation is complete."
+    },
+    {
+      "dimension": "affected_file_accuracy",
+      "verdict": "pass",
+      "findings": [],
+      "notes": "File path verification: hooks/pretool-bash-safety.sh exists at the claimed path and contains the code BA describes. hooks/tests/test_bash_safety_context_rules.py exists and has the run_hook() helper at lines 27-36 as BA claims. hooks/lib/bash_context_strip.py exists with _process_segment at lines 287-330. Scope expansion correctly identified all occurrences of 'write-bulk-commit-sentinel.py' in the hooks/ directory."
+    },
+    {
+      "dimension": "spec_text_vs_execution_drift",
+      "verdict": "pass",
+      "findings": [],
+      "notes": "AC1 and AC2 test commands are directly runnable via the existing run_hook() helper in test_bash_safety_context_rules.py. AC3 corrected form (compound command) is verifiable. AC4 (python3 -c form) is verifiable via the same helper. AC5 (pytest run) is a standard pytest invocation. No drift between AC literal text and a runnable formulation detected."
+    }
+  ],
+
+  "root_cause_verification": {
+    "claim": "Layer 1.F entry gate at lines 669-670 uses grep -qF on raw $COMMAND; COMMAND_CONTEXT_STRIPPED is initialized at line 1091, after Layer 1.F",
+    "verified": true,
+    "evidence": [
+      "hooks/pretool-bash-safety.sh:669-670 — 'if echo \"$COMMAND\" | grep -qF '/tmp/claude-bulk-commit-sentinel-' || echo \"$COMMAND\" | grep -qF 'write-bulk-commit-sentinel.py'' confirmed via Read tool and grep",
+      "hooks/pretool-bash-safety.sh:1091 — 'COMMAND_CONTEXT_STRIPPED=\"$COMMAND\"' confirmed as first initialization",
+      "Gap of ~422 lines (BA states ~420 — minor rounding, not a material error)",
+      "Live reproduction: QA's own Codex invocation with PROMPT='...' containing the script name was blocked by Layer 1.F — second live demonstration of the false positive"
+    ]
+  },
+
+  "fix_correctness_verification": {
+    "proposed_fix": "Move context-strip block (lines 1091-1104) to before Layer 1.F (line 669); change Layer 1.F entry gate to use COMMAND_CONTEXT_STRIPPED instead of $COMMAND",
+    "false_positive_elimination": {
+      "correct": true,
+      "reasoning": "bash_context_strip.py _process_segment generic path (lines 316-330) strips double-quoted and single-quoted argument tokens to empty string for non-interpreter commands. 'codex exec --prompt \"...write-bulk-commit-sentinel.py...\"' would produce 'codex exec --prompt ' after stripping — the protected name is absent. Entry gate on stripped view would not fire."
+    },
+    "real_protection_preserved": {
+      "correct": true,
+      "reasoning": "python3 -c and bash -c forms are handled by _process_shell_interp (lines 333-359 of bash_context_strip.py), which exposes the -c payload as executable text (line 349: out.append(' ' + payload[1:-1])). The protected name remains visible in the stripped output. Entry gate on stripped view still fires for these forms."
+    },
+    "fail_closed_invariant": {
+      "correct": true,
+      "reasoning": "COMMAND_CONTEXT_STRIPPED is initialized to '$COMMAND' (raw command) at line 1091. It is only overwritten if _ctx_status -eq 0 (line 1100-1101). On stripping failure, raw command is used — the entry gate fires on the raw command, which is the safe (deny) direction."
+    }
+  },
+
+  "ac3_self_correction_assessment": {
+    "issue": "AC3 in ticket contains a 'CORRECTED:' self-correction that changes the test command and expected outcome. Original claim: 'python3 scripts/write-bulk-commit-sentinel.py --output-dir /tmp' -> BLOCK. Corrected claim: compound 'echo test && python3 scripts/write-bulk-commit-sentinel.py' -> BLOCK.",
+    "severity": "minor",
+    "blocks_verdict": false,
+    "analysis": "The original claim was incorrect — BARE_WRITER_RE matches 'python3 scripts/write-bulk-commit-sentinel.py --output-dir /tmp' (regex: ^(python3?\\s+)?scripts/write-bulk-commit-sentinel\\.py(\\s|$)) and the command would be ALLOW, not BLOCK. The corrected form (compound command) correctly demonstrates the BLOCK case. The JSON context AC4 (python3 -c form) covers the real security case. The self-correction is internally consistent in meaning but reduces spec clarity.",
+    "recommendation": "BA should update the ticket AC3 'Given' block to remove the struck-through incorrect original and present only the corrected form, to avoid confusing the dev implementing it. This is a doc quality issue, not a logical error in the fix."
+  },
+
+  "graphify_fail_gates": {
+    "g1_candidate_anchors_ignored": "waived — no pre_query.json provided",
+    "g2_missing_reference_resolution": "waived — no implicit reference trigger words in requirement",
+    "g3_no_counter_evidence": "waived — BA explicitly covered counter-evidence in Root Cause Deep-Dive (python3 -c nesting, bash -c nesting, VAR= pure assignment, unterminated-quote fail-closed)"
+  },
+
+  "graph_verification": {
+    "graphify_ran": false,
+    "graph_context_status": "unavailable",
+    "focused_subgraph_present": false,
+    "graph_report_present": false,
+    "verification_note": "No pre_query.json or graph_context was provided to BA. Graphify gates G1/G2/G3 are waived."
+  },
+
+  "self_review": {
+    "adversarial_questions_generated": 5,
+    "questions_and_answers": [
+      {
+        "q": "Could moving the context-strip block earlier break any of the rules between lines 669 and 1091 that currently use raw $COMMAND?",
+        "a": "No. All rules between Layer 1.F (line 669) and the context-strip block (line 1091) use raw $COMMAND directly — they do not reference COMMAND_CONTEXT_STRIPPED. Moving the strip block earlier only makes COMMAND_CONTEXT_STRIPPED available earlier; it does not change the variable $COMMAND which all those rules read."
+      },
+      {
+        "q": "Does bash_context_strip.py treat 'graphify-query.py' as an interpreter or script interpreter, which would change how its arguments are processed?",
+        "a": "No. _process_script_interp is invoked only when _is_script_interp returns True. That function checks against _SCRIPT_INTERPS (a hardcoded set). graphify-query.py basename 'graphify-query' is not in that set. Generic path applies — quoted arg tokens are stripped. The protected name in --requirement '...' is eliminated."
+      },
+      {
+        "q": "Could the context-strip block's 2-second timeout or memory limit introduce a new false-positive risk if it runs earlier (before Layer 1.F) and times out on a benign command?",
+        "a": "On timeout, _ctx_status is non-zero, so COMMAND_CONTEXT_STRIPPED remains set to raw $COMMAND. The entry gate then uses raw $COMMAND, which is the current behavior — no regression. The move makes no change to the timeout behavior."
+      },
+      {
+        "q": "Is the AC5 test verifiable? Does the existing test infrastructure in test_bash_safety_context_rules.py support adding a new test class?",
+        "a": "Yes. The file has a simple structure: import statements, run_hook() helper, and three test classes. Adding a new TestBulkSentinelFalsePositive class follows the same pattern. No fixture or conftest changes are needed. pytest will discover the new class automatically."
+      },
+      {
+        "q": "Does the M5 canonical allowlist check (line 677-679 in Layer 1.F inner logic) still use raw $COMMAND after the fix?",
+        "a": "Yes — per Technical Hints in the spec: 'Layer 1.F inner logic unchanged. After the entry gate fires, all the M5 canonical form check, the Python shlex tokenizer, and the BARE_WRITER/PURE_READ/DENY branching use raw $COMMAND or the tokenizer on raw $COMMAND.' The spec is explicit that only the entry gate switches to the stripped view. This is correct — the M5 check uses bash [[ =~ ]] against $COMMAND, which remains unchanged."
+      }
+    ]
+  },
+
+  "findings": [],
+
+  "out_of_scope_observations": [
+    {
+      "ts": "2026-05-29T21:15:00Z",
+      "file": "docs/dev/ticket-dev-20260529-210759.md",
+      "line": 148,
+      "observation": "AC3 contains a 'CORRECTED:' inline self-correction that presents both the original (incorrect) claim and the corrected claim in the same criterion block. While the corrected claim is accurate, this presentation style may confuse the implementing dev. Recommend rewriting AC3 to present only the corrected form without the struck-through original text.",
+      "in_user_path": false,
+      "security_relevant": false
+    }
+  ],
+
+  "recommendations": [
+    "Dev should implement the fix as specified: move the context-strip block (lines 1091-1104) verbatim to just before line 669, then change both grep -qF calls in the Layer 1.F entry gate from $COMMAND to $COMMAND_CONTEXT_STRIPPED.",
+    "Dev should add a TestBulkSentinelFalsePositive class to hooks/tests/test_bash_safety_context_rules.py with at minimum two test methods: one for the graphify-query.py --requirement form (AC1) and one for the codex exec --prompt form (AC2).",
+    "The AC3 criterion in the BA ticket should be cleaned up to remove the struck-through original text and present only the corrected form (compound command -> BLOCK) for clarity.",
+    "Dev should run 'python3 -m pytest hooks/tests/test_bash_safety_context_rules.py -v' to verify all existing tests still pass and new tests pass after the fix."
+  ],
+
+  "summary": {
+    "verdict": "pass",
+    "critical_issues": 0,
+    "major_issues": 0,
+    "minor_issues": 1,
+    "minor_issues_detail": "AC3 self-correction presentation style reduces spec clarity but does not affect fix correctness",
+    "root_cause_accurate": true,
+    "line_numbers_accurate": true,
+    "fix_approach_sound": true,
+    "security_invariant_preserved": true,
+    "scope_complete": true,
+    "acs_verifiable": true
+  }
+}
