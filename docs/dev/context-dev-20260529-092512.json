@@ -1,0 +1,196 @@
+{
+  "request_id": "dev-20260529-092512",
+  "task_id": "dev-20260529-092512",
+  "timestamp": "2026-05-29T09:25:12Z",
+  "complexity_tier": "COMPLEX",
+  "risk_level": "high",
+  "_risk_level_doc": "high = security hook surface (Item A modifies pretool-bash-safety.sh, the authoritative bash-safety gate). A mis-converted rule can silently disable a block (false negative). Items F/C/B are SMALL-STANDARD; the cycle inherits the highest item's tier.",
+  "test_writer_expected": true,
+  "requirement": {
+    "original": "Analyze and implement 4 backlog items (F minor cleanliness, C verify+patch step-7 marker parity, B verify+harden write-guard sentinel, A extend context-stripping coverage) for the .claude/ config repo. Analysis and spec only this cycle.",
+    "clarified": "Land F (commit.md:221 stale label), C (verify 3-site spec-continuation marker parity, patch gaps), B (verify write-sentinel 3-candidate parity + CF-1 overwrite-only invariant, harden gaps), A (convert Class-1 verb rules in pretool-bash-safety.sh to COMMAND_CONTEXT_STRIPPED with per-rule should-block + should-not-block tests; update 2 stale 'four' count comments).",
+    "what": "Four scoped infra changes in .claude/ hooks + command docs + tests",
+    "why": "Reduce context-strip false-positive surface (A), keep step-7 marker docs accurate (C/F), and confirm write-sentinel grant lifecycle parity (B)",
+    "where": ["hooks/pretool-bash-safety.sh", "hooks/lib/bash_context_strip.py", "hooks/pretool-write-guard.sh", "hooks/posttool-allowlist-consume.py", "hooks/lib/allowlist.py", "commands/commit.md", "commands/spec-update.md", "scripts/step7-spec-update.py", "hooks/tests/"],
+    "scope": {
+      "included": ["Class-1 verb-rule conversions in pretool-bash-safety.sh", "per-rule should-block + should-not-block tests", "DANGER_COMMANDS additions", "commit.md:221 label fix", "2 stale 'four' count comments", "verification of C and B parity with patch-on-gap"],
+      "excluded": ["Class-2 path/value rule conversions", "stripper internals/recursion rewrite", "docs/dev/specs/spec-20260520-044700.md (frozen)", "any UI / app-runtime / user-triggered code path", "scope beyond the 4 items"]
+    },
+    "success_criteria": [
+      "commit.md:221 no longer reads 'literal-task-id glob'",
+      "3-site marker parity verified (no surviving literal-task-id content predicate) or patched",
+      "write-sentinel candidate-key parity verified pretool<->posttool; CF-1 gated on existing-file overwrite",
+      "Class-1 verb rules read COMMAND_CONTEXT_STRIPPED; Class-2 untouched",
+      "each converted rule has should-block + should-not-block test",
+      "no comment hardcodes 'four' as the rule count"
+    ],
+    "constraints": ["fail-closed preserved (raw fallback on stripper error)", "Class-2 conversions forbidden (false-negative risk)", "frozen spec untouched", "reuse existing COMMAND_CONTEXT_STRIPPED block + :1143 split-grep template"]
+  },
+  "scope_boundary": {
+    "in_user_path": ["hooks/pretool-bash-safety.sh", "hooks/lib/bash_context_strip.py", "commands/commit.md", "hooks/pretool-write-guard.sh", "hooks/posttool-allowlist-consume.py"],
+    "path_dependent_shared_infra": ["hooks/lib/allowlist.py", "scripts/step7-spec-update.py", "commands/spec-update.md", "hooks/tests/"],
+    "out_of_path_observed_but_not_touched": []
+  },
+  "out_of_scope_observations": [],
+  "items": [
+    {
+      "id": "F",
+      "title": "Test-folder cleanliness + commit.md:221 stale label",
+      "severity": "minor",
+      "scope": "Update the stale label at commands/commit.md:221 ('Mtime + literal-task-id glob') to describe the machine-readable continuation-marker grep predicate. mktemp/trap/755/naming dimensions verified ALREADY COMPLIANT: all 8 test_*.sh are mode 755; the 4 that create temp files (ac1, ac5, final_sweep, push_sentinel) use mktemp+trap EXIT INT TERM; the 4 read-only grep/awk tests (ac3, ac6, ac9, ac10) correctly omit them. push_sentinel_abort.sh:73 hardcoded /tmp path is the production sentinel dir under test, not a test temp file (intentional).",
+      "files_to_modify": ["commands/commit.md"],
+      "acceptance_criteria": [
+        "commands/commit.md:221 no longer contains substring 'literal-task-id glob'",
+        "the corrected label describes the machine-readable continuation-marker grep, consistent with the body at commit.md:222"
+      ]
+    },
+    {
+      "id": "C",
+      "title": "Step-7 spec-continuation marker parity (verify + patch gaps)",
+      "severity": "minor",
+      "scope": "Verify the machine-readable marker '<!-- spec-continuation-of: <task-id> -->' is the SOLE content predicate across producer (commands/spec-update.md:54-61), consumer prose (commands/commit.md:222), and consumer script (scripts/step7-spec-update.py:134-148). BA verified all three sites align and no literal-task-id content grep survives. Expected outcome: a no-op confirmation. If dev finds a surviving literal-task-id content predicate anywhere in the step-7 path, patch it to the marker grep.",
+      "files_to_modify": ["scripts/step7-spec-update.py (only if a gap is found)", "commands/commit.md (only if a gap is found)"],
+      "acceptance_criteria": [
+        "marker is sole content predicate at producer, consumer-prose, consumer-script",
+        "no literal-task-id content grep survives in the step-7 path",
+        "dev reports 'verified, no gap' or patches the gap found"
+      ]
+    },
+    {
+      "id": "B",
+      "title": "Write-guard sentinel three-candidate path (verify + harden)",
+      "severity": "major",
+      "scope": "Verify candidate-key parity between pretool-write-guard.sh:79-85 and posttool-allowlist-consume.py:230-238 (both must enumerate [writer_key=CLAUDE_TASK_ID-else-session_id, data.task_id, session_id] de-duped in identical order). Confirm match_sentinel_grant_for_write (allowlist.py:523-576) target-key semantics (target exact-eq / args_contain one-item-eq / bare wildcard). Confirm CF-1 invariant: legacy-grant suppression fires ONLY when [ -f \"$FILE_PATH\" ] (overwrite of existing file) at write-guard.sh:114 — never for new-file creation. BA verified no functional gap; harden any divergence found.",
+      "files_to_modify": ["hooks/pretool-write-guard.sh (only if a gap is found)", "hooks/posttool-allowlist-consume.py (only if a gap is found)", "hooks/lib/allowlist.py (only if a gap is found)"],
+      "acceptance_criteria": [
+        "pretool and posttool enumerate identical de-duped candidate-key order [writer_key, data.task_id, session_id]",
+        "CF-1 suppression gated on existing-file overwrite (never new-file creation)",
+        "divergence patched, or dev reports 'verified, no gap'"
+      ]
+    },
+    {
+      "id": "A",
+      "title": "Extend executable-context stripping to remaining verb rules",
+      "severity": "major",
+      "scope": "Convert Class-1 VERB rules in pretool-bash-safety.sh (git stash/checkout/restore/reset/push/update-ref/revert/cherry-pick/rebase; docker compose down|restart|stop, docker stop|restart|rm|kill happy, docker system prune -a; dd/mkfs/fdisk/shred; systemctl docker, systemctl non-happy verbs) to match on COMMAND_CONTEXT_STRIPPED. For each converted verb whose ARGS carry the danger signal, add its command word to DANGER_COMMANDS in bash_context_strip.py:26. Use the :1143/:1154 split-grep template (stripped verb + raw path) when a path predicate is present. Class-2 PATH/VALUE rules (.env/credentials/secret/password, /etc/docker/daemon.json, /root/happy/packages/, Dockerfile.webapp/HAPPY_SERVER_URL=, DB-mutation, session-API curl, sentinel-filename, session_dirs.txt, daemon-restart-flag, /usr/bin/happy, happy-daemon systemctl) MUST NOT be converted (false-negative risk). Update the 2 stale count comments (pretool-bash-safety.sh:1089, bash_context_strip.py:5) that hardcode 'four'. Preserve fail-closed (raw fallback at :1096-1106). Highest-risk item.",
+      "files_to_modify": ["hooks/pretool-bash-safety.sh", "hooks/lib/bash_context_strip.py", "hooks/tests/ (new test file, e.g. test_bash_safety_context_rules.py or test_bash_safety_context_rules.sh)"],
+      "acceptance_criteria": [
+        "every converted rule references COMMAND_CONTEXT_STRIPPED for its verb predicate",
+        "path-predicate rules keep raw $COMMAND for the path portion (per :1143 template)",
+        "no Class-2 path/value rule converted",
+        "each new DANGER_COMMANDS entry corresponds to a converted verb rule",
+        "each converted rule has a should-block test (verb in executable context -> exit 2)",
+        "each converted rule has a should-not-block test (verb only inside quoted string/heredoc -> exit 0)",
+        "neither pretool-bash-safety.sh:1089 nor bash_context_strip.py:5 hardcodes 'four' as the rule count",
+        "fail-closed preserved: stripper error falls back to raw $COMMAND"
+      ]
+    }
+  ],
+  "ordering_rationale": "F -> C -> B -> A. F first: smallest, zero-conflict (commit.md only), fast win, no dependency. C second: read-only verification that also touches commit.md, so colocating with F avoids re-reading the same file. B third: fully independent files (write-guard.sh / consume.py / allowlist.py), no overlap with F/C/A. A last and isolated: A is the only high-regression-risk item and the sole writer of pretool-bash-safety.sh + bash_context_strip.py + new tests. B and A are SEQUENTIAL (not parallel) because B touches hooks/lib/allowlist.py and A's new tests import from hooks.lib; sequencing avoids shared-file/import churn and keeps the high-risk A change reviewable in isolation. Land A only after F/C/B are green.",
+  "root_cause_analysis": {
+    "symptom": "Backlog of 4 partially-implemented or cleanliness items; A has a coverage gap (only 4 of ~40 grep rules use context-stripping); F/C have stale documentation; B/C need parity verification.",
+    "root_cause": "Item A: the context-strip infrastructure (bash_context_strip.py) and the COMMAND_CONTEXT_STRIPPED setup were built for the 4 original danger-verb rules (kill/pkill/rm/mv); the remaining verb rules were never migrated, and two comments hardcode the count 'four'. Items C/F: the step-7 predicate was migrated to a machine-readable marker but the commit.md:221 section LABEL still says 'literal-task-id glob'. Items B/C are already-correct implementations needing audit confirmation.",
+    "root_cause_commit": "N/A - multi-item backlog, not a single regression",
+    "why_introduced": "Incremental hardening: context-stripping (A) and the marker predicate (C) were introduced for specific rules/sites and not back-filled across all analogous sites; labels/comments lagged the implementation.",
+    "why_problematic": "A: raw-$COMMAND verb rules false-positive on quoted-string mentions of danger verbs. F/C: stale label misleads future readers about the step-7 predicate. B: unverified candidate-key parity could leak or fail-to-consume grants.",
+    "timeline": "Pre-existing backlog as of 2026-05-29",
+    "affected_files": ["hooks/pretool-bash-safety.sh", "hooks/lib/bash_context_strip.py", "hooks/pretool-write-guard.sh", "hooks/posttool-allowlist-consume.py", "hooks/lib/allowlist.py", "commands/commit.md", "commands/spec-update.md", "scripts/step7-spec-update.py", "hooks/tests/"],
+    "evidence_type": "inferred",
+    "observations": [
+      "4 rules use COMMAND_CONTEXT_STRIPPED at pretool-bash-safety.sh:1110,1119,1143,1154 (inferred: source read)",
+      "~36 rules grep raw $COMMAND, enumerated by grep of 'echo \"$COMMAND\" | grep' (inferred: source read)",
+      "DANGER_COMMANDS = {killall,pkill,kill,rm,mv} at bash_context_strip.py:26 (inferred: source read)",
+      "stale 'four' comments at pretool-bash-safety.sh:1089 and bash_context_strip.py:5 (inferred: grep)",
+      "marker is sole content predicate: step7-spec-update.py:134 marker def, :148 'if marker in content' (inferred: source read)",
+      "commit.md:222 body greps '<!-- spec-continuation-of: ${TASK_ID} -->' as ONLY content predicate; :221 label says 'literal-task-id glob' (inferred: source read)",
+      "CF-1 suppression gated on '[ -f \"$FILE_PATH\" ]' at write-guard.sh:114 (inferred: source read)",
+      "write-guard candidate order [writer_key,data_task_id,session_id] at :79-85; consume order [writer_primary,data_task_id,session_id] at :235 (inferred: source read)",
+      "all 8 test_*.sh mode 755; ac1/ac5/final_sweep/push_sentinel use mktemp+trap; ac3/ac6/ac9/ac10 are read-only no-temp tests (observed: stat + grep)"
+    ],
+    "diagnosis_completeness": "complete",
+    "complaint_location_keywords": ["context-stripping", "COMMAND_CONTEXT_STRIPPED", "spec-continuation-of", "literal-task-id glob", "match_sentinel_grant_for_write", "CF-1", "DANGER_COMMANDS"],
+    "localization_evidence": "Each cited file:line was read directly this session; grep enumerated the raw-vs-stripped rule split and the stale count comments. No runtime reproduction required — this is an analysis/spec-only cycle on static infra files.",
+    "located_source": "hooks/pretool-bash-safety.sh:1089-1472 (rule set), hooks/lib/bash_context_strip.py:26 (DANGER_COMMANDS), commands/commit.md:221-222, hooks/pretool-write-guard.sh:60-116, hooks/posttool-allowlist-consume.py:222-272, hooks/lib/allowlist.py:523-576, scripts/step7-spec-update.py:134-148",
+    "localization_blocked": null
+  },
+  "diagnosis_layer": "L4",
+  "requirements_decomposition": [
+    {"id": "R1", "source_phrase": "commands/commit.md:221 has a stale label 'literal-task-id glob' that should be updated", "acceptance_criterion": "label at :221 no longer reads 'literal-task-id glob'; describes marker-grep predicate"},
+    {"id": "R2", "source_phrase": "Item C = verify parity (prose <-> script <-> producer) and patch any surviving gaps", "acceptance_criterion": "3-site marker parity verified; gap patched if found, else no-op confirmation"},
+    {"id": "R3", "source_phrase": "Item B = verify the three-candidate path is complete and consistent; harden any gaps", "acceptance_criterion": "candidate-key parity verified pretool<->posttool; CF-1 overwrite-only invariant confirmed"},
+    {"id": "R4", "source_phrase": "extend context-stripping to the remaining raw-$COMMAND grep rules", "acceptance_criterion": "Class-1 verb rules converted; Class-2 untouched"},
+    {"id": "R5", "source_phrase": "each converted rule needs both a should-block and should-not-block test", "acceptance_criterion": "every converted rule has both test polarities in hooks/tests/"},
+    {"id": "R6", "source_phrase": "test_*.sh naming + mktemp + trap + 755 + 2 stale comments", "acceptance_criterion": "verified already-compliant; only stale comments are the two 'four' count comments, folded into Item A"}
+  ],
+  "pre_existing_guards": [
+    {"file": "hooks/pretool-bash-safety.sh", "line": 1096, "type": "if", "code_snippet": "if [ -r \"$HOOKS_DIR_CTX/lib/bash_context_strip.py\" ]; then ... if [ \"$_ctx_status\" -eq 0 ]; then COMMAND_CONTEXT_STRIPPED=\"$_ctx_out\"", "purpose": "fail-closed: on stripper error/timeout, COMMAND_CONTEXT_STRIPPED stays equal to raw $COMMAND so no block is silently dropped", "removal_authorized": false},
+    {"file": "hooks/pretool-write-guard.sh", "line": 114, "type": "if", "code_snippet": "if [ \"$_WG_SENTINEL_RESULT\" = \"valid_no_match\" ] && [ -f \"$FILE_PATH\" ]; then exit 2", "purpose": "CF-1: suppress legacy grant ONLY on overwrite of existing file; new-file creation must not be blocked by an unrelated sentinel", "removal_authorized": false},
+    {"file": "hooks/pretool-bash-safety.sh", "line": 1143, "type": "if", "code_snippet": "echo \"$COMMAND_CONTEXT_STRIPPED\" | grep -qE '(rm|mv)\\s' && echo \"$COMMAND\" | grep -qE '(workflow-[^/]*\\.json|\\.claude/todos/)'", "purpose": "split-grep template: stripped view for verb, raw view for path so quoted paths still match", "removal_authorized": false}
+  ],
+  "setup": {
+    "applicability": "N/A",
+    "reason": "non-UI -- hook / config / agent-prompt edit; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths. All targets are .claude/ infra (shell hooks, a Python lib, markdown command docs, shell test scripts)."
+  },
+  "evidence": {
+    "observed": "Prior Opus 4.8 review: A has only 4 of ~40 rules stripped; C marker aligned; B three paths exist; F naming compliant + 2 stale comments + commit.md:221 label.",
+    "measured": {
+      "value": "4 stripped rules (1110,1119,1143,1154) vs ~36 raw-$COMMAND rules; DANGER_COMMANDS={killall,pkill,kill,rm,mv}; marker is sole step-7 predicate; CF-1 gated on -f FILE_PATH; commit.md:221 label='Mtime + literal-task-id glob'; 2 'four' comments at bash-safety:1089 & strip.py:5",
+      "location": "hooks/pretool-bash-safety.sh, hooks/lib/bash_context_strip.py, commands/commit.md:221, scripts/step7-spec-update.py:134-148, hooks/pretool-write-guard.sh:114"
+    },
+    "expected": {
+      "value": "Class-1 verb rules match on stripped view; Class-2 stay raw; marker is sole predicate (already true); CF-1 overwrite-only (already true); label describes marker grep; comments do not hardcode 'four'",
+      "source": "this BA spec + existing :1143 split-grep template (tier_2_verified)"
+    },
+    "gap": "A: ~12 convertible verb rules not yet stripped + 2 stale 'four' comments. F: 1 stale label. C/B: no functional gap found (verification-confirm expected)."
+  },
+  "scope_expansion": {
+    "search_pattern": "echo \"$COMMAND\" | grep   vs   echo \"$COMMAND_CONTEXT_STRIPPED\" | grep",
+    "search_scope": "hooks/pretool-bash-safety.sh, hooks/lib/bash_context_strip.py, hooks/tests/**, commands/commit.md, commands/spec-update.md, scripts/step7-spec-update.py",
+    "user_reported": ["the 4 items F/C/B/A"],
+    "additional_found": ["stale count comments pretool-bash-safety.sh:1089 + bash_context_strip.py:5 (folded into Item A change-set)"],
+    "all_occurrences": ["pretool-bash-safety.sh:1110", "pretool-bash-safety.sh:1119", "pretool-bash-safety.sh:1143", "pretool-bash-safety.sh:1154"]
+  },
+  "reference_source": {
+    "tier": "tier_2_verified",
+    "description": "Live source verified by BA this session; existing :1143/:1154 split-grep pattern and :1094-1107 COMMAND_CONTEXT_STRIPPED setup are the copy templates",
+    "url_or_location": "hooks/pretool-bash-safety.sh:1094-1158",
+    "copy_allowed": true,
+    "role_table": {"_source": "no project-root CLAUDE.md role table applicable to this infra cycle (token roles are for UI design systems)"}
+  },
+  "prior_attempts": {
+    "triggered": false,
+    "trigger_source": null,
+    "attempts": [],
+    "novelty_check": {
+      "this_attempt_layer": "L4",
+      "differs_from_all_priors": true,
+      "rationale": "No prior attempt on this backlog batch; first cycle."
+    }
+  },
+  "development_approach": {
+    "strategy": "Execute in order F -> C -> B -> A. F and C are documentation-parity changes on commit.md (+read-only verification of spec-update.md/step7-spec-update.py). B is read-and-confirm parity across write-guard.sh/consume.py/allowlist.py, patching only on divergence. A is the substantive change: classify each raw-$COMMAND rule as Class-1 (verb -> convert to COMMAND_CONTEXT_STRIPPED, add command word to DANGER_COMMANDS, use split-grep template for path predicates) or Class-2 (path/value -> leave raw); add per-rule should-block + should-not-block tests driving the hook end-to-end via piped INPUT JSON; update the 2 stale 'four' comments; preserve the fail-closed raw fallback.",
+    "files_to_create": ["hooks/tests/test_bash_safety_context_rules.py (or .sh) — per-rule should-block + should-not-block end-to-end tests for Item A"],
+    "files_to_modify": ["commands/commit.md", "hooks/pretool-bash-safety.sh", "hooks/lib/bash_context_strip.py", "scripts/step7-spec-update.py (only if C gap)", "commands/spec-update.md (only if C gap)", "hooks/pretool-write-guard.sh (only if B gap)", "hooks/posttool-allowlist-consume.py (only if B gap)", "hooks/lib/allowlist.py (only if B gap)"],
+    "validation_approach": "Item A: run the new should-block (verb in executable context -> exit 2) and should-not-block (verb only in quoted string/heredoc -> exit 0) tests per converted rule, plus the existing test_bash_safety_context.py suite for stripper regressions. Items F/C: grep assertions that commit.md:221 no longer contains 'literal-task-id glob' and that the marker is the sole step-7 predicate. Item B: assert candidate-key order parity and CF-1 -f gating by source inspection. Frozen spec untouched (git diff == 0)."
+  },
+  "acceptance_criteria_path": null,
+  "blast_radius_map_path": null,
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": true,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true
+  },
+  "codex_consult": {
+    "invoked": false,
+    "status": "not_requested",
+    "feedback_summary": null,
+    "findings": [],
+    "feedback_incorporated": null
+  },
+  "rank_acknowledged": null,
+  "range_acknowledged": null,
+  "recent_events_digest_acknowledged": null,
+  "score_injection_action": null
+}
