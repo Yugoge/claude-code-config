@@ -60,14 +60,67 @@
     "estimated_space_saved": "0 MB",
     "verdict": "CLEAN — no file-organization cleanliness violations introduced by this cycle's diff. All 11 changed files are in correct locations with conformant naming. The new reference doc (venv-repair.md) was correctly placed in docs/reference/ rather than repo root. No temp files, build artifacts, duplicate scripts, or stray files detected in the diff scope."
   },
-  "limitations": [
-    "Bash tool stdout rendering was degraded for part of this session; md5 byte-level dedup and mtime stat could not be machine-confirmed. This does not affect any verdict: duplicate-content would require a second identical file (none appears in git status or Glob), and mtime only matters for archive-candidate aging (none of these active just-created cycle artifacts are archive candidates). File existence and placement are confirmed authoritatively by git status (session-start snapshot) and Glob."
+  "non_findings_verified": [
+    {
+      "candidate": "tests/generated/20260529-081014/__pycache__/ (5 *.cpython-312-pytest-9.0.3.pyc files, introduced_in_diff=true)",
+      "verdict": "NOT A FINDING",
+      "evidence": "git check-ignore -v returns RC=0: matched by .gitignore:36 rule '__pycache__/'. git status shows them as '!!' (ignored), never staged, so they can never leak into a commit. Cross-confirmed: 0 .pyc/__pycache__ paths tracked anywhere repo-wide (git ls-files count = 0) despite 7+ sibling cycle dirs all carrying working-tree __pycache__. Properly-ignored ephemeral bytecode is not a cleanliness violation."
+    },
+    {
+      "candidate": "repo-root .gitignore coverage of build artifacts (introduced_in_diff=false)",
+      "verdict": "NOT A FINDING",
+      "evidence": "A .gitignore exists at repo root; line 36 ('__pycache__/') covers Python bytecode; .pytest_cache and scripts/__pycache__ are likewise ignored ('!!'). Coverage is intact. (An earlier probe during a degraded-stdout phase misread .gitignore as absent; re-verified on clean output — present and effective.)"
+    },
+    {
+      "candidate": "duplicate scripts / backup siblings, stray cycle-dir files (introduced_in_diff=true)",
+      "verdict": "NOT A FINDING",
+      "evidence": "Glob found no scripts/*-old.*, *.bak, or repair-venv*/qa-manifest-guard* backup siblings; no pre-existing venv/repair/manifest-guard script to duplicate. Cycle dir holds exactly the expected scaffold (5 test_*.py + INDEX.md + manifest.json + README.md + gitignored __pycache__), no stray temp/draft files."
+    }
   ],
+  "verification": {
+    "gitignore_present_root": true,
+    "gitignore_pycache_rule": ".gitignore:36 __pycache__/",
+    "check_ignore_cycle_pyc_rc": 0,
+    "tracked_pyc_or_pycache_count_repo_wide": 0,
+    "short_slug_duplicate_test_files_on_disk": false,
+    "build_artifact_sweep_scope": "scripts/, tests/generated/20260529-081014/, repo root (maxdepth 3) — all __pycache__/.pytest_cache found are gitignored ('!!')",
+    "handoff_note": "Orchestrator --changed-files list used short test slugs (test_AC1_ac1_qa_vacuity_guard.py); on disk the slugs are longer (test_AC1_ac01_qa_vacuity_guard_manifest_mode.py). Same count/dir/convention, NO short-slug duplicates on disk. Stale-handoff/traceability concern for the orchestrator, out of cleanliness scope.",
+    "note": "Decisive facts captured on clean output after an early degraded-stdout phase. Placement confirmed via git status + git ls-files + Glob; contents via Read/Grep; gitignore coverage via git check-ignore -v (RC=0)."
+  },
   "codex_consult": {
     "invoked": true,
-    "status": "failed_parse",
-    "feedback_summary": "Skill(codex) returned no parseable response in this session (tool-output rendering degraded; Bash probes for codex availability also rendered empty). Treated as failed_parse per graceful-fallback contract.",
-    "findings": [],
-    "feedback_incorporated": "self-review substituted: ran 9-point adversarial self-review covering false positives/negatives, severity calibration, Safety-Rule compliance, --changed-files scope accuracy, docs/reference vs docs/guides bucketing, naming conventions, duplicate detection, temp/build-artifact detection, and the md5/mtime verification caveat. Self-review confirmed the zero-violation verdict; the verification caveat is recorded as a documented limitation rather than an 'unknown' finding because no condition under which it would change a verdict is present in the diff."
+    "status": "ok",
+    "feedback_summary": "Codex (gpt-5.5, xhigh) ran adversarial review. Central demand: do NOT mark the cycle unconditionally CLEAN before verifying the __pycache__ artifact's gitignore status, and sweep ALL diff-touched dirs (not only the test dir) for stray bytecode/.pytest_cache. It classified the slug mismatch (OBS-A) as out-of-scope handoff staleness and docs/reference-vs-guides as a non-blocking preference.",
+    "findings": [
+      {
+        "issue": "OBS-B: __pycache__/*.pyc in the new cycle dir is the one candidate that could block; must verify gitignore coverage rather than assume.",
+        "proposed_fix": "Run git check-ignore -v on the .pyc; RC=0 => non-blocking ignored ephemera; RC=1 => add ignore rule or guarantee path-specific staging + pre-commit rm.",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Ran the check: git check-ignore -v returned RC=0, matched by .gitignore:36 '__pycache__/'. Cross-confirmed by 0 tracked .pyc repo-wide. Therefore NOT a finding (recorded under non_findings_verified). Satisfies codex's 'verify, do not hand-wave' demand; verdict is evidence-backed CLEAN."
+      },
+      {
+        "issue": "MISSED: sweep build artifacts across ALL diff-touched dirs (scripts/__pycache__, .pytest_cache), not just the cycle test dir.",
+        "proposed_fix": "find scripts tests/generated/20260529-081014 . -maxdepth 3 for __pycache__/*.pyc/.pytest_cache and check-ignore each.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Ran the sweep. All __pycache__/.pytest_cache found (bin/, hooks/, scripts/, scripts/todo/, .pytest_cache, cycle dir) are gitignored ('!!'). None tracked or committable; none uncovered. Scope recorded in verification.build_artifact_sweep_scope."
+      },
+      {
+        "issue": "OBS-A: filename slug mismatch between handoff list and disk.",
+        "proposed_fix": "OBSERVATION_ONLY — surface a one-liner so the orchestrator reconciles its list; confirm no short-slug duplicates.",
+        "classification": "observation_only",
+        "disposition": "applied",
+        "rationale": "Confirmed no short-slug duplicate files on disk; recorded as verification.handoff_note (out of cleanliness scope), not a finding."
+      },
+      {
+        "issue": "docs/reference vs docs/guides for venv-repair.md.",
+        "proposed_fix": "OBSERVATION_ONLY — reference/ acceptable; relocate to guides/ only by team preference.",
+        "classification": "observation_only",
+        "disposition": "applied",
+        "rationale": "docs-categorization rule only fires for docs/ root; reference/ is within convention; non-blocking preference."
+      }
+    ],
+    "feedback_incorporated": "Codex's central correction applied in full: the inspector did NOT hand-wave the __pycache__ artifact. Ran the decisive git check-ignore (RC=0) + repo-wide git ls-files (0 tracked .pyc) checks and the cross-dir sweep codex demanded. Artifact proved properly gitignored, so the verdict is an evidence-backed CLEAN with zero blocking findings. Out-of-scope items (slug mismatch, reference-vs-guides) logged but not raised as findings."
   }
 }
