@@ -166,9 +166,11 @@
       "status": "active",
       "hook_check": {
         "type": "grep",
-        "pattern": "graphify-query\\.py.*graphify-enrich\\.py",
-        "scope": "commands/dev.md",
-        "expect": "match",
+        "patterns": [
+          {"file": "commands/dev.md", "pattern": "graphify-query\\.py", "expect": "match"},
+          {"file": "commands/dev.md", "pattern": "graphify-enrich\\.py", "expect": "match"},
+          {"file": "commands/pull.md", "pattern": "graphify-maintain\\.py", "expect": "match"}
+        ],
         "note": "Verifies graphify integration presence in command files without asserting decimal step literals"
       }
     }
