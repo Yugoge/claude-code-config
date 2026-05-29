@@ -1,8 +1,0 @@
-{
-  "request_id": "do-20260529-210815",
-  "task_id": "do-20260529-210815",
-  "complexity_tier": "SMALL",
-  "risk_level": "low",
-  "spec_path": null,
-  "notes": "Developed with /do; no formal BA/dev/QA cycle"
-}
