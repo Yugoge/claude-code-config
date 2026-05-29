@@ -179,7 +179,7 @@ When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a c
 Run `scripts/graphify-query.py` as a direct Bash call (NOT a subagent — avoids adding an LLM interpretation layer that could propagate confirmation bias). This is advisory: if the binary is absent or cache is unavailable, the script exits 0 with `status=unavailable` and BA proceeds with its original flow.
 
 ```bash
-python3 "$CLAUDE_PROJECT_DIR/scripts/graphify-query.py" \
+source "${CLAUDE_PROJECT_DIR}/venv/bin/activate" && python3 "$CLAUDE_PROJECT_DIR/scripts/graphify-query.py" \
   --task-id "$DEV_SESSION_ID" \
   --requirement-file "$REQUIREMENT_DOC"
 ```
