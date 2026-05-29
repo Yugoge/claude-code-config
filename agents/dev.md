@@ -113,7 +113,7 @@ If `User requirement document:` is present in your dispatch prompt and non-null,
 
 **First action**: Read the context JSON and BA spec (and the requirement document if present) completely before implementing anything.
 
-**graph_context consumption (spec-20260527-061433)**: When the context JSON contains a `graph_context` field (patched in-place by the graphify subagent at Step 7.5), DEV MUST read and incorporate it:
+**graph_context consumption (spec-20260527-061433)**: When the context JSON contains a `graph_context` field (patched in-place by the graphify subagent between Step 7 and Step 8), DEV MUST read and incorporate it:
 - `graph_context.status` determines trustworthiness: `ok` = full data; `degraded` = partial; anything else = ignore.
 - `graph_context.summary.high_centrality_nodes` — check if any of these files are in your diff; if so, note them as high-impact in `implementation_notes`.
 - `graph_context.focused_subgraph_path` — consult the focused subgraph for import/dependency edges if you need to understand module boundaries.
