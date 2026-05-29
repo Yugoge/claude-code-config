@@ -1083,7 +1083,7 @@ if echo "$COMMAND" | grep -qE 'docker\s+system\s+prune\s+-a'; then
   exit 2
 fi
 
-# Context-strip: remove string-content false positives for the four generic
+# Context-strip: remove string-content false positives for the generic
 # danger-token rules below.  This is intentionally a bounded classifier, NOT a
 # full shell parser.  It runs from a file path (not `python -`) and is wrapped by
 # timeout + virtual-memory limits; on any failure the raw command is used, so the
