@@ -44,7 +44,7 @@ from graphify_lib import (
 
 # Implicit reference trigger words that signal ambiguity — per spec §5
 IMPLICIT_REFERENCE_WORDS = [
-    "之前", "已有", "现有", "原来的",  # Chinese
+    "\u4e4b\u524d", "\u5df2\u6709", "\u73b0\u6709", "\u539f\u6765\u7684",  # Chinese (Unicode escapes; runtime-equivalent to CJK glyphs)
     "previous", "existing", "original",  # English
 ]
 
