@@ -13,18 +13,19 @@
     "why": "Reduce context-strip false-positive surface (A), keep step-7 marker docs accurate (C/F), and confirm write-sentinel grant lifecycle parity (B)",
     "where": ["hooks/pretool-bash-safety.sh", "hooks/lib/bash_context_strip.py", "hooks/pretool-write-guard.sh", "hooks/posttool-allowlist-consume.py", "hooks/lib/allowlist.py", "commands/commit.md", "commands/spec-update.md", "scripts/step7-spec-update.py", "hooks/tests/"],
     "scope": {
-      "included": ["Class-1 verb-rule conversions in pretool-bash-safety.sh", "per-rule should-block + should-not-block tests", "DANGER_COMMANDS additions", "commit.md:221 label fix", "2 stale 'four' count comments", "verification of C and B parity with patch-on-gap"],
-      "excluded": ["Class-2 path/value rule conversions", "stripper internals/recursion rewrite", "docs/dev/specs/spec-20260520-044700.md (frozen)", "any UI / app-runtime / user-triggered code path", "scope beyond the 4 items"]
+      "included": ["conversion of EXACTLY two safe rules in pretool-bash-safety.sh (dd|mkfs|fdisk|shred :1045, kill <PID> :1311) to COMMAND_CONTEXT_STRIPPED", "per-rule should-block + should-not-block tests for the two converted rules", "commit.md:221 label fix", "2 stale 'four' count comments", "verification of C and B parity with patch-on-gap"],
+      "excluded": ["conversion of ANY git rule (reset --hard, push --force/--delete, checkout -- ., restore --source, revert <hash>, update-ref, branch -D, cherry-pick, rebase, stash push/save) — danger token is a quotable argument of non-DANGER 'git'", "conversion of ANY docker/systemctl rule (docker compose down, docker happy, docker system prune -a, systemctl docker, systemctl verb) — danger token is a quotable argument of non-DANGER 'docker'/'systemctl'", "Class-2 path/value rule conversions", "ANY addition to DANGER_COMMANDS (pass1 'add git' step retracted)", "stripper internals/recursion rewrite", "docs/dev/specs/spec-20260520-044700.md (frozen)", "any UI / app-runtime / user-triggered code path", "scope beyond the 4 items"]
     },
     "success_criteria": [
       "commit.md:221 no longer reads 'literal-task-id glob'",
       "3-site marker parity verified (no surviving literal-task-id content predicate) or patched",
       "write-sentinel candidate-key parity verified pretool<->posttool; CF-1 gated on existing-file overwrite",
-      "Class-1 verb rules read COMMAND_CONTEXT_STRIPPED; Class-2 untouched",
-      "each converted rule has should-block + should-not-block test",
+      "EXACTLY the two safe rules (dd|mkfs|fdisk|shred :1045, kill <PID> :1311) read COMMAND_CONTEXT_STRIPPED; all git + docker/systemctl + path/value rules stay raw $COMMAND",
+      "DANGER_COMMANDS unchanged (no new entry)",
+      "each converted rule has should-block + should-not-block test with rule-specific payloads, both passing",
       "no comment hardcodes 'four' as the rule count"
     ],
-    "constraints": ["fail-closed preserved (raw fallback on stripper error)", "Class-2 conversions forbidden (false-negative risk)", "frozen spec untouched", "reuse existing COMMAND_CONTEXT_STRIPPED block + :1143 split-grep template"]
+    "constraints": ["fail-closed preserved (raw fallback on stripper error)", "a rule is convertible ONLY if its match is identical raw-vs-stripped (command-word-anchored, OR argument-anchored where the command word is already a DANGER command); argument/option/subcommand-anchored rules on non-DANGER command words MUST stay raw (false-negative risk)", "NO DANGER_COMMANDS additions", "frozen spec untouched", "reuse existing COMMAND_CONTEXT_STRIPPED block; :1143 split-grep template not needed for the two convertible rules (no path predicate)"]
   },
   "scope_boundary": {
     "in_user_path": ["hooks/pretool-bash-safety.sh", "hooks/lib/bash_context_strip.py", "commands/commit.md", "hooks/pretool-write-guard.sh", "hooks/posttool-allowlist-consume.py"],
