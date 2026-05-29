@@ -143,10 +143,10 @@
       "location": "hooks/pretool-bash-safety.sh, hooks/lib/bash_context_strip.py, commands/commit.md:221, scripts/step7-spec-update.py:134-148, hooks/pretool-write-guard.sh:114"
     },
     "expected": {
-      "value": "Class-1 verb rules match on stripped view; Class-2 stay raw; marker is sole predicate (already true); CF-1 overwrite-only (already true); label describes marker grep; comments do not hardcode 'four'",
-      "source": "this BA spec + existing :1143 split-grep template (tier_2_verified)"
+      "value": "ONLY the two raw-vs-stripped-identical rules (dd|mkfs|fdisk|shred :1045 command-word-anchored, kill <PID> :1311 kill-is-DANGER) match on the stripped view; all git + docker/systemctl + path/value rules stay raw (their danger token is a quotable argument of a non-DANGER command word -> stripping would create false negatives); DANGER_COMMANDS unchanged; marker is sole predicate (already true); CF-1 overwrite-only (already true); label describes marker grep; comments do not hardcode 'four'",
+      "source": "this BA spec (pass2) + verified stripper semantics at bash_context_strip.py:305-330 (tier_2_verified)"
     },
-    "gap": "A: ~12 convertible verb rules not yet stripped + 2 stale 'four' comments. F: 1 stale label. C/B: no functional gap found (verification-confirm expected)."
+    "gap": "A: ONLY 2 convertible rules (dd|mkfs|fdisk|shred :1045, kill <PID> :1311) + 2 stale 'four' comments. (pass1 over-estimated ~12 convertible rules; the git and docker/systemctl rules are argument-anchored on non-DANGER command words and are NOT convertible.) F: 1 stale label. C/B: no functional gap found (verification-confirm expected)."
   },
   "scope_expansion": {
     "search_pattern": "echo \"$COMMAND\" | grep   vs   echo \"$COMMAND_CONTEXT_STRIPPED\" | grep",
