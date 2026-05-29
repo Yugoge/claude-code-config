@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-29T21:16:00Z*
-**Total entries**: 986
+*Last updated: 2026-05-29T21:16:43Z*
+**Total entries**: 987
 **Convention**: kebab
 
 ## Tree
@@ -235,6 +235,7 @@ dev/
 ├── `cleanliness-inspector-report-dev-20260529-081000.json` - json config
 ├── `cleanliness-inspector-report-dev-20260529-092512.json` - json config
 ├── `cleanliness-inspector-report-dev-20260529-152050.json` - json config
+├── `cleanliness-inspector-report-do-20260529-210815.json` - json config
 ├── `close-debate-20260518-214050.json` - json config
 ├── `close-debate-20260526-052559.md` - Close Debate Transcript -- 20260526-052559
 ├── `close-debate-20260526-053746.md` - Close Debate Transcript — 20260526-053746
