@@ -47,8 +47,8 @@
   {
     "id": "AC-2",
     "type": "data",
-    "given": "docs/dev/acceptance-criteria-20260529-080709.json and tests/generated/20260529-080709/test_AC_F5_ac-f5-dispatch-guard-sentinel-existence.py after artifact update",
-    "when": "reading the AC-F5 check patterns in the JSON and the assertion patterns in the test file",
+    "given": "docs/dev/ticket-20260529-080709.md, docs/dev/acceptance-criteria-20260529-080709.json, and tests/generated/20260529-080709/test_AC_F5_ac-f5-dispatch-guard-sentinel-existence.py after artifact update",
+    "when": "reading the AC-F5 VERIFICATION section in ticket-20260529-080709.md, the check patterns in acceptance-criteria-20260529-080709.json, and the assertion patterns in test_AC_F5_ac-f5-dispatch-guard-sentinel-existence.py",
     "then": "no pattern references GRAPHIFY_SENTINEL= (bash variable assignment) and no pattern references if.*-f.*GRAPHIFY_SENTINEL (bash if test); patterns reference prose-extractable content (graphify.json literal and sentinel/absent wording)",
     "check": {
       "type": "grep",
