@@ -195,7 +195,7 @@ def _truncate_structural_context(context: dict, hard_cap: int) -> tuple[dict, bo
 # ---------------------------------------------------------------------------
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Step 1.5 graphify pre-BA hydrator")
+    parser = argparse.ArgumentParser(description="graphify pre-BA hydrator (between Step 1 and Step 2)")
     parser.add_argument("--task-id", required=True, help="Dev session task ID")
     parser.add_argument("--requirement-file", required=True, help="Path to user requirement .md file")
     parser.add_argument("--no-graphify", action="store_true", help="Explicit per-invocation disable")
