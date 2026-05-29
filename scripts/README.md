@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 64
+- **Total files**: 65
 - **Subdirectories**: 3
 - **Naming convention**: kebab
 
@@ -54,6 +54,7 @@ Organization and usage documentation for `scripts/`.
 - `orchestrator.sh` - Description: Agent orchestration coordinator for development and cleanup workflows
 - `overnight-status.sh` - overnight-status.sh — Zero-LLM overnight session status query
 - `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
+- `qa-manifest-guard.py` - Dual-mode tool per BA spec docs/dev/ticket-20260529-081014.md M4:
 - `quick-excel` - unknown file
 - `refine-context.sh` - refine-context.sh — merge QA-refined context with original context
 - `resolve-close-report.sh` - Resolve the close-report path for a given TASK_ID using subproject path-walk.
