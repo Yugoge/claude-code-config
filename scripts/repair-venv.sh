@@ -125,29 +125,32 @@ if health_probe; then
 fi
 
 # -------------------------------------------------------------------------
-# Repair: create venv/bin/python3 -> ${INTERPRETER} if missing or broken.
+# Repair: iterate over ALL THREE interpreter names so a venv with any of
+# python / python3 / python3.12 missing or broken gets restored, not just
+# python3 (codex finding #4 — verification breadth must match repair breadth).
+# Each target is symlinked to ${INTERPRETER} when missing, broken, or
+# non-executable; healthy entries are left untouched (idempotence).
 # -------------------------------------------------------------------------
-TARGET="${VENV}/bin/python3"
+for name in python python3 python3.12; do
+  TARGET="${VENV}/bin/${name}"
+  needs_repair=0
+  if [[ ! -e "${TARGET}" && ! -L "${TARGET}" ]]; then
+    # Nothing at this path (not a file, not a dangling symlink).
+    needs_repair=1
+  elif [[ -L "${TARGET}" && ! -e "${TARGET}" ]]; then
+    # Broken symlink (link present but target missing).
+    needs_repair=1
+  else
+    # Path resolves to something — try to execute. If it fails, treat as needing repair.
+    "${TARGET}" --version >/dev/null 2>&1 || needs_repair=1
+  fi
 
-# If TARGET exists and is healthy (not a broken symlink, can execute), leave it alone.
-# Otherwise replace it with a fresh symlink to ${INTERPRETER}.
-needs_repair=0
-if [[ ! -e "${TARGET}" ]]; then
-  needs_repair=1
-elif [[ -L "${TARGET}" && ! -e "${TARGET}" ]]; then
-  # Broken symlink (target missing).
-  needs_repair=1
-else
-  # Try to execute; if it fails, treat as needing repair.
-  "${TARGET}" --version >/dev/null 2>&1 || needs_repair=1
-fi
-
-if [[ ${needs_repair} -eq 1 ]]; then
-  echo "Repairing: creating ${TARGET} -> ${INTERPRETER}"
-  # Remove any stale entry first (safe on missing target).
-  rm -f "${TARGET}"
-  ln -s "${INTERPRETER}" "${TARGET}"
-fi
+  if [[ ${needs_repair} -eq 1 ]]; then
+    echo "Repairing: creating ${TARGET} -> ${INTERPRETER}"
+    rm -f "${TARGET}"
+    ln -s "${INTERPRETER}" "${TARGET}"
+  fi
+done
 
 # -------------------------------------------------------------------------
 # Re-verify after repair. If still unhealthy, emit clear diagnostic and exit 1.
