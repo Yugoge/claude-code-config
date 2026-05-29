@@ -136,7 +136,7 @@ def _build_graph_context_patch(subgraph: dict, status: str, task_id: str) -> dic
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Step 7.5 graphify enrichment subagent")
+    parser = argparse.ArgumentParser(description="graphify enrichment subagent (between Step 7 and Step 8)")
     parser.add_argument("--task-id", required=True, help="Dev session task ID")
     parser.add_argument("--context-file", help="Path to context-{ts}.json for in-place patching")
     parser.add_argument("--no-graphify", action="store_true", help="Explicit disable")
