@@ -1042,7 +1042,11 @@ if echo "$COMMAND" | grep -qE '(\.env|credentials|secret|password)\S*\s*(>|>>)';
 fi
 
 # Block: destructive disk operations
-if echo "$COMMAND" | grep -qE '^\s*(dd |mkfs|fdisk|shred )'; then
+# Uses COMMAND_CONTEXT_STRIPPED (command-word-anchored): the verb itself is the
+# danger signal and is preserved verbatim by the stripper, so quoted mentions
+# like echo "dd if=..." are erased to no-match while a real dd/mkfs/fdisk/shred
+# command word survives. See context-strip block below + Item A (dev-20260529-092512).
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '^\s*(dd |mkfs|fdisk|shred )'; then
   echo "BLOCKED: Destructive disk operation detected" >&2
   echo "Command: $COMMAND" >&2
   exit 2
