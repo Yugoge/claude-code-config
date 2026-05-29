@@ -123,7 +123,7 @@
     {"id": "R1", "source_phrase": "commands/commit.md:221 has a stale label 'literal-task-id glob' that should be updated", "acceptance_criterion": "label at :221 no longer reads 'literal-task-id glob'; describes marker-grep predicate"},
     {"id": "R2", "source_phrase": "Item C = verify parity (prose <-> script <-> producer) and patch any surviving gaps", "acceptance_criterion": "3-site marker parity verified; gap patched if found, else no-op confirmation"},
     {"id": "R3", "source_phrase": "Item B = verify the three-candidate path is complete and consistent; harden any gaps", "acceptance_criterion": "candidate-key parity verified pretool<->posttool; CF-1 overwrite-only invariant confirmed"},
-    {"id": "R4", "source_phrase": "extend context-stripping to the remaining raw-$COMMAND grep rules", "acceptance_criterion": "Class-1 verb rules converted; Class-2 untouched"},
+    {"id": "R4", "source_phrase": "extend context-stripping to the remaining raw-$COMMAND grep rules", "acceptance_criterion": "ONLY the two raw-vs-stripped-identical rules converted (dd|mkfs|fdisk|shred :1045, kill <PID> :1311); all git + docker/systemctl + path/value rules untouched; no DANGER_COMMANDS change"},
     {"id": "R5", "source_phrase": "each converted rule needs both a should-block and should-not-block test", "acceptance_criterion": "every converted rule has both test polarities in hooks/tests/"},
     {"id": "R6", "source_phrase": "test_*.sh naming + mktemp + trap + 755 + 2 stale comments", "acceptance_criterion": "verified already-compliant; only stale comments are the two 'four' count comments, folded into Item A"}
   ],
