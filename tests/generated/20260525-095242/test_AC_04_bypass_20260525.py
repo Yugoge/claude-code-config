@@ -44,7 +44,7 @@ def _run_hook_with_payload(hook_path, payload):
     return proc.returncode, proc.stdout, proc.stderr
 
 
-_FLAG = "/tmp/claude-bulk-allowed-testsid.flag"
+_FLAG = "/tmp/claude-bulk-commit-sentinel-testsid.flag"
 _SENTINEL = "/tmp/claude-bulk-commit-sentinel-testsid-abc.json"
 
 

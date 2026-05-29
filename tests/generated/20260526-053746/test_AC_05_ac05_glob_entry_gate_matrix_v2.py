@@ -39,12 +39,12 @@ def _run_hook_with_payload(hook_path, command):
 # AC-05: bare cat against protected-flag globs — all rc=0 (entry gate
 # matches AND pure-read allows).
 # Templates substitute each of 4 POSIX glob forms into the protected-path
-# prefix /tmp/claude-bulk-allowed-*.flag.
+# prefix /tmp/claude-bulk-commit-sentinel-*.flag.
 MATRIX = [
-    ("a_star",              "cat /tmp/claude-bulk-allowed-*.flag",      0),
-    ("b_question",          "cat /tmp/claude-bulk-allowed-?.flag",      0),
-    ("c_bracket_positive",  "cat /tmp/claude-bulk-allowed-[abc].flag",  0),
-    ("d_bracket_negation",  "cat /tmp/claude-bulk-allowed-[!abc].flag", 0),
+    ("a_star",              "cat /tmp/claude-bulk-commit-sentinel-*.flag",      0),
+    ("b_question",          "cat /tmp/claude-bulk-commit-sentinel-?.flag",      0),
+    ("c_bracket_positive",  "cat /tmp/claude-bulk-commit-sentinel-[abc].flag",  0),
+    ("d_bracket_negation",  "cat /tmp/claude-bulk-commit-sentinel-[!abc].flag", 0),
 ]
 
 

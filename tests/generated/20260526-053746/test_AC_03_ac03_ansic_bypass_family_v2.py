@@ -20,7 +20,7 @@ HOOK_PATH = REPO_ROOT / "hooks" / "pretool-bash-safety.sh"
 STABLE_STDERR_TOKEN = "bulk-commit-sentinel-write"
 
 # Protected-path flag per Layer 1.F entry gate (pretool-bash-safety.sh:662).
-_FLAG = "/tmp/claude-bulk-allowed-testsid.flag"
+_FLAG = "/tmp/claude-bulk-commit-sentinel-testsid.flag"
 
 
 def _run_hook_with_payload(hook_path, command):
