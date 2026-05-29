@@ -173,8 +173,8 @@
       "script_path": null,
       "health_check_url": null,
       "health_check_result": null,
-      "status": "skipped_non_ui",
-      "blocking_reason": null,
+      "status": "legitimately_skipped",
+      "blocking_reason": "Non-UI cycle per BA spec setup.applicability=N/A: deliverables are an agent-prompt edit (agents/qa.md Phase 5), two scripts (scripts/qa-manifest-guard.py, scripts/repair-venv.sh), pytest tests, and a docs note. No rendered UI, no browser/Playwright surface, no user-triggered runtime code path exists. E2E-equivalent verification was performed via direct subprocess execution: guard exit-code matrix (exit 0/2/3 + fail-closed on malformed stdin), repair-venv.sh idempotent live run, and 26/26 per-task pytest.",
       "test_plan_source": "qa_self_generated"
     },
     "e2e_script_results": [],
