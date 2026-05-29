@@ -37,13 +37,13 @@ def _run_hook_with_payload(hook_path, command):
 
 MATRIX = [
     ("a_star_compound",
-     "cat /tmp/claude-bulk-allowed-*.flag;rm /tmp/x", 2),
+     "cat /tmp/claude-bulk-commit-sentinel-*.flag;rm /tmp/x", 2),
     ("b_question_compound",
-     "cat /tmp/claude-bulk-allowed-?.flag;rm /tmp/x", 2),
+     "cat /tmp/claude-bulk-commit-sentinel-?.flag;rm /tmp/x", 2),
     ("c_bracket_positive_compound",
-     "cat /tmp/claude-bulk-allowed-[abc].flag;rm /tmp/x", 2),
+     "cat /tmp/claude-bulk-commit-sentinel-[abc].flag;rm /tmp/x", 2),
     ("d_bracket_negation_compound",
-     "cat /tmp/claude-bulk-allowed-[!abc].flag;rm /tmp/x", 2),
+     "cat /tmp/claude-bulk-commit-sentinel-[!abc].flag;rm /tmp/x", 2),
 ]
 
 
