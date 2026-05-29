@@ -1534,15 +1534,19 @@ Return verification report as JSON:
       }
     ],
     "manifest_verification": {
-      "_doc": "Populated when the per-task active manifest tests/generated/<task_id>/manifest.json exists (i.e., test-writer ran upstream). Reports importability and pytest collection results scoped to tests/generated/<task_id>/. The global index file at tests/generated/manifest.json (kind=index, tasks=[...]) is NOT this field's manifest_path; it is consulted only as a sentinel for cross-task discovery. See Step 11 Phase 5 for the per-task procedure.",
+      "_doc": "Populated when the per-task active manifest tests/generated/<task_id>/manifest.json exists (i.e., test-writer ran upstream). Reports importability and pytest collection results scoped to tests/generated/<task_id>/. The global index file at tests/generated/manifest.json (kind=index, tasks=[...]) is NOT this field's manifest_path; it is consulted only as a sentinel for cross-task discovery. See Step 11 Phase 5 for the per-task procedure. Vacuity invariant: when active_tests_count == 0 the report MUST set pytest_collected_ok: null AND vacuous_due_to_empty_active_set: true AND a non-empty vacuous_reason — the (active_tests_count: 0, pytest_collected_ok: true) shape is forbidden (anti-greenwash, Phase 5 step 6). guard_verdict + guard_reason MUST be copied verbatim from scripts/qa-manifest-guard.py stdout/stderr JSON.",
       "manifest_path": "tests/generated/<task_id>/manifest.json",
       "global_index_path": "tests/generated/manifest.json",
       "global_index_kind": "index",
-      "manifest_exists": true,
+      "manifest_exists": false,
       "active_tests_count": 0,
       "active_tests_importable": true,
-      "pytest_collected_ok": true,
-      "pytest_failures": []
+      "pytest_collected_ok": null,
+      "pytest_failures": [],
+      "vacuous_due_to_empty_active_set": true,
+      "vacuous_reason": "cycle modified no pytest-collectable files",
+      "guard_verdict": "ok_vacuous_acknowledged",
+      "guard_reason": "no pytest-collectable files in cycle diff"
     },
     "blast_radius_phase2": {
       "_doc": "Phase 2 verification per spec-20260518-225715 §5.3. QA reruns blast-radius-tool.py with --git-diff and compares coverage_gaps against the BA-Phase-1 map; verifies every Phase 1 gap and required_validation has a corresponding declaration in dev-report.blast_radius_declarations[].",
