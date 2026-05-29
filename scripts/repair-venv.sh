@@ -146,6 +146,19 @@ for name in python python3 python3.12; do
   fi
 
   if [[ ${needs_repair} -eq 1 ]]; then
+    # Safety guard (close 20260529-081014 codex BLOCKER #2):
+    # repair-venv only manages symlinks. If TARGET exists as a real
+    # (non-symlink) file or directory, refuse to delete it — silently
+    # rm'ing a real Python binary or user file would be data loss outside
+    # this script's mandate. Dangling symlinks are NOT caught by this
+    # guard because -e returns false for them; they correctly fall through
+    # to the rm+ln-s repair path.
+    if [[ -e "${TARGET}" && ! -L "${TARGET}" ]]; then
+      echo "Error: ${TARGET} exists as a real (non-symlink) file or directory." >&2
+      echo "  repair-venv.sh only manages symlinks; refusing to delete a real path." >&2
+      echo "  Remove or rename it manually if you intend to replace it with a symlink." >&2
+      exit 1
+    fi
     echo "Repairing: creating ${TARGET} -> ${INTERPRETER}"
     rm -f "${TARGET}"
     ln -s "${INTERPRETER}" "${TARGET}"
