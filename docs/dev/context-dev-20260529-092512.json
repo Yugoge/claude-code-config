@@ -163,13 +163,22 @@
     "role_table": {"_source": "no project-root CLAUDE.md role table applicable to this infra cycle (token roles are for UI design systems)"}
   },
   "prior_attempts": {
-    "triggered": false,
-    "trigger_source": null,
-    "attempts": [],
+    "triggered": true,
+    "trigger_source": "qa_rejection (ba-validation pass1 verdict=fail on Item A)",
+    "attempts": [
+      {
+        "artifact_path": "docs/dev/ticket-dev-20260529-092512.md (pass1) + docs/dev/ba-qa-report-dev-20260529-092512.json (QA rejection)",
+        "proposed_solution": "Convert ~12 'Class-1 verb rules' (git stash/checkout/restore/reset/push/update-ref/revert/cherry-pick/rebase + docker compose/system prune + docker happy + systemctl + dd/mkfs/fdisk/shred) to COMMAND_CONTEXT_STRIPPED, adding each command word to DANGER_COMMANDS.",
+        "actual_change": "Spec-only (no code landed). QA rejected before dev.",
+        "outcome": "REJECTED. The Class-1 criterion ('arg is not the signal, the command word is') was applied as a verb-vs-path surface reading rather than on the actual match-key LOCATION. Git rules (reset --hard, push --force/--delete, checkout/restore wide-path, revert ref-modifier) have their danger token in a quotable ARGUMENT of the non-DANGER command word 'git'; converting them would let the stripper erase the quoted argument and silently disable the block (git reset \"--hard\" -> 'git reset '). The prescribed 'add git to DANGER_COMMANDS' remediation was self-defeating (un-strips all git args globally, re-introducing the false positives the conversion targeted). docker/systemctl rules were also over-included (their verbs/targets are quotable arguments of non-DANGER command words). The :1311 kill-PID rule was omitted from the sweep.",
+        "failure_category": "wrong_scope",
+        "target_layer": "L4"
+      }
+    ],
     "novelty_check": {
       "this_attempt_layer": "L4",
       "differs_from_all_priors": true,
-      "rationale": "No prior attempt on this backlog batch; first cycle."
+      "rationale": "pass2 redraws the class boundary on the verified stripper semantics (match-key location vs command-word preservation), not on a verb-vs-path surface reading. It narrows the convertible set from ~12 rules to EXACTLY 2 (dd|mkfs|fdisk|shred command-word-anchored; kill <PID> argument-anchored-but-kill-is-DANGER), moves all git + docker/systemctl rules to DO-NOT-CONVERT with a worked quoted-argument false-negative proof, retracts the DANGER_COMMANDS-addition step (net change: none), and rules explicitly on the previously-omitted :1311 kill rule. This is a different, deeper analysis at the same L4 layer, addressing the exact mechanism (quoted-argument erasure) the prior attempt missed."
     }
   },
   "development_approach": {
