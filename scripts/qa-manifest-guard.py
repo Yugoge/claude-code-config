@@ -329,10 +329,17 @@ def _run_cycle_diff_mode(cycle_diff_files: str, collect_only_cmd: str) -> int:
             active_tests_count += 1
 
     if active_tests_count == 0:
+        # Per codex finding #2: emit the full explicit-vacuous shape so QA can copy fields
+        # verbatim into manifest_verification without racy semantics.
         return _emit_cycle_diff_result(
             VERDICT_OK_VACUOUS,
             "no pytest-collectable files in cycle diff",
-            extra={"active_tests_count": 0, "per_file": per_file_diagnostics},
+            extra={
+                "active_tests_count": 0,
+                "pytest_collected_ok": None,
+                "vacuous_due_to_empty_active_set": True,
+                "per_file": per_file_diagnostics,
+            },
         )
     return _emit_cycle_diff_result(
         VERDICT_OK,
