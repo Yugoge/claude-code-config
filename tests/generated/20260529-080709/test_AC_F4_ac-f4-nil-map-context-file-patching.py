@@ -28,22 +28,52 @@ def test_AC_F4():
            containing status=skipped; graph_context conforms to empty_graph_context(STATUS_SKIPPED)
            output shape with structural_context={} and ambiguity_hypotheses=[]
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # IMPLEMENTATION NOTES (from BA check spec):
-    # 1. Create a temp directory (tempfile.mkdtemp()) — blast-radius-map.json must NOT exist there.
-    # 2. Write a minimal valid context JSON to a temp file:
-    #      {"task_id": "test-nil-map-f4-<timestamp>", "some_field": "value"}
-    # 3. Run: python3 scripts/graphify-enrich.py
-    #           --task-id test-nil-map-f4-<ts>
-    #           --context-file <tmpfile_path>
-    #    from PROJECT_DIR using subprocess.run(capture_output=True)
-    # 4. Assert proc.returncode == 0
-    # 5. Re-read the temp context JSON file (it should be updated in-place)
-    # 6. Assert "graph_context" in updated_json
-    # 7. Assert updated_json["graph_context"]["status"] == "skipped"
-    # 8. Assert updated_json["graph_context"].get("structural_context") == {}
-    # 9. Assert updated_json["graph_context"].get("ambiguity_hypotheses") == []
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — graphify-enrich.py --context-file nil-map path writes graph_context status=skipped with empty structural_context and ambiguity_hypotheses")
+    import os
+
+    task_id = f"test-nil-map-f4-{int(time.time())}"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Write a minimal valid context JSON to a temp file
+        ctx_path = Path(tmpdir) / "context.json"
+        ctx_data = {"task_id": task_id, "some_field": "value"}
+        ctx_path.write_text(json.dumps(ctx_data), encoding="utf-8")
+
+        # Run graphify-enrich.py — blast-radius-map.json does NOT exist for this task_id
+        env = os.environ.copy()
+        env["CLAUDE_PROJECT_DIR"] = str(PROJECT_DIR)
+
+        proc = subprocess.run(
+            ["python3", "scripts/graphify-enrich.py",
+             "--task-id", task_id,
+             "--context-file", str(ctx_path)],
+            capture_output=True,
+            cwd=str(PROJECT_DIR),
+            env=env,
+        )
+
+        assert proc.returncode == 0, (
+            f"graphify-enrich.py returned non-zero exit code {proc.returncode}\n"
+            f"stdout: {proc.stdout.decode()}\n"
+            f"stderr: {proc.stderr.decode()}"
+        )
+
+        # Re-read the context file — it should have been patched in-place
+        updated = json.loads(ctx_path.read_text(encoding="utf-8"))
+
+        assert "graph_context" in updated, (
+            "context JSON was not patched: 'graph_context' field is absent; "
+            "graphify-enrich.py nil-map path must patch context.json when --context-file provided"
+        )
+
+        gc = updated["graph_context"]
+        assert gc.get("status") == "skipped", (
+            f"graph_context.status expected 'skipped', got {gc.get('status')!r}"
+        )
+
+        assert gc.get("structural_context") == {}, (
+            f"graph_context.structural_context expected {{}}, got {gc.get('structural_context')!r}"
+        )
+
+        assert gc.get("ambiguity_hypotheses") == [], (
+            f"graph_context.ambiguity_hypotheses expected [], got {gc.get('ambiguity_hypotheses')!r}"
+        )
