@@ -155,6 +155,21 @@
         "file": "hooks/prompt-workflow.py",
         "expect": "match"
       }
+    },
+    {
+      "task_id": "20260527-132200",
+      "ac_id": "AC12",
+      "ac_uid": "ac12-command-coverage",
+      "type": "data",
+      "file": "tests/generated/20260527-132200/test_AC12_ac12-command-coverage.py",
+      "status": "active",
+      "hook_check": {
+        "type": "grep",
+        "pattern": "graphify-query\\.py.*graphify-enrich\\.py",
+        "scope": "commands/dev.md",
+        "expect": "match",
+        "note": "Verifies graphify integration presence in command files without asserting decimal step literals"
+      }
     }
   ],
   "archived_tests": []
