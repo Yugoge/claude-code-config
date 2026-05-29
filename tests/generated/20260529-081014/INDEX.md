@@ -1,13 +1,14 @@
 # 20260529-081014
 
-*Last updated: 2026-05-29T09:01:58Z*
-**Total entries**: 1
+*Last updated: 2026-05-29T09:02:13Z*
+**Total entries**: 2
 **Convention**: kebab
 
 ## Tree
 ```
 20260529-081014/
-└── `test_AC1_ac01_qa_vacuity_guard_manifest_mode.py` - Source: docs/dev/acceptance-criteria-20260529-081014.json AC1
+├── `test_AC1_ac01_qa_vacuity_guard_manifest_mode.py` - Source: docs/dev/acceptance-criteria-20260529-081014.json AC1
+└── `test_AC2_ac02_venv_repair_plural_symlinks.py` - Source: docs/dev/acceptance-criteria-20260529-081014.json AC2
 ```
 
 ---
