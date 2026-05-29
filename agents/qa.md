@@ -93,7 +93,7 @@ The orchestrator's dispatch prompt (`commands/dev.md` Step 6 "Verify these 5 dim
 
 ### Graphify BA-Validation Fail Gates (spec-20260527-061433)
 
-When `pre_query.json` or `graph_context` was provided to BA (i.e., graphify ran successfully at Step 1.5 and status=ok or status=degraded), QA MUST verify three additional fail conditions:
+When `pre_query.json` or `graph_context` was provided to BA (i.e., graphify ran successfully at pre-BA graph hydration (between Step 1 and Step 2) and status=ok or status=degraded), QA MUST verify three additional fail conditions:
 
 **Fail Gate G1 — candidate_anchors ignored**: When `structural_context.candidate_anchors` in `pre_query.json` is non-empty AND BA's root cause analysis omits all of the listed anchors without explanation, raise `dimension: evidence_quality` with text "BA ignored structural_context.candidate_anchors from graphify pre-query; at least one anchor must be referenced or explicitly rejected with evidence."
 
