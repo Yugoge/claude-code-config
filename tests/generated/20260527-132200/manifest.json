@@ -82,9 +82,10 @@
       "status": "active",
       "hook_check": {
         "type": "grep",
-        "pattern": "##+ Step [0-9]+\\.[0-9]",
+        "pattern": "Step [0-9]+\\.[0-9]+",
         "scope": "all_modified_files",
-        "expect": "no_match"
+        "expect": "no_match",
+        "note": "Updated by task 20260529-080709 F7: now covers prose references in addition to headings"
       }
     },
     {
