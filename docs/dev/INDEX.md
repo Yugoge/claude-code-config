@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-28T14:16:24Z*
-**Total entries**: 884
+*Last updated: 2026-05-29T08:14:23Z*
+**Total entries**: 896
 **Convention**: kebab
 
 ## Tree
@@ -204,6 +204,7 @@ dev/
 ├── `cleanliness-inspector-report-20260526-053746.json` - json config
 ├── `cleanliness-inspector-report-20260526-202532.json` - json config
 ├── `cleanliness-inspector-report-20260527-054705.json` - json config
+├── `cleanliness-inspector-report-20260527-132200.json` - json config
 ├── `cleanliness-inspector-report-d1e94e.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-170335.json` - json config
 ├── `cleanliness-inspector-report-dev-20260524-205811.json` - json config
@@ -263,6 +264,7 @@ dev/
 ├── `close-report-20260526-053746.md` - Close Report -- 20260526-053746
 ├── `close-report-20260526-202532.md` - Close Report: 20260526-202532
 ├── `close-report-20260527-054705.md` - Close Report: 20260527-054705
+├── `close-report-20260527-132200.md` - Close Report — 20260527-132200
 ├── `close-report-20260527-133200.md` - Close Report — 20260527-133200
 ├── `close-report-d1e94e-prior.md` - Close Debate Report
 ├── `close-report-d1e94e.md` - Close Debate Report — d1e94e
@@ -320,6 +322,7 @@ dev/
 ├── `completion-20260526-052559.md` - Development Completion Report — 20260526-052559
 ├── `completion-20260526-053746.md` - Development Completion Report -- 20260526-053746
 ├── `completion-20260527-054705.md` - Development Completion Report -- 20260527-054705
+├── `completion-20260527-132200.md` - Completion Report — 20260527-132200
 ├── `completion-d1e94e.md` - Development Completion Report — d1e94e
 ├── `completion-dev-20260524-170335.md` - Completion Report: dev-20260524-170335
 ├── `completion-dev-20260524-205811.md` - Completion Report
@@ -500,6 +503,7 @@ dev/
 ├── `dev-report-20260526-053746.json` - json config
 ├── `dev-report-20260526-202532.json` - json config
 ├── `dev-report-20260527-054705.json` - json config
+├── `dev-report-20260527-132200.json` - json config
 ├── `dev-report-20260527-133200.json` - json config
 ├── `dev-report-d1e94e.json` - json config
 ├── `dev-report-dev-20260107-091716.json` - json config
@@ -570,6 +574,7 @@ dev/
 ├── `prompt-inspector-report-20260526-053746.json` - json config
 ├── `prompt-inspector-report-20260526-202532.json` - json config
 ├── `prompt-inspector-report-20260527-054705.json` - json config
+├── `prompt-inspector-report-20260527-132200.json` - json config
 ├── `prompt-inspector-report-d1e94e.json` - json config
 ├── `prompt-inspector-report-dev-20260524-170335.json` - json config
 ├── `prompt-inspector-report-dev-20260524-205811.json` - json config
@@ -664,6 +669,7 @@ dev/
 ├── `qa-report-20260526-053746.json` - json config
 ├── `qa-report-20260526-202532.json` - json config
 ├── `qa-report-20260527-054705.json` - json config
+├── `qa-report-20260527-132200.json` - json config
 ├── `qa-report-20260527-133200.json` - json config
 ├── `qa-report-close-20260525-050824.json` - json config
 ├── `qa-report-close-20260525-095245.json` - json config
@@ -736,6 +742,7 @@ dev/
 ├── `style-inspector-report-20260526-053746.json` - json config
 ├── `style-inspector-report-20260526-202532.json` - json config
 ├── `style-inspector-report-20260527-054705.json` - json config
+├── `style-inspector-report-20260527-132200.json` - json config
 ├── `style-inspector-report-d1e94e.json` - json config
 ├── `style-inspector-report-dev-20260524-170335.json` - json config
 ├── `style-inspector-report-dev-20260524-205811.json` - json config
@@ -850,6 +857,7 @@ dev/
 ├── `ticket-dev-20260527-063758-T2.md` - BA Specification: Increase Commit Grant TTL from 10 to 30 Minutes
 ├── `ticket-dev-20260527-063758-T3.md` - BA Specification: Push-analyst grant TTL increase 180s -> 600s
 ├── `ticket-dev-20260527-063758-T4.md` - BA Specification: Fix `python` → `python3` and `CLAUDE_SESSION_ID` fallback
+├── `ticket-dev-20260529-081000.md` - BA Specification: Fix failing test — write-bulk-commit-sentinel.py session-ID fallback
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
 ├── `user-requirement-dev-20260518-214050.md` - No description
@@ -890,6 +898,10 @@ dev/
 ├── `user-requirement-dev-20260527-132135.md` - No description
 ├── `user-requirement-dev-20260527-132200.md` - No description
 ├── `user-requirement-dev-20260527-132220.md` - No description
+├── `user-requirement-dev-20260529-071720.md` - No description
+├── `user-requirement-dev-20260529-080709.md` - No description
+├── `user-requirement-dev-20260529-081000.md` - No description
+├── `user-requirement-dev-20260529-081014.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
