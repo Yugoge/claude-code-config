@@ -20,6 +20,7 @@
     "ENABLE_TOOL_SEARCH": "false",
     "CLAUDE_CODE_ENABLE_TASKS": "false",
     "CLAUDE_GRAPHIFY_ENABLED": "auto",
+    "_comment_graphify": "Graphify override env vars (leave unset to use defaults): GRAPHIFY_BIN=<path> overrides graphify CLI; CLAUDE_GRAPHIFY_CACHE_ROOT=<dir> overrides /var/tmp/claude-graphify",
     "_comment_anthropic": "以下为可选配置（已禁用）",
     "_disabled_anthropic": "[object Object]"
   },
@@ -189,7 +190,9 @@
       "Write(tests/generated/**)",
       "Edit(tests/generated/**)",
       "Bash(pytest tests/generated:*)",
-      "Bash(source ~/.claude/venv/bin/activate && pytest tests/generated:*)"
+      "Bash(source ~/.claude/venv/bin/activate && pytest tests/generated:*)",
+      "Bash(source ~/.claude/venv/bin/activate && python3 -m pytest tests/test_graphify_scripts.py:*)",
+      "Bash(source ~/.claude/venv/bin/activate && python3 -m pytest tests/test_graphify_workflow_contract.py:*)"
     ],
     "deny": [
       "Read(.env)",
@@ -301,7 +304,7 @@
       "Edit(.claude/CLAUDE.md)"
     ]
   },
-  "model": "sonnet",
+  "model": "opus[1m]",
   "hooks": {
     "SessionStart": [
       {
