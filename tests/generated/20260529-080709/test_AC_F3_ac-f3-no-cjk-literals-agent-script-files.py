@@ -24,19 +24,36 @@ def test_AC_F3():
            via pointer to docs/dev/ticket-20260527-132200.md; runtime behavior preserved (Python
            parses '\\u4e4b\\u524d' as the actual CJK char matching user input)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # IMPLEMENTATION NOTES (from BA check spec):
-    # Positive check — scripts/graphify-query.py MUST contain the literal text
-    #   之前  (backslash-u escape form, not the actual CJK glyph)
-    #   Pattern to search for: \\u4e4b\\u524d
-    #
-    # Negative check — agents/ba.md and agents/qa.md MUST NOT contain CJK code-point
-    #   characters from the set [之已现原之之] (CJK literals)
-    #   Use a Unicode range regex: [一-鿿] to catch any CJK literal broadly,
-    #   or use the explicit set from the AC check object.
-    #
-    # Read files as UTF-8 text; assert positive match on script, no-match on agent files.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — Unicode-escape form in graphify-query.py AND no CJK literals in ba.md/qa.md")
+    query_py = (PROJECT_DIR / "scripts/graphify-query.py").read_text(encoding="utf-8")
+    ba_md = (PROJECT_DIR / "agents/ba.md").read_text(encoding="utf-8")
+    qa_md = (PROJECT_DIR / "agents/qa.md").read_text(encoding="utf-8")
+
+    # Positive check — graphify-query.py must use Unicode escape for the first CJK trigger word
+    # The file should contain 之前 (之前 in Unicode escape form)
+    assert "\\u4e4b\\u524d" in query_py, (
+        "scripts/graphify-query.py: expected Unicode escape '\\u4e4b\\u524d' (之前) not found; "
+        "CJK literals must be replaced with Unicode escapes"
+    )
+
+    # Negative checks — no CJK literals in agent .md files
+    # Use broad CJK Unified Ideographs range U+4E00..U+9FFF plus extensions
+    cjk_pattern = re.compile(r"[一-鿿㐀-䶿]")
+
+    ba_matches = cjk_pattern.findall(ba_md)
+    assert not ba_matches, (
+        f"agents/ba.md: found {len(ba_matches)} CJK literal character(s): "
+        f"{ba_matches[:5]} — replace with pointer to docs/dev/ticket-20260527-132200.md"
+    )
+
+    qa_matches = cjk_pattern.findall(qa_md)
+    assert not qa_matches, (
+        f"agents/qa.md: found {len(qa_matches)} CJK literal character(s): "
+        f"{qa_matches[:5]} — replace with pointer to docs/dev/ticket-20260527-132200.md"
+    )
+
+    # Also verify graphify-query.py itself has no raw CJK chars (only Unicode escapes)
+    query_cjk = cjk_pattern.findall(query_py)
+    assert not query_cjk, (
+        f"scripts/graphify-query.py: found {len(query_cjk)} raw CJK character(s): "
+        f"{query_cjk[:5]} — must use Unicode escape form only"
+    )
