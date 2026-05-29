@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-29T21:13:30Z*
-**Total entries**: 981
+*Last updated: 2026-05-29T21:13:39Z*
+**Total entries**: 982
 **Convention**: kebab
 
 ## Tree
@@ -912,6 +912,7 @@ dev/
 ├── `ticket-20260529-080709.md` - BA Specification: Graphify Close-Blocker Fixes (Cycle 2)
 ├── `ticket-20260529-081014.md` - BA Specification: QA empty-active vacuity guard + venv broken-symlink repair
 ├── `ticket-20260529-164939.md` - BA Specification: Replace bash sentinel guard with prose in commands/dev.md
+├── `ticket-20260529-210616.md` - BA Specification: score-update reversal + /close premature-score guard + clear 5 carried-forward test failures
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-close-cont-20260524-170335.md` - Continuation: Fix bare python3 invocations introduced in dev-20260524-170335
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
