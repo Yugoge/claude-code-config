@@ -121,14 +121,24 @@
         "details": "python3 -m pytest tests/generated/20260529-081014/ -q → 26 passed in 1.50s"
       },
       {
-        "test": "Provenance — files_modified vs git diff (Step 5 forward check)",
-        "result": "warning",
-        "details": "docs/dev/context-20260529-081014.json is listed in dev.files_modified but is NOT in git diff (it's untracked/new). Should be in dev.files_created. Misclassification — content patch (AC5 added to R1) is real and verified."
+        "test": "Provenance — files_modified vs git diff (Step 5 forward check) [ITER-2]",
+        "result": "pass",
+        "details": "ITER-2 PASS. agents/qa.md → ' M' OK; tests/generated/manifest.json → ' M' OK. 2/2 files_modified entries match 'M' in git status. context-20260529-081014.json correctly moved to files_created (was misclassified in iter-1)."
       },
       {
-        "test": "Provenance — git diff vs files_modified ∪ files_created (Step 5 reverse check)",
-        "result": "warning",
-        "details": "git diff shows ~12 files NOT in dev's lists: 8 INDEX.md (auto-generated), 8 dev-20260529-081000 artifacts (prior cycle carryover), agents/graphify.md, commands/dev.md, hooks/tests/test_bulk_commit_sentinel.py, logs/lifecycle.jsonl, scripts/INDEX.md+README.md. Cause: baseline_dirty_snapshot was empty but working tree had pre-existing dirty state. Not dev hiding work — substantive deliverables are properly declared — but reporting accuracy gap."
+        "test": "Provenance — files_created vs git status (Step 5 forward check) [ITER-2]",
+        "result": "pass",
+        "details": "ITER-2 PASS. 10/10 files_created entries match '??' in git status. 4 direct file matches (scripts/qa-manifest-guard.py, scripts/repair-venv.sh, docs/reference/venv-repair.md, docs/dev/context-20260529-081014.json) + 6 covered via parent untracked dir tests/generated/20260529-081014/. All exist on disk."
+      },
+      {
+        "test": "Provenance — git diff vs files_modified ∪ files_created (Step 5 reverse check) [ITER-2]",
+        "result": "pass",
+        "details": "ITER-2 PASS. baseline_dirty_snapshot now populated with 32 entries; all 32 verified present on disk. Remaining 'unreported' git diff entries (4 docs/dev/*-dev-20260529-092512.* + 2 docs/dev/qa-report-20260529-081014.json + docs/dev/dev-report-20260529-081014.json + docs/dev/ticket-20260529-081014.md + docs/dev/acceptance-criteria-20260529-081014.json) are: (a) cross-cycle artifacts from concurrent dev-20260529-092512 cycle (timestamps 12:43-12:50 vs this cycle's dev-report 12:48) — appeared in working tree AFTER dev iter-2 captured baseline_dirty_snapshot; (b) self-referential artifacts (dev-report, qa-report) that cannot list themselves; (c) BA's own cycle artifacts (ticket, acceptance-criteria) created before dev iter-2 started — these are legitimately QA-cycle-context but iter-2 did not include them in baseline_dirty_snapshot, marginal observation only. Cycle's own dev-report, qa-report, ticket, AC, and user-requirement files are excluded from provenance scope by convention. No remaining provenance objections."
+      },
+      {
+        "test": "Provenance — baseline_dirty_snapshot integrity [ITER-2]",
+        "result": "pass",
+        "details": "ITER-2 PASS. baseline_dirty_snapshot non-empty (32 entries, 1045 chars). All 32 listed paths verified to exist in working tree. Breakdown: 21 M-tracked entries (prior task 20260527-132200 modifications: agents/* META edits, commands/*, scripts/graphify-*, docs/dev/INDEX.md, lifecycle.jsonl) + 11 ?? entries (prior cycle 080709 BA/test-writer artifacts + auto-generated .last-update + tests/generated/20260529-080709/ directory). _baseline_dirty_snapshot_doc field explains derivation."
       }
     ],
     "code_quality_findings": [],
