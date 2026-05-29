@@ -969,6 +969,33 @@ for t in tokens:
 # allowlist branch. Bare-writer (a) and pure-read (b) decisions happen LAST,
 # AFTER the deny gauntlet above (codex iter-3 F3 fix).
 
+# False-positive guard (dev-20260529-210759): if the protected name appears ONLY
+# as a substring of a longer argument token (not as a standalone path token),
+# the command is passing the name as string argument text, not executing it.
+# Examples: codex exec --prompt "...write-bulk-commit-sentinel.py..."
+#           python3 graphify-query.py --requirement "...write-bulk-commit-sentinel.py..."
+# These reach here because they have no compound separators, no recursive shell,
+# and no write-action tokens. The shlex tokenizer (posix=True) unquotes the
+# string arg, so the protected name appears as a substring of the arg token.
+_SENTINEL_SCRIPT = 'write-bulk-commit-sentinel.py'
+_SENTINEL_PATH = '/tmp/claude-bulk-commit-sentinel-'
+_sentinel_in_arg_only = False
+for _t in tokens:
+    # If any token IS the standalone path (or a path ending with it), it is a
+    # real executable reference — no false-positive guard applies.
+    if _t == _SENTINEL_SCRIPT or _t.endswith('/' + _SENTINEL_SCRIPT):
+        _sentinel_in_arg_only = False
+        break
+    if _t.startswith(_SENTINEL_PATH) and not any(c in _t[len(_SENTINEL_PATH):] for c in ' \t'):
+        _sentinel_in_arg_only = False
+        break
+    # Protected name appears embedded in a longer token (argument text).
+    if _SENTINEL_SCRIPT in _t or _SENTINEL_PATH in _t:
+        _sentinel_in_arg_only = True
+if _sentinel_in_arg_only:
+    print('PURE_READ')
+    sys.exit(0)
+
 # Allowlist (a): BARE official-writer — first token (or first 2 tokens for
 # `python3 scripts/...`) must match the official writer path EXACTLY. The
 # regex form is preserved on the trimmed text but ONLY reaches here when the
