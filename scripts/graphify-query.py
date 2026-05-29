@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-graphify-query.py — Step 1.5 deterministic pre-BA graph hydrator.
+graphify-query.py — deterministic pre-BA graph hydrator (runs between Step 1 and Step 2).
 
 Extracts file/concept mentions from user requirement text using 3-layer extraction:
   Layer 1 — deterministic rules (file extensions, path separators, known prefixes)

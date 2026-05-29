@@ -1,6 +1,6 @@
 # scripts
 
-*Last updated: 2026-05-29T12:47:46Z*
+*Last updated: 2026-05-29T12:47:57Z*
 **Total entries**: 87
 **Convention**: kebab
 
@@ -65,7 +65,7 @@ scripts/
 ├── `generate-folder-readme.sh` - Description: Generate README.md for folder (purpose and organization rules)
 ├── `graphify-enrich.py` - graphify-enrich.py — pre-DEV focused subgraph extractor (runs between Step 7 and Step 8)
 ├── `graphify-maintain.py` - graphify-maintain.py — Global Graphify cache lifecycle manager
-├── `graphify-query.py` - graphify-query.py — Step 1.5 deterministic pre-BA graph hydrator
+├── `graphify-query.py` - graphify-query.py — deterministic pre-BA graph hydrator (runs between Step 1 and Step 2)
 ├── `graphify_lib.py` - graphify_lib.py — shared library for Graphify knowledge-graph integration
 ├── `install-checkpoint-refspec.sh` - install-checkpoint-refspec.sh — idempotently add refs/checkpoints/* to
 ├── `iterate-failed-pipelines.py` - Reads pipelines JSON path; outputs iteration plan JSON to stdout. The orchestrator
