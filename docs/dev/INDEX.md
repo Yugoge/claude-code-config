@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-29T16:51:51Z*
-**Total entries**: 956
+*Last updated: 2026-05-29T16:53:29Z*
+**Total entries**: 958
 **Convention**: kebab
 
 ## Tree
@@ -54,6 +54,7 @@ dev/
 ├── `acceptance-criteria-20260527-132200.json` - json config
 ├── `acceptance-criteria-20260529-080709.json` - json config
 ├── `acceptance-criteria-20260529-081014.json` - json config
+├── `acceptance-criteria-20260529-164939.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2.json` - json config
 ├── `acceptance-criteria-d1e94e.json` - json config
@@ -892,6 +893,7 @@ dev/
 ├── `ticket-20260527-133200.md` - BA Specification: Changelog-analyst warn-and-skip for provenance-anomaly files in BULK=false mode
 ├── `ticket-20260529-080709.md` - BA Specification: Graphify Close-Blocker Fixes (Cycle 2)
 ├── `ticket-20260529-081014.md` - BA Specification: QA empty-active vacuity guard + venv broken-symlink repair
+├── `ticket-20260529-164939.md` - BA Specification: Replace bash sentinel guard with prose in commands/dev.md
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-close-cont-20260524-170335.md` - Continuation: Fix bare python3 invocations introduced in dev-20260524-170335
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
