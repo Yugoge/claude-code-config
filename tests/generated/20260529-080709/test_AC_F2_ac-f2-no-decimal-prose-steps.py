@@ -22,18 +22,29 @@ def test_AC_F2():
     THEN:  zero matches in all three files; equivalent prose uses 'between Step 7 and Step 8' or
            'between Step 1 and Step 2' phrasing
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # IMPLEMENTATION NOTES (from BA check spec):
-    # Negative check — pattern 'Step [0-9]+\.[0-9]+' MUST NOT appear in any of:
-    #   agents/graphify.md, agents/dev.md, agents/qa.md
-    # Note: do NOT assert literal "Step 1.5" or "Step 7.5" strings; use the
-    #   general decimal-step regex per AC constraint.
-    #
-    # Positive check — pattern 'between Step 7 and Step 8' MUST appear in:
-    #   agents/graphify.md, agents/dev.md
-    #
-    # Use re.search() against file text; collect all violations before asserting.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — no decimal prose steps in agent files AND positive 'between Step N and Step N+1' phrasing check")
+    graphify_md = (PROJECT_DIR / "agents/graphify.md").read_text(encoding="utf-8")
+    dev_md = (PROJECT_DIR / "agents/dev.md").read_text(encoding="utf-8")
+    qa_md = (PROJECT_DIR / "agents/qa.md").read_text(encoding="utf-8")
+
+    # Negative check — no decimal step patterns in any of the three files
+    violations = []
+    for fname, content in [
+        ("agents/graphify.md", graphify_md),
+        ("agents/dev.md", dev_md),
+        ("agents/qa.md", qa_md),
+    ]:
+        m = re.search(r"Step [0-9]+\.[0-9]+", content)
+        if m:
+            violations.append(f"{fname}: found '{m.group()}' at position {m.start()}")
+
+    assert not violations, (
+        "Decimal step references found (should use 'between Step N and Step N+1'):\n"
+        + "\n".join(violations)
+    )
+
+    # Positive check — "between Step 7 and Step 8" phrasing must be present
+    assert re.search(r"between Step 7 and Step 8", graphify_md), \
+        "agents/graphify.md: missing 'between Step 7 and Step 8' phrasing"
+
+    assert re.search(r"between Step 7 and Step 8", dev_md), \
+        "agents/dev.md: missing 'between Step 7 and Step 8' phrasing"
