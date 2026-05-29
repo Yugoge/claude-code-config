@@ -2,6 +2,7 @@
   "request_id": "dev-20260529-092512",
   "task_id": "dev-20260529-092512",
   "timestamp": "2026-05-29T09:25:12Z",
+  "revision": "pass2 (2026-05-29) — Item A Class-1/Class-2 reclassification after QA ba-validation pass1 rejection; see prior_attempts. Items F/C/B unchanged and approved as-is.",
   "complexity_tier": "COMPLEX",
   "risk_level": "high",
   "_risk_level_doc": "high = security hook surface (Item A modifies pretool-bash-safety.sh, the authoritative bash-safety gate). A mis-converted rule can silently disable a block (false negative). Items F/C/B are SMALL-STANDARD; the cycle inherits the highest item's tier.",
