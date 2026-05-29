@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-29T08:14:23Z*
-**Total entries**: 896
+*Last updated: 2026-05-29T08:54:57Z*
+**Total entries**: 908
 **Convention**: kebab
 
 ## Tree
@@ -52,6 +52,8 @@ dev/
 ├── `acceptance-criteria-20260526-202532.json` - json config
 ├── `acceptance-criteria-20260527-054705.json` - json config
 ├── `acceptance-criteria-20260527-132200.json` - json config
+├── `acceptance-criteria-20260529-080709.json` - json config
+├── `acceptance-criteria-20260529-081014.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2.json` - json config
 ├── `acceptance-criteria-d1e94e.json` - json config
@@ -151,6 +153,7 @@ dev/
 ├── `ba-qa-report-20260527-132200-pass2.json` - json config
 ├── `ba-qa-report-20260527-132200-pass3.json` - json config
 ├── `ba-qa-report-20260527-132200.json` - json config
+├── `ba-qa-report-20260529-080709.json` - json config
 ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 ├── `ba-qa-report-d1e94e.json` - json config
 ├── `ba-qa-report-dev-20260524-170335.json` - json config
@@ -162,6 +165,7 @@ dev/
 ├── `ba-qa-report-dev-20260527-063758-T3.json` - json config
 ├── `ba-qa-report-dev-20260527-063758-T4-pass5.json` - json config
 ├── `ba-qa-report-dev-20260527-063758-T4.json` - json config
+├── `ba-qa-report-dev-20260529-081000.json` - json config
 ├── `ba-report-spec-20260520-221059.json` - json config
 ├── `cleanliness-inspector-report-20260517-153856.json` - json config
 ├── `cleanliness-inspector-report-20260517-155838.json` - json config
@@ -333,6 +337,7 @@ dev/
 ├── `completion-dev-20260526-203808-manifest.md` - Development Completion Report — dev-20260526-203808-manifest
 ├── `completion-dev-20260526-203808.md` - Development Completion Report — dev-20260526-203808
 ├── `completion-dev-20260527-063758.md` - Completion Report — dev-20260527-063758
+├── `completion-dev-20260529-081000.md` - Completion Report — dev-20260529-081000
 ├── `context-20260416-063500.json` - json config
 ├── `context-20260416-073000.json` - json config
 ├── `context-20260510-191533.json` - json config
@@ -395,6 +400,8 @@ dev/
 ├── `context-20260527-054705.json` - json config
 ├── `context-20260527-132200.json` - json config
 ├── `context-20260527-133200.json` - json config
+├── `context-20260529-080709.json` - json config
+├── `context-20260529-081014.json` - json config
 ├── `context-75463e-DH.json` - json config
 ├── `context-d1e94e-CYCLE2-round2.json` - json config
 ├── `context-d1e94e-CYCLE2.json` - json config
@@ -423,6 +430,7 @@ dev/
 ├── `context-dev-20260527-063758-T2.json` - json config
 ├── `context-dev-20260527-063758-T3.json` - json config
 ├── `context-dev-20260527-063758-T4.json` - json config
+├── `context-dev-20260529-081000.json` - json config
 ├── `context-iter2-dev-20260111-193314.json` - json config
 ├── `dev-report-20260110-001044.json` - json config
 ├── `dev-report-20260416-063500-iter2.json` - json config
@@ -530,6 +538,7 @@ dev/
 ├── `dev-report-dev-20260527-063758-T3.json` - json config
 ├── `dev-report-dev-20260527-063758-T4.json` - json config
 ├── `dev-report-dev-20260527-063758.json` - json config
+├── `dev-report-dev-20260529-081000.json` - json config
 ├── `meta-assessment-20260519-161035.json` - json config
 ├── `note-20260524-123039-root-bin-manual-commit.md` - Manual Commit Instructions: /root/bin/happy-session-recovery.sh
 ├── `observations-ledger.md` - Observations Ledger
@@ -698,6 +707,7 @@ dev/
 ├── `qa-report-dev-20260527-063758-T2.json` - json config
 ├── `qa-report-dev-20260527-063758-T3.json` - json config
 ├── `qa-report-dev-20260527-063758-T4.json` - json config
+├── `qa-report-dev-20260529-081000.json` - json config
 ├── `qa-report-iter2-dev-20260107-091716.json` - json config
 ├── `refined-context-dev-20260111-193314.json` - json config
 ├── `style-inspector-report-20260517-153856.json` - json config
@@ -837,6 +847,8 @@ dev/
 ├── `ticket-20260527-054705.md` - BA Specification: Fix 3 Codex Assessment Residuals
 ├── `ticket-20260527-132200.md` - BA Specification: Graphify Knowledge Graph Integration — Dual-Touchpoint Architecture
 ├── `ticket-20260527-133200.md` - BA Specification: Changelog-analyst warn-and-skip for provenance-anomaly files in BULK=false mode
+├── `ticket-20260529-080709.md` - BA Specification: Graphify Close-Blocker Fixes (Cycle 2)
+├── `ticket-20260529-081014.md` - BA Specification: QA empty-active vacuity guard + venv broken-symlink repair
 ├── `ticket-75463e-DH.md` - BA Specification: Close `/allow` grant leakage (D) and PostToolUse:Agent tracker race (H) — iter3
 ├── `ticket-close-cont-20260524-170335.md` - Continuation: Fix bare python3 invocations introduced in dev-20260524-170335
 ├── `ticket-d1e94e-CYCLE2-round2.md` - BA Specification: Dev Harness Extension — Cycle 2 Remediation
