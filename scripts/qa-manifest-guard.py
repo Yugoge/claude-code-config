@@ -87,12 +87,16 @@ def evaluate(manifest: Dict[str, Any]) -> Tuple[str, str]:
     vacuous_declared = manifest.get("vacuous_due_to_empty_active_set", False) is True
     vacuous_reason = manifest.get("vacuous_reason")
 
-    # Non-vacuous path: active_tests_count > 0
-    if isinstance(active, int) and active > 0:
+    # Non-vacuous path: active_tests_count > 0.
+    # IMPORTANT: bool is a subclass of int in Python; `True > 0` evaluates True.
+    # Use `type(active) is int` to reject bools that would otherwise mascarade as integer counts
+    # (codex finding #6).
+    if type(active) is int and active > 0:
         return (VERDICT_OK, f"active_tests_count={active} (>0); invariant not triggered")
 
     # active_tests_count == 0 path: vacuity invariant applies.
-    if active == 0:
+    # Same strict-int check: only literal int 0 counts as zero (not False).
+    if type(active) is int and active == 0:
         # Invariant: pytest_collected_ok MUST NOT be true when active==0.
         if pytest_ok is True:
             return (
