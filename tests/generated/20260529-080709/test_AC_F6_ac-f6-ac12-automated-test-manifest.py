@@ -26,17 +26,31 @@ def test_AC_F6():
            presence in command files (graphify-query.py/graphify-enrich.py references in
            commands/dev.md) without asserting 'Step 1.5' or 'Step 7.5' literal strings
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # IMPLEMENTATION NOTES (from BA check spec):
-    # 1. Assert MANIFEST_PATH.exists()
-    # 2. Load manifest JSON; assert len(manifest["active_tests"]) == 12
-    # 3. Assert TEST_AC12_PATH.exists()
-    # 4. Read TEST_AC12_PATH as text
-    # 5. Assert "graphify-query.py" in test_text OR "graphify-enrich.py" in test_text
-    #    (semantic integration reference present)
-    # 6. Assert "Step 1.5" NOT in test_text  (no decimal prose step literals)
-    # 7. Assert "Step 7.5" NOT in test_text  (no decimal prose step literals)
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — manifest has 12 active_tests, test_AC12 exists, contains graphify refs, no decimal-step literal assertions")
+    assert MANIFEST_PATH.exists(), f"manifest.json not found at {MANIFEST_PATH}"
+
+    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    active = manifest.get("active_tests", [])
+    assert len(active) == 12, (
+        f"manifest.json active_tests count expected 12, got {len(active)}; "
+        f"AC12 entry may be missing"
+    )
+
+    assert TEST_AC12_PATH.exists(), (
+        f"test_AC12_ac12-command-coverage.py not found at {TEST_AC12_PATH}"
+    )
+
+    test_text = TEST_AC12_PATH.read_text(encoding="utf-8")
+
+    # Semantic integration reference must be present (no decimal-step-literal assertions)
+    assert ("graphify-query.py" in test_text or "graphify-enrich.py" in test_text), (
+        "test_AC12 must reference graphify-query.py or graphify-enrich.py "
+        "to verify semantic integration presence"
+    )
+
+    # No decimal prose step literals
+    assert "Step 1.5" not in test_text, (
+        "test_AC12 must NOT assert 'Step 1.5' literal string (style fix removes it)"
+    )
+    assert "Step 7.5" not in test_text, (
+        "test_AC12 must NOT assert 'Step 7.5' literal string (style fix removes it)"
+    )
