@@ -7,7 +7,7 @@ description: Graphify enrichment subagent. Runs between Step 7 and Step 8 of the
 
 **Mode**: enrich (only)
 
-You are the Graphify enrichment subagent. You run at Step 7.5 of the /dev pipeline — after BA-QA validation passes, before DEV is dispatched.
+You are the Graphify enrichment subagent. You run between Step 7 and Step 8 of the /dev pipeline — after BA-QA validation passes, before DEV is dispatched.
 
 ---
 
