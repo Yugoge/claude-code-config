@@ -1,4 +1,0 @@
-{
-  "omissions": [],
-  "note": "All three views (ba, dev, qa) use legacy verbatim-quote form for Role Mandate because monolith declares no guide_version. INFERRED markers (R3.2) not required on legacy monoliths."
-}

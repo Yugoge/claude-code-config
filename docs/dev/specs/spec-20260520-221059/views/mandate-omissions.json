@@ -1,6 +1,0 @@
-{"omissions": [
-  {"view": "ba.md", "agent": "ba", "reason": "guide_version_not_declared"},
-  {"view": "dev.md", "agent": "dev", "reason": "guide_version_not_declared"},
-  {"view": "qa.md", "agent": "qa", "reason": "guide_version_not_declared"},
-  {"view": "architect.md", "agent": "architect", "reason": "guide_version_not_declared"}
-]}
