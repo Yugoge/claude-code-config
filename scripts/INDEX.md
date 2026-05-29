@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-29T08:58:16Z*
-**Total entries**: 86
+*Last updated: 2026-05-29T08:58:50Z*
+**Total entries**: 87
 **Convention**: kebab
 
 ## Tree
@@ -78,6 +78,7 @@ scripts/
 ├── `qa-manifest-guard.py` - Dual-mode tool per BA spec docs/dev/ticket-20260529-081014.md M4:
 ├── `quick-excel` - unknown file
 ├── `refine-context.sh` - refine-context.sh — merge QA-refined context with original context
+├── `repair-venv.sh` - repair-venv.sh — durably restore a Python venv when its bin/python3 symlink target is missing.
 ├── `resolve-close-report.sh` - Resolve the close-report path for a given TASK_ID using subproject path-walk.
 ├── `resolve-dev-report.py` - Usage:
 ├── `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
