@@ -1,0 +1,73 @@
+{
+  "request_id": "20260529-081014",
+  "timestamp": "2026-05-29T15:21:36Z",
+  "inspector": "cleanliness-inspector",
+  "mode": "--changed-files",
+  "scope_contract": "Cleanliness-of-THIS-diff only. File-level findings tagged with introduced_in_diff. Pre-existing/historical dirt is ignored and non-blocking per Section 5.4 rule 3 / AC-2.6(b). Findings without introduced_in_diff:true are advisory/non-blocking by default-safe rule.",
+  "changed_files_inspected": [
+    "agents/qa.md",
+    "tests/generated/manifest.json",
+    "scripts/qa-manifest-guard.py",
+    "scripts/repair-venv.sh",
+    "docs/reference/venv-repair.md",
+    "docs/dev/context-20260529-081014.json",
+    "tests/generated/20260529-081014/test_AC1_ac1_qa_vacuity_guard.py",
+    "tests/generated/20260529-081014/test_AC2_ac2_venv_repair_runnable.py",
+    "tests/generated/20260529-081014/test_AC3_ac3_qa_md_invariant_dual_region.py",
+    "tests/generated/20260529-081014/test_AC4_ac4_guard_regression_matrix.py",
+    "tests/generated/20260529-081014/test_AC5_ac5_cycle_diff_force_include.py"
+  ],
+  "file_placement_verdicts": [
+    {"file": "agents/qa.md", "git_status": "M", "introduced_in_diff": false, "location_correct": true, "note": "Pre-existing agent definition; agents/ is the correct location. Only modified (Phase 5 changes), not newly placed."},
+    {"file": "tests/generated/manifest.json", "git_status": "M", "introduced_in_diff": false, "location_correct": true, "note": "Pre-existing aggregate manifest in correct location; only modified."},
+    {"file": "scripts/qa-manifest-guard.py", "git_status": "??", "introduced_in_diff": true, "location_correct": true, "note": "scripts/ is correct for a guard script; kebab-case name matches convention (graphify-query.py, spec-check.py)."},
+    {"file": "scripts/repair-venv.sh", "git_status": "??", "introduced_in_diff": true, "location_correct": true, "note": "scripts/ correct for an operational shell script; kebab-case name fine."},
+    {"file": "docs/reference/venv-repair.md", "git_status": "??", "introduced_in_diff": true, "location_correct": true, "note": "Placed in docs/reference/ (standard subdir for reference/how-to docs), NOT dumped in repo root. Correctly categorized; name matches the script it documents."},
+    {"file": "docs/dev/context-20260529-081014.json", "git_status": "??", "introduced_in_diff": true, "location_correct": true, "note": "docs/dev/ is the standard location for dev-workflow JSON context, namespaced by task_id timestamp."},
+    {"file": "tests/generated/20260529-081014/test_AC1_ac1_qa_vacuity_guard.py", "git_status": "??", "introduced_in_diff": true, "location_correct": true, "note": "Correctly namespaced under per-task cycle dir; test_AC<n>_<slug> naming matches sibling cycle dirs."},
+    {"file": "tests/generated/20260529-081014/test_AC2_ac2_venv_repair_runnable.py", "git_status": "??", "introduced_in_diff": true, "location_correct": true, "note": "Correct cycle dir + naming."},
+    {"file": "tests/generated/20260529-081014/test_AC3_ac3_qa_md_invariant_dual_region.py", "git_status": "??", "introduced_in_diff": true, "location_correct": true, "note": "Correct cycle dir + naming."},
+    {"file": "tests/generated/20260529-081014/test_AC4_ac4_guard_regression_matrix.py", "git_status": "??", "introduced_in_diff": true, "location_correct": true, "note": "Correct cycle dir + naming."},
+    {"file": "tests/generated/20260529-081014/test_AC5_ac5_cycle_diff_force_include.py", "git_status": "??", "introduced_in_diff": true, "location_correct": true, "note": "Correct cycle dir + naming."}
+  ],
+  "findings": {
+    "misplaced_docs": [],
+    "naming_violations": [],
+    "archive_candidates": [],
+    "dev_context_files": [],
+    "temp_files": [],
+    "duplicate_scripts": [],
+    "duplicate_tests": [],
+    "non_functional_files": [],
+    "non_functional_folders": [],
+    "orphaned_subagents": [],
+    "unreferenced_scripts": [],
+    "orphaned_tests": [],
+    "historical_docs": [],
+    "docs_categorization": [],
+    "obsolete_functionality": [],
+    "orphan_commands": [],
+    "dead_functions": [],
+    "duplicate_content": [],
+    "gitignore_coverage": []
+  },
+  "summary": {
+    "total_issues": 0,
+    "critical": 0,
+    "major": 0,
+    "minor": 0,
+    "blocking_new_violations": 0,
+    "estimated_space_saved": "0 MB",
+    "verdict": "CLEAN — no file-organization cleanliness violations introduced by this cycle's diff. All 11 changed files are in correct locations with conformant naming. The new reference doc (venv-repair.md) was correctly placed in docs/reference/ rather than repo root. No temp files, build artifacts, duplicate scripts, or stray files detected in the diff scope."
+  },
+  "limitations": [
+    "Bash tool stdout rendering was degraded for part of this session; md5 byte-level dedup and mtime stat could not be machine-confirmed. This does not affect any verdict: duplicate-content would require a second identical file (none appears in git status or Glob), and mtime only matters for archive-candidate aging (none of these active just-created cycle artifacts are archive candidates). File existence and placement are confirmed authoritatively by git status (session-start snapshot) and Glob."
+  ],
+  "codex_consult": {
+    "invoked": true,
+    "status": "failed_parse",
+    "feedback_summary": "Skill(codex) returned no parseable response in this session (tool-output rendering degraded; Bash probes for codex availability also rendered empty). Treated as failed_parse per graceful-fallback contract.",
+    "findings": [],
+    "feedback_incorporated": "self-review substituted: ran 9-point adversarial self-review covering false positives/negatives, severity calibration, Safety-Rule compliance, --changed-files scope accuracy, docs/reference vs docs/guides bucketing, naming conventions, duplicate detection, temp/build-artifact detection, and the md5/mtime verification caveat. Self-review confirmed the zero-violation verdict; the verification caveat is recorded as a documented limitation rather than an 'unknown' finding because no condition under which it would change a verdict is present in the diff."
+  }
+}
