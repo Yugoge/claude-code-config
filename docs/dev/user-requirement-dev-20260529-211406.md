@@ -1,0 +1,1 @@
+/dev 经常会出现一个可以改进的地方，就是其他session不小心把这个session的内容--bulk commit了，这个session commit command运行的时候就会被block。现在为commit自动加入应对这个的方式，就是对自己这一轮开发的内容覆盖新的commit（不动之前bulk的）
