@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-graphify-enrich.py — Step 7.5 pre-DEV focused subgraph extractor.
+graphify-enrich.py — pre-DEV focused subgraph extractor (runs between Step 7 and Step 8).
 
 Runs as graphify subagent (mode=enrich) after BA-QA validation passes, before DEV.
 Operations:

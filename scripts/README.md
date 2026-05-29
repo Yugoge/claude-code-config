@@ -42,7 +42,7 @@ Organization and usage documentation for `scripts/`.
 - `execute-push.py` - Eliminates the timing window that exists when validate + push are && -chained
 - `generate-folder-index.sh` - Description: Generate INDEX.md for folder (inventory of contents)
 - `generate-folder-readme.sh` - Description: Generate README.md for folder (purpose and organization rules)
-- `graphify-enrich.py` - graphify-enrich.py — Step 7.5 pre-DEV focused subgraph extractor
+- `graphify-enrich.py` - graphify-enrich.py — pre-DEV focused subgraph extractor (runs between Step 7 and Step 8)
 - `graphify-maintain.py` - graphify-maintain.py — Global Graphify cache lifecycle manager
 - `graphify-query.py` - graphify-query.py — Step 1.5 deterministic pre-BA graph hydrator
 - `graphify_lib.py` - graphify_lib.py — shared library for Graphify knowledge-graph integration
