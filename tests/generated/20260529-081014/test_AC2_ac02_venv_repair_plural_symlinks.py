@@ -57,6 +57,36 @@ def test_idempotent_no_mtime_change():
     assert before == after, f"mtime changed on idempotent run: {before} -> {after}"
 
 
+def test_refuses_to_delete_real_non_symlink_file(tmp_path):
+    """Regression (close 20260529-081014 codex BLOCKER #2): repair-venv MUST refuse
+    to rm a real (non-symlink) file at bin/python*. Earlier code unconditionally
+    `rm -f`ed the target when its --version probe failed, which would silently
+    delete a real Python binary or any user-placed file. Guard added at
+    scripts/repair-venv.sh: refuse-and-exit-1 when TARGET exists and is not a symlink.
+    """
+    venv = tmp_path / "throwaway-venv"
+    (venv / "bin").mkdir(parents=True)
+    (venv / "pyvenv.cfg").write_text("home = /usr/bin\nexecutable = /usr/bin/python3\n")
+    # Plant a REAL non-symlink file at bin/python whose --version exits non-zero,
+    # so the script's needs_repair branch would be reached on the un-guarded code.
+    real_file = venv / "bin" / "python"
+    real_file.write_text("#!/bin/sh\nexit 99\n")
+    real_file.chmod(0o755)
+    assert real_file.exists() and not real_file.is_symlink()
+    before_inode = real_file.stat().st_ino
+    proc = _run(["bash", str(REPAIR), "--venv", str(venv)])
+    assert proc.returncode == 1, (
+        f"expected exit 1 (guard refused), got {proc.returncode}\n"
+        f"stderr={proc.stderr!r}\nstdout={proc.stdout!r}"
+    )
+    assert "refusing to delete a real" in proc.stderr or "non-symlink" in proc.stderr, (
+        f"expected refusal message in stderr; got {proc.stderr!r}"
+    )
+    assert real_file.exists(), "repair-venv silently deleted a real non-symlink file"
+    assert not real_file.is_symlink(), "repair-venv replaced the real file with a symlink"
+    assert real_file.stat().st_ino == before_inode, "real file was replaced (inode changed)"
+
+
 def test_no_hardcoded_interpreter_target():
     text = (REPO / "scripts" / "repair-venv.sh").read_text()
     # Strip comments and pyvenv.cfg lines, then look for /usr/bin/python3.NN literals.
