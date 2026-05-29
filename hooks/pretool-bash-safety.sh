@@ -1314,7 +1314,10 @@ fi
 
 # Block: kill on PIDs that aren't verified dev processes
 # (prevents accidentally killing production session processes)
-if echo "$COMMAND" | grep -qE '(^|[;&|]\s*)kill\s+[0-9]'; then
+# Uses COMMAND_CONTEXT_STRIPPED: kill is already in DANGER_COMMANDS, so its args are
+# EXPOSED (unquoted) by the stripper — kill "1234" -> kill 1234 still matches, while
+# echo "kill 1234" -> echo "" no longer false-positives (Item A, mirrors the kill -sig rule).
+if echo "$COMMAND_CONTEXT_STRIPPED" | grep -qE '(^|[;&|]\s*)kill\s+[0-9]'; then
   echo "BLOCKED: kill with PIDs is FORBIDDEN — verify target is dev before killing" >&2
   echo "Command: $COMMAND" >&2
   echo "REASON: On 2026-04-04, killing dev session processes cascaded to production." >&2
