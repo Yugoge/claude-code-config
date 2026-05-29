@@ -1,9 +1,11 @@
 {
   "request_id": "20260529-081014",
   "task_id": "20260529-081014",
-  "timestamp": "2026-05-29T09:38:00Z",
+  "timestamp": "2026-05-29T13:05:00Z",
+  "iteration": 2,
+  "iter2_revalidation_scope": "Provenance-only re-check per orchestrator dispatch. Substantive 5/5 AC PASS verdicts from iter-1 are preserved (NOT re-run). Iter-2 verifies that dev fixed the three provenance issues raised by iter-1.",
   "qa": {
-    "status": "warning",
+    "status": "pass",
     "user_verbatim_complaint": "QA `manifest_verification` 用空 active 集刷绿 …… 下一周期加守卫（active_tests_count==0 时禁止 pytest_collected_ok:true，或者强制把 cycle-diff 文件加入 active 集）. venv 全 broken symlink …… 修这个 = 同时可能消除 #1 的诱因。",
     "verified_against_complaint": true,
     "passed_user_requirement": true,
