@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-29T09:23:03Z*
-**Total entries**: 916
+*Last updated: 2026-05-29T12:38:15Z*
+**Total entries**: 918
 **Convention**: kebab
 
 ## Tree
@@ -878,6 +878,7 @@ dev/
 ├── `ticket-dev-20260527-063758-T3.md` - BA Specification: Push-analyst grant TTL increase 180s -> 600s
 ├── `ticket-dev-20260527-063758-T4.md` - BA Specification: Fix `python` → `python3` and `CLAUDE_SESSION_ID` fallback
 ├── `ticket-dev-20260529-081000.md` - BA Specification: Fix failing test — write-bulk-commit-sentinel.py session-ID fallback
+├── `ticket-dev-20260529-092512.md` - BA Specification: Backlog batch — context-strip extension, write-guard hardening, step-7 marker parity, test cleanliness
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
 ├── `user-requirement-dev-20260518-214050.md` - No description
@@ -922,6 +923,7 @@ dev/
 ├── `user-requirement-dev-20260529-080709.md` - No description
 ├── `user-requirement-dev-20260529-081000.md` - No description
 ├── `user-requirement-dev-20260529-081014.md` - No description
+├── `user-requirement-dev-20260529-092512.md` - No description
 └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 ```
 
