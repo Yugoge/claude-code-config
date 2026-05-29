@@ -1,7 +1,7 @@
 # 20260529-081014
 
-*Last updated: 2026-05-29T09:02:35Z*
-**Total entries**: 4
+*Last updated: 2026-05-29T09:02:49Z*
+**Total entries**: 5
 **Convention**: kebab
 
 ## Tree
@@ -10,7 +10,8 @@
 ├── `test_AC1_ac01_qa_vacuity_guard_manifest_mode.py` - Source: docs/dev/acceptance-criteria-20260529-081014.json AC1
 ├── `test_AC2_ac02_venv_repair_plural_symlinks.py` - Source: docs/dev/acceptance-criteria-20260529-081014.json AC2
 ├── `test_AC3_ac03_qa_md_structural_anchors_and_enforcement.py` - Source: docs/dev/acceptance-criteria-20260529-081014.json AC3
-└── `test_AC4_ac04_guard_regression_matrix.py` - Source: docs/dev/acceptance-criteria-20260529-081014.json AC4
+├── `test_AC4_ac04_guard_regression_matrix.py` - Source: docs/dev/acceptance-criteria-20260529-081014.json AC4
+└── `test_AC5_ac05_guard_cycle_diff_mode_force_include.py` - Source: docs/dev/acceptance-criteria-20260529-081014.json AC5
 ```
 
 ---
