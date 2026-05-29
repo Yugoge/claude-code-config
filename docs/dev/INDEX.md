@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-29T21:26:13Z*
-**Total entries**: 988
+*Last updated: 2026-05-29T21:28:04Z*
+**Total entries**: 990
 **Convention**: kebab
 
 ## Tree
@@ -55,6 +55,7 @@ dev/
 ├── `acceptance-criteria-20260529-080709.json` - json config
 ├── `acceptance-criteria-20260529-081014.json` - json config
 ├── `acceptance-criteria-20260529-164939.json` - json config
+├── `acceptance-criteria-20260529-210616.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2-iter1.json` - json config
 ├── `acceptance-criteria-d1e94e-CYCLE2.json` - json config
 ├── `acceptance-criteria-d1e94e.json` - json config
@@ -307,6 +308,7 @@ dev/
 ├── `close-report-dev-20260529-092512.md` - Close Report — dev-20260529-092512
 ├── `close-report-dev-20260529-152050.md` - Close Debate Report
 ├── `close-report-do-20260525-050636.md` - Close Debate Report (FORCED)
+├── `close-report-do-20260529-210815.md` - Close Report — do-20260529-210815
 ├── `commit-manifest-20260509-114002-cycle4.json` - json config
 ├── `completion-20260510-191533.md` - Development Completion Report — 20260510-191533
 ├── `completion-20260511-094500.md` - Development Completion Report — 20260511-094500
