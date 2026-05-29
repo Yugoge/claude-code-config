@@ -401,7 +401,7 @@
       },
       {
         "issue": "OBJ-3 AC-F7 grep check: ticket pattern 'agent.*command.*\\.md' matches unrelated lines today (false-pass); acceptance-criteria 'Step.*[0-9]+\\.[0-9]+' matches unfixed file (false-pass)",
-        "proposed_fix": "Replace with jq commands: (1) .[] | select(.id==\"AC6\") | .when | test(\"prose\";\"i\") -> true; (2) .[] | select(.id==\"AC6\") | .check.pattern | test(\"##[+] Step\") -> false; (3) section-scoped grep for 'prose' within ### AC6 block in ticket MD",
+        "proposed_fix": "Replace with jq commands: (1) .acceptance_criteria[] | select(.id==\"AC6\") | .when | test(\"prose\";\"i\") -> true; (2) .acceptance_criteria[] | select(.id==\"AC6\") | .check.pattern | test(\"##[+] Step\") -> false; (3) section-scoped grep for 'prose' within ### AC6 block in ticket MD",
         "classification": "major",
         "disposition": "applied",
         "rationale": "QA-iteration round 2 finding; AC-F7 check now uses jq type with three scoped commands"
