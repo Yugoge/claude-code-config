@@ -1,7 +1,7 @@
 # dev
 
-*Last updated: 2026-05-29T21:10:49Z*
-**Total entries**: 980
+*Last updated: 2026-05-29T21:13:30Z*
+**Total entries**: 981
 **Convention**: kebab
 
 ## Tree
@@ -935,6 +935,7 @@ dev/
 ├── `ticket-dev-20260529-081000.md` - BA Specification: Fix failing test — write-bulk-commit-sentinel.py session-ID fallback
 ├── `ticket-dev-20260529-092512.md` - BA Specification: Backlog batch — context-strip extension, write-guard hardening, step-7 marker parity, test cleanliness
 ├── `ticket-dev-20260529-152050.md` - BA Specification: Positive regression test for CLAUDE_CODE_SESSION_ID fallback
+├── `ticket-dev-20260529-210759.md` - BA Specification: Fix Layer 1.F False Positive — Protected Name in Quoted String Arg
 ├── `ticket-do-20260529-210815.md` - /do Fix: bare dd/shred gap + Chinese diagnostic string
 ├── `user-requirement-dev-20260517-215114.md` - No description
 ├── `user-requirement-dev-20260517-222440.md` - No description
