@@ -58,7 +58,7 @@
     "minor": 0,
     "blocking_new_violations": 0,
     "estimated_space_saved": "0 MB",
-    "verdict": "CLEAN — no file-organization cleanliness violations introduced by this cycle's diff. All 11 changed files are in correct locations with conformant naming. The new reference doc (venv-repair.md) was correctly placed in docs/reference/ rather than repo root. No temp files, build artifacts, duplicate scripts, or stray files detected in the diff scope."
+    "verdict": "CLEAN — zero file-organization cleanliness violations introduced by this cycle's diff, and zero blocking findings. All 11 changed files are in correct locations with conformant naming, shebangs, and exec bits. The new reference doc (venv-repair.md) was correctly placed in docs/reference/ rather than repo root. No temp files, naming violations, duplicate scripts, or stray files. The only diff-introduced build artifact (__pycache__/*.pyc in the new cycle dir) is properly covered by .gitignore:36 and can never be committed, so it is not a finding. CLOSE: cleanliness gate PASS."
   },
   "non_findings_verified": [
     {
