@@ -4,7 +4,7 @@
     "type": "data",
     "given": "commands/dev.md after V1 prose fix applied",
     "when": "reading the graphify enrichment section (between the 'Graphify enrichment' anchor and '### Step 8' heading)",
-    "then": "no fenced bash block (```bash opening) appears in the section; the words 'graphify.json' and 'sentinel' both appear; the phrase 'skipped/sentinel_absent' or equivalent skip instruction appears for the absent-sentinel case",
+    "then": "no fenced bash block (```bash opening) appears in the section; the words 'graphify.json' and 'sentinel' both appear; the phrase 'skipped/sentinel_absent' or equivalent skip instruction appears for the absent-sentinel case; and prose names the present-case dispatch action",
     "check": {
       "type": "grep",
       "patterns": [
@@ -31,6 +31,14 @@
           "pattern": "skipped.sentinel_absent|sentinel.*absent|absent.*sentinel",
           "expect": "match",
           "rationale": "prose must describe what to do when sentinel is absent: skip dispatch and record graphify_status=skipped/sentinel_absent"
+        },
+        {
+          "file": "commands/dev.md",
+          "section_anchor": "Graphify enrichment",
+          "section_end": "### Step 8",
+          "pattern": "If present.*dispatch|present.*dispatch graphify|dispatch graphify",
+          "expect": "match",
+          "rationale": "prose must name the present-case action: dispatch graphify when sentinel file exists (per spec Section 7/Cycle 2 prescribed wording 'If present, dispatch graphify')"
         }
       ]
     },
