@@ -6,6 +6,7 @@
 # trace each test back to its source AC entry.
 
 import os
+import re
 from pathlib import Path
 import pytest
 
@@ -25,13 +26,20 @@ def test_AC5():
     spec_check_py = _PROJECT / "scripts" / "spec-check.py"
     prompt_workflow_py = _PROJECT / "hooks" / "prompt-workflow.py"
 
-    assert checkin_py.exists() and "'graphify'" in checkin_py.read_text(), (
+    # Check for graphify registration without requiring specific quote style
+    # (files may use either "graphify" or 'graphify' — both are valid Python)
+    _GRAPHIFY_RE = re.compile(r"""["']graphify["']""")
+
+    checkin_text = checkin_py.read_text() if checkin_py.exists() else ""
+    assert checkin_py.exists() and _GRAPHIFY_RE.search(checkin_text), (
         "hooks/pretool-cp-checkin.py must contain 'graphify' in CP_AGENTS (AC5)"
     )
-    assert spec_check_py.exists() and "'graphify'" in spec_check_py.read_text(), (
+    spec_check_text = spec_check_py.read_text() if spec_check_py.exists() else ""
+    assert spec_check_py.exists() and _GRAPHIFY_RE.search(spec_check_text), (
         "scripts/spec-check.py must contain 'graphify' in ALLOWED_AGENTS (AC5)"
     )
-    assert prompt_workflow_py.exists() and "'graphify'" in prompt_workflow_py.read_text(), (
+    pw_text = prompt_workflow_py.read_text() if prompt_workflow_py.exists() else ""
+    assert prompt_workflow_py.exists() and _GRAPHIFY_RE.search(pw_text), (
         "hooks/prompt-workflow.py must contain 'graphify' in agent_types list (AC5)"
     )
 

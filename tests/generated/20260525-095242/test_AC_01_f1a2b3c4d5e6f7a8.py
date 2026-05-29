@@ -47,7 +47,7 @@ def _run_hook_with_payload(hook_path, payload):
 # Cases preserve the order of AC-01.check.cases.
 # ---------------------------------------------------------------------------
 
-_FLAG = "/tmp/claude-bulk-allowed-testsid.flag"
+_FLAG = "/tmp/claude-bulk-commit-sentinel-testsid.flag"
 _SENTINEL = "/tmp/claude-bulk-commit-sentinel-testsid-abc.json"
 
 MATRIX = [
