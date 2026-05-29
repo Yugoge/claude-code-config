@@ -123,7 +123,7 @@
       "commands": [
         {
           "file": "docs/dev/acceptance-criteria-20260527-132200.json",
-          "jq_filter": ".[] | select(.id==\"AC6\") | .when | test(\"prose\";\"i\")",
+          "jq_filter": ".acceptance_criteria[] | select(.id==\"AC6\") | .when | test(\"prose\";\"i\")",
           "expect": "true",
           "rationale": "AC6 when field must contain 'prose' after fix — this does NOT match the unfixed file which has no 'prose' in the when field"
         },
