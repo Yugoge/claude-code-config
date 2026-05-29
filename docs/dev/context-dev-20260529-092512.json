@@ -105,6 +105,8 @@
       "4 rules use COMMAND_CONTEXT_STRIPPED at pretool-bash-safety.sh:1110,1119,1143,1154 (inferred: source read)",
       "~36 rules grep raw $COMMAND, enumerated by grep of 'echo \"$COMMAND\" | grep' (inferred: source read)",
       "DANGER_COMMANDS = {killall,pkill,kill,rm,mv} at bash_context_strip.py:26 (inferred: source read)",
+      "STRIPPER SEMANTICS (decisive for Item A classification, inferred: source read bash_context_strip.py:305-330 + _strip_double_content:265-284): command-word token (i<=cmd_idx) appended verbatim in both paths; for NON-DANGER command word, single-quoted arg -> '' and double-quoted arg -> reduced to only $()/backtick spans (i.e. erased); for DANGER command word, quoted args are UNQUOTED (exposed). Therefore git reset \\\"--hard\\\" (a real hard reset) strips to 'git reset ' and the --hard predicate stops matching -> false negative if converted.",
+      "Only 2 of the raw rules are convertible (identical match raw-vs-stripped): dd|mkfs|fdisk|shred :1045 (command-word-anchored) and kill <PID> :1311 (argument-anchored but kill is already a DANGER command so args are exposed). All git rules and all docker/systemctl rules are argument/subcommand-anchored on the non-DANGER command words git/docker/systemctl -> NOT convertible (inferred: source read pretool-bash-safety.sh:1045,1052,1066,1076,1083,1129,1311,1350-1472).",
       "stale 'four' comments at pretool-bash-safety.sh:1089 and bash_context_strip.py:5 (inferred: grep)",
       "marker is sole content predicate: step7-spec-update.py:134 marker def, :148 'if marker in content' (inferred: source read)",
       "commit.md:222 body greps '<!-- spec-continuation-of: ${TASK_ID} -->' as ONLY content predicate; :221 label says 'literal-task-id glob' (inferred: source read)",
