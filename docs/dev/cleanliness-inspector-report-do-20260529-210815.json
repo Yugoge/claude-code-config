@@ -1,0 +1,316 @@
+{
+  "request_id": "do-20260529-210815",
+  "timestamp": "2026-05-29T21:15:35Z",
+  "inspector": "cleanliness-inspector",
+  "mode": "changed-files",
+  "changed_files": ["hooks/pretool-bash-safety.sh"],
+  "diff_summary": "Within hooks/pretool-bash-safety.sh, the diff has exactly two hunks: (1) destructive-command regex normalized from trailing-space anchors to word-boundary anchors for all four command tokens (dd, mkfs, fdisk, shred); (2) curl/wget session-creation block message localized from Chinese to English. Neither hunk introduces a cleanliness violation.",
+  "findings": {
+    "misplaced_docs": [],
+    "naming_violations": [],
+    "archive_candidates": [],
+    "dev_context_files": [],
+    "temp_files": [],
+    "duplicate_scripts": [],
+    "duplicate_tests": [],
+    "non_functional_files": [],
+    "non_functional_folders": [],
+    "orphaned_subagents": [],
+    "unreferenced_scripts": [],
+    "orphaned_tests": [],
+    "historical_docs": [],
+    "docs_categorization": [],
+    "obsolete_functionality": [],
+    "orphan_commands": [],
+    "dead_functions": [],
+    "duplicate_content": [],
+    "gitignore_coverage": []
+  },
+  "out_of_scope_advisory": {
+    "description": "Pre-existing repo-wide findings surfaced by mandatory detector scripts. All introduced_in_diff: false. These are advisory only and do not contribute to in-scope cleanliness totals per AC-12.1 / Section 5.4 rule 3.",
+    "orphaned_subagents": [
+      {
+        "file": "agents/product-owner.md",
+        "reason": "Detect-orphan-agents.sh reports no direct command reference, but codex adversarial review confirmed active references in commands/dev.md:139,197-208 and commands/dev-overnight.md:513,537. Marked as likely false positive from detector.",
+        "severity": "minor",
+        "introduced_in_diff": false,
+        "false_positive_likelihood": "high",
+        "codex_note": "product-owner is referenced in /dev specialist routing and /dev-overnight specialist routing"
+      }
+    ],
+    "unreferenced_scripts": [
+      {
+        "file": "scripts/install/tmp-cleanup-install.sh",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": true,
+        "last_modified": "7 days ago",
+        "commit_count": 1,
+        "severity": "minor",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/bulk-commit-nested-run.sh",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "11 days ago",
+        "commit_count": 1,
+        "severity": "minor",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/dev-command.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "1 days ago",
+        "commit_count": 7,
+        "severity": "minor",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/site-navigate.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "77 days ago",
+        "commit_count": 1,
+        "severity": "major",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/security-check.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "77 days ago",
+        "commit_count": 1,
+        "severity": "major",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/research-deep.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "77 days ago",
+        "commit_count": 1,
+        "severity": "major",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/refactor.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "77 days ago",
+        "commit_count": 1,
+        "severity": "major",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/redev.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "40 days ago",
+        "commit_count": 1,
+        "severity": "minor",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/playwright-helper.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "77 days ago",
+        "commit_count": 1,
+        "severity": "major",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/optimize.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "77 days ago",
+        "commit_count": 1,
+        "severity": "major",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/explain-code.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "77 days ago",
+        "commit_count": 1,
+        "severity": "major",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/doc-gen.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "77 days ago",
+        "commit_count": 1,
+        "severity": "major",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/deep-search.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "77 days ago",
+        "commit_count": 1,
+        "severity": "major",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/code-review.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "77 days ago",
+        "commit_count": 1,
+        "severity": "major",
+        "introduced_in_diff": false
+      },
+      {
+        "file": "scripts/todo/dev-overnight.py",
+        "reason": "No references in commands/agents/scripts",
+        "one_time_fix": false,
+        "last_modified": "22 days ago",
+        "commit_count": 9,
+        "severity": "minor",
+        "introduced_in_diff": false
+      }
+    ],
+    "duplicate_content_groups": {
+      "description": "Multiple groups of byte-identical files in worktrees/, projects/, and todos/ directories. All pre-existing. These directories are gitignored; no version-control pollution.",
+      "group_count": 22,
+      "severity": "minor",
+      "introduced_in_diff": false
+    },
+    "gitignore_notes": {
+      "harness_rules_check": {
+        "tests_generated": {
+          "status": "intentionally_tracked",
+          "note": "tests/generated/ is intentionally tracked per comment at .gitignore:92 — test-writer contract version-controls per-cycle pytest files. Literal string appears in .gitignore only as comment, not as active ignore rule. This is correct by design.",
+          "introduced_in_diff": false
+        },
+        "claude_dev_registry_dev": {
+          "status": "present",
+          "line": 99,
+          "rule": ".claude/dev-registry/dev-*/",
+          "introduced_in_diff": false
+        },
+        "docs_codex": {
+          "status": "present",
+          "line": 93,
+          "rule": "docs/codex/",
+          "introduced_in_diff": false
+        },
+        "playwright_mcp": {
+          "status": "present",
+          "line": 94,
+          "rule": ".playwright-mcp/",
+          "introduced_in_diff": false
+        }
+      },
+      "untracked_harness_paths": [],
+      "introduced_in_diff": false
+    }
+  },
+  "summary": {
+    "blocking_introduced_issues": 0,
+    "in_scope_total": 0,
+    "out_of_scope_advisory_total": 16,
+    "out_of_scope_breakdown": {
+      "orphaned_agents_potential_false_positive": 1,
+      "unreferenced_scripts": 15,
+      "duplicate_content_groups": 22,
+      "orphan_commands": 0,
+      "dead_functions": 0
+    },
+    "critical": 0,
+    "major": 0,
+    "minor": 0,
+    "estimated_space_saved": "0 MB (no in-scope cleanup actions)",
+    "close_verdict": "This cleanliness-inspector report provides no cleanliness-based CLOSE:NO trigger for hooks/pretool-bash-safety.sh; other gates may still block."
+  },
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex identified 10 issues in the draft findings: scope drift (repo-wide findings should be separated from in-scope findings), product-owner.md as likely false positive (actively referenced in dev.md and dev-overnight.md), unreferenced_scripts completeness issue, duplicate_content count inconsistency, imprecise gitignore wording for tests/generated/ (intentionally tracked, not an active ignore rule), diff wording precision (two hunks within the file, not two changes total), overstated characterization of localization fix as 'functional bugfix', inaccurate regex description (all 4 tokens lacked proper boundary), missing per-finding introduced_in_diff fields, and overly broad CLOSE:NO wording. One OBSERVATION_ONLY about safety rules compliance.",
+    "findings": [
+      {
+        "issue": "Scope drift: repo-wide findings like orphaned subagents, unreferenced scripts, and duplicate-content groups should not be presented as in-scope cleanliness findings in --changed-files mode",
+        "proposed_fix": "Move those to out_of_scope_advisory / raw detector output. Set in-scope cleanliness total_issues: 0.",
+        "classification": "blocker",
+        "disposition": "applied",
+        "rationale": "Restructured findings to separate in-scope (empty) from out_of_scope_advisory with proper labeling"
+      },
+      {
+        "issue": "product-owner.md listed as confirmed orphan, but is referenced in commands/dev.md:139,197-208 and commands/dev-overnight.md:513,537",
+        "proposed_fix": "Remove from confirmed orphaned_subagents, or annotate as false_positive_detector_output, introduced_in_diff:false, non-counted",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Verified references in dev.md and dev-overnight.md. Marked as likely false positive with high confidence."
+      },
+      {
+        "issue": "unreferenced_scripts was compressed and missing scripts/bulk-commit-nested-run.sh and root/.claude aliases",
+        "proposed_fix": "List exact raw detector entries, de-dupe /root/.claude aliases, keep per-file severity",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Used complete detect-orphan-scripts.sh output, de-duplicated /root/.claude symlink aliases (same physical files), listed all 15 entries"
+      },
+      {
+        "issue": "duplicate_content plus total_issues count was internally inconsistent",
+        "proposed_fix": "Use separate counts: blocking_introduced_issues: 0, in_scope_total: 0, out_of_scope_advisory_total: N",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Summary now uses three distinct count fields"
+      },
+      {
+        "issue": "Gitignore wording imprecise: tests/generated/ appears only in a comment, not as an active ignore rule",
+        "proposed_fix": "Do not say 'all 4 HARNESS_RULES present' as active coverage. Note tests/generated/ is intentionally tracked.",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "gitignore_notes now correctly identifies tests/generated/ as intentionally_tracked, not an active rule"
+      },
+      {
+        "issue": "Wording 'diff contains exactly 2 changes' applies only to hooks/pretool-bash-safety.sh, not the whole working tree",
+        "proposed_fix": "Wording: 'Within hooks/pretool-bash-safety.sh, the diff has exactly two hunks.'",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "diff_summary field updated with precise scope qualifier"
+      },
+      {
+        "issue": "'Two actual changes are FUNCTIONAL BUGFIXES' overstates line 1277 — the English message change is localization/style, not functional behavior",
+        "proposed_fix": "One functional regex fix and one user-facing message localization fix; neither introduces a cleanliness violation.",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "diff_summary updated to distinguish the two change types accurately"
+      },
+      {
+        "issue": "Line 1109 regex description inaccurate: old regex had trailing spaces only for dd and shred; mkfs/fdisk lacked a boundary entirely",
+        "proposed_fix": "Normalize destructive-command regex by applying a word boundary to all four command tokens.",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "diff_summary updated with precise regex description"
+      },
+      {
+        "issue": "Changed-files mode requires explicit introduced_in_diff on every emitted finding object, not only a prose summary",
+        "proposed_fix": "Add introduced_in_diff:false to each advisory finding object",
+        "classification": "major",
+        "disposition": "applied",
+        "rationale": "Every finding object in out_of_scope_advisory now includes introduced_in_diff: false field"
+      },
+      {
+        "issue": "'CLOSE: NO cannot be triggered' is too broad",
+        "proposed_fix": "This cleanliness-inspector report provides no cleanliness-based CLOSE:NO trigger; other gates may still block.",
+        "classification": "minor",
+        "disposition": "applied",
+        "rationale": "close_verdict in summary updated with the precise scoped wording"
+      },
+      {
+        "issue": "No Safety Rules violation visible because the draft proposes no deletion/relocation/archive action for the active hook. Ensure final recommendations stay non-destructive for pre-existing advisory items.",
+        "proposed_fix": null,
+        "classification": "observation_only",
+        "disposition": "logged",
+        "rationale": "Confirmed: no destructive actions proposed anywhere in this report"
+      }
+    ],
+    "feedback_incorporated": "All 10 blocker/major/minor findings applied: separated in-scope from out-of-scope advisory findings, corrected product-owner.md false positive annotation, included complete unreferenced_scripts list with de-duplication, fixed count fields, corrected tests/generated/ gitignore characterization, updated diff_summary wording throughout, added introduced_in_diff field to all finding objects, scoped close_verdict statement."
+  }
+}
