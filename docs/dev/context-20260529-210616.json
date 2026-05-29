@@ -1,0 +1,221 @@
+{
+  "request_id": "20260529-210616",
+  "task_id": "20260529-210616",
+  "timestamp": "2026-05-29T21:06:16Z",
+  "requirement": {
+    "original": "/redev 系统性修复： 坦白本次问题：close 跑歪了一次。 - Not accomplished：5 个跨周期预先存在的失败仍 carried-forward（你之前确认不值得花限额修）。 - Bugs encountered：codex 抓到的 repair-venv.sh 真实文件 rm -f 漏洞，已修；orchestrator 提前加成功分。 - Improvement opportunities：score-update.sh 加 --delta 反转/--undo 接口；/close 加守卫禁止在 QA 出判决前 issue 成功事件；下一周期清 5 个 carried-forward 失败。",
+    "clarified": "Three items, all in scope, all binding: (1) Add --delta/--undo reversal interface to scripts/score-update.sh (append-only, never mutate lifecycle.jsonl); (2) Add precondition guard at BOTH layers (script-side hard gate + commands/close.md Step 3 ordering) blocking close_success_* events unless docs/dev/close-report-<task-id>.md exists with last non-empty line classifying as 'yes' per hooks/lib/close-verdict.py AND NOT a FORCED form; (3) Clear all 5 named carried-forward test failures via test-update only (no source rollback, no retirement).",
+    "what": "1) score-update.sh --delta/--undo + manual_reversal internal event. 2) close_success_* precondition gate at script-side (M3) and orchestrator-side (M4). 3) test-update for 5 specific failures in 20260524-205206/ and 20260525-095242/.",
+    "why": "1) Premature scoring in task 20260529-081014 was uncancellable because the reversal interface did not exist. 2) The same incident showed that without a script-side hard gate AND a rewritten orchestrator-side ordering, premature close_success_* events can land before the verdict file is finalized. 3) 5 cross-cycle failures have been carried-forward since at least task 20260527-054705, blocking honest '0 unexpected failures' reporting.",
+    "where": ["scripts/score-update.sh", "commands/close.md (Step 3 scoring block lines 411-420)", "tests/generated/20260524-205206/test_AC_03_c3d5e7f9b2a4c6d8.py", "tests/generated/20260525-095242/test_AC_01_f1a2b3c4d5e6f7a8.py", "tests/generated/20260525-095242/test_AC_02_a9b8c7d6e5f4a3b2.py", "tests/generated/20260525-095242/test_AC_04_bypass_20260525.py"],
+    "scope": {
+      "included": [
+        "Add --delta and --undo modes to scripts/score-update.sh (M1, M2)",
+        "Add manual_reversal entry to EVENT_DELTAS with all-zeros row (validation-compat only)",
+        "Add script-side close_success_* precondition gate using shared hooks/lib/close-verdict.py helper (M3)",
+        "Rewrite commands/close.md Step 3 scoring block to gate close_success_* on close-report last-line verification (M4)",
+        "Update 4 test files in 20260524-205206/ and 20260525-095242/ to match current code invariants (M5)"
+      ],
+      "excluded": [
+        "Mutating ~/.claude/logs/lifecycle.jsonl (NG2)",
+        "Modifying EVENT_DELTAS for any existing event (NG1)",
+        "Changing CLOSE: NO behavior, FORCED behavior, or close_fail_* branches (NG8)",
+        "Modifying test code in 20260526-052559/, 20260526-053746/, 20260527-054705/, 20260527-132200/, 20260529-081014/ (NG3)",
+        "Adding --allow-close-success-without-report override flag (NG6, codex F1)",
+        "Reverting commands/close.md Session Summary to timeline form (NG7, codex F13)",
+        "Redesigning scoring system, user-rating reversal, clamp bounds (NG4)"
+      ]
+    },
+    "success_criteria": [
+      "scripts/score-update.sh --delta and --undo work per AC-1 and AC-2",
+      "close_success_* events are blocked when close-report missing/NO/FORCED at both layers (AC-3, AC-4)",
+      "5 named failures clear AND 5 named sibling dirs unchanged via exact pytest command (AC-5)"
+    ],
+    "constraints": [
+      "Append-only JSONL: existing lifecycle.jsonl bytes NEVER mutated",
+      "9-field JSONL contract invariant (ts, agent, event, prev_score, new_score, delta, unclamped_score, actor, reason)",
+      "Reuse hooks/lib/close-verdict.py:last_nonempty + classify_line; no inline regex reimplementation (codex F9)",
+      "Test invocations use --lifecycle-file <tmp>; never touch real lifecycle.jsonl"
+    ]
+  },
+  "scope_boundary": {
+    "in_user_path": [
+      "scripts/score-update.sh",
+      "commands/close.md",
+      "tests/generated/20260524-205206/test_AC_03_c3d5e7f9b2a4c6d8.py",
+      "tests/generated/20260525-095242/test_AC_01_f1a2b3c4d5e6f7a8.py",
+      "tests/generated/20260525-095242/test_AC_02_a9b8c7d6e5f4a3b2.py",
+      "tests/generated/20260525-095242/test_AC_04_bypass_20260525.py"
+    ],
+    "path_dependent_shared_infra": [
+      "hooks/lib/close-verdict.py (READ-ONLY import target for M3 + M4; not modified)"
+    ],
+    "out_of_path_observed_but_not_touched": []
+  },
+  "out_of_scope_observations": [],
+  "root_cause_analysis": {
+    "symptom": "(1) Orchestrator could not reverse premature score entries because --delta/--undo did not exist. (2) The premature entries landed because no precondition gate blocked close_success_* events before QA's verdict file was finalized. (3) 5 cross-cycle test failures persist because no prior cycle has addressed them.",
+    "root_cause": "(1) scripts/score-update.sh argument parser at lines 46-58 only accepts the canonical-event scoring interface; the script has no manual-delta or undo-from-existing-entry code path. (2) Neither scripts/score-update.sh nor commands/close.md Step 3 contains a precondition check on close_success_* events that verifies the close-report file's last-line verdict state — the existence and YES-ness of the close-report file is not gated, so the orchestrator can fire scoring at any time. (3) Code invariants drifted across cycles: Cycle 053746 widened the bulk-sentinel-write gate (C15b case shape), Cycle 8 retired AC-04 (changing the active test count in dir 20260524-205206/), and a separate commit drifted Session Summary template from timeline form to 6-bucket form — but the corresponding tests in dirs 20260524-205206/ and 20260525-095242/ were never updated to match.",
+    "root_cause_commit": "N/A — multiple cycles contributed; not bisectable to a single commit",
+    "why_introduced": "(1) Append-only JSONL design was intentional for audit-trail integrity, but no reversal interface was added when the design landed (arch-7 phase 2, task 20260525-050824). (2) commands/close.md Step 3 text ('After the verdict is determined') was interpreted at QA-agent return rather than file-write-completion. (3) Cross-cycle test maintenance has been deferred since task 20260527-054705 (user-acknowledged).",
+    "why_problematic": "(1) Operator mistakes are uncancellable; rank drifts permanently. (2) Premature success scoring corrupts the lifecycle audit trail and ranks. (3) The 5 carried-forward failures pollute every cycle's QA report with pre_existing_failures_outside_fix_scope[] noise and prevent clean 'all tests pass' signals.",
+    "timeline": "Score system: arch-7 phase 2 (task 20260525-050824). Premature-scoring incident: 20260529-081014. C15b drift: Cycle 053746. AC-04 retirement: Cycle 8. Session Summary drift: ongoing.",
+    "affected_files": ["scripts/score-update.sh", "commands/close.md", "tests/generated/20260524-205206/test_AC_03_c3d5e7f9b2a4c6d8.py", "tests/generated/20260525-095242/test_AC_01_f1a2b3c4d5e6f7a8.py", "tests/generated/20260525-095242/test_AC_02_a9b8c7d6e5f4a3b2.py", "tests/generated/20260525-095242/test_AC_04_bypass_20260525.py"],
+    "evidence_type": "observed",
+    "observations": [
+      "scripts/score-update.sh:46-58 has no --delta or --undo case (observed: BA Read of file lines 1-227)",
+      "scripts/score-update.sh has no precondition check on close_success_* events (observed: BA Read of full script)",
+      "Pytest reproduction this session: 5 failures match user list exactly (observed: pytest -q output captured)",
+      "commands/close.md:421-433 is 6-bucket Session Summary; test_AC_03 asserts timeline/chronological/User need:/Design response: which is not present (observed: BA Read of both)",
+      "tests/generated/20260524-205206/manifest.json has 4 active + 1 retired test files (collected count = 11 because AC-05 file has 8 cases) (observed: pytest --collect-only)",
+      "hooks/lib/close-verdict.py:21-40 exports last_nonempty() and classify_line() (observed: BA Read)"
+    ],
+    "diagnosis_completeness": "complete",
+    "complaint_location_keywords": ["score-update.sh", "--delta", "--undo", "/close", "QA 出判决前", "成功事件", "carried-forward 失败"],
+    "localization_evidence": "Reproduced all 5 failures via pytest this BA session against current HEAD; verified user's verbatim symptoms in scripts/score-update.sh and commands/close.md source. The 'Unknown argument' rejection is reproducible by inspecting the parser at script lines 46-58. The premature-scoring failure mode is reproducible by reading the Step 3 timing language at commands/close.md:411-413.",
+    "located_source": "scripts/score-update.sh:46-58 (parser), scripts/score-update.sh:101-115 (EVENT_DELTAS), commands/close.md:411-420 (Step 3 scoring block), commands/close.md:421-433 (Session Summary block), 5 test files listed in affected_files.",
+    "localization_blocked": null
+  },
+  "diagnosis_layer": "L3+L4",
+  "requirements_decomposition": [
+    {"id": "R1", "source_phrase": "score-update.sh 加 --delta 反转/--undo 接口", "acceptance_criterion": "AC-1 (--delta) + AC-2 (--undo)"},
+    {"id": "R2", "source_phrase": "/close 加守卫禁止在 QA 出判决前 issue 成功事件", "acceptance_criterion": "AC-3 (script-side) + AC-4 (orchestrator-side)"},
+    {"id": "R3", "source_phrase": "下一周期清 5 个 carried-forward 失败", "acceptance_criterion": "AC-5 (5 cleared via test-update, sibling dirs unchanged)"}
+  ],
+  "component_chain": [
+    {"file": "scripts/score-update.sh", "line_range": "46-58", "role": "argument parser", "imports_from": "leaf (bash case)", "evidence": "Read lines 46-58 verbatim", "verified_via": "Read"},
+    {"file": "scripts/score-update.sh", "line_range": "85-220", "role": "inline Python writer", "imports_from": "stdlib json/datetime/os/sys", "evidence": "Read lines 85-220", "verified_via": "Read"},
+    {"file": "scripts/score-update.sh", "line_range": "101-115", "role": "EVENT_DELTAS canonical table", "imports_from": "leaf (dict literal)", "evidence": "Read lines 101-115", "verified_via": "Read"},
+    {"file": "commands/close.md", "line_range": "411-420", "role": "Step 3 mascot scoring block (M4 target)", "imports_from": "scripts/score-update.sh (call site)", "evidence": "Read lines 411-420", "verified_via": "Read"},
+    {"file": "commands/close.md", "line_range": "421-433", "role": "Step 3 Session Summary block (Item 3 #5 invariant)", "imports_from": "leaf", "evidence": "Read lines 421-433", "verified_via": "Read"},
+    {"file": "hooks/lib/close-verdict.py", "line_range": "1-40", "role": "shared verdict classifier (M3+M4 reuse)", "imports_from": "stdlib re/sys/pathlib", "evidence": "Read lines 1-40", "verified_via": "Read"},
+    {"file": "tests/generated/20260524-205206/manifest.json", "line_range": "1-402", "role": "active+retired test manifest (Item 3 #3 reference)", "imports_from": "leaf", "evidence": "Read first 60 lines + grep for status fields", "verified_via": "Read + Grep"}
+  ],
+  "pre_existing_guards": [
+    {"file": "scripts/score-update.sh", "line": 77, "type": "if", "code_snippet": "if ! flock -w 10 9; then", "purpose": "exclusive flock for append-only JSONL serialization", "removal_authorized": false},
+    {"file": "scripts/score-update.sh", "line": 131, "type": "if", "code_snippet": "if agent not in CANONICAL_AGENTS: ... sys.exit(1)", "purpose": "reject unknown agents", "removal_authorized": false},
+    {"file": "scripts/score-update.sh", "line": 138, "type": "if", "code_snippet": "if event not in EVENT_DELTAS: ... sys.exit(1)", "purpose": "reject unknown events", "removal_authorized": false},
+    {"file": "scripts/score-update.sh", "line": 176, "type": "if", "code_snippet": "if expected_prev_score_str and latest_entry_found:", "purpose": "CAS guard", "removal_authorized": false},
+    {"file": "scripts/score-update.sh", "line": 191, "type": "if", "code_snippet": "new_score = min(100, unclamped_score)", "purpose": "score clamp at 100", "removal_authorized": false}
+  ],
+  "regression_investigation_checklist": {
+    "triggered": false,
+    "_note": "Not a regression bug; user explicitly described all 3 as forward-improvements + carried-forward cleanups. No 'was working' / 'broke' language in requirement."
+  },
+  "setup": {
+    "applicability": "N/A",
+    "reason": "non-UI -- CLI script + agent-prompt edit + test-file edit; cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths (pipeline/API/user-trigger). All three items are harness infrastructure: scoring script + slash-command spec text + cross-cycle test maintenance."
+  },
+  "evidence": {
+    "observed": "User: 'orchestrator 提前加成功分; --delta/--undo 接口被 rejected; 5 个跨周期预先存在的失败仍 carried-forward'",
+    "measured": {
+      "value": "scripts/score-update.sh:46-58 parser rejects --delta and --undo; lines 101-115 EVENT_DELTAS has no reversal entry; commands/close.md:411-420 fires close_success_* without close-report file-state check; pytest reproduces all 5 failures verbatim this session",
+      "location": "scripts/score-update.sh:46-58, scripts/score-update.sh:101-115, commands/close.md:411-420, tests/generated/20260524-205206/test_AC_03_c3d5e7f9b2a4c6d8.py, tests/generated/20260525-095242/{test_AC_01,test_AC_02,test_AC_04_bypass_20260525}.py"
+    },
+    "expected": {
+      "value": "scripts/score-update.sh accepts --delta and --undo per M1/M2; close_success_* blocked unless close-report last-line classifies yes AND not FORCED per M3/M4; all 5 named tests pass via test-update only per M5",
+      "source": "User verbatim Chinese directives + codex 14-finding adversarial review (full text at docs/codex/20260529-210616/ba.txt)"
+    },
+    "gap": "(1) No reversal interface exists; 0% present, 100% gap. (2) No precondition gate at either layer; 0% present, 100% gap. (3) 5 failures, target 0 — gap = 5 failures."
+  },
+  "scope_expansion": {
+    "search_pattern": "score-update.sh; close_success_qa; --delta; --undo; pre_existing_failures_outside_fix_scope; Session Summary",
+    "search_scope": "scripts/, commands/, hooks/lib/, tests/generated/20260524-205206/, tests/generated/20260525-095242/",
+    "user_reported": ["scripts/score-update.sh", "commands/close.md", "5 specific tests"],
+    "additional_found": ["hooks/lib/close-verdict.py (REUSE only, not modified)", "tests/generated/20260524-205206/manifest.json (M5 #3 reference)"],
+    "all_occurrences": ["scripts/score-update.sh:46-58", "scripts/score-update.sh:101-115", "commands/close.md:411-420", "commands/close.md:421-433", "hooks/lib/close-verdict.py:21-40", "5 test files listed in affected_files"]
+  },
+  "reference_source": {
+    "tier": "tier_1_external",
+    "description": "User binding directives in verbatim Chinese (3 items) + codex adversarial review (14 findings)",
+    "url_or_location": "docs/dev/user-requirement-dev-20260529-210616.md + docs/codex/20260529-210616/ba.txt",
+    "copy_allowed": true,
+    "role_table": null,
+    "_role_table_note": "Non-UI cycle; no CLAUDE.md role table is relevant. CLAUDE.md was read at session start; no design-system role table for CLI/agent-prompt scope.",
+    "supplementary_tier_2": [
+      {"tier": "tier_2_verified", "source": "hooks/lib/close-verdict.py:21-40", "use": "M3+M4 import last_nonempty + classify_line (codex F9)"},
+      {"tier": "tier_2_verified", "source": "tests/generated/20260524-205206/manifest.json:399-402", "use": "retirement schema precedent (unused this cycle per codex F12)"},
+      {"tier": "tier_2_verified", "source": "commands/close.md:421-433", "use": "Session Summary 6-bucket invariant for M5 #5 (codex F13)"}
+    ]
+  },
+  "prior_attempts": {
+    "triggered": true,
+    "trigger_source": "user_phrasing",
+    "attempts": [
+      {
+        "artifact_path": "lifecycle.jsonl entries for task 20260529-081014",
+        "proposed_solution": "Apply close_success_qa_fail_fixed post-iter-1; reverse via --delta -N once QA debate ended with CHANGES_REQUESTED",
+        "actual_change": "3 score-update.sh --delta -N --reason calls + 3 --undo calls — all rejected exit 1 'Unknown argument'",
+        "outcome": "Premature +1/+2/+1 trio remains permanent in lifecycle.jsonl; uncancellable through existing surface",
+        "failure_category": "wrong_scope",
+        "target_layer": "L1"
+      }
+    ],
+    "novelty_check": {
+      "this_attempt_layer": "L3+L4",
+      "differs_from_all_priors": true,
+      "rationale": "Prior attempt was L1 (call-site) assuming the interface existed. This attempt builds the L3 interface (M1 --delta, M2 --undo) AND the L4 logic gate (M3 script-side, M4 orchestrator-side) that would have prevented the prior misuse. Defense in depth verified by codex F10 OBSERVATION_ONLY."
+    }
+  },
+  "context": {
+    "codebase_state": "current HEAD master, 5 failing tests reproducible; scripts/score-update.sh + commands/close.md + 5 test files are the in-scope edit targets",
+    "recent_commits": "fe4c7df, 1e559fc, 4e1a9f7, b5d152a, ecf792b (auto-bulk end-of-cycle commits for task 20260527-132200)",
+    "file_contents": {},
+    "dependencies": {},
+    "environment": {}
+  },
+  "development_approach": {
+    "strategy": "Three parallel sub-strategies. (1) score-update.sh: add --delta and --undo case branches at the parser; add manual_reversal entry to EVENT_DELTAS; add --delta/--undo/--reason mode dispatch in the inline Python; reuse existing flock + scan-for-latest logic. (2) Add close_success_* precondition check at the script's Python entry, importing hooks/lib/close-verdict.py via sys.path insertion. Edit commands/close.md Step 3 lines 411-420 to add the orchestrator-side guard wording, citing the shared helper. (3) Update 4 test files: change C15b expected_exit/expected_rc to (2, True), change >= 21 to manifest-derived count or >= 4, rewrite test_AC_03 assertions for 6-bucket invariant. Run pytest against both target dirs and the 5 sibling dirs to verify.",
+    "files_to_create": [],
+    "files_to_modify": [
+      "scripts/score-update.sh",
+      "commands/close.md",
+      "tests/generated/20260524-205206/test_AC_03_c3d5e7f9b2a4c6d8.py",
+      "tests/generated/20260525-095242/test_AC_01_f1a2b3c4d5e6f7a8.py",
+      "tests/generated/20260525-095242/test_AC_02_a9b8c7d6e5f4a3b2.py",
+      "tests/generated/20260525-095242/test_AC_04_bypass_20260525.py"
+    ],
+    "validation_approach": "AC-1, AC-2, AC-3: subprocess invocations with --lifecycle-file <tmp> and test-controlled close-report fixture files; verify exit codes and byte-level JSONL diffs. AC-4: static read of commands/close.md Step 3 with grep for required phrases. AC-5: pytest against 2 target dirs (must exit 0) and the exact 5 sibling-dir command (must exit 0)."
+  },
+  "acceptance_criteria_path": "docs/dev/acceptance-criteria-20260529-210616.json",
+  "blast_radius_map_path": ".claude/dev-registry/dev-20260529-210616/blast-radius-map.json",
+  "complexity_tier": "STANDARD",
+  "risk_level": "medium",
+  "_risk_level_doc": "medium because: scoring infrastructure is widely depended-on (every /close cycle); breaking the script breaks scoring system-wide. However, changes are additive (--delta/--undo are new modes; precondition is fail-safe — rejects rather than corrupts) and confined to one script + one slash-command spec section + 4 test files. Not 'high' because no security boundary, no auth surface, no schema migration, no pipeline orchestrator change.",
+  "test_writer_expected": true,
+  "_test_writer_expected_doc": "computed as (complexity_tier in {STANDARD, COMPLEX}) OR (risk_level == high) → STANDARD ∈ {STANDARD, COMPLEX} → true. Test-writer dispatch expected to generate AC-uid-stamped test files for AC-1..AC-5.",
+  "standards_to_enforce": {
+    "no_hardcoded_values": true,
+    "yaml_frontmatter_description_only": true,
+    "integer_step_numbering": true,
+    "meaningful_naming": true,
+    "git_root_cause_reference": true
+  },
+  "rank_acknowledged": null,
+  "range_acknowledged": null,
+  "recent_events_digest_acknowledged": null,
+  "score_injection_action": null,
+  "_score_injection_doc": "No INJECTION_PROOF: block was present in the BA dispatch prompt. Per fail-safe rule (BA spec 'Score-injection echo contract' section), all four fields are set to null. No fabrication.",
+  "codex_consult": {
+    "invoked": true,
+    "status": "ok",
+    "feedback_summary": "Codex returned 14 findings: 2 blockers (F1, F9), 9 majors (F2, F4, F5, F6, F7, F11, F12, F13, F14), and 3 observation-only (F3, F8, F10). All blockers and majors applied with concrete PROPOSED_FIX wording incorporated into the spec. Observation-only findings logged in Codex Disposition Table.",
+    "findings": [
+      {"issue": "F1: --allow-close-success-without-report is scope creep and weakens the exact guard", "proposed_fix": "Remove it. Tests use fixture close-report; emergencies use --delta/--undo.", "classification": "blocker", "disposition": "applied", "rationale": "Override flag would defeat the guard's purpose. Removed from M3, NG6, AC-3."},
+      {"issue": "F2: manual_reversal is justified only if internal-only event", "proposed_fix": "Normal mode requires --event; manual modes (--delta/--undo) disallow caller --event and internally write event='manual_reversal'. Keep zero row in EVENT_DELTAS for validation compat.", "classification": "major", "disposition": "applied", "rationale": "Prevents abuse as a normal scoring channel. Applied to M1, M2, NG1."},
+      {"issue": "F3: Exit codes 4 and 5 acceptable if documented", "proposed_fix": "Define 4=undo target not found/ambiguous; 5=close-success guard failed; preserve 0/1/2/3.", "classification": "observation_only", "disposition": "logged", "rationale": "Documented exit codes in M2 (4) and M3 (5)."},
+      {"issue": "F4: --delta/--undo mode matrix under-specified", "proposed_fix": "Require --agent in all modes; require non-empty --reason; --delta and --undo mutually exclusive; reject --event with either manual mode.", "classification": "major", "disposition": "applied", "rationale": "Mode confusion would create silent score drift. Applied to M1, M2, AC-1, AC-2."},
+      {"issue": "F5: --undo semantics ambiguous (nominal delta vs score-state replay)", "proposed_fix": "Pick one explicitly. Minimal ledger semantics: append delta = -target.delta; document NOT historical replay.", "classification": "major", "disposition": "applied", "rationale": "User's stated need is to neutralize the premature trio; inverse-delta semantics is sufficient. Applied to M2."},
+      {"issue": "F6: CAS at fresh lifecycle boundary is weak", "proposed_fix": "For manual modes, if --expected-prev-score supplied, compare against effective latest, using baseline 50 when no prior entry exists.", "classification": "major", "disposition": "applied", "rationale": "Closes a real gap in the existing CAS path. Applied to M1, AC-1 last sub-scenario."},
+      {"issue": "F7: --undo malformed/tampered target handling needs explicit outcome", "proposed_fix": "Malformed non-final JSONL or target row missing numeric delta/prev_score/new_score exits 2 with no append; missing/ambiguous exits 4.", "classification": "major", "disposition": "applied", "rationale": "Closes silent-corruption gap. Applied to M2, AC-2."},
+      {"issue": "F8: Chain undo should be allowed", "proposed_fix": "Undoing a prior manual_reversal is valid; do not add duplicate-undo/idempotency blocking unless requested.", "classification": "observation_only", "disposition": "logged", "rationale": "Documented in M2, Risk 3, AC-2."},
+      {"issue": "F9: Close guard must use strict last-line classification, not classify_file fallback; also exclude CLOSE: YES (FORCED)", "proposed_fix": "Use last_nonempty + classify_line; require final line classifies as YES. Exclude FORCED because no QA verdict occurred.", "classification": "blocker", "disposition": "applied", "rationale": "FORCED-as-YES would defeat the guard's intent. Applied to M3, M4, AC-3 (FORCED test scenario), AC-4."},
+      {"issue": "F10: Both Item 2 layers are justified", "proposed_fix": "Keep script-side hard guard plus /close orchestration ordering. Do not gate close_fail_*.", "classification": "observation_only", "disposition": "logged", "rationale": "Defense-in-depth justification confirmed; close_fail_* exclusion documented in M3, M4."},
+      {"issue": "F11: Report path resolution under-specified", "proposed_fix": "Repo-rooted docs/dev/close-report-<task-id>.md with <task-id> being the bare --note value; if absent/unresolvable, exit 5.", "classification": "major", "disposition": "applied", "rationale": "Applied to M3, AC-3 with regex ^[0-9]{8}-[0-9]{6}$."},
+      {"issue": "F12: Item 3 should not leave failures to unconstrained dev discretion", "proposed_fix": "Prescribe: C15b → update tests to current widened gate; prior_21+cascade → update test to honor manifest active/retired; AC-03 → update test to current close.md invariant.", "classification": "major", "disposition": "applied", "rationale": "All 5 dispositions locked to update_test in M5, S1, NG6/NG7, AC-5."},
+      {"issue": "F13: AC-03 invariant is current 6-bucket Session Summary, not timeline revert", "proposed_fix": "Update test to assert 6-bucket structure + chronological + user-requirement source binding + conciseness/no-narrative constraints.", "classification": "major", "disposition": "applied", "rationale": "Source-rollback would be wrong direction. M5 #5 prescribes the assertion phrases; NG7 forbids close.md revert."},
+      {"issue": "F14: 'no regressions in 5 sibling dirs' too vague for an AC", "proposed_fix": "Name the exact pytest directories/commands.", "classification": "major", "disposition": "applied", "rationale": "AC-5 now embeds the exact multi-dir pytest command."}
+    ],
+    "feedback_incorporated": "All 11 ISSUE findings applied verbatim per codex's PROPOSED_FIX (F1, F2, F4, F5, F6, F7, F9, F11, F12, F13, F14). 3 OBSERVATION_ONLY findings logged in Codex Disposition Table (F3, F8, F10). No codex finding rejected; no PROPOSED_FIX disagreed with."
+  }
+}
