@@ -178,8 +178,8 @@
       "script_path": null,
       "health_check_url": null,
       "health_check_result": null,
-      "status": "skipped",
-      "blocking_reason": "Non-UI change. All fixes are to agent prompts, command Markdown files, Python scripts, and test artifacts. No user-facing application component was modified. BA spec explicitly states: 'applicability: N/A — non-UI cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths.'"
+      "status": "legitimately_skipped",
+      "blocking_reason": "Non-UI change. All fixes are to agent prompts, command Markdown files, Python scripts, and test artifacts. No user-facing application component was modified. BA spec explicitly states: 'applicability: N/A — non-UI cycle does not produce (1) rendered UI changes, (2) browser interaction, (3) Playwright invocation, (4) screenshot evidence, or (5) any change to user-triggered code paths.' Skip is legitimate per QA agent spec: 'ONLY skip if the change affects NOTHING the user can see or trigger: pure offline scripts that users never invoke, documentation-only changes, test-only changes, or hook/agent definition files.'"
     },
 
     "e2e_script_results": [],
