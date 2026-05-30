@@ -29,7 +29,10 @@ def test_AC7_scenario_b_excludes(repo):
     rc, err = repo.run_helper("f.txt", ledger, snap)
 
     assert rc == EXCLUDE, "Scenario B MUST fail-closed EXCLUDE; got rc=%d" % rc
-    assert "out-of-owned region differs from pre-edit snapshot" in err, err
+    # The forward replay of the owned edit (line 3) does NOT reproduce the worktree
+    # because the peer's line-17 change is unattributed -> EXCLUDE. (This is the
+    # out-of-owned-region detection, expressed via the replay invariant.)
+    assert "do not reproduce the worktree" in err or "out-of-owned" in err, err
     # REGRESSION GUARD: nothing staged (not even the owned hunk partially).
     assert repo.cached_diff("f.txt").strip() == "", "fail-open regressed: cached diff not empty"
     # Both changes remain in the working tree, uncommitted.
