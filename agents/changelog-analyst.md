@@ -673,6 +673,9 @@ Allocate a tmpfile: `TMPFILE=$(mktemp /tmp/recovery-commit-XXXXXX.txt)`
 
 Run: `scripts/precommitted-recovery.sh build-commit-msg "${GIT_ROOT}" "${scope}" "${TASK_ID}" "${TMPFILE}" ${precommitted_shas[*]} -- ${attributed_files[*]}`
 
+The script writes a commit message with subject `chore(${scope}): recovery commit — task ${TASK_ID} pre-empted by bulk session`,
+then body lines: `Task-id: ${TASK_ID}`, one `Precommitted-by: <sha>` line per SHA, and an `Attributed-files:` block.
+
 Verify the subject line does NOT match `\bsync\b.*\buncommitted\b` or `chore\(claude\)\s*:\s*sync`
 (DO NOT rule 10). The proposed subject `chore(<scope>): recovery commit — task <TASK_ID> pre-empted by bulk session`
 does not match either pattern; if scope derivation produces an unexpected value that triggers a
