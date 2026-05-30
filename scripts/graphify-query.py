@@ -246,15 +246,15 @@ def main() -> int:
         print(f"graphify-query: skipped (status={STATUS_SKIPPED})")
         return 0
 
-    # Cache availability check
+    # Cache availability check (keyed on cacheDir/graph.json, AC12)
     repo_key = get_repo_key(_PROJECT_DIR)
-    cache_root = get_cache_root()
-    cache_dir = cache_root / repo_key
-    available, reason = check_cache_available(repo_key)
+    cache_dir = get_cache_dir(_PROJECT_DIR)
+    graph_file = graph_json_path(_PROJECT_DIR)
+    available, reason = check_cache_available(repo_key, project_dir=_PROJECT_DIR)
     if not available:
         result = empty_graph_context(STATUS_UNAVAILABLE, reason)
         result.update({"task_id": args.task_id, "generated_at": _now_iso()})
-        write_json_locked(output_path, result)
+        write_json_locked(output_path, scrub_sensitive(result))
         print(f"graphify-query: status=unavailable ({reason})")
         return 0
 
@@ -263,70 +263,73 @@ def main() -> int:
     if not req_path.exists():
         result = empty_graph_context(STATUS_UNAVAILABLE, f"requirement file not found: {req_path}")
         result.update({"task_id": args.task_id, "generated_at": _now_iso()})
-        write_json_locked(output_path, result)
+        write_json_locked(output_path, scrub_sensitive(result))
         return 0
 
     requirement_text = req_path.read_text(encoding="utf-8")
-
-    # 3-layer extraction
     layers_used = []
 
-    # Layer 1: deterministic
+    # Layer 1: deterministic mention extraction from the input under test.
     raw_mentions = _extract_layer1_deterministic(requirement_text)
     if raw_mentions:
         layers_used.append("deterministic_rules")
 
-    # Layer 2: alias index
-    resolved_map = _extract_layer2_alias_index(raw_mentions, cache_dir)
-    if resolved_map:
-        layers_used.append("repo_alias_index")
+    # Layer 2: read the REAL node-link graph.json (sensitive nodes/links scrubbed on read).
+    graph, gstatus = load_graph(graph_file)
+    if gstatus == STATUS_OK:
+        layers_used.append("graph_json_node_link")
+    resolved_map = _resolve_anchors_in_graph(raw_mentions, graph)
+    anchor_labels = set(resolved_map.values())
+    import_graph = _build_import_excerpt(graph, anchor_labels)
 
-    # Layer 3: graph query
-    graph_data = _extract_layer3_graph_query(raw_mentions, cache_dir)
-    if graph_data:
-        layers_used.append("graph_fuzzy_query")
+    # Layer 3: real `graphify query` enrichment — MUST be attempted when an
+    # input-derived anchor present/resolvable in graph.json exists (AC2).
+    query_records: list[dict] = []
+    query_cli_status = "not_attempted"
+    # Prefer anchors resolvable in graph.json; fall back to raw mentions present as node labels.
+    anchors_for_query = list(dict.fromkeys(resolved_map.values())) or [
+        m for m in raw_mentions if m in {n.get("label") for n in graph.get("nodes", [])}
+    ]
+    for anchor in anchors_for_query[:5]:
+        rec = _run_real_query(anchor, graph_file, cache_dir)
+        query_records.append(rec)
+        query_cli_status = rec.get("query_cli_status", STATUS_DEGRADED)
+    if query_records:
+        layers_used.append("real_graphify_query")
 
-    # Build candidate_anchors
+    # Build candidate_anchors (resolved_path comes from graph.json node match).
     candidate_anchors = []
     for mention in raw_mentions:
-        anchor = {
+        if should_exclude_path(mention):
+            continue
+        candidate_anchors.append({
             "mention": mention,
             "resolved_path": resolved_map.get(mention, mention),
             "confidence": 0.9 if mention in resolved_map else 0.5,
-        }
-        candidate_anchors.append(anchor)
+        })
 
-    # Build import_graph_excerpt from Layer 3 results
-    import_graph = []
-    for item in graph_data:
-        gd = item.get("graph_data", {})
-        if isinstance(gd, dict):
-            edges = gd.get("edges", [])
-            import_graph.extend([f"{e.get('from','?')} -> {e.get('to','?')}" for e in edges[:5]])
-
-    # Detect ambiguity
     ambiguity_hypotheses = _detect_ambiguity(requirement_text, candidate_anchors)
-
-    # Read cache manifest for metadata
-    try:
-        manifest = json.loads((cache_dir / "manifest.json").read_text(encoding="utf-8"))
-    except Exception:
-        manifest = {}
 
     structural_context = {
         "candidate_anchors": candidate_anchors,
-        "import_graph_excerpt": import_graph[:20],
+        "import_graph_excerpt": import_graph,
         "high_centrality_nodes": [],
+        "graphify_query_results": query_records,  # consumed real stdout (scrubbed)
+        "query_cli_status": query_cli_status,
         "token_count": 0,
         "truncated": False,
     }
 
-    # Truncate to hard cap
+    # Final recursive sensitive scrub before truncation/emit (AC15 — defense in depth).
+    structural_context = scrub_sensitive(structural_context)
     structural_context, was_truncated = _truncate_structural_context(structural_context, HARD_TOKEN_CAP)
     structural_context["truncated"] = was_truncated
     structural_context["token_count"] = _estimate_tokens(json.dumps(structural_context, ensure_ascii=False))
 
-    status = STATUS_OK if candidate_anchors or import_graph else STATUS_DEGRADED
+    if candidate_anchors or import_graph:
+        status = STATUS_DEGRADED if query_cli_status == STATUS_DEGRADED else STATUS_OK
+    else:
+        status = STATUS_DEGRADED
 
     result = {
         "status": status,
@@ -335,17 +338,17 @@ def main() -> int:
         "structural_context": structural_context,
         "ambiguity_hypotheses": ambiguity_hypotheses,
         "extraction_layers_used": layers_used,
+        "query_cli_status": query_cli_status,
         "cache_metadata": {
-            "cache_root": str(cache_root),
+            "cache_dir": str(cache_dir),
             "repo_key": repo_key,
-            "branch": manifest.get("branch", "unknown"),
-            "head_sha": manifest.get("head_sha", "unknown"),
-            "graphify_version": manifest.get("graphify_version", "unknown"),
+            "graph_json": str(graph_file),
         },
     }
-
+    result = scrub_sensitive(result)
     write_json_locked(output_path, result)
-    print(f"graphify-query: status={status}, anchors={len(candidate_anchors)}, output={output_path}")
+    print(f"graphify-query: status={status}, anchors={len(candidate_anchors)}, "
+          f"query_cli={query_cli_status}, output={output_path}")
     return 0
 
 
