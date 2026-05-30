@@ -24,12 +24,25 @@ def test_AC7():
     WHEN:  docs/reference/graphify-integration.md and agents/graphify.md are inspected after the fix
     THEN:  graphify-integration.md no longer says `init` runs a semantic probe; it documents `python3 scripts/graphify-maintain.py semantic [--timeout SECONDS]` (default 3600s) as the user-triggered semantic command, documents the corrected proof-gate (edge-signature set-diff over valid confidences, NOT node-count), lists the new subcommand in the lifecycle section; CLAUDE_GRAPHIFY_ENABLED=auto wording unchanged; agents/graphify.md remains valid (enrich-only) and is NOT edited
     """
-    # TODO(dev): replace the line below with the real test body.
-    # Assertions to cover:
-    #   - grep docs/reference/graphify-integration.md: contains 'graphify-maintain.py semantic' and '3600'
-    #   - the prior 'init ... then runs a bounded semantic probe' / 'node count differs' wording updated to
-    #     the set-diff + manual-command model
-    #   - docs state init/update stay AST-only and fast
-    #   - agents/graphify.md unchanged (no diff) and still enrich-only consistent
-    #   - CLAUDE_GRAPHIFY_ENABLED=auto gate wording preserved
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — docs affirmatively describe manual `semantic` command (3600s) + corrected set-diff gate; agents/graphify.md untouched")
+    doc = _DOC.read_text(encoding="utf-8")
+    # Affirmatively documents the manual command + default 3600s.
+    assert "graphify-maintain.py semantic" in doc
+    assert "3600" in doc
+    # Corrected gate described as edge-signature set-diff (NOT node-count).
+    assert "set-diff" in doc.lower()
+    # init/update AST-only.
+    assert "AST-only" in doc
+    # The stale "init ... bounded semantic probe" / "node count differs" wording is gone.
+    assert "bounded semantic probe" not in doc
+    assert "node count differs" not in doc
+    # CLAUDE_GRAPHIFY_ENABLED=auto gate wording preserved.
+    assert "CLAUDE_GRAPHIFY_ENABLED" in doc and "auto" in doc
+
+    # agents/graphify.md remains valid (enrich-only) and was NOT edited this cycle.
+    assert _AGENT.exists()
+    r = subprocess.run(["git", "-C", str(_REPO_ROOT), "status", "--porcelain",
+                        "agents/graphify.md"], capture_output=True, text=True, timeout=30)
+    assert r.stdout.strip() == "", f"agents/graphify.md must be unchanged, got: {r.stdout!r}"
+    agent = _AGENT.read_text(encoding="utf-8")
+    # enrich-only: must not claim it runs init/semantic itself.
+    assert "graphify-maintain.py semantic" not in agent
