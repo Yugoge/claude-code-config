@@ -99,12 +99,15 @@ def check_immutability_against_canonical(canonical, new_todos, violations):
         _check_field(canonical, new_todos, 'activeForm', i, violations)
 
 
-def validate_against_canonical(cmd_name, new_todos):
+def validate_against_canonical(cmd_name, new_todos, prompt=''):
     """Validate new_todos against canonical script if available.
+
+    prompt is forwarded to run_todo_script so argument-aware todo scripts
+    (e.g. close.py for --force) can return the correct variant.
 
     Returns list of violations (empty if valid or no canonical exists).
     """
-    canonical = run_todo_script(cmd_name) if cmd_name else None
+    canonical = run_todo_script(cmd_name, prompt) if cmd_name else None
     if not canonical:
         return []
     violations = []
