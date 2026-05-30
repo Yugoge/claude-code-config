@@ -591,6 +591,12 @@ The dev report MUST be written to the filesystem so QA can read it directly. Als
   "baseline_head_sha": "<git rev-parse HEAD at dispatch time, or empty string if unborn repo>",
   "baseline_dirty_snapshot": "<git status --porcelain output at dispatch time, or empty string>",
   "dev_report_path": "docs/dev/dev-report-<timestamp>.json",
+  "owned_edits": {
+    "<repo-rel-path>": [{"old": "<exact old_string>", "new": "<exact new_string>"}]
+  },
+  "pre_edit_snapshots": {
+    "<repo-rel-path>": "<blob-sha or exact pre-edit file content>"
+  },
   "dev": {
     "status": "completed|blocked|needs_review",
     "files_modified": [],
