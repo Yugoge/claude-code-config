@@ -715,14 +715,15 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     emit_checklist_message(cmd_name, todos)
 
 
-def _write_bookmark(cmd_name: str, sid: str) -> None:
+def _write_bookmark(cmd_name: str, sid: str, arguments: str = '') -> None:
     """Write the workflow bookmark file."""
     bm = workflow_bookmark_path(sid)
     try:
         bm.parent.mkdir(parents=True, exist_ok=True)
-        bm.write_text(json.dumps({
-            'command': cmd_name, 'todo_acknowledged': False,
-        }))
+        data = {'command': cmd_name, 'todo_acknowledged': False}
+        if arguments:
+            data['arguments'] = arguments
+        bm.write_text(json.dumps(data))
     except Exception:
         pass
 
