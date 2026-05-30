@@ -30,11 +30,43 @@ def test_AC6(cache_env, monkeypatch):
     WHEN:  `python3 scripts/graphify-maintain.py status` runs against a cache whose run-manifest records semantic_mode
     THEN:  status prints the correct semantic_mode (ast_only vs semantic:<backend>) read from run-manifest.json, reports added-link / added-INFERRED-or-AMBIGUOUS counts when promoted, and NEVER claims semantic:<backend> when run-manifest says ast_only
     """
-    # TODO(dev): replace the line below with the real test body.
-    # Assertions to cover:
-    #   - status semantic_mode line matches run-manifest.json semantic_mode exactly
-    #   - when semantic_mode startswith 'semantic:', status surfaces the added-link count field written by cmd_semantic
-    #   - status never reports a mode inconsistent with run-manifest.json
-    #   - after a successful cmd_update AST overwrite, run-manifest semantic_mode reset to 'ast_only' and added-count
-    #     fields cleared, so status does not show a stale 'semantic:<backend>' (codex #7 — cross-check AC10)
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — status mirrors persisted run-manifest semantic_mode; no stale semantic claim after AST overwrite")
+    apply_env(monkeypatch, cache_env["env"], clear_keys=("GRAPHIFY_OUT",))
+    # A valid graph.json so status reaches the manifest section.
+    write_json(cache_env["graph_json"], graph_dict(["x", "y"], [link("x", "y")]))
+
+    # --- promoted manifest: status mirrors semantic:<backend> + added-link counts ---
+    write_json(cache_env["run_manifest"], {
+        "semantic_mode": "semantic:claude-cli",
+        "semantic_backend_probe": "semantic path added 3 new edge(s) via semantic:claude-cli",
+        "semantic_added_links": 3,
+        "semantic_added_inferred_or_ambiguous": 1,
+    })
+    mod = load_script_module("graphify-maintain.py", "gm_ac6a")
+    mod.get_graphify_bin = lambda: "/fake/graphify"
+    txt = _status_text(mod)
+    assert "semantic_mode: semantic:claude-cli" in txt
+    assert "semantic_added_links: 3" in txt
+    assert "semantic_added_inferred_or_ambiguous: 1" in txt
+
+    # --- ast_only manifest: status reports ast_only and does NOT claim semantic ---
+    write_json(cache_env["run_manifest"], {
+        "semantic_mode": "ast_only",
+        "semantic_backend_probe": "semantic is user-triggered; AST retained",
+    })
+    mod2 = load_script_module("graphify-maintain.py", "gm_ac6b")
+    mod2.get_graphify_bin = lambda: "/fake/graphify"
+    txt2 = _status_text(mod2)
+    assert "semantic_mode: ast_only" in txt2
+    assert "semantic:claude-cli" not in txt2  # never claims semantic when ast_only
+    assert "semantic_added_links" not in txt2  # counts only surfaced when promoted
+
+    # --- cross-check AC10: after a cmd_update overwrite, reset clears stale mode ---
+    write_json(cache_env["run_manifest"], {
+        "semantic_mode": "semantic:claude-cli",
+        "semantic_added_links": 5,
+    })
+    import graphify_lib
+    graphify_lib.reset_semantic_mode_in_manifest(cache_env["cache_dir"])
+    rm = json.loads(cache_env["run_manifest"].read_text(encoding="utf-8"))
+    assert rm["semantic_mode"] == "ast_only"
+    assert "semantic_added_links" not in rm
