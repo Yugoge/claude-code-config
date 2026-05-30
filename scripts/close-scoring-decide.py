@@ -122,6 +122,21 @@ def _resolve_close_report_path(repo_root: Path, task_id: str) -> Path:
     """
     import subprocess
 
+    # 1. CLAUDE_PROJECT_DIR / git-toplevel-of-cwd project root is authoritative when
+    #    the report actually exists there. Check it directly (deterministic) BEFORE
+    #    delegating to the bash resolver, whose subprocess-cwd dependence has
+    #    mis-resolved the report into the nested .claude repo / ${CONTROL_ROOT:-/root}
+    #    in nested-.claude layouts (the historical mis-resolution bug).
+    project_dir = _resolve_project_dir()
+    project_candidate = project_dir / "docs" / "dev" / f"close-report-{task_id}.md"
+    if project_candidate.exists():
+        return project_candidate
+
+    # 2. Canonical bash resolver probe chain (inherits cwd + env). Only trust its
+    #    output when the path it prints actually EXISTS — resolve-close-report.sh
+    #    prints a ${CONTROL_ROOT:-/root} fallback path to stdout even on exit 1
+    #    (no candidate found), and returning that blindly reports a missing-report
+    #    at the wrong location.
     resolver = repo_root / "scripts" / "resolve-close-report.sh"
     if resolver.is_file():
         try:
@@ -132,15 +147,14 @@ def _resolve_close_report_path(repo_root: Path, task_id: str) -> Path:
                 timeout=5,
             )
             out = result.stdout.strip()
-            if out:
+            if out and Path(out).exists():
                 return Path(out)
         except (OSError, subprocess.SubprocessError):
             pass
 
-    # Fallback: prior 2-candidate logic (project_dir then code repo_root).
-    project_dir = _resolve_project_dir()
+    # 3. Fallback: project_dir (for the missing-file error message) then code repo_root.
     _candidates = [
-        project_dir / "docs" / "dev" / f"close-report-{task_id}.md",
+        project_candidate,
         repo_root / "docs" / "dev" / f"close-report-{task_id}.md",
     ]
     return next((p for p in _candidates if p.exists()), _candidates[0])
