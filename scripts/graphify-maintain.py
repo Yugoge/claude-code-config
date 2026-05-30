@@ -167,6 +167,46 @@ def _run_ast_build(repo: Path, cache_dir: Path, timeout: int) -> tuple[int, str,
     return run_graphify_cmd(["update", str(repo)], timeout_seconds=timeout, cache_dir=cache_dir)
 
 
+def _graph_snapshot(path: Path) -> str | None:
+    """Return a content-hash snapshot of graph.json, or None if absent.
+
+    Used to PROVE whether a failed/timed-out AST update mutated the canonical
+    graph (codex iter #3). A content hash (not mtime alone) is authoritative.
+    """
+    import hashlib
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
+
+def _reconcile_after_ast_overwrite(cache_dir: Path, exit_code: int,
+                                   pre_snapshot: str | None) -> str:
+    """Three-branch semantic-state reconciliation after an AST `update` (AC10/AC11).
+
+    (i)  success (exit_code == 0): graph.json overwritten -> RESET semantic_mode.
+    (ii) failed/timed-out BUT graph.json mutated (pre != post): INVALIDATE -> RESET.
+    (iii)failed/timed-out AND graph.json proven unchanged: leave manifest UNTOUCHED.
+
+    Advisory: any error is swallowed. Returns a short reason string for logging.
+    The reset uses the SHARED graphify_lib.reset_semantic_mode_in_manifest helper
+    and is called AFTER the graph overwrite (graph-then-manifest ordering).
+    """
+    post_snapshot = _graph_snapshot(graph_json_path(_PROJECT_DIR))
+    mutated = (exit_code == 0) or (pre_snapshot != post_snapshot)
+    if not mutated:
+        return "graph.json proven unchanged; manifest untouched"
+    try:
+        reset_semantic_mode_in_manifest(cache_dir)
+    except Exception as exc:  # advisory — never break the caller
+        return f"reconcile error (swallowed): {exc}"
+    if exit_code == 0:
+        return "AST overwrite reset semantic_mode to ast_only"
+    return "AST update mutated graph before failing; semantic state invalidated"
+
+
 def _refuse_if_cache_inside_repo(verb: str) -> bool:
     """Print + return True when cache resolves inside the repo (advisory refusal, AC13)."""
     if is_cache_root_inside_repo(_PROJECT_DIR):
