@@ -2,17 +2,23 @@
 """
 graphify-enrich.py — pre-DEV focused subgraph extractor (runs between Step 7 and Step 8).
 
-Runs as graphify subagent (mode=enrich) after BA-QA validation passes, before DEV.
-Operations:
-  1. Runs graphify --update (incremental refresh, advisory)
-  2. Reads blast-radius-map.json from dev-registry to seed the focused subgraph
-  3. Extracts focused subgraph for files in blast-radius-map
-  4. Patches context-{ts}.json in-place with graph_context field (arch-6 accepted divergence from sidecar)
-  5. Writes per-task artifacts to .claude/dev-registry/{task_id}/graphify/
+Drives the REAL `graphify` v0.8.25 CLI. Runs as graphify subagent (mode=enrich)
+after BA-QA validation, before DEV. Operations:
+  1. Incremental real `graphify update <repo>` (advisory, out-of-repo cwd, ≤60s)
+  2. Read blast-radius-map.json modified paths
+  3. Resolve each modified path to real graph node.id values (source_file/label/symbols)
+  4. Build the focused subgraph DETERMINISTICALLY from graph.json nodes+links
+     around those ids (the PRIMARY signal) — translated to real human-readable
+     fields (label, source_file, relation) per AC14
+  5. Invoke real `graphify affected "<node.id>" --graph <cacheDir/graph.json> --depth N`
+     seeded with a RESOLVED node id (never raw path/label); consume its stdout as
+     enrichment layered on top; text-parse failure/timeout → status=degraded but the
+     deterministic subgraph is kept (AC3)
+  6. Patch context-{ts}.json in-place with graph_context (arch-6); sensitive paths
+     scrubbed on read + on CLI stdout (AC15)
 
-Nil-map fallback (arch-1):
-  When blast-radius-map.json is absent (BA ran MICRO/SMALL tier), exits immediately
-  with status=skipped. DEV receives a valid empty graph_context. Zero exception.
+Nil-map fallback (arch-1): blast-radius-map absent → status=skipped, valid empty
+graph_context, zero exception.
 
 Usage:
   python3 scripts/graphify-enrich.py --task-id <ID> --context-file <path> [--no-graphify]
@@ -28,18 +34,17 @@ import sys
 import time
 from pathlib import Path
 
-_PROJECT_DIR = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
+_PROJECT_DIR = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())).resolve()
 sys.path.insert(0, str(_PROJECT_DIR / "scripts"))
 
 from graphify_lib import (
     STATUS_OK, STATUS_DEGRADED, STATUS_FAILED, STATUS_UNAVAILABLE, STATUS_SKIPPED,
-    EXCLUDE_FRAGMENTS,
-    check_cache_available, empty_graph_context, get_cache_root, get_repo_key,
-    is_graphify_enabled, run_graphify_cmd, should_exclude_path,
-    write_json_locked, read_json_safe,
+    EXCLUDE_FRAGMENTS, TIMEOUT_UPDATE, TIMEOUT_AFFECTED,
+    check_cache_available, contains_sensitive_fragment, empty_graph_context,
+    get_cache_dir, get_repo_key, graph_json_path, is_cache_root_inside_repo,
+    is_graphify_enabled, load_graph, resolve_paths_to_node_ids, run_graphify_cmd,
+    scrub_sensitive, should_exclude_path, write_json_locked, read_json_safe,
 )
-
-INCREMENTAL_TIMEOUT = 300  # 5 min
 
 
 def _now_iso() -> str:
@@ -58,51 +63,95 @@ def _load_blast_radius_map(task_id: str) -> tuple[dict | None, str]:
     return data, "ok"
 
 
-def _extract_focused_subgraph(blast_radius_map: dict, cache_dir: Path) -> dict:
-    """Extract subgraph nodes/edges for files in blast-radius-map."""
-    # Collect all files from blast-radius-map edges
-    modified_files = set()
-    edges = blast_radius_map.get("edges", [])
-    for edge in edges:
-        src = edge.get("from", "")
-        dst = edge.get("to", "")
-        for f in (src, dst):
-            if f and not should_exclude_path(f):
-                modified_files.add(f)
-
-    # Also include top-level modified_files if present
+def _collect_modified_paths(blast_radius_map: dict) -> list[str]:
+    """Collect modified file paths from blast-radius-map (edges + modified_files)."""
+    paths: list[str] = []
+    # Real blast-radius-map edges use source/target; tolerate legacy from/to too.
+    for edge in blast_radius_map.get("edges", []):
+        for key in ("source", "target", "from", "to"):
+            v = edge.get(key)
+            if v and not should_exclude_path(v):
+                paths.append(v)
     for f in blast_radius_map.get("modified_files", []):
-        if not should_exclude_path(f):
-            modified_files.add(f)
+        if f and not should_exclude_path(f):
+            paths.append(f)
+    for f in blast_radius_map.get("files", []):
+        if isinstance(f, str) and f and not should_exclude_path(f):
+            paths.append(f)
+    return list(dict.fromkeys(paths))
 
-    # Build node list
-    nodes = [{"path": f, "node_type": "source"} for f in sorted(modified_files)]
 
-    # Try to load graph.json for edge data
-    graph_path = cache_dir / "graph.json"
-    subgraph_edges = []
-    if graph_path.exists():
-        try:
-            graph_data = json.loads(graph_path.read_text(encoding="utf-8"))
-            all_edges = graph_data.get("edges", [])
-            for e in all_edges:
-                src = e.get("from", "")
-                dst = e.get("to", "")
-                if (src in modified_files or dst in modified_files) and \
-                        not should_exclude_path(src) and not should_exclude_path(dst):
-                    subgraph_edges.append({
-                        "from": src,
-                        "to": dst,
-                        "edge_type": e.get("type", "import"),
-                    })
-        except Exception:
-            pass
+def _build_deterministic_subgraph(graph: dict, resolved_ids: set[str]) -> dict:
+    """Build the focused subgraph from graph.json nodes+links around resolved ids.
 
+    PRIMARY signal (AC3 b). Emits REAL translated fields per AC14: each node carries
+    id+label+source_file; each edge carries source+target+relation (verbatim from
+    the node-link graph.json link). Includes 1-hop neighbours of the resolved ids.
+    """
+    all_nodes = {n.get("id"): n for n in graph.get("nodes", []) if n.get("id")}
+    links = graph.get("links", [])
+
+    # Seed set = resolved ids; expand to 1-hop neighbours via links.
+    keep_ids = set(resolved_ids)
+    edges_out = []
+    for l in links:
+        src, tgt, rel = l.get("source"), l.get("target"), l.get("relation")
+        if src in resolved_ids or tgt in resolved_ids:
+            keep_ids.add(src)
+            keep_ids.add(tgt)
+            edge = {"source": src, "target": tgt, "relation": rel}
+            if not should_exclude_path(json.dumps(edge)):
+                edges_out.append(edge)
+
+    nodes_out = []
+    for nid in keep_ids:
+        n = all_nodes.get(nid)
+        if not n:
+            continue
+        sf = n.get("source_file", "")
+        if should_exclude_path(sf) or should_exclude_path(n.get("label", "")):
+            continue
+        nodes_out.append({
+            "id": nid,
+            "label": n.get("label", nid),
+            "source_file": sf,
+        })
+    # Dedupe edges; cap to avoid token explosion.
+    seen = set()
+    uniq_edges = []
+    for e in edges_out:
+        k = (e["source"], e["target"], e["relation"])
+        if k not in seen:
+            seen.add(k)
+            uniq_edges.append(e)
     return {
-        "nodes": nodes,
-        "edges": subgraph_edges[:200],  # Cap edges to avoid token explosion
+        "nodes": nodes_out[:100],
+        "edges": uniq_edges[:200],
         "module_boundaries": [],
     }
+
+
+def _run_real_affected(node_id: str, graph_file: Path, cache_dir: Path) -> dict:
+    """Invoke real `graphify affected "<node_id>" --graph <graph_file> --depth N`.
+
+    node_id MUST be a RESOLVED node id (caller's responsibility — never a raw path
+    or bare label, AC3). Consumes + scrubs the real stdout. On error/timeout returns
+    affected_cli_status=degraded with the reason (advisory; the call WAS attempted).
+    """
+    args = ["affected", node_id, "--graph", str(graph_file), "--depth", "2"]
+    exit_code, stdout, stderr = run_graphify_cmd(args, timeout_seconds=TIMEOUT_AFFECTED, cache_dir=cache_dir)
+    record = {
+        "node_id": node_id,
+        "argv": ["graphify"] + args,  # recorded vector for proof-of-call
+        "affected_cli_status": STATUS_OK,
+    }
+    if exit_code != 0:
+        record["affected_cli_status"] = STATUS_DEGRADED
+        record["reason"] = (stderr or f"exit={exit_code}")[:200]
+        return record
+    safe_lines = [ln for ln in (stdout or "").splitlines() if not contains_sensitive_fragment(ln)]
+    record["output"] = "\n".join(safe_lines)[:4000]
+    return record
 
 
 def _build_graph_summary(subgraph: dict, status: str, run_manifest: dict) -> dict:
@@ -116,23 +165,32 @@ def _build_graph_summary(subgraph: dict, status: str, run_manifest: dict) -> dic
     }
 
 
-def _build_graph_context_patch(subgraph: dict, status: str, task_id: str) -> dict:
-    """Build graph_context object to patch into context-{ts}.json."""
-    return {
+def _build_graph_context_patch(subgraph: dict, status: str, task_id: str,
+                               resolved_node_ids: list[str], unresolved_paths: list[str],
+                               affected_records: list[dict], affected_cli_status: str) -> dict:
+    """Build graph_context to patch into context-{ts}.json with REAL translated content (AC14)."""
+    nodes = subgraph.get("nodes", [])
+    edges = subgraph.get("edges", [])
+    patch = {
         "status": status,
         "task_id": task_id,
         "generated_at": _now_iso(),
         "summary": {
-            "node_count": len(subgraph.get("nodes", [])),
-            "edge_count": len(subgraph.get("edges", [])),
-            "high_centrality_nodes": [
-                n["path"] for n in subgraph.get("nodes", [])[:5]
-            ],
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+            "high_centrality_nodes": [n.get("label") for n in nodes[:5]],
         },
+        # REAL translated machine-readable fields (AC14): id+label+source_file / source+target+relation.
+        "nodes": nodes,
+        "edges": edges,
+        "resolved_node_ids": resolved_node_ids,
+        "unresolved_paths": unresolved_paths,
+        "affected_cli_status": affected_cli_status,
+        "graphify_affected_results": affected_records,
         "focused_subgraph_path": f".claude/dev-registry/{task_id}/graphify/focused-subgraph.json",
-        "graph_report_path": f".claude/dev-registry/{task_id}/graphify/graph-report.md",
         "advisory": True,
     }
+    return scrub_sensitive(patch)
 
 
 def main() -> int:
