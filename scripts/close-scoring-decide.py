@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
@@ -76,6 +77,36 @@ def _resolve_repo_root(override: str | None) -> Path:
         pass
     # Fallback: script's parent-parent (scripts/close-scoring-decide.py -> repo/scripts/.. = repo)
     return Path(__file__).resolve().parent.parent
+
+
+def _resolve_project_dir() -> Path:
+    """Resolve the PROJECT root that owns docs/dev/close-report-*.md.
+
+    This is DISTINCT from _resolve_repo_root (which finds the .claude code root
+    where hooks/lib/close-verdict.py lives). The close-report lives in the user's
+    project, not in the .claude repo. Resolution order:
+      1. CLAUDE_PROJECT_DIR env (authoritative when set)
+      2. git toplevel from the ACTUAL cwd (NOT the script's dir)
+      3. cwd
+    Never derive this from __file__ — the script is symlinked into .claude and
+    its own location is the .claude repo, not the project (the historical bug).
+    """
+    env = os.environ.get("CLAUDE_PROJECT_DIR")
+    if env:
+        return Path(env).resolve()
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )  # cwd defaults to the actual working directory, not the script dir
+        if result.returncode == 0 and result.stdout.strip():
+            return Path(result.stdout.strip()).resolve()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return Path.cwd()
 
 
 def decide(close_report_path: Path, qa_ever_rejected: bool, repo_root: Path) -> tuple[dict, int]:
