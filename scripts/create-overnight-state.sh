@@ -227,7 +227,7 @@ fi
 # --- Detect view_paths + canonical spec-id via the centralized resolver ---
 # Do NOT derive SPEC_DIR / spec_id from the monolith basename inline: the producer
 # (/spec) emits DE-prefixed split dirs (docs/dev/specs/<ts>/) while the monolith
-# filename keeps the spec- prefix, so "${USER_SPEC_PATH%.md}" misses the manifest.
+# filename keeps the spec- prefix, so "${USER_SPEC_PATH%.md}" misses the manifest.  # spec-id-lint: allow
 # resolve-spec-artifacts.py tolerates both conventions and fails loud on a
 # present-but-invalid split. RESOLVED_SPEC_ID is reused for the contract's spec_id.
 VIEW_PATHS="{}"
