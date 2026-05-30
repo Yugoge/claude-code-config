@@ -685,6 +685,7 @@ Execute the recovery commit using the existing single-use commit grant (not cons
 `git commit` fired against the clean working tree):
 
 Run: `scripts/precommitted-recovery.sh execute-commit "${GIT_ROOT}" "${TMPFILE}"`
+(internally runs `git commit --allow-empty -F "${TMPFILE}"` against `GIT_ROOT`)
 
 **Recovery step 4: Capture recovery commit SHA**
 
