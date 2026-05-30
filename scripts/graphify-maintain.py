@@ -43,11 +43,15 @@ sys.path.insert(0, str(_PROJECT_DIR / "scripts"))
 
 from graphify_lib import (
     STATUS_OK, STATUS_FAILED, STATUS_UNAVAILABLE, STATUS_SKIPPED,
-    TIMEOUT_UPDATE, TIMEOUT_INIT, TIMEOUT_SEMANTIC_PROBE,
+    TIMEOUT_UPDATE, TIMEOUT_INIT, TIMEOUT_SEMANTIC_PROBE, TIMEOUT_SEMANTIC,
     check_cache_available, get_cache_dir, get_graphify_bin, get_repo_key,
     graph_json_path, is_cache_root_inside_repo, is_graphify_enabled,
     load_graph, run_graphify_cmd, write_json_locked,
+    reset_semantic_mode_in_manifest,
 )
+
+# Edge-signature confidence whitelist for the semantic proof-gate (verdict P, codex round-2).
+VALID_CONFIDENCES = {"EXTRACTED", "INFERRED", "AMBIGUOUS"}
 
 
 def _detect_semantic_backend() -> str | None:
