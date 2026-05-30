@@ -252,7 +252,7 @@ def check_subagent_completion_guard(state, last, new_todos, cmd):
     """Gate 4: block completing a subagent step without calling Agent."""
     if not last or not cmd:
         return
-    canonical = run_todo_script(cmd)
+    canonical = run_todo_script(cmd, state.get('arguments', ''))
     if not canonical:
         return
     idx, step_todo, sa_call = _find_completing_subagent_step(
