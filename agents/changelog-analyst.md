@@ -230,7 +230,50 @@ Log: `Pre-staged verify: unstaged <file> (not in classified set)`
 
 ### Phase 5: Stage classified files
 
-For each file in the candidate set (per repo), use repo-relative paths:
+This phase runs strictly AFTER Phase 2 (whitelist + `foreign_session_candidate`
+exclusion + provenance filter) and Phase 4 (pre-staged verify), and entirely INSIDE
+the Phase 3 fd-9 flock. It operates ONLY on files already in the authorized candidate
+set. It can only NARROW what is staged WITHIN an authorized file — it can never widen
+the file set and never reaches a non-whitelisted/foreign file.
+
+For each file in the candidate set (per repo), use repo-relative paths.
+
+**Entangled-file detection (hunk-filtered staging):** A whitelisted candidate file is
+*entangled* when it is dirty AND the dev-report supplies an `owned_edits` entry for it
+(i.e. this cycle authored only PART of the file's current diff and a concurrent peer
+session may have uncommitted hunks in the same file). For an entangled file, route
+staging through the line-precise helper instead of whole-file `git add`:
+
+```bash
+# Write this file's owned-edits ledger and pre-edit snapshot from the dev-report to
+# temp files, then invoke the helper (inside the same fd-9 flock).
+git_root="${GIT_ROOT}"
+"${CLAUDE_PROJECT_DIR}/.claude/scripts/stage-owned-hunks.py" \
+    --git-root "${git_root}" \
+    --file "<repo-rel-path>" \
+    --ledger "<owned-edits-ledger-tmp.json>" \
+    --snapshot "<pre-edit-snapshot-tmp>"
+rc=$?
+```
+
+Interpret the helper exit code:
+- `0` — owned hunks were staged (or the owned diff was empty → nothing staged, a no-op).
+  The peer's hunks remain unstaged in the working tree.
+- `10` — EXCLUDED (fail-closed): ownership could not be robustly determined, OR a
+  post-capture peer edit was detected outside the owned ranges, OR a peer edited inside
+  an owned range, OR the file is binary/mode-changed/CRLF/overlapping, OR
+  `git apply --cached` rejected. **Warn-and-skip the entangled file — do NOT whole-file
+  stage it.** Print:
+  `WARNING: excluding <repo-rel-path> from staging — hunk-filtered staging fail-closed (peer entanglement or ambiguity); the file's owned change was NOT committed this cycle. See stderr for the specific reason.`
+- any other non-zero — treat as EXCLUDE (warn-and-skip, never whole-file).
+
+On exclusion the file is simply not committed this cycle; this is the correct
+fail-closed behavior and never sweeps in un-QA'd peer work. The helper NEVER uses
+`git add -A` / `git add .` and NEVER falls back to whole-file staging — it pipes a
+single-file owned-only filtered patch to `git apply --cached --recount --unidiff-zero`.
+
+**Non-entangled files** (no `owned_edits` entry, or no peer dirtiness in the file —
+the common case) use the existing whole-file path:
 
 ```bash
 git -C "${GIT_ROOT}" add -- "<repo-rel-path>"
@@ -241,9 +284,17 @@ For deleted files that are tracked:
 git -C "${GIT_ROOT}" rm -- "<repo-rel-path>"
 ```
 
-NEVER use `git add -A` or `git add .`.
+NEVER use `git add -A` or `git add .` — in EITHER path. The hunk-filtered path stages
+exclusively via a single-file `git apply --cached` patch.
 
 If a file no longer exists on disk and is untracked (status `??`): skip with a warning.
+
+**Honest scope (peer-COMMITTED limitation):** this hunk-filtered path solves the
+peer-UNCOMMITTED case end-to-end (the motivating incident), using the timing-independent
+owned-edits ledger + the fail-closed out-of-owned-region cross-check. Separating a
+peer's already-COMMITTED hunks from owned hunks is **unsolvable with current provenance**
+and is explicitly out of scope: a peer commit after `baseline_head_sha` is
+indistinguishable in the baseline diff from this-cycle changes.
 
 ### Phase 6: Build commit message (diff-first — M4)
 
