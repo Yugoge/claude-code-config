@@ -754,6 +754,8 @@ Run `bash ~/.claude/scripts/score-inject.sh --agent dev` and capture stdout into
 
 ```bash
 baseline_head_sha=$(git -C "$CLAUDE_PROJECT_DIR" rev-parse HEAD 2>/dev/null || echo "")
+# baseline_dirty_snapshot is intentionally captured once before Dev dispatch;
+# see agents/dev.md for its point-in-time / concurrency semantics.
 baseline_dirty_snapshot=$(git -C "$CLAUDE_PROJECT_DIR" status --porcelain 2>/dev/null || echo "")
 ```
 
