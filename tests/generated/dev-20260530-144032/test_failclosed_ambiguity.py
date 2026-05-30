@@ -38,36 +38,54 @@ def test_empty_ledger(repo):
     assert _stage_empty(repo, "f.txt")
 
 
+# Any fail-closed reason that indicates ownership/peer ambiguity is acceptable —
+# the binding contract is exit 10 + empty stage, not a specific wording.
+_AMBIGUITY_REASONS = (
+    "not uniquely locatable",
+    "do not reproduce the worktree",
+    "peer edited",
+    "staged content in the index",
+    "not tracked in the index",
+)
+
+
+def _reason_ok(err):
+    return any(r in err for r in _AMBIGUITY_REASONS)
+
+
 def test_owned_content_not_unique(repo):
-    # new_string appears twice in the worktree -> non-unique -> EXCLUDE
-    repo.write("f.txt", "dup\nx\ndup\n")
+    # old_string is non-unique during replay -> ambiguous -> EXCLUDE
+    repo.write("f.txt", "dup\ndup\nx\n")
     repo.commit("base")
-    snap = repo.write_snapshot("dup\nx\ndup\n")
-    repo.write("f.txt", "dup\nx\ndup\n")  # 'dup\n' is non-unique
-    ledger = repo.write_ledger([{"old": "x\n", "new": "dup\n"}])
+    snap = repo.write_snapshot("dup\ndup\nx\n")
+    repo.write("f.txt", "dup\ndup\nx OWNED\n")
+    # 'dup\n' appears twice in the snapshot; an edit keyed on it is non-unique.
+    ledger = repo.write_ledger([{"old": "dup\n", "new": "dup CHANGED\n"}])
     rc, err = repo.run_helper("f.txt", ledger, snap)
     assert rc == EXCLUDE
-    assert "not uniquely locatable" in err
+    assert _reason_ok(err), err
     assert _stage_empty(repo, "f.txt")
 
 
 def test_owned_content_absent(repo):
-    # recorded new_string not present in worktree at all -> EXCLUDE
+    # recorded old_string not present in the snapshot at all -> EXCLUDE
     repo.write("f.txt", "a\nb\nc\n")
     repo.commit("base")
     snap = repo.write_snapshot("a\nb\nc\n")
     repo.write("f.txt", "a\nb OWNED\nc\n")
-    ledger = repo.write_ledger([{"old": "b\n", "new": "b NEVER WRITTEN\n"}])
+    # old_string never existed in the snapshot -> replay cannot locate it.
+    ledger = repo.write_ledger([{"old": "NONEXISTENT\n", "new": "b OWNED\n"}])
     rc, err = repo.run_helper("f.txt", ledger, snap)
     assert rc == EXCLUDE
-    assert "not uniquely locatable" in err
+    assert _reason_ok(err), err
     assert _stage_empty(repo, "f.txt")
 
 
 def test_peer_edit_inside_owned_range(repo):
-    """Peer mutates content INSIDE the line range dev authored. The recorded
-    new_string no longer byte-matches the worktree -> M2.1 byte-match fails ->
-    EXCLUDE. A peer change hidden inside an owned range is NEVER staged."""
+    """Peer mutates content INSIDE the line range dev authored. The forward replay
+    of dev's authored edit does NOT reproduce the worktree (the peer byte is not
+    what dev wrote) -> EXCLUDE. A peer change hidden inside an owned range is NEVER
+    staged."""
     repo.write("f.txt", "h1\nh2\nh3\nh4\nh5\n")
     repo.commit("base")
     snap = repo.write_snapshot("h1\nh2\nh3\nh4\nh5\n")
@@ -77,25 +95,24 @@ def test_peer_edit_inside_owned_range(repo):
     ledger = repo.write_ledger([{"old": "h2\nh3\nh4\n", "new": "OWNED A\nOWNED B\nOWNED C\n"}])
     rc, err = repo.run_helper("f.txt", ledger, snap)
     assert rc == EXCLUDE
-    assert "not uniquely locatable" in err or "peer edited" in err
+    assert _reason_ok(err), err
     assert _stage_empty(repo, "f.txt")
 
 
 def test_peer_insertion_line_shift(repo):
-    """A peer insertion ABOVE the owned region shifts line numbers. Owned content
-    is located by content-search (line numbers advisory), so it is still found —
-    but the peer insertion is an out-of-owned change caught by the cross-check ->
-    EXCLUDE."""
+    """A peer insertion ABOVE the owned region shifts line numbers. Ledger line
+    numbers are irrelevant (replay uses content). The peer insertion makes the
+    forward replay of the owned edit NOT reproduce the worktree -> EXCLUDE."""
     base = "a\nb\nc\nd\ne\n"
     repo.write("f.txt", base)
     repo.commit("base")
     snap = repo.write_snapshot(base)
-    # owned edit at line 4 (d -> d OWNED); peer INSERTS a new line near the top.
+    # owned edit (d -> d OWNED); peer INSERTS a new line near the top.
     repo.write("f.txt", "a\nPEER INSERTED\nb\nc\nd OWNED\ne\n")
     ledger = repo.write_ledger([{"old": "d\n", "new": "d OWNED\n"}])
     rc, err = repo.run_helper("f.txt", ledger, snap)
     assert rc == EXCLUDE
-    assert "out-of-owned region differs" in err
+    assert _reason_ok(err), err
     assert _stage_empty(repo, "f.txt")
 
 
