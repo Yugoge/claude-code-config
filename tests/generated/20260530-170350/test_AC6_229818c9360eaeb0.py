@@ -5,13 +5,26 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import io
+import json
+from contextlib import redirect_stdout
+
 import pytest
+
+from conftest import load_script_module, apply_env, graph_dict, link, write_json
 
 AC_UID = "229818c9360eaeb0"
 AC_TYPE = "data"
 
 
-def test_AC6():
+def _status_text(mod):
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        mod.cmd_status()
+    return buf.getvalue()
+
+
+def test_AC6(cache_env, monkeypatch):
     """
     GIVEN: graphify-maintain.py with the new semantic subcommand and corrected status reporting
     WHEN:  `python3 scripts/graphify-maintain.py status` runs against a cache whose run-manifest records semantic_mode
