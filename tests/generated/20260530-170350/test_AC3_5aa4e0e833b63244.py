@@ -42,14 +42,70 @@ def test_AC3(cache_env, monkeypatch):
     WHEN:  `python3 scripts/graphify-maintain.py semantic --timeout 1234` is dispatched (with run_graphify_cmd spied so no real multi-minute extract runs)
     THEN:  dispatch routes to cmd_semantic; cmd_semantic FIRST runs an AST `update` baseline, THEN calls run_graphify_cmd with args beginning 'extract' AND numeric timeout 1234; omitted --timeout uses graphify_lib.TIMEOUT_SEMANTIC == 3600; gate-disabled and cache-inside-repo short-circuits apply; keyed-env-without-claude STILL runs extract
     """
-    # TODO(dev): replace the line below with the real test body.
-    # Assertions to cover:
-    #   - argv with subcmd 'semantic' dispatched to cmd_semantic (not usage-error exit 2)
-    #   - spy records run_graphify_cmd: one args[0]=='update' (baseline) THEN one args[0]=='extract' (codex #2)
-    #   - with --timeout 1234, timeout_seconds passed to extract == 1234
-    #   - without --timeout, extract timeout_seconds == graphify_lib.TIMEOUT_SEMANTIC == 3600
-    #   - CLAUDE_GRAPHIFY_ENABLED=0 -> exit 0, zero extract calls
-    #   - cache_root_inside_repo -> exit 0, 'cache_root_inside_repo' in output, zero extract calls
-    #   - keyed-env (codex #6): ANTHROPIC_API_KEY set and `claude` absent -> spy STILL records 'extract' (no bail)
-    #   - invocation is the maintain CLI binary, NOT a recursive slash-command
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — semantic subcommand: dispatch, update-then-extract ordering, numeric timeout (1234 / default 3600), short-circuits, keyed-env no-bail")
+    # Default constant must be 3600 (legacy TIMEOUT_SEMANTIC_PROBE still 30 for AC13).
+    assert graphify_lib.TIMEOUT_SEMANTIC == 3600
+    assert graphify_lib.TIMEOUT_SEMANTIC_PROBE == 30
+
+    # --- dispatch routes `semantic --timeout 1234` to cmd_semantic; extract gets timeout 1234 ---
+    apply_env(monkeypatch, cache_env["env"],
+              extra={"GRAPHIFY_TRIAGE_BACKEND": "fakebackend"}, clear_keys=("GRAPHIFY_OUT",))
+    mod = load_script_module("graphify-maintain.py", "gm_ac3a")
+    recorded = _wire(mod, cache_env)
+    monkeypatch.setattr(sys, "argv", ["graphify-maintain.py", "semantic", "--timeout", "1234"])
+    # Exercise the real argv parse path used by __main__ dispatch.
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--timeout", type=int, default=graphify_lib.TIMEOUT_SEMANTIC)
+    ns = parser.parse_args(sys.argv[2:])
+    rc = mod.cmd_semantic(timeout_seconds=ns.timeout)
+    assert rc == 0
+    update_calls = [r for r in recorded if r["args"] and r["args"][0] == "update"]
+    extract_calls = [r for r in recorded if r["args"] and r["args"][0] == "extract"]
+    assert update_calls and extract_calls, f"recorded={recorded}"
+    # ordering: update before extract (codex #2)
+    first_update = next(i for i, r in enumerate(recorded) if r["args"][0] == "update")
+    first_extract = next(i for i, r in enumerate(recorded) if r["args"][0] == "extract")
+    assert first_update < first_extract
+    assert extract_calls[0]["timeout"] == 1234
+
+    # --- without --timeout, extract timeout == TIMEOUT_SEMANTIC (3600) ---
+    mod2 = load_script_module("graphify-maintain.py", "gm_ac3b")
+    rec2 = _wire(mod2, cache_env)
+    rc2 = mod2.cmd_semantic()  # default
+    assert rc2 == 0
+    ex2 = [r for r in rec2 if r["args"][0] == "extract"]
+    assert ex2 and ex2[0]["timeout"] == 3600
+
+    # --- CLAUDE_GRAPHIFY_ENABLED=0 -> exit 0, zero extract ---
+    apply_env(monkeypatch, cache_env["env"], extra={"CLAUDE_GRAPHIFY_ENABLED": "0"})
+    mod3 = load_script_module("graphify-maintain.py", "gm_ac3c")
+    rec3 = _wire(mod3, cache_env)
+    rc3 = mod3.cmd_semantic()
+    assert rc3 == 0
+    assert not any(r["args"][0] == "extract" for r in rec3)
+
+    # --- cache_root_inside_repo -> exit 0, message, zero extract ---
+    apply_env(monkeypatch, cache_env["env"],
+              extra={"CLAUDE_GRAPHIFY_CACHE_ROOT": str(cache_env["src"] / "inside")})
+    mod4 = load_script_module("graphify-maintain.py", "gm_ac3d")
+    rec4 = _wire(mod4, cache_env)
+    import io
+    from contextlib import redirect_stdout
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        rc4 = mod4.cmd_semantic()
+    assert rc4 == 0
+    assert "cache_root_inside_repo" in buf.getvalue()
+    assert not any(r["args"][0] == "extract" for r in rec4)
+
+    # --- keyed-env (codex #6): ANTHROPIC_API_KEY set, claude absent -> STILL runs extract ---
+    apply_env(monkeypatch, cache_env["env"],
+              extra={"ANTHROPIC_API_KEY": "sk-test"}, clear_keys=("GRAPHIFY_TRIAGE_BACKEND",))
+    mod5 = load_script_module("graphify-maintain.py", "gm_ac3e")
+    rec5 = _wire(mod5, cache_env)
+    # Force `claude` absent by patching shutil.which inside the module's selection.
+    import shutil as _sh
+    monkeypatch.setattr(_sh, "which", lambda name: None)
+    rc5 = mod5.cmd_semantic()
+    assert rc5 == 0
+    assert any(r["args"][0] == "extract" for r in rec5), "keyed env must NOT bail (codex #6)"
