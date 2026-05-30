@@ -104,6 +104,42 @@ def test_AC8_end_to_end_fixture_dev_report_drives_stage(repo):
     assert "+new OWNED line" in repo.cached_diff("agents/file.md")
 
 
+def test_AC8_blob_sha_snapshot_materialization(repo):
+    """Codex fix #6: a pre_edit_snapshots value may be a git blob SHA. Phase 5 must
+    resolve it via `git cat-file blob <sha>` before passing to the helper. This test
+    proves the resolved-blob path drives a successful stage (the SHA-text path would
+    fail the replay)."""
+    repo.write("file.md", "intro\nold\nout\n")
+    repo.commit("base")
+    # blob sha of the pre-edit content
+    p = repo.git("rev-parse", "HEAD:file.md")
+    blob_sha = p.stdout.decode().strip()
+    # The caller (Phase 5) resolves the SHA to bytes:
+    resolved = repo.git("cat-file", "blob", blob_sha).stdout
+    assert resolved == b"intro\nold\nout\n"
+
+    repo.write("file.md", "intro\nOWNED\nout\n")
+    ledger = repo.write_ledger([{"old": "old\n", "new": "OWNED\n"}])
+    snap = repo.write_snapshot(resolved)  # materialized bytes, NOT the SHA text
+    rc, err = repo.run_helper("file.md", ledger, snap)
+    assert rc == OK, err
+    assert "+OWNED" in repo.cached_diff("file.md")
+
+
+def test_AC6_phase5_documents_snapshot_resolution():
+    """Phase 5 prose must instruct resolving blob-SHA snapshots via cat-file."""
+    c = _read(CHANGELOG)
+    assert "cat-file blob" in c, "Phase 5 must resolve blob-SHA snapshots via cat-file"
+
+
+def test_AC4_phase5_failclosed_for_unprovenanced_dirty_file():
+    """Phase 5 must NOT whole-file stage a dirty tracked file lacking owned_edits/
+    pre_edit_snapshots provenance (codex fix #5 — no fail-open whole-file add)."""
+    c = _read(CHANGELOG)
+    assert "no owned_edits/pre_edit_snapshots provenance" in c
+    assert "warn-and-skip, not whole-file staged" in c
+
+
 # ---------------- AC6 doc slice: guards preserved ----------------
 
 def test_AC6_changelog_preserves_flock_and_guards():
