@@ -712,9 +712,9 @@ different `session_id` was detected (DO NOT rule 7). The recovery commit itself 
 successfully, but `/push` remains blocked until the token is written. The operator must
 re-run `/commit` or manually clear the token to proceed.
 
-**Step R7: Recovery failure handling**
+**Recovery step 7: Recovery failure handling**
 
-If the `git commit --allow-empty` in Step R3 fails (hook blocked, git error, etc.):
+If the `git commit --allow-empty` in Recovery step 3 fails (hook blocked, git error, etc.):
 - Return `commit_status: failed`
 - Set `failure_code: hook_blocked` if a PreToolUse hook blocked the command; otherwise `failure_code: git_error`
 - Set `failure_reason` to a message indicating the failure occurred during precommitted recovery (e.g. `"recovery commit failed after nothing_to_commit_precommitted detection: <error>"`)
