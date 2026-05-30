@@ -71,11 +71,13 @@ def main():
         bookmark_path = project_dir / '.claude' / f'workflow-{session_id}.json'
 
         cmd_name = '?'
+        arguments = ''
         bookmark_state = {}
         if bookmark_path.exists():
             try:
                 bookmark_state = json.loads(bookmark_path.read_text())
                 cmd_name = bookmark_state.get('command', '?')
+                arguments = bookmark_state.get('arguments', '')
             except Exception:
                 pass
 
