@@ -215,9 +215,9 @@ def emit_block_canonical(cmd, violations):
     sys.exit(2)
 
 
-def validate_against_canonical_if_needed(cmd, new_todos):
+def validate_against_canonical_if_needed(cmd, new_todos, prompt=''):
     """Validate new_todos against canonical script if available."""
-    violations = validate_against_canonical(cmd, new_todos)
+    violations = validate_against_canonical(cmd, new_todos, prompt)
     if violations:
         emit_block_canonical(cmd, violations)
         return False
