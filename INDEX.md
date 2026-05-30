@@ -1,7 +1,7 @@
 # dot-claude
 
-*Last updated: 2026-05-30T13:09:54Z*
-**Total entries**: 13463
+*Last updated: 2026-05-30T13:12:15Z*
+**Total entries**: 13467
 **Convention**: kebab
 
 ## Tree
@@ -5485,6 +5485,7 @@ dot-claude/
 │   ├── 146ea7ac-2d60-43b3-a57a-409b2e4d9ba5/
 │   ├── 1497cf0b-820e-4b5f-9a2a-59691dac2347/
 │   ├── 149bad0e-64ea-441e-8d0a-e8a45dfd4a85/
+│   ├── 14eaa147-ed76-4583-b79b-b375a76c502f/
 │   ├── 14f13a24-9cd8-4f00-b3da-a3226c68ca98/
 │   ├── 14f4cc88-e8b1-4b8e-88e1-94bc947c85b6/
 │   ├── 151dbf28-f720-46c1-b30b-2c07857931d9/
@@ -6668,6 +6669,7 @@ dot-claude/
 │   ├── 74167c34-af48-4fef-add9-f9ae876f61a2/
 │   ├── 7416c67d-2962-46ae-b92c-43aaf035127e/
 │   ├── 7420de41-314f-46a0-bcd9-3887fd480da4/
+│   ├── 74242973-8044-46d4-a61b-d3f6a28ad05a/
 │   ├── 7457458f-a0d3-433e-95b1-2bb1f8b3768f/
 │   ├── 7489f4db-00e1-4199-96ad-6ee0f7cdf617/
 │   ├── 74d6fbf6-cc71-47ea-a7f9-6fbc7f7693b9/
@@ -6755,6 +6757,7 @@ dot-claude/
 │   ├── 7b7ce8c7-6517-4847-a836-69f43fcc4527/
 │   ├── 7b95be51-0d97-484c-b13e-88087d78dc4f/
 │   ├── 7b9814e4-e068-48a7-b220-11e5068930a5/
+│   ├── 7b9dcbed-ba72-494e-8fc0-030898266fb7/
 │   ├── 7bc5b6dc-dd7a-42fb-bea2-74ec30b9213f/
 │   ├── 7bd4ca7e-d1f0-44f8-ba11-e93c2785be6e/
 │   ├── 7be41728-06e3-4929-bd99-b7befe34506b/
@@ -6985,6 +6988,7 @@ dot-claude/
 │   ├── 8dd35a8c-bb28-41ad-a78b-11011d5c3c32/
 │   ├── 8dd7f8a0-7c03-4529-9672-953346af51b7/
 │   ├── 8ddba37a-8ba1-4513-bfbf-0838c4d63b96/
+│   ├── 8dfaee20-c042-4e09-b852-2332fcd20c47/
 │   ├── 8e1b0037-2461-44d9-b836-2b8f17a72b1b/
 │   ├── 8e1fc90a-8d93-4a96-9dd8-d56e3c90c0ac/
 │   ├── 8e3355d0-44fb-4e0e-969b-d013a779a9f8/
@@ -7581,6 +7585,7 @@ dot-claude/
 │   ├── be6c4dcb-e568-457f-a31f-54c023f56b11/
 │   ├── be81938c-69d2-4809-ae15-cf5cb394777f/
 │   ├── be963d25-ba1d-442d-9d4c-44516c1ca5d5/
+│   ├── beaa7578-e3ce-41e0-bfc6-9bf418924763/
 │   ├── beb997ca-6669-4078-88a7-eef7115928ce/
 │   ├── bebdcfeb-71a4-44fd-9551-2f12703553cb/
 │   ├── bec4e33a-1762-45dc-ba0c-1d961d5c75d3/
@@ -8413,7 +8418,6 @@ dot-claude/
 │   ├── `1617296.json` - json config
 │   ├── `1621608.json` - json config
 │   ├── `169054.json` - json config
-│   ├── `1703230.json` - json config
 │   ├── `1791937.json` - json config
 │   ├── `1860278.json` - json config
 │   ├── `1873609.json` - json config
@@ -8421,10 +8425,11 @@ dot-claude/
 │   ├── `2014255.json` - json config
 │   ├── `2736174.json` - json config
 │   ├── `3016118.json` - json config
-│   ├── `335786.json` - json config
 │   ├── `336931.json` - json config
+│   ├── `353601.json` - json config
+│   ├── `360492.json` - json config
+│   ├── `364785.json` - json config
 │   ├── `3709670.json` - json config
-│   ├── `3921737.json` - json config
 │   └── `3967697.json` - json config
 ├── shell-snapshots/
 │   ├── `snapshot-bash-1757635174638-jx5vwd.sh` - Snapshot file
@@ -8685,10 +8690,10 @@ dot-claude/
 │   ├── `snapshot-bash-1780088233445-dwrf2y.sh` - Snapshot file
 │   ├── `snapshot-bash-1780130612245-ggp5l8.sh` - Snapshot file
 │   ├── `snapshot-bash-1780130619430-k8emdx.sh` - Snapshot file
-│   ├── `snapshot-bash-1780130923445-9kggo4.sh` - Snapshot file
 │   ├── `snapshot-bash-1780131593086-w5lbu4.sh` - Snapshot file
 │   ├── `snapshot-bash-1780139096005-a1hsxt.sh` - Snapshot file
-│   └── `snapshot-bash-1780140534881-vdecp8.sh` - Snapshot file
+│   ├── `snapshot-bash-1780140534881-vdecp8.sh` - Snapshot file
+│   └── `snapshot-bash-1780146627553-yr0aps.sh` - Snapshot file
 ├── skills/
 │   ├── docx/
 │   │   ├── `docx-js.md` - DOCX Library Tutorial
@@ -12282,7 +12287,6 @@ dot-claude/
 │   ├── `c22b0679-5a73-49bc-844b-e134fe7cea73-agent-c22b0679-5a73-49bc-844b-e134fe7cea73.json` - json config
 │   ├── `c22d27d0-60ca-4eb8-bc9e-93760a4ba017-agent-c22d27d0-60ca-4eb8-bc9e-93760a4ba017.json` - json config
 │   ├── `c231d20c-4c46-41cb-b1d0-9e2e0f05ccec-agent-c231d20c-4c46-41cb-b1d0-9e2e0f05ccec.json` - json config
-│   ├── `c2667fea-a84e-4ba8-9dc7-fae4c1abfc24-agent-c2667fea-a84e-4ba8-9dc7-fae4c1abfc24.json` - json config
 │   ├── `c2674dcc-744e-4b02-8c66-ac27425cddd1-agent-c2674dcc-744e-4b02-8c66-ac27425cddd1.json` - json config
 │   ├── `c2920c83-29a3-4f04-a6d9-236e7e20b83a-agent-c2920c83-29a3-4f04-a6d9-236e7e20b83a.json` - json config
 │   ├── `c29218c3-2d1c-4c88-9572-154d5d41193f-agent-c29218c3-2d1c-4c88-9572-154d5d41193f.json` - json config
