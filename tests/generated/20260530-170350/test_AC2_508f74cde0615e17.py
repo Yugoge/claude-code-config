@@ -21,13 +21,36 @@ def test_AC2(real_binary, cache_env, monkeypatch):
     WHEN:  `python3 scripts/graphify-maintain.py init` runs against a real out-of-repo fixture cache (gate enabled, real graphify binary present)
     THEN:  init builds the AST graph FIRST and exits 0; it does NOT invoke `graphify extract` / _probe_semantic (no semantic subprocess spawned during init — verified by spy on run_graphify_cmd: only the `update` subcommand vector is passed, never `extract`); run-manifest.json records semantic_mode=ast_only AND a semantic_backend_probe reason containing 'user-triggered' AND 'retained'
     """
-    # TODO(dev): replace the line below with the real test body.
-    # Assertions to cover:
-    #   - exit code 0
-    #   - graph.json created with len(nodes) > 0
-    #   - no run_graphify_cmd call during init passes an args vector beginning with 'extract'
-    #   - run-manifest.json semantic_mode == 'ast_only'
-    #   - run-manifest.json semantic_backend_probe contains 'user-triggered' and 'retained'
-    #   - init wall-time does not include any semantic LLM phase (no 30s probe block)
-    # Real-binary discipline: requires the REAL graphify v0.8.25; SKIP if absent (SKIP is neutral, not pass).
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — init builds AST first, no extract subprocess, manifest ast_only + user-triggered/retained reason")
+    apply_env(monkeypatch, cache_env["env"], clear_keys=("GRAPHIFY_OUT",))
+    mod = load_script_module("graphify-maintain.py", "gm_ac2")
+
+    # Spy on run_graphify_cmd to record every args vector; delegate to the real
+    # runner so the AST graph is actually built by the real binary.
+    real_runner = mod.run_graphify_cmd
+    recorded = []
+
+    def spy(args, timeout_seconds, cache_dir):
+        recorded.append(list(args))
+        return real_runner(args, timeout_seconds=timeout_seconds, cache_dir=cache_dir)
+
+    monkeypatch.setattr(mod, "run_graphify_cmd", spy)
+
+    rc = mod.cmd_init()
+    assert rc == 0, f"init must exit 0; recorded={recorded}"
+
+    # AST graph built FIRST with nodes.
+    import graphify_lib
+    graph, st = graphify_lib.load_graph(cache_env["graph_json"])
+    assert st == graphify_lib.STATUS_OK and len(graph["nodes"]) > 0
+
+    # NO extract subprocess during init — only 'update' vectors.
+    assert recorded, "init must call run_graphify_cmd at least once"
+    assert all(v and v[0] == "update" for v in recorded), \
+        f"init must never spawn extract; recorded={recorded}"
+    assert not any(v and v[0] == "extract" for v in recorded)
+
+    # run-manifest records ast_only + user-triggered/retained reason.
+    rm = json.loads(cache_env["run_manifest"].read_text(encoding="utf-8"))
+    assert rm.get("semantic_mode") == "ast_only"
+    reason = rm.get("semantic_backend_probe", "")
+    assert "user-triggered" in reason and "retained" in reason
