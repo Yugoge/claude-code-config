@@ -575,8 +575,16 @@ if __name__ == "__main__":
         sys.exit(cmd_init())
     elif subcmd == "update":
         sys.exit(cmd_update())
+    elif subcmd == "semantic":
+        import argparse
+        parser = argparse.ArgumentParser(prog="graphify-maintain.py semantic")
+        parser.add_argument("--timeout", type=int, default=TIMEOUT_SEMANTIC,
+                            help=f"extract timeout in seconds (default {TIMEOUT_SEMANTIC})")
+        ns = parser.parse_args(sys.argv[2:])
+        sys.exit(cmd_semantic(timeout_seconds=ns.timeout))
     elif subcmd == "status":
         sys.exit(cmd_status())
     else:
-        print(f"Unknown subcommand: {subcmd!r}. Use init, update, or status.", file=sys.stderr)
+        print(f"Unknown subcommand: {subcmd!r}. Use init, update, semantic, or status.",
+              file=sys.stderr)
         sys.exit(2)
