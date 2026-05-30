@@ -98,55 +98,82 @@ def _extract_layer1_deterministic(requirement_text: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Layer 2: Repo alias index lookup
+# Layer 2: deterministic node-link graph.json read (primary signal)
 # ---------------------------------------------------------------------------
 
-def _extract_layer2_alias_index(mentions: list[str], cache_dir: Path) -> dict[str, str]:
-    """Resolve basenames to full paths via the graphify alias index."""
-    index_path = cache_dir / "index" / "alias_index.json"
-    if not index_path.exists():
-        return {}
-    try:
-        alias_index = json.loads(index_path.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+def _resolve_anchors_in_graph(mentions: list[str], graph: dict) -> dict[str, str]:
+    """Resolve each mention to a graph node label/id present in graph.json.
 
-    resolved = {}
+    Returns {mention: anchor_label} for mentions that match a real node by
+    basename/label/source_file. Used both to (a) populate resolved_path and
+    (b) pick the input-derived anchor string passed to real `graphify query`.
+    """
+    resolved: dict[str, str] = {}
+    nodes = graph.get("nodes", [])
     for mention in mentions:
-        basename = Path(mention).name
-        if basename in alias_index:
-            full_path = alias_index[basename]
-            if not should_exclude_path(full_path):
-                resolved[mention] = full_path
+        base = mention.replace("\\", "/").rsplit("/", 1)[-1]
+        for n in nodes:
+            label = n.get("label", "") or ""
+            sf = (n.get("source_file", "") or "").replace("\\", "/")
+            if label == base or label == mention or sf.endswith("/" + base) or sf == base or sf == mention:
+                if not should_exclude_path(label) and not should_exclude_path(sf):
+                    resolved[mention] = label or base
+                    break
     return resolved
 
 
+def _build_import_excerpt(graph: dict, anchor_labels: set[str]) -> list[str]:
+    """Build a compact 'src --relation--> tgt' excerpt from node-link `links`.
+
+    Reads edges from `links` (source/target/relation) — the REAL schema. Prefers
+    links touching a resolved anchor node; sensitive links already removed on read.
+    """
+    nodes = graph.get("nodes", [])
+    id_to_label = {n.get("id"): (n.get("label") or n.get("id")) for n in nodes}
+    anchor_ids = {n.get("id") for n in nodes if (n.get("label") or "") in anchor_labels}
+    excerpt: list[str] = []
+    for l in graph.get("links", []):
+        src = l.get("source")
+        tgt = l.get("target")
+        rel = l.get("relation", "rel")
+        line = f"{id_to_label.get(src, src)} --{rel}--> {id_to_label.get(tgt, tgt)}"
+        if should_exclude_path(line):
+            continue
+        # Anchor-touching links first.
+        if anchor_ids and (src in anchor_ids or tgt in anchor_ids):
+            excerpt.insert(0, line)
+        else:
+            excerpt.append(line)
+    return list(dict.fromkeys(excerpt))[:20]
+
+
 # ---------------------------------------------------------------------------
-# Layer 3: Graph/fuzzy query
+# Layer 3: real `graphify query` enrichment (MUST be attempted on healthy path)
 # ---------------------------------------------------------------------------
 
-def _extract_layer3_graph_query(mentions: list[str], cache_dir: Path) -> list[dict]:
-    """Query graphify CLI for structural context around mentioned files."""
-    bin_path = os.environ.get("GRAPHIFY_BIN", "").strip()
-    if not bin_path:
-        import shutil
-        bin_path = shutil.which("graphify") or ""
-    if not bin_path:
-        return []
+def _run_real_query(anchor: str, graph_file: Path, cache_dir: Path) -> dict:
+    """Invoke real `graphify query "<anchor>" --graph <graph_file> --budget N`.
 
-    results = []
-    for mention in mentions[:10]:  # Limit to 10 to avoid token explosion
-        exit_code, stdout, stderr = run_graphify_cmd(
-            ["query", "--file", mention, "--format", "json", "--cache-dir", str(cache_dir)],
-            timeout_seconds=30,
-        )
-        if exit_code == 0 and stdout.strip():
-            try:
-                data = json.loads(stdout)
-                results.append({"mention": mention, "graph_data": data})
-            except json.JSONDecodeError:
-                pass
-    return results
+    Consumes (and scrubs) the real stdout. Returns a record carrying the recorded
+    argv (for proof-of-call), status, and the scrubbed text output. On error/timeout
+    returns query_cli_status=degraded with the reason (advisory; the call WAS
+    attempted — AC2 ADVISORY EXCEPTION).
+    """
+    args = ["query", anchor, "--graph", str(graph_file), "--budget", "2000"]
+    exit_code, stdout, stderr = run_graphify_cmd(args, timeout_seconds=TIMEOUT_QUERY, cache_dir=cache_dir)
+    record = {
+        "anchor": anchor,
+        "argv": ["graphify"] + args,  # recorded vector for proof-of-call
+        "query_cli_status": STATUS_OK,
+    }
+    if exit_code != 0:
+        record["query_cli_status"] = STATUS_DEGRADED
+        record["reason"] = (stderr or f"exit={exit_code}")[:200]
+        return record
+    # Scrub raw stdout line-by-line: never emit a line carrying a sensitive fragment (AC15).
+    safe_lines = [ln for ln in (stdout or "").splitlines() if not contains_sensitive_fragment(ln)]
+    record["output"] = "\n".join(safe_lines)[:4000]
+    return record
 
 
 # ---------------------------------------------------------------------------
