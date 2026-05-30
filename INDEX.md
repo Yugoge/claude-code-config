@@ -1,12 +1,12 @@
-# .claude
+# dot-claude
 
-*Last updated: 2026-05-30T08:42:17Z*
-**Total entries**: 13306
+*Last updated: 2026-05-30T08:45:22Z*
+**Total entries**: 13323
 **Convention**: kebab
 
 ## Tree
 ```
-.claude/
+dot-claude/
 ├── agents/
 │   ├── `architect.md` - Architecture review specialist for overnight exploration. Identifies structural issues, technical debt, optimization opportunities, dependency problems, and pattern inconsistencies. Returns structured JSON report.
 │   ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
@@ -4964,6 +4964,7 @@
 │   │   ├── b3f408dc-734c-47a6-8ffc-49184dbc917d/
 │   │   ├── ba5ecfa9-d7c5-4e95-afbc-85501ba27dbc/
 │   │   ├── bcb77d20-5761-4ad7-a2cf-321c2ff228f8/
+│   │   ├── c2667fea-a84e-4ba8-9dc7-fae4c1abfc24/
 │   │   ├── c59044cd-0bea-4cf9-9b55-61a7bb1d9f65/
 │   │   ├── cc0ce3fd-aa52-432f-b379-8434bdbbfb32/
 │   │   ├── cc7a706f-2662-4274-976d-d2f19e6dd767/
@@ -4989,6 +4990,7 @@
 │   │   ├── `9353c7d7-be05-4e7d-87f3-02feb4be8a38.jsonl` - jsonl file
 │   │   ├── `9b04fe30-ff57-429a-ac5a-536186401c24.jsonl` - jsonl file
 │   │   ├── `ab8949ea-090a-4fa3-a178-71a08991746d.jsonl` - jsonl file
+│   │   ├── `c2667fea-a84e-4ba8-9dc7-fae4c1abfc24.jsonl` - jsonl file
 │   │   ├── `c59044cd-0bea-4cf9-9b55-61a7bb1d9f65.jsonl` - jsonl file
 │   │   ├── `cc0ce3fd-aa52-432f-b379-8434bdbbfb32.jsonl` - jsonl file
 │   │   ├── `cc7a706f-2662-4274-976d-d2f19e6dd767.jsonl` - jsonl file
@@ -5019,6 +5021,13 @@
 ├── scripts/
 │   ├── install/
 │   │   └── `tmp-cleanup-install.sh` - /usr/local/sbin/tmp-cleanup.sh
+│   ├── spec-verify/
+│   │   ├── `spec-verify-views.py` - Usage:
+│   │   ├── `spec-verify.py` - Every non-blank, non-separator line from the monolith must appear
+│   │   ├── `spec_verify_gated.py` - Three sibling checks that share the T5 ``is_strict_guide_mode`` gate and
+│   │   ├── `spec_verify_mandate.py` - Activated only when the monolith declares ``guide_version: 1`` (or higher)
+│   │   ├── `spec_verify_parsers.py` - Authoritative grammar: /root/docs/dev/specs/MONOLITH-WRITING-GUIDE.md R6.6
+│   │   └── `spec_verify_summary.py` - Lives alongside `spec_verify_parsers.py` as a sibling sidecar because
 │   ├── todo/
 │   │   ├── `clean.py` - Preloaded TodoList for /clean workflow
 │   │   ├── `close.py` - Three user-visible TodoSteps (flat-integer per agents/style-inspector.md
@@ -6517,6 +6526,7 @@
 │   ├── 727d08d6-8265-4840-871f-aa22b45a08b5/
 │   ├── 7283113c-34ff-432e-b22e-ef1ccb05a5a6/
 │   ├── 728fe7f3-80db-47e7-ace5-21d69aa66b5c/
+│   ├── 72922f4c-36bf-48ce-808f-6f15ad6ede0b/
 │   ├── 72ea03f8-93c9-4b29-805b-7333e57f48ac/
 │   ├── 72ebc560-ff52-43cb-a69b-a1b1b83e9d10/
 │   ├── 72fbc681-6ffa-4f0e-a1f7-7e2c32aaded8/
@@ -7488,6 +7498,7 @@
 │   ├── c216ded5-b7e1-4432-b79f-a6a2042971fe/
 │   ├── c230d0fe-e56c-43ca-8c33-05dc5afd4218/
 │   ├── c241b119-491d-481a-b3e2-3cb01824a66a/
+│   ├── c2667fea-a84e-4ba8-9dc7-fae4c1abfc24/
 │   ├── c28ff17e-9ad0-4d8a-9463-af27da6610a3/
 │   ├── c293d986-1a79-4f38-81a9-9f73d00d364d/
 │   ├── c2a25adc-feaa-45b3-8476-f9b4a47bcca7/
@@ -8258,9 +8269,10 @@
 │   └── ffea436f-2b6b-40d3-8196-a484178e0bf6/
 ├── sessions/
 │   ├── `1149345.json` - json config
-│   ├── `1343203.json` - json config
 │   ├── `1352726.json` - json config
 │   ├── `1362183.json` - json config
+│   ├── `1617296.json` - json config
+│   ├── `1621608.json` - json config
 │   ├── `171965.json` - json config
 │   ├── `1807537.json` - json config
 │   ├── `1860278.json` - json config
@@ -8537,8 +8549,9 @@
 │   ├── `snapshot-bash-1780088233445-dwrf2y.sh` - Snapshot file
 │   ├── `snapshot-bash-1780089280834-4jl0d8.sh` - Snapshot file
 │   ├── `snapshot-bash-1780128777588-lxmf5l.sh` - Snapshot file
-│   ├── `snapshot-bash-1780129797022-vcjbib.sh` - Snapshot file
-│   └── `snapshot-bash-1780129871735-2e28jf.sh` - Snapshot file
+│   ├── `snapshot-bash-1780129871735-2e28jf.sh` - Snapshot file
+│   ├── `snapshot-bash-1780130612245-ggp5l8.sh` - Snapshot file
+│   └── `snapshot-bash-1780130619430-k8emdx.sh` - Snapshot file
 ├── skills/
 │   ├── docx/
 │   │   ├── `docx-js.md` - DOCX Library Tutorial
@@ -8579,6 +8592,10 @@
 │       ├── `LICENSE.txt` - txt file
 │       ├── `recalc.py` - Excel Formula Recalculation Script
 │       └── `SKILL.md` - Comprehensive spreadsheet creation, editing, and analysis with support for formulas, formatting, data analysis, and visualization. When Claude needs to work with spreadsheets (.xlsx, .xlsm, .csv, .tsv, etc) for: (1) Creating new spreadsheets with formulas and formatting, (2) Reading or analyzing data, (3) Modify existing spreadsheets while preserving formulas, (4) Data analysis and visualization in spreadsheets, or (5) Recalculating formulas
+├── specs/
+│   ├── 20260514-174852/
+│   ├── qa-c7-test/
+│   └── qa-c7-test-w/
 ├── state/
 │   └── `specialist-yield-log.jsonl` - jsonl file
 ├── statsig/
@@ -9241,7 +9258,6 @@
 │   ├── `1bd4391b-a6e6-443e-8934-694be99c688a-agent-1bd4391b-a6e6-443e-8934-694be99c688a.json` - json config
 │   ├── `1bdf2111-5b3a-4325-8b45-c0351d2ba806-agent-1bdf2111-5b3a-4325-8b45-c0351d2ba806.json` - json config
 │   ├── `1be208fc-1009-42fa-adfa-ec56202fa449-agent-1be208fc-1009-42fa-adfa-ec56202fa449.json` - json config
-│   ├── `1bf3bec2-b5bc-401b-9b90-79b972121765-agent-1bf3bec2-b5bc-401b-9b90-79b972121765.json` - json config
 │   ├── `1bfa46a1-99d6-4bbf-b353-9ab9e4a1fcd0-agent-1bfa46a1-99d6-4bbf-b353-9ab9e4a1fcd0.json` - json config
 │   ├── `1c031611-531e-4f5c-8c97-df7a95ff4c4c-agent-1c031611-531e-4f5c-8c97-df7a95ff4c4c.json` - json config
 │   ├── `1c0ed292-4050-47b9-9535-f97b97cfee10-agent-1c0ed292-4050-47b9-9535-f97b97cfee10.json` - json config
@@ -12126,6 +12142,7 @@
 │   ├── `c22b0679-5a73-49bc-844b-e134fe7cea73-agent-c22b0679-5a73-49bc-844b-e134fe7cea73.json` - json config
 │   ├── `c22d27d0-60ca-4eb8-bc9e-93760a4ba017-agent-c22d27d0-60ca-4eb8-bc9e-93760a4ba017.json` - json config
 │   ├── `c231d20c-4c46-41cb-b1d0-9e2e0f05ccec-agent-c231d20c-4c46-41cb-b1d0-9e2e0f05ccec.json` - json config
+│   ├── `c2667fea-a84e-4ba8-9dc7-fae4c1abfc24-agent-c2667fea-a84e-4ba8-9dc7-fae4c1abfc24.json` - json config
 │   ├── `c2674dcc-744e-4b02-8c66-ac27425cddd1-agent-c2674dcc-744e-4b02-8c66-ac27425cddd1.json` - json config
 │   ├── `c2920c83-29a3-4f04-a6d9-236e7e20b83a-agent-c2920c83-29a3-4f04-a6d9-236e7e20b83a.json` - json config
 │   ├── `c29218c3-2d1c-4c88-9572-154d5d41193f-agent-c29218c3-2d1c-4c88-9572-154d5d41193f.json` - json config
