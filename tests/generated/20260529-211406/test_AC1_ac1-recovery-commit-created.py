@@ -22,8 +22,9 @@ def test_AC1():
     text = CHANGELOG_ANALYST_PATH.read_text()
 
     # AC1: recovery section must contain the git commit --allow-empty -F pattern
-    assert "git commit --allow-empty -F" in text, (
-        "changelog-analyst.md recovery section must contain 'git commit --allow-empty -F'"
+    # The actual command uses: git -C "${GIT_ROOT}" commit --allow-empty -F "${TMPFILE}"
+    assert "commit --allow-empty -F" in text, (
+        "changelog-analyst.md recovery section must contain 'commit --allow-empty -F'"
     )
 
     # AC1: structured output must contain commit_status: committed in recovery section
