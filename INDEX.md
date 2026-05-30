@@ -1,7 +1,7 @@
 # dot-claude
 
-*Last updated: 2026-05-30T11:39:49Z*
-**Total entries**: 13466
+*Last updated: 2026-05-30T13:09:54Z*
+**Total entries**: 13463
 **Convention**: kebab
 
 ## Tree
@@ -5630,6 +5630,7 @@ dot-claude/
 │   ├── 1fde36ec-94c7-4ca8-a3ce-8afc67cb4deb/
 │   ├── 1fe425c5-c5a6-434c-8a03-b2818f9a3268/
 │   ├── 1fe8f5fe-13f7-46cd-9048-5ebbe92265b1/
+│   ├── 2006e446-07e9-4b6f-874b-d6121782de48/
 │   ├── 202a4398-177f-4fa3-8218-80ab3135149c/
 │   ├── 204c460c-9722-4ae9-a8cf-0ade1cf33d94/
 │   ├── 20664455-d92b-41fe-b8c1-95f2c79b46eb/
@@ -6342,6 +6343,7 @@ dot-claude/
 │   ├── 59cc9aef-72b8-49ae-87d4-073619332fc9/
 │   ├── 59fcc20d-a5a1-45e6-a278-3c8915a642e4/
 │   ├── 5a15b225-b3de-462d-a4de-78e4552bae10/
+│   ├── 5a29a6e5-73b1-4de1-827f-d98f1448fcf7/
 │   ├── 5a345f84-7d32-40c6-82df-e8da508c5b09/
 │   ├── 5a51e6fc-564f-449b-a540-070e19d0e033/
 │   ├── 5a5c6729-e5aa-4034-bb85-7bc5ecde52d0/
@@ -6361,6 +6363,7 @@ dot-claude/
 │   ├── 5b402125-d125-4bde-9e67-f145a360b060/
 │   ├── 5b47d350-7417-49d9-b8bf-4fc34dbf19fc/
 │   ├── 5bacfa0e-04b5-44f6-ba37-c1bafebeba00/
+│   ├── 5bafeed8-f36c-43d0-a388-1dad86615bec/
 │   ├── 5be7d929-7ecb-41d1-ad40-ff262ae99b26/
 │   ├── 5c230e34-5011-4fe1-a097-e01d5e514b7c/
 │   ├── 5c273704-58ab-42be-9ac5-f8f2f5fa7a49/
@@ -7485,6 +7488,7 @@ dot-claude/
 │   ├── b72c574a-34c0-4008-a9c9-fb6e7963a704/
 │   ├── b76345eb-8807-4a05-807a-ce50d00f09e9/
 │   ├── b76db673-e4d4-4b71-b5c0-9de4726e8106/
+│   ├── b7751686-0246-4f50-8913-20b0d392fda8/
 │   ├── b7bfedbe-7b09-4ea5-8a9e-205af8c1e645/
 │   ├── b7c2ccc2-984f-48b9-a9b1-fa2902a9d141/
 │   ├── b7e5c376-46e6-4d8c-b049-177ebb989701/
@@ -8271,6 +8275,7 @@ dot-claude/
 │   ├── f67e93ca-db9e-432d-8ef3-12960233e8c2/
 │   ├── f69cba6c-f586-4af8-9975-a87d36d5d834/
 │   ├── f69ec0c3-c514-4fe5-921b-8a86fd95805e/
+│   ├── f69f236a-89b8-4999-870c-7bef738ebb2a/
 │   ├── f6eb26c7-1743-47fa-85de-0c0a75b84e01/
 │   ├── f6edf6bb-e07c-4277-bd3b-040ca627828f/
 │   ├── f6f3e7de-f315-420a-9ff2-fa528405b5dc/
@@ -8407,23 +8412,20 @@ dot-claude/
 │   ├── `1362183.json` - json config
 │   ├── `1617296.json` - json config
 │   ├── `1621608.json` - json config
+│   ├── `169054.json` - json config
 │   ├── `1703230.json` - json config
 │   ├── `1791937.json` - json config
-│   ├── `1807537.json` - json config
 │   ├── `1860278.json` - json config
 │   ├── `1873609.json` - json config
 │   ├── `1951274.json` - json config
-│   ├── `1965818.json` - json config
 │   ├── `2014255.json` - json config
-│   ├── `2226412.json` - json config
 │   ├── `2736174.json` - json config
-│   ├── `2778913.json` - json config
 │   ├── `3016118.json` - json config
+│   ├── `335786.json` - json config
+│   ├── `336931.json` - json config
 │   ├── `3709670.json` - json config
 │   ├── `3921737.json` - json config
-│   ├── `3943719.json` - json config
-│   ├── `3967697.json` - json config
-│   └── `4051321.json` - json config
+│   └── `3967697.json` - json config
 ├── shell-snapshots/
 │   ├── `snapshot-bash-1757635174638-jx5vwd.sh` - Snapshot file
 │   ├── `snapshot-bash-1757635860163-e24qqz.sh` - Snapshot file
@@ -8678,19 +8680,14 @@ dot-claude/
 │   ├── `snapshot-bash-1779612820594-gxvez9.sh` - Snapshot file
 │   ├── `snapshot-bash-1779654613469-5t9btg.sh` - Snapshot file
 │   ├── `snapshot-bash-1780046733441-owfzyz.sh` - Snapshot file
-│   ├── `snapshot-bash-1780057970290-bgu2kn.sh` - Snapshot file
 │   ├── `snapshot-bash-1780059829128-3feozg.sh` - Snapshot file
-│   ├── `snapshot-bash-1780087830599-nlh6k2.sh` - Snapshot file
 │   ├── `snapshot-bash-1780088216327-c6toft.sh` - Snapshot file
 │   ├── `snapshot-bash-1780088233445-dwrf2y.sh` - Snapshot file
 │   ├── `snapshot-bash-1780130612245-ggp5l8.sh` - Snapshot file
 │   ├── `snapshot-bash-1780130619430-k8emdx.sh` - Snapshot file
 │   ├── `snapshot-bash-1780130923445-9kggo4.sh` - Snapshot file
 │   ├── `snapshot-bash-1780131593086-w5lbu4.sh` - Snapshot file
-│   ├── `snapshot-bash-1780132917307-g2mefb.sh` - Snapshot file
-│   ├── `snapshot-bash-1780136948113-g0zijt.sh` - Snapshot file
 │   ├── `snapshot-bash-1780139096005-a1hsxt.sh` - Snapshot file
-│   ├── `snapshot-bash-1780140525739-8awp3s.sh` - Snapshot file
 │   └── `snapshot-bash-1780140534881-vdecp8.sh` - Snapshot file
 ├── skills/
 │   ├── docx/
