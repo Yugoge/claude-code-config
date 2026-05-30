@@ -462,9 +462,7 @@ def cmd_semantic(timeout_seconds: int = TIMEOUT_SEMANTIC) -> int:
     # 6) Apply the corrected gate on same-normalized graphs (both via load_graph).
     promotable, counts = _semantic_promotable(ast_graph, sem_graph)
     if not promotable:
-        reason = (f"extract via {label} added no new edges by signature set-diff "
-                  f"(added_links={counts['added_links']}, ast_links={counts['ast_links']}, "
-                  f"sem_links={counts['sem_links']}); AST retained")
+        reason = _not_promoted_reason(label, counts) + "; AST retained"
         print(f"graphify-maintain semantic: {reason}", flush=True)
         _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
         return 0
