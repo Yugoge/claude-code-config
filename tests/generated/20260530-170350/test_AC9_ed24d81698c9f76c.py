@@ -5,13 +5,39 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+
 import pytest
+
+import graphify_lib
+from conftest import load_script_module, apply_env, graph_dict, link, write_json
 
 AC_UID = "ed24d81698c9f76c"
 AC_TYPE = "data"
 
 
-def test_AC9():
+def _make_mod(cache_env, ast_graph, sem_graph_or_none, backend="fakebackend"):
+    """Load maintain with get_graphify_bin patched + run_graphify_cmd spied so
+    'update' writes the AST baseline and 'extract' writes the controlled sem graph
+    to cacheDir/graphify-out/graph.json (or nothing if sem_graph_or_none is None)."""
+    mod = load_script_module("graphify-maintain.py", f"gm_ac9_{id(ast_graph)}")
+    mod.get_graphify_bin = lambda: "/fake/graphify"
+
+    def spy(args, timeout_seconds, cache_dir):
+        if args and args[0] == "update":
+            write_json(cache_env["graph_json"], ast_graph)
+            return 0, "", ""
+        if args and args[0] == "extract":
+            if sem_graph_or_none is not None:
+                write_json(cache_env["extract_out"], sem_graph_or_none)
+            return 0, "", ""
+        return 0, "", ""
+
+    mod.run_graphify_cmd = spy
+    return mod
+
+
+def test_AC9(cache_env, monkeypatch):
     """
     GIVEN: a controlled cache where cacheDir/graph.json is prepopulated with a known AST graph and run_graphify_cmd is spied so the 'update' call refreshes the AST baseline and the 'extract' call writes a CONTROLLED semantic graph.json to cacheDir/graphify-out/graph.json (no real binary)
     WHEN:  cmd_semantic is invoked in-process
