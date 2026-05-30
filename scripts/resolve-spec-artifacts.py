@@ -40,6 +40,7 @@ Exit codes: 0 = resolved (single-valid OR all-absent legacy monolith mode)
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -62,6 +63,14 @@ def _err(msg):
 def _real(path):
     """realpath that does not require the path to exist."""
     return os.path.realpath(path)
+
+
+def _sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _anchor(path, project_dir):
@@ -171,12 +180,30 @@ def classify(candidate, abs_spec, project_dir, project_real):
     if not os.path.isfile(split_marker):
         return invalid(".split-complete missing or not a regular file while manifest present")
 
-    # staleness guard: monolith must NOT be newer than the split marker (preserve existing behavior)
-    try:
-        if os.path.getmtime(abs_spec) > os.path.getmtime(split_marker):
-            return invalid("split is stale (monolith newer than .split-complete)")
-    except OSError as exc:
-        return invalid("could not stat for staleness check: %s" % exc)
+    # Staleness guard. The split is fresh iff the monolith content has not changed
+    # since the split was written. We STRENGTHEN (never weaken) the pre-existing
+    # mtime guard with a content-hash check:
+    #   - If the manifest records the monolith hash (sha256 / monolith_sha256) and it
+    #     MATCHES the current monolith content, the split is provably fresh — accept
+    #     regardless of mtime. (mtime is bumped by no-op touches / git checkouts /
+    #     auto-checkpoint snapshots, which produce false "stale" positives.)
+    #   - If the recorded hash MISMATCHES, the monolith genuinely changed -> stale.
+    #   - If NO hash is recorded, fall back to the original mtime guard unchanged.
+    recorded_hash = data.get("sha256") or data.get("monolith_sha256")
+    if isinstance(recorded_hash, str) and recorded_hash:
+        try:
+            actual_hash = _sha256_file(abs_spec)
+        except OSError as exc:
+            return invalid("could not hash monolith for staleness check: %s" % exc)
+        if actual_hash != recorded_hash:
+            return invalid("split is stale (monolith content changed since split: manifest hash != monolith hash)")
+        # hash matches -> fresh; skip the mtime check (mtime drift is a no-op artifact)
+    else:
+        try:
+            if os.path.getmtime(abs_spec) > os.path.getmtime(split_marker):
+                return invalid("split is stale (monolith newer than .split-complete)")
+        except OSError as exc:
+            return invalid("could not stat for staleness check: %s" % exc)
 
     # All referenced view files must exist as regular files UNDER this candidate's
     # views_dir. manifest view values use historical conventions:

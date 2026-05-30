@@ -11,11 +11,20 @@ cleans itself). The static-lint cases run against the live command files in the
 nested .claude repo.
 """
 
+import hashlib
 import json
 import os
 import subprocess
 import sys
 import tempfile
+
+
+def _sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DOT_CLAUDE = os.path.dirname(HERE)
@@ -38,7 +47,8 @@ def _write(path, content):
 
 def _make_split(root, candidate, monolith_rel, view_value_style="new",
                 schema_version=1, write_marker=True, write_views=True,
-                write_manifest=True, monolith_path_override=None):
+                write_manifest=True, monolith_path_override=None,
+                record_hash=False):
     """Create a split artifact set for `candidate` under root.
 
     view_value_style: "new" -> "views/<role>.md" ; "old" -> "<id>/views/<role>.md"
@@ -63,6 +73,10 @@ def _make_split(root, candidate, monolith_rel, view_value_style="new",
             "monolith_path": monolith_path_override if monolith_path_override is not None else monolith_rel,
             "views": views,
         }
+        if record_hash:
+            mono_abs = os.path.join(root, monolith_rel)
+            if os.path.exists(mono_abs):
+                manifest["sha256"] = _sha256(mono_abs)
         _write(os.path.join(views_dir, "manifest.json"), json.dumps(manifest, indent=2))
     if write_marker:
         _write(os.path.join(spec_dir, ".split-complete"), "split done\n")
@@ -392,6 +406,58 @@ def test_codex2_dict_view_entries_accepted():
         code, out, _ = _run(rel, root)
         assert code == EXIT_OK, out
         assert out["views_available"] is True, out
+
+
+# --------------------------------------------------------------------------- #
+# hash-aware staleness (strengthens, does not weaken, the mtime guard)
+# --------------------------------------------------------------------------- #
+def test_hashfresh_matching_hash_accepts_despite_newer_mtime():
+    # manifest records the monolith sha256; even if the monolith mtime is NEWER
+    # than the marker (no-op touch / git-checkout / auto-checkpoint artifact),
+    # a MATCHING hash proves freshness -> PRESENT-AND-VALID, exit 0.
+    with tempfile.TemporaryDirectory() as root:
+        rel = _make_monolith(root, "spec-20260630-000000")
+        spec_dir, _ = _make_split(root, "20260630-000000", rel, record_hash=True)
+        # force monolith mtime NEWER than marker (would be "stale" under pure mtime)
+        marker = os.path.join(spec_dir, ".split-complete")
+        mono = os.path.join(root, rel)
+        t_marker = os.path.getmtime(marker)
+        os.utime(mono, (t_marker + 100, t_marker + 100))
+        code, out, _ = _run(rel, root)
+        assert code == EXIT_OK, out
+        assert out["views_available"] is True, out
+
+
+def test_hashstale_mismatched_hash_fails_loud():
+    # manifest records a sha256 that does NOT match the current monolith content
+    # -> genuinely stale -> PRESENT-BUT-INVALID, fail loud.
+    with tempfile.TemporaryDirectory() as root:
+        rel = _make_monolith(root, "spec-20260631-000000")
+        spec_dir, views_dir = _make_split(root, "20260631-000000", rel, write_manifest=False)
+        manifest = {
+            "schema_version": 1, "spec_id": "20260631-000000",
+            "monolith_path": rel, "views": {"dev": "views/dev.md"},
+            "sha256": "0" * 64,   # deliberately wrong
+        }
+        _write(os.path.join(views_dir, "manifest.json"), json.dumps(manifest))
+        code, out, _ = _run(rel, root)
+        assert code == EXIT_INVALID, out
+        assert "stale" in (out.get("failed_predicate") or ""), out
+
+
+def test_no_hash_falls_back_to_mtime_guard():
+    # when no hash is recorded, the original mtime staleness guard still applies.
+    with tempfile.TemporaryDirectory() as root:
+        rel = _make_monolith(root, "spec-20260632-000000")
+        spec_dir, _ = _make_split(root, "20260632-000000", rel)  # record_hash=False
+        marker = os.path.join(spec_dir, ".split-complete")
+        mono = os.path.join(root, rel)
+        # monolith NEWER than marker, no hash -> mtime guard fires -> stale
+        t_marker = os.path.getmtime(marker)
+        os.utime(mono, (t_marker + 100, t_marker + 100))
+        code, out, _ = _run(rel, root)
+        assert code == EXIT_INVALID, out
+        assert "stale" in (out.get("failed_predicate") or ""), out
 
 
 # --------------------------------------------------------------------------- #
