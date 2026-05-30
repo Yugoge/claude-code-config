@@ -5,13 +5,17 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+
 import pytest
+
+from conftest import load_script_module, apply_env
 
 AC_UID = "508f74cde0615e17"
 AC_TYPE = "data"
 
 
-def test_AC2():
+def test_AC2(real_binary, cache_env, monkeypatch):
     """
     GIVEN: graphify-maintain.py with the auto semantic probe removed from cmd_init
     WHEN:  `python3 scripts/graphify-maintain.py init` runs against a real out-of-repo fixture cache (gate enabled, real graphify binary present)
