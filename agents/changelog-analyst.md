@@ -102,6 +102,7 @@ The candidate set is restricted to a **staging whitelist** consisting of:
    - `ticket-<TASK_ID>.md`
    - `context-<TASK_ID>.json`
    - `dev-report-<TASK_ID>.json`
+   - `do-report-<TASK_ID>.json`
    - `qa-report-<TASK_ID>.json`
    - `completion-<TASK_ID>.md`
    - `close-report-<TASK_ID>.md`
