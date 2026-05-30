@@ -249,8 +249,12 @@ def cmd_init() -> int:
     ast_nodes = len(graph.get("nodes", []))
     print(f"graphify-maintain init: AST graph ok in {elapsed:.1f}s ({ast_nodes} nodes)", flush=True)
 
-    # Semantic probe is additive best-effort; AST graph already on disk (M6/AC6).
-    semantic_mode, probe_reason = _probe_semantic(_PROJECT_DIR, cache_dir, ast_nodes)
+    # init is AST-only and fast: NO auto semantic probe (the unreachable 30s init
+    # probe is removed). Semantic enrichment is user-triggered via the `semantic`
+    # subcommand. Report ast_only with an explicit user-triggered/retained reason
+    # so existing AC6 (mode=='ast_only', 'retained' in reason) holds (Option b).
+    semantic_mode = "ast_only"
+    probe_reason = "semantic is user-triggered (run `graphify-maintain.py semantic`); AST retained"
     print(f"graphify-maintain init: semantic_mode={semantic_mode} ({probe_reason})", flush=True)
 
     _write_run_manifest(cache_dir, repo_key, bin_path, semantic_mode, probe_reason, verb="init")
