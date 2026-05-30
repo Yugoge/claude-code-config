@@ -359,11 +359,16 @@ def cmd_semantic(timeout_seconds: int = TIMEOUT_SEMANTIC) -> int:
     pre_snapshot = _graph_snapshot(gpath)
     up_exit, _, up_err = _run_ast_build(_PROJECT_DIR, cache_dir, TIMEOUT_UPDATE)
 
-    # If the baseline update failed/timed-out but mutated graph.json, invalidate
-    # the stale semantic state (codex iter #3) before bailing.
+    # Three-branch reconciliation on the baseline update (AC10/AC12 branch iii,
+    # codex iter #3): only INVALIDATE the stale semantic state when the failed
+    # update actually MUTATED graph.json. A failed update that left graph.json
+    # PROVEN UNCHANGED must leave the manifest UNTOUCHED — otherwise a prior manual
+    # semantic promotion is wrongly turned off even though the graph didn't change.
+    baseline_mutated = False
     if up_exit != 0:
         post_snapshot = _graph_snapshot(gpath)
-        if pre_snapshot != post_snapshot:
+        baseline_mutated = (pre_snapshot != post_snapshot)
+        if baseline_mutated:
             try:
                 reset_semantic_mode_in_manifest(cache_dir)
             except Exception:
@@ -372,7 +377,13 @@ def cmd_semantic(timeout_seconds: int = TIMEOUT_SEMANTIC) -> int:
     if up_exit != 0 or ast_st != STATUS_OK or len(ast_graph.get("nodes", [])) == 0:
         reason = f"no fresh AST baseline (update exit={up_exit}, status={ast_st}); extract skipped, AST retained"
         print(f"graphify-maintain semantic: {reason}", flush=True)
-        _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
+        # Branch iii: failed AND graph.json proven unchanged -> leave manifest
+        # UNTOUCHED (do NOT clobber a prior semantic:<backend>). Only write the
+        # ast_only manifest when the baseline mutated the graph (state invalidated)
+        # — reset_semantic_mode_in_manifest already ran above for that case, so a
+        # bare advisory return preserves the persisted record honestly.
+        if up_exit == 0 or baseline_mutated:
+            _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
         return 0
 
     # 2) Resolve backend (4-case matrix). No usable backend -> clean fail, no extract.
