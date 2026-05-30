@@ -461,6 +461,111 @@ def test_no_hash_falls_back_to_mtime_guard():
 
 
 # --------------------------------------------------------------------------- #
+# F-QA-1 (task 20260530-092123 R2): the M9 lint must catch the LOWERCASE
+# parameter-expansion inline derivation (${spec_path##*/} / %.md / #spec-) that
+# slipped past the original uppercase-only patterns at commands/spec.md:238.
+# --------------------------------------------------------------------------- #
+def test_fqa1_lint_detects_lowercase_spec_path_param_expansion():
+    with tempfile.TemporaryDirectory() as root:
+        bad = os.path.join(root, "commands", "evil-lower.md")
+        # the exact shape that was at commands/spec.md:238
+        _write(bad,
+               'EXPECT_ID="${spec_path##*/}"; EXPECT_ID="${EXPECT_ID%.md}"; '
+               'EXPECT_ID="${EXPECT_ID#spec-}"  # de-prefixed\n')
+        proc = subprocess.run([sys.executable, LINT, "--paths", bad],
+                              capture_output=True, text=True)
+        assert proc.returncode != 0, (
+            "lint MISSED the lowercase ${spec_path##*/} inline derivation:\n"
+            + proc.stdout + proc.stderr)
+
+
+def test_fqa1_lint_detects_lowercase_basename_and_strip_forms():
+    # each lowercase form independently flagged
+    with tempfile.TemporaryDirectory() as root:
+        for i, line in enumerate([
+            'id=$(basename "$spec_path" .md)\n',
+            'id="${spec_path%.md}"\n',
+            'id="${spec_id#spec-}"\n',
+        ]):
+            bad = os.path.join(root, "commands", "evil%d.md" % i)
+            _write(bad, line)
+            proc = subprocess.run([sys.executable, LINT, "--paths", bad],
+                                  capture_output=True, text=True)
+            assert proc.returncode != 0, "lint missed lowercase form %r:\n%s%s" % (
+                line, proc.stdout, proc.stderr)
+
+
+def test_fqa1_lint_passes_resolver_consumption_line():
+    # consuming candidates[0] from the resolver JSON is the CORRECT pattern and
+    # must NOT be flagged (it is the post-fix spec.md:238 form).
+    with tempfile.TemporaryDirectory() as root:
+        good = os.path.join(root, "commands", "good.md")
+        _write(good, 'EXPECT_ID=$(jq -r \'.candidates[0]\' <<<"$RESOLVED_JSON")\n')
+        proc = subprocess.run([sys.executable, LINT, "--paths", good],
+                              capture_output=True, text=True)
+        assert proc.returncode == 0, (
+            "lint wrongly flagged the resolver-consumption line:\n"
+            + proc.stdout + proc.stderr)
+
+
+# --------------------------------------------------------------------------- #
+# F-QA-2 (task 20260530-092123 R2): when BOTH sha256 and monolith_sha256 are
+# present, a matching sha256 must NOT mask a MISMATCHING monolith_sha256 — both
+# must equal the current monolith hash, else PRESENT-BUT-INVALID (stale).
+# --------------------------------------------------------------------------- #
+def test_fqa2_matching_sha256_does_not_mask_mismatching_monolith_sha256():
+    with tempfile.TemporaryDirectory() as root:
+        rel = _make_monolith(root, "spec-20260640-000000")
+        _, views_dir = _make_split(root, "20260640-000000", rel, write_manifest=False)
+        mono_abs = os.path.join(root, rel)
+        good = _sha256(mono_abs)               # matches current monolith
+        manifest = {
+            "schema_version": 1, "spec_id": "20260640-000000",
+            "monolith_path": rel, "views": {"dev": "views/dev.md"},
+            "sha256": good,            # MATCHES (would short-circuit accept)
+            "monolith_sha256": "d" * 64,  # MISMATCHES current monolith
+        }
+        _write(os.path.join(views_dir, "manifest.json"), json.dumps(manifest))
+        code, out, _ = _run(rel, root)
+        assert code == EXIT_INVALID, (
+            "matching sha256 masked the mismatching monolith_sha256: %s" % out)
+        assert out["state_per_candidate"]["20260640-000000"] == "PRESENT_BUT_INVALID", out
+        assert "stale" in (out.get("failed_predicate") or ""), out
+
+
+def test_fqa2_both_hashes_present_and_matching_is_valid():
+    # control: both hash fields present AND matching -> PRESENT-AND-VALID exit 0
+    with tempfile.TemporaryDirectory() as root:
+        rel = _make_monolith(root, "spec-20260641-000000")
+        _, views_dir = _make_split(root, "20260641-000000", rel, write_manifest=False)
+        good = _sha256(os.path.join(root, rel))
+        manifest = {
+            "schema_version": 1, "spec_id": "20260641-000000",
+            "monolith_path": rel, "views": {"dev": "views/dev.md"},
+            "sha256": good, "monolith_sha256": good,
+        }
+        _write(os.path.join(views_dir, "manifest.json"), json.dumps(manifest))
+        code, out, _ = _run(rel, root)
+        assert code == EXIT_OK, out
+        assert out["views_available"] is True, out
+
+
+def test_fqa2_present_but_malformed_hash_fails_loud():
+    # a present hash field that is not 64-hex cannot validate freshness -> stale
+    with tempfile.TemporaryDirectory() as root:
+        rel = _make_monolith(root, "spec-20260642-000000")
+        _, views_dir = _make_split(root, "20260642-000000", rel, write_manifest=False)
+        manifest = {
+            "schema_version": 1, "spec_id": "20260642-000000",
+            "monolith_path": rel, "views": {"dev": "views/dev.md"},
+            "monolith_sha256": "not-a-real-hash",
+        }
+        _write(os.path.join(views_dir, "manifest.json"), json.dumps(manifest))
+        code, out, _ = _run(rel, root)
+        assert code == EXIT_INVALID, out
+
+
+# --------------------------------------------------------------------------- #
 # self-contained runner
 # --------------------------------------------------------------------------- #
 def _run_all():
