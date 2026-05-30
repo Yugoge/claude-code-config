@@ -5,13 +5,47 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+import sys
+
 import pytest
+
+from conftest import load_script_module, apply_env, graph_dict, link, write_json
 
 AC_UID = "c5f010cd2a8249e0"
 AC_TYPE = "data"
 
 
-def test_AC11():
+def _setup(cache_env, ast_graph):
+    """Seed graph.json + a promoted run-manifest + a blast-radius-map + a context file."""
+    write_json(cache_env["graph_json"], ast_graph)
+    write_json(cache_env["run_manifest"], {
+        "semantic_mode": "semantic:claude-cli",
+        "semantic_backend_probe": "semantic path added 3 new edge(s)",
+        "semantic_added_links": 3,
+        "semantic_added_inferred_or_ambiguous": 1,
+    })
+    task_id = "t1"
+    reg = cache_env["src"] / ".claude" / "dev-registry" / task_id
+    reg.mkdir(parents=True, exist_ok=True)
+    write_json(reg / "blast-radius-map.json", {"modified_files": ["mod_a.py"], "edges": []})
+    ctx = reg / "context.json"
+    write_json(ctx, {"task_id": task_id})
+    return task_id, ctx
+
+
+def _run_enrich(cache_env, task_id, ctx, spy):
+    mod = load_script_module("graphify-enrich.py", f"ge_{id(spy)}")
+    mod.run_graphify_cmd = spy
+    old_argv = sys.argv
+    sys.argv = ["graphify-enrich.py", "--task-id", task_id, "--context-file", str(ctx)]
+    try:
+        return mod.main()
+    finally:
+        sys.argv = old_argv
+
+
+def test_AC11(cache_env, monkeypatch):
     """
     GIVEN: maintain's run-manifest.json records semantic_mode=semantic:<backend> with added-count fields (a prior promotion), and a /dev Step 7.5 enrich invocation (graphify-enrich.py --task-id <ID> --context-file <path>) whose blast-radius-map is present and whose cache is available so Step-1 `graphify update` is reached
     WHEN:  graphify-enrich.py captures a pre-update snapshot (hash/mtime) of <cacheDir>/graph.json, then runs Step-1 real `graphify update <repo>`, which may (i) succeed+AST-overwrite, (ii) fail/timeout having already mutated graph.json, or (iii) fail/timeout leaving graph.json unchanged
