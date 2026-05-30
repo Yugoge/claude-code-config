@@ -5,13 +5,57 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+
 import pytest
+
+from conftest import load_script_module, apply_env, graph_dict, link, write_json
 
 AC_UID = "16798066eca596aa"
 AC_TYPE = "data"
 
 
-def test_AC13_OBJ3():
+def _run_case(cache_env, monkeypatch, env_extra, clear_keys, claude_present):
+    """Run cmd_semantic with a shaped backend env. Spy captures every argv; 'update'
+    writes the baseline, 'extract' writes a fresh sem graph with 1 NEW edge (so a
+    promotion label can be asserted). Returns (extract_argv_or_None, run_manifest)."""
+    base = graph_dict(["x", "y"], [link("x", "y", conf="EXTRACTED")])
+    sem = graph_dict(["x", "y"], [
+        link("x", "y", conf="EXTRACTED"),
+        link("x", "y", rel="rationale_for", conf="INFERRED"),
+    ])
+    write_json(cache_env["graph_json"], base)
+    cache_env["extract_out"].unlink(missing_ok=True)
+    write_json(cache_env["run_manifest"], {"semantic_mode": "ast_only",
+                                           "semantic_backend_probe": "init"})
+
+    apply_env(monkeypatch, cache_env["env"], extra=env_extra, clear_keys=clear_keys)
+    mod = load_script_module("graphify-maintain.py", f"gm_ac13_{id(env_extra)}_{claude_present}")
+    mod.get_graphify_bin = lambda: "/fake/graphify"
+    import shutil as _sh
+    monkeypatch.setattr(_sh, "which", lambda name: "/usr/bin/claude" if (
+        name == "claude" and claude_present) else None)
+
+    extract_argv = {"v": None}
+
+    def spy(args, timeout_seconds, cache_dir):
+        if args and args[0] == "update":
+            write_json(cache_env["graph_json"], base)
+            return 0, "", ""
+        if args and args[0] == "extract":
+            extract_argv["v"] = list(args)
+            write_json(cache_env["extract_out"], sem)
+            return 0, "", ""
+        return 0, "", ""
+
+    mod.run_graphify_cmd = spy
+    rc = mod.cmd_semantic(timeout_seconds=10)
+    assert rc == 0
+    rm = json.loads(cache_env["run_manifest"].read_text())
+    return extract_argv["v"], rm
+
+
+def test_AC13_OBJ3(cache_env, monkeypatch):
     """
     GIVEN: cmd_semantic with backend selection mirroring _detect_semantic_backend's precedence, exercised across the FULL 4-case matrix (codex iter #5/#6): (a) FORCED — GRAPHIFY_TRIAGE_BACKEND non-empty; (b) KEYED — an API-key env var present (regardless of whether `claude` exists); (c) KEYLESS-CLAUDE — no key AND `claude` present; (d) NO-BACKEND — no key AND `claude` absent AND no forced backend; plus the degenerate FORCED-None where GRAPHIFY_TRIAGE_BACKEND is the literal 'None'/'null'/empty
     WHEN:  cmd_semantic builds and dispatches the extract invocation (run_graphify_cmd spied so no real extract runs)
