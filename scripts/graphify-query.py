@@ -209,9 +209,9 @@ def _truncate_structural_context(context: dict, hard_cap: int) -> tuple[dict, bo
     if _estimate_tokens(serialized) <= hard_cap:
         return context, False
 
-    # Progressive truncation: trim high_centrality_nodes and import_graph_excerpt
+    # Progressive truncation: trim query results, excerpt, centrality nodes.
     context = dict(context)
-    for key in ["import_graph_excerpt", "high_centrality_nodes"]:
+    for key in ["graphify_query_results", "import_graph_excerpt", "high_centrality_nodes"]:
         if key in context and isinstance(context[key], list):
             while context[key] and _estimate_tokens(json.dumps(context, ensure_ascii=False)) > hard_cap:
                 context[key] = context[key][:-1]
