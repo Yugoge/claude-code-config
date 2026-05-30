@@ -1,12 +1,12 @@
-# dot-claude
+# .claude
 
-*Last updated: 2026-05-30T08:52:50Z*
-**Total entries**: 13337
+*Last updated: 2026-05-30T09:01:56Z*
+**Total entries**: 13344
 **Convention**: kebab
 
 ## Tree
 ```
-dot-claude/
+.claude/
 ├── agents/
 │   ├── `architect.md` - Architecture review specialist for overnight exploration. Identifies structural issues, technical debt, optimization opportunities, dependency problems, and pattern inconsistencies. Returns structured JSON report.
 │   ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
@@ -2213,6 +2213,7 @@ dot-claude/
 │   │   ├── `acceptance-criteria-dev-20260527-063758-T4.json` - json config
 │   │   ├── `acceptance-criteria-dev-20260529-152050.json` - json config
 │   │   ├── `acceptance-criteria-dev-20260529-210759.json` - json config
+│   │   ├── `acceptance-criteria-dev-20260530-084735.json` - json config
 │   │   ├── `architect-report-20260517-155838.json` - json config
 │   │   ├── `architect-report-20260527-061433.json` - json config
 │   │   ├── `architect-report-dev-20260517-215114.json` - json config
@@ -2302,6 +2303,7 @@ dot-claude/
 │   │   ├── `ba-qa-report-20260529-164939-pass2.json` - json config
 │   │   ├── `ba-qa-report-20260529-164939.json` - json config
 │   │   ├── `ba-qa-report-20260529-211406.json` - json config
+│   │   ├── `ba-qa-report-20260530-081334-pass2.json` - json config
 │   │   ├── `ba-qa-report-20260530-081334.json` - json config
 │   │   ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 │   │   ├── `ba-qa-report-d1e94e.json` - json config
@@ -2365,6 +2367,7 @@ dot-claude/
 │   │   ├── `cleanliness-inspector-report-20260529-080709.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260529-081014.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260529-164939.json` - json config
+│   │   ├── `cleanliness-inspector-report-20260529-211406.json` - json config
 │   │   ├── `cleanliness-inspector-report-d1e94e.json` - json config
 │   │   ├── `cleanliness-inspector-report-dev-20260524-170335.json` - json config
 │   │   ├── `cleanliness-inspector-report-dev-20260524-205811.json` - json config
@@ -2614,6 +2617,7 @@ dot-claude/
 │   │   ├── `context-dev-20260529-092512.json` - json config
 │   │   ├── `context-dev-20260529-152050.json` - json config
 │   │   ├── `context-dev-20260529-210759.json` - json config
+│   │   ├── `context-dev-20260530-084735.json` - json config
 │   │   ├── `context-do-20260529-210815.json` - json config
 │   │   ├── `context-iter2-dev-20260111-193314.json` - json config
 │   │   ├── `dev-report-20260110-001044.json` - json config
@@ -2700,6 +2704,7 @@ dot-claude/
 │   │   ├── `dev-report-20260529-080709.json` - json config
 │   │   ├── `dev-report-20260529-081014.json` - json config
 │   │   ├── `dev-report-20260529-164939.json` - json config
+│   │   ├── `dev-report-20260529-210616.json` - json config
 │   │   ├── `dev-report-20260529-211406.json` - json config
 │   │   ├── `dev-report-d1e94e.json` - json config
 │   │   ├── `dev-report-dev-20260107-091716.json` - json config
@@ -2734,6 +2739,7 @@ dot-claude/
 │   │   ├── `dev-report-dev-20260529-092512.json` - json config
 │   │   ├── `dev-report-dev-20260529-152050.json` - json config
 │   │   ├── `dev-report-dev-20260529-210759.json` - json config
+│   │   ├── `dev-report-dev-20260530-082409.json` - json config
 │   │   ├── `dev-report-do-20260529-210815.json` - json config
 │   │   ├── `meta-assessment-20260519-161035.json` - json config
 │   │   ├── `note-20260524-123039-root-bin-manual-commit.md` - Manual Commit Instructions: /root/bin/happy-session-recovery.sh
@@ -2784,6 +2790,7 @@ dot-claude/
 │   │   ├── `prompt-inspector-report-20260529-081014.json` - json config
 │   │   ├── `prompt-inspector-report-20260529-164939.codex.txt` - txt file
 │   │   ├── `prompt-inspector-report-20260529-164939.json` - json config
+│   │   ├── `prompt-inspector-report-20260529-211406.json` - json config
 │   │   ├── `prompt-inspector-report-d1e94e.json` - json config
 │   │   ├── `prompt-inspector-report-dev-20260524-170335.json` - json config
 │   │   ├── `prompt-inspector-report-dev-20260524-205811.json` - json config
@@ -2970,6 +2977,7 @@ dot-claude/
 │   │   ├── `style-inspector-report-20260529-080709.json` - json config
 │   │   ├── `style-inspector-report-20260529-081014.json` - json config
 │   │   ├── `style-inspector-report-20260529-164939.json` - json config
+│   │   ├── `style-inspector-report-20260529-211406.json` - json config
 │   │   ├── `style-inspector-report-d1e94e.json` - json config
 │   │   ├── `style-inspector-report-dev-20260524-170335.json` - json config
 │   │   ├── `style-inspector-report-dev-20260524-205811.json` - json config
@@ -3452,7 +3460,8 @@ dot-claude/
 │   │   ├── `4019a4cde87723c5@v1` - unknown file
 │   │   ├── `4019a4cde87723c5@v2` - unknown file
 │   │   ├── `4019a4cde87723c5@v3` - unknown file
-│   │   └── `4019a4cde87723c5@v4` - unknown file
+│   │   ├── `4019a4cde87723c5@v4` - unknown file
+│   │   └── `4019a4cde87723c5@v5` - unknown file
 │   ├── abfb2d1f-c205-4ba4-8588-0bff7094e9a0/
 │   │   ├── `10517df67c231bf6@v1` - unknown file
 │   │   ├── `10517df67c231bf6@v2` - unknown file
@@ -4467,6 +4476,7 @@ dot-claude/
 │   │   ├── 3bc842b8-b48a-4840-86bc-3b4217e150f2/
 │   │   ├── 3c23a0fb-a432-45e7-b279-b7933cc02b88/
 │   │   ├── 4392435e-13a6-4691-9ea9-129fa96f87c0/
+│   │   ├── 441b0d47-3cbf-4fa5-9038-76ef39df048a/
 │   │   ├── 49a39cdc-b6c7-45a1-be85-01630f3c3e72/
 │   │   ├── 4e92304d-50e7-438b-a43a-50abf7fef1c6/
 │   │   ├── 539b6b77-adaa-4df7-97af-74e1747a5fe4/
@@ -8564,7 +8574,8 @@ dot-claude/
 │   ├── `snapshot-bash-1780129871735-2e28jf.sh` - Snapshot file
 │   ├── `snapshot-bash-1780130612245-ggp5l8.sh` - Snapshot file
 │   ├── `snapshot-bash-1780130619430-k8emdx.sh` - Snapshot file
-│   └── `snapshot-bash-1780130923445-9kggo4.sh` - Snapshot file
+│   ├── `snapshot-bash-1780130923445-9kggo4.sh` - Snapshot file
+│   └── `snapshot-bash-1780131593086-w5lbu4.sh` - Snapshot file
 ├── skills/
 │   ├── docx/
 │   │   ├── `docx-js.md` - DOCX Library Tutorial
@@ -8605,10 +8616,6 @@ dot-claude/
 │       ├── `LICENSE.txt` - txt file
 │       ├── `recalc.py` - Excel Formula Recalculation Script
 │       └── `SKILL.md` - Comprehensive spreadsheet creation, editing, and analysis with support for formulas, formatting, data analysis, and visualization. When Claude needs to work with spreadsheets (.xlsx, .xlsm, .csv, .tsv, etc) for: (1) Creating new spreadsheets with formulas and formatting, (2) Reading or analyzing data, (3) Modify existing spreadsheets while preserving formulas, (4) Data analysis and visualization in spreadsheets, or (5) Recalculating formulas
-├── specs/
-│   ├── 20260514-174852/
-│   ├── qa-c7-test/
-│   └── qa-c7-test-w/
 ├── state/
 │   └── `specialist-yield-log.jsonl` - jsonl file
 ├── statsig/
@@ -9271,6 +9278,7 @@ dot-claude/
 │   ├── `1bd4391b-a6e6-443e-8934-694be99c688a-agent-1bd4391b-a6e6-443e-8934-694be99c688a.json` - json config
 │   ├── `1bdf2111-5b3a-4325-8b45-c0351d2ba806-agent-1bdf2111-5b3a-4325-8b45-c0351d2ba806.json` - json config
 │   ├── `1be208fc-1009-42fa-adfa-ec56202fa449-agent-1be208fc-1009-42fa-adfa-ec56202fa449.json` - json config
+│   ├── `1bf3bec2-b5bc-401b-9b90-79b972121765-agent-1bf3bec2-b5bc-401b-9b90-79b972121765.json` - json config
 │   ├── `1bfa46a1-99d6-4bbf-b353-9ab9e4a1fcd0-agent-1bfa46a1-99d6-4bbf-b353-9ab9e4a1fcd0.json` - json config
 │   ├── `1c031611-531e-4f5c-8c97-df7a95ff4c4c-agent-1c031611-531e-4f5c-8c97-df7a95ff4c4c.json` - json config
 │   ├── `1c0ed292-4050-47b9-9535-f97b97cfee10-agent-1c0ed292-4050-47b9-9535-f97b97cfee10.json` - json config
@@ -9932,6 +9940,7 @@ dot-claude/
 │   ├── `43c54754-68fc-40e8-a5fa-e501fef0e2c0-agent-43c54754-68fc-40e8-a5fa-e501fef0e2c0.json` - json config
 │   ├── `43c66628-4cad-428a-89b7-8d8aad09c070-agent-43c66628-4cad-428a-89b7-8d8aad09c070.json` - json config
 │   ├── `43f04653-e40f-4194-bc17-c3227efcd3cb-agent-43f04653-e40f-4194-bc17-c3227efcd3cb.json` - json config
+│   ├── `441b0d47-3cbf-4fa5-9038-76ef39df048a-agent-441b0d47-3cbf-4fa5-9038-76ef39df048a.json` - json config
 │   ├── `4423ee17-7270-40df-ba67-22b81ab10e35-agent-4423ee17-7270-40df-ba67-22b81ab10e35.json` - json config
 │   ├── `44242ebb-09fc-4455-aa66-9dd7e8cec3b5-agent-44242ebb-09fc-4455-aa66-9dd7e8cec3b5.json` - json config
 │   ├── `442d35b5-f7f7-4684-8242-e34cb1a661cb-agent-442d35b5-f7f7-4684-8242-e34cb1a661cb.json` - json config
@@ -9966,7 +9975,6 @@ dot-claude/
 │   ├── `45de0900-7e84-4884-a11e-b17c382e13bb-agent-45de0900-7e84-4884-a11e-b17c382e13bb.json` - json config
 │   ├── `45f3313a-a4a7-4a27-9c3c-3878f19bb1dc-agent-45f3313a-a4a7-4a27-9c3c-3878f19bb1dc.json` - json config
 │   ├── `46064986-f1f7-4af2-87e0-af681a785865-agent-46064986-f1f7-4af2-87e0-af681a785865.json` - json config
-│   ├── `461e02eb-c56a-4329-a084-2b8660d69a24-agent-461e02eb-c56a-4329-a084-2b8660d69a24.json` - json config
 │   ├── `463f02ac-9d1f-4926-ad32-b90e17028e7a-agent-463f02ac-9d1f-4926-ad32-b90e17028e7a.json` - json config
 │   ├── `465aa870-2321-436a-b947-89f8a5849a4f-agent-465aa870-2321-436a-b947-89f8a5849a4f.json` - json config
 │   ├── `4674196f-45ee-4b7e-8e7c-f47797f25c43-agent-4674196f-45ee-4b7e-8e7c-f47797f25c43.json` - json config
@@ -13334,7 +13342,6 @@ dot-claude/
 ├── `workflow-1f9f0472-7a89-4cfa-87f2-c85616fed777.json` - json config
 ├── `workflow-215eec0e-0e9c-4f81-bd52-b73036e3d33a.json` - json config
 ├── `workflow-30b4bbbc-a873-4ba8-b8fd-804dc05492bc.json` - json config
-├── `workflow-461e02eb-c56a-4329-a084-2b8660d69a24.json` - json config
 ├── `workflow-483e030c-3ab6-42d0-973e-8a2a4b8b8806.json` - json config
 ├── `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 ├── `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
