@@ -97,9 +97,11 @@ STATUS_SKIPPED = "skipped"
 
 TIMEOUT_QUERY = 15          # Step 1.5 advisory `graphify query`
 TIMEOUT_AFFECTED = 20       # Step 7.5 advisory `graphify affected`/`query`
-TIMEOUT_SEMANTIC_PROBE = 30  # /usr/bin/claude-routed semantic extract probe
+TIMEOUT_SEMANTIC_PROBE = 30  # LEGACY constant — retained for test_AC13:54 reference (AC13); the
+                             # init auto-probe that used it is removed (semantic is user-triggered).
 TIMEOUT_UPDATE = 60         # incremental Step 7.5 `graphify update`
 TIMEOUT_INIT = 300          # user-triggered full-repo `graphify update`
+TIMEOUT_SEMANTIC = 3600     # user-triggered `graphify-maintain.py semantic` full extract (serial multi-minute)
 
 
 # ---------------------------------------------------------------------------
