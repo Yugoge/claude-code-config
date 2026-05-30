@@ -248,6 +248,16 @@ staging through the line-precise helper instead of whole-file `git add`:
 # Write this file's owned-edits ledger and pre-edit snapshot from the dev-report to
 # temp files, then invoke the helper (inside the same fd-9 flock).
 git_root="${GIT_ROOT}"
+
+# 1. Ledger: write dev-report owned_edits[<repo-rel-path>] (a JSON list of
+#    {"old":...,"new":...}) verbatim to a temp file.
+# 2. Snapshot materialization (REQUIRED — do NOT write the raw value blindly):
+#    pre_edit_snapshots[<repo-rel-path>] may be EITHER a git blob SHA OR the literal
+#    pre-edit content. Resolve it:
+#      if the value matches ^[0-9a-f]{7,40}$ AND `git -C "$git_root" cat-file -e <val>`
+#      succeeds → write `git -C "$git_root" cat-file blob <val>` bytes to the temp
+#      snapshot; otherwise write the literal value bytes. Passing a SHA string as if
+#      it were content makes the helper's replay fail falsely (a spurious EXCLUDE).
 "${CLAUDE_PROJECT_DIR}/.claude/scripts/stage-owned-hunks.py" \
     --git-root "${git_root}" \
     --file "<repo-rel-path>" \
