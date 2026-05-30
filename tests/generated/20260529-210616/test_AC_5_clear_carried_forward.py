@@ -6,6 +6,7 @@
 # and a static-text guard that commands/close.md still contains the
 # 6-bucket Session Summary labels (no source rollback).
 
+import os
 import pathlib
 import subprocess
 
