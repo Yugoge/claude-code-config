@@ -110,3 +110,9 @@ def test_AC4():
             os.unlink(tmp_lifecycle)
         except OSError:
             pass
+        # M3 fixture cleanup (task 20260529-210616)
+        try:
+            if fix_path.exists():
+                fix_path.unlink()
+        except OSError:
+            pass
