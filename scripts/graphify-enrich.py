@@ -232,16 +232,7 @@ def main() -> int:
         run_manifest["subgraph_extraction"]["attempted"] = False
         _write_outputs(output_dir, task_id, run_manifest, {}, STATUS_SKIPPED)
         print(f"graphify-enrich: status=skipped ({br_reason})")
-        if args.context_file:
-            context_path = Path(args.context_file)
-            if context_path.exists():
-                try:
-                    ctx_data = json.loads(context_path.read_text(encoding="utf-8"))
-                    ctx_data["graph_context"] = empty_graph_context(STATUS_SKIPPED, br_reason)
-                    write_json_locked(context_path, ctx_data)
-                    print(f"graphify-enrich: patched graph_context(status=skipped) into {context_path}")
-                except Exception as exc:
-                    print(f"graphify-enrich: context-patch failed (advisory): {exc}", file=sys.stderr)
+        _patch_context(args, empty_graph_context(STATUS_SKIPPED, br_reason), run_manifest)
         return 0  # Zero exception — DEV receives empty graph_context
 
     # Cache availability check (keyed on cacheDir/graph.json, AC12). Also refuses
