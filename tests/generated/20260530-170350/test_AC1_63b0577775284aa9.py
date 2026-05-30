@@ -5,10 +5,39 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import importlib.util
+from pathlib import Path
+
 import pytest
 
 AC_UID = "63b0577775284aa9"
 AC_TYPE = "data"
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_SCRIPTS = _REPO_ROOT / "scripts"
+
+
+def _load_maintain():
+    import sys
+    if str(_SCRIPTS) not in sys.path:
+        sys.path.insert(0, str(_SCRIPTS))
+    spec = importlib.util.spec_from_file_location(
+        "gm_ac1", str(_SCRIPTS / "graphify-maintain.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _link(src, tgt, rel="references", conf="EXTRACTED", sf="a.py", loc="L1", ctx=...):
+    d = {"source": src, "target": tgt, "relation": rel, "confidence": conf,
+         "source_file": sf, "source_location": loc}
+    if ctx is not ...:
+        d["context"] = ctx
+    return d
+
+
+def _graph(nodes, links):
+    return {"nodes": [{"id": n} for n in nodes], "links": links}
 
 
 def test_AC1():
