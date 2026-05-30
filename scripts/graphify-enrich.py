@@ -244,76 +244,117 @@ def main() -> int:
                     print(f"graphify-enrich: context-patch failed (advisory): {exc}", file=sys.stderr)
         return 0  # Zero exception — DEV receives empty graph_context
 
-    # Cache availability check
+    # Cache availability check (keyed on cacheDir/graph.json, AC12). Also refuses
+    # cache-root-inside-repo (AC13) since check_cache_available reports that reason.
     repo_key = get_repo_key(_PROJECT_DIR)
-    cache_root = get_cache_root()
-    cache_dir = cache_root / repo_key
-    available, reason = check_cache_available(repo_key)
+    cache_dir = get_cache_dir(_PROJECT_DIR)
+    graph_file = graph_json_path(_PROJECT_DIR)
+    available, reason = check_cache_available(repo_key, project_dir=_PROJECT_DIR)
 
     if not available:
         run_manifest["status"] = STATUS_UNAVAILABLE
         run_manifest["error_detail"] = reason
         _write_outputs(output_dir, task_id, run_manifest, {}, STATUS_UNAVAILABLE)
+        _patch_context(args, empty_graph_context(STATUS_UNAVAILABLE, reason), run_manifest)
         print(f"graphify-enrich: status=unavailable ({reason})")
         return 0  # advisory
 
-    # Step 1: incremental update
+    # Step 1: incremental real `graphify update` (advisory; cwd+GRAPHIFY_OUT=cacheDir in lib).
     run_manifest["update_run"]["attempted"] = True
     start = time.time()
-    exit_code, stdout, stderr = run_graphify_cmd(
-        ["--update", "--output-dir", str(cache_dir), "--project-dir", str(_PROJECT_DIR)],
-        timeout_seconds=INCREMENTAL_TIMEOUT,
-        cwd=str(_PROJECT_DIR),
-    )
-    elapsed = time.time() - start
+    if not is_cache_root_inside_repo(_PROJECT_DIR):
+        exit_code, stdout, stderr = run_graphify_cmd(
+            ["update", str(_PROJECT_DIR)], timeout_seconds=TIMEOUT_UPDATE, cache_dir=cache_dir,
+        )
+    else:
+        exit_code, stdout, stderr = -1, "", "cache_root_inside_repo"
     run_manifest["update_run"].update({
-        "duration_seconds": round(elapsed, 1),
+        "duration_seconds": round(time.time() - start, 1),
         "exit_code": exit_code,
     })
     if exit_code != 0:
-        run_manifest["update_run"]["error"] = stderr[:500] if stderr else "non-zero exit"
-        # Update failed is advisory — continue to extraction with existing cache
+        run_manifest["update_run"]["error"] = (stderr or "non-zero exit")[:500]
+        # advisory — continue to extraction against the existing cache
 
-    # Step 2: focused subgraph extraction
+    # Step 2: read real node-link graph (sensitive nodes/links scrubbed on read).
+    graph, gstatus = load_graph(graph_file)
+    modified_paths = _collect_modified_paths(blast_radius_map)
+    resolved_map, unresolved_paths = resolve_paths_to_node_ids(modified_paths, graph)
+    resolved_node_ids = list(dict.fromkeys(
+        nid for ids in resolved_map.values() for nid in ids))
+
     run_manifest["subgraph_extraction"]["attempted"] = True
     run_manifest["subgraph_extraction"]["blast_radius_map_path"] = str(
         _PROJECT_DIR / ".claude" / "dev-registry" / task_id / "blast-radius-map.json"
     )
+    run_manifest["subgraph_extraction"]["resolved_node_ids"] = resolved_node_ids
+    run_manifest["subgraph_extraction"]["unresolved_paths"] = unresolved_paths
 
+    # Step 3: build the deterministic focused subgraph (PRIMARY signal, AC3 b / AC14).
     try:
-        subgraph = _extract_focused_subgraph(blast_radius_map, cache_dir)
-        run_manifest["subgraph_extraction"]["nodes_extracted"] = len(subgraph["nodes"])
-        run_manifest["subgraph_extraction"]["edges_extracted"] = len(subgraph["edges"])
-        status = STATUS_OK
+        subgraph = _build_deterministic_subgraph(graph, set(resolved_node_ids))
+        status = STATUS_OK if (subgraph["nodes"] or not resolved_node_ids) else STATUS_DEGRADED
     except Exception as exc:
         subgraph = {"nodes": [], "edges": [], "module_boundaries": []}
         run_manifest["error_detail"] = f"subgraph extraction error: {exc}"
         status = STATUS_DEGRADED
 
+    # Step 4: real `graphify affected` enrichment — MUST be attempted when ≥1 id
+    # resolved (AC3 c). Seed with a RESOLVED node id ONLY.
+    affected_records: list[dict] = []
+    affected_cli_status = "not_attempted"
+    for nid in resolved_node_ids[:5]:
+        rec = _run_real_affected(nid, graph_file, cache_dir)
+        affected_records.append(rec)
+        affected_cli_status = rec.get("affected_cli_status", STATUS_DEGRADED)
+    if affected_records and affected_cli_status == STATUS_DEGRADED:
+        # text-parse/timeout degrades enrichment but keeps the deterministic subgraph.
+        status = STATUS_DEGRADED if status == STATUS_OK else status
+    run_manifest["affected_run"] = {
+        "attempted": bool(resolved_node_ids),
+        "affected_cli_status": affected_cli_status,
+        "seeds": resolved_node_ids[:5],
+    }
     run_manifest["status"] = status
 
-    # Step 3: write artifacts
-    _write_outputs(output_dir, task_id, run_manifest, subgraph, status)
+    # Step 5: write artifacts.
+    subgraph_artifact = dict(subgraph)
+    subgraph_artifact["resolved_node_ids"] = resolved_node_ids
+    subgraph_artifact["unresolved_paths"] = unresolved_paths
+    _write_outputs(output_dir, task_id, run_manifest, subgraph_artifact, status)
 
-    # Step 4: patch context.json in-place (arch-6 accepted divergence from sidecar)
-    if args.context_file:
-        context_path = Path(args.context_file)
-        if context_path.exists():
-            try:
-                ctx_data = json.loads(context_path.read_text(encoding="utf-8"))
-                ctx_data["graph_context"] = _build_graph_context_patch(subgraph, status, task_id)
-                write_json_locked(context_path, ctx_data)
-                run_manifest["context_patch"] = {
-                    "patched": True,
-                    "context_path": str(context_path),
-                    "graph_context_size_tokens": len(json.dumps(ctx_data["graph_context"])) // 4,
-                }
-                print(f"graphify-enrich: patched graph_context into {context_path}")
-            except Exception as exc:
-                run_manifest["context_patch"] = {"patched": False, "error": str(exc)}
+    # Step 6: patch context.json in-place with REAL translated graph_context (AC14, arch-6).
+    patch = _build_graph_context_patch(
+        subgraph, status, task_id, resolved_node_ids, unresolved_paths,
+        affected_records, affected_cli_status)
+    _patch_context(args, patch, run_manifest)
 
-    print(f"graphify-enrich: status={status}, nodes={len(subgraph.get('nodes',[]))}, edges={len(subgraph.get('edges',[]))}")
+    print(f"graphify-enrich: status={status}, nodes={len(subgraph.get('nodes', []))}, "
+          f"edges={len(subgraph.get('edges', []))}, resolved={len(resolved_node_ids)}, "
+          f"affected_cli={affected_cli_status}")
     return 0
+
+
+def _patch_context(args, graph_context: dict, run_manifest: dict) -> None:
+    """Patch graph_context into context-{ts}.json in place (scrubbed, advisory)."""
+    if not args.context_file:
+        return
+    context_path = Path(args.context_file)
+    if not context_path.exists():
+        return
+    try:
+        ctx_data = json.loads(context_path.read_text(encoding="utf-8"))
+        ctx_data["graph_context"] = scrub_sensitive(graph_context)
+        write_json_locked(context_path, ctx_data)
+        run_manifest["context_patch"] = {
+            "patched": True,
+            "context_path": str(context_path),
+            "graph_context_size_tokens": len(json.dumps(ctx_data["graph_context"])) // 4,
+        }
+        print(f"graphify-enrich: patched graph_context into {context_path}")
+    except Exception as exc:
+        run_manifest["context_patch"] = {"patched": False, "error": str(exc)}
+        print(f"graphify-enrich: context-patch failed (advisory): {exc}", file=sys.stderr)
 
 
 def _write_outputs(output_dir: Path, task_id: str, run_manifest: dict, subgraph: dict, status: str) -> None:
