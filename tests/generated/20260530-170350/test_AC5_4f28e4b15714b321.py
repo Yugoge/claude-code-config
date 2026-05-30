@@ -5,10 +5,19 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
+
+import graphify_lib
 
 AC_UID = "4f28e4b15714b321"
 AC_TYPE = "data"
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_PRIOR = _REPO_ROOT / "tests" / "generated" / "20260530-105221"
 
 
 def test_AC5():
