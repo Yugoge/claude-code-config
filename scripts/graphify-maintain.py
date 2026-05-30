@@ -300,6 +300,153 @@ def cmd_update() -> int:
     return 0  # advisory: always exit 0 so callers are not blocked
 
 
+def _select_semantic_backend() -> tuple[str, str | None, str]:
+    """Resolve the 4-case backend matrix (OBJ-3 / AC13-OBJ3).
+
+    Mirrors _detect_semantic_backend's precedence: forced -> key -> claude -> none.
+    Returns (kind, backend_flag, label) where:
+      kind == "forced"  -> pass --backend <flag>, label "semantic:<flag>"
+      kind == "keyed"   -> NO --backend arg (graphify auto-detects), label "semantic:auto"
+      kind == "claude"  -> pass --backend claude-cli, label "semantic:claude-cli"
+      kind == "none"    -> no usable backend; caller must NOT invoke extract
+    backend_flag is None for the keyed and none cases. The literal token 'None'
+    is NEVER produced as a flag and 'semantic:None' is NEVER a label.
+    """
+    forced = os.environ.get("GRAPHIFY_TRIAGE_BACKEND", "").strip()
+    if forced:
+        # Degenerate forced value -> treat as no usable backend (never --backend None).
+        if forced.lower() in ("none", "null", ""):
+            return "none", None, ""
+        return "forced", forced, f"semantic:{forced}"
+    for env_key in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "MOONSHOT_API_KEY",
+                    "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY"):
+        if os.environ.get(env_key):
+            # Keyed: let graphify auto-detect; do NOT pass --backend (codex #6).
+            return "keyed", None, "semantic:auto"
+    import shutil
+    if shutil.which("claude"):
+        return "claude", "claude-cli", "semantic:claude-cli"
+    return "none", None, ""
+
+
+def cmd_semantic(timeout_seconds: int = TIMEOUT_SEMANTIC) -> int:
+    """User-triggered semantic extraction with the corrected proof-gate (R2/AC3/AC4/AC9/AC12/AC13).
+
+    Flow: gate/bin/cache-inside-repo guards -> AST baseline `update` (fresh
+    baseline, codex #2) -> resolve 4-case backend -> clear-before-extract
+    (MANDATORY, AC12) -> `graphify extract` -> same-normalize both sides via
+    load_graph -> apply the set-diff gate -> promote IFF a fresh parseable
+    extract output adds NEW valid-confidence edges. AST is never lost. Advisory
+    exit 0 on every no-promote branch.
+    """
+    if not is_graphify_enabled():
+        print("graphify-maintain: CLAUDE_GRAPHIFY_ENABLED=0 — skipping semantic", flush=True)
+        return 0
+    bin_path = get_graphify_bin()
+    if not bin_path:
+        print("graphify-maintain semantic: GRAPHIFY_BIN absent — advisory no-op", flush=True)
+        return 0
+    if _refuse_if_cache_inside_repo("semantic"):
+        return 0
+
+    cache_dir = get_cache_dir(_PROJECT_DIR)
+    repo_key = get_repo_key(_PROJECT_DIR)
+    gpath = graph_json_path(_PROJECT_DIR)
+    print(f"graphify-maintain semantic: repo_key={repo_key}, timeout={timeout_seconds}s", flush=True)
+
+    # 1) Fresh AST baseline FIRST (codex #2). Never diff extract output against a
+    #    stale/garbage baseline. Capture a pre-update snapshot for the iter #3 guard.
+    pre_snapshot = _graph_snapshot(gpath)
+    up_exit, _, up_err = _run_ast_build(_PROJECT_DIR, cache_dir, TIMEOUT_UPDATE)
+
+    # If the baseline update failed/timed-out but mutated graph.json, invalidate
+    # the stale semantic state (codex iter #3) before bailing.
+    if up_exit != 0:
+        post_snapshot = _graph_snapshot(gpath)
+        if pre_snapshot != post_snapshot:
+            try:
+                reset_semantic_mode_in_manifest(cache_dir)
+            except Exception:
+                pass
+    ast_graph, ast_st = load_graph(gpath)
+    if up_exit != 0 or ast_st != STATUS_OK or len(ast_graph.get("nodes", [])) == 0:
+        reason = f"no fresh AST baseline (update exit={up_exit}, status={ast_st}); extract skipped, AST retained"
+        print(f"graphify-maintain semantic: {reason}", flush=True)
+        _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
+        return 0
+
+    # 2) Resolve backend (4-case matrix). No usable backend -> clean fail, no extract.
+    kind, backend_flag, label = _select_semantic_backend()
+    if kind == "none":
+        reason = "no semantic backend reachable (no API key, claude CLI absent, no usable forced backend); AST retained"
+        print(f"graphify-maintain semantic: {reason}", flush=True)
+        _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
+        return 0
+
+    # 3) clear-before-extract (MANDATORY, AC12): remove any stale prior extract
+    #    output INSIDE the cache so a failed/timed-out current run cannot promote it.
+    extracted = cache_dir / "graphify-out" / "graph.json"
+    try:
+        if extracted.exists():
+            extracted.unlink()
+    except Exception as exc:
+        print(f"graphify-maintain semantic: could not clear stale extract output: {exc}", flush=True)
+
+    # 4) Build + run extract. Never put the literal 'None' in argv.
+    args = ["extract", str(_PROJECT_DIR), "--out", str(cache_dir)]
+    if backend_flag is not None:
+        args += ["--backend", backend_flag]
+    start = time.time()
+    ex_exit, _, ex_err = run_graphify_cmd(args, timeout_seconds=timeout_seconds, cache_dir=cache_dir)
+    elapsed = time.time() - start
+
+    if ex_exit != 0:
+        reason = f"extract via {label} failed/timed-out (exit={ex_exit}) in {elapsed:.1f}s; AST retained"
+        print(f"graphify-maintain semantic: {reason}", flush=True)
+        _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
+        return 0
+
+    # 5) Require a FRESH parseable output at the exact cleared path (AC12).
+    if not extracted.exists():
+        reason = f"extract via {label} produced no graph.json at {extracted}; AST retained"
+        print(f"graphify-maintain semantic: {reason}", flush=True)
+        _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
+        return 0
+
+    sem_graph, sem_st = load_graph(extracted)
+    if sem_st != STATUS_OK:
+        reason = f"extract via {label} output unparseable (status={sem_st}); AST retained"
+        print(f"graphify-maintain semantic: {reason}", flush=True)
+        _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
+        return 0
+
+    # 6) Apply the corrected gate on same-normalized graphs (both via load_graph).
+    promotable, counts = _semantic_promotable(ast_graph, sem_graph)
+    if not promotable:
+        reason = (f"extract via {label} added no new edges by signature set-diff "
+                  f"(added_links={counts['added_links']}, ast_links={counts['ast_links']}, "
+                  f"sem_links={counts['sem_links']}); AST retained")
+        print(f"graphify-maintain semantic: {reason}", flush=True)
+        _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
+        return 0
+
+    # 7) Promote: copy the raw extract output to canonical graph.json.
+    try:
+        gpath.write_text(extracted.read_text(encoding="utf-8"), encoding="utf-8")
+    except Exception as exc:
+        reason = f"semantic graph promote failed: {exc}; AST retained"
+        print(f"graphify-maintain semantic: {reason}", flush=True)
+        _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
+        return 0
+
+    reason = (f"semantic path added {counts['added_links']} new edge(s) "
+              f"({counts['added_inferred_or_ambiguous']} INFERRED/AMBIGUOUS) via {label}")
+    print(f"graphify-maintain semantic: PROMOTED — {reason}", flush=True)
+    _write_run_manifest(cache_dir, repo_key, bin_path, label, reason, verb="semantic",
+                        semantic_counts=counts)
+    return 0
+
+
 def cmd_status() -> int:
     """Show real cache state, node/edge counts, and semantic mode (S1)."""
     available, reason = check_cache_available(project_dir=_PROJECT_DIR)
