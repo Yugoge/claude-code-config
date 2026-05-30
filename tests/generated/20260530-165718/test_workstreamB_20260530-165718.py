@@ -180,6 +180,26 @@ def test_AC_B2_2_graphify_write_grant_is_tight(pr):
     assert "allowed_write_path_prefixes" in reason2, reason2
 
 
+def test_AC_B2_2_codex_finding2_loadbearing_denials_hold_even_deep(pr):
+    """Codex finding #2 (in_scope_minor): the policy_registry fnmatch '*' spans '/',
+    so '*/.claude/dev-registry/*/graphify/' also allows a deeper graphify-namespace
+    path like dev-registry/t1/other/graphify/. This is a GLOBAL matcher property
+    shared by every role using a '*/<dir>/' prefix (cleaner, changelog-analyst, ...),
+    NOT graphify-specific, and tightening it requires a shared-matcher change that is
+    out of scope for B2 (affects 25 roles). The LOAD-BEARING denials AC-B2-2 actually
+    requires still hold regardless of nesting depth: protected infra and NON-graphify
+    dev-registry artifacts are DENIED even when deeply nested. This test pins those
+    invariants so a future matcher tightening cannot silently regress them."""
+    # protected infra denied (cites positive protected match)
+    d1, r1 = pr.is_allowed("graphify", "Write", "/root/.claude/hooks/x.py")
+    assert not d1 and "denied_write_path_prefixes" in r1
+    # non-graphify dev-registry artifact denied, shallow AND deep
+    d2, _ = pr.is_allowed("graphify", "Write", "/root/.claude/dev-registry/t1/blast-radius-map.json")
+    assert not d2
+    d3, _ = pr.is_allowed("graphify", "Write", "/root/.claude/dev-registry/t1/other/blast-radius-map.json")
+    assert not d3, "deep non-graphify dev-registry path must remain denied"
+
+
 def test_AC_B2_3_no_broad_context_write_grant():
     """AC-B2-3: graphify write prefixes must NOT contain the broad
     '*/docs/dev/context-'; context is patched by graphify-enrich.py --context-file
