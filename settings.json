@@ -19,7 +19,7 @@
     "PLAYWRIGHT_RUNCODE_TIMEOUT": "120",
     "ENABLE_TOOL_SEARCH": "false",
     "CLAUDE_CODE_ENABLE_TASKS": "false",
-    "CLAUDE_GRAPHIFY_ENABLED": "auto",
+    "CLAUDE_GRAPHIFY_ENABLED": "0",
     "_comment_graphify": "Graphify override env vars (leave unset to use defaults): GRAPHIFY_BIN=<path> overrides graphify CLI; CLAUDE_GRAPHIFY_CACHE_ROOT=<dir> overrides /var/tmp/claude-graphify",
     "_comment_anthropic": "以下为可选配置（已禁用）",
     "_disabled_anthropic": "[object Object]"
