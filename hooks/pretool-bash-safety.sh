@@ -857,12 +857,15 @@ for t in tokens:
         print('DENY')
         sys.exit(0)
 
-# Recursive shell: <interpreter> -c|-e
+# Recursive shell: <interpreter> -c|-e or combined flags like -lc, -ec, -lce
 RECURSIVE_SHELLS = {'bash', 'sh', 'zsh', 'dash', 'python', 'python3', 'node', 'perl', 'ruby'}
+import re as _re_rs
 for i, t in enumerate(tokens):
-    if t in RECURSIVE_SHELLS and i + 1 < len(tokens) and tokens[i+1] in ('-c', '-e'):
-        print('DENY')
-        sys.exit(0)
+    if t in RECURSIVE_SHELLS and i + 1 < len(tokens):
+        _next = tokens[i+1]
+        if _next in ('-c', '-e') or (_next.startswith('-') and _re_rs.match(r'^-[a-zA-Z]*[ce][a-zA-Z]*$', _next)):
+            print('DENY')
+            sys.exit(0)
 
 # eval / source / dot-source as standalone command tokens.
 for i, t in enumerate(tokens):
@@ -979,6 +982,14 @@ for t in tokens:
 # string arg, so the protected name appears as a substring of the arg token.
 _SENTINEL_SCRIPT = 'write-bulk-commit-sentinel.py'
 _SENTINEL_PATH = '/tmp/claude-bulk-commit-sentinel-'
+# Never apply the false-positive guard when the command is a shell/interpreter
+# invocation — those forms are handled (or should be handled) by RECURSIVE_SHELLS
+# above; a shell being here means RECURSIVE_SHELLS missed it (e.g. combined flags),
+# so bail out conservatively to DENY rather than PURE_READ.
+_SHELL_EXECUTABLES = {'bash', 'sh', 'zsh', 'dash', 'python', 'python3', 'node', 'perl', 'ruby', 'env'}
+if tokens and tokens[0] in _SHELL_EXECUTABLES:
+    print('DENY')
+    sys.exit(0)
 _sentinel_in_arg_only = False
 for _t in tokens:
     # If any token IS the standalone path (or a path ending with it), it is a
