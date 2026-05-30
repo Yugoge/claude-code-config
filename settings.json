@@ -21,7 +21,7 @@
     "CLAUDE_CODE_ENABLE_TASKS": "false",
     "CLAUDE_GRAPHIFY_ENABLED": "0",
     "_comment_graphify": "Graphify override env vars (leave unset to use defaults): GRAPHIFY_BIN=<path> overrides graphify CLI; CLAUDE_GRAPHIFY_CACHE_ROOT=<dir> overrides /var/tmp/claude-graphify",
-    "_comment_anthropic": "以下为可选配置（已禁用）",
+    "_comment_anthropic": "\u4ee5\u4e0b\u4e3a\u53ef\u9009\u914d\u7f6e\uff08\u5df2\u7981\u7528\uff09",
     "_disabled_anthropic": "[object Object]"
   },
   "includeCoAuthoredBy": true,
@@ -193,7 +193,8 @@
       "Bash(pytest tests/generated:*)",
       "Bash(source ~/.claude/venv/bin/activate && pytest tests/generated:*)",
       "Bash(source ~/.claude/venv/bin/activate && python3 -m pytest tests/test_graphify_scripts.py:*)",
-      "Bash(source ~/.claude/venv/bin/activate && python3 -m pytest tests/test_graphify_workflow_contract.py:*)"
+      "Bash(source ~/.claude/venv/bin/activate && python3 -m pytest tests/test_graphify_workflow_contract.py:*)",
+      "Bash(scripts/precommitted-recovery.sh:*)"
     ],
     "deny": [
       "Read(.env)",
