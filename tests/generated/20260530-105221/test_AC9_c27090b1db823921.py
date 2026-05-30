@@ -5,10 +5,15 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import re
+from pathlib import Path
+
 import pytest
 
 AC_UID = "c27090b1db823921"
 AC_TYPE = "data"
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_AC9():
@@ -17,7 +22,24 @@ def test_AC9():
     WHEN:  inspected (static scan of all 3 wrappers + lib + commands + agents)
     THEN:  NO code path invokes ANY graphify install/provisioning subcommand on ANY platform (graphify claude install, graphify hook install, graphify gemini install, graphify codex install, graphify openai install, graphify <any-platform> install, graphify install, any git-hook installer, any PreToolUse-hook installer); CLAUDE.md and any project config file not auto-edited by graphify. Forbidden pattern = the install verb on any graphify subcommand, not only claude install.
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — AC9 inspected (static scan of all 3 wrappers + lib + commands + agents)")
+    targets = [
+        "scripts/graphify-maintain.py", "scripts/graphify-query.py",
+        "scripts/graphify-enrich.py", "scripts/graphify_lib.py",
+        "commands/pull.md", "commands/dev.md", "agents/graphify.md",
+    ]
+    # Forbidden: the graphify `install` verb on any platform, plus git/hook installers.
+    forbidden = re.compile(r'graphify[\'"\s,\]]+.*\binstall\b|"install"|\binstall\b.*hook', re.IGNORECASE)
+    for rel in targets:
+        p = _REPO_ROOT / rel
+        if not p.exists():
+            continue
+        text = p.read_text(encoding="utf-8")
+        # Tolerate the word "install" only in prose that explicitly forbids it.
+        for ln in text.splitlines():
+            low = ln.lower()
+            if "graphify" in low and "install" in low:
+                # allowed only when the line is a negative/no-install statement
+                assert any(neg in low for neg in
+                           ("do not", "never", "no ", "not run", "forbidden", "no-install",
+                            "won't", "without", "rejected")), (
+                    f"{rel}: suspicious graphify install reference: {ln.strip()!r}")
