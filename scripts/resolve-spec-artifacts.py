@@ -34,7 +34,7 @@ Usage:
   resolve-spec-artifacts.py --spec-path <monolith.md> --project-dir <root>
 Output: machine-readable JSON on stdout.
 Exit codes: 0 = resolved (single-valid OR all-absent legacy monolith mode)
-            3 = PRESENT-BUT-INVALID (loud-fail 防线)
+            3 = PRESENT-BUT-INVALID (loud-fail guard)
             4 = AMBIGUOUS (two valid manifests for one monolith)
             2 = usage / unreadable spec_path error
 """

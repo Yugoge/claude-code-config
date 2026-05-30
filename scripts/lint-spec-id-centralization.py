@@ -4,7 +4,7 @@ markdown from re-deriving a spec-id / views_dir / split_marker / cp_dir from a
 path INLINE instead of calling the centralized resolver helper
 (scripts/resolve-spec-artifacts.py).
 
-Centralization is the 治本 fix: prose re-derivation is the exact mechanism by
+Centralization is the root-cause fix: prose re-derivation is the exact mechanism by
 which the spec- prefix rule drifted. This lint mechanically prevents recurrence.
 
 A line FAILS if it contains a forbidden inline spec-id-from-path derivation

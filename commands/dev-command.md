@@ -102,7 +102,7 @@ if [ -n "$spec_path" ]; then
   RESOLVED_JSON=$(/root/.claude/scripts/resolve-spec-artifacts.py \
       --spec-path "$spec_path" --project-dir "$CLAUDE_PROJECT_DIR") || {
     echo "spec-artifact resolution FAILED (path mismatch / present-but-invalid split). Re-finalize /spec before relying on per-agent views." >&2
-    exit 1; }   # loud-fail 防线: a present-but-invalid split never silently degrades to monolith mode
+    exit 1; }   # loud-fail guard: a present-but-invalid split never silently degrades to monolith mode
   ARTIFACT_ID=$(jq -r .artifact_id      <<<"$RESOLVED_JSON")
   VIEWS_AVAILABLE=$(jq -r .views_available <<<"$RESOLVED_JSON")
   MANIFEST_PATH=$(jq -r '.manifest_path // empty' <<<"$RESOLVED_JSON")

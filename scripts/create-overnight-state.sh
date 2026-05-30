@@ -243,7 +243,7 @@ if [[ "$USER_SPEC_PATH" != "null" && -n "$USER_SPEC_PATH" ]]; then
             echo "Loaded view_paths from manifest ($MANIFEST)" >&2
         fi
     else
-        # loud-fail 防线: a present-but-invalid / mismatched split must not be silently ignored.
+        # loud-fail guard: a present-but-invalid / mismatched split must not be silently ignored.
         echo "Error: spec-artifact resolution FAILED for '$USER_SPEC_PATH' (path mismatch / present-but-invalid split). Re-finalize /spec before scheduling overnight." >&2
         exit 1
     fi

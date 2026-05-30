@@ -225,7 +225,7 @@ Only proceed to Step 6 when a STRONG signal fires.
 
    If the loop exited via round-3 exhaustion (sub-step 3), also append `"warning: unresolved split-QA issues (<N>); see split-qa-unresolved.json"` so reviewers see the warning inline with the marker.
 
-5. **防线 — Finalize-time consumer-path assertion (MANDATORY, blocks on failure)**: After the split marker is written, run the SAME resolver that every `/dev*` consumer uses against the just-written monolith, and assert it resolves to a PRESENT-AND-VALID de-prefixed split at the EXACT path `/dev` will read. This catches a producer that accidentally wrote a prefixed split dir, a manifest whose `monolith_path` does not point back at this monolith, or a missing/stale marker — at creation time, not at `/dev` time:
+5. **guard — Finalize-time consumer-path assertion (MANDATORY, blocks on failure)**: After the split marker is written, run the SAME resolver that every `/dev*` consumer uses against the just-written monolith, and assert it resolves to a PRESENT-AND-VALID de-prefixed split at the EXACT path `/dev` will read. This catches a producer that accidentally wrote a prefixed split dir, a manifest whose `monolith_path` does not point back at this monolith, or a missing/stale marker — at creation time, not at `/dev` time:
 
    ```bash
    RESOLVED_JSON=$(/root/.claude/scripts/resolve-spec-artifacts.py \
@@ -246,7 +246,7 @@ Only proceed to Step 6 when a STRONG signal fires.
      echo "(got views_available=$VIEWS_AVAILABLE artifact_id=$ARTIFACT_ID). The producer must write the split DE-prefixed so /dev can consume it." >&2
      exit 1
    fi
-   echo "Finalize 防线 OK: /dev will resolve $spec_path -> artifact_id=$ARTIFACT_ID, views_available=true." >&2
+   echo "Finalize guard OK: /dev will resolve $spec_path -> artifact_id=$ARTIFACT_ID, views_available=true." >&2
    ```
 
 ### Step 7: Display result + workflow update
