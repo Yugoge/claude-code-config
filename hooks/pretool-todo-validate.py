@@ -296,7 +296,7 @@ def main():
     last = state.get('last_todos')
     cmd = state.get('command', '')
     if last is None or len(last) != len(new_todos):
-        validate_against_canonical_if_needed(cmd, new_todos)
+        validate_against_canonical_if_needed(cmd, new_todos, state.get('arguments', '') if state else '')
         sys.exit(0)
     violations = validate(last, new_todos)
     if violations:
