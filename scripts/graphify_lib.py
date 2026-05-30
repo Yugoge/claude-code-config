@@ -1,21 +1,42 @@
 """
 graphify_lib.py — shared library for Graphify knowledge-graph integration.
 
-Provides: status state machine, EXCLUDE_FRAGMENTS, file locking, and common
-helpers used by graphify-query.py, graphify-enrich.py, and graphify-maintain.py.
+Drives the REAL `graphifyy` v0.8.25 CLI (command `graphify`). Provides: status
+state machine, EXCLUDE_FRAGMENTS sensitive-path scrubbing (applied ON READ),
+file locking, out-of-repo cache resolution, cache-root-inside-repo refusal,
+node-link graph.json parsing, and the subprocess runner that EVERY graphify
+call must route through (so cwd=cacheDir + GRAPHIFY_OUT=cacheDir + numeric
+timeout are enforced unconditionally — see M1a/AC4/AC13).
 
-Status state machine (all 5 states, with triggering conditions):
-  ok          — graphify binary present, cache hit, full data extracted without errors
-  degraded    — binary present and ran, but output parse error or partial data (e.g. truncated JSON)
-  failed      — binary present but runtime error: non-zero exit code, timeout (>5 min incremental / >15 min init), subprocess exception
-  unavailable — GRAPHIFY_BIN absent from PATH/override OR CLAUDE_GRAPHIFY_CACHE_ROOT absent/empty OR no manifest.json in cache root
-  skipped     — CLAUDE_GRAPHIFY_ENABLED=0 OR --no-graphify flag set OR nil blast-radius-map (graphify-enrich.py only)
+Real CLI surface (empirically verified against graphify 0.8.25):
+  graphify update <repo>                          AST-only re-extract; writes
+                                                  graph.json/report/html/cache to
+                                                  $GRAPHIFY_OUT (absolute), manifest
+                                                  to <cwd>/graphify-out/manifest.json.
+  graphify extract <repo> --out DIR --backend B   AST + semantic (docs/papers/images
+                                                  via LLM backend); writes to
+                                                  DIR/graphify-out/graph.json.
+  graphify query "<q>" --graph G --budget N       BFS traversal, human-readable TEXT.
+  graphify affected "<node.id>" --graph G --depth N  reverse traversal, TEXT.
 
-Advisory vs blocking behaviour:
-  Graphify tool failure (status: degraded / failed / unavailable / skipped) is ADVISORY:
-    DEV always receives a valid (possibly empty) graph_context object; tool failure never blocks DEV.
-  Requirement ambiguity (ambiguity_hypotheses present in pre_query.json) is CLARIFICATION-BLOCKING:
-    BA must return needs_clarification and ask user to resolve before proceeding.
+Graph schema (verified): NetworkX node-link. Top keys
+  {directed, multigraph, graph, nodes, links, hyperedges}.
+  Edges are under `links` (NOT `edges`) with keys source/target/relation/
+  confidence/source_file. Nodes carry id/label/source_file/community/file_type.
+
+Status state machine (all 5 states):
+  ok          — binary present, cache hit (cacheDir/graph.json exists), data extracted
+  degraded    — binary ran but output parse error / partial data
+  failed      — binary present but runtime error: non-zero exit, timeout, exception
+  unavailable — binary absent OR cache-root missing/empty OR no cacheDir/graph.json
+                OR cache_root_inside_repo refusal
+  skipped     — CLAUDE_GRAPHIFY_ENABLED=0 OR --no-graphify OR nil blast-radius-map
+
+Advisory vs blocking:
+  Graphify tool failure (degraded/failed/unavailable/skipped) is ADVISORY — DEV/BA
+  always receive a valid (possibly empty) artifact; tool failure NEVER blocks /dev.
+  Requirement ambiguity (ambiguity_hypotheses in pre_query.json) is the only
+  CLARIFICATION-BLOCKING signal (BA returns needs_clarification).
 """
 
 from __future__ import annotations
@@ -24,7 +45,6 @@ import fcntl
 import json
 import os
 import subprocess
-import time
 from pathlib import Path
 from typing import Any
 
