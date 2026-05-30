@@ -5,10 +5,16 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+from pathlib import Path
+
 import pytest
 
 AC_UID = "1bb1628328d4235c"
 AC_TYPE = "data"
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_FICTIONAL_FLAGS = ["--init", "--update", "--output-dir", "--project-dir",
+                    "--cache-dir", "--file", "--format"]
 
 
 def test_AC11():
@@ -17,7 +23,10 @@ def test_AC11():
     WHEN:  inspected (static + probe run)
     THEN:  NO production argv contains --init/--update/--output-dir/--project-dir/--cache-dir/--file/--format
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — AC11 inspected (static + probe run)")
+    for rel in ("scripts/graphify-maintain.py", "scripts/graphify-query.py",
+                "scripts/graphify-enrich.py", "scripts/graphify_lib.py"):
+        text = (_REPO_ROOT / rel).read_text(encoding="utf-8")
+        for flag in _FICTIONAL_FLAGS:
+            # The flag string must not appear as a CLI argument literal anywhere.
+            assert f'"{flag}"' not in text and f"'{flag}'" not in text, (
+                f"{rel} still references fictional flag {flag}")
