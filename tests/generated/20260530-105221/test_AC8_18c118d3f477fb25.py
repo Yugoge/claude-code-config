@@ -7,17 +7,41 @@
 
 import pytest
 
+from conftest import build_cache, run_script, write_blast_radius_map, read_json
+
 AC_UID = "18c118d3f477fb25"
 AC_TYPE = "data"
 
 
-def test_AC8():
+def test_AC8(real_binary, fixture_env):
     """
     GIVEN: gate enabled, built cache for a CONTROLLED fixture repo where >=1 blast-radius path resolves to a node id, and a blast-radius-map
     WHEN:  Step1.5 -> Step7.5 E2E
     THEN:  pre_query.json status ok/degraded with real anchors AND context.json graph_context summary non-empty for RESOLVED seed(s); unresolved paths recorded in unresolved_paths[] and artifact stays valid/advisory; empty-but-correct only when NO seed resolves
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — AC8 Step1.5 -> Step7.5 E2E")
+    build_cache(fixture_env, real_binary)
+
+    # Step 1.5: query
+    req = fixture_env["src"] / "req.md"
+    req.write_text("Change mod_a.py alpha().\n", encoding="utf-8")
+    rq = run_script("graphify-query.py", ["--task-id", "t1", "--requirement-file", str(req)],
+                    fixture_env["env"])
+    assert rq.returncode == 0
+    pq = read_json(fixture_env["registry"] / "graphify" / "pre_query.json")
+    assert pq["status"] in ("ok", "degraded")
+    assert pq["structural_context"]["candidate_anchors"], "pre_query must carry real anchors"
+
+    # Step 7.5: enrich with a resolving path (mod_b.py) + an unresolvable one.
+    write_blast_radius_map(fixture_env, ["mod_b.py", "does_not_exist.py"])
+    ctx = fixture_env["src"] / "context.json"
+    ctx.write_text('{"task_id":"t1"}', encoding="utf-8")
+    re = run_script("graphify-enrich.py", ["--task-id", "t1", "--context-file", str(ctx)],
+                    fixture_env["env"])
+    assert re.returncode == 0
+    gc = read_json(ctx)["graph_context"]
+    # Non-empty for the resolved seed.
+    assert gc["summary"]["node_count"] >= 2 and gc["summary"]["edge_count"] >= 1
+    assert gc["resolved_node_ids"], "resolved seed must be present"
+    # Unresolved path recorded.
+    assert "does_not_exist.py" in gc["unresolved_paths"]
+    assert gc.get("advisory") is True
