@@ -565,6 +565,74 @@ def test_fqa2_present_but_malformed_hash_fails_loud():
         assert code == EXIT_INVALID, out
 
 
+def test_fqa2_explicit_null_hash_does_not_fall_through_to_mtime():
+    # codex F-QA-2 follow-up: a manifest that EXPLICITLY carries "sha256": null is
+    # asserting a hash it failed to record — it must NOT silently fall through to the
+    # mtime guard (re-opening the short-circuit). Key PRESENCE (not non-null value)
+    # marks the field recorded; the 64-hex check then rejects null as malformed.
+    with tempfile.TemporaryDirectory() as root:
+        rel = _make_monolith(root, "spec-20260643-000000")
+        spec_dir, views_dir = _make_split(root, "20260643-000000", rel, write_manifest=False)
+        # marker mtime NEWER than monolith so a pure-mtime fallback WOULD pass
+        marker = os.path.join(spec_dir, ".split-complete")
+        mono = os.path.join(root, rel)
+        t = os.path.getmtime(mono) + 100
+        os.utime(marker, (t, t))
+        manifest = {
+            "schema_version": 1, "spec_id": "20260643-000000",
+            "monolith_path": rel, "views": {"dev": "views/dev.md"},
+            "sha256": None,   # explicitly present-but-null
+        }
+        _write(os.path.join(views_dir, "manifest.json"), json.dumps(manifest))
+        code, out, _ = _run(rel, root)
+        assert code == EXIT_INVALID, out
+
+
+# --------------------------------------------------------------------------- #
+# codex F-QA-1 follow-up: lint must catch the remaining lowercase forms AND must
+# NOT honor the allow-marker on a CODE line (only comment-only lines).
+# --------------------------------------------------------------------------- #
+def test_fqa1_lint_catches_remaining_lowercase_forms():
+    forms = [
+        'id="${spec_id##spec-}"\n',          # strip prefix off spec_id directly
+        'id="${spec_path%%.md}"\n',          # double-% suffix strip
+        'id=$(basename -- "$spec_path" .md)\n',  # basename with option token
+        'id="${spec_path#spec-}"\n',         # single-# prefix strip off spec_path
+    ]
+    with tempfile.TemporaryDirectory() as root:
+        for i, line in enumerate(forms):
+            bad = os.path.join(root, "commands", "ev%d.md" % i)
+            _write(bad, line)
+            proc = subprocess.run([sys.executable, LINT, "--paths", bad],
+                                  capture_output=True, text=True)
+            assert proc.returncode != 0, "lint missed %r:\n%s%s" % (
+                line, proc.stdout, proc.stderr)
+
+
+def test_fqa1_lint_allow_marker_does_not_excuse_code_line():
+    # a REAL inline derivation on a CODE line cannot be hidden by appending the marker
+    with tempfile.TemporaryDirectory() as root:
+        bad = os.path.join(root, "commands", "sneaky.md")
+        _write(bad, 'EXPECT_ID="${spec_path##*/}"  # spec-id-lint: allow\n')
+        proc = subprocess.run([sys.executable, LINT, "--paths", bad],
+                              capture_output=True, text=True)
+        assert proc.returncode != 0, (
+            "allow-marker wrongly excused a code-line derivation:\n"
+            + proc.stdout + proc.stderr)
+
+
+def test_fqa1_lint_allow_marker_honored_on_comment_only_line():
+    # the legit use: a comment-only counter-example carrying the marker passes
+    with tempfile.TemporaryDirectory() as root:
+        ok = os.path.join(root, "commands", "doc.md")
+        _write(ok, '# never write "${spec_path%.md}" inline  # spec-id-lint: allow\n')
+        proc = subprocess.run([sys.executable, LINT, "--paths", ok],
+                              capture_output=True, text=True)
+        assert proc.returncode == 0, (
+            "allow-marker not honored on comment-only line:\n"
+            + proc.stdout + proc.stderr)
+
+
 # --------------------------------------------------------------------------- #
 # self-contained runner
 # --------------------------------------------------------------------------- #

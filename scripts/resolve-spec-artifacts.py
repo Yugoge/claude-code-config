@@ -197,10 +197,14 @@ def classify(candidate, abs_spec, project_dir, project_real):
     # hash) => stale, fail loud. The mtime fallback applies ONLY when NO hash field
     # is recorded at all.
     recorded_hashes = []  # list of (field_name, value) for present hash fields
+    # Key PRESENCE (not non-null value) marks a field as "recorded": a manifest that
+    # explicitly carries "sha256": null is asserting a hash it failed to compute — it
+    # must NOT silently fall through to the mtime guard (that would re-open the
+    # short-circuit hole). A present-but-null/malformed hash is caught by the 64-hex
+    # validation below and classified stale.
     for field in ("sha256", "monolith_sha256"):
-        val = data.get(field)
-        if val is not None:
-            recorded_hashes.append((field, val))
+        if field in data:
+            recorded_hashes.append((field, data[field]))
     if recorded_hashes:
         try:
             actual_hash = _sha256_file(abs_spec)
