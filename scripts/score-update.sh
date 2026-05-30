@@ -187,20 +187,16 @@ if [[ "${EVENT}" == "close_success_qa_pass" || "${EVENT}" == "close_success_qa_f
   # qa_ever_rejected=false arbitrarily — the gate decision is identical for both
   # close_success_qa_pass and close_success_qa_fail_fixed (both go through the
   # same close-report YES check); we only inspect WHETHER events[] is non-empty.
+  # Canonical subshell-wrap (AC-10 / 20260520-221452): each python3 invocation
+  # MUST appear on the same line as `source ~/.claude/venv/bin/activate && python3`.
   decide_out=""
-  if ! decide_out="$(source ~/.claude/venv/bin/activate && \
-        python3 "${REPO_ROOT}/scripts/close-scoring-decide.py" \
-        --task-id "${NOTE}" \
-        --qa-ever-rejected false \
-        --repo-root "${REPO_ROOT}" 2>&1)"; then
+  if ! decide_out="$( ( source ~/.claude/venv/bin/activate && python3 "${REPO_ROOT}/scripts/close-scoring-decide.py" --task-id "${NOTE}" --qa-ever-rejected false --repo-root "${REPO_ROOT}" ) 2>&1)"; then
     echo "${SCRIPT_NAME}: close-scoring-decide.py crashed: ${decide_out}" >&2
     exit 5
   fi
-  # Parse events[] from decide_out
-  events_count=$(printf '%s' "${decide_out}" | (source ~/.claude/venv/bin/activate && \
-        python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('events') or []))") 2>/dev/null || echo "0")
-  skip_reason=$(printf '%s' "${decide_out}" | (source ~/.claude/venv/bin/activate && \
-        python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('skip_reason') or '')") 2>/dev/null || echo "")
+  # Parse events[] from decide_out — canonical subshell-wrap.
+  events_count=$(printf '%s' "${decide_out}" | ( source ~/.claude/venv/bin/activate && python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('events') or []))" ) 2>/dev/null || echo "0")
+  skip_reason=$(printf '%s' "${decide_out}" | ( source ~/.claude/venv/bin/activate && python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('skip_reason') or '')" ) 2>/dev/null || echo "")
   if [[ "${events_count}" != "1" ]]; then
     echo "${SCRIPT_NAME}: close_success_* precondition unmet — ${skip_reason}" >&2
     exit 5
