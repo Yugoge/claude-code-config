@@ -144,7 +144,6 @@ def main(argv):
         return _excluded("CRLF/encoding mismatch between snapshot and worktree: %s" % rel)
 
     # Mode change: a staged-vs-worktree mode delta is not hunk-splittable.
-    rc, out, _ = _git(git_root, ["diff", "--numstat", "--", rel])
     rc_mode, mode_out, _ = _git(git_root, ["diff", "--summary", "--", rel])
     if rc_mode == 0 and b"mode change" in mode_out:
         return _excluded("mode change present (not hunk-splittable): %s" % rel)
