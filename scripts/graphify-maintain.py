@@ -377,12 +377,17 @@ def cmd_semantic(timeout_seconds: int = TIMEOUT_SEMANTIC) -> int:
     if up_exit != 0 or ast_st != STATUS_OK or len(ast_graph.get("nodes", [])) == 0:
         reason = f"no fresh AST baseline (update exit={up_exit}, status={ast_st}); extract skipped, AST retained"
         print(f"graphify-maintain semantic: {reason}", flush=True)
-        # Branch iii: failed AND graph.json proven unchanged -> leave manifest
-        # UNTOUCHED (do NOT clobber a prior semantic:<backend>). Only write the
-        # ast_only manifest when the baseline mutated the graph (state invalidated)
-        # — reset_semantic_mode_in_manifest already ran above for that case, so a
-        # bare advisory return preserves the persisted record honestly.
-        if up_exit == 0 or baseline_mutated:
+        # Branch iii (codex finding #2): a FAILED baseline update that left graph.json
+        # PROVEN UNCHANGED must NOT clobber a still-valid prior 'semantic:<backend>'
+        # promotion — the on-disk graph is unchanged, so the persisted mode is still
+        # honest. Leave the manifest UNTOUCHED only in that exact case. In every
+        # other no-baseline case (success-but-empty graph, or a failed update that
+        # mutated the graph, or no prior semantic promotion to protect) write the
+        # ast_only+reason manifest so status reports honestly.
+        prior_mode = _current_semantic_mode(cache_dir)
+        protect_prior = (up_exit != 0 and not baseline_mutated
+                         and str(prior_mode).startswith("semantic:"))
+        if not protect_prior:
             _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
         return 0
 
