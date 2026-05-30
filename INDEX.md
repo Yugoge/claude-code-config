@@ -1,12 +1,12 @@
-# .claude
+# dot-claude
 
-*Last updated: 2026-05-30T08:46:48Z*
-**Total entries**: 13321
+*Last updated: 2026-05-30T08:52:50Z*
+**Total entries**: 13337
 **Convention**: kebab
 
 ## Tree
 ```
-.claude/
+dot-claude/
 ├── agents/
 │   ├── `architect.md` - Architecture review specialist for overnight exploration. Identifies structural issues, technical debt, optimization opportunities, dependency problems, and pattern inconsistencies. Returns structured JSON report.
 │   ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
@@ -2497,6 +2497,7 @@
 │   │   ├── `completion-20260529-080709.md` - Completion Report — 20260529-080709
 │   │   ├── `completion-20260529-081014.md` - Development Completion Report -- 20260529-081014
 │   │   ├── `completion-20260529-164939.md` - Completion Report — 20260529-164939
+│   │   ├── `completion-20260529-211406.md` - Development Completion Report — 20260529-211406
 │   │   ├── `completion-d1e94e.md` - Development Completion Report — d1e94e
 │   │   ├── `completion-dev-20260524-170335.md` - Completion Report: dev-20260524-170335
 │   │   ├── `completion-dev-20260524-205811.md` - Completion Report
@@ -3100,6 +3101,7 @@
 │   │   ├── `ticket-dev-20260529-092512.md` - BA Specification: Backlog batch — context-strip extension, write-guard hardening, step-7 marker parity, test cleanliness
 │   │   ├── `ticket-dev-20260529-152050.md` - BA Specification: Positive regression test for CLAUDE_CODE_SESSION_ID fallback
 │   │   ├── `ticket-dev-20260529-210759.md` - BA Specification: Fix Layer 1.F False Positive — Protected Name in Quoted String Arg
+│   │   ├── `ticket-dev-20260530-084735.md` - BA Specification: Clarify `baseline_dirty_snapshot` Point-in-Time Semantics Under Concurrency
 │   │   ├── `ticket-do-20260529-210815.md` - /do Fix: bare dd/shred gap + Chinese diagnostic string
 │   │   ├── `user-requirement-dev-20260517-215114.md` - No description
 │   │   ├── `user-requirement-dev-20260517-222440.md` - No description
@@ -3154,6 +3156,7 @@
 │   │   ├── `user-requirement-dev-20260529-211406.md` - No description
 │   │   ├── `user-requirement-dev-20260530-081334.md` - No description
 │   │   ├── `user-requirement-dev-20260530-082409.md` - No description
+│   │   ├── `user-requirement-dev-20260530-084735.md` - No description
 │   │   └── `user-requirement-dev-d1e94e.md` - User Requirement — dev-20260519-211515
 │   ├── examples/
 │   │   └── `settings-with-checkpoint.json` - json config
@@ -3448,7 +3451,8 @@
 │   ├── aab3abaa-3d5b-489b-972c-054afc0d8682/
 │   │   ├── `4019a4cde87723c5@v1` - unknown file
 │   │   ├── `4019a4cde87723c5@v2` - unknown file
-│   │   └── `4019a4cde87723c5@v3` - unknown file
+│   │   ├── `4019a4cde87723c5@v3` - unknown file
+│   │   └── `4019a4cde87723c5@v4` - unknown file
 │   ├── abfb2d1f-c205-4ba4-8588-0bff7094e9a0/
 │   │   ├── `10517df67c231bf6@v1` - unknown file
 │   │   ├── `10517df67c231bf6@v2` - unknown file
@@ -4501,6 +4505,7 @@
 │   │   ├── fca6b98e-e6a0-4dfd-9fa9-02402ca9a7d8/
 │   │   ├── memory/
 │   │   ├── `350e2dfb-fcbe-4eb1-91b0-b4efeac9a19b.jsonl` - jsonl file
+│   │   ├── `441b0d47-3cbf-4fa5-9038-76ef39df048a.jsonl` - jsonl file
 │   │   ├── `4e92304d-50e7-438b-a43a-50abf7fef1c6.jsonl` - jsonl file
 │   │   ├── `98d68343-2a55-4d4c-aa09-e2873b9033bd.jsonl` - jsonl file
 │   │   ├── `c0721fec-127f-4915-aa49-24ff705990e8.jsonl` - jsonl file
@@ -5970,6 +5975,7 @@
 │   ├── 4389b94d-ba52-4306-bc5b-61de7acf4e5d/
 │   ├── 43b449cc-a6de-4aa1-814b-9aeab7c31582/
 │   ├── 43ef5488-fed1-4a55-b985-0566d822f4e5/
+│   ├── 441b0d47-3cbf-4fa5-9038-76ef39df048a/
 │   ├── 44242ebb-09fc-4455-aa66-9dd7e8cec3b5/
 │   ├── 4437e61b-5fdf-4540-a3e0-e5f378abb055/
 │   ├── 447d05fe-557a-45c9-a7b7-d871d737d775/
@@ -6151,6 +6157,7 @@
 │   ├── 530273fd-6888-4150-8eb6-7fb99d2fdfb0/
 │   ├── 5302ea24-5f27-41d5-9e85-e821627f0f41/
 │   ├── 530a0dc4-3906-4a06-9e26-a6641132bd2b/
+│   ├── 533d62b8-bfe8-4ad8-9139-d43141eab4e6/
 │   ├── 5351f3bc-48e6-45e2-b5ce-e920e1b1766a/
 │   ├── 536e58d5-d7c0-40db-8ffb-f69f60a345d6/
 │   ├── 53881983-c8c5-41c7-96c9-985eb6a97e6a/
@@ -6831,6 +6838,7 @@
 │   ├── 8b1baa65-5008-4754-a7be-9abb8aa6e252/
 │   ├── 8b24eb32-41ad-4ba1-a32a-1bd0ecc7568f/
 │   ├── 8b25c8fa-0754-472e-9195-8e507fe8cbb1/
+│   ├── 8b293a57-d0b3-45bb-8db3-f66d1ee08d8c/
 │   ├── 8b2cf231-351c-42dc-ac30-9208b82f0e58/
 │   ├── 8b457e72-4840-4b0d-b04d-a9b43fc6255a/
 │   ├── 8b59861e-593b-4641-a69c-cca531f5b974/
@@ -7515,6 +7523,7 @@
 │   ├── c3aeb761-52df-49cd-87fa-60e8fbf045c9/
 │   ├── c3b8271b-9f70-4807-a230-8f52d922a4df/
 │   ├── c3c1fb04-f8a0-4989-940d-e7d2eaf9b87d/
+│   ├── c3cad67d-1000-4ec7-aaba-ddca55d06bca/
 │   ├── c40c923a-5ca1-49c1-a2e0-9dc1a633df81/
 │   ├── c4130049-752d-4516-ae06-1434a1604bb5/
 │   ├── c4258b8e-a206-4cf9-aeb5-0d9debcb5d82/
@@ -7592,6 +7601,7 @@
 │   ├── c8b83cdb-20f6-4efb-90c7-b76db163b57c/
 │   ├── c8d204d3-1ff8-4970-97ce-6112ecf1b6c6/
 │   ├── c8f8bcc1-ad93-46cc-a21d-0f21632bed97/
+│   ├── c902a950-a8b4-4131-98aa-df8fc59151f0/
 │   ├── c90558da-5686-4cb4-81e7-1309712ea4d7/
 │   ├── c93c64e5-96d2-43f3-bec3-57c34381a4d2/
 │   ├── c93d4c56-0198-4266-8089-e1943c9cb2fb/
@@ -8274,7 +8284,10 @@
 │   ├── `1362183.json` - json config
 │   ├── `1617296.json` - json config
 │   ├── `1621608.json` - json config
+│   ├── `1703230.json` - json config
+│   ├── `1717370.json` - json config
 │   ├── `171965.json` - json config
+│   ├── `1791937.json` - json config
 │   ├── `1807537.json` - json config
 │   ├── `1860278.json` - json config
 │   ├── `1873609.json` - json config
@@ -8284,7 +8297,6 @@
 │   ├── `2194943.json` - json config
 │   ├── `2736174.json` - json config
 │   ├── `3016118.json` - json config
-│   ├── `384760.json` - json config
 │   └── `397422.json` - json config
 ├── shell-snapshots/
 │   ├── `snapshot-bash-1757635174638-jx5vwd.sh` - Snapshot file
@@ -8540,7 +8552,6 @@
 │   ├── `snapshot-bash-1779612820594-gxvez9.sh` - Snapshot file
 │   ├── `snapshot-bash-1779654613469-5t9btg.sh` - Snapshot file
 │   ├── `snapshot-bash-1780039236854-2cwftg.sh` - Snapshot file
-│   ├── `snapshot-bash-1780039609244-yby33e.sh` - Snapshot file
 │   ├── `snapshot-bash-1780039619223-rhaudo.sh` - Snapshot file
 │   ├── `snapshot-bash-1780046733441-owfzyz.sh` - Snapshot file
 │   ├── `snapshot-bash-1780057970290-bgu2kn.sh` - Snapshot file
@@ -8552,7 +8563,8 @@
 │   ├── `snapshot-bash-1780128777588-lxmf5l.sh` - Snapshot file
 │   ├── `snapshot-bash-1780129871735-2e28jf.sh` - Snapshot file
 │   ├── `snapshot-bash-1780130612245-ggp5l8.sh` - Snapshot file
-│   └── `snapshot-bash-1780130619430-k8emdx.sh` - Snapshot file
+│   ├── `snapshot-bash-1780130619430-k8emdx.sh` - Snapshot file
+│   └── `snapshot-bash-1780130923445-9kggo4.sh` - Snapshot file
 ├── skills/
 │   ├── docx/
 │   │   ├── `docx-js.md` - DOCX Library Tutorial
@@ -8593,6 +8605,10 @@
 │       ├── `LICENSE.txt` - txt file
 │       ├── `recalc.py` - Excel Formula Recalculation Script
 │       └── `SKILL.md` - Comprehensive spreadsheet creation, editing, and analysis with support for formulas, formatting, data analysis, and visualization. When Claude needs to work with spreadsheets (.xlsx, .xlsm, .csv, .tsv, etc) for: (1) Creating new spreadsheets with formulas and formatting, (2) Reading or analyzing data, (3) Modify existing spreadsheets while preserving formulas, (4) Data analysis and visualization in spreadsheets, or (5) Recalculating formulas
+├── specs/
+│   ├── 20260514-174852/
+│   ├── qa-c7-test/
+│   └── qa-c7-test-w/
 ├── state/
 │   └── `specialist-yield-log.jsonl` - jsonl file
 ├── statsig/
@@ -11409,6 +11425,7 @@
 │   ├── `96ac85a2-98c6-419c-a9b7-4f11263326a9-agent-96ac85a2-98c6-419c-a9b7-4f11263326a9.json` - json config
 │   ├── `96b59bd7-a788-499a-90aa-3ae70912d78a-agent-96b59bd7-a788-499a-90aa-3ae70912d78a.json` - json config
 │   ├── `96b8fa4f-6ce2-441a-b637-9ef66163207e-agent-96b8fa4f-6ce2-441a-b637-9ef66163207e.json` - json config
+│   ├── `96c8ad3a-d367-49a2-87e5-c29ec88e2947-agent-96c8ad3a-d367-49a2-87e5-c29ec88e2947.json` - json config
 │   ├── `9709bde1-138b-4b8e-a33d-cc2b2c11e606-agent-9709bde1-138b-4b8e-a33d-cc2b2c11e606.json` - json config
 │   ├── `972d2468-400d-4a2a-92ee-7680cf5fc6ef-agent-972d2468-400d-4a2a-92ee-7680cf5fc6ef.json` - json config
 │   ├── `9733bc0f-6ab0-4198-a4ee-3739b1ba1b74-agent-9733bc0f-6ab0-4198-a4ee-3739b1ba1b74.json` - json config
@@ -12131,7 +12148,6 @@
 │   ├── `c167907f-c15b-4735-9bd6-57b8a10481ce-agent-c167907f-c15b-4735-9bd6-57b8a10481ce.json` - json config
 │   ├── `c16a0177-38ec-48a3-8bc5-d9d9a4b91e80-agent-c16a0177-38ec-48a3-8bc5-d9d9a4b91e80.json` - json config
 │   ├── `c173b6a2-940e-4948-bd8b-c2c9fae3a183-agent-c173b6a2-940e-4948-bd8b-c2c9fae3a183.json` - json config
-│   ├── `c1b1b718-2d78-4e5a-9c43-b1e25e1ca4a8-agent-c1b1b718-2d78-4e5a-9c43-b1e25e1ca4a8.json` - json config
 │   ├── `c1cc4e49-fca2-4bfc-83b7-5875562f3f5a-agent-c1cc4e49-fca2-4bfc-83b7-5875562f3f5a.json` - json config
 │   ├── `c1cfba2f-1153-40c5-b50e-6539874ba80f-agent-c1cfba2f-1153-40c5-b50e-6539874ba80f.json` - json config
 │   ├── `c1dd00ea-9af6-4d2c-91ce-9381c388892c-agent-c1dd00ea-9af6-4d2c-91ce-9381c388892c.json` - json config
