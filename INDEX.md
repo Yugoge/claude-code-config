@@ -1,7 +1,7 @@
 # dot-claude
 
-*Last updated: 2026-05-30T13:12:15Z*
-**Total entries**: 13467
+*Last updated: 2026-05-30T13:45:06Z*
+**Total entries**: 13478
 **Convention**: kebab
 
 ## Tree
@@ -2333,6 +2333,7 @@ dot-claude/
 │   │   ├── `ba-qa-report-20260530-081334-pass2.json` - json config
 │   │   ├── `ba-qa-report-20260530-081334.json` - json config
 │   │   ├── `ba-qa-report-20260530-091304.json` - json config
+│   │   ├── `ba-qa-report-20260530-105221-pass2.json` - json config
 │   │   ├── `ba-qa-report-20260530-105221.json` - json config
 │   │   ├── `ba-qa-report-d1e94e-CYCLE2-iter1.json` - json config
 │   │   ├── `ba-qa-report-d1e94e.json` - json config
@@ -2401,6 +2402,7 @@ dot-claude/
 │   │   ├── `cleanliness-inspector-report-20260529-211406.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260530-081334.json` - json config
 │   │   ├── `cleanliness-inspector-report-20260530-091304.json` - json config
+│   │   ├── `cleanliness-inspector-report-20260530-092123.json` - json config
 │   │   ├── `cleanliness-inspector-report-d1e94e.json` - json config
 │   │   ├── `cleanliness-inspector-report-dev-20260524-170335.json` - json config
 │   │   ├── `cleanliness-inspector-report-dev-20260524-205811.json` - json config
@@ -2473,6 +2475,7 @@ dot-claude/
 │   │   ├── `close-report-20260529-210616.md` - Close-debate Transcript — 20260529-210616
 │   │   ├── `close-report-20260529-211406.md` - Close Debate Report
 │   │   ├── `close-report-20260530-081334.md` - Close Report — Task 20260530-081334
+│   │   ├── `close-report-20260530-084303.md` - Close Debate Report — 20260530-084303
 │   │   ├── `close-report-20260530-091304.md` - Close Report — 20260530-091304
 │   │   ├── `close-report-20260530-112914.md` - Close Debate Report (FORCED)
 │   │   ├── `close-report-d1e94e-prior.md` - Close Debate Report
@@ -2844,6 +2847,7 @@ dot-claude/
 │   │   ├── `prompt-inspector-report-20260529-211406.json` - json config
 │   │   ├── `prompt-inspector-report-20260530-081334.json` - json config
 │   │   ├── `prompt-inspector-report-20260530-091304.json` - json config
+│   │   ├── `prompt-inspector-report-20260530-092123.json` - json config
 │   │   ├── `prompt-inspector-report-d1e94e.json` - json config
 │   │   ├── `prompt-inspector-report-dev-20260524-170335.json` - json config
 │   │   ├── `prompt-inspector-report-dev-20260524-205811.json` - json config
@@ -3078,6 +3082,7 @@ dot-claude/
 │   │   ├── `test-writer-report-20260527-132200.json` - json config
 │   │   ├── `test-writer-report-20260529-080709.json` - json config
 │   │   ├── `test-writer-report-20260529-211406.json` - json config
+│   │   ├── `test-writer-report-20260530-105221.json` - json config
 │   │   ├── `ticket-20260510-191533.md` - BA Specification: Restore v3 Manifest as OPTIONAL Precision Layer + Eliminate Hardcoded "v3"
 │   │   ├── `ticket-20260511-094500.md` - BA Specification: C2 worktree-recognition rollback (single-item cycle)
 │   │   ├── `ticket-20260511-180000.md` - BA Specification: Enterprise commit hardening — hash chain trailer + message-vs-evidence guard + CC type lint + optional audit-log persistence
@@ -5190,7 +5195,7 @@ dot-claude/
 │   ├── `generate-folder-index.sh` - Description: Generate INDEX.md for folder (inventory of contents)
 │   ├── `generate-folder-readme.sh` - Description: Generate README.md for folder (purpose and organization rules)
 │   ├── `graphify-enrich.py` - graphify-enrich.py — pre-DEV focused subgraph extractor (runs between Step 7 and Step 8)
-│   ├── `graphify-maintain.py` - graphify-maintain.py — Global Graphify cache lifecycle manager
+│   ├── `graphify-maintain.py` - graphify-maintain.py — Global Graphify cache lifecycle manager (REAL CLI)
 │   ├── `graphify-query.py` - graphify-query.py — deterministic pre-BA graph hydrator (runs between Step 1 and Step 2)
 │   ├── `graphify_lib.py` - graphify_lib.py — shared library for Graphify knowledge-graph integration
 │   ├── `install-checkpoint-refspec.sh` - install-checkpoint-refspec.sh — idempotently add refs/checkpoints/* to
@@ -5606,6 +5611,7 @@ dot-claude/
 │   ├── 1dfb5f08-5064-45b1-9c30-17094e45d194/
 │   ├── 1e0ed13e-1f30-4a82-a5c7-e7483da55990/
 │   ├── 1e11e754-bf70-4c26-b8a7-204061aae5d7/
+│   ├── 1e32e86c-78b0-4078-b4e3-594310fa2dc3/
 │   ├── 1e4007ac-a4bd-48b4-950d-d2de4fae7c72/
 │   ├── 1e410b1f-ae81-4638-9f23-7db01821a4e6/
 │   ├── 1e51f7b0-a23c-4c7f-8eb6-a186f4b23f0f/
@@ -6309,6 +6315,7 @@ dot-claude/
 │   ├── 56104ec1-2630-4a05-aacd-d890d709c7c5/
 │   ├── 56212a32-b213-411b-99cb-e65e2a281875/
 │   ├── 562bee07-22dd-41eb-8bc5-8074288e5408/
+│   ├── 5661aba4-c4e1-4bbc-8822-1bcb990dc24c/
 │   ├── 566b5e84-953f-4e33-9b6c-f7a25d33bdc6/
 │   ├── 568befe4-6d8b-4311-94e4-13eb86c785ac/
 │   ├── 5693c3d9-a2c3-4cdf-b9f3-240f53955f79/
@@ -6433,6 +6440,7 @@ dot-claude/
 │   ├── 607cf9a4-844a-4d29-b229-87e121cf1d7b/
 │   ├── 6088b4d4-bc7a-44a3-8902-365c3c6e0950/
 │   ├── 60af5b3f-3fa7-446e-b28b-2fe85bb640df/
+│   ├── 60b086e3-3a96-43c9-a72f-cc884f8a2317/
 │   ├── 60b13f50-2a9f-4c85-a4c7-87f23144fbf9/
 │   ├── 60b43ef0-8e7a-4dae-a05a-0e4abfea2241/
 │   ├── 60be6b43-a8ad-412f-968d-64c2eb132b85/
@@ -6623,6 +6631,7 @@ dot-claude/
 │   ├── 6f075385-db22-41b6-a0b7-59942e64793d/
 │   ├── 6f2bb94f-f20c-4a55-8a76-6d9f6547fd2c/
 │   ├── 6f5feee5-f7a9-46a9-840f-7c916922b53a/
+│   ├── 6fe4bd11-2d7d-422f-b5fc-9688dcda2c9f/
 │   ├── 6fe6b32d-0610-4f3a-a229-464d8b02d163/
 │   ├── 6fff6afc-f87c-4388-9a83-32fab23dc8a6/
 │   ├── 70100f77-1a6b-4907-be06-c3adb6858678/
@@ -6644,6 +6653,7 @@ dot-claude/
 │   ├── 71d523db-f22e-4b79-8d4d-362d79dda7f6/
 │   ├── 720cb6fa-7bd8-4cfb-8196-ab6a3fcb741c/
 │   ├── 72277fe2-bebf-4171-8b20-a3779730d513/
+│   ├── 7238a920-78fd-4fb3-a137-4f33a1331a10/
 │   ├── 72450466-ce88-44ed-ae94-ce49dbde34bd/
 │   ├── 72495806-02df-4e8e-91b7-cc6bf7ee22ca/
 │   ├── 725478a1-b054-4d0c-8a85-18070b1a4c63/
@@ -6807,6 +6817,7 @@ dot-claude/
 │   ├── 7fbf0628-97c4-4c8d-9b19-63ae741be375/
 │   ├── 7fccc013-8193-418f-ad2e-9dd29688f5dd/
 │   ├── 7fcea45e-df6e-42e3-9da9-91c539e56c60/
+│   ├── 7ff45873-3749-4dc4-b632-cbafdaf61e1e/
 │   ├── 7ff598c0-2851-4a41-8ac0-cf9761ed1c16/
 │   ├── 8015472d-bfaa-4e24-99a5-05f751d30638/
 │   ├── 80383c56-c128-4795-b709-5dcdc2d884d2/
@@ -7119,6 +7130,7 @@ dot-claude/
 │   ├── 97c22dce-5436-4253-b888-1f1152714857/
 │   ├── 97d5b71d-4dbd-4804-9b7f-2831ff92f26e/
 │   ├── 97f15d3d-2f48-4255-99ad-27a1658fff1f/
+│   ├── 98164f19-1d65-4c85-8785-c1b6de1c23de/
 │   ├── 9841fba2-2988-4410-962c-ca3b83f52c7e/
 │   ├── 985268b9-fbe7-4002-b1b7-d4dff9f86662/
 │   ├── 985baf85-f937-4a59-aa71-c6562d0c3d7c/
@@ -7153,6 +7165,7 @@ dot-claude/
 │   ├── 9a7c4485-f887-4ddb-9134-8f011048fa54/
 │   ├── 9a833fe8-cccf-49ad-8b81-1edd65136835/
 │   ├── 9a8f55f1-4d73-4df6-9764-3252e95713b1/
+│   ├── 9aa0d1e6-6e0d-40d0-aab7-178f6eb5429e/
 │   ├── 9ab9ec03-de6b-4a3d-9abb-940d957a45cd/
 │   ├── 9abaa82e-b6d5-4a12-a6ac-cb0ac3aaa95e/
 │   ├── 9acc9a26-dc64-4ba6-9343-be5a1f3791c2/
@@ -7193,11 +7206,13 @@ dot-claude/
 │   ├── 9d32fbdd-847f-4023-91d0-2bb03e41a932/
 │   ├── 9d380570-4097-46b8-883c-f79fee9b4230/
 │   ├── 9d42d2c7-a547-4a28-b178-4f144bbfc6da/
+│   ├── 9d7d4a9a-63f9-43c6-9fd2-48b4a589d21a/
 │   ├── 9d80bcdc-f555-459b-8995-c62cb22c1d7b/
 │   ├── 9d826464-7c83-4b44-bced-b9c95b6f9264/
 │   ├── 9d8ee4a3-a1bf-4bc4-affe-629ac6c1e6c4/
 │   ├── 9da5a66d-e325-4316-998c-cbb1f67152a7/
 │   ├── 9db3e4f9-43f6-4e5c-b455-814caffdc247/
+│   ├── 9dce49fd-ab20-4681-a277-887577412342/
 │   ├── 9ded91f7-b969-4e31-8c90-b62b0dcdb5db/
 │   ├── 9e01a04c-06c1-4e71-a8d7-75ddfafb8eeb/
 │   ├── 9e0f3182-7a7f-4cc5-b5e3-4bcd807b1763/
@@ -7948,6 +7963,7 @@ dot-claude/
 │   ├── da448993-f6d4-40b1-a141-d6023a2ac04f/
 │   ├── da49a655-54a5-4405-ab0c-bdd0f65a4b5c/
 │   ├── da50ea73-e3ce-408b-9e96-73f214f06952/
+│   ├── da58ac45-bf5d-4c76-bcac-b6a31a033762/
 │   ├── da660899-86c5-4e3c-a3fe-984419e9ffd0/
 │   ├── daa89fa4-768f-49ef-937b-ce1bf709a68b/
 │   ├── daa9d3aa-6c68-425c-a30d-a9cba90aa9ee/
@@ -8415,22 +8431,20 @@ dot-claude/
 │   └── ffea436f-2b6b-40d3-8196-a484178e0bf6/
 ├── sessions/
 │   ├── `1362183.json` - json config
-│   ├── `1617296.json` - json config
 │   ├── `1621608.json` - json config
 │   ├── `169054.json` - json config
 │   ├── `1791937.json` - json config
-│   ├── `1860278.json` - json config
-│   ├── `1873609.json` - json config
-│   ├── `1951274.json` - json config
 │   ├── `2014255.json` - json config
 │   ├── `2736174.json` - json config
 │   ├── `3016118.json` - json config
-│   ├── `336931.json` - json config
 │   ├── `353601.json` - json config
-│   ├── `360492.json` - json config
 │   ├── `364785.json` - json config
-│   ├── `3709670.json` - json config
-│   └── `3967697.json` - json config
+│   ├── `368195.json` - json config
+│   ├── `372001.json` - json config
+│   ├── `375674.json` - json config
+│   ├── `376662.json` - json config
+│   ├── `377915.json` - json config
+│   └── `390013.json` - json config
 ├── shell-snapshots/
 │   ├── `snapshot-bash-1757635174638-jx5vwd.sh` - Snapshot file
 │   ├── `snapshot-bash-1757635860163-e24qqz.sh` - Snapshot file
@@ -8684,16 +8698,16 @@ dot-claude/
 │   ├── `snapshot-bash-1779612670349-waaw23.sh` - Snapshot file
 │   ├── `snapshot-bash-1779612820594-gxvez9.sh` - Snapshot file
 │   ├── `snapshot-bash-1779654613469-5t9btg.sh` - Snapshot file
-│   ├── `snapshot-bash-1780046733441-owfzyz.sh` - Snapshot file
 │   ├── `snapshot-bash-1780059829128-3feozg.sh` - Snapshot file
-│   ├── `snapshot-bash-1780088216327-c6toft.sh` - Snapshot file
-│   ├── `snapshot-bash-1780088233445-dwrf2y.sh` - Snapshot file
 │   ├── `snapshot-bash-1780130612245-ggp5l8.sh` - Snapshot file
-│   ├── `snapshot-bash-1780130619430-k8emdx.sh` - Snapshot file
 │   ├── `snapshot-bash-1780131593086-w5lbu4.sh` - Snapshot file
-│   ├── `snapshot-bash-1780139096005-a1hsxt.sh` - Snapshot file
-│   ├── `snapshot-bash-1780140534881-vdecp8.sh` - Snapshot file
-│   └── `snapshot-bash-1780146627553-yr0aps.sh` - Snapshot file
+│   ├── `snapshot-bash-1780146627553-yr0aps.sh` - Snapshot file
+│   ├── `snapshot-bash-1780146825716-q19vvg.sh` - Snapshot file
+│   ├── `snapshot-bash-1780146832926-voi73t.sh` - Snapshot file
+│   ├── `snapshot-bash-1780146888212-50wbw7.sh` - Snapshot file
+│   ├── `snapshot-bash-1780146957689-50j1pr.sh` - Snapshot file
+│   ├── `snapshot-bash-1780147038164-qoilo7.sh` - Snapshot file
+│   └── `snapshot-bash-1780147528782-b5qaj8.sh` - Snapshot file
 ├── skills/
 │   ├── docx/
 │   │   ├── `docx-js.md` - DOCX Library Tutorial
@@ -8864,6 +8878,7 @@ dot-claude/
 │   │   ├── 20260529-081014/
 │   │   ├── 20260529-210616/
 │   │   ├── 20260529-211406/
+│   │   ├── 20260530-105221/
 │   │   └── `manifest.json` - json config
 │   ├── instructions/
 │   │   ├── `execution-guide.md` - AI Test Execution Guide
@@ -10098,7 +10113,6 @@ dot-claude/
 │   ├── `45de0900-7e84-4884-a11e-b17c382e13bb-agent-45de0900-7e84-4884-a11e-b17c382e13bb.json` - json config
 │   ├── `45f3313a-a4a7-4a27-9c3c-3878f19bb1dc-agent-45f3313a-a4a7-4a27-9c3c-3878f19bb1dc.json` - json config
 │   ├── `46064986-f1f7-4af2-87e0-af681a785865-agent-46064986-f1f7-4af2-87e0-af681a785865.json` - json config
-│   ├── `461e02eb-c56a-4329-a084-2b8660d69a24-agent-461e02eb-c56a-4329-a084-2b8660d69a24.json` - json config
 │   ├── `463f02ac-9d1f-4926-ad32-b90e17028e7a-agent-463f02ac-9d1f-4926-ad32-b90e17028e7a.json` - json config
 │   ├── `465aa870-2321-436a-b947-89f8a5849a4f-agent-465aa870-2321-436a-b947-89f8a5849a4f.json` - json config
 │   ├── `4674196f-45ee-4b7e-8e7c-f47797f25c43-agent-4674196f-45ee-4b7e-8e7c-f47797f25c43.json` - json config
@@ -11700,7 +11714,6 @@ dot-claude/
 │   ├── `9f5b6635-ccc6-4ea3-90b2-9c4b49db847f-agent-9f5b6635-ccc6-4ea3-90b2-9c4b49db847f.json` - json config
 │   ├── `9f7f82cc-9e98-4584-b0c3-c5969088f062-agent-9f7f82cc-9e98-4584-b0c3-c5969088f062.json` - json config
 │   ├── `9f9e08b7-6f7a-4db5-aa16-d8a55f6c45ee-agent-9f9e08b7-6f7a-4db5-aa16-d8a55f6c45ee.json` - json config
-│   ├── `9fda8117-90ed-4ad6-a7d5-5c4f8bb38c11-agent-9fda8117-90ed-4ad6-a7d5-5c4f8bb38c11.json` - json config
 │   ├── `9ff04117-26d3-4787-a5c8-b5acfef8e17d-agent-9ff04117-26d3-4787-a5c8-b5acfef8e17d.json` - json config
 │   ├── `9ff07b94-c96f-4ebf-88f9-cfa6287de9d4-agent-9ff07b94-c96f-4ebf-88f9-cfa6287de9d4.json` - json config
 │   ├── `9ff5e4bb-cb1a-4c08-8f45-501a6d0d69f9-agent-9ff5e4bb-cb1a-4c08-8f45-501a6d0d69f9.json` - json config
@@ -13325,7 +13338,6 @@ dot-claude/
 │   ├── `fee03fa0-5a4c-4bd7-9a27-841291512dd2-agent-fee03fa0-5a4c-4bd7-9a27-841291512dd2.json` - json config
 │   ├── `fef4b8e4-3cc4-4e37-a067-47067ae1cc9c-agent-fef4b8e4-3cc4-4e37-a067-47067ae1cc9c.json` - json config
 │   ├── `ff0697d4-23a8-4f70-9d0c-28105b22a807-agent-ff0697d4-23a8-4f70-9d0c-28105b22a807.json` - json config
-│   ├── `ff3af2b1-f026-4ac9-ac51-732828aac09f-agent-ff3af2b1-f026-4ac9-ac51-732828aac09f.json` - json config
 │   ├── `ff4f81fe-4d02-4359-ac18-6b18e21ff20c-agent-ff4f81fe-4d02-4359-ac18-6b18e21ff20c.json` - json config
 │   ├── `ff6103cf-e233-4d3d-a933-a3eb3ec16eea-agent-05745397.json` - json config
 │   ├── `ff6103cf-e233-4d3d-a933-a3eb3ec16eea-agent-39bb66b8.json` - json config
@@ -13464,7 +13476,6 @@ dot-claude/
 ├── `workflow-1f9f0472-7a89-4cfa-87f2-c85616fed777.json` - json config
 ├── `workflow-215eec0e-0e9c-4f81-bd52-b73036e3d33a.json` - json config
 ├── `workflow-30b4bbbc-a873-4ba8-b8fd-804dc05492bc.json` - json config
-├── `workflow-461e02eb-c56a-4329-a084-2b8660d69a24.json` - json config
 ├── `workflow-483e030c-3ab6-42d0-973e-8a2a4b8b8806.json` - json config
 ├── `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 ├── `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
