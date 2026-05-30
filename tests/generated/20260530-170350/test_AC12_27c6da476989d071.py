@@ -45,16 +45,64 @@ def test_AC12(cache_env, monkeypatch):
     WHEN:  cmd_semantic runs its pre-extract clear-then-extract sequence and evaluates whether to promote
     THEN:  clear-before-extract is MANDATORY (codex iter #4): delete/move exactly <cacheDir>/graphify-out/graph.json BEFORE invoking extract, and promote ONLY when the current extract exits 0 AND a NEW parseable graph.json exists at that exact path afterward; the loose 'OR mtime/run-id' alternative is REMOVED; on failure/timeout/no-fresh-file -> RETAIN AST (canonical graph.json unchanged, semantic_mode == 'ast_only') with a reason; if the initial baseline update fails/times out or leaves graph.json missing/unparseable -> MUST NOT run extract or promote (exit 0 advisory, reason 'no fresh AST baseline', plus codex iter #3 invalidation if that failed update mutated graph.json); the clear stays strictly inside the cache and never touches the source repo
     """
-    # TODO(dev): replace the line below with the real test body.
-    # Assertions to cover (stale-graph promotion guard, clear-before-extract MANDATORY):
-    #   - clear-before-extract: cmd_semantic deletes/moves cacheDir/graphify-out/graph.json BEFORE the extract call
-    #     (verified by file gone at extract-invocation time, or a recorded clear step)
-    #   - stale-output + current extract exit_code != 0: RETAIN AST (canonical unchanged), ast_only, reason cites extract failure; stale prior NOT promoted
-    #   - stale-output + current extract timeout: RETAIN AST, ast_only
-    #   - stale-output + current extract writes nothing (cleared file not recreated): RETAIN AST, no promotion of stale prior
-    #   - no-fresh-AST-baseline (codex iter #7): baseline update fails/times out or leaves graph.json missing/unparseable
-    #     -> ZERO extract calls, exit 0, reason mentions 'no fresh AST baseline', AST not promoted
-    #   - the clear never writes to/deletes anything under the source repo (repo_pollution(repo) == [])
-    #   - POSITIVE control: baseline update succeeds AND current extract succeeds writing fresh parseable output with
-    #     >=1 added valid-confidence edge -> promotion proceeds (cross-checks AC9), proving the guard does not block legit promotions
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — clear-before-extract mandatory; timed-out/failed current extract cannot promote a stale prior semantic graph; no-fresh-baseline guard")
+    apply_env(monkeypatch, cache_env["env"],
+              extra={"GRAPHIFY_TRIAGE_BACKEND": "fakebackend"}, clear_keys=("GRAPHIFY_OUT",))
+    base = graph_dict(["x", "y"], [link("x", "y", conf="EXTRACTED")])
+    # Stale prior extract output carrying ADDED valid-confidence edges vs baseline.
+    stale = graph_dict(["x", "y"], [
+        link("x", "y", conf="EXTRACTED"),
+        link("x", "y", rel="rationale_for", conf="INFERRED"),
+    ])
+
+    # --- current extract exit != 0 -> RETAIN; stale prior NOT promoted; clear-before-extract proven ---
+    write_json(cache_env["graph_json"], base)
+    mod, seen = _mod_with_stale(cache_env, base, stale,
+                                lambda ce: (-1, "", "extract failed"))
+    assert mod.cmd_semantic(timeout_seconds=10) == 0
+    assert seen["extract_present_at_call"] is False, "stale extract output must be CLEARED before extract runs"
+    rm = json.loads(cache_env["run_manifest"].read_text())
+    assert rm["semantic_mode"] == "ast_only"
+    # canonical graph unchanged (stale prior not promoted).
+    assert json.loads(cache_env["graph_json"].read_text()) == base
+
+    # --- current extract writes nothing (cleared file not recreated) -> RETAIN ---
+    write_json(cache_env["graph_json"], base)
+    mod2, seen2 = _mod_with_stale(cache_env, base, stale,
+                                  lambda ce: (0, "", ""))  # exit 0 but writes no file
+    assert mod2.cmd_semantic(timeout_seconds=10) == 0
+    assert seen2["extract_present_at_call"] is False
+    rm2 = json.loads(cache_env["run_manifest"].read_text())
+    assert rm2["semantic_mode"] == "ast_only"  # no fresh file -> no promotion of stale prior
+    assert json.loads(cache_env["graph_json"].read_text()) == base
+
+    # --- no-fresh-AST-baseline (iter #7): baseline update fails -> ZERO extract, ast_only ---
+    write_json(cache_env["graph_json"], base)
+    extract_calls = {"n": 0}
+
+    def counting_extract(ce):
+        extract_calls["n"] += 1
+        return 0, "", ""
+
+    mod3, _ = _mod_with_stale(cache_env, base, stale, counting_extract, baseline_ok=False)
+    assert mod3.cmd_semantic(timeout_seconds=10) == 0
+    assert extract_calls["n"] == 0, "no extract when baseline update fails (iter #7)"
+    rm3 = json.loads(cache_env["run_manifest"].read_text())
+    assert rm3["semantic_mode"] == "ast_only"
+    assert "no fresh AST baseline" in rm3.get("semantic_backend_probe", "")
+
+    # --- the clear never touches the source repo ---
+    assert repo_pollution(cache_env["src"]) == []
+
+    # --- POSITIVE control: baseline ok + fresh extract with NEW edge -> PROMOTE (guard not over-broad) ---
+    write_json(cache_env["graph_json"], base)
+
+    def fresh_extract(ce):
+        write_json(ce["extract_out"], stale)  # a FRESH file produced by THIS run
+        return 0, "", ""
+
+    mod4, seen4 = _mod_with_stale(cache_env, base, stale, fresh_extract)
+    assert mod4.cmd_semantic(timeout_seconds=10) == 0
+    assert seen4["extract_present_at_call"] is False  # cleared first
+    rm4 = json.loads(cache_env["run_manifest"].read_text())
+    assert rm4["semantic_mode"].startswith("semantic:")
+    assert rm4.get("semantic_added_links") == 1
