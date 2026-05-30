@@ -786,5 +786,6 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
-  "theme": "dark"
+  "theme": "dark",
+  "autoCompactEnabled": true
 }
