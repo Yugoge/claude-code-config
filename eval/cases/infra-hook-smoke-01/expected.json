@@ -1,7 +1,0 @@
-{
-  "dev_only_modify": true,
-  "evidence_kind_required": [
-    "hook_test_exit_code"
-  ],
-  "ui_evidence_required": false
-}
