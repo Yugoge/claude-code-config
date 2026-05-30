@@ -123,16 +123,19 @@ Maintain's `run-manifest.json` `semantic_mode` is the authoritative semantic-sta
 
 ```bash
 # One-time initial build (user-triggered only — NEVER auto-triggered inside /dev)
-python3 scripts/graphify-maintain.py init      # real `graphify update <repo>` + semantic probe (≤300s)
+python3 scripts/graphify-maintain.py init               # real `graphify update <repo>` AST-only (≤300s)
 
 # Incremental refresh (runs automatically at Step 7.5 and post-/pull)
-python3 scripts/graphify-maintain.py update    # real `graphify update <repo>` (≤60s)
+python3 scripts/graphify-maintain.py update             # real `graphify update <repo>` AST-only (≤60s)
 
-# Status check (node/link counts + semantic mode)
+# User-triggered semantic extraction (edge-signature proof-gated; promotes only on NEW edges)
+python3 scripts/graphify-maintain.py semantic [--timeout SECONDS]   # real `graphify extract` (default 3600s)
+
+# Status check (node/link counts + semantic mode + added-link counts when promoted)
 python3 scripts/graphify-maintain.py status
 ```
 
-The first full build is NEVER auto-triggered inside /dev. It must be run manually.
+`init` and `update` are AST-only and fast; they do NOT run semantic extraction. The first full build and any semantic enrichment are NEVER auto-triggered inside /dev — they must be run manually.
 
 ---
 
