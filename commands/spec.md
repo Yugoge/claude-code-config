@@ -238,7 +238,8 @@ Only proceed to Step 6 when a STRONG signal fires.
    # CONSUME the resolver's own de-prefixed id (candidates[0]) — do NOT re-derive it
    # inline from the path. candidates[0] is the resolver's first candidate, which is
    # always the de-prefixed stem (exactly one leading "spec-" stripped). Re-deriving
-   # it by hand (${spec_path##*/}/%.md/#spec-) is the precise prose-drift M4/M9 forbid.
+   # the id by hand via path/suffix/prefix parameter-expansion is the precise
+   # prose-drift M4/M9 forbid (and the M9 lint now flags it).
    EXPECT_ID=$(jq -r '.candidates[0]' <<<"$RESOLVED_JSON")
    if [ "$VIEWS_AVAILABLE" != "true" ] || [ "$ARTIFACT_ID" != "$EXPECT_ID" ]; then
      echo "FINALIZE BLOCKED: resolver did not return views_available=true at the de-prefixed id '$EXPECT_ID'" >&2

@@ -189,15 +189,29 @@ def classify(candidate, abs_spec, project_dir, project_real):
     #     auto-checkpoint snapshots, which produce false "stale" positives.)
     #   - If the recorded hash MISMATCHES, the monolith genuinely changed -> stale.
     #   - If NO hash is recorded, fall back to the original mtime guard unchanged.
-    recorded_hash = data.get("sha256") or data.get("monolith_sha256")
-    if isinstance(recorded_hash, str) and recorded_hash:
+    # Collect EVERY recorded monolith-hash field. Do NOT short-circuit on the first
+    # present field (`sha256 or monolith_sha256`): that lets a matching sha256 MASK a
+    # mismatching monolith_sha256, wrongly classifying a genuinely-stale split as
+    # PRESENT-AND-VALID (F-QA-2). Every hash field that is present MUST equal the
+    # current monolith content hash; any mismatch (or a malformed/non-64-hex present
+    # hash) => stale, fail loud. The mtime fallback applies ONLY when NO hash field
+    # is recorded at all.
+    recorded_hashes = []  # list of (field_name, value) for present hash fields
+    for field in ("sha256", "monolith_sha256"):
+        val = data.get(field)
+        if val is not None:
+            recorded_hashes.append((field, val))
+    if recorded_hashes:
         try:
             actual_hash = _sha256_file(abs_spec)
         except OSError as exc:
             return invalid("could not hash monolith for staleness check: %s" % exc)
-        if actual_hash != recorded_hash:
-            return invalid("split is stale (monolith content changed since split: manifest hash != monolith hash)")
-        # hash matches -> fresh; skip the mtime check (mtime drift is a no-op artifact)
+        for field, val in recorded_hashes:
+            if not (isinstance(val, str) and len(val) == 64 and all(ch in "0123456789abcdefABCDEF" for ch in val)):
+                return invalid("manifest.%s is present but not a 64-hex sha256 (got %r) — cannot validate freshness" % (field, val))
+            if val.lower() != actual_hash.lower():
+                return invalid("split is stale (monolith content changed since split: manifest %s != monolith hash)" % field)
+        # ALL present hashes match -> fresh; skip the mtime check (mtime drift is a no-op artifact)
     else:
         try:
             if os.path.getmtime(abs_spec) > os.path.getmtime(split_marker):
