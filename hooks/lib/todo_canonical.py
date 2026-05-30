@@ -42,12 +42,15 @@ def _parse_script_output(result):
     return canonical
 
 
-def run_todo_script(cmd_name):
+def run_todo_script(cmd_name, prompt=''):
     """Load canonical todos from todo script via subprocess.
 
     Search order (AF2 fix -- matches posttool-todo-count.py):
       1. {CLAUDE_PROJECT_DIR}/scripts/todo/{cmd_name}.py
       2. ~/.claude/scripts/todo/{cmd_name}.py
+
+    prompt is forwarded as CLAUDE_TODO_PROMPT so argument-aware scripts
+    (e.g. close.py --force path) can vary their step list.
 
     Returns list of todo dicts or None.
     """
@@ -55,9 +58,13 @@ def run_todo_script(cmd_name):
     if script_path is None:
         return None
     try:
+        env = {**os.environ}
+        if prompt:
+            env['CLAUDE_TODO_PROMPT'] = prompt
         result = subprocess.run(
             ['python3', str(script_path)],
             capture_output=True, text=True, cwd=str(project_dir),
+            env=env,
         )
         return _parse_script_output(result)
     except Exception:
