@@ -7,17 +7,30 @@
 
 import pytest
 
+from conftest import build_cache, run_script, write_blast_radius_map, repo_pollution
+
 AC_UID = "3390227e29669341"
 AC_TYPE = "data"
 
 
-def test_AC4():
+def test_AC4(real_binary, fixture_env):
     """
     GIVEN: any maintain/query/enrich run against a target repo
     WHEN:  run completes
     THEN:  no Graphify CLI-generated artifact (graphify-out/, graph.json, GRAPH_REPORT.md, graph.html, .graphify_root, .graphify_labels.json, graphify cache/) created inside target/source repo; .claude/dev-registry/<task>/graphify/ + pre-existing committed graphify files allowed
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — AC4 run completes")
+    # Exercise all three wrappers, then assert the source repo has ZERO CLI artifacts.
+    build_cache(fixture_env, real_binary)               # maintain init
+    run_script("graphify-maintain.py", ["update"], fixture_env["env"])
+    req = fixture_env["src"] / "req.md"
+    req.write_text("touch mod_a.py\n", encoding="utf-8")
+    run_script("graphify-query.py", ["--task-id", "t1", "--requirement-file", str(req)], fixture_env["env"])
+    write_blast_radius_map(fixture_env, ["mod_b.py"])
+    ctx = fixture_env["src"] / "context.json"
+    ctx.write_text('{"task_id":"t1"}', encoding="utf-8")
+    run_script("graphify-enrich.py", ["--task-id", "t1", "--context-file", str(ctx)], fixture_env["env"])
+
+    pollution = repo_pollution(fixture_env["src"])
+    assert pollution == [], f"source repo polluted with graphify artifacts: {pollution}"
+    # Cache (outside repo) DOES carry the artifacts.
+    assert fixture_env["graph_json"].exists()
