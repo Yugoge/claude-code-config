@@ -475,8 +475,15 @@ def cmd_status() -> int:
     if run_manifest.exists():
         try:
             rm = json.loads(run_manifest.read_text(encoding="utf-8"))
-            print(f"  semantic_mode: {rm.get('semantic_mode', 'unknown')}")
+            mode = rm.get("semantic_mode", "unknown")
+            print(f"  semantic_mode: {mode}")
             print(f"  semantic_backend_probe: {rm.get('semantic_backend_probe', 'n/a')}")
+            # Surface added-link counts only when actually promoted (mirrors the
+            # persisted run-manifest exactly — never claims semantic when ast_only).
+            if str(mode).startswith("semantic:"):
+                print(f"  semantic_added_links: {rm.get('semantic_added_links', 0)}")
+                print(f"  semantic_added_inferred_or_ambiguous: "
+                      f"{rm.get('semantic_added_inferred_or_ambiguous', 0)}")
         except Exception:
             pass
     return 0
