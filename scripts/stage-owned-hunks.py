@@ -212,33 +212,6 @@ def main(argv):
             "edit or ledger inconsistency detected) for %s" % rel
         )
 
-    # --- Clean-index gate (fail-closed) ------------------------------------
-    # If the target file already has STAGED content in the index, applying the
-    # owned-only patch on top would leave that pre-staged (possibly peer) content
-    # in the index alongside the owned hunk -> fail-open. Require the file to be
-    # unstaged before we apply; otherwise EXCLUDE. (Phase 4 pre-staged-verify
-    # normally clears this, but we do not trust the caller's index state.)
-    rc_idx, _, _ = _git(git_root, ["diff", "--cached", "--quiet", "--", rel])
-    # `--quiet` exits 1 when there ARE staged changes, 0 when clean.
-    if rc_idx == 1:
-        return _excluded(
-            "target file already has staged content in the index (would commit "
-            "unattributed staged bytes) -> EXCLUDE: %s" % rel
-        )
-
-    # New (untracked) file: `git apply --cached` cannot patch a path absent from
-    # the index. A brand-new file is whole-file owned by definition (the snapshot
-    # is empty and replay reproduced the worktree), but staging it here as a hunk
-    # patch is malformed. Fail-closed EXCLUDE so the caller's normal whole-file
-    # path (for genuinely owned new files) or warn-and-skip handles it — the helper
-    # never emits a malformed new-file patch.
-    rc_tracked, _, _ = _git(git_root, ["ls-files", "--error-unmatch", "--", rel])
-    if rc_tracked != 0:
-        return _excluded(
-            "target file is not tracked in the index (new file — not hunk-stageable "
-            "via git apply --cached) -> EXCLUDE: %s" % rel
-        )
-
     # --- Build owned-only patch -------------------------------------------
     # We stage exactly: snapshot (a == pre-edit) -> worktree (b). The forward
     # replay above PROVED that applying ONLY dev's authored edits to the snapshot
