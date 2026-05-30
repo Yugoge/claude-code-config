@@ -5,8 +5,8 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 67
-- **Subdirectories**: 3
+- **Total files**: 68
+- **Subdirectories**: 4
 - **Naming convention**: kebab
 
 ## Files
@@ -77,6 +77,7 @@ Organization and usage documentation for `scripts/`.
 
 ## Subdirectories
 - `install/`
+- `spec-verify/`
 - `todo/`
 
 ---

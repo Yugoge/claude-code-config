@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-30T08:41:36Z*
-**Total entries**: 88
+*Last updated: 2026-05-30T09:23:19Z*
+**Total entries**: 95
 **Convention**: kebab
 
 ## Tree
@@ -9,6 +9,13 @@
 scripts/
 ├── install/
 │   └── `tmp-cleanup-install.sh` - /usr/local/sbin/tmp-cleanup.sh
+├── spec-verify/
+│   ├── `spec-verify-views.py` - Usage:
+│   ├── `spec-verify.py` - Every non-blank, non-separator line from the monolith must appear
+│   ├── `spec_verify_gated.py` - Three sibling checks that share the T5 ``is_strict_guide_mode`` gate and
+│   ├── `spec_verify_mandate.py` - Activated only when the monolith declares ``guide_version: 1`` (or higher)
+│   ├── `spec_verify_parsers.py` - Authoritative grammar: /root/docs/dev/specs/MONOLITH-WRITING-GUIDE.md R6.6
+│   └── `spec_verify_summary.py` - Lives alongside `spec_verify_parsers.py` as a sibling sidecar because
 ├── todo/
 │   ├── `clean.py` - Preloaded TodoList for /clean workflow
 │   ├── `close.py` - Three user-visible TodoSteps (flat-integer per agents/style-inspector.md
