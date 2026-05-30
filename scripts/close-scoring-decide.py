@@ -109,6 +109,43 @@ def _resolve_project_dir() -> Path:
     return Path.cwd()
 
 
+def _resolve_close_report_path(repo_root: Path, task_id: str) -> Path:
+    """Resolve docs/dev/close-report-<task_id>.md via the canonical bash resolver.
+
+    Calls scripts/resolve-close-report.sh (absolute path under repo_root), reading
+    its stdout regardless of exit code (it prints the resolved path on exit 0 and a
+    sensible fallback path on exit 1). Inherits the current cwd + environment so the
+    resolver's git-toplevel-of-cwd / CLAUDE_PROJECT_DIR / CONTROL_ROOT probes behave
+    identically to a direct invocation. Falls back to the prior 2-candidate logic
+    (project_dir, repo_root) if the script is missing or the subprocess fails, so
+    the gate never crashes on a missing-report condition.
+    """
+    import subprocess
+
+    resolver = repo_root / "scripts" / "resolve-close-report.sh"
+    if resolver.is_file():
+        try:
+            result = subprocess.run(
+                ["bash", str(resolver), task_id],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            out = result.stdout.strip()
+            if out:
+                return Path(out)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    # Fallback: prior 2-candidate logic (project_dir then code repo_root).
+    project_dir = _resolve_project_dir()
+    _candidates = [
+        project_dir / "docs" / "dev" / f"close-report-{task_id}.md",
+        repo_root / "docs" / "dev" / f"close-report-{task_id}.md",
+    ]
+    return next((p for p in _candidates if p.exists()), _candidates[0])
+
+
 def decide(close_report_path: Path, qa_ever_rejected: bool, repo_root: Path) -> tuple[dict, int]:
     """Pure decision function. Returns (result_dict, exit_code).
 
@@ -175,18 +212,16 @@ def main(argv: list[str]) -> int:
 
     qa_ever_rejected = (args.qa_ever_rejected == "true")
     repo_root = _resolve_repo_root(args.repo_root)  # CODE root: hooks/lib/close-verdict.py
-    # PROJECT root owns docs/dev/close-report-*.md and is DISTINCT from the .claude
-    # code root. The historical bug looked only under the code root (script-relative),
-    # so close-reports in the real project were never found. Prefer the project dir;
-    # fall back to repo_root for backward compat with fixture/monorepo callers that
-    # co-locate both. Use the first candidate that exists (else the project-dir path,
-    # so a genuinely-missing report still reports the project location).
-    project_dir = _resolve_project_dir()
-    _candidates = [
-        project_dir / "docs" / "dev" / f"close-report-{args.task_id}.md",
-        repo_root / "docs" / "dev" / f"close-report-{args.task_id}.md",
-    ]
-    close_report_path = next((p for p in _candidates if p.exists()), _candidates[0])
+    # Resolve the close-report path through the canonical resolve-close-report.sh
+    # probe chain (CLAUDE_PROJECT_DIR -> git-toplevel-of-cwd -> /root/.claude ->
+    # ${CONTROL_ROOT:-/root}), which finds /root/docs/dev/ even when /close runs
+    # with cwd = the nested .claude repo (the historical B1 bug: the python's own
+    # narrower 2-candidate resolution missed /root). The resolver prints a path on
+    # both exit 0 (found) and exit 1 (missing fallback), so use its stdout
+    # regardless of exit code. Fall back to the prior 2-candidate logic if the
+    # resolver script is absent or unusable — the gate must never crash on a
+    # missing-report condition.
+    close_report_path = _resolve_close_report_path(repo_root, args.task_id)
 
     try:
         result, exit_code = decide(close_report_path, qa_ever_rejected, repo_root)
