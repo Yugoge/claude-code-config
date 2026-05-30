@@ -220,8 +220,11 @@ def main(argv):
 
         # git diff --no-index returns exit 1 when files differ (expected), 0 when
         # identical, >1 on error.
+        # NB: `git diff --no-index` accepts `-U0` (zero context) but NOT the
+        # `git apply` spelling `--unidiff-zero`. Zero context isolates an owned
+        # line even from an immediately-adjacent peer hunk.
         proc = subprocess.run(
-            ["git", "diff", "--no-index", "--unidiff-zero",
+            ["git", "diff", "--no-index", "-U0",
              "--src-prefix=a/", "--dst-prefix=b/", "--", a_path, b_path],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
