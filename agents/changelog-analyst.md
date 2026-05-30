@@ -282,12 +282,32 @@ fail-closed behavior and never sweeps in un-QA'd peer work. The helper NEVER use
 `git add -A` / `git add .` and NEVER falls back to whole-file staging — it pipes a
 single-file owned-only filtered patch to `git apply --cached --recount --unidiff-zero`.
 
-**Non-entangled files** (no `owned_edits` entry, or no peer dirtiness in the file —
-the common case) use the existing whole-file path:
+**Non-entangled files** use the existing whole-file path:
 
 ```bash
 git -C "${GIT_ROOT}" add -- "<repo-rel-path>"
 ```
+
+A file is *non-entangled* (safe to whole-file stage) when EITHER:
+- it has an `owned_edits` entry AND the helper above already staged it (the entangled
+  path handled it); OR
+- it is a NEW file created by this cycle (in `dev.files_created`, untracked) — a
+  brand-new file has no peer baseline to entangle with, so whole-file `git add` is
+  correct; OR
+- it is a tracked-modified file for which the dev-report provides NO `owned_edits`
+  entry AND there is no evidence of peer dirtiness (i.e. the file's entire working-tree
+  diff is attributable to this cycle — e.g. a deletion, a rename, or a whole-file
+  rewrite the dev-report accounts for).
+
+**Fail-closed for ambiguous shared dirty files (do NOT fail-open):** if a tracked
+candidate file is dirty AND the dev-report supplies NEITHER an `owned_edits` entry NOR
+a `pre_edit_snapshots` entry for it, you CANNOT prove which hunks this cycle owns.
+**Warn-and-skip — do NOT whole-file `git add`** (whole-file staging here would sweep
+in any peer hunk = the exact incident this feature prevents). Print:
+`WARNING: excluding <repo-rel-path> — dirty tracked file with no owned_edits/pre_edit_snapshots provenance; cannot prove hunk ownership (warn-and-skip, not whole-file staged).`
+The only tracked-modified files that may be whole-file staged WITHOUT an `owned_edits`
+entry are those whose full diff is provably this-cycle-owned (a deletion via `git rm`,
+or a file the dev-report explicitly lists as a whole-file rewrite with no peer overlap).
 
 For deleted files that are tracked:
 ```bash
