@@ -709,7 +709,7 @@ If `PUSH_GATE_WRITTEN=true`, return `commit_status: committed` (NOT `nothing_to_
 Optionally include informational fields `"recovery": true` and `"precommitted_shas": [...]`
 in the structured output — `/commit` ignores unknown fields harmlessly.
 
-If `PUSH_GATE_WRITTEN=false` (R5 skipped the write due to session collision), return
+If `PUSH_GATE_WRITTEN=false` (Recovery step 5 skipped the write due to session collision), return
 `commit_status: failed` with `failure_code: push_gate_collision` and `failure_reason`
 indicating that the push-gate token write was skipped because an existing token with a
 different `session_id` was detected (DO NOT rule 7). The recovery commit itself was created
