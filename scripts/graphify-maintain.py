@@ -182,6 +182,21 @@ def _graph_snapshot(path: Path) -> str | None:
         return None
 
 
+def _current_semantic_mode(cache_dir: Path) -> str | None:
+    """Return the semantic_mode currently persisted in run-manifest.json, or None.
+
+    Used to decide whether a failed-but-unchanged baseline must PROTECT a still-valid
+    prior 'semantic:<backend>' promotion (codex finding #2 / AC10 branch iii).
+    """
+    path = Path(cache_dir) / "run-manifest.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("semantic_mode")
+    except Exception:
+        return None
+
+
 def _reconcile_after_ast_overwrite(cache_dir: Path, exit_code: int,
                                    pre_snapshot: str | None) -> str:
     """Three-branch semantic-state reconciliation after an AST `update` (AC10/AC11).
