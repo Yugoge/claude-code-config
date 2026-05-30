@@ -661,7 +661,7 @@ Compute `attributed_files` = intersection of `task_cycle_files` with all files c
 SHA in `precommitted_shas`. These are the files from this task cycle that were swept up by the
 bulk session(s).
 
-**Step R3: Build and execute recovery commit**
+**Recovery step 3: Build and execute recovery commit**
 
 Derive `scope` using the same scope-derivation logic as Phase 6 (infer from `task_cycle_files`
 paths: `hooks` → hooks, `commands` → commands, `agents` → agents, `scripts` → scripts,
