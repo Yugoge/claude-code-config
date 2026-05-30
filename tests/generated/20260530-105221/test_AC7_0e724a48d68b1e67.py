@@ -5,19 +5,44 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+
 import pytest
+
+from conftest import run_script, write_blast_radius_map, read_json
 
 AC_UID = "0e724a48d68b1e67"
 AC_TYPE = "data"
 
 
-def test_AC7():
+def test_AC7(fixture_env):
     """
     GIVEN: gate enabled but binary missing/cache empty/subcommand fails
     WHEN:  any of 3 scripts run
     THEN:  each exits 0 with valid (possibly empty) artifact; DEV never blocked
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — AC7 any of 3 scripts run")
+    # Force the binary "missing" (gate stays enabled) — the hardest fail-open case.
+    env = dict(fixture_env["env"])
+    env["GRAPHIFY_BIN"] = str(fixture_env["src"] / "no_such_graphify_binary")
+
+    # maintain init/update/status all exit 0 advisory.
+    for sub in ("init", "update", "status"):
+        r = run_script("graphify-maintain.py", [sub], env)
+        assert r.returncode == 0, f"maintain {sub} must exit 0: {r.stderr}"
+
+    # query exits 0 and writes a valid artifact.
+    req = fixture_env["src"] / "req.md"
+    req.write_text("touch mod_a.py\n", encoding="utf-8")
+    rq = run_script("graphify-query.py", ["--task-id", "t1", "--requirement-file", str(req)], env)
+    assert rq.returncode == 0
+    pq = read_json(fixture_env["registry"] / "graphify" / "pre_query.json")
+    assert "status" in pq and pq["status"] in ("unavailable", "degraded", "ok", "skipped")
+
+    # enrich exits 0 and writes a valid artifact + valid empty graph_context.
+    write_blast_radius_map(fixture_env, ["mod_b.py"])
+    ctx = fixture_env["src"] / "context.json"
+    ctx.write_text('{"task_id":"t1"}', encoding="utf-8")
+    re = run_script("graphify-enrich.py", ["--task-id", "t1", "--context-file", str(ctx)], env)
+    assert re.returncode == 0
+    gc = read_json(ctx)["graph_context"]
+    assert "status" in gc and gc.get("advisory") is True
