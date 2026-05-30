@@ -20,7 +20,7 @@ from pathlib import Path
 STATUS_SYMBOL = {'completed': '[x]', 'in_progress': '[~]', 'pending': '[ ]'}
 
 
-def run_todo_script(cmd_name: str, project_dir: Path) -> list:
+def run_todo_script(cmd_name: str, project_dir: Path, prompt: str = '') -> list:
     todo_script = project_dir / 'scripts' / 'todo' / f'{cmd_name}.py'
     if not todo_script.exists():
         global_todo = Path.home() / '.claude' / 'scripts' / 'todo' / f'{cmd_name}.py'
@@ -28,9 +28,13 @@ def run_todo_script(cmd_name: str, project_dir: Path) -> list:
             todo_script = global_todo
         else:
             return []
+    env = {**os.environ}
+    if prompt:
+        env['CLAUDE_TODO_PROMPT'] = prompt
     result = subprocess.run(
         ['python3', str(todo_script)],
-        capture_output=True, text=True, cwd=str(project_dir)
+        capture_output=True, text=True, cwd=str(project_dir),
+        env=env,
     )
     if result.returncode != 0 or not result.stdout.strip():
         return []
