@@ -398,10 +398,18 @@ def cmd_semantic(timeout_seconds: int = TIMEOUT_SEMANTIC) -> int:
     #    output INSIDE the cache so a failed/timed-out current run cannot promote it.
     extracted = cache_dir / "graphify-out" / "graph.json"
     try:
-        if extracted.exists():
+        if extracted.exists() or extracted.is_symlink():
             extracted.unlink()
     except Exception as exc:
         print(f"graphify-maintain semantic: could not clear stale extract output: {exc}", flush=True)
+    # ENFORCE the clear (AC12): if the stale file still exists, a current extract
+    # that exits 0 without replacing it could promote the STALE prior graph. Refuse
+    # to run extract and RETAIN AST rather than risk promoting an unproven graph.
+    if extracted.exists() or extracted.is_symlink():
+        reason = f"could not clear stale extract output at {extracted}; extract skipped, AST retained"
+        print(f"graphify-maintain semantic: {reason}", flush=True)
+        _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
+        return 0
 
     # 4) Build + run extract. Never put the literal 'None' in argv.
     args = ["extract", str(_PROJECT_DIR), "--out", str(cache_dir)]
