@@ -483,7 +483,8 @@ def cmd_status() -> int:
 
 
 def _write_run_manifest(cache_dir: Path, repo_key: str, bin_path: str,
-                        semantic_mode: str | None, probe_reason: str, verb: str) -> None:
+                        semantic_mode: str | None, probe_reason: str, verb: str,
+                        semantic_counts: dict | None = None) -> None:
     """Persist a small run-manifest.json inside the cache (NOT in the repo)."""
     path = cache_dir / "run-manifest.json"
     data: dict = {}
@@ -502,6 +503,16 @@ def _write_run_manifest(cache_dir: Path, repo_key: str, bin_path: str,
     if semantic_mode is not None:
         data["semantic_mode"] = semantic_mode
         data["semantic_backend_probe"] = probe_reason
+        # Surface added-link counts on a promotion; clear them otherwise so a
+        # later ast_only never carries stale counts (AC6 cross-check with AC10).
+        if semantic_counts is not None and str(semantic_mode).startswith("semantic:"):
+            data["semantic_added_links"] = semantic_counts.get("added_links", 0)
+            data["semantic_added_inferred_or_ambiguous"] = semantic_counts.get(
+                "added_inferred_or_ambiguous", 0)
+        else:
+            for key in ("semantic_added_links", "semantic_added_inferred_or_ambiguous",
+                        "semantic_added_edge_count"):
+                data.pop(key, None)
     write_json_locked(path, data)
 
 
