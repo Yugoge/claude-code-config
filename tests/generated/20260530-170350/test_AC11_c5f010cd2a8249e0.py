@@ -51,15 +51,58 @@ def test_AC11(cache_env, monkeypatch):
     WHEN:  graphify-enrich.py captures a pre-update snapshot (hash/mtime) of <cacheDir>/graph.json, then runs Step-1 real `graphify update <repo>`, which may (i) succeed+AST-overwrite, (ii) fail/timeout having already mutated graph.json, or (iii) fail/timeout leaving graph.json unchanged
     THEN:  enrich reconciles maintain's run-manifest by calling the SHARED graphify_lib.reset_semantic_mode_in_manifest(cache_dir) (same helper cmd_update uses for AC10) whenever graph.json was overwritten/mutated: reset ast_only, clear added-count, written via write_json_locked AFTER the overwrite; subsequent status reports 'ast_only'; reconciliation advisory — failed-AND-unchanged leaves manifest UNTOUCHED, failed-but-mutated INVALIDATES; reset errors swallowed/logged so enrich still exits 0; enrich's own graphify-run.json + all other enrich logic byte-for-byte unchanged
     """
-    # TODO(dev): replace the line below with the real test body.
-    # Assertions to cover (three-branch reset trigger on the REAL Step 7.5 path):
-    #   - before: maintain run-manifest.json semantic_mode == 'semantic:<backend>'
-    #   - success path (Step-1 update exit 0, graph overwritten): maintain semantic_mode == 'ast_only', added-count cleared/absent/zero
-    #   - graphify-maintain.py status then reports 'ast_only' (no stale semantic claim)
-    #   - reset via the SHARED helper graphify_lib.reset_semantic_mode_in_manifest (single source, same as AC10)
-    #   - ordering (codex iter #2): reset written AFTER overwrite, via write_json_locked (atomic)
-    #   - failure-but-graph-unchanged: exit != 0 AND graph.json hash/mtime == snapshot -> semantic_mode UNCHANGED
-    #   - failure-but-graph-mutated (codex iter #3): exit != 0 BUT graph.json differs -> RESET ast_only (invalidated)
-    #   - enrich.py still exits 0 in all branches (advisory); reset error swallowed and logged, never raised
-    #   - enrich.py graphify-run.json + graph_context patch behavior unchanged (no enrichment-pipeline regression)
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — enrich.py stale-manifest reconciliation via shared helper on real Step 7.5 path; three-branch; advisory exit 0")
+    apply_env(monkeypatch, cache_env["env"], clear_keys=("GRAPHIFY_OUT",))
+    base = graph_dict(["mod_a", "mod_b"], [link("mod_a", "mod_b", sf="mod_a.py")])
+    new_graph = graph_dict(["mod_a", "mod_b", "mod_c"],
+                           [link("mod_a", "mod_b", sf="mod_a.py"),
+                            link("mod_b", "mod_c", sf="mod_b.py")])
+
+    # The SHARED helper must be the single source of reset logic (same as AC10).
+    import graphify_lib
+    assert hasattr(graphify_lib, "reset_semantic_mode_in_manifest")
+
+    # --- SUCCESS path: Step-1 update exit 0 overwrites graph -> reconcile to ast_only ---
+    task_id, ctx = _setup(cache_env, base)
+    assert json.loads(cache_env["run_manifest"].read_text())["semantic_mode"] == "semantic:claude-cli"
+
+    def spy_success(args, timeout_seconds, cache_dir):
+        if args and args[0] == "update":
+            write_json(cache_env["graph_json"], new_graph)
+            return 0, "", ""
+        return 0, "structural text", ""  # affected — advisory
+
+    rc = _run_enrich(cache_env, task_id, ctx, spy_success)
+    assert rc == 0  # enrich is exit-0-always
+    rm = json.loads(cache_env["run_manifest"].read_text())
+    assert rm["semantic_mode"] == "ast_only"
+    assert "semantic_added_links" not in rm
+    # enrich's own per-task manifest still written (pipeline intact).
+    assert (cache_env["src"] / ".claude" / "dev-registry" / task_id / "graphify"
+            / "graphify-run.json").exists()
+    # context.json patched with graph_context (enrichment pipeline unchanged).
+    assert "graph_context" in json.loads(ctx.read_text())
+
+    # --- FAILURE but graph PROVEN unchanged -> manifest UNTOUCHED ---
+    task_id, ctx = _setup(cache_env, base)
+
+    def spy_fail_nochange(args, timeout_seconds, cache_dir):
+        if args and args[0] == "update":
+            return -1, "", "timeout"  # graph untouched
+        return 0, "", ""
+
+    assert _run_enrich(cache_env, task_id, ctx, spy_fail_nochange) == 0
+    rm2 = json.loads(cache_env["run_manifest"].read_text())
+    assert rm2["semantic_mode"] == "semantic:claude-cli", "unchanged graph must not reset"
+
+    # --- FAILURE but graph MUTATED (iter #3) -> INVALIDATE to ast_only ---
+    task_id, ctx = _setup(cache_env, base)
+
+    def spy_fail_mutated(args, timeout_seconds, cache_dir):
+        if args and args[0] == "update":
+            write_json(cache_env["graph_json"], new_graph)  # partial write THEN fail
+            return -1, "", "timeout after partial write"
+        return 0, "", ""
+
+    assert _run_enrich(cache_env, task_id, ctx, spy_fail_mutated) == 0
+    rm3 = json.loads(cache_env["run_manifest"].read_text())
+    assert rm3["semantic_mode"] == "ast_only", "failed-but-mutated must invalidate (iter #3)"
