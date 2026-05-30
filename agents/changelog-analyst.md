@@ -683,12 +683,11 @@ Execute the recovery commit using the existing single-use commit grant (not cons
 
 Run: `scripts/precommitted-recovery.sh execute-commit "${GIT_ROOT}" "${TMPFILE}"`
 
-**Step R4: Capture recovery commit SHA**
+**Recovery step 4: Capture recovery commit SHA**
 
-```bash
-COMMIT_SHA=$(git -C "${GIT_ROOT}" rev-parse HEAD)
-BRANCH=$(git -C "${GIT_ROOT}" rev-parse --abbrev-ref HEAD)
-```
+Run: `scripts/precommitted-recovery.sh capture-sha "${GIT_ROOT}"`
+
+Capture the first field as `COMMIT_SHA` and the second as `BRANCH`.
 
 **Step R5: Write push-gate token**
 
