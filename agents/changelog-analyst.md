@@ -681,9 +681,7 @@ match, replace the summary with `session recovery for ${scope}`.
 Execute the recovery commit using the existing single-use commit grant (not consumed because no
 `git commit` fired against the clean working tree):
 
-```bash
-git -C "${GIT_ROOT}" commit --allow-empty -F "${TMPFILE}"
-```
+Run: `scripts/precommitted-recovery.sh execute-commit "${GIT_ROOT}" "${TMPFILE}"`
 
 **Step R4: Capture recovery commit SHA**
 
