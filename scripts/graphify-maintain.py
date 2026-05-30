@@ -9,14 +9,17 @@ html, cache/, and the cwd-relative graphify-out/manifest.json) land in the
 cache and the source repo stays clean (AC4).
 
 Usage:
-  python3 scripts/graphify-maintain.py init    # cold-start full build (user-triggered, <=300s)
-  python3 scripts/graphify-maintain.py update  # incremental refresh (advisory, <=60s)
-  python3 scripts/graphify-maintain.py status  # show real cache state + semantic mode
+  python3 scripts/graphify-maintain.py init               # cold-start full build (user-triggered, <=300s)
+  python3 scripts/graphify-maintain.py update             # incremental refresh (advisory, <=60s)
+  python3 scripts/graphify-maintain.py semantic [--timeout SECONDS]  # user-triggered semantic extract (<=3600s)
+  python3 scripts/graphify-maintain.py status             # show real cache state + semantic mode
 
-init / update both run real `graphify update <repo>` (AST). init additionally
-probes semantic extraction (`graphify extract --backend claude-cli`) when a
-backend is reachable, but AST is produced FIRST and never lost to a semantic
-failure (M6/AC6). NO fictional --init/--update/--output-dir/--project-dir flags.
+init / update both run real `graphify update <repo>` (AST-only) and stay fast;
+they NEVER auto-probe semantic extraction. Semantic enrichment is user-triggered
+via the explicit `semantic` subcommand, which runs `graphify extract`, applies an
+edge-signature set-diff proof-gate over valid confidences, and promotes the
+semantic graph only when it adds NEW edges. AST is produced FIRST and never lost
+to a semantic failure (M6). NO fictional --init/--update/--output-dir flags.
 
 Feature flags:
   CLAUDE_GRAPHIFY_ENABLED=0   — skip all operations and exit 0
