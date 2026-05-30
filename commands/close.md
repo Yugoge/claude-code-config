@@ -288,8 +288,8 @@ You are the QA gatekeeper evaluating whether a completed development can be clos
 In both modes, the caller does NOT orchestrate rounds; you own the loop.
 
 Input artifacts (read them first):
-- BA spec:     <BA_SPEC path or "none">
-- QA report:   <QA_REPORT path or "none">
+- BA spec / do-report: <BA_SPEC path, or do-report-<ts>.json for /do work, or "none">
+- QA report:   <QA_REPORT path or "none" — omit for /do work, no prior QA cycle exists>
 - Companions:  <context-<ts>.json / dev-report-<ts>.json if present, else omit>
 
 Debate protocol (all runs INSIDE you):
