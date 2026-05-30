@@ -187,6 +187,15 @@ Skip Step 0 entirely. Set `PARALLEL_AGGREGATE_WRITTEN=false`.
 
 The `PARALLEL_AGGREGATE_WRITTEN` flag (and `AGGREGATE_RESULT` JSON) must be held in memory within the same close workflow and passed to Step 1's conditional logic below.
 
+### do-report lite preflight (non-force, /do path)
+
+If `DO_REPORT` was set during task-id resolution, skip the normal-path artifact preflight entirely and run this lite check instead:
+
+- Read `$DO_REPORT`. Verify top-level `task_id == TASK_ID`, `source == "do"`, `do.status == "completed"`, `do.files_modified` is a non-null array.
+- No ticket, context, dev-report, qa-report, or completion existence checks apply.
+- Set `SPEC_ID=""` (no cp-state for /do work). Skip the cp-state resolver entirely.
+- Proceed directly to Step 0 parallel-dev check (using `do.files_modified` as the file list for shard detection scope — typically no shards for /do work, Case 3 applies).
+
 ### Normal-path artifact preflight (non-force)
 
 After `TASK_ID` is resolved and before Step 1 dispatches inspectors, `/close` MUST run the same Codex-native artifact contract used by `/dev` completion. This preflight applies to `/close <task-id>`, `/close <task-id> --claude-code`, and bare `/close` only when active workflow state/context already resolved `<task-id>`. Bare `/close` with no active task-id keeps the `No spec identified...` failure and MUST NOT scan/default-to-newest.
