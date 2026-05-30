@@ -1,7 +1,7 @@
 # 20260529-210616
 
-*Last updated: 2026-05-30T08:31:02Z*
-**Total entries**: 4
+*Last updated: 2026-05-30T08:31:17Z*
+**Total entries**: 5
 **Convention**: kebab
 
 ## Tree
@@ -10,7 +10,8 @@
 ├── `test_AC_1_delta_reversal.py` - Auto-generated for task 20260529-210616 AC-1.
 ├── `test_AC_2_undo_named_entry.py` - Auto-generated for task 20260529-210616 AC-2.
 ├── `test_AC_3_script_side_success_gate.py` - Auto-generated for task 20260529-210616 AC-3.
-└── `test_AC_4_decision_helper.py` - Auto-generated for task 20260529-210616 AC-4.
+├── `test_AC_4_decision_helper.py` - Auto-generated for task 20260529-210616 AC-4.
+└── `test_AC_5_clear_carried_forward.py` - Auto-generated for task 20260529-210616 AC-5.
 ```
 
 ---
