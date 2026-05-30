@@ -101,8 +101,9 @@ def main(argv):
     ap.add_argument("--snapshot", required=True)
     try:
         ns = ap.parse_args(argv)
-    except SystemExit:
-        return HARD
+    except SystemExit as exc:
+        # --help / -h exits 0; a genuine usage error exits non-zero.
+        return 0 if exc.code in (0, None) else HARD
 
     git_root = ns.git_root
     rel = ns.file
