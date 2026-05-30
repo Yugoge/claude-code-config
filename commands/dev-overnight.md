@@ -300,9 +300,10 @@ cp-state file MUST include a `SECOND ACTION` line immediately after the dev-regi
 SECOND ACTION: Read $CLAUDE_PROJECT_DIR/$CP_DIR/cp-state-<agent>.json to load your mandatory checklist before doing substantive work. Mark each completed checkpoint with /root/.claude/scripts/spec-check.py mark --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN>. Waive only with /root/.claude/scripts/spec-check.py waive --spec-id <SPEC_ID> --agent <agent> --agent-id $CLAUDE_AGENT_ID --cp-id <cp-NN> (auto-text records actor + ISO timestamp). You MUST leave zero pending checkpoints before Stop (a discipline expectation tracked via spec-check.py — no hook blocks exit on pending checkpoints today). If `$CLAUDE_AGENT_ID` is unavailable, use the `agent_id` value written into the cp-state file by the read.
 ```
 
-This gives overnight specialists the same checklist-stop semantics as BA/Dev/QA:
-check-in happens on the cp-state read, and Stop is blocked until the checklist is
-fully done or waived.
+This gives overnight specialists the same checklist semantics as BA/Dev/QA:
+check-in happens on the cp-state read, and each specialist is expected to leave
+the checklist fully done or waived before Stop (tracked via spec-check.py; no hook
+blocks exit on pending checkpoints today).
 
 **Write verbatim user requirement document** (MANDATORY — do this once in Step 1, before any Agent dispatch):
 
