@@ -44,7 +44,19 @@ from graphify_lib import (
     get_cache_dir, get_repo_key, graph_json_path, is_cache_root_inside_repo,
     is_graphify_enabled, load_graph, resolve_paths_to_node_ids, run_graphify_cmd,
     scrub_sensitive, should_exclude_path, write_json_locked, read_json_safe,
+    reset_semantic_mode_in_manifest,
 )
+
+
+def _graph_content_hash(path: Path) -> str | None:
+    """Content-hash snapshot of graph.json, or None if absent (AC11 iter #3 guard)."""
+    import hashlib
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
 
 
 def _now_iso() -> str:
