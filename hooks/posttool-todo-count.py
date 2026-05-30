@@ -84,14 +84,16 @@ def main():
         sys.exit(0)
 
     try:
-        cmd_name = json.loads(bookmark.read_text()).get('command', '')
+        bm_state = json.loads(bookmark.read_text())
+        cmd_name = bm_state.get('command', '')
+        arguments = bm_state.get('arguments', '')
     except Exception:
         sys.exit(0)
 
     if not cmd_name:
         sys.exit(0)
 
-    canonical = run_todo_script(cmd_name, project_dir)
+    canonical = run_todo_script(cmd_name, project_dir, arguments)
     if not canonical:
         sys.exit(0)
 
