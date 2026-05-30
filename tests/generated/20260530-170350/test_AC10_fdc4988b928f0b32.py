@@ -31,13 +31,63 @@ def test_AC10(cache_env, monkeypatch):
     WHEN:  `python3 scripts/graphify-maintain.py update` runs; cmd_update captures a pre-update snapshot (hash/mtime) of cacheDir/graph.json, then runs the AST update which may (i) succeed+overwrite, (ii) fail/timeout having already mutated graph.json, or (iii) fail/timeout leaving graph.json unchanged
     THEN:  semantic_mode RESET to 'ast_only' + added-count cleared via the SHARED graphify_lib.reset_semantic_mode_in_manifest(cache_dir) helper whenever graph.json was actually overwritten (success); reset written via write_json_locked AFTER the overwrite (graph-then-manifest, codex iter #2); 'leave manifest untouched on failure' applies ONLY when graph.json is PROVEN unchanged; a failed-but-mutated update INVALIDATES (reset ast_only, clear counts, reason 'AST update mutated graph before failing; semantic state invalidated'); AST graph on success is valid node-link nodes>0
     """
-    # TODO(dev): replace the line below with the real test body.
-    # Assertions to cover (three-branch reset trigger):
-    #   - before: run-manifest semantic_mode == 'semantic:<backend>'
-    #   - success path (overwrite): semantic_mode == 'ast_only', added-count cleared/absent/zero, reset via SHARED helper
-    #   - ordering (codex iter #2): manifest reset written AFTER graph.json overwrite (graph-then-manifest); uses write_json_locked (atomic)
-    #   - failure-but-graph-unchanged: nonzero/timeout AND graph.json hash/mtime == pre-update snapshot -> semantic_mode UNCHANGED (no spurious reset)
-    #   - failure-but-graph-mutated (codex iter #3): nonzero/timeout BUT graph.json differs -> RESET ast_only, counts cleared, reason mentions semantic state invalidated
-    #   - status reports ast_only (not stale) whenever graph was overwritten/mutated
-    #   - graph.json valid node-link nodes>0 on success path
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — cmd_update three-branch semantic reset via shared write_json_locked helper; failed-but-mutated invalidates")
+    apply_env(monkeypatch, cache_env["env"], clear_keys=("GRAPHIFY_OUT",))
+    base = graph_dict(["x", "y"], [link("x", "y")])
+    new_graph = graph_dict(["x", "y", "z"], [link("x", "y"), link("y", "z")])
+
+    # --- (i) SUCCESS overwrite -> reset to ast_only, counts cleared ---
+    _seed_promoted(cache_env, base)
+    assert json.loads(cache_env["run_manifest"].read_text())["semantic_mode"] == "semantic:claude-cli"
+    mod = load_script_module("graphify-maintain.py", "gm_ac10a")
+    mod.get_graphify_bin = lambda: "/fake/graphify"
+
+    def spy_success(args, timeout_seconds, cache_dir):
+        write_json(cache_env["graph_json"], new_graph)  # overwrite
+        return 0, "", ""
+
+    mod.run_graphify_cmd = spy_success
+    assert mod.cmd_update() == 0
+    rm = json.loads(cache_env["run_manifest"].read_text())
+    assert rm["semantic_mode"] == "ast_only"
+    assert "semantic_added_links" not in rm and "semantic_added_inferred_or_ambiguous" not in rm
+    g = json.loads(cache_env["graph_json"].read_text())
+    assert len(g["nodes"]) > 0
+
+    # --- (iii) FAILURE but graph PROVEN unchanged -> manifest UNTOUCHED ---
+    _seed_promoted(cache_env, base)
+    mod3 = load_script_module("graphify-maintain.py", "gm_ac10c")
+    mod3.get_graphify_bin = lambda: "/fake/graphify"
+
+    def spy_fail_nochange(args, timeout_seconds, cache_dir):
+        return -1, "", "timeout"  # does NOT touch graph.json
+
+    mod3.run_graphify_cmd = spy_fail_nochange
+    assert mod3.cmd_update() == 0
+    rm3 = json.loads(cache_env["run_manifest"].read_text())
+    assert rm3["semantic_mode"] == "semantic:claude-cli", "unchanged graph must not reset"
+    assert rm3.get("semantic_added_links") == 4
+
+    # --- (ii) FAILURE but graph MUTATED (codex iter #3) -> INVALIDATE to ast_only ---
+    _seed_promoted(cache_env, base)
+    mod2 = load_script_module("graphify-maintain.py", "gm_ac10b")
+    mod2.get_graphify_bin = lambda: "/fake/graphify"
+
+    def spy_fail_mutated(args, timeout_seconds, cache_dir):
+        write_json(cache_env["graph_json"], new_graph)  # partial write THEN fail
+        return -1, "", "timeout after partial write"
+
+    mod2.run_graphify_cmd = spy_fail_mutated
+    assert mod2.cmd_update() == 0
+    rm2 = json.loads(cache_env["run_manifest"].read_text())
+    assert rm2["semantic_mode"] == "ast_only", "failed-but-mutated must invalidate (iter #3)"
+    assert "semantic_added_links" not in rm2
+
+    # --- status reports ast_only after a mutation (cross-check AC6) ---
+    import io
+    from contextlib import redirect_stdout
+    mod4 = load_script_module("graphify-maintain.py", "gm_ac10d")
+    mod4.get_graphify_bin = lambda: "/fake/graphify"
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        mod4.cmd_status()
+    assert "semantic_mode: ast_only" in buf.getvalue()
