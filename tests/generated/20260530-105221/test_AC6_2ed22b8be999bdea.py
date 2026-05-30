@@ -5,19 +5,39 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+
 import pytest
+
+from conftest import run_script
+import graphify_lib
 
 AC_UID = "2ed22b8be999bdea"
 AC_TYPE = "data"
 
 
-def test_AC6():
+def test_AC6(real_binary, fixture_env):
     """
     GIVEN: dev empirically investigated real semantic mechanism
     WHEN:  bounded sandbox probe demonstrates semantic path changes the graph (presence insufficient)
     THEN:  enable semantic + status reports it; otherwise produce/keep AST graph, exit 0, report semantic_mode=ast_only + semantic_backend_probe=<reason>; AST graph produced FIRST and never lost to semantic failure; mechanism documented
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — AC6 bounded sandbox probe demonstrates semantic path changes the graph (presence insufficient)")
+    r = run_script("graphify-maintain.py", ["init"], fixture_env["env"])
+    assert r.returncode == 0
+
+    # AST graph produced FIRST and never lost — graph.json exists with nodes.
+    graph, st = graphify_lib.load_graph(fixture_env["graph_json"])
+    assert st == graphify_lib.STATUS_OK and len(graph["nodes"]) > 0
+
+    # run-manifest records semantic_mode (proof-gated) + a probe reason.
+    rm = json.loads((fixture_env["cache_dir"] / "run-manifest.json").read_text(encoding="utf-8"))
+    mode = rm.get("semantic_mode")
+    reason = rm.get("semantic_backend_probe", "")
+    assert mode is not None and reason, "status must report semantic_mode + semantic_backend_probe"
+    # Either ast_only (probe did not change graph / no backend) OR semantic:<backend>
+    # decided by a real probe — NOT by mere backend presence.
+    assert mode == "ast_only" or mode.startswith("semantic:")
+    if mode == "ast_only":
+        assert "retained" in reason or "no semantic backend" in reason
+    else:
+        assert "changed graph" in reason  # proof not presence
