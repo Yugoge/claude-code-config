@@ -149,52 +149,42 @@ def main(argv):
     if rc_mode == 0 and b"mode change" in mode_out:
         return _excluded("mode change present (not hunk-splittable): %s" % rel)
 
-    # --- Locate each owned edit by UNIQUE CONTENT search -------------------
-    # Line numbers in the ledger (if any) are advisory and ignored here.
-    owned_ranges = []  # list of (start_offset, end_offset, old_bytes, new_bytes)
+    # --- Forward sequential replay from the snapshot (authoritative) -------
+    # Ownership is the AUTHORED TRANSFORMATION, not just endpoint content. We
+    # replay the ledger forward from the pre-edit snapshot: for each edit, find a
+    # UNIQUE occurrence of `old` in the current replay buffer (at that step) and
+    # replace it with `new`. Then require the replayed result to byte-match the
+    # worktree.
+    #
+    # Why forward-replay (not just an endpoint recon): a plain "revert owned ranges
+    # to old_string and compare to snapshot" check is permutation-insensitive when
+    # old_strings are duplicated (e.g. ledger slot->A, slot->B but the worktree is
+    # the peer's swap B\nA\n reverts to slot\nslot\n == snapshot, fail-open). Binding
+    # each edit to a unique pre-edit occurrence and requiring the replayed final
+    # state == worktree makes the check order-sensitive and closes that hole.
+    #
+    # A non-unique `old` at any step, an `old` whose match cannot be found, or a
+    # final replayed state that differs from the worktree (an unattributed peer edit
+    # anywhere — overlapping, non-overlapping, inside-owned, or a swap) => EXCLUDE.
+    replay = snapshot
     for i, edit in enumerate(edits):
         if not isinstance(edit, dict) or "old" not in edit or "new" not in edit:
             return _excluded("ledger entry %d malformed (need old+new) for %s" % (i, rel))
         new_b = edit["new"].encode("utf-8") if isinstance(edit["new"], str) else edit["new"]
         old_b = edit["old"].encode("utf-8") if isinstance(edit["old"], str) else edit["old"]
 
-        # (M2.1a) Locate recorded new_string by UNIQUE content search in worktree.
-        offset = _locate_unique(worktree, new_b)
-        if offset is None:
+        off = _locate_unique(replay, old_b)
+        if off is None:
             return _excluded(
-                "owned new_string for edit %d not uniquely locatable in worktree "
-                "(absent or duplicated) -> ambiguous: %s" % (i, rel)
+                "owned old_string for edit %d not uniquely locatable during replay "
+                "(absent or duplicated at this step) -> ambiguous: %s" % (i, rel)
             )
-        # (M2.1b) Byte-match: worktree bytes at located range == recorded new_string.
-        # _locate_unique guarantees this by construction, but assert defensively:
-        if worktree[offset:offset + len(new_b)] != new_b:
-            return _excluded(
-                "worktree bytes in owned range != recorded new_string (peer edited "
-                "inside owned range) for edit %d: %s" % (i, rel)
-            )
-        owned_ranges.append((offset, offset + len(new_b), old_b, new_b))
+        replay = replay[:off] + new_b + replay[off + len(old_b):]
 
-    # Sort by start offset; reject overlapping owned ranges (ambiguous).
-    owned_ranges.sort(key=lambda r: r[0])
-    for a, b in zip(owned_ranges, owned_ranges[1:]):
-        if a[1] > b[0]:
-            return _excluded("owned ranges overlap (ambiguous) for %s" % rel)
-
-    # --- Cross-check (fail-closed): reconstruct worktree with owned ranges --
-    # reverted to old_string; result MUST be byte-identical to the pre-edit
-    # snapshot. Any out-of-owned divergence => post-capture peer edit => EXCLUDE.
-    recon = bytearray()
-    cursor = 0
-    for (start, end, old_b, new_b) in owned_ranges:
-        recon += worktree[cursor:start]
-        recon += old_b
-        cursor = end
-    recon += worktree[cursor:]
-
-    if bytes(recon) != snapshot:
+    if replay != worktree:
         return _excluded(
-            "out-of-owned region differs from pre-edit snapshot (post-capture peer "
-            "edit detected) for %s" % rel
+            "replayed owned edits do not reproduce the worktree (unattributed peer "
+            "edit or ledger inconsistency detected) for %s" % rel
         )
 
     # --- Build owned-only patch -------------------------------------------
