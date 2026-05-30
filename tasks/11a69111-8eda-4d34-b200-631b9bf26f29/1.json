@@ -1,8 +1,0 @@
-{
-  "id": "1",
-  "subject": "Block F: verify restart_daemon kill==restart-set behavior",
-  "description": "Codex systematic refactor included the restart_daemon fix (kill set must equal restart set). Needs real-scenario verification after the refactor was applied to /root/bin/happy-session-recovery.sh.",
-  "status": "pending",
-  "blocks": [],
-  "blockedBy": []
-}
