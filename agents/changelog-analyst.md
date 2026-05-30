@@ -122,11 +122,15 @@ building the candidate set, count the files. If the count exceeds
 `ABORT: scope violation — staged file count (<N>) exceeds whitelist limit (<limit>). Possible cross-session contamination.`
 Exit with `failure_code: scope_violation`.
 
-**When BULK=false AND no dev-report exists**: **ABORT** — do NOT stage any files.
-Print and exit immediately:
-`ABORT: no dev-report found for task <TASK_ID> — cannot enforce whitelist. Refusing to stage-all.`
-Exit with structured status `{"commit_status":"failed","failure_code":"scope_violation","failure_reason":"no dev-report for TASK_ID; cannot determine staging whitelist"}`.
-Stage-all fallback is forbidden; without a dev-report the whitelist cannot be constructed and cross-session contamination is undetectable.
+**When BULK=false AND no dev-report exists**: check for a do-report before aborting.
+
+- If `do-report-<TASK_ID>.json` exists at the resolved path (same subproject walk as dev-report, fallback to `CONTROL_ROOT/docs/dev/do-report-${TASK_ID}.json`) AND top-level `source == "do"`: use `do.files_modified[]` and `do.files_created[]` as the staging whitelist in place of `dev.files_modified[]` / `dev.files_created[]`. Apply the same anchored-pattern and staged-file-count-guard rules. Skip the provenance filter (do-reports have no `baseline_head_sha`). Use `do.summary` for commit message enrichment (M12 fallback text: `session changes [/do — no dev-report]`).
+
+- If neither dev-report NOR do-report exists: **ABORT** — do NOT stage any files.
+  Print and exit immediately:
+  `ABORT: no dev-report found for task <TASK_ID> — cannot enforce whitelist. Refusing to stage-all.`
+  Exit with structured status `{"commit_status":"failed","failure_code":"scope_violation","failure_reason":"no dev-report for TASK_ID; cannot determine staging whitelist"}`.
+  Stage-all fallback is forbidden; without a dev-report the whitelist cannot be constructed and cross-session contamination is undetectable.
 
 **Path normalization** (apply before any comparison or staging):
 - Resolve symlinks: `real_root = os.path.realpath(GIT_ROOT)`
