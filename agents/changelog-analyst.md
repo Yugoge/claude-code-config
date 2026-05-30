@@ -689,7 +689,7 @@ Run: `scripts/precommitted-recovery.sh capture-sha "${GIT_ROOT}"`
 
 Capture the first field as `COMMIT_SHA` and the second as `BRANCH`.
 
-**Step R5: Write push-gate token**
+**Recovery step 5: Write push-gate token**
 
 Execute Phase 10 push-gate write logic unchanged (same `sha256(realpath(GIT_ROOT))[:16]` hash,
 same JSON schema, same DO NOT rule 7 session-collision check). Track whether the write
