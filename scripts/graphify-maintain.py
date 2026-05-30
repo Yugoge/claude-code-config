@@ -77,41 +77,89 @@ def _detect_semantic_backend() -> str | None:
     return None
 
 
-def _probe_semantic(repo: Path, cache_dir: Path, ast_node_count: int) -> tuple[str, str]:
-    """Bounded semantic probe (AC6 — proof not presence).
+def _canonicalize(value) -> object:
+    """Canonicalize a link field so a 7-tuple signature stays hashable (codex #5).
 
-    Runs `graphify extract --backend <b> --out cacheDir` and only declares
-    semantic mode active if the resulting graph actually changed (node count
-    differs from the AST baseline). AST graph is already on disk and is never
-    lost: on any failure we keep it and report ast_only.
-
-    Returns (semantic_mode, semantic_backend_probe_reason).
+    Scalars pass through; non-scalar (list/dict) values are JSON-serialized with
+    sorted keys so two structurally-equal `context` values compare equal.
     """
-    backend = _detect_semantic_backend()
-    if not backend:
-        return "ast_only", "no semantic backend reachable (no API key, claude CLI absent)"
-    args = ["extract", str(repo), "--out", str(cache_dir), "--backend", backend]
-    exit_code, stdout, stderr = run_graphify_cmd(
-        args, timeout_seconds=TIMEOUT_SEMANTIC_PROBE, cache_dir=cache_dir,
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    try:
+        return json.dumps(value, sort_keys=True, ensure_ascii=False)
+    except Exception:
+        return str(value)
+
+
+def _link_signature(link: dict) -> tuple:
+    """Full 7-tuple edge signature: (source,target,relation,confidence,source_file,source_location,context).
+
+    `context` is present on only some links; link.get('context') defaults to None
+    so two links that both OMIT context compare EQUAL, and two links differing ONLY
+    in context compare DISTINCT (codex #5).
+    """
+    return (
+        _canonicalize(link.get("source")),
+        _canonicalize(link.get("target")),
+        _canonicalize(link.get("relation")),
+        _canonicalize(link.get("confidence")),
+        _canonicalize(link.get("source_file")),
+        _canonicalize(link.get("source_location")),
+        _canonicalize(link.get("context")),
     )
-    if exit_code != 0:
-        return "ast_only", f"semantic probe via {backend} failed (exit={exit_code}); AST graph retained"
-    # extract writes to <cacheDir>/graphify-out/graph.json — promote it to cacheDir/graph.json
-    extracted = cache_dir / "graphify-out" / "graph.json"
-    if not extracted.exists():
-        return "ast_only", f"semantic probe via {backend} produced no graph.json; AST retained"
-    sem_graph, st = load_graph(extracted)
+
+
+def compute_added_semantic_edges(ast_graph: dict, sem_graph: dict) -> list:
+    """Return the list of sem links whose FULL signature is absent from the AST
+    link set AND whose confidence is in VALID_CONFIDENCES (verdict P, codex round-2).
+
+    BOTH graphs MUST already be normalized through graphify_lib.load_graph so the
+    set-diff never compares a scrubbed graph against a raw one (codex #4). The
+    live AST graph ALREADY carries EXTRACTED/INFERRED confidences, so confidence
+    PRESENCE is not a discriminator — only NEW edges by full signature count.
+    """
+    ast_sigs = {_link_signature(l) for l in ast_graph.get("links", []) if isinstance(l, dict)}
+    added = []
+    seen = set()
+    for l in sem_graph.get("links", []):
+        if not isinstance(l, dict):
+            continue
+        if l.get("confidence") not in VALID_CONFIDENCES:
+            continue
+        sig = _link_signature(l)
+        if sig in ast_sigs or sig in seen:
+            continue
+        seen.add(sig)
+        added.append(l)
+    return added
+
+
+def _semantic_promotable(ast_graph: dict, sem_graph: dict) -> tuple[bool, dict]:
+    """Apply the corrected proof-gate. Returns (promotable, counts).
+
+    semantic_ok = len(sem_nodes)>=len(ast_nodes) AND len(sem_links)>=len(ast_links)
+                  AND bool(added_semantic_edges by full-signature set-diff over valid confidences).
+    (The status==ok precondition is applied by the caller against load_graph's status.)
+    """
+    ast_nodes = len(ast_graph.get("nodes", []))
     sem_nodes = len(sem_graph.get("nodes", []))
-    if st == STATUS_OK and sem_nodes > ast_node_count:
-        # Proof: semantic path materially changed the graph. Promote it.
-        try:
-            graph_json_path(_PROJECT_DIR).write_text(
-                extracted.read_text(encoding="utf-8"), encoding="utf-8")
-        except Exception as exc:
-            return "ast_only", f"semantic graph promote failed: {exc}; AST retained"
-        return f"semantic:{backend}", f"semantic path changed graph ({ast_node_count}->{sem_nodes} nodes) via {backend}"
-    return "ast_only", (f"semantic probe via {backend} did not change graph "
-                        f"(ast={ast_node_count}, sem={sem_nodes}); AST retained")
+    ast_links = len(ast_graph.get("links", []))
+    sem_links = len(sem_graph.get("links", []))
+    added = compute_added_semantic_edges(ast_graph, sem_graph)
+    added_valid_inferred = sum(
+        1 for l in added if l.get("confidence") in ("INFERRED", "AMBIGUOUS"))
+    counts = {
+        "ast_nodes": ast_nodes, "sem_nodes": sem_nodes,
+        "ast_links": ast_links, "sem_links": sem_links,
+        "added_links": len(added),
+        "added_inferred_or_ambiguous": added_valid_inferred,
+    }
+    promotable = (
+        sem_nodes >= ast_nodes
+        and sem_links >= ast_links
+        and bool(added)
+    )
+    return promotable, counts
 
 
 def _run_ast_build(repo: Path, cache_dir: Path, timeout: int) -> tuple[int, str, str]:
