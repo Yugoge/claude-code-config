@@ -164,12 +164,15 @@ def test_AC_3_close_yes_appends_entry(tmp_path, fixture_close_report):
     assert appended["agent"] == "dev"
 
 
-def test_AC_3_empty_note_exits_5(tmp_path):
+def test_AC_3_missing_note_flag_exits_5(tmp_path):
+    """AC-3: omitted --note flag triggers M3 gate exit 5 'require --note'.
+    The shell ${2:?} guard rejects literal --note '' at exit 1 BEFORE M3 fires;
+    the M3 contract this cycle defends against is the missing-flag case (i.e.,
+    a caller forgetting to supply --note for a close_success_* event), which
+    correctly returns exit 5 from the gate. Test name updated iter-3 (close
+    20260529-210616 F3) to match what is actually exercised vs. the AC literal
+    'empty note' phrasing."""
     lf = _empty_lifecycle(tmp_path)
-    # bash script consumes "" as the value for --note, so we pass an empty
-    # explicit value. The shell script ${2:?...} guard rejects empty strings,
-    # so we test with a no-note (omit --note entirely) which triggers our
-    # "close_success_* events require --note" path.
     rc, _stdout, stderr, (b, a) = _run(
         "--agent", "dev", "--event", "close_success_qa_pass",
         "--lifecycle-file", str(lf), lf=lf,
