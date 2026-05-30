@@ -61,15 +61,66 @@ def test_AC13_OBJ3(cache_env, monkeypatch):
     WHEN:  cmd_semantic builds and dispatches the extract invocation (run_graphify_cmd spied so no real extract runs)
     THEN:  (a) FORCED: argv contains `--backend <forced>`, promotion labeled semantic:<forced>; FORCED-None routed to clean-fail per (d), never `--backend None`. (b) KEYED (incl. key+claude): extract runs WITHOUT `--backend` (graphify auto-detects), no bail, promotion labeled semantic:auto. (c) KEYLESS-CLAUDE: argv contains `--backend claude-cli`, labeled semantic:claude-cli. (d) NO-BACKEND: clean-fail 'no semantic backend reachable', exit 0, AST retained (ast_only), NO extract. In NO case does extract argv contain literal 'None' and run-manifest NEVER records 'semantic:None'
     """
-    # TODO(dev): replace the line below with the real test body (4-case backend matrix; never --backend None).
-    # Assertions to cover:
-    #   - FORCED (GRAPHIFY_TRIAGE_BACKEND=somebackend): extract argv contains '--backend' followed by 'somebackend'; promotion labels 'semantic:somebackend'
-    #   - FORCED-None (GRAPHIFY_TRIAGE_BACKEND='None'|'null'|''): no usable backend -> ZERO extract calls, exit 0, 'no semantic backend reachable', ast_only; argv never contains '--backend None'
-    #   - KEYED (ANTHROPIC_API_KEY set, claude ABSENT): spy records 'extract' AND argv contains NO '--backend' flag; no bail; promotion labels 'semantic:auto'
-    #   - KEYED (ANTHROPIC_API_KEY set, claude PRESENT): STILL keyed/auto — argv contains NO '--backend' (NOT '--backend claude-cli'); labels 'semantic:auto' (key precedence over claude-cli)
-    #   - KEYLESS-CLAUDE (no key, claude present): argv contains '--backend' followed by 'claude-cli'; labels 'semantic:claude-cli'
-    #   - NO-BACKEND (no key, claude absent, no forced): ZERO extract calls; clear 'no semantic backend reachable'; exit 0; ast_only; AST retained
-    #   - in ALL cases the recorded extract argv (when present) contains no element equal to the string 'None'
-    #   - run-manifest.json never records semantic_mode == 'semantic:None'
-    #   - the invocation is the maintain CLI binary, NOT a recursive slash-command
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — 4-case backend matrix: FORCED / KEYED(auto) / KEYLESS-CLAUDE / NO-BACKEND; never --backend None or semantic:None")
+    KEYS = ("GEMINI_API_KEY", "GOOGLE_API_KEY", "MOONSHOT_API_KEY",
+            "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY")
+
+    def assert_no_none(argv):
+        if argv is not None:
+            assert all(tok != "None" for tok in argv), f"argv must never contain 'None': {argv}"
+            assert "--backend" not in argv or "None" not in argv
+
+    # (a) FORCED: --backend <forced>, label semantic:<forced>
+    argv, rm = _run_case(cache_env, monkeypatch,
+                         {"GRAPHIFY_TRIAGE_BACKEND": "somebackend"},
+                         KEYS, claude_present=False)
+    assert argv is not None and "--backend" in argv
+    assert argv[argv.index("--backend") + 1] == "somebackend"
+    assert rm["semantic_mode"] == "semantic:somebackend"
+    assert_no_none(argv)
+
+    # FORCED-None: 'None' literal -> clean-fail, ZERO extract, ast_only
+    argv, rm = _run_case(cache_env, monkeypatch,
+                         {"GRAPHIFY_TRIAGE_BACKEND": "None"}, KEYS, claude_present=False)
+    assert argv is None, "FORCED-None must not invoke extract"
+    assert rm["semantic_mode"] == "ast_only"
+    assert "no semantic backend reachable" in rm.get("semantic_backend_probe", "")
+
+    # FORCED empty/null variants too
+    for degenerate in ("null", ""):
+        argv, rm = _run_case(cache_env, monkeypatch,
+                             {"GRAPHIFY_TRIAGE_BACKEND": degenerate}, KEYS, claude_present=False)
+        assert argv is None and rm["semantic_mode"] == "ast_only"
+
+    # (b) KEYED, claude ABSENT: NO --backend, no bail, label semantic:auto
+    argv, rm = _run_case(cache_env, monkeypatch,
+                         {"ANTHROPIC_API_KEY": "sk-x"},
+                         ("GRAPHIFY_TRIAGE_BACKEND",), claude_present=False)
+    assert argv is not None, "keyed env must NOT bail (codex #6)"
+    assert "--backend" not in argv, f"keyed env must auto-detect (no --backend): {argv}"
+    assert rm["semantic_mode"] == "semantic:auto"
+    assert_no_none(argv)
+
+    # (b') KEYED + claude PRESENT: STILL keyed/auto (key precedence over claude-cli)
+    argv, rm = _run_case(cache_env, monkeypatch,
+                         {"ANTHROPIC_API_KEY": "sk-x"},
+                         ("GRAPHIFY_TRIAGE_BACKEND",), claude_present=True)
+    assert argv is not None and "--backend" not in argv
+    assert rm["semantic_mode"] == "semantic:auto"
+
+    # (c) KEYLESS-CLAUDE: --backend claude-cli, label semantic:claude-cli
+    argv, rm = _run_case(cache_env, monkeypatch, {},
+                         KEYS + ("GRAPHIFY_TRIAGE_BACKEND",), claude_present=True)
+    assert argv is not None and "--backend" in argv
+    assert argv[argv.index("--backend") + 1] == "claude-cli"
+    assert rm["semantic_mode"] == "semantic:claude-cli"
+    assert_no_none(argv)
+
+    # (d) NO-BACKEND: no key, claude absent, no forced -> ZERO extract, clean fail
+    argv, rm = _run_case(cache_env, monkeypatch, {},
+                         KEYS + ("GRAPHIFY_TRIAGE_BACKEND",), claude_present=False)
+    assert argv is None, "no-backend must not invoke extract"
+    assert rm["semantic_mode"] == "ast_only"
+    assert "no semantic backend reachable" in rm.get("semantic_backend_probe", "")
+
+    # run-manifest never records semantic:None across all cases above (asserted inline).
+    assert rm["semantic_mode"] != "semantic:None"
