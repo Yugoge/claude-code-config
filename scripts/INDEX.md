@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-30T11:17:07Z*
-**Total entries**: 98
+*Last updated: 2026-05-30T11:26:23Z*
+**Total entries**: 99
 **Convention**: kebab
 
 ## Tree
@@ -86,6 +86,7 @@ scripts/
 ├── `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
 ├── `precommitted-recovery.sh` - Description: Recovery path helpers for nothing_to_commit_precommitted detection.
 ├── `qa-manifest-guard.py` - Dual-mode tool per BA spec docs/dev/ticket-20260529-081014.md M4:
+├── `qa-report-stale-iter-lint.py` - lacks an explicit resolution marker
 ├── `quick-excel` - unknown file
 ├── `refine-context.sh` - refine-context.sh — merge QA-refined context with original context
 ├── `repair-venv.sh` - repair-venv.sh — durably restore a Python venv when its bin/python3 symlink target is missing.
