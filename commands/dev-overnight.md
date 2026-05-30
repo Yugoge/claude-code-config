@@ -28,8 +28,8 @@ Every Agent dispatch from this orchestrator shares the following invariant prelu
    Substitute `<role>` with the dispatched subagent type (`pm`, `ba`, `dev`, `qa`, `architect`, `product-owner`, `user`, `ui-specialist`, …). Without this Read, `pretool-cp-checkin.py` cannot map the subagent UUID to its `agent_type` and `pretool-subagent-code-block.py` falls open. The Step 1 sentinel-fanout loop creates the JSON files for every agent type before any dispatch runs.
 
 2. **CHECKPOINT MARKING (cp-state checklist contract, only when `SPEC_ID` is non-empty AND that role's cp-state file exists)**:
-   `CHECKPOINT MARKING: see agents/<role>.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit.`
-   The full SECOND ACTION semantics — read `cp-state-<role>.json`, mark checkpoints with `/root/.claude/scripts/spec-check.py mark`, waive with the `waive` subcommand, satisfy `subagentstop-cp-enforce.py` before Stop — are documented once in the Step 1 cp-state handoff section above and inside `agents/<role>.md` itself. The pointer keeps each dispatch one line wide while preserving the contract.
+   `CHECKPOINT MARKING: see agents/<role>.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop (discipline expectation tracked via spec-check.py; no hook blocks exit on pending checkpoints today).`
+   The full SECOND ACTION semantics — read `cp-state-<role>.json`, mark checkpoints with `/root/.claude/scripts/spec-check.py mark`, waive with the `waive` subcommand, leave zero pending before Stop — are documented once in the Step 1 cp-state handoff section above and inside `agents/<role>.md` itself. The pointer keeps each dispatch one line wide while preserving the contract.
 
 3. **Role declaration**:
    `You are the <role> subagent. Follow agents/<role>.md instructions precisely.` (For BA the file is `.claude/agents/ba.md`. For PM with explicit mode the line becomes `You are the PM subagent in <PM_MODE> mode. Follow agents/pm.md <Mode> Protocol.`)
