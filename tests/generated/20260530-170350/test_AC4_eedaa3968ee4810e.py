@@ -5,13 +5,19 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+import shutil
+
 import pytest
+
+import graphify_lib
+from conftest import load_script_module, apply_env, repo_pollution
 
 AC_UID = "eedaa3968ee4810e"
 AC_TYPE = "data"
 
 
-def test_AC4():
+def test_AC4(real_binary, cache_env, monkeypatch):
     """
     GIVEN: a SMALL controlled out-of-repo fixture repo (>=1 code file + >=1 doc/markdown file designed to yield semantic edges), a fresh out-of-repo cache, the real graphify v0.8.25 binary, and a reachable semantic backend (keyless claude-cli or an API key)
     WHEN:  `python3 scripts/graphify-maintain.py semantic --timeout <sufficient>` is run to COMPLETION against the fixture
