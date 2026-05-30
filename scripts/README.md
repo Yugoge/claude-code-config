@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 69
+- **Total files**: 71
 - **Subdirectories**: 4
 - **Naming convention**: kebab
 
@@ -50,6 +50,7 @@ Organization and usage documentation for `scripts/`.
 - `install-checkpoint-refspec.sh` - install-checkpoint-refspec.sh — idempotently add refs/checkpoints/* to
 - `iterate-failed-pipelines.py` - Reads pipelines JSON path; outputs iteration plan JSON to stdout. The orchestrator
 - `lifecycle-baseline-import.sh` - Description: One-time idempotent migration — import current agent scores from agent-scores.json
+- `lint-spec-id-centralization.py` - markdown from re-deriving a spec-id / views_dir / split_marker / cp_dir from a
 - `migrate-test-to-tests.sh` - Description: Merge test/ folder into tests/ preserving all content (idempotent)
 - `normalize-doc-names.sh` - normalize-doc-names.sh - Detect and report non-compliant documentation file names
 - `orchestrator.sh` - Description: Agent orchestration coordinator for development and cleanup workflows
@@ -62,6 +63,7 @@ Organization and usage documentation for `scripts/`.
 - `repair-venv.sh` - repair-venv.sh — durably restore a Python venv when its bin/python3 symlink target is missing.
 - `resolve-close-report.sh` - Resolve the close-report path for a given TASK_ID using subproject path-walk.
 - `resolve-dev-report.py` - Usage:
+- `resolve-spec-artifacts.py` - spec-id resolver shared by /spec finalize and every /dev* consumer)
 - `runcode-watchdog.py` - Watchdog process for browser_run_code timeout enforcement
 - `scan-project.sh` - Description: Scan project structure and detect project type
 - `score-inject.sh` - Description: Emit a prompt-injection text block describing an agent's current rank/range

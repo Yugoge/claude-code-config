@@ -24,15 +24,33 @@ import sys
 
 # Forbidden inline derivation patterns (prose or bash) that re-derive a spec-id /
 # views_dir / split_marker / cp_dir from a path instead of consuming the resolver.
+#
+# Patterns are CASE-INSENSITIVE on the spec-path/spec-id variable name so the lint
+# catches BOTH the uppercase env-var form (${SPEC_PATH...}) AND the lowercase
+# shell-local form (${spec_path...}). The lowercase miss is exactly how the
+# inline derivation at commands/spec.md:238 slipped past the original lint
+# (task 20260530-092123 F-QA-1): EXPECT_ID="${spec_path##*/}"; %.md; #spec-.
+#
+# `SPEC_VAR` matches the spec-path/spec-id variable name component (optional
+# USER_ prefix, either spec_path or spec_id, any case).
+SPEC_VAR = r"(?:USER_)?SPEC_(?:PATH|ID)"
 FORBIDDEN = [
-    # basename(spec_path) style spec-id derivation
-    re.compile(r"basename\s*\(?\s*\$?\{?(?:USER_)?SPEC_PATH", re.IGNORECASE),
-    re.compile(r"basename\s+\"?\$\{?(?:USER_)?SPEC_PATH", re.IGNORECASE),
-    # ${SPEC_PATH%.md} / ${USER_SPEC_PATH%.md} strip-suffix derivation
-    re.compile(r"\$\{(?:USER_)?SPEC_PATH%\.md\}"),
+    # basename($SPEC_PATH) / basename "$spec_path" style spec-id derivation
+    re.compile(r"basename\s*\(?\s*\"?\$?\{?" + SPEC_VAR, re.IGNORECASE),
+    # ${spec_path##*/} — strip-longest-leading-*/ (basename via parameter expansion)
+    re.compile(r"\$\{" + SPEC_VAR + r"##\*/\}", re.IGNORECASE),
+    # ${spec_path#*/} / ${spec_path%/*} — other path-component param-expansions
+    re.compile(r"\$\{" + SPEC_VAR + r"(?:#|%)+[^}]*/", re.IGNORECASE),
+    # ${spec_path%.md} / ${SPEC_PATH%.md} — strip .md suffix derivation
+    re.compile(r"\$\{" + SPEC_VAR + r"%\.md\}", re.IGNORECASE),
+    # ${VAR#spec-} / ${VAR%.md} applied to an id var derived inline (de-prefix /
+    # de-suffix surgery). Catches the spec.md:238 chained form where an
+    # intermediate id var is stripped of the leading "spec-" by hand.
+    re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*#spec-\}"),
+    re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*%\.md\}.*#\s*de-?prefix", re.IGNORECASE),
     # inline views/split/cp paths built from a $SPEC_ID variable
-    re.compile(r"docs/dev/specs/\$\{?SPEC_ID\}?/"),
-    re.compile(r"\.claude/specs/\$\{?SPEC_ID\}?\b"),
+    re.compile(r"docs/dev/specs/\$\{?spec_id\}?/", re.IGNORECASE),
+    re.compile(r"\.claude/specs/\$\{?spec_id\}?\b", re.IGNORECASE),
     # building manifest/split paths from a bare basename-derived id
     re.compile(r"docs/dev/specs/\$\{?(?:ARTIFACT_ID|SPEC_BASENAME)\}?/views", re.IGNORECASE),
 ]
