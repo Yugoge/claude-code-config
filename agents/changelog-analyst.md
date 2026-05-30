@@ -669,22 +669,9 @@ paths: `hooks` → hooks, `commands` → commands, `agents` → agents, `scripts
 
 Build the recovery commit message in a tmpfile (DO NOT rule 12 — no heredoc form):
 
-```bash
-TMPFILE=$(umask 077; mktemp /tmp/recovery-commit-XXXXXX.txt)
-trap "rm -f ${TMPFILE}" EXIT
-{
-    echo "chore(${scope}): recovery commit — task ${TASK_ID} pre-empted by bulk session"
-    echo ""
-    echo "Task-id: ${TASK_ID}"
-    for sha in "${precommitted_shas[@]}"; do
-        echo "Precommitted-by: ${sha}"
-    done
-    echo "Attributed-files:"
-    for f in "${attributed_files[@]}"; do
-        echo "  ${f}"
-    done
-} > "${TMPFILE}"
-```
+Allocate a tmpfile: `TMPFILE=$(mktemp /tmp/recovery-commit-XXXXXX.txt)`
+
+Run: `scripts/precommitted-recovery.sh build-commit-msg "${GIT_ROOT}" "${scope}" "${TASK_ID}" "${TMPFILE}" ${precommitted_shas[*]} -- ${attributed_files[*]}`
 
 Verify the subject line does NOT match `\bsync\b.*\buncommitted\b` or `chore\(claude\)\s*:\s*sync`
 (DO NOT rule 10). The proposed subject `chore(<scope>): recovery commit — task <TASK_ID> pre-empted by bulk session`
