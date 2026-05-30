@@ -648,19 +648,9 @@ task cycle files. `baseline_head_sha` is the value of `git rev-parse HEAD` captu
 start before any write operations in this invocation (it comes from the dev-report top-level
 `baseline_head_sha` field; if absent, fall back to `HEAD~1`):
 
-```bash
-precommitted_shas=()
-while IFS=' ' read -r sha subject; do
-    # Check if this auto-bulk commit touched any task_cycle_files
-    commit_files=$(git show --name-only --format= "$sha" | grep -v '^$')
-    for f in $task_cycle_files; do
-        if echo "$commit_files" | grep -qF "$f"; then
-            precommitted_shas+=("$sha")
-            break
-        fi
-    done
-done < <(git log --format="%H %s" "${baseline_head_sha}..HEAD" | awk '{sha=$1; $1=""; sub(/^ /, ""); if (/^auto-bulk:/) print sha}')
-```
+Run: `scripts/precommitted-recovery.sh scan-shas "${GIT_ROOT}" "${baseline_head_sha}" ${task_cycle_files}`
+
+Capture the output lines as `precommitted_shas`.
 
 If `precommitted_shas` is empty after the range scan, fall back to the original HEAD SHA collected
 in the THREE-STEP CHECK above.
