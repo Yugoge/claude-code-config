@@ -46,20 +46,76 @@ def test_AC1():
     WHEN:  the corrected proof-gate predicate (extracted as a callable helper in graphify-maintain.py, e.g. _semantic_promotable / compute_added_semantic_edges) is evaluated on (ast_graph, sem_graph) that have been through the SAME normalization (both via graphify_lib.load_graph)
     THEN:  the predicate returns promotable=True AND added_semantic_edges count == number of signature-distinct valid-confidence sem edges absent from L_ast; the helper is invoked directly in-process (NOT via /dev /close /commit) with synthesized node-link dicts; the OLD node-count-only predicate `sem_nodes > ast_node_count` is GONE
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    #
-    # Assertions to cover (from AC check object):
-    #   - promotable True when >=1 added valid-confidence edge by full-signature set-diff
-    #   - promotable False when L_sem == L_ast (no added edge) even if sem_nodes == ast_nodes
-    #   - promotable False when sem_links has fewer links than ast_links
-    #   - promotable False when an added edge has confidence NOT in {EXTRACTED,INFERRED,AMBIGUOUS}
-    #   - added-edge count equals signature-distinct valid-confidence sem edges absent from L_ast
-    #   - missing-context (codex #5): two links both omitting `context`, otherwise identical, compare EQUAL;
-    #     two links differing ONLY in `context` compare DISTINCT; signature uses link.get('context') and
-    #     canonicalizes non-scalar so the tuple stays hashable
-    #   - same-normalization (codex #4): gate compares AST baseline & sem graph after IDENTICAL normalization;
-    #     a scrub-vs-raw asymmetry must not corrupt the diff
-    #   - grep scripts/graphify-maintain.py shows no `> ast_node_count` predicate remaining
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — proof-gate helper: full 7-tuple edge-signature set-diff + confidence whitelist; node-count predicate gone")
+    gm = _load_maintain()
+
+    # --- POSITIVE: >=1 added valid-confidence edge by full-signature set-diff ---
+    ast = _graph(["x", "y"], [_link("x", "y", conf="EXTRACTED")])
+    sem = _graph(["x", "y"], [
+        _link("x", "y", conf="EXTRACTED"),                      # identical -> not added
+        _link("x", "y", rel="rationale_for", conf="INFERRED"),  # NEW edge
+    ])
+    promotable, counts = gm._semantic_promotable(ast, sem)
+    assert promotable is True
+    assert counts["added_links"] == 1
+    added = gm.compute_added_semantic_edges(ast, sem)
+    assert len(added) == 1 and added[0]["relation"] == "rationale_for"
+
+    # --- NEGATIVE: L_sem == L_ast, no added edge even if node counts equal ---
+    sem_same = _graph(["x", "y"], [_link("x", "y", conf="EXTRACTED")])
+    p, c = gm._semantic_promotable(ast, sem_same)
+    assert p is False and c["added_links"] == 0
+
+    # --- NEGATIVE: sem has FEWER links than ast ---
+    ast2 = _graph(["x", "y"], [_link("x", "y"), _link("x", "y", rel="contains")])
+    sem_fewer = _graph(["x", "y"], [_link("x", "y", rel="rationale_for", conf="INFERRED")])
+    p2, _c2 = gm._semantic_promotable(ast2, sem_fewer)
+    assert p2 is False  # fewer links blocks promotion regardless of an added edge
+
+    # --- NEGATIVE: added edge has confidence OUTSIDE the whitelist ---
+    sem_bad = _graph(["x", "y"], [
+        _link("x", "y", conf="EXTRACTED"),
+        _link("x", "y", rel="rationale_for", conf="GUESSED"),  # invalid confidence
+    ])
+    p3, c3 = gm._semantic_promotable(ast, sem_bad)
+    assert p3 is False and c3["added_links"] == 0
+
+    # --- added-edge count == signature-distinct valid-confidence sem edges absent from L_ast ---
+    sem_multi = _graph(["x", "y", "z"], [
+        _link("x", "y", conf="EXTRACTED"),                       # in ast
+        _link("x", "z", rel="references", conf="INFERRED"),      # new 1
+        _link("y", "z", rel="rationale_for", conf="AMBIGUOUS"),  # new 2
+        _link("y", "z", rel="rationale_for", conf="AMBIGUOUS"),  # dup of new 2 -> not double counted
+    ])
+    p4, c4 = gm._semantic_promotable(ast, sem_multi)
+    assert p4 is True and c4["added_links"] == 2
+
+    # --- missing-context (codex #5): both omit context, otherwise identical -> EQUAL ---
+    ast_noctx = _graph(["x", "y"], [_link("x", "y", ctx=...)])      # no context key
+    sem_noctx = _graph(["x", "y"], [_link("x", "y", ctx=...)])
+    assert gm.compute_added_semantic_edges(ast_noctx, sem_noctx) == []
+
+    # --- two links differing ONLY in context -> DISTINCT ---
+    ast_ctx = _graph(["x", "y"], [_link("x", "y", ctx="alpha")])
+    sem_ctx = _graph(["x", "y"], [
+        _link("x", "y", ctx="alpha"),
+        _link("x", "y", ctx="beta"),  # differs ONLY in context -> added
+    ])
+    added_ctx = gm.compute_added_semantic_edges(ast_ctx, sem_ctx)
+    assert len(added_ctx) == 1 and added_ctx[0]["context"] == "beta"
+
+    # --- non-scalar context stays hashable (canonicalized, no raise) ---
+    sem_obj = _graph(["x", "y"], [_link("x", "y", conf="INFERRED", ctx={"k": [1, 2]})])
+    ast_empty = _graph(["x", "y"], [])
+    added_obj = gm.compute_added_semantic_edges(ast_empty, sem_obj)
+    assert len(added_obj) == 1  # did not raise on unhashable dict context
+
+    # --- same-normalization (codex #4): signature is link-content only; identical
+    #     link sets compare EQUAL regardless of node-list ordering (no scrub-state leak). ---
+    a = _graph(["x", "y", "z"], [_link("x", "y", conf="INFERRED")])
+    b = _graph(["z", "y", "x"], [_link("x", "y", conf="INFERRED")])
+    assert gm.compute_added_semantic_edges(a, b) == []
+
+    # --- old node-count predicate is GONE ---
+    src = (_SCRIPTS / "graphify-maintain.py").read_text(encoding="utf-8")
+    assert "> ast_node_count" not in src
+    assert "ast_node_count" not in src
