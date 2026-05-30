@@ -655,7 +655,7 @@ Capture the output lines as `precommitted_shas`.
 If `precommitted_shas` is empty after the range scan, fall back to the original HEAD SHA collected
 in the THREE-STEP CHECK above.
 
-**Step R2: Derive attributed files**
+**Recovery step 2: Derive attributed files**
 
 Compute `attributed_files` = intersection of `task_cycle_files` with all files changed by any
 SHA in `precommitted_shas`. These are the files from this task cycle that were swept up by the
