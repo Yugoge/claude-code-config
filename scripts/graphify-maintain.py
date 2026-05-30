@@ -162,6 +162,31 @@ def _semantic_promotable(ast_graph: dict, sem_graph: dict) -> tuple[bool, dict]:
     return promotable, counts
 
 
+def _not_promoted_reason(label: str, counts: dict) -> str:
+    """Build an ACCURATE, non-contradictory reason for a NOT-promoted semantic run.
+
+    The reason names the FIRST gate clause that actually failed and always reports
+    the real node/link counts. It must NEVER say "added no new edges" when
+    added_links>0 (that case is a monotonicity failure, not a no-new-edges failure).
+    Clause order mirrors _semantic_promotable: node-monotonicity, then
+    link-monotonicity, then the no-new-signature-edges case.
+    """
+    an, sn = counts["ast_nodes"], counts["sem_nodes"]
+    al, sl = counts["ast_links"], counts["sem_links"]
+    added = counts["added_links"]
+    base = (f"semantic extract via {label} added {added} candidate edge(s) by signature set-diff "
+            f"(ast_nodes={an}, sem_nodes={sn}, ast_links={al}, sem_links={sl})")
+    if sn < an:
+        return (f"{base} but not promoted: semantic node count {sn} < AST node count {an} "
+                f"(node-monotonicity guard)")
+    if sl < al:
+        return (f"{base} but not promoted: semantic link count {sl} < AST link count {al} "
+                f"(link-monotonicity guard)")
+    # monotonicity satisfied -> the blocker is genuinely zero new signature edges
+    return (f"semantic extract via {label} added no new edges by signature set-diff "
+            f"(ast_nodes={an}, sem_nodes={sn}, ast_links={al}, sem_links={sl})")
+
+
 def _run_ast_build(repo: Path, cache_dir: Path, timeout: int) -> tuple[int, str, str]:
     """Run real `graphify update <repo>` (AST). cwd+GRAPHIFY_OUT=cacheDir enforced in lib."""
     return run_graphify_cmd(["update", str(repo)], timeout_seconds=timeout, cache_dir=cache_dir)
