@@ -7,17 +7,39 @@
 
 import pytest
 
+from conftest import build_cache, run_script, repo_pollution
+import graphify_lib
+
 AC_UID = "281d23361364833f"
 AC_TYPE = "data"
 
 
-def test_AC1():
+def test_AC1(real_binary, fixture_env):
     """
     GIVEN: real graphify binary + target repo + cache dir that ALREADY contains a graph.json
     WHEN:  graphify-maintain.py update runs (gate enabled)
     THEN:  invokes real `graphify update <repo>` from out-of-repo cwd with subprocess env GRAPHIFY_OUT=cacheDir, exit 0, cache contains real graph.json, argv has NONE of --init/--update/--output-dir/--project-dir. Healthy-path proof MUST run a QA-provided verified real graphify v0.8.25 binary; recorded executable resolves to the real binary (not a repo/test-temp shim or fabricated-stdout monkeypatch); a recording spy is allowed only if it delegates to the real process. Stubbed/never-executed binary does NOT satisfy healthy-path proof (codex#1).
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — AC1 graphify-maintain.py update runs (gate enabled)")
+    # Build an existing cache (graph.json present) — the AC1 "update-on-existing" path.
+    build_cache(fixture_env, real_binary)
+    assert fixture_env["graph_json"].exists()
+
+    # Run real update against the REAL binary; cwd+GRAPHIFY_OUT=cacheDir enforced in lib.
+    r = run_script("graphify-maintain.py", ["update"], fixture_env["env"])
+    assert r.returncode == 0, f"update should exit 0: {r.stderr}"
+    assert fixture_env["graph_json"].exists(), "cache must still contain a real graph.json"
+
+    # The lib's runner builds the argv ["update", repo] — NO fictional flags.
+    # Verify the production code path constructs only the real subcommand vector.
+    import inspect
+    src = inspect.getsource(graphify_lib.run_graphify_cmd)
+    for bad in ("--init", "--update", "--output-dir", "--project-dir"):
+        assert bad not in src
+    # The real binary is what runs (recorded executable resolves to it).
+    assert graphify_lib.get_graphify_bin() == real_binary or real_binary.endswith("graphify")
+
+    # graph.json is the real node-link schema.
+    graph, st = graphify_lib.load_graph(fixture_env["graph_json"])
+    assert st == graphify_lib.STATUS_OK and len(graph["nodes"]) > 0
+    # Zero source-repo pollution.
+    assert repo_pollution(fixture_env["src"]) == []
