@@ -367,7 +367,7 @@ def _write_outputs(output_dir: Path, task_id: str, run_manifest: dict, subgraph:
         "graph_report": str(output_dir / "graph-report.md"),
     }
 
-    # focused-subgraph.json
+    # focused-subgraph.json (recursively scrubbed of sensitive paths, AC15)
     focused = {
         "status": status,
         "task_id": task_id,
@@ -377,7 +377,7 @@ def _write_outputs(output_dir: Path, task_id: str, run_manifest: dict, subgraph:
     }
     if status == STATUS_SKIPPED:
         focused["skip_reason"] = run_manifest.get("error_detail", "")
-    write_json_locked(output_dir / "focused-subgraph.json", focused)
+    write_json_locked(output_dir / "focused-subgraph.json", scrub_sensitive(focused))
 
     # graph-summary.json
     summary = _build_graph_summary(subgraph, status, run_manifest)
