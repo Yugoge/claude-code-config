@@ -235,7 +235,11 @@ Only proceed to Step 6 when a STRONG signal fires.
      exit 1; }
    VIEWS_AVAILABLE=$(jq -r .views_available <<<"$RESOLVED_JSON")
    ARTIFACT_ID=$(jq -r .artifact_id <<<"$RESOLVED_JSON")
-   EXPECT_ID="${spec_path##*/}"; EXPECT_ID="${EXPECT_ID%.md}"; EXPECT_ID="${EXPECT_ID#spec-}"  # de-prefixed
+   # CONSUME the resolver's own de-prefixed id (candidates[0]) — do NOT re-derive it
+   # inline from the path. candidates[0] is the resolver's first candidate, which is
+   # always the de-prefixed stem (exactly one leading "spec-" stripped). Re-deriving
+   # it by hand (${spec_path##*/}/%.md/#spec-) is the precise prose-drift M4/M9 forbid.
+   EXPECT_ID=$(jq -r '.candidates[0]' <<<"$RESOLVED_JSON")
    if [ "$VIEWS_AVAILABLE" != "true" ] || [ "$ARTIFACT_ID" != "$EXPECT_ID" ]; then
      echo "FINALIZE BLOCKED: resolver did not return views_available=true at the de-prefixed id '$EXPECT_ID'" >&2
      echo "(got views_available=$VIEWS_AVAILABLE artifact_id=$ARTIFACT_ID). The producer must write the split DE-prefixed so /dev can consume it." >&2
