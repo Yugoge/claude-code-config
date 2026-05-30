@@ -5,13 +5,38 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+import sys
+
 import pytest
+
+import graphify_lib
+from conftest import load_script_module, apply_env, graph_dict, link, write_json
 
 AC_UID = "5aa4e0e833b63244"
 AC_TYPE = "data"
 
 
-def test_AC3():
+def _wire(mod, cache_env, ast_nodes=("x", "y"), ast_links=None):
+    """Patch get_graphify_bin + spy run_graphify_cmd so 'update' writes a baseline
+    AST graph.json and 'extract' is recorded (no real binary). Returns recorded[]."""
+    ast_links = ast_links if ast_links is not None else [link("x", "y")]
+    recorded = []
+
+    def spy(args, timeout_seconds, cache_dir):
+        recorded.append({"args": list(args), "timeout": timeout_seconds})
+        if args and args[0] == "update":
+            write_json(cache_env["graph_json"], graph_dict(list(ast_nodes), ast_links))
+            return 0, "", ""
+        # extract: write nothing here (per-test controls promotion) -> retain
+        return 0, "", ""
+
+    mod.get_graphify_bin = lambda: "/fake/graphify"
+    mod.run_graphify_cmd = spy
+    return recorded
+
+
+def test_AC3(cache_env, monkeypatch):
     """
     GIVEN: graphify-maintain.py with a new `semantic [--timeout SECONDS]` subcommand and a new TIMEOUT_SEMANTIC=3600 default in graphify_lib.py (legacy TIMEOUT_SEMANTIC_PROBE=30 RETAINED for AC13)
     WHEN:  `python3 scripts/graphify-maintain.py semantic --timeout 1234` is dispatched (with run_graphify_cmd spied so no real multi-minute extract runs)
