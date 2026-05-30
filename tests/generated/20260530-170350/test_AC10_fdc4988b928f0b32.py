@@ -5,13 +5,27 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+
 import pytest
+
+from conftest import load_script_module, apply_env, graph_dict, link, write_json
 
 AC_UID = "fdc4988b928f0b32"
 AC_TYPE = "data"
 
 
-def test_AC10():
+def _seed_promoted(cache_env, ast_graph):
+    write_json(cache_env["graph_json"], ast_graph)
+    write_json(cache_env["run_manifest"], {
+        "semantic_mode": "semantic:claude-cli",
+        "semantic_backend_probe": "semantic path added 4 new edge(s)",
+        "semantic_added_links": 4,
+        "semantic_added_inferred_or_ambiguous": 2,
+    })
+
+
+def test_AC10(cache_env, monkeypatch):
     """
     GIVEN: a cache whose run-manifest.json records semantic_mode=semantic:<backend> with added-count fields (a prior promotion)
     WHEN:  `python3 scripts/graphify-maintain.py update` runs; cmd_update captures a pre-update snapshot (hash/mtime) of cacheDir/graph.json, then runs the AST update which may (i) succeed+overwrite, (ii) fail/timeout having already mutated graph.json, or (iii) fail/timeout leaving graph.json unchanged
