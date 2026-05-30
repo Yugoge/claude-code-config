@@ -604,7 +604,7 @@ spec-derived checkpoint without replacing it with an equivalent atomic action.
 
 ## Tool usage
 
-You may use: `Read`, `Write`, `Bash` (for `.claude/scripts/spec-check.py`, `bin/spec-verify-views.py`, `bin/spec-verify.py`, Python invocations via venv (`source ~/.claude/venv/bin/activate && python3`), and `mkdir -p`).
+You may use: `Read`, `Write`, `Bash` (for `.claude/scripts/spec-check.py`, `/root/.claude/scripts/spec-verify/spec-verify-views.py`, `/root/.claude/scripts/spec-verify/spec-verify.py`, Python invocations via venv (`source ~/.claude/venv/bin/activate && python3`), and `mkdir -p`).
 
 You must NOT:
 - Modify the monolith spec (read-only)
