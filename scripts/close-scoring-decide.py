@@ -174,8 +174,19 @@ def main(argv: list[str]) -> int:
         raise
 
     qa_ever_rejected = (args.qa_ever_rejected == "true")
-    repo_root = _resolve_repo_root(args.repo_root)
-    close_report_path = repo_root / "docs" / "dev" / f"close-report-{args.task_id}.md"
+    repo_root = _resolve_repo_root(args.repo_root)  # CODE root: hooks/lib/close-verdict.py
+    # PROJECT root owns docs/dev/close-report-*.md and is DISTINCT from the .claude
+    # code root. The historical bug looked only under the code root (script-relative),
+    # so close-reports in the real project were never found. Prefer the project dir;
+    # fall back to repo_root for backward compat with fixture/monorepo callers that
+    # co-locate both. Use the first candidate that exists (else the project-dir path,
+    # so a genuinely-missing report still reports the project location).
+    project_dir = _resolve_project_dir()
+    _candidates = [
+        project_dir / "docs" / "dev" / f"close-report-{args.task_id}.md",
+        repo_root / "docs" / "dev" / f"close-report-{args.task_id}.md",
+    ]
+    close_report_path = next((p for p in _candidates if p.exists()), _candidates[0])
 
     try:
         result, exit_code = decide(close_report_path, qa_ever_rejected, repo_root)
