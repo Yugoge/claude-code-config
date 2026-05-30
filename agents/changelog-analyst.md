@@ -657,7 +657,7 @@ while IFS=' ' read -r sha subject; do
             break
         fi
     done
-done < <(git log --format="%H %s" "${baseline_head_sha}..HEAD" | grep ' auto-bulk:')
+done < <(git log --format="%H %s" "${baseline_head_sha}..HEAD" | awk '{sha=$1; $1=""; sub(/^ /, ""); if (/^auto-bulk:/) print sha}')
 ```
 
 If `precommitted_shas` is empty after the range scan, fall back to the original HEAD SHA collected
