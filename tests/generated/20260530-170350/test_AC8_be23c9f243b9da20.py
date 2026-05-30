@@ -24,9 +24,29 @@ def test_AC8():
     WHEN:  the dev-report / QA-report / any cycle artifact describes the outcome
     THEN:  NO artifact claims 'full-repo semantic working/promoted/completed for this repo (.claude)' UNLESS the full multi-minute `semantic` command was actually run to completion on the .claude repo and produced a real promotion; the small-fixture E2E (AC4) may be claimed as 'fixture semantic completion proven'; the full-repo run is explicitly labeled OPTIONAL/user-triggered when not actually executed
     """
-    # TODO(dev): replace the line below with the real test body.
-    # Assertions to cover:
-    #   - no 'full-repo semantic promoted/completed' claim without a corresponding completed real run on .claude
-    #   - fixture-level claims are scoped to the fixture
-    #   - the full-repo run, if not executed, is labeled OPTIONAL/user-triggered (not asserted as done)
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — honesty audit: no over-claim of full-repo semantic promotion without a real completed .claude run")
+    # The dev-report is the cycle artifact most at risk of over-claiming. If it is
+    # not yet written (test authored before report), the audit is vacuously satisfied
+    # for this run; QA re-runs after the report exists.
+    if not _DEV_REPORT.exists():
+        pytest.skip("dev-report not yet written; honesty audit re-runs once it exists "
+                    "(SKIP neutral — QA Phase 5 re-checks)")
+
+    report = json.loads(_DEV_REPORT.read_text(encoding="utf-8"))
+    blob = json.dumps(report, ensure_ascii=False).lower()
+
+    # If the report claims a full-repo .claude semantic promotion/completion, it MUST
+    # carry an explicit flag that a real full-repo run actually completed.
+    overclaim = re.search(
+        r"full[- ]?repo[^\n]{0,60}semantic[^\n]{0,60}(promoted|completed|working)", blob)
+    if overclaim:
+        full_run = report.get("full_repo_semantic_run", {})
+        assert isinstance(full_run, dict) and full_run.get("completed") is True, (
+            "report claims full-repo semantic promotion/completion but full_repo_semantic_run.completed "
+            "is not True — over-claim forbidden (AC8)")
+
+    # If a full-repo run was NOT executed, it must be labeled optional/user-triggered.
+    full_run = report.get("full_repo_semantic_run", {})
+    if isinstance(full_run, dict) and full_run.get("completed") is not True:
+        label = json.dumps(full_run).lower()
+        assert ("optional" in label or "user-triggered" in label or "pending" in label), (
+            "an un-executed full-repo run must be labeled optional/user-triggered/pending (AC8)")
