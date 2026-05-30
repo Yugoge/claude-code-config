@@ -1,13 +1,14 @@
 # dev-20260530-144032
 
-*Last updated: 2026-05-30T15:32:47Z*
-**Total entries**: 5
+*Last updated: 2026-05-30T15:33:03Z*
+**Total entries**: 6
 **Convention**: kebab
 
 ## Tree
 ```
 dev-20260530-144032/
 ├── `conftest.py` - All fixtures are synchronous git operations in throwaway temp repos — no
+├── `test_edge_cases.py` - multi-owned isolation, and helper existence
 ├── `test_failclosed_ambiguity.py` - Parametrized over the 8 fail-closed cases. Each MUST: exit 10, leave
 ├── `test_happy_path.py` - AC1 (ac_uid 1a7c3f9e0b2d4a61): a whitelisted file with this cycle's owned hunk and
 ├── `test_never_widens.py` - The helper operates on a SINGLE explicit repo-relative file passed by the caller
