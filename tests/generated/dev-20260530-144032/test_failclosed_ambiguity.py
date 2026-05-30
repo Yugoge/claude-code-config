@@ -156,32 +156,83 @@ def test_crlf_mismatch(repo):
 
 
 def test_context_drift_apply_reject(repo):
-    """An owned patch that cannot apply cleanly to the index (already-staged
-    conflicting content) must fail-closed, NOT retry whole-file.
+    """A pre-staged (non-clean index) target must fail-closed, NEVER apply the owned
+    patch on top of unknown staged content and NEVER whole-file fallback.
 
-    We pre-stage a conflicting whole-file change so the owned-only zero-context
-    patch overlaps already-staged content and `git apply --cached` rejects.
+    The clean-index gate catches this BEFORE apply: if the file already has staged
+    content, EXCLUDE. (This converts the codex-flagged 'apply on top of a peer hunk
+    already in the index' fail-open into a deterministic EXCLUDE.)
     """
     repo.write("f.txt", "p\nq\nr\ns\n")
     repo.commit("base")
     snap = repo.write_snapshot("p\nq\nr\ns\n")
     repo.write("f.txt", "p\nq OWNED\nr\ns\n")
     ledger = repo.write_ledger([{"old": "q\n", "new": "q OWNED\n"}])
-    # Pre-stage a DIFFERENT full content for the same region so the index already
-    # holds q's line replaced -> the owned zero-context patch context drifts.
-    repo.write("f.txt", "p\nq OWNED\nr\ns\n")
+    # A peer-like change is ALREADY staged in the index for this file.
+    repo.write("f.txt", "p\nq PEER STAGED\nr\ns\n")
     repo.git("add", "f.txt")
-    # Now mutate the index further so apply against index rejects: stage a version
-    # where the owned line is already different in the index.
-    repo.write("f.txt", "p\nq OWNED MUTATED\nr\ns\n")
-    repo.git("add", "f.txt")
-    # Restore the worktree to the owned-only state for the helper to read.
+    # Restore worktree to the owned-only state.
     repo.write("f.txt", "p\nq OWNED\nr\ns\n")
     rc, err = repo.run_helper("f.txt", ledger, snap)
-    # Either the apply rejects (context drift) or the index already matches; both
-    # must NOT result in a whole-file stage of unattributed content. We assert the
-    # owned line is never lost and no FOREIGN content reaches the index.
-    cached = repo.cached_diff("f.txt")
-    assert "MUTATED" not in cached, "unattributed (peer-like) index content must not be committed via this path"
-    if rc == EXCLUDE:
-        assert "reject" in err.lower() or "drift" in err.lower() or "overlapping" in err.lower()
+    assert rc == EXCLUDE
+    assert "staged content in the index" in err, err
+    # The pre-staged peer content must NOT have been augmented by an owned hunk
+    # applied on top — the file was excluded, so the index is untouched by us.
+    assert "q OWNED" not in repo.cached_diff("f.txt"), \
+        "owned hunk must NOT be applied on top of pre-staged peer content"
+
+
+def test_clean_index_gate_peer_prestaged(repo):
+    """Codex fix #1 regression: a peer hunk pre-staged in the SAME candidate file
+    must never be combined with an owned hunk in the index."""
+    repo.write("f.txt", "1\n2\n3\n4\n")
+    repo.commit("base")
+    snap = repo.write_snapshot("1\n2\n3\n4\n")
+    # Peer staged a change at line 2.
+    repo.write("f.txt", "1\n2 PEER\n3\n4\n")
+    repo.git("add", "f.txt")
+    # This cycle's owned change at line 4 in the worktree.
+    repo.write("f.txt", "1\n2 PEER\n3\n4 OWNED\n")
+    ledger = repo.write_ledger([{"old": "4\n", "new": "4 OWNED\n"}])
+    rc, err = repo.run_helper("f.txt", ledger, snap)
+    assert rc == EXCLUDE
+    assert "staged content in the index" in err
+    # Index must still contain ONLY the peer's pre-staged change (we did not touch
+    # the index), and crucially must NOT contain the owned hunk layered on top.
+    assert "4 OWNED" not in repo.cached_diff("f.txt")
+
+
+def test_duplicate_old_swap_excluded(repo):
+    """Codex fix #2 regression: duplicate old_string values must not let a peer
+    swap/relocation pass the ownership check. snapshot 'slot\\nslot\\n'; dev authored
+    slot->A then slot->B; the worktree is the peer's swap 'B\\nA\\n'. The endpoint
+    recon would falsely match the snapshot, but forward replay is order-sensitive
+    and EXCLUDES."""
+    repo.write("f.txt", "slot\nslot\n")
+    repo.commit("base")
+    snap = repo.write_snapshot("slot\nslot\n")
+    repo.write("f.txt", "B\nA\n")  # peer's swapped arrangement
+    ledger = repo.write_ledger([
+        {"old": "slot\n", "new": "A\n"},
+        {"old": "slot\n", "new": "B\n"},
+    ])
+    rc, err = repo.run_helper("f.txt", ledger, snap)
+    assert rc == EXCLUDE, "duplicate-old swap MUST fail-closed"
+    assert _stage_empty(repo, "f.txt")
+
+
+def test_new_file_excluded(repo):
+    """Codex fix #4 regression: an untracked (new) file is not hunk-stageable via
+    git apply --cached; the helper EXCLUDES rather than emitting a malformed
+    new-file patch. (Genuinely-owned new files go through the caller's whole-file
+    path, never this helper.)"""
+    # base commit so the repo has HEAD; the target is a brand-new untracked file.
+    repo.write("seed.txt", "seed\n")
+    repo.commit("base")
+    snap = repo.write_snapshot("")  # empty pre-edit snapshot (new file)
+    repo.write("new.txt", "owned content\n")
+    ledger = repo.write_ledger([{"old": "", "new": "owned content\n"}])
+    rc, err = repo.run_helper("new.txt", ledger, snap)
+    assert rc == EXCLUDE
+    assert "not tracked in the index" in err
+    assert "new.txt" not in repo.cached_names()
