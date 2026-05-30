@@ -699,7 +699,7 @@ actually occurred in a local variable `PUSH_GATE_WRITTEN`:
   the write — DO NOT rule 7 applies identically here. Set `PUSH_GATE_WRITTEN=false`.
 - Otherwise, write the token normally and set `PUSH_GATE_WRITTEN=true`.
 
-**Step R6: Return status conditional on push-gate write**
+**Recovery step 6: Return status conditional on push-gate write**
 
 If `PUSH_GATE_WRITTEN=true`, return `commit_status: committed` (NOT `nothing_to_commit_precommitted`).
 Optionally include informational fields `"recovery": true` and `"precommitted_shas": [...]`
