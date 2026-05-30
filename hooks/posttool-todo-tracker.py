@@ -98,7 +98,7 @@ def main():
             # Write updated todos back so Phase B reads current state
             # BUT only if count matches canonical — prevents corrupting file with bad data
             # when agent submits wrong number of steps (count hook will handle the error)
-            canonical = run_todo_script(cmd_name, project_dir) if cmd_name != '?' else []
+            canonical = run_todo_script(cmd_name, project_dir, arguments) if cmd_name != '?' else []
             blocking_count = len(canonical) if canonical else 0
             count_ok = blocking_count == 0 or len(todos) >= blocking_count
             if count_ok:
@@ -119,7 +119,7 @@ def main():
                     pass
 
         # Get blocking_count fresh from todo script — never from cache
-        canonical = run_todo_script(cmd_name, project_dir) if cmd_name != '?' else []
+        canonical = run_todo_script(cmd_name, project_dir, arguments) if cmd_name != '?' else []
         blocking_count = len(canonical) if canonical else len(todos)
 
         print(format_checklist('/' + cmd_name, todos, blocking_count))
