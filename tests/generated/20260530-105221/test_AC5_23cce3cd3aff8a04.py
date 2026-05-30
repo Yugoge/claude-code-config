@@ -5,10 +5,15 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+from pathlib import Path
+
 import pytest
 
 AC_UID = "23cce3cd3aff8a04"
 AC_TYPE = "data"
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_AC5():
@@ -17,7 +22,13 @@ def test_AC5():
     WHEN:  inspected
     THEN:  CLAUDE_GRAPHIFY_ENABLED is auto or 1 (not 0); _comment_graphify documents real override env vars (semantic key + cache root; GRAPHIFY_OUT noted wrapper-internal)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — AC5 inspected")
+    settings = json.loads((_REPO_ROOT / "settings.json").read_text(encoding="utf-8"))
+    env = settings.get("env", settings)  # gate may live under env or top-level
+    gate = env.get("CLAUDE_GRAPHIFY_ENABLED")
+    assert gate in ("auto", "1"), f"gate must be auto/1, got {gate!r}"
+    assert gate != "0"
+    comment = env.get("_comment_graphify", "")
+    assert "CLAUDE_GRAPHIFY_CACHE_ROOT" in comment
+    assert ("GEMINI_API_KEY" in comment or "GRAPHIFY_TRIAGE_BACKEND" in comment), (
+        "comment must document a semantic-mode key")
+    assert "GRAPHIFY_OUT" in comment and "wrapper-internal" in comment
