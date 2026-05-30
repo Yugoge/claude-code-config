@@ -119,3 +119,29 @@ def test_AC1():
     src = (_SCRIPTS / "graphify-maintain.py").read_text(encoding="utf-8")
     assert "> ast_node_count" not in src
     assert "ast_node_count" not in src
+
+    # --- F2 regression (QA 20260530-170350): the NOT-promoted reason string must
+    #     name the ACTUAL failed clause + real counts and must NEVER say
+    #     "added no new edges" while added_links > 0. ---
+    # node-monotonicity fail (the real AC4 fixture shape) with added_links=5
+    r_node = gm._not_promoted_reason(
+        "semantic:claude-cli",
+        {"ast_nodes": 6, "sem_nodes": 5, "ast_links": 3, "sem_links": 5, "added_links": 5})
+    assert "added no new edges" not in r_node
+    assert "node count 5 < AST node count 6" in r_node
+    assert "ast_nodes=6" in r_node and "sem_nodes=5" in r_node
+
+    # link-monotonicity fail with added_links>0
+    r_link = gm._not_promoted_reason(
+        "semantic:claude-cli",
+        {"ast_nodes": 6, "sem_nodes": 6, "ast_links": 7, "sem_links": 5, "added_links": 2})
+    assert "added no new edges" not in r_link
+    assert "link count 5 < AST link count 7" in r_link
+
+    # genuinely zero new signature edges (monotonicity satisfied) -> only here may it
+    # say "added no new edges", and it still reports node counts.
+    r_none = gm._not_promoted_reason(
+        "semantic:claude-cli",
+        {"ast_nodes": 6, "sem_nodes": 6, "ast_links": 3, "sem_links": 3, "added_links": 0})
+    assert "added no new edges" in r_none
+    assert "ast_nodes=6" in r_none and "sem_nodes=6" in r_none
