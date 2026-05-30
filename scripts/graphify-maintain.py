@@ -277,18 +277,26 @@ def cmd_update() -> int:
     repo_key = get_repo_key(_PROJECT_DIR)
     print(f"graphify-maintain update: incremental refresh for repo_key={repo_key}", flush=True)
 
+    # Capture a pre-update snapshot so we can prove whether a failed/timed-out
+    # update still mutated graph.json (codex iter #3 / AC10 three-branch reset).
+    pre_snapshot = _graph_snapshot(graph_json_path(_PROJECT_DIR))
+
     start = time.time()
     exit_code, stdout, stderr = _run_ast_build(_PROJECT_DIR, cache_dir, TIMEOUT_UPDATE)
     elapsed = time.time() - start
 
+    # Graph-then-manifest ordering: the graph (if any) is already on disk now;
+    # reconcile maintain's stale semantic_mode AFTER it (codex iter #2).
+    reconcile_reason = _reconcile_after_ast_overwrite(cache_dir, exit_code, pre_snapshot)
+
     if exit_code == 0:
         graph, _ = load_graph(graph_json_path(_PROJECT_DIR))
         print(f"graphify-maintain update: ok in {elapsed:.1f}s "
-              f"({len(graph.get('nodes', []))} nodes)", flush=True)
+              f"({len(graph.get('nodes', []))} nodes); {reconcile_reason}", flush=True)
         _write_run_manifest(cache_dir, repo_key, bin_path, None, "incremental update", verb="update")
         return 0
-    print(f"graphify-maintain update: failed (exit={exit_code}) in {elapsed:.1f}s — advisory, continuing",
-          file=sys.stderr, flush=True)
+    print(f"graphify-maintain update: failed (exit={exit_code}) in {elapsed:.1f}s — advisory, continuing "
+          f"({reconcile_reason})", file=sys.stderr, flush=True)
     return 0  # advisory: always exit 0 so callers are not blocked
 
 
