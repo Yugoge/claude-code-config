@@ -5,10 +5,17 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+import re
+from pathlib import Path
+
 import pytest
 
 AC_UID = "be23c9f243b9da20"
 AC_TYPE = "data"
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_DEV_REPORT = _REPO_ROOT / "docs" / "dev" / "dev-report-20260530-170350.json"
 
 
 def test_AC8():
