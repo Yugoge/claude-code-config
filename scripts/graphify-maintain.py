@@ -449,9 +449,21 @@ def cmd_semantic(timeout_seconds: int = TIMEOUT_SEMANTIC) -> int:
         _write_run_manifest(cache_dir, repo_key, bin_path, "ast_only", reason, verb="semantic")
         return 0
 
-    # 7) Promote: copy the raw extract output to canonical graph.json.
+    # 7) Promote: copy the raw extract output to canonical graph.json ATOMICALLY
+    #    (same-dir temp + os.replace) so a partial/failed write can never corrupt
+    #    or truncate the existing AST graph ("AST never lost", ticket edge-case).
     try:
-        gpath.write_text(extracted.read_text(encoding="utf-8"), encoding="utf-8")
+        payload = extracted.read_text(encoding="utf-8")
+        tmp = gpath.with_suffix(gpath.suffix + ".promote.tmp")
+        try:
+            tmp.write_text(payload, encoding="utf-8")
+            os.replace(str(tmp), str(gpath))  # atomic on POSIX; never a partial file
+        finally:
+            if tmp.exists():
+                try:
+                    tmp.unlink()
+                except Exception:
+                    pass
     except Exception as exc:
         reason = f"semantic graph promote failed: {exc}; AST retained"
         print(f"graphify-maintain semantic: {reason}", flush=True)
