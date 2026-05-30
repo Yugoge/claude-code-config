@@ -641,7 +641,7 @@ Trigger `nothing_to_commit_precommitted` only when ALL THREE conditions hold:
 When all three conditions above hold AND `BULK=false`, do NOT return `nothing_to_commit_precommitted`.
 Instead, execute the following recovery path to produce a task-attributed commit and push-gate token.
 
-**Step R1: Range scan for pre-empted auto-bulk commits**
+**Recovery step 1: Range scan for pre-empted auto-bulk commits**
 
 Scan `baseline_head_sha..HEAD` (not just HEAD) to collect all auto-bulk commits that touched
 task cycle files. `baseline_head_sha` is the value of `git rev-parse HEAD` captured at Phase 1
