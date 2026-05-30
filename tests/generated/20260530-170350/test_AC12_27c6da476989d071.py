@@ -5,13 +5,41 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+
 import pytest
+
+from conftest import load_script_module, apply_env, graph_dict, link, write_json, repo_pollution
 
 AC_UID = "27c6da476989d071"
 AC_TYPE = "data"
 
 
-def test_AC12():
+def _mod_with_stale(cache_env, ast_graph, stale_sem, extract_behavior, baseline_ok=True):
+    """Prepopulate a stale graphify-out/graph.json; spy so 'update' writes the AST
+    baseline (or fails) and 'extract' behaves per extract_behavior(cache_env)."""
+    write_json(cache_env["extract_out"], stale_sem)  # stale prior extract output
+    mod = load_script_module("graphify-maintain.py", f"gm_ac12_{id(extract_behavior)}")
+    mod.get_graphify_bin = lambda: "/fake/graphify"
+    seen = {"extract_present_at_call": None}
+
+    def spy(args, timeout_seconds, cache_dir):
+        if args and args[0] == "update":
+            if baseline_ok:
+                write_json(cache_env["graph_json"], ast_graph)
+                return 0, "", ""
+            return -1, "", "baseline update timeout"
+        if args and args[0] == "extract":
+            # Record whether the stale file was cleared BEFORE extract ran.
+            seen["extract_present_at_call"] = cache_env["extract_out"].exists()
+            return extract_behavior(cache_env)
+        return 0, "", ""
+
+    mod.run_graphify_cmd = spy
+    return mod, seen
+
+
+def test_AC12(cache_env, monkeypatch):
     """
     GIVEN: a controlled cache where <cacheDir>/graphify-out/graph.json is PRE-POPULATED with a stale prior-extract semantic graph (carrying added valid-confidence edges vs the AST baseline), and cmd_semantic is invoked with run_graphify_cmd spied so the CURRENT extract either (a) exits nonzero, (b) times out, or (c) does not produce a fresh output; also the case where the initial AST baseline `update` fails/times out or leaves canonical graph.json missing/unparseable
     WHEN:  cmd_semantic runs its pre-extract clear-then-extract sequence and evaluates whether to promote
