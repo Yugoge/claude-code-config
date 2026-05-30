@@ -744,6 +744,7 @@ multi-repo setups).
 | `staging_error` | `git add` failed for one or more files in the classified set. | No |
 | `hook_blocked` | A non-grant PreToolUse hook (e.g. `pretool-bash-safety.sh`) blocked the commit command. | No |
 | `scope_violation` | The staged file set contained files outside the authorized task cycle scope. | No |
+| `push_gate_collision` | recovery commit succeeded but push-gate token write was skipped due to session collision (DO NOT rule 7) | No |
 
 ### Output schema
 
