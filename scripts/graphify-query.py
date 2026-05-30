@@ -2,13 +2,18 @@
 """
 graphify-query.py — deterministic pre-BA graph hydrator (runs between Step 1 and Step 2).
 
-Extracts file/concept mentions from user requirement text using 3-layer extraction:
-  Layer 1 — deterministic rules (file extensions, path separators, known prefixes)
-  Layer 2 — repo alias index (basename -> full path lookup from graph cache)
-  Layer 3 — graph/fuzzy query via graphify CLI
+Drives the REAL `graphify` v0.8.25 CLI. Builds structural_context for BA from:
+  Layer 1 — deterministic file/path mention extraction from the requirement text
+  Layer 2 — node-link graph.json read (the DETERMINISTIC primary signal): edges
+            are under `links` with source/target/relation; sensitive nodes/links
+            are scrubbed ON READ (AC15)
+  Layer 3 — real `graphify query "<anchor>" --graph <cacheDir/graph.json> --budget N`
+            enrichment layered on top; its real stdout is consumed (and scrubbed)
+            into structural_context. A query failure/timeout degrades to the
+            graph.json-only signal (advisory, exit 0) but the call MUST be
+            attempted when an anchor is present (AC2).
 
-Queries the global Graphify cache (read-only) and returns structural_context
-(800-1500 tokens, hard cap 2000). Output is written to:
+Output (≤2000 tokens, advisory, fail-open):
   .claude/dev-registry/{task_id}/graphify/pre_query.json
 
 Usage:
@@ -17,10 +22,10 @@ Usage:
 Feature flags:
   CLAUDE_GRAPHIFY_ENABLED=0  — exits immediately with status=skipped
   GRAPHIFY_BIN               — override CLI path
-  CLAUDE_GRAPHIFY_CACHE_ROOT — override /var/tmp/claude-graphify
+  CLAUDE_GRAPHIFY_CACHE_ROOT — override /var/tmp/claude-graphify (must be outside repo)
 
 Exit codes:
-  0 — success (even if status=unavailable/skipped — advisory)
+  0 — always advisory (even status=unavailable/skipped/degraded)
   1 — hard error (cannot write output file)
 """
 
@@ -32,14 +37,16 @@ import sys
 import time
 from pathlib import Path
 
-_PROJECT_DIR = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
+_PROJECT_DIR = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())).resolve()
 sys.path.insert(0, str(_PROJECT_DIR / "scripts"))
 
 from graphify_lib import (
     STATUS_OK, STATUS_DEGRADED, STATUS_UNAVAILABLE, STATUS_SKIPPED,
-    EXCLUDE_FRAGMENTS,
-    check_cache_available, empty_graph_context, get_cache_root, get_repo_key,
-    is_graphify_enabled, run_graphify_cmd, should_exclude_path, write_json_locked,
+    EXCLUDE_FRAGMENTS, TIMEOUT_QUERY,
+    check_cache_available, contains_sensitive_fragment, empty_graph_context,
+    get_cache_dir, get_repo_key, graph_json_path, is_graphify_enabled,
+    load_graph, run_graphify_cmd, scrub_sensitive, should_exclude_path,
+    write_json_locked,
 )
 
 # Implicit reference trigger words that signal ambiguity — per spec §5
