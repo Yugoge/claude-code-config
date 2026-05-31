@@ -5,10 +5,24 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import importlib.util
+import re
+from pathlib import Path
+
 import pytest
 
 AC_UID = "a7837203f68af49f"
 AC_TYPE = "data"
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_DEV_PY = _REPO_ROOT / "scripts" / "todo" / "dev.py"
+
+
+def _load_get_todos():
+    spec = importlib.util.spec_from_file_location("_dev_todo_b1", _DEV_PY)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.get_todos
 
 
 def test_AC_B1():
