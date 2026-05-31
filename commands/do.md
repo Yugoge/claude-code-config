@@ -3,7 +3,19 @@ description: Allow main agent to bypass orchestrator-gate restrictions for this 
 disable-model-invocation: true
 ---
 
-(hook-only command; body is not injected because of `disable-model-invocation: true`. This line exists so the body is never empty — see commands/dev-command.md for the empty-body API-400 lesson.)
+(hook-only: `disable-model-invocation: true` suppresses a standalone AI turn, but the body IS injected into context. This line exists so the body is never empty — see commands/dev-command.md for the empty-body API-400 lesson.)
+
+## --codex flag
+
+If `$ARGUMENTS` starts with `--codex`, strip the flag and treat the remainder as the task prompt:
+
+```
+TASK = $ARGUMENTS with "--codex" prefix removed (trimmed)
+```
+
+Invoke `Skill(name: "codex", args: TASK)`. After codex completes, write the do-report and `/close` as normal.
+
+If `$ARGUMENTS` is exactly `--codex` with no further text, ask the user for the task prompt before proceeding.
 
 ## Before /close: write do-report
 
