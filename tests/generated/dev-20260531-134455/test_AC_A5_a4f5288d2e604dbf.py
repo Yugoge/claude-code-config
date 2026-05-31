@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_A5():
-    """
+    r"""
     GIVEN: an ok or degraded focused-subgraph.json artifact produced by graphify-enrich.py (the normal extracted-subgraph path)
     WHEN:  validated against schemas/graphify-focused-subgraph.v1.json
     THEN:  it passes; old keys nodes/edges/module_boundaries present with unchanged item shapes; new keys (impact_files/orientation_mode/expansion_stats) optional/additive; schema version unchanged. SCOPE NOTE (codex #4): this AC covers ONLY ok/degraded artifacts. The schema status enum is [ok,degraded,skipped] and the code writes status='unavailable' (graphify_lib.STATUS_UNAVAILABLE) into the focused-subgraph artifact on the unavailable branch (graphify-enrich.py:260), so a literal v1 validation of an unavailable/skipped fail-open artifact is NOT expected to pass the enum and is out of this AC's scope (...

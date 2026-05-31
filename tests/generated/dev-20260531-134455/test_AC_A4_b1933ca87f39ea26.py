@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_A4():
-    """
+    r"""
     GIVEN: a seed plus more than MAX_NODES (100) neighbor nodes
     WHEN:  _build_deterministic_subgraph runs repeatedly
     THEN:  the seed is present and ordered before neighbors; len(nodes)<=100 and len(edges)<=200; repeated calls produce byte-identical JSON; expansion_stats.truncated is set; seeds never evicted by neighbors unless seed count alone exceeds MAX_NODES

@@ -33,6 +33,25 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Sequence
+
+# --- R1 reverse-blast-radius contract (design-input-dev-20260531-134455 lines 26-75) ---
+# Orientation is empirically validated on the real Applio graph (37 AST import pairs,
+# 100% importer_to_imported): graphify edges are source=depender, target=dependency.
+# Therefore reverse dependents of a seed X = links where target == X.
+ORIENTATION_MODE = "source_depender_target_dependency"
+# Coupling relations that constitute real blast radius (used for BOTH reverse-dependent
+# selection by target==seed AND forward-dependency context by source==seed).
+REVERSE_DEPENDENT_RELATIONS = frozenset(
+    {"imports", "imports_from", "calls", "inherits", "uses", "re_exports"}
+)
+# `contains` is file->symbol containment: NOT coupling, anchor-only.
+CONTAINS_RELATIONS = frozenset({"contains"})
+MAX_NODES = 100
+MAX_EDGES = 200
+MAX_IMPACT_FILES = 25
+MAX_IDS_PER_IMPACT_FILE = 5
+MAX_LABELS_PER_IMPACT_FILE = 3
 
 _PROJECT_DIR = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())).resolve()
 sys.path.insert(0, str(_PROJECT_DIR / "scripts"))

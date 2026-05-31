@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_B3():
-    """
+    r"""
     GIVEN: scripts/todo/dev-command.py after the renumber
     WHEN:  get_todos() runs
     THEN:  (mirrors AC-B1 strength for the sibling generator, codex #6 / objection 5) every item's content AND activeForm begins with a continuous integer 'Step N:' prefix (N=1..16, no gaps, no decimals); the total item count == 16; no item label is the non-integer string 'graphify-preBA'/'graphify-enrich'; the two graphify items are numbered in their existing positions. dev-command.py already uses bare '(advisory)' content (no 'between Step N' parentheticals) so no content-string rewrite is needed beyond the label-to-integer change.

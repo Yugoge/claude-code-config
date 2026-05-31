@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_A1():
-    """
+    r"""
     GIVEN: a synthetic graph.json with incoming imports/imports_from/calls/inherits/uses/re_exports edges to a seed node
     WHEN:  _build_deterministic_subgraph runs with that seed
     THEN:  reverse dependents are selected ONLY by target==seed for the six coupling relations; each dependent (edge source) appears in both edges and impact_files grouped by its source_file

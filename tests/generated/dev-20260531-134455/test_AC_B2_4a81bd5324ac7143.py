@@ -12,7 +12,7 @@ AC_TYPE = "hook"
 
 
 def test_AC_B2():
-    """
+    r"""
     GIVEN: the renumbered scripts/todo/dev.py
     WHEN:  a TodoWrite array byte-identical to get_todos() output is validated by hooks/lib/todo_canonical.py validate_against_canonical('dev', todos)
     THEN:  zero violations returned (count + content + activeForm all match — no generator/hook drift)

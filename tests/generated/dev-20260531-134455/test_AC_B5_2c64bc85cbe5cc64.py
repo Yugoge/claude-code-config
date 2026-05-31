@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_B5():
-    """
+    r"""
     GIVEN: the post-fix repo
     WHEN:  tests/generated/20260529-080709/test_AC_F2 and tests/generated/20260527-132200/test_AC6 run
     THEN:  both PASS (required 'between Step 7 and Step 8' prose untouched; no decimal headings introduced)

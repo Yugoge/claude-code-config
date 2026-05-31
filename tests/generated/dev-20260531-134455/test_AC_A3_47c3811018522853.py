@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_A3():
-    """
+    r"""
     GIVEN: forward edges source==seed for the six relations
     WHEN:  _build_deterministic_subgraph runs
     THEN:  forward edges appear in nodes/edges as context but never in impact_files

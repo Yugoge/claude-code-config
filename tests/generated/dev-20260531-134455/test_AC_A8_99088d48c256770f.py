@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_A8():
-    """
+    r"""
     GIVEN: the advisory fail-open paths of graphify-enrich.py (branch-split per codex #3 / #8: the disabled branch :230-235 returns 0 WITHOUT calling _patch_context, so it emits no graph_context; the nil-map :241-248, unavailable :257-263, and builder-exception branches DO call _patch_context; and _patch_conte...
     WHEN:  graphify-enrich.py main() runs on each fail-open branch
     THEN:  (i) DISABLED branch (--no-graphify or CLAUDE_GRAPHIFY_ENABLED=0): exit 0 and the existing no-patch behavior is preserved (graph_context ABSENT is acceptable; the AC does NOT require advisory:True here). (ii) NIL-MAP / UNAVAILABLE / BUILDER-EXCEPTION branches WITH an existing --context-file: exit 0 AND the patched context-file's graph_context.advisory == True (empty_graph_context sets advisory:True, graphify_lib.py:474). WITHOUT a --context-file (or it does not exist): exit-0 / never-block is sufficient and no graph_context is written. Old fields stay valid; DEV is never blocked on any branch.

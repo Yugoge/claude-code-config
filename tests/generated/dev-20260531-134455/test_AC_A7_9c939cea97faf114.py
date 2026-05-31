@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_A7():
-    """
+    r"""
     GIVEN: a subgraph
     WHEN:  _build_graph_summary runs
     THEN:  the summary includes ONLY scalars impact_file_count, orientation_mode, and truncated flags; it MUST NOT embed the full impact_files[] list (codex #5)

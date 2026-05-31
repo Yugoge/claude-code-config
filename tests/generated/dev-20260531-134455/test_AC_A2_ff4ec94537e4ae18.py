@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_A2():
-    """
+    r"""
     GIVEN: a contains edge incident to a seed and a contains edge not incident to any seed
     WHEN:  _build_deterministic_subgraph runs
     THEN:  only the seed-incident contains edge is emitted (anchor-only); no contains edge contributes to impact_files or creates a reverse dependent

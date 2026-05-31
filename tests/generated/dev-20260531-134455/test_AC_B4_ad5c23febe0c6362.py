@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_B4():
-    """
+    r"""
     GIVEN: the post-fix repo
     WHEN:  (1) tests/scripts/validate-step-numbering.py --project-root . is INVOKED as a subprocess, AND (2) scripts/todo/dev.py + scripts/todo/dev-command.py are grepped for 'Step \d+\.\d+'
     THEN:  the validator the AC names actually runs and reports pass (exit 0), and zero decimal step labels exist in the generator outputs and the commands/*.md validator surface. SCOPE NOTE (codex #2 / objection 6): the AC text is deliberately scoped to 'the generator outputs and the commands/*.md validator surface' rather than the overbroad 'anywhere' — validate-step-numbering.py scans ONLY commands/*.md (validate-step-numbering.py:52), and the decimal labels in docs/reference/graphify-integration.md are covered separately by AC-A9, NOT by this validator.

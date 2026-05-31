@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_A6():
-    """
+    r"""
     GIVEN: a non-empty subgraph
     WHEN:  _build_graph_context_patch runs
     THEN:  the emitted graph_context includes impact_files, orientation_mode, and expansion_stats (arch-A1: DEV actually sees the new signal)

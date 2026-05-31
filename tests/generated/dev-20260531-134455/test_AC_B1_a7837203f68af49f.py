@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_B1():
-    """
+    r"""
     GIVEN: scripts/todo/dev.py after the renumber
     WHEN:  get_todos() runs
     THEN:  every item's content and activeForm begins with a continuous integer 'Step N:' prefix (N=1..17, no gaps, no decimals); the two graphify items are numbered in their existing positions; no item is unnumbered; AND the two graphify content strings do NOT retain stale 'between Step N and Step N+1' parentheticals (codex #2 / objection 3): the pre-BA item (which becomes Step 2) and the enrichment item (which becomes Step 9) must drop the embedded '(advisory, between Step 1 and Step 2)' / '(advisory, between Step 7 and Step 8)' phrasing in favour of plain '(advisory)' so the generated item is self-con...

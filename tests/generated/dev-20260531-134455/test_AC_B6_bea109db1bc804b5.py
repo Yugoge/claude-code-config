@@ -12,7 +12,7 @@ AC_TYPE = "data"
 
 
 def test_AC_B6():
-    """
+    r"""
     GIVEN: the renumbered generators
     WHEN:  python3 scripts/todo/dev.py and python3 scripts/todo/redev.py run
     THEN:  both emit valid JSON with the new continuous integer sequence; redev.py inherits it via 'from dev import get_todos'
