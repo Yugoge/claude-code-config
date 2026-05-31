@@ -12,7 +12,7 @@ Usage:
   python3 scripts/graphify-maintain.py init               # cold-start full build (user-triggered, <=300s)
   python3 scripts/graphify-maintain.py update             # incremental refresh (advisory, <=60s)
   python3 scripts/graphify-maintain.py semantic [--timeout SECONDS]  # user-triggered semantic extract (<=3600s)
-  python3 scripts/graphify-maintain.py ensure-async       # non-blocking auto-init: launch a background full build if no cached graph exists (used by /dev Step 1.5)
+  python3 scripts/graphify-maintain.py ensure-async       # non-blocking auto-init: launch a background full build if no cached graph exists (used by /dev pre-BA hydrator, between Step 1 and Step 2)
   python3 scripts/graphify-maintain.py status             # show real cache state + semantic mode
 
 init / update both run real `graphify update <repo>` (AST-only) and stay fast;
