@@ -499,7 +499,9 @@ def main() -> int:
 
     # Step 3: build the deterministic focused subgraph (PRIMARY signal, AC3 b / AC14).
     try:
-        subgraph = _build_deterministic_subgraph(graph, set(resolved_node_ids))
+        # Pass the ORDERED resolved id list (NOT a set) so seed order reaches the
+        # builder intact — seed-first node assembly requires it (AC-A4 seed-drop fix).
+        subgraph = _build_deterministic_subgraph(graph, resolved_node_ids)
         status = STATUS_OK if (subgraph["nodes"] or not resolved_node_ids) else STATUS_DEGRADED
     except Exception as exc:
         subgraph = {"nodes": [], "edges": [], "module_boundaries": []}
