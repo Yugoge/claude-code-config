@@ -379,6 +379,10 @@ def _build_graph_context_patch(subgraph: dict, status: str, task_id: str,
         # REAL translated machine-readable fields (AC14): id+label+source_file / source+target+relation.
         "nodes": nodes,
         "edges": edges,
+        # R1 additive blast-radius signal (AC-A6): full impact list reaches DEV here.
+        "impact_files": subgraph.get("impact_files", []),
+        "orientation_mode": subgraph.get("orientation_mode", ORIENTATION_MODE),
+        "expansion_stats": subgraph.get("expansion_stats", {}),
         "resolved_node_ids": resolved_node_ids,
         "unresolved_paths": unresolved_paths,
         "affected_cli_status": affected_cli_status,
