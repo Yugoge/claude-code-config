@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _enrich_helper import load_enrich
 
 AC_UID = "ff4ec94537e4ae18"
 AC_TYPE = "data"
@@ -17,7 +17,28 @@ def test_AC_A2():
     WHEN:  _build_deterministic_subgraph runs
     THEN:  only the seed-incident contains edge is emitted (anchor-only); no contains edge contributes to impact_files or creates a reverse dependent
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — only the seed-incident contains edge is emitted (anchor-only); no contains edge contribute...")
+    mod = load_enrich()
+    graph = {
+        "nodes": [
+            {"id": "seed", "label": "seed", "source_file": "seed.py"},
+            {"id": "sym", "label": "sym", "source_file": "seed.py"},
+            {"id": "other", "label": "other", "source_file": "other.py"},
+            {"id": "othersym", "label": "othersym", "source_file": "other.py"},
+        ],
+        "links": [
+            # contains incident to the seed -> anchor, kept.
+            {"source": "seed", "target": "sym", "relation": "contains"},
+            # contains NOT incident to any seed -> dropped entirely.
+            {"source": "other", "target": "othersym", "relation": "contains"},
+        ],
+    }
+    sg = mod._build_deterministic_subgraph(graph, ["seed"])
+
+    contains_edges = [e for e in sg["edges"] if e["relation"] == "contains"]
+    assert contains_edges == [{"source": "seed", "target": "sym", "relation": "contains"}]
+    # Non-anchor contains absent.
+    assert not any(e["source"] == "other" for e in sg["edges"])
+    # contains never contributes to impact_files / never creates a reverse dependent.
+    assert sg["impact_files"] == []
+    assert sg["expansion_stats"]["reverse_edge_count"] == 0
+    assert sg["expansion_stats"]["contains_anchor_edge_count"] == 1
