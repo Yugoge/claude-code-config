@@ -12,6 +12,7 @@ Usage:
   python3 scripts/graphify-maintain.py init               # cold-start full build (user-triggered, <=300s)
   python3 scripts/graphify-maintain.py update             # incremental refresh (advisory, <=60s)
   python3 scripts/graphify-maintain.py semantic [--timeout SECONDS]  # user-triggered semantic extract (<=3600s)
+  python3 scripts/graphify-maintain.py ensure-async       # non-blocking auto-init: launch a background full build if no cached graph exists (used by /dev Step 1.5)
   python3 scripts/graphify-maintain.py status             # show real cache state + semantic mode
 
 init / update both run real `graphify update <repo>` (AST-only) and stay fast;
@@ -640,6 +641,78 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def cmd_ensure_async() -> int:
+    """Non-blocking auto-init for the /dev workflow.
+
+    If no usable cached graph exists, launch a DETACHED background full `init`
+    build so the graph is ready for the NEXT /dev run, then return IMMEDIATELY.
+    This NEVER blocks /dev (R-7: a full build is ~77s-minutes and must not stall
+    the pipeline). Strictly advisory: any error/condition yields a clean exit 0.
+
+    Concurrency- and re-hammer-safe via a staleness-bounded lock
+    (`<cacheDir>/.autoinit.lock`): at most one background build per
+    TIMEOUT_INIT+buffer window, even across parallel /dev sessions. Once the
+    build finishes, the graph-present short-circuit (step 1) makes every
+    subsequent call a no-op, so the lock needs no explicit cleanup.
+    """
+    try:
+        if not is_graphify_enabled():
+            print("graphify-maintain ensure-async: disabled (CLAUDE_GRAPHIFY_ENABLED=0) — no-op", flush=True)
+            return 0
+        if not get_graphify_bin():
+            print("graphify-maintain ensure-async: GRAPHIFY_BIN absent — no-op", flush=True)
+            return 0
+        if _refuse_if_cache_inside_repo("ensure-async"):
+            return 0
+
+        cache_dir = get_cache_dir(_PROJECT_DIR)
+        gpath = graph_json_path(_PROJECT_DIR)
+
+        # 1) Graph already present + usable -> nothing to do (covers "build finished").
+        graph, st = load_graph(gpath)
+        if st == STATUS_OK and len(graph.get("nodes", [])) > 0:
+            print("graphify-maintain ensure-async: cached graph present — no auto-init needed", flush=True)
+            return 0
+
+        # 2) Staleness-bounded lock: prevents duplicate/concurrent builds and
+        #    re-hammering a failed build. Window = full-build budget + buffer.
+        lock = cache_dir / ".autoinit.lock"
+        window = TIMEOUT_INIT + 120
+        try:
+            if lock.exists() and (time.time() - lock.stat().st_mtime) < window:
+                print("graphify-maintain ensure-async: background auto-init already in progress/backoff — no-op",
+                      flush=True)
+                return 0
+        except OSError:
+            pass
+
+        # 3) Launch a DETACHED background `init`; return immediately (non-blocking).
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            lock.write_text(f'{{"launcher_pid": {os.getpid()}, "at": "{_now_iso()}"}}\n', encoding="utf-8")
+        except OSError:
+            pass
+        import subprocess as _sp
+        log_path = cache_dir / "autoinit.log"
+        try:
+            logf = open(log_path, "ab")
+        except OSError:
+            logf = _sp.DEVNULL
+        proc = _sp.Popen(
+            [sys.executable, str(_PROJECT_DIR / "scripts" / "graphify-maintain.py"), "init"],
+            stdout=logf, stderr=logf, stdin=_sp.DEVNULL,
+            start_new_session=True,  # detach so it survives the /dev turn and never blocks
+            cwd=str(_PROJECT_DIR), env=os.environ.copy(),
+        )
+        print(f"graphify-maintain ensure-async: no cached graph — launched background init "
+              f"(pid={proc.pid}, log={log_path}); /dev proceeds NOW, graph ready next run", flush=True)
+        return 0
+    except Exception as exc:
+        # Auto-init is strictly advisory — never block /dev on any failure.
+        print(f"graphify-maintain ensure-async: advisory no-op ({exc})", file=sys.stderr, flush=True)
+        return 0
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -663,7 +736,9 @@ if __name__ == "__main__":
         sys.exit(cmd_semantic(timeout_seconds=ns.timeout))
     elif subcmd == "status":
         sys.exit(cmd_status())
+    elif subcmd == "ensure-async":
+        sys.exit(cmd_ensure_async())
     else:
-        print(f"Unknown subcommand: {subcmd!r}. Use init, update, semantic, or status.",
+        print(f"Unknown subcommand: {subcmd!r}. Use init, update, semantic, ensure-async, or status.",
               file=sys.stderr)
         sys.exit(2)
