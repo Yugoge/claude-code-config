@@ -113,7 +113,7 @@ python3 scripts/graphify-maintain.py semantic [--timeout SECONDS]   # default 36
 
 ### Source-of-truth reconciliation
 
-Maintain's `run-manifest.json` `semantic_mode` is the authoritative semantic-state record; the on-disk `graph.json` is the authoritative graph — they must not diverge. Any AST overwrite of `graph.json` (maintain's `update` AND `graphify-enrich.py`'s Step-1 update at Step 7.5) resets `semantic_mode` back to `ast_only` via the shared `graphify_lib.reset_semantic_mode_in_manifest(cache_dir)` helper whenever the graph was actually mutated, so `status` can never report a stale `semantic:<backend>` for a graph that is now AST-only.
+Maintain's `run-manifest.json` `semantic_mode` is the authoritative semantic-state record; the on-disk `graph.json` is the authoritative graph — they must not diverge. Any AST overwrite of `graph.json` (maintain's `update` AND `graphify-enrich.py`'s Step-1 update during graphify enrichment, between Step 7 and Step 8) resets `semantic_mode` back to `ast_only` via the shared `graphify_lib.reset_semantic_mode_in_manifest(cache_dir)` helper whenever the graph was actually mutated, so `status` can never report a stale `semantic:<backend>` for a graph that is now AST-only.
 
 **AST-only quality caveat**: on prompt/config-heavy repos, AST-only blast-radius signal can be weak (high builtin/noise ratio). Semantic mode materially improves it but is environment-gated and user-triggered.
 
