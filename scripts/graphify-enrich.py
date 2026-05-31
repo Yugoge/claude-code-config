@@ -341,11 +341,21 @@ def _run_real_affected(node_id: str, graph_file: Path, cache_dir: Path) -> dict:
 
 
 def _build_graph_summary(subgraph: dict, status: str, run_manifest: dict) -> dict:
-    """Build compact graph-summary.json."""
+    """Build compact graph-summary.json.
+
+    R1 additive fields are SCALARS ONLY (AC-A7, codex #5): impact_file_count,
+    orientation_mode, and the truncated{...} flags. The full impact_files[] list
+    MUST NOT be embedded here — it lives only on the focused-subgraph artifact and
+    the DEV-facing graph_context patch, to keep graph-summary.json compact.
+    """
+    stats = subgraph.get("expansion_stats", {}) or {}
     return {
         "status": status,
         "node_count": len(subgraph.get("nodes", [])),
         "edge_count": len(subgraph.get("edges", [])),
+        "impact_file_count": len(subgraph.get("impact_files", [])),
+        "orientation_mode": subgraph.get("orientation_mode", ORIENTATION_MODE),
+        "truncated": stats.get("truncated", {}),
         "update_run": run_manifest.get("update_run", {}),
         "generated_at": _now_iso(),
     }
