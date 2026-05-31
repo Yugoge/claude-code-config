@@ -112,53 +112,208 @@ def _collect_modified_paths(blast_radius_map: dict) -> list[str]:
     return list(dict.fromkeys(paths))
 
 
-def _build_deterministic_subgraph(graph: dict, resolved_ids: set[str]) -> dict:
-    """Build the focused subgraph from graph.json nodes+links around resolved ids.
+def _build_deterministic_subgraph(graph: dict, resolved_node_ids: Sequence[str]) -> dict:
+    """Build the R1 reverse-blast-radius focused subgraph from graph.json.
 
-    PRIMARY signal (AC3 b). Emits REAL translated fields per AC14: each node carries
-    id+label+source_file; each edge carries source+target+relation (verbatim from
-    the node-link graph.json link). Includes 1-hop neighbours of the resolved ids.
+    PRIMARY signal (AC3 b). The DOMINANT blast-radius signal injected into DEV's
+    graph_context. ONE hop only — directional, relation-filtered, file-aggregated.
+
+    Orientation (validated, ORIENTATION_MODE): graphify edges are
+    source=depender, target=dependency. So the IMPACT set (who is affected when a
+    seed changes) is the REVERSE dependents = links where target == seed AND
+    relation in REVERSE_DEPENDENT_RELATIONS; the dependent is the edge source.
+
+    Sections, in deterministic emission order:
+      1. Seeds in resolved order (deduped, missing/sensitive dropped). Seeds are
+         emitted BEFORE neighbours so the MAX_NODES cap can never evict a seed
+         unless the seed count alone exceeds the cap. `resolved_node_ids` MUST be an
+         ORDERED sequence (NOT a set) — a set at the call site destroys seed order.
+      2. `contains` anchors: a `contains` edge is included ONLY when directly
+         incident to a seed (source==seed or target==seed). Anchor-only: it never
+         creates a reverse dependent, never appears in impact_files, never recurses.
+      3. Reverse dependents (impact): target==seed coupling edges; source = dependent.
+      4. Forward dependencies (context only): source==seed coupling edges; never impact.
+
+    Additive return fields (back-compat, no schema bump): impact_files,
+    orientation_mode, expansion_stats. Legacy keys nodes/edges/module_boundaries and
+    their item shapes (node={id,label,source_file}; edge={source,target,relation})
+    are preserved verbatim.
     """
     all_nodes = {n.get("id"): n for n in graph.get("nodes", []) if n.get("id")}
     links = graph.get("links", [])
 
-    # Seed set = resolved ids; expand to 1-hop neighbours via links.
-    keep_ids = set(resolved_ids)
-    edges_out = []
-    for l in links:
-        src, tgt, rel = l.get("source"), l.get("target"), l.get("relation")
-        if src in resolved_ids or tgt in resolved_ids:
-            keep_ids.add(src)
-            keep_ids.add(tgt)
-            edge = {"source": src, "target": tgt, "relation": rel}
-            if not should_exclude_path(json.dumps(edge)):
-                edges_out.append(edge)
-
-    nodes_out = []
-    for nid in keep_ids:
+    def _node_allowed(nid: str) -> bool:
         n = all_nodes.get(nid)
         if not n:
+            return False
+        if should_exclude_path(n.get("source_file", "")) or should_exclude_path(n.get("label", "")):
+            return False
+        return True
+
+    # --- Section 1: ordered, deduped, valid seeds (preserve resolved order) ---
+    seed_count = 0
+    valid_seeds: list[str] = []
+    seen_seed = set()
+    for nid in resolved_node_ids:
+        seed_count += 1
+        if nid in seen_seed:
             continue
+        seen_seed.add(nid)
+        if _node_allowed(nid):
+            valid_seeds.append(nid)
+    valid_seed_count = len(valid_seeds)
+    missing_seed_count = len(seen_seed) - valid_seed_count
+    seed_set = set(valid_seeds)
+
+    # --- Scan links once into the four directional buckets ---
+    contains_anchor_edges: list[dict] = []   # contains incident to a seed (anchor-only)
+    reverse_edges: list[dict] = []           # target==seed coupling (impact)
+    forward_edges: list[dict] = []           # source==seed coupling (context only)
+
+    def _edge_ok(src: str, tgt: str, rel: str) -> bool:
+        # Preserve the existing sensitive-path guard (pre_existing_guard line 115).
+        return not should_exclude_path(json.dumps({"source": src, "target": tgt, "relation": rel}))
+
+    for l in links:
+        src, tgt, rel = l.get("source"), l.get("target"), l.get("relation")
+        if not src or not tgt:
+            continue
+        if rel in CONTAINS_RELATIONS:
+            if (src in seed_set or tgt in seed_set) and _edge_ok(src, tgt, rel):
+                contains_anchor_edges.append({"source": src, "target": tgt, "relation": rel})
+            continue
+        if rel in REVERSE_DEPENDENT_RELATIONS:
+            if tgt in seed_set and _edge_ok(src, tgt, rel):
+                reverse_edges.append({"source": src, "target": tgt, "relation": rel})
+            elif src in seed_set and _edge_ok(src, tgt, rel):
+                forward_edges.append({"source": src, "target": tgt, "relation": rel})
+
+    # --- Section 6: deterministic node id assembly (seeds first, then neighbours) ---
+    ordered_ids: list[str] = []
+    seen_id = set()
+
+    def _add_id(nid: str) -> None:
+        if nid in seen_id:
+            return
+        if not _node_allowed(nid):
+            return
+        seen_id.add(nid)
+        ordered_ids.append(nid)
+
+    for nid in valid_seeds:                       # (1) seeds in resolved order
+        _add_id(nid)
+    for e in contains_anchor_edges:               # (2) contains anchors
+        _add_id(e["source"])
+        _add_id(e["target"])
+    for e in reverse_edges:                        # (3) reverse-dependent sources
+        _add_id(e["source"])
+    for e in forward_edges:                        # (4) forward-dependency targets
+        _add_id(e["target"])
+
+    nodes_truncated = len(ordered_ids) > MAX_NODES
+    seed_nodes_truncated = valid_seed_count > MAX_NODES
+    kept_ids = ordered_ids[:MAX_NODES]
+    kept_set = set(kept_ids)
+
+    nodes_out = []
+    for nid in kept_ids:
+        n = all_nodes.get(nid)
         sf = n.get("source_file", "")
-        if should_exclude_path(sf) or should_exclude_path(n.get("label", "")):
-            continue
-        nodes_out.append({
-            "id": nid,
-            "label": n.get("label", nid),
-            "source_file": sf,
-        })
-    # Dedupe edges; cap to avoid token explosion.
-    seen = set()
+        nodes_out.append({"id": nid, "label": n.get("label", nid), "source_file": sf})
+
+    # --- Section 7: edges in deterministic sections; both endpoints must survive cap ---
+    def _surviving(edges: list[dict]) -> list[dict]:
+        return [e for e in edges if e["source"] in kept_set and e["target"] in kept_set]
+
+    edges_ordered = (
+        _surviving(contains_anchor_edges) + _surviving(reverse_edges) + _surviving(forward_edges)
+    )
+    seen_edge = set()
     uniq_edges = []
-    for e in edges_out:
+    for e in edges_ordered:
         k = (e["source"], e["target"], e["relation"])
-        if k not in seen:
-            seen.add(k)
+        if k not in seen_edge:
+            seen_edge.add(k)
             uniq_edges.append(e)
+    edges_truncated = len(uniq_edges) > MAX_EDGES
+    edges_out = uniq_edges[:MAX_EDGES]
+
+    # --- Section 5: impact_files aggregation from reverse-dependent edges ONLY ---
+    # Grouped by the dependent node's source_file. contains/forward never appear here.
+    impact_map: dict[str, dict] = {}
+    impact_order: list[str] = []
+    for e in reverse_edges:
+        dep = all_nodes.get(e["source"])
+        if not dep:
+            continue
+        sf = dep.get("source_file", "") or "(unknown)"
+        rec = impact_map.get(sf)
+        if rec is None:
+            rec = {
+                "source_file": sf,
+                "edge_count": 0,
+                "relations": {},
+                "_dep_ids": [],
+                "_dep_labels": [],
+                "_seed_ids": [],
+            }
+            impact_map[sf] = rec
+            impact_order.append(sf)
+        rec["edge_count"] += 1
+        rel = e["relation"]
+        rec["relations"][rel] = rec["relations"].get(rel, 0) + 1
+        if e["source"] not in rec["_dep_ids"]:
+            rec["_dep_ids"].append(e["source"])
+        lbl = dep.get("label", e["source"])
+        if lbl not in rec["_dep_labels"]:
+            rec["_dep_labels"].append(lbl)
+        if e["target"] not in rec["_seed_ids"]:
+            rec["_seed_ids"].append(e["target"])
+
+    impact_file_count_total = len(impact_order)
+    # Deterministic order: first-seed-touched order (insertion) then source_file tie-break.
+    sorted_files = sorted(impact_order, key=lambda sf: (impact_order.index(sf), sf))
+    impact_files = []
+    for sf in sorted_files[:MAX_IMPACT_FILES]:
+        rec = impact_map[sf]
+        impact_files.append({
+            "source_file": rec["source_file"],
+            "edge_count": rec["edge_count"],
+            "relations": dict(sorted(rec["relations"].items())),
+            "dependent_node_ids": rec["_dep_ids"][:MAX_IDS_PER_IMPACT_FILE],
+            "dependent_labels": rec["_dep_labels"][:MAX_LABELS_PER_IMPACT_FILE],
+            "seed_node_ids": rec["_seed_ids"][:MAX_IDS_PER_IMPACT_FILE],
+        })
+
+    expansion_stats = {
+        "seed_count": seed_count,
+        "valid_seed_count": valid_seed_count,
+        "missing_seed_count": missing_seed_count,
+        "contains_anchor_edge_count": len(contains_anchor_edges),
+        "reverse_edge_count": len(reverse_edges),
+        "forward_edge_count": len(forward_edges),
+        "impact_file_count_total": impact_file_count_total,
+        "impact_file_count_emitted": len(impact_files),
+        "caps": {
+            "max_nodes": MAX_NODES,
+            "max_edges": MAX_EDGES,
+            "max_impact_files": MAX_IMPACT_FILES,
+        },
+        "truncated": {
+            "nodes": nodes_truncated,
+            "edges": edges_truncated,
+            "impact_files": impact_file_count_total > MAX_IMPACT_FILES,
+            "seed_nodes": seed_nodes_truncated,
+        },
+    }
+
     return {
-        "nodes": nodes_out[:100],
-        "edges": uniq_edges[:200],
+        "nodes": nodes_out,
+        "edges": edges_out,
         "module_boundaries": [],
+        "impact_files": impact_files,
+        "orientation_mode": ORIENTATION_MODE,
+        "expansion_stats": expansion_stats,
     }
 
 
