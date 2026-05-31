@@ -15,7 +15,7 @@ def get_todos():
     """
     return [
         {"content": "Step 1: Parse development requirement", "activeForm": "Step 1: Parsing development requirement", "status": "pending"},
-        # graphify pre-BA Bash hydrator (advisory) — folded in place as Step 2
+        # graphify pre-BA Bash hydrator (advisory) — Step 2, runs after Parse before specialists
         {"content": "Step 2: Graphify pre-BA: run graphify-query.py Bash hydrator (advisory)", "activeForm": "Step 2: Running graphify-query.py Bash hydrator", "status": "pending"},
         {"content": "Step 3: Consult specialists (optional)", "activeForm": "Step 3: Consulting specialists", "status": "pending"},
         {"content": "Step 4: Delegate to BA subagent", "activeForm": "Step 4: Delegating to BA subagent", "status": "pending", "subagent_call": {"agent": "ba", "subagent_type": "ba"}},
