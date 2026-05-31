@@ -26,8 +26,7 @@ def test_AC_A5():
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     # Schema version unchanged ($id stays v1, status enum unchanged).
     assert schema["$id"] == "graphify-focused-subgraph.v1"
-    assert schema["enum_unchanged"] if False else schema["properties"]["status"]["enum"] == [
-        "ok", "degraded", "skipped"]
+    assert schema["properties"]["status"]["enum"] == ["ok", "degraded", "skipped"]
 
     graph = {
         "nodes": [
