@@ -50,7 +50,11 @@ def _present_graphify_bin(tmp_path: Path) -> str:
     return str(stub)
 
 
+_BUILDER_CALLED = {"hit": False}
+
+
 def _boom(*_a, **_k):
+    _BUILDER_CALLED["hit"] = True
     raise RuntimeError("forced builder failure (AC-A8 exception-branch test)")
 
 
@@ -152,15 +156,30 @@ def test_AC_A8(tmp_path, monkeypatch):
         "directed": True, "multigraph": False, "graph": {},
         "nodes": [{"id": "n1", "label": "n1", "source_file": "a.py"}], "links": []}),
         encoding="utf-8")
+    _BUILDER_CALLED["hit"] = False
     monkeypatch.setattr(enrich, "run_graphify_cmd", lambda *a, **k: (0, "", ""))
     monkeypatch.setattr(enrich, "_build_deterministic_subgraph", _boom)
     monkeypatch.setattr(
         sys, "argv",
         ["graphify-enrich.py", "--task-id", "tX", "--context-file", str(ctx_exc)])
     assert enrich.main() == 0
+    # The builder MUST actually have been reached and raised (proves the test
+    # exercised the real exception handler, not a short-circuited earlier branch).
+    assert _BUILDER_CALLED["hit"] is True
     gc_x = json.loads(ctx_exc.read_text(encoding="utf-8"))["graph_context"]
     assert gc_x["advisory"] is True
     fs_path = proj2 / ".claude" / "dev-registry" / "tX" / "graphify" / "focused-subgraph.json"
     fs = json.loads(fs_path.read_text(encoding="utf-8"))
     for key in ("impact_files", "orientation_mode", "expansion_stats"):
         assert key in fs, f"additive R1 field {key!r} missing from exception-branch subgraph"
+    # Pin the DEGRADED fail-open semantics (codex round-1 finding): the exception
+    # handler must mark the artifact degraded and surface the builder error, not
+    # silently report ok. Without these, a regression of STATUS_DEGRADED -> STATUS_OK
+    # in the handler would pass undetected.
+    assert fs["status"] == "degraded", f"focused-subgraph status not degraded: {fs.get('status')!r}"
+    run_path = proj2 / ".claude" / "dev-registry" / "tX" / "graphify" / "graphify-run.json"
+    run_manifest = json.loads(run_path.read_text(encoding="utf-8"))
+    assert run_manifest["status"] == "degraded", (
+        f"graphify-run.json status not degraded: {run_manifest.get('status')!r}")
+    assert "forced builder failure" in run_manifest.get("error_detail", ""), (
+        f"builder error not surfaced in error_detail: {run_manifest.get('error_detail')!r}")
