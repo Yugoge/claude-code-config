@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _enrich_helper import load_enrich
 
 AC_UID = "9c939cea97faf114"
 AC_TYPE = "data"
@@ -17,7 +17,21 @@ def test_AC_A7():
     WHEN:  _build_graph_summary runs
     THEN:  the summary includes ONLY scalars impact_file_count, orientation_mode, and truncated flags; it MUST NOT embed the full impact_files[] list (codex #5)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — the summary includes ONLY scalars impact_file_count, orientation_mode, and truncated flags...")
+    mod = load_enrich()
+    graph = {
+        "nodes": [
+            {"id": "seed", "label": "seed", "source_file": "seed.py"},
+            {"id": "dep", "label": "dep", "source_file": "dep.py"},
+        ],
+        "links": [{"source": "dep", "target": "seed", "relation": "imports"}],
+    }
+    sg = mod._build_deterministic_subgraph(graph, ["seed"])
+    summary = mod._build_graph_summary(sg, "ok", {"update_run": {}})
+
+    # Scalars present.
+    assert summary["impact_file_count"] == len(sg["impact_files"]) == 1
+    assert summary["orientation_mode"] == mod.ORIENTATION_MODE
+    assert isinstance(summary["truncated"], dict)
+    assert set(summary["truncated"]) >= {"nodes", "edges", "impact_files", "seed_nodes"}
+    # The full impact_files[] list MUST NOT be embedded in the summary (codex #5).
+    assert "impact_files" not in summary
