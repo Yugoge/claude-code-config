@@ -10,8 +10,8 @@
 
 Graphify is a code-to-knowledge-graph tool that provides structural codebase context (import chains, module topology, function call graphs). The integration adds two phases to the /dev workflow:
 
-- **Step 1.5** — Deterministic pre-BA Bash hydrator (`graphify-query.py`): reads the real node-link `graph.json` and runs real `graphify query` to inject structural context BEFORE BA analysis.
-- **Step 7.5** — Graphify subagent enrichment (`graphify-enrich.py`): resolves the blast-radius-map paths to real graph node IDs, builds a focused subgraph deterministically from `graph.json`, and runs real `graphify affected`, AFTER BA-QA validation and BEFORE DEV dispatch.
+- **Pre-BA hydrator (between Step 1 and Step 2)** — Deterministic pre-BA Bash hydrator (`graphify-query.py`): reads the real node-link `graph.json` and runs real `graphify query` to inject structural context BEFORE BA analysis.
+- **Graphify enrichment (between Step 7 and Step 8)** — Graphify subagent enrichment (`graphify-enrich.py`): resolves the blast-radius-map paths to real graph node IDs, builds a focused subgraph deterministically from `graph.json` as a **reverse-blast-radius (R1) impact view** (see "Focused subgraph: R1 reverse-blast-radius" below), and runs real `graphify affected`, AFTER BA-QA validation and BEFORE DEV dispatch.
 
 Both phases are **advisory** (fail-open): Graphify tool failure never blocks DEV. Only requirement ambiguity (unresolved implicit references) is clarification-blocking.
 
