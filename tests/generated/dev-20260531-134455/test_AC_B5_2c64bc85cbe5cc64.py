@@ -5,10 +5,24 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 AC_UID = "2c64bc85cbe5cc64"
 AC_TYPE = "data"
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_AC_F2 = (
+    _REPO_ROOT / "tests" / "generated" / "20260529-080709"
+    / "test_AC_F2_ac-f2-no-decimal-prose-steps.py"
+)
+_AC6 = (
+    _REPO_ROOT / "tests" / "generated" / "20260527-132200"
+    / "test_AC6_ac6-integer-step-numbering.py"
+)
 
 
 def test_AC_B5():
