@@ -56,8 +56,8 @@ Affected/query match by node **id** (e.g. `mod_a_py`), not file path — the wra
 └── run-manifest.json                     # wrapper-written: semantic_mode, head_sha, timestamps
 
 .claude/dev-registry/{task_id}/graphify/  # Per-task immutable artifacts
-├── pre_query.json                        # Step 1.5 output (structural_context)
-├── graphify-run.json                     # Step 7.5 run manifest
+├── pre_query.json                        # pre-BA hydrator output (between Step 1 and Step 2): structural_context
+├── graphify-run.json                     # graphify enrichment run manifest (between Step 7 and Step 8)
 ├── focused-subgraph.json                 # Task-scoped subgraph (translated node-link)
 ├── graph-summary.json                    # Compact summary
 └── graph-report.md                       # Human-readable report
