@@ -31,7 +31,30 @@ def test_AC_B1():
     WHEN:  get_todos() runs
     THEN:  every item's content and activeForm begins with a continuous integer 'Step N:' prefix (N=1..17, no gaps, no decimals); the two graphify items are numbered in their existing positions; no item is unnumbered; AND the two graphify content strings do NOT retain stale 'between Step N and Step N+1' parentheticals (codex #2 / objection 3): the pre-BA item (which becomes Step 2) and the enrichment item (which becomes Step 9) must drop the embedded '(advisory, between Step 1 and Step 2)' / '(advisory, between Step 7 and Step 8)' phrasing in favour of plain '(advisory)' so the generated item is self-con...
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — every item's content and activeForm begins with a continuous integer 'Step N:' prefix (N=1...")
+    todos = _load_get_todos()()
+
+    # Exactly 17 items, continuous integer Step N prefix in BOTH fields.
+    assert len(todos) == 17, f"expected 17 items, got {len(todos)}"
+    decimal_re = re.compile(r"Step \d+\.\d+")
+    for i, item in enumerate(todos, start=1):
+        content = item["content"]
+        active = item["activeForm"]
+        assert content.startswith(f"Step {i}: "), (
+            f"item {i} content lacks continuous integer prefix: {content!r}"
+        )
+        assert active.startswith(f"Step {i}: "), (
+            f"item {i} activeForm lacks continuous integer prefix: {active!r}"
+        )
+        # No decimal step labels anywhere in either field.
+        assert not decimal_re.search(content), f"decimal step label in {content!r}"
+        assert not decimal_re.search(active), f"decimal step label in {active!r}"
+        # Stale 'between Step N' parentheticals must be gone (objection 3).
+        assert "between Step" not in content, (
+            f"stale 'between Step' parenthetical in {content!r}"
+        )
+
+    # The two graphify items are folded in place at Step 2 (pre-BA) and Step 9
+    # (enrichment), and retain their identity + subagent_call metadata.
+    assert "Graphify pre-BA" in todos[1]["content"]
+    assert "Graphify enrichment" in todos[8]["content"]
+    assert todos[8].get("subagent_call", {}).get("agent") == "graphify"
