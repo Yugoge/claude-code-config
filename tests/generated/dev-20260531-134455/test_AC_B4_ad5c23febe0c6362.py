@@ -5,10 +5,18 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import re
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 AC_UID = "ad5c23febe0c6362"
 AC_TYPE = "data"
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_VALIDATOR = _REPO_ROOT / "tests" / "scripts" / "validate-step-numbering.py"
 
 
 def test_AC_B4():
