@@ -14,7 +14,7 @@ import pytest
 AC_UID = "81cf2f9136d433c0"
 AC_TYPE = "data"
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _DEVCMD_PY = _REPO_ROOT / "scripts" / "todo" / "dev-command.py"
 
 

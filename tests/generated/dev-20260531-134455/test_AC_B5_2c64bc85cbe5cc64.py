@@ -14,7 +14,7 @@ import pytest
 AC_UID = "2c64bc85cbe5cc64"
 AC_TYPE = "data"
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _AC_F2 = (
     _REPO_ROOT / "tests" / "generated" / "20260529-080709"
     / "test_AC_F2_ac-f2-no-decimal-prose-steps.py"

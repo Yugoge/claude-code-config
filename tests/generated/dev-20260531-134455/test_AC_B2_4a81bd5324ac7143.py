@@ -14,7 +14,7 @@ import pytest
 AC_UID = "4a81bd5324ac7143"
 AC_TYPE = "hook"
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _DEV_PY = _REPO_ROOT / "scripts" / "todo" / "dev.py"
 _CANON_PY = _REPO_ROOT / "hooks" / "lib" / "todo_canonical.py"
 

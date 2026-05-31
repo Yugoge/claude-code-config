@@ -15,7 +15,7 @@ import pytest
 AC_UID = "ad5c23febe0c6362"
 AC_TYPE = "data"
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _VALIDATOR = _REPO_ROOT / "tests" / "scripts" / "validate-step-numbering.py"
 
 

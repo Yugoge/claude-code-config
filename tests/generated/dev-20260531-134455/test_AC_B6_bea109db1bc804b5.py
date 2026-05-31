@@ -15,7 +15,7 @@ import pytest
 AC_UID = "bea109db1bc804b5"
 AC_TYPE = "data"
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _TODO_DIR = _REPO_ROOT / "scripts" / "todo"
 
 
