@@ -509,7 +509,27 @@ def main() -> int:
         subgraph = _build_deterministic_subgraph(graph, resolved_node_ids)
         status = STATUS_OK if (subgraph["nodes"] or not resolved_node_ids) else STATUS_DEGRADED
     except Exception as exc:
-        subgraph = {"nodes": [], "edges": [], "module_boundaries": []}
+        # Keep the additive R1 fields present even on the degraded fallback so the
+        # focused-subgraph artifact stays shape-consistent (codex finding 2).
+        subgraph = {
+            "nodes": [], "edges": [], "module_boundaries": [],
+            "impact_files": [],
+            "orientation_mode": ORIENTATION_MODE,
+            "expansion_stats": {
+                "seed_count": len(resolved_node_ids),
+                "valid_seed_count": 0,
+                "missing_seed_count": 0,
+                "contains_anchor_edge_count": 0,
+                "reverse_edge_count": 0,
+                "forward_edge_count": 0,
+                "impact_file_count_total": 0,
+                "impact_file_count_emitted": 0,
+                "caps": {"max_nodes": MAX_NODES, "max_edges": MAX_EDGES,
+                         "max_impact_files": MAX_IMPACT_FILES},
+                "truncated": {"nodes": False, "edges": False,
+                              "impact_files": False, "seed_nodes": False},
+            },
+        }
         run_manifest["error_detail"] = f"subgraph extraction error: {exc}"
         status = STATUS_DEGRADED
 
