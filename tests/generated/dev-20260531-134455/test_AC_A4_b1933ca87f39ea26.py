@@ -5,7 +5,9 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import json
+
+from _enrich_helper import load_enrich
 
 AC_UID = "b1933ca87f39ea26"
 AC_TYPE = "data"
@@ -17,7 +19,28 @@ def test_AC_A4():
     WHEN:  _build_deterministic_subgraph runs repeatedly
     THEN:  the seed is present and ordered before neighbors; len(nodes)<=100 and len(edges)<=200; repeated calls produce byte-identical JSON; expansion_stats.truncated is set; seeds never evicted by neighbors unless seed count alone exceeds MAX_NODES
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — the seed is present and ordered before neighbors; len(nodes)<=100 and len(edges)<=200; rep...")
+    mod = load_enrich()
+    nodes = [{"id": "seed", "label": "seed", "source_file": "seed.py"}]
+    links = []
+    # 300 reverse dependents (target==seed) — far exceeds MAX_NODES=100.
+    for i in range(300):
+        dep = f"dep{i:04d}"
+        nodes.append({"id": dep, "label": dep, "source_file": f"dep{i:04d}.py"})
+        links.append({"source": dep, "target": "seed", "relation": "imports"})
+    graph = {"nodes": nodes, "links": links}
+
+    sg1 = mod._build_deterministic_subgraph(graph, ["seed"])
+    sg2 = mod._build_deterministic_subgraph(graph, ["seed"])
+
+    # Seed present and FIRST (ordered before neighbours).
+    assert sg1["nodes"][0]["id"] == "seed"
+    assert any(n["id"] == "seed" for n in sg1["nodes"])
+    # Caps respected.
+    assert len(sg1["nodes"]) <= mod.MAX_NODES == 100
+    assert len(sg1["edges"]) <= mod.MAX_EDGES == 200
+    # Deterministic: byte-identical JSON across repeated calls.
+    assert json.dumps(sg1, sort_keys=True) == json.dumps(sg2, sort_keys=True)
+    # Truncation recorded.
+    assert sg1["expansion_stats"]["truncated"]["nodes"] is True
+    # Seed not evicted (seed count 1 << MAX_NODES).
+    assert sg1["expansion_stats"]["truncated"]["seed_nodes"] is False
