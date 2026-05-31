@@ -31,7 +31,14 @@ def test_AC_B5():
     WHEN:  tests/generated/20260529-080709/test_AC_F2 and tests/generated/20260527-132200/test_AC6 run
     THEN:  both PASS (required 'between Step 7 and Step 8' prose untouched; no decimal headings introduced)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — both PASS (required 'between Step 7 and Step 8' prose untouched; no decimal headings intro...")
+    # Regression guard: the deliberately-untouched prose tests must stay green.
+    for path in (_AC_F2, _AC6):
+        assert path.exists(), f"regression test missing: {path}"
+        result = subprocess.run(
+            [sys.executable, "-m", "pytest", str(path), "-q"],
+            capture_output=True, text=True, cwd=str(_REPO_ROOT),
+        )
+        assert result.returncode == 0, (
+            f"regression test {path.name} did not pass:\n"
+            f"{result.stdout}\n{result.stderr}"
+        )
