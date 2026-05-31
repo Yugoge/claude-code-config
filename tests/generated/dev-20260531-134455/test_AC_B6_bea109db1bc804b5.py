@@ -5,10 +5,27 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import json
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 AC_UID = "bea109db1bc804b5"
 AC_TYPE = "data"
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_TODO_DIR = _REPO_ROOT / "scripts" / "todo"
+
+
+def _run_generator(name):
+    result = subprocess.run(
+        [sys.executable, str(_TODO_DIR / name)],
+        capture_output=True, text=True, cwd=str(_TODO_DIR),
+    )
+    assert result.returncode == 0, f"{name} exited {result.returncode}: {result.stderr}"
+    return json.loads(result.stdout)
 
 
 def test_AC_B6():
