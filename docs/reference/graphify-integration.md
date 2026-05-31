@@ -143,7 +143,7 @@ python3 scripts/graphify-maintain.py status
 
 | Command        | Graphify integration                                     |
 |----------------|----------------------------------------------------------|
-| /dev           | Step 1.5 (pre-BA hydrator) + Step 7.5 (subagent)         |
+| /dev           | pre-BA hydrator (between Step 1 and Step 2) + graphify enrichment subagent (between Step 7 and Step 8) |
 | /dev-command   | Same as /dev (mirrors commands/dev.md)                   |
 | /dev-overnight | Enabled; shares global cache via graphify-maintain.py    |
 | /redev         | Inherits /dev behavior                                   |
