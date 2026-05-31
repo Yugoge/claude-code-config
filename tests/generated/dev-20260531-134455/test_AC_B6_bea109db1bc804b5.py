@@ -34,7 +34,14 @@ def test_AC_B6():
     WHEN:  python3 scripts/todo/dev.py and python3 scripts/todo/redev.py run
     THEN:  both emit valid JSON with the new continuous integer sequence; redev.py inherits it via 'from dev import get_todos'
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — both emit valid JSON with the new continuous integer sequence; redev.py inherits it via 'f...")
+    dev_todos = _run_generator("dev.py")
+    redev_todos = _run_generator("redev.py")
+
+    # Both emit valid JSON with the new continuous integer sequence.
+    assert len(dev_todos) == 17
+    for i, item in enumerate(dev_todos, start=1):
+        assert item["content"].startswith(f"Step {i}: ")
+        assert item["activeForm"].startswith(f"Step {i}: ")
+
+    # redev.py inherits the identical sequence via 'from dev import get_todos'.
+    assert redev_todos == dev_todos, "redev.py did not inherit dev.py's sequence"
