@@ -5,7 +5,11 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import json
+
+import jsonschema
+
+from _enrich_helper import load_enrich, repo_root
 
 AC_UID = "a4f5288d2e604dbf"
 AC_TYPE = "data"
@@ -17,7 +21,41 @@ def test_AC_A5():
     WHEN:  validated against schemas/graphify-focused-subgraph.v1.json
     THEN:  it passes; old keys nodes/edges/module_boundaries present with unchanged item shapes; new keys (impact_files/orientation_mode/expansion_stats) optional/additive; schema version unchanged. SCOPE NOTE (codex #4): this AC covers ONLY ok/degraded artifacts. The schema status enum is [ok,degraded,skipped] and the code writes status='unavailable' (graphify_lib.STATUS_UNAVAILABLE) into the focused-subgraph artifact on the unavailable branch (graphify-enrich.py:260), so a literal v1 validation of an unavailable/skipped fail-open artifact is NOT expected to pass the enum and is out of this AC's scope (...
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — it passes; old keys nodes/edges/module_boundaries present with unchanged item shapes; new ...")
+    mod = load_enrich()
+    schema_path = repo_root() / "schemas" / "graphify-focused-subgraph.v1.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    # Schema version unchanged ($id stays v1, status enum unchanged).
+    assert schema["$id"] == "graphify-focused-subgraph.v1"
+    assert schema["enum_unchanged"] if False else schema["properties"]["status"]["enum"] == [
+        "ok", "degraded", "skipped"]
+
+    graph = {
+        "nodes": [
+            {"id": "seed", "label": "seed", "source_file": "seed.py"},
+            {"id": "dep", "label": "dep", "source_file": "dep.py"},
+        ],
+        "links": [{"source": "dep", "target": "seed", "relation": "imports"}],
+    }
+    sg = mod._build_deterministic_subgraph(graph, ["seed"])
+    # Build the focused-subgraph.json artifact shape (status=ok normal path).
+    artifact = {
+        "status": "ok",
+        "task_id": "t1",
+        "generated_at": "2026-05-31T00:00:00Z",
+        "source_blast_radius_map": ".claude/dev-registry/t1/blast-radius-map.json",
+        **sg,
+    }
+    # Validates against v1 (additive new keys allowed by additionalProperties:true).
+    jsonschema.validate(artifact, schema)
+
+    # Old keys present with unchanged item shapes.
+    assert {"nodes", "edges", "module_boundaries"} <= set(artifact.keys())
+    for n in artifact["nodes"]:
+        assert {"id", "label", "source_file"} == set(n.keys())
+    for e in artifact["edges"]:
+        assert {"source", "target", "relation"} == set(e.keys())
+    # New keys are present but OPTIONAL (not in schema.required).
+    assert set(schema["required"]) == {"status", "task_id", "nodes", "edges"}
+    for new_key in ("impact_files", "orientation_mode", "expansion_stats"):
+        assert new_key in artifact
+        assert new_key not in schema["required"]
