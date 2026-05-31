@@ -31,12 +31,19 @@ def _run(project_dir: Path, args: list[str], env_extra: dict) -> subprocess.Comp
 
 
 def _present_graphify_bin(tmp_path: Path) -> str:
-    """Return a path to a PRESENT graphify binary (real one if installed, else a
-    no-op stub). Used to prove the UNAVAILABLE sub-case is 'binary present but no
-    graph.json', NOT 'GRAPHIFY_BIN absent'."""
-    real = Path("/root/.claude/venv/bin/graphify")
-    if real.exists():
-        return str(real)
+    """Return a path to a PRESENT graphify binary so check_cache_available()'s
+    binary-present precondition holds — proving the UNAVAILABLE sub-case is
+    'binary present but no graph.json', NOT 'GRAPHIFY_BIN absent'. Resolves via the
+    GRAPHIFY_BIN env or PATH (the real binary when available), else a no-op stub;
+    no hardcoded install path. The UNAVAILABLE branch returns before the binary is
+    ever executed, so a stub is equivalent for this presence check."""
+    import shutil
+    env_bin = os.environ.get("GRAPHIFY_BIN", "").strip()
+    if env_bin and Path(env_bin).exists():
+        return env_bin
+    found = shutil.which("graphify")
+    if found:
+        return found
     stub = tmp_path / "graphify_stub"
     stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     stub.chmod(0o755)
