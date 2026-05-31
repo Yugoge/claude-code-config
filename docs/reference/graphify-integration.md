@@ -37,6 +37,18 @@ Edges live under **`links`** (NOT `edges`): `{source, target, relation, confiden
 Nodes: `{id, label, source_file, source_location, community, file_type, norm_label}`.
 Affected/query match by node **id** (e.g. `mod_a_py`), not file path — the wrappers resolve modified paths → node IDs via `source_file`/`label` before seeding `affected`.
 
+### Focused subgraph: R1 reverse-blast-radius (graphify-enrich.py)
+
+`_build_deterministic_subgraph` builds the focused subgraph as a **directional, relation-filtered, file-aggregated reverse-dependent view** (ONE hop). This is the PRIMARY blast-radius signal DEV consumes via `graph_context`.
+
+- **Orientation** (empirically validated; constant `ORIENTATION_MODE = "source_depender_target_dependency"`): graphify edges are `source = depender, target = dependency`. So the IMPACT set — who is affected when a seed changes — is the set of **reverse dependents**: links where `target == seed` AND `relation ∈ {imports, imports_from, calls, inherits, uses, re_exports}`; the dependent is the edge **source**.
+- **`contains` is anchor-only**: a `contains` (file→symbol containment) edge is emitted ONLY when directly incident to a seed, to make the seed interpretable. It NEVER creates a reverse dependent, NEVER appears in `impact_files`, and is NEVER recursed through. Containment is not coupling and is not blast radius.
+- **Forward dependencies are context-only**: `source == seed` coupling edges (what the seed uses) are emitted in `nodes`/`edges` for context but NEVER aggregated into `impact_files`.
+- **Seed-first determinism**: node ids are assembled in the order seeds (in resolved order) → `contains` anchors → reverse-dependent sources → forward-dependency targets, THEN capped to `MAX_NODES` (100). Seeds are emitted before neighbours so the cap can never evict a seed unless the seed count alone exceeds the cap. The builder receives an ORDERED sequence of resolved ids (NOT a set) so seed order survives.
+- **Additive output** (strictly back-compat, no schema version bump): `impact_files[]` (file-aggregated reverse-dependent impact, ≤25), `orientation_mode`, and `expansion_stats` (seed/edge counts + `truncated{nodes,edges,impact_files,seed_nodes}`). The full `impact_files[]` list reaches DEV on BOTH the `focused-subgraph.json` artifact AND the in-place `graph_context` patch; `graph-summary.json` carries ONLY the scalars `impact_file_count`, `orientation_mode`, and the `truncated` flags. Legacy `nodes`/`edges`/`module_boundaries` keys and item shapes are unchanged.
+
+Depth-2 traversal, hub-pruning, per-intermediate caps, and scoring weights are explicitly deferred (not built). A future graphify orientation change is caught by tests / an explicit revalidation task, not by a noisy runtime self-check.
+
 ### Cwd-pollution handling
 
 `graphify update` honours `GRAPHIFY_OUT` (absolute) for `graph.json` but ALWAYS writes `manifest.json` to `<cwd>/graphify-out/manifest.json` (cwd-relative). The wrappers therefore run EVERY graphify subprocess with **cwd = cacheDir AND `GRAPHIFY_OUT` = cacheDir** (both absolute, set in `run_graphify_cmd`) so all byproducts land inside the out-of-repo cache and the source repo stays clean. If the configured cache resolves INSIDE the repo, the wrappers refuse to run (advisory `cache_root_inside_repo`).
