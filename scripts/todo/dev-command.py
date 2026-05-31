@@ -7,7 +7,7 @@ with command development best practices.
 
 
 # (label, content, activeForm, extra_meta) tuples for each step
-# graphify integration adds two advisory items (between Step 1/2 and between Step 7/8)
+# graphify integration adds two advisory items, folded in place as Step 2 (pre-BA) and Step 9 (enrichment)
 _STEPS = [
     ("1", "Parse development requirement", "Parsing development requirement", None),
     # graphify pre-BA hydrator (advisory) — folded in place as Step 2
