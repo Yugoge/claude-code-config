@@ -32,7 +32,15 @@ def test_AC_B2():
     WHEN:  a TodoWrite array byte-identical to get_todos() output is validated by hooks/lib/todo_canonical.py validate_against_canonical('dev', todos)
     THEN:  zero violations returned (count + content + activeForm all match — no generator/hook drift)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — zero violations returned (count + content + activeForm all match — no generator/hook drift...")
+    dev_mod = _load_module("_dev_todo_b2", _DEV_PY)
+    canon = _load_module("_todo_canonical_b2", _CANON_PY)
+
+    # The canonical authority RUNS scripts/todo/dev.py at runtime; point its
+    # script lookup at this repo so it resolves the renumbered generator.
+    os.environ["CLAUDE_PROJECT_DIR"] = str(_REPO_ROOT)
+
+    todos = dev_mod.get_todos()
+    violations = canon.validate_against_canonical("dev", todos)
+    assert violations == [], (
+        f"canonical/generator drift — expected zero violations, got: {violations}"
+    )
