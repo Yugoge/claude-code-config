@@ -240,8 +240,10 @@ def _build_deterministic_subgraph(graph: dict, resolved_node_ids: Sequence[str])
 
     # --- Section 5: impact_files aggregation from reverse-dependent edges ONLY ---
     # Grouped by the dependent node's source_file. contains/forward never appear here.
+    # seed_rank maps each seed id to its resolved-seed order so impact files sort by
+    # the FIRST resolved seed they impact (design step 5), not by raw links order.
+    seed_rank = {nid: i for i, nid in enumerate(valid_seeds)}
     impact_map: dict[str, dict] = {}
-    impact_order: list[str] = []
     for e in reverse_edges:
         dep = all_nodes.get(e["source"])
         if not dep:
@@ -256,10 +258,13 @@ def _build_deterministic_subgraph(graph: dict, resolved_node_ids: Sequence[str])
                 "_dep_ids": [],
                 "_dep_labels": [],
                 "_seed_ids": [],
+                "_first_seed_rank": seed_rank.get(e["target"], len(valid_seeds)),
             }
             impact_map[sf] = rec
-            impact_order.append(sf)
         rec["edge_count"] += 1
+        # First-touched seed rank = the lowest resolved-seed rank among this file's edges.
+        rec["_first_seed_rank"] = min(
+            rec["_first_seed_rank"], seed_rank.get(e["target"], len(valid_seeds)))
         rel = e["relation"]
         rec["relations"][rel] = rec["relations"].get(rel, 0) + 1
         if e["source"] not in rec["_dep_ids"]:
@@ -270,9 +275,9 @@ def _build_deterministic_subgraph(graph: dict, resolved_node_ids: Sequence[str])
         if e["target"] not in rec["_seed_ids"]:
             rec["_seed_ids"].append(e["target"])
 
-    impact_file_count_total = len(impact_order)
-    # Deterministic order: first-seed-touched order (insertion) then source_file tie-break.
-    sorted_files = sorted(impact_order, key=lambda sf: (impact_order.index(sf), sf))
+    impact_file_count_total = len(impact_map)
+    # Deterministic order: (first resolved-seed rank touched, source_file) — O(n log n).
+    sorted_files = sorted(impact_map, key=lambda sf: (impact_map[sf]["_first_seed_rank"], sf))
     impact_files = []
     for sf in sorted_files[:MAX_IMPACT_FILES]:
         rec = impact_map[sf]
