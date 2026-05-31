@@ -396,8 +396,13 @@ def cmd_semantic(timeout_seconds: int = TIMEOUT_SEMANTIC) -> int:
 
     # 1) Fresh AST baseline FIRST (codex #2). Never diff extract output against a
     #    stale/garbage baseline. Capture a pre-update snapshot for the iter #3 guard.
+    #    The baseline is a FULL-REPO `graphify update` (not an incremental Step-7.5
+    #    refresh), so it MUST use the full-repo init budget (TIMEOUT_INIT), not the
+    #    60s incremental TIMEOUT_UPDATE: a cold/full AST pass on a large repo takes
+    #    ~77s+ and would otherwise always time out (exit=-1), permanently skipping
+    #    extract and making the user-triggered semantic command non-functional.
     pre_snapshot = _graph_snapshot(gpath)
-    up_exit, _, up_err = _run_ast_build(_PROJECT_DIR, cache_dir, TIMEOUT_UPDATE)
+    up_exit, _, up_err = _run_ast_build(_PROJECT_DIR, cache_dir, TIMEOUT_INIT)
 
     # Three-branch reconciliation on the baseline update (AC10/AC12 branch iii,
     # codex iter #3): only INVALIDATE the stale semantic state when the failed
