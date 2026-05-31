@@ -5,7 +5,9 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import re
+
+from _enrich_helper import repo_root
 
 AC_UID = "d81ad0209df85a15"
 AC_TYPE = "data"
@@ -17,7 +19,11 @@ def test_AC_A9():
     WHEN:  Task A's doc update (arch-A4) is applied
     THEN:  all seven decimal 'Step 1.5'/'Step 7.5' references are rephrased to a NON-decimal form consistent with the already-shipped fix in scripts/graphify-maintain.py:15 ('between Step 1 and Step 2') and scripts/graphify-enrich.py:3 ('between Step 7 and Step 8') — e.g. 'pre-BA hydrator, between Step 1 and Step 2' and 'graphify enrichment, between Step 7 and Step 8'. After the edit, grep of docs/reference/graphify-integration.md for 'Step [0-9]+\.[0-9]+' returns zero matches. This satisfies the user's verbatim '不要用小数点' (no decimals) intent for the file this cycle is editing. NOTE: validate-step-numberi...
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — all seven decimal 'Step 1.5'/'Step 7.5' references are rephrased to a NON-decimal form con...")
+    doc = repo_root() / "docs" / "reference" / "graphify-integration.md"
+    text = doc.read_text(encoding="utf-8")
+    # Zero decimal 'Step N.N' labels remain (the verbatim '不要用小数点' intent).
+    matches = re.findall(r"Step [0-9]+\.[0-9]+", text)
+    assert matches == [], f"decimal step labels remain: {matches}"
+    # The non-decimal interstitial form is present (mirrors the shipped convention).
+    assert "between Step 1 and Step 2" in text
+    assert "between Step 7 and Step 8" in text
