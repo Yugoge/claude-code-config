@@ -44,3 +44,22 @@ def test_AC_A4():
     assert sg1["expansion_stats"]["truncated"]["nodes"] is True
     # Seed not evicted (seed count 1 << MAX_NODES).
     assert sg1["expansion_stats"]["truncated"]["seed_nodes"] is False
+
+    # impact_files ordered by RESOLVED-seed rank, not raw links order: dependents of
+    # seed s1 (resolved first) must sort before dependents of seed s2 even when the
+    # links list places s2's edge first.
+    multi = {
+        "nodes": [
+            {"id": "s1", "label": "s1", "source_file": "s1.py"},
+            {"id": "s2", "label": "s2", "source_file": "s2.py"},
+            {"id": "dep_z", "label": "dep_z", "source_file": "z.py"},
+            {"id": "dep_a", "label": "dep_a", "source_file": "a.py"},
+        ],
+        "links": [
+            {"source": "dep_z", "target": "s2", "relation": "imports"},  # seed #2 first in links
+            {"source": "dep_a", "target": "s1", "relation": "imports"},  # seed #1 second
+        ],
+    }
+    sgm = mod._build_deterministic_subgraph(multi, ["s1", "s2"])
+    order = [f["source_file"] for f in sgm["impact_files"]]
+    assert order == ["a.py", "z.py"], order  # s1's dependent (a.py) sorts first
