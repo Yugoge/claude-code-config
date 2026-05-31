@@ -125,7 +125,7 @@ Maintain's `run-manifest.json` `semantic_mode` is the authoritative semantic-sta
 # One-time initial build (user-triggered only — NEVER auto-triggered inside /dev)
 python3 scripts/graphify-maintain.py init               # real `graphify update <repo>` AST-only (≤300s)
 
-# Incremental refresh (runs automatically at Step 7.5 and post-/pull)
+# Incremental refresh (runs automatically during graphify enrichment, between Step 7 and Step 8, and post-/pull)
 python3 scripts/graphify-maintain.py update             # real `graphify update <repo>` AST-only (≤60s)
 
 # User-triggered semantic extraction (edge-signature proof-gated; promotes only on NEW edges)
