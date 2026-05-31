@@ -25,7 +25,18 @@ def test_AC_B4():
     WHEN:  (1) tests/scripts/validate-step-numbering.py --project-root . is INVOKED as a subprocess, AND (2) scripts/todo/dev.py + scripts/todo/dev-command.py are grepped for 'Step \d+\.\d+'
     THEN:  the validator the AC names actually runs and reports pass (exit 0), and zero decimal step labels exist in the generator outputs and the commands/*.md validator surface. SCOPE NOTE (codex #2 / objection 6): the AC text is deliberately scoped to 'the generator outputs and the commands/*.md validator surface' rather than the overbroad 'anywhere' — validate-step-numbering.py scans ONLY commands/*.md (validate-step-numbering.py:52), and the decimal labels in docs/reference/graphify-integration.md are covered separately by AC-A9, NOT by this validator.
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — the validator the AC names actually runs and reports pass (exit 0), and zero decimal step ...")
+    # (1) The named validator actually runs and reports pass (exit 0).
+    result = subprocess.run(
+        [sys.executable, str(_VALIDATOR), "--project-root", str(_REPO_ROOT)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, (
+        f"validate-step-numbering.py exited {result.returncode}: "
+        f"{result.stdout}\n{result.stderr}"
+    )
+
+    # (2) Zero decimal step labels in the two generator outputs.
+    decimal_re = re.compile(r"Step \d+\.\d+")
+    for gen in ("dev.py", "dev-command.py"):
+        text = (_REPO_ROOT / "scripts" / "todo" / gen).read_text(encoding="utf-8")
+        assert not decimal_re.search(text), f"decimal step label found in {gen}"
