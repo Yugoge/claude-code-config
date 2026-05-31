@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _enrich_helper import load_enrich
 
 AC_UID = "a6411d380f2e722d"
 AC_TYPE = "data"
@@ -17,7 +17,23 @@ def test_AC_A6():
     WHEN:  _build_graph_context_patch runs
     THEN:  the emitted graph_context includes impact_files, orientation_mode, and expansion_stats (arch-A1: DEV actually sees the new signal)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — the emitted graph_context includes impact_files, orientation_mode, and expansion_stats (ar...")
+    mod = load_enrich()
+    graph = {
+        "nodes": [
+            {"id": "seed", "label": "seed", "source_file": "seed.py"},
+            {"id": "dep", "label": "dep", "source_file": "dep.py"},
+        ],
+        "links": [{"source": "dep", "target": "seed", "relation": "imports"}],
+    }
+    sg = mod._build_deterministic_subgraph(graph, ["seed"])
+    patch = mod._build_graph_context_patch(
+        sg, "ok", "t1", ["seed"], [], [], "ok")
+
+    # The DEV-facing patch carries the full R1 signal.
+    assert "impact_files" in patch
+    assert "orientation_mode" in patch
+    assert "expansion_stats" in patch
+    assert patch["orientation_mode"] == mod.ORIENTATION_MODE
+    # Full list (not just a count) reaches DEV.
+    assert isinstance(patch["impact_files"], list) and len(patch["impact_files"]) >= 1
+    assert patch["impact_files"][0]["source_file"] == "dep.py"
