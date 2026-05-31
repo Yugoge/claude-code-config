@@ -5,10 +5,12 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _enrich_helper import load_enrich
 
 AC_UID = "47c3811018522853"
 AC_TYPE = "data"
+
+SIX = ["imports", "imports_from", "calls", "inherits", "uses", "re_exports"]
 
 
 def test_AC_A3():
@@ -17,7 +19,22 @@ def test_AC_A3():
     WHEN:  _build_deterministic_subgraph runs
     THEN:  forward edges appear in nodes/edges as context but never in impact_files
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — forward edges appear in nodes/edges as context but never in impact_files")
+    mod = load_enrich()
+    nodes = [{"id": "seed", "label": "seed", "source_file": "seed.py"}]
+    links = []
+    for i, rel in enumerate(SIX):
+        dep = f"dep{i}"
+        nodes.append({"id": dep, "label": dep, "source_file": f"dep{i}.py"})
+        # FORWARD: seed depends on dep (source==seed).
+        links.append({"source": "seed", "target": dep, "relation": rel})
+    sg = mod._build_deterministic_subgraph({"nodes": nodes, "links": links}, ["seed"])
+
+    edge_keys = {(e["source"], e["target"], e["relation"]) for e in sg["edges"]}
+    node_ids = {n["id"] for n in sg["nodes"]}
+    for i, rel in enumerate(SIX):
+        assert ("seed", f"dep{i}", rel) in edge_keys      # present as context edge
+        assert f"dep{i}" in node_ids                       # present as context node
+    # Forward dependencies NEVER aggregate into impact_files.
+    assert sg["impact_files"] == []
+    assert sg["expansion_stats"]["forward_edge_count"] == len(SIX)
+    assert sg["expansion_stats"]["reverse_edge_count"] == 0
