@@ -31,7 +31,26 @@ def test_AC_B3():
     WHEN:  get_todos() runs
     THEN:  (mirrors AC-B1 strength for the sibling generator, codex #6 / objection 5) every item's content AND activeForm begins with a continuous integer 'Step N:' prefix (N=1..16, no gaps, no decimals); the total item count == 16; no item label is the non-integer string 'graphify-preBA'/'graphify-enrich'; the two graphify items are numbered in their existing positions. dev-command.py already uses bare '(advisory)' content (no 'between Step N' parentheticals) so no content-string rewrite is needed beyond the label-to-integer change.
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — (mirrors AC-B1 strength for the sibling generator, codex #6 / objection 5) every item's co...")
+    todos = _load_get_todos()()
+
+    assert len(todos) == 16, f"expected 16 items, got {len(todos)}"
+    decimal_re = re.compile(r"Step \d+\.\d+")
+    for i, item in enumerate(todos, start=1):
+        content = item["content"]
+        active = item["activeForm"]
+        assert content.startswith(f"Step {i}: "), (
+            f"item {i} content lacks continuous integer prefix: {content!r}"
+        )
+        assert active.startswith(f"Step {i}: "), (
+            f"item {i} activeForm lacks continuous integer prefix: {active!r}"
+        )
+        assert not decimal_re.search(content), f"decimal step label in {content!r}"
+        assert not decimal_re.search(active), f"decimal step label in {active!r}"
+        # The non-integer label strings must not survive anywhere in the item.
+        assert "graphify-preBA" not in content and "graphify-preBA" not in active
+        assert "graphify-enrich" not in content and "graphify-enrich" not in active
+
+    # The two graphify items remain folded in place at Step 2 and Step 9.
+    assert "Graphify pre-BA" in todos[1]["content"]
+    assert "Graphify enrichment" in todos[8]["content"]
+    assert todos[8].get("subagent_call", {}).get("agent") == "graphify"
