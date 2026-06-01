@@ -171,26 +171,31 @@ Section 9 carries SHORT reference lines pointing at the user's companion design 
 archived evidence, each subsection preceded by a `<!-- consumers: [all] -->` annotation.
 Route Section 9 as follows:
 
-- Every Section-9 reference line is routable verbatim navigation content. Because its
-  `consumers:` annotation is `[all]`, emit each Section-9 reference line verbatim into
-  EVERY selected view AND the orchestrator view (`[all]` routes to all selected views
-  without an orphan-block HALT). Do NOT annotate Section-9 refs with concrete agents like
-  `[dev, qa]` — `[all]` is what the template already carries and avoids a HALT when a
-  named agent's view is unselected (R2.A.5).
-- The `<!-- consumers: [all] -->` annotation line itself is NOT skipped by `spec-verify.py`
-  (it is neither blank, `---`, nor a whitelisted EXPLICIT/INFERRED/AMBIGUOUS marker) and
-  is NOT covered by the fabrication whitelist — so it COUNTS toward coverage. You MUST emit
-  each Section-9 `<!-- consumers: [all] -->` annotation line verbatim into ≥1 view (route
-  it alongside its reference block into every selected view + orchestrator), or coverage
-  fails. Treat the annotation line as a real monolith line that must be covered.
+- Route the ENTIRE Section 9 block verbatim into EVERY selected view AND the orchestrator
+  view, because its `consumers:` annotation is `[all]` (`[all]` routes to all selected
+  views without an orphan-block HALT — R2.A.5). "Entire block" means EVERY non-blank,
+  non-`---` line in Section 9: the `## Section 9: Design & Evidence References` heading,
+  every explanatory `<!-- WHO WRITES ... -->` / `<!-- WHAT ... -->` comment line, the
+  `### 9.1` / `### 9.2` subsection headings, each `<!-- consumers: [all] -->` annotation
+  line, every reference line, and the `_Not yet populated._` placeholders. Do NOT annotate
+  Section-9 refs with concrete agents like `[dev, qa]` — `[all]` is what the template
+  already carries and avoids a HALT when a named agent's view is unselected.
+- WHY route the whole block and not just the reference lines: `spec-verify.py`'s
+  `is_skippable` skips ONLY blank lines and `---`. It does NOT skip the Section-9 heading,
+  the subsection headings, the explanatory HTML comments, or the `<!-- consumers: [all] -->`
+  annotation — none of those are blank/`---`, and none are whitelisted
+  EXPLICIT/INFERRED/AMBIGUOUS markers. So EVERY one of those lines COUNTS toward the
+  coverage denominator and MUST appear verbatim in ≥1 view or coverage fails. Treat every
+  Section-9 line as a real monolith line that must be covered.
 - Do NOT use the `EXPLICIT` cite-by-range marker for Section-9 refs — it is whitelisted
   OUT of the coverage count, so it would not satisfy coverage for these reference lines.
 - The companion design BODY files and the evidence BINARIES live OUTSIDE the monolith.
   They are NOT monolith content and MUST NOT be pulled into any view. Views carry only the
-  short Section-9 reference + annotation lines, never the design body or the binaries.
-- The `_Not yet populated._` placeholder under a Section-9 subsection (and its preceding
-  `<!-- consumers: [all] -->`) is ALSO routed verbatim into every selected view +
-  orchestrator, so the default line is covered when no design/evidence was supplied.
+  short Section-9 reference + scaffold + annotation lines, never the design body or the
+  binaries.
+- When no design/evidence was supplied, Section 9 carries only its scaffold +
+  `_Not yet populated._` placeholders; the same whole-block verbatim routing applies, so
+  the default lines are covered.
 
 ### Step 2: Assign blocks to agents
 
