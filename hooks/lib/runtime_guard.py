@@ -168,17 +168,18 @@ EXEC_FRONTEND_PROFILES = {
     "flock": {
         "opts_with_arg": frozenset({"-w", "--timeout", "-E", "--conflict-exit-code"}),
         "leading_positionals": 1,
-        "payload_opt": "-c",
+        "payload_opts": frozenset({"-c", "--command"}),
     },
     # sandbox: `firejail [opts] cmd...` (its own opts are mostly --opt=value)
     "firejail": {"opts_with_arg": frozenset(), "leading_positionals": 0},
-    # namespace: `unshare [opts] cmd...`
+    # namespace: `unshare [opts] cmd...`. `--wd <dir>` chdirs the wrapped cmd.
     "unshare": {
         "opts_with_arg": frozenset({
-            "--map-user", "--map-group", "--setgroups", "--wd",
+            "--map-user", "--map-group", "--setgroups", "--wd", "--wd=",
             "--mount", "--propagation", "-S", "--setuid", "-G", "--setgid",
         }),
         "leading_positionals": 0,
+        "cwd_opts": frozenset({"--wd"}),
     },
     # enter ns: `nsenter [opts] cmd...`
     "nsenter": {
@@ -188,17 +189,24 @@ EXEC_FRONTEND_PROFILES = {
         }),
         "leading_positionals": 0,
     },
-    # privilege switch: `runuser -u USER -- cmd...` OR `runuser -u USER -c 'str'`
+    # privilege switch: `runuser -u USER -- cmd...` OR `runuser [opts] USER -c 'str'`
+    # runuser also accepts the USER as an optional LEADING positional (the form
+    # without -u): `runuser root -c 'str'`. Treat a bare positional before the
+    # payload/tail as the user operand (consume_user_positional).
     "runuser": {
-        "opts_with_arg": frozenset({"-u", "--user", "-g", "--group", "-G", "--supp-group"}),
+        "opts_with_arg": frozenset({"-u", "--user", "-g", "--group", "-G", "--supp-group", "-s", "--shell"}),
         "leading_positionals": 0,
-        "payload_opt": "-c",
+        "consume_user_positional": True,
+        "payload_opts": frozenset({"-c", "--command", "--session-command"}),
     },
-    # privilege switch: `su [opts] [USER] -c 'str'` OR `su USER ... cmd?`
+    # privilege switch: `su [opts] [USER] -c 'str'` OR `su USER cmd?`. The USER is
+    # an optional leading positional; -c/--command/--session-command may appear
+    # before OR after it. Consume one bare positional as the user before the tail.
     "su": {
         "opts_with_arg": frozenset({"-g", "--group", "-G", "--supp-group", "-s", "--shell"}),
         "leading_positionals": 0,
-        "payload_opt": "-c",
+        "consume_user_positional": True,
+        "payload_opts": frozenset({"-c", "--command", "--session-command"}),
     },
     # trace: `strace [opts] cmd...`
     "strace": {
