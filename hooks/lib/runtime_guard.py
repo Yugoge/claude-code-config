@@ -486,8 +486,14 @@ def _path_is_protected_build(path: str, cfg: dict) -> bool:
     rel_globs = [g for g in bpaths if not g.startswith("/")]
     if abs_globs and (_path_under_any(path, abs_globs) or _path_matches_any(path, abs_globs)):
         return True
-    if rel_globs and (_path_under_any(path, rel_globs) or _path_matches_any(path, rel_globs)) \
-            and _dir_under_any_root(path, cfg):
+    if rel_globs and (_path_under_any(path, rel_globs) or _path_matches_any(path, rel_globs)):
+        # A relative-glob match on an ABSOLUTE path could be an unrelated
+        # project's same-named dir → require it under a protected root. A
+        # RELATIVE path (cwd unknown / repo-relative) cannot be disambiguated →
+        # fail CLOSED (treat as protected); only an ABSOLUTE path OUTSIDE every
+        # protected root is exonerated.
+        if os.path.isabs(os.path.normpath(path)):
+            return _dir_under_any_root(path, cfg)
         return True
     return False
 
