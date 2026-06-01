@@ -1838,6 +1838,10 @@ def _classify_filter_value(val: str) -> str:
     """
     if any(ch in val for ch in ("*", "?", "{", "}")) or val.startswith("...") or val.endswith("...") or "..." in val:
         return "<MULTI>"
+    # a scoped package NAME (`@scope/name`) contains a slash but is a name, not a
+    # filesystem path — classify it as a name selector (resolved via metadata).
+    if val.startswith("@") and val.count("/") == 1 and not val.startswith("@/"):
+        return val
     # path-like: contains a slash, or is '.'/'..', or starts with './' or '../'
     if "/" in val or val in (".", ".."):
         return _PATH_FILTER_PREFIX + val
@@ -2223,6 +2227,35 @@ def _classify_post_selector(post: list, scripts: set, safe_allow: set, protected
     if under_monorepo:
         return _block("P9", "token is not a declared script of the selected workspace (.bin fallthrough)")
     return None
+
+
+def _dir_under_any_root(d: Optional[str], cfg: dict) -> bool:
+    """True if directory `d` is at/under any protected monorepo root."""
+    if not d:
+        return False
+    dn = os.path.normpath(d)
+    for root in cfg.get("protected_root_manifest_paths", []):
+        rn = os.path.normpath(root)
+        if dn == rn or dn.startswith(rn + "/"):
+            return True
+    return False
+
+
+def _dir_is_protected_pkg(d: Optional[str], cfg: dict) -> bool:
+    """True if `d` is a protected package dir. A relative `protected_script_paths`
+    glob (e.g. `**/packages/<pkg>`) is suffix-matching and would also match an
+    UNRELATED project's identically-named dir; qualify it by requiring `d` to be
+    under a protected monorepo root (an absolute glob is honored as-is)."""
+    if not d:
+        return False
+    spaths = cfg.get("protected_script_paths", [])
+    abs_globs = [g for g in spaths if g.startswith("/")]
+    rel_globs = [g for g in spaths if not g.startswith("/")]
+    if abs_globs and _path_matches_any(d, abs_globs):
+        return True
+    if rel_globs and _path_matches_any(d, rel_globs) and _dir_under_any_root(d, cfg):
+        return True
+    return False
 
 
 def _under_protected_monorepo(man_dir: Optional[str], cfg: dict) -> bool:
