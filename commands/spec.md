@@ -52,9 +52,18 @@ Adapted from `/dev` BA clarification pattern (dev.md Step 4 loop, max 3 rounds, 
    - `<issue_description>` → short summary of the user's requirement
    - `<ISO-8601>` → current timestamp
    - Section 5 → user's requirement verbatim
-   - All other sections → `_Not yet populated._`
+   - All other sections → `_Not yet populated._` (Section 9's two subsections each
+     keep their `<!-- consumers: [all] -->` line + `_Not yet populated._` placeholder
+     until their own first entry — see the Design & Evidence Capture Routine below)
 
 4. Write the spec.
+
+4a. **Design & Evidence Capture Routine (early capture)**: If the FIRST requirement
+    already carries user-provided design/HOW-content or evidence (files/photos), run
+    the routine defined in **Step 4b** immediately after the spec is written, BEFORE
+    acknowledging in sub-step 6. Early capture (not finalize) is mandatory: finalize is
+    too late and follow-up material would be lost (M2). If the first turn has no
+    design/evidence, skip the routine this turn; it re-runs per follow-up in Step 4.
 
 5. **Background exploration (non-blocking)**: when the user mentions specific files, components, features, or technical terms, immediately dispatch an Explore agent in the background:
    ```
