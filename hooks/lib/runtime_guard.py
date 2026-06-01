@@ -71,21 +71,35 @@ _WRAPPER_OPTS_WITH_ARG = {
     "systemd-run": frozenset({
         "--unit", "-u", "--property", "-p", "--slice", "--description",
         "--on-active", "--on-calendar", "--uid", "--gid", "--setenv", "-E",
-        "--working-directory", "-d",
+        "--working-directory", "--service-type", "--nice", "-H", "--host",
+        "-M", "--machine", "--on-boot", "--on-startup", "--on-unit-active",
+        "--on-unit-inactive", "--timer-property",
+        # NOTE: -d/--scope/-G/--pty/-t/--quiet are NO-ARG (must NOT consume an
+        # operand); they are intentionally absent here.
     }),
     "chrt": frozenset({"-p"}),
-    "taskset": frozenset({"-c", "-p"}),
+    "taskset": frozenset({"-p", "-c", "--cpu-list"}),
     "setarch": frozenset(),
     "env": frozenset({"-C", "--chdir", "-u", "--unset", "-S", "--split-string"}),
     "doas": frozenset({"-u", "-C"}),
     "sudo": frozenset({"-u", "--user", "-g", "--group", "-C", "--close-from", "-D", "--chdir", "-p", "--prompt", "-U", "--other-user", "-r", "--role", "-t", "--type"}),
     "exec": _EXEC_OPTS_WITH_ARG,
 }
-# timeout takes a positional DURATION operand immediately after its options;
-# nice can take a bare positional only via -n. Track wrappers with a leading
-# positional operand to consume before the real command word.
-_WRAPPER_LEADING_POSITIONAL = frozenset({"timeout"})
-RUNTIMES = frozenset({"node", "nodejs", "tsx", "bun", "deno", "ts-node"})
+# Wrappers that take ONE leading positional operand before the real command
+# word: timeout DURATION; chrt PRIORITY; taskset MASK; setarch ARCH. For
+# chrt/taskset the operand may instead be supplied via a value option
+# (taskset -c <list>, chrt -p <pid>), so the leading positional is consumed
+# only when no such value option already supplied it (tracked at parse time).
+# setarch's ARCH is always positional; timeout's DURATION is always positional.
+_WRAPPER_LEADING_POSITIONAL = frozenset({"timeout", "chrt", "taskset", "setarch"})
+# Subset whose leading positional is SUPPRESSED if a value option already
+# consumed an operand (so `taskset -c 0 happy` exposes 'happy', not skips it).
+_WRAPPER_POSITIONAL_OPTIONAL = frozenset({"chrt", "taskset"})
+RUNTIMES = frozenset({"node", "nodejs", "tsx", "bun", "deno", "ts-node", "ts-node-esm"})
+# Per-runtime leading SUBCOMMANDS that precede the script positional and must be
+# skipped so `deno run <path>`, `tsx watch <path>`, `bun run <path>` reach the
+# protected path. These tokens are not the script; the script follows them.
+_RUNTIME_SUBCOMMANDS = frozenset({"run", "watch"})
 # Runtime flags that consume one following value (so the script positional is
 # not mistaken for the value, and a value is not mistaken for the script).
 _RUNTIME_OPTS_WITH_ARG = frozenset({
@@ -110,6 +124,9 @@ KILL_VERBS = frozenset({"kill", "pkill", "killall"})
 SERVICE_VERBS = frozenset({
     "start", "stop", "restart", "try-restart", "reload",
     "reload-or-restart", "kill", "disable", "mask", "enable",
+    # additional lifecycle verbs that reload/restart a running unit
+    "try-reload-or-restart", "reload-or-try-restart", "force-reload",
+    "condrestart", "condreload",
 })
 # Generic build verbs / tool basenames for fail-closed + bare-build family.
 BUILD_TOOL_BASENAMES = frozenset({"tsc", "pkgroll", "tsup", "rollup", "esbuild", "vite", "webpack"})
@@ -172,9 +189,9 @@ def _split_pipeline(command: str) -> list:
         if c == "`":
             backtick = not backtick
             buf.append(c); i += 1; continue
-        if command[i:i + 2] == "$(":
+        if command[i:i + 2] in ("$(", "<(", ">("):
             subst_depth += 1
-            buf.append("$("); i += 2; continue
+            buf.append(command[i:i + 2]); i += 2; continue
         if c == ")" and subst_depth > 0:
             subst_depth -= 1
             buf.append(c); i += 1; continue
@@ -256,6 +273,12 @@ def _strip_compound_delims(command: str) -> str:
             out.append(c); out.append(command[i + 1]); i += 2; continue
         # `$(` command substitution and `${` parameter expansion are preserved
         # intact (their closing `)`/`}` is NOT a compound-group delimiter).
+        # Process substitutions `<(...)` / `>(...)` are likewise preserved so a
+        # kill/xargs fed by `<(pgrep -f <ident>)` keeps the inner pipeline intact
+        # for P6 connectivity analysis.
+        if command[i:i + 2] in ("<(", ">("):
+            subst_depth += 1
+            out.append(command[i:i + 2]); i += 2; continue
         if command[i:i + 2] == "$(":
             subst_depth += 1
             out.append("$("); i += 2; continue
@@ -417,6 +440,33 @@ def _any_token_under(tokens: list, dir_globs: list) -> bool:
     return False
 
 
+def _flagvalue_path_candidates(tokens: list) -> list:
+    """Yield path-like RHS values of `--flag=value` option tokens (e.g. the
+    `<path>` in `--project=<path>`, `--outfile=<path>`, `--tsconfig=<path>`).
+    A build invocation can point at / write to the protected package via such a
+    fused option, which the bare-token scan (skipping `-`-leading tokens) misses.
+    """
+    out = []
+    for tok in tokens:
+        st = _strip_quotes(tok)
+        if st.startswith("-") and "=" in st:
+            val = st.split("=", 1)[1]
+            if val:
+                out.append(val)
+    return out
+
+
+def _any_token_under_incl_flagvalue(tokens: list, dir_globs: list) -> bool:
+    """Like _any_token_under but also inspects `--flag=value` RHS paths and
+    matches the exact-path globs as well as the directory-containment globs."""
+    if _any_token_under(tokens, dir_globs):
+        return True
+    for val in _flagvalue_path_candidates(tokens):
+        if _path_under_any(val, dir_globs) or _path_matches_any(val, dir_globs):
+            return True
+    return False
+
+
 # ── Command-word position scanning ───────────────────────────────────────────
 
 def _command_words(tokens: list) -> list:
@@ -443,6 +493,7 @@ def _command_words(tokens: list) -> list:
             break
         opts_with_arg = _WRAPPER_OPTS_WITH_ARG.get(base, frozenset())
         i += 1
+        value_opt_seen = False
         # consume this wrapper's options (and their operands) and env VAR=val.
         while i < n:
             t = tokens[i]
@@ -453,6 +504,7 @@ def _command_words(tokens: list) -> list:
                 i += 1
                 break
             if t in opts_with_arg:
+                value_opt_seen = True
                 i += 2
                 continue
             if "=" in t and t.startswith("-"):
@@ -464,9 +516,13 @@ def _command_words(tokens: list) -> list:
                 continue
             break
         # consume a single leading positional operand for wrappers that take one
-        # (timeout DURATION). Only if the token is not itself a wrapper/command.
+        # (timeout DURATION, chrt PRIORITY, taskset MASK, setarch ARCH). For the
+        # optional-positional wrappers (chrt/taskset) skip the consumption when a
+        # value option already supplied the operand, so `taskset -c 0 happy`
+        # still exposes 'happy' as the command word.
         if base in _WRAPPER_LEADING_POSITIONAL and i < n:
-            i += 1
+            if not (base in _WRAPPER_POSITIONAL_OPTIONAL and value_opt_seen):
+                i += 1
     if i >= n:
         return []
     return [(i, os.path.basename(_strip_quotes(tokens[i])), tokens[i + 1:])]
@@ -498,6 +554,7 @@ def _wrapper_cwd(tokens: list):
         if base not in ENV_WRAPPERS:
             break
         i += 1
+        value_opt_seen = False
         while i < n:
             t = tokens[i]
             if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", t):
@@ -535,6 +592,7 @@ def _wrapper_cwd(tokens: list):
                 continue
             opts_with_arg = _WRAPPER_OPTS_WITH_ARG.get(base, frozenset())
             if t in opts_with_arg:
+                value_opt_seen = True
                 i += 2
                 continue
             if "=" in t and t.startswith("-"):
@@ -545,7 +603,8 @@ def _wrapper_cwd(tokens: list):
                 continue
             break
         if base in _WRAPPER_LEADING_POSITIONAL and i < n:
-            i += 1
+            if not (base in _WRAPPER_POSITIONAL_OPTIONAL and value_opt_seen):
+                i += 1
     return (found, determinate)
 
 
@@ -577,7 +636,8 @@ def _command_substitutions(text: str) -> list:
     n = len(text)
     i = 0
     while i < n:
-        if text[i] == "$" and i + 1 < n and text[i + 1] == "(":
+        # $(...) command substitution and <(...) / >(...) process substitution
+        if (text[i] in ("$", "<", ">")) and i + 1 < n and text[i + 1] == "(":
             depth = 1
             j = i + 2
             start = j
@@ -675,9 +735,9 @@ def _pipeline_groups(command: str) -> list:
         if c == "`":
             backtick = not backtick
             buf.append(c); i += 1; continue
-        if command[i:i + 2] == "$(":
+        if command[i:i + 2] in ("$(", "<(", ">("):
             subst_depth += 1
-            buf.append("$("); i += 2; continue
+            buf.append(command[i:i + 2]); i += 2; continue
         if c == ")" and subst_depth > 0:
             subst_depth -= 1
             buf.append(c); i += 1; continue
@@ -926,9 +986,12 @@ def _path_matches_cwd(raw: str, globs: list, cwd: Optional[str], cwd_det: bool) 
 
 def _runtime_target(rest: list) -> Optional[str]:
     """Find the first real script positional after a runtime's options.
-    Skips runtime flags that consume a value (--loader X, -r X, etc.)."""
+    Skips runtime flags that consume a value (--loader X, -r X, etc.) and a
+    single leading runtime subcommand (deno run / tsx watch / bun run) that
+    precedes the script positional."""
     i = 0
     n = len(rest)
+    subcmd_skipped = False
     while i < n:
         t = rest[i]
         if t == "--":
@@ -941,7 +1004,16 @@ def _runtime_target(rest: list) -> Optional[str]:
             # --opt=value or a value-less flag: single token
             i += 1
             continue
-        return _strip_quotes(t)
+        st = _strip_quotes(t)
+        # Skip ONE leading runtime subcommand (run/watch) — a bare word with no
+        # path separator/extension — so the protected script positional after it
+        # is reached. Never skips a real filename.
+        if (not subcmd_skipped and st in _RUNTIME_SUBCOMMANDS
+                and i + 1 < n and "/" not in st and "." not in st):
+            subcmd_skipped = True
+            i += 1
+            continue
+        return st
     return None
 
 
@@ -961,6 +1033,56 @@ def _upstream_text_in_group(groups: list, sc: str) -> str:
     return ""
 
 
+def _selector_cwd(head: str, rest: list, cfg: dict, cwd: Optional[str], cwd_det: bool):
+    """If a PM workspace selector (yarn workspace <ws> / -w / --filter / pnpm -C)
+    is present, resolve it to the selected workspace's manifest dir so a
+    subsequent exec'd runtime/build resolves relative protected paths against the
+    SELECTED workspace (not the shell cwd). Returns (cwd, cwd_det) updated.
+
+    A determinate resolution to a known workspace dir threads that dir as the
+    effective cwd. An unresolvable selector leaves cwd_det False (fail-closed for
+    relative-path families). Non-PM heads or no selector return cwd unchanged.
+    """
+    if head not in PKG_MANAGERS:
+        return (cwd, cwd_det)
+    sel = _explicit_workspace_selector(head, rest)
+    if sel is None or sel == "<MULTI>":
+        return (cwd, cwd_det)
+    man_dir, _is_protected, _scripts, det = _resolve_workspace_manifest(sel, cfg, cwd)
+    if det and man_dir:
+        return (os.path.normpath(man_dir), True)
+    # selector named but unresolvable -> indeterminate for relative resolution
+    return (cwd, False)
+
+
+def _exec_subcommand_after_selector(head: str, rest: list):
+    """For a PM `<sel> exec <runner> [args]` form, return (runner_basename,
+    args_after_runner) so the post-exec launch can be routed through P1 with the
+    selector-resolved cwd. Returns (None, []) if there is no exec/runner form."""
+    # find an exec/dlx/x keyword AFTER the selector token; the selector value was
+    # already consumed by _explicit_workspace_selector, so scan all of rest.
+    i = 0
+    while i < len(rest):
+        if rest[i] in ("exec", "dlx", "x"):
+            toks = rest[i + 1:]
+            j = 0
+            while j < len(toks):
+                t = toks[j]
+                if t == "--":
+                    j += 1
+                    continue
+                if t in _RUNNER_OPTS_WITH_ARG:
+                    j += 2
+                    continue
+                if t.startswith("-"):
+                    j += 1
+                    continue
+                return (os.path.basename(_strip_quotes(t)), toks[j + 1:])
+            return (None, [])
+        i += 1
+    return (None, [])
+
+
 def _p1_launch(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
                groups: Optional[list] = None) -> Optional[Verdict]:
     cmds = set(cfg.get("protected_cmds", []))
@@ -978,6 +1100,22 @@ def _p1_launch(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         # then fold any leading wrapper chdir (env -C/sudo --chdir) into it.
         cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
         cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+        # fold a PM workspace selector's resolved dir into the effective cwd so a
+        # `yarn workspace <ws> exec node dist/index.mjs ...` resolves the relative
+        # protected path against the SELECTED workspace.
+        cwd, cwd_det = _selector_cwd(head, rest, cfg, cwd, cwd_det)
+        # PM `<selector> exec <runtime> <path> …` — route the post-exec runner
+        # through the launch logic with the selector-resolved cwd.
+        ex_runner, ex_args = _exec_subcommand_after_selector(head, rest)
+        if ex_runner is not None:
+            if ex_runner in cmds:
+                return _block("P1", f"workspace-selected exec of protected command '{ex_runner}'")
+            if ex_runner in RUNTIMES:
+                ex_pos = _runtime_target(ex_args)
+                if ex_pos is not None and _path_matches_cwd(ex_pos, launch_paths, cwd, cwd_det):
+                    return _block("P1", "workspace-selected exec runtime launch of protected path")
+            if _path_matches_cwd(ex_runner, launch_paths, cwd, cwd_det):
+                return _block("P1", "workspace-selected exec of protected launch path")
         # direct basename launch
         if head in cmds:
             return _block("P1", f"launch of protected command '{head}'")
@@ -1367,11 +1505,26 @@ def _p6_prockill(groups: list, cfg: dict) -> Optional[Verdict]:
     the same group, or inside a kill's $()/`` command substitution.
     """
     idents = cfg.get("protected_proc_idents", [])
-    if not idents:
+    statefiles = cfg.get("protected_statefiles", [])
+    if not idents and not statefiles:
         return None
 
     def has_ident(text: str) -> bool:
         return any(ident in text for ident in idents)
+
+    def reads_statefile(text: str) -> bool:
+        """True if any whitespace token of `text` resolves to a protected
+        statefile path. A kill target derived from `$(jq .pid <statefile>)` is a
+        protected-PID kill even though the statefile path is not a proc-ident."""
+        if not statefiles:
+            return False
+        for raw in re.split(r"\s+", text):
+            st = _strip_quotes(raw.strip("'\""))
+            if not st or st.startswith("-"):
+                continue
+            if _path_matches_any(st, statefiles):
+                return True
+        return False
 
     for group in groups:
         kill_present = False
@@ -1386,15 +1539,16 @@ def _p6_prockill(groups: list, cfg: dict) -> Optional[Verdict]:
             _, head, rest = cw[0]
             if _is_kill_executor(head, rest):
                 kill_present = True
-                # `kill $(<pipeline naming ident>)` — inspect substitutions of
-                # this very simple command for a protected identifier.
+                # `kill $(<pipeline naming ident>)` / `kill $(jq .pid
+                # <statefile>)` — inspect this command's substitutions for a
+                # protected identifier OR a read of a protected statefile.
                 for sub in _command_substitutions(sc):
-                    if has_ident(sub):
+                    if has_ident(sub) or reads_statefile(sub):
                         kill_subst_carries_ident = True
         if not kill_present:
             continue
         group_text = " ".join(group)
-        if has_ident(group_text) or kill_subst_carries_ident:
+        if has_ident(group_text) or kill_subst_carries_ident or reads_statefile(group_text):
             return _block("P6", "process kill carrying a protected identifier")
     return None
 
@@ -1432,6 +1586,24 @@ def _cwd_under_build_path(cwd: Optional[str], cwd_det: bool, bpaths: list) -> bo
     return _path_under_any(cwd, bpaths)
 
 
+def _cwd_in_protected_build_scope(cwd: Optional[str], cwd_det: bool, cfg: dict) -> bool:
+    """True if a determinate effective cwd is inside a protected build package OR
+    at/under a protected monorepo root manifest. A bare build-mode invocation
+    (tsc -b) in either scope rebuilds the protected bundle (directly or via
+    project references), so it is in-scope for the build guard."""
+    if not cwd or not cwd_det:
+        return False
+    if _path_under_any(cwd, cfg.get("protected_build_paths", [])):
+        return True
+    # the monorepo ROOT exactly (where a project-referenced `tsc -b` rebuilds the
+    # protected package); a non-protected sub-package's own cwd is NOT in scope.
+    cwd_n = os.path.normpath(cwd)
+    for root in cfg.get("protected_root_manifest_paths", []):
+        if cwd_n == os.path.normpath(root):
+            return True
+    return False
+
+
 def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> Optional[Verdict]:
     ws = set(cfg.get("protected_build_workspaces", []))
     bpaths = cfg.get("protected_build_paths", [])
@@ -1443,21 +1615,30 @@ def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> O
         if not cw:
             continue
         _, head, rest = cw[0]
-        # effective cwd: cd/pushd in the chain + a leading wrapper chdir.
+        # effective cwd: cd/pushd in the chain + a leading wrapper chdir + a PM
+        # workspace selector's resolved dir (so `npm -w happy exec tsc -p
+        # tsconfig.json` resolves the protected build cwd).
         cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
         cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+        cwd, cwd_det = _selector_cwd(head, rest, cfg, cwd, cwd_det)
         cwd_in_build = _cwd_under_build_path(cwd, cwd_det, bpaths)
         # (a) explicit: build naming a protected workspace
         if head in PKG_MANAGERS and "build" in rest:
             sel = _explicit_workspace_selector(head, rest)
             if sel is not None and sel in ws:
                 return _block("P8", "explicit build of a protected workspace")
-        # (a) build tool co-occurring with a protected build path (token or cwd)
+        # (a) build tool co-occurring with a protected build path (token, fused
+        # --flag=path value, or cwd).
         if head in BUILD_TOOL_BASENAMES:
-            if _any_token_under(rest, bpaths) or cwd_in_build:
+            if _any_token_under_incl_flagvalue(rest, bpaths) or cwd_in_build:
                 return _block("P8", "build tool co-occurring with a protected build path")
+            if _build_mode_flag_present(rest) and (cwd is None or not cwd_det
+                                                   or _cwd_in_protected_build_scope(cwd, cwd_det, cfg)):
+                # bare build-mode (tsc -b / --build / -w) with cwd in a protected
+                # package/root or indeterminate cwd -> fail-closed rebuild.
+                return _block("P8", "build-mode flag with protected/indeterminate cwd")
         if head in PKG_MANAGERS and "build" in rest:
-            if _any_token_under(rest, bpaths):
+            if _any_token_under_incl_flagvalue(rest, bpaths):
                 return _block("P8", "build co-occurring with a protected build path")
         # package-runner build: npx/bunx AND npm exec/pnpm exec/yarn exec/bun x
         # running a build tool, against a protected build path (token or cwd).
@@ -1465,9 +1646,27 @@ def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> O
         if rtgt is not None and os.path.basename(rtgt) in BUILD_TOOL_BASENAMES:
             # tokens AFTER the build-tool target (e.g. `-p <path>` for tsc)
             after = _tokens_after_runner_target(head, rest)
-            if _any_token_under(after, bpaths) or _any_token_under(rest, bpaths) or cwd_in_build:
+            if (_any_token_under_incl_flagvalue(after, bpaths)
+                    or _any_token_under_incl_flagvalue(rest, bpaths) or cwd_in_build):
                 return _block("P8", "package-runner build co-occurring with a protected build path")
+            if _build_mode_flag_present(after) and (cwd is None or not cwd_det
+                                                    or _cwd_in_protected_build_scope(cwd, cwd_det, cfg)):
+                return _block("P8", "package-runner build-mode flag with protected/indeterminate cwd")
     return None
+
+
+# Build-mode flags that produce/refresh the bundle without an explicit path
+# argument (incremental project build / watch). When present, the effective cwd
+# decides whether the protected bundle is the target.
+_BUILD_MODE_FLAGS = frozenset({"-b", "--build", "-w", "--watch"})
+
+
+def _build_mode_flag_present(tokens: list) -> bool:
+    for t in tokens:
+        st = _strip_quotes(t)
+        if st in _BUILD_MODE_FLAGS:
+            return True
+    return False
 
 
 def _tokens_after_runner_target(head: str, rest: list) -> list:
@@ -1867,16 +2066,25 @@ def _resolve_bare_script(script_tok: Optional[str], cwd: Optional[str], cwd_det:
 
 # ── corepack re-routing ──────────────────────────────────────────────────────
 
+_PM_AT_VERSION_RE = re.compile(r"^(yarn|pnpm|npm)(@.+)?$")
+
+
 def _unwrap_corepack(simple_cmds: list) -> list:
-    """Rewrite `corepack <pm> ...` simple commands to `<pm> ...` so P9 re-parses."""
+    """Rewrite `corepack <pm>[@version] ...` simple commands to `<pm> ...` so
+    P1/P8/P9 re-parse. The corepack proxy front-end accepts a pinned version
+    (`corepack pnpm@9 exec …`); normalize the proxy token to the bare PM
+    basename and preserve the remaining args."""
     out = []
     for sc in simple_cmds:
         toks = _safe_shlex(sc)
         cw = _command_words(toks) if toks else []
         if cw and cw[0][1] == "corepack" and len(cw[0][2]) >= 1:
             rest = cw[0][2]  # args after 'corepack' (head excluded)
-            if rest and os.path.basename(_strip_quotes(rest[0])) in PKG_MANAGERS:
-                out.append(" ".join(rest))
+            proxy = os.path.basename(_strip_quotes(rest[0]))
+            m = _PM_AT_VERSION_RE.match(proxy)
+            if m:
+                pm = m.group(1)
+                out.append(" ".join([pm] + rest[1:]))
                 continue
         out.append(sc)
     return out
