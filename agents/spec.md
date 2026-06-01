@@ -398,6 +398,19 @@ Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with the sections below i
 
 ---
 
+## Design & Evidence References
+
+<If the monolith's Section 9 is populated (any design/evidence reference line beyond the
+placeholder), include here — VERBATIM — every Section-9 reference line AND its preceding
+`<!-- consumers: [all] -->` annotation line(s), so downstream `/dev*` (which reads
+orchestrator.md) sees the design/evidence pointers (M10). Companion design body files and
+evidence binaries are NOT inlined — only the short reference + annotation lines. If
+Section 9 carries only the `_Not yet populated._` placeholders, include those placeholder
+lines + their `<!-- consumers: [all] -->` annotations verbatim so coverage holds. OMIT this
+section's content only if the monolith has no Section 9 at all (legacy monolith).>
+
+---
+
 ## Agent Relevance Analysis
 
 | Agent | Relevant | Reason |
