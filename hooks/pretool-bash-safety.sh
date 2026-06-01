@@ -43,6 +43,69 @@ if [ "$TOOL_NAME" != "Bash" ]; then
   exit 0
 fi
 
+# ── Protected-runtime guard (generic engine; runs FIRST, before any bypass) ──
+# A self-contained Layer-1 block that protects a long-running local service from
+# being restarted / handed-off / killed by routine agent commands. The engine
+# (hooks/lib/runtime_guard.py) and this glue contain ZERO project identifiers;
+# every project-specific name (command basenames, workspace names, service
+# units, file globs, monorepo roots) lives ONLY in a machine-local data file.
+#
+# Ordering contract (mandatory): this block executes BEFORE the /do bypass,
+# BEFORE the /allow sentinel short-circuit, and BEFORE the legacy block rules,
+# so its decisions are unbypassable. It is also self-contained: it re-parses the
+# stdin payload via the helper and does NOT depend on any later-initialized
+# command-context variable.
+#
+# The helper performs STEP0 (config self-protection, hardcoded generic path),
+# STEP1 (fail-closed indeterminate policy on missing/malformed config), and the
+# P1..P9 generic primitives. It prints exactly one verdict token on stdout:
+#   BLOCK         -> deny (exit 2)
+#   ALLOW         -> proceed
+#   INDETERMINATE -> helper could not parse the payload
+# and writes a BLOCK reason to stderr. It never runs a real command.
+#
+# FAIL-CLOSED CONTRACT: the helper is a mandatory deployment artifact shipped in
+# this same repo. If it is MISSING, errors, or returns anything other than the
+# literal ALLOW, we MUST NOT silently fall open into the bypassable legacy rules.
+# Instead we run a tiny generic danger-family fallback (same verb families the
+# helper's STEP1 uses — no project names) and deny if the command is in a
+# protected family; benign commands (ls/cat/git) still proceed.
+_runtime_guard_fail_closed() {
+  # Returns 0 (deny) if the raw command matches a generic protected verb family.
+  local cmd="$1"
+  printf '%s\n' "$cmd" | grep -qiE '(^|[;&|]|[[:space:]])(systemctl|service)[[:space:]]+(start|stop|restart|try-restart|reload|reload-or-restart|kill|disable|mask|enable)([[:space:]]|$)' && return 0
+  printf '%s\n' "$cmd" | grep -qiE '(^|[;&|]|[[:space:]])(kill|pkill|killall)([[:space:]]|$)' && return 0
+  printf '%s\n' "$cmd" | grep -qiE '(^|[;&|]|[[:space:]])(yarn|npm|pnpm|bun)([[:space:]]|$)' && return 0
+  printf '%s\n' "$cmd" | grep -qiE '(^|[;&|]|[[:space:]])(npx|bunx|tsc|pkgroll|tsup)([[:space:]]|$)' && return 0
+  printf '%s\n' "$cmd" | grep -qiE '(^|[;&|]|[[:space:]])(node|nodejs|tsx|deno)([[:space:]]|$)' && return 0
+  return 1
+}
+_RUNTIME_GUARD_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/runtime_guard.py"
+_RUNTIME_GUARD_ERR="$(mktemp "${CLAUDE_TMPDIR%/}/runtime-guard-XXXXXX" 2>/dev/null || echo /dev/null)"
+if [ -f "$_RUNTIME_GUARD_LIB" ]; then
+  _RUNTIME_GUARD_VERDICT=$(printf '%s' "$INPUT" | "$PYTHON_BIN" "$_RUNTIME_GUARD_LIB" 2>"$_RUNTIME_GUARD_ERR")
+else
+  _RUNTIME_GUARD_VERDICT="MISSING"
+fi
+if [ "$_RUNTIME_GUARD_VERDICT" = "BLOCK" ]; then
+  [ -s "$_RUNTIME_GUARD_ERR" ] && cat "$_RUNTIME_GUARD_ERR" >&2
+  [ "$_RUNTIME_GUARD_ERR" != "/dev/null" ] && rm -f "$_RUNTIME_GUARD_ERR" 2>/dev/null
+  echo "BLOCKED: protected-runtime-guard — this command could restart, hand off, or kill a protected local service, or rebuild/launch its protected package. This block is generic and unbypassable (it runs before /do and /allow)." >&2
+  echo "If the human operator intends to run it, they must do so from a real terminal — Claude/subagents are never permitted this command." >&2
+  exit 2
+elif [ "$_RUNTIME_GUARD_VERDICT" != "ALLOW" ]; then
+  # MISSING helper / nonzero exit / INDETERMINATE / unrecognized verdict: the
+  # guard could not authoritatively decide. Fail closed for danger families.
+  [ "$_RUNTIME_GUARD_ERR" != "/dev/null" ] && rm -f "$_RUNTIME_GUARD_ERR" 2>/dev/null
+  if _runtime_guard_fail_closed "$COMMAND"; then
+    echo "BLOCKED: protected-runtime-guard FAIL-CLOSED — the guard engine is unavailable or returned no decision (verdict='$_RUNTIME_GUARD_VERDICT'), and this command is in a protected verb family (service/kill/package-manager/build/runtime). Denied conservatively. A human operator must run it from a real terminal, and the guard deployment ($_RUNTIME_GUARD_LIB) should be repaired." >&2
+    exit 2
+  fi
+else
+  [ "$_RUNTIME_GUARD_ERR" != "/dev/null" ] && rm -f "$_RUNTIME_GUARD_ERR" 2>/dev/null
+fi
+# ─────────────────────────────────────────────────────────────────────────────
+
 # ── Dev whitelist (exact names only) ──────────────────────────────
 # These are the ONLY dev resources that can be freely managed.
 DEV_CONTAINERS="happy-web-dev"

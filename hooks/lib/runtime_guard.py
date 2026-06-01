@@ -1,0 +1,1985 @@
+#!/usr/bin/env python3
+"""Generic protected-runtime guard engine for pretool-bash-safety.sh.
+
+This module contains ZERO project identifiers. Every project-specific name
+(command basenames, workspace names, service units, file globs, monorepo roots)
+lives ONLY in the machine-local data file whose path is the single hardcoded
+constant below — a generic filesystem path, not a project name.
+
+Decision contract:
+  evaluate(command) -> ("BLOCK", primitive, reason) | ("ALLOW", None, None)
+
+The hook invokes evaluate() BEFORE its /do, /allow, and sentinel bypass logic,
+so a BLOCK here is unbypassable.
+
+Ordering (mandatory):
+  STEP 0  config self-protection  — runs BEFORE config load (hardcoded path patterns)
+  STEP 1  load config; on missing/unreadable/malformed/wrong-schema -> indeterminate
+          policy (fail-closed verb-family block)
+  STEP 2  P1..P9 generic primitives, patterns sourced from the data file
+
+Self-contained: does NOT depend on any context-stripped command form computed
+later in the hook. It performs its own conservative tokenization.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shlex
+import sys
+from typing import Optional, Tuple
+
+# ── The single hardcoded constant: the generic data-file path ────────────────
+# Overridable for tests via env so the live machine file is never mutated by a
+# test run. The path is generic; it carries no project identity.
+DATA_FILE_PATH = os.environ.get(
+    "CLAUDE_PROTECTED_RUNTIME_FILE",
+    "/root/.config/claude/protected-runtime.json",
+)
+
+MAX_COMMAND_CHARS = int(os.environ.get("CLAUDE_GUARD_MAX_CHARS", "262144"))
+
+Verdict = Tuple[str, Optional[str], Optional[str]]
+ALLOW: Verdict = ("ALLOW", None, None)
+
+
+def _block(primitive: str, reason: str) -> Verdict:
+    return ("BLOCK", primitive, reason)
+
+
+# ── Generic verb / keyword vocabularies (no project names) ───────────────────
+PKG_MANAGERS = frozenset({"yarn", "npm", "pnpm", "bun"})
+# Generic command wrappers that prefix the real command. After consuming a
+# wrapper (and its own operands) the real command word follows. Includes
+# process-handoff wrappers (setsid/systemd-run/daemonize) so a launch through
+# them still reaches the runtime/protected command word.
+ENV_WRAPPERS = frozenset({
+    "env", "sudo", "command", "nohup", "time", "timeout", "doas",
+    "stdbuf", "nice", "ionice", "setsid", "systemd-run", "daemonize",
+    "chrt", "taskset", "setarch", "eatmydata", "exec",
+})
+# `exec [-cl] [-a name] command` — only -a consumes an operand; -c/-l do not.
+_EXEC_OPTS_WITH_ARG = frozenset({"-a"})
+# Wrapper -> set of options that consume ONE following operand (value).
+_WRAPPER_OPTS_WITH_ARG = {
+    "timeout": frozenset({"-s", "--signal", "-k", "--kill-after"}),
+    "nice": frozenset({"-n", "--adjustment"}),
+    "ionice": frozenset({"-c", "--class", "-n", "--classdata", "-p", "--pid"}),
+    "stdbuf": frozenset({"-i", "-o", "-e"}),
+    "systemd-run": frozenset({
+        "--unit", "-u", "--property", "-p", "--slice", "--description",
+        "--on-active", "--on-calendar", "--uid", "--gid", "--setenv", "-E",
+        "--working-directory", "-d",
+    }),
+    "chrt": frozenset({"-p"}),
+    "taskset": frozenset({"-c", "-p"}),
+    "setarch": frozenset(),
+    "env": frozenset({"-C", "--chdir", "-u", "--unset", "-S", "--split-string"}),
+    "doas": frozenset({"-u", "-C"}),
+    "sudo": frozenset({"-u", "--user", "-g", "--group", "-C", "--close-from", "-D", "--chdir", "-p", "--prompt", "-U", "--other-user", "-r", "--role", "-t", "--type"}),
+    "exec": _EXEC_OPTS_WITH_ARG,
+}
+# timeout takes a positional DURATION operand immediately after its options;
+# nice can take a bare positional only via -n. Track wrappers with a leading
+# positional operand to consume before the real command word.
+_WRAPPER_LEADING_POSITIONAL = frozenset({"timeout"})
+RUNTIMES = frozenset({"node", "nodejs", "tsx", "bun", "deno", "ts-node"})
+# Runtime flags that consume one following value (so the script positional is
+# not mistaken for the value, and a value is not mistaken for the script).
+_RUNTIME_OPTS_WITH_ARG = frozenset({
+    "-r", "--require", "--loader", "--experimental-loader", "--import",
+    "--env-file", "--conditions", "-C", "--cpu-prof-dir", "--heap-prof-dir",
+    "--tsconfig", "--inspect-brk", "--max-old-space-size",
+})
+# Tokens that, after a workspace selector, must route a launch decision to P1.
+EXEC_RUNNER_TOKENS = frozenset({"node", "nodejs", "tsx", "ts-node", "bun", "deno", "exec", "dlx", "npx", "bunx", "x", "run-script"})
+DEP_BUILTINS = frozenset({
+    "install", "i", "ci", "add", "remove", "rm", "uninstall", "un",
+    "up", "upgrade", "update", "dedupe", "why", "info", "list", "ls",
+    "outdated", "link", "unlink", "audit", "prune", "import",
+})
+MUTATION_VERBS = frozenset({
+    "cp", "mv", "touch", "truncate", "dd", "install", "rsync", "tee",
+    "unzip", "rename",
+})
+# Verbs that actually terminate a process. lsof and bare fuser are READ-ONLY
+# (they list/inspect) and must NOT be treated as kills; only `fuser -k` kills.
+KILL_VERBS = frozenset({"kill", "pkill", "killall"})
+SERVICE_VERBS = frozenset({
+    "start", "stop", "restart", "try-restart", "reload",
+    "reload-or-restart", "kill", "disable", "mask", "enable",
+})
+# Generic build verbs / tool basenames for fail-closed + bare-build family.
+BUILD_TOOL_BASENAMES = frozenset({"tsc", "pkgroll", "tsup", "rollup", "esbuild", "vite", "webpack"})
+# Generic script tokens treated as bare-build-family verbs (no project names).
+BARE_BUILD_SCRIPT_TOKENS = frozenset({
+    "build", "test", "start", "dev", "prepublishOnly", "prepublish",
+    "dev:local-server", "compile", "bundle",
+})
+DEP_SHORTHAND_NPM = frozenset({"start", "stop", "restart", "test"})
+
+
+# ── Tokenization that preserves redirections (> >> ) which shlex eats ────────
+
+def _split_pipeline(command: str) -> list:
+    """Split a bash command into simple commands across ; && || | and newlines.
+
+    Conservative: operates on the raw text but only at unquoted top level by a
+    cheap quote-aware scan. Returns a list of raw simple-command strings.
+    """
+    parts = []
+    buf = []
+    i = 0
+    n = len(command)
+    quote = None
+    subst_depth = 0   # inside $(...) command substitution
+    backtick = False  # inside `...` command substitution
+    while i < n:
+        c = command[i]
+        if quote == "'":
+            # single quotes: no escaping inside; only a matching ' ends it.
+            buf.append(c)
+            if c == "'":
+                quote = None
+            i += 1
+            continue
+        if quote == '"':
+            # double quotes: backslash escapes ", \, $, `, newline — those do
+            # NOT terminate the quote. Any other char (incl. an escaped ;/&/|)
+            # stays inside the quote, so a quoted separator never splits.
+            if c == "\\" and i + 1 < n and command[i + 1] in ('"', "\\", "$", "`", "\n"):
+                buf.append(c); buf.append(command[i + 1]); i += 2; continue
+            buf.append(c)
+            if c == '"':
+                quote = None
+            i += 1
+            continue
+        # unquoted context
+        if c in ("'", '"'):
+            quote = c
+            buf.append(c)
+            i += 1
+            continue
+        if c == "\\" and i + 1 < n:
+            buf.append(c)
+            buf.append(command[i + 1])
+            i += 2
+            continue
+        # command-substitution tracking: separators inside $()/`` do NOT split
+        # the OUTER simple command (the whole substitution belongs to it).
+        if c == "`":
+            backtick = not backtick
+            buf.append(c); i += 1; continue
+        if command[i:i + 2] == "$(":
+            subst_depth += 1
+            buf.append("$("); i += 2; continue
+        if c == ")" and subst_depth > 0:
+            subst_depth -= 1
+            buf.append(c); i += 1; continue
+        if subst_depth > 0 or backtick:
+            buf.append(c); i += 1; continue
+        # fd-redirection `&` (2>&1, >&, &>, &>>, >&2) is NOT a separator.
+        if c == "&" and _is_redirect_amp(command, i):
+            buf.append(c); i += 1; continue
+        two = command[i:i + 2]
+        if two in ("&&", "||", "|&"):
+            parts.append("".join(buf)); buf = []; i += 2; continue
+        if c in (";", "|", "\n", "&"):
+            parts.append("".join(buf)); buf = []; i += 1; continue
+        buf.append(c)
+        i += 1
+    parts.append("".join(buf))
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _is_redirect_amp(command: str, i: int) -> bool:
+    """True if the `&` at index i is part of an fd redirection, not a separator.
+
+    Forms: `>&`, `<&`, `&>`, `&>>`, `2>&1`, `>&2`. Heuristic: preceded by a
+    redirection operator (`>`/`<` possibly with a leading fd digit) OR followed
+    by `>`/a digit/`-` (the `&>file` / `&>>file` form). `&&` is handled earlier.
+    """
+    n = len(command)
+    nxt = command[i + 1] if i + 1 < n else ""
+    if nxt == "&":
+        return False  # `&&` control operator
+    # &>file / &>>file / &- forms
+    if nxt in (">", "-") or nxt.isdigit():
+        return True
+    # preceding char is a redirection operator (>& / <&), optionally fd-prefixed
+    j = i - 1
+    while j >= 0 and command[j] == " ":
+        j -= 1
+    if j >= 0 and command[j] in (">", "<"):
+        return True
+    return False
+
+
+def _strip_compound_delims(command: str) -> str:
+    """Neutralize shell compound-group delimiters `( ) { }` at the UNQUOTED top
+    level by replacing them with a `;` separator, so a grouped launch/build
+    (`(cd x && npx tsc)`, `{ cd x; node y; }`) decomposes into ordinary simple
+    commands the splitters already handle. Conservative for a security guard:
+    turning a group boundary into a separator can only split MORE (never hide a
+    command word), so it cannot cause under-blocking. Quote/escape aware.
+    """
+    out = []
+    i = 0
+    n = len(command)
+    quote = None
+    subst_depth = 0  # `$(` depth — its `)` must be preserved, not neutralized
+    brace_expr_depth = 0  # `${` depth — its `}` must be preserved
+    while i < n:
+        c = command[i]
+        if quote == "'":
+            out.append(c)
+            if c == "'":
+                quote = None
+            i += 1
+            continue
+        if quote == '"':
+            if c == "\\" and i + 1 < n and command[i + 1] in ('"', "\\", "$", "`", "\n"):
+                out.append(c); out.append(command[i + 1]); i += 2; continue
+            out.append(c)
+            if c == '"':
+                quote = None
+            i += 1
+            continue
+        if c in ("'", '"'):
+            quote = c
+            out.append(c)
+            i += 1
+            continue
+        if c == "\\" and i + 1 < n:
+            out.append(c); out.append(command[i + 1]); i += 2; continue
+        # `$(` command substitution and `${` parameter expansion are preserved
+        # intact (their closing `)`/`}` is NOT a compound-group delimiter).
+        if command[i:i + 2] == "$(":
+            subst_depth += 1
+            out.append("$("); i += 2; continue
+        if command[i:i + 2] == "${":
+            brace_expr_depth += 1
+            out.append("${"); i += 2; continue
+        if c == ")" and subst_depth > 0:
+            subst_depth -= 1
+            out.append(c); i += 1; continue
+        if c == "}" and brace_expr_depth > 0:
+            brace_expr_depth -= 1
+            out.append(c); i += 1; continue
+        if subst_depth > 0 or brace_expr_depth > 0:
+            out.append(c); i += 1; continue
+        # Parentheses are always sub-shell group delimiters → `;`.
+        if c in ("(", ")"):
+            out.append(" ; "); i += 1; continue
+        # Braces are a command GROUP only as standalone `{`/`}` words:
+        # `{ cmd; }`. An adjacent `{}` (xargs replstr), `{a,b}` brace expansion,
+        # or `-I{}` must be left intact (mangling them breaks legitimate parsing
+        # and can hide an xargs placeholder). Treat `{` as a group open only when
+        # followed by whitespace, and `}` as a group close only when preceded by
+        # whitespace or `;`.
+        if c == "{" and i + 1 < n and command[i + 1] in (" ", "\t"):
+            out.append(" ; "); i += 1; continue
+        if c == "}" and out and out[-1] in (" ", "\t", ";"):
+            out.append(" ; "); i += 1; continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def _has_redirect_to(simple_cmd: str) -> Optional[str]:
+    """Return the redirect target path if the simple command writes via > / >>.
+
+    Best-effort: finds an unquoted > or >> and returns the next bareword token.
+    """
+    m = re.search(r"(?<![0-9<>])>>?\s*([^\s;&|<>]+)", simple_cmd)
+    if m:
+        return _strip_quotes(m.group(1))
+    return None
+
+
+def _strip_quotes(tok: str) -> str:
+    if len(tok) >= 2 and tok[0] == tok[-1] and tok[0] in ("'", '"'):
+        return tok[1:-1]
+    return tok
+
+
+def _safe_shlex(simple_cmd: str) -> list:
+    try:
+        return shlex.split(simple_cmd, comments=False)
+    except ValueError:
+        # Unbalanced quotes etc. — fall back to whitespace split.
+        return [t for t in re.split(r"\s+", simple_cmd) if t]
+
+
+# ── Path normalization + segment-boundary suffix matching ────────────────────
+
+def _normalize_path(raw: str) -> str:
+    p = _strip_quotes(raw)
+    if p.startswith("~"):
+        p = os.path.expanduser(p)
+    # collapse ./ and ../ logically without touching the filesystem
+    p = os.path.normpath(p)
+    return p
+
+
+def _glob_to_segment_regex(glob: str) -> re.Pattern:
+    """Translate a data-file glob into a segment-boundary SUFFIX regex.
+
+    `**/a/b` matches any path ending in segments .../a/b (absolute or relative).
+    `*` matches within a single segment (no /). `**` matches across segments.
+    A leading absolute glob (/usr/bin/x*) anchors at string start.
+    """
+    g = glob
+    anchored = g.startswith("/")
+    # Tokenize the glob into literal/star chunks.
+    out = []
+    i = 0
+    n = len(g)
+    while i < n:
+        if g[i:i + 2] == "**":
+            # ** -> match anything including /
+            out.append(".*")
+            i += 2
+            # swallow a following slash so **/x doesn't force a leading /
+            if i < n and g[i] == "/":
+                out.append("/?")
+                i += 1
+        elif g[i] == "*":
+            out.append("[^/]*")
+            i += 1
+        else:
+            out.append(re.escape(g[i]))
+            i += 1
+    body = "".join(out)
+    if anchored:
+        pattern = "^" + body + "$"
+    else:
+        # suffix match at a segment boundary: start of string OR after a '/'
+        pattern = "(^|/)" + body + "$"
+    return re.compile(pattern)
+
+
+def _path_matches_any(path: str, globs: list) -> bool:
+    norm = _normalize_path(path)
+    candidates = {norm, path, _strip_quotes(path)}
+    real = None
+    try:
+        if os.path.exists(norm):
+            real = os.path.realpath(norm)
+            candidates.add(real)
+    except OSError:
+        pass
+    for glob in globs:
+        rx = _glob_to_segment_regex(glob)
+        for cand in candidates:
+            if rx.search(cand):
+                return True
+    return False
+
+
+def _any_token_path_matches(tokens: list, globs: list) -> bool:
+    for tok in tokens:
+        st = _strip_quotes(tok)
+        if not st or st.startswith("-"):
+            continue
+        if _path_matches_any(st, globs):
+            return True
+    return False
+
+
+def _path_under_any(path: str, dir_globs: list) -> bool:
+    """True if `path` equals OR is located under a directory matching a dir glob.
+
+    A build-path glob like `**/packages/<pkg>` is a DIRECTORY; a token such as
+    `packages/<pkg>/tsconfig.json` lives under it and must match.
+    """
+    norm = _normalize_path(path)
+    parts = norm.split("/")
+    # test the path itself and each ancestor against the dir globs as a suffix
+    for i in range(len(parts), 0, -1):
+        prefix = "/".join(parts[:i])
+        if not prefix:
+            continue
+        if _path_matches_any(prefix, dir_globs):
+            return True
+    return False
+
+
+def _any_token_under(tokens: list, dir_globs: list) -> bool:
+    for tok in tokens:
+        st = _strip_quotes(tok)
+        if not st or st.startswith("-"):
+            continue
+        if _path_under_any(st, dir_globs):
+            return True
+    return False
+
+
+# ── Command-word position scanning ───────────────────────────────────────────
+
+def _command_words(tokens: list) -> list:
+    """Return the effective command-word of a simple command after consuming
+    VAR=val env-prefixes and wrapper commands.
+    Returns a list with one tuple (head_index, head_basename, args_after_head)
+    where args_after_head EXCLUDES the head token itself.
+    """
+    i = 0
+    n = len(tokens)
+    # Skip leading shell keywords that introduce a command (`do`, `then`,
+    # `else`, `;`-separated loop bodies) so the real command word in a loop /
+    # conditional body is reached (`do kill $pid` → head 'kill').
+    while i < n and _strip_quotes(tokens[i]) in ("do", "then", "else", "{", "!"):
+        i += 1
+    # Skip VAR=val env assignments.
+    while i < n and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", tokens[i]):
+        i += 1
+    # Skip wrapper commands (env/sudo/command/nohup/timeout/setsid/...), each
+    # with its own operand schema, until the real command word is reached.
+    while i < n:
+        base = os.path.basename(_strip_quotes(tokens[i]))
+        if base not in ENV_WRAPPERS:
+            break
+        opts_with_arg = _WRAPPER_OPTS_WITH_ARG.get(base, frozenset())
+        i += 1
+        # consume this wrapper's options (and their operands) and env VAR=val.
+        while i < n:
+            t = tokens[i]
+            if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", t):
+                i += 1
+                continue
+            if t == "--":
+                i += 1
+                break
+            if t in opts_with_arg:
+                i += 2
+                continue
+            if "=" in t and t.startswith("-"):
+                # --opt=value form: single token
+                i += 1
+                continue
+            if t.startswith("-"):
+                i += 1
+                continue
+            break
+        # consume a single leading positional operand for wrappers that take one
+        # (timeout DURATION). Only if the token is not itself a wrapper/command.
+        if base in _WRAPPER_LEADING_POSITIONAL and i < n:
+            i += 1
+    if i >= n:
+        return []
+    return [(i, os.path.basename(_strip_quotes(tokens[i])), tokens[i + 1:])]
+
+
+# Wrapper options that set the working directory (chdir) for the wrapped command.
+# env -C/--chdir, sudo -D/--chdir, doas -C, systemd-run --working-directory.
+_WRAPPER_CWD_OPTS = frozenset({"-C", "--chdir", "-D", "--working-directory"})
+# Short cwd opts that may FUSE their value (env -C<dir>, sudo -D<dir>).
+_WRAPPER_CWD_SHORT_FUSABLE = ("-C", "-D")
+
+
+def _wrapper_cwd(tokens: list):
+    """Extract a chdir directory set by a leading env/sudo/doas wrapper.
+
+    Returns (dir|None, determinate). `env -C <dir>`, `env --chdir <dir>`,
+    `sudo -D <dir>`, `sudo --chdir <dir>`, `doas -C <dir>` all change the
+    working directory of the wrapped command. A dynamic operand ($/`/glob)
+    yields (None, False) so callers fail closed for protected verb families.
+    """
+    i = 0
+    n = len(tokens)
+    while i < n and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", tokens[i]):
+        i += 1
+    found = None
+    determinate = True
+    while i < n:
+        base = os.path.basename(_strip_quotes(tokens[i]))
+        if base not in ENV_WRAPPERS:
+            break
+        i += 1
+        while i < n:
+            t = tokens[i]
+            if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", t):
+                i += 1
+                continue
+            if t == "--":
+                i += 1
+                break
+            if t in _WRAPPER_CWD_OPTS and i + 1 < n:
+                val = _strip_quotes(tokens[i + 1])
+                if any(ch in val for ch in ("$", "`", "*", "?")):
+                    determinate = False
+                else:
+                    found = val
+                i += 2
+                continue
+            _fused = None
+            for opt in _WRAPPER_CWD_OPTS:
+                if t.startswith(opt + "="):
+                    _fused = t.split("=", 1)[1]
+                    break
+            if _fused is None:
+                # short fused form: env -C<dir> / sudo -D<dir> (no separator)
+                for opt in _WRAPPER_CWD_SHORT_FUSABLE:
+                    if t.startswith(opt) and len(t) > len(opt) and not t[len(opt)] == "=":
+                        _fused = t[len(opt):]
+                        break
+            if _fused is not None:
+                val = _strip_quotes(_fused)
+                if any(ch in val for ch in ("$", "`", "*", "?")):
+                    determinate = False
+                else:
+                    found = val
+                i += 1
+                continue
+            opts_with_arg = _WRAPPER_OPTS_WITH_ARG.get(base, frozenset())
+            if t in opts_with_arg:
+                i += 2
+                continue
+            if "=" in t and t.startswith("-"):
+                i += 1
+                continue
+            if t.startswith("-"):
+                i += 1
+                continue
+            break
+        if base in _WRAPPER_LEADING_POSITIONAL and i < n:
+            i += 1
+    return (found, determinate)
+
+
+def _fold_wrapper_cwd(cwd: Optional[str], cwd_det: bool, tokens: list):
+    """Fold a leading wrapper chdir (env -C/sudo --chdir) into the effective cwd."""
+    wdir, wdet = _wrapper_cwd(tokens)
+    if not wdet:
+        return (cwd, False)
+    if wdir is None:
+        return (cwd, cwd_det)
+    if os.path.isabs(wdir):
+        return (os.path.normpath(wdir), True)
+    if cwd:
+        return (os.path.normpath(os.path.join(cwd, wdir)), cwd_det)
+    return (os.path.normpath(wdir), False)
+
+
+# ── command-substitution extraction ──────────────────────────────────────────
+
+def _command_substitutions(text: str) -> list:
+    """Return the inner text of every $(...) command substitution (top level and
+    nested, flattened) and every `...` backtick substitution found in `text`.
+
+    Used so a kill executor whose argument list is computed by an embedded
+    pipeline — e.g. `kill $(ps aux | grep <ident> | awk '{print $2}')` — can be
+    inspected for a protected identifier inside the substitution.
+    """
+    out = []
+    n = len(text)
+    i = 0
+    while i < n:
+        if text[i] == "$" and i + 1 < n and text[i + 1] == "(":
+            depth = 1
+            j = i + 2
+            start = j
+            while j < n and depth > 0:
+                if text[j] == "(":
+                    depth += 1
+                elif text[j] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            inner = text[start:j]
+            out.append(inner)
+            # recurse for nested $(...) inside this one
+            out.extend(_command_substitutions(inner))
+            i = j + 1
+            continue
+        if text[i] == "`":
+            j = i + 1
+            while j < n and text[j] != "`":
+                j += 1
+            out.append(text[i + 1:j])
+            i = j + 1
+            continue
+        i += 1
+    return out
+
+
+# ── pipeline-group splitting (preserve | connectivity) ───────────────────────
+
+def _pipeline_groups(command: str) -> list:
+    """Split a command into pipeline GROUPS.
+
+    Segments joined by `|` / `|&` belong to the SAME group (data flows between
+    them); `;`, `&&`, `||`, `&`, and newlines separate groups. Each group is a
+    list of its raw simple-command strings, in order. This preserves the
+    upstream→downstream connectivity that cross-segment primitives (P5 endpoint,
+    P6 prockill) need, which the flat `_split_pipeline` discards.
+    """
+    groups = []
+    cur = []
+    buf = []
+    i = 0
+    n = len(command)
+    quote = None
+    loop_depth = 0  # inside a do..done loop body fed by an upstream pipe
+    subst_depth = 0
+    backtick = False
+
+    def flush_simple():
+        nonlocal loop_depth
+        s = "".join(buf).strip()
+        if s:
+            cur.append(s)
+            # track loop nesting so `;`/newline inside a do..done body do NOT
+            # break the pipe connectivity (`pgrep … | while read x; do kill x;
+            # done` must stay ONE group for P6).
+            words = s.split()
+            for w in words:
+                if w in ("do", "while", "for", "until"):
+                    loop_depth += 1
+                elif w == "done":
+                    loop_depth = max(0, loop_depth - 1)
+
+    def flush_group():
+        flush_simple()
+        if cur:
+            groups.append(list(cur))
+
+    while i < n:
+        c = command[i]
+        if quote == "'":
+            buf.append(c)
+            if c == "'":
+                quote = None
+            i += 1
+            continue
+        if quote == '"':
+            if c == "\\" and i + 1 < n and command[i + 1] in ('"', "\\", "$", "`", "\n"):
+                buf.append(c); buf.append(command[i + 1]); i += 2; continue
+            buf.append(c)
+            if c == '"':
+                quote = None
+            i += 1
+            continue
+        if c in ("'", '"'):
+            quote = c
+            buf.append(c)
+            i += 1
+            continue
+        if c == "\\" and i + 1 < n:
+            buf.append(c); buf.append(command[i + 1]); i += 2; continue
+        # command-substitution: keep `$(...)`/`` `...` `` intact within ONE
+        # simple command so a kill-substitution's pipeline isn't split.
+        if c == "`":
+            backtick = not backtick
+            buf.append(c); i += 1; continue
+        if command[i:i + 2] == "$(":
+            subst_depth += 1
+            buf.append("$("); i += 2; continue
+        if c == ")" and subst_depth > 0:
+            subst_depth -= 1
+            buf.append(c); i += 1; continue
+        if subst_depth > 0 or backtick:
+            buf.append(c); i += 1; continue
+        # fd-redirection `&` is not a group separator.
+        if c == "&" and _is_redirect_amp(command, i):
+            buf.append(c); i += 1; continue
+        two = command[i:i + 2]
+        if two in ("&&", "||", "|&"):
+            if two == "|&":
+                # |& pipes stdout+stderr: stays within the SAME group
+                flush_simple(); buf = []; i += 2; continue
+            if loop_depth > 0:
+                # &&/|| inside a loop body do not break pipe connectivity
+                flush_simple(); buf = []; i += 2; continue
+            flush_group(); cur = []; buf = []; i += 2; continue
+        if c == "|":
+            flush_simple(); buf = []; i += 1; continue
+        if c in (";", "\n", "&"):
+            flush_simple()
+            if loop_depth <= 0:
+                # outside a loop body: a real group separator
+                if cur:
+                    groups.append(list(cur)); cur = []
+            buf = []; i += 1; continue
+        buf.append(c)
+        i += 1
+    flush_group()
+    return groups
+
+
+# ── effective cwd tracking across a pipeline ──────────────────────────────────
+
+def _cd_target(args: list) -> Optional[str]:
+    """First real directory operand of a cd/pushd, skipping options.
+
+    `cd [-L|-P|-e|-@] [--] DIR`. Returns None when no directory operand is
+    present (e.g. bare `cd`, or `pushd +N`/`-N` stack rotation which is not a
+    path change we model). The `--` terminator forces the next token as the dir.
+    """
+    i = 0
+    n = len(args)
+    while i < n:
+        t = _strip_quotes(args[i])
+        if t == "--":
+            return _strip_quotes(args[i + 1]) if i + 1 < n else None
+        if t.startswith("-") and re.match(r"^-[LPe@]+$", t):
+            i += 1
+            continue
+        if t.startswith("-"):
+            # pushd +N / -N stack rotation or an unknown flag: not a dir change
+            return None
+        return t
+    return None
+
+
+def _effective_cwd_after(simple_cmds: list, upto_index: int, cwd_base: Optional[str] = None):
+    """Compute effective cwd from a known base cwd plus leading cd/pushd in the
+    SAME chain.
+
+    `cwd_base` seeds the resolution from the payload's reported cwd (or the
+    process cwd). If a cd target is dynamic/unresolvable, determinate=False
+    (caller fails closed). With a known base, a relative cd is resolvable.
+    """
+    cwd = os.path.normpath(cwd_base) if cwd_base else None
+    determinate = True
+    for j in range(upto_index):
+        toks = _safe_shlex(simple_cmds[j])
+        if not toks:
+            continue
+        base = os.path.basename(_strip_quotes(toks[0]))
+        if base in ("cd", "pushd"):
+            target = _cd_target(toks[1:])
+            if target is None:
+                continue
+            if any(ch in target for ch in ("$", "`", "*", "?")):
+                determinate = False
+                continue
+            if os.path.isabs(target):
+                cwd = os.path.normpath(target)
+            elif cwd:
+                cwd = os.path.normpath(os.path.join(cwd, target))
+            else:
+                # relative cd with unknown base cwd -> best-effort, indeterminate
+                cwd = os.path.normpath(target)
+                determinate = False
+    return cwd, determinate
+
+
+# ── Config loading ───────────────────────────────────────────────────────────
+
+REQUIRED_KEYS = (
+    "protected_cmds", "protected_launch_paths", "protected_services",
+    "protected_hotfiles", "protected_statefiles", "protected_endpoint_paths",
+    "protected_proc_idents", "protected_global_bins",
+    "protected_build_workspaces", "protected_build_paths",
+)
+
+
+def _load_config():
+    """Return (config_dict | None). None means indeterminate (fail-closed)."""
+    try:
+        with open(DATA_FILE_PATH, "r", encoding="utf-8") as fh:
+            cfg = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(cfg, dict):
+        return None
+    if cfg.get("schema_version") != 1:
+        return None
+    for k in REQUIRED_KEYS:
+        if k not in cfg or not isinstance(cfg[k], list):
+            return None
+    return cfg
+
+
+# ── STEP 0: config self-protection (hardcoded, generic path) ─────────────────
+
+def _config_path_variants() -> set:
+    p = DATA_FILE_PATH
+    variants = {p, os.path.normpath(p)}
+    if p.startswith("/root/"):
+        variants.add(p.replace("/root/", "~/", 1))
+    return variants
+
+
+def _targets_config_file(simple_cmd: str, tokens: list) -> bool:
+    cfg_variants = {_normalize_path(v) for v in _config_path_variants()}
+    cfg_dir = os.path.dirname(DATA_FILE_PATH)
+    # redirect to the config path
+    rt = _has_redirect_to(simple_cmd)
+    if rt and _normalize_path(rt) in cfg_variants:
+        return True
+    # any bareword token equal to the config path (cp/mv/rm/tee/sed -i/chmod/chown/truncate/ln)
+    for tok in tokens:
+        st = _strip_quotes(tok)
+        if not st:
+            continue
+        norm = _normalize_path(st)
+        if norm in cfg_variants:
+            return True
+        # mutation of the containing directory entry
+        if norm == os.path.normpath(cfg_dir) and tokens and os.path.basename(_strip_quotes(tokens[0])) in (
+            "rm", "rmdir", "mv", "chmod", "chown"
+        ):
+            return True
+    return False
+
+
+CONFIG_MUTATION_HEADS = frozenset({
+    "cp", "mv", "rm", "tee", "truncate", "dd", "install", "ln", "chmod",
+    "chown", "rename", "rsync", "shred", "unlink",
+})
+
+
+def _step0_self_protection(simple_cmds: list) -> Optional[Verdict]:
+    for sc in simple_cmds:
+        tokens = _safe_shlex(sc)
+        if not tokens:
+            continue
+        cw = _command_words(tokens)
+        head = cw[0][1] if cw else os.path.basename(_strip_quotes(tokens[0]))
+        # redirect write to the config path (any head)
+        rt = _has_redirect_to(sc)
+        if rt and _normalize_path(rt) in {_normalize_path(v) for v in _config_path_variants()}:
+            return _block("STEP0", "config self-protection: redirect to data file")
+        # sed -i / perl -i targeting the config path
+        if head in ("sed", "perl") and ("-i" in tokens or any(t.startswith("-i") for t in tokens)):
+            if _targets_config_file(sc, tokens):
+                return _block("STEP0", "config self-protection: in-place edit of data file")
+        # mutation heads with the config path as an argument
+        if head in CONFIG_MUTATION_HEADS and _targets_config_file(sc, tokens):
+            return _block("STEP0", "config self-protection: mutation of data file")
+    return None
+
+
+# ── STEP 1: fail-closed indeterminate-policy verb families ───────────────────
+
+def _step1_indeterminate(simple_cmds: list) -> Verdict:
+    """When config is unavailable, block protected verb FAMILIES generically.
+    Allow commands clearly outside those families.
+    """
+    for sc in simple_cmds:
+        tokens = _safe_shlex(sc)
+        if not tokens:
+            continue
+        cw = _command_words(tokens)
+        if not cw:
+            continue
+        _, head, rest = cw[0]
+        rest_bases = [os.path.basename(_strip_quotes(t)) for t in rest]
+        # service control
+        if head in ("systemctl", "service", "initctl"):
+            if any(v in rest_bases for v in SERVICE_VERBS) or any(v in tokens for v in SERVICE_VERBS):
+                return _block("STEP1", "indeterminate policy: service-control verb")
+        # kill / proc control
+        if head in KILL_VERBS:
+            return _block("STEP1", "indeterminate policy: process-kill verb")
+        if head == "xargs" and any(b in KILL_VERBS for b in rest_bases):
+            return _block("STEP1", "indeterminate policy: xargs kill")
+        # package-manager script-run / build / global install
+        if head in PKG_MANAGERS:
+            if any("-g" == t or "--global" == t for t in rest):
+                return _block("STEP1", "indeterminate policy: global package op")
+            # any non-meta pm invocation is fail-closed (build/launch family)
+            if not _is_meta_query(head, rest):
+                return _block("STEP1", "indeterminate policy: package-manager invocation")
+        # bare build tools
+        if head in BUILD_TOOL_BASENAMES:
+            return _block("STEP1", "indeterminate policy: build tool")
+        # runtime launch (node/tsx/bun ... .mjs/.ts) — ambiguous launch
+        if head in RUNTIMES:
+            return _block("STEP1", "indeterminate policy: runtime launch")
+        # package runners
+        if head in ("npx", "bunx"):
+            return _block("STEP1", "indeterminate policy: package runner")
+    return ALLOW
+
+
+# ── P1 LAUNCH_GUARD ──────────────────────────────────────────────────────────
+
+def _is_meta_query(pm_head: str, rest: list) -> bool:
+    """A meta query has ONLY a version/help flag and no script token/subcommand."""
+    nonflag = [t for t in rest if not t.startswith("-")]
+    flags = [t for t in rest if t.startswith("-")]
+    if nonflag:
+        return False
+    meta = {"--version", "-v", "--help", "-h", "-V"}
+    return all(f in meta for f in flags) and len(flags) >= 1
+
+
+def _path_matches_cwd(raw: str, globs: list, cwd: Optional[str], cwd_det: bool) -> bool:
+    """Match a token against globs as itself AND, if relative and cwd known,
+    resolved against the effective cwd. Drops a leading ./ for the relative case.
+    """
+    if _path_matches_any(raw, globs):
+        return True
+    st = _strip_quotes(raw)
+    if cwd and cwd_det and not os.path.isabs(st):
+        resolved = os.path.normpath(os.path.join(cwd, st))
+        if _path_matches_any(resolved, globs):
+            return True
+    return False
+
+
+def _runtime_target(rest: list) -> Optional[str]:
+    """Find the first real script positional after a runtime's options.
+    Skips runtime flags that consume a value (--loader X, -r X, etc.)."""
+    i = 0
+    n = len(rest)
+    while i < n:
+        t = rest[i]
+        if t == "--":
+            i += 1
+            continue
+        if t in _RUNTIME_OPTS_WITH_ARG:
+            i += 2
+            continue
+        if t.startswith("-"):
+            # --opt=value or a value-less flag: single token
+            i += 1
+            continue
+        return _strip_quotes(t)
+    return None
+
+
+def _upstream_text_in_group(groups: list, sc: str) -> str:
+    """Return the concatenated text of segments UPSTREAM of `sc` within the
+    pipeline group that contains it (empty if not found or first in group).
+
+    An xargs/while-read consumer's argv is sourced from the upstream segments'
+    stdout, so a protected launch path or command emitted upstream feeds the
+    consumer even though it never appears in the consumer's own tokens.
+    """
+    target = sc.strip()
+    for group in groups:
+        for k, seg in enumerate(group):
+            if seg.strip() == target:
+                return " ".join(group[:k])
+    return ""
+
+
+def _p1_launch(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
+               groups: Optional[list] = None) -> Optional[Verdict]:
+    cmds = set(cfg.get("protected_cmds", []))
+    launch_paths = cfg.get("protected_launch_paths", [])
+    groups = groups or []
+    for idx, sc in enumerate(simple_cmds):
+        tokens = _safe_shlex(sc)
+        if not tokens:
+            continue
+        cw = _command_words(tokens)
+        if not cw:
+            continue
+        tok_idx, head, rest = cw[0]
+        # effective cwd for relative-path resolution (cd/pushd in the chain),
+        # then fold any leading wrapper chdir (env -C/sudo --chdir) into it.
+        cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
+        cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+        # direct basename launch
+        if head in cmds:
+            return _block("P1", f"launch of protected command '{head}'")
+        # runtime launching a protected path: node [opts] <path>
+        if head in RUNTIMES:
+            tgt = _runtime_target(rest)
+            if tgt is not None and _path_matches_cwd(tgt, launch_paths, cwd, cwd_det):
+                return _block("P1", "runtime launch of protected path")
+        # direct path execution (./...mjs) — the head IS the path
+        full_head = _strip_quotes(tokens[tok_idx]) if tok_idx < len(tokens) else head
+        if _path_matches_cwd(full_head, launch_paths, cwd, cwd_det):
+            return _block("P1", "direct execution of protected launch path")
+        # package-runner exec targets: npx/bunx <cmd>; npm exec/pnpm dlx/etc.
+        runner_target, runner_args = _package_runner_invocation(head, rest)
+        if runner_target is not None:
+            if runner_target in cmds:
+                return _block("P1", f"package-runner launch of protected command '{runner_target}'")
+            # runner invoking a RUNTIME against a protected path:
+            # `npx tsx packages/<cli>/src/index.ts`, `npm exec -- tsx <src>`.
+            if runner_target in RUNTIMES:
+                rpos = _runtime_target(runner_args)
+                if rpos is not None and _path_matches_cwd(rpos, launch_paths, cwd, cwd_det):
+                    return _block("P1", "package-runner runtime launch of protected path")
+        # xargs executor: `... | xargs [opts] <cmd> [args]` runs <cmd> with the
+        # piped input appended as arguments. Treat <cmd> as a virtual launch
+        # command-word (basename against protected_cmds; runtime → protected
+        # path positional). Covers `echo <subcmd> | xargs <protected-cmd>` and
+        # `printf '<protected-path> <subcmd>' | xargs node`.
+        if head == "xargs":
+            xbase, xargs_after, uses_ph, _det = _xargs_effective_command(rest)
+            upstream = _upstream_text_in_group(groups, sc)
+            # `xargs -I{} {}` (or bare placeholder): the command is whatever the
+            # upstream segment emits — scan upstream for a protected command or
+            # launch path.
+            if uses_ph:
+                if upstream and (_text_carries_protected_cmd(upstream, cmds)
+                                 or _text_carries_launch_path(upstream, launch_paths, cwd, cwd_det)):
+                    return _block("P1", "xargs placeholder launch of an upstream-piped protected command/path")
+            if xbase is not None:
+                if xbase in cmds:
+                    return _block("P1", f"xargs launch of protected command '{xbase}'")
+                if xbase in RUNTIMES:
+                    xpos = _runtime_target(xargs_after)
+                    if xpos is not None and _path_matches_cwd(xpos, launch_paths, cwd, cwd_det):
+                        return _block("P1", "xargs runtime launch of protected path")
+                    # `printf '<protected-path> ...' | xargs [env] node` — path
+                    # arrives via stdin from the upstream segment.
+                    if upstream and _text_carries_launch_path(upstream, launch_paths, cwd, cwd_det):
+                        return _block("P1", "xargs runtime launch of an upstream-piped protected path")
+                # the xargs target itself is a protected launch path
+                if _path_matches_cwd(xbase, launch_paths, cwd, cwd_det):
+                    return _block("P1", "xargs execution of protected launch path")
+                for a in xargs_after:
+                    if _path_matches_cwd(_strip_quotes(a), launch_paths, cwd, cwd_det):
+                        return _block("P1", "xargs execution of protected launch path arg")
+    return None
+
+
+def _text_carries_protected_cmd(text: str, cmds: set) -> bool:
+    """True if any whitespace token of `text` is a protected command basename."""
+    for raw in re.split(r"\s+", text):
+        st = os.path.basename(_strip_quotes(raw.strip("'\"")))
+        if st in cmds:
+            return True
+    return False
+
+
+def _text_carries_launch_path(text: str, launch_paths: list, cwd: Optional[str], cwd_det: bool) -> bool:
+    """True if any whitespace-delimited token inside `text` matches a protected
+    launch path (absolute, or relative resolved against the effective cwd)."""
+    for raw in re.split(r"\s+", text):
+        st = _strip_quotes(raw.strip("'\""))
+        if not st or st.startswith("-"):
+            continue
+        if _path_matches_cwd(st, launch_paths, cwd, cwd_det):
+            return True
+    return False
+
+
+def _xargs_target(rest: list):
+    """Return (index_in_rest, target_command) for `xargs [opts] <cmd> ...`.
+
+    Skips xargs's own options, consuming the operand of those that take one
+    (-I/-n/-P/-d/-E/-s/--max-args/etc.). Returns (None, None) if no target
+    command word follows (then xargs defaults to echo — not a launch).
+    """
+    opts_with_arg = frozenset({
+        "-I", "-i", "--replace", "-n", "--max-args", "-L", "--max-lines",
+        "-P", "--max-procs", "-d", "--delimiter", "-E", "-e", "--eof",
+        "-s", "--max-chars", "-a", "--arg-file",
+    })
+    i = 0
+    n = len(rest)
+    while i < n:
+        t = rest[i]
+        st = _strip_quotes(t)
+        if t == "--":
+            i += 1
+            continue
+        if t in opts_with_arg:
+            i += 2
+            continue
+        if t.startswith("-") and "=" in t:
+            i += 1
+            continue
+        if t.startswith("-"):
+            # bareword flags like -r, -t, -0, -I{} (replace-str fused), -p
+            # -I may fuse its replstr: -I{} ; treat as single token
+            i += 1
+            continue
+        return (i, st)
+    return (None, None)
+
+
+_XARGS_REPLSTR_RE = re.compile(r"\{\}")
+
+
+def _xargs_effective_command(rest: list):
+    """Resolve the EFFECTIVE command an `xargs` segment runs.
+
+    Returns (head_basename|None, args_after_head, uses_placeholder, det) where:
+      • head_basename is the real command after unwrapping wrapper prefixes
+        (sudo/env/nice/…) on the xargs TARGET (so `xargs sudo kill` → 'kill',
+        `xargs env node <path>` → 'node');
+      • args_after_head EXCLUDES the head;
+      • uses_placeholder is True when the target IS the `-I` replacement string
+        (e.g. `xargs -I{} {}`) — the command then comes entirely from upstream
+        stdin content, so callers must scan the upstream pipeline text.
+    """
+    xidx, xtgt = _xargs_target(rest)
+    if xtgt is None:
+        return (None, [], False, True)
+    # `-I{}` replacement placeholder used as the command word.
+    if _XARGS_REPLSTR_RE.fullmatch(xtgt) or xtgt in ("{}",):
+        return (None, [], True, True)
+    target_tokens = rest[xidx:]
+    cw = _command_words(target_tokens)
+    if not cw:
+        return (os.path.basename(_strip_quotes(xtgt)), [], False, True)
+    _, head, args = cw[0]
+    return (head, args, False, True)
+
+
+# Package-runner options that consume one following operand (so the runner's
+# target command is not mistaken for the operand).
+_RUNNER_OPTS_WITH_ARG = frozenset({
+    "-p", "--package", "-c", "--call", "--node-options", "--node-arg",
+})
+
+
+def _package_runner_invocation(head: str, rest: list):
+    """Resolve a package-runner exec/dlx form to (target_basename, args_after).
+
+    Handles npx/bunx and `npm exec`/`pnpm exec|dlx`/`yarn exec|dlx`/`bun x`.
+    Consumes runner options that take an operand (e.g. `--package <pkg>`) and the
+    `--` terminator, so `npx --package typescript tsc -p x` resolves target=tsc
+    (not 'typescript'). Returns (None, []) if not a runner form / no target.
+    """
+    toks = None
+    if head in ("npx", "bunx"):
+        toks = rest
+    elif head in PKG_MANAGERS:
+        i = 0
+        while i < len(rest):
+            t = rest[i]
+            if t in ("exec", "dlx", "x"):
+                toks = rest[i + 1:]
+                break
+            if t in ("run", "run-script"):
+                return (None, [])
+            i += 1
+    if toks is None:
+        return (None, [])
+    i = 0
+    n = len(toks)
+    while i < n:
+        t = toks[i]
+        if t == "--":
+            i += 1
+            continue
+        if t in _RUNNER_OPTS_WITH_ARG:
+            i += 2
+            continue
+        if t.startswith("-"):
+            i += 1
+            continue
+        return (os.path.basename(_strip_quotes(t)), toks[i + 1:])
+    return (None, [])
+
+
+def _package_runner_target(head: str, rest: list) -> Optional[str]:
+    """Return the first real command after a package-runner keyword, else None."""
+    tgt, _args = _package_runner_invocation(head, rest)
+    return tgt
+
+
+# ── P2 SERVICE_GUARD ─────────────────────────────────────────────────────────
+
+def _p2_service(simple_cmds: list, cfg: dict) -> Optional[Verdict]:
+    services = cfg.get("protected_services", [])
+    if not services:
+        return None
+    svc_re = [re.compile(r"(^|[\s=])" + re.escape(s) + r"(\.service)?(\s|$|\.|=)") for s in services]
+    for sc in simple_cmds:
+        tokens = _safe_shlex(sc)
+        if not tokens:
+            continue
+        cw = _command_words(tokens)
+        if not cw:
+            continue
+        _, head, rest = cw[0]
+        if head not in ("systemctl", "service", "initctl"):
+            continue
+        if not (any(v in rest for v in SERVICE_VERBS)):
+            continue
+        joined = " " + " ".join(_strip_quotes(t) for t in rest) + " "
+        for rx in svc_re:
+            if rx.search(joined):
+                return _block("P2", "service-control of a protected unit")
+    return None
+
+
+# ── P3 / P4 mutation guards ──────────────────────────────────────────────────
+
+def _mutation_targets(simple_cmd: str, tokens: list) -> list:
+    """Return candidate mutation TARGET paths in a simple command."""
+    targets = []
+    rt = _has_redirect_to(simple_cmd)
+    if rt:
+        targets.append(rt)
+    if not tokens:
+        return targets
+    cw = _command_words(tokens)
+    if not cw:
+        return targets
+    _, head, rest = cw[0]
+    args = list(rest)
+    if head in ("cp", "mv", "rsync", "install"):
+        # last bareword non-flag is destination
+        barewords = [t for t in args if not t.startswith("-")]
+        if barewords:
+            targets.append(barewords[-1])
+    elif head in ("touch", "truncate", "dd", "tee", "unzip", "rename"):
+        targets.extend([t for t in args if not t.startswith("-")])
+    elif head in ("sed", "perl") and ("-i" in args or any(a.startswith("-i") for a in args)):
+        targets.extend([t for t in args if not t.startswith("-")])
+    elif head == "ln":
+        barewords = [t for t in args if not t.startswith("-")]
+        if barewords:
+            targets.append(barewords[-1])
+    elif head in ("tar",):
+        if any(a.startswith("-x") or a == "--extract" or ("x" in a and a.startswith("-")) for a in args):
+            barewords = [t for t in args if not t.startswith("-")]
+            targets.extend(barewords)
+    return targets
+
+
+def _p3_hotfile(simple_cmds: list, cfg: dict) -> Optional[Verdict]:
+    hot = cfg.get("protected_hotfiles", [])
+    if not hot:
+        return None
+    for sc in simple_cmds:
+        tokens = _safe_shlex(sc)
+        for tgt in _mutation_targets(sc, tokens):
+            if _path_matches_any(tgt, hot):
+                return _block("P3", "mutation of protected hot-watched bundle")
+    return None
+
+
+def _p4_statefile(simple_cmds: list, cfg: dict) -> Optional[Verdict]:
+    state = cfg.get("protected_statefiles", [])
+    if not state:
+        return None
+    for sc in simple_cmds:
+        tokens = _safe_shlex(sc)
+        for tgt in _mutation_targets(sc, tokens):
+            if _path_matches_any(tgt, state):
+                return _block("P4", "mutation of protected state file")
+    return None
+
+
+# ── P5 ENDPOINT_GUARD ────────────────────────────────────────────────────────
+
+LOOPBACK_RE = re.compile(r"(127\.0\.0\.1|localhost|\[::1\]|::1)", re.IGNORECASE)
+# Raw byte-stream clients: the request line (incl. the control path) is supplied
+# on STDIN, so the path legitimately arrives from an UPSTREAM pipeline segment.
+RAW_SOCKET_HEADS = frozenset({"nc", "ncat", "netcat", "socat", "telnet"})
+# Structured HTTP clients: the request path is part of the client's OWN argv (a
+# URL or a stdin-body flag), NOT merely co-present somewhere in the pipeline.
+HTTP_CLIENT_HEADS = frozenset({"curl", "wget", "http", "https", "httpie"})
+NET_HEADS = RAW_SOCKET_HEADS | HTTP_CLIENT_HEADS
+
+
+def _endpoint_path_in(text: str, paths: list) -> bool:
+    for ep in paths:
+        if re.search(re.escape(ep) + r"(\b|/|\"|'|\s|$)", text):
+            return True
+    return False
+
+
+def _http_reads_stdin_body(sc: str) -> bool:
+    """True if an HTTP client is told to read its request body from stdin, so a
+    control path piped in upstream would actually be sent."""
+    return bool(re.search(r"(--data-binary|--data|-d)\s+@-|--data-binary\s+@/dev/stdin", sc))
+
+
+def _p5_endpoint(groups: list, cfg: dict) -> Optional[Verdict]:
+    """Pipeline-group + segment-ORDER aware control-endpoint guard.
+
+    A loopback control shutdown can be split across pipeline segments — the
+    control path travels in one segment's content (e.g. `printf 'POST /stop'`)
+    and a raw byte-stream client (nc/ncat/netcat/socat/telnet) in a connected
+    DOWNSTREAM segment (`| nc 127.0.0.1 <port>`) sends it via stdin. BLOCK when,
+    within ONE pipeline group:
+      • a RAW socket client to a loopback host has the protected endpoint path
+        in ITS OWN segment OR in an UPSTREAM segment (stdin source), OR
+      • an HTTP client to a loopback host carries the protected endpoint path in
+        its OWN argv, OR is told to read its body from stdin while the path is
+        present upstream.
+    This is order-aware so a benign `curl …/health | grep /stop` (endpoint text
+    only DOWNSTREAM, never sent) and `grep /stop file | curl …/health` (endpoint
+    text in an unrelated upstream filter, HTTP client argv clean) stay ALLOWED.
+    """
+    paths = cfg.get("protected_endpoint_paths", [])
+    if not paths:
+        return None
+    for group in groups:
+        if not _endpoint_path_in(" ".join(group), paths):
+            continue
+        for k, sc in enumerate(group):
+            tokens = _safe_shlex(sc)
+            if not tokens:
+                continue
+            cw = _command_words(tokens)
+            if not cw:
+                continue
+            _, head, _rest = cw[0]
+            if head not in NET_HEADS or not LOOPBACK_RE.search(sc):
+                continue
+            upstream_text = " ".join(group[:k])
+            own_has_ep = _endpoint_path_in(sc, paths)
+            upstream_has_ep = _endpoint_path_in(upstream_text, paths)
+            if head in RAW_SOCKET_HEADS:
+                # stdin-fed: endpoint in this segment or any upstream segment
+                if own_has_ep or upstream_has_ep:
+                    return _block("P5", "loopback request to a protected control path")
+            else:  # HTTP client
+                if own_has_ep:
+                    return _block("P5", "loopback request to a protected control path")
+                if upstream_has_ep and _http_reads_stdin_body(sc):
+                    return _block("P5", "loopback request to a protected control path (stdin body)")
+    return None
+
+
+# ── P6 PROCKILL_GUARD ────────────────────────────────────────────────────────
+
+def _is_kill_executor(head: str, rest: list) -> bool:
+    """True if this simple command terminates processes."""
+    if head in KILL_VERBS:
+        return True
+    # `xargs [opts] [wrapper] kill|pkill|killall ...` — unwrap wrappers on the
+    # xargs target so `xargs sudo kill` / `xargs env kill` resolve to 'kill'.
+    if head == "xargs":
+        xbase, _xa, uses_ph, _det = _xargs_effective_command(rest)
+        if xbase is not None and xbase in KILL_VERBS:
+            return True
+        # `xargs -I{} kill {}` style placeholder kill — the literal kill verb is
+        # in the args even when the target parse lands on the placeholder.
+        if uses_ph and any(os.path.basename(_strip_quotes(t)) in KILL_VERBS for t in rest):
+            return True
+    # `fuser -k`
+    if head == "fuser" and ("-k" in rest or any(t.startswith("-") and "k" in t for t in rest)):
+        return True
+    return False
+
+
+def _p6_prockill(groups: list, cfg: dict) -> Optional[Verdict]:
+    """Pipeline-group + command-substitution aware process-kill guard.
+
+    The canonical daemon-kill idioms split the protected identifier and the kill
+    executor across pipeline segments or a command substitution:
+      ps aux | grep <ident> | awk '{print $2}' | xargs kill
+      pgrep -f <ident> | xargs pkill
+      kill $(ps aux | grep <ident> | awk '{print $2}')
+    BLOCK when, within ONE pipeline group, a kill executor is present AND a
+    protected identifier appears anywhere connected to it — in any segment of
+    the same group, or inside a kill's $()/`` command substitution.
+    """
+    idents = cfg.get("protected_proc_idents", [])
+    if not idents:
+        return None
+
+    def has_ident(text: str) -> bool:
+        return any(ident in text for ident in idents)
+
+    for group in groups:
+        kill_present = False
+        kill_subst_carries_ident = False
+        for sc in group:
+            tokens = _safe_shlex(sc)
+            if not tokens:
+                continue
+            cw = _command_words(tokens)
+            if not cw:
+                continue
+            _, head, rest = cw[0]
+            if _is_kill_executor(head, rest):
+                kill_present = True
+                # `kill $(<pipeline naming ident>)` — inspect substitutions of
+                # this very simple command for a protected identifier.
+                for sub in _command_substitutions(sc):
+                    if has_ident(sub):
+                        kill_subst_carries_ident = True
+        if not kill_present:
+            continue
+        group_text = " ".join(group)
+        if has_ident(group_text) or kill_subst_carries_ident:
+            return _block("P6", "process kill carrying a protected identifier")
+    return None
+
+
+# ── P7 GLOBALBIN_GUARD ───────────────────────────────────────────────────────
+
+def _p7_globalbin(simple_cmds: list, cfg: dict) -> Optional[Verdict]:
+    gbins = cfg.get("protected_global_bins", [])
+    for sc in simple_cmds:
+        tokens = _safe_shlex(sc)
+        if not tokens:
+            continue
+        cw = _command_words(tokens)
+        if not cw:
+            continue
+        _, head, rest = cw[0]
+        if head in PKG_MANAGERS:
+            is_global = any(t in ("-g", "--global") for t in rest)
+            is_link = any(t in ("link", "unlink") for t in rest)
+            if is_global or is_link:
+                return _block("P7", "global package install/link")
+        # writes to protected global bin paths (any mutation head)
+        for tgt in _mutation_targets(sc, tokens):
+            if gbins and _path_matches_any(tgt, gbins):
+                return _block("P7", "write to a protected global bin path")
+    return None
+
+
+# ── P8 BUILD_GUARD ───────────────────────────────────────────────────────────
+
+def _cwd_under_build_path(cwd: Optional[str], cwd_det: bool, bpaths: list) -> bool:
+    """True if a determinate effective cwd resolves under a protected build dir."""
+    if not cwd or not cwd_det:
+        return False
+    return _path_under_any(cwd, bpaths)
+
+
+def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> Optional[Verdict]:
+    ws = set(cfg.get("protected_build_workspaces", []))
+    bpaths = cfg.get("protected_build_paths", [])
+    for idx, sc in enumerate(simple_cmds):
+        tokens = _safe_shlex(sc)
+        if not tokens:
+            continue
+        cw = _command_words(tokens)
+        if not cw:
+            continue
+        _, head, rest = cw[0]
+        # effective cwd: cd/pushd in the chain + a leading wrapper chdir.
+        cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
+        cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+        cwd_in_build = _cwd_under_build_path(cwd, cwd_det, bpaths)
+        # (a) explicit: build naming a protected workspace
+        if head in PKG_MANAGERS and "build" in rest:
+            sel = _explicit_workspace_selector(head, rest)
+            if sel is not None and sel in ws:
+                return _block("P8", "explicit build of a protected workspace")
+        # (a) build tool co-occurring with a protected build path (token or cwd)
+        if head in BUILD_TOOL_BASENAMES:
+            if _any_token_under(rest, bpaths) or cwd_in_build:
+                return _block("P8", "build tool co-occurring with a protected build path")
+        if head in PKG_MANAGERS and "build" in rest:
+            if _any_token_under(rest, bpaths):
+                return _block("P8", "build co-occurring with a protected build path")
+        # package-runner build: npx/bunx AND npm exec/pnpm exec/yarn exec/bun x
+        # running a build tool, against a protected build path (token or cwd).
+        rtgt = _package_runner_target(head, rest)
+        if rtgt is not None and os.path.basename(rtgt) in BUILD_TOOL_BASENAMES:
+            # tokens AFTER the build-tool target (e.g. `-p <path>` for tsc)
+            after = _tokens_after_runner_target(head, rest)
+            if _any_token_under(after, bpaths) or _any_token_under(rest, bpaths) or cwd_in_build:
+                return _block("P8", "package-runner build co-occurring with a protected build path")
+    return None
+
+
+def _tokens_after_runner_target(head: str, rest: list) -> list:
+    """Tokens following the package-runner's target command word (e.g. after
+    `tsc` in `pnpm exec tsc -p <path>`)."""
+    if head in ("npx", "bunx"):
+        toks = rest
+    elif head in PKG_MANAGERS:
+        toks = None
+        for i, t in enumerate(rest):
+            if t in ("exec", "dlx", "x"):
+                toks = rest[i + 1:]
+                break
+        if toks is None:
+            return []
+    else:
+        return []
+    # skip flags before the target command word, then return everything after it
+    i = 0
+    while i < len(toks):
+        st = _strip_quotes(toks[i])
+        if st.startswith("-") or st == "--":
+            i += 1
+            continue
+        return toks[i + 1:]
+    return []
+
+
+def _p8_bare_build(simple_cmds: list, cfg: dict) -> Optional[Verdict]:
+    """Bare-build arm — only reached when P9 has not already DENIED/ALLOWED.
+    Kept separate so P9's allow-set (explicit non-protected workspace) wins first.
+    """
+    bare = bool(cfg.get("bare_build_guard", False))
+    if not bare:
+        return None
+    for sc in simple_cmds:
+        tokens = _safe_shlex(sc)
+        if not tokens:
+            continue
+        cw = _command_words(tokens)
+        if not cw:
+            continue
+        _, head, rest = cw[0]
+        if head in BUILD_TOOL_BASENAMES and not any(t.startswith("-") and t not in ("-p",) for t in rest):
+            # bare pkgroll/tsup/tsc with no explicit non-protected path
+            return _block("P8b", "bare build tool")
+    return None
+
+
+def _explicit_workspace_selector(pm_head: str, rest: list) -> Optional[str]:
+    """Return the workspace SELECTOR token if an explicit selector is present.
+    Returns None if no explicit single-workspace selector. Returns a sentinel
+    '<MULTI>' for recursive/all-workspace forms.
+    """
+    i = 0
+    while i < len(rest):
+        t = rest[i]
+        if t == "workspace" and i + 1 < len(rest):
+            return _strip_quotes(rest[i + 1])
+        if t == "workspaces":
+            return "<MULTI>"
+        if t in ("-w", "--workspace") and i + 1 < len(rest):
+            return _strip_quotes(rest[i + 1])
+        if t.startswith("--workspace="):
+            return _strip_quotes(t.split("=", 1)[1])
+        if t in ("--filter", "-F") and i + 1 < len(rest):
+            val = _strip_quotes(rest[i + 1])
+            if any(ch in val for ch in ("*", ".", "/", "{")) or val.startswith("..."):
+                return "<MULTI>"
+            return val
+        if t.startswith("--filter=") or t.startswith("-F="):
+            val = _strip_quotes(t.split("=", 1)[1])
+            if any(ch in val for ch in ("*", ".", "/", "{")) or val.startswith("..."):
+                return "<MULTI>"
+            return val
+        if t in ("--workspaces", "-ws"):
+            return "<MULTI>"
+        if t in ("-r", "--recursive"):
+            return "<MULTI>"
+        i += 1
+    return None
+
+
+# ── P9 PKGSCRIPT_GUARD (default-deny) ────────────────────────────────────────
+
+def _resolve_workspace_manifest(selector: str, cfg: dict, effective_cwd: Optional[str]):
+    """Resolve a workspace selector to (manifest_dir, is_protected, scripts_set,
+    determinate). Uses workspace metadata by reading package.json files under the
+    known monorepo roots. Returns (None, None, None, False) if unresolvable.
+    """
+    roots = cfg.get("protected_root_manifest_paths", [])
+    search_roots = list(roots)
+    if effective_cwd:
+        search_roots.append(effective_cwd)
+    seen = set()
+    for root in search_roots:
+        try:
+            pkgs_dir = os.path.join(root, "packages")
+            if not os.path.isdir(pkgs_dir):
+                continue
+            for entry in os.listdir(pkgs_dir):
+                man = os.path.join(pkgs_dir, entry, "package.json")
+                if man in seen:
+                    continue
+                seen.add(man)
+                try:
+                    with open(man, "r", encoding="utf-8") as fh:
+                        data = json.load(fh)
+                except (OSError, ValueError):
+                    continue
+                name = data.get("name")
+                if name == selector:
+                    is_protected = (
+                        name in set(cfg.get("protected_script_workspaces", []))
+                        or _path_matches_any(os.path.dirname(man), cfg.get("protected_script_paths", []))
+                    )
+                    scripts = set((data.get("scripts") or {}).keys())
+                    return (os.path.dirname(man), is_protected, scripts, True)
+        except OSError:
+            continue
+    # selector did not resolve to any known workspace -> indeterminate
+    return (None, None, None, False)
+
+
+def _effective_manifest_for_cwd(cwd: Optional[str], cfg: dict):
+    """Walk up from cwd to find the nearest package.json. Returns
+    (manifest_dir, is_protected_or_root, scripts_set, determinate)."""
+    if not cwd:
+        return (None, None, None, False)
+    proots = [os.path.normpath(p) for p in cfg.get("protected_root_manifest_paths", [])]
+    spaths = cfg.get("protected_script_paths", [])
+    d = os.path.normpath(cwd)
+    while True:
+        man = os.path.join(d, "package.json")
+        scripts = None
+        exists = os.path.isfile(man)
+        if exists:
+            try:
+                with open(man, "r", encoding="utf-8") as fh:
+                    scripts = set((json.load(fh).get("scripts") or {}).keys())
+            except (OSError, ValueError):
+                scripts = set()
+        is_protected_root = d in proots
+        is_protected_path = _path_matches_any(d, spaths)
+        if exists or is_protected_root:
+            return (d, (is_protected_root or is_protected_path), scripts or set(), True)
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return (None, None, None, False)
+
+
+def _p9_pkgscript(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> Optional[Verdict]:
+    if cfg.get("script_run_policy") != "default_deny":
+        return None
+    non_protected = set(cfg.get("non_protected_workspaces", []))
+    safe_allow = set(cfg.get("safe_script_allowlist", []))
+    protected_cmds = set(cfg.get("protected_cmds", []))
+
+    for idx, sc in enumerate(simple_cmds):
+        tokens = _safe_shlex(sc)
+        if not tokens:
+            continue
+        cw = _command_words(tokens)
+        if not cw:
+            continue
+        _, head, rest = cw[0]
+        if head not in PKG_MANAGERS:
+            continue
+        # (A) head-level meta query -> allow this invocation
+        if _is_meta_query(head, rest):
+            continue
+        # exec/dlx/runner forms -> P1 owns them (resolve protected basename)
+        runner_target = _package_runner_target(head, rest)
+        if runner_target is not None:
+            if runner_target in protected_cmds:
+                return _block("P9", "package-runner reaching a protected command")
+            # non-protected exec target: not a script-run; allow
+            continue
+
+        # compute effective cwd from cd/pushd in the chain, then fold a leading
+        # wrapper chdir (env -C/sudo --chdir) so it participates in manifest
+        # resolution like cd/--cwd (else legitimate `env -C <non-protected-ws>
+        # yarn <script>` would over-block), then apply pm --cwd flags.
+        cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
+        cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+        pm_cwd, pm_cwd_det = _pm_cwd_flag(head, rest)
+        if pm_cwd is not None:
+            if pm_cwd_det:
+                if os.path.isabs(pm_cwd):
+                    cwd = os.path.normpath(pm_cwd)
+                else:
+                    cwd = os.path.normpath(os.path.join(cwd, pm_cwd)) if cwd else os.path.normpath(pm_cwd)
+            else:
+                cwd_det = False
+
+        selector = _explicit_workspace_selector(head, rest)
+
+        # (D) explicit selector present
+        if selector is not None:
+            if selector == "<MULTI>":
+                return _block("P9", "recursive/all-workspace run (no single selector)")
+            man_dir, is_protected, scripts, det = _resolve_workspace_manifest(selector, cfg, cwd)
+            if not det:
+                # selector did not resolve -> fail closed
+                return _block("P9", "unresolvable workspace selector")
+            if is_protected:
+                return _block("P9", "run naming a protected workspace")
+            # non-protected workspace: classify the post-selector subcommand
+            post = _post_selector_tokens(head, rest)
+            verdict = _classify_post_selector(post, scripts, safe_allow, protected_cmds)
+            if verdict is not None:
+                return verdict
+            # allowed
+            continue
+
+        # (B)/(E) no explicit selector. Dependency built-in?
+        sub = _first_subcommand(head, rest)
+        if sub in DEP_BUILTINS:
+            # dependency op: allowed unless effective manifest is protected w/o --ignore-scripts
+            man_dir, is_protected, scripts, det = _effective_manifest_for_cwd(cwd, cfg)
+            if not det:
+                # default (repo) cwd unknown — dependency ops at unknown cwd are allowed
+                # (they manage node_modules; build/dist rewrite owned by P8, global by P7)
+                continue
+            if is_protected and "--ignore-scripts" not in rest:
+                return _block("P9", "dependency op in a protected manifest without --ignore-scripts")
+            continue
+        # npm lifecycle shorthand: npm start/stop/restart/test
+        if head == "npm" and sub in DEP_SHORTHAND_NPM:
+            return _resolve_bare_script(sub, cwd, cwd_det, cfg, safe_allow, protected_cmds)
+        # explicit run / run-script keyword
+        script_tok = None
+        if sub in ("run", "run-script"):
+            script_tok = _token_after(rest, sub)
+        elif sub is not None and sub not in DEP_BUILTINS and not sub.startswith("-"):
+            # bare form: `yarn <script>` / `pnpm <script>` / `bun <script>`
+            script_tok = sub
+        if script_tok is None:
+            # `yarn` alone with no script -> runs default? treat as bare script-run -> fail closed if protected cwd
+            return _resolve_bare_script(None, cwd, cwd_det, cfg, safe_allow, protected_cmds)
+        return _resolve_bare_script(script_tok, cwd, cwd_det, cfg, safe_allow, protected_cmds)
+    return None
+
+
+def _pm_cwd_flag(head: str, rest: list):
+    """Extract a PM cwd flag value. Returns (path|None, determinate)."""
+    flags_one = {
+        "yarn": ("--cwd",),
+        "npm": ("--prefix", "-C"),
+        "bun": ("--cwd",),
+        "pnpm": ("-C", "--dir"),
+    }.get(head, ())
+    i = 0
+    while i < len(rest):
+        t = rest[i]
+        for f in flags_one:
+            if t == f and i + 1 < len(rest):
+                val = _strip_quotes(rest[i + 1])
+                if any(ch in val for ch in ("$", "`", "*", "?")):
+                    return (None, False)
+                return (val, True)
+            if t.startswith(f + "="):
+                val = _strip_quotes(t.split("=", 1)[1])
+                if any(ch in val for ch in ("$", "`", "*", "?")):
+                    return (None, False)
+                return (val, True)
+        i += 1
+    return (None, True)
+
+
+_PM_FLAGS_WITH_VALUE = frozenset({
+    "--prefix", "--cwd", "-C", "--dir", "-w", "--workspace", "--filter", "-F",
+})
+
+
+def _first_subcommand(head: str, rest: list) -> Optional[str]:
+    i = 0
+    n = len(rest)
+    while i < n:
+        t = rest[i]
+        if t in _PM_FLAGS_WITH_VALUE:
+            i += 2  # skip the flag and its value
+            continue
+        if t.startswith("-"):
+            i += 1
+            continue
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_.:-]*=", t):
+            i += 1
+            continue
+        return _strip_quotes(t)
+    return None
+
+
+def _token_after(rest: list, keyword: str) -> Optional[str]:
+    for i, t in enumerate(rest):
+        if t == keyword:
+            for j in range(i + 1, len(rest)):
+                if not rest[j].startswith("-"):
+                    return _strip_quotes(rest[j])
+    return None
+
+
+def _post_selector_tokens(head: str, rest: list) -> list:
+    """Tokens following an explicit workspace/filter selector (its value consumed)."""
+    i = 0
+    out_start = None
+    while i < len(rest):
+        t = rest[i]
+        if t == "workspace" and i + 1 < len(rest):
+            out_start = i + 2
+            break
+        if t in ("-w", "--workspace", "--filter", "-F") and i + 1 < len(rest):
+            out_start = i + 2
+            break
+        if t.startswith("--workspace=") or t.startswith("--filter=") or t.startswith("-F="):
+            out_start = i + 1
+            break
+        i += 1
+    if out_start is None:
+        return []
+    return rest[out_start:]
+
+
+def _classify_post_selector(post: list, scripts: set, safe_allow: set, protected_cmds: set) -> Optional[Verdict]:
+    """Classify the post-selector subcommand on a NON-protected workspace.
+    Returns a BLOCK verdict, or None to ALLOW.
+    """
+    # find first meaningful token
+    first = None
+    for t in post:
+        if t.startswith("-"):
+            continue
+        first = _strip_quotes(t)
+        break
+    if first is None:
+        return None  # nothing to run; allow (e.g. selector + flags only)
+    # dependency built-in -> allowed (handled by dependency rule, non-protected ws)
+    if first in DEP_BUILTINS:
+        return None
+    # runtime/exec/runner token -> route through P1 semantics -> DENY
+    if first in EXEC_RUNNER_TOKENS:
+        return _block("P9", "runtime/exec token after a workspace selector (P1)")
+    # consume optional run/run-script keyword
+    script_tok = first
+    if first in ("run", "run-script"):
+        script_tok = None
+        for t in post:
+            if t in ("run", "run-script"):
+                continue
+            if t.startswith("-"):
+                continue
+            script_tok = _strip_quotes(t)
+            break
+        if script_tok is None:
+            return None
+    # protected command basename -> DENY (.bin fallthrough)
+    if script_tok in protected_cmds:
+        return _block("P9", "protected command basename after a workspace selector")
+    if script_tok in EXEC_RUNNER_TOKENS:
+        return _block("P9", "runtime/exec token after a workspace selector (P1)")
+    # declared-script-key gate: token MUST be a declared script of this workspace
+    if script_tok in scripts:
+        return None  # ALLOW
+    if script_tok in safe_allow:
+        return None
+    return _block("P9", "token is not a declared script of the selected workspace (.bin fallthrough)")
+
+
+def _resolve_bare_script(script_tok: Optional[str], cwd: Optional[str], cwd_det: bool,
+                         cfg: dict, safe_allow: set, protected_cmds: set) -> Verdict:
+    """Resolve a bare (no-selector) script-run against the effective manifest."""
+    if not cwd_det or cwd is None:
+        # indeterminate cwd -> fail closed for the script-run family
+        return _block("P9", "script-run with indeterminate cwd (fail-closed)")
+    man_dir, is_protected, scripts, det = _effective_manifest_for_cwd(cwd, cfg)
+    if not det:
+        return _block("P9", "script-run with unresolvable effective manifest (fail-closed)")
+    if is_protected:
+        if script_tok is not None and script_tok in safe_allow:
+            return ALLOW
+        return _block("P9", "bare script-run reaching a protected workspace/root")
+    # non-protected effective manifest: declared-script-key gate
+    if script_tok is None:
+        return _block("P9", "bare script-run with no script token (fail-closed)")
+    if script_tok in protected_cmds:
+        return _block("P9", "protected command basename in non-protected cwd (.bin fallthrough)")
+    if script_tok in EXEC_RUNNER_TOKENS:
+        return _block("P9", "runtime/exec token in non-protected cwd (P1)")
+    if script_tok in scripts:
+        return ALLOW
+    if script_tok in safe_allow:
+        return ALLOW
+    return _block("P9", "token is not a declared script of the non-protected manifest (.bin fallthrough)")
+
+
+# ── corepack re-routing ──────────────────────────────────────────────────────
+
+def _unwrap_corepack(simple_cmds: list) -> list:
+    """Rewrite `corepack <pm> ...` simple commands to `<pm> ...` so P9 re-parses."""
+    out = []
+    for sc in simple_cmds:
+        toks = _safe_shlex(sc)
+        cw = _command_words(toks) if toks else []
+        if cw and cw[0][1] == "corepack" and len(cw[0][2]) >= 1:
+            rest = cw[0][2]  # args after 'corepack' (head excluded)
+            if rest and os.path.basename(_strip_quotes(rest[0])) in PKG_MANAGERS:
+                out.append(" ".join(rest))
+                continue
+        out.append(sc)
+    return out
+
+
+# ── Top-level evaluate ───────────────────────────────────────────────────────
+
+def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
+    if command is None:
+        return ALLOW
+    if len(command) > MAX_COMMAND_CHARS:
+        # oversized -> fail closed conservatively (treat as indeterminate)
+        return _block("STEP1", "oversized command (fail-closed)")
+    # Neutralize compound-group delimiters `( ) { }` so grouped launches/builds
+    # decompose into ordinary simple commands (bare `$(`/`${` are preserved).
+    norm_command = _strip_compound_delims(command)
+    simple_cmds = _split_pipeline(norm_command)
+    if not simple_cmds:
+        return ALLOW
+    simple_cmds = _unwrap_corepack(simple_cmds)
+    # Pipeline GROUPS preserve `|` connectivity for cross-segment primitives
+    # (P5 endpoint, P6 prockill). Command-substitution contents are retained for
+    # inspection (the compound-strip leaves `$(...)` intact).
+    groups = _pipeline_groups(norm_command)
+
+    # STEP 0 — config self-protection FIRST (before config load).
+    v = _step0_self_protection(simple_cmds)
+    if v is not None:
+        return v
+
+    # STEP 1 — load config; fail closed if unavailable.
+    cfg = _load_config()
+    if cfg is None:
+        return _step1_indeterminate(simple_cmds)
+
+    # STEP 2 — P1..P9 (order: launch, service, hotfile, statefile, endpoint,
+    # prockill, globalbin, then package-script default-deny, then build arms).
+    v = _p1_launch(simple_cmds, cfg, cwd_base, groups)
+    if v is not None:
+        return v
+    for fn in (_p2_service, _p3_hotfile, _p4_statefile):
+        v = fn(simple_cmds, cfg)
+        if v is not None:
+            return v
+    # cross-segment primitives operate on pipeline GROUPS
+    v = _p5_endpoint(groups, cfg)
+    if v is not None:
+        return v
+    v = _p6_prockill(groups, cfg)
+    if v is not None:
+        return v
+    v = _p7_globalbin(simple_cmds, cfg)
+    if v is not None:
+        return v
+
+    # P9 default-deny package-script policy. If it returns a verdict (BLOCK or
+    # ALLOW), honor it; only fall through to P8 build arms when P9 abstained.
+    v = _p9_pkgscript(simple_cmds, cfg, cwd_base)
+    if v is not None:
+        if v[0] == "BLOCK":
+            return v
+        # explicit ALLOW from P9 (provably-safe form) short-circuits build arms
+        return ALLOW
+
+    v = _p8_build(simple_cmds, cfg, cwd_base)
+    if v is not None:
+        return v
+    v = _p8_bare_build(simple_cmds, cfg)
+    if v is not None:
+        return v
+    return ALLOW
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+    except (ValueError, OSError):
+        # No parseable payload -> emit an INDETERMINATE sentinel so the bash
+        # glue can fail closed for danger families (the glue, not us, decides).
+        print("INDETERMINATE")
+        return 0
+    if payload.get("tool_name") != "Bash":
+        print("ALLOW")
+        return 0
+    tool_input = payload.get("tool_input") or {}
+    command = tool_input.get("command", "")
+    # Seed cwd resolution from the payload's reported cwd if present, else the
+    # process cwd, so a relative `cd packages/<x>` is resolvable (reduces
+    # false-blocks while preserving fail-closed for genuinely-unknown cwds).
+    cwd_base = tool_input.get("cwd") or os.environ.get("CLAUDE_GUARD_CWD")
+    if not cwd_base:
+        try:
+            cwd_base = os.getcwd()
+        except OSError:
+            cwd_base = None
+    decision, primitive, reason = evaluate(command, cwd_base)
+    if decision == "BLOCK":
+        sys.stderr.write(f"[protected-runtime-guard] BLOCK {primitive}: {reason}\n")
+        print("BLOCK")
+        return 0
+    print("ALLOW")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
