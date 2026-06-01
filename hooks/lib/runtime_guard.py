@@ -2381,7 +2381,15 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
     if v is not None:
         if v[0] == "BLOCK":
             return v
-        # explicit ALLOW from P9 (provably-safe form) short-circuits build arms
+        # Even when P9 ALLOWs a (non-protected) script-run, an EXPLICIT protected
+        # build-path argument forwarded to that script still rebuilds the
+        # protected bundle (`yarn build --project <protected>/tsconfig.json` from
+        # a non-protected cwd). Run only the explicit-path subset of P8 before
+        # honoring the ALLOW; the bare/cwd build-mode fallback is intentionally
+        # skipped (it caused prior over-blocks).
+        ev = _p8_explicit_protected_path(simple_cmds, cfg, cwd_base)
+        if ev is not None:
+            return ev
         return ALLOW
 
     v = _p8_build(simple_cmds, cfg, cwd_base)
