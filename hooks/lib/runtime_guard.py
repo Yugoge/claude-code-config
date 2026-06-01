@@ -254,23 +254,27 @@ EXEC_FRONTEND_PROFILES = {
         "opts_with_arg": frozenset({"-o", "--output-trace-dir"}),
         "leading_positionals": 1,
     },
-    # bubblewrap: `bwrap [opts] cmd...` (many --opt value; conservative subset)
+    # bubblewrap: `bwrap [opts] cmd...`. `--chdir <dir>` chdirs the wrapped cmd.
     "bwrap": {
         "opts_with_arg": frozenset({
             "--bind", "--ro-bind", "--dev-bind", "--chdir", "--setenv",
             "--unsetenv", "--uid", "--gid", "--hostname", "--proc", "--dev", "--tmpfs",
         }),
         "leading_positionals": 0,
+        "cwd_opts": frozenset({"--chdir"}),
     },
-    # chroot: `chroot [opts] NEWROOT cmd...`
+    # chroot: `chroot [opts] NEWROOT cmd...` (NEWROOT relocates the fs root — a
+    # protected RELATIVE tail under it cannot be proven non-protected; the
+    # leading-positional consumption + tail re-analysis stays conservative).
     "chroot": {
         "opts_with_arg": frozenset({"--userspec", "--groups"}),
         "leading_positionals": 1,
     },
-    # proot: `proot [opts] cmd...`
+    # proot: `proot [opts] cmd...`. `-w/--cwd <dir>` chdirs the wrapped cmd.
     "proot": {
         "opts_with_arg": frozenset({"-r", "--rootfs", "-w", "--cwd", "-b", "--bind", "-q", "--qemu", "-k", "--kernel-release"}),
         "leading_positionals": 0,
+        "cwd_opts": frozenset({"-w", "--cwd"}),
     },
     # virtual X server: `xvfb-run [opts] cmd...`
     "xvfb-run": {
