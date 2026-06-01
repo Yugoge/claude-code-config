@@ -1583,6 +1583,9 @@ def _p6_prockill(groups: list, cfg: dict) -> Optional[Verdict]:
             return False
         for raw in re.split(r"\s+", text):
             st = _strip_quotes(raw.strip("'\""))
+            # strip a leading input-redirection prefix (`<path`, `0<path`, `<<<`)
+            # so `jq .pid </root/.happy*/daemon.state.json` is recognized.
+            st = re.sub(r"^\d*<+", "", st)
             if not st or st.startswith("-"):
                 continue
             if _path_matches_any(st, statefiles):
@@ -1735,6 +1738,37 @@ def _build_mode_flag_present(tokens: list) -> bool:
         if st in _BUILD_MODE_FLAGS:
             return True
     return False
+
+
+def _p8_explicit_protected_path(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> Optional[Verdict]:
+    """The explicit-path subset of P8: BLOCK only when a build invocation's path
+    token or path-valued flag RHS resolves DETERMINATELY under a protected build
+    path. No bare-verb / cwd fallback (so this can run after a P9 ALLOW without
+    re-introducing over-blocks)."""
+    bpaths = cfg.get("protected_build_paths", [])
+    if not bpaths:
+        return None
+    for idx, sc in enumerate(simple_cmds):
+        tokens = _safe_shlex(sc)
+        if not tokens:
+            continue
+        cw = _command_words(tokens)
+        if not cw:
+            continue
+        _, head, rest = cw[0]
+        cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
+        cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+        cwd, cwd_det = _selector_cwd(head, rest, cfg, cwd, cwd_det)
+        is_build = (head in BUILD_TOOL_BASENAMES
+                    or (head in PKG_MANAGERS and "build" in rest)
+                    or (_package_runner_target(head, rest) is not None
+                        and os.path.basename(_package_runner_target(head, rest) or "") in BUILD_TOOL_BASENAMES)
+                    or "build" in [_strip_quotes(t) for t in rest])
+        if not is_build:
+            continue
+        if _any_token_under_incl_flagvalue(rest, bpaths, cwd, cwd_det):
+            return _block("P8", "explicit protected build-path argument")
+    return None
 
 
 def _tokens_after_runner_target(head: str, rest: list) -> list:
