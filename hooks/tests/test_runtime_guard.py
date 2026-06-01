@@ -1345,6 +1345,68 @@ class TestCycle4WrapperAgnosticFrontends:
         assert ev(f"flock /tmp/l node {p} daemon start", absent, fixture_repo) == "BLOCK"
         assert ev("flock /tmp/l ls", absent, fixture_repo) == "ALLOW"
 
+    # ── Codex-found edge cases (adversarial review of the Cycle-4 fix) ───────
+    def test_env_wrapper_before_frontend_blocks(self, datafile, fixture_repo):
+        # codex F1: an ENV_WRAPPER (env/command/nohup/sudo) BEFORE a front-end
+        # must still expose the protected launch (the front-end head sits behind
+        # the wrapper). Previously these leaked (ALLOW).
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        assert ev(f"env flock /tmp/l node {p} daemon start", datafile, fixture_repo) == "BLOCK"
+        assert ev("command flock /tmp/l happy daemon start", datafile, fixture_repo) == "BLOCK"
+        assert ev("nohup flock /tmp/l happy daemon start", datafile, fixture_repo) == "BLOCK"
+        assert ev("sudo nohup happy daemon start", datafile, fixture_repo) == "BLOCK"
+
+    def test_frontend_cwd_opt_blocks(self, datafile, fixture_repo):
+        # codex F3: a cwd-changing front-end option (unshare --wd / bwrap --chdir
+        # / proot -w) pointing at the protected workspace must resolve the wrapped
+        # RELATIVE launch path against it. Previously these leaked (ALLOW).
+        cli = f"{fixture_repo}/packages/happy-cli"
+        assert ev(f"unshare --wd {cli} node dist/index.mjs daemon start", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"bwrap --chdir {cli} node dist/index.mjs daemon start", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"proot -w {cli} node dist/index.mjs daemon start", datafile, fixture_repo) == "BLOCK"
+        # a cwd-opt to a NON-protected dir + benign tail stays allowed
+        assert ev("unshare --wd /tmp node script.js", datafile, fixture_repo) == "ALLOW"
+        assert ev("bwrap --chdir /tmp ls", datafile, fixture_repo) == "ALLOW"
+
+    def test_su_runuser_user_positional(self, datafile, fixture_repo):
+        # codex F4: su/runuser accept an optional USER positional before/around a
+        # -c payload; the payload must still be recursed. But a -u USER OPTION
+        # must NOT also eat the tail command word as a positional.
+        assert ev("su root -c 'happy daemon start'", datafile, fixture_repo) == "BLOCK"
+        assert ev("su -c 'happy daemon start' root", datafile, fixture_repo) == "BLOCK"
+        ident = "packages/happy-cli/dist/index.mjs"
+        # -u root supplies the user; 'kill' is the tail head, NOT the user positional
+        assert ev(f"runuser -u root kill -9 $(pgrep -f {ident})", datafile, fixture_repo) == "BLOCK"
+        # benign user-positional payloads stay allowed
+        assert ev("su -c 'git status' postgres", datafile, fixture_repo) == "ALLOW"
+        assert ev("runuser -u root -c 'echo hi'", datafile, fixture_repo) == "ALLOW"
+
+    def test_group_topology_preserved_no_overblock(self, datafile, fixture_repo):
+        # codex F5: peeling must NOT collapse `;`/`&&`-separated commands into one
+        # P5/P6 group. A benign kill of an unrelated PID + a `;`-separated mention
+        # of a protected ident must stay ALLOW (they are in DIFFERENT groups).
+        ident = "packages/happy-cli/dist/index.mjs"
+        assert ev(f"flock /tmp/l kill 123 ; echo {ident}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"strace -f kill 999 ; grep {ident} file", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"kill 5 ; flock /tmp/l grep {ident} x", datafile, fixture_repo) == "ALLOW"
+        # but a kill carrying the ident WITHIN one pipe group still blocks
+        assert ev(f"pgrep -f {ident} | flock /tmp/l xargs kill", datafile, fixture_repo) == "BLOCK"
+
+    def test_frontend_payload_failclosed(self, datafile, fixture_repo, tmp_path_factory):
+        # codex F5b: a shell-string payload behind a front-end must be recursed
+        # BEFORE the config-load fail-closed return, so it still blocks under an
+        # absent config.
+        absent = str(tmp_path_factory.mktemp("nocfg2") / "absent.json")
+        assert ev("flock -c 'happy daemon start' /tmp/l", absent, fixture_repo) == "BLOCK"
+        assert ev("su -c 'happy daemon start' root", absent, fixture_repo) == "BLOCK"
+
+    def test_gdb_without_args_marker_no_tail(self, datafile, fixture_repo):
+        # gdb only exec()s a wrapped command after --args; without it there is no
+        # tail to analyze (benign).
+        assert ev("gdb -ex run ls", datafile, fixture_repo) == "ALLOW"
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        assert ev(f"gdb --args node {p} daemon start", datafile, fixture_repo) == "BLOCK"
+
     # ── live-hook proof for the 9 leaks (exit 2) ─────────────────────────────
     def test_nine_leaks_live_hook_block(self, datafile, fixture_repo):
         # drive the REAL hook on stdin; pin the engine to the isolated fixture
