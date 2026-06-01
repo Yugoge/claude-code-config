@@ -2931,17 +2931,30 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
     # Peel DOCUMENTED routine exec front-ends (flock/firejail/unshare/nsenter/
     # runuser/su/strace/watch/cpulimit/setpriv/perf/valgrind/...) off each simple
     # command so the protected launch/kill/build they exec() is exposed to the
-    # primitive set, regardless of the front-end's NAME. An UNKNOWN head is NOT a
+    # primitive set, regardless of the front-end's NAME — and even behind an
+    # ENV_WRAPPER (`env flock …`, `sudo flock …`). Group topology is PRESERVED so
+    # P5/P6 are not falsely connected across `;`/`&&`. An UNKNOWN head is NOT a
     # front-end, so a benign tail stays allowed (no blanket substring scan).
-    peeled_cmds, frontend_payloads = _unwrap_exec_frontends(simple_cmds, cwd_base)
-    if peeled_cmds != simple_cmds:
-        # re-derive STEP0 + groups against the peeled forms so a self-protection
-        # mutation or cross-segment kill behind a front-end is also analyzed.
-        v = _step0_self_protection(peeled_cmds)
+    peeled_groups, peeled_flat, frontend_payloads, fe_changed = _unwrap_exec_frontends(groups, cwd_base)
+    if fe_changed:
+        # re-derive STEP0 against the peeled forms so a self-protection mutation
+        # behind a front-end is also analyzed by STEP0's path-pattern scan.
+        v = _step0_self_protection(peeled_flat)
         if v is not None:
             return v
-        simple_cmds = peeled_cmds
-        groups = [peeled_cmds]
+        simple_cmds = peeled_flat
+        groups = peeled_groups
+
+    # Recurse front-end shell-string payloads (flock -c / su -c / runuser -c /
+    # watch joined-tail) through evaluate() under the front-end's effective cwd.
+    # Done BEFORE the config-load fail-closed return so a payload-wrapped danger
+    # family still blocks even when the data file is absent/corrupt (a benign
+    # payload re-evaluates to ALLOW, so this never over-blocks).
+    for payload, pcwd, pcwd_det in frontend_payloads:
+        if payload and payload not in (command, norm_command):
+            pv = evaluate(payload, pcwd if pcwd_det else None)
+            if pv[0] == "BLOCK":
+                return pv
 
     # STEP 1 — load config; fail closed if unavailable.
     cfg = _load_config()
@@ -2949,14 +2962,6 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
         # fail-closed must also see the peeled tails (a front-end-wrapped danger
         # family under an absent/corrupt config still blocks).
         return _step1_indeterminate(simple_cmds)
-
-    # Recurse front-end shell-string payloads (flock -c / su -c / runuser -c /
-    # watch joined-tail) through evaluate() under the front-end's effective cwd.
-    for payload, pcwd, pcwd_det in frontend_payloads:
-        if payload and payload not in (command, norm_command):
-            pv = evaluate(payload, pcwd if pcwd_det else None)
-            if pv[0] == "BLOCK":
-                return pv
 
     # Runner `-c`/`--call` payloads are shell commands the runner executes —
     # recursively evaluate each under the same cwd so a daemon launch / protected
