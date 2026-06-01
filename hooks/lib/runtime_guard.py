@@ -2690,6 +2690,8 @@ def _peel_exec_frontend(toks: list):
     args_marker = profile.get("args_marker")
     leading_pos = profile.get("leading_positionals", 0)
     consume_user = profile.get("consume_user_positional", False)
+    # options that SUPPLY the user (so no leading user positional is expected).
+    _USER_OPTS = frozenset({"-u", "--user"})
     n = len(toks)
     i = head_idx + 1  # consume the front-end head
     consumed_pos = 0
@@ -2748,10 +2750,14 @@ def _peel_exec_frontend(toks: list):
                 continue
         # value-taking option (separated form)
         if t in opts_with_arg and i + 1 < n:
+            if t in _USER_OPTS:
+                user_consumed = True  # -u USER supplies the user; no positional
             i += 2
             continue
         # fused long option --opt=value
         if t.startswith("--") and "=" in t:
+            if t.split("=", 1)[0] in _USER_OPTS:
+                user_consumed = True
             i += 1
             continue
         # any other option flag (no operand)
