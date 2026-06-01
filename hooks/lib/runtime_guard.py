@@ -2638,6 +2638,146 @@ def _runner_call_payloads(simple_cmds: list, cfg: Optional[dict] = None,
     return payloads
 
 
+# ── Generic exec-front-end recursion (wrapper-AGNOSTIC tail analysis) ────────
+
+def _peel_exec_frontend(toks: list):
+    """Given the tokens of ONE simple command, if its head (after VAR=val
+    env-prefixes and any ENV_WRAPPERS folding) is a DOCUMENTED exec front-end,
+    consume the front-end's own options/operands per its profile and return:
+
+        (kind, value)
+
+      kind == "tail"    -> value is the trailing argv list (the wrapped command
+                           the front-end exec()s). Re-tokenized as a simple cmd.
+      kind == "payload" -> value is a SHELL-STRING the front-end runs via a shell
+                           (flock -c / su -c / runuser -c / watch joined-tail).
+                           The caller recurses it through evaluate().
+      None              -> head is not a documented front-end (leave unchanged).
+
+    Pure parsing; no project names. An unknown head is never a front-end, so a
+    benign command with a non-front-end head is untouched (no over-block).
+    """
+    # locate the head: skip leading shell keywords + VAR=val env assignments, but
+    # do NOT fold ENV_WRAPPERS here (those are handled by _command_words); a
+    # front-end may itself follow an env-prefix (`FOO=bar flock /l node ...`).
+    i = 0
+    n = len(toks)
+    while i < n and _strip_quotes(toks[i]) in ("do", "then", "else", "{", "!"):
+        i += 1
+    while i < n and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", toks[i]):
+        i += 1
+    if i >= n:
+        return None
+    head = os.path.basename(_strip_quotes(toks[i]))
+    profile = EXEC_FRONTEND_PROFILES.get(head)
+    if profile is None:
+        return None
+    opts_with_arg = profile.get("opts_with_arg", frozenset())
+    payload_opt = profile.get("payload_opt")
+    joins = profile.get("joins_tail_as_shell", False)
+    args_marker = profile.get("args_marker")
+    leading_pos = profile.get("leading_positionals", 0)
+    i += 1  # consume the front-end head
+    consumed_pos = 0
+    marker_seen = False
+    while i < n:
+        t = toks[i]
+        st = _strip_quotes(t)
+        if args_marker is not None and not marker_seen:
+            # gdb-style: the tail begins ONLY after the explicit --args marker.
+            if t == args_marker:
+                marker_seen = True
+                i += 1
+                break
+            # before the marker, consume opts (value-taking or not) defensively
+            if t in opts_with_arg and i + 1 < n:
+                i += 2
+                continue
+            i += 1
+            continue
+        if t == "--":
+            i += 1
+            break
+        # shell-string payload option (flock -c 'str', su -c 'str')
+        if payload_opt is not None and t == payload_opt and i + 1 < n:
+            return ("payload", _strip_quotes(toks[i + 1]))
+        if payload_opt is not None and t.startswith(payload_opt + "="):
+            return ("payload", _strip_quotes(t.split("=", 1)[1]))
+        # value-taking option (separated form)
+        if t in opts_with_arg and i + 1 < n:
+            i += 2
+            continue
+        # fused long option --opt=value
+        if t.startswith("--") and "=" in t:
+            i += 1
+            continue
+        # any other option flag (no operand)
+        if t.startswith("-") and len(t) > 1:
+            i += 1
+            continue
+        # a bare positional operand the front-end consumes before its tail
+        if consumed_pos < leading_pos:
+            consumed_pos += 1
+            i += 1
+            continue
+        # first non-option, non-leading-positional token: the tail starts here.
+        break
+    if args_marker is not None and not marker_seen:
+        # gdb without --args runs no wrapped command tail.
+        return None
+    tail = toks[i:]
+    if not tail:
+        return None
+    if joins:
+        # watch joins its trailing argv into a single shell-evaluated string.
+        return ("payload", " ".join(_strip_quotes(x) for x in tail))
+    return ("tail", tail)
+
+
+def _unwrap_exec_frontends(simple_cmds: list, cwd_base: Optional[str] = None):
+    """Recursively peel DOCUMENTED exec front-ends off each simple command so the
+    trailing command they exec() is exposed to the primitive set.
+
+    Returns (rewritten_simple_cmds, shell_payloads) where:
+      rewritten_simple_cmds : the simple-command list with front-end prefixes
+                              stripped (argv-tail forms). Front-ends can stack
+                              (`flock /l strace node ...`) so peeling iterates.
+      shell_payloads        : list of (payload_str, cwd, cwd_det) for shell-string
+                              forms (flock -c / su -c / watch) the caller recurses.
+
+    The argv-tail rewrite preserves the original cd-chain context (the rewritten
+    string occupies the SAME pipeline position), so _effective_cwd_after still
+    resolves relative protected paths correctly. Front-ends here do not introduce
+    a path-arg chdir of their own that the existing cwd machinery would miss for
+    the protected families (their cwd/root operands are consumed as positionals).
+    """
+    out = []
+    payloads = []
+    for idx, sc in enumerate(simple_cmds):
+        cur = sc
+        for _ in range(8):  # bounded peel depth for stacked front-ends
+            toks = _safe_shlex(cur)
+            if not toks:
+                break
+            res = _peel_exec_frontend(toks)
+            if res is None:
+                break
+            kind, val = res
+            if kind == "payload":
+                cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
+                payloads.append((val, cwd, cwd_det))
+                # the front-end's own simple command no longer carries a real
+                # command word for the in-place primitives; blank it out.
+                cur = ""
+                break
+            # kind == "tail": rebuild a simple-command string from the tail argv
+            # and continue peeling (the tail head may be another front-end).
+            cur = " ".join(val)
+        if cur:
+            out.append(cur)
+    return (out, payloads)
+
+
 _PM_AT_VERSION_RE = re.compile(r"^(yarn|pnpm|npm)(@.+)?$")
 
 
