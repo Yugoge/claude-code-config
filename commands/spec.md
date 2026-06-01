@@ -430,7 +430,14 @@ Usage:
 
 - **Read the template at runtime** from `~/.claude/templates/overnight-spec.md`. Never hardcode template content.
 - **Preserve template structure exactly** — only replace designated placeholders and `_Not yet populated._` markers.
-- **Do not modify any existing files** except the spec file being created.
+- **Do not modify any existing files** except the spec file being created — with ONE
+  scoped carve-out for design/evidence capture (M9): at design/evidence capture time
+  (Step 4b) `/spec` MAY create/write ONLY
+  `docs/dev/specs/<de-prefixed-id>/.spec-binding.json`,
+  `docs/dev/specs/<de-prefixed-id>/design/*`, and
+  `docs/dev/specs/<de-prefixed-id>/evidence/*`. It MUST NOT write `views/`,
+  `manifest.json`, or `.split-complete` — those remain spec-subagent-owned, created at
+  finalize. No other existing file may be modified.
 - **Create the output directory** (`docs/dev/specs/`) if it does not exist.
 - **Use absolute paths** in all output messages.
 - **Spec Creation Mode is the only mode.** It acts immediately on whatever the user provides, accumulates multiple requirements into one file per session, and finalizes only on a natural-conclusion strong signal.
