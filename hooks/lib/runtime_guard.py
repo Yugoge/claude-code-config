@@ -2669,39 +2669,42 @@ def _peel_exec_frontend(toks: list):
     Pure parsing; no project names. An unknown head is never a front-end, so a
     benign command with a non-front-end head is untouched (no over-block).
     """
-    # locate the head: skip leading shell keywords + VAR=val env assignments, but
-    # do NOT fold ENV_WRAPPERS here (those are handled by _command_words); a
-    # front-end may itself follow an env-prefix (`FOO=bar flock /l node ...`).
-    i = 0
-    n = len(toks)
-    while i < n and _strip_quotes(toks[i]) in ("do", "then", "else", "{", "!"):
-        i += 1
-    while i < n and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", toks[i]):
-        i += 1
-    if i >= n:
+    # Locate the front-end head. A front-end may itself sit behind ENV_WRAPPERS
+    # (`env flock …`, `sudo flock …`, `nohup flock …`) and/or VAR=val prefixes —
+    # reuse _command_words, which already folds env-prefixes + ENV_WRAPPERS per
+    # their own grammar, so the head it reports is the FIRST real command word.
+    cw = _command_words(toks)
+    if not cw:
         return None
-    head = os.path.basename(_strip_quotes(toks[i]))
+    head_idx, head, _rest = cw[0]
     profile = EXEC_FRONTEND_PROFILES.get(head)
     if profile is None:
         return None
+    # the ENV_WRAPPER prefix (everything before the front-end head) is preserved
+    # on the rewritten tail so `env -C <dir> flock … node <rel>` keeps its chdir.
+    prefix = toks[:head_idx]
     opts_with_arg = profile.get("opts_with_arg", frozenset())
-    payload_opt = profile.get("payload_opt")
+    payload_opts = profile.get("payload_opts", frozenset())
+    cwd_opts = profile.get("cwd_opts", frozenset())
     joins = profile.get("joins_tail_as_shell", False)
     args_marker = profile.get("args_marker")
     leading_pos = profile.get("leading_positionals", 0)
-    i += 1  # consume the front-end head
+    consume_user = profile.get("consume_user_positional", False)
+    n = len(toks)
+    i = head_idx + 1  # consume the front-end head
     consumed_pos = 0
+    user_consumed = False
     marker_seen = False
+    cwd_dir = None        # chdir directory set by a cwd_opt
+    cwd_dynamic = False   # cwd_opt value was dynamic ($/`/glob) -> fail closed
     while i < n:
         t = toks[i]
-        st = _strip_quotes(t)
         if args_marker is not None and not marker_seen:
             # gdb-style: the tail begins ONLY after the explicit --args marker.
             if t == args_marker:
                 marker_seen = True
                 i += 1
                 break
-            # before the marker, consume opts (value-taking or not) defensively
             if t in opts_with_arg and i + 1 < n:
                 i += 2
                 continue
@@ -2710,11 +2713,39 @@ def _peel_exec_frontend(toks: list):
         if t == "--":
             i += 1
             break
-        # shell-string payload option (flock -c 'str', su -c 'str')
-        if payload_opt is not None and t == payload_opt and i + 1 < n:
-            return ("payload", _strip_quotes(toks[i + 1]))
-        if payload_opt is not None and t.startswith(payload_opt + "="):
-            return ("payload", _strip_quotes(t.split("=", 1)[1]))
+        # shell-string payload option (flock -c 'str', su -c 'str', --command=)
+        if payload_opts:
+            if t in payload_opts and i + 1 < n:
+                return ("payload", _strip_quotes(toks[i + 1]), prefix, None, False)
+            matched = False
+            for po in payload_opts:
+                if t.startswith(po + "="):
+                    return ("payload", _strip_quotes(t.split("=", 1)[1]), prefix, None, False)
+            del matched
+        # cwd-changing option (unshare --wd, bwrap --chdir, proot -w): capture
+        # the directory so the wrapped relative tail resolves against it.
+        if cwd_opts:
+            if t in cwd_opts and i + 1 < n:
+                val = _strip_quotes(toks[i + 1])
+                if any(ch in val for ch in ("$", "`", "*", "?")):
+                    cwd_dynamic = True
+                else:
+                    cwd_dir = val
+                i += 2
+                continue
+            fused = None
+            for co in cwd_opts:
+                if t.startswith(co + "="):
+                    fused = t.split("=", 1)[1]
+                    break
+            if fused is not None:
+                val = _strip_quotes(fused)
+                if any(ch in val for ch in ("$", "`", "*", "?")):
+                    cwd_dynamic = True
+                else:
+                    cwd_dir = val
+                i += 1
+                continue
         # value-taking option (separated form)
         if t in opts_with_arg and i + 1 < n:
             i += 2
@@ -2732,7 +2763,13 @@ def _peel_exec_frontend(toks: list):
             consumed_pos += 1
             i += 1
             continue
-        # first non-option, non-leading-positional token: the tail starts here.
+        # an optional leading USER positional (su/runuser without -u): consume ONE
+        # bare word, then keep scanning for a trailing -c payload or argv tail.
+        if consume_user and not user_consumed:
+            user_consumed = True
+            i += 1
+            continue
+        # first non-option, non-positional token: the tail starts here.
         break
     if args_marker is not None and not marker_seen:
         # gdb without --args runs no wrapped command tail.
@@ -2742,52 +2779,100 @@ def _peel_exec_frontend(toks: list):
         return None
     if joins:
         # watch joins its trailing argv into a single shell-evaluated string.
-        return ("payload", " ".join(_strip_quotes(x) for x in tail))
-    return ("tail", tail)
+        return ("payload", " ".join(_strip_quotes(x) for x in tail), prefix, cwd_dir, cwd_dynamic)
+    return ("tail", tail, prefix, cwd_dir, cwd_dynamic)
 
 
-def _unwrap_exec_frontends(simple_cmds: list, cwd_base: Optional[str] = None):
-    """Recursively peel DOCUMENTED exec front-ends off each simple command so the
-    trailing command they exec() is exposed to the primitive set.
+def _peel_one(sc: str):
+    """Peel a SINGLE simple-command string through documented exec front-ends.
 
-    Returns (rewritten_simple_cmds, shell_payloads) where:
-      rewritten_simple_cmds : the simple-command list with front-end prefixes
-                              stripped (argv-tail forms). Front-ends can stack
-                              (`flock /l strace node ...`) so peeling iterates.
-      shell_payloads        : list of (payload_str, cwd, cwd_det) for shell-string
-                              forms (flock -c / su -c / watch) the caller recurses.
-
-    The argv-tail rewrite preserves the original cd-chain context (the rewritten
-    string occupies the SAME pipeline position), so _effective_cwd_after still
-    resolves relative protected paths correctly. Front-ends here do not introduce
-    a path-arg chdir of their own that the existing cwd machinery would miss for
-    the protected families (their cwd/root operands are consumed as positionals).
+    Returns (rewritten_sc, payloads_for_this_sc) where rewritten_sc is the
+    argv-tail form (empty string if the command reduced to a shell-string
+    payload) and payloads_for_this_sc is a list of (payload_str, cwd_dir,
+    cwd_dynamic) tuples to recurse. Front-ends stack (`flock /l strace node …`),
+    so peeling iterates with a bounded depth. A cwd-changing front-end option
+    (unshare --wd / bwrap --chdir / proot -w) is folded into the rewritten tail
+    as an `env -C <dir> …` prefix so the existing cwd machinery resolves the
+    wrapped relative protected path; a DYNAMIC cwd value is rendered as an
+    UNRESOLVABLE `env -C <dynamic>` so relative launch/build tails fail closed.
     """
-    out = []
+    cur = sc
     payloads = []
-    for idx, sc in enumerate(simple_cmds):
-        cur = sc
-        for _ in range(8):  # bounded peel depth for stacked front-ends
-            toks = _safe_shlex(cur)
-            if not toks:
-                break
-            res = _peel_exec_frontend(toks)
-            if res is None:
-                break
-            kind, val = res
-            if kind == "payload":
-                cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
-                payloads.append((val, cwd, cwd_det))
-                # the front-end's own simple command no longer carries a real
-                # command word for the in-place primitives; blank it out.
-                cur = ""
-                break
-            # kind == "tail": rebuild a simple-command string from the tail argv
-            # and continue peeling (the tail head may be another front-end).
-            cur = " ".join(val)
-        if cur:
-            out.append(cur)
-    return (out, payloads)
+    for _ in range(8):
+        toks = _safe_shlex(cur)
+        if not toks:
+            break
+        res = _peel_exec_frontend(toks)
+        if res is None:
+            break
+        kind, val, prefix, cwd_dir, cwd_dyn = res
+        # render any front-end cwd-opt as an env -C prefix on the rewritten tail.
+        cwd_prefix = []
+        if cwd_dyn:
+            # an unresolvable chdir: emit a value the env -C cwd extractor flags
+            # as dynamic ($-bearing) so relative protected-path resolution stays
+            # indeterminate (fail-closed for relative launch/build tails).
+            cwd_prefix = ["env", "-C", "${__GUARD_DYNAMIC_CWD__}"]
+        elif cwd_dir is not None:
+            cwd_prefix = ["env", "-C", cwd_dir]
+        if kind == "payload":
+            payloads.append((val, cwd_dir, cwd_dyn))
+            cur = ""
+            break
+        # kind == "tail": rebuild the simple command, preserving the ENV_WRAPPER
+        # prefix (env -C/sudo --chdir cwd handling) + any front-end cwd-opt.
+        cur = " ".join(prefix + cwd_prefix + val)
+    return (cur, payloads)
+
+
+def _unwrap_exec_frontends(groups: list, cwd_base: Optional[str] = None):
+    """Recursively peel DOCUMENTED exec front-ends off every simple command,
+    PRESERVING pipeline-group topology so cross-segment primitives (P5 endpoint,
+    P6 prockill) are not falsely connected across `;`/`&&` boundaries.
+
+    Input `groups` is the _pipeline_groups() output (a list of groups, each a
+    list of simple-command strings). Returns (peeled_groups, peeled_flat,
+    shell_payloads, changed):
+      peeled_groups  : same topology with each segment replaced by its argv-tail
+                       form (empty-string segments dropped).
+      peeled_flat    : the flat list of all non-empty peeled segments (for the
+                       segment-oriented primitives P1/P2/P3/P4/P7/P8/P9).
+      shell_payloads : (payload_str, cwd, cwd_det) for shell-string forms.
+      changed        : True iff any segment was actually rewritten.
+
+    An UNKNOWN head is never a front-end, so a benign tail stays untouched (no
+    blanket substring scan, no over-block).
+    """
+    peeled_groups = []
+    peeled_flat = []
+    payloads_out = []
+    changed = False
+    # a flat index over all segments to resolve each segment's effective cwd
+    # against the FULL original ordering (cd chains span groups).
+    flat_original = [seg for g in groups for seg in g]
+    flat_pos = 0
+    for g in groups:
+        new_g = []
+        for seg in g:
+            rewritten, seg_payloads = _peel_one(seg)
+            if rewritten != seg:
+                changed = True
+            # resolve effective cwd for any shell-string payload of this segment
+            for pval, pcwd_dir, pcwd_dyn in seg_payloads:
+                cwd, cwd_det = _effective_cwd_after(flat_original, flat_pos, cwd_base)
+                if pcwd_dyn:
+                    cwd, cwd_det = (cwd, False)
+                elif pcwd_dir is not None:
+                    cwd = os.path.normpath(os.path.join(cwd, pcwd_dir)) if (cwd and not os.path.isabs(pcwd_dir)) else os.path.normpath(pcwd_dir)
+                    cwd_det = cwd_det if not os.path.isabs(pcwd_dir) else True
+                payloads_out.append((pval, cwd, cwd_det))
+            flat_pos += 1
+            if rewritten:
+                new_g.append(rewritten)
+                peeled_flat.append(rewritten)
+        if new_g:
+            peeled_groups.append(new_g)
+    return (peeled_groups, peeled_flat, payloads_out, changed)
 
 
 _PM_AT_VERSION_RE = re.compile(r"^(yarn|pnpm|npm)(@.+)?$")
