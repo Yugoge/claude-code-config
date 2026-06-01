@@ -1080,6 +1080,41 @@ def _runtime_target(rest: list) -> Optional[str]:
     return None
 
 
+# Runtime options whose VALUE is a module that is preloaded/executed (so the
+# protected bundle/src can run without being the script positional).
+_RUNTIME_PRELOAD_OPTS = frozenset({"-r", "--require", "--import", "--loader", "--experimental-loader"})
+
+
+def _runtime_preload_hits(rest: list, launch_paths: list, cwd: Optional[str], cwd_det: bool) -> bool:
+    i = 0
+    n = len(rest)
+    while i < n:
+        t = rest[i]
+        if t in _RUNTIME_PRELOAD_OPTS and i + 1 < n:
+            if _path_matches_cwd(_strip_quotes(rest[i + 1]), launch_paths, cwd, cwd_det):
+                return True
+            i += 2
+            continue
+        for opt in _RUNTIME_PRELOAD_OPTS:
+            if t.startswith(opt + "="):
+                if _path_matches_cwd(_strip_quotes(t.split("=", 1)[1]), launch_paths, cwd, cwd_det):
+                    return True
+        i += 1
+    return False
+
+
+def _node_run_script(rest: list) -> Optional[str]:
+    """Return the script token of `node --run <script>` / `node --run=<script>`
+    (Node 22+ package-script runner), else None."""
+    for i, t in enumerate(rest):
+        st = _strip_quotes(t)
+        if st == "--run" and i + 1 < len(rest):
+            return _strip_quotes(rest[i + 1])
+        if st.startswith("--run="):
+            return _strip_quotes(st.split("=", 1)[1])
+    return None
+
+
 def _upstream_text_in_group(groups: list, sc: str) -> str:
     """Return the concatenated text of segments UPSTREAM of `sc` within the
     pipeline group that contains it (empty if not found or first in group).
@@ -1134,6 +1169,12 @@ def _exec_subcommand_after_selector(head: str, rest: list):
                 if t == "--":
                     j += 1
                     continue
+                if t in ("-w", "--workspace", "--filter", "-F", "--prefix", "-C", "--dir", "--cwd") and j + 1 < len(toks):
+                    j += 2
+                    continue
+                if any(t.startswith(f + "=") for f in ("--workspace", "--filter", "-F", "--prefix", "-C", "--dir", "--cwd", "-w")):
+                    j += 1
+                    continue
                 if t in _RUNNER_OPTS_WITH_ARG:
                     j += 2
                     continue
@@ -1173,6 +1214,12 @@ def _p1_launch(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         if ex_runner is not None:
             if ex_runner in cmds:
                 return _block("P1", f"workspace-selected exec of protected command '{ex_runner}'")
+            # a recursive/all-workspace (`-r`/`--filter '*'`) exec fans out into
+            # EVERY workspace incl. the protected one — fail closed when the exec
+            # target is a runtime / build tool (it would run in the protected pkg).
+            if (head in PKG_MANAGERS and _explicit_workspace_selector(head, rest) == "<MULTI>"
+                    and (ex_runner in RUNTIMES or ex_runner in BUILD_TOOL_BASENAMES)):
+                return _block("P1", "recursive/all-workspace exec of a runtime/build (fans into protected workspace)")
             if ex_runner in RUNTIMES:
                 ex_pos = _runtime_target(ex_args)
                 if ex_pos is not None and _path_matches_cwd(ex_pos, launch_paths, cwd, cwd_det):
@@ -1187,6 +1234,17 @@ def _p1_launch(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
             tgt = _runtime_target(rest)
             if tgt is not None and _path_matches_cwd(tgt, launch_paths, cwd, cwd_det):
                 return _block("P1", "runtime launch of protected path")
+            # a preload/execute option VALUE (`--import <path>`, `-r <path>`,
+            # `--require=<path>`) executes the protected module even without a
+            # script positional (`node --import <protected> -e ""`).
+            if _runtime_preload_hits(rest, launch_paths, cwd, cwd_det):
+                return _block("P1", "runtime preload/import of protected path")
+            # `node --run <script>` (Node script runner) routes to the package
+            # script of the effective cwd — treat as a bare script-run via P9/P8.
+            nrun = _node_run_script(rest)
+            if nrun is not None and head in ("node", "nodejs"):
+                if _cwd_in_protected_build_scope(cwd, cwd_det, cfg) or cwd is None or not cwd_det:
+                    return _block("P1", "node --run in a protected/indeterminate cwd")
         # direct path execution (./...mjs) — the head IS the path
         full_head = _strip_quotes(tokens[tok_idx]) if tok_idx < len(tokens) else head
         if _path_matches_cwd(full_head, launch_paths, cwd, cwd_det):
@@ -1359,6 +1417,14 @@ def _package_runner_invocation(head: str, rest: list):
         if t == "--":
             i += 1
             continue
+        # PM selector / cwd flags AFTER exec (`npm exec -w cli -- node …`) take a
+        # value and are NOT the runner target — consume the flag and its operand.
+        if t in ("-w", "--workspace", "--filter", "-F", "--prefix", "-C", "--dir", "--cwd") and i + 1 < n:
+            i += 2
+            continue
+        if any(t.startswith(f + "=") for f in ("--workspace", "--filter", "-F", "--prefix", "-C", "--dir", "--cwd", "-w")):
+            i += 1
+            continue
         if t in _RUNNER_OPTS_WITH_ARG:
             i += 2
             continue
@@ -1424,7 +1490,8 @@ def _mutation_targets(simple_cmd: str, tokens: list) -> list:
         barewords = [t for t in args if not t.startswith("-")]
         if barewords:
             targets.append(barewords[-1])
-    elif head in ("touch", "truncate", "dd", "tee", "unzip", "rename"):
+    elif head in ("touch", "truncate", "dd", "tee", "unzip", "rename",
+                  "rm", "unlink", "shred"):
         targets.extend([t for t in args if not t.startswith("-")])
     elif head in ("sed", "perl") and ("-i" in args or any(a.startswith("-i") for a in args)):
         targets.extend([t for t in args if not t.startswith("-")])
@@ -1439,27 +1506,39 @@ def _mutation_targets(simple_cmd: str, tokens: list) -> list:
     return targets
 
 
-def _p3_hotfile(simple_cmds: list, cfg: dict) -> Optional[Verdict]:
+def _mutation_target_hits(simple_cmds: list, idx: int, sc: str, tokens: list,
+                          globs: list, cwd_base: Optional[str]) -> bool:
+    """True if any mutation target of `sc` matches a protected glob, resolving a
+    relative target against the effective cwd (cd chain + wrapper chdir) so
+    `cd <protected> && touch dist/index.mjs` and `rm <rel>/dist/index.mjs` hit."""
+    cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
+    cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+    for tgt in _mutation_targets(sc, tokens):
+        for cand in _resolve_rel(tgt, cwd, cwd_det):
+            if _path_matches_any(cand, globs):
+                return True
+    return False
+
+
+def _p3_hotfile(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> Optional[Verdict]:
     hot = cfg.get("protected_hotfiles", [])
     if not hot:
         return None
-    for sc in simple_cmds:
+    for idx, sc in enumerate(simple_cmds):
         tokens = _safe_shlex(sc)
-        for tgt in _mutation_targets(sc, tokens):
-            if _path_matches_any(tgt, hot):
-                return _block("P3", "mutation of protected hot-watched bundle")
+        if _mutation_target_hits(simple_cmds, idx, sc, tokens, hot, cwd_base):
+            return _block("P3", "mutation of protected hot-watched bundle")
     return None
 
 
-def _p4_statefile(simple_cmds: list, cfg: dict) -> Optional[Verdict]:
+def _p4_statefile(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> Optional[Verdict]:
     state = cfg.get("protected_statefiles", [])
     if not state:
         return None
-    for sc in simple_cmds:
+    for idx, sc in enumerate(simple_cmds):
         tokens = _safe_shlex(sc)
-        for tgt in _mutation_targets(sc, tokens):
-            if _path_matches_any(tgt, state):
-                return _block("P4", "mutation of protected state file")
+        if _mutation_target_hits(simple_cmds, idx, sc, tokens, state, cwd_base):
+            return _block("P4", "mutation of protected state file")
     return None
 
 
@@ -1891,9 +1970,13 @@ def _resolve_path_filter_manifest(path_val: str, cfg: dict, effective_cwd: Optio
     read. A protected dir (or one with no resolvable manifest) fails closed."""
     if any(ch in path_val for ch in ("$", "`")):
         return (None, None, None, False)
-    candidate_bases = list(cfg.get("protected_root_manifest_paths", []))
+    # Resolve a relative path filter against the INVOKING cwd FIRST (so `/other`
+    # running `--filter ./packages/<pkg>` resolves to /other/..., not a protected
+    # root). Fall back to the protected roots only when there is no cwd.
+    candidate_bases = []
     if effective_cwd:
         candidate_bases.append(effective_cwd)
+    candidate_bases.extend(cfg.get("protected_root_manifest_paths", []))
     tried = []
     if os.path.isabs(path_val):
         tried.append(os.path.normpath(path_val))
@@ -1903,7 +1986,7 @@ def _resolve_path_filter_manifest(path_val: str, cfg: dict, effective_cwd: Optio
     for d in tried:
         man = os.path.join(d, "package.json")
         is_protected = (
-            _path_matches_any(d, cfg.get("protected_script_paths", []))
+            _dir_is_protected_pkg(d, cfg)
             or os.path.normpath(d) in [os.path.normpath(p) for p in cfg.get("protected_root_manifest_paths", [])]
         )
         if os.path.isfile(man):
@@ -1954,7 +2037,7 @@ def _resolve_workspace_manifest(selector: str, cfg: dict, effective_cwd: Optiona
                 if name == selector:
                     is_protected = (
                         name in set(cfg.get("protected_script_workspaces", []))
-                        or _path_matches_any(os.path.dirname(man), cfg.get("protected_script_paths", []))
+                        or _dir_is_protected_pkg(os.path.dirname(man), cfg)
                     )
                     scripts = set((data.get("scripts") or {}).keys())
                     return (os.path.dirname(man), is_protected, scripts, True)
@@ -1983,7 +2066,7 @@ def _effective_manifest_for_cwd(cwd: Optional[str], cfg: dict):
             except (OSError, ValueError):
                 scripts = set()
         is_protected_root = d in proots
-        is_protected_path = _path_matches_any(d, spaths)
+        is_protected_path = _dir_is_protected_pkg(d, cfg)
         if exists or is_protected_root:
             return (d, (is_protected_root or is_protected_path), scripts or set(), True)
         parent = os.path.dirname(d)
@@ -2315,17 +2398,19 @@ def _resolve_bare_script(script_tok: Optional[str], cwd: Optional[str], cwd_det:
 
 # ── corepack re-routing ──────────────────────────────────────────────────────
 
-def _runner_call_payloads(simple_cmds: list) -> list:
-    """Return the shell-command payloads of any package-runner `-c`/`--call`
-    form (`npx -c '<cmd>'`, `npm exec -c '<cmd>'`, `pnpm dlx --call '<cmd>'`).
+def _runner_call_payloads(simple_cmds: list, cfg: Optional[dict] = None,
+                          cwd_base: Optional[str] = None) -> list:
+    """Return (payload, effective_cwd, cwd_det) tuples for any package-runner
+    `-c`/`--call` form (`npx -c '<cmd>'`, `npm exec -c '<cmd>'`,
+    `pnpm -w <ws> dlx --call '<cmd>'`).
 
-    The payload string is itself a shell command that the runner executes, so it
-    is recursively evaluated under the same policy (a daemon-launch or protected
-    build inside the payload must be blocked). A benign payload yields nothing
-    actionable when re-evaluated, so over-block is avoided.
+    The payload string is itself a shell command the runner executes, so it is
+    recursively evaluated under the SAME effective cwd (cd chain + wrapper chdir +
+    PM workspace selector), so a relative daemon-launch / protected build inside
+    the payload resolves. A benign payload re-evaluates to ALLOW.
     """
     payloads = []
-    for sc in simple_cmds:
+    for idx, sc in enumerate(simple_cmds):
         toks = _safe_shlex(sc)
         if not toks:
             continue
@@ -2344,15 +2429,20 @@ def _runner_call_payloads(simple_cmds: list) -> list:
                     break
         if runner_args is None:
             continue
+        # effective cwd for the payload: cd chain + wrapper chdir + selector
+        cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
+        cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, toks)
+        if cfg is not None:
+            cwd, cwd_det = _selector_cwd(head, rest, cfg, cwd, cwd_det)
         i = 0
         while i < len(runner_args):
             t = runner_args[i]
             if t in ("-c", "--call") and i + 1 < len(runner_args):
-                payloads.append(_strip_quotes(runner_args[i + 1]))
+                payloads.append((_strip_quotes(runner_args[i + 1]), cwd, cwd_det))
                 i += 2
                 continue
             if t.startswith("--call="):
-                payloads.append(_strip_quotes(t.split("=", 1)[1]))
+                payloads.append((_strip_quotes(t.split("=", 1)[1]), cwd, cwd_det))
                 i += 1
                 continue
             i += 1
@@ -2417,9 +2507,11 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
     # recursively evaluate each under the same cwd so a daemon launch / protected
     # build hidden inside the payload is caught (a benign payload re-evaluates to
     # ALLOW, so this does not over-block).
-    for payload in _runner_call_payloads(simple_cmds):
+    for payload, pcwd, pcwd_det in _runner_call_payloads(simple_cmds, cfg, cwd_base):
         if payload and payload not in (command, norm_command):
-            pv = evaluate(payload, cwd_base)
+            # recurse under the runner's effective cwd (None when indeterminate,
+            # which makes relative launch/build payloads fail closed downstream)
+            pv = evaluate(payload, pcwd if pcwd_det else None)
             if pv[0] == "BLOCK":
                 return pv
 
@@ -2428,10 +2520,15 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
     v = _p1_launch(simple_cmds, cfg, cwd_base, groups)
     if v is not None:
         return v
-    for fn in (_p2_service, _p3_hotfile, _p4_statefile):
-        v = fn(simple_cmds, cfg)
-        if v is not None:
-            return v
+    v = _p2_service(simple_cmds, cfg)
+    if v is not None:
+        return v
+    v = _p3_hotfile(simple_cmds, cfg, cwd_base)
+    if v is not None:
+        return v
+    v = _p4_statefile(simple_cmds, cfg, cwd_base)
+    if v is not None:
+        return v
     # cross-segment primitives operate on pipeline GROUPS
     v = _p5_endpoint(groups, cfg)
     if v is not None:
