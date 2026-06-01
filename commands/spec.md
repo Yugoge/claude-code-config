@@ -92,11 +92,115 @@ After Step 3, wait for the next user message and branch:
   ### 5.N: <brief title extracted from the message>
   <verbatim requirement text>
   ```
-  `N` increments from 2 (the first requirement populates Section 5; subsequent requirements become 5.2, 5.3, …). Then loop back to wait.
+  `N` increments from 2 (the first requirement populates Section 5; subsequent requirements become 5.2, 5.3, …). Then **run the Design & Evidence Capture Routine (Step 4b) for this turn BEFORE looping back** (M2 — same routine, every follow-up turn). Then loop back to wait.
 - **Exploration findings arrive** → integrate into Section 1 (Before) silently. If a finding contradicts the user's description, surface one targeted question — for example, "I looked at X and found Y — does that match?" — then loop back. Never gate the loop on exploration.
 - **Mid-loop vague input** → apply Step 2 logic (max 3 rounds) to that single message before appending, then loop back.
 
 Maintain `turn_count` internally (not user-visible), increment after each user response. No hard turn cap — termination is signal-driven.
+
+### Step 4b: Design & Evidence Capture Routine
+
+This routine runs in Step 3 (first turn, if the first material carries design/evidence)
+and in Step 4 (every follow-up turn), per M2. It NEVER touches Section 5 — design and
+evidence land in Section 9 + companion files only (M8). User-provided design and evidence
+are first-class material and MUST NOT be silently dropped (M3-M5, M12).
+
+1. **Detect material in this turn.** Classify what the user supplied this turn into:
+   - **Design/HOW-content**: architecture, directory layout, deployment topology,
+     systemd units, runbook, rollout/landing order — whether pasted inline as text OR
+     supplied as a readable file path the user describes as design/HOW/runbook/systemd/
+     rollout/layout (M14).
+   - **Evidence**: files and photos/screenshots offered as proof/screenshot/log/photo.
+   - **Ambiguous path input** (a file path the user neither clearly frames as design nor
+     as evidence) → default to **evidence/** with visible Section-9 wording noting the
+     ambiguous classification (M14).
+   - If neither is present this turn, do nothing and return to the loop.
+
+2. **Resolve the de-prefixed id and bind the per-id folder (first material only).** Obtain
+   the per-id folder id by consuming the resolver's `candidates[0]` (the de-prefixed stem,
+   exactly one leading `spec-` stripped). Do NOT re-derive the id inline by hand from the
+   path — the centralization lint (Step 6 sub-step 6) flags inline derivation:
+
+   ```bash
+   RESOLVED_JSON=$(/root/.claude/scripts/resolve-spec-artifacts.py \
+       --spec-path "$spec_path" --project-dir "$CLAUDE_PROJECT_DIR")
+   SPEC_DIR_ID=$(jq -r '.candidates[0]' <<<"$RESOLVED_JSON")   # de-prefixed id
+   BOUND_ROOT="$CLAUDE_PROJECT_DIR/docs/dev/specs/$SPEC_DIR_ID"
+   ```
+
+   On the FIRST arriving design/evidence material, create the bound artifact root and its
+   two subfolders, and write the binding marker (M2):
+
+   ```bash
+   mkdir -p "$BOUND_ROOT/design" "$BOUND_ROOT/evidence"
+   # .spec-binding.json ties this early folder to THIS spec-id so the splitter's later
+   # views/ creation does not merge into a stale/foreign folder. It is NOT one of the
+   # reserved artifact names (views/ / manifest.json / .split-complete), so the resolver
+   # still classifies the folder ABSENT (legacy-monolith fallback intact) — verified.
+   printf '{"spec_id":"%s","monolith_path":"%s","bound_at":"%s"}\n' \
+       "$SPEC_DIR_ID" "$spec_path" "$(date -Iseconds)" > "$BOUND_ROOT/.spec-binding.json"
+   ```
+
+   Do NOT create `views/`, `manifest.json`, or `.split-complete` here — those remain
+   spec-subagent-owned at finalize (M9).
+
+3. **Safe target naming (M13).** Compute deterministic, safe target names. Reject any name
+   containing `..`, an absolute path, or control characters — never write outside
+   `$BOUND_ROOT/design/` or `$BOUND_ROOT/evidence/`, and never overwrite a prior artifact:
+   - Design: `design/turn-<N>-<slug>.md` where `<N>` is the current turn number and
+     `<slug>` is a sanitized short title.
+   - Evidence: the sanitized basename of the source; on a name collision, append a short
+     content hash (e.g. `photo.png` → `photo-<8hex>.png`) so no prior artifact is
+     overwritten.
+
+4. **Persist design (M3 — additive, never relocating).** Write the user's HOW-content
+   VERBATIM to `$BOUND_ROOT/design/turn-<N>-<slug>.md`. This file is an ADDITIVE mirror:
+   if the design text arrived as part of the user's requirement it STAYS verbatim in
+   Section 5; the companion design doc + the Section-9 reference are ADDED, never used to
+   strip, rewrite, summarize, or relocate any Section-5 text. Then append a short
+   project-root-relative reference line under Section 9.1 (replacing the
+   `_Not yet populated._` placeholder on the FIRST design entry; leaving Section 9.2's
+   placeholder untouched until its own first entry — M1):
+
+   ```
+   - `docs/dev/specs/<de-prefixed-id>/design/turn-<N>-<slug>.md` — <one-line description>
+   ```
+
+   Keep the `<!-- consumers: [all] -->` line as the first line of Section 9.1 so every
+   reference line under it routes to all selected views + orchestrator (S1).
+
+5. **Persist evidence (M4 / M5 — two branches).**
+   - **File/photo WITH a usable readable path** → copy it into
+     `$BOUND_ROOT/evidence/<safe-name>` and append a reference line under Section 9.2:
+     ```
+     - `docs/dev/specs/<de-prefixed-id>/evidence/<safe-name>` — <one-line description>
+     ```
+   - **Photo arriving ONLY as inline/pathless content** → in THIS harness, a pasted image
+     currently arrives as a base64 content block with no filesystem path the orchestrator
+     can `Read` (current-harness observation, not an eternal absolute — if a future client
+     exposes a usable path for the pasted image, take the by-path copy branch above
+     instead). Because nothing can be copied from a non-existent path, record a VISIBLE
+     evidence reference under Section 9.2 noting the item was provided inline and could not
+     be archived to a path, and tell the user durable archival needs a file path. The
+     material is NEVER silently dropped (M5):
+     ```
+     - (inline) <one-line description> — provided inline (no filesystem path in this harness); durable archival needs a file path
+     ```
+
+6. **Fail-visible evidence-copy errors (M12).** If a file-by-path copy fails (path missing,
+   unreadable, or outside accessible paths), do NOT drop it silently. Either the copy
+   succeeds and the copied path is referenced (sub-step 5), OR append an "unpersisted
+   evidence" limitation line under Section 9.2 carrying the original path + the error, and
+   tell the user immediately:
+
+   ```
+   - (unpersisted) <original-path> — copy failed: <error>; not archived
+   ```
+
+7. Each Section-9 reference line is a SHORT verbatim monolith line (it enters the coverage
+   denominator and MUST appear verbatim in ≥1 view — see Step 6 and the splitter). The
+   companion design body and evidence binaries live OUTSIDE the monolith and are NOT in the
+   coverage denominator. Then return to the accumulation loop.
 
 ### Step 5: Natural-conclusion detection
 
