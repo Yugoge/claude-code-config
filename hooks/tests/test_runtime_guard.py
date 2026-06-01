@@ -1394,11 +1394,17 @@ class TestCycle4WrapperAgnosticFrontends:
 
     def test_frontend_payload_failclosed(self, datafile, fixture_repo, tmp_path_factory):
         # codex F5b: a shell-string payload behind a front-end must be recursed
-        # BEFORE the config-load fail-closed return, so it still blocks under an
-        # absent config.
+        # BEFORE the config-load fail-closed return, so a DANGER-VERB-family
+        # payload (build/kill/service/global-install) still blocks under an absent
+        # config. (A launch-by-command-BASENAME — 'happy daemon start' — is
+        # ALLOWed under absent config by design: STEP1 cannot know the basename is
+        # protected without the data file; that matches the pre-existing AC-D
+        # contract, not a payload-recursion gap.)
         absent = str(tmp_path_factory.mktemp("nocfg2") / "absent.json")
-        assert ev("flock -c 'happy daemon start' /tmp/l", absent, fixture_repo) == "BLOCK"
-        assert ev("su -c 'happy daemon start' root", absent, fixture_repo) == "BLOCK"
+        assert ev("flock -c 'yarn build' /tmp/l", absent, fixture_repo) == "BLOCK"
+        assert ev("su -c 'kill -9 1' root", absent, fixture_repo) == "BLOCK"
+        # sanity: the SAME launch-by-basename payload blocks once config is present
+        assert ev("flock -c 'happy daemon start' /tmp/l", datafile, fixture_repo) == "BLOCK"
 
     def test_gdb_without_args_marker_no_tail(self, datafile, fixture_repo):
         # gdb only exec()s a wrapped command after --args; without it there is no
