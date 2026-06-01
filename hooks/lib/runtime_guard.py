@@ -2066,6 +2066,50 @@ def _resolve_bare_script(script_tok: Optional[str], cwd: Optional[str], cwd_det:
 
 # ── corepack re-routing ──────────────────────────────────────────────────────
 
+def _runner_call_payloads(simple_cmds: list) -> list:
+    """Return the shell-command payloads of any package-runner `-c`/`--call`
+    form (`npx -c '<cmd>'`, `npm exec -c '<cmd>'`, `pnpm dlx --call '<cmd>'`).
+
+    The payload string is itself a shell command that the runner executes, so it
+    is recursively evaluated under the same policy (a daemon-launch or protected
+    build inside the payload must be blocked). A benign payload yields nothing
+    actionable when re-evaluated, so over-block is avoided.
+    """
+    payloads = []
+    for sc in simple_cmds:
+        toks = _safe_shlex(sc)
+        if not toks:
+            continue
+        cw = _command_words(toks)
+        if not cw:
+            continue
+        _, head, rest = cw[0]
+        # locate the runner argv (after npx/bunx, or after exec/dlx/x for a PM)
+        runner_args = None
+        if head in ("npx", "bunx"):
+            runner_args = rest
+        elif head in PKG_MANAGERS:
+            for i, t in enumerate(rest):
+                if t in ("exec", "dlx", "x"):
+                    runner_args = rest[i + 1:]
+                    break
+        if runner_args is None:
+            continue
+        i = 0
+        while i < len(runner_args):
+            t = runner_args[i]
+            if t in ("-c", "--call") and i + 1 < len(runner_args):
+                payloads.append(_strip_quotes(runner_args[i + 1]))
+                i += 2
+                continue
+            if t.startswith("--call="):
+                payloads.append(_strip_quotes(t.split("=", 1)[1]))
+                i += 1
+                continue
+            i += 1
+    return payloads
+
+
 _PM_AT_VERSION_RE = re.compile(r"^(yarn|pnpm|npm)(@.+)?$")
 
 
@@ -2119,6 +2163,16 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
     cfg = _load_config()
     if cfg is None:
         return _step1_indeterminate(simple_cmds)
+
+    # Runner `-c`/`--call` payloads are shell commands the runner executes —
+    # recursively evaluate each under the same cwd so a daemon launch / protected
+    # build hidden inside the payload is caught (a benign payload re-evaluates to
+    # ALLOW, so this does not over-block).
+    for payload in _runner_call_payloads(simple_cmds):
+        if payload and payload not in (command, norm_command):
+            pv = evaluate(payload, cwd_base)
+            if pv[0] == "BLOCK":
+                return pv
 
     # STEP 2 — P1..P9 (order: launch, service, hotfile, statefile, endpoint,
     # prockill, globalbin, then package-script default-deny, then build arms).
