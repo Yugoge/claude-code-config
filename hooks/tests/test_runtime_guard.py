@@ -1254,5 +1254,110 @@ class TestR3CodexP9ExplicitPathShortcircuit:
         assert ev_cwd(f"yarn build --project {srv}/tsconfig.json", datafile, srv) == "ALLOW"
 
 
+class TestCycle4WrapperAgnosticFrontends:
+    """Cycle 4 (QA-20260531-162901 §7): the wrapper layer must be wrapper-
+    AGNOSTIC. A protected launch/kill/build behind ANY documented routine exec
+    front-end (flock/firejail/unshare/nsenter/runuser/su/strace/watch/cpulimit/
+    setpriv/prlimit/perf/valgrind/rr/bwrap/chroot/proot/xvfb-run/dbus-run-session/
+    gdb --args) must BLOCK; a non-protected tail behind the same front-end and a
+    read-only mention must ALLOW (no blanket substring scan)."""
+
+    # ── The 9 QA-reproduced LIVE leaks (each names a protected path/command) ──
+    NINE_LEAKS = [
+        "flock /tmp/l node {repo}/packages/happy-cli/dist/index.mjs daemon start",
+        "flock -n /tmp/l happy daemon start",
+        "firejail node {repo}/packages/happy-cli/dist/index.mjs daemon start",
+        "unshare -r node {repo}/packages/happy-cli/dist/index.mjs daemon start",
+        "nsenter -t 1 -m node {repo}/packages/happy-cli/dist/index.mjs daemon start",
+        "runuser -u root node {repo}/packages/happy-cli/dist/index.mjs daemon start",
+        "strace -f node {repo}/packages/happy-cli/dist/index.mjs daemon start",
+        "watch -n5 happy daemon start",
+        "cpulimit -l 50 node {repo}/packages/happy-cli/dist/index.mjs daemon start",
+    ]
+
+    @pytest.mark.parametrize("tmpl", NINE_LEAKS)
+    def test_nine_reproduced_leaks_block(self, tmpl, datafile, fixture_repo):
+        assert ev(tmpl.format(repo=fixture_repo), datafile, fixture_repo) == "BLOCK"
+
+    # ── Broad sweep: arbitrary documented front-ends around a protected path ──
+    SWEEP_FRONTENDS = [
+        "firejail", "unshare", "nsenter -t 1 -m", "runuser -u root", "strace -f",
+        "ltrace", "cpulimit -l 50", "setpriv --reuid 0", "prlimit --pid 1",
+        "valgrind", "bwrap --dev /dev", "proot", "xvfb-run", "dbus-run-session --",
+        "perf stat", "rr record", "chroot /", "gdb --args",
+    ]
+
+    @pytest.mark.parametrize("fe", SWEEP_FRONTENDS)
+    def test_sweep_protected_launch_blocks(self, fe, datafile, fixture_repo):
+        cmd = f"{fe} node {fixture_repo}/packages/happy-cli/dist/index.mjs daemon start"
+        assert ev(cmd, datafile, fixture_repo) == "BLOCK"
+
+    def test_stacked_frontends_block(self, datafile, fixture_repo):
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        assert ev(f"flock /tmp/l strace -f node {p} daemon start", datafile, fixture_repo) == "BLOCK"
+        assert ev("firejail strace -f happy daemon start", datafile, fixture_repo) == "BLOCK"
+
+    # ── Shell-string payload wrappers (recursed via evaluate) ────────────────
+    def test_shell_string_payloads_block(self, datafile, fixture_repo):
+        assert ev("flock -c 'happy daemon start' /tmp/l", datafile, fixture_repo) == "BLOCK"
+        assert ev("su -c 'happy daemon start' root", datafile, fixture_repo) == "BLOCK"
+        assert ev("runuser -u root -c 'happy daemon start'", datafile, fixture_repo) == "BLOCK"
+        assert ev("watch -n2 'happy daemon start'", datafile, fixture_repo) == "BLOCK"
+
+    # ── KILL family behind front-ends ────────────────────────────────────────
+    def test_kill_behind_frontend_blocks(self, datafile, fixture_repo):
+        ident = "packages/happy-cli/dist/index.mjs"
+        assert ev(f"strace -f pkill -f {ident}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"flock /tmp/l pkill -f {ident}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"runuser -u root kill -9 $(pgrep -f {ident})", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"watch -n2 'pkill -f {ident}'", datafile, fixture_repo) == "BLOCK"
+
+    # ── REBUILD behind front-ends ────────────────────────────────────────────
+    def test_rebuild_behind_frontend_blocks(self, datafile, fixture_repo):
+        assert ev("flock /tmp/l yarn workspace happy build", datafile, fixture_repo) == "BLOCK"
+        assert ev("strace -f npx tsc -p packages/happy-cli/tsconfig.json", datafile, fixture_repo) == "BLOCK"
+
+    # ── Boundary ALLOWs: front-end + NON-protected tail / read-only mention ──
+    def test_frontend_benign_tail_allows(self, datafile, fixture_repo):
+        assert ev("flock /tmp/l ls -la", datafile, fixture_repo) == "ALLOW"
+        assert ev("strace -f grep foo bar.txt", datafile, fixture_repo) == "ALLOW"
+        assert ev("watch -n5 ls", datafile, fixture_repo) == "ALLOW"
+        assert ev("firejail yarn workspace happy-server build", datafile, fixture_repo) == "ALLOW"
+        assert ev("unshare -r yarn workspace happy-server build", datafile, fixture_repo) == "ALLOW"
+        assert ev("nsenter -t 1 -m cat /root/.happy-dev/daemon.state.json", datafile, fixture_repo) == "ALLOW"
+
+    def test_readonly_mentions_allow(self, datafile, fixture_repo):
+        assert ev("grep packages/happy-cli/dist/index.mjs -R .", datafile, fixture_repo) == "ALLOW"
+        assert ev("echo flock node packages/happy-cli/dist/index.mjs daemon start", datafile, fixture_repo) == "ALLOW"
+        assert ev("printf 'strace happy daemon start'", datafile, fixture_repo) == "ALLOW"
+
+    def test_unknown_wrapper_is_not_a_frontend(self, datafile, fixture_repo):
+        # An UNKNOWN binary head is NOT a documented front-end, so it is not
+        # peeled — a benign unknown command stays allowed (no over-block) and the
+        # accepted residual (unknown wrapper + protected path) is NOT mis-peeled.
+        assert ev("mybin --foo bar", datafile, fixture_repo) == "ALLOW"
+
+    # ── fail-closed behind a front-end (absent/corrupt config) ───────────────
+    def test_frontend_failclosed(self, datafile, fixture_repo, tmp_path_factory):
+        absent = str(tmp_path_factory.mktemp("nocfg") / "absent.json")
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        # launch behind a front-end blocks under absent config; benign tail passes
+        assert ev(f"flock /tmp/l node {p} daemon start", absent, fixture_repo) == "BLOCK"
+        assert ev("flock /tmp/l ls", absent, fixture_repo) == "ALLOW"
+
+    # ── live-hook proof for the 9 leaks (exit 2) ─────────────────────────────
+    def test_nine_leaks_live_hook_block(self, datafile, fixture_repo):
+        # drive the REAL hook on stdin; pin the engine to the isolated fixture
+        # data file via env so the live machine file is never touched.
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        for tmpl in self.NINE_LEAKS:
+            cmd = tmpl.format(repo=fixture_repo)
+            payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd, "cwd": fixture_repo}, "agent_id": "dev-test"})
+            r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r.returncode == BLOCK, f"live hook did not block: {cmd} (rc={r.returncode})"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
