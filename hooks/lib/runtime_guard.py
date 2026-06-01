@@ -476,21 +476,38 @@ def _resolve_rel(val: str, cwd: Optional[str], cwd_det: bool) -> list:
     return cands
 
 
-def _any_token_under_incl_flagvalue(tokens: list, dir_globs: list,
+def _path_is_protected_build(path: str, cfg: dict) -> bool:
+    """True if `path` is under a protected build path. A RELATIVE build-path glob
+    (`**/packages/<pkg>`) is suffix-matching and would also match an UNRELATED
+    project's identically-named dir, so it is honored only when the resolved path
+    is under a protected monorepo root. An ABSOLUTE glob is honored as-is."""
+    bpaths = cfg.get("protected_build_paths", [])
+    abs_globs = [g for g in bpaths if g.startswith("/")]
+    rel_globs = [g for g in bpaths if not g.startswith("/")]
+    if abs_globs and (_path_under_any(path, abs_globs) or _path_matches_any(path, abs_globs)):
+        return True
+    if rel_globs and (_path_under_any(path, rel_globs) or _path_matches_any(path, rel_globs)) \
+            and _dir_under_any_root(path, cfg):
+        return True
+    return False
+
+
+def _any_token_under_incl_flagvalue(tokens: list, cfg: dict,
                                     cwd: Optional[str] = None, cwd_det: bool = False) -> bool:
     """Match any bare path token OR known path-valued `--flag=value` RHS against
-    the protected build globs, resolving relative paths against the effective cwd
-    (covers `tsc -p ../happy-cli/tsconfig.json` from a sibling package)."""
+    the (root-qualified) protected build paths, resolving relative paths against
+    the effective cwd (covers `tsc -p ../happy-cli/tsconfig.json` from a sibling
+    package) while NOT matching an unrelated project's same-named dir."""
     for tok in tokens:
         st = _strip_quotes(tok)
         if not st or st.startswith("-"):
             continue
         for cand in _resolve_rel(st, cwd, cwd_det):
-            if _path_under_any(cand, dir_globs):
+            if _path_is_protected_build(cand, cfg):
                 return True
     for val in _flagvalue_path_candidates(tokens):
         for cand in _resolve_rel(val, cwd, cwd_det):
-            if _path_under_any(cand, dir_globs) or _path_matches_any(cand, dir_globs):
+            if _path_is_protected_build(cand, cfg):
                 return True
     return False
 
@@ -500,7 +517,6 @@ def _explicit_nonprotected_build_target(tokens: list, cfg: dict,
     """True if a path-valued build flag points DETERMINATELY at a target OUTSIDE
     every protected build path (so a build-mode fallback must not over-block a
     `tsc -w -p packages/<non-protected>/tsconfig.json` at the monorepo root)."""
-    bpaths = cfg.get("protected_build_paths", [])
     vals = list(_flagvalue_path_candidates(tokens))
     # also the space-separated `-p <path>` / `--project <path>` form
     i = 0
@@ -518,7 +534,7 @@ def _explicit_nonprotected_build_target(tokens: list, cfg: dict,
     for v in vals:
         # if ANY explicit target resolves under a protected path -> not exempt
         for cand in _resolve_rel(v, cwd, cwd_det):
-            if _path_under_any(cand, bpaths) or _path_matches_any(cand, bpaths):
+            if _path_is_protected_build(cand, cfg):
                 return False
         # an unresolvable relative target -> cannot prove non-protected
         if not os.path.isabs(_strip_quotes(v)) and not (cwd and cwd_det):
@@ -1778,7 +1794,7 @@ def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> O
         # (a) build tool co-occurring with a protected build path (token, fused
         # --flag=path value, or cwd) — relative paths resolved against cwd.
         if head in BUILD_TOOL_BASENAMES:
-            if _any_token_under_incl_flagvalue(rest, bpaths, cwd, cwd_det) or cwd_in_build:
+            if _any_token_under_incl_flagvalue(rest, cfg, cwd, cwd_det) or cwd_in_build:
                 return _block("P8", "build tool co-occurring with a protected build path")
             if (_build_mode_flag_present(rest)
                     and not _explicit_nonprotected_build_target(rest, cfg, cwd, cwd_det)
@@ -1789,7 +1805,7 @@ def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> O
                 # an explicit project target proves a non-protected build.
                 return _block("P8", "build-mode flag with protected/indeterminate cwd")
         if head in PKG_MANAGERS and "build" in rest:
-            if _any_token_under_incl_flagvalue(rest, bpaths, cwd, cwd_det):
+            if _any_token_under_incl_flagvalue(rest, cfg, cwd, cwd_det):
                 return _block("P8", "build co-occurring with a protected build path")
         # package-runner build: npx/bunx AND npm exec/pnpm exec/yarn exec/bun x
         # running a build tool, against a protected build path (token or cwd).
@@ -1797,8 +1813,8 @@ def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> O
         if rtgt is not None and os.path.basename(rtgt) in BUILD_TOOL_BASENAMES:
             # tokens AFTER the build-tool target (e.g. `-p <path>` for tsc)
             after = _tokens_after_runner_target(head, rest)
-            if (_any_token_under_incl_flagvalue(after, bpaths, cwd, cwd_det)
-                    or _any_token_under_incl_flagvalue(rest, bpaths, cwd, cwd_det) or cwd_in_build):
+            if (_any_token_under_incl_flagvalue(after, cfg, cwd, cwd_det)
+                    or _any_token_under_incl_flagvalue(rest, cfg, cwd, cwd_det) or cwd_in_build):
                 return _block("P8", "package-runner build co-occurring with a protected build path")
             if (_build_mode_flag_present(after)
                     and not _explicit_nonprotected_build_target(after, cfg, cwd, cwd_det)
@@ -1848,7 +1864,7 @@ def _p8_explicit_protected_path(simple_cmds: list, cfg: dict, cwd_base: Optional
                     or "build" in [_strip_quotes(t) for t in rest])
         if not is_build:
             continue
-        if _any_token_under_incl_flagvalue(rest, bpaths, cwd, cwd_det):
+        if _any_token_under_incl_flagvalue(rest, cfg, cwd, cwd_det):
             return _block("P8", "explicit protected build-path argument")
     return None
 
