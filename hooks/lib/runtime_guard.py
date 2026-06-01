@@ -2822,15 +2822,44 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
     # inspection (the compound-strip leaves `$(...)` intact).
     groups = _pipeline_groups(norm_command)
 
-    # STEP 0 — config self-protection FIRST (before config load).
+    # STEP 0 — config self-protection FIRST (before config load). Run against the
+    # ORIGINAL simple commands so a self-protection mutation hidden behind a
+    # front-end is still seen by STEP0's own path-pattern scan, and additionally
+    # against any front-end-peeled tails below.
     v = _step0_self_protection(simple_cmds)
     if v is not None:
         return v
 
+    # ── Generic exec-front-end recursion (wrapper-AGNOSTIC) ──────────────────
+    # Peel DOCUMENTED routine exec front-ends (flock/firejail/unshare/nsenter/
+    # runuser/su/strace/watch/cpulimit/setpriv/perf/valgrind/...) off each simple
+    # command so the protected launch/kill/build they exec() is exposed to the
+    # primitive set, regardless of the front-end's NAME. An UNKNOWN head is NOT a
+    # front-end, so a benign tail stays allowed (no blanket substring scan).
+    peeled_cmds, frontend_payloads = _unwrap_exec_frontends(simple_cmds, cwd_base)
+    if peeled_cmds != simple_cmds:
+        # re-derive STEP0 + groups against the peeled forms so a self-protection
+        # mutation or cross-segment kill behind a front-end is also analyzed.
+        v = _step0_self_protection(peeled_cmds)
+        if v is not None:
+            return v
+        simple_cmds = peeled_cmds
+        groups = [peeled_cmds]
+
     # STEP 1 — load config; fail closed if unavailable.
     cfg = _load_config()
     if cfg is None:
+        # fail-closed must also see the peeled tails (a front-end-wrapped danger
+        # family under an absent/corrupt config still blocks).
         return _step1_indeterminate(simple_cmds)
+
+    # Recurse front-end shell-string payloads (flock -c / su -c / runuser -c /
+    # watch joined-tail) through evaluate() under the front-end's effective cwd.
+    for payload, pcwd, pcwd_det in frontend_payloads:
+        if payload and payload not in (command, norm_command):
+            pv = evaluate(payload, pcwd if pcwd_det else None)
+            if pv[0] == "BLOCK":
+                return pv
 
     # Runner `-c`/`--call` payloads are shell commands the runner executes —
     # recursively evaluate each under the same cwd so a daemon launch / protected
