@@ -1844,6 +1844,30 @@ def _build_mode_flag_present(tokens: list) -> bool:
     return False
 
 
+def _strip_selector_tokens(rest: list) -> list:
+    """Drop workspace/filter/cwd SELECTOR flags and their values from a PM arg
+    list, so a selector value (`--filter ./packages/<pkg>`) is not mis-scanned as
+    a build-path target (the selector dir is folded into the effective cwd
+    separately)."""
+    out = []
+    i = 0
+    sel_flags = ("-w", "--workspace", "--filter", "-F", "--prefix", "-C", "--dir", "--cwd")
+    while i < len(rest):
+        t = rest[i]
+        if t in ("workspace", "workspaces") and i + 1 < len(rest):
+            i += 2
+            continue
+        if t in sel_flags and i + 1 < len(rest):
+            i += 2
+            continue
+        if any(t.startswith(f + "=") for f in sel_flags):
+            i += 1
+            continue
+        out.append(t)
+        i += 1
+    return out
+
+
 def _p8_explicit_protected_path(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> Optional[Verdict]:
     """The explicit-path subset of P8: BLOCK only when a build invocation's path
     token or path-valued flag RHS resolves DETERMINATELY under a protected build

@@ -1091,5 +1091,168 @@ def _make_unrelated_repo(tmp_path_factory):
     return str(root)
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# Iteration 3 codex (gpt-5.5 xhigh) adversarial-review regression coverage.
+# Codex surfaced 14 in-scope deeper forms (under-blocks + over-blocks) and 1
+# out-of-scope residual (declared-script-body transitive reach — deferred per BA
+# ROUND-5 codex-r5-4). The 14 in-scope forms are covered here. Verified ONLY by
+# feeding strings to evaluate() (NEVER any real daemon/CLI/process command).
+# ════════════════════════════════════════════════════════════════════════════
+
+
+def _make_mirror_repo(tmp_path_factory):
+    """An UNRELATED project that MIRRORS the packages/happy-cli layout (same
+    suffix path) to prove suffix-glob matching does not over-block it."""
+    root = tmp_path_factory.mktemp("mirror")
+    pkgs = root / "packages"
+    pkgs.mkdir()
+    (pkgs / "happy-cli").mkdir()
+    (pkgs / "happy-cli" / "package.json").write_text(json.dumps({"name": "unrelated-cli", "scripts": {"build": "x", "lint": "x"}}))
+    (root / "package.json").write_text(json.dumps({"name": "mirror-root", "scripts": {"build": "x"}}))
+    return str(root)
+
+
+class TestR3CodexBuildPathCwd:
+    """codex#1: relative build path resolved against effective cwd from a sibling
+    package rebuilds the protected bundle."""
+    def test_relative_build_path_sibling(self, datafile, fixture_repo):
+        srv = f"{fixture_repo}/packages/happy-server"
+        for c in ("npx tsc -p ../happy-cli/tsconfig.json",
+                  "esbuild --outfile=../happy-cli/dist/index.mjs"):
+            assert ev_cwd(c, datafile, srv) == "BLOCK", c
+
+    def test_relative_build_path_sibling_nonprotected_allowed(self, datafile, fixture_repo):
+        srv = f"{fixture_repo}/packages/happy-server"
+        assert ev_cwd("npx tsc -p ./tsconfig.json", datafile, srv) == "ALLOW"
+
+
+class TestR3CodexDefineFlagOverblock:
+    """codex#2: a non-path key/value flag (--define:X=<protected>) must not be
+    treated as a build path."""
+    def test_define_value_not_path(self, datafile, fixture_repo):
+        cli = f"{fixture_repo}/packages/happy-cli"
+        srv = f"{fixture_repo}/packages/happy-server"
+        assert ev(f"esbuild --define:CLI={cli} --outfile={srv}/out.js", datafile, fixture_repo) == "ALLOW"
+
+
+class TestR3CodexBuildModeExplicitTarget:
+    """codex#3: build-mode (-w/-b) with an explicit NON-protected project target
+    must not be over-blocked by the cwd/root fallback."""
+    def test_build_mode_explicit_nonprotected(self, datafile, fixture_repo):
+        assert ev_cwd("tsc -w -p packages/happy-server/tsconfig.json", datafile, fixture_repo) == "ALLOW"
+
+    def test_build_mode_explicit_protected_blocked(self, datafile, fixture_repo):
+        assert ev_cwd("tsc -w -p packages/happy-cli/tsconfig.json", datafile, fixture_repo) == "BLOCK"
+
+
+class TestR3CodexExecSelectorTarget:
+    """codex#4: a PM selector after exec must not be misparsed as the runner
+    target."""
+    def test_exec_selector_then_runtime(self, datafile, fixture_repo):
+        assert ev(f"npm exec -w happy -- node dist/index.mjs {_S}", datafile, fixture_repo) == "BLOCK"
+
+
+class TestR3CodexMultiExecFanout:
+    """codex#5: recursive/all-workspace exec of a runtime/build fans into the
+    protected workspace."""
+    def test_recursive_exec_runtime(self, datafile, fixture_repo):
+        assert ev(f"pnpm -r exec node dist/index.mjs {_S}", datafile, fixture_repo) == "BLOCK"
+
+    def test_glob_filter_exec_build(self, datafile, fixture_repo):
+        assert ev("pnpm --filter './packages/*' exec tsc -p tsconfig.json", datafile, fixture_repo) == "BLOCK"
+
+
+class TestR3CodexCallPayloadCwd:
+    """codex#6: a runner -c/--call payload is recursively evaluated under the
+    selector-resolved cwd."""
+    def test_call_payload_selector_cwd(self, datafile, fixture_repo):
+        assert ev(f"npm -w happy exec -c 'node dist/index.mjs {_S}'", datafile, fixture_repo) == "BLOCK"
+
+
+class TestR3CodexRuntimePreload:
+    """codex#7: a runtime preload/import option VALUE that is the protected path
+    executes it."""
+    def test_node_import_require(self, datafile, fixture_repo):
+        cli = f"{fixture_repo}/packages/happy-cli"
+        for c in (f"node --import {cli}/dist/index.mjs",
+                  f"node -r {cli}/dist/index.mjs -e ''",
+                  f"node --import={cli}/dist/index.mjs"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+
+class TestR3CodexNodeRun:
+    """codex#8: node --run <script> from a protected cwd is a package-script
+    runner reaching the protected package."""
+    def test_node_run_protected_cwd(self, datafile, fixture_repo):
+        assert ev_cwd("node --run start", datafile, f"{fixture_repo}/packages/happy-cli") == "BLOCK"
+
+    def test_node_run_indeterminate_cwd(self, datafile, fixture_repo):
+        assert ev("node --run build", datafile, fixture_repo) == "BLOCK"
+
+
+class TestR3CodexStatefileFusedRedirect:
+    """codex#9: a kill whose substitution reads the protected statefile via a
+    FUSED input redirection (`<path`)."""
+    def test_kill_fused_redirect(self, datafile, fixture_repo):
+        assert ev("kill $(jq -r .pid </root/.happy-dev/daemon.state.json)", datafile, fixture_repo) == "BLOCK"
+
+
+class TestR3CodexSystemdTemplate:
+    """codex#10: a protected systemd TEMPLATE instance (unit@instance)."""
+    def test_template_instance(self, datafile, fixture_repo):
+        for c in ("systemctl restart happy-daemon@dev.service",
+                  "systemctl stop happy-daemon@prod"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_unrelated_hyphenated_unit_allowed(self, datafile, fixture_repo):
+        # a longer hyphenated unrelated unit must NOT match a protected prefix
+        assert ev("systemctl restart happy-daemon-clone-xyz", datafile, fixture_repo) == "ALLOW"
+
+
+class TestR3CodexMutationCwdAndRemoval:
+    """codex#11: P3/P4 resolve relative mutation targets against effective cwd and
+    cover removal verbs."""
+    def test_cd_then_touch_hotfile(self, datafile, fixture_repo):
+        assert ev(f"cd {fixture_repo}/packages/happy-cli && touch dist/index.mjs", datafile, fixture_repo) == "BLOCK"
+
+    def test_rm_relative_hotfile(self, datafile, fixture_repo):
+        assert ev_cwd("rm packages/happy-cli/dist/index.mjs", datafile, fixture_repo) == "BLOCK"
+
+    def test_cd_then_truncate_statefile(self, datafile, fixture_repo):
+        assert ev("cd /root/.happy-dev && truncate -s0 daemon.state.json", datafile, fixture_repo) == "BLOCK"
+
+
+class TestR3CodexScopedFilterOverblock:
+    """codex#12: a scoped package NAME filter (@scope/name) is a name selector,
+    not a filesystem path."""
+    def test_scoped_filter_build_allowed(self, datafile, fixture_repo):
+        assert ev("pnpm --filter @slopus/happy-wire build", datafile, fixture_repo) == "ALLOW"
+
+
+class TestR3CodexUnrelatedMirrorOverblock:
+    """codex#13: an UNRELATED project mirroring packages/happy-cli must not be
+    treated as protected by suffix-glob matching."""
+    def test_unrelated_mirror_run_allowed(self, datafile, fixture_repo, tmp_path_factory):
+        mirror = _make_mirror_repo(tmp_path_factory)
+        assert ev_cwd("yarn lint", datafile, f"{mirror}/packages/happy-cli") == "ALLOW"
+
+    def test_unrelated_mirror_path_filter_allowed(self, datafile, fixture_repo, tmp_path_factory):
+        mirror = _make_mirror_repo(tmp_path_factory)
+        assert ev_cwd("pnpm --filter ./packages/happy-cli build", datafile, mirror) == "ALLOW"
+
+
+class TestR3CodexP9ExplicitPathShortcircuit:
+    """codex#14: an explicit protected build-path arg forwarded to a script must
+    block even when P9 would ALLOW the script-run."""
+    def test_build_explicit_protected_path(self, datafile, fixture_repo):
+        cli = f"{fixture_repo}/packages/happy-cli"
+        srv = f"{fixture_repo}/packages/happy-server"
+        assert ev_cwd(f"yarn build --project {cli}/tsconfig.json", datafile, srv) == "BLOCK"
+
+    def test_build_explicit_nonprotected_path_allowed(self, datafile, fixture_repo):
+        srv = f"{fixture_repo}/packages/happy-server"
+        assert ev_cwd(f"yarn build --project {srv}/tsconfig.json", datafile, srv) == "ALLOW"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
