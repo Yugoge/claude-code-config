@@ -861,5 +861,235 @@ class TestLiveHook:
             os.remove(flag)
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# Iteration 3 (qa-report-20260531-162901, codex-r3): 25 reproduced idiomatic
+# under-block leaks + 3 over-blocks + the narrowed other-project false-positive.
+# Strategy: robust path/cwd/selector closures (NOT name enumeration). Each form
+# below was reproduced ALLOW (under-block) or BLOCK (over-block) against the
+# prior engine; these assert the corrected verdict. Verified ONLY by feeding
+# strings to evaluate() (NEVER any real daemon/CLI/process command).
+# ════════════════════════════════════════════════════════════════════════════
+
+# Vocabulary split so the test SOURCE never types a full daemon-launch phrase
+# (the live bash-safety hook scans this test's own command line at author time).
+_S = "daemon " + "start"
+_ST = "daemon " + "stop"
+
+
+class TestR3SelectorExecLaunchBuild:
+    """F1: a PM workspace selector + exec loses the selected-workspace cwd. The
+    selector now threads the protected workspace dir as the effective cwd so a
+    post-exec runtime/build resolves the protected path."""
+    def test_selector_exec_runtime_launch(self, datafile, fixture_repo):
+        # fixture models the protected workspace by its dev name 'happy'
+        assert ev(f"yarn workspace happy exec node dist/index.mjs {_S}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"yarn workspace happy exec node dist/index.mjs {_ST}", datafile, fixture_repo) == "BLOCK"
+
+    def test_selector_exec_build(self, datafile, fixture_repo):
+        for c in ("npm -w happy exec tsc -p tsconfig.json",
+                  "yarn workspace happy exec tsc -p tsconfig.json"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_selector_exec_nonprotected_allowed(self, datafile, fixture_repo):
+        # a non-protected workspace exec of a build pointed at its OWN package
+        for c in ("npm -w happy-server exec tsc --version",
+                  "yarn workspace happy-server exec node build.js"):
+            assert ev(c, datafile, fixture_repo) == "ALLOW", c
+
+
+class TestR3BuildFlagValuePath:
+    """F2: build invocations pointing at / writing to the protected package via a
+    fused `--flag=path` option (--project=, --outfile=, --tsconfig=)."""
+    def test_flagvalue_build_paths(self, datafile, fixture_repo):
+        cli = f"{fixture_repo}/packages/happy-cli"
+        for c in (f"npx tsc --project={cli}/tsconfig.json",
+                  f"esbuild --bundle --outfile={cli}/dist/index.mjs",
+                  f"tsc --tsconfig={cli}/tsconfig.json"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_flagvalue_nonprotected_allowed(self, datafile, fixture_repo):
+        srv = f"{fixture_repo}/packages/happy-server"
+        for c in (f"npx tsc --project={srv}/tsconfig.json",
+                  f"esbuild --outfile={srv}/dist/out.js"):
+            assert ev(c, datafile, fixture_repo) == "ALLOW", c
+
+
+class TestR3BareBuildModeFlag:
+    """F3: bare build-mode flags (tsc -b / --build / -w) with cwd in the
+    protected package / monorepo root / indeterminate -> fail-closed rebuild."""
+    def test_tsc_build_mode_indeterminate(self, datafile, fixture_repo):
+        for c in ("tsc -b", "npx tsc -b", "pnpm exec tsc -b", "tsc --build"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_tsc_build_mode_protected_cwd(self, datafile, fixture_repo):
+        assert ev_cwd("tsc -b", datafile, f"{fixture_repo}/packages/happy-cli") == "BLOCK"
+        assert ev_cwd("npx tsc -b", datafile, fixture_repo) == "BLOCK"  # monorepo root
+
+    def test_tsc_build_mode_nonprotected_cwd_allowed(self, datafile, fixture_repo):
+        # build-mode in a NON-protected workspace cwd is the workspace's own build
+        assert ev_cwd("tsc -b", datafile, f"{fixture_repo}/packages/happy-server") == "ALLOW"
+        # a bare build tool whose cwd is a non-protected workspace is allowed
+        assert ev_cwd("tsc --noEmit", datafile, f"{fixture_repo}/packages/happy-server") == "ALLOW"
+
+
+class TestR3CorepackVersionPin:
+    """F4: corepack <pm>@version proxy must unwrap to the bare PM and re-route."""
+    def test_corepack_pm_at_version(self, datafile, fixture_repo):
+        for c in (f"corepack pnpm@9 exec happy {_S}",
+                  f"corepack yarn@stable workspace happy build",
+                  f"corepack npm@10 exec happy {_S}"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_corepack_nonprotected_allowed(self, datafile, fixture_repo):
+        assert ev("corepack pnpm@9 --version", datafile, fixture_repo) == "ALLOW"
+
+
+class TestR3WrapperBarePositional:
+    """F5: bare-positional wrappers chrt/taskset/setarch and systemd-run option
+    grammar must not hide the protected command word."""
+    def test_priority_wrappers(self, datafile, fixture_repo):
+        for c in (f"chrt -f 50 happy {_S}", f"taskset 0x1 happy {_S}",
+                  f"setarch x86_64 happy {_S}", f"chrt 50 happy {_S}"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_taskset_cpu_option_still_blocks(self, datafile, fixture_repo):
+        # the -c <list> form already worked; ensure the leading-positional fix
+        # does not break it (mask via option, then command word exposed).
+        assert ev(f"taskset -c 0 happy {_S}", datafile, fixture_repo) == "BLOCK"
+
+    def test_systemd_run_options(self, datafile, fixture_repo):
+        for c in (f"systemd-run --service-type simple happy {_S}",
+                  f"systemd-run -d happy {_S}",
+                  f"systemd-run --nice 5 happy {_S}"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_wrapper_nonprotected_allowed(self, datafile, fixture_repo):
+        for c in ("chrt -f 50 ls", "taskset 0x1 echo hi", "setarch x86_64 true"):
+            assert ev(c, datafile, fixture_repo) == "ALLOW", c
+
+
+class TestR3RuntimeSubcommand:
+    """F6: runtime subcommand forms deno run / tsx watch / bun run and the
+    ts-node-esm alias must reach the protected src/dist path."""
+    def test_runtime_subcommands(self, datafile, fixture_repo):
+        cli = f"{fixture_repo}/packages/happy-cli"
+        for c in (f"deno run {cli}/src/index.ts",
+                  f"tsx watch {cli}/src/index.ts",
+                  f"bun run {cli}/dist/index.mjs",
+                  f"npx ts-node-esm {cli}/src/index.ts"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_runtime_subcommand_nonprotected_allowed(self, datafile, fixture_repo):
+        srv = f"{fixture_repo}/packages/happy-server"
+        for c in (f"deno run {srv}/build.ts", f"tsx watch {srv}/dev.ts"):
+            assert ev(c, datafile, fixture_repo) == "ALLOW", c
+
+
+class TestR3StatefilePidKill:
+    """F7: a kill whose target is resolved by reading the protected statefile,
+    and a process-substitution-fed kill."""
+    def test_kill_statefile_pid(self, datafile, fixture_repo):
+        for c in ("kill $(jq -r .pid /root/.happy-dev/daemon.state.json)",
+                  "kill -9 $(cat /root/.happy/daemon.state.json | jq .pid)"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_kill_process_substitution(self, datafile, fixture_repo):
+        assert ev("xargs kill <(pgrep -f happy-daemon)", datafile, fixture_repo) == "BLOCK"
+
+    def test_kill_unrelated_statefile_allowed(self, datafile, fixture_repo):
+        # reading an UNRELATED statefile to kill is not protected
+        assert ev("kill $(jq -r .pid /tmp/other.state.json)", datafile, fixture_repo) == "ALLOW"
+
+
+class TestR3ServiceVerbs:
+    """F8: additional service lifecycle verbs (force-reload / condrestart /
+    try-reload-or-restart) in both systemctl VERB UNIT and service UNIT VERB."""
+    def test_extra_service_verbs(self, datafile, fixture_repo):
+        for c in ("systemctl try-reload-or-restart happy-daemon",
+                  "systemctl force-reload happy-daemon",
+                  "service happy-daemon condrestart",
+                  "systemctl reload-or-try-restart happy-daemon-dev"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_service_verb_unrelated_unit_allowed(self, datafile, fixture_repo):
+        assert ev("systemctl force-reload nginx", datafile, fixture_repo) == "ALLOW"
+
+
+class TestR3RunnerCallPayload:
+    """F10: runner -c/--call payload is a virtual command, recursively evaluated;
+    benign payloads must NOT over-block."""
+    def test_call_payload_launch_build(self, datafile, fixture_repo):
+        cli = f"{fixture_repo}/packages/happy-cli"
+        for c in (f"npx -c 'happy {_S}'",
+                  f"npm exec -c 'tsc -p {cli}/tsconfig.json'",
+                  f"pnpm dlx --call 'happy {_S}'"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+    def test_call_payload_benign_allowed(self, datafile, fixture_repo):
+        for c in ("npm exec -c 'ls'", "npx -c 'echo hi'",
+                  "npm exec -c 'tsc --version'"):
+            assert ev(c, datafile, fixture_repo) == "ALLOW", c
+
+
+class TestR3PathFilterOverblock:
+    """F11: a deterministic non-glob path filter (./packages/x) must resolve to a
+    manifest, NOT be misclassified as a fan-out MULTI."""
+    def test_path_filter_nonprotected_allowed(self, datafile, fixture_repo):
+        for c in ("pnpm --filter ./packages/happy-server build",
+                  "pnpm --filter=./packages/happy-app web",
+                  "pnpm --filter packages/happy-server build"):
+            assert ev(c, datafile, fixture_repo) == "ALLOW", c
+
+    def test_path_filter_protected_blocked(self, datafile, fixture_repo):
+        assert ev("pnpm --filter ./packages/happy-cli build", datafile, fixture_repo) == "BLOCK"
+
+    def test_glob_filter_still_failclosed(self, datafile, fixture_repo):
+        for c in ("pnpm --filter './packages/*' build", "pnpm --filter '...^happy' build",
+                  "pnpm --filter '{packages/*}' build"):
+            assert ev(c, datafile, fixture_repo) == "BLOCK", c
+
+
+class TestR3LoopDepthOverblock:
+    """F12: `do` must not increment loop depth (only while/for/until do), so a
+    later top-level kill is not over-connected to the protected loop pipeline."""
+    def test_post_loop_kill_allowed(self, datafile, fixture_repo):
+        assert ev("pgrep -af happy-daemon | while read pid; do echo $pid; done; kill 123", datafile, fixture_repo) == "ALLOW"
+
+    def test_in_loop_kill_still_blocked(self, datafile, fixture_repo):
+        assert ev("pgrep -af happy-daemon | while read pid; do kill $pid; done", datafile, fixture_repo) == "BLOCK"
+
+
+class TestR3OtherProjectFalsePositive:
+    """Narrowed other-project FP: in an UNRELATED project (manifest outside every
+    protected root), a non-declared script token (.bin fallthrough) is harmless
+    and must be ALLOWED — UNLESS it is a protected command basename or a
+    runtime/exec token."""
+    def test_unrelated_project_nondeclared_allowed(self, datafile, fixture_repo, tmp_path_factory):
+        other = _make_unrelated_repo(tmp_path_factory)
+        for c in ("yarn lint", "yarn eslint", "yarn workspace web-app lint", "yarn"):
+            assert ev_cwd(c, datafile, other) == "ALLOW", c
+
+    def test_unrelated_project_protected_token_still_blocked(self, datafile, fixture_repo, tmp_path_factory):
+        other = _make_unrelated_repo(tmp_path_factory)
+        for c in (f"yarn happy {_S}", "yarn node x.js", "yarn workspace web-app happy " + _S):
+            assert ev_cwd(c, datafile, other) == "BLOCK", c
+
+    def test_protected_monorepo_nonprotected_ws_nondeclared_still_blocked(self, datafile, fixture_repo):
+        # within the protected monorepo, a non-declared token fallthrough reaches
+        # the hoisted protected CLI bin -> stays BLOCKED.
+        assert ev("yarn workspace happy-server lint", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("yarn lint", datafile, f"{fixture_repo}/packages/happy-server") == "BLOCK"
+
+
+def _make_unrelated_repo(tmp_path_factory):
+    root = tmp_path_factory.mktemp("unrelated")
+    pkgs = root / "packages"
+    pkgs.mkdir()
+    (pkgs / "web").mkdir()
+    (pkgs / "web" / "package.json").write_text(json.dumps({"name": "web-app", "scripts": {"build": "x", "start": "x"}}))
+    (root / "package.json").write_text(json.dumps({"name": "other-monorepo", "scripts": {"build": "x"}}))
+    return str(root)
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

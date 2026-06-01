@@ -93,7 +93,7 @@ _WRAPPER_OPTS_WITH_ARG = {
 # setarch's ARCH is always positional; timeout's DURATION is always positional.
 _WRAPPER_LEADING_POSITIONAL = frozenset({"timeout", "chrt", "taskset", "setarch"})
 # Subset whose leading positional is SUPPRESSED if a value option already
-# consumed an operand (so `taskset -c 0 happy` exposes 'happy', not skips it).
+# consumed an operand (so `taskset -c 0 <cmd>` exposes <cmd>, not skips it).
 _WRAPPER_POSITIONAL_OPTIONAL = frozenset({"chrt", "taskset"})
 RUNTIMES = frozenset({"node", "nodejs", "tsx", "bun", "deno", "ts-node", "ts-node-esm"})
 # Per-runtime leading SUBCOMMANDS that precede the script positional and must be
@@ -518,8 +518,8 @@ def _command_words(tokens: list) -> list:
         # consume a single leading positional operand for wrappers that take one
         # (timeout DURATION, chrt PRIORITY, taskset MASK, setarch ARCH). For the
         # optional-positional wrappers (chrt/taskset) skip the consumption when a
-        # value option already supplied the operand, so `taskset -c 0 happy`
-        # still exposes 'happy' as the command word.
+        # value option already supplied the operand, so `taskset -c 0 <cmd>`
+        # still exposes <cmd> as the command word.
         if base in _WRAPPER_LEADING_POSITIONAL and i < n:
             if not (base in _WRAPPER_POSITIONAL_OPTIONAL and value_opt_seen):
                 i += 1
@@ -697,7 +697,11 @@ def _pipeline_groups(command: str) -> list:
             # done` must stay ONE group for P6).
             words = s.split()
             for w in words:
-                if w in ("do", "while", "for", "until"):
+                # increment ONLY on a loop OPENER (while/for/until); `do` is the
+                # body marker of the SAME loop, not a new nesting level, so
+                # counting it double-closes late and over-connects a later
+                # top-level command (e.g. a trailing `; kill 123`) to the group.
+                if w in ("while", "for", "until"):
                     loop_depth += 1
                 elif w == "done":
                     loop_depth = max(0, loop_depth - 1)
@@ -1616,7 +1620,7 @@ def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> O
             continue
         _, head, rest = cw[0]
         # effective cwd: cd/pushd in the chain + a leading wrapper chdir + a PM
-        # workspace selector's resolved dir (so `npm -w happy exec tsc -p
+        # workspace selector's resolved dir (so `npm -w <ws> exec tsc -p
         # tsconfig.json` resolves the protected build cwd).
         cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
         cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
@@ -1716,10 +1720,39 @@ def _p8_bare_build(simple_cmds: list, cfg: dict) -> Optional[Verdict]:
     return None
 
 
+# Sentinel prefix marking a selector that is a DETERMINATE filesystem PATH
+# filter (`--filter ./packages/x`), resolved to a manifest dir at use sites.
+_PATH_FILTER_PREFIX = "<PATH>"
+
+
+def _classify_filter_value(val: str) -> str:
+    """Classify a pnpm/yarn `--filter` value.
+
+    • A genuine glob / ellipsis / brace selector (`*`, `?`, `{`, `...`, trailing
+      `^`/`~` dependency selectors) fans out → `<MULTI>` (fail-closed).
+    • A deterministic filesystem PATH filter (`./packages/x`, `packages/x`, `.`)
+      → `<PATH>./packages/x` so the use site resolves it to a manifest dir.
+    • A bare package-NAME filter (`some-pkg`) → returned as-is for name
+      resolution.
+    """
+    if any(ch in val for ch in ("*", "?", "{", "}")) or val.startswith("...") or val.endswith("...") or "..." in val:
+        return "<MULTI>"
+    # path-like: contains a slash, or is '.'/'..', or starts with './' or '../'
+    if "/" in val or val in (".", ".."):
+        return _PATH_FILTER_PREFIX + val
+    # otherwise a package name (or name with a leading scope '@org/...' which
+    # contains '/' and is handled above). A trailing dependency selector ('^'/'~')
+    # is a fan-out -> MULTI.
+    if val.endswith("^") or val.endswith("~") or val.startswith("^") or val.startswith("~"):
+        return "<MULTI>"
+    return val
+
+
 def _explicit_workspace_selector(pm_head: str, rest: list) -> Optional[str]:
     """Return the workspace SELECTOR token if an explicit selector is present.
     Returns None if no explicit single-workspace selector. Returns a sentinel
-    '<MULTI>' for recursive/all-workspace forms.
+    '<MULTI>' for recursive/all-workspace forms, or '<PATH>...' for a
+    deterministic path filter.
     """
     i = 0
     while i < len(rest):
@@ -1733,15 +1766,9 @@ def _explicit_workspace_selector(pm_head: str, rest: list) -> Optional[str]:
         if t.startswith("--workspace="):
             return _strip_quotes(t.split("=", 1)[1])
         if t in ("--filter", "-F") and i + 1 < len(rest):
-            val = _strip_quotes(rest[i + 1])
-            if any(ch in val for ch in ("*", ".", "/", "{")) or val.startswith("..."):
-                return "<MULTI>"
-            return val
+            return _classify_filter_value(_strip_quotes(rest[i + 1]))
         if t.startswith("--filter=") or t.startswith("-F="):
-            val = _strip_quotes(t.split("=", 1)[1])
-            if any(ch in val for ch in ("*", ".", "/", "{")) or val.startswith("..."):
-                return "<MULTI>"
-            return val
+            return _classify_filter_value(_strip_quotes(t.split("=", 1)[1]))
         if t in ("--workspaces", "-ws"):
             return "<MULTI>"
         if t in ("-r", "--recursive"):
@@ -1752,11 +1779,52 @@ def _explicit_workspace_selector(pm_head: str, rest: list) -> Optional[str]:
 
 # ── P9 PKGSCRIPT_GUARD (default-deny) ────────────────────────────────────────
 
+def _resolve_path_filter_manifest(path_val: str, cfg: dict, effective_cwd: Optional[str]):
+    """Resolve a `<PATH>` filter value (a directory) to (manifest_dir,
+    is_protected, scripts_set, determinate). The directory is resolved against
+    the known monorepo roots and the effective cwd, then its package.json is
+    read. A protected dir (or one with no resolvable manifest) fails closed."""
+    if any(ch in path_val for ch in ("$", "`")):
+        return (None, None, None, False)
+    candidate_bases = list(cfg.get("protected_root_manifest_paths", []))
+    if effective_cwd:
+        candidate_bases.append(effective_cwd)
+    tried = []
+    if os.path.isabs(path_val):
+        tried.append(os.path.normpath(path_val))
+    else:
+        for base in candidate_bases:
+            tried.append(os.path.normpath(os.path.join(base, path_val)))
+    for d in tried:
+        man = os.path.join(d, "package.json")
+        is_protected = (
+            _path_matches_any(d, cfg.get("protected_script_paths", []))
+            or os.path.normpath(d) in [os.path.normpath(p) for p in cfg.get("protected_root_manifest_paths", [])]
+        )
+        if os.path.isfile(man):
+            try:
+                with open(man, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+            except (OSError, ValueError):
+                data = {}
+            name = data.get("name")
+            if name is not None:
+                is_protected = is_protected or name in set(cfg.get("protected_script_workspaces", []))
+            scripts = set((data.get("scripts") or {}).keys())
+            return (d, is_protected, scripts, True)
+        if is_protected:
+            # protected dir even if manifest unreadable -> deny determinately
+            return (d, True, set(), True)
+    return (None, None, None, False)
+
+
 def _resolve_workspace_manifest(selector: str, cfg: dict, effective_cwd: Optional[str]):
     """Resolve a workspace selector to (manifest_dir, is_protected, scripts_set,
     determinate). Uses workspace metadata by reading package.json files under the
     known monorepo roots. Returns (None, None, None, False) if unresolvable.
     """
+    if selector.startswith(_PATH_FILTER_PREFIX):
+        return _resolve_path_filter_manifest(selector[len(_PATH_FILTER_PREFIX):], cfg, effective_cwd)
     roots = cfg.get("protected_root_manifest_paths", [])
     search_roots = list(roots)
     if effective_cwd:
@@ -1847,6 +1915,13 @@ def _p9_pkgscript(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) 
                 return _block("P9", "package-runner reaching a protected command")
             # non-protected exec target: not a script-run; allow
             continue
+        # A runner keyword (exec/dlx/x) with NO resolvable target (e.g. only a
+        # `-c <payload>` form, or selector+exec already handled by P1) is a
+        # runner form, NOT a bare script-run — P9 abstains so it is not
+        # mis-classified as a protected-cwd script (the `-c` payload is
+        # recursively evaluated separately).
+        if _first_subcommand(head, rest) in ("exec", "dlx", "x"):
+            continue
 
         # compute effective cwd from cd/pushd in the chain, then fold a leading
         # wrapper chdir (env -C/sudo --chdir) so it participates in manifest
@@ -1878,7 +1953,8 @@ def _p9_pkgscript(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) 
                 return _block("P9", "run naming a protected workspace")
             # non-protected workspace: classify the post-selector subcommand
             post = _post_selector_tokens(head, rest)
-            verdict = _classify_post_selector(post, scripts, safe_allow, protected_cmds)
+            verdict = _classify_post_selector(post, scripts, safe_allow, protected_cmds,
+                                              _under_protected_monorepo(man_dir, cfg))
             if verdict is not None:
                 return verdict
             # allowed
@@ -1992,9 +2068,15 @@ def _post_selector_tokens(head: str, rest: list) -> list:
     return rest[out_start:]
 
 
-def _classify_post_selector(post: list, scripts: set, safe_allow: set, protected_cmds: set) -> Optional[Verdict]:
+def _classify_post_selector(post: list, scripts: set, safe_allow: set, protected_cmds: set,
+                            under_monorepo: bool = True) -> Optional[Verdict]:
     """Classify the post-selector subcommand on a NON-protected workspace.
     Returns a BLOCK verdict, or None to ALLOW.
+
+    `under_monorepo` indicates the selected workspace lives inside the protected
+    monorepo (where the protected CLI bin is hoisted and a `.bin` fallthrough is
+    reachable). When False (an UNRELATED project's workspace) a non-declared
+    token fallthrough cannot reach the protected daemon and is allowed.
     """
     # find first meaningful token
     first = None
@@ -2034,7 +2116,31 @@ def _classify_post_selector(post: list, scripts: set, safe_allow: set, protected
         return None  # ALLOW
     if script_tok in safe_allow:
         return None
-    return _block("P9", "token is not a declared script of the selected workspace (.bin fallthrough)")
+    # non-declared token: a yarn .bin fallthrough reaches the hoisted protected
+    # CLI bin ONLY inside the protected monorepo -> deny there; an unrelated
+    # project's tool fallthrough carries no daemon risk -> allow.
+    if under_monorepo:
+        return _block("P9", "token is not a declared script of the selected workspace (.bin fallthrough)")
+    return None
+
+
+def _under_protected_monorepo(man_dir: Optional[str], cfg: dict) -> bool:
+    """True if `man_dir` is at/under a protected monorepo root (where the
+    protected CLI bin is hoisted into node_modules/.bin and thus reachable as a
+    `.bin` fallthrough). A manifest OUTSIDE every protected root belongs to an
+    UNRELATED project — a non-declared-token fallthrough there cannot reach the
+    protected daemon, so it must not be blocked."""
+    if not man_dir:
+        return False
+    d = os.path.normpath(man_dir)
+    for root in cfg.get("protected_root_manifest_paths", []):
+        rn = os.path.normpath(root)
+        if d == rn or d.startswith(rn + "/"):
+            return True
+    # also: under a protected script path (the protected package itself)
+    if _path_matches_any(d, cfg.get("protected_script_paths", [])):
+        return True
+    return False
 
 
 def _resolve_bare_script(script_tok: Optional[str], cwd: Optional[str], cwd_det: bool,
@@ -2052,7 +2158,12 @@ def _resolve_bare_script(script_tok: Optional[str], cwd: Optional[str], cwd_det:
         return _block("P9", "bare script-run reaching a protected workspace/root")
     # non-protected effective manifest: declared-script-key gate
     if script_tok is None:
-        return _block("P9", "bare script-run with no script token (fail-closed)")
+        # bare PM run with no token in a manifest OUTSIDE the protected monorepo
+        # is harmless (an unrelated project's default script); only fail-closed
+        # inside the protected monorepo.
+        if _under_protected_monorepo(man_dir, cfg):
+            return _block("P9", "bare script-run with no script token (fail-closed)")
+        return ALLOW
     if script_tok in protected_cmds:
         return _block("P9", "protected command basename in non-protected cwd (.bin fallthrough)")
     if script_tok in EXEC_RUNNER_TOKENS:
@@ -2061,7 +2172,13 @@ def _resolve_bare_script(script_tok: Optional[str], cwd: Optional[str], cwd_det:
         return ALLOW
     if script_tok in safe_allow:
         return ALLOW
-    return _block("P9", "token is not a declared script of the non-protected manifest (.bin fallthrough)")
+    # token is not a declared script of this manifest. Inside the protected
+    # monorepo a yarn .bin fallthrough could reach the hoisted protected CLI bin
+    # -> deny. In an UNRELATED project (outside every protected root) a tool
+    # fallthrough carries no risk to the protected daemon -> allow.
+    if _under_protected_monorepo(man_dir, cfg):
+        return _block("P9", "token is not a declared script of the non-protected manifest (.bin fallthrough)")
+    return ALLOW
 
 
 # ── corepack re-routing ──────────────────────────────────────────────────────
