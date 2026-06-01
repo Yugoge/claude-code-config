@@ -1381,7 +1381,10 @@ def _p2_service(simple_cmds: list, cfg: dict) -> Optional[Verdict]:
     services = cfg.get("protected_services", [])
     if not services:
         return None
-    svc_re = [re.compile(r"(^|[\s=])" + re.escape(s) + r"(\.service)?(\s|$|\.|=)") for s in services]
+    # match `unit`, `unit.service`, and the template-instance form
+    # `unit@instance` / `unit@instance.service` (without matching a longer
+    # hyphenated unrelated unit name — the boundary after the instance enforces).
+    svc_re = [re.compile(r"(^|[\s=])" + re.escape(s) + r"(@[^\s.=/]*)?(\.service)?(\s|$|\.|=)") for s in services]
     for sc in simple_cmds:
         tokens = _safe_shlex(sc)
         if not tokens:
