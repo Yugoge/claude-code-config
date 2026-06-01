@@ -440,31 +440,90 @@ def _any_token_under(tokens: list, dir_globs: list) -> bool:
     return False
 
 
+# Build-tool option flags whose VALUE is a path the build reads/writes. Only
+# these path-valued flags have their RHS inspected for protected paths — a
+# generic key/value flag (`--define:X=...`, `--mode`, `--env.X=...`) carries an
+# arbitrary value, not a build target, and must NOT trigger a path match.
+_PATH_VALUED_BUILD_FLAGS = frozenset({
+    "--project", "-p", "--tsconfig", "--config", "-c", "--outfile", "-o",
+    "--outdir", "--out-dir", "--out", "--build", "-b", "--rootdir", "--rootDir",
+    "--declarationDir", "--tsBuildInfoFile",
+})
+
+
 def _flagvalue_path_candidates(tokens: list) -> list:
-    """Yield path-like RHS values of `--flag=value` option tokens (e.g. the
-    `<path>` in `--project=<path>`, `--outfile=<path>`, `--tsconfig=<path>`).
-    A build invocation can point at / write to the protected package via such a
-    fused option, which the bare-token scan (skipping `-`-leading tokens) misses.
-    """
+    """Yield path RHS values of a `--flag=value` option ONLY when the flag is a
+    known path-valued build flag (so `--project=<path>`, `--outfile=<path>`,
+    `--tsconfig=<path>` are inspected, but `--define:X=<anything>` is not)."""
     out = []
     for tok in tokens:
         st = _strip_quotes(tok)
         if st.startswith("-") and "=" in st:
-            val = st.split("=", 1)[1]
-            if val:
+            flag, val = st.split("=", 1)
+            if val and flag in _PATH_VALUED_BUILD_FLAGS:
                 out.append(val)
     return out
 
 
-def _any_token_under_incl_flagvalue(tokens: list, dir_globs: list) -> bool:
-    """Like _any_token_under but also inspects `--flag=value` RHS paths and
-    matches the exact-path globs as well as the directory-containment globs."""
-    if _any_token_under(tokens, dir_globs):
-        return True
+def _resolve_rel(val: str, cwd: Optional[str], cwd_det: bool) -> list:
+    """Return path candidates for a token: itself, plus its resolution against a
+    determinate effective cwd (so a relative `../happy-cli/tsconfig.json` from a
+    sibling package resolves to the protected build path)."""
+    cands = [val]
+    st = _strip_quotes(val)
+    if cwd and cwd_det and st and not os.path.isabs(st):
+        cands.append(os.path.normpath(os.path.join(cwd, st)))
+    return cands
+
+
+def _any_token_under_incl_flagvalue(tokens: list, dir_globs: list,
+                                    cwd: Optional[str] = None, cwd_det: bool = False) -> bool:
+    """Match any bare path token OR known path-valued `--flag=value` RHS against
+    the protected build globs, resolving relative paths against the effective cwd
+    (covers `tsc -p ../happy-cli/tsconfig.json` from a sibling package)."""
+    for tok in tokens:
+        st = _strip_quotes(tok)
+        if not st or st.startswith("-"):
+            continue
+        for cand in _resolve_rel(st, cwd, cwd_det):
+            if _path_under_any(cand, dir_globs):
+                return True
     for val in _flagvalue_path_candidates(tokens):
-        if _path_under_any(val, dir_globs) or _path_matches_any(val, dir_globs):
-            return True
+        for cand in _resolve_rel(val, cwd, cwd_det):
+            if _path_under_any(cand, dir_globs) or _path_matches_any(cand, dir_globs):
+                return True
     return False
+
+
+def _explicit_nonprotected_build_target(tokens: list, cfg: dict,
+                                        cwd: Optional[str], cwd_det: bool) -> bool:
+    """True if a path-valued build flag points DETERMINATELY at a target OUTSIDE
+    every protected build path (so a build-mode fallback must not over-block a
+    `tsc -w -p packages/<non-protected>/tsconfig.json` at the monorepo root)."""
+    bpaths = cfg.get("protected_build_paths", [])
+    vals = list(_flagvalue_path_candidates(tokens))
+    # also the space-separated `-p <path>` / `--project <path>` form
+    i = 0
+    while i < len(tokens):
+        t = _strip_quotes(tokens[i])
+        if t in _PATH_VALUED_BUILD_FLAGS and i + 1 < len(tokens):
+            nv = _strip_quotes(tokens[i + 1])
+            if not nv.startswith("-"):
+                vals.append(nv)
+            i += 2
+            continue
+        i += 1
+    if not vals:
+        return False
+    for v in vals:
+        # if ANY explicit target resolves under a protected path -> not exempt
+        for cand in _resolve_rel(v, cwd, cwd_det):
+            if _path_under_any(cand, bpaths) or _path_matches_any(cand, bpaths):
+                return False
+        # an unresolvable relative target -> cannot prove non-protected
+        if not os.path.isabs(_strip_quotes(v)) and not (cwd and cwd_det):
+            return False
+    return True
 
 
 # ── Command-word position scanning ───────────────────────────────────────────
@@ -1632,17 +1691,20 @@ def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> O
             if sel is not None and sel in ws:
                 return _block("P8", "explicit build of a protected workspace")
         # (a) build tool co-occurring with a protected build path (token, fused
-        # --flag=path value, or cwd).
+        # --flag=path value, or cwd) — relative paths resolved against cwd.
         if head in BUILD_TOOL_BASENAMES:
-            if _any_token_under_incl_flagvalue(rest, bpaths) or cwd_in_build:
+            if _any_token_under_incl_flagvalue(rest, bpaths, cwd, cwd_det) or cwd_in_build:
                 return _block("P8", "build tool co-occurring with a protected build path")
-            if _build_mode_flag_present(rest) and (cwd is None or not cwd_det
-                                                   or _cwd_in_protected_build_scope(cwd, cwd_det, cfg)):
+            if (_build_mode_flag_present(rest)
+                    and not _explicit_nonprotected_build_target(rest, cfg, cwd, cwd_det)
+                    and (cwd is None or not cwd_det
+                         or _cwd_in_protected_build_scope(cwd, cwd_det, cfg))):
                 # bare build-mode (tsc -b / --build / -w) with cwd in a protected
-                # package/root or indeterminate cwd -> fail-closed rebuild.
+                # package/root or indeterminate cwd -> fail-closed rebuild, UNLESS
+                # an explicit project target proves a non-protected build.
                 return _block("P8", "build-mode flag with protected/indeterminate cwd")
         if head in PKG_MANAGERS and "build" in rest:
-            if _any_token_under_incl_flagvalue(rest, bpaths):
+            if _any_token_under_incl_flagvalue(rest, bpaths, cwd, cwd_det):
                 return _block("P8", "build co-occurring with a protected build path")
         # package-runner build: npx/bunx AND npm exec/pnpm exec/yarn exec/bun x
         # running a build tool, against a protected build path (token or cwd).
@@ -1650,11 +1712,13 @@ def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> O
         if rtgt is not None and os.path.basename(rtgt) in BUILD_TOOL_BASENAMES:
             # tokens AFTER the build-tool target (e.g. `-p <path>` for tsc)
             after = _tokens_after_runner_target(head, rest)
-            if (_any_token_under_incl_flagvalue(after, bpaths)
-                    or _any_token_under_incl_flagvalue(rest, bpaths) or cwd_in_build):
+            if (_any_token_under_incl_flagvalue(after, bpaths, cwd, cwd_det)
+                    or _any_token_under_incl_flagvalue(rest, bpaths, cwd, cwd_det) or cwd_in_build):
                 return _block("P8", "package-runner build co-occurring with a protected build path")
-            if _build_mode_flag_present(after) and (cwd is None or not cwd_det
-                                                    or _cwd_in_protected_build_scope(cwd, cwd_det, cfg)):
+            if (_build_mode_flag_present(after)
+                    and not _explicit_nonprotected_build_target(after, cfg, cwd, cwd_det)
+                    and (cwd is None or not cwd_det
+                         or _cwd_in_protected_build_scope(cwd, cwd_det, cfg))):
                 return _block("P8", "package-runner build-mode flag with protected/indeterminate cwd")
     return None
 
