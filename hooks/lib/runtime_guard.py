@@ -2266,13 +2266,11 @@ def _under_protected_monorepo(man_dir: Optional[str], cfg: dict) -> bool:
     protected daemon, so it must not be blocked."""
     if not man_dir:
         return False
-    d = os.path.normpath(man_dir)
-    for root in cfg.get("protected_root_manifest_paths", []):
-        rn = os.path.normpath(root)
-        if d == rn or d.startswith(rn + "/"):
-            return True
-    # also: under a protected script path (the protected package itself)
-    if _path_matches_any(d, cfg.get("protected_script_paths", [])):
+    if _dir_under_any_root(man_dir, cfg):
+        return True
+    # also: a protected package dir reached via an ABSOLUTE glob (root-qualified
+    # for relative globs to avoid matching an unrelated project's same-named dir)
+    if _dir_is_protected_pkg(man_dir, cfg):
         return True
     return False
 
