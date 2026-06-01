@@ -467,7 +467,7 @@ def _flagvalue_path_candidates(tokens: list) -> list:
 
 def _resolve_rel(val: str, cwd: Optional[str], cwd_det: bool) -> list:
     """Return path candidates for a token: itself, plus its resolution against a
-    determinate effective cwd (so a relative `../happy-cli/tsconfig.json` from a
+    determinate effective cwd (so a relative `../<pkg>/tsconfig.json` from a
     sibling package resolves to the protected build path)."""
     cands = [val]
     st = _strip_quotes(val)
@@ -502,7 +502,7 @@ def _any_token_under_incl_flagvalue(tokens: list, cfg: dict,
                                     cwd: Optional[str] = None, cwd_det: bool = False) -> bool:
     """Match any bare path token OR known path-valued `--flag=value` RHS against
     the (root-qualified) protected build paths, resolving relative paths against
-    the effective cwd (covers `tsc -p ../happy-cli/tsconfig.json` from a sibling
+    the effective cwd (covers `tsc -p ../<pkg>/tsconfig.json` from a sibling
     package) while NOT matching an unrelated project's same-named dir."""
     for tok in tokens:
         st = _strip_quotes(tok)
@@ -1688,7 +1688,7 @@ def _p6_prockill(groups: list, cfg: dict) -> Optional[Verdict]:
         for raw in re.split(r"\s+", text):
             st = _strip_quotes(raw.strip("'\""))
             # strip a leading input-redirection prefix (`<path`, `0<path`, `<<<`)
-            # so `jq .pid </root/.happy*/daemon.state.json` is recognized.
+            # so `jq .pid <PROTECTED_STATEFILE` (fused redirect) is recognized.
             st = re.sub(r"^\d*<+", "", st)
             if not st or st.startswith("-"):
                 continue
@@ -1811,7 +1811,7 @@ def _p8_build(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None) -> O
                 # an explicit project target proves a non-protected build.
                 return _block("P8", "build-mode flag with protected/indeterminate cwd")
         if head in PKG_MANAGERS and "build" in rest:
-            if _any_token_under_incl_flagvalue(rest, cfg, cwd, cwd_det):
+            if _any_token_under_incl_flagvalue(_strip_selector_tokens(rest), cfg, cwd, cwd_det):
                 return _block("P8", "build co-occurring with a protected build path")
         # package-runner build: npx/bunx AND npm exec/pnpm exec/yarn exec/bun x
         # running a build tool, against a protected build path (token or cwd).
@@ -1894,7 +1894,7 @@ def _p8_explicit_protected_path(simple_cmds: list, cfg: dict, cwd_base: Optional
                     or "build" in [_strip_quotes(t) for t in rest])
         if not is_build:
             continue
-        if _any_token_under_incl_flagvalue(rest, cfg, cwd, cwd_det):
+        if _any_token_under_incl_flagvalue(_strip_selector_tokens(rest), cfg, cwd, cwd_det):
             return _block("P8", "explicit protected build-path argument")
     return None
 
