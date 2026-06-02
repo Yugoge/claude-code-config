@@ -182,7 +182,7 @@
         "file": "commands/dev.md",
         "scoped_checks": [
           {
-            "_scope_id": "AC-05.step11",
+            "_scope_id": "AC-05.step13",
             "scope_start_regex": "^### Step 13:",
             "scope_end_regex": "^### Step 14:",
             "must_contain_regex": [
