@@ -84,17 +84,38 @@ Adapted from `/dev` BA clarification pattern (dev.md Step 4 loop, max 3 rounds, 
 
 Copied from `ask.md` Step 6 (multi-turn dialogue loop architecture). One `/spec` invocation spans multiple user messages; each message lands in the SAME `spec_path`.
 
-After Step 3, wait for the next user message and branch:
+After Step 3, wait for the next user message. For EVERY user turn, FIRST run the
+capture precondition, THEN branch:
 
-- **Strong natural-conclusion signal** (Step 5 list) → proceed to Step 6 (Finalize).
+**Capture precondition (runs first, every turn — M2)**: BEFORE evaluating any branch
+below, **run the Design & Evidence Capture Routine (Step 4b) for THIS turn's material**.
+Step 4b sub-step 1 self-no-ops when the turn carries no design/evidence, so it is safe to
+invoke unconditionally at the top of every turn. This single pre-branch invocation is what
+guarantees M2's "capture on every follow-up turn" structurally — no branch outcome below
+(another-requirement, strong-signal/finalize, mid-loop-vague, or a design/evidence-only
+turn) can proceed or finalize without first capturing any material present in the same
+turn. Do NOT also call Step 4b inside an individual branch — that would double-capture the
+same turn's material.
+
+After the capture precondition has run, branch on the turn's requirement/closure shape:
+
+- **Strong natural-conclusion signal** (Step 5 list) → the capture precondition has already
+  persisted any design/evidence carried by this closing turn (so a turn like "here is the
+  runbook screenshot, thanks" is captured before finalize, never dropped). Now proceed to
+  Step 6 (Finalize).
 - **Another requirement** → append to `spec_path` under Section 5 as a new sub-section:
   ```
   ### 5.N: <brief title extracted from the message>
   <verbatim requirement text>
   ```
-  `N` increments from 2 (the first requirement populates Section 5; subsequent requirements become 5.2, 5.3, …). Then **run the Design & Evidence Capture Routine (Step 4b) for this turn BEFORE looping back** (M2 — same routine, every follow-up turn). Then loop back to wait.
+  `N` increments from 2 (the first requirement populates Section 5; subsequent requirements become 5.2, 5.3, …). The capture precondition already ran Step 4b for this turn's design/evidence; do NOT run it again here. Then loop back to wait.
+- **Design/evidence-only follow-up** (the turn supplies design/HOW-content or evidence but
+  carries no new requirement text and is not a conclusion signal) → the capture precondition
+  has already persisted that material via Step 4b; append to Section 5 ONLY if the turn also
+  carries requirement text (it does not, by definition of this branch). Then loop back to
+  wait. This turn shape is now fully captured — it can never fall through uncaptured.
 - **Exploration findings arrive** → integrate into Section 1 (Before) silently. If a finding contradicts the user's description, surface one targeted question — for example, "I looked at X and found Y — does that match?" — then loop back. Never gate the loop on exploration.
-- **Mid-loop vague input** → apply Step 2 logic (max 3 rounds) to that single message before appending, then loop back.
+- **Mid-loop vague input** → apply Step 2 logic (max 3 rounds) to that single message before appending, then loop back. (The capture precondition already handled any design/evidence in the turn.)
 
 Maintain `turn_count` internally (not user-visible), increment after each user response. No hard turn cap — termination is signal-driven.
 
