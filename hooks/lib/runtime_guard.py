@@ -3114,10 +3114,17 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
                     s2 = re.sub(r"^\d*<+", "", s2)
                     if s2 and not s2.startswith("-") and statefiles and _path_matches_any(s2, statefiles):
                         return _block("P0", "process-kill anchor reaching a protected statefile behind a front-end")
-                # kill target via command substitution naming the ident
+                # kill target via command substitution naming the ident OR
+                # reading a protected statefile (`kill $(jq .pid <statefile>)`).
                 for sub in _command_substitutions(sc):
                     if any(ident in sub for ident in idents):
                         return _block("P0", "process-kill anchor (subst) carrying a protected identifier behind a front-end")
+                    if statefiles:
+                        for raw in re.split(r"\s+", sub):
+                            s2 = _strip_quotes(raw.strip("'\"()"))
+                            s2 = re.sub(r"^\d*<+", "", s2)
+                            if s2 and not s2.startswith("-") and _path_matches_any(s2, statefiles):
+                                return _block("P0", "process-kill anchor (subst) reaching a protected statefile behind a front-end")
     return None
 
 
