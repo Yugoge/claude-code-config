@@ -39,7 +39,7 @@ def test_AC_F5():
     section = _extract_graphify_section(dev_md_text)
     assert section, (
         "Could not extract graphify enrichment section from commands/dev.md — "
-        "missing 'Graphify enrichment' anchor or '### Step 8' heading"
+        "missing 'Graphify enrichment' anchor or '### Step 10' heading"
     )
 
     # Pattern 1: sentinel file path (graphify.json) named in prose within the graphify section
