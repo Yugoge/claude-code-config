@@ -240,8 +240,11 @@ Only proceed to Step 6 when a STRONG signal fires.
    `docs/dev/specs/<de-prefixed-id>/evidence/...` reference path listed under Section 9
    and assert each exists on disk under the bound per-id folder. `(inline)`,
    `(unpersisted)`, and `(unpersisted design)` limitation lines are intentionally NOT real
-   paths — skip them by their leading `(...)` prefix BEFORE any path-regex extraction (they
-   are already visible records, not dangling file references). If any real reference path is
+   paths — BEFORE any path-regex extraction, skip any Section-9 line matching the sentinel
+   pattern `^\s*-\s*\((inline|unpersisted|unpersisted design)\)\b` (the markdown bullet
+   `- (` plus one of the three sentinel tokens, exactly as emitted in Step 4b sub-steps
+   4/5/6). These are already visible records, not dangling file references, so they must
+   never be passed to the path extractor. If any real reference path is
    missing, finalize HALTS with a visible error naming the dangling path, OR the
    orchestrator converts that reference into a visible `(unpersisted)` limitation line
    carrying the original path — the dangling reference is NEVER silently accepted. This
