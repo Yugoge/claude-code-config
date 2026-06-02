@@ -468,7 +468,7 @@ Read BA output files:
 
 **spec_path patch (mandatory post-BA-validation step — task 20260526-053746 AC-01)**:
 
-After the sanity checks pass and BEFORE proceeding to Step 6, the orchestrator MUST patch the `spec_path` field into `docs/dev/context-<timestamp>.json` so downstream consumers (dev, QA, close) can reference the spec.
+After the sanity checks pass and BEFORE proceeding to Step 7, the orchestrator MUST patch the `spec_path` field into `docs/dev/context-<timestamp>.json` so downstream consumers (dev, QA, close) can reference the spec.
 
 The orchestrator-resolved `spec_path` is the value derived from either the explicit `--spec <path>` flag or the auto-detection fallback (whichever the orchestrator ran in Step 1). Call this resolved value `$orchestrator_resolved_spec_path`. It is either a non-null string OR null (when `--spec` was not passed AND auto-detection returned null).
 
