@@ -241,9 +241,11 @@ Only proceed to Step 6 when a STRONG signal fires.
    and assert each exists on disk under the bound per-id folder. `(inline)`,
    `(unpersisted)`, and `(unpersisted design)` limitation lines are intentionally NOT real
    paths — BEFORE any path-regex extraction, skip any Section-9 line matching the sentinel
-   pattern `^\s*-\s*\((inline|unpersisted|unpersisted design)\)\b` (the markdown bullet
-   `- (` plus one of the three sentinel tokens, exactly as emitted in Step 4b sub-steps
-   4/5/6). These are already visible records, not dangling file references, so they must
+   pattern `^\s*-\s*\((inline|unpersisted design|unpersisted)\)\s` (the markdown bullet
+   `- (` plus one of the three sentinel tokens followed by whitespace, exactly as emitted in
+   Step 4b sub-steps 4/5/6 — note the trailing `\s`, NOT a word boundary `\b`, since a `)`
+   immediately followed by a space is not a word boundary and `\b` would fail to match these
+   lines). These are already visible records, not dangling file references, so they must
    never be passed to the path extractor. If any real reference path is
    missing, finalize HALTS with a visible error naming the dangling path, OR the
    orchestrator converts that reference into a visible `(unpersisted)` limitation line
