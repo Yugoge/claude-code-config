@@ -1248,6 +1248,7 @@ Read dev report: `docs/dev/dev-report-{pipeline.timestamp_suffix}.json`
 - Read blocking issues from report
 - Resolve blockers (e.g., missing information, technical constraints)
 - Refine context JSON with additional information
+- **Dev-dispatch precondition (B2-INV)**: BEFORE re-invoking, route this pipeline through the shared **Step 11g: Graphify Dev-Dispatch Precondition** against the refined context Dev will consume. The context fingerprint changed (refinement), so the precondition RE-ENRICHES rather than skipping.
 - Re-invoke only that pipeline's dev subagent (maximum 3 attempts)
 - If still blocked: mark pipeline status as `"skipped"` with reason `"Dev blocked"`
 
