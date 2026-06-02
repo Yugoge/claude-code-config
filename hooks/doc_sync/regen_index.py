@@ -120,16 +120,16 @@ def _extract_preserved(old: str, dir_name: str) -> str:
                     p += 1
                 if p < n and lines[p].strip().startswith('```') \
                         and p + 1 < n and lines[p + 1].strip() == f'{dir_name}/':
-                    remove[t] = True
-                    for b in range(t + 1, p):
-                        remove[b] = True
-                    remove[p] = True  # opening fence
-                    r = p + 1
-                    while r < n and not lines[r].strip().startswith('```'):
-                        remove[r] = True
-                        r += 1
-                    if r < n:
-                        remove[r] = True  # closing fence
+                    # Find the closing fence BEFORE removing anything. A malformed generated
+                    # block with no closing fence must strip NOTHING, otherwise everything
+                    # to EOF (including trailing hand-written content) gets wiped.
+                    c = p + 1
+                    while c < n and not lines[c].strip().startswith('```'):
+                        c += 1
+                    if c < n:  # closing fence found -> strip title..closing-fence
+                        remove[t] = True
+                        for b in range(t + 1, c + 1):
+                            remove[b] = True
                     break  # only the first generated tree
             t += 1
 
