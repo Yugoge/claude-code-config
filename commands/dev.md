@@ -1257,7 +1257,7 @@ jq -s '.[0] * {
 
 ## Mascot Score Changes (spec-20260518-225715 §5.1)
 
-Summarise score-update events from Step 12 and any user-rating events from `/close` in a table:
+Summarise score-update events from Step 14 and any user-rating events from `/close` in a table:
 
 | Agent | Event | Delta | Old → New |
 |-------|-------|-------|-----------|
