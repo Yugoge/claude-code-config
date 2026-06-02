@@ -341,12 +341,14 @@ When you see "OVERNIGHT CONTINUATION" injected by the prompt hook, you are in co
    - `initializing` or `exploring` -> Step 2 (PM Plan)
    - `pipeline_creation` -> Step 6 (Create pipelines)
    - `analyzing` -> Step 8 (Parallel BA)
-   - `implementing` -> Step 12 (Parallel Dev)
+   - `implementing` -> Step 12 (Parallel Dev) — the shared **Step 11g** Dev-dispatch precondition (B10) runs graphify enrichment for any pipeline whose current Dev context has not yet been enriched (fingerprint absent/mismatched) BEFORE dispatching Dev, so a resumed session still enriches before Dev; no new `current_phase` enum value is required because the idempotent precondition fires at the Step 12 dispatch the resume lands on
    - `verifying` -> Step 14 (Prepare QA Environment)
    - `iterating` -> Step 17 (Iteration loops)
    - `logging` -> Step 19 (Log)
    - `retrospective` -> Step 20 (PM Retro)
 4. The hook has already injected the command specification and state summary into this prompt
+
+**Resume eligibility from on-disk artifacts (B11)**: the Step 11g precondition uses the per-pipeline `phase` filter while continuation routes by the session-level `current_phase`; these are separate. On a `current_phase: implementing` resume, the orchestrator MUST inspect the ACTIVE pipelines and derive eligibility from on-disk artifacts: any pipeline with BA + BA-QA artifacts present but no Dev report yet is eligible for the Step 11g precondition (treat it as `ba_complete` for dispatch purposes). If a pipeline's recorded `phase` and its on-disk artifacts disagree, the orchestrator MUST NOT silently skip it — resume to the artifact-derived correct step. This prevents a resumed `implementing` pipeline whose per-pipeline `phase` was never advanced to `ba_complete` from being skipped by BOTH the filter AND enrichment.
 
 ---
 
