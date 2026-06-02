@@ -1652,6 +1652,14 @@ class TestCycle5CodexAdversarial:
         assert ev(f"fuser {ident}", absent, fixture_repo) == "ALLOW"
         assert ev(f"numactl fuser {ident}", absent, fixture_repo) == "ALLOW"
         assert ev("fuser 1234", absent, fixture_repo) == "ALLOW"
+        # NO OVER-BLOCK: a read-only fuser behind a WRAPPER whose own option merely
+        # CONTAINS the letter 'k' (e.g. --check/--token) must still ALLOW — the -k
+        # scan is scoped to fuser's OWN args, not the whole command (codex finding).
+        assert ev(f"quxwrap --check fuser {ident}", absent, fixture_repo) == "ALLOW"
+        assert ev(f"quxwrap --token abc fuser {ident}", absent, fixture_repo) == "ALLOW"
+        assert ev(f"numactl --membind=0 fuser {ident}", absent, fixture_repo) == "ALLOW"
+        # but a real fuser kill flag AFTER fuser still blocks even with a k-bearing wrapper opt
+        assert ev(f"quxwrap --check fuser -k {ident}", absent, fixture_repo) == "BLOCK"
 
     def test_codex4_output_flag_does_not_exempt_protected_build(self, datafile, fixture_repo):
         # F4: an OUTPUT flag (--outdir/-o) does NOT prove a non-protected build;

@@ -1260,13 +1260,21 @@ def _step1_indeterminate(simple_cmds: list) -> Verdict:
                 return _block("STEP1", "indeterminate policy: process-kill verb (tail)")
             # `fuser -k` is a kill executor the head-keyed scan misses (fuser is
             # not in KILL_VERBS). Behind any wrapper its head is the wrapper, so
-            # detect fuser among the exec-token basenames HEAD-AGNOSTICALLY +
-            # a -k/--kill flag anywhere in the tokens — mirroring the config-present
-            # W4 kill anchor so this kill family blocks fail-closed behind ANY
-            # front-end (and the xargs / find -exec / fd -x fuser -k siblings).
-            if "fuser" in exec_bases and any(_strip_quotes(t) in ("-k", "--kill") or
-                                             (_strip_quotes(t).startswith("-") and "k" in _strip_quotes(t).lstrip("-")) for t in tokens):
-                return _block("STEP1", "indeterminate policy: fuser -k process-kill (tail)")
+            # detect fuser among the exec-token basenames HEAD-AGNOSTICALLY, then
+            # scan only the tokens AFTER that fuser for its OWN -k/--kill flag.
+            # Scoping to fuser's own args (not the whole simple command) avoids
+            # over-blocking a read-only `<wrapper> --opt fuser <path>` where a
+            # WRAPPER long option merely contains the letter k (e.g. --check).
+            # Closes the xargs / find -exec / fd -x fuser -k siblings too.
+            if "fuser" in exec_bases:
+                _fi = next((i for i, t in enumerate(tokens)
+                            if os.path.basename(_strip_quotes(t)) == "fuser"), None)
+                if _fi is not None and any(
+                        _strip_quotes(t) in ("-k", "--kill") or
+                        (_strip_quotes(t).startswith("-") and not _strip_quotes(t).startswith("--")
+                         and "k" in _strip_quotes(t)[1:])
+                        for t in tokens[_fi + 1:]):
+                    return _block("STEP1", "indeterminate policy: fuser -k process-kill (tail)")
             if any(b in ("systemctl", "service", "initctl") for b in exec_bases) and (
                     any(v in [os.path.basename(_strip_quotes(t)) for t in tokens] for v in SERVICE_VERBS)):
                 return _block("STEP1", "indeterminate policy: service-control verb (tail)")
