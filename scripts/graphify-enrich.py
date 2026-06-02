@@ -21,7 +21,12 @@ Nil-map fallback (arch-1): blast-radius-map absent → status=skipped, valid emp
 graph_context, zero exception.
 
 Usage:
-  python3 scripts/graphify-enrich.py --task-id <ID> --context-file <path> [--no-graphify]
+  python3 scripts/graphify-enrich.py --task-id <ID> --context-file <path> [--blast-radius-map <path>] [--no-graphify]
+
+The blast-radius-map is resolved from the context's `blast_radius_map_path` field first
+(authoritative — written by BA), then --blast-radius-map, then the <task-id>-derived
+default; this makes /dev-overnight per-pipeline enrichment effective (its enrich task-id
+never matched the per-pipeline BA map dir).
 
 Exit codes:
   0 — always (advisory; DEV is never blocked by Graphify failure)
