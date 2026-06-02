@@ -413,7 +413,7 @@ Use Task tool with:
 
 **Wait for BA subagent completion** before proceeding.
 
-### Step 4: BA Clarification Loop
+### Step 5: BA Clarification Loop
 
 **If BA returns `status: "needs_clarification"`**:
 
