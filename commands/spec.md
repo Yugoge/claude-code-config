@@ -122,10 +122,11 @@ Maintain `turn_count` internally (not user-visible), increment after each user r
 
 ### Step 4b: Design & Evidence Capture Routine
 
-This routine runs in Step 3 sub-step 4a (first turn, if the first material carries
-design/evidence) and as the Step 4 **capture precondition** that fires BEFORE branching on
-EVERY follow-up turn — including the design/evidence-only turn shape and the finalizing turn
-that also carries material (M2). It is invoked at exactly ONE point per turn (Step 3 sub-step
+This routine is invoked UNCONDITIONALLY in Step 3 sub-step 4a for the first turn, and
+unconditionally as the Step 4 **capture precondition** that fires BEFORE branching on EVERY
+follow-up turn — including the design/evidence-only turn shape and the finalizing turn that
+also carries material (M2). It performs work only if that turn carries design/evidence;
+sub-step 1 self-no-ops otherwise. It is invoked at exactly ONE point per turn (Step 3 sub-step
 4a for the first turn, the Step 4 capture precondition for every later turn), so each turn's
 material is captured exactly once — no double-capture. It NEVER touches Section 5 — design and
 evidence land in Section 9 + companion files only (M8). User-provided design and evidence
