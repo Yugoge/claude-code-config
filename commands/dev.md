@@ -1014,7 +1014,7 @@ After the verdict is known, apply score-update events based on QA outcome and it
   - Any failure with `primary_cause = "ba_spec"` → `score-update.sh --agent ba --event qa_reject_ba --note "<task_id>"` AND `--agent dev --event qa_reject_ba` (dev -5, ba -8).
   - `primary_cause = "qa_oversight"` or `"environment"` → no auto-score update (manual review).
 
-Each score-update call is independent; failures are non-blocking (a failed score-update writes to stderr but does not abort the dev cycle). Include the score deltas summary in the Step 15 completion report under a `score_updates` array.
+Each score-update call is independent; failures are non-blocking (a failed score-update writes to stderr but does not abort the dev cycle). Include the score deltas summary in the Step 17 completion report under a `score_updates` array.
 
 ### Step 13: Update Settings.json Permissions
 
