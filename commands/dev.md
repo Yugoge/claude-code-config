@@ -447,7 +447,7 @@ Use Task tool with:
 **Loop rules**:
 - Maximum 3 clarification rounds
 - After round 3, BA returns best-effort with explicit assumptions
-- If BA returns `status: "ready"`, proceed to Step 5
+- If BA returns `status: "ready"`, proceed to Step 6
 
 **If BA returns `status: "ready"` on first invocation**: Skip to Step 5.
 
