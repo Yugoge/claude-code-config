@@ -2952,6 +2952,195 @@ def _unwrap_corepack(simple_cmds: list) -> list:
     return out
 
 
+# ── P0 ANCHOR scan (HEAD-AGNOSTIC, wrapper-name-independent) ─────────────────
+# Launch subcommand grammar: a protected command/launch-path is a daemon LAUNCH
+# when followed (immediately, after its own flags) by one of these subcommands.
+# These are generic process-lifecycle verbs, NOT project names.
+_LAUNCH_SUBCMDS = frozenset({
+    "daemon", "start", "start-sync", "serve", "run", "up", "spawn", "launch",
+})
+
+
+def _git_inspection_head(head: str, rest: list) -> bool:
+    """True if this is a `git <readonly-subcmd> …` inspection command."""
+    if head != "git":
+        return False
+    for t in rest:
+        st = _strip_quotes(t)
+        if not st or st.startswith("-"):
+            continue
+        return st in _GIT_READONLY_SUBCMDS
+    # bare `git` with no subcommand: treat as inspection (no exec tail)
+    return True
+
+
+def _is_inspection_command(head: str, rest: list) -> bool:
+    """A simple command is an inspection/data command (anchor scan skipped) when
+    its HEAD basename is in the small read/inspect/edit allowlist, OR it is a
+    read-only git invocation. This is the ONLY fixed head list the anchor uses."""
+    if head in READ_INSPECT_EDIT_ALLOWLIST:
+        return True
+    if _git_inspection_head(head, rest):
+        return True
+    return False
+
+
+def _anchor_exec_tokens(tokens: list) -> list:
+    """Return the list of (index, token) bare EXECUTABLE-position candidate tokens
+    for the anchor scan: tokens that are NOT options (no leading '-'), NOT a
+    VAR=val env-prefix, and NOT inside a redirection. These are the words that a
+    front-end / wrapper chain could exec() or pass to a build/launch. Quoted
+    tokens are stripped. This is head-agnostic: it scans the WHOLE argv (the head
+    itself is also a candidate, since a bare `happy daemon start` has head=happy).
+    """
+    out = []
+    skip_next = False
+    for i, raw in enumerate(tokens):
+        if skip_next:
+            skip_next = False
+            continue
+        st = _strip_quotes(raw)
+        if not st:
+            continue
+        # redirection operators (> >> < 2> &>) and their target are not exec words
+        if st in (">", ">>", "<", "2>", "&>", "1>", "2>>", "|", "&", ";"):
+            skip_next = st in (">", ">>", "<", "2>", "&>", "1>", "2>>")
+            continue
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", st):
+            # VAR=val env-prefix
+            continue
+        if st.startswith("-"):
+            continue
+        out.append((i, st))
+    return out
+
+
+def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
+               groups: Optional[list] = None) -> Optional[Verdict]:
+    """HEAD-AGNOSTIC anchor scan. For ANY simple command whose head is NOT in the
+    small read/inspect/edit allowlist, scan the WHOLE argv for a protected anchor
+    in executable position and BLOCK on launch/build/kill grammar — INDEPENDENT of
+    the wrapper/front-end head name. This is the load-bearing wrapper-agnostic
+    gate: it does NOT enumerate wrappers; a head that is not an inspection command
+    is treated as a possible launcher, so the trailing protected launch/build/kill
+    can never hide behind a novel front-end (numactl/tini/dumb-init/ssh-agent/…).
+    """
+    cmds = set(cfg.get("protected_cmds", []))
+    launch_paths = cfg.get("protected_launch_paths", [])
+    bpaths = cfg.get("protected_build_paths", [])
+    ws = set(cfg.get("protected_build_workspaces", []))
+    idents = cfg.get("protected_proc_idents", [])
+    statefiles = cfg.get("protected_statefiles", [])
+    groups = groups or []
+    for idx, sc in enumerate(simple_cmds):
+        tokens = _safe_shlex(sc)
+        if not tokens:
+            continue
+        cw = _command_words(tokens)
+        if not cw:
+            continue
+        _tok_idx, head, rest = cw[0]
+        # GATE: inspection/data commands (the allowlist heads) are skipped so a
+        # protected path/command named as DATA (grep pattern, echo arg, cat target,
+        # diff operand, sed/awk script) still ALLOWS — no blanket substring scan.
+        if _is_inspection_command(head, rest):
+            continue
+        # effective cwd for relative-path resolution + leading wrapper chdir.
+        cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
+        cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+        exec_toks = _anchor_exec_tokens(tokens)
+
+        # ── W1 LAUNCH-PATH ANCHOR: a protected launch path as a bare exec token ──
+        for _i, st in exec_toks:
+            if _path_matches_cwd(st, launch_paths, cwd, cwd_det):
+                return _block("P0", "protected launch-path anchor behind a front-end")
+
+        # ── W2 COMMAND-BASENAME ANCHOR: a protected command basename as bare token ─
+        for pos, (_i, st) in enumerate(exec_toks):
+            base = os.path.basename(st)
+            if base in cmds:
+                # The protected command in executable position is itself the launch
+                # (e.g. `numactl happy daemon start`, `tini -- happy daemon start`).
+                # Fail closed on the protected-command anchor regardless of head.
+                return _block("P0", f"protected command anchor '{base}' behind a front-end")
+
+        # ── W3 BUILD ANCHOR: build grammar co-occurring with a protected build ──
+        # A build is indicated by a build-tool basename / package-manager `build` /
+        # a package-runner running a build tool, ANYWHERE in the exec tokens. When
+        # so, BLOCK if a protected build path / workspace / cwd is named.
+        if _anchor_build_hits_protected(tokens, exec_toks, cfg, cwd, cwd_det, ws, bpaths):
+            return _block("P0", "build anchor co-occurring with a protected build target behind a front-end")
+
+        # ── W4 KILL ANCHOR: a kill verb in exec position + protected proc-ident ──
+        # P6 already scans pipeline groups by text, but a kill behind an unknown
+        # wrapper has head != kill so _is_kill_executor misses it. Detect a kill
+        # verb anywhere in the exec tokens + a protected ident/statefile in the sc.
+        if idents or statefiles:
+            if any(os.path.basename(st) in KILL_VERBS for _i, st in exec_toks):
+                sc_text = sc
+                if any(ident in sc_text for ident in idents):
+                    return _block("P0", "process-kill anchor carrying a protected identifier behind a front-end")
+                for raw in re.split(r"\s+", sc_text):
+                    s2 = _strip_quotes(raw.strip("'\""))
+                    s2 = re.sub(r"^\d*<+", "", s2)
+                    if s2 and not s2.startswith("-") and statefiles and _path_matches_any(s2, statefiles):
+                        return _block("P0", "process-kill anchor reaching a protected statefile behind a front-end")
+                # kill target via command substitution naming the ident
+                for sub in _command_substitutions(sc):
+                    if any(ident in sub for ident in idents):
+                        return _block("P0", "process-kill anchor (subst) carrying a protected identifier behind a front-end")
+    return None
+
+
+def _anchor_build_hits_protected(tokens: list, exec_toks: list, cfg: dict,
+                                  cwd: Optional[str], cwd_det: bool,
+                                  ws: set, bpaths: list) -> bool:
+    """True if the simple command (head-agnostic) indicates a BUILD that targets a
+    protected package: a build-tool basename OR a package-manager `build` verb OR
+    a package-runner build tool appears in the exec tokens, AND a protected build
+    path / workspace selector / protected cwd is named. Conservative: requires an
+    explicit protected anchor (path token, fused --flag=path value, workspace
+    selector, or a protected effective cwd) — a build naming NO protected target
+    is NOT blocked here (residual #1 / non-protected builds stay allowed)."""
+    bases = [os.path.basename(st) for _i, st in exec_toks]
+    pm_present = any(b in PKG_MANAGERS for b in bases)
+    buildtool_present = any(b in BUILD_TOOL_BASENAMES for b in bases)
+    runner_present = any(b in ("npx", "bunx") for b in bases)
+    has_build_verb = any(st == "build" for _i, st in exec_toks)
+    # A build is indicated by: a bare build tool, OR a pm/runner with a 'build'
+    # verb, OR a package-runner invoking a build tool.
+    build_indicated = (
+        buildtool_present
+        or (pm_present and has_build_verb)
+        or (runner_present and buildtool_present)
+        or (runner_present and has_build_verb)
+    )
+    if not build_indicated:
+        return False
+    # protected target: explicit workspace selector naming a protected workspace
+    for i, raw in enumerate(tokens):
+        st = _strip_quotes(raw)
+        if st in ("workspace", "workspaces", "--filter", "-F", "-w", "--workspace") and i + 1 < len(tokens):
+            sel = os.path.basename(_strip_quotes(tokens[i + 1]).rstrip("/"))
+            if sel in ws:
+                return True
+        for f in ("--filter", "-F", "-w", "--workspace"):
+            if st.startswith(f + "="):
+                sel = os.path.basename(st.split("=", 1)[1].rstrip("/"))
+                if sel in ws:
+                    return True
+    # protected target: a build path token (bare or fused --flag=path) under a
+    # protected build path, OR the effective cwd is in the protected build scope.
+    scan_tokens = _strip_selector_tokens([_strip_quotes(x) for x in tokens])
+    if bpaths and _any_token_under_incl_flagvalue(scan_tokens, cfg, cwd, cwd_det):
+        return True
+    if _cwd_in_protected_build_scope(cwd, cwd_det, cfg):
+        return True
+    if bpaths and _cwd_under_build_path(cwd, cwd_det, bpaths):
+        return True
+    return False
+
+
 # ── Top-level evaluate ───────────────────────────────────────────────────────
 
 def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:

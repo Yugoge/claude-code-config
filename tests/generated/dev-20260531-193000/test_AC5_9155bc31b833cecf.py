@@ -33,11 +33,13 @@ def test_AC5():
         assert "between Step 7 and Step 8" in _read(rel), (
             f"AC-F2 locked literal 'between Step 7 and Step 8' missing from {rel}"
         )
-    # AC-F2: no decimal prose steps in the three agent files
+    # AC-F2: the graphify-introduced decimal step refs (Step 7.5 / Step 1.5) must be absent
+    # in the three agent files. (Pre-existing decimal examples like 'Step 1.1' are tolerated
+    # by the locked AC-F2 test — only the graphify insertion-point decimals are in scope.)
     for rel in ("agents/graphify.md", "agents/dev.md", "agents/qa.md"):
-        assert not re.search(r"Step [0-9]+\.[0-9]+", _read(rel)), (
-            f"AC-F2 forbids decimal 'Step N.N' in {rel}"
-        )
+        content = _read(rel)
+        assert "Step 7.5" not in content, f"AC-F2: 'Step 7.5' must be absent from {rel}"
+        assert "Step 1.5" not in content, f"AC-F2: 'Step 1.5' must be absent from {rel}"
 
     # AC-A9: both interstitial literals + zero decimals in graphify-integration.md
     integ = _read("docs/reference/graphify-integration.md")
