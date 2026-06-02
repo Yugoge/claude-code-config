@@ -808,7 +808,7 @@ Use Task tool with:
 
 ### Step 11: Write Canonical Aggregate Dev-Report (Parallel-Dev Only)
 
-**Applies ONLY when N>1 parallel dev subagents were dispatched in Step 8.** Single-dev cycles SKIP this step entirely (the lone dev subagent writes `dev-report-<task-id>.json` directly).
+**Applies ONLY when N>1 parallel dev subagents were dispatched in Step 10.** Single-dev cycles SKIP this step entirely (the lone dev subagent writes `dev-report-<task-id>.json` directly).
 
 **Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 11 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate. Shard detection uses BOTH naming patterns: role-first (`dev-report-<role>-<task-id>.json`) and task-first (`dev-report-<task-id>-<worker>.json`).
 
