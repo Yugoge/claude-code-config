@@ -50,6 +50,12 @@ _STEPS = [
     ),
     ("11", "BA-QA iteration loop (if QA rejects BA)", "Iterating BA analysis based on QA objections", None),
     (
+        "11g",
+        "Graphify Dev-dispatch precondition (enrich before every Dev dispatch)",
+        "Running graphify enrichment before Dev dispatch",
+        {"subagent_call": {"agent": "graphify", "subagent_type": "graphify"}},
+    ),
+    (
         "12",
         "Run Dev subagents (parallel)",
         "Running Dev subagents in parallel",
