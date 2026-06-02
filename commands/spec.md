@@ -153,14 +153,27 @@ are first-class material and MUST NOT be silently dropped (M3-M5, M12).
      content hash (e.g. `photo.png` → `photo-<8hex>.png`) so no prior artifact is
      overwritten.
 
-4. **Persist design (M3 — additive, never relocating).** Write the user's HOW-content
-   VERBATIM to `$BOUND_ROOT/design/turn-<N>-<slug>.md`. This file is an ADDITIVE mirror:
-   if the design text arrived as part of the user's requirement it STAYS verbatim in
-   Section 5; the companion design doc + the Section-9 reference are ADDED, never used to
-   strip, rewrite, summarize, or relocate any Section-5 text. Then append a short
-   project-root-relative reference line under Section 9.1 (replacing the
-   `_Not yet populated._` placeholder on the FIRST design entry; leaving Section 9.2's
-   placeholder untouched until its own first entry — M1):
+4. **Persist design (M3 — additive, never relocating) — two branches like evidence.**
+   - **Design pasted inline as HOW-text** → write the user's HOW-content VERBATIM to
+     `$BOUND_ROOT/design/turn-<N>-<slug>.md`.
+   - **Design supplied as a readable file path** (runbook/systemd/layout document the user
+     framed as design — M14) → read/copy the SOURCE bytes VERBATIM into
+     `$BOUND_ROOT/design/turn-<N>-<slug>.md`. Do NOT summarize or transcode; persist the
+     file content as-is.
+   - **Design path that fails to read** (missing / unreadable / outside accessible paths)
+     → do NOT drop it silently (fail-visible, same contract as evidence M12): append an
+     "unpersisted design" limitation line under Section 9.1 carrying the original path +
+     the error, and tell the user immediately:
+     ```
+     - (unpersisted design) <original-path> — read/copy failed: <error>; not archived
+     ```
+
+   The persisted design file is an ADDITIVE mirror: if the design text arrived as part of
+   the user's requirement it STAYS verbatim in Section 5; the companion design doc + the
+   Section-9 reference are ADDED, never used to strip, rewrite, summarize, or relocate any
+   Section-5 text. On a successful persist, append a short project-root-relative reference
+   line under Section 9.1 (replacing the `_Not yet populated._` placeholder on the FIRST
+   design entry; leaving Section 9.2's placeholder untouched until its own first entry — M1):
 
    ```
    - `docs/dev/specs/<de-prefixed-id>/design/turn-<N>-<slug>.md` — <one-line description>
