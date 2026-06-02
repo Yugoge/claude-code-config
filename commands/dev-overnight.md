@@ -1197,13 +1197,14 @@ Per-pipeline `graphify-run.json` / `focused-subgraph.json` files are **sidecar a
 
 **Filter**: Only launch Dev for pipelines with `phase == "ba_complete"` and `status == "active"`.
 
-**Dev-dispatch precondition (B2-INV)**: BEFORE the `For each active pipeline[i]` loop below, for each pipeline that passes the filter above, route through the shared **Step 11g: Graphify Dev-Dispatch Precondition** against the context Dev will consume (`docs/dev/context-{pipeline.timestamp_suffix}.json`). This covers the BA-QA PASS branch, the BA-QA iteration-EXHAUSTED best-effort branch, AND the Continuation/Resume path that lands here.
+**Dev-dispatch precondition (B2-INV)**: for each pipeline that passes the filter above, route through the shared **Step 11g: Graphify Dev-Dispatch Precondition** against the context Dev will consume (`docs/dev/context-{pipeline.timestamp_suffix}.json`) IMMEDIATELY BEFORE that pipeline's `Agent(subagent_type: "dev")` call inside the loop below (not merely once before the loop) — so the precondition runs per-dispatch, even when the loop batches across multiple responses. This covers the BA-QA PASS branch, the BA-QA iteration-EXHAUSTED best-effort branch, AND the Continuation/Resume path that lands here.
 
 **Launch Dev subagents in batches of 1-3, sequential between batches** (per pacing rule):
 
 ```
 For each active pipeline[i]:
 
+# Step 11g precondition for pipeline[i] runs HERE, immediately before the Dev dispatch
 Agent(subagent_type: "dev")
   description: "Dev implementation for pipeline {i}: {pipeline.description}"
   prompt: "
