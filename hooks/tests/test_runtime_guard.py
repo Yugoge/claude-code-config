@@ -1584,5 +1584,79 @@ class TestCycle5AnchorBasedHeadAgnostic:
             assert r.returncode == ALLOW, f"live hook over-blocked: {cmd} (rc={r.returncode})"
 
 
+class TestCycle5CodexAdversarial:
+    """Cycle 5 codex (gpt-5.5 xhigh) adversarial findings on the anchor fix.
+    Each finding closed a leak or fixed an over-block; these tests lock them."""
+
+    def test_codex1_fused_option_value_launch(self, datafile, fixture_repo):
+        # F1: a fused `--opt=<protected>` option value execs the protected target.
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        assert ev("anywrap --exec=happy daemon", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"anywrap --cmd={p} run", datafile, fixture_repo) == "BLOCK"
+        # a fused value that is a protected path always blocks (launch path)
+        assert ev(f"runner --node-arg={p}", datafile, fixture_repo) == "BLOCK"
+
+    def test_codex2_find_exec_launch(self, datafile, fixture_repo):
+        # F2: find/fd with an -exec action RUN a command -> not pure inspection.
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        assert ev("find . -exec happy daemon {} ;", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"find . -exec node {p} daemon ;", datafile, fixture_repo) == "BLOCK"
+        assert ev("fd -e js -x happy daemon", datafile, fixture_repo) == "BLOCK"
+        # a plain find/fd search (no -exec) is still inspection -> ALLOW
+        assert ev("find . -name '*.mjs'", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"find {fixture_repo}/packages/happy-cli -type f", datafile, fixture_repo) == "ALLOW"
+
+    def test_codex_fuser_kill_behind_wrapper(self, datafile, fixture_repo):
+        # fuser -k is a kill executor (not in KILL_VERBS); behind a novel wrapper
+        # its head is the wrapper, so the W4 anchor must detect fuser+-k+ident.
+        ident = "packages/happy-cli/dist/index.mjs"
+        assert ev(f"numactl fuser -k {ident}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"fuser -k {ident}", datafile, fixture_repo) == "BLOCK"
+        # a fuser -k of an unrelated bare PID (no protected target) ALLOWS
+        assert ev("fuser -k 1234", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"numactl fuser {ident}", datafile, fixture_repo) == "ALLOW"  # no -k = read-only
+
+    def test_codex3_failclosed_find_exec_and_fuser_kill(self, datafile, fixture_repo, tmp_path_factory):
+        # F3: under absent config, find -exec <danger> and fuser -k must BLOCK.
+        absent = str(tmp_path_factory.mktemp("nocfg_codex3") / "absent.json")
+        assert ev("find . -exec node protected.js {} ;", absent, fixture_repo) == "BLOCK"
+        assert ev("fuser -k 1234", absent, fixture_repo) == "BLOCK"
+        assert ev("numactl find . -exec yarn build {} ;", absent, fixture_repo) == "BLOCK"
+        # benign reads under absent config still ALLOW
+        assert ev("find . -name '*.js'", absent, fixture_repo) == "ALLOW"
+        assert ev("fuser 1234", absent, fixture_repo) == "ALLOW"
+
+    def test_codex4_output_flag_does_not_exempt_protected_build(self, datafile, fixture_repo):
+        # F4: an OUTPUT flag (--outdir/-o) does NOT prove a non-protected build;
+        # build-mode at the protected root with only an output flag still BLOCKS.
+        assert ev_cwd("numactl tsc -b --outdir=/tmp/out", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("numactl tsc -b -o /tmp/out.js", datafile, fixture_repo) == "BLOCK"
+        # an INPUT-project flag naming a non-protected target DOES exempt -> ALLOW
+        assert ev_cwd("numactl tsc -b -p packages/happy-server/tsconfig.json", datafile, fixture_repo) == "ALLOW"
+
+    def test_codex5_recursive_multi_selector_no_exempt(self, datafile, fixture_repo):
+        # F5: a recursive / glob / multi selector fans into the protected ws, so
+        # it does NOT exempt; a single determinate non-protected selector does.
+        assert ev_cwd("numactl pnpm --filter happy-server -r build", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("numactl pnpm --filter '*' build", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("numactl pnpm -r --filter happy-server build", datafile, fixture_repo) == "BLOCK"
+        # single determinate non-protected selector still exempts -> ALLOW
+        assert ev_cwd("numactl pnpm --filter happy-server build", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd("tini -- yarn workspace happy-app build", datafile, fixture_repo) == "ALLOW"
+
+    def test_codex6_no_overblock_on_file_ops(self, datafile, fixture_repo):
+        # F6: a protected path/command as a DATA argument (copy/archive/test
+        # selector) is NOT a launch -> ALLOW. Real launches still BLOCK.
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        assert ev(f"cp {p} /tmp/backup.mjs", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"tar cf /tmp/a.tar {p}", datafile, fixture_repo) == "ALLOW"
+        assert ev("pytest -k happy", datafile, fixture_repo) == "ALLOW"
+        assert ev("rsync -a /tmp/x /tmp/y", datafile, fixture_repo) == "ALLOW"
+        # but executable-position / launch-grammar forms still BLOCK
+        assert ev("numactl happy daemon start", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"numactl node {p} daemon start", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"anywrap -- {p}", datafile, fixture_repo) == "BLOCK"  # path after -- is exec
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

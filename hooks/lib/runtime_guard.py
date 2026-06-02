@@ -1258,6 +1258,11 @@ def _step1_indeterminate(simple_cmds: list) -> Verdict:
             exec_bases = [os.path.basename(_strip_quotes(t)) for _i, t in _anchor_exec_tokens(tokens)]
             if any(b in KILL_VERBS for b in exec_bases):
                 return _block("STEP1", "indeterminate policy: process-kill verb (tail)")
+            # `fuser -k` / `find -exec` are kill/exec executors that the head-keyed
+            # scan misses (fuser/find are not KILL_VERBS/RUNTIMES themselves).
+            if head == "fuser" and any(_strip_quotes(t) in ("-k", "--kill") or
+                                       (_strip_quotes(t).startswith("-") and "k" in _strip_quotes(t).lstrip("-")) for t in rest):
+                return _block("STEP1", "indeterminate policy: fuser -k process-kill (tail)")
             if any(b in ("systemctl", "service", "initctl") for b in exec_bases) and (
                     any(v in [os.path.basename(_strip_quotes(t)) for t in tokens] for v in SERVICE_VERBS)):
                 return _block("STEP1", "indeterminate policy: service-control verb (tail)")
@@ -3001,11 +3006,32 @@ def _git_inspection_head(head: str, rest: list) -> bool:
     return True
 
 
+# Options that turn an otherwise-inspection head into a COMMAND-EXECUTOR:
+#   find/fd `-exec`/`-execdir`/`-ok`/`-okdir` run a command per match;
+#   fuser `-k` kills. When present, the head is NOT inspection — its tail must
+#   be scanned for a protected launch/kill.
+_FIND_EXEC_OPTS = frozenset({"-exec", "-execdir", "-ok", "-okdir", "--exec", "--exec-batch", "-x", "-X"})
+_KILL_FLAG_HEADS = {"fuser": frozenset({"-k", "--kill"})}
+
+
 def _is_inspection_command(head: str, rest: list) -> bool:
     """A simple command is an inspection/data command (anchor scan skipped) when
     its HEAD basename is in the small read/inspect/edit allowlist, OR it is a
-    read-only git invocation. This is the ONLY fixed head list the anchor uses."""
+    read-only git invocation — UNLESS it carries an option that turns it into a
+    command-executor (find/fd `-exec`, fuser `-k`), in which case it is NOT
+    inspection and its tail is scanned. This is the ONLY fixed head list."""
     if head in READ_INSPECT_EDIT_ALLOWLIST:
+        # find/fd with an -exec action actually RUN a command -> not inspection.
+        if head in ("find", "fd"):
+            if any(_strip_quotes(t) in _FIND_EXEC_OPTS for t in rest):
+                return False
+        # fuser -k KILLS -> not inspection (the kill is caught downstream by P6
+        # and the W4 anchor); a bare fuser/lsof is read-only.
+        kill_flags = _KILL_FLAG_HEADS.get(head)
+        if kill_flags and any(_strip_quotes(t) in kill_flags or
+                              (_strip_quotes(t).startswith("-") and "k" in _strip_quotes(t).lstrip("-"))
+                              for t in rest):
+            return False
         return True
     if _git_inspection_head(head, rest):
         return True
@@ -3037,9 +3063,56 @@ def _anchor_exec_tokens(tokens: list) -> list:
         if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", st):
             # VAR=val env-prefix
             continue
+        # keep the `--` end-of-options marker as a position anchor (the token
+        # after it is in executable position), but skip all other options.
+        if st == "--":
+            out.append((i, st))
+            continue
         if st.startswith("-"):
             continue
         out.append((i, st))
+    return out
+
+
+# Launch subcommands a protected command/path takes (`<cmd> daemon start`).
+# Generic process-lifecycle verbs — NOT project names.
+_ANCHOR_LAUNCH_FOLLOW = _LAUNCH_SUBCMDS
+
+
+def _anchor_in_launch_position(exec_vals: list, pos: int) -> bool:
+    """True if the exec token at `pos` is a LAUNCH (vs a data/argument). A
+    protected command/path anchor is a launch when:
+      • it is the FIRST exec token (`<protected> …`, possibly the head), OR
+      • the preceding exec token is `--` (end-of-options before the real cmd), OR
+      • the preceding exec token is a runtime/runner (`node <path>`), OR
+      • it is FOLLOWED by a launch subcommand (`<protected> daemon start`).
+    Otherwise the token is an argument to some other head (`cp <path> dst`,
+    `pytest -k <name>`, `grep <name>`) and is NOT a launch.
+    """
+    if pos == 0:
+        return True
+    prev = exec_vals[pos - 1]
+    if prev == "--":
+        return True
+    if os.path.basename(prev) in RUNTIMES or os.path.basename(prev) in EXEC_RUNNER_TOKENS:
+        return True
+    if pos + 1 < len(exec_vals) and exec_vals[pos + 1] in _ANCHOR_LAUNCH_FOLLOW:
+        return True
+    return False
+
+
+def _fused_option_values(tokens: list) -> list:
+    """Yield the RHS values of fused `--opt=value` / `-o=value` option tokens, so
+    a wrapper option whose VALUE is a protected launch path / command is still
+    seen (`<wrapper> --exec=<protected-path> …`). The whole `--opt` token is
+    otherwise skipped by _anchor_exec_tokens (it starts with '-')."""
+    out = []
+    for raw in tokens:
+        st = _strip_quotes(raw)
+        if st.startswith("-") and "=" in st:
+            val = st.split("=", 1)[1]
+            if val:
+                out.append(_strip_quotes(val))
     return out
 
 
@@ -3077,21 +3150,46 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
         cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
         exec_toks = _anchor_exec_tokens(tokens)
+        exec_vals = [st for _i, st in exec_toks]
 
-        # ── W1 LAUNCH-PATH ANCHOR: a protected launch path as a bare exec token ──
-        for _i, st in exec_toks:
-            if _path_matches_cwd(st, launch_paths, cwd, cwd_det):
-                return _block("P0", "protected launch-path anchor behind a front-end")
+        # ── W1 LAUNCH-PATH ANCHOR ────────────────────────────────────────────
+        # A protected launch PATH is inherently executable (a script/bundle). It
+        # is a LAUNCH (not a data/file op) when it is in EXECUTABLE POSITION:
+        #   • the FIRST exec token (`<wrapper>? ./dist/index.mjs …`), OR
+        #   • immediately AFTER a `--` end-of-options marker, OR
+        #   • immediately AFTER a runtime (`node`/`tsx`/…) — `node <path>`, OR
+        #   • FOLLOWED by a launch subcommand (`<path> daemon start`).
+        # A protected path as a mere ARGUMENT to a copy/read/mutation head (e.g.
+        # `cp <path> /tmp`, `tar cf a.tar <path>`) is NOT a launch and must not
+        # block here (mutation of a protected hotfile is handled by P3). Also scan
+        # fused `--opt=<path>` RHS values (a wrapper option whose VALUE is a
+        # protected launch path execs it: `--exec=<path>` / `--cmd=<path>`).
+        for pos, (_i, st) in enumerate(exec_toks):
+            if _path_matches_cwd(st, launch_paths, cwd, cwd_det) and _anchor_in_launch_position(exec_vals, pos):
+                return _block("P0", "protected launch-path anchor in executable position behind a front-end")
+        for fv in _fused_option_values(tokens):
+            if _path_matches_cwd(fv, launch_paths, cwd, cwd_det):
+                return _block("P0", "protected launch-path anchor as a fused option value behind a front-end")
 
-        # ── W2 COMMAND-BASENAME ANCHOR: a protected command basename as bare token ─
-        for _i, st in exec_toks:
+        # ── W2 COMMAND-BASENAME ANCHOR ───────────────────────────────────────
+        # A protected COMMAND basename is a LAUNCH when in executable position
+        # (first exec token / after `--` / after a runtime) OR when followed by a
+        # launch subcommand (`<protected-cmd> daemon start`). A protected name as
+        # a flag VALUE or a search pattern argument (`pytest -k <name>`, `grep
+        # <name>`) is NOT a launch. Also scan fused `--opt=<protected-cmd>` RHS
+        # when a launch subcommand follows.
+        for pos, (_i, st) in enumerate(exec_toks):
             base = os.path.basename(st)
-            if base in cmds:
-                # The protected command in executable position is itself the launch
-                # (e.g. `<wrapper> <protected-cmd> <launch-subcmd>`, including a
-                # PID-1 init form `<init> -- <protected-cmd> <launch-subcmd>`).
-                # Fail closed on the protected-command anchor regardless of head.
-                return _block("P0", f"protected command anchor '{base}' behind a front-end")
+            if base in cmds and _anchor_in_launch_position(exec_vals, pos):
+                return _block("P0", f"protected command anchor '{base}' in executable position behind a front-end")
+        # fused `--opt=<protected-cmd>` whose value is a protected command and the
+        # NEXT original token is a launch subcommand (`--exec=<cmd> daemon`).
+        for ti, raw in enumerate(tokens):
+            st = _strip_quotes(raw)
+            if st.startswith("-") and "=" in st:
+                val = _strip_quotes(st.split("=", 1)[1])
+                if val and os.path.basename(val) in cmds and ti + 1 < len(tokens) and _strip_quotes(tokens[ti + 1]) in _ANCHOR_LAUNCH_FOLLOW:
+                    return _block("P0", f"protected command anchor '{os.path.basename(val)}' as a fused option value behind a front-end")
 
         # ── W3 BUILD ANCHOR: build grammar co-occurring with a protected build ──
         # A build is indicated by a build-tool basename / package-manager `build` /
@@ -3105,7 +3203,14 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         # wrapper has head != kill so _is_kill_executor misses it. Detect a kill
         # verb anywhere in the exec tokens + a protected ident/statefile in the sc.
         if idents or statefiles:
-            if any(os.path.basename(st) in KILL_VERBS for _i, st in exec_toks):
+            kill_in_tail = any(os.path.basename(st) in KILL_VERBS for _i, st in exec_toks)
+            # `fuser -k` is a kill executor too (not in KILL_VERBS). Behind a novel
+            # wrapper its head is the wrapper, so detect a fuser + -k in the tail.
+            if not kill_in_tail and any(os.path.basename(st) == "fuser" for _i, st in exec_toks):
+                if any(_strip_quotes(t) in ("-k", "--kill") or
+                       (_strip_quotes(t).startswith("-") and "k" in _strip_quotes(t).lstrip("-")) for t in tokens):
+                    kill_in_tail = True
+            if kill_in_tail:
                 sc_text = sc
                 if any(ident in sc_text for ident in idents):
                     return _block("P0", "process-kill anchor carrying a protected identifier behind a front-end")
@@ -3174,18 +3279,19 @@ def _anchor_build_hits_protected(tokens: list, exec_toks: list, cfg: dict,
     if bpaths and _any_token_under_incl_flagvalue(scan_tokens, cfg, cwd, cwd_det):
         return True
     # protected target via the effective cwd (build-mode in a protected pkg /
-    # monorepo root) — but an EXPLICIT non-protected build target (e.g.
+    # monorepo root) — but an EXPLICIT non-protected INPUT-PROJECT target (e.g.
     # `-p packages/<non-protected>/tsconfig.json`) proves the build is NOT of the
-    # protected bundle, mirroring P8's exemption so a sibling-package build under
-    # a wrapper at the repo root still ALLOWS (no over-block). Use the RAW tokens
-    # here (NOT selector-stripped: tsc's `-w` watch flag must not be folded as a
-    # workspace selector that swallows the following `-p <path>`).
-    if _explicit_nonprotected_build_target(raw_tokens, cfg, cwd, cwd_det):
+    # protected bundle, so a sibling-package build under a wrapper at the repo
+    # root still ALLOWS (no over-block). ONLY input-project flags (`-p`/`--project`
+    # /`--tsconfig`/`--config`) exempt — an OUTPUT flag (`--outdir`/`-o`) names
+    # where output goes, NOT what is built, so it must NOT exempt (codex finding).
+    if _anchor_explicit_nonprotected_input(raw_tokens, cfg, cwd, cwd_det):
         return False
     # An EXPLICIT workspace selector naming a KNOWN non-protected workspace proves
     # the build targets that workspace (not the protected bundle), so the
     # cwd-based fallback must not over-block `<wrapper> yarn workspace <non-prot>
-    # build` at the monorepo root (mirrors P8's selector handling).
+    # build` at the monorepo root. A RECURSIVE/MULTI/glob selector fans into EVERY
+    # workspace (incl. the protected one), so it does NOT exempt (codex finding).
     if _anchor_nonprotected_workspace_selector(tokens, cfg):
         return False
     if _cwd_in_protected_build_scope(cwd, cwd_det, cfg):
@@ -3195,11 +3301,57 @@ def _anchor_build_hits_protected(tokens: list, exec_toks: list, cfg: dict,
     return False
 
 
+# Build INPUT-project flags (what is built) — distinct from OUTPUT flags (where
+# output lands). Only input-project flags can prove a build is non-protected.
+_INPUT_PROJECT_FLAGS = frozenset({"-p", "--project", "--tsconfig", "-c", "--config"})
+
+
+def _anchor_explicit_nonprotected_input(tokens: list, cfg: dict,
+                                        cwd: Optional[str], cwd_det: bool) -> bool:
+    """True if an INPUT-project flag (`-p`/`--project`/`--tsconfig`/`-c`/`--config`)
+    names a target that resolves DETERMINATELY OUTSIDE every protected build path.
+    Output flags (`--outdir`/`-o`/`--outfile`) are NOT considered (an output path
+    does not prove the build INPUT is non-protected). An unresolvable relative
+    target fails CLOSED (cannot prove non-protected)."""
+    vals = []
+    i = 0
+    n = len(tokens)
+    while i < n:
+        t = _strip_quotes(tokens[i])
+        if t in _INPUT_PROJECT_FLAGS and i + 1 < n:
+            nv = _strip_quotes(tokens[i + 1])
+            if not nv.startswith("-"):
+                vals.append(nv)
+            i += 2
+            continue
+        if t.startswith("-") and "=" in t:
+            flag, val = t.split("=", 1)
+            if flag in _INPUT_PROJECT_FLAGS and val:
+                vals.append(_strip_quotes(val))
+        i += 1
+    if not vals:
+        return False
+    for v in vals:
+        for cand in _resolve_rel(v, cwd, cwd_det):
+            if _path_is_protected_build(cand, cfg):
+                return False
+        if not os.path.isabs(_strip_quotes(v)) and not (cwd and cwd_det):
+            return False  # unresolvable relative -> cannot prove non-protected
+    return True
+
+
+# Recursive / all-workspace flags that fan a build into EVERY workspace (incl.
+# the protected one) — their presence VOIDS any non-protected-selector exemption.
+_RECURSIVE_WS_FLAGS = frozenset({"-r", "--recursive"})
+
+
 def _anchor_nonprotected_workspace_selector(tokens: list, cfg: dict) -> bool:
-    """True if a workspace selector (`workspace <ws>` / `-w <ws>` / `--filter <ws>`)
-    names a workspace in the KNOWN non-protected set and NONE names a protected
-    one. Used by the build anchor to exempt an explicit non-protected workspace
-    build from the cwd-based fallback (so it is not blocked at the monorepo root).
+    """True if a workspace selector names a workspace in the KNOWN non-protected
+    set and NONE names a protected one AND no recursive/glob/multi selector is
+    present. Used by the build anchor to exempt an explicit non-protected
+    workspace build from the cwd-based fallback. A RECURSIVE (`-r`/`--recursive`),
+    GLOB (`--filter '*'` / `...`), or MULTI selector fans into EVERY workspace
+    (incl. the protected one) and therefore does NOT exempt (codex finding 5).
     """
     non_prot = set(cfg.get("non_protected_workspaces", []))
     prot = set(cfg.get("protected_build_workspaces", []))
@@ -3208,25 +3360,41 @@ def _anchor_nonprotected_workspace_selector(tokens: list, cfg: dict) -> bool:
     sel_keywords = ("workspace", "workspaces")
     sel_flags = ("-w", "--workspace", "--filter", "-F")
     found_nonprot = False
+    sel_count = 0
     for i, raw in enumerate(tokens):
         st = _strip_quotes(raw)
+        # a recursive/all-workspace flag voids the exemption (fans into protected)
+        if st in _RECURSIVE_WS_FLAGS:
+            return False
         sel = None
+        sel_raw = None
         if st in sel_keywords and i + 1 < len(tokens):
-            sel = os.path.basename(_strip_quotes(tokens[i + 1]).rstrip("/"))
+            sel_raw = _strip_quotes(tokens[i + 1])
         elif st in sel_flags and i + 1 < len(tokens):
-            sel = os.path.basename(_strip_quotes(tokens[i + 1]).rstrip("/"))
+            sel_raw = _strip_quotes(tokens[i + 1])
         else:
             for f in sel_flags:
                 if st.startswith(f + "="):
-                    sel = os.path.basename(st.split("=", 1)[1].rstrip("/"))
+                    sel_raw = _strip_quotes(st.split("=", 1)[1])
                     break
-        if sel is None:
+        if sel_raw is None:
             continue
+        sel_count += 1
+        # a glob / wildcard selector fans broadly -> not a determinate single ws
+        if any(ch in sel_raw for ch in ("*", "?", "{", "}", "...")):
+            return False
+        sel = os.path.basename(sel_raw.rstrip("/"))
         if sel in prot:
             return False  # an explicit protected selector → not exempt
         if sel in non_prot:
             found_nonprot = True
-    return found_nonprot
+        elif sel:
+            # an UNKNOWN selector (neither protected nor known-non-protected)
+            # cannot be proven non-protected -> do not exempt (fail closed).
+            return False
+    # exactly one determinate non-protected selector -> exempt; multiple selectors
+    # (potentially fanning into protected) -> do NOT exempt.
+    return found_nonprot and sel_count == 1
 
 
 # ── Top-level evaluate ───────────────────────────────────────────────────────
