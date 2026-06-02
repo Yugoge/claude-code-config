@@ -1178,7 +1178,7 @@ jq -s '.[0] * {
   > docs/dev/context-iter<N>-<timestamp>.json
 ```
 
-**Return to Step 8** with new context JSON
+**Return to Step 10** with new context JSON
 
 **Iteration tracking**: Update TodoWrite with iteration number
 
