@@ -888,7 +888,7 @@ when only one dev was dispatched, that dev writes
 additional aggregate (that would clobber). The aggregate rule applies ONLY
 when N>1 parallel devs were dispatched.
 
-### Step 10: Validate Dev Implementation
+### Step 12: Validate Dev Implementation
 
 **Quick validation before QA**:
 
