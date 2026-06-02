@@ -113,9 +113,11 @@ After the capture precondition has run, branch on the turn's requirement/closure
   `N` increments from 2 (the first requirement populates Section 5; subsequent requirements become 5.2, 5.3, …). The capture precondition already ran the Design & Evidence Capture Routine for this turn's design/evidence; do NOT run it again here. Then loop back to wait.
 - **Design/evidence-only follow-up** (the turn supplies design/HOW-content or evidence but
   carries no new requirement text and is not a conclusion signal) → the capture precondition
-  has already persisted that material via Step 4b; append to Section 5 ONLY if the turn also
-  carries requirement text (it does not, by definition of this branch). Then loop back to
-  wait. This turn shape is now fully captured — it can never fall through uncaptured.
+  has already persisted that material via the Design & Evidence Capture Routine. Because this
+  turn carries NO new requirement text, do NOT append a `### 5.N` block and do NOT touch
+  Section 5 at all — the design/evidence is already persisted to Section 9 + companion files,
+  so there is nothing left to record. Simply loop back to wait. This turn shape is now fully
+  captured — it can never fall through uncaptured.
 - **Exploration findings arrive** → integrate into Section 1 (Before) silently. If a finding contradicts the user's description, surface one targeted question — for example, "I looked at X and found Y — does that match?" — then loop back. Never gate the loop on exploration.
 - **Mid-loop vague input** → apply Step 2 logic (max 3 rounds) to that single message before appending, then loop back. (The capture precondition already handled any design/evidence in the triggering turn.) Each clarification RESPONSE collected by Step 2 is itself a fresh Step 4 user turn: run the capture precondition (Step 4b) on it FIRST, before re-evaluating Step 2 / appending — do NOT process a clarification answer in a bypass path that skips capture, or design/evidence supplied in a clarification reply would be dropped.
 
