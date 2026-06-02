@@ -198,7 +198,7 @@ source "${CLAUDE_PROJECT_DIR}/venv/bin/activate" && python3 "$CLAUDE_PROJECT_DIR
 
 If `--no-graphify` was passed in `$ARGUMENTS`, add `--no-graphify` to the `graphify-query.py` Bash call above and skip the `ensure-async` call entirely.
 
-### Step 2: Specialist Consultation (always evaluate, never silently skip)
+### Step 3: Specialist Consultation (always evaluate, never silently skip)
 
 Before touching any specialist, you MUST evaluate each one's relevance to the issue and document the decision. Silently skipping is forbidden — skipping without assessment is itself a workflow violation.
 
