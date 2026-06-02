@@ -238,9 +238,10 @@ Only proceed to Step 6 when a STRONG signal fires.
 0. **Section-9 dangling-reference guard (PRE-split, M11)**: Before counting lines or
    invoking the splitter, parse every `docs/dev/specs/<de-prefixed-id>/design/...` and
    `docs/dev/specs/<de-prefixed-id>/evidence/...` reference path listed under Section 9
-   and assert each exists on disk under the bound per-id folder. `(inline)` and
-   `(unpersisted)` limitation lines are intentionally NOT real paths — skip them (they are
-   already visible records, not dangling file references). If any real reference path is
+   and assert each exists on disk under the bound per-id folder. `(inline)`,
+   `(unpersisted)`, and `(unpersisted design)` limitation lines are intentionally NOT real
+   paths — skip them by their leading `(...)` prefix BEFORE any path-regex extraction (they
+   are already visible records, not dangling file references). If any real reference path is
    missing, finalize HALTS with a visible error naming the dangling path, OR the
    orchestrator converts that reference into a visible `(unpersisted)` limitation line
    carrying the original path — the dangling reference is NEVER silently accepted. This
