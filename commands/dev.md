@@ -685,7 +685,7 @@ Use Agent tool with:
   "
 ```
 
-**After BA re-delivers**: Return to Step 5 (validate BA output), then Step 6 (QA re-validates).
+**After BA re-delivers**: Return to Step 6 (validate BA output), then Step 7 (QA re-validates).
 
 **Rule**: Every BA invocation MUST be followed by QA validation. No exceptions.
 
