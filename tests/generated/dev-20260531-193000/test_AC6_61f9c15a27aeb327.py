@@ -56,8 +56,14 @@ def test_AC6():
         "Step 11g precondition must mark Step 11g in_progress before the graphify Agent call"
 
     # --- all THREE Dev-dispatch sites route through the precondition (B2-INV) ---
+    # Each window ends at the next ### section heading so the whole site is covered
+    # regardless of intervening prose length.
+    def _section(start_marker):
+        i = md.index(start_marker)
+        nxt = md.find("\n### ", i + len(start_marker))
+        return md[i:nxt if nxt != -1 else len(md)]
     for site in ("### Step 12: Run All Dev Subagents", "### Step 13: Validate All Dev", "### Step 17: Per-Pipeline Iteration"):
-        seg = md[md.index(site):md.index(site) + 2500]
+        seg = _section(site)
         assert "Step 11g" in seg, f"Dev-dispatch site '{site}' must route through the Step 11g precondition"
 
     # --- B11 continuation prose: implementing resume enriches before Dev + artifact-derived eligibility ---
