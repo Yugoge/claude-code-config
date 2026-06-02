@@ -530,7 +530,7 @@ The patch MUST run after BA validation passes but BEFORE QA (Step 7) is dispatch
 
 **If validation passes**: Apply the spec_path patch above, then proceed to Step 7
 
-### Step 6: QA Validates BA Conclusions
+### Step 7: QA Validates BA Conclusions
 
 **Purpose**: Verify BA's analysis quality BEFORE Dev starts implementation. Catches unproven claims, scope mismatches, and missing investigation evidence early -- saving a wasted Dev+QA cycle.
 
