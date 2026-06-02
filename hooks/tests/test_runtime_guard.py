@@ -1427,5 +1427,162 @@ class TestCycle4WrapperAgnosticFrontends:
             assert r.returncode == BLOCK, f"live hook did not block: {cmd} (rc={r.returncode})"
 
 
+class TestCycle5AnchorBasedHeadAgnostic:
+    """Cycle 5 (QA-20260531-162901 iter4 §7): the launch/build/kill detection must
+    be ANCHOR-BASED and HEAD-AGNOSTIC — it must NOT depend on a finite enumeration
+    of wrapper/front-end names. The detector scans the WHOLE argv of each simple
+    command for a protected anchor (a protected_cmds basename, a protected launch
+    path, a protected build path/workspace, a protected proc-ident) in executable
+    position + launch/build/kill grammar, gated only by a small read/inspect/edit
+    ALLOWLIST on the head. The proof of non-enumeration is the W5 sweep: front-end
+    program names that appear NOWHERE in the engine source still BLOCK.
+    """
+
+    # Front-end program names that are GENUINELY ABSENT from the engine source
+    # (verified by test_frontends_absent_from_engine below). The leak must close
+    # WITHOUT any of these being added to a wrapper table.
+    UNDOC_FRONTENDS = [
+        "numactl -N 0", "tini --", "dumb-init", "ssh-agent", "catchsegv",
+        "torsocks",
+        # W5: invented/novel front-ends that appear nowhere in the engine source.
+        "quxwrap", "frobnicate", "zzwrapper", "mywrap42", "launchy", "runitall",
+        "blorp", "wrapzilla", "spinup99", "thingrunner",
+    ]
+
+    # ── W1 + W2: LAUNCH-PATH and COMMAND-BASENAME anchors behind any front-end ──
+    @pytest.mark.parametrize("fe", UNDOC_FRONTENDS)
+    def test_w1_launch_path_anchor(self, fe, datafile, fixture_repo):
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        assert ev(f"{fe} node {p} daemon start", datafile, fixture_repo) == "BLOCK"
+
+    @pytest.mark.parametrize("fe", UNDOC_FRONTENDS)
+    def test_w2_command_basename_anchor(self, fe, datafile, fixture_repo):
+        assert ev(f"{fe} happy daemon start", datafile, fixture_repo) == "BLOCK"
+
+    # ── W3: BUILD anchor behind any front-end ────────────────────────────────
+    def test_w3_build_anchor(self, datafile, fixture_repo):
+        assert ev("numactl npx tsc -p packages/happy-cli/tsconfig.json", datafile, fixture_repo) == "BLOCK"
+        assert ev("tini -- yarn workspace happy build", datafile, fixture_repo) == "BLOCK"
+        assert ev("dumb-init yarn workspace happy-coder build", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"thingrunner npx tsc -p {fixture_repo}/packages/happy-cli/tsconfig.json", datafile, fixture_repo) == "BLOCK"
+
+    # ── W4: KILL anchor behind any front-end ─────────────────────────────────
+    def test_w4_kill_anchor(self, datafile, fixture_repo):
+        ident = "packages/happy-cli/dist/index.mjs"
+        assert ev(f"numactl -N 0 kill -9 $(pgrep -f {ident})", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"tini -- pkill -f {ident}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"ssh-agent killall -9 {ident}", datafile, fixture_repo) == "BLOCK"
+        # statefile-reaching kill behind a novel wrapper
+        assert ev("numactl kill $(jq .pid /root/.happy-dev/daemon.state.json)", datafile, fixture_repo) == "BLOCK"
+
+    # ── W5: stacked documented + undocumented front-ends ─────────────────────
+    def test_w5_stacked_frontends(self, datafile, fixture_repo):
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        assert ev("flock /tmp/l numactl happy daemon start", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"strace -f numactl node {p} daemon start", datafile, fixture_repo) == "BLOCK"
+        assert ev("numactl flock /tmp/l happy daemon start", datafile, fixture_repo) == "BLOCK"
+
+    def test_w5_frontends_absent_from_engine(self):
+        # PROOF the detection is NOT enumeration-based: these front-end names do
+        # NOT appear anywhere in the engine source, yet they all BLOCK above.
+        engine = os.path.join(HOOKS_DIR, "lib", "runtime_guard.py")
+        src = open(engine, encoding="utf-8").read()
+        for name in ("numactl", "tini", "dumb-init", "dumb_init", "ssh-agent",
+                     "ssh_agent", "catchsegv", "torsocks", "quxwrap",
+                     "frobnicate", "zzwrapper", "mywrap42", "launchy",
+                     "runitall", "blorp", "wrapzilla", "spinup99", "thingrunner"):
+            assert name not in src, f"engine must not enumerate front-end '{name}'"
+
+    # ── W6: NO OVER-BLOCK — read/inspect/edit of protected path ALLOWS; a ────
+    #        front-end around a NON-protected command ALLOWS; data forms ALLOW. ─
+    def test_w6_inspection_heads_allow(self, datafile, fixture_repo):
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        # read/inspect/edit of a protected path (head in allowlist) ALLOWS
+        assert ev(f"cat {p}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"less {p}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"head -n5 {p}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"vim {p}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"grep daemon {p}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"wc -l {p}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"stat {p}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"lsof {p}", datafile, fixture_repo) == "ALLOW"
+        # data forms: the protected string is an ARGUMENT, not an execution
+        assert ev("echo happy daemon start", datafile, fixture_repo) == "ALLOW"
+        assert ev("grep happy-daemon-start file", datafile, fixture_repo) == "ALLOW"
+        assert ev("printf 'numactl happy daemon start'", datafile, fixture_repo) == "ALLOW"
+
+    @pytest.mark.parametrize("fe", UNDOC_FRONTENDS)
+    def test_w6_frontend_nonprotected_tail_allows(self, fe, datafile, fixture_repo):
+        # a novel front-end around a NON-protected command ALLOWS
+        assert ev(f"{fe} ls -la", datafile, fixture_repo) == "ALLOW"
+
+    def test_w6_nonprotected_build_behind_frontend_allows(self, datafile, fixture_repo):
+        # an explicit non-protected workspace / path build behind a novel wrapper
+        # must ALLOW even at the monorepo root (residual #1 / sibling builds).
+        assert ev_cwd("numactl -N 0 yarn workspace happy-server build", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd("tini -- yarn workspace happy-app build", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd("numactl npx tsc -p packages/happy-server/tsconfig.json", datafile, fixture_repo) == "ALLOW"
+
+    def test_w6_residual_unknown_wrapper_no_protected_anchor_allows(self, datafile, fixture_repo):
+        # the documented exotic RESIDUAL: a form that names NO protected anchor
+        # (no protected path, no protected command, no protected cwd) ALLOWS.
+        assert ev("numactl -N 0 node /opt/other/app.mjs run", datafile, fixture_repo) == "ALLOW"
+        assert ev("tini -- /usr/local/bin/somedaemon start", datafile, fixture_repo) == "ALLOW"
+
+    # ── fail-closed (absent config): generic danger families behind a novel ──
+    #     wrapper must BLOCK; benign reads ALLOW. The leak must not survive. ───
+    def test_w_failclosed_tail_scan(self, datafile, fixture_repo, tmp_path_factory):
+        absent = str(tmp_path_factory.mktemp("nocfg5") / "absent.json")
+        assert ev("numactl npx tsc -p packages/happy-cli/tsconfig.json", absent, fixture_repo) == "BLOCK"
+        assert ev("tini -- yarn workspace happy build", absent, fixture_repo) == "BLOCK"
+        assert ev("ssh-agent kill -9 1", absent, fixture_repo) == "BLOCK"
+        assert ev("numactl yarn build", absent, fixture_repo) == "BLOCK"
+        assert ev("dumb-init node /some/index.mjs", absent, fixture_repo) == "BLOCK"
+        # benign reads behind a novel wrapper still ALLOW under absent config
+        assert ev("numactl ls", absent, fixture_repo) == "ALLOW"
+        assert ev("tini -- cat foo", absent, fixture_repo) == "ALLOW"
+        assert ev("ssh-agent grep x file", absent, fixture_repo) == "ALLOW"
+
+    # ── live-hook proof (exit 2) for the undocumented-wrapper leak class ─────
+    def test_w_undoc_wrapper_live_hook_block(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
+        cmds = [
+            "numactl -N 0 happy daemon start",
+            "tini -- happy daemon start",
+            "dumb-init happy daemon start",
+            "ssh-agent happy daemon start",
+            "catchsegv happy daemon start",
+            "torsocks happy daemon start",
+            f"numactl -N 0 node {p} daemon start",
+            "numactl npx tsc -p packages/happy-cli/tsconfig.json",
+            "tini -- yarn workspace happy build",
+            "flock /tmp/l numactl happy daemon start",
+            "wrapzilla -- happy daemon start",
+        ]
+        for cmd in cmds:
+            payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd, "cwd": fixture_repo}, "agent_id": "dev-test"})
+            r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r.returncode == BLOCK, f"live hook did not block: {cmd} (rc={r.returncode})"
+
+    def test_w_undoc_wrapper_live_hook_allow(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        cmds = [
+            "numactl ls",
+            "tini -- ls",
+            "ssh-agent grep x file",
+            "numactl -N 0 yarn workspace happy-server build",
+            "echo happy daemon start",
+        ]
+        for cmd in cmds:
+            payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd, "cwd": fixture_repo}, "agent_id": "dev-test"})
+            r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r.returncode == ALLOW, f"live hook over-blocked: {cmd} (rc={r.returncode})"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
