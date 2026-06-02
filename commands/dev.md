@@ -186,7 +186,7 @@ source "${CLAUDE_PROJECT_DIR}/venv/bin/activate" && python3 "$CLAUDE_PROJECT_DIR
   --requirement-file "$REQUIREMENT_DOC"
 ```
 
-Output is written to `.claude/dev-registry/$DEV_SESSION_ID/graphify/pre_query.json`. When this file exists with `status=ok` or `status=degraded`, include it in the BA dispatch prompt (Step 3) as `Pre-query context file: .claude/dev-registry/$DEV_SESSION_ID/graphify/pre_query.json` so BA sees repo structure BEFORE forming its initial interpretation. When `status=unavailable` or `status=skipped`, omit the pre-query context from the BA prompt — BA runs its original flow unchanged.
+Output is written to `.claude/dev-registry/$DEV_SESSION_ID/graphify/pre_query.json`. When this file exists with `status=ok` or `status=degraded`, include it in the BA dispatch prompt (Step 4) as `Pre-query context file: .claude/dev-registry/$DEV_SESSION_ID/graphify/pre_query.json` so BA sees repo structure BEFORE forming its initial interpretation. When `status=unavailable` or `status=skipped`, omit the pre-query context from the BA prompt — BA runs its original flow unchanged.
 
 After the query above (still between Step 1 and Step 2), fire a second advisory, non-blocking Bash call that auto-initializes the graph for the NEXT run when no cached graph exists yet. This call returns immediately and never stalls `/dev`: it launches a detached background full build (when needed) and exits at once, so this run proceeds with whatever the query already returned — the freshly-built graph only becomes available on a subsequent `/dev` run. This preserves the R-7 spirit (the pipeline never blocks on a graph build).
 
