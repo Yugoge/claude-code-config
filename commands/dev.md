@@ -261,7 +261,7 @@ Use Agent tool with:
   "
 ```
 
-Pass all specialist findings (and the full `specialists_assessed` block) to the BA subagent in Step 3 as additional context.
+Pass all specialist findings (and the full `specialists_assessed` block) to the BA subagent in Step 4 as additional context.
 
 ## Four Contracts Awareness (Orchestrator Role)
 
