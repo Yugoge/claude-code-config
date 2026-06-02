@@ -626,7 +626,7 @@ ELIF verdict == "fail":
   -> Proceed to Step 8 for BA-QA iteration.
 ```
 
-### Step 7: BA-QA Iteration Loop (if QA rejects BA)
+### Step 8: BA-QA Iteration Loop (if QA rejects BA)
 
 **Iteration guard**: Maximum 3 BA-QA iterations to prevent infinite loops
 
