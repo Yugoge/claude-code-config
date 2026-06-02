@@ -495,7 +495,7 @@ Usage:
 - **Preserve template structure exactly** — only replace designated placeholders and `_Not yet populated._` markers.
 - **Do not modify any existing files** except the spec file being created — with ONE
   scoped carve-out for design/evidence capture (M9): at design/evidence capture time
-  (Step 4b) `/spec` MAY create/write ONLY
+  (the Design & Evidence Capture Routine) `/spec` MAY create/write ONLY
   `docs/dev/specs/<de-prefixed-id>/.spec-binding.json`,
   `docs/dev/specs/<de-prefixed-id>/design/*`, and
   `docs/dev/specs/<de-prefixed-id>/evidence/*`. It MUST NOT write `views/`,
