@@ -522,7 +522,7 @@ The four positive conditions all reduce to the single check `current != new_spec
 | d | `"spec_path": "wrong.md"` (different) | `spec_path == "<orchestrator-resolved>"` |
 | e | (orchestrator-resolved is null) | `spec_path` remains absent or null (no invention) |
 
-The patch MUST run after BA validation passes but BEFORE QA (Step 6) is dispatched — QA reads `context-<timestamp>.json` and must see the patched value.
+The patch MUST run after BA validation passes but BEFORE QA (Step 7) is dispatched — QA reads `context-<timestamp>.json` and must see the patched value.
 
 **If validation fails**:
 - Re-invoke BA with specific feedback about what's missing
