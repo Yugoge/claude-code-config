@@ -806,7 +806,7 @@ Use Task tool with:
 
 **Wait for dev subagent completion** before proceeding.
 
-### Step 9: Write Canonical Aggregate Dev-Report (Parallel-Dev Only)
+### Step 11: Write Canonical Aggregate Dev-Report (Parallel-Dev Only)
 
 **Applies ONLY when N>1 parallel dev subagents were dispatched in Step 8.** Single-dev cycles SKIP this step entirely (the lone dev subagent writes `dev-report-<task-id>.json` directly).
 

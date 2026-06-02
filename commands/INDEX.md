@@ -1,6 +1,6 @@
 # commands
 
-*Last updated: 2026-06-02T09:08:25Z*
+*Last updated: 2026-06-02T09:08:29Z*
 **Total entries**: 35
 **Convention**: kebab
 
