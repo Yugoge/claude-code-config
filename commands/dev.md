@@ -691,11 +691,13 @@ Use Agent tool with:
 
 **Iteration tracking**: Update TodoWrite with BA-QA iteration number.
 
-**Graphify enrichment** (between Step 7 and Step 8):
+### Step 9: Graphify enrichment
 
-After BA-QA validation passes, check whether the graphify sentinel file exists before dispatching the graphify subagent. This is advisory — if the sentinel is absent (graphify binary not installed) or graphify returns status=skipped, proceed to Step 8 without delay.
+> **Cross-file label note**: The agent-file and integration-doc interstitial labels (e.g. "between Step 7 and Step 8" in `agents/graphify.md`, `agents/dev.md`, and `docs/reference/graphify-integration.md`) are the **cross-file canonical position-label** for this enrichment touchpoint and are intentionally NOT renumbered to match this command's `### Step 9` heading; the apparent mismatch is expected, so future readers should not "fix" it.
 
-Before dispatching graphify, check whether the sentinel file exists at `$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/graphify.json`. If absent for any reason, do not dispatch; record `graphify_status=skipped/sentinel_absent`; do not read `graph-summary.json`; proceed to Step 8. If present, dispatch graphify, then record the resulting status from `graph-summary.json` when available.
+After BA-QA validation passes, check whether the graphify sentinel file exists before dispatching the graphify subagent. This is advisory — if the sentinel is absent (graphify binary not installed) or graphify returns status=skipped, proceed to Step 10 without delay.
+
+Before dispatching graphify, check whether the sentinel file exists at `$CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/graphify.json`. If absent for any reason, do not dispatch; record `graphify_status=skipped/sentinel_absent`; do not read `graph-summary.json`; proceed to Step 10. If present, dispatch graphify, then record the resulting status from `graph-summary.json` when available.
 
 If the sentinel file is present, dispatch the graphify subagent:
 
