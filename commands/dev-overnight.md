@@ -1581,7 +1581,7 @@ If validation fails, log warning and proceed (retro is informational, not blocki
 
 **If time remains** (normal loop case):
 Simply mark this step as completed via TodoWrite. The PostToolUse:TodoWrite hook (`posttool-overnight-loop.py`) will:
-1. Detect all 21 steps are completed
+1. Detect all todo steps are completed (every todo's status, including Step 11g)
 2. Check overnight-state.json for future end_time
 3. Reset all todos to pending
 4. Print loop continuation instructions
