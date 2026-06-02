@@ -1511,21 +1511,21 @@ if __name__ == "__main__":
 **Step 1**: Parse requirement
 - Requirement: "Fix timeout in API"
 
-**Step 2**: Consult specialists (optional)
+**Step 3**: Consult specialists (optional)
 - No specialists needed for this requirement → skip
 
-**Step 3**: Delegate to BA subagent
+**Step 4**: Delegate to BA subagent
 - BA returns `needs_clarification` with questions
 
-**Step 4**: BA clarification loop
+**Step 5**: BA clarification loop
 - Round 1: Which API? → POST /api/data, timeout 5s, need 95% completion
 - Round 2: BA has enough clarity → returns `ready`
 - BA creates: `ba-spec-20251226-114500.md` + `context-20251226-114500.json`
 
-**Step 5**: Validate BA output
+**Step 6**: Validate BA output
 - Both files exist with required sections
 
-**Step 8**: Dev subagent
+**Step 10**: Dev subagent
 - Created: `scripts/measure-api-latency.sh`
 - Created: `scripts/validate-api-timeout.sh`
 - Modified: `config/api.json`
