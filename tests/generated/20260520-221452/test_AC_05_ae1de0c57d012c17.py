@@ -34,11 +34,11 @@ def test_AC_05():
     assert DEV_MD.is_file(), f"missing: {DEV_MD}"
     src = DEV_MD.read_text(encoding="utf-8")
 
-    step11 = _slice(src, r"^### Step 13:", r"^### Step 14:")
-    assert "tests/generated/<task_id>/manifest.json" in step11, (
+    step13 = _slice(src, r"^### Step 13:", r"^### Step 14:")
+    assert "tests/generated/<task_id>/manifest.json" in step13, (
         "commands/dev.md Step 13 missing per-task manifest path"
     )
-    bad = re.search(r"tests/generated/manifest\.json(?!\s*\((?:index|global))", step11)
+    bad = re.search(r"tests/generated/manifest\.json(?!\s*\((?:index|global))", step13)
     assert bad is None, (
         f"commands/dev.md Step 13 has unqualified global manifest reference: {bad.group(0)!r}"
     )
