@@ -137,6 +137,53 @@ BARE_BUILD_SCRIPT_TOKENS = frozenset({
 })
 DEP_SHORTHAND_NPM = frozenset({"start", "stop", "restart", "test"})
 
+# ── Read / inspection / edit ALLOWLIST (the ONLY fixed head list) ────────────
+# The anchor primitive (_p0_anchor) is HEAD-AGNOSTIC: it does NOT decide based on
+# the leading program / wrapper name. The single fixed list it consults is this
+# small, stable set of read / search / listing / stat / diff / pager / text-editor
+# operations. A simple command whose HEAD basename is in this set is treated as a
+# data/inspection command — its arguments are DATA (a protected path/command named
+# as a grep pattern, an echo argument, a cat target, a diff operand) and the anchor
+# scan is skipped for it (so read/inspect/edit of a protected path still ALLOWS).
+# Any head OUTSIDE this set is a potential exec front-end / wrapper / launcher, so
+# its WHOLE argv is scanned for a protected anchor in executable position. This is
+# a denylist-free design: novel wrappers (numactl/tini/dumb-init/ssh-agent/…) are
+# never enumerated — they simply are NOT in the read/inspect allowlist, so their
+# trailing protected launch/build/kill is analyzed.
+READ_INSPECT_EDIT_ALLOWLIST = frozenset({
+    # file reading / dumping / paging
+    "cat", "bat", "less", "more", "head", "tail", "tac", "nl", "zcat", "zless",
+    "xxd", "od", "hexdump", "strings", "view",
+    # search
+    "grep", "egrep", "fgrep", "rg", "ag", "ack", "ripgrep",
+    # listing / stat / metadata
+    "ls", "ll", "dir", "tree", "stat", "file", "wc", "du", "df", "readlink",
+    "realpath", "basename", "dirname", "pwd", "find", "fd", "locate",
+    "namei", "lsattr", "getfattr",
+    # diff / compare
+    "diff", "colordiff", "cmp", "comm", "sdiff", "delta", "difft",
+    # text transform / print (DATA emitters — never an exec launcher)
+    "echo", "printf", "print", "yes", "seq", "cut", "sort", "uniq", "tr",
+    "rev", "fold", "fmt", "column", "paste", "join", "expand", "unexpand",
+    "jq", "yq", "awk", "gawk", "sed",
+    # text editors (open a file for editing; not a launcher of the protected cmd)
+    "vi", "vim", "nvim", "nano", "emacs", "ed", "code", "subl", "micro", "pico",
+    # checksum / encode (read-only over file contents)
+    "md5sum", "sha1sum", "sha256sum", "sha512sum", "cksum", "b2sum",
+    "base64", "base32", "xargs0",
+    # git read/inspection subset (the head is git; the verb is checked separately
+    # below — git is intentionally NOT blanket-allowlisted because `git` can also
+    # be a benign VCS op; handled by _git_is_readonly).
+})
+
+# git subcommands that are read-only / inspection (when head == 'git'). A git
+# command with one of these verbs is treated as inspection (anchor scan skipped).
+_GIT_READONLY_SUBCMDS = frozenset({
+    "status", "log", "show", "diff", "blame", "ls-tree", "ls-files", "cat-file",
+    "rev-parse", "describe", "branch", "tag", "remote", "config", "shortlog",
+    "reflog", "grep", "whatchanged", "annotate", "for-each-ref", "rev-list",
+})
+
 
 # ── Generic exec-front-end profiles (recursive execution-tail) ───────────────
 # A documented pass-through exec front-end is a wrapper that, after consuming its
