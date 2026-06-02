@@ -50,9 +50,9 @@ def test_AC_11():
     )
 
     # (b) within Step 14 scope, look for cross-reference 'spec section updates'
-    step12 = _slice(text, r"^### Step 14:", r"^### Step 15:")
-    assert step12, "Step 14 section not found in commands/dev.md"
-    assert re.search(r"spec section updates", step12), (
+    step14 = _slice(text, r"^### Step 14:", r"^### Step 15:")
+    assert step14, "Step 14 section not found in commands/dev.md"
+    assert re.search(r"spec section updates", step14), (
         "Step 14 missing required cross-reference 'spec section updates'"
     )
 
