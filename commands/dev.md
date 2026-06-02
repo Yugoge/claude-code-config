@@ -1537,10 +1537,10 @@ if __name__ == "__main__":
 - Status: PASS
 - Saved report: `docs/dev/qa-report-20251226-114500.json`
 
-**Step 12**: Process results
+**Step 14**: Process results
 - QA passed → proceed to completion
 
-**Step 15**: Completion report
+**Step 17**: Completion report
 - Generated: `docs/dev/completion-20251226-114500.md`
 - Presented summary to user
 
