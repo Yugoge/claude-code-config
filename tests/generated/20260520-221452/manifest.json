@@ -422,7 +422,7 @@
             "description": "FILE-WIDE: no decimal Sub-step N.N label remains anywhere (generalized guard so a bad Sub-step 14.0 cannot slip through)"
           },
           {
-            "_check_id": "AC-11.step12_xref_scoped",
+            "_check_id": "AC-11.step14_xref_scoped",
             "file": "commands/dev.md",
             "scope": {
               "start_regex": "^### Step 14:",
