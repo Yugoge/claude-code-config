@@ -475,7 +475,7 @@ The orchestrator-resolved `spec_path` is the value derived from either the expli
 Apply this patch logic verbatim (AC-01 four-condition matrix + negative case):
 
 ```bash
-# Step 5 spec_path patch — task 20260526-053746 AC-01 (5-row fixture matrix)
+# Step 6 spec_path patch — task 20260526-053746 AC-01 (5-row fixture matrix)
 # Overwrites context.json.spec_path when orchestrator-resolved value is non-null
 # AND the current context.spec_path is absent / null / empty / different.
 # Negative case: when orchestrator-resolved spec_path == null, do NOT invent a value
