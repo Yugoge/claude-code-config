@@ -285,14 +285,19 @@ Only proceed to Step 6 when a STRONG signal fires.
         - qa: Has acceptance criteria, verification procedures, test patterns?
         Flag any view that is missing critical content that would force the agent
         to fall back to the monolith (defeating the purpose of the split).
-     6. SECTION 9 (DESIGN & EVIDENCE REFERENCES): If the monolith's Section 9 is
-        populated (any design/evidence reference line beyond the placeholder), verify
-        that every Section-9 reference line — AND its `<!-- consumers: [all] -->`
-        annotation line(s) — appears verbatim in orchestrator.md and in the selected
-        relevant views; that companion design body files and evidence binaries are NOT
-        inlined into any view; and that each referenced design/ or evidence/ artifact
-        path exists under docs/dev/specs/<spec-id>/. Flag any Section-9 reference line
-        that was dropped from the views (a coverage break the routing alone would miss).
+     6. SECTION 9 (DESIGN & EVIDENCE REFERENCES): If the monolith has a Section 9 at all,
+        verify that EVERY non-blank, non-`---` line of Section 9 — the
+        `## Section 9: Design & Evidence References` heading, every explanatory
+        `<!-- WHO/WHAT ... -->` comment, the `### 9.1` / `### 9.2` subsection headings,
+        each `<!-- consumers: [all] -->` annotation line, every design/evidence reference
+        line, AND the `_Not yet populated._` placeholders — appears verbatim in
+        orchestrator.md and in the selected relevant views (each of those lines counts
+        toward coverage because `spec-verify.py`'s `is_skippable` skips only blank/`---`);
+        that companion design body files and evidence binaries are NOT inlined into any
+        view; and that each referenced design/ or evidence/ artifact path exists under
+        docs/dev/specs/<spec-id>/. Flag any Section-9 line — heading, comment, subheading,
+        annotation, or reference — that was dropped from the views (a coverage break the
+        routing alone would miss).
 
      Return JSON: {verdict: pass|fail, issues: [...], summary: '...'}
      "
