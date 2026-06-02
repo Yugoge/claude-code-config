@@ -140,7 +140,10 @@ are first-class material and MUST NOT be silently dropped (M3-M5, M12).
    - **Ambiguous path input** (a file path the user neither clearly frames as design nor
      as evidence) → default to **evidence/** with visible Section-9 wording noting the
      ambiguous classification (M14).
-   - If neither is present this turn, do nothing and return to the loop.
+   - If neither is present this turn, do nothing and return control to the caller.
+     When invoked from the Step 4 capture precondition (or Step 3 sub-step 4a), this is a
+     no-op that hands control straight back so the SAME turn's branch evaluation (append /
+     finalize / clarify) still runs — it does NOT skip to waiting for the next turn.
 
 2. **Resolve the de-prefixed id and bind the per-id folder (first material only).** Obtain
    the per-id folder id by consuming the resolver's `candidates[0]` (the de-prefixed stem,

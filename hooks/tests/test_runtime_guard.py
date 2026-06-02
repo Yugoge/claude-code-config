@@ -1626,6 +1626,33 @@ class TestCycle5CodexAdversarial:
         assert ev("find . -name '*.js'", absent, fixture_repo) == "ALLOW"
         assert ev("fuser 1234", absent, fixture_repo) == "ALLOW"
 
+    def test_failclosed_fuser_kill_behind_wrapper(self, datafile, fixture_repo, tmp_path_factory):
+        # Cycle-6 regression: in FAIL-CLOSED mode (config absent/corrupt) the kill
+        # FAMILY is generic and config-independent, so `<wrapper> fuser -k <ident>`
+        # must BLOCK exactly like bare/kill/pkill/killall — the head=='fuser' gate
+        # let it leak behind any wrapper (the daemon-kill catastrophe).
+        absent = str(tmp_path_factory.mktemp("nocfg_failclosed_fuser") / "absent.json")
+        ident = "packages/happy-cli/dist/index.mjs"
+        # the leak the fix closes: wrapped fuser -k under absent config -> BLOCK
+        for wrapper in ("numactl", "tini", "dumb-init", "quxwrap", "frobnicate"):
+            assert ev(f"{wrapper} fuser -k {ident}", absent, fixture_repo) == "BLOCK", wrapper
+        # bare-vs-wrapped symmetry: bare fuser -k must ALSO block fail-closed
+        assert ev(f"fuser -k {ident}", absent, fixture_repo) == "BLOCK"
+        assert ev("fuser -k 1234", absent, fixture_repo) == "BLOCK"
+        # fused short flag containing k (e.g. -ki) behind a wrapper still blocks
+        assert ev(f"numactl fuser -ki {ident}", absent, fixture_repo) == "BLOCK"
+        # sibling exec-position forms the same tail predicate closes
+        assert ev(f"xargs fuser -k {ident}", absent, fixture_repo) == "BLOCK"
+        assert ev("find . -exec fuser -k {} ;", absent, fixture_repo) == "BLOCK"
+        # other kill verbs (bare AND wrapped) still block fail-closed (unchanged)
+        assert ev("pkill -f happy", absent, fixture_repo) == "BLOCK"
+        assert ev("numactl pkill -f happy", absent, fixture_repo) == "BLOCK"
+        assert ev("kill -9 1234", absent, fixture_repo) == "BLOCK"
+        # benign read-only fuser (no -k, no kill) under absent config still ALLOWs
+        assert ev(f"fuser {ident}", absent, fixture_repo) == "ALLOW"
+        assert ev(f"numactl fuser {ident}", absent, fixture_repo) == "ALLOW"
+        assert ev("fuser 1234", absent, fixture_repo) == "ALLOW"
+
     def test_codex4_output_flag_does_not_exempt_protected_build(self, datafile, fixture_repo):
         # F4: an OUTPUT flag (--outdir/-o) does NOT prove a non-protected build;
         # build-mode at the protected root with only an output flag still BLOCKS.

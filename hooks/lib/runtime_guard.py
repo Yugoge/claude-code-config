@@ -1258,10 +1258,14 @@ def _step1_indeterminate(simple_cmds: list) -> Verdict:
             exec_bases = [os.path.basename(_strip_quotes(t)) for _i, t in _anchor_exec_tokens(tokens)]
             if any(b in KILL_VERBS for b in exec_bases):
                 return _block("STEP1", "indeterminate policy: process-kill verb (tail)")
-            # `fuser -k` / `find -exec` are kill/exec executors that the head-keyed
-            # scan misses (fuser/find are not KILL_VERBS/RUNTIMES themselves).
-            if head == "fuser" and any(_strip_quotes(t) in ("-k", "--kill") or
-                                       (_strip_quotes(t).startswith("-") and "k" in _strip_quotes(t).lstrip("-")) for t in rest):
+            # `fuser -k` is a kill executor the head-keyed scan misses (fuser is
+            # not in KILL_VERBS). Behind any wrapper its head is the wrapper, so
+            # detect fuser among the exec-token basenames HEAD-AGNOSTICALLY +
+            # a -k/--kill flag anywhere in the tokens — mirroring the config-present
+            # W4 kill anchor so this kill family blocks fail-closed behind ANY
+            # front-end (and the xargs / find -exec / fd -x fuser -k siblings).
+            if "fuser" in exec_bases and any(_strip_quotes(t) in ("-k", "--kill") or
+                                             (_strip_quotes(t).startswith("-") and "k" in _strip_quotes(t).lstrip("-")) for t in tokens):
                 return _block("STEP1", "indeterminate policy: fuser -k process-kill (tail)")
             if any(b in ("systemctl", "service", "initctl") for b in exec_bases) and (
                     any(v in [os.path.basename(_strip_quotes(t)) for t in tokens] for v in SERVICE_VERBS)):
