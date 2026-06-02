@@ -756,7 +756,7 @@ Use Task tool with:
 
 After the test-writer subagent completes, verify on disk that ALL THREE of `tests/generated/<task_id>/manifest.json` (per-task active manifest), `tests/generated/manifest.json` (global index) AND `docs/dev/test-writer-report-<task_id>.json` exist. If any is missing, abort the cycle with an error (the orchestrator MUST NOT proceed to Dev with a silently-skipped test-writer). When `test_writer_expected == false`, SKIP the dispatch (record skip rationale in the todo list).
 
-After test-writer completes (or is skipped), the generated test file paths and manifest path are passed onward to Dev (in the dispatch prompt) and to QA (Step 11). Dev makes the skeleton tests pass; QA verifies the manifest at Step 11 Phase 5 AND that `test_writer_expected == true` implies manifest/report existence (Phase 5 fails with `primary_cause: "dev_implementation"` or `"qa_oversight"` if expected but missing).
+After test-writer completes (or is skipped), the generated test file paths and manifest path are passed onward to Dev (in the dispatch prompt) and to QA (Step 13). Dev makes the skeleton tests pass; QA verifies the manifest at Step 13 Phase 5 AND that `test_writer_expected == true` implies manifest/report existence (Phase 5 fails with `primary_cause: "dev_implementation"` or `"qa_oversight"` if expected but missing).
 
 **Pre-dispatch (Mascot scoring injection, spec-20260518-225715 §5.1)**:
 
