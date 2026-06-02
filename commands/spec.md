@@ -58,13 +58,14 @@ Adapted from `/dev` BA clarification pattern (dev.md Step 4 loop, max 3 rounds, 
 
 4. Write the spec.
 
-4a. **Design & Evidence Capture Routine (first-turn early capture)**: Run the routine
-    defined in **Step 4b** for the FIRST turn's material immediately after the spec is
-    written, BEFORE acknowledging in sub-step 6. Step 4b sub-step 1 self-no-ops if the
-    first turn carries no design/evidence, so this invocation is safe to run
-    unconditionally. Early capture (not finalize) is mandatory: finalize is too late and
-    material would be lost (M2). This is the SOLE first-turn capture point; every LATER
-    turn is captured exactly once by the Step 4 capture precondition (no double-capture).
+**Design & Evidence Capture (early capture)** (un-numbered — part of writing the first
+spec, not a separate Step): Run the **Design & Evidence Capture Routine** (defined below,
+after Step 4) for the FIRST turn's material immediately after the spec is written, BEFORE
+acknowledging in sub-step 6. The routine's sub-step 1 self-no-ops if the first turn
+carries no design/evidence, so this invocation is safe to run unconditionally. Early
+capture (not finalize) is mandatory: finalize is too late and material would be lost (M2).
+This is the SOLE first-turn capture point; every LATER turn is captured exactly once by
+the Step 4 capture precondition (no double-capture).
 
 5. **Background exploration (non-blocking)**: when the user mentions specific files, components, features, or technical terms, immediately dispatch an Explore agent in the background:
    ```
