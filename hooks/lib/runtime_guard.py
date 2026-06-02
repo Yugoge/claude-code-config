@@ -3269,21 +3269,35 @@ def _anchor_service_hits_protected(tokens: list, exec_toks: list,
                                    services: list) -> bool:
     """True if the simple command (head-agnostic) is a service-manager invocation
     that disrupts a PROTECTED unit: a service-manager program basename
-    (systemctl/service/initctl) appears in the exec tokens AND a disruptive
-    lifecycle verb (SERVICE_VERBS — start/stop/restart/try-restart/reload/
-    reload-or-restart/kill/disable/mask/enable + the force/conditional variants
-    force-reload/condrestart/try-reload-or-restart/reload-or-try-restart/
-    condreload) appears anywhere in the tokens AND a protected unit name is named.
-    Matches the bare unit, `unit.service`, and the systemd template-instance form
-    `unit@instance(.service)` — the same regex family P2 uses — so the wrapper
-    NAME is irrelevant (mirrors how W1/W2/W4 are head-agnostic)."""
-    bases = [os.path.basename(_strip_quotes(st)) for _i, st in exec_toks]
-    if not any(b in _SERVICE_MANAGER_PROGRAMS for b in bases):
+    (systemctl/service/initctl) appears in EXECUTABLE position (head-agnostic, so
+    it fires behind any wrapper front-end) AND a disruptive lifecycle verb
+    (SERVICE_VERBS — start/stop/restart/try-restart/reload/reload-or-restart/kill/
+    disable/mask/enable + the force/conditional variants force-reload/condrestart/
+    try-reload-or-restart/reload-or-try-restart/condreload) AND a protected unit
+    name appear in the service-manager's OWN argv (the tokens FROM that program
+    onward) — NOT anywhere in the simple command. Matches the bare unit,
+    `unit.service`, and the systemd template-instance form `unit@instance(.service)`
+    — the SAME regex P2 uses on its own `rest`. The wrapper NAME is irrelevant
+    (mirrors how W1/W2/W4 are head-agnostic). Scoping verb+unit to the manager's
+    own argv (exactly like P2 scopes to `rest`) avoids over-blocking a protected
+    name carried as an UNRELATED operand (`UNIT=<unit> systemctl restart other`,
+    `systemd-run --unit <unit> systemctl restart other`) or `service` used as a
+    non-manager noun after a different command (`docker compose restart <unit>
+    service`)."""
+    # locate the service-manager program in executable position (head-agnostic).
+    svc_idx = next((i for i, st in exec_toks
+                    if os.path.basename(_strip_quotes(st)) in _SERVICE_MANAGER_PROGRAMS),
+                   None)
+    if svc_idx is None:
         return False
-    tok_bases = [os.path.basename(_strip_quotes(t)) for t in tokens]
-    if not any(v in tok_bases for v in SERVICE_VERBS):
+    # the manager's OWN argv: the original tokens FROM the program token onward
+    # (mirrors P2's `rest`, but reached behind any wrapper). The program token
+    # itself is included; verb/unit are matched only within this window.
+    own = tokens[svc_idx:]
+    own_bases = [os.path.basename(_strip_quotes(t)) for t in own]
+    if not any(v in own_bases for v in SERVICE_VERBS):
         return False
-    joined = " " + " ".join(_strip_quotes(t) for t in tokens) + " "
+    joined = " " + " ".join(_strip_quotes(t) for t in own) + " "
     for s in services:
         rx = re.compile(r"(^|[\s=])" + re.escape(s) + r"(@[^\s.=/]*)?(\.service)?(\s|$|\.|=)")
         if rx.search(joined):

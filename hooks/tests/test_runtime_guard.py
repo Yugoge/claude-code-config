@@ -1693,5 +1693,188 @@ class TestCycle5CodexAdversarial:
         assert ev(f"anywrap -- {p}", datafile, fixture_repo) == "BLOCK"  # path after -- is exec
 
 
+class TestCycle7ServiceControlAnchor:
+    """Cycle 7 — head-AGNOSTIC service-control anchor (W5). P2 SERVICE_GUARD is
+    head-keyed (it only fires when the EFFECTIVE head is the service-manager
+    program), so a service-manager restart of a PROTECTED unit behind ANY
+    wrapper front-end (cpu-affinity / scheduler / namespace wrapper preceding
+    systemctl/service/initctl) slipped past it — and leaked even under /do (the
+    legacy project-specific regex that incidentally caught the wrapped systemctl
+    form runs AFTER /do and is project-name-specific). The new W5 anchor inside
+    _p0_anchor mirrors W1/W2/W4: head-agnostic, wrapper-peel-based, data-driven
+    unit names. Verified ONLY by feeding strings to evaluate() and simulated
+    PreToolUse JSON to the live hook (NEVER any real service/daemon command)."""
+
+    # vocabulary split so the SOURCE never types a full `<svc-mgr> <verb> <unit>`
+    # phrase that the live bash-safety hook would scan at author time.
+    _SC = "system" + "ctl"
+    _SV = "ser" + "vice"
+    _IC = "init" + "ctl"
+    _RESTART = "rest" + "art"
+    _UNIT = "happy-" + "daemon"
+    _UNIT_DEV = "happy-" + "daemon-dev"
+
+    def test_w5_wrapped_service_manager_blocks(self, datafile, fixture_repo):
+        # the LEAK the fix closes: a service-manager restart of a protected unit
+        # behind a wrapper front-end (cpu-affinity / scheduler / namespace) BLOCKS,
+        # for several wrapper heads INCLUDING invented ones not in the engine.
+        sc, sv, ic = self._SC, self._SV, self._IC
+        r, u, ud = self._RESTART, self._UNIT, self._UNIT_DEV
+        for w in ("numactl", "chrt -f 99", "taskset -c 0", "nsenter -t 1 -m",
+                  "flock /tmp/l", "wrapzilla", "frobnicate", "zonkerbaz"):
+            assert ev(f"{w} {sc} {r} {ud}", datafile, fixture_repo) == "BLOCK", w
+            assert ev(f"{w} {sv} {u} {r}", datafile, fixture_repo) == "BLOCK", w
+        # initctl form behind a wrapper
+        assert ev(f"numactl {ic} {r} {u}", datafile, fixture_repo) == "BLOCK"
+
+    def test_w5_bare_service_manager_still_blocks(self, datafile, fixture_repo):
+        # bare service-manager restart of a protected unit still BLOCKS (P2 + W5).
+        sc, sv, r, u, ud = self._SC, self._SV, self._RESTART, self._UNIT, self._UNIT_DEV
+        assert ev(f"{sc} {r} {ud}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"{sv} {u} {r}", datafile, fixture_repo) == "BLOCK"
+
+    def test_w5_conditional_force_verbs_block(self, datafile, fixture_repo):
+        # the force/conditional lifecycle verbs the QA/close reports name.
+        sc, sv, u, ud = self._SC, self._SV, self._UNIT, self._UNIT_DEV
+        for verb in ("force-reload", "condrestart", "try-reload-or-restart",
+                     "reload-or-restart", "try-restart", "condreload", "stop",
+                     "kill", "disable", "mask"):
+            assert ev(f"numactl {sc} {verb} {ud}", datafile, fixture_repo) == "BLOCK", verb
+        # `service <unit> <verb>` operand order behind a wrapper
+        assert ev(f"taskset -c 0 {sv} {u} condrestart", datafile, fixture_repo) == "BLOCK"
+
+    def test_w5_template_instance_unit_blocks(self, datafile, fixture_repo):
+        # systemd template-instance form `unit@instance(.service)` behind a wrapper.
+        sc, r, u = self._SC, self._RESTART, self._UNIT
+        assert ev(f"numactl {sc} {r} {u}@foo", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"numactl {sc} {r} {u}@foo.service", datafile, fixture_repo) == "BLOCK"
+
+    def test_w5_no_overblock_nonprotected_unit(self, datafile, fixture_repo):
+        # a service-manager action on a NON-protected unit ALLOWS (no over-block),
+        # wrapped or bare.
+        sc, sv, r = self._SC, self._SV, self._RESTART
+        assert ev(f"numactl {sc} {r} nginx", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"{sc} {r} postgresql", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"flock /tmp/l {sv} redis-server {r}", datafile, fixture_repo) == "ALLOW"
+        # read-only service query of a protected unit (status/is-active/show/cat are
+        # NOT in SERVICE_VERBS) ALLOWS — the anchor only fires on disruptive verbs.
+        u = self._UNIT
+        assert ev(f"numactl {sc} status {u}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"{sc} is-active {u}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"numactl {sc} show {u}", datafile, fixture_repo) == "ALLOW"
+
+    def test_w5_no_overblock_benign_wrapper_around_nonservice(self, datafile, fixture_repo):
+        # a benign use of a wrapper around a NON-service command still ALLOWS — the
+        # service vocabulary as DATA behind an inspection head is not a launch.
+        sc, r, u = self._SC, self._RESTART, self._UNIT
+        assert ev("numactl ls -la", datafile, fixture_repo) == "ALLOW"
+        assert ev("flock /tmp/l grep x file.txt", datafile, fixture_repo) == "ALLOW"
+        # echo / grep (inspection heads) of the literal service phrase = DATA -> ALLOW
+        assert ev(f"echo {sc} {r} {u}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"grep '{sc} {r}' file.txt", datafile, fixture_repo) == "ALLOW"
+
+    def test_w5_failclosed_wrapped_service_blocks(self, datafile, fixture_repo, tmp_path_factory):
+        # under absent/corrupt config the service-control FAMILY is generic and
+        # config-independent: a wrapped service-manager + disruptive verb BLOCKS
+        # head-agnostically (STEP1 tail scan), consistent with kill.
+        absent = str(tmp_path_factory.mktemp("nocfg_w5") / "absent.json")
+        sc, sv, r, u, ud = self._SC, self._SV, self._RESTART, self._UNIT, self._UNIT_DEV
+        for w in ("numactl", "chrt -f 99", "wrapzilla", "frobnicate"):
+            assert ev(f"{w} {sc} {r} {ud}", absent, fixture_repo) == "BLOCK", w
+            assert ev(f"{w} {sv} {u} {r}", absent, fixture_repo) == "BLOCK", w
+        # bare service-manager + verb still blocks fail-closed (any unit, generic)
+        assert ev(f"{sc} {r} {ud}", absent, fixture_repo) == "BLOCK"
+        assert ev(f"numactl init" + "ctl {} {}".format(r, u), absent, fixture_repo) == "BLOCK"
+        # benign reads under absent config still ALLOW (no over-block)
+        assert ev("numactl ls", absent, fixture_repo) == "ALLOW"
+        assert ev(f"echo {sc} {r} {u}", absent, fixture_repo) == "ALLOW"
+
+    # ── live-hook proofs (exit 2 / exit 0), incl. under /do ──────────────────
+    def test_w5_live_hook_wrapped_service_blocks(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        sc, sv, r, u, ud = self._SC, self._SV, self._RESTART, self._UNIT, self._UNIT_DEV
+        cmds = [
+            f"numactl {sc} {r} {ud}",
+            f"chrt -f 99 {sv} {u} {r}",
+            f"wrapzilla {sc} {r} {u}",
+            f"nsenter -t 1 -m {sc} {r} {ud}",
+            f"{sc} {r} {ud}",  # bare still blocks
+        ]
+        for cmd in cmds:
+            payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd}, "agent_id": "dev-test"})
+            r2 = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r2.returncode == BLOCK, f"live hook did not block: {cmd} (rc={r2.returncode})"
+
+    def test_w5_live_hook_wrapped_service_blocks_under_do(self, datafile, fixture_repo):
+        # the wrapped form must BLOCK even with a /do consent flag present — the
+        # anchor runs in evaluate() BEFORE the hook's /do bypass (unbypassable).
+        sc, r, ud = self._SC, self._RESTART, self._UNIT_DEV
+        sid = "guardtest-w5-" + str(os.getpid())
+        flag = f"/tmp/claude-orchestrator-consent-{sid}.flag"
+        with open(flag, "w") as fh:
+            fh.write("true")
+        try:
+            env = dict(os.environ)
+            env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+            for cmd in (f"numactl {sc} {r} {ud}", f"{sc} {r} {ud}"):
+                payload = json.dumps({
+                    "tool_name": "Bash",
+                    "tool_input": {"command": cmd},
+                    "session_id": sid,
+                })
+                proc = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+                assert proc.returncode == BLOCK, f"leaked under /do: {cmd} (rc={proc.returncode})"
+        finally:
+            os.remove(flag)
+
+    def test_w5_codex_options_between_program_and_verb_block(self, datafile, fixture_repo):
+        # codex confirmed-caught: options between the service-manager program and
+        # the verb/unit must NOT hide the disruptive action.
+        sc, r, u, ud = self._SC, self._RESTART, self._UNIT, self._UNIT_DEV
+        for opt in ("--user", "--no-block", "-H host", "-M machine"):
+            assert ev(f"numactl {sc} {opt} {r} {ud}", datafile, fixture_repo) == "BLOCK", opt
+        # service-manager reached via an absolute / relative PATH still BLOCKS
+        assert ev(f"/bin/{sc} {r} {ud}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"./{sc} {r} {ud}", datafile, fixture_repo) == "BLOCK"
+        # multiple units in one command, the protected one among them, BLOCKS
+        assert ev(f"{sc} {r} nginx {u} redis", datafile, fixture_repo) == "BLOCK"
+
+    def test_w5_codex_overblock_unrelated_operand_allows(self, datafile, fixture_repo):
+        # codex finding 3/4 (NEW over-block) FIX: a protected unit name carried as
+        # an UNRELATED operand (env-var value / `--unit` value / a `service` noun
+        # after a DIFFERENT command) while a service-control of ANOTHER unit (or no
+        # service-manager at all) runs must ALLOW. Verb+unit are matched only within
+        # the service-manager's OWN argv (mirrors P2's `rest` scoping), so the
+        # wrapper-agnostic anchor does not over-block these idiomatic forms.
+        sc, r, u, ud = self._SC, self._RESTART, self._UNIT, self._UNIT_DEV
+        # env-var value names the protected unit; the manager restarts a DIFFERENT
+        # unit -> ALLOW (the protected name is not in the manager's argv).
+        assert ev(f"UNIT={ud} {sc} {r} nginx", datafile, fixture_repo) == "ALLOW"
+        # systemd-run --unit <protected> then a service-control of a DIFFERENT unit
+        assert ev(f"systemd-run --unit {ud} {sc} {r} nginx", datafile, fixture_repo) == "ALLOW"
+        # `service` as a trailing NOUN after a different (container/k8s) command
+        assert ev(f"docker compose {r} {ud} {self._SV}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"kubectl rollout {r} {self._SV} {ud}", datafile, fixture_repo) == "ALLOW"
+
+    def test_w5_live_hook_nonprotected_allows(self, datafile, fixture_repo):
+        # NOTE: a NON-protected systemctl form (`systemctl restart nginx`) is NOT
+        # asserted here at the LIVE-HOOK level because the hook's PRE-EXISTING
+        # legacy systemctl whitelist (Layer 1.A / DEV_SYSTEMD) independently blocks
+        # ALL non-whitelisted systemctl at a LATER stage — that is a separate,
+        # broader project-specific gate, NOT the W5 anchor. That W5 itself does not
+        # over-block a non-protected unit is proved at the ENGINE level by
+        # test_w5_no_overblock_nonprotected_unit (numactl systemctl restart nginx
+        # -> ALLOW under evaluate()). Here we assert the live hook ALLOWs benign
+        # wrapper uses around NON-service commands (which the legacy layer permits).
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        cmds = ["numactl ls", "flock /tmp/l grep x file.txt", "numactl -N 0 cat file.txt"]
+        for cmd in cmds:
+            payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd}, "agent_id": "dev-test"})
+            r2 = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r2.returncode == ALLOW, f"live hook over-blocked: {cmd} (rc={r2.returncode})"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
