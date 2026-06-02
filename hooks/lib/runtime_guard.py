@@ -171,6 +171,11 @@ READ_INSPECT_EDIT_ALLOWLIST = frozenset({
     # checksum / encode (read-only over file contents)
     "md5sum", "sha1sum", "sha256sum", "sha512sum", "cksum", "b2sum",
     "base64", "base32", "xargs0",
+    # process / open-file inspection (read-only listing of a path/ident as DATA).
+    # NOTE: the kill variants (`fuser -k`, `xargs kill`) are NOT exempted here —
+    # they are caught by the cross-segment P6 process-kill guard, which inspects
+    # `fuser -k` / `xargs kill` regardless of this allowlist.
+    "lsof", "fuser", "ps", "pgrep", "pidof", "pstree", "top", "htop",
     # git read/inspection subset (the head is git; the verb is checked separately
     # below — git is intentionally NOT blanket-allowlisted because `git` can also
     # be a benign VCS op; handled by _git_is_readonly).
@@ -1242,6 +1247,28 @@ def _step1_indeterminate(simple_cmds: list) -> Verdict:
         # package runners
         if head in ("npx", "bunx"):
             return _block("STEP1", "indeterminate policy: package runner")
+        # ── HEAD-AGNOSTIC fail-closed tail scan ──────────────────────────────
+        # Behind a novel exec front-end (numactl/tini/dumb-init/ssh-agent/…) the
+        # head is the wrapper, so the head-keyed checks above miss the danger
+        # family in the tail. When the head is NOT a read/inspect/edit operation,
+        # scan ALL exec-position tokens for the generic danger families so a
+        # front-end-wrapped build/runtime/kill/service/pm invocation still blocks
+        # under an absent/corrupt config (the leak must not survive fail-closed).
+        if not _is_inspection_command(head, rest):
+            exec_bases = [os.path.basename(_strip_quotes(t)) for _i, t in _anchor_exec_tokens(tokens)]
+            if any(b in KILL_VERBS for b in exec_bases):
+                return _block("STEP1", "indeterminate policy: process-kill verb (tail)")
+            if any(b in ("systemctl", "service", "initctl") for b in exec_bases) and (
+                    any(v in [os.path.basename(_strip_quotes(t)) for t in tokens] for v in SERVICE_VERBS)):
+                return _block("STEP1", "indeterminate policy: service-control verb (tail)")
+            if any(b in PKG_MANAGERS for b in exec_bases):
+                return _block("STEP1", "indeterminate policy: package-manager invocation (tail)")
+            if any(b in BUILD_TOOL_BASENAMES for b in exec_bases):
+                return _block("STEP1", "indeterminate policy: build tool (tail)")
+            if any(b in RUNTIMES for b in exec_bases):
+                return _block("STEP1", "indeterminate policy: runtime launch (tail)")
+            if any(b in ("npx", "bunx") for b in exec_bases):
+                return _block("STEP1", "indeterminate policy: package runner (tail)")
     return ALLOW
 
 
@@ -2991,7 +3018,8 @@ def _anchor_exec_tokens(tokens: list) -> list:
     VAR=val env-prefix, and NOT inside a redirection. These are the words that a
     front-end / wrapper chain could exec() or pass to a build/launch. Quoted
     tokens are stripped. This is head-agnostic: it scans the WHOLE argv (the head
-    itself is also a candidate, since a bare `happy daemon start` has head=happy).
+    itself is also a candidate, since a bare `<protected-cmd> <launch-subcmd>` has
+    the protected command as its head).
     """
     out = []
     skip_next = False
@@ -3056,11 +3084,12 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
                 return _block("P0", "protected launch-path anchor behind a front-end")
 
         # ── W2 COMMAND-BASENAME ANCHOR: a protected command basename as bare token ─
-        for pos, (_i, st) in enumerate(exec_toks):
+        for _i, st in exec_toks:
             base = os.path.basename(st)
             if base in cmds:
                 # The protected command in executable position is itself the launch
-                # (e.g. `numactl happy daemon start`, `tini -- happy daemon start`).
+                # (e.g. `<wrapper> <protected-cmd> <launch-subcmd>`, including a
+                # PID-1 init form `<init> -- <protected-cmd> <launch-subcmd>`).
                 # Fail closed on the protected-command anchor regardless of head.
                 return _block("P0", f"protected command anchor '{base}' behind a front-end")
 
@@ -3130,15 +3159,67 @@ def _anchor_build_hits_protected(tokens: list, exec_toks: list, cfg: dict,
                 if sel in ws:
                     return True
     # protected target: a build path token (bare or fused --flag=path) under a
-    # protected build path, OR the effective cwd is in the protected build scope.
-    scan_tokens = _strip_selector_tokens([_strip_quotes(x) for x in tokens])
+    # protected build path → always blocks (explicit protected target). Strip the
+    # workspace/filter SELECTOR flags only for this path-token scan (so a selector
+    # VALUE is not mis-scanned as a build target).
+    raw_tokens = [_strip_quotes(x) for x in tokens]
+    scan_tokens = _strip_selector_tokens(raw_tokens)
     if bpaths and _any_token_under_incl_flagvalue(scan_tokens, cfg, cwd, cwd_det):
         return True
+    # protected target via the effective cwd (build-mode in a protected pkg /
+    # monorepo root) — but an EXPLICIT non-protected build target (e.g.
+    # `-p packages/<non-protected>/tsconfig.json`) proves the build is NOT of the
+    # protected bundle, mirroring P8's exemption so a sibling-package build under
+    # a wrapper at the repo root still ALLOWS (no over-block). Use the RAW tokens
+    # here (NOT selector-stripped: tsc's `-w` watch flag must not be folded as a
+    # workspace selector that swallows the following `-p <path>`).
+    if _explicit_nonprotected_build_target(raw_tokens, cfg, cwd, cwd_det):
+        return False
+    # An EXPLICIT workspace selector naming a KNOWN non-protected workspace proves
+    # the build targets that workspace (not the protected bundle), so the
+    # cwd-based fallback must not over-block `<wrapper> yarn workspace <non-prot>
+    # build` at the monorepo root (mirrors P8's selector handling).
+    if _anchor_nonprotected_workspace_selector(tokens, cfg):
+        return False
     if _cwd_in_protected_build_scope(cwd, cwd_det, cfg):
         return True
     if bpaths and _cwd_under_build_path(cwd, cwd_det, bpaths):
         return True
     return False
+
+
+def _anchor_nonprotected_workspace_selector(tokens: list, cfg: dict) -> bool:
+    """True if a workspace selector (`workspace <ws>` / `-w <ws>` / `--filter <ws>`)
+    names a workspace in the KNOWN non-protected set and NONE names a protected
+    one. Used by the build anchor to exempt an explicit non-protected workspace
+    build from the cwd-based fallback (so it is not blocked at the monorepo root).
+    """
+    non_prot = set(cfg.get("non_protected_workspaces", []))
+    prot = set(cfg.get("protected_build_workspaces", []))
+    if not non_prot:
+        return False
+    sel_keywords = ("workspace", "workspaces")
+    sel_flags = ("-w", "--workspace", "--filter", "-F")
+    found_nonprot = False
+    for i, raw in enumerate(tokens):
+        st = _strip_quotes(raw)
+        sel = None
+        if st in sel_keywords and i + 1 < len(tokens):
+            sel = os.path.basename(_strip_quotes(tokens[i + 1]).rstrip("/"))
+        elif st in sel_flags and i + 1 < len(tokens):
+            sel = os.path.basename(_strip_quotes(tokens[i + 1]).rstrip("/"))
+        else:
+            for f in sel_flags:
+                if st.startswith(f + "="):
+                    sel = os.path.basename(st.split("=", 1)[1].rstrip("/"))
+                    break
+        if sel is None:
+            continue
+        if sel in prot:
+            return False  # an explicit protected selector → not exempt
+        if sel in non_prot:
+            found_nonprot = True
+    return found_nonprot
 
 
 # ── Top-level evaluate ───────────────────────────────────────────────────────
@@ -3217,7 +3298,19 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
             if pv[0] == "BLOCK":
                 return pv
 
-    # STEP 2 — P1..P9 (order: launch, service, hotfile, statefile, endpoint,
+    # STEP 2 — P0 HEAD-AGNOSTIC ANCHOR scan FIRST. This is the load-bearing
+    # wrapper-agnostic gate: for any simple command whose head is NOT a read/
+    # inspect/edit operation, it scans the WHOLE argv for a protected anchor in
+    # executable position + launch/build/kill grammar, INDEPENDENT of the wrapper
+    # head name. It catches a protected launch/build/kill behind ANY front-end —
+    # documented (flock/firejail) OR novel (numactl/tini/dumb-init/ssh-agent) —
+    # without enumerating wrappers. The documented-front-end peel above still runs
+    # for cwd/shell-payload precision, but it is no longer the load-bearing gate.
+    v = _p0_anchor(simple_cmds, cfg, cwd_base, groups)
+    if v is not None:
+        return v
+
+    # P1..P9 (order: launch, service, hotfile, statefile, endpoint,
     # prockill, globalbin, then package-script default-deny, then build arms).
     v = _p1_launch(simple_cmds, cfg, cwd_base, groups)
     if v is not None:
