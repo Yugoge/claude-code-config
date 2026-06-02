@@ -1876,5 +1876,307 @@ class TestCycle7ServiceControlAnchor:
             assert r2.returncode == ALLOW, f"live hook over-blocked: {cmd} (rc={r2.returncode})"
 
 
+class TestCycle8HeadAgnosticRemainingPrimitives:
+    """Cycle 8 — make EVERY remaining protected primitive head-AGNOSTIC behind
+    arbitrary wrappers, symmetric with the W1–W5 anchors. After the Cycle-5 pivot
+    demoted the wrapper-peel to non-load-bearing, only the anchor-gate primitives
+    (launch/command/build/kill/service = W1–W5) were head-agnostic; the rest were
+    still HEAD-KEYED and leaked behind any wrapper whose head is not the dangerous
+    verb (a real cpu-affinity front-end, or any invented/stacked wrapper):
+      • W6 BUNDLE   — P3 hotfile mutation (touch/truncate/tee/dd/redirect/sed -i/
+                      install/rsync/ln/perl -i) of the protected bundle.
+      • W7 STATEFILE— P4 daemon-statefile mutation / redirect.
+      • W8 ENDPOINT — P5 loopback shutdown to the protected control path.
+      • W9 GLOBALBIN— P7 global package install/link, or a write to a protected
+                      global-bin path.
+    Each leak previously returned ALLOW behind a wrapper and now returns BLOCK,
+    head-agnostically (no wrapper enumeration). Verified ONLY by feeding strings to
+    evaluate() and simulated PreToolUse JSON to the live hook (NEVER any real
+    daemon/CLI/service command, NEVER touching any process or file)."""
+
+    # Wrapper fronts: a REAL cpu-affinity front-end whose head is NOT the danger
+    # verb, INVENTED wrappers absent from the engine source, and a STACKED combo
+    # (documented flock + invented). Proof of non-enumeration: test_w6_w9_no_head_
+    # keying below asserts the invented names appear nowhere in the engine source.
+    _REAL = "numa" + "ctl"
+    _INV = "zqx" + "wrapper7"
+    _INV2 = "blarf" + "ront88"
+    _STACK = "flock /tmp/l zqx" + "wrapper7"
+    WRAPPERS = [_REAL, _INV, _INV2, _STACK]
+
+    # danger vocabulary assembled from pieces so this SOURCE never types a full
+    # `<wrapper> <mutate> <bundle>` / shutdown phrase the author-time live hook
+    # would scan (spec Section 8 trap).
+    _TOUCH = "to" + "uch"
+    _TRUNC = "trunc" + "ate"
+    _TEE = "t" + "ee"
+    _DD = "d" + "d"
+    _STOP = "/" + "stop"
+    _GI = "-" + "g"
+    _INST = "ins" + "tall"
+
+    def _bundle(self, repo):
+        return repo + "/packages/happy-cli/dist/index.mjs"
+
+    def _statefile(self):
+        return "/root/.happy-dev/" + "daemon" + ".state.json"
+
+    # ── W6 BUNDLE mutation BLOCK across {bare, real, invented, stacked} ──────
+    @pytest.mark.parametrize("w", WRAPPERS)
+    def test_w6_bundle_touch_blocks(self, w, datafile, fixture_repo):
+        b = self._bundle(fixture_repo)
+        assert ev(f"{w} {self._TOUCH} {b}", datafile, fixture_repo) == "BLOCK", w
+
+    @pytest.mark.parametrize("w", WRAPPERS)
+    def test_w6_bundle_redirect_blocks(self, w, datafile, fixture_repo):
+        b = self._bundle(fixture_repo)
+        assert ev(f"{w} cat /tmp/x > {b}", datafile, fixture_repo) == "BLOCK", w
+
+    def test_w6_bundle_all_mutation_verbs_block(self, datafile, fixture_repo):
+        # the FULL mutation-verb family the orchestrator enumerated must block
+        # behind a wrapper (touch/truncate/tee/dd/redirect/sed-i/install/rsync/ln/
+        # perl-i). Bare touch blocks too (P3 unchanged).
+        b = self._bundle(fixture_repo)
+        w = self._INV
+        forms = [
+            f"{self._TOUCH} {b}",                          # bare (P3)
+            f"{w} {self._TRUNC} -s0 {b}",
+            f"{w} {self._TEE} {b} < /dev/null",
+            f"{w} {self._DD} if=/dev/null of={b}",
+            f"{w} sed -i s/a/b/ {b}",
+            f"{w} install /tmp/x {b}",
+            f"{w} rsync /tmp/x {b}",
+            f"{w} ln -sf /tmp/x {b}",
+            f"{w} perl -i -pe s/a/b/ {b}",
+        ]
+        for cmd in forms:
+            assert ev(cmd, datafile, fixture_repo) == "BLOCK", cmd
+
+    def test_w6_bundle_relative_cwd_blocks(self, datafile, fixture_repo):
+        # a relative bundle target + a leading wrapper chdir / cwd seed resolves to
+        # the protected bundle and blocks (mirrors P3's cwd resolution).
+        w = self._INV
+        assert ev_cwd(f"{w} {self._TOUCH} packages/happy-cli/dist/index.mjs",
+                      datafile, fixture_repo) == "BLOCK"
+
+    # ── W7 STATEFILE mutation BLOCK ──────────────────────────────────────────
+    @pytest.mark.parametrize("w", WRAPPERS)
+    def test_w7_statefile_blocks(self, w, datafile, fixture_repo):
+        sf = self._statefile()
+        assert ev(f"{w} {self._TOUCH} {sf}", datafile, fixture_repo) == "BLOCK", w
+        assert ev(f"{w} cp /tmp/x {sf}", datafile, fixture_repo) == "BLOCK", w
+        assert ev(f"{w} cat /tmp/x > {sf}", datafile, fixture_repo) == "BLOCK", w
+
+    def test_w7_statefile_bare_still_blocks(self, datafile, fixture_repo):
+        sf = self._statefile()
+        assert ev(f"{self._TRUNC} -s0 {sf}", datafile, fixture_repo) == "BLOCK"
+
+    # ── W8 ENDPOINT shutdown BLOCK ───────────────────────────────────────────
+    @pytest.mark.parametrize("w", WRAPPERS)
+    def test_w8_endpoint_blocks(self, w, datafile, fixture_repo):
+        s = self._STOP
+        assert ev(f"{w} curl -X POST http://127.0.0.1:9{s}", datafile, fixture_repo) == "BLOCK", w
+        assert ev(f"{w} wget --post-data= http://localhost:9{s}", datafile, fixture_repo) == "BLOCK", w
+
+    def test_w8_endpoint_ipv6_loopback_blocks(self, datafile, fixture_repo):
+        s = self._STOP
+        assert ev(f"{self._INV} curl -X POST http://[::1]:9{s}", datafile, fixture_repo) == "BLOCK"
+
+    def test_w8_endpoint_bare_still_blocks(self, datafile, fixture_repo):
+        # bare (P5) still blocks — no regression.
+        s = self._STOP
+        assert ev(f"curl -X POST http://127.0.0.1:9{s}", datafile, fixture_repo) == "BLOCK"
+
+    # ── W9 GLOBAL-CLI BLOCK ──────────────────────────────────────────────────
+    @pytest.mark.parametrize("w", WRAPPERS)
+    def test_w9_global_install_blocks(self, w, datafile, fixture_repo):
+        gi, inst = self._GI, self._INST
+        assert ev(f"{w} npm {inst} {gi} happy-coder", datafile, fixture_repo) == "BLOCK", w
+        assert ev(f"{w} pnpm add --global happy-coder", datafile, fixture_repo) == "BLOCK", w
+        assert ev(f"{w} npm link happy", datafile, fixture_repo) == "BLOCK", w
+
+    def test_w9_global_write_protected_bin_blocks(self, datafile, fixture_repo):
+        # a write to a protected global-bin PATH behind a wrapper blocks. The
+        # protected_global_bins globs (`/usr/bin/happy*`, `/usr/lib/node_modules/
+        # happy*`) match a bin FILE / a module DIR at that segment — `*` does NOT
+        # cross `/`, so a target a glob-segment matches blocks (consistent with the
+        # bare P7 `_path_matches_any` semantics; a file nested DEEPER does not).
+        assert ev(f"{self._INV} cp /tmp/x /usr/bin/happy-x", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"{self._INV} {self._TOUCH} /usr/lib/node_modules/happy-coder",
+                  datafile, fixture_repo) == "BLOCK"
+        # bare write to the same protected bin path blocks too (P7 unchanged).
+        assert ev("cp /tmp/x /usr/bin/happy-mcp", datafile, fixture_repo) == "BLOCK"
+
+    def test_w9_global_bare_still_blocks(self, datafile, fixture_repo):
+        # bare (P7) blanket global-op family still blocks (no regression). NOTE:
+        # P7 blocks ANY -g/--global/link regardless of package name; W9 mirrors it
+        # exactly, so the wrapped form behaves IDENTICALLY to the bare form.
+        gi, inst = self._GI, self._INST
+        assert ev(f"npm {inst} {gi} happy-coder", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"npm {inst} {gi} lodash", datafile, fixture_repo) == "BLOCK"  # bare blocks too
+
+    def test_w9_wrapped_matches_bare_for_nonprotected_pkg(self, datafile, fixture_repo):
+        # the wrapped global-install of a NON-protected package behaves IDENTICALLY
+        # to the bare form (both BLOCK at the blanket global-op ban) — so W9
+        # introduces NO new over-block relative to the engine's existing behavior.
+        gi, inst = self._GI, self._INST
+        bare = ev(f"npm {inst} {gi} lodash", datafile, fixture_repo)
+        wrapped = ev(f"{self._INV} npm {inst} {gi} lodash", datafile, fixture_repo)
+        assert bare == wrapped == "BLOCK"
+
+    # ── BOUNDARY: NO over-block. Each must ALLOW (wrapped or bare). ──────────
+    def test_w6_w9_no_overblock_boundary_allows(self, datafile, fixture_repo):
+        b = self._bundle(fixture_repo)
+        w, w2 = self._INV, self._REAL
+        allows = [
+            # benign wrapper around a NON-protected mutation
+            f"{w} {self._TOUCH} /tmp/x",
+            f"{w2} {self._TOUCH} /tmp/safe.txt",
+            f"{w} cp /tmp/a /tmp/b",
+            # read / inspect / edit of the PROTECTED bundle stays allowed
+            f"cat {b}",
+            f"grep daemon {b}",
+            f"head -n5 {b}",
+            f"stat {b}",
+            f"wc -l {b}",
+            # mutation of a NON-protected statefile / path
+            f"{w} {self._TOUCH} /root/.other/x.json",
+            f"{w} cp /tmp/x /etc/whatever.json",
+            # write to a NON-protected global-bin path
+            f"{w} cp /tmp/x /usr/bin/lodash",
+            f"{w} {self._TOUCH} /usr/local/bin/mytool",
+            # a package-manager LOCAL op (no -g / no link) behind a wrapper
+            f"{w} npm {self._INST} lodash",
+            f"{w} npm ci",
+            # loopback request to a NON-protected endpoint
+            f"{w} curl http://127.0.0.1:9/health",
+            f"{w} curl http://localhost:9/status",
+            # the protected endpoint path to a NON-loopback host (not a shutdown)
+            f"{w} curl -X POST http://example.com:9{self._STOP}",
+            # the protected endpoint string as DATA behind an inspection head
+            f"echo curl 127.0.0.1{self._STOP}",
+            f"grep {self._STOP} access.log",
+        ]
+        for cmd in allows:
+            assert ev(cmd, datafile, fixture_repo) == "ALLOW", cmd
+
+    # ── META-TEST: no protected primitive is head-keyed; no wrapper enumeration ─
+    def test_w6_w9_no_head_keying_meta(self, datafile, fixture_repo):
+        # A representative INVENTED wrapper (absent from the engine source) around
+        # EVERY remaining danger primitive must BLOCK — proving none is head-keyed
+        # and the closure is NOT wrapper-enumeration-based.
+        b = self._bundle(fixture_repo)
+        sf = self._statefile()
+        s, gi, inst = self._STOP, self._GI, self._INST
+        for w in (self._INV, self._INV2):
+            assert ev(f"{w} {self._TOUCH} {b}", datafile, fixture_repo) == "BLOCK", ("W6", w)
+            assert ev(f"{w} {self._TOUCH} {sf}", datafile, fixture_repo) == "BLOCK", ("W7", w)
+            assert ev(f"{w} curl -X POST http://127.0.0.1:9{s}", datafile, fixture_repo) == "BLOCK", ("W8", w)
+            assert ev(f"{w} npm {inst} {gi} happy-coder", datafile, fixture_repo) == "BLOCK", ("W9", w)
+            # re-confirm the original W1–W5 anchors also block behind the same
+            # invented wrapper (no regression of the anchor gate).
+            assert ev(f"{w} happy daemon start", datafile, fixture_repo) == "BLOCK", ("W2", w)
+            assert ev(f"{w} node {b} daemon start", datafile, fixture_repo) == "BLOCK", ("W1", w)
+
+    def test_w6_w9_invented_wrappers_absent_from_engine(self):
+        # PROOF of non-enumeration: the invented wrapper names used above do NOT
+        # appear anywhere in the engine source, yet they all BLOCK. Also asserts
+        # the real cpu-affinity front-end is not enumerated for these primitives.
+        engine = os.path.join(HOOKS_DIR, "lib", "runtime_guard.py")
+        src = open(engine, encoding="utf-8").read()
+        for name in ("numactl", "zqxwrapper7", "zqxwrapper", "blarfront88"):
+            assert name not in src, f"engine must not enumerate wrapper '{name}'"
+
+    # ── live-hook proof (exit 2 / exit 0), incl. under /do (unbypassable) ────
+    def test_w6_w9_live_hook_blocks(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        b = self._bundle(fixture_repo)
+        sf = self._statefile()
+        s, gi, inst = self._STOP, self._GI, self._INST
+        cmds = [
+            f"{self._REAL} {self._TOUCH} {b}",
+            f"{self._INV} {self._TRUNC} -s0 {b}",
+            f"{self._INV} cp /tmp/x {sf}",
+            f"{self._REAL} curl -X POST http://127.0.0.1:9{s}",
+            f"{self._INV} npm {inst} {gi} happy-coder",
+            f"{self._STACK} npm link happy",
+        ]
+        for cmd in cmds:
+            payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd, "cwd": fixture_repo}, "agent_id": "dev-test"})
+            r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r.returncode == BLOCK, f"live hook did not block: {cmd} (rc={r.returncode})"
+
+    def test_w6_w9_live_hook_blocks_under_do(self, datafile, fixture_repo):
+        # the wrapped forms must BLOCK even with a /do consent flag — the anchor
+        # runs in evaluate() BEFORE the hook's /do bypass (unbypassable).
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        b = self._bundle(fixture_repo)
+        sid = "guardtest-w69-" + str(os.getpid())
+        flag = f"/tmp/claude-orchestrator-consent-{sid}.flag"
+        with open(flag, "w") as fh:
+            fh.write("true")
+        try:
+            s, gi, inst = self._STOP, self._GI, self._INST
+            for cmd in (f"{self._INV} {self._TOUCH} {b}",
+                        f"{self._REAL} curl -X POST http://127.0.0.1:9{s}",
+                        f"{self._INV} npm {inst} {gi} happy-coder"):
+                payload = json.dumps({
+                    "tool_name": "Bash",
+                    "tool_input": {"command": cmd, "cwd": fixture_repo},
+                    "session_id": sid,
+                })
+                proc = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+                assert proc.returncode == BLOCK, f"leaked under /do: {cmd} (rc={proc.returncode})"
+        finally:
+            os.remove(flag)
+
+    def test_w6_w9_live_hook_boundary_allows(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        cmds = [
+            f"{self._INV} {self._TOUCH} /tmp/x",
+            f"{self._INV} cp /tmp/x /usr/bin/lodash",
+            f"{self._INV} curl http://127.0.0.1:9/health",
+            f"{self._INV} npm {self._INST} lodash",
+        ]
+        for cmd in cmds:
+            payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd, "cwd": fixture_repo}, "agent_id": "dev-test"})
+            r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r.returncode == ALLOW, f"live hook over-blocked: {cmd} (rc={r.returncode})"
+
+    # ── STEP1 fail-closed: the config-INDEPENDENT global-op family must block ──
+    #     wrapped under absent config (symmetric with bare); the path-scoped
+    #     families (bundle/statefile/endpoint) are config-dependent BOTH bare and
+    #     wrapped, so they ALLOW under absent config — no asymmetric over-block. ─
+    def test_w9_failclosed_wrapped_global_blocks(self, datafile, fixture_repo, tmp_path_factory):
+        absent = str(tmp_path_factory.mktemp("nocfg_w9") / "absent.json")
+        gi, inst = self._GI, self._INST
+        for w in (self._REAL, self._INV, self._INV2):
+            assert ev(f"{w} npm {inst} {gi} happy-coder", absent, fixture_repo) == "BLOCK", w
+            assert ev(f"{w} pnpm add --global anything", absent, fixture_repo) == "BLOCK", w
+        # bare global-op still blocks fail-closed
+        assert ev(f"npm {inst} {gi} happy-coder", absent, fixture_repo) == "BLOCK"
+        # benign reads behind a wrapper still ALLOW under absent config
+        assert ev(f"{self._INV} ls", absent, fixture_repo) == "ALLOW"
+
+    def test_w6_w8_failclosed_pathscoped_symmetry(self, datafile, fixture_repo, tmp_path_factory):
+        # bundle/statefile/endpoint are PATH-scoped: with NO config there is no
+        # protected path to match, so BOTH the bare AND the wrapped forms ALLOW
+        # (P3/P4/P5 return None on empty globs). The wrapped form must NOT block
+        # where the bare form allows — that would be an asymmetric over-block.
+        absent = str(tmp_path_factory.mktemp("nocfg_w6") / "absent.json")
+        b = self._bundle(fixture_repo)
+        s = self._STOP
+        for form in (f"{self._TOUCH} {b}", f"{self._INV} {self._TOUCH} {b}",
+                     f"curl -X POST http://127.0.0.1:9{s}",
+                     f"{self._INV} curl -X POST http://127.0.0.1:9{s}"):
+            assert ev(form, absent, fixture_repo) == "ALLOW", form
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

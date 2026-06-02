@@ -3145,6 +3145,9 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
     idents = cfg.get("protected_proc_idents", [])
     statefiles = cfg.get("protected_statefiles", [])
     services = cfg.get("protected_services", [])
+    hotfiles = cfg.get("protected_hotfiles", [])
+    endpoint_paths = cfg.get("protected_endpoint_paths", [])
+    global_bins = cfg.get("protected_global_bins", [])
     groups = groups or []
     for idx, sc in enumerate(simple_cmds):
         tokens = _safe_shlex(sc)
@@ -3256,6 +3259,48 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         # names live in `protected_services` (the engine stays project-name-free).
         if services and _anchor_service_hits_protected(tokens, exec_toks, services):
             return _block("P0", "service-control of a protected unit behind a front-end")
+
+        # ── W6 BUNDLE-WRITE ANCHOR: a mutation verb + a protected hotfile path ──
+        # P3 HOTFILE_GUARD is head-keyed (`_mutation_targets` reads the EFFECTIVE
+        # head, folding only documented ENV_WRAPPERS), so a bundle mutation behind
+        # a NOVEL front-end (`<wrapper> touch/truncate/tee/dd/sed -i/install/rsync/
+        # ln/perl -i <bundle>` or `<wrapper> … > <bundle>`) leaks past it exactly
+        # like the launch/build/kill/service leaks did. Detect a mutation verb in
+        # EXECUTABLE position (head-agnostic) whose target — resolved against the
+        # effective cwd incl. the wrapper chdir — is a protected hotfile, OR a
+        # redirect to a protected hotfile, INDEPENDENT of the wrapper head.
+        if hotfiles and _anchor_mutation_hits(sc, tokens, exec_toks, hotfiles, cwd, cwd_det):
+            return _block("P0", "mutation of a protected bundle behind a front-end")
+
+        # ── W7 STATEFILE-WRITE ANCHOR: a mutation verb / redirect + a protected ──
+        # daemon statefile, behind any wrapper. Mirrors W6; P4 STATEFILE_GUARD is
+        # head-keyed the same way P3 is.
+        if statefiles and _anchor_mutation_hits(sc, tokens, exec_toks, statefiles, cwd, cwd_det):
+            return _block("P0", "mutation of a protected state file behind a front-end")
+
+        # ── W8 CONTROL-ENDPOINT ANCHOR: a loopback net-client + the protected ────
+        # shutdown endpoint path in its OWN argv, behind any wrapper. P5
+        # ENDPOINT_GUARD is head-keyed (it only fires when a pipeline segment's
+        # effective head is a net-client in NET_HEADS), so a wrapped client
+        # (`<wrapper> curl -X POST http://127.0.0.1:PORT/stop`) slips past it. The
+        # cross-segment / stdin-fed split forms remain P5's job (it scans pipeline
+        # groups); this anchor closes the single-command wrapped form: a net-client
+        # basename in EXECUTABLE position + a loopback host + the protected endpoint
+        # path present in this simple command, INDEPENDENT of the wrapper head.
+        if endpoint_paths and _anchor_endpoint_hits(sc, exec_toks, endpoint_paths):
+            return _block("P0", "loopback request to a protected control path behind a front-end")
+
+        # ── W9 GLOBAL-CLI ANCHOR: a package-manager global-install/link, or a ────
+        # write to a protected global-bin path, behind any wrapper. P7
+        # GLOBALBIN_GUARD is head-keyed (it only fires when the effective head is a
+        # package manager), so a wrapped global op (`<wrapper> npm install -g <pkg>`
+        # / `<wrapper> npm link <pkg>`) leaks past it. Mirror P7 exactly: a
+        # package-manager basename in EXECUTABLE position carrying `-g`/`--global`
+        # or `link`/`unlink` (the SAME blanket global-op family P7 blocks bare,
+        # regardless of package name), OR a mutation write whose target is under a
+        # protected global-bin path — INDEPENDENT of the wrapper head.
+        if _anchor_globalbin_hits(sc, tokens, exec_toks, global_bins, cwd, cwd_det):
+            return _block("P0", "global package install/link behind a front-end")
     return None
 
 
@@ -3302,6 +3347,100 @@ def _anchor_service_hits_protected(tokens: list, exec_toks: list,
         rx = re.compile(r"(^|[\s=])" + re.escape(s) + r"(@[^\s.=/]*)?(\.service)?(\s|$|\.|=)")
         if rx.search(joined):
             return True
+    return False
+
+
+# Mutation-verb basenames the bundle/statefile/global-bin anchors recognize in
+# EXECUTABLE position behind a wrapper. This is the SAME family `_mutation_targets`
+# parses as a head; listing it here lets the anchor find the verb head-agnostically
+# (the verb is no longer the simple command's head once a wrapper precedes it).
+# Generic filesystem-mutation tools — NOT project names.
+_ANCHOR_MUTATION_HEADS = frozenset({
+    "cp", "mv", "rsync", "install", "touch", "truncate", "dd", "tee",
+    "unzip", "rename", "rm", "unlink", "shred", "sed", "perl", "ln", "tar",
+})
+
+
+def _anchor_mutation_hits(sc: str, tokens: list, exec_toks: list,
+                          globs: list, cwd: Optional[str], cwd_det: bool) -> bool:
+    """True if this simple command (head-agnostic) MUTATES a path matching `globs`.
+
+    Locates the FIRST mutation-verb basename in executable position (so the verb is
+    found even when a novel front-end is the simple command's head), reconstructs
+    the verb's OWN argv (the tokens FROM that verb onward), and reuses the existing
+    `_mutation_targets` parse on it — then resolves each target against the
+    effective cwd (cd chain + wrapper chdir, already folded by the caller) and
+    matches it against the protected globs. A redirect (`> path`) belongs to the
+    whole simple command (it applies after the wrapper exec), so the whole `sc`
+    string is passed for redirect-target detection. Returns False when no mutation
+    verb is in executable position OR no target matches — so a read/inspect of a
+    protected path, or a mutation of a NON-protected path, still ALLOWS."""
+    # find the first mutation verb in executable position (head-agnostic).
+    verb_pos = next((i for (i, st) in exec_toks
+                     if os.path.basename(_strip_quotes(st)) in _ANCHOR_MUTATION_HEADS),
+                    None)
+    redirect_only = False
+    if verb_pos is None:
+        # a bare redirect with no mutation verb (`<wrapper> … > <protected>`) still
+        # writes the target — handle via `_has_redirect_to` on the whole command.
+        if _has_redirect_to(sc) is None:
+            return False
+        redirect_only = True
+    # the verb's own argv: original tokens FROM the verb token onward. For a
+    # redirect-only form, scan from the start (the redirect target is parsed off
+    # the string regardless of head).
+    verb_tokens = tokens if redirect_only else tokens[verb_pos:]
+    for tgt in _mutation_targets(sc, verb_tokens):
+        for cand in _resolve_rel(tgt, cwd, cwd_det):
+            if _path_matches_any(cand, globs):
+                return True
+    return False
+
+
+def _anchor_endpoint_hits(sc: str, exec_toks: list, endpoint_paths: list) -> bool:
+    """True if this simple command (head-agnostic) issues a loopback request whose
+    own argv carries a protected control-endpoint path. Detects a net-client
+    basename (curl/wget/http/httpie/nc/ncat/netcat/socat/telnet) in EXECUTABLE
+    position behind any wrapper + a loopback host (127.0.0.1/localhost/::1) + the
+    protected endpoint path present in the simple command. P5 still handles the
+    cross-segment / stdin-fed split forms on pipeline groups; this closes the
+    single-command wrapped form. A loopback request to a NON-protected endpoint, or
+    a benign mention of the endpoint string behind an inspection head, does not hit
+    here (the endpoint path must match a protected path AND a net-client must be in
+    executable position)."""
+    net_present = any(os.path.basename(_strip_quotes(st)) in NET_HEADS
+                      for (_i, st) in exec_toks)
+    if not net_present:
+        return False
+    if not LOOPBACK_RE.search(sc):
+        return False
+    return _endpoint_path_in(sc, endpoint_paths)
+
+
+def _anchor_globalbin_hits(sc: str, tokens: list, exec_toks: list,
+                           global_bins: list, cwd: Optional[str], cwd_det: bool) -> bool:
+    """True if this simple command (head-agnostic) performs a protected global-bin
+    operation behind any wrapper. Mirrors P7 exactly: a package-manager basename in
+    EXECUTABLE position carrying a global flag (`-g`/`--global`) or a `link`/
+    `unlink` subcommand (the SAME blanket global-op family P7 blocks bare,
+    regardless of package name), OR a mutation write whose target is under a
+    protected global-bin path. A package-manager LOCAL op (no global flag/link), or
+    a write to a NON-protected path, does not hit here."""
+    pm_pos = next((i for (i, st) in exec_toks
+                   if os.path.basename(_strip_quotes(st)) in PKG_MANAGERS),
+                  None)
+    if pm_pos is not None:
+        # the package-manager's OWN argv (from the pm token onward), so a `-g`/
+        # `link` that belongs to the pm — not an unrelated wrapper option — is what
+        # is matched (mirrors P7 reading the pm's `rest`).
+        own = [_strip_quotes(t) for t in tokens[pm_pos + 1:]]
+        is_global = any(t in ("-g", "--global") for t in own)
+        is_link = any(t in ("link", "unlink") for t in own)
+        if is_global or is_link:
+            return True
+    # write to a protected global-bin path via a mutation verb / redirect.
+    if global_bins and _anchor_mutation_hits(sc, tokens, exec_toks, global_bins, cwd, cwd_det):
+        return True
     return False
 
 
