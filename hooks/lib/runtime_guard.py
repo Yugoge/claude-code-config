@@ -3051,7 +3051,7 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
     the wrapper/front-end head name. This is the load-bearing wrapper-agnostic
     gate: it does NOT enumerate wrappers; a head that is not an inspection command
     is treated as a possible launcher, so the trailing protected launch/build/kill
-    can never hide behind a novel front-end (numactl/tini/dumb-init/ssh-agent/…).
+    can never hide behind a novel front-end of ANY name (no wrapper enumeration).
     """
     cmds = set(cfg.get("protected_cmds", []))
     launch_paths = cfg.get("protected_launch_paths", [])
@@ -3303,7 +3303,7 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
     # inspect/edit operation, it scans the WHOLE argv for a protected anchor in
     # executable position + launch/build/kill grammar, INDEPENDENT of the wrapper
     # head name. It catches a protected launch/build/kill behind ANY front-end —
-    # documented (flock/firejail) OR novel (numactl/tini/dumb-init/ssh-agent) —
+    # documented (peeled above for precision) OR novel (any undocumented wrapper) —
     # without enumerating wrappers. The documented-front-end peel above still runs
     # for cwd/shell-payload precision, but it is no longer the load-bearing gate.
     v = _p0_anchor(simple_cmds, cfg, cwd_base, groups)

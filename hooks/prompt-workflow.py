@@ -428,7 +428,7 @@ def build_overnight_continuation(state: dict) -> str:
     cmd_spec = read_command_spec('dev-overnight')
     wt_instruction = _build_worktree_instruction(state)
     overnight_todos = _load_overnight_todos()
-    step_count = len(overnight_todos) or 21
+    step_count = len(overnight_todos) or 22
     step_labels = '; '.join(str(item.get('content', '')) for item in overnight_todos)
     return '\n'.join([
         f'OVERNIGHT CONTINUATION - Cycle {cc + 1}', '',
