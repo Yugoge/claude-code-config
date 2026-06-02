@@ -964,7 +964,7 @@ Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
 This pre-decision-tree pass applies QA's reported spec section updates to the spec file before processing the verdict.
 
-If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec` and a global spec path was passed to Step 11), the orchestrator MUST apply QA's reported spec section updates to the spec file before processing the verdict:
+If a `Spec file` was non-null this cycle (i.e., `/dev` was invoked under `--spec` and a global spec path was passed to Step 13), the orchestrator MUST apply QA's reported spec section updates to the spec file before processing the verdict:
 
 (a) Check whether `Spec file` was non-null this cycle. If null, skip to the decision tree below.
 
