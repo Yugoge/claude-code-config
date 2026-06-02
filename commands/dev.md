@@ -365,7 +365,7 @@ Layers from shallow to deep:
 When dev reports back, verify implementation layer matches BA's spec layer.
 If dev changed L1 when spec called for L3, treat as failed implementation.
 
-### Step 3: Delegate to BA Subagent
+### Step 4: Delegate to BA Subagent
 
 **Pre-dispatch (Mascot scoring injection, spec-20260518-225715 §5.1)**:
 
