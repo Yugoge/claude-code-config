@@ -101,7 +101,7 @@ Step 1: Read state file + enter worktree (first run only)
   |       Time expired? → generate summary, cleanup
   |                |
   |       TODO COMPLETION DETECTION (PostToolUse hook)
-  |       All 21 steps completed?
+  |       All todo steps completed?
   |         YES + time remaining: reset todos, loop to Step 2
   |         YES + time expired: allow natural completion
   |         NO: continue current step
