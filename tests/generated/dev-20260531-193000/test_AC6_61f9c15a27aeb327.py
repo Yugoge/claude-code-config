@@ -25,7 +25,87 @@ def test_AC6():
     WHEN:  overnight workflow inspected AND every Agent(subagent_type:dev) dispatch site enumerated (grep 'subagent_type: ?"dev"|Step 12|Parallel Dev|Re-invoke|Step 17|implementing|current_phase|Continuation|resume|context-iter' across commands/dev-overnight.md AND hooks/prompt-workflow.py)
     THEN:  dev-overnight invokes graphify-query.py before Step 8; AND the B2-INV invariant holds on the Dev-DISPATCH boundary (not just Step 12) — graphify enrichment (Step 11g) has run against the context Dev will consume BEFORE EVERY Agent(subagent_type:dev) dispatch, via a single shared Dev-dispatch precondition (B10) that ALL THREE sites route through: Step 12 parallel loop (:1155), Step 13 dev-blocked re-invoke (:1204), AND Step 17 iteration loop (:1372, against its fresh context-iter<N>); idempotency keyed on a CONTEXT FINGERPRINT {pipeline_index, iteration, context_path, context_sha256} in .claude/dev-registry/${DEV_SESSION_ID}-pipeline-<index>/graphify/graphify-run.json (SKIP only when fingerprint matches current Dev context; RE-ENRICH on absent-or-mismatched fingerprint so Step 13 refinement / Step 17 new-iteration context is re-enriched), advisory/fail-open; this covers the BA-QA PASS branch (:1076), EXHAUSTED branch (:1096), CONTINUATION/RESUME (:344 implementing->Step 12), Step 13 re-invoke, AND Step 17 iteration; the word 'validated' must NOT gate it (NF2); the precondition marks Step 11g in-progress BEFORE its graphify Agent call and restores the surrounding step (12/13/17) in-progress before the Dev Agent call so the contract hook validates graphify against the Step-11g wildcard entry not the Dev entry (codex round-4 #4); the Continuation-Mode prose (:341-348) states the resumed implementing pipeline still enriches before Dev via the B10 precondition AND derives resume eligibility from on-disk artifacts (BA+BA-QA present, no Dev report) so a phase/artifact mismatch never silently skips enrichment (B11, codex round-4 #5); hooks/prompt-workflow.py:450 injected continuation phase->step map reconciled so ALL phase->step numbers (not just implementing) match the markdown map at :341-348 (no stale implementing->Step 6; B12, codex round-4 #6); todo has Step 11g WITH subagent_call:{agent:graphify,subagent_type:graphify} and dev-overnight.md has a matching ### Step 11g: LEVEL-3 heading (Steps 12-21 unchanged); schema role enum includes graphify; the graphify required_call is EXACTLY ONE step-level entry with pipeline_id:null and mode:null (role-only wildcard — _check_role_pipeline enforces equality only when entry.pipeline_id is not None, so any/empty runtime pipeline_id on ANY dispatch site is authorized and does NOT exit-2 block PROVIDED Step 11g is the in-progress step); NO per-pipeline graphify contract entry; scripts/build-pipelines-from-triage.py UNCHANGED (no pipeline_id field); the single graphify entry expected_output_path is one aggregate path always written (B7); query+enrich use ${DEV_SESSION_ID}-pipeline-<index> task-ids (from pipeline.index/timestamp_suffix) for disjoint sidecar artifacts; sentinel registration at 251/263 preserved
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — graphify dual-touchpoint fully integrated into dev-overnight: pre-BA query before Step 8 + B2-INV Step 11g enrichment via shared B10 precondition before EVERY dev dispatch (Step 12/13/17), context-fingerprint idempotency, B11 continuation prose, B12 runtime map, cycle-contract {role:graphify,pipeline_id:null,mode:null} wildcard, todo Step 11g, build-pipelines unchanged, sentinels 251/263 preserved")
+    md = (_PROJECT / "commands" / "dev-overnight.md").read_text(encoding="utf-8")
+    todo_py = (_PROJECT / "scripts" / "todo" / "dev-overnight.py").read_text(encoding="utf-8")
+    schema = json.loads((_PROJECT / "schemas" / "cycle-contract.v1.json").read_text(encoding="utf-8"))
+    pw = (_PROJECT / "hooks" / "prompt-workflow.py").read_text(encoding="utf-8")
+
+    # --- pre-BA hydrator before Step 8 (B1) ---
+    step8_idx = md.index("### Step 8: Run All BA Subagents")
+    pre_ba_region = md[:step8_idx + 4000]  # the hydrator sits at the top of Step 8
+    assert "graphify-query.py" in pre_ba_region, "dev-overnight.md must invoke graphify-query.py as a pre-BA hydrator"
+    assert "pre_query.json" in pre_ba_region, "pre-BA hydrator must reference pre_query.json output"
+
+    # --- single shared Step 11g Dev-dispatch precondition (B3/B10), level-3 heading ---
+    assert re.search(r"^### Step 11g:", md, re.M), "dev-overnight.md must have a level-3 ### Step 11g: heading"
+    assert md.count("### Step 11g:") == 1, "exactly one shared Step 11g precondition block (not per-branch)"
+    s11g = md[md.index("### Step 11g:"):md.index("### Step 12:")]
+    assert "graphify-enrich.py" in s11g, "Step 11g must dispatch graphify enrichment (graphify-enrich.py)"
+    assert 'subagent_type: "graphify"' in s11g, "Step 11g must dispatch the graphify subagent"
+
+    # --- B2-INV: invariant keyed on Dev-dispatch boundary, NOT 'validated' ---
+    assert "validated pipelines" not in s11g, "enrichment must NOT be gated by the word 'validated' (NF2)"
+    # context-fingerprint idempotency, NOT bare existence (codex round-4 #3)
+    for tok in ("context_sha256", "context_path", "iteration", "pipeline_index"):
+        assert tok in s11g, f"Step 11g idempotency must record fingerprint field {tok}"
+    assert "bare-existence" in s11g.lower() or "bare existence" in s11g.lower(), \
+        "Step 11g must forbid bare-existence idempotency"
+
+    # --- contract step-marking: Step 11g in-progress before graphify Agent (codex round-4 #4) ---
+    assert "in_progress" in s11g and "Step 11g" in s11g, \
+        "Step 11g precondition must mark Step 11g in_progress before the graphify Agent call"
+
+    # --- all THREE Dev-dispatch sites route through the precondition (B2-INV) ---
+    for site in ("### Step 12: Run All Dev Subagents", "### Step 13: Validate All Dev", "### Step 17: Per-Pipeline Iteration"):
+        seg = md[md.index(site):md.index(site) + 2500]
+        assert "Step 11g" in seg, f"Dev-dispatch site '{site}' must route through the Step 11g precondition"
+
+    # --- B11 continuation prose: implementing resume enriches before Dev + artifact-derived eligibility ---
+    cont = md[md.index("### Continuation Mode"):md.index("### Continuation Mode") + 2500]
+    assert "Step 11g" in cont, "continuation prose must state implementing-resume enriches via Step 11g"
+    assert "no Dev report" in cont, "continuation must derive resume eligibility from on-disk artifacts (B11)"
+
+    # --- B12: runtime phase->step map reconciled (no stale implementing->Step 6) ---
+    assert "implementing->Step 6" not in pw, "stale 'implementing->Step 6' must NOT survive in prompt-workflow.py (B12)"
+    assert "implementing->Step 12" in pw, "prompt-workflow.py map must route implementing->Step 12 (B12)"
+    assert "verifying->Step 14" in pw and "iterating->Step 17" in pw and "logging->Step 19" in pw, \
+        "all phase->step numbers must match the markdown map (B12, codex round-4 #6)"
+
+    # --- todo Step 11g WITH subagent_call metadata; Steps 12-21 unchanged ---
+    assert '"11g"' in todo_py, "todo generator must carry Step 11g"
+    spec = importlib.util.spec_from_file_location("dev_overnight_todo", _PROJECT / "scripts" / "todo" / "dev-overnight.py")
+    mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    todos = mod.get_todos()
+    s11g_todo = [t for t in todos if t["content"].startswith("Step 11g:")]
+    assert len(s11g_todo) == 1, "exactly one Step 11g todo"
+    assert s11g_todo[0].get("subagent_call") == {"agent": "graphify", "subagent_type": "graphify"}, \
+        "Step 11g todo must carry subagent_call:{agent:graphify,subagent_type:graphify}"
+    for n in range(12, 22):
+        assert any(t["content"].startswith(f"Step {n}:") for t in todos), f"integer Step {n} must be unchanged"
+
+    # --- schema role enum includes graphify ---
+    role_enum = schema["properties"]["required_calls"]["items"]["properties"]["role"]["enum"]
+    assert "graphify" in role_enum, "cycle-contract schema role enum must include graphify (B5)"
+
+    # --- ONE step-level graphify required_call: pipeline_id:null, mode:null (B4/B4a) ---
+    contract_section = md[md.index("### Cycle Contract Manifest"):md.index("### Step 5:")]
+    assert "11g" in contract_section, "Cycle Contract Manifest must list step-id 11g"
+    assert "pipeline_id` MUST be `null`" in contract_section or "pipeline_id: null" in contract_section, \
+        "graphify required_call pipeline_id MUST be null (role-only wildcard)"
+    assert "do NOT publish one entry per pipeline" in contract_section, \
+        "must forbid per-pipeline graphify contract entries (codex ISSUE-A)"
+
+    # --- build-pipelines-from-triage.py UNCHANGED (no pipeline_id field, NF3) ---
+    bp = (_PROJECT / "scripts" / "build-pipelines-from-triage.py").read_text(encoding="utf-8")
+    assert '"pipeline_id"' not in bp and "pipeline_id=" not in bp, \
+        "scripts/build-pipelines-from-triage.py must NOT add a pipeline_id field (NF3 retraction)"
+
+    # --- pipeline-scoped task-ids for disjoint sidecar artifacts (B6) ---
+    assert "${DEV_SESSION_ID}-pipeline-" in pre_ba_region, "pre-BA hydrator must use pipeline-scoped task-id"
+    assert "${DEV_SESSION_ID}-pipeline-" in s11g, "Step 11g enrichment must use pipeline-scoped task-id"
+
+    # --- sentinel registration at 251/263 preserved ---
+    assert md.count('graphify.json"') >= 2, "overnight graphify sentinel registration must be preserved"
+
+    # --- no decimal step labels introduced ---
+    assert not re.findall(r"Step [0-9]+\.[0-9]+", md), "no decimal Step N.N introduced in dev-overnight.md"
