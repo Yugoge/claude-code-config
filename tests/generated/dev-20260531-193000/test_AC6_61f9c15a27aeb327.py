@@ -115,3 +115,35 @@ def test_AC6():
 
     # --- no decimal step labels introduced ---
     assert not re.findall(r"Step [0-9]+\.[0-9]+", md), "no decimal Step N.N introduced in dev-overnight.md"
+
+    # --- aggregate path is concrete, not a placeholder; schema fields named ---
+    assert "<one aggregate path>" not in contract_section, "contract aggregate path must be concrete, not a placeholder"
+    assert "graphify-run.json" in contract_section, "graphify required_call must name a concrete graphify-run.json aggregate path"
+    assert "status" in s11g and "task_id" in s11g, "Step 11g must write the schema-required status + task_id fields"
+
+    # --- Step 11g text precedes each Dev Agent dispatch within its section ---
+    for site in ("### Step 12: Run All Dev Subagents", "### Step 13: Validate All Dev", "### Step 17: Per-Pipeline Iteration"):
+        seg = _section(site)
+        i_pre = seg.find("Step 11g")
+        i_dev = seg.find('Agent(subagent_type: "dev")')
+        if i_dev != -1:
+            assert i_pre != -1 and i_pre < i_dev, f"Step 11g precondition must precede the Dev dispatch in '{site}'"
+
+    # --- no stale 'all 21 steps' loop-completion prose (count now 22) ---
+    assert "all 21 steps" not in md, "stale 'all 21 steps' loop-completion prose must be updated (todo count is now 22)"
+
+    # --- contract_runtime authorizes graphify on any pipeline_id when entry.pipeline_id is null ---
+    import sys
+    sys.path.insert(0, str(_PROJECT))
+    try:
+        from hooks.lib import contract_runtime as cr  # noqa
+        has_validate = hasattr(cr, "validate_required_call")
+    except Exception:
+        has_validate = False
+    if has_validate:
+        entry = {"step": "11g", "role": "graphify", "pipeline_id": None, "mode": None}
+        # _entry_matches_dim treats null/absent dimension as a wildcard
+        assert cr._entry_matches_dim(entry, "pipeline_id", "pipeline-3"), \
+            "null entry.pipeline_id must wildcard-match any runtime pipeline_id"
+        assert cr._entry_matches_dim(entry, "pipeline_id", ""), \
+            "null entry.pipeline_id must wildcard-match empty runtime pipeline_id"
