@@ -528,7 +528,7 @@ The patch MUST run after BA validation passes but BEFORE QA (Step 7) is dispatch
 - Re-invoke BA with specific feedback about what's missing
 - Maximum 2 re-invocations for validation fixes
 
-**If validation passes**: Apply the spec_path patch above, then proceed to Step 6
+**If validation passes**: Apply the spec_path patch above, then proceed to Step 7
 
 ### Step 6: QA Validates BA Conclusions
 
