@@ -1186,23 +1186,73 @@ CONFIG_MUTATION_HEADS = frozenset({
 })
 
 
+def _step0_mutation_anchor_hits(simple_cmds: list, idx: int, sc: str,
+                                tokens: list) -> bool:
+    """HEAD-AGNOSTIC: True if this simple command MUTATES the hardcoded config
+    data file, regardless of the leading wrapper/front-end head.
+
+    This is the config-self-protection mirror of the W6/W7 protected-path anchors
+    (`_anchor_mutation_hits`): it locates the FIRST mutation-verb basename in
+    EXECUTABLE position (so the verb is found even when a NOVEL/undocumented
+    front-end — `busybox`/`fakeroot`/any invented or stacked wrapper — is the
+    simple command's head), reconstructs the verb's OWN argv, reuses
+    `_mutation_targets` to extract the write target(s), resolves each against the
+    effective cwd (cd chain + wrapper chdir), and matches against the config-path
+    variants. The redirect-target form is handled separately by the caller (it is
+    already head-agnostic). The config path is the hardcoded `DATA_FILE_PATH` (a
+    generic path, not a project name), NOT loaded from the data file — the
+    self-protection must not depend on the very file it protects, so this holds
+    even when the config is absent/corrupt (STEP0 runs before config load), and it
+    runs before the /do//allow bypass (which lives in the bash glue, not here).
+    Returns False when no mutation verb is in executable position OR no target
+    matches — so a read/inspect of the config file (`cat`/`<wrapper> cat`), or a
+    mutation of a NON-config file behind a wrapper, still ALLOWS (no over-block)."""
+    variants = list(_config_path_variants())
+    exec_toks = _anchor_exec_tokens(tokens)
+    verb_pos = next((i for (i, st) in exec_toks
+                     if os.path.basename(_strip_quotes(st)) in _ANCHOR_MUTATION_HEADS),
+                    None)
+    if verb_pos is None:
+        return False
+    cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, None)
+    cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+    # the verb's OWN argv (tokens FROM the verb onward), so `_mutation_targets`
+    # parses the destination of the mutation verb, not of the wrapper head.
+    verb_tokens = tokens[verb_pos:]
+    for tgt in _mutation_targets(sc, verb_tokens):
+        for cand in _resolve_rel(tgt, cwd, cwd_det):
+            if _path_matches_any(cand, variants):
+                return True
+    return False
+
+
 def _step0_self_protection(simple_cmds: list) -> Optional[Verdict]:
-    for sc in simple_cmds:
+    for idx, sc in enumerate(simple_cmds):
         tokens = _safe_shlex(sc)
         if not tokens:
             continue
         cw = _command_words(tokens)
         head = cw[0][1] if cw else os.path.basename(_strip_quotes(tokens[0]))
-        # redirect write to the config path (any head)
+        # redirect write to the config path (any head — already head-agnostic)
         rt = _has_redirect_to(sc)
         if rt and _normalize_path(rt) in {_normalize_path(v) for v in _config_path_variants()}:
             return _block("STEP0", "config self-protection: redirect to data file")
-        # sed -i / perl -i targeting the config path
+        # sed -i / perl -i targeting the config path (head-keyed by design: an
+        # in-place editor IS its own head; behind a wrapper it is caught by the
+        # head-agnostic mutation anchor below, which lists sed/perl as mutation
+        # verbs and `_mutation_targets` honors the -i form).
         if head in ("sed", "perl") and ("-i" in tokens or any(t.startswith("-i") for t in tokens)):
             if _targets_config_file(sc, tokens):
                 return _block("STEP0", "config self-protection: in-place edit of data file")
-        # mutation heads with the config path as an argument
-        if head in CONFIG_MUTATION_HEADS and _targets_config_file(sc, tokens):
+        # HEAD-AGNOSTIC mutation of the config file behind ANY wrapper (documented,
+        # undocumented, invented, or stacked). Mirrors W6/W7: find a mutation verb
+        # in executable position and match its target against the config path —
+        # so `<any-wrapper> cp|mv|tee|truncate|dd|install|rsync|ln|sed -i|perl -i
+        # <datafile>` BLOCKS even though the leading head is the wrapper, not the
+        # mutation verb. (The bare-head form is the verb_pos==0 special case of the
+        # same scan; the legacy head-keyed CONFIG_MUTATION_HEADS check is now
+        # subsumed by this and removed.)
+        if _step0_mutation_anchor_hits(simple_cmds, idx, sc, tokens):
             return _block("STEP0", "config self-protection: mutation of data file")
     return None
 

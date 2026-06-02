@@ -89,6 +89,14 @@ def _extract_preserved(old: str, dir_name: str) -> str:
     if has_markers:
         for idx in range(start_idx, end_idx + 1):
             remove[idx] = True
+    # Orphan-safe: an AUTO_START with no matching AUTO_END (or a stray AUTO_END) leaves a
+    # marker line that would otherwise block legacy stat detection and survive into the
+    # fresh build, duplicating markers/stats. Markers are never human prose, so strip any
+    # marker line unconditionally in ADDITION to the matched-pair interior above.
+    for idx, ln in enumerate(lines):
+        st = ln.strip()
+        if st == AUTO_START or st == AUTO_END:
+            remove[idx] = True
 
     # 3. Legacy markerless: strip ONLY the first contiguous stat run near the top and the
     #    generated `## Tree` block — never stat-shaped or `## Tree`-shaped lines elsewhere.
