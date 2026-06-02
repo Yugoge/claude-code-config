@@ -640,7 +640,7 @@ Unresolved objections:
 {summary of remaining QA objections}
 
 Appending unresolved objections to context JSON under `ba_qa_unresolved_objections`.
-Proceeding to Step 8 with documented assumptions.
+Proceeding to Step 9 with documented assumptions.
 ```
 
 **If BA-QA iteration <= 3**:
