@@ -204,10 +204,21 @@ def resolve_target_spec_dir(data: dict, project_dir: Path) -> Optional[Path]:
     spec_id = derive_spec_id_from_transcript(transcript_path)
     if spec_id is None:
         return None
-    spec_dir = project_dir / "docs" / "dev" / "specs" / spec_id
-    if not (spec_dir / "views").is_dir():
-        return None
-    return spec_dir
+    specs_base = project_dir / "docs" / "dev" / "specs"
+    # The transcript yields the PREFIXED monolith id (spec-<ts>), but the splitter
+    # finalizes views at the DE-prefixed id (<ts>, exactly one leading "spec-"
+    # stripped — the current convention). Try the prefixed dir first (legacy
+    # specs), then the de-prefixed dir; return whichever actually has a views/.
+    # Without the de-prefixed candidate this hook silently no-ops on every
+    # current-convention spec (arch-8), leaving Stop-time coverage unenforced.
+    candidates = [spec_id]
+    if spec_id.startswith("spec-"):
+        candidates.append(spec_id[len("spec-"):])
+    for cand in candidates:
+        spec_dir = specs_base / cand
+        if (spec_dir / "views").is_dir():
+            return spec_dir
+    return None
 
 
 def main():
