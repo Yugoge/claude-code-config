@@ -718,7 +718,7 @@ Use Agent tool with:
 
 If the sentinel is absent, record `graphify_status=skipped/sentinel_absent` in the todo list.
 
-When sentinel existed and graphify completes (or is skipped), check `.claude/dev-registry/<DEV_SESSION_ID>/graphify/graph-summary.json` for the status field and record it in the todo list. Then continue to Step 8.
+When sentinel existed and graphify completes (or is skipped), check `.claude/dev-registry/<DEV_SESSION_ID>/graphify/graph-summary.json` for the status field and record it in the todo list. Then continue to Step 10.
 
 ### Step 8: Agent dispatch — Delegate to Dev Subagent
 
