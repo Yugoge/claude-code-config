@@ -451,7 +451,7 @@ Use Task tool with:
 
 **If BA returns `status: "ready"` on first invocation**: Skip to Step 6.
 
-### Step 5: Validate BA Output
+### Step 6: Validate BA Output
 
 **Check BA deliverables exist and are well-formed**:
 
