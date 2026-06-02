@@ -990,15 +990,15 @@ After the spec section updates pass completes (or is skipped on non-spec cycles)
 
 ```
 IF qa.status == "pass":
-  → Proceed to Step 13 (Update Permissions)
+  → Proceed to Step 15 (Update Permissions)
 
 ELIF qa.status == "warning":
   → Check if minor issues acceptable
-  → If yes: Proceed to Step 13 (Update Permissions)
-  → If no: Proceed to Step 14 (Iteration)
+  → If yes: Proceed to Step 15 (Update Permissions)
+  → If no: Proceed to Step 16 (Iteration)
 
 ELIF qa.status == "fail":
-  → Proceed to Step 14 (Iteration)
+  → Proceed to Step 16 (Iteration)
 ```
 
 **Apply Mascot score-update events (post-QA, spec-20260518-225715 §5.1)**:
