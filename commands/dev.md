@@ -907,7 +907,7 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 - Refine context JSON with additional information
 - Re-invoke dev subagent (maximum 3 attempts)
 
-**If dev completed**: Proceed to Step 11
+**If dev completed**: Proceed to Step 13
 
 ### Step 11: Delegate to QA Subagent
 
