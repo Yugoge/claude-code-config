@@ -242,7 +242,9 @@ are first-class material and MUST NOT be silently dropped (M3-M5, M12).
 7. Each Section-9 reference line is a SHORT verbatim monolith line (it enters the coverage
    denominator and MUST appear verbatim in ≥1 view — see Step 6 and the splitter). The
    companion design body and evidence binaries live OUTSIDE the monolith and are NOT in the
-   coverage denominator. Then return to the accumulation loop.
+   coverage denominator. Then return control to the caller: when invoked from the Step 4
+   capture precondition, continue branch evaluation for the SAME turn (append `### 5.N` /
+   finalize / clarify); do NOT skip ahead to waiting for the next user turn.
 
 ### Step 5: Natural-conclusion detection
 
