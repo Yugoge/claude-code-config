@@ -5,10 +5,16 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import re
+from pathlib import Path
+
 import pytest
 
 AC_UID = "8ecf6d5939334137"
 AC_TYPE = "data"
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEV_MD = REPO_ROOT / "commands" / "dev.md"
 
 
 def test_AC1():
@@ -17,7 +23,22 @@ def test_AC1():
     WHEN:  ### Step N: headings enumerated
     THEN:  continuous integer Step 1..17, graphify pre-BA at Step 2, enrichment at Step 9, zero decimal Step N.N / Sub-step N.N
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — commands/dev.md ### Step headings form continuous 1..17 (graphify pre-BA Step 2, enrichment Step 9) with zero decimal Step N.N / Sub-step N.N")
+    assert DEV_MD.is_file(), f"missing commands/dev.md: {DEV_MD}"
+    text = DEV_MD.read_text(encoding="utf-8")
+
+    headings = re.findall(r"^### Step (\d+):\s*(.*)$", text, re.MULTILINE)
+    numbers = [int(n) for n, _ in headings]
+    assert numbers == list(range(1, 18)), (
+        f"### Step headings must form continuous integer 1..17, got {numbers}"
+    )
+
+    titles = {int(n): title for n, title in headings}
+    assert "Graphify pre-BA" in titles[2], (
+        f"Step 2 must be the graphify pre-BA hydrator, got: {titles[2]!r}"
+    )
+    assert "Graphify enrichment" in titles[9], (
+        f"Step 9 must be the graphify enrichment touchpoint, got: {titles[9]!r}"
+    )
+
+    assert not re.search(r"Step [0-9]+\.[0-9]+", text), "decimal 'Step N.N' label present"
+    assert not re.search(r"Sub-step [0-9]+\.[0-9]+", text), "decimal 'Sub-step N.N' label present"
