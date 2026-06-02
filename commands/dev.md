@@ -176,7 +176,7 @@ When `SPEC_ID` is non-empty, every Agent launch prompt for an agent that has a c
 
 **T1.7 (redev-tier123) — Orchestrator-view + Section 5 read MANDATE**: When `VIEWS_AVAILABLE` is `true`, BEFORE composing any subagent dispatch prompt, you MUST read the orchestrator view that the resolver located — `$CLAUDE_PROJECT_DIR/$VIEWS_DIR/orchestrator.md` (the views live under `docs/dev/specs/<artifact_id>/views/`, NOT under `.claude/specs/`) — AND the spec's Section 5 (User's Acceptance Criterion) verbatim from `$spec_path`. Quote the user's words from Section 5 directly into every dispatch prompt; do not paraphrase or summarize. The user's verbatim need is the binding contract — every subagent must see the user's literal request, not your reformulation.
 
-**Graphify pre-BA Bash hydrator** (between Step 1 and Step 2):
+### Step 2: Graphify pre-BA Bash hydrator
 
 Run `scripts/graphify-query.py` as a direct Bash call (NOT a subagent — avoids adding an LLM interpretation layer that could propagate confirmation bias). This is advisory: if the binary is absent or cache is unavailable, the script exits 0 with `status=unavailable` and BA proceeds with its original flow.
 
