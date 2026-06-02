@@ -147,9 +147,9 @@ DEP_SHORTHAND_NPM = frozenset({"start", "stop", "restart", "test"})
 # scan is skipped for it (so read/inspect/edit of a protected path still ALLOWS).
 # Any head OUTSIDE this set is a potential exec front-end / wrapper / launcher, so
 # its WHOLE argv is scanned for a protected anchor in executable position. This is
-# a denylist-free design: novel wrappers (numactl/tini/dumb-init/ssh-agent/…) are
-# never enumerated — they simply are NOT in the read/inspect allowlist, so their
-# trailing protected launch/build/kill is analyzed.
+# a denylist-free design: novel exec/process wrappers are never enumerated — they
+# simply are NOT in the read/inspect allowlist, so their trailing protected
+# launch/build/kill is analyzed regardless of the wrapper's name.
 READ_INSPECT_EDIT_ALLOWLIST = frozenset({
     # file reading / dumping / paging
     "cat", "bat", "less", "more", "head", "tail", "tac", "nl", "zcat", "zless",
@@ -1248,7 +1248,7 @@ def _step1_indeterminate(simple_cmds: list) -> Verdict:
         if head in ("npx", "bunx"):
             return _block("STEP1", "indeterminate policy: package runner")
         # ── HEAD-AGNOSTIC fail-closed tail scan ──────────────────────────────
-        # Behind a novel exec front-end (numactl/tini/dumb-init/ssh-agent/…) the
+        # Behind a novel exec front-end (an undocumented process/exec wrapper) the
         # head is the wrapper, so the head-keyed checks above miss the danger
         # family in the tail. When the head is NOT a read/inspect/edit operation,
         # scan ALL exec-position tokens for the generic danger families so a
