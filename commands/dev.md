@@ -1089,7 +1089,7 @@ You can now use these scripts without permission prompts.
 - If permission already exists → Skip, don't duplicate
 - If user denies update → Log to completion report
 
-### Step 14: Iteration Loop (if QA fails)
+### Step 16: Iteration Loop (if QA fails)
 
 #### Layer-escalation gate (mandatory)
 
