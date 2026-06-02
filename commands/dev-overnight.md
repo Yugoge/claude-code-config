@@ -909,12 +909,15 @@ The `focus_verification_criteria` array will be passed to each QA subagent in St
 
 ### Step 8: Run All BA Subagents (Parallel)
 
-**Graphify pre-BA Bash hydrator** (per pipeline, before each BA dispatch; mirrors `commands/dev.md` Step 2 — do NOT duplicate its full prose). Before dispatching BA for pipeline[i], run `scripts/graphify-query.py` as a direct read-only Bash call (NOT a subagent — gate-exempt, no contract impact), advisory and fail-open: if the binary or cache is absent it exits 0 with `status=unavailable` and BA proceeds unchanged. Use a **pipeline-scoped task-id** `${DEV_SESSION_ID}-pipeline-{pipeline.index}` (derived from the existing `pipeline.index`/`pipeline.timestamp_suffix`, NOT a new field) and the **per-pipeline requirement** (the pipeline's description/location/spec_path), NOT the session-level requirement file, so concurrent fanout writes to disjoint `.claude/dev-registry/${DEV_SESSION_ID}-pipeline-{pipeline.index}/graphify/pre_query.json`:
+**Graphify pre-BA Bash hydrator** (per pipeline, before each BA dispatch; mirrors `commands/dev.md` Step 2 — do NOT duplicate its full prose). Before dispatching BA for pipeline[i], run `scripts/graphify-query.py` as a direct read-only Bash call (NOT a subagent — gate-exempt, no contract impact), advisory and fail-open: if the binary or cache is absent it exits 0 with `status=unavailable` and BA proceeds unchanged. Use a **pipeline-scoped task-id** `${DEV_SESSION_ID}-pipeline-{pipeline.index}` (derived from the existing `pipeline.index`/`pipeline.timestamp_suffix`, NOT a new field) and a **per-pipeline requirement file**, NOT the session-level requirement file, so concurrent fanout writes to disjoint `.claude/dev-registry/${DEV_SESSION_ID}-pipeline-{pipeline.index}/graphify/pre_query.json`. First materialize a per-pipeline requirement file that carries the pipeline's strongest anchors — its `description` AND `location` (file/path hints) AND `spec_path` — because in autonomous mode the spec template alone may omit the file/path `location`; then pass that file:
 
 ```bash
+mkdir -p ".claude/dev-registry/${DEV_SESSION_ID}-pipeline-{pipeline.index}/graphify"
+printf '%s\n\nLocation: %s\n\nSpec: %s\n' "{pipeline.description}" "{pipeline.location}" "{pipeline.spec_path}" \
+  > ".claude/dev-registry/${DEV_SESSION_ID}-pipeline-{pipeline.index}/graphify/requirement.txt"
 source "${CLAUDE_PROJECT_DIR}/venv/bin/activate" && python3 "$CLAUDE_PROJECT_DIR/scripts/graphify-query.py" \
   --task-id "${DEV_SESSION_ID}-pipeline-{pipeline.index}" \
-  --requirement-file "{pipeline.spec_path}" || true
+  --requirement-file ".claude/dev-registry/${DEV_SESSION_ID}-pipeline-{pipeline.index}/graphify/requirement.txt" || true
 ```
 
 When that pipeline's `pre_query.json` exists with `status=ok` or `status=degraded`, include `Pre-query context file: .claude/dev-registry/${DEV_SESSION_ID}-pipeline-{pipeline.index}/graphify/pre_query.json` in that pipeline's BA dispatch prompt only. When `status=unavailable`/`status=skipped`, omit it — BA runs its original flow unchanged. See `commands/dev.md` Step 2 graphify hydrator block for the canonical invocation. These are sidecar artifacts (not contract-gated).
