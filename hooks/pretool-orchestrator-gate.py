@@ -206,7 +206,12 @@ def main():
     if tool_name == "Write":
         target = (data.get("tool_input") or {}).get("file_path") or ""
         try:
-            if target and Path(target).exists():
+            # Match write-guard's predicate EXACTLY: it blocks only regular files
+            # (`[ -f "$FILE_PATH" ]`, pretool-write-guard.sh:141). Using is_file()
+            # (not exists()) avoids skipping the count for an existing directory /
+            # FIFO / symlink-to-dir, which write-guard would NOT reject — those must
+            # still count so the once-per-turn limit is not silently loosened.
+            if target and Path(target).is_file():
                 sys.exit(0)
         except OSError:
             pass
