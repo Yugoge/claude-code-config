@@ -183,15 +183,15 @@
         "scoped_checks": [
           {
             "_scope_id": "AC-05.step11",
-            "scope_start_regex": "^### Step 11:",
-            "scope_end_regex": "^### Step 12:",
+            "scope_start_regex": "^### Step 13:",
+            "scope_end_regex": "^### Step 14:",
             "must_contain_regex": [
               "tests/generated/<task_id>/manifest\\.json"
             ],
             "must_not_contain_regex": [
               "tests/generated/manifest\\.json(?!\\s*\\((?:index|global))"
             ],
-            "description": "Inside Step 11 QA dispatch: a per-task manifest-path line MUST appear (REQUIRED — not just unqualified-global FORBIDDEN; ensures the QA dispatch actually carries the per-task path)"
+            "description": "Inside Step 13 QA dispatch: a per-task manifest-path line MUST appear (REQUIRED — not just unqualified-global FORBIDDEN; ensures the QA dispatch actually carries the per-task path)"
           },
           {
             "_scope_id": "AC-05.dev_handoff",
