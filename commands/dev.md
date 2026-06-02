@@ -956,7 +956,7 @@ Use Task tool with:
 
 **Wait for QA subagent completion** before proceeding.
 
-### Step 12: Process QA Results
+### Step 14: Process QA Results
 
 Read QA report: `docs/dev/qa-report-<timestamp>.json`
 
