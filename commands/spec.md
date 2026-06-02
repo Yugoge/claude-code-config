@@ -116,7 +116,7 @@ After the capture precondition has run, branch on the turn's requirement/closure
   carries requirement text (it does not, by definition of this branch). Then loop back to
   wait. This turn shape is now fully captured — it can never fall through uncaptured.
 - **Exploration findings arrive** → integrate into Section 1 (Before) silently. If a finding contradicts the user's description, surface one targeted question — for example, "I looked at X and found Y — does that match?" — then loop back. Never gate the loop on exploration.
-- **Mid-loop vague input** → apply Step 2 logic (max 3 rounds) to that single message before appending, then loop back. (The capture precondition already handled any design/evidence in the turn.)
+- **Mid-loop vague input** → apply Step 2 logic (max 3 rounds) to that single message before appending, then loop back. (The capture precondition already handled any design/evidence in the triggering turn.) Each clarification RESPONSE collected by Step 2 is itself a fresh Step 4 user turn: run the capture precondition (Step 4b) on it FIRST, before re-evaluating Step 2 / appending — do NOT process a clarification answer in a bypass path that skips capture, or design/evidence supplied in a clarification reply would be dropped.
 
 Maintain `turn_count` internally (not user-visible), increment after each user response. No hard turn cap — termination is signal-driven.
 
