@@ -3144,6 +3144,7 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
     ws = set(cfg.get("protected_build_workspaces", []))
     idents = cfg.get("protected_proc_idents", [])
     statefiles = cfg.get("protected_statefiles", [])
+    services = cfg.get("protected_services", [])
     groups = groups or []
     for idx, sc in enumerate(simple_cmds):
         tokens = _safe_shlex(sc)
@@ -3242,7 +3243,52 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
                             s2 = re.sub(r"^\d*<+", "", s2)
                             if s2 and not s2.startswith("-") and _path_matches_any(s2, statefiles):
                                 return _block("P0", "process-kill anchor (subst) reaching a protected statefile behind a front-end")
+
+        # ── W5 SERVICE-CONTROL ANCHOR: a service-manager + disruptive verb + ────
+        # a protected unit, behind any wrapper. P2 is HEAD-KEYED (it only fires
+        # when the effective head is the service-manager program), so a wrapped
+        # service-manager restart (`<wrapper> systemctl restart <unit>` /
+        # `<wrapper> service <unit> restart`) slips past it exactly like the
+        # launch/build/kill leaks did before the anchor redesign. Detect a
+        # service-manager program basename anywhere in the exec tokens
+        # (head-agnostic) + a disruptive lifecycle verb (SERVICE_VERBS) + a
+        # protected unit, INDEPENDENT of the wrapper head. Data-driven: the unit
+        # names live in `protected_services` (the engine stays project-name-free).
+        if services and _anchor_service_hits_protected(tokens, exec_toks, services):
+            return _block("P0", "service-control of a protected unit behind a front-end")
     return None
+
+
+# Service-manager program basenames the service-control anchor recognizes. These
+# are generic init/service tools — NOT project names. Mirrors the head set P2
+# keys on, so the anchor blocks the same family head-agnostically.
+_SERVICE_MANAGER_PROGRAMS = frozenset({"systemctl", "service", "initctl"})
+
+
+def _anchor_service_hits_protected(tokens: list, exec_toks: list,
+                                   services: list) -> bool:
+    """True if the simple command (head-agnostic) is a service-manager invocation
+    that disrupts a PROTECTED unit: a service-manager program basename
+    (systemctl/service/initctl) appears in the exec tokens AND a disruptive
+    lifecycle verb (SERVICE_VERBS — start/stop/restart/try-restart/reload/
+    reload-or-restart/kill/disable/mask/enable + the force/conditional variants
+    force-reload/condrestart/try-reload-or-restart/reload-or-try-restart/
+    condreload) appears anywhere in the tokens AND a protected unit name is named.
+    Matches the bare unit, `unit.service`, and the systemd template-instance form
+    `unit@instance(.service)` — the same regex family P2 uses — so the wrapper
+    NAME is irrelevant (mirrors how W1/W2/W4 are head-agnostic)."""
+    bases = [os.path.basename(_strip_quotes(st)) for _i, st in exec_toks]
+    if not any(b in _SERVICE_MANAGER_PROGRAMS for b in bases):
+        return False
+    tok_bases = [os.path.basename(_strip_quotes(t)) for t in tokens]
+    if not any(v in tok_bases for v in SERVICE_VERBS):
+        return False
+    joined = " " + " ".join(_strip_quotes(t) for t in tokens) + " "
+    for s in services:
+        rx = re.compile(r"(^|[\s=])" + re.escape(s) + r"(@[^\s.=/]*)?(\.service)?(\s|$|\.|=)")
+        if rx.search(joined):
+            return True
+    return False
 
 
 def _anchor_build_hits_protected(tokens: list, exec_toks: list, cfg: dict,
