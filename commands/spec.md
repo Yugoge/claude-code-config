@@ -90,13 +90,13 @@ After Step 3, wait for the next user message. For EVERY user turn, FIRST run the
 capture precondition, THEN branch:
 
 **Capture precondition (runs first, every turn — M2)**: BEFORE evaluating any branch
-below, **run the Design & Evidence Capture Routine (Step 4b) for THIS turn's material**.
-Step 4b sub-step 1 self-no-ops when the turn carries no design/evidence, so it is safe to
+below, **run the Design & Evidence Capture Routine for THIS turn's material**.
+The routine's sub-step 1 self-no-ops when the turn carries no design/evidence, so it is safe to
 invoke unconditionally at the top of every turn. This single pre-branch invocation is what
 guarantees M2's "capture on every follow-up turn" structurally — no branch outcome below
 (another-requirement, strong-signal/finalize, mid-loop-vague, or a design/evidence-only
 turn) can proceed or finalize without first capturing any material present in the same
-turn. Do NOT also call Step 4b inside an individual branch — that would double-capture the
+turn. Do NOT also call the routine inside an individual branch — that would double-capture the
 same turn's material.
 
 After the capture precondition has run, branch on the turn's requirement/closure shape:
