@@ -5,10 +5,18 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 AC_UID = "258d36f1701773e2"
 AC_TYPE = "data"
+
+_PROJECT = Path(os.environ.get("CLAUDE_PROJECT_DIR", Path(__file__).parents[3]))
 
 
 def test_AC7():
