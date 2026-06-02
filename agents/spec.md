@@ -189,6 +189,11 @@ Route Section 9 as follows:
   Section-9 line as a real monolith line that must be covered.
 - Do NOT use the `EXPLICIT` cite-by-range marker for Section-9 refs — it is whitelisted
   OUT of the coverage count, so it would not satisfy coverage for these reference lines.
+- The Section-9 `<!-- consumers: [all] -->` annotation is ROUTING-ONLY: it directs the
+  whole Section-9 block to all selected views + orchestrator. It is NEVER Role Mandate
+  evidence (R3.2/R3.3) — a view MUST NOT cite a Section-9 reference line or its `[all]`
+  annotation as the `basis:` for its Role Mandate INFERRED marker. Section 9 carries
+  design/evidence pointers, not role-defining content.
 - The companion design BODY files and the evidence BINARIES live OUTSIDE the monolith.
   They are NOT monolith content and MUST NOT be pulled into any view. Views carry only the
   short Section-9 reference + scaffold + annotation lines, never the design body or the
