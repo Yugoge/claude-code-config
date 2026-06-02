@@ -1499,7 +1499,7 @@ The aggregator filters QA reports to those whose `timestamp_suffix` matches a `s
 After the time check, land a HEAD commit on the worktree branch covering this cycle's accumulated changes. Call `commit.sh "chore(overnight): end-of-cycle commit for <worktree_branch>"` directly via Bash (single positional arg; `chore` is a valid CC type so M3 lint passes; `(overnight)` scope identifies the automated context). The CAS engine and content-bound ledger still apply. If the invocation exits non-zero (empty ledger for this session, disk content changed, or other CAS refusal), log the failure to the cycle log and continue — per-fix `refs/checkpoints/*` snapshots remain intact and the operator can promote them manually.
 
 If time expired: proceed to Step 20 (PM Retro) then Step 21 for final summary.
-If time remains: proceed to Step 20 (PM Retro), then mark Step 21 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all 21 steps completed, reset todos to pending, and inject continuation instructions.
+If time remains: proceed to Step 20 (PM Retro), then mark Step 21 as completed via TodoWrite. The posttool-overnight-loop.py hook will detect all todo steps completed (it checks every todo's status, including the letter-suffix Step 11g, not a fixed count), reset todos to pending, and inject continuation instructions.
 
 ### Step 20: PM Retrospective
 
