@@ -909,7 +909,7 @@ Read dev implementation report: `docs/dev/dev-report-<timestamp>.json`
 
 **If dev completed**: Proceed to Step 13
 
-### Step 11: Delegate to QA Subagent
+### Step 13: Delegate to QA Subagent
 
 **Before dispatching QA, write qa_mode sentinel**:
 
