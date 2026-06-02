@@ -101,10 +101,14 @@ def _extract_preserved(old: str, dir_name: str) -> str:
     # 3. Legacy markerless: strip ONLY the first contiguous stat run near the top and the
     #    generated `## Tree` block — never stat-shaped or `## Tree`-shaped lines elsewhere.
     if not has_markers:
-        idx = first + 1 if (first < n and remove[first]) else 0
-        while idx < n and not lines[idx].strip():
+        # Anchor on `*Last updated:` specifically — the generated header ALWAYS leads with
+        # it. A hand-written note that opens with `**Convention**:` (or any other stat-shaped
+        # label) right after the title must NOT be wiped. Skip blank and already-removed
+        # lines (e.g. an orphan marker stripped by FIX 3) so detection reaches the stat run.
+        idx = 0
+        while idx < n and (remove[idx] or not lines[idx].strip()):
             idx += 1
-        if idx < n and _is_stat_line(lines[idx].strip()):
+        if idx < n and lines[idx].strip().startswith('*Last updated:'):
             while idx < n and _is_stat_line(lines[idx].strip()):
                 remove[idx] = True
                 idx += 1
