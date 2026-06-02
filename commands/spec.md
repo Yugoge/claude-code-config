@@ -110,7 +110,7 @@ After the capture precondition has run, branch on the turn's requirement/closure
   ### 5.N: <brief title extracted from the message>
   <verbatim requirement text>
   ```
-  `N` increments from 2 (the first requirement populates Section 5; subsequent requirements become 5.2, 5.3, …). The capture precondition already ran Step 4b for this turn's design/evidence; do NOT run it again here. Then loop back to wait.
+  `N` increments from 2 (the first requirement populates Section 5; subsequent requirements become 5.2, 5.3, …). The capture precondition already ran the Design & Evidence Capture Routine for this turn's design/evidence; do NOT run it again here. Then loop back to wait.
 - **Design/evidence-only follow-up** (the turn supplies design/HOW-content or evidence but
   carries no new requirement text and is not a conclusion signal) → the capture precondition
   has already persisted that material via Step 4b; append to Section 5 ONLY if the turn also
