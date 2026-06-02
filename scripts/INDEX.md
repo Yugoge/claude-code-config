@@ -1,7 +1,7 @@
 # scripts
 
-*Last updated: 2026-05-31T15:44:47Z*
-**Total entries**: 100
+*Last updated: 2026-06-02T15:01:51Z*
+**Total entries**: 101
 **Convention**: kebab
 
 ## Tree
@@ -24,6 +24,7 @@ scripts/
 │   ├── `dev-command.py` - This todo script generates workflow steps for the BA-delegated dev-command workflow
 │   ├── `dev-overnight.py` - Preloaded TodoList for /dev-overnight workflow
 │   ├── `dev.py` - Preloaded TodoList for /dev workflow
+│   ├── `do.py` - Injects the 4-step /do workflow checklist via hook-todo-injection
 │   ├── `doc-gen.py` - Python script
 │   ├── `explain-code.py` - Python script
 │   ├── `file-analyze.py` - Preloaded TodoList for /file-analyze workflow
