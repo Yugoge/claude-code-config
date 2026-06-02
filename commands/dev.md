@@ -1016,7 +1016,7 @@ After the verdict is known, apply score-update events based on QA outcome and it
 
 Each score-update call is independent; failures are non-blocking (a failed score-update writes to stderr but does not abort the dev cycle). Include the score deltas summary in the Step 17 completion report under a `score_updates` array.
 
-### Step 13: Update Settings.json Permissions
+### Step 15: Update Settings.json Permissions
 
 **CRITICAL**: Auto-update permissions for new functionality.
 
