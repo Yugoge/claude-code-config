@@ -810,7 +810,7 @@ Use Task tool with:
 
 **Applies ONLY when N>1 parallel dev subagents were dispatched in Step 10.** Single-dev cycles SKIP this step entirely (the lone dev subagent writes `dev-report-<task-id>.json` directly).
 
-**Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 11 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate. Shard detection uses BOTH naming patterns: role-first (`dev-report-<role>-<task-id>.json`) and task-first (`dev-report-<task-id>-<worker>.json`).
+**Procedural enforcement**: This step is gated by `pretool-aggregate-check.py` (PreToolUse Agent matcher). When `docs/dev/` contains 2+ per-worker dev-report files for the same `<task-id>` AND the canonical singular `docs/dev/dev-report-<task-id>.json` is missing, the next Agent dispatch (Step 13 QA) is BLOCKED with exit 2 until the orchestrator writes the aggregate. Shard detection uses BOTH naming patterns: role-first (`dev-report-<role>-<task-id>.json`) and task-first (`dev-report-<task-id>-<worker>.json`).
 
 **Authoritative construction rule**: see the "Parallel Dev Aggregate" subsection below (Aggregate construction rule + Example aggregate JSON) for the full schema and union semantics. Summary:
 - `request_id` = `<task-id>`; `dev_report_path` = canonical singular path
