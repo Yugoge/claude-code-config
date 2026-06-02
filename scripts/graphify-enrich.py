@@ -465,8 +465,12 @@ def main() -> int:
         print(f"graphify-enrich: status=skipped (disabled)")
         return 0
 
-    # Nil-map fallback (arch-1) — status=skipped when blast-radius-map absent
-    blast_radius_map, br_reason = _load_blast_radius_map(task_id)
+    # Nil-map fallback (arch-1) — status=skipped when blast-radius-map absent.
+    # Resolve the map via the context's authoritative blast_radius_map_path first
+    # (so /dev-overnight per-pipeline enrichment finds the map BA wrote under its own
+    # task-id), then the explicit override, then the <task-id>-derived default.
+    blast_radius_map, br_reason = _load_blast_radius_map(
+        task_id, args.context_file, args.blast_radius_map)
     run_manifest["subgraph_extraction"]["blast_radius_map_present"] = blast_radius_map is not None
 
     if blast_radius_map is None:
