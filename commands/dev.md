@@ -119,7 +119,7 @@ Pass `view_paths.ba`, `view_paths.qa`, `view_paths.dev`, etc. alongside (not in 
 
 **Edge cases**:
 - Empty `$ARGUMENTS` → Prompt user for requirement
-- Otherwise → Pass raw text (minus --spec flag) to BA subagent in Step 2
+- Otherwise → Pass raw text (minus --spec flag) to BA subagent in Step 4
 
 **Keep this step lightweight** - BA subagent handles all analysis.
 
