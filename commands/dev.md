@@ -620,10 +620,10 @@ Use Agent tool with:
 
 ```
 IF verdict == "pass":
-  -> BA conclusions validated. Proceed to Step 8.
+  -> BA conclusions validated. Proceed to Step 9.
 
 ELIF verdict == "fail":
-  -> Proceed to Step 7 for BA-QA iteration.
+  -> Proceed to Step 8 for BA-QA iteration.
 ```
 
 ### Step 7: BA-QA Iteration Loop (if QA rejects BA)
