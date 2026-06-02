@@ -1155,6 +1155,41 @@ Use Agent tool with:
 
 **Iteration tracking**: Update TodoWrite with BA-QA iteration number per pipeline.
 
+### Step 11g: Graphify Dev-Dispatch Precondition (shared, idempotent, advisory/fail-open)
+
+**This is the single shared precondition that enforces the B2-INV invariant: graphify enrichment MUST have run — against the SAME context Dev will consume — for a pipeline BEFORE EVERY `Agent(subagent_type: "dev")` dispatch in `/dev-overnight`.** It is the overnight sibling of `commands/dev.md` Step 9 enrichment (mirror by reference — do NOT duplicate dev.md's full prose). It is keyed on the **Dev-dispatch boundary**, NOT on "Step 12": Dev is dispatched from THREE sites and any future site MUST also route through this precondition immediately before its Dev `Agent` call:
+
+- **Step 12** parallel Dev loop (`### Step 12`, the `For each active pipeline[i]` loop) — reached by the BA-QA PASS branch, the BA-QA iteration-EXHAUSTED best-effort branch, AND the Continuation/Resume path (`current_phase: implementing -> Step 12`).
+- **Step 13** dev-blocked re-invoke (`### Step 13`, "Re-invoke only that pipeline's dev subagent") — may follow a context refinement.
+- **Step 17** per-pipeline iteration-loop Dev dispatch (`### Step 17`, `Agent(subagent_type: "dev")` against its FRESH `docs/dev/context-iter<N>-<timestamp_suffix>.json`).
+
+The word "validated" MUST NOT gate this precondition — it fires for the pipeline about to be dispatched to Dev regardless of whether BA-QA passed or was exhausted (mirrors the resolved `/dev` post-BA-QA → enrichment decision; the exhausted branch is a sibling of the pass branch).
+
+**Per-site action** — for the one pipeline[i] about to be dispatched to Dev:
+
+1. **Mark the `Step 11g` todo `in_progress` BEFORE the graphify `Agent` call** (and restore the surrounding step — Step 12 / Step 13 / Step 17 — `in_progress` after enrichment completes and before the Dev `Agent` call). Otherwise `hooks/pretool-subagent-enforce.py` (`_current_step_label`) would resolve the active step as the Dev step and validate the graphify dispatch against the Dev required_call (role mismatch → spurious exit-2). With Step 11g in-progress, the contract hook matches the graphify dispatch against the `Step 11g` `{role: "graphify", pipeline_id: null}` wildcard entry.
+2. **Idempotency by CONTEXT FINGERPRINT, not bare existence.** Compute the current Dev context's `{pipeline_index, iteration, context_path, context_sha256}`. If a `graphify-run.json` for `${DEV_SESSION_ID}-pipeline-{pipeline.index}` already exists AND its recorded fingerprint matches the current context (same `context_path` + `context_sha256` + `iteration`), SKIP re-dispatch. If the artifact is absent OR its fingerprint does NOT match (Step 13 refinement / Step 17 wrote a new `context-iter<N>`), RE-RUN enrichment and overwrite/append the manifest. Bare-existence idempotency is FORBIDDEN — it would wrongly skip re-enrichment of changed Dev input.
+3. **Dispatch graphify** (mode=enrich) using a **pipeline-scoped task-id** `${DEV_SESSION_ID}-pipeline-{pipeline.index}` against the context Dev will consume, then dispatch Dev:
+
+```
+Use Agent tool with:
+- subagent_type: "graphify"
+- description: "Graphify enrichment (mode=enrich) for pipeline {i} before Dev dispatch"
+- prompt: "
+  FIRST ACTION: Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/graphify.json to register with the enforcement system. Do this BEFORE any other tool call.
+
+  You are the graphify subagent. Follow agents/graphify.md instructions precisely.
+
+  Run: source \"${CLAUDE_PROJECT_DIR}/venv/bin/activate\" && python3 $CLAUDE_PROJECT_DIR/scripts/graphify-enrich.py --task-id ${DEV_SESSION_ID}-pipeline-{pipeline.index} --context-file <the context file Dev will consume for this pipeline/iteration>
+
+  This is advisory — if the binary is absent or blast-radius-map is missing, exit 0 with status=skipped.
+  "
+```
+
+4. **Fail-open + always-written aggregate (B7).** The precondition NEVER hard-blocks Dev. Whether enrichment ran, was skipped (`sentinel_absent`), or graphify was unavailable, write/update the per-pipeline sidecar `.claude/dev-registry/${DEV_SESSION_ID}-pipeline-{pipeline.index}/graphify/graphify-run.json` recording `graphify_status` (`ok|skipped|unavailable`) AND the current fingerprint `{pipeline_index, iteration, context_path, context_sha256}`, so the contract's single aggregate `expected_output_path` always exists by close time and the next-dispatch fingerprint check is well-defined. Then restore the surrounding step in-progress and dispatch Dev.
+
+Per-pipeline `graphify-run.json` / `focused-subgraph.json` files are **sidecar artifacts** (filesystem-isolated by pipeline-scoped task-id), NOT per-pipeline contract entries (see the Cycle Contract Manifest section: the graphify entry is ONE step-level wildcard).
+
 ### Step 12: Run All Dev Subagents (Parallel)
 
 **Filter**: Only launch Dev for pipelines with `phase == "ba_complete"` and `status == "active"`.
