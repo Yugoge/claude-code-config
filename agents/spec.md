@@ -405,14 +405,18 @@ Write `docs/dev/specs/<spec-id>/views/orchestrator.md` with the sections below i
 
 ## Design & Evidence References
 
-<If the monolith's Section 9 is populated (any design/evidence reference line beyond the
-placeholder), include here — VERBATIM — every Section-9 reference line AND its preceding
-`<!-- consumers: [all] -->` annotation line(s), so downstream `/dev*` (which reads
-orchestrator.md) sees the design/evidence pointers (M10). Companion design body files and
-evidence binaries are NOT inlined — only the short reference + annotation lines. If
-Section 9 carries only the `_Not yet populated._` placeholders, include those placeholder
-lines + their `<!-- consumers: [all] -->` annotations verbatim so coverage holds. OMIT this
-section's content only if the monolith has no Section 9 at all (legacy monolith).>
+<If the monolith has a Section 9 at all, include here — VERBATIM — the ENTIRE Section 9
+block exactly as defined in the Phase-1 routing rule above: EVERY non-blank, non-`---` line
+of Section 9 — the `## Section 9: Design & Evidence References` heading, every explanatory
+`<!-- WHO/WHAT ... -->` comment line, the `### 9.1` / `### 9.2` subsection headings, each
+`<!-- consumers: [all] -->` annotation line, every design/evidence reference line, and the
+`_Not yet populated._` placeholders — so downstream `/dev*` (which reads orchestrator.md)
+sees the design/evidence pointers (M10) AND every Section-9 line is covered (each counts
+toward `spec-verify.py` coverage because `is_skippable` skips only blank/`---`). This
+applies whether Section 9 is populated OR carries only the `_Not yet populated._`
+placeholders. Companion design body files and evidence binaries are NOT inlined — they are
+not monolith content. OMIT this section's content only if the monolith has no Section 9 at
+all (legacy monolith).>
 
 ---
 
