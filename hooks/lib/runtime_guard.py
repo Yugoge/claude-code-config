@@ -1186,6 +1186,45 @@ CONFIG_MUTATION_HEADS = frozenset({
 })
 
 
+# Config-self-protection mutation-verb basenames recognized in EXECUTABLE
+# position behind ANY wrapper. The SAME filesystem-mutation family the W6/W7
+# anchors use (`_ANCHOR_MUTATION_HEADS`, defined later in the file) plus the
+# metadata-mutation verbs `chmod`/`chown` that neuter the data file's
+# permissions/ownership. Listed here directly (not derived from the later global)
+# so STEP0 has no load-order dependency on the anchor section. All generic POSIX
+# tools — NOT project names.
+_STEP0_MUTATION_HEADS = frozenset({
+    "cp", "mv", "rsync", "install", "touch", "truncate", "dd", "tee",
+    "unzip", "rename", "rm", "unlink", "shred", "sed", "perl", "ln", "tar",
+    "chmod", "chown",
+})
+
+
+def _step0_mutation_targets(head: str, args: list) -> list:
+    """Extract the write/metadata-mutation TARGET path tokens for a STEP0 mutation
+    verb's OWN argv (the tokens AFTER the verb). Mirrors `_mutation_targets` for
+    the filesystem-write verbs and additionally covers `chmod`/`chown`, whose last
+    bareword (the file being re-permissioned) is the protected target."""
+    if head in ("cp", "mv", "rsync", "install", "ln"):
+        barewords = [t for t in args if not t.startswith("-")]
+        return barewords[-1:] if barewords else []
+    if head in ("touch", "truncate", "dd", "tee", "unzip", "rename",
+                "rm", "unlink", "shred"):
+        return [t for t in args if not t.startswith("-")]
+    if head in ("sed", "perl") and ("-i" in args or any(a.startswith("-i") for a in args)):
+        return [t for t in args if not t.startswith("-")]
+    if head in ("chmod", "chown"):
+        # chmod MODE FILE… / chown OWNER FILE… — every bareword after the first
+        # (the mode/owner spec) is a target file. `--reference=…` style flags are
+        # skipped (start with '-').
+        barewords = [t for t in args if not t.startswith("-")]
+        return barewords[1:] if len(barewords) > 1 else []
+    if head == "tar":
+        if any(a.startswith("-x") or a == "--extract" or ("x" in a and a.startswith("-")) for a in args):
+            return [t for t in args if not t.startswith("-")]
+    return []
+
+
 def _step0_mutation_anchor_hits(simple_cmds: list, idx: int, sc: str,
                                 tokens: list) -> bool:
     """HEAD-AGNOSTIC: True if this simple command MUTATES the hardcoded config
@@ -1195,31 +1234,32 @@ def _step0_mutation_anchor_hits(simple_cmds: list, idx: int, sc: str,
     (`_anchor_mutation_hits`): it locates the FIRST mutation-verb basename in
     EXECUTABLE position (so the verb is found even when a NOVEL/undocumented
     front-end — `busybox`/`fakeroot`/any invented or stacked wrapper — is the
-    simple command's head), reconstructs the verb's OWN argv, reuses
-    `_mutation_targets` to extract the write target(s), resolves each against the
-    effective cwd (cd chain + wrapper chdir), and matches against the config-path
-    variants. The redirect-target form is handled separately by the caller (it is
-    already head-agnostic). The config path is the hardcoded `DATA_FILE_PATH` (a
-    generic path, not a project name), NOT loaded from the data file — the
-    self-protection must not depend on the very file it protects, so this holds
-    even when the config is absent/corrupt (STEP0 runs before config load), and it
-    runs before the /do//allow bypass (which lives in the bash glue, not here).
-    Returns False when no mutation verb is in executable position OR no target
-    matches — so a read/inspect of the config file (`cat`/`<wrapper> cat`), or a
-    mutation of a NON-config file behind a wrapper, still ALLOWS (no over-block)."""
+    simple command's head), reconstructs the verb's OWN argv, extracts the write/
+    metadata target(s), resolves each against the effective cwd (cd chain +
+    wrapper chdir), and matches against the config-path variants. The
+    redirect-target form is handled separately by the caller (it is already
+    head-agnostic). The config path is the hardcoded `DATA_FILE_PATH` (a generic
+    path, not a project name), NOT loaded from the data file — the self-protection
+    must not depend on the very file it protects, so this holds even when the
+    config is absent/corrupt (STEP0 runs before config load), and it runs before
+    the /do//allow bypass (which lives in the bash glue, not here). Returns False
+    when no mutation verb is in executable position OR no target matches — so a
+    read/inspect of the config file (`cat`/`<wrapper> cat`), or a mutation of a
+    NON-config file behind a wrapper, still ALLOWS (no over-block)."""
     variants = list(_config_path_variants())
     exec_toks = _anchor_exec_tokens(tokens)
     verb_pos = next((i for (i, st) in exec_toks
-                     if os.path.basename(_strip_quotes(st)) in _ANCHOR_MUTATION_HEADS),
+                     if os.path.basename(_strip_quotes(st)) in _STEP0_MUTATION_HEADS),
                     None)
     if verb_pos is None:
         return False
     cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, None)
     cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
-    # the verb's OWN argv (tokens FROM the verb onward), so `_mutation_targets`
+    # the verb's OWN argv (tokens AFTER the verb token), so target extraction
     # parses the destination of the mutation verb, not of the wrapper head.
-    verb_tokens = tokens[verb_pos:]
-    for tgt in _mutation_targets(sc, verb_tokens):
+    verb_base = os.path.basename(_strip_quotes(tokens[verb_pos]))
+    verb_args = tokens[verb_pos + 1:]
+    for tgt in _step0_mutation_targets(verb_base, verb_args):
         for cand in _resolve_rel(tgt, cwd, cwd_det):
             if _path_matches_any(cand, variants):
                 return True
