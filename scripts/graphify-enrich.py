@@ -437,6 +437,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="graphify enrichment subagent (between Step 7 and Step 8)")
     parser.add_argument("--task-id", required=True, help="Dev session task ID")
     parser.add_argument("--context-file", help="Path to context-{ts}.json for in-place patching")
+    parser.add_argument("--blast-radius-map", help="Explicit blast-radius-map.json path override "
+                        "(else resolved from the context's blast_radius_map_path, else the "
+                        "<task-id>-derived default)")
     parser.add_argument("--no-graphify", action="store_true", help="Explicit disable")
     args = parser.parse_args()
 
