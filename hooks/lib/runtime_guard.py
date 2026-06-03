@@ -3667,33 +3667,41 @@ def _anchor_mutation_hits(sc: str, tokens: list, exec_toks: list,
 
     Locates the FIRST mutation-verb basename in executable position (so the verb is
     found even when a novel front-end is the simple command's head), reconstructs
-    the verb's OWN argv (the tokens FROM that verb onward), and reuses the existing
-    `_mutation_targets` parse on it — then resolves each target against the
+    EACH mutation verb's OWN argv (the tokens FROM that verb onward) and reuses
+    `_mutation_targets_for_verb` on it — then resolves each target against the
     effective cwd (cd chain + wrapper chdir, already folded by the caller) and
-    matches it against the protected globs. A redirect (`> path`) belongs to the
-    whole simple command (it applies after the wrapper exec), so the whole `sc`
-    string is passed for redirect-target detection. Returns False when no mutation
-    verb is in executable position OR no target matches — so a read/inspect of a
-    protected path, or a mutation of a NON-protected path, still ALLOWS."""
-    # find the first mutation verb in executable position (head-agnostic).
-    verb_pos = next((i for (i, st) in exec_toks
-                     if os.path.basename(_strip_quotes(st)) in _ANCHOR_MUTATION_HEADS),
-                    None)
-    redirect_only = False
-    if verb_pos is None:
-        # a bare redirect with no mutation verb (`<wrapper> … > <protected>`) still
-        # writes the target — handle via `_has_redirect_to` on the whole command.
-        if _has_redirect_to(sc) is None:
-            return False
-        redirect_only = True
-    # the verb's own argv: original tokens FROM the verb token onward. For a
-    # redirect-only form, scan from the start (the redirect target is parsed off
-    # the string regardless of head).
-    verb_tokens = tokens if redirect_only else tokens[verb_pos:]
-    for tgt in _mutation_targets(sc, verb_tokens):
+    matches it against the protected globs. A write redirect (`> path`, incl.
+    fd-prefixed / force / non-first forms) belongs to the whole simple command, so
+    all redirect targets are scanned once via `_write_redirect_targets`.
+
+    Scans EVERY mutation verb in executable position (not just the first) — mirroring
+    STEP0 — so a leading benign mutation-looking token cannot MASK a later real
+    mutator (`<wrapper> cp mv <protected> dst`: the `cp`-arg parse sees `<protected>`
+    only as a SOURCE = read, but the later `mv` parse sees it as a moved-away SOURCE
+    = mutation → BLOCK). The cp-source ALLOW boundary is preserved because each
+    verb's targets are extracted from its OWN argv: a real `cp <protected> dst`
+    (head=cp, the only mutation verb) yields only the dest, so it still ALLOWS.
+
+    Returns False when no mutation verb / redirect is present OR no target matches —
+    so a read/inspect of a protected path, or a mutation of a NON-protected path,
+    still ALLOWS."""
+    # write-redirect targets apply to the whole simple command (after the wrapper
+    # exec) regardless of head — scan them once (all forms, every position).
+    for tgt in _write_redirect_targets(sc):
         for cand in _resolve_rel(tgt, cwd, cwd_det):
             if _path_matches_any(cand, globs):
                 return True
+    # scan ALL mutation verbs in executable position (head-agnostic), each parsed
+    # against its OWN argv (the tokens from that verb onward).
+    for (i, st) in exec_toks:
+        if os.path.basename(_strip_quotes(st)) not in _ANCHOR_MUTATION_HEADS:
+            continue
+        verb_base = os.path.basename(_strip_quotes(st))
+        verb_args = tokens[i + 1:]
+        for tgt in _mutation_targets_for_verb(verb_base, verb_args):
+            for cand in _resolve_rel(tgt, cwd, cwd_det):
+                if _path_matches_any(cand, globs):
+                    return True
     return False
 
 
