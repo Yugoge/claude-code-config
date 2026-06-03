@@ -1221,18 +1221,42 @@ def _is_inplace_editor_args(head: str, args: list) -> bool:
     return False
 
 
-def _step0_mutation_targets(head: str, args: list) -> list:
-    """Extract the write/metadata-mutation TARGET path tokens for a STEP0 mutation
-    verb's OWN argv (the tokens AFTER the verb). Mirrors `_mutation_targets` for
-    the filesystem-write verbs and additionally covers the data-file-specific
-    mutation shapes codex surfaced: `mv` (the SOURCE is also a target — moving the
-    data file away deletes it), `cp/mv -t DIR` and `rsync … DIR/` target-directory
-    forms, `chmod/chown --reference=REF` (skip the reference operand), and the dd
-    `of=` operand. The synthesized target-dir candidates are dir + basename so a
-    config write via `-t <cfgdir>` matches the exact data-file path (and a write to
-    an UNRELATED file in the config dir does not)."""
+def _mutation_targets_for_verb(head: str, args: list) -> list:
+    """THE SINGLE position-COMPLETE mutation-target extractor for a mutation verb's
+    OWN argv (the tokens AFTER the verb). This is the ONE shared helper used by
+    STEP0 (config self-protection), W6 (hot-watched bundle), W7 (state file), and
+    the head-keyed P3/P4/P7 paths via `_mutation_targets` — so the three protected-
+    file families (config / bundle / statefile) can never DRIFT in which positions
+    count as a mutation.
+
+    A protected file counts as MUTATED when it appears in ANY position that
+    writes / overwrites / removes / replaces / MOVES it, for every relevant verb:
+
+      • cp / install DEST (and `-t DIR` → DIR/basename(src)): written. The SRC of a
+        plain `cp` is a READ, NOT a mutation (cp keeps the source) → NOT a target.
+      • mv / rename SRC and DEST: mv WRITES the dest AND REMOVES the source in place,
+        so BOTH source(s) and dest are targets (moving the watched bundle / statefile
+        / config away deletes it from its watched path). `-t DIR` → DIR/basename(src)
+        plus the sources.
+      • rsync DEST (file or DIR/ → DIR/basename(src)): written. The SRC is a target
+        ONLY when `--remove-source-files` is given (then rsync MOVES = removes the
+        source); a plain rsync COPIES and the source is a READ → NOT a target.
+      • rm / unlink / shred / truncate / touch / dd(of=) / tee / unzip: the operand
+        file(s) (or `of=` for dd) are written / removed / overwritten.
+      • sed -i / perl -pi (in-place edit) operand file(s): overwritten in place.
+      • ln / ln -sf DEST (and `-t DIR`): symlinked-over.
+      • chmod / chown FILE… (mode/owner change; `--reference=REF` skips the ref
+        operand): metadata-mutated.
+      • tar -x [-C DIR] members: extracted/written.
+
+    Read-only / inspection appearances of a protected file (a cp/rsync SOURCE that
+    is copied not moved, a token merely read) yield NO target so they still ALLOW —
+    the over-block boundary the threat model requires. The synthesized `-t DIR`
+    candidates are DIR/basename so a write via `-t <dir>` matches the exact protected
+    path (and a write to an UNRELATED file in that dir does not). The redirect-target
+    form (`> path`) is handled by the callers, not here."""
     barewords = [t for t in args if not t.startswith("-")]
-    # target-directory option: `-t DIR` (cp/mv/install) — DIR is the dest dir; the
+    # target-directory option: `-t DIR` (cp/mv/install/ln) — DIR is the dest dir; the
     # written file is DIR/basename(source). `--target-directory=DIR` fused form too.
     tdir = None
     for i, a in enumerate(args):
@@ -1247,30 +1271,39 @@ def _step0_mutation_targets(head: str, args: list) -> list:
             return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in srcs]
         # `cp SRC… DEST`: only the DEST (last bareword) is written. SRC is read.
         return barewords[-1:] if barewords else []
-    if head == "mv":
+    if head in ("mv", "rename"):
         if tdir is not None:
             srcs = list(barewords)
             out = [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in srcs]
             out.extend(barewords)  # the SOURCEs are removed (mutated) by mv
             return out
         # `mv SRC… DEST`: the DEST is written AND the SRC(s) are removed — both are
-        # mutation targets for the data file (moving it away neuters the guard).
+        # mutation targets (moving the protected file away deletes it from its
+        # watched path → daemon auto-handoff / statefile removal / config neuter).
         return barewords  # all operands (sources + dest)
     if head == "rsync":
         # `rsync SRC… DEST` — DEST may be a file or a dir. If DEST ends with '/'
         # (or is an existing dir) the written file is DEST/basename(SRC); else DEST.
+        # The SRC is a mutation target ONLY with `--remove-source-files` (rsync then
+        # MOVES = removes the source); a plain rsync COPIES → source is a read.
+        removes_src = any(a == "--remove-source-files" for a in args)
         if len(barewords) >= 2:
             dest = _strip_quotes(barewords[-1])
             srcs = barewords[:-1]
             if tdir is not None:
                 dest = _strip_quotes(tdir)
+                srcs = list(barewords)  # with -t DIR every bareword is a source
             if dest.endswith("/"):
-                return [os.path.join(dest, os.path.basename(_strip_quotes(s))) for s in srcs] + [dest]
-            # dest could be file OR existing dir — emit both interpretations.
-            out = [dest]
-            out += [os.path.join(dest, os.path.basename(_strip_quotes(s))) for s in srcs]
+                out = [os.path.join(dest, os.path.basename(_strip_quotes(s))) for s in srcs] + [dest]
+            else:
+                # dest could be file OR existing dir — emit both interpretations.
+                out = [dest]
+                out += [os.path.join(dest, os.path.basename(_strip_quotes(s))) for s in srcs]
+            if removes_src:
+                out.extend(srcs)  # the SOURCEs are removed (moved away)
             return out
-        return barewords[-1:] if barewords else []
+        # single operand: a `--remove-source-files` with one path still removes it.
+        return list(barewords) if (removes_src and barewords) else (barewords[-1:] if barewords else [])
     if head == "ln":
         if tdir is not None:
             return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in barewords]
@@ -1279,7 +1312,7 @@ def _step0_mutation_targets(head: str, args: list) -> list:
         # dd writes to its `of=<path>` operand (the `if=<path>` is the read
         # source — not a mutation target).
         return [t[len("of="):] for t in args if t.startswith("of=")]
-    if head in ("touch", "truncate", "tee", "unzip", "rename",
+    if head in ("touch", "truncate", "tee", "unzip",
                 "rm", "unlink", "shred"):
         if tdir is not None:
             return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in barewords]
@@ -1315,6 +1348,15 @@ def _step0_mutation_targets(head: str, args: list) -> list:
                 return [os.path.join(_strip_quotes(cdir), os.path.basename(_strip_quotes(m))) for m in members] + members
             return members
     return []
+
+
+def _step0_mutation_targets(head: str, args: list) -> list:
+    """STEP0 config-self-protection mutation-target extractor. Delegates to the ONE
+    shared, position-complete `_mutation_targets_for_verb` so STEP0, W6, and W7 can
+    never drift on which token positions count as a mutation (mv-source, rsync
+    --remove-source-files source, target-dir, dd of=, chmod/chown --reference,
+    in-place editors, tar -C, ln dest)."""
+    return _mutation_targets_for_verb(head, args)
 
 
 def _step0_redirect_target(sc: str) -> Optional[str]:
