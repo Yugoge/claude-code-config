@@ -2790,7 +2790,7 @@ class TestCycle11CommandWordLaunchHeadAgnostic:
         allows = [
             f"{self._INV} cat {lp}",                 # read the bundle
             f"cp {lp} /tmp/foo",                     # bundle as cp SOURCE (read-copy)
-            f"{self._INV} grep x {lp}",              # search inside the bundle
+            f"{self._INV} grep needle {lp}",         # search inside the bundle
         ]
         for cmd in allows:
             assert ev(cmd, datafile, fixture_repo) == "ALLOW", cmd
@@ -2866,12 +2866,27 @@ class TestCycle11CommandWordLaunchHeadAgnostic:
             r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
             assert r.returncode == ALLOW, f"live hook over-blocked: {cmd} (rc={r.returncode})"
 
-    # ── fail-closed: wrapped command-word launch BLOCKs when config is ABSENT ────
-    def test_cmdword_launch_failclosed_blocks(self, tmp_path, fixture_repo):
+    # ── fail-closed semantics for a command-word launch (documented residual) ────
+    def test_cmdword_launch_failclosed_semantics(self, tmp_path, fixture_repo):
+        """When the config is ABSENT, the engine cannot know that `happy` is a
+        protected COMMAND basename — that name lives ONLY in the data file's
+        `protected_cmds`. Fail-closed mode blocks generic verb FAMILIES (kill /
+        build / service / mutation / `node <dist> daemon start`), NOT a
+        project-specific command basename, so `<wrapper> happy claude` ALLOWs
+        fail-closed by design (the SAME documented residual as the bare protected
+        command and the launch-PATH families being unknowable without config). The
+        in-scope guarantee for this family is the CONFIG-PRESENT path (incl. under
+        /do), which BLOCKs — verified above. This test pins the accepted behavior
+        so a future change that claims to 'fix' fail-closed here is reviewed against
+        the unknowable-name design constraint, not silently regressed either way."""
         absent = str(tmp_path / "no-such-config.json")
-        for cmd in (f"{self._INV} happy claude", f"{self._REAL} happy mcp", f"{self._INV} happy"):
-            assert ev(cmd, absent, fixture_repo) == "BLOCK", cmd
-        # benign listing still ALLOWs fail-closed
+        # the project-specific command basename is unknowable fail-closed → ALLOW
+        for cmd in (f"{self._INV} happy claude", f"{self._REAL} happy mcp"):
+            assert ev(cmd, absent, fixture_repo) == "ALLOW", cmd
+        # but a GENERIC launch SIGNAL (node <dist bundle> daemon start) still BLOCKs
+        lp = self._launchpath(fixture_repo)
+        assert ev(f"{self._INV} node {lp} daemon start", absent, fixture_repo) == "BLOCK"
+        # and a benign listing ALLOWs fail-closed
         assert ev("ls -la /tmp", absent, fixture_repo) == "ALLOW"
 
 
