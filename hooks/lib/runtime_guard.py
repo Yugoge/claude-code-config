@@ -3413,6 +3413,72 @@ def _anchor_in_launch_position(exec_vals: list, pos: int) -> bool:
     return False
 
 
+# Heads that consume their trailing positionals as DATA operands (a path/name
+# argument), NOT as a command to exec. A protected anchor appearing AFTER one of
+# these heads is its operand, never a launch — so the command-word launch test
+# must NOT fire (`cp <name> dst`, `tar cf a.tar <name>`, `chmod +x <name>`,
+# `grep <name>`, `kill <name>`). Union of the read/inspect allowlist, the
+# filesystem-mutation verbs, and the process-kill verbs — all GENERIC tool
+# basenames, NO project names. (Mutation of a protected path is handled by the
+# W6/W7 mutation anchors; a kill by the W4 kill anchor; this set only suppresses
+# the LAUNCH classification so those data ops are not mis-blocked as launches.)
+_DATA_OPERAND_HEADS = (
+    READ_INSPECT_EDIT_ALLOWLIST | _STEP0_MUTATION_HEADS | KILL_VERBS
+)
+
+
+def _anchor_in_command_word_position(exec_toks: list, pos: int, tokens: list) -> bool:
+    """True if the exec token at exec-position `pos` is the COMMAND WORD (the
+    program being exec()'d) of its simple command, behind ANY chain of wrapper
+    front-ends — head-agnostically, with NO wrapper enumeration.
+
+    The whole `_p0_anchor` premise is that any head NOT in the read/inspect
+    allowlist is a possible exec front-end / launcher, so a protected COMMAND
+    basename that ends up as the program a front-end runs is a LAUNCH no matter
+    which subcommand follows it (`<wrapper> <protected-cmd> claude|mcp|auth|…`).
+    This closes the follow-token gate that let `<wrapper> <protected-cmd> claude`
+    leak while `<protected-cmd> daemon start` blocked.
+
+    TWO discriminators keep a protected name used as a genuine DATA argument from
+    being mis-classified as a launch (no new over-block):
+
+    (1) DATA-OPERAND HEAD: if ANY exec token at a position BEFORE `pos` (the
+        command segment is a single simple command — pipeline/`;` already split
+        upstream) is a data-consuming head (`cp`/`mv`/`tar`/`chmod`/`grep`/`kill`
+        /… in `_DATA_OPERAND_HEADS`), the protected token is that head's file/name
+        OPERAND, not a program — NOT command word. (`cp <name> dst`,
+        `tar cf a.tar <name>`, `chmod +x <name>`, `kill <name>`.)
+
+    (2) BARE SEPARATE OPTION: if the IMMEDIATELY-PRECEDING raw token is a bare
+        separate option (`-k`, `--flag` with no `=`), it MAY consume the protected
+        token as a value (`pytest -k <name>`) — NOT command word. A FUSED option
+        (`--opt=val`) self-contains its value, so the next token is still a
+        positional command word.
+
+    Otherwise the token is the command word a wrapper chain exec()s → launch.
+    The `_anchor_in_launch_position` follow-gate still independently catches the
+    rare `… -k <protected-cmd> daemon start` lifecycle form.
+    """
+    # (1) any earlier exec token in this segment is a data-consuming head → operand.
+    for j in range(pos):
+        if os.path.basename(_strip_quotes(exec_toks[j][1])) in _DATA_OPERAND_HEADS:
+            return False
+    orig_idx = exec_toks[pos][0]
+    if orig_idx <= 0:
+        return True
+    prev = _strip_quotes(tokens[orig_idx - 1])
+    if prev == "--":
+        return True
+    # redirect operators / pipe / list separators introduce a new command word.
+    if prev in (">", ">>", "<", "2>", "&>", "1>", "2>>", "|", "&", ";", "&&", "||"):
+        return True
+    # (2) a BARE separate option may consume the next token as a VALUE → not a
+    # command word. A FUSED option (`--opt=val`) does not.
+    if prev.startswith("-"):
+        return "=" in prev
+    return True
+
+
 def _fused_option_values(tokens: list) -> list:
     """Yield the RHS values of fused `--opt=value` / `-o=value` option tokens, so
     a wrapper option whose VALUE is a protected launch path / command is still
@@ -3488,15 +3554,21 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
                 return _block("P0", "protected launch-path anchor as a fused option value behind a front-end")
 
         # ── W2 COMMAND-BASENAME ANCHOR ───────────────────────────────────────
-        # A protected COMMAND basename is a LAUNCH when in executable position
-        # (first exec token / after `--` / after a runtime) OR when followed by a
-        # launch subcommand (`<protected-cmd> daemon start`). A protected name as
-        # a flag VALUE or a search pattern argument (`pytest -k <name>`, `grep
-        # <name>`) is NOT a launch. Also scan fused `--opt=<protected-cmd>` RHS
-        # when a launch subcommand follows.
+        # A protected COMMAND basename is a LAUNCH whenever it is the COMMAND WORD
+        # (the program a front-end exec()s) — head-agnostically, behind ANY wrapper
+        # chain — REGARDLESS of which subcommand follows it. This is the primary,
+        # idiomatic launch form (`<wrapper> <protected-cmd> claude|mcp|auth|…`); the
+        # follow-token must NOT gate the command-word case (the prior gate let
+        # `<wrapper> <protected-cmd> claude` leak while `<protected-cmd> daemon start`
+        # blocked). The follow-token/exec-position gate (`_anchor_in_launch_position`)
+        # is RETAINED only to disambiguate a protected name that is NOT in command-
+        # word position — a genuine non-command-word data/flag-value argument to an
+        # unrelated tool (`pytest -k <name>`, `grep <name>`) — so it still ALLOWS.
+        # Also scan fused `--opt=<protected-cmd>` RHS when a launch subcommand follows.
         for pos, (_i, st) in enumerate(exec_toks):
             base = os.path.basename(st)
-            if base in cmds and _anchor_in_launch_position(exec_vals, pos):
+            if base in cmds and (_anchor_in_command_word_position(exec_toks, pos, tokens)
+                                 or _anchor_in_launch_position(exec_vals, pos)):
                 return _block("P0", f"protected command anchor '{base}' in executable position behind a front-end")
         # fused `--opt=<protected-cmd>` whose value is a protected command and the
         # NEXT original token is a launch subcommand (`--exec=<cmd> daemon`).
