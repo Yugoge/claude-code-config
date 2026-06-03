@@ -1,8 +1,8 @@
 # scripts
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-03T08:43:30Z*
-**Total entries**: 101
+*Last updated: 2026-06-03T19:33:28Z*
+**Total entries**: 102
 **Convention**: kebab
 
 ## Tree
@@ -99,6 +99,7 @@ scripts/
 ├── `scan-project.sh` - Description: Scan project structure and detect project type
 ├── `score-inject.sh` - Description: Emit a prompt-injection text block describing an agent's current rank/range
 ├── `score-update.sh` - Description: Update agent score by appending an entry to the lifecycle JSONL log.
+├── `smart-staging-resolver.py` - WHY THIS EXISTS
 ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 ├── `stage-owned-hunks.py` - Stages ONLY this cycle's owned hunks within a single already-authorized file,
 ├── `step7-spec-update.py` - Step 7 (Spec-update dispatch) reference harness — task 20260524-205206 iter-2
