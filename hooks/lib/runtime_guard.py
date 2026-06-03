@@ -519,14 +519,37 @@ def _strip_compound_delims(command: str) -> str:
 
 
 def _has_redirect_to(simple_cmd: str) -> Optional[str]:
-    """Return the redirect target path if the simple command writes via > / >>.
+    """Return the FIRST bare `>`/`>>` write-redirect target (legacy/back-compat).
 
-    Best-effort: finds an unquoted > or >> and returns the next bareword token.
+    Prefer `_write_redirect_targets` (below) for completeness — it returns ALL
+    write-redirect targets incl. the fd-prefixed / force forms. This narrower helper
+    is retained only where a single first-target probe is sufficient.
     """
     m = re.search(r"(?<![0-9<>])>>?\s*([^\s;&|<>]+)", simple_cmd)
     if m:
         return _strip_quotes(m.group(1))
     return None
+
+
+# ONE shared write-redirect-target scanner. A protected file is MUTATED when it is
+# the target of ANY write redirect anywhere in the simple command, for every form:
+#   `>`  `>>`  `>|`  (force-clobber)   `1>` `2>` `N>` `N>>` `N>|` (fd-prefixed)
+#   `&>` `&>>` `&>|` (stdout+stderr).  Read redirects (`<`, `N<`) are NOT targets.
+# Returns EVERY such target (not just the first), so a non-first redirect to a
+# protected path (`echo x > /tmp/out 2><protected>`) is caught. Used by both the
+# bundle/statefile path (`_mutation_targets`) and STEP0 config self-protection, so
+# the redirect coverage cannot drift between families.
+_WRITE_REDIRECT_RE = re.compile(
+    r"(?:^|[\s;&|])"          # start or a shell separator before the operator
+    r"(?:&|\d+)?"             # optional fd prefix: a digit run or `&` (stdout+stderr)
+    r">>?\|?"                 # the write operator: > or >> with an optional force `|`
+    r"\s*([^\s;&|<>]+)"       # the target token (next bareword)
+)
+
+
+def _write_redirect_targets(simple_cmd: str) -> list:
+    """Return ALL write-redirect target paths in a simple command (every form)."""
+    return [_strip_quotes(m) for m in _WRITE_REDIRECT_RE.findall(simple_cmd)]
 
 
 def _strip_quotes(tok: str) -> str:
@@ -1302,8 +1325,10 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
             if removes_src:
                 out.extend(srcs)  # the SOURCEs are removed (moved away)
             return out
-        # single operand: a `--remove-source-files` with one path still removes it.
-        return list(barewords) if (removes_src and barewords) else (barewords[-1:] if barewords else [])
+        # single operand: only `--remove-source-files` removes it (a move). A plain
+        # one-arg `rsync <path>` is a list/read of the source — NOT a mutation, so it
+        # must yield no target (else it over-blocks a benign read).
+        return list(barewords) if (removes_src and barewords) else []
     if head == "ln":
         if tdir is not None:
             return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in barewords]
@@ -1372,15 +1397,15 @@ def _step0_redirect_target(sc: str) -> Optional[str]:
 
 
 def _step0_targets_config_redirect(sc: str, cwd: Optional[str], cwd_det: bool) -> bool:
-    """True if `sc` write-redirects to the config path (incl. fd/force forms),
-    resolving a relative target against the effective cwd."""
-    rt = _step0_redirect_target(sc)
-    if rt is None:
-        return False
+    """True if `sc` write-redirects to the config path via ANY write-redirect form
+    (bare/force/fd-prefixed/stdout+stderr) in ANY position, resolving a relative
+    target against the effective cwd. Uses the SAME shared `_write_redirect_targets`
+    scanner as the bundle/statefile path so redirect coverage cannot drift."""
     variants = list(_config_path_variants())
-    for cand in _resolve_rel(rt, cwd, cwd_det):
-        if _path_matches_any(cand, variants):
-            return True
+    for rt in _write_redirect_targets(sc):
+        for cand in _resolve_rel(rt, cwd, cwd_det):
+            if _path_matches_any(cand, variants):
+                return True
     return False
 
 
@@ -2019,9 +2044,9 @@ def _mutation_targets(simple_cmd: str, tokens: list) -> list:
     A cp/plain-rsync SOURCE (copied, source preserved → a read) yields NO target so
     it still ALLOWS (no over-block)."""
     targets = []
-    rt = _has_redirect_to(simple_cmd)
-    if rt:
-        targets.append(rt)
+    # ALL write-redirect targets (bare/force/fd-prefixed/stdout+stderr, every
+    # position) — a non-first or fd-prefixed redirect to a protected path counts.
+    targets.extend(_write_redirect_targets(simple_cmd))
     if not tokens:
         return targets
     cw = _command_words(tokens)
