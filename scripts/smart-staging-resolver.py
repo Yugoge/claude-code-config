@@ -146,18 +146,21 @@ def is_transient(rel_path, policy=None):
         return True
 
     in_claude = ".claude" in parts
-    in_specs = in_claude and "specs" in parts
+    # Repo-root-aware: the dot-claude repo IS the .claude dir, so its cp-state
+    # files are repo-relative as `specs/<id>/cp-state-*.json`, WITHOUT a
+    # `.claude/` path segment. Keying on a `specs` segment OR a `.claude`
+    # segment catches both the nested .claude repo and project repos.
+    in_specs_ctx = in_claude or "specs" in parts
     at_root = len(parts) == 1
 
-    # workflow-*.json only under .claude/ or at repo root (matches global ignore)
+    # workflow-*.json under .claude/ or at repo root (covers both repo shapes —
+    # in the .claude repo it sits at repo root, i.e. at_root)
     if fnmatch.fnmatch(base, "workflow-*.json") and (in_claude or at_root):
         return True
-    # cp-state-*.json only under .claude/
-    if fnmatch.fnmatch(base, "cp-state-*.json") and in_claude:
-        return True
-    # *.lock only under .claude/specs/ (NOT a global *.lock rule — that would
-    # kill Cargo.lock / poetry.lock / flake.lock)
-    if fnmatch.fnmatch(base, "*.lock") and in_specs:
+    # cp-state-* matches BOTH the cp-state JSON and its sibling `.lock`, scoped
+    # to a specs/ or .claude/ context. This replaces a broad `*.lock` rule that
+    # would have killed legitimate lockfiles (Cargo.lock / poetry.lock / flake.lock).
+    if fnmatch.fnmatch(base, "cp-state-*") and in_specs_ctx:
         return True
 
     # per-repo policy extras
