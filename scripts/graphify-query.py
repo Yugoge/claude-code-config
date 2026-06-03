@@ -122,11 +122,24 @@ def _resolve_anchors_in_graph(mentions: list[str], graph: dict) -> dict[str, str
     return resolved
 
 
+# Coupling relations that constitute real structural signal — aligned with
+# scripts/graphify-enrich.py R1 REVERSE_DEPENDENT_RELATIONS. The pre-BA excerpt is
+# filtered to these so inert `contains` (file->symbol skeleton, ~80% of links on
+# doc/config-heavy repos) and bare `references` (mostly return-type-annotation noise)
+# do NOT dominate the [:20] cap. Mirrors the Step-7.5/9 focused-subgraph filter so both
+# touchpoints show coupling, not skeleton.
+COUPLING_RELATIONS = frozenset(
+    {"imports", "imports_from", "calls", "inherits", "uses", "re_exports"}
+)
+
+
 def _build_import_excerpt(graph: dict, anchor_labels: set[str]) -> list[str]:
     """Build a compact 'src --relation--> tgt' excerpt from node-link `links`.
 
-    Reads edges from `links` (source/target/relation) — the REAL schema. Prefers
-    links touching a resolved anchor node; sensitive links already removed on read.
+    Reads edges from `links` (source/target/relation) — the REAL schema. Only real
+    coupling relations (COUPLING_RELATIONS) are included; `contains`/`references`
+    skeleton/noise is filtered out so the excerpt is signal, not filler. Prefers links
+    touching a resolved anchor node; sensitive links already removed on read.
     """
     nodes = graph.get("nodes", [])
     id_to_label = {n.get("id"): (n.get("label") or n.get("id")) for n in nodes}
@@ -136,6 +149,8 @@ def _build_import_excerpt(graph: dict, anchor_labels: set[str]) -> list[str]:
         src = l.get("source")
         tgt = l.get("target")
         rel = l.get("relation", "rel")
+        if rel not in COUPLING_RELATIONS:
+            continue
         line = f"{id_to_label.get(src, src)} --{rel}--> {id_to_label.get(tgt, tgt)}"
         if should_exclude_path(line):
             continue
