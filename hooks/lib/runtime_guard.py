@@ -1363,12 +1363,29 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
         return barewords[1:] if len(barewords) > 1 else []
     if head == "tar":
         if any(a.startswith("-x") or a == "--extract" or ("x" in a and a.startswith("-")) for a in args):
-            # extraction may target `-C DIR` + members; synthesize DIR/basename.
+            # extraction WRITES the extracted members under the extraction dir
+            # (`-C DIR`, default cwd). The ARCHIVE (`-f <archive>` / `--file=…` /
+            # the bareword right after a clustered `-xf`) is a READ input, NOT a
+            # write target — including it over-blocks reading a protected archive.
             cdir = None
+            archive = None
+            skip = set()
             for i, a in enumerate(args):
-                if a == "-C" and i + 1 < len(args):
-                    cdir = args[i + 1]
-            members = [b for b in barewords]
+                if a in ("-C", "--directory") and i + 1 < len(args):
+                    cdir = args[i + 1]; skip.add(i + 1)
+                elif a.startswith("--directory="):
+                    cdir = a.split("=", 1)[1]
+                elif a in ("-f", "--file") and i + 1 < len(args):
+                    archive = args[i + 1]; skip.add(i + 1)
+                elif a.startswith("--file="):
+                    archive = a.split("=", 1)[1]
+                elif a.startswith("-") and not a.startswith("--") and "f" in a[1:] and i + 1 < len(args):
+                    # clustered short bundle ending in `f` (`-xf`, `-xvf`) consumes
+                    # the NEXT bareword as the archive (a read input).
+                    archive = args[i + 1]; skip.add(i + 1)
+            members = [args[i] for i, t in enumerate(args)
+                       if not t.startswith("-") and i not in skip
+                       and _strip_quotes(t) != _strip_quotes(archive or "\0")]
             if cdir is not None:
                 return [os.path.join(_strip_quotes(cdir), os.path.basename(_strip_quotes(m))) for m in members] + members
             return members
