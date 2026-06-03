@@ -87,7 +87,16 @@ if git rev-parse --verify -q HEAD >/dev/null 2>&1; then
   exit 0
 fi
 
-git add .
+# Initial commit stages everything EXCEPT transient framework/runtime junk, via
+# the shared smart-staging-resolver (autostage mode). A fresh repo's first commit
+# must never capture .claude/dev-registry, workflow-*.json, __pycache__, etc.
+# Falls back to a plain `git add .` only if the resolver is unavailable.
+RESOLVER="$HOME/.claude/scripts/smart-staging-resolver.py"
+if [ -f "$RESOLVER" ] && command -v python3 >/dev/null 2>&1; then
+  python3 "$RESOLVER" --repo "$PWD" autostage -z | xargs -0 -r git add --
+else
+  git add .
+fi
 git commit -m "chore: initialize repository with default .gitignore
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
