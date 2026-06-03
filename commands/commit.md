@@ -118,7 +118,7 @@ to guide your behavior.
 Constraints:
 - CONTROL_ROOT is the fallback root for dev-report resolution; changelog-analyst MUST apply the subproject path-walk (dirname-of-changed-files → commonpath → walk up to docs/dev/) and check the subproject docs/dev/ first before falling back to ${CONTROL_ROOT}/docs/dev/
 - GIT_ROOT must be computed per repo via `git rev-parse --show-toplevel`; never conflate with CONTROL_ROOT
-- Stage only files in the classified set; never use `git add -A` or `git add .`
+- Stage only files in the classified set; never use `git add -A` or `git add .`. The classified set is additionally run through the shared transient gate (`.claude/scripts/smart-staging-resolver.py filter`), which drops runtime junk in BOTH normal and bulk modes regardless of gitignore state (see agents/changelog-analyst.md Phase 2 Exclusions)
 - Commit message must NOT match: `\bsync\b.*\buncommitted\b` or `chore\(claude\)\s*:\s*sync`
 - Handle nested repo at /dev/shm/dev-workspace/dot-claude/ independently
 - Write push-gate token after each successful commit
