@@ -175,8 +175,12 @@ def parse_status(repo):
 
     Uses NUL-separated porcelain v1 to be quotePath/Unicode safe.
     tracked_changes covers M/A/D/R/C (staged or unstaged); untracked_new is `??`.
+    `--untracked-files=all` is REQUIRED: without it git collapses an untracked
+    directory into a single `dir/` entry, so junk nested under an otherwise
+    legitimate-looking directory (e.g. `.claude/dev-registry/x.json` collapsed
+    to `.claude/`) would escape the transient filter.
     """
-    res = _git(["status", "--porcelain=v1", "-z"], repo)
+    res = _git(["status", "--porcelain=v1", "-z", "--untracked-files=all"], repo)
     if res.returncode != 0:
         return None, None
     tracked, untracked = [], []
