@@ -2795,6 +2795,51 @@ class TestCycle11CommandWordLaunchHeadAgnostic:
         for cmd in allows:
             assert ev(cmd, datafile, fixture_repo) == "ALLOW", cmd
 
+    # ── find/fd -exec EXECUTOR launch of a protected anchor BLOCKs (codex #1) ────
+    def test_find_exec_protected_cmd_blocks(self, datafile, fixture_repo):
+        lp = self._launchpath(fixture_repo)
+        blocks = [
+            r"find . -exec happy claude \;",        # protected cmd via -exec, non-lifecycle sub
+            r"find . -exec happy \;",               # protected cmd via -exec, no sub
+            r"find /x -execdir happy-dev mcp \;",   # -execdir
+            r"find . -ok happy auth \;",            # -ok
+            f"find . -exec {lp} \\;",               # protected launch PATH via -exec
+            "fd -x happy",                          # fd -x executor
+            "fd --exec happy-coder claude",         # fd --exec
+        ]
+        for cmd in blocks:
+            assert ev(cmd, datafile, fixture_repo) == "BLOCK", cmd
+
+    def test_find_exec_nonprotected_allows(self, datafile, fixture_repo):
+        allows = [
+            r"find . -exec rm {} \;",               # non-protected executor command
+            r"find . -exec grep happy {} \;",       # grep of the word as DATA inside files
+            r"find . -exec echo hi \;",
+            "find . -name happy",                   # bare find naming the word (inspection)
+            "fd happy",                             # bare fd search for the word
+        ]
+        for cmd in allows:
+            assert ev(cmd, datafile, fixture_repo) == "ALLOW", cmd
+
+    # ── no over-block: a data operand whose dest basename looks like a runner ────
+    def test_runner_token_dest_operand_allows(self, datafile, fixture_repo):
+        # destination/operand literally named like an EXEC_RUNNER_TOKENS member
+        # ('x'/'run'/'exec') must NOT make a cp/mv/tar/install of a protected NAME a
+        # launch (the launch-position runner gate is suppressed after a data head).
+        lp = self._launchpath(fixture_repo)
+        allows = [
+            "cp /tmp/x happy",                      # dest basename 'x' (runner token)
+            "install /tmp/x happy-dev",
+            "tar cf /tmp/x happy",
+            "cp /tmp/run happy-mcp",                # dest basename 'run'
+            "mv /tmp/exec happy-coder",             # dest basename 'exec'
+        ]
+        for cmd in allows:
+            assert ev(cmd, datafile, fixture_repo) == "ALLOW", cmd
+        # but cp INTO the protected bundle still BLOCKs (W6 mutation, not launch)
+        assert ev(f"cp /tmp/x {lp}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"cp {lp} /tmp/foo", datafile, fixture_repo) == "ALLOW"  # bundle as source
+
     # ── non-enumeration proof: invented wrappers absent from the engine source ───
     def test_no_wrapper_enumeration(self):
         src = open(os.path.join(HOOKS_DIR, "lib", "runtime_guard.py")).read()

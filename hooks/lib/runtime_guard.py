@@ -3427,6 +3427,20 @@ _DATA_OPERAND_HEADS = (
 )
 
 
+def _anchor_preceded_by_data_head(exec_toks: list, pos: int) -> bool:
+    """True if any exec token BEFORE `pos` (in the same simple command) is a
+    data-consuming head (`_DATA_OPERAND_HEADS`). When True, the token at `pos` is a
+    DATA operand of that head, so the `_anchor_in_launch_position` follow/runner
+    gate must NOT be OR-ed in at the W1/W2 call sites: it would mis-fire when a
+    preceding operand's basename coincidentally looks like a runtime/runner token
+    (e.g. a destination literally named `x` in `cp /tmp/x <name>` — `x` is in
+    EXEC_RUNNER_TOKENS — which would wrongly flag the operand as a launch). The
+    command-word test's own find/fd executor-boundary exception already routes a
+    real `find -exec <protected> …` launch to BLOCK before this is consulted."""
+    return any(os.path.basename(_strip_quotes(exec_toks[j][1])) in _DATA_OPERAND_HEADS
+               for j in range(pos))
+
+
 def _anchor_in_command_word_position(exec_toks: list, pos: int, tokens: list) -> bool:
     """True if the exec token at exec-position `pos` is the COMMAND WORD (the
     program being exec()'d) of its simple command, behind ANY chain of wrapper
@@ -3564,7 +3578,8 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         for pos, (_i, st) in enumerate(exec_toks):
             if _path_matches_cwd(st, launch_paths, cwd, cwd_det) and (
                     _anchor_in_command_word_position(exec_toks, pos, tokens)
-                    or _anchor_in_launch_position(exec_vals, pos)):
+                    or (not _anchor_preceded_by_data_head(exec_toks, pos)
+                        and _anchor_in_launch_position(exec_vals, pos))):
                 return _block("P0", "protected launch-path anchor in executable position behind a front-end")
         for fv in _fused_option_values(tokens):
             if _path_matches_cwd(fv, launch_paths, cwd, cwd_det):
@@ -3585,7 +3600,8 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         for pos, (_i, st) in enumerate(exec_toks):
             base = os.path.basename(st)
             if base in cmds and (_anchor_in_command_word_position(exec_toks, pos, tokens)
-                                 or _anchor_in_launch_position(exec_vals, pos)):
+                                 or (not _anchor_preceded_by_data_head(exec_toks, pos)
+                                     and _anchor_in_launch_position(exec_vals, pos))):
                 return _block("P0", f"protected command anchor '{base}' in executable position behind a front-end")
         # fused `--opt=<protected-cmd>` whose value is a protected command and the
         # NEXT original token is a launch subcommand (`--exec=<cmd> daemon`).
