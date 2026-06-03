@@ -33,11 +33,19 @@ if [ "$AUTO_STAGE" = "1" ]; then
   echo "Adding:"
   echo "$UNTRACKED" | sed 's/^/   - /'
   echo ""
-  git add .
+  # Honour the explicit GIT_AUTO_STAGE_ALL=1 opt-in, but still hard-exclude
+  # transient framework/runtime junk via the shared smart-staging-resolver
+  # (autostage mode). Falls back to plain `git add .` if the resolver is absent.
+  RESOLVER="$HOME/.claude/scripts/smart-staging-resolver.py"
+  if [ -f "$RESOLVER" ] && command -v python3 >/dev/null 2>&1; then
+    python3 "$RESOLVER" --repo "$PWD" autostage -z | xargs -0 -r git add --
+  else
+    git add .
+  fi
   if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ All files staged automatically${NC}"
+    echo -e "${GREEN}✅ All files staged automatically (transient junk excluded)${NC}"
     echo ""
-    echo "Note: Auto-staged all files (GIT_AUTO_STAGE_ALL=1)"
+    echo "Note: Auto-staged all files minus transient junk (GIT_AUTO_STAGE_ALL=1)"
   else
     echo -e "${RED}❌ Error staging files${NC}"
     exit 2
