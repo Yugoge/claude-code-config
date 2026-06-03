@@ -285,22 +285,31 @@ def mode_is_transient(args):
 
 
 def _read_stdin_paths(use_nul):
-    data = sys.stdin.read()
-    sep = "\x00" if use_nul else "\n"
-    return [p for p in data.split(sep) if p.strip()]
+    # Read bytes (non-UTF-8 path safety) and split on the exact separator.
+    # Do NOT strip path content — a leading/trailing space is part of the name.
+    # Drop only empty tokens (e.g. the trailing one after the final separator).
+    data = sys.stdin.buffer.read()
+    sep = b"\x00" if use_nul else b"\n"
+    return [p.decode("utf-8", "surrogateescape") for p in data.split(sep) if p != b""]
+
+
+def _emit_paths(paths, use_nul):
+    sep = b"\x00" if use_nul else b"\n"
+    out = sep.join(p.encode("utf-8", "surrogateescape") for p in paths)
+    sys.stdout.buffer.write(out)
+    if paths and not use_nul:
+        sys.stdout.buffer.write(b"\n")
+    sys.stdout.buffer.flush()
 
 
 def mode_filter(args):
     policy = load_policy(args.repo, args.policy)
     kept, excluded = [], []
     for p in _read_stdin_paths(args.z):
-        (excluded if is_transient(p, policy) else kept).append(p.strip())
+        (excluded if is_transient(p, policy) else kept).append(p)  # raw — never strip
     for p in excluded:
-        print(f"EXCLUDED (transient): {p}", file=sys.stderr)
-    out_sep = "\x00" if args.z else "\n"
-    sys.stdout.write(out_sep.join(kept))
-    if kept and not args.z:
-        sys.stdout.write("\n")
+        sys.stderr.write(f"EXCLUDED (transient): {p}\n")
+    _emit_paths(kept, args.z)
     return 0
 
 
