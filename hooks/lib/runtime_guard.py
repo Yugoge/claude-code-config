@@ -3536,18 +3536,24 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
 
         # ── W1 LAUNCH-PATH ANCHOR ────────────────────────────────────────────
         # A protected launch PATH is inherently executable (a script/bundle). It
-        # is a LAUNCH (not a data/file op) when it is in EXECUTABLE POSITION:
-        #   • the FIRST exec token (`<wrapper>? ./dist/index.mjs …`), OR
+        # is a LAUNCH (not a data/file op) when it is in EXECUTABLE / COMMAND-WORD
+        # POSITION:
+        #   • the COMMAND WORD a wrapper chain exec()s (`<wrapper> <path> [sub]`,
+        #     regardless of the trailing subcommand — head-agnostic), OR
+        #   • the FIRST exec token (`<path> …`), OR
         #   • immediately AFTER a `--` end-of-options marker, OR
         #   • immediately AFTER a runtime (`node`/`tsx`/…) — `node <path>`, OR
         #   • FOLLOWED by a launch subcommand (`<path> daemon start`).
         # A protected path as a mere ARGUMENT to a copy/read/mutation head (e.g.
-        # `cp <path> /tmp`, `tar cf a.tar <path>`) is NOT a launch and must not
-        # block here (mutation of a protected hotfile is handled by P3). Also scan
-        # fused `--opt=<path>` RHS values (a wrapper option whose VALUE is a
-        # protected launch path execs it: `--exec=<path>` / `--cmd=<path>`).
+        # `cp <path> /tmp`, `tar cf a.tar <path>`) is NOT a launch — the
+        # command-word test's DATA-OPERAND-HEAD discriminator keeps those ALLOWing
+        # (mutation of a protected hotfile is handled by W6/P3). Also scan fused
+        # `--opt=<path>` RHS values (a wrapper option whose VALUE is a protected
+        # launch path execs it: `--exec=<path>` / `--cmd=<path>`).
         for pos, (_i, st) in enumerate(exec_toks):
-            if _path_matches_cwd(st, launch_paths, cwd, cwd_det) and _anchor_in_launch_position(exec_vals, pos):
+            if _path_matches_cwd(st, launch_paths, cwd, cwd_det) and (
+                    _anchor_in_command_word_position(exec_toks, pos, tokens)
+                    or _anchor_in_launch_position(exec_vals, pos)):
                 return _block("P0", "protected launch-path anchor in executable position behind a front-end")
         for fv in _fused_option_values(tokens):
             if _path_matches_cwd(fv, launch_paths, cwd, cwd_det):
