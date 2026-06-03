@@ -190,7 +190,23 @@ The `baseline_head_sha` diff is used ONLY as a provenance sanity check for
 already-whitelisted files. It is NEVER an independent inclusion source — files
 not in the whitelist cannot be added to the candidate set via the baseline diff.
 
-**Exclusions** (remove from candidate set regardless of source):
+**Exclusions** (remove from candidate set regardless of source — applies in BOTH BULK=false and BULK=true):
+- **Transient framework/runtime junk** (regardless of gitignore status): pipe the candidate
+  repo-rel paths (one per line) into
+  `${CLAUDE_PROJECT_DIR}/.claude/scripts/smart-staging-resolver.py filter --repo "${GIT_ROOT}"`.
+  Kept paths are returned on stdout; transient paths are dropped and logged to stderr as
+  `EXCLUDED (transient): <path>`. This is the SINGLE shared deterministic junk gate used by
+  every commit path (changelog-analyst, the `git add .` escape hatches, repo init). It is
+  **purely subtractive** — it can only narrow the candidate set, never widen it — so it cannot
+  break the whitelist/provenance/hunk-filter logic above; it only guarantees that runtime junk
+  categories (`.claude/dev-registry/`, `cp-state-*.json`, `workflow-*.json`, `.codex/`,
+  `worktrees/`, `__pycache__/`, `.last-update-result.json`, `.update.lock`, etc.) are NEVER
+  staged even when a repo's `.gitignore` has not yet enumerated them, and even when the path
+  carries a task-id-like name or sits under a known subsystem prefix (the BULK=true gap). The
+  categories are high-precision and scoped, so legitimate lockfiles (`Cargo.lock`, `poetry.lock`,
+  `package-lock.json`) and `docs/dev/` cycle artifacts are never matched. If the resolver is
+  unavailable (missing/`python3` absent), fall back to the gitignore + secret-pattern exclusions
+  below only — never stage-all.
 - Files matching gitignore: check via `git -C "${GIT_ROOT}" check-ignore -q <repo-rel-path>`
 - Absolute paths starting with `/tmp/`
 - Filenames matching secret patterns: `.env`, `*.key`, `*.pem`, `*password*`,
