@@ -93,8 +93,20 @@ fi
 # Falls back to a plain `git add .` only if the resolver is unavailable.
 RESOLVER="$HOME/.claude/scripts/smart-staging-resolver.py"
 if [ -f "$RESOLVER" ] && command -v python3 >/dev/null 2>&1; then
-  python3 "$RESOLVER" --repo "$PWD" autostage -z | xargs -0 -r git add --
+  # Write the resolver's NUL-separated stage list to a temp file so we can check
+  # its exit code BEFORE staging (a crashed resolver must not silently stage
+  # nothing). Command substitution can't hold NUL bytes, hence the temp file.
+  _ssr_tmp=$(mktemp)
+  if python3 "$RESOLVER" --repo "$PWD" autostage -z >"$_ssr_tmp" 2>/dev/null; then
+    xargs -0 -r git add -- <"$_ssr_tmp"
+  else
+    echo -e "${YELLOW}⚠️  smart-staging-resolver failed; falling back to gitignore-respecting 'git add .'${NC}"
+    git add .
+  fi
+  rm -f "$_ssr_tmp"
 else
+  # Resolver unavailable: plain 'git add .' STILL honours .gitignore (incl. the
+  # global ignore), so known junk is excluded; the resolver is the superset catch.
   git add .
 fi
 git commit -m "chore: initialize repository with default .gitignore

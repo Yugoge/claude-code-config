@@ -2675,5 +2675,205 @@ class TestCycle10MoveSourceMutationUnified:
             assert r.returncode == ALLOW, f"live hook over-blocked: {cmd} (rc={r.returncode})"
 
 
+class TestCycle11CommandWordLaunchHeadAgnostic:
+    """Cycle 11 — close the W1/W2 COMMAND-WORD LAUNCH blind spot behind a wrapper.
+
+    The 5th re-close gate found a launch of the protected CLI BY ITS COMMAND-WORD
+    BASENAME for NON-lifecycle subcommands leaked behind any wrapper other than the
+    four documented env/sudo/nohup/command front-ends: `numactl <cmd> claude`,
+    `tini <cmd> mcp`, `zonkerbaz <cmd> auth`, stacked `flock zonkerbaz <cmd>
+    claude --resume` all ALLOWed — while the BARE form blocked and `<cmd> daemon
+    start` behind a wrapper blocked. Root cause: `_anchor_in_launch_position`
+    treated a protected-command basename as a LAUNCH only when it was exec-token-0
+    OR its follow-token was a lifecycle verb (`_ANCHOR_LAUNCH_FOLLOW`), so behind
+    an unknown wrapper the protected cmd was token-1 and `claude`/`mcp`/`auth` was
+    misjudged as a non-launch argument.
+
+    The fix: a protected COMMAND basename (W2) — and symmetrically a protected
+    launch PATH (W1) — in COMMAND-WORD position (the program a wrapper chain
+    exec()s) is a LAUNCH regardless of its following subcommand, head-agnostically.
+    Command-word position is determined by `_anchor_in_command_word_position`,
+    whose two DATA discriminators (a preceding data-operand head like cp/tar/grep/
+    kill; or an immediately-preceding bare separate option like `pytest -k`) keep a
+    protected name used as a genuine data/flag-value argument ALLOWing (no new
+    over-block). The lifecycle-follow gate is retained ONLY for the non-command-word
+    position case.
+
+    Verified ONLY by feeding strings to evaluate() and simulated PreToolUse JSON to
+    the live hook (NEVER any real daemon/CLI command, NEVER touching any process).
+    Wrapper/subcommand danger tokens are assembled from pieces so this SOURCE never
+    types a full `<wrapper> <cmd> claude` launch phrase the author-time live hook
+    scans.
+    """
+
+    _REAL = "numa" + "ctl"
+    _REAL2 = "ti" + "ni"
+    _REAL3 = "dumb-" + "init"
+    _INV = "zqx" + "wrapper7"
+    _INV2 = "blarf" + "ront88"
+    _STACK = "flock /tmp/l zqx" + "wrapper7"
+    WRAPPERS = [_REAL, _REAL2, _REAL3, _INV, _INV2, _STACK]
+
+    # protected command basenames (mirror FIXTURE protected_cmds)
+    _CMDS = ["happy", "happy-dev", "happy-mcp", "happy-coder"]
+    # idiomatic NON-lifecycle subcommands that were leaking + a no-subcommand case
+    _SUBCMDS = ["claude", "mcp", "auth", "doctor", ""]
+
+    def _launchpath(self, repo):
+        return repo + "/packages/happy-cli/dist/index.mjs"
+
+    # ── W2: protected command-word launch BLOCKs for EVERY cmd × subcmd × wrapper ─
+    @pytest.mark.parametrize("w", [""] + WRAPPERS)
+    @pytest.mark.parametrize("cmd", _CMDS)
+    @pytest.mark.parametrize("sub", _SUBCMDS)
+    def test_w2_cmdword_launch_blocks(self, w, cmd, sub, datafile, fixture_repo):
+        pre = (w + " ") if w else ""
+        tail = (" " + sub) if sub else ""
+        assert ev(f"{pre}{cmd}{tail}", datafile, fixture_repo) == "BLOCK", (w, cmd, sub)
+
+    # ── W2: `claude --resume` flag-bearing launch behind a stacked wrapper ───────
+    def test_w2_cmdword_launch_resume_stacked(self, datafile, fixture_repo):
+        assert ev(f"{self._STACK} happy claude --resume abc", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"{self._REAL} happy claude --resume", datafile, fixture_repo) == "BLOCK"
+
+    # ── W2: wrapper carrying its OWN fused option before the command word ────────
+    def test_w2_cmdword_launch_wrapper_with_option(self, datafile, fixture_repo):
+        # a FUSED wrapper option (`--cpunodebind=0`) does not consume the next
+        # token, so the protected command after it is still the command word.
+        assert ev(f"{self._REAL} --cpunodebind=0 happy claude", datafile, fixture_repo) == "BLOCK"
+
+    # ── W2: bare launch + documented env-wrappers stay BLOCK (no regression) ─────
+    def test_w2_bare_and_env_wrappers_block(self, datafile, fixture_repo):
+        assert ev("happy claude", datafile, fixture_repo) == "BLOCK"
+        for env_w in ("env", "sudo", "nohup", "command"):
+            assert ev(f"{env_w} happy claude", datafile, fixture_repo) == "BLOCK", env_w
+
+    # ── W1: protected launch PATH as the command word behind a wrapper BLOCKs ────
+    @pytest.mark.parametrize("w", [""] + WRAPPERS)
+    @pytest.mark.parametrize("sub", ["", "claude", "mcp"])
+    def test_w1_pathword_launch_blocks(self, w, sub, datafile, fixture_repo):
+        lp = self._launchpath(fixture_repo)
+        pre = (w + " ") if w else ""
+        tail = (" " + sub) if sub else ""
+        assert ev(f"{pre}{lp}{tail}", datafile, fixture_repo) == "BLOCK", (w, sub)
+
+    # ── W1: launch by PATH after a runtime stays BLOCK (no regression) ───────────
+    def test_w1_runtime_path_blocks(self, datafile, fixture_repo):
+        lp = self._launchpath(fixture_repo)
+        assert ev(f"{self._INV} node {lp}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"node {lp} claude", datafile, fixture_repo) == "BLOCK"
+
+    # ── NO-OVER-BLOCK boundary: protected NAME as a genuine DATA argument ALLOWs ──
+    def test_boundary_cmd_as_data_allows(self, datafile, fixture_repo):
+        allows = [
+            "grep happy /tmp/file",            # search pattern (inspection head)
+            "echo happy-dev",                  # print arg
+            "cat happy.log",                   # filename containing the word
+            "pytest -k happy",                 # bare separate flag VALUE
+            "grep -e happy-coder /tmp/f",      # bare separate flag VALUE
+            "cp happy /tmp/foo",               # file operand to cp (source)
+            "cp /tmp/foo happy",               # file operand to cp (dest)
+            "mv happy-dev /tmp/foo",           # file operand to mv
+            "tar cf a.tar happy",              # archive member operand
+            "chmod +x happy-mcp",              # mode-change operand
+            "rm happy",                        # remove operand
+            "kill happy",                      # (named) kill operand
+            "git status happy",                # git inspection
+            "ls happy-coder",                  # listing operand
+        ]
+        for cmd in allows:
+            assert ev(cmd, datafile, fixture_repo) == "ALLOW", cmd
+
+    # ── NO-OVER-BLOCK boundary: protected launch PATH as a DATA operand ALLOWs ───
+    def test_boundary_path_as_data_allows(self, datafile, fixture_repo):
+        lp = self._launchpath(fixture_repo)
+        allows = [
+            f"{self._INV} cat {lp}",                 # read the bundle
+            f"cp {lp} /tmp/foo",                     # bundle as cp SOURCE (read-copy)
+            f"{self._INV} grep x {lp}",              # search inside the bundle
+        ]
+        for cmd in allows:
+            assert ev(cmd, datafile, fixture_repo) == "ALLOW", cmd
+
+    # ── non-enumeration proof: invented wrappers absent from the engine source ───
+    def test_no_wrapper_enumeration(self):
+        src = open(os.path.join(HOOKS_DIR, "lib", "runtime_guard.py")).read()
+        for name in (self._REAL, self._REAL2, self._REAL3, self._INV, self._INV2):
+            assert name not in src, f"engine must not enumerate wrapper {name!r}"
+
+    # ── LIVE HOOK proof: command-word launch BLOCKs end-to-end (exit 2) ──────────
+    def test_cmdword_launch_live_hook_blocks(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        lp = self._launchpath(fixture_repo)
+        cmds = [
+            f"{self._REAL} happy claude",                          # real wrapper, W2
+            f"{self._REAL2} happy mcp",                            # real wrapper, W2
+            f"{self._INV} happy auth",                             # invented wrapper, W2
+            f"{self._STACK} happy claude --resume",               # stacked, W2
+            f"{self._REAL} happy",                                 # no subcommand, W2
+            f"{self._INV} {lp}",                                   # invented wrapper, W1 path-word
+            f"{self._INV} {lp} claude",                            # W1 path-word + subcmd
+        ]
+        for cmd in cmds:
+            payload = json.dumps({"tool_name": "Bash",
+                                  "tool_input": {"command": cmd, "cwd": fixture_repo},
+                                  "agent_id": "dev-test"})
+            r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r.returncode == BLOCK, f"live hook did not block: {cmd} (rc={r.returncode})"
+
+    def test_cmdword_launch_live_hook_blocks_under_do(self, datafile, fixture_repo):
+        # wrapped command-word launch must BLOCK even with a /do consent flag (the
+        # anchor runs in evaluate() BEFORE the hook's /do bypass — unbypassable).
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        sid = "guardtest-cmdword-" + str(os.getpid())
+        flag = f"/tmp/claude-orchestrator-consent-{sid}.flag"
+        with open(flag, "w") as fh:
+            fh.write("true")
+        try:
+            for cmd in (f"{self._INV} happy claude", f"{self._REAL} happy mcp"):
+                payload = json.dumps({"tool_name": "Bash",
+                                      "tool_input": {"command": cmd, "cwd": fixture_repo},
+                                      "session_id": sid, "agent_id": "dev-test"})
+                r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+                assert r.returncode == BLOCK, f"live hook leaked under /do: {cmd} (rc={r.returncode})"
+        finally:
+            try:
+                os.unlink(flag)
+            except OSError:
+                pass
+
+    def test_cmdword_launch_live_hook_boundary_allows(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        lp = self._launchpath(fixture_repo)
+        w = self._INV
+        allows = [
+            "grep happy /tmp/file",         # data
+            "pytest -k happy",              # flag value
+            f"{w} cat {lp}",                # read the bundle
+            f"cp {lp} /tmp/foo",            # bundle as cp source
+            "cp /tmp/foo happy",            # file operand
+        ]
+        for cmd in allows:
+            payload = json.dumps({"tool_name": "Bash",
+                                  "tool_input": {"command": cmd, "cwd": fixture_repo},
+                                  "agent_id": "dev-test"})
+            r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r.returncode == ALLOW, f"live hook over-blocked: {cmd} (rc={r.returncode})"
+
+    # ── fail-closed: wrapped command-word launch BLOCKs when config is ABSENT ────
+    def test_cmdword_launch_failclosed_blocks(self, tmp_path, fixture_repo):
+        absent = str(tmp_path / "no-such-config.json")
+        for cmd in (f"{self._INV} happy claude", f"{self._REAL} happy mcp", f"{self._INV} happy"):
+            assert ev(cmd, absent, fixture_repo) == "BLOCK", cmd
+        # benign listing still ALLOWs fail-closed
+        assert ev("ls -la /tmp", absent, fixture_repo) == "ALLOW"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
