@@ -104,7 +104,7 @@ def _extract_preserved(old: str, dir_name: str) -> str:
         # Anchor on `*Last updated:` specifically — the generated header ALWAYS leads with
         # it. A hand-written note that opens with `**Convention**:` (or any other stat-shaped
         # label) right after the title must NOT be wiped. Skip blank and already-removed
-        # lines (e.g. an orphan marker stripped by FIX 3) so detection reaches the stat run.
+        # lines (e.g. an orphan marker stripped above) so detection reaches the stat run.
         idx = 0
         while idx < n and (remove[idx] or not lines[idx].strip()):
             idx += 1
