@@ -319,14 +319,12 @@ def mode_autostage(args):
     if tracked is None:
         print("ERROR: not a git repository or git status failed", file=sys.stderr)
         return 2
-    stage = [p for p in (tracked + untracked) if not is_transient(p, policy)]
-    for p in (tracked + untracked):
+    allpaths = tracked + untracked
+    stage = [p for p in allpaths if not is_transient(p, policy)]
+    for p in allpaths:
         if is_transient(p, policy):
-            print(f"EXCLUDED (transient): {p}", file=sys.stderr)
-    out_sep = "\x00" if args.z else "\n"
-    sys.stdout.write(out_sep.join(stage))
-    if stage and not args.z:
-        sys.stdout.write("\n")
+            sys.stderr.write(f"EXCLUDED (transient): {p}\n")
+    _emit_paths(stage, args.z)
     return 0
 
 
