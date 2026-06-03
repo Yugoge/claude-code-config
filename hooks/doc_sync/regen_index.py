@@ -118,12 +118,12 @@ def _build_index_content(dir_path: Path, convention: str, preserved: str = '') -
 
 
 def regen_index(dir_path: Path):
-    """Regenerate INDEX.md for a directory, preserving hand-written annotations.
-
-    The auto region (stats + tree) is wrapped in AUTO markers and refreshed on every
-    run; any hand-written prose outside that region is extracted from the existing file
-    and re-attached, so doc-sync keeps the tree current without wiping human notes."""
+    """Regenerate INDEX.md, preserving hand-written annotations. Only files that already
+    carry the AUTO marker (or do not exist yet) are managed; a markerless existing INDEX is
+    left untouched, mirroring regen_readme so annotation-wiping is structurally impossible."""
     index_path = dir_path / 'INDEX.md'
+    if not _index_needs_update(index_path):
+        return
     convention = _detect_convention(dir_path)
     preserved = ''
     if index_path.exists():
