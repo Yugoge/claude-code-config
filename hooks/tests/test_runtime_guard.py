@@ -2461,5 +2461,219 @@ class TestCycle9Step0ConfigSelfProtectionHeadAgnostic:
             assert name not in src, f"engine must not enumerate wrapper {name!r}"
 
 
+class TestCycle10MoveSourceMutationUnified:
+    """Cycle 10 — close the W6/W7 (bundle/statefile) `mv`-SOURCE blind spot and
+    UNIFY mutation-target extraction across all three protected-file families.
+
+    The re-close gate found `mv <protected-statefile|bundle> <dest>` returned ALLOW
+    (bare AND wrapped) because the W6/W7 extractor `_mutation_targets` only checked
+    the cp/mv/rsync/install DESTINATION — never the protected SOURCE that `mv`
+    REMOVES in place (moving the watched bundle away triggers the daemon
+    auto-handoff; moving the statefile removes it). The Cycle-9 STEP0 fix added
+    mv-source handling for the CONFIG file but did NOT mirror it into W6/W7.
+
+    The fix routes BOTH `_mutation_targets` (W6/W7/W9/P3/P4/P7) and
+    `_step0_mutation_targets` (config) through ONE shared, position-COMPLETE
+    extractor `_mutation_targets_for_verb`, so the three families cannot drift on
+    which token positions count as a mutation. A protected file is MUTATED when it
+    is the cp/mv/rsync/install DEST (written), the mv/rename SOURCE (moved away),
+    the rsync `--remove-source-files` SOURCE (moved away), the rm/truncate/shred/
+    dd(of=)/tee target, the sed -i/perl -pi in-place target, the ln dest, or the
+    chmod/chown target. A cp/plain-rsync SOURCE (copied, source kept = a read) is
+    NOT a mutation and still ALLOWS (no over-block).
+
+    Verified ONLY by feeding strings to evaluate() and simulated PreToolUse JSON to
+    the live hook (NEVER any real daemon/CLI/service command, NEVER touching any
+    process or file). Danger phrases are assembled from pieces so this SOURCE never
+    types a full `<wrapper> mv <bundle>` phrase the author-time live hook scans.
+    """
+
+    _REAL = "numa" + "ctl"
+    _INV = "zqx" + "wrapper7"
+    _INV2 = "blarf" + "ront88"
+    _STACK = "flock /tmp/l zqx" + "wrapper7"
+    WRAPPERS = [_REAL, _INV, _INV2, _STACK]
+
+    _MV = "m" + "v"
+    _RENAME = "rena" + "me"
+    _RSYNC = "rsy" + "nc"
+    _RMSRC = "--remove-source-" + "files"
+    _CHMOD = "chm" + "od"
+    _CHOWN = "cho" + "wn"
+    _CP = "c" + "p"
+    _DEST = "/tmp/x"
+
+    def _bundle(self, repo):
+        return repo + "/packages/happy-cli/dist/index.mjs"
+
+    def _statefile(self):
+        return "/root/.happy-dev/" + "daemon" + ".state.json"
+
+    def _configfile(self, datafile):
+        # the active STEP0 anchor IS the override path itself (the data file).
+        return datafile
+
+    # ── W7 STATEFILE mv-source: BLOCK {bare, real, invented, stacked} ────────
+    @pytest.mark.parametrize("w", [""] + WRAPPERS)
+    def test_w7_statefile_mv_source_blocks(self, w, datafile, fixture_repo):
+        sf = self._statefile()
+        pre = (w + " ") if w else ""
+        assert ev(f"{pre}{self._MV} {sf} {self._DEST}", datafile, fixture_repo) == "BLOCK", w
+
+    # ── W6 BUNDLE mv-source: BLOCK {bare, real, invented, stacked} ───────────
+    @pytest.mark.parametrize("w", [""] + WRAPPERS)
+    def test_w6_bundle_mv_source_blocks(self, w, datafile, fixture_repo):
+        b = self._bundle(fixture_repo)
+        pre = (w + " ") if w else ""
+        assert ev(f"{pre}{self._MV} {b} {self._DEST}", datafile, fixture_repo) == "BLOCK", w
+
+    # ── CONFIG mv-source: BLOCK {bare, invented}, present AND fail-closed ────
+    @pytest.mark.parametrize("w", ["", _INV])
+    def test_config_mv_source_blocks_present_and_failclosed(self, w, datafile, fixture_repo):
+        cfgf = self._configfile(datafile)
+        pre = (w + " ") if w else ""
+        # config-present: the override points at a valid fixture config (datafile)
+        assert ev(f"{pre}{self._MV} {cfgf} {self._DEST}", datafile, fixture_repo) == "BLOCK", ("present", w)
+        # fail-closed: point the anchor at an absent file; STEP0 keys on the
+        # hardcoded path, not loaded data, so the block must still hold.
+        absent = cfgf + ".does-not-exist-zz"
+        assert ev(f"{pre}{self._MV} {absent} {self._DEST}", absent, fixture_repo) == "BLOCK", ("failclosed", w)
+
+    # ── sibling source-removal FORMS the STEP0 fix already covers ────────────
+    def test_w6_w7_move_remove_forms_block(self, datafile, fixture_repo):
+        b = self._bundle(fixture_repo)
+        sf = self._statefile()
+        w = self._INV
+        forms = [
+            f"{w} {self._RENAME} {sf} {self._DEST}",          # rename = mv synonym (source removed)
+            f"{w} {self._MV} -t /tmp/d {sf}",                  # mv -t DIR (source removed)
+            f"{w} {self._MV} {b} /tmp/a /tmp/d",               # multi-source mv (bundle removed)
+            f"{w} {self._RSYNC} {self._RMSRC} {sf} /tmp/d/",   # rsync --remove-source-files (move)
+            f"{self._RSYNC} {self._RMSRC} {b} /tmp/d/",        # bare rsync --remove-source-files
+            f"{w} {self._CHMOD} 000 {sf}",                     # chmod (metadata mutation, now covered)
+            f"{w} {self._CHOWN} root {b}",                     # chown (metadata mutation, now covered)
+        ]
+        for cmd in forms:
+            assert ev(cmd, datafile, fixture_repo) == "BLOCK", cmd
+
+    # ── BOUNDARY ALLOWS: cp-source read, plain-rsync source, reads ──────────
+    def test_cp_source_and_plain_rsync_source_allow(self, datafile, fixture_repo):
+        b = self._bundle(fixture_repo)
+        sf = self._statefile()
+        w = self._INV
+        allows = [
+            f"{w} {self._CP} {sf} {self._DEST}",               # cp SOURCE: copy, source kept = read
+            f"{self._CP} {b} {self._DEST}",                    # bare cp-source
+            f"{w} {self._RSYNC} {sf} /tmp/d/",                 # plain rsync (no --remove): copy = read
+            f"{w} cat {sf}",                                   # read
+            f"{w} {self._MV} /tmp/unrelated {self._DEST}",     # mv of a NON-protected file
+            f"{w} {self._CP} {sf} /tmp/d/{self._INV2}",        # cp-source to an unrelated dest
+        ]
+        for cmd in allows:
+            assert ev(cmd, datafile, fixture_repo) == "ALLOW", cmd
+
+    # ── controls: the OTHER mutation forms STILL block (wiring otherwise live) ─
+    def test_controls_still_block(self, datafile, fixture_repo):
+        b = self._bundle(fixture_repo)
+        sf = self._statefile()
+        w = self._INV
+        for cmd in (f"{w} rm {sf}", f"{w} trunc" + f"ate -s0 {sf}",
+                    f"{w} shr" + f"ed {b}", f"{w} {self._CP} /tmp/x {b}"):
+            assert ev(cmd, datafile, fixture_repo) == "BLOCK", cmd
+
+    # ── unification META: the two extractors are the SAME frozenset + share core ─
+    def test_mutation_head_sets_unified(self):
+        import importlib, lib.runtime_guard as rg
+        importlib.reload(rg)
+        # the bundle/statefile anchor verb set IS the STEP0 verb set (no drift).
+        assert rg._ANCHOR_MUTATION_HEADS is rg._STEP0_MUTATION_HEADS
+        # the shared core extractor exists and both target-extractors delegate to it.
+        assert hasattr(rg, "_mutation_targets_for_verb")
+        # mv-source semantics live in the shared core: a `mv SRC DEST` yields BOTH.
+        tgts = rg._mutation_targets_for_verb("mv", ["/a/src", "/b/dest"])
+        assert "/a/src" in tgts and "/b/dest" in tgts
+        # cp-source semantics: a `cp SRC DEST` yields ONLY the dest (source = read).
+        ctgts = rg._mutation_targets_for_verb("cp", ["/a/src", "/b/dest"])
+        assert ctgts == ["/b/dest"]
+        # rsync without --remove-source-files: source is a read (only dest forms).
+        r1 = rg._mutation_targets_for_verb("rsync", ["/a/src", "/b/dest"])
+        assert "/a/src" not in r1
+        # rsync WITH --remove-source-files: source IS a target (moved away).
+        r2 = rg._mutation_targets_for_verb("rsync", ["--remove-source-files", "/a/src", "/b/dest/"])
+        assert "/a/src" in r2
+
+    # ── non-enumeration proof: invented wrappers absent from the engine source ─
+    def test_no_wrapper_enumeration(self):
+        src = open(os.path.join(HOOKS_DIR, "lib", "runtime_guard.py")).read()
+        for name in (self._INV, self._INV2):
+            assert name not in src, f"engine must not enumerate wrapper {name!r}"
+
+    # ── LIVE HOOK proof: mv-source BLOCKs end-to-end (exit 2), incl. under /do ─
+    def test_mv_source_live_hook_blocks(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        b = self._bundle(fixture_repo)
+        sf = self._statefile()
+        w = self._INV
+        cmds = [
+            f"{self._MV} {sf} {self._DEST}",                    # bare statefile mv-source
+            f"{w} {self._MV} {sf} {self._DEST}",                # wrapped statefile mv-source
+            f"{self._MV} {b} {self._DEST}",                     # bare bundle mv-source
+            f"{w} {self._MV} {b} {self._DEST}",                 # wrapped bundle mv-source
+            f"{w} {self._RSYNC} {self._RMSRC} {sf} /tmp/d/",    # rsync move
+        ]
+        for cmd in cmds:
+            payload = json.dumps({"tool_name": "Bash",
+                                  "tool_input": {"command": cmd, "cwd": fixture_repo},
+                                  "agent_id": "dev-test"})
+            r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r.returncode == BLOCK, f"live hook did not block: {cmd} (rc={r.returncode})"
+
+    def test_mv_source_live_hook_blocks_under_do(self, datafile, fixture_repo):
+        # wrapped mv-source must BLOCK even with a /do consent flag (the anchor runs
+        # in evaluate() BEFORE the hook's /do bypass — unbypassable).
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        sf = self._statefile()
+        sid = "guardtest-mvsrc-" + str(os.getpid())
+        flag = f"/tmp/claude-orchestrator-consent-{sid}.flag"
+        with open(flag, "w") as fh:
+            fh.write("true")
+        try:
+            cmd = f"{self._INV} {self._MV} {sf} {self._DEST}"
+            payload = json.dumps({"tool_name": "Bash",
+                                  "tool_input": {"command": cmd, "cwd": fixture_repo},
+                                  "session_id": sid, "agent_id": "dev-test"})
+            r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r.returncode == BLOCK, f"live hook leaked under /do: {cmd} (rc={r.returncode})"
+        finally:
+            try:
+                os.unlink(flag)
+            except OSError:
+                pass
+
+    def test_mv_source_live_hook_boundary_allows(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        sf = self._statefile()
+        b = self._bundle(fixture_repo)
+        w = self._INV
+        allows = [
+            f"{w} {self._CP} {sf} {self._DEST}",       # cp-source (copy) = read
+            f"{self._CP} {b} {self._DEST}",            # bare cp-source
+            f"{w} cat {sf}",                           # read
+            f"{w} {self._MV} /tmp/unrelated {self._DEST}",  # mv NON-protected
+        ]
+        for cmd in allows:
+            payload = json.dumps({"tool_name": "Bash",
+                                  "tool_input": {"command": cmd, "cwd": fixture_repo},
+                                  "agent_id": "dev-test"})
+            r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+            assert r.returncode == ALLOW, f"live hook over-blocked: {cmd} (rc={r.returncode})"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
