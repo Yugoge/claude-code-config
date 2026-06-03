@@ -88,9 +88,11 @@ JUNK_BASENAME_GLOBS = ("*.pyc", "*.pyo", "*.swp", "*.swo")
 
 
 def _git(args, cwd):
+    # capture as BYTES (no text=True): git paths may not be valid UTF-8, and a
+    # decode crash here would empty the stage list and silently drop files.
     return subprocess.run(
         ["git", "-C", cwd, *args],
-        capture_output=True, text=True,
+        capture_output=True,
     )
 
 
