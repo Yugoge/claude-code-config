@@ -91,6 +91,14 @@ Phase 0 is **warn-only / classification**: do NOT make any staging or exclusion 
 3. **Orphan files** (untracked files with no task-id pattern and no clear subsystem match, OR files whose content cannot be attributed to any active task): **do NOT auto-commit**. Print a warning for each:
    `WARNING: bulk skipping orphan file <path> — no task-id affinity and no clear subsystem. Stage manually if needed.`
 
+4. **Transient junk drop** (MANDATORY, runs BEFORE task-id/subsystem grouping): pass every
+   candidate path through the shared transient filter (see **Exclusions** below —
+   `smart-staging-resolver.py filter`). Any path classified transient is removed from the
+   candidate set and is NEVER grouped or committed, even if it carries a task-id-like name or
+   sits under a known subsystem prefix (`hooks/`, `scripts/`, `docs/dev/`, …). This closes the
+   BULK=true gap where git-status authority would otherwise sweep runtime junk into a subsystem
+   commit. The filter is subtractive only.
+
 This prevents cross-task contamination (impurities). The invariant is: every file in a bulk commit must share either the same task-id cluster OR the same subsystem scope as all other files in that commit.
 
 **When BULK=false AND a dev-report exists** (at the resolved `dev_report_path` below):
