@@ -189,14 +189,15 @@ def parse_status(repo):
     if res.returncode != 0:
         return None, None
     tracked, untracked = [], []
-    tokens = res.stdout.split("\x00")
+    tokens = res.stdout.split(b"\x00")  # bytes — paths may be non-UTF-8
     i = 0
     while i < len(tokens):
         entry = tokens[i]
         if not entry:
             i += 1
             continue
-        xy, path = entry[:2], entry[3:]
+        xy = entry[:2].decode("ascii", "replace")
+        path = entry[3:].decode("utf-8", "surrogateescape")
         if xy == "??":
             untracked.append(path)
             i += 1
