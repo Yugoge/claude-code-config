@@ -1200,99 +1200,234 @@ _STEP0_MUTATION_HEADS = frozenset({
 })
 
 
+def _is_inplace_editor_args(head: str, args: list) -> bool:
+    """True if a sed/perl invocation edits its file IN PLACE (mutating it).
+    Covers GNU sed `-i`/`-i.bak`/`--in-place[=SUFFIX]`/clustered short opts that
+    contain `i` (`-Ei`, `-ri`, `-nei`), and Perl `-i`/`-iSUFFIX`/clustered
+    `-pi`/`-0pi`/`-Tpi`. A plain `sed s/a/b/ file` (stream to stdout, no -i) is
+    NOT in-place and must not match (it reads, does not mutate)."""
+    if head not in ("sed", "perl"):
+        return False
+    for a in args:
+        if a == "--in-place" or a.startswith("--in-place"):
+            return True
+        if a == "-i" or a.startswith("-i"):
+            return True
+        # clustered short-option bundle containing the `i` flag (`-Ei`, `-ri`,
+        # `-pi`, `-0pi`). A single-dash token whose option letters include `i`,
+        # but NOT a long `--xxx` option.
+        if a.startswith("-") and not a.startswith("--") and "i" in a[1:]:
+            return True
+    return False
+
+
 def _step0_mutation_targets(head: str, args: list) -> list:
     """Extract the write/metadata-mutation TARGET path tokens for a STEP0 mutation
     verb's OWN argv (the tokens AFTER the verb). Mirrors `_mutation_targets` for
-    the filesystem-write verbs and additionally covers `chmod`/`chown`, whose last
-    bareword (the file being re-permissioned) is the protected target."""
-    if head in ("cp", "mv", "rsync", "install", "ln"):
-        barewords = [t for t in args if not t.startswith("-")]
+    the filesystem-write verbs and additionally covers the data-file-specific
+    mutation shapes codex surfaced: `mv` (the SOURCE is also a target — moving the
+    data file away deletes it), `cp/mv -t DIR` and `rsync … DIR/` target-directory
+    forms, `chmod/chown --reference=REF` (skip the reference operand), and the dd
+    `of=` operand. The synthesized target-dir candidates are dir + basename so a
+    config write via `-t <cfgdir>` matches the exact data-file path (and a write to
+    an UNRELATED file in the config dir does not)."""
+    barewords = [t for t in args if not t.startswith("-")]
+    # target-directory option: `-t DIR` (cp/mv/install) — DIR is the dest dir; the
+    # written file is DIR/basename(source). `--target-directory=DIR` fused form too.
+    tdir = None
+    for i, a in enumerate(args):
+        if a in ("-t", "--target-directory") and i + 1 < len(args):
+            tdir = args[i + 1]
+        elif a.startswith("--target-directory="):
+            tdir = a.split("=", 1)[1]
+    if head in ("cp", "install"):
+        if tdir is not None:
+            # every source maps to tdir/basename(source)
+            srcs = [b for b in barewords]
+            return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in srcs]
+        # `cp SRC… DEST`: only the DEST (last bareword) is written. SRC is read.
         return barewords[-1:] if barewords else []
-    if head in ("touch", "truncate", "dd", "tee", "unzip", "rename",
+    if head == "mv":
+        if tdir is not None:
+            srcs = list(barewords)
+            out = [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in srcs]
+            out.extend(barewords)  # the SOURCEs are removed (mutated) by mv
+            return out
+        # `mv SRC… DEST`: the DEST is written AND the SRC(s) are removed — both are
+        # mutation targets for the data file (moving it away neuters the guard).
+        return barewords  # all operands (sources + dest)
+    if head == "rsync":
+        # `rsync SRC… DEST` — DEST may be a file or a dir. If DEST ends with '/'
+        # (or is an existing dir) the written file is DEST/basename(SRC); else DEST.
+        if len(barewords) >= 2:
+            dest = _strip_quotes(barewords[-1])
+            srcs = barewords[:-1]
+            if tdir is not None:
+                dest = _strip_quotes(tdir)
+            if dest.endswith("/"):
+                return [os.path.join(dest, os.path.basename(_strip_quotes(s))) for s in srcs] + [dest]
+            # dest could be file OR existing dir — emit both interpretations.
+            out = [dest]
+            out += [os.path.join(dest, os.path.basename(_strip_quotes(s))) for s in srcs]
+            return out
+        return barewords[-1:] if barewords else []
+    if head == "ln":
+        if tdir is not None:
+            return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in barewords]
+        return barewords[-1:] if barewords else []
+    if head == "dd":
+        # dd writes to its `of=<path>` operand (the `if=<path>` is the read
+        # source — not a mutation target).
+        return [t[len("of="):] for t in args if t.startswith("of=")]
+    if head in ("touch", "truncate", "tee", "unzip", "rename",
                 "rm", "unlink", "shred"):
-        return [t for t in args if not t.startswith("-")]
-    if head in ("sed", "perl") and ("-i" in args or any(a.startswith("-i") for a in args)):
-        return [t for t in args if not t.startswith("-")]
+        if tdir is not None:
+            return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in barewords]
+        return barewords
+    if head in ("sed", "perl") and _is_inplace_editor_args(head, args):
+        return barewords
     if head in ("chmod", "chown"):
-        # chmod MODE FILE… / chown OWNER FILE… — every bareword after the first
-        # (the mode/owner spec) is a target file. `--reference=…` style flags are
-        # skipped (start with '-').
-        barewords = [t for t in args if not t.startswith("-")]
+        # chmod MODE FILE… / chown OWNER FILE… — the first bareword is the
+        # mode/owner spec; the rest are target files. BUT with `--reference=REF`
+        # (or `--reference REF`) there is NO mode/owner bareword, so EVERY bareword
+        # is a target file.
+        has_ref = any(a == "--reference" or a.startswith("--reference=") for a in args)
+        if has_ref:
+            # `--reference REF` (separated) consumes the next bareword as REF.
+            out = list(barewords)
+            for i, a in enumerate(args):
+                if a == "--reference" and i + 1 < len(args):
+                    ref = args[i + 1]
+                    if ref in out:
+                        out.remove(ref)
+                    break
+            return out
         return barewords[1:] if len(barewords) > 1 else []
     if head == "tar":
         if any(a.startswith("-x") or a == "--extract" or ("x" in a and a.startswith("-")) for a in args):
-            return [t for t in args if not t.startswith("-")]
+            # extraction may target `-C DIR` + members; synthesize DIR/basename.
+            cdir = None
+            for i, a in enumerate(args):
+                if a == "-C" and i + 1 < len(args):
+                    cdir = args[i + 1]
+            members = [b for b in barewords]
+            if cdir is not None:
+                return [os.path.join(_strip_quotes(cdir), os.path.basename(_strip_quotes(m))) for m in members] + members
+            return members
     return []
 
 
+def _step0_redirect_target(sc: str) -> Optional[str]:
+    """Return a write-redirect target in a simple command, covering the fd-prefixed
+    and force forms `_has_redirect_to` misses: `>`, `>>`, `1>`, `2>`, `&>`, `&>>`,
+    `>|`, `N>|`. Best-effort (matches the first write redirect target). Read
+    redirects (`<`) are NOT returned. Used ONLY by STEP0 self-protection so a
+    `<wrapper> echo x 1>|<datafile>` neuter is caught."""
+    m = re.search(r"(?:^|[\s;&|])(?:&|\d+)?>>?\|?\s*([^\s;&|<>]+)", sc)
+    if m:
+        return _strip_quotes(m.group(1))
+    return None
+
+
+def _step0_targets_config_redirect(sc: str, cwd: Optional[str], cwd_det: bool) -> bool:
+    """True if `sc` write-redirects to the config path (incl. fd/force forms),
+    resolving a relative target against the effective cwd."""
+    rt = _step0_redirect_target(sc)
+    if rt is None:
+        return False
+    variants = list(_config_path_variants())
+    for cand in _resolve_rel(rt, cwd, cwd_det):
+        if _path_matches_any(cand, variants):
+            return True
+    return False
+
+
 def _step0_mutation_anchor_hits(simple_cmds: list, idx: int, sc: str,
-                                tokens: list) -> bool:
+                                tokens: list, cwd_base: Optional[str]) -> bool:
     """HEAD-AGNOSTIC: True if this simple command MUTATES the hardcoded config
     data file, regardless of the leading wrapper/front-end head.
 
     This is the config-self-protection mirror of the W6/W7 protected-path anchors
-    (`_anchor_mutation_hits`): it locates the FIRST mutation-verb basename in
-    EXECUTABLE position (so the verb is found even when a NOVEL/undocumented
-    front-end — `busybox`/`fakeroot`/any invented or stacked wrapper — is the
-    simple command's head), reconstructs the verb's OWN argv, extracts the write/
-    metadata target(s), resolves each against the effective cwd (cd chain +
-    wrapper chdir), and matches against the config-path variants. The
-    redirect-target form is handled separately by the caller (it is already
-    head-agnostic). The config path is the hardcoded `DATA_FILE_PATH` (a generic
-    path, not a project name), NOT loaded from the data file — the self-protection
-    must not depend on the very file it protects, so this holds even when the
-    config is absent/corrupt (STEP0 runs before config load), and it runs before
-    the /do//allow bypass (which lives in the bash glue, not here). Returns False
-    when no mutation verb is in executable position OR no target matches — so a
-    read/inspect of the config file (`cat`/`<wrapper> cat`), or a mutation of a
-    NON-config file behind a wrapper, still ALLOWS (no over-block)."""
+    (`_anchor_mutation_hits`): it scans EVERY mutation-verb basename in EXECUTABLE
+    position (so the verb is found even when a NOVEL/undocumented front-end — any
+    real, invented, or stacked process/exec wrapper — is the simple command's head,
+    and a benign mutation-looking earlier token does not mask a later real mutator),
+    reconstructs each verb's OWN argv, extracts the write/metadata target(s),
+    resolves each against the effective cwd (cd chain + wrapper chdir, seeded from
+    the payload cwd_base so a relative data-file target under the config dir is
+    caught), and matches against the config-path variants. The redirect-target form
+    is handled separately by the caller. The config path is the hardcoded
+    `DATA_FILE_PATH` (a generic path, not a project name), NOT loaded from the data
+    file — the self-protection must not depend on the very file it protects, so this
+    holds even when the config is absent/corrupt (STEP0 runs before config load),
+    and it runs before the /do//allow bypass (which lives in the bash glue, not
+    here). Returns False when no mutation verb is in executable position OR no target
+    matches — so a mutation of a NON-config file behind a wrapper still ALLOWS (no
+    over-block). The CALLER gates this behind `_is_inspection_command` so a read/
+    inspect command carrying a mutation word as DATA (`grep cp <datafile>`) ALLOWS."""
     variants = list(_config_path_variants())
     exec_toks = _anchor_exec_tokens(tokens)
-    verb_pos = next((i for (i, st) in exec_toks
-                     if os.path.basename(_strip_quotes(st)) in _STEP0_MUTATION_HEADS),
-                    None)
-    if verb_pos is None:
-        return False
-    cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, None)
+    cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
     cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
-    # the verb's OWN argv (tokens AFTER the verb token), so target extraction
-    # parses the destination of the mutation verb, not of the wrapper head.
-    verb_base = os.path.basename(_strip_quotes(tokens[verb_pos]))
-    verb_args = tokens[verb_pos + 1:]
-    for tgt in _step0_mutation_targets(verb_base, verb_args):
-        for cand in _resolve_rel(tgt, cwd, cwd_det):
-            if _path_matches_any(cand, variants):
-                return True
+    # scan ALL mutation verbs in exec position (not just the first), so a leading
+    # benign mutation-named data token cannot mask a later real mutator.
+    for (i, st) in exec_toks:
+        verb_base = os.path.basename(_strip_quotes(st))
+        if verb_base not in _STEP0_MUTATION_HEADS:
+            continue
+        verb_args = tokens[i + 1:]
+        for tgt in _step0_mutation_targets(verb_base, verb_args):
+            for cand in _resolve_rel(tgt, cwd, cwd_det):
+                if _path_matches_any(cand, variants):
+                    return True
     return False
 
 
-def _step0_self_protection(simple_cmds: list) -> Optional[Verdict]:
+def _step0_self_protection(simple_cmds: list, cwd_base: Optional[str] = None) -> Optional[Verdict]:
     for idx, sc in enumerate(simple_cmds):
         tokens = _safe_shlex(sc)
         if not tokens:
             continue
         cw = _command_words(tokens)
-        head = cw[0][1] if cw else os.path.basename(_strip_quotes(tokens[0]))
-        # redirect write to the config path (any head — already head-agnostic)
-        rt = _has_redirect_to(sc)
-        if rt and _normalize_path(rt) in {_normalize_path(v) for v in _config_path_variants()}:
+        if not cw:
+            continue
+        _tok_idx, head, rest = cw[0]
+        # effective cwd for relative data-file resolution (seeded from the payload
+        # cwd so a relative `<datafile>` while cwd==<config dir> is caught).
+        cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
+        cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+        # redirect write to the config path (any head — head-agnostic; covers
+        # fd-prefixed / force forms `1>`/`>|`/`&>` and relative targets).
+        if _step0_targets_config_redirect(sc, cwd, cwd_det):
             return _block("STEP0", "config self-protection: redirect to data file")
-        # sed -i / perl -i targeting the config path (head-keyed by design: an
-        # in-place editor IS its own head; behind a wrapper it is caught by the
-        # head-agnostic mutation anchor below, which lists sed/perl as mutation
-        # verbs and `_mutation_targets` honors the -i form).
-        if head in ("sed", "perl") and ("-i" in tokens or any(t.startswith("-i") for t in tokens)):
-            if _targets_config_file(sc, tokens):
-                return _block("STEP0", "config self-protection: in-place edit of data file")
+        # in-place sed/perl editing the config path. Checked BEFORE the inspection
+        # gate because sed/perl are in the read/inspect/edit allowlist, but `sed -i`/
+        # `perl -i` MUTATE the file in place — the inspection gate would wrongly skip
+        # them. (Behind a wrapper the head is the wrapper, so the head-agnostic
+        # anchor below also catches it; this branch covers the bare head form.)
+        if head in ("sed", "perl") and _is_inplace_editor_args(head, list(rest)):
+            for tgt in [t for t in rest if not t.startswith("-")]:
+                for cand in _resolve_rel(tgt, cwd, cwd_det):
+                    if _path_matches_any(cand, list(_config_path_variants())):
+                        return _block("STEP0", "config self-protection: in-place edit of data file")
+        # GATE: a read/inspect/edit command carrying a mutation word merely as DATA
+        # (`grep cp <datafile>`, `echo cp <datafile>`, `cat <datafile>`) is NOT a
+        # mutation — skip the mutation-verb anchor so it ALLOWS (no over-block). The
+        # redirect check above already ran (a read command with a write redirect to
+        # the config path IS a mutation and is caught), and the in-place sed/perl
+        # mutation case is handled just above. find/fd -exec and fuser -k are
+        # treated as executors by `_is_inspection_command`, so they are NOT skipped.
+        if _is_inspection_command(head, rest):
+            continue
         # HEAD-AGNOSTIC mutation of the config file behind ANY wrapper (documented,
         # undocumented, invented, or stacked). Mirrors W6/W7: find a mutation verb
-        # in executable position and match its target against the config path —
-        # so `<any-wrapper> cp|mv|tee|truncate|dd|install|rsync|ln|sed -i|perl -i
-        # <datafile>` BLOCKS even though the leading head is the wrapper, not the
-        # mutation verb. (The bare-head form is the verb_pos==0 special case of the
-        # same scan; the legacy head-keyed CONFIG_MUTATION_HEADS check is now
-        # subsumed by this and removed.)
-        if _step0_mutation_anchor_hits(simple_cmds, idx, sc, tokens):
+        # in executable position and match its (cwd-resolved) target against the
+        # config path — so `<any-wrapper> cp|mv|tee|truncate|dd|install|rsync|ln|
+        # sed -i|perl -i|chmod|chown <datafile>` BLOCKS even though the leading head
+        # is the wrapper, not the mutation verb. (The bare-head form is the
+        # position-0 special case of the same scan; the legacy head-keyed
+        # CONFIG_MUTATION_HEADS check is subsumed by this and removed.)
+        if _step0_mutation_anchor_hits(simple_cmds, idx, sc, tokens, cwd_base):
             return _block("STEP0", "config self-protection: mutation of data file")
     return None
 
@@ -3706,6 +3841,14 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
     if len(command) > MAX_COMMAND_CHARS:
         # oversized -> fail closed conservatively (treat as indeterminate)
         return _block("STEP1", "oversized command (fail-closed)")
+    # Normalize the bash force-clobber redirect `>|` to plain `>` BEFORE pipeline
+    # splitting. `>|` is a WRITE redirect (noclobber-override), NOT a pipe, but the
+    # `|` would otherwise make `_split_pipeline` mis-split `echo x >| <path>` into
+    # two segments and lose the redirect target — letting a clobber-write to a
+    # protected bundle / statefile / data file leak past every redirect-based
+    # guard (W6/W7/STEP0). Covers fd-prefixed forms (`1>|`, `2>|`, `&>|`). Generic
+    # bash syntax normalization — no project names.
+    command = re.sub(r"((?:&|\d+)?>>?)\|", r"\1", command)
     # Neutralize compound-group delimiters `( ) { }` so grouped launches/builds
     # decompose into ordinary simple commands (bare `$(`/`${` are preserved).
     norm_command = _strip_compound_delims(command)
@@ -3722,7 +3865,7 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
     # ORIGINAL simple commands so a self-protection mutation hidden behind a
     # front-end is still seen by STEP0's own path-pattern scan, and additionally
     # against any front-end-peeled tails below.
-    v = _step0_self_protection(simple_cmds)
+    v = _step0_self_protection(simple_cmds, cwd_base)
     if v is not None:
         return v
 
@@ -3738,7 +3881,7 @@ def evaluate(command: str, cwd_base: Optional[str] = None) -> Verdict:
     if fe_changed:
         # re-derive STEP0 against the peeled forms so a self-protection mutation
         # behind a front-end is also analyzed by STEP0's path-pattern scan.
-        v = _step0_self_protection(peeled_flat)
+        v = _step0_self_protection(peeled_flat, cwd_base)
         if v is not None:
             return v
         simple_cmds = peeled_flat

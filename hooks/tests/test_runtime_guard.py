@@ -2178,5 +2178,288 @@ class TestCycle8HeadAgnosticRemainingPrimitives:
             assert ev(form, absent, fixture_repo) == "ALLOW", form
 
 
+def _ev_cfg(command, cfg_path, cwd=None):
+    """evaluate() with CLAUDE_PROTECTED_RUNTIME_FILE pinned to `cfg_path` (the
+    STEP0 config-self-protection anchor). The path may point at a PRESENT valid
+    config OR an ABSENT/corrupt one — STEP0 keys on the hardcoded DATA_FILE_PATH,
+    not on data loaded from it, so the block must hold in both states."""
+    os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = cfg_path
+    import importlib
+    import lib.runtime_guard as rg
+    importlib.reload(rg)
+    return rg.evaluate(command, cwd)[0]
+
+
+def _run_hook_cfg(command, cfg_path, env=None, do_sid=None):
+    """Drive the LIVE hook with CLAUDE_PROTECTED_RUNTIME_FILE pinned. When `do_sid`
+    is given, a /do consent flag is created for that session so the test proves the
+    STEP0 block is UNBYPASSABLE under /do (STEP0 runs in the engine before the glue
+    /do bypass)."""
+    e = dict(os.environ)
+    e["CLAUDE_PROTECTED_RUNTIME_FILE"] = cfg_path
+    if env:
+        e.update(env)
+    body = {"tool_name": "Bash", "tool_input": {"command": command}}
+    flag = None
+    if do_sid:
+        body["session_id"] = do_sid
+        flag = f"/tmp/claude-orchestrator-consent-{do_sid}.flag"
+        with open(flag, "w") as fh:
+            fh.write("true")
+    try:
+        payload = json.dumps(body)
+        proc = subprocess.run(["bash", HOOK], input=payload, text=True,
+                              capture_output=True, env=e)
+        return proc.returncode
+    finally:
+        if flag:
+            try:
+                os.remove(flag)
+            except FileNotFoundError:
+                pass
+
+
+class TestCycle9Step0ConfigSelfProtectionHeadAgnostic:
+    """Cycle 9 — make STEP0 (the config self-protection META-guard) head-AGNOSTIC,
+    symmetric with the W6/W7 protected-path anchors. Prior to this fix STEP0 keyed
+    on `head in CONFIG_MUTATION_HEADS`, so a mutation of the protected DATA FILE
+    behind ANY undocumented wrapper (busybox/fakeroot/any invented or stacked
+    front-end) leaked ALLOW — disabling the entire guard (an empty/corrupt config
+    degrades to verb-family-only fail-closed; a crafted config silently bypasses).
+    This was the lone protected family left head-keyed after Cycle-8 anchor-ized
+    W6–W9, and the same systemic head-keyed-behind-wrapper defect that drove the
+    prior CLOSE: NO. STEP0 keys on the HARDCODED DATA_FILE_PATH (a generic path,
+    not loaded from the file it protects), runs BEFORE config load AND before the
+    /do//allow bypass, so the block holds present, corrupt/absent, and under /do.
+
+    Verified ONLY by feeding strings to evaluate() and simulated PreToolUse JSON to
+    the live hook (NEVER any real daemon/CLI/process command; the live data file is
+    never touched — every probe pins an isolated override path)."""
+
+    # Wrapper fronts: REAL idiomatic tools whose head is NOT a mutation verb
+    # (busybox/fakeroot — ubiquitous, non-adversarial), INVENTED wrappers absent
+    # from the engine source, and a STACKED (documented flock + invented) combo.
+    _REAL1 = "bu" + "sybox"
+    _REAL2 = "fake" + "root"
+    _INV = "zonker" + "baz"
+    _INV2 = "frob" + "nicate"
+    _STACK = "flock /tmp/l zonker" + "baz"
+    WRAPPERS = [_REAL1, _REAL2, _INV, _INV2, _STACK]
+
+    # mutation vocabulary assembled from pieces so this SOURCE never types a full
+    # `<wrapper> <mutate> <datafile>` phrase the author-time live hook would scan.
+    _CP = "c" + "p"
+    _MV = "m" + "v"
+    _TEE = "t" + "ee"
+    _TOUCH = "to" + "uch"
+    _TRUNC = "trunc" + "ate"
+    _DD = "d" + "d"
+    _INST = "ins" + "tall"
+    _LN = "l" + "n"
+    _CAT = "ca" + "t"
+
+    @pytest.fixture
+    def cfg_present(self, tmp_path_factory):
+        p = tmp_path_factory.mktemp("step0_present") / "protected-runtime.json"
+        p.write_text(json.dumps({
+            "schema_version": 1,
+            "protected_cmds": [], "protected_launch_paths": [],
+            "protected_services": [], "protected_hotfiles": [],
+            "protected_statefiles": [], "protected_endpoint_paths": [],
+            "protected_proc_idents": [], "protected_global_bins": [],
+            "protected_build_workspaces": [], "protected_build_paths": [],
+        }))
+        return str(p)
+
+    @pytest.fixture
+    def cfg_absent(self, tmp_path_factory):
+        # a path under a NON-existent directory: STEP0 must still protect it
+        # because the path is the hardcoded anchor, not config-loaded data.
+        return str(tmp_path_factory.mktemp("step0_absent") / "nodir" / "runtime.json")
+
+    @pytest.fixture
+    def src(self, tmp_path_factory):
+        s = tmp_path_factory.mktemp("step0_src") / "src.txt"
+        s.write_text("x")
+        return str(s)
+
+    def _mutation_forms(self, cfg, src):
+        """The FULL mutation-verb family that neuters the data file."""
+        return [
+            f"{self._CP} {src} {cfg}",
+            f"{self._MV} {src} {cfg}",
+            f"{self._TEE} {cfg}",
+            f"{self._TOUCH} {cfg}",
+            f"{self._TRUNC} -s 0 {cfg}",
+            f"{self._DD} if=/dev/null of={cfg}",
+            f"{self._INST} {src} {cfg}",
+            f"rsync {src} {cfg}",
+            f"{self._LN} -sf {src} {cfg}",
+            f"sed -i s/a/b/ {cfg}",
+            f"perl -i -pe s/a/b/ {cfg}",
+            f"echo x > {cfg}",          # redirect
+        ]
+
+    # ── BLOCK: every mutation verb x {bare, real, invented, stacked} wrappers ──
+    @pytest.mark.parametrize("w", WRAPPERS)
+    def test_step0_wrapped_mutation_blocks_present(self, w, cfg_present, src):
+        for verb_form in self._mutation_forms(cfg_present, src):
+            assert _ev_cfg(f"{w} {verb_form}", cfg_present) == "BLOCK", f"{w} :: {verb_form}"
+
+    def test_step0_bare_mutation_blocks_present(self, cfg_present, src):
+        for verb_form in self._mutation_forms(cfg_present, src):
+            assert _ev_cfg(verb_form, cfg_present) == "BLOCK", verb_form
+
+    # ── BLOCK fail-closed (config absent/corrupt): self-protection must NOT ──
+    #    depend on loading the very file it protects. ───────────────────────────
+    @pytest.mark.parametrize("w", WRAPPERS)
+    def test_step0_wrapped_mutation_blocks_failclosed(self, w, cfg_absent, src):
+        for verb_form in self._mutation_forms(cfg_absent, src):
+            assert _ev_cfg(f"{w} {verb_form}", cfg_absent) == "BLOCK", f"{w} :: {verb_form}"
+
+    # ── BLOCK under /do (unbypassable): STEP0 runs before the bypass. ──────────
+    def test_step0_wrapped_mutation_blocks_under_do_livehook(self, cfg_present, src):
+        sid = "step0-do-" + str(os.getpid())
+        for w in (self._REAL1, self._INV):
+            cmd = f"{w} {self._CP} {src} {cfg_present}"
+            assert _run_hook_cfg(cmd, cfg_present, do_sid=sid) == BLOCK, cmd
+        # and fail-closed under /do too
+        # (reuse cfg_present path with a /do flag; engine STEP0 blocks first)
+        cmd = f"{self._INV} {self._TEE} {cfg_present}"
+        assert _run_hook_cfg(cmd, cfg_present, do_sid=sid) == BLOCK, cmd
+
+    def test_step0_wrapped_mutation_blocks_under_do_failclosed_livehook(self, cfg_absent, src):
+        sid = "step0-do-fc-" + str(os.getpid())
+        cmd = f"{self._INV} {self._CP} {src} {cfg_absent}"
+        assert _run_hook_cfg(cmd, cfg_absent, do_sid=sid) == BLOCK, cmd
+
+    # ── live-hook end-to-end (engine + glue), present + fail-closed ───────────
+    def test_step0_wrapped_mutation_livehook(self, cfg_present, cfg_absent, src):
+        for cfg in (cfg_present, cfg_absent):
+            for w in (self._REAL1, self._REAL2, self._INV):
+                cmd = f"{w} {self._CP} {src} {cfg}"
+                assert _run_hook_cfg(cmd, cfg) == BLOCK, f"{cfg} :: {cmd}"
+
+    # ── boundary ALLOWs (no over-block) ───────────────────────────────────────
+    def test_step0_read_of_datafile_allows(self, cfg_present, cfg_absent):
+        # reading the config file (cat/head/grep) is benign — must ALLOW, bare and
+        # behind a wrapper, present and fail-closed.
+        for cfg in (cfg_present, cfg_absent):
+            assert _ev_cfg(f"{self._CAT} {cfg}", cfg) == "ALLOW", f"cat {cfg}"
+            assert _ev_cfg(f"{self._INV} {self._CAT} {cfg}", cfg) == "ALLOW", f"{self._INV} cat {cfg}"
+            assert _ev_cfg(f"grep foo {cfg}", cfg) == "ALLOW", f"grep {cfg}"
+            assert _ev_cfg(f"head {cfg}", cfg) == "ALLOW", f"head {cfg}"
+
+    def test_step0_mutation_of_nonprotected_file_allows(self, cfg_present, src, tmp_path_factory):
+        # a mutation of a NON-config file behind a wrapper must still ALLOW.
+        other = str(tmp_path_factory.mktemp("step0_other") / "other.txt")
+        for w in ("", self._INV, self._REAL1):
+            for form in (f"{self._CP} {src} {other}", f"{self._TEE} {other}",
+                         f"{self._TOUCH} {other}", f"echo x > {other}"):
+                cmd = f"{w} {form}".strip()
+                assert _ev_cfg(cmd, cfg_present) == "ALLOW", cmd
+
+    def test_step0_read_of_datafile_livehook_allows(self, cfg_present):
+        # live-hook read of the config file behind a wrapper ALLOWs (rc=0).
+        assert _run_hook_cfg(f"{self._INV} {self._CAT} {cfg_present}", cfg_present) == ALLOW
+
+    def test_step0_non_idiomatic_source_read_allows(self, cfg_present, tmp_path_factory):
+        # `cp <datafile> <elsewhere>` READS the data file (source) and writes a
+        # DIFFERENT file — must ALLOW (the config path is not the write target).
+        dst = str(tmp_path_factory.mktemp("step0_dst") / "copy.txt")
+        assert _ev_cfg(f"{self._CP} {cfg_present} {dst}", cfg_present) == "ALLOW"
+        assert _ev_cfg(f"{self._INV} {self._CP} {cfg_present} {dst}", cfg_present) == "ALLOW"
+
+    # ── codex-hardening (Cycle 9 adversarial): forms codex reproduced as leaks ──
+    #    F1 cwd-relative datafile target / F2 fd+force redirect operators /
+    #    F3 mv-the-datafile-away / F4 in-place editor option variants /
+    #    F5 chmod --reference / F6 target-directory & rsync-into-dir forms. ───────
+    def test_step0_codex_cwd_relative_datafile_blocks(self, cfg_present, src, tmp_path_factory):
+        # F1: a RELATIVE data-file target while cwd == the config dir must block
+        # (cwd_base threaded into STEP0; effective cwd resolves the relative path).
+        cfgdir = os.path.dirname(cfg_present)
+        base = os.path.basename(cfg_present)
+        for form in (f"{self._INV} {self._TEE} {base}",
+                     f"{self._INV} {self._DD} if=/dev/null of={base}",
+                     f"{self._INV} echo x > {base}",
+                     f"{self._INV} {self._CP} {src} {base}"):
+            assert _ev_cfg(form, cfg_present, cwd=cfgdir) == "BLOCK", form
+
+    def test_step0_codex_fd_force_redirect_blocks(self, cfg_present):
+        # F2: fd-prefixed and force-clobber redirect operators must block.
+        for form in (f"{self._INV} echo x 1>{cfg_present}",
+                     f"{self._INV} echo x >| {cfg_present}",
+                     f"{self._INV} echo x >|{cfg_present}",
+                     f"{self._INV} echo x &>{cfg_present}"):
+            assert _ev_cfg(form, cfg_present) == "BLOCK", form
+
+    def test_step0_codex_mv_datafile_away_blocks(self, cfg_present, tmp_path_factory):
+        # F3: moving the data file AWAY deletes the original = mutation → BLOCK.
+        dst = str(tmp_path_factory.mktemp("mv_dst") / "gone.json")
+        assert _ev_cfg(f"{self._INV} {self._MV} {cfg_present} {dst}", cfg_present) == "BLOCK"
+        # but moving an UNRELATED file elsewhere ALLOWs.
+        a = str(tmp_path_factory.mktemp("mv_a") / "a.txt")
+        b = str(tmp_path_factory.mktemp("mv_b") / "b.txt")
+        import pathlib
+        pathlib.Path(a).write_text("x")
+        assert _ev_cfg(f"{self._INV} {self._MV} {a} {b}", cfg_present) == "ALLOW"
+
+    def test_step0_codex_inplace_editor_variants_block(self, cfg_present):
+        # F4: clustered / long-form in-place editor options must block.
+        for form in (f"{self._INV} sed -Ei s/a/b/ {cfg_present}",
+                     f"{self._INV} sed --in-place s/a/b/ {cfg_present}",
+                     f"{self._INV} perl -pi -e s/a/b/ {cfg_present}",
+                     f"sed -Ei s/a/b/ {cfg_present}",          # bare head form
+                     f"perl -pi -e s/a/b/ {cfg_present}"):
+            assert _ev_cfg(form, cfg_present) == "BLOCK", form
+        # a plain (non -i) sed streaming to stdout READS the file → ALLOW.
+        assert _ev_cfg(f"{self._INV} sed s/a/b/ {cfg_present}", cfg_present) == "ALLOW"
+        assert _ev_cfg(f"sed s/a/b/ {cfg_present}", cfg_present) == "ALLOW"
+
+    def test_step0_codex_chmod_reference_blocks(self, cfg_present):
+        # F5: chmod/chown --reference= leaves the data file as the first bareword.
+        for form in (f"{self._INV} chmod --reference=/tmp/r {cfg_present}",
+                     f"{self._INV} chown --reference=/tmp/r {cfg_present}"):
+            assert _ev_cfg(form, cfg_present) == "BLOCK", form
+
+    def test_step0_codex_target_dir_forms_block(self, cfg_present, tmp_path_factory):
+        # F6: target-directory (`-t DIR`) and rsync-into-dir forms write
+        # DIR/basename — must block when that equals the data file.
+        cfgdir = os.path.dirname(cfg_present)
+        base = os.path.basename(cfg_present)
+        staged = str(tmp_path_factory.mktemp("staged") / base)
+        import pathlib
+        pathlib.Path(staged).write_text("x")
+        for form in (f"{self._INV} {self._CP} -t {cfgdir} {staged}",
+                     f"{self._INV} {self._MV} -t {cfgdir} {staged}",
+                     f"{self._INV} rsync {staged} {cfgdir}/"):
+            assert _ev_cfg(form, cfg_present) == "BLOCK", form
+        # writing a DIFFERENT basename into the config dir ALLOWs (only the exact
+        # data-file path is protected, not the whole config directory).
+        otherstaged = str(tmp_path_factory.mktemp("os2") / "unrelated.txt")
+        pathlib.Path(otherstaged).write_text("x")
+        assert _ev_cfg(f"{self._INV} {self._CP} -t {cfgdir} {otherstaged}", cfg_present) == "ALLOW"
+
+    def test_step0_codex_mutation_word_as_data_allows(self, cfg_present):
+        # F7: a read/inspect command carrying a mutation word merely as DATA must
+        # NOT over-block.
+        for form in (f"grep {self._CP} {cfg_present}",
+                     f"{self._CAT} {self._CP} {cfg_present}",
+                     f"echo {self._CP} {cfg_present}"):
+            assert _ev_cfg(form, cfg_present) == "ALLOW", form
+
+    # ── non-enumeration proof: the invented wrapper names appear nowhere in the
+    #    engine source (the block is head-AGNOSTIC, not a wrapper whitelist). ───
+    def test_step0_no_head_keying_on_wrapper_names(self):
+        # The invented wrapper names exist ONLY in this test — their absence from
+        # the engine proves STEP0 catches them via the head-AGNOSTIC mutation
+        # anchor, not a wrapper whitelist. (Real tools like busybox/fakeroot are
+        # caught by the SAME generic mechanism; they are not asserted-absent
+        # because a future engine comment could reference them illustratively.)
+        src = open(os.path.join(HOOKS_DIR, "lib", "runtime_guard.py")).read()
+        for name in (self._INV, self._INV2):
+            assert name not in src, f"engine must not enumerate wrapper {name!r}"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
