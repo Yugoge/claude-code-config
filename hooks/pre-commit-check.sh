@@ -35,14 +35,23 @@ if [ "$AUTO_STAGE" = "1" ]; then
   echo ""
   # Honour the explicit GIT_AUTO_STAGE_ALL=1 opt-in, but still hard-exclude
   # transient framework/runtime junk via the shared smart-staging-resolver
-  # (autostage mode). Falls back to plain `git add .` if the resolver is absent.
+  # (autostage mode). Temp file + rc check so a crashed resolver does not
+  # silently stage nothing; fallback 'git add .' still honours .gitignore.
   RESOLVER="$HOME/.claude/scripts/smart-staging-resolver.py"
+  STAGE_RC=0
   if [ -f "$RESOLVER" ] && command -v python3 >/dev/null 2>&1; then
-    python3 "$RESOLVER" --repo "$PWD" autostage -z | xargs -0 -r git add --
+    SSR_TMP=$(mktemp)
+    if python3 "$RESOLVER" --repo "$PWD" autostage -z >"$SSR_TMP" 2>/dev/null; then
+      xargs -0 -r git add -- <"$SSR_TMP"; STAGE_RC=$?
+    else
+      echo -e "${YELLOW}⚠️  resolver failed; falling back to gitignore-respecting 'git add .'${NC}"
+      git add .; STAGE_RC=$?
+    fi
+    rm -f "$SSR_TMP"
   else
-    git add .
+    git add .; STAGE_RC=$?
   fi
-  if [ $? -eq 0 ]; then
+  if [ "$STAGE_RC" -eq 0 ]; then
     echo -e "${GREEN}✅ All files staged automatically (transient junk excluded)${NC}"
     echo ""
     echo "Note: Auto-staged all files minus transient junk (GIT_AUTO_STAGE_ALL=1)"
