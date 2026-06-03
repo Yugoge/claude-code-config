@@ -3455,18 +3455,29 @@ def _anchor_in_command_word_position(exec_toks: list, pos: int, tokens: list) ->
         (`--opt=val`) self-contains its value, so the next token is still a
         positional command word.
 
+    EXCEPTION — a `find`/`fd` EXECUTOR option (`-exec`/`-execdir`/`-ok`/`-okdir`/
+    `--exec`/`-x`/`-X` in `_FIND_EXEC_OPTS`) immediately before the protected token
+    makes that token the COMMAND find/fd RUNS per match (`find . -exec <protected>
+    …`) — a real launch. The executor option overrides BOTH discriminators: the
+    `find`/`fd` head is a data-operand head for its OWN path args, but the token
+    after `-exec` crosses the executor boundary into command position.
+
     Otherwise the token is the command word a wrapper chain exec()s → launch.
     The `_anchor_in_launch_position` follow-gate still independently catches the
     rare `… -k <protected-cmd> daemon start` lifecycle form.
     """
+    orig_idx = exec_toks[pos][0]
+    prev = _strip_quotes(tokens[orig_idx - 1]) if orig_idx > 0 else ""
+    # EXECUTOR BOUNDARY (find/fd -exec …): the token after the executor option is
+    # the command run per match — a launch — REGARDLESS of the find/fd data head.
+    if prev in _FIND_EXEC_OPTS:
+        return True
     # (1) any earlier exec token in this segment is a data-consuming head → operand.
     for j in range(pos):
         if os.path.basename(_strip_quotes(exec_toks[j][1])) in _DATA_OPERAND_HEADS:
             return False
-    orig_idx = exec_toks[pos][0]
     if orig_idx <= 0:
         return True
-    prev = _strip_quotes(tokens[orig_idx - 1])
     if prev == "--":
         return True
     # redirect operators / pipe / list separators introduce a new command word.
