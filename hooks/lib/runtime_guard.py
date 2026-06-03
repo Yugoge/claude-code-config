@@ -3427,16 +3427,26 @@ _DATA_OPERAND_HEADS = (
 )
 
 
-def _anchor_preceded_by_data_head(exec_toks: list, pos: int) -> bool:
-    """True if any exec token BEFORE `pos` (in the same simple command) is a
-    data-consuming head (`_DATA_OPERAND_HEADS`). When True, the token at `pos` is a
-    DATA operand of that head, so the `_anchor_in_launch_position` follow/runner
-    gate must NOT be OR-ed in at the W1/W2 call sites: it would mis-fire when a
-    preceding operand's basename coincidentally looks like a runtime/runner token
-    (e.g. a destination literally named `x` in `cp /tmp/x <name>` — `x` is in
-    EXEC_RUNNER_TOKENS — which would wrongly flag the operand as a launch). The
-    command-word test's own find/fd executor-boundary exception already routes a
-    real `find -exec <protected> …` launch to BLOCK before this is consulted."""
+def _anchor_preceded_by_data_head(exec_toks: list, pos: int, tokens: list) -> bool:
+    """True if the token at `pos` is governed by a data-consuming head
+    (`_DATA_OPERAND_HEADS`) — i.e. it is that head's DATA operand. When True, the
+    `_anchor_in_launch_position` follow/runner gate must NOT be OR-ed in at the
+    W1/W2 call sites: it would mis-fire when a preceding operand's basename
+    coincidentally looks like a runtime/runner token (e.g. a destination literally
+    named `x` in `cp /tmp/x <name>` — `x` is in EXEC_RUNNER_TOKENS — wrongly
+    flagging the operand as a launch).
+
+    A find/fd EXECUTOR option (`_FIND_EXEC_OPTS`, an OPTION token filtered out of
+    `exec_toks`) between the data head and `pos` CANCELS the data head's
+    governance: after `find … -exec <cmd> …` the tokens belong to the EXECUTED
+    command, not to find's path operands. So a data head is only counted when NO
+    executor boundary (scanned over the RAW tokens) separates it from `pos` (keeps
+    `find -exec node <bundle> daemon` reaching the launch-position runner gate)."""
+    pos_orig = exec_toks[pos][0]
+    # an executor boundary anywhere in the raw tokens before `pos` cancels any
+    # earlier find/fd data head — the tokens after it are the executed command.
+    if any(_strip_quotes(tokens[k]) in _FIND_EXEC_OPTS for k in range(pos_orig)):
+        return False
     return any(os.path.basename(_strip_quotes(exec_toks[j][1])) in _DATA_OPERAND_HEADS
                for j in range(pos))
 
@@ -3578,7 +3588,7 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         for pos, (_i, st) in enumerate(exec_toks):
             if _path_matches_cwd(st, launch_paths, cwd, cwd_det) and (
                     _anchor_in_command_word_position(exec_toks, pos, tokens)
-                    or (not _anchor_preceded_by_data_head(exec_toks, pos)
+                    or (not _anchor_preceded_by_data_head(exec_toks, pos, tokens)
                         and _anchor_in_launch_position(exec_vals, pos))):
                 return _block("P0", "protected launch-path anchor in executable position behind a front-end")
         for fv in _fused_option_values(tokens):
@@ -3600,7 +3610,7 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         for pos, (_i, st) in enumerate(exec_toks):
             base = os.path.basename(st)
             if base in cmds and (_anchor_in_command_word_position(exec_toks, pos, tokens)
-                                 or (not _anchor_preceded_by_data_head(exec_toks, pos)
+                                 or (not _anchor_preceded_by_data_head(exec_toks, pos, tokens)
                                      and _anchor_in_launch_position(exec_vals, pos))):
                 return _block("P0", f"protected command anchor '{base}' in executable position behind a front-end")
         # fused `--opt=<protected-cmd>` whose value is a protected command and the
