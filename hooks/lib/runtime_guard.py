@@ -2008,7 +2008,16 @@ def _p2_service(simple_cmds: list, cfg: dict) -> Optional[Verdict]:
 # ── P3 / P4 mutation guards ──────────────────────────────────────────────────
 
 def _mutation_targets(simple_cmd: str, tokens: list) -> list:
-    """Return candidate mutation TARGET paths in a simple command."""
+    """Return candidate mutation TARGET paths in a simple command (the bundle /
+    statefile / global-bin path families W6/W7/W9/P3/P4/P7 protect). Delegates the
+    verb-argv parse to the ONE shared, position-COMPLETE `_mutation_targets_for_verb`
+    so this path and STEP0 (config) can never DRIFT — a protected file that is the
+    cp/mv/rsync/install DESTINATION (written), the mv/rename SOURCE (moved away /
+    removed in place), the rsync `--remove-source-files` SOURCE (moved away), the
+    rm/truncate/shred/dd(of=)/tee target, the sed -i/perl -pi in-place target, the
+    ln dest, the chmod/chown target, or a `> path` redirect target is ALL caught.
+    A cp/plain-rsync SOURCE (copied, source preserved → a read) yields NO target so
+    it still ALLOWS (no over-block)."""
     targets = []
     rt = _has_redirect_to(simple_cmd)
     if rt:
@@ -2019,25 +2028,7 @@ def _mutation_targets(simple_cmd: str, tokens: list) -> list:
     if not cw:
         return targets
     _, head, rest = cw[0]
-    args = list(rest)
-    if head in ("cp", "mv", "rsync", "install"):
-        # last bareword non-flag is destination
-        barewords = [t for t in args if not t.startswith("-")]
-        if barewords:
-            targets.append(barewords[-1])
-    elif head in ("touch", "truncate", "dd", "tee", "unzip", "rename",
-                  "rm", "unlink", "shred"):
-        targets.extend([t for t in args if not t.startswith("-")])
-    elif head in ("sed", "perl") and ("-i" in args or any(a.startswith("-i") for a in args)):
-        targets.extend([t for t in args if not t.startswith("-")])
-    elif head == "ln":
-        barewords = [t for t in args if not t.startswith("-")]
-        if barewords:
-            targets.append(barewords[-1])
-    elif head in ("tar",):
-        if any(a.startswith("-x") or a == "--extract" or ("x" in a and a.startswith("-")) for a in args):
-            barewords = [t for t in args if not t.startswith("-")]
-            targets.extend(barewords)
+    targets.extend(_mutation_targets_for_verb(head, list(rest)))
     return targets
 
 
@@ -3621,11 +3612,11 @@ def _anchor_service_hits_protected(tokens: list, exec_toks: list,
 # EXECUTABLE position behind a wrapper. This is the SAME family `_mutation_targets`
 # parses as a head; listing it here lets the anchor find the verb head-agnostically
 # (the verb is no longer the simple command's head once a wrapper precedes it).
-# Generic filesystem-mutation tools — NOT project names.
-_ANCHOR_MUTATION_HEADS = frozenset({
-    "cp", "mv", "rsync", "install", "touch", "truncate", "dd", "tee",
-    "unzip", "rename", "rm", "unlink", "shred", "sed", "perl", "ln", "tar",
-})
+# UNIFIED with `_STEP0_MUTATION_HEADS` (THE SAME frozenset object, defined earlier
+# in the file) so the three protected-file families (config / bundle / statefile)
+# cannot DRIFT on which mutation verbs are recognized behind a wrapper. Generic
+# filesystem-mutation tools — NOT project names.
+_ANCHOR_MUTATION_HEADS = _STEP0_MUTATION_HEADS
 
 
 def _anchor_mutation_hits(sc: str, tokens: list, exec_toks: list,
