@@ -49,95 +49,33 @@ def _index_needs_update(index_path: Path) -> bool:
 
 
 def _extract_preserved(old: str, dir_name: str) -> str:
-    """Return hand-written prose from an existing INDEX.md: everything that is NOT the
-    auto-generated skeleton. The skeleton is identified REGION-SCOPED (by AUTO markers /
-    position), NEVER by matching skeleton-shaped lines globally — so a human note that
-    contains a standalone `---` rule, a `**Convention**:`/`**Total entries**:` label, or
-    its own `## Tree` fenced example survives untouched (the global-strip version of this
-    helper silently wiped exactly those, re-introducing the annotation loss this fix
-    exists to prevent). Idempotent: re-running regen on our own output strips exactly the
-    AUTO-marker block + leading title + trailing footer pair and re-emits the same prose,
-    with no duplication.
-
-    Two layouts are handled:
-      * new format -> the generated region is exactly the AUTO_START..AUTO_END block;
-        everything outside the markers is preserved verbatim.
-      * legacy markerless format -> the generated region is the FIRST contiguous stat run
-        right after the title plus the generated `## Tree` block (the fenced block whose
-        first content line is `{dir_name}/`). A later `**Convention**:`-style line inside
-        prose, or a human `## Tree` example with any other first line, is kept.
-    In both layouts the leading title line and the trailing `--- / footer` pair are stripped."""
+    """Hand-written prose from a MARKED INDEX.md: everything outside the generated regions.
+    Only called when the AUTO marker is present (see _index_needs_update), so the generated
+    region is unambiguously the AUTO_START..AUTO_END block — no legacy/positional guessing.
+    Strips: the leading title line, the AUTO marker block (and any stray marker line), and the
+    trailing `---`+footer pair at the very end. Human `---`, `**Convention**:`, or `## Tree`
+    prose OUTSIDE the marker block is preserved verbatim. Idempotent."""
     lines = old.splitlines()
     n = len(lines)
     remove = [False] * n
     title = f'# {dir_name}'
-
-    # 1. Leading title (first non-blank line, only if it is the generated title).
     first = 0
     while first < n and not lines[first].strip():
         first += 1
     if first < n and lines[first].rstrip() == title:
         remove[first] = True
-
-    # 2. AUTO-marker block (new format): strip START..END inclusive. Everything outside
-    #    the markers is kept, so human `---`/`**Convention**:`/`## Tree` prose is safe.
     start_idx = end_idx = None
     for idx, ln in enumerate(lines):
         st = ln.strip()
+        if st in (AUTO_START, AUTO_END):
+            remove[idx] = True
         if st == AUTO_START and start_idx is None:
             start_idx = idx
         elif st == AUTO_END and start_idx is not None and end_idx is None:
             end_idx = idx
-    has_markers = start_idx is not None and end_idx is not None and end_idx > start_idx
-    if has_markers:
+    if start_idx is not None and end_idx is not None and end_idx > start_idx:
         for idx in range(start_idx, end_idx + 1):
             remove[idx] = True
-    # Orphan-safe: an AUTO_START with no matching AUTO_END (or a stray AUTO_END) leaves a
-    # marker line that would otherwise block legacy stat detection and survive into the
-    # fresh build, duplicating markers/stats. Markers are never human prose, so strip any
-    # marker line unconditionally in ADDITION to the matched-pair interior above.
-    for idx, ln in enumerate(lines):
-        st = ln.strip()
-        if st == AUTO_START or st == AUTO_END:
-            remove[idx] = True
-
-    # 3. Legacy markerless: strip ONLY the first contiguous stat run near the top and the
-    #    generated `## Tree` block — never stat-shaped or `## Tree`-shaped lines elsewhere.
-    if not has_markers:
-        # Anchor on `*Last updated:` specifically — the generated header ALWAYS leads with
-        # it. A hand-written note that opens with `**Convention**:` (or any other stat-shaped
-        # label) right after the title must NOT be wiped. Skip blank and already-removed
-        # lines (e.g. an orphan marker stripped above) so detection reaches the stat run.
-        idx = 0
-        while idx < n and (remove[idx] or not lines[idx].strip()):
-            idx += 1
-        if idx < n and lines[idx].strip().startswith('*Last updated:'):
-            while idx < n and _is_stat_line(lines[idx].strip()):
-                remove[idx] = True
-                idx += 1
-        t = 0
-        while t < n:
-            if lines[t].strip() == '## Tree' and not remove[t]:
-                p = t + 1
-                while p < n and not lines[p].strip():
-                    p += 1
-                if p < n and lines[p].strip().startswith('```') \
-                        and p + 1 < n and lines[p + 1].strip() == f'{dir_name}/':
-                    # Find the closing fence BEFORE removing anything. A malformed generated
-                    # block with no closing fence must strip NOTHING, otherwise everything
-                    # to EOF (including trailing hand-written content) gets wiped.
-                    c = p + 1
-                    while c < n and not lines[c].strip().startswith('```'):
-                        c += 1
-                    if c < n:  # closing fence found -> strip title..closing-fence
-                        remove[t] = True
-                        for b in range(t + 1, c + 1):
-                            remove[b] = True
-                    break  # only the first generated tree
-            t += 1
-
-    # 4. Trailing footer pair (`---` then footer) at the VERY END only — a `---` mid-prose
-    #    is left intact.
     last = n - 1
     while last >= 0 and not lines[last].strip():
         last -= 1
@@ -145,13 +83,9 @@ def _extract_preserved(old: str, dir_name: str) -> str:
         p = last - 1
         while p >= 0 and not lines[p].strip():
             p -= 1
-        # Only strip the footer pair when a `---` rule actually precedes it. A human note
-        # ending with a lone `*Auto-generated by doc-sync hook.*` (no `---`) is preserved:
-        # set BOTH remove flags ONLY inside the `--- ` branch.
         if p >= 0 and lines[p].strip() == '---':
             remove[last] = True
             remove[p] = True
-
     preserved = [lines[idx] for idx in range(n) if not remove[idx]]
     while preserved and not preserved[0].strip():
         preserved.pop(0)
