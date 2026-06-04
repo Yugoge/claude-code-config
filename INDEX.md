@@ -1,13 +1,13 @@
-# .claude
+# dot-claude
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-04T14:39:29Z*
-**Total entries**: 14098
+*Last updated: 2026-06-04T21:08:11Z*
+**Total entries**: 14115
 **Convention**: kebab
 
 ## Tree
 ```
-.claude/
+dot-claude/
 ├── agents/
 │   ├── `architect.md` - Architecture review specialist for overnight exploration. Identifies structural issues, technical debt, optimization opportunities, dependency problems, and pattern inconsistencies. Returns structured JSON report.
 │   ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
@@ -2175,6 +2175,7 @@
 │   │   └── `user.json` - json config
 │   ├── dev-20260604-121702/
 │   │   ├── codex-ledger/
+│   │   ├── graphify/
 │   │   ├── `architect.json` - json config
 │   │   ├── `ba.json` - json config
 │   │   ├── `cleaner.json` - json config
@@ -3123,6 +3124,7 @@
 │   │   ├── `prompt-inspector-report-30fbb321-8921-44aa-bd65-de59e4c70730.json` - json config
 │   │   ├── `prompt-inspector-report-441b0d47-3cbf-4fa5-9038-76ef39df048a.json` - json config
 │   │   ├── `prompt-inspector-report-c2667fea-a84e-4ba8-9dc7-fae4c1abfc24.json` - json config
+│   │   ├── `prompt-inspector-report-c7452b2d-d6dd-4fa6-b61a-f0642a46c906.json` - json config
 │   │   ├── `prompt-inspector-report-cc7a706f-2662-4274-976d-d2f19e6dd767.json` - json config
 │   │   ├── `prompt-inspector-report-d1e94e.json` - json config
 │   │   ├── `prompt-inspector-report-dev-20260524-170335.json` - json config
@@ -4108,6 +4110,7 @@
 │   ├── `pretool-bash-safety.sh` - PreToolUse Safety Hook - Warn or block before dangerous operations
 │   ├── `pretool-bash-views-guard.py` - Parallels pretool-bash-safety.sh but focuses on views/cp-state write bypass
 │   ├── `pretool-bisect-gate.sh` - pretool-bisect-gate.sh
+│   ├── `pretool-block-branch-pr-worktree.py` - Policy (user directive 2026-06-04):
 │   ├── `pretool-block-enterworktree.sh` - PreToolUse hook: Block EnterWorktree tool
 │   ├── `pretool-block-production-files.sh` - PreToolUse hook: Block Write/Edit to production paths from dev environment
 │   ├── `pretool-block-production.sh` - PreToolUse hook: Block Playwright navigation to production URLs
@@ -4455,6 +4458,7 @@
 │   │   ├── `3450e035-43dd-4315-a579-da12fea63d86.jsonl` - jsonl file
 │   │   ├── `3b096873-4512-4c2a-9fb4-66c48c41d028.jsonl` - jsonl file
 │   │   ├── `3df3f899-b68f-4732-ae11-f9b08294287c.jsonl` - jsonl file
+│   │   ├── `44e208af-b8b8-4266-a2ba-fcfc77f92d24.jsonl` - jsonl file
 │   │   ├── `4879f0f3-690f-4a26-b3fe-3eea5401ffa4.jsonl` - jsonl file
 │   │   ├── `49cb1f11-c873-4086-bcfa-c2ed345cc548.jsonl` - jsonl file
 │   │   ├── `4c690b32-0923-4d38-9a78-3b330c5e991f.jsonl` - jsonl file
@@ -4935,6 +4939,7 @@
 │   │   ├── `ec953466-93ce-49ee-9561-bbde27be71a0.jsonl` - jsonl file
 │   │   ├── `edfda281-beb8-434f-a45b-2a8053975db8.jsonl` - jsonl file
 │   │   ├── `ee2c7da4-5e0c-4093-b066-9b94a8df5c9a.jsonl` - jsonl file
+│   │   ├── `f42359af-04b2-4968-8dc0-2f0d6343cab5.jsonl` - jsonl file
 │   │   ├── `f482541d-e116-42ba-b2d3-ae4487d03ee7.jsonl` - jsonl file
 │   │   ├── `f6edf6bb-e07c-4277-bd3b-040ca627828f.jsonl` - jsonl file
 │   │   ├── `fa0251cd-7e1b-43b4-bd14-0b942338ecef.jsonl` - jsonl file
@@ -5638,7 +5643,6 @@
 │   ├── `scan-project.sh` - Description: Scan project structure and detect project type
 │   ├── `score-inject.sh` - Description: Emit a prompt-injection text block describing an agent's current rank/range
 │   ├── `score-update.sh` - Description: Update agent score by appending an entry to the lifecycle JSONL log.
-│   ├── `smart-staging-resolver.py` - WHY THIS EXISTS
 │   ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 │   ├── `stage-owned-hunks.py` - Stages ONLY this cycle's owned hunks within a single already-authorized file,
 │   ├── `step7-spec-update.py` - Step 7 (Spec-update dispatch) reference harness — task 20260524-205206 iter-2
@@ -6322,6 +6326,7 @@
 │   ├── 2ff49d76-ec2d-40de-996d-d5adf9b96b44/
 │   ├── 3004cb73-e4ce-4f22-9f21-0c0faf4c722e/
 │   ├── 30113b53-b177-46f7-9080-4ea5d5fcc204/
+│   ├── 302ba20f-e24a-4ee5-8c2f-54f27ba3d74f/
 │   ├── 30414e3d-93d7-483a-b933-f6f9293d7869/
 │   ├── 305a6508-dd01-43a0-a3e0-b2535e38e35d/
 │   ├── 305be764-7da4-4b8b-9317-a0225583aa5f/
@@ -6588,6 +6593,7 @@
 │   ├── 44b51fdd-8a63-4dcd-8ecd-3dd30f1c3973/
 │   ├── 44b8aeef-ae71-4659-84a3-d238d06b8bd6/
 │   ├── 44dc09c5-a98b-4d13-9860-0dbc3a61f3a4/
+│   ├── 44e208af-b8b8-4266-a2ba-fcfc77f92d24/
 │   ├── 44fe3b57-972f-459d-abc6-70ef6600b410/
 │   ├── 45352497-e87b-4e63-8d4d-5af2fa77b850/
 │   ├── 453a836a-d55c-45f4-830e-c5f8cd698658/
@@ -6610,6 +6616,7 @@
 │   ├── 461e02eb-c56a-4329-a084-2b8660d69a24/
 │   ├── 462315c1-bf50-4395-96b5-234f7c092a58/
 │   ├── 464c0647-d2e3-459d-9782-d57631393a39/
+│   ├── 46546f50-ba5f-47e5-b978-17020d836cf3/
 │   ├── 468d5c54-18ce-408d-b9ef-9e0446999d84/
 │   ├── 4694026c-b536-442f-abbf-c9a3579f5aeb/
 │   ├── 46af95aa-fc81-477b-ba9c-013b83dcb11d/
@@ -8856,6 +8863,7 @@
 │   ├── f3fe3341-cd46-4519-84b0-b14b4604f340/
 │   ├── f4072cd9-cf6c-4877-be15-a2a8b2651847/
 │   ├── f40f78b3-7f33-4680-912e-756f1fcf8cac/
+│   ├── f42359af-04b2-4968-8dc0-2f0d6343cab5/
 │   ├── f425cc93-405e-4650-bc3c-88bdf1a4109e/
 │   ├── f441e0b2-3530-495b-8f89-661bdba8c2b2/
 │   ├── f46fda23-ee5a-482e-aee0-15c5719bc6a7/
@@ -9030,7 +9038,6 @@
 │   ├── `1362183.json` - json config
 │   ├── `1436280.json` - json config
 │   ├── `1689085.json` - json config
-│   ├── `1799743.json` - json config
 │   ├── `1807831.json` - json config
 │   ├── `1834241.json` - json config
 │   ├── `2116050.json` - json config
@@ -9040,6 +9047,8 @@
 │   ├── `3223734.json` - json config
 │   ├── `3270369.json` - json config
 │   ├── `3272476.json` - json config
+│   ├── `3776520.json` - json config
+│   ├── `3878401.json` - json config
 │   ├── `42129.json` - json config
 │   ├── `521326.json` - json config
 │   └── `98325.json` - json config
@@ -9307,9 +9316,10 @@
 │   ├── `snapshot-bash-1780513781270-5tqbtt.sh` - Snapshot file
 │   ├── `snapshot-bash-1780514485876-l9nb85.sh` - Snapshot file
 │   ├── `snapshot-bash-1780563586674-gyxccx.sh` - Snapshot file
-│   ├── `snapshot-bash-1780583146774-d37j0t.sh` - Snapshot file
 │   ├── `snapshot-bash-1780583215944-42y90u.sh` - Snapshot file
-│   └── `snapshot-bash-1780583399192-sgmupb.sh` - Snapshot file
+│   ├── `snapshot-bash-1780583399192-sgmupb.sh` - Snapshot file
+│   ├── `snapshot-bash-1780606738697-7fl0o8.sh` - Snapshot file
+│   └── `snapshot-bash-1780607147590-u3e76l.sh` - Snapshot file
 ├── skills/
 │   ├── docx/
 │   │   ├── `docx-js.md` - DOCX Library Tutorial
@@ -9350,6 +9360,10 @@
 │       ├── `LICENSE.txt` - txt file
 │       ├── `recalc.py` - Excel Formula Recalculation Script
 │       └── `SKILL.md` - Comprehensive spreadsheet creation, editing, and analysis with support for formulas, formatting, data analysis, and visualization. When Claude needs to work with spreadsheets (.xlsx, .xlsm, .csv, .tsv, etc) for: (1) Creating new spreadsheets with formulas and formatting, (2) Reading or analyzing data, (3) Modify existing spreadsheets while preserving formulas, (4) Data analysis and visualization in spreadsheets, or (5) Recalculating formulas
+├── specs/
+│   ├── 20260514-174852/
+│   ├── qa-c7-test/
+│   └── qa-c7-test-w/
 ├── state/
 │   └── `specialist-yield-log.jsonl` - jsonl file
 ├── statsig/
@@ -10703,6 +10717,7 @@
 │   ├── `44d77405-3d69-43c3-8e11-604befa85b4d-agent-44d77405-3d69-43c3-8e11-604befa85b4d.json` - json config
 │   ├── `44d79056-8c21-43f9-9fb5-e180631d8a2a-agent-44d79056-8c21-43f9-9fb5-e180631d8a2a.json` - json config
 │   ├── `44da4eb8-b540-4b41-ad0c-a47ea6e7c058-agent-44da4eb8-b540-4b41-ad0c-a47ea6e7c058.json` - json config
+│   ├── `44e208af-b8b8-4266-a2ba-fcfc77f92d24-agent-44e208af-b8b8-4266-a2ba-fcfc77f92d24.json` - json config
 │   ├── `44fc1c7f-c8bf-4f99-b278-f2343687288a-agent-44fc1c7f-c8bf-4f99-b278-f2343687288a.json` - json config
 │   ├── `45014630-2d51-445e-a760-272c6d9aa2f1-agent-45014630-2d51-445e-a760-272c6d9aa2f1.json` - json config
 │   ├── `4508cb1d-3e18-4a1f-8b36-8dc1729d95a2-agent-4508cb1d-3e18-4a1f-8b36-8dc1729d95a2.json` - json config
@@ -12313,6 +12328,7 @@
 │   ├── `9ebcf56a-4746-482b-9d54-425708096fcf-agent-9ebcf56a-4746-482b-9d54-425708096fcf.json` - json config
 │   ├── `9ed46903-7acc-4e10-844f-10a47f5f60b1-agent-9ed46903-7acc-4e10-844f-10a47f5f60b1.json` - json config
 │   ├── `9ed7cd9d-eea1-477e-9bbc-7323c8894796-agent-9ed7cd9d-eea1-477e-9bbc-7323c8894796.json` - json config
+│   ├── `9eec09ad-cae4-43f3-9a79-3c2729d99da7-agent-9eec09ad-cae4-43f3-9a79-3c2729d99da7.json` - json config
 │   ├── `9f008558-7058-4154-b208-70c67e989234-agent-9f008558-7058-4154-b208-70c67e989234.json` - json config
 │   ├── `9f185188-4149-4089-a1fa-f5b23cf18703-agent-9f185188-4149-4089-a1fa-f5b23cf18703.json` - json config
 │   ├── `9f28dfd5-75f4-4669-b369-6707e94ab963-agent-9f28dfd5-75f4-4669-b369-6707e94ab963.json` - json config
@@ -12486,6 +12502,7 @@
 │   ├── `a99292cd-b24f-4b02-8842-94666cc03f71-agent-a99292cd-b24f-4b02-8842-94666cc03f71.json` - json config
 │   ├── `a9a0a925-c8cb-48fe-abd0-d3826bf24ded-agent-a9a0a925-c8cb-48fe-abd0-d3826bf24ded.json` - json config
 │   ├── `a9a2f6b8-5138-4237-8bf6-4aeb85a23e7f-agent-a9a2f6b8-5138-4237-8bf6-4aeb85a23e7f.json` - json config
+│   ├── `a9c67f9a-f9f5-473c-b69b-7a000e245735-agent-a9c67f9a-f9f5-473c-b69b-7a000e245735.json` - json config
 │   ├── `a9e1e87f-6fea-4f5a-a171-956d3624b97b-agent-a9e1e87f-6fea-4f5a-a171-956d3624b97b.json` - json config
 │   ├── `a9f11cb3-3be1-4e1a-9f36-c2a1ff90d9c0-agent-a9f11cb3-3be1-4e1a-9f36-c2a1ff90d9c0.json` - json config
 │   ├── `aa1f4e89-afdb-4433-b364-807c6343537f-agent-aa1f4e89-afdb-4433-b364-807c6343537f.json` - json config
@@ -12979,7 +12996,6 @@
 │   ├── `c7120198-da54-4468-bf30-2fdef07c3725-agent-c7120198-da54-4468-bf30-2fdef07c3725.json` - json config
 │   ├── `c7226aac-fd22-4861-ba6f-7fb38e377e6c-agent-c7226aac-fd22-4861-ba6f-7fb38e377e6c.json` - json config
 │   ├── `c7283ad0-e3b4-4e80-ad21-a616a7bba249-agent-c7283ad0-e3b4-4e80-ad21-a616a7bba249.json` - json config
-│   ├── `c7452b2d-d6dd-4fa6-b61a-f0642a46c906-agent-c7452b2d-d6dd-4fa6-b61a-f0642a46c906.json` - json config
 │   ├── `c754e08e-ecd8-4e88-b960-0b91eb8f3020-agent-c754e08e-ecd8-4e88-b960-0b91eb8f3020.json` - json config
 │   ├── `c7591712-a20d-4aa1-9eda-1ee9bedb9600-agent-c7591712-a20d-4aa1-9eda-1ee9bedb9600.json` - json config
 │   ├── `c75b9780-efe3-4d6b-acdf-ca57384ae5f3-agent-c75b9780-efe3-4d6b-acdf-ca57384ae5f3.json` - json config
@@ -13069,6 +13085,7 @@
 │   ├── `cd3875f7-068e-412d-9cd9-df6e9ee795a0-agent-cd3875f7-068e-412d-9cd9-df6e9ee795a0.json` - json config
 │   ├── `cd39759c-5108-4e02-822d-5e9fbda811ea-agent-cd39759c-5108-4e02-822d-5e9fbda811ea.json` - json config
 │   ├── `cd39d18d-2d2f-4fb4-a9cd-97c90a3479f7-agent-cd39d18d-2d2f-4fb4-a9cd-97c90a3479f7.json` - json config
+│   ├── `cd523f75-f9bc-47b7-a0ca-a9c607f29d6b-agent-cd523f75-f9bc-47b7-a0ca-a9c607f29d6b.json` - json config
 │   ├── `cd5336cf-ff44-4bb5-a570-6c045e5b4c86-agent-cd5336cf-ff44-4bb5-a570-6c045e5b4c86.json` - json config
 │   ├── `cd54e642-3791-4afb-aaec-4782d150236e-agent-cd54e642-3791-4afb-aaec-4782d150236e.json` - json config
 │   ├── `cd60ff3b-bca2-4c7c-a26b-3d5cc7394b5b-agent-cd60ff3b-bca2-4c7c-a26b-3d5cc7394b5b.json` - json config
@@ -14108,6 +14125,8 @@
 └── `workflow-fe05ca9a-7892-40ea-a3ba-660db57180b9.json` - json config
 ```
 <!-- /AUTO:index-stats -->
+
+# .claude
 
 ---
 *Auto-generated by doc-sync hook.*
