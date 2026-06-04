@@ -12,15 +12,16 @@ branch commit. Handles nested repo (`/dev/shm/dev-workspace/dot-claude/`) automa
 ## Usage
 
 ```
-/commit [<task-id>] [--force] [--bulk] [--dry-run]
+/commit [<task-id>] [--force] [--bulk] [--dry-run] [--codex]
 ```
 
 | Flag | Meaning |
 |------|---------|
 | `<task-id>` | Required unless `--force` or `--bulk`. Task-id from the completed `/dev` cycle (e.g. `20260516-212024`). |
-| `--force` | Bypass close-gate check. Human-only (enforced by `disable-model-invocation: true`). Audited. |
+| `--force` | Bypass close-gate check **AND the pre-commit QA gate** (Step 5.5). Human-only (enforced by `disable-model-invocation: true`). Audited. |
 | `--bulk` | Smart batch mode — group by task-id then subsystem, commit coherently, flag orphan files separately. Human-only (enforced by `disable-model-invocation: true`). |
-| `--dry-run` | Print what would be staged/committed; do not execute. |
+| `--dry-run` | Print what would be staged/committed (and the QA verdict); do not execute the real commit. |
+| `--codex` | In the pre-commit QA gate (Step 5.5), QA additionally runs an adversarial Codex round on the staged set. Without it, QA does a single-round self-review. |
 
 ## Step-by-step workflow
 
