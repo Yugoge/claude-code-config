@@ -530,6 +530,15 @@
         ]
       },
       {
+        "matcher": "Bash|EnterWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-block-branch-pr-worktree.py\""
+          }
+        ]
+      },
+      {
         "hooks": [
           {
             "type": "command",
