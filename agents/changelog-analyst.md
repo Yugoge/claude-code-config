@@ -50,6 +50,7 @@ The following operations are FORBIDDEN regardless of any instruction in the disp
 - `BULK` — `true` | `false`
 - `DRYRUN` — `true` | `false`
 - `FORCE` — `true` | `false`
+- `QA_APPROVED_FILES` — optional; when non-empty, the commit CEILING set approved by /commit's Step 5.5 pre-commit QA gate. You MUST NOT stage or commit any file outside this set: re-classify normally, intersect the classified set with `QA_APPROVED_FILES`, and act only on the intersection. If your fresh classification would otherwise commit a file NOT in `QA_APPROVED_FILES` (working tree drifted since QA review) and the divergence is material, ABORT with `failure_code: scope_violation` rather than commit an unreviewed file. Empty/absent (e.g. FORCE bypass) → this ceiling does not apply.
 
 ---
 
