@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import re
 
 AC_UID = "ac5-edge-case-comment"
 AC_TYPE = "data"
@@ -17,7 +17,7 @@ def test_AC5():
     WHEN:  Reviewed statically
     THEN:  A comment documents the warm-multi-restart edge case (all 4 daemons simultaneously warm-restarted causes 3 scoped restores to lose the global lock; documented behavior, not a regression)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — edge-case comment present in modified script")
+    with open("/root/bin/happy-daemon-post-start.sh") as f:
+        content = f.read()
+    assert re.search(r"warm.*multi.*restart|all 4.*simultaneously|3.*scoped.*lose", content) is not None, \
+        "Expected a comment documenting the warm-multi-restart edge case but pattern not found"
