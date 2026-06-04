@@ -530,7 +530,7 @@
         ]
       },
       {
-        "matcher": "Bash|EnterWorktree",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
