@@ -113,15 +113,20 @@ def _git_subcommand(args):
 
 
 def _is_co_sw_create(sub, sa):
-    """True iff a `git checkout`/`git switch` invocation CREATES a branch."""
+    """True iff a `git checkout`/`git switch` invocation CREATES a branch.
+
+    Handles bare and attached short options (-b, -bNAME, -fb), long options with
+    or without an attached =value (--create, --create=x, --orphan, --orphan=x,
+    --force-create), and stops at the `--` pathspec separator.
+    """
     create_letters = set('bB') if sub == 'checkout' else set('cC')
     for x in sa:
         if x == '--':
             break  # pathspec separator — options named like -b after it are files
-        if x == '--orphan':
+        base = x.split('=', 1)[0]  # strip attached =value for long options
+        if base == '--orphan':
             return True
-        if sub == 'switch' and (x == '--create' or x == '--force-create'
-                                or x.startswith('--force-create=')):
+        if sub == 'switch' and base in ('--create', '--force-create'):
             return True
         if x.startswith('--'):
             continue
