@@ -14,7 +14,8 @@ DESIGN (converged via codex 2-round debate, 2026-06):
   - The gate is DETERMINISTIC provenance + transient-category logic, never an
     LLM "looks like junk" judgement.
   - `transient_deny` is a HIGH-PRECISION category matcher for runtime/generated
-    junk that is NEVER legitimately tracked. It is a belt, not the main防线 —
+    junk that is NEVER legitimately tracked. It is a belt, not the main line of
+    defense —
     it is intentionally narrow so it can be used as a SUBTRACTIVE filter without
     risk of dropping a legitimate source file.
   - Untracked-new files require an explicit INTENT signal to be staged
