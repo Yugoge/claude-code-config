@@ -1,8 +1,8 @@
 # dot-claude
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-04T21:08:11Z*
-**Total entries**: 14115
+*Last updated: 2026-06-04T21:09:49Z*
+**Total entries**: 14116
 **Convention**: kebab
 
 ## Tree
@@ -4065,6 +4065,7 @@ dot-claude/
 │   │   ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 │   │   ├── `test_bash_safety_context.py` - Tests strip_non_executable_contexts() in isolation, covering the main
 │   │   ├── `test_bash_safety_context_rules.py` - converted to COMMAND_CONTEXT_STRIPPED in hooks/pretool-bash-safety.sh
+│   │   ├── `test_block_branch_pr_worktree.py` - The hook forbids branch / PR / worktree CREATION in every context EXCEPT a live
 │   │   ├── `test_bulk_commit_sentinel.py` - Covers:
 │   │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 │   │   ├── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
@@ -7675,6 +7676,7 @@ dot-claude/
 │   ├── 97f15d3d-2f48-4255-99ad-27a1658fff1f/
 │   ├── 98164f19-1d65-4c85-8785-c1b6de1c23de/
 │   ├── 9841fba2-2988-4410-962c-ca3b83f52c7e/
+│   ├── 984cddcc-5e75-4aec-a4bc-d3971de09193/
 │   ├── 985268b9-fbe7-4002-b1b7-d4dff9f86662/
 │   ├── 985baf85-f937-4a59-aa71-c6562d0c3d7c/
 │   ├── 9861a7ce-0cf9-4789-a1ed-3e21710a04f4/
@@ -9044,11 +9046,11 @@ dot-claude/
 │   ├── `285455.json` - json config
 │   ├── `2935017.json` - json config
 │   ├── `3064144.json` - json config
-│   ├── `3223734.json` - json config
 │   ├── `3270369.json` - json config
 │   ├── `3272476.json` - json config
 │   ├── `3776520.json` - json config
 │   ├── `3878401.json` - json config
+│   ├── `3918844.json` - json config
 │   ├── `42129.json` - json config
 │   ├── `521326.json` - json config
 │   └── `98325.json` - json config
@@ -9312,7 +9314,6 @@ dot-claude/
 │   ├── `snapshot-bash-1780416082418-xg6oh9.sh` - Snapshot file
 │   ├── `snapshot-bash-1780433977884-vgapyz.sh` - Snapshot file
 │   ├── `snapshot-bash-1780476789668-qlu2ag.sh` - Snapshot file
-│   ├── `snapshot-bash-1780498471023-s2p3wi.sh` - Snapshot file
 │   ├── `snapshot-bash-1780513781270-5tqbtt.sh` - Snapshot file
 │   ├── `snapshot-bash-1780514485876-l9nb85.sh` - Snapshot file
 │   ├── `snapshot-bash-1780563586674-gyxccx.sh` - Snapshot file
