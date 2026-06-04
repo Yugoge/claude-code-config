@@ -33,38 +33,11 @@ if [ "$AUTO_STAGE" = "1" ]; then
   echo "Adding:"
   echo "$UNTRACKED" | sed 's/^/   - /'
   echo ""
-  # Honour the explicit GIT_AUTO_STAGE_ALL=1 opt-in, but still hard-exclude
-  # transient framework/runtime junk via the shared smart-staging-resolver
-  # (autostage mode). Temp file + rc check so a crashed resolver does not
-  # silently stage nothing; fallback 'git add .' still honours .gitignore.
-  RESOLVER="$HOME/.claude/scripts/smart-staging-resolver.py"
-  VENV_ACTIVATE="$HOME/.claude/venv/bin/activate"
-  STAGE_RC=0
-  # use-source-venv: invoke python3 against the resolver ONLY when BOTH the resolver
-  # AND the framework venv activation file exist. A bare interpreter run (no activated
-  # venv) violates the use-source-venv standard, so a missing venv must take the plain
-  # stage-all fallback rather than fall through to a bare invocation (closes fail-open).
-  if [ -f "$RESOLVER" ] && [ -f "$VENV_ACTIVATE" ] && command -v python3 >/dev/null 2>&1; then
-    SSR_TMP=$(mktemp)
-    # Activate the framework venv FIRST, then invoke the interpreter. The entry guard
-    # already proved the activation file exists; '|| true' keeps a sourcing hiccup from
-    # aborting the hook while still taking the resolver branch.
-    . "$VENV_ACTIVATE" || true
-    if python3 "$RESOLVER" --repo "$PWD" autostage -z >"$SSR_TMP" 2>/dev/null; then
-      xargs -0 -r git add -- <"$SSR_TMP"; STAGE_RC=$?
-    else
-      echo -e "${YELLOW}⚠️  resolver failed; falling back to gitignore-respecting 'git add .'${NC}"
-      git add .; STAGE_RC=$?
-    fi
-    rm -f "$SSR_TMP"
-  else
-    # Resolver or framework venv unavailable: plain 'git add .' STILL honours .gitignore.
-    git add .; STAGE_RC=$?
-  fi
-  if [ "$STAGE_RC" -eq 0 ]; then
-    echo -e "${GREEN}✅ All files staged automatically (transient junk excluded)${NC}"
+  git add .
+  if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✅ All files staged automatically${NC}"
     echo ""
-    echo "Note: Auto-staged all files minus transient junk (GIT_AUTO_STAGE_ALL=1)"
+    echo "Note: Auto-staged all files (GIT_AUTO_STAGE_ALL=1)"
   else
     echo -e "${RED}❌ Error staging files${NC}"
     exit 2
