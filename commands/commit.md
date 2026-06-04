@@ -103,6 +103,65 @@ Both `created_at` and `expires_at` MUST match the regex `^20\d{2}-\d{2}-\d{2}T\d
 
 Also write the dispatch-snapshot manifest (non-bulk mode only): activate venv and run Python to capture `git status --porcelain=v1` from both repos, then write `manifest_path = /tmp/claude-commit-manifest-{sid}.json` containing `session_id`, `task_id`, `dispatched_at`, and `files_at_dispatch`. Best-effort; skip entirely in bulk mode.
 
+### Step 5.5: Pre-commit QA review gate (skip if FORCE=true)
+
+A QA agent reviews **what is actually about to be committed** (the staged set + its diff) and may BLOCK the commit. This is an independent second reviewer on top of `changelog-analyst`'s own staging judgment — it exists because `--bulk` / `--force` skip `/close` entirely, and even a normal commit's *literal staged diff* deserves a fresh adversarial check for junk / secrets / scope contamination. The gate reviews the diff itself, NOT the dev-report.
+
+**If `FORCE=true`: skip this entire step.** Print `WARNING: --force bypasses the pre-commit QA gate.` and proceed to Step 6 (human override accepts the risk; the bypass is already audited by Step 4).
+
+Otherwise (applies to BOTH `BULK=false` and `BULK=true`):
+
+**Step 5.5a — Produce the staging plan (internal dry-run).**
+Dispatch `changelog-analyst` (Agent, `subagent_type: changelog-analyst`) with the **same prompt as Step 6 but `DRYRUN=true`** (force dry-run regardless of the user's `--dry-run`). It classifies + prints the staged file list and the commit message(s) it WOULD produce, WITHOUT committing, writing push-gate tokens, or consuming the Step 5 grant. Capture the planned staged file set (per repo) as `PLAN_FILES`.
+- If the dry-run reports `nothing_to_commit`: print `Nothing to commit — QA gate skipped.` and proceed to Step 6 (which will also no-op). Do NOT dispatch QA on an empty plan.
+
+**Step 5.5b — QA reviews the staged set.**
+Dispatch ONE QA subagent (Agent, `subagent_type: qa`). The dispatch prompt MUST include `codex_required: <QA_CODEX>` and instruct QA as follows:
+
+```
+You are the pre-commit QA gate. Review ONLY the files about to be committed (the
+staged plan), by reading their ACTUAL working-tree diff/content — not the dev-report.
+
+Staged plan (per repo): <PLAN_FILES>
+TASK_ID: <TASK_ID or "bulk">   BULK: <true|false>
+
+For each planned file, read its diff (`git -C <repo> diff -- <file>`; for a new
+untracked file, read the file). Judge by intelligent review — NEVER a hardcoded
+junk list. Flag and REJECT the commit if you find any of:
+  1. Transient / non-authored byproducts (runtime/session state, caches, registries,
+     scratch/temp outputs, generated indexes, build products) — judged by what the
+     file IS, regardless of which folder it sits in.
+  2. Secrets / sensitive content (credentials, keys, tokens, .env material).
+  3. Scope contamination — files unrelated to TASK_ID (BULK=false), or two different
+     task-ids mixed in one commit group (BULK=true).
+  4. Obvious correctness/quality defects visible in the diff (syntax-broken code,
+     committed debug leftovers, accidental large/binary blobs).
+
+codex_required = <QA_CODEX>:
+  - true  → after your own review, run ONE adversarial Codex round via Skill(codex):
+            give codex the staged plan + your draft verdict and ask it to find junk /
+            secrets / scope problems you missed (scoped to THIS staged set only;
+            reply `CODEX: APPROVE` / `CODEX: REJECT` + rationale). Weigh it: a
+            substantive codex REJECT flips your verdict to REJECT. Codex infra failure
+            (quota/timeout/parse) → degrade to your own verdict with a recorded note;
+            do not hard-block on codex transport failure.
+  - false → single-round self-review; do NOT invoke codex.
+
+Write a transcript to docs/dev/commit-qa-report-<TASK_ID or "bulk">.md (verdict +
+per-file findings + codex_status when run).
+
+Return, as the LAST line of your response, EXACTLY one of:
+  COMMIT: APPROVE
+  COMMIT: REJECT - <one sentence naming the offending file(s) and why>
+```
+
+**Step 5.5c — Gate decision.**
+- QA returned `COMMIT: REJECT`: print the verdict + offending files. Do NOT proceed to Step 6; do NOT commit. Tell the user to remove/fix the flagged files, or re-run with `--force` to override. **Stop.**
+- QA returned `COMMIT: APPROVE`:
+  - If the user passed `--dry-run` (`DRYRUN=true`): print the plan + `QA: APPROVE` and **stop** — the gate's plan IS the dry-run output; do not perform a real commit.
+  - Otherwise proceed to Step 6 for the real commit.
+- QA output unparseable / no `COMMIT:` final line: treat as REJECT (conservative fail-closed); print the raw QA output and stop.
+
 ### Step 6: Dispatch changelog-analyst
 
 Use the Agent tool with `subagent_type: changelog-analyst`. Pass a structured prompt:
