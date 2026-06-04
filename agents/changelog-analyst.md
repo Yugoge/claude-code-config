@@ -82,24 +82,36 @@ Phase 0 is **warn-only / classification**: do NOT make any staging or exclusion 
 
 **Candidate set** — scope depends on BULK flag and dev-report availability:
 
-**When BULK=true**: Apply smart grouping — do NOT blindly include all entries.
+**When BULK=true**: scan the FULL working tree of both repos. Bulk's purpose is to sweep ALL
+uncommitted real work across the whole repository — this whole-repo scan is intentional and
+MUST be preserved. You are an intelligent agent: classify every candidate file by JUDGMENT.
+There is NO hardcoded junk list and you must NOT introduce or depend on one.
 
-1. **Task-id clusters** (highest priority): scan `docs/dev/` entries in `git status --porcelain=v1` and extract the task-id suffix (e.g. `close-report-20260524-205206.md` → task-id `20260524-205206`). Group all `docs/dev/` artifacts sharing the same task-id into one commit cluster per task-id. Never mix artifacts from different task-ids in the same commit.
+1. **Real, intentional work → commit.** A file is committable when it represents deliberate
+   work authored by the developer or the framework's tracked source: content edits to tracked
+   files, newly-authored source / docs / config, and task-id cycle artifacts under `docs/dev/`.
+   When a *tracked* file has genuine content changes, prefer to include it.
 
-2. **Subsystem files** (non-docs/dev entries): group by subsystem prefix (`hooks/`, `commands/`, `agents/`, `scripts/`, `tests/`, `logs/`, other). Commit one subsystem group at a time.
+2. **Tool byproduct / transient artifact → SKIP (do NOT commit).** Skip any file that is a
+   byproduct of tooling rather than authored work — runtime/session state, caches, registries,
+   scratch/temp outputs, generated indexes, lock/state files, build products, and the like.
+   Judge this by what the file IS — its role, location, name, and content, and whether it
+   reflects deliberate human/development intent — NOT by matching a fixed list. A
+   never-before-seen junk type is still recognizable as a non-authored byproduct on its merits.
+   **This applies regardless of which directory the file sits in**: a transient artifact under a
+   known subsystem prefix (`hooks/`, `commands/`, `scripts/`, `docs/dev/`, …) is still skipped —
+   a folder location never launders a byproduct into a commit. For each skipped file print:
+   `WARNING: bulk skipping <path> — judged a transient/non-authored byproduct, not committed. Stage manually if this is real work.`
 
-3. **Orphan files** (untracked files with no task-id pattern and no clear subsystem match, OR files whose content cannot be attributed to any active task): **do NOT auto-commit**. Print a warning for each:
-   `WARNING: bulk skipping orphan file <path> — no task-id affinity and no clear subsystem. Stage manually if needed.`
+3. **Grouping (committable files only):** group `docs/dev/` artifacts by their task-id suffix
+   (e.g. `close-report-20260524-205206.md` → task-id `20260524-205206`), one cluster per task-id,
+   never mixing task-ids; group the rest by subsystem prefix (`hooks/`, `commands/`, `agents/`,
+   `scripts/`, `tests/`, `logs/`, other), one subsystem group per commit.
 
-4. **Transient junk drop** (MANDATORY, runs BEFORE task-id/subsystem grouping): pass every
-   candidate path through the shared transient filter (see **Exclusions** below —
-   `smart-staging-resolver.py filter`). Any path classified transient is removed from the
-   candidate set and is NEVER grouped or committed, even if it carries a task-id-like name or
-   sits under a known subsystem prefix (`hooks/`, `scripts/`, `docs/dev/`, …). This closes the
-   BULK=true gap where git-status authority would otherwise sweep runtime junk into a subsystem
-   commit. The filter is subtractive only.
-
-This prevents cross-task contamination (impurities). The invariant is: every file in a bulk commit must share either the same task-id cluster OR the same subsystem scope as all other files in that commit.
+The invariant: a bulk commit contains ONLY files that represent real, attributable work; a
+transient byproduct is NEVER swept in no matter where it lives, and that judgment is made by
+you (the agent), never by a hardcoded denylist. Within a single commit, all files still share
+either one task-id cluster OR one subsystem scope (prevents cross-task contamination).
 
 **When BULK=false AND a dev-report exists** (at the resolved `dev_report_path` below):
 The candidate set is restricted to a **staging whitelist** consisting of:
