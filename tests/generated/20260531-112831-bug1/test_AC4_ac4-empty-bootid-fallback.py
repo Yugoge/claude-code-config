@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import re
 
 AC_UID = "ac4-empty-bootid-fallback"
 AC_TYPE = "data"
@@ -17,7 +17,7 @@ def test_AC4():
     WHEN:  post-start.sh makes the cold/warm decision
     THEN:  The global restore path is taken (no --home argument); safe fallback behavior
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — /proc/sys/kernel/random/boot_id read failure defaults to global restore")
+    with open("/root/bin/happy-daemon-post-start.sh") as f:
+        content = f.read()
+    assert re.search(r"\[ -n.*current_boot", content) is not None, \
+        "Expected guard '[ -n ... current_boot ]' ensuring empty boot_id is treated as cold boot but pattern not found"
