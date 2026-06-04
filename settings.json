@@ -388,7 +388,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/userpromptsubmit-bulk-commit-capability.py\""
+            "command": "python3 \"$HOME/.claude/hooks/userprompt-bulk-commit-capability.py\""
           }
         ]
       }

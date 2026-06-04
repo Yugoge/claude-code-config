@@ -1,13 +1,13 @@
-# dot-claude
+# .claude
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-04T21:23:27Z*
-**Total entries**: 14113
+*Last updated: 2026-06-04T21:26:06Z*
+**Total entries**: 14107
 **Convention**: kebab
 
 ## Tree
 ```
-dot-claude/
+.claude/
 ├── agents/
 │   ├── `architect.md` - Architecture review specialist for overnight exploration. Identifies structural issues, technical debt, optimization opportunities, dependency problems, and pattern inconsistencies. Returns structured JSON report.
 │   ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
@@ -4049,7 +4049,6 @@ dot-claude/
 │   │   ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.
 │   │   ├── `closeout.py` - Public API:
 │   │   ├── `contract_runtime.py` - This module is the single shared engine consumed by every contract-aware
-│   │   ├── `overnight.py` - Single source of truth for the question "is a /dev-overnight session currently
 │   │   ├── `policy_registry.py` - Reads /root/.claude/policies/tool-policy.v1.json and provides a single
 │   │   ├── `runtime_guard.py` - This module contains ZERO project identifiers. Every project-specific name
 │   │   ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
@@ -4066,7 +4065,7 @@ dot-claude/
 │   │   ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 │   │   ├── `test_bash_safety_context.py` - Tests strip_non_executable_contexts() in isolation, covering the main
 │   │   ├── `test_bash_safety_context_rules.py` - converted to COMMAND_CONTEXT_STRIPPED in hooks/pretool-bash-safety.sh
-│   │   ├── `test_block_branch_pr_worktree.py` - The hook forbids branch / PR / worktree CREATION on the Bash surface, with three
+│   │   ├── `test_block_branch_pr_worktree.py` - The hook forbids branch / PR / worktree CREATION in EVERY context except a live
 │   │   ├── `test_bulk_commit_sentinel.py` - Covers:
 │   │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 │   │   ├── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
@@ -4167,10 +4166,10 @@ dot-claude/
 │   ├── `subagentstop-codex-enforce.py` - Activation logic:
 │   ├── `subagentstop-cp-enforce.py` - Description: SubagentStop hook for spec checkpoint enforcement (W6).
 │   ├── `subagentstop-e2e-enforce.py` - Activation logic:
+│   ├── `userprompt-bulk-commit-capability.py` - human prompt, NOT from an LLM-emitted Bash command
 │   ├── `userprompt-consent-allowlist.sh` - UserPromptSubmit Hook: parse `/allow <pattern>` and write a single-use
 │   ├── `userprompt-doc-sync-check.py` - UserPromptSubmit Hook: Periodic file deletion detection for doc-sync
-│   ├── `userprompt-tmpfs-pressure.sh` - userprompt-tmpfs-pressure.sh — UserPromptSubmit hook (4th block, appended).
-│   └── `userpromptsubmit-bulk-commit-capability.py` - human prompt, NOT from an LLM-emitted Bash command
+│   └── `userprompt-tmpfs-pressure.sh` - userprompt-tmpfs-pressure.sh — UserPromptSubmit hook (4th block, appended).
 ├── logs/
 │   ├── `bash-consent.log` - log file
 │   ├── `checkpoint-push.log` - log file
@@ -9362,10 +9361,6 @@ dot-claude/
 │       ├── `LICENSE.txt` - txt file
 │       ├── `recalc.py` - Excel Formula Recalculation Script
 │       └── `SKILL.md` - Comprehensive spreadsheet creation, editing, and analysis with support for formulas, formatting, data analysis, and visualization. When Claude needs to work with spreadsheets (.xlsx, .xlsm, .csv, .tsv, etc) for: (1) Creating new spreadsheets with formulas and formatting, (2) Reading or analyzing data, (3) Modify existing spreadsheets while preserving formulas, (4) Data analysis and visualization in spreadsheets, or (5) Recalculating formulas
-├── specs/
-│   ├── 20260514-174852/
-│   ├── qa-c7-test/
-│   └── qa-c7-test-w/
 ├── state/
 │   └── `specialist-yield-log.jsonl` - jsonl file
 ├── statsig/
@@ -13085,7 +13080,6 @@ dot-claude/
 │   ├── `cd3875f7-068e-412d-9cd9-df6e9ee795a0-agent-cd3875f7-068e-412d-9cd9-df6e9ee795a0.json` - json config
 │   ├── `cd39759c-5108-4e02-822d-5e9fbda811ea-agent-cd39759c-5108-4e02-822d-5e9fbda811ea.json` - json config
 │   ├── `cd39d18d-2d2f-4fb4-a9cd-97c90a3479f7-agent-cd39d18d-2d2f-4fb4-a9cd-97c90a3479f7.json` - json config
-│   ├── `cd523f75-f9bc-47b7-a0ca-a9c607f29d6b-agent-cd523f75-f9bc-47b7-a0ca-a9c607f29d6b.json` - json config
 │   ├── `cd5336cf-ff44-4bb5-a570-6c045e5b4c86-agent-cd5336cf-ff44-4bb5-a570-6c045e5b4c86.json` - json config
 │   ├── `cd54e642-3791-4afb-aaec-4782d150236e-agent-cd54e642-3791-4afb-aaec-4782d150236e.json` - json config
 │   ├── `cd60ff3b-bca2-4c7c-a26b-3d5cc7394b5b-agent-cd60ff3b-bca2-4c7c-a26b-3d5cc7394b5b.json` - json config
@@ -14123,6 +14117,9 @@ dot-claude/
 └── `workflow-fe05ca9a-7892-40ea-a3ba-660db57180b9.json` - json config
 ```
 <!-- /AUTO:index-stats -->
+
+# dot-claude
+
 
 # .claude
 
