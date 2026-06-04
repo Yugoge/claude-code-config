@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import re
 
 AC_UID = "ac2-cold-global-restore"
 AC_TYPE = "data"
@@ -17,7 +17,11 @@ def test_AC2():
     WHEN:  post-start.sh fires
     THEN:  The cold-boot branch nohup line contains `happy-session-recovery.sh restore` AND that same line does NOT contain `--home` (two-step check: positive pattern confirms restore present; negative pattern confirms --home absent)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — cold-boot path produces global restore invocation WITHOUT --home")
+    with open("/root/bin/happy-daemon-post-start.sh") as f:
+        content = f.read()
+    cold_boot_lines = [
+        line for line in content.splitlines()
+        if "happy-session-recovery.sh restore" in line and "--home" not in line
+    ]
+    assert len(cold_boot_lines) > 0, \
+        "Expected a cold-boot restore line containing 'happy-session-recovery.sh restore' without '--home' but none found"
