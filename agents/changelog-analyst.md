@@ -768,8 +768,10 @@ Trigger `nothing_to_commit_precommitted` only when ALL THREE conditions hold:
 
 ### Recovery path when `nothing_to_commit_precommitted` is detected (BULK=false only)
 
-When all three conditions above hold AND `BULK=false`, do NOT return `nothing_to_commit_precommitted`.
+When all three conditions above hold AND `BULK=false` AND `DRYRUN=false`, do NOT return `nothing_to_commit_precommitted`.
 Instead, execute the following recovery path to produce a task-attributed commit and push-gate token.
+
+**DRYRUN guard (NON-NEGOTIABLE)**: this recovery path NEVER executes under `DRYRUN=true`. /commit's Step 5.5a runs an internal `DRYRUN=true` pass purely to produce a staging plan for the QA gate; that pass MUST NOT commit (no `git commit --allow-empty`), MUST NOT write a push-gate token, and MUST NOT consume a commit grant. When `DRYRUN=true` and the three `nothing_to_commit_precommitted` conditions hold, report `nothing_to_commit_precommitted` (or `nothing_to_commit`) WITHOUT committing — do not enter the recovery steps below.
 
 **Recovery step 1: Range scan for pre-empted auto-bulk commits**
 
