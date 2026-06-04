@@ -3,37 +3,37 @@
 
 Policy (user directive 2026-06-04):
   "除了 dev-overnight，永远禁止创建任何分支或 PR 或 worktree"
-  Branch creation, pull-request creation, and worktree creation are forbidden in
-  EVERY context — interactive, /do, subagent, automation — EXCEPT while a live
-  /dev-overnight session is active. dev-overnight is the SOLE exception:
-  /do consent and /allow grants do NOT relax this rule (the literal "永远禁止").
-  To loosen it, flip _STRICT_BYPASS below or remove this hook from settings.json.
+  Branch creation, pull-request creation, and worktree creation are forbidden by
+  default. A live /dev-overnight session is the always-on exception. In addition,
+  two human-authorized escape hatches are preserved (the user's explicit choice,
+  mirroring pretool-block-enterworktree.sh and pretool-git-privilege-guard.py):
+  /do consent and /allow grants.
 
-Blocked operations
-  Bash tool (detected on whitespace tokens of the context-stripped command, so the
-  literal word "git" inside a quoted string is never matched; path-qualified forms
-  like /usr/bin/git and attached/clustered short options are caught):
-    - git checkout -b/-B/--orphan <name>            (branch creation, incl. -bNAME)
-    - git switch  -c/-C/--create/--force-create     (branch creation, incl. -cNAME)
-    - git branch <name>  /  -c/-C/--copy            (branch creation)
-        list / delete / rename / upstream / info forms remain allowed.
-    - git worktree add ...                          (worktree creation)
-    - gh pr create ...                              (PR creation, flags interspersed)
-  EnterWorktree tool:
-    - always treated as worktree creation.
+Scope: the Bash surface only. The EnterWorktree tool is governed by the companion
+hook pretool-block-enterworktree.sh (same bypass semantics, including the
+overnight exception); keeping the two surfaces in separate hooks avoids
+double-blocking EnterWorktree.
 
-Sole exception — a live /dev-overnight session OWNED BY THIS session
-  A overnight-state-*.json under a candidate project dir whose `session_id`
-  equals the caller's session_id, current_phase not in complete/completed, and
-  end_time not yet passed. Binding to the caller's session_id (plus the existing
-  pretool-overnight-hook-guard.py write protection on overnight-state files)
-  closes the "plant a future-dated state file to self-grant a bypass" hole.
+Blocked Bash operations (detected on whitespace tokens of the context-stripped
+command, so the literal word "git" inside a quoted string is never matched;
+path-qualified forms like /usr/bin/git, leading env-var prefixes, and
+attached/clustered short options are all caught):
+  - git checkout -b/-B/--orphan <name>            (branch creation, incl. -bNAME)
+  - git switch  -c/-C/--create/--force-create/--orphan  (branch creation, incl. -cNAME)
+  - git branch <name>  /  -c/-C/--copy            (branch creation)
+      list / delete / rename / upstream / info forms remain allowed.
+  - git worktree add ...                          (worktree creation)
+  - gh pr create ...                              (PR creation, flags interspersed)
+
+Bypass order (any one → allow):
+  1. live /dev-overnight session   (lib.overnight.is_overnight_active)
+  2. /do consent flag              (main agent only — subagents never qualify)
+  3. /allow grant                  (sentinel grant: main + subagent;
+                                    legacy pattern grant: main agent only)
 
 Coexistence
   Purely additive. PreToolUse blocks if ANY hook exits 2, so this hook only ever
-  tightens — it never loosens an existing block. The companion
-  pretool-block-enterworktree.sh remains unchanged; for EnterWorktree this hook
-  is the strict authority (overnight-only) layered on top of it.
+  tightens — it never loosens an existing block.
 
 Exit codes
   0 = allow, 2 = block (stderr shown to the agent). Fails OPEN (exit 0) on any
