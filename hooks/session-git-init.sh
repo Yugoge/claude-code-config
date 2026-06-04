@@ -87,37 +87,7 @@ if git rev-parse --verify -q HEAD >/dev/null 2>&1; then
   exit 0
 fi
 
-# Initial commit stages everything EXCEPT transient framework/runtime junk, via
-# the shared smart-staging-resolver (autostage mode). A fresh repo's first commit
-# must never capture .claude/dev-registry, workflow-*.json, __pycache__, etc.
-# Falls back to a plain `git add .` only if the resolver is unavailable.
-RESOLVER="$HOME/.claude/scripts/smart-staging-resolver.py"
-VENV_ACTIVATE="$HOME/.claude/venv/bin/activate"
-# use-source-venv: invoke python3 against the resolver ONLY when BOTH the resolver
-# AND the framework venv activation file exist. A bare interpreter run (no activated
-# venv) violates the use-source-venv standard, so a missing venv must take the plain
-# stage-all fallback rather than fall through to a bare invocation (closes fail-open).
-if [ -f "$RESOLVER" ] && [ -f "$VENV_ACTIVATE" ] && command -v python3 >/dev/null 2>&1; then
-  # Write the resolver's NUL-separated stage list to a temp file so we can check
-  # its exit code BEFORE staging (a crashed resolver must not silently stage
-  # nothing). Command substitution can't hold NUL bytes, hence the temp file.
-  _ssr_tmp=$(mktemp)
-  # Activate the framework venv FIRST, then invoke the interpreter. The entry guard
-  # already proved the activation file exists; '|| true' keeps a sourcing hiccup from
-  # aborting the hook under set -e while still taking the resolver branch.
-  . "$VENV_ACTIVATE" || true
-  if python3 "$RESOLVER" --repo "$PWD" autostage -z >"$_ssr_tmp" 2>/dev/null; then
-    xargs -0 -r git add -- <"$_ssr_tmp"
-  else
-    echo -e "${YELLOW}⚠️  smart-staging-resolver failed; falling back to gitignore-respecting 'git add .'${NC}"
-    git add .
-  fi
-  rm -f "$_ssr_tmp"
-else
-  # Resolver or framework venv unavailable: plain 'git add .' STILL honours .gitignore
-  # (incl. the global ignore), so known junk is excluded; the resolver is the superset catch.
-  git add .
-fi
+git add .
 git commit -m "chore: initialize repository with default .gitignore
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
