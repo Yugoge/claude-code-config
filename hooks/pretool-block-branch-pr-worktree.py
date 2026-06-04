@@ -3,44 +3,49 @@
 
 Policy (user directive 2026-06-04):
   "除了 dev-overnight，永远禁止创建任何分支或 PR 或 worktree"
-  Branch creation, pull-request creation, and worktree creation are forbidden by
-  default. A live /dev-overnight session is the always-on exception; in addition
-  two human-authorized escape hatches are preserved (mirrors
-  pretool-block-enterworktree.sh and pretool-git-privilege-guard.py): /do consent
-  and /allow grants.
+  Branch creation, pull-request creation, and worktree creation are forbidden in
+  EVERY context — interactive, /do, subagent, automation — EXCEPT while a live
+  /dev-overnight session is active. dev-overnight is the SOLE exception:
+  /do consent and /allow grants do NOT relax this rule (the literal "永远禁止").
+  To loosen it, flip _STRICT_BYPASS below or remove this hook from settings.json.
 
-Scope: the Bash surface only. The EnterWorktree tool is governed by the
-companion hook pretool-block-enterworktree.sh (same bypass semantics, including
-the overnight exception); keeping the two surfaces in separate hooks avoids
-double-blocking EnterWorktree.
+Blocked operations
+  Bash tool (detected on whitespace tokens of the context-stripped command, so the
+  literal word "git" inside a quoted string is never matched; path-qualified forms
+  like /usr/bin/git and attached/clustered short options are caught):
+    - git checkout -b/-B/--orphan <name>            (branch creation, incl. -bNAME)
+    - git switch  -c/-C/--create/--force-create     (branch creation, incl. -cNAME)
+    - git branch <name>  /  -c/-C/--copy            (branch creation)
+        list / delete / rename / upstream / info forms remain allowed.
+    - git worktree add ...                          (worktree creation)
+    - gh pr create ...                              (PR creation, flags interspersed)
+  EnterWorktree tool:
+    - always treated as worktree creation.
 
-Blocked Bash operations (detected on the context-stripped command so the literal
-word "git" inside a quoted python -c string is never matched):
-  - git checkout -b / -B / --orphan <name>       (branch creation)
-  - git switch  -c / -C / --create / --orphan     (branch creation)
-  - git branch <name>                             (branch creation; copy -c/-C too)
-      list / delete / rename / upstream / info forms remain allowed.
-  - git worktree add ...                          (worktree creation)
-  - gh pr create ...                              (PR creation)
+Sole exception — a live /dev-overnight session OWNED BY THIS session
+  A overnight-state-*.json under a candidate project dir whose `session_id`
+  equals the caller's session_id, current_phase not in complete/completed, and
+  end_time not yet passed. Binding to the caller's session_id (plus the existing
+  pretool-overnight-hook-guard.py write protection on overnight-state files)
+  closes the "plant a future-dated state file to self-grant a bypass" hole.
 
-Bypass order (any one → allow):
-  1. live /dev-overnight session   (lib.overnight.is_overnight_active)
-  2. /do consent flag              (main agent only — subagents never qualify)
-  3. /allow grant                  (sentinel grant: main + subagent;
-                                    legacy pattern grant: main agent only)
+Coexistence
+  Purely additive. PreToolUse blocks if ANY hook exits 2, so this hook only ever
+  tightens — it never loosens an existing block. The companion
+  pretool-block-enterworktree.sh remains unchanged; for EnterWorktree this hook
+  is the strict authority (overnight-only) layered on top of it.
 
-Coexistence: purely additive. PreToolUse blocks if ANY hook exits 2, so this
-hook only ever tightens — it never loosens an existing block.
-
-Exit codes: 0 = allow, 2 = block (stderr shown to the agent). Fails OPEN (exit 0)
-on any unexpected error so a parser bug never bricks a session — the same
-fail-open convention as pretool-git-privilege-guard.py.
+Exit codes
+  0 = allow, 2 = block (stderr shown to the agent). Fails OPEN (exit 0) on any
+  unexpected error so a parser bug never bricks a session — same fail-open
+  convention as pretool-git-privilege-guard.py.
 """
 
 import json
 import os
-import re
+import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -48,33 +53,103 @@ try:
     from lib.bash_context_strip import strip_non_executable_contexts
 except Exception:  # pragma: no cover - lib always present in repo
     strip_non_executable_contexts = None
-from lib.allowlist import (  # noqa: E402
-    match_grant_for_bash_command,
-    match_sentinel_grant_for_bash_command,
-)
-from lib.overnight import is_overnight_active  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
-# Command anchors (replicated from pretool-git-privilege-guard.py for parity so
-# that `git -C <dir> branch foo` and other global-option prefixes are matched,
-# while the literal word "git" inside a quoted python -c string is not — the
-# context strip removes quoted regions before these run).
+# Sole-exception detection: a live /dev-overnight session owned by this session.
 # ---------------------------------------------------------------------------
-GIT_GLOBAL_OPTION_RE = (
-    r'(?:\s+(?:-[Cc]\s+\S+|-[Cc]\S+|'
-    r'--(?:git-dir|work-tree|namespace|exec-path|super-prefix|config-env)'
-    r'(?:=\S+|\s+\S+)|'
-    r'--(?:bare|no-pager|paginate|no-replace-objects|literal-pathspecs|'
-    r'glob-pathspecs|noglob-pathspecs|icase-pathspecs|no-optional-locks)|'
-    r'-[pP]))*'
-)
-GIT_COMMAND_RE = r'(?:^|[\s;&|()`])git' + GIT_GLOBAL_OPTION_RE + r'\s+'
-GH_COMMAND_RE = r'(?:^|[\s;&|()`])gh\s+'
+def _get_session_id(data):
+    try:
+        return str(data.get('session_id', '') or '')
+    except Exception:
+        return ''
+
+
+def _end_time_passed(end_str):
+    try:
+        end = datetime.fromisoformat(str(end_str).replace('Z', '+00:00'))
+    except (ValueError, TypeError, AttributeError):
+        return True
+    if end.tzinfo is None:
+        return datetime.now() > end
+    return datetime.now(timezone.utc) > end
+
+
+def _candidate_project_dirs(data):
+    """Dirs whose .claude/ may hold the overnight-state file.
+
+    The state file lives in the MAIN repo's .claude/. The overnight orchestrator
+    runs with CLAUDE_PROJECT_DIR pointing at that repo, so it is the primary
+    signal; payload cwd, getcwd, and git-toplevel are best-effort fallbacks.
+    """
+    dirs = []
+    candidates = [
+        os.environ.get('CLAUDE_PROJECT_DIR'),
+        data.get('cwd') if isinstance(data, dict) else None,
+        os.getcwd(),
+    ]
+    for d in candidates:
+        if d and d not in dirs:
+            dirs.append(d)
+    try:
+        top = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            capture_output=True, text=True, timeout=3,
+        )
+        if top.returncode == 0:
+            t = (top.stdout or '').strip()
+            if t and t not in dirs:
+                dirs.append(t)
+    except Exception:
+        pass
+    return dirs
+
+
+def _state_grants_bypass(sf, sid):
+    """True iff sf is a live overnight-state file owned by session `sid`.
+
+    Ownership (state['session_id'] == caller sid) is what makes the bypass
+    unforgeable in practice: an agent cannot self-grant by planting a state
+    file, because writes to .claude/overnight-state-*.json are blocked by
+    pretool-overnight-hook-guard.py, and a file owned by a *different* session
+    does not match. An empty caller sid never matches.
+    """
+    if not sid:
+        return False
+    try:
+        if sf.stat().st_size == 0:
+            return False
+        state = json.loads(sf.read_text())
+    except (OSError, ValueError):
+        return False
+    if not isinstance(state, dict):
+        return False
+    if str(state.get('session_id', '')) != sid:
+        return False
+    if state.get('current_phase', '') in ('complete', 'completed'):
+        return False
+    if _end_time_passed(state.get('end_time', '')):
+        return False
+    return True
+
+
+def _is_overnight_active(data):
+    sid = _get_session_id(data)
+    if not sid:
+        return False
+    for d in _candidate_project_dirs(data):
+        try:
+            for sf in Path(d).glob('.claude/overnight-state-*.json'):
+                if _state_grants_bypass(sf, sid):
+                    return True
+        except Exception:
+            continue
+    return False
 
 
 # ---------------------------------------------------------------------------
-# Command detectors. Each consumes the context-stripped command string.
+# Command classification. Operates on whitespace tokens of each shell segment
+# of the context-stripped command (quotes/comments/heredocs already removed).
 # ---------------------------------------------------------------------------
 def _norm(command):
     if strip_non_executable_contexts:
@@ -85,145 +160,178 @@ def _norm(command):
     return command
 
 
-def _is_worktree_add(c):
-    return bool(re.search(GIT_COMMAND_RE + r'worktree\s+add\b', c))
+def _segments(c):
+    out, buf, i, n = [], [], 0, len(c)
+    while i < n:
+        two = c[i:i + 2]
+        if two in ('&&', '||'):
+            out.append(''.join(buf)); buf = []; i += 2; continue
+        ch = c[i]
+        if ch in ';\n|&`()':
+            out.append(''.join(buf)); buf = []; i += 1; continue
+        buf.append(ch); i += 1
+    out.append(''.join(buf))
+    return out
 
 
-def _is_gh_pr_create(c):
-    return bool(re.search(GH_COMMAND_RE + r'pr\s+create\b', c))
+def _basename(tok):
+    return tok.rsplit('/', 1)[-1]
 
 
-def _is_checkout_create(c):
-    # `git checkout -b/-B <name>` or `git checkout --orphan <name>`.
-    return bool(re.search(
-        GIT_COMMAND_RE + r'checkout\b[^;&|`\n]*\s(?:-b|-B|--orphan)\b', c))
+# git global options that consume a separate following value token.
+_GIT_GLOBAL_VALUE = {
+    '-C', '-c', '--git-dir', '--work-tree', '--namespace',
+    '--exec-path', '--super-prefix', '--config-env',
+}
 
 
-def _is_switch_create(c):
-    # `git switch -c/-C/--create/--orphan <name>`.
-    return bool(re.search(
-        GIT_COMMAND_RE + r'switch\b[^;&|`\n]*\s(?:-c|-C|--create|--orphan)\b', c))
+def _git_subcommand(args):
+    """Return (subcommand, remaining_args) skipping git global options."""
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in _GIT_GLOBAL_VALUE:
+            i += 2
+            continue
+        if a.startswith('-'):
+            i += 1
+            continue
+        return a, args[i + 1:]
+    return None, []
 
 
-# `git branch` is overloaded: list / delete / rename / upstream / info forms
-# must stay allowed; only the create forms are blocked.
+def _is_co_sw_create(sub, sa):
+    """True iff a `git checkout`/`git switch` invocation CREATES a branch."""
+    create_letters = set('bB') if sub == 'checkout' else set('cC')
+    for x in sa:
+        if x == '--':
+            break  # pathspec separator — options named like -b after it are files
+        if x == '--orphan':
+            return True
+        if sub == 'switch' and (x == '--create' or x == '--force-create'
+                                or x.startswith('--force-create=')):
+            return True
+        if x.startswith('--'):
+            continue
+        if x.startswith('-') and len(x) > 1:
+            # short-option cluster / attached value: -b, -bNAME, -fb, -cNAME ...
+            if any(ch in create_letters for ch in x[1:]):
+                return True
+    return False
+
+
+# `git branch` is overloaded. Any of these op flags => NOT a creation.
 _BRANCH_NON_CREATE_FLAGS = {
     '-d', '-D', '--delete', '-m', '-M', '--move', '--edit-description',
     '--show-current', '--list', '-l', '-a', '--all', '-r', '--remotes',
-    '-v', '-vv', '--verbose', '--merged', '--no-merged', '--contains',
+    '-v', '--verbose', '--merged', '--no-merged', '--contains',
     '--no-contains', '--points-at', '--unset-upstream', '--set-upstream-to',
     '-u', '--column', '--no-column', '--sort', '--format', '--color',
-    '--no-color', '--abbrev', '--no-abbrev',
+    '--no-color', '--abbrev', '--no-abbrev', '-h', '--help',
 }
 _BRANCH_COPY_CREATE_FLAGS = {'-c', '-C', '--copy'}
 
 
-def _is_branch_create(c):
-    m = re.search(GIT_COMMAND_RE + r'branch\b(.*)', c)
-    if not m:
+def _branch_creates(sa):
+    flags = set()
+    positionals = []
+    j = 0
+    while j < len(sa):
+        x = sa[j]
+        if x == '--':
+            positionals.extend(t for t in sa[j + 1:] if t)
+            break
+        if x.startswith('--'):
+            flags.add(x.split('=', 1)[0])
+        elif x.startswith('-') and len(x) > 1:
+            for ch in x[1:]:           # split short-option clusters: -rl -> -r,-l
+                flags.add('-' + ch)
+        else:
+            positionals.append(x)
+        j += 1
+    if flags & _BRANCH_NON_CREATE_FLAGS:   # list/delete/rename/upstream/info
         return False
-    # Only the first shell segment after `branch`.
-    tail = re.split(r'[;&|`\n]', m.group(1), maxsplit=1)[0]
-    tokens = tail.strip().split()
-    bases = [t.split('=', 1)[0] for t in tokens]
-    # Any list/delete/rename/upstream/info flag => not a creation.
-    if any(b in _BRANCH_NON_CREATE_FLAGS for b in bases):
-        return False
-    # `git branch -c/-C/--copy <new>` copies an existing branch => creation.
-    if any(b in _BRANCH_COPY_CREATE_FLAGS for b in bases):
+    if flags & _BRANCH_COPY_CREATE_FLAGS:  # -c/-C/--copy copies => creation
         return True
-    # A bare positional token is the new branch name => creation.
-    return any(not t.startswith('-') for t in tokens)
+    return len(positionals) > 0            # a bare name => creation
 
 
-def _detect(c):
-    """Ordered list of creation kinds present in the context-stripped command."""
-    kinds = []
-    if _is_worktree_add(c):
-        kinds.append('worktree')
-    if _is_gh_pr_create(c):
-        kinds.append('PR')
-    if _is_checkout_create(c) or _is_switch_create(c) or _is_branch_create(c):
-        kinds.append('branch')
-    return kinds
+# gh global flags that consume a separate following value token.
+_GH_GLOBAL_VALUE = {'-R', '--repo'}
 
 
-# ---------------------------------------------------------------------------
-# Bypass checks (overnight is handled inline in main; these are the two
-# human-authorized escape hatches the user chose to preserve).
-# ---------------------------------------------------------------------------
-def _get_session_id(data):
-    try:
-        return str(data.get('session_id', '') or '')
-    except Exception:
-        return ''
+def _gh_skip_flags(args, i):
+    while i < len(args):
+        a = args[i]
+        if a in _GH_GLOBAL_VALUE:
+            i += 2
+            continue
+        if a.startswith('-'):
+            i += 1
+            continue
+        break
+    return i
 
 
-def _has_do_consent(data):
-    """True iff the main agent holds /do consent for this session."""
-    if data.get('agent_id'):  # subagents never qualify for /do
+def _is_gh_pr_create(args):
+    i = _gh_skip_flags(args, 0)
+    if i >= len(args) or args[i] != 'pr':
         return False
-    sid = _get_session_id(data)
-    if not sid:
-        return False
-    try:
-        flag = Path(f'/tmp/claude-orchestrator-consent-{sid}.flag')
-        return flag.exists() and flag.read_text().strip() == 'true'
-    except Exception:
-        return False
+    i = _gh_skip_flags(args, i + 1)
+    return i < len(args) and args[i] == 'create'
 
 
-def _allow_grant_matches(command, data):
-    """True iff a /allow grant authorizes this command.
+def _classify_segment(seg):
+    """Return the creation kind ('worktree'|'PR'|'branch') in seg, or None."""
+    toks = seg.split()
+    for idx, t in enumerate(toks):
+        base = _basename(t)
+        if base == 'git':
+            sub, sa = _git_subcommand(toks[idx + 1:])
+            if sub == 'worktree':
+                for x in sa:
+                    if not x.startswith('-'):
+                        return 'worktree' if x == 'add' else None
+                return None
+            if sub in ('checkout', 'switch'):
+                return 'branch' if _is_co_sw_create(sub, sa) else None
+            if sub == 'branch':
+                return 'branch' if _branch_creates(sa) else None
+            return None
+        if base == 'gh':
+            return 'PR' if _is_gh_pr_create(toks[idx + 1:]) else None
+    return None
 
-    Sentinel grants reach subagents and the main agent (mirrors the M2 decision
-    in pretool-git-privilege-guard.py); the legacy pattern grant is
-    main-agent-only. The sentinel matcher is fed the RAW command (not the
-    context-stripped form) so its structural head-token match sees real tokens.
-    """
-    sid = _get_session_id(data)
-    task_id = os.environ.get('CLAUDE_TASK_ID') or sid
-    try:
-        if task_id and match_sentinel_grant_for_bash_command(task_id, command) is not None:
-            return True
-    except Exception:
-        pass
-    if data.get('agent_id'):
-        return False
-    if not sid:
-        return False
-    try:
-        return match_grant_for_bash_command(command, sid) is not None
-    except Exception:
-        return False
+
+def _detect(command):
+    c = _norm(command)
+    for seg in _segments(c):
+        kind = _classify_segment(seg)
+        if kind:
+            return kind
+    return None
 
 
 # ---------------------------------------------------------------------------
 # Blocking.
 # ---------------------------------------------------------------------------
 _POLICY = (
-    'Policy (2026-06-04): branch / PR / worktree creation is forbidden outside '
-    'a live /dev-overnight session.\n'
-    'Escape hatches: run it inside /dev-overnight, or (main agent) use /do, or '
-    '/allow the specific command first.\n'
+    'Policy (2026-06-04): branch / PR / worktree creation is forbidden in every '
+    'context EXCEPT a live /dev-overnight session. dev-overnight is the SOLE '
+    'exception — no /do consent and no /allow grant relaxes this rule.\n'
+    'To create one of these, run it from within /dev-overnight, or remove this '
+    'rule from settings.json (hook: pretool-block-branch-pr-worktree.py).\n'
 )
 
 
-def _block(kinds, command, data):
-    ops = ' + '.join(kinds)
-    lines = [
-        '',
-        f'BLOCKED: {ops} creation is forbidden outside /dev-overnight.',
-        f'Command excerpt: {command[:200]}',
-        '',
-        _POLICY.rstrip('\n'),
-    ]
-    if data.get('agent_id'):
-        lines += [
-            'You are a subagent: PAUSE and report this block to the user per '
-            'Subagent Hook Discipline — do NOT attempt to work around it.',
-        ]
-    sys.stderr.write('\n'.join(lines) + '\n')
+def _block(kind, detail):
+    sys.stderr.write(
+        '\nBLOCKED: %s creation is forbidden outside /dev-overnight.\n'
+        '%s%s'
+        % (kind,
+           ('Command excerpt: %s\n' % detail[:200]) if detail else '',
+           _POLICY)
+    )
     sys.exit(2)
 
 
@@ -233,22 +341,21 @@ def main():
     except Exception:
         sys.exit(0)
     try:
-        if data.get('tool_name', '') != 'Bash':
+        tool = data.get('tool_name', '')
+        if tool not in ('Bash', 'EnterWorktree'):
             sys.exit(0)
+        # The single exception: a live /dev-overnight session owned by this session.
+        if _is_overnight_active(data):
+            sys.exit(0)
+        if tool == 'EnterWorktree':
+            _block('worktree (EnterWorktree)', '')
+        # tool == 'Bash'
         command = (data.get('tool_input', {}) or {}).get('command', '') or ''
         if not command.strip():
             sys.exit(0)
-        kinds = _detect(_norm(command))
-        if not kinds:
-            sys.exit(0)
-        # Bypasses — any one allows the operation.
-        if is_overnight_active(data.get('cwd')):
-            sys.exit(0)
-        if _has_do_consent(data):
-            sys.exit(0)
-        if _allow_grant_matches(command, data):
-            sys.exit(0)
-        _block(kinds, command, data)
+        kind = _detect(command)
+        if kind:
+            _block(kind, command)
     except SystemExit:
         raise
     except Exception:
