@@ -755,7 +755,8 @@ fi
 # script path from python3 segment tokens. False positives from quoted string
 # arguments are resolved inside the block by _bulk_decision (dev-20260529-210759).
 if echo "$COMMAND" | grep -qF '/tmp/claude-bulk-commit-sentinel-' \
-   || echo "$COMMAND" | grep -qF 'write-bulk-commit-sentinel.py'; then
+   || echo "$COMMAND" | grep -qF 'write-bulk-commit-sentinel.py' \
+   || echo "$COMMAND" | grep -qF 'userpromptsubmit-bulk-commit-capability.py'; then
   # M5 (task 20260526-052559): canonical /commit --bulk Step 5 venv-activate form.
   # Must be checked in bash BEFORE the Python compound-detection helper because the
   # canonical form contains && (compound) and source (shell keyword) — the Python

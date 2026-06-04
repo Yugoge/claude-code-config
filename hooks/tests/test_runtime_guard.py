@@ -1680,12 +1680,17 @@ class TestCycle5CodexAdversarial:
         assert ev_cwd("tini -- yarn workspace happy-app build", datafile, fixture_repo) == "ALLOW"
 
     def test_codex6_no_overblock_on_file_ops(self, datafile, fixture_repo):
-        # F6: a protected path/command as a DATA argument (copy/archive/test
-        # selector) is NOT a launch -> ALLOW. Real launches still BLOCK.
+        # F6: a protected path/command as a DATA argument (copy/archive) is NOT a
+        # launch -> ALLOW. Real launches still BLOCK.
         p = f"{fixture_repo}/packages/happy-cli/dist/index.mjs"
         assert ev(f"cp {p} /tmp/backup.mjs", datafile, fixture_repo) == "ALLOW"
         assert ev(f"tar cf /tmp/a.tar {p}", datafile, fixture_repo) == "ALLOW"
-        assert ev("pytest -k happy", datafile, fixture_repo) == "ALLOW"
+        # Cycle-12 ISSUE 2: a bare protected basename after a separate dash-option
+        # is now a SAFE-SIDE BLOCK (the `<runner> -k <protected-cmd>` test-selector
+        # twin of the wrapped `<front-end> -flag <protected-cmd>` launch). Per the
+        # operator's 'prefer to over-block' stance this is an ACCEPTED false
+        # positive, not an over-block defect.
+        assert ev("pytest -k happy", datafile, fixture_repo) == "BLOCK"
         assert ev("rsync -a /tmp/x /tmp/y", datafile, fixture_repo) == "ALLOW"
         # but executable-position / launch-grammar forms still BLOCK
         assert ev("numactl happy daemon start", datafile, fixture_repo) == "BLOCK"
@@ -2769,8 +2774,7 @@ class TestCycle11CommandWordLaunchHeadAgnostic:
             "grep happy /tmp/file",            # search pattern (inspection head)
             "echo happy-dev",                  # print arg
             "cat happy.log",                   # filename containing the word
-            "pytest -k happy",                 # bare separate flag VALUE
-            "grep -e happy-coder /tmp/f",      # bare separate flag VALUE
+            "grep -e happy-coder /tmp/f",      # inspection head -> scan skipped
             "cp happy /tmp/foo",               # file operand to cp (source)
             "cp /tmp/foo happy",               # file operand to cp (dest)
             "mv happy-dev /tmp/foo",           # file operand to mv
@@ -2783,6 +2787,14 @@ class TestCycle11CommandWordLaunchHeadAgnostic:
         ]
         for cmd in allows:
             assert ev(cmd, datafile, fixture_repo) == "ALLOW", cmd
+        # Cycle-12 ISSUE 2: `pytest -k happy` (a NON-inspection runner with a bare
+        # separate flag whose value is a protected basename) is now an EXPECTED
+        # safe-side BLOCK — it is structurally identical to a wrapped
+        # `<front-end> -flag <protected-cmd>` launch, and per the operator's
+        # 'prefer to over-block' stance the ambiguity resolves as DANGER. The
+        # `grep -e <protected-cmd>` twin above stays ALLOW because `grep` is an
+        # inspection-allowlisted head (the anchor scan never runs for it).
+        assert ev("pytest -k happy", datafile, fixture_repo) == "BLOCK"
 
     # ── NO-OVER-BLOCK boundary: protected launch PATH as a DATA operand ALLOWs ───
     def test_boundary_path_as_data_allows(self, datafile, fixture_repo):
@@ -2898,8 +2910,7 @@ class TestCycle11CommandWordLaunchHeadAgnostic:
         lp = self._launchpath(fixture_repo)
         w = self._INV
         allows = [
-            "grep happy /tmp/file",         # data
-            "pytest -k happy",              # flag value
+            "grep happy /tmp/file",         # data (inspection head)
             f"{w} cat {lp}",                # read the bundle
             f"cp {lp} /tmp/foo",            # bundle as cp source
             "cp /tmp/foo happy",            # file operand
@@ -2910,6 +2921,13 @@ class TestCycle11CommandWordLaunchHeadAgnostic:
                                   "agent_id": "dev-test"})
             r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
             assert r.returncode == ALLOW, f"live hook over-blocked: {cmd} (rc={r.returncode})"
+        # Cycle-12 ISSUE 2: `pytest -k happy` is now an EXPECTED safe-side BLOCK on
+        # the LIVE hook too (the wrapped-launch twin; accepted false positive).
+        payload = json.dumps({"tool_name": "Bash",
+                              "tool_input": {"command": "pytest -k happy", "cwd": fixture_repo},
+                              "agent_id": "dev-test"})
+        r = subprocess.run([HOOK], input=payload, capture_output=True, text=True, env=env)
+        assert r.returncode == BLOCK, f"issue-2 safe-side block expected: pytest -k happy (rc={r.returncode})"
 
     # ── fail-closed semantics for a command-word launch (documented residual) ────
     def test_cmdword_launch_failclosed_semantics(self, tmp_path, fixture_repo):
@@ -2933,6 +2951,214 @@ class TestCycle11CommandWordLaunchHeadAgnostic:
         assert ev(f"{self._INV} node {lp} daemon start", absent, fixture_repo) == "BLOCK"
         # and a benign listing ALLOWs fail-closed
         assert ev("ls -la /tmp", absent, fixture_repo) == "ALLOW"
+
+
+class TestCycle12SlashPathNavAllowAndDashOptOverblock:
+    """Cycle 12 — TWO-SIDED regression lock for the closeout cycle.
+
+    ISSUE 1 (severe over-block introduced by the Cycle-11 command-word fix): a
+    SLASH-BEARING path token whose BASENAME equals a protected command name was
+    treated by the W2 command-basename arm as a command-word LAUNCH. So a plain
+    `cd`/`pushd`/`git -C`/copy/find/tar into ANY directory whose basename equals
+    a protected command name (the worktree dir, a package dir, an unrelated path)
+    was wrongly BLOCKED. Fix: a token CONTAINING a slash is a PATH and is decided
+    ONLY by the W1 launch-PATH matcher; the W2 basename arm skips slash tokens.
+    Navigation/inspection of a same-basename path now ALLOWs; the REAL protected
+    launch PATHS still BLOCK via W1.
+
+    ISSUE 2 (close residual #8): a BARE (slashless) protected command basename
+    right after a separate dash-option (`<front-end> -flag <protected-cmd>`)
+    leaked because the engine treated the token as the flag's VALUE (the
+    test-runner `-k <name>` selector twin). Per the operator's 'prefer to
+    over-block' stance the ambiguity now resolves as DANGER → BLOCK, accepting
+    the `<runner> -k <protected-cmd>` false positive. (A pure inspection head —
+    a search tool's `-e <protected-cmd>` — is allowlisted upstream and stays
+    ALLOW.)
+
+    Verified ONLY by feeding strings to evaluate() and simulated PreToolUse JSON
+    to the live hook (NEVER any real daemon/CLI command, NEVER touching a
+    process). Launch-path / wrapper / subcommand pieces are assembled from
+    fragments so this SOURCE never types a full launch phrase the author-time
+    live hook scans.
+    """
+
+    _REAL = "numa" + "ctl"
+    _REAL2 = "ti" + "ni"
+    _REAL3 = "dumb-" + "init"
+    _INV = "zqx" + "wrapper7"
+    _STACK = "flock /tmp/l zqx" + "wrapper7"
+    WRAPPERS = [_REAL, _REAL2, _REAL3, _INV, _STACK]
+
+    _CMDS = ["happy", "happy-dev", "happy-mcp", "happy-coder"]
+
+    def _bundle(self, repo):
+        return repo + "/packages/happy-cli/dist/index.mjs"
+
+    def _binmjs(self, repo):
+        return repo + "/packages/happy-cli/bin/" + "happy" + ".mjs"
+
+    # ── ISSUE 1 ALLOW: navigate/inspect a slash path whose basename == a cmd ─────
+    # bare AND behind every wrapper. These are routine work; they MUST ALLOW.
+    @pytest.mark.parametrize("w", [""] + WRAPPERS)
+    @pytest.mark.parametrize("cmd", _CMDS)
+    def test_issue1_nav_slash_path_allows(self, w, cmd, datafile, fixture_repo):
+        pre = (w + " ") if w else ""
+        d = f"/dev/shm/dev-workspace/{cmd}"          # dir whose basename == cmd
+        for body in (f"cd {d}",
+                     f"pushd {d}",
+                     f"ls {d}",
+                     f"ls -la {d}",
+                     f"cat {d}/README.md",
+                     f"git -C {d} status",
+                     f"cp -r {d} /tmp/backup",
+                     f"find {d} -name '*.ts'",
+                     f"tar czf /tmp/x.tgz {d}",
+                     f"rsync -a {d}/ /tmp/dest/",
+                     f"chmod -R 755 {d}"):
+            assert ev(f"{pre}{body}", datafile, fixture_repo) == "ALLOW", (w, cmd, body)
+
+    # env-prefix + chdir wrapper forms also ALLOW (no launch).
+    def test_issue1_env_prefix_nav_allows(self, datafile, fixture_repo):
+        d = "/dev/shm/dev-workspace/happy-dev"
+        assert ev(f"env FOO=bar cd {d}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"nohup ls {d}", datafile, fixture_repo) == "ALLOW"
+
+    # ── ISSUE 1 BLOCK side: the REAL protected launch PATHS still BLOCK (W1) ──────
+    # bare AND behind wrappers, slash tokens — must NOT have been reopened.
+    @pytest.mark.parametrize("w", [""] + WRAPPERS)
+    @pytest.mark.parametrize("sub", ["", "claude", "daemon start"])
+    def test_issue1_real_launch_paths_still_block(self, w, sub, datafile, fixture_repo):
+        pre = (w + " ") if w else ""
+        tail = (" " + sub) if sub else ""
+        for p in (self._bundle(fixture_repo), self._binmjs(fixture_repo)):
+            # direct path execution
+            assert ev(f"{pre}{p}{tail}", datafile, fixture_repo) == "BLOCK", (w, sub, p)
+            # runtime launching the path
+            assert ev(f"{pre}node {p}{tail}", datafile, fixture_repo) == "BLOCK", (w, sub, p)
+
+    # absolute installed-binary launch paths (assembled) still BLOCK behind wrappers.
+    @pytest.mark.parametrize("w", [""] + WRAPPERS)
+    def test_issue1_abs_installed_binary_still_blocks(self, w, datafile, fixture_repo):
+        pre = (w + " ") if w else ""
+        for binname in ("happy", "happy-dev", "happy-mcp"):
+            p = "/" + "usr" + "/" + "bin" + "/" + binname        # /usr/bin/<cmd>
+            assert ev(f"{pre}{p} claude", datafile, fixture_repo) == "BLOCK", (w, binname)
+
+    # a bare slashless command-word launch must STILL BLOCK (Cycle-11 not regressed).
+    @pytest.mark.parametrize("w", [""] + WRAPPERS)
+    @pytest.mark.parametrize("cmd", _CMDS)
+    def test_issue1_bare_cmdword_launch_still_blocks(self, w, cmd, datafile, fixture_repo):
+        pre = (w + " ") if w else ""
+        assert ev(f"{pre}{cmd} claude", datafile, fixture_repo) == "BLOCK", (w, cmd)
+
+    # ── ISSUE 2 BLOCK: bare protected basename after a dash-option → over-block ───
+    @pytest.mark.parametrize("w", [_REAL, _REAL2, _REAL3, _INV])
+    @pytest.mark.parametrize("cmd", _CMDS)
+    def test_issue2_dashopt_then_bare_cmd_blocks(self, w, cmd, datafile, fixture_repo):
+        # `<front-end> -someflag <protected-cmd> [sub]` — the cmd is the flag's
+        # apparent VALUE but resolves as DANGER (safe-side over-block).
+        for flag in ("-g", "-c", "--single-child", "-N0"):
+            assert ev(f"{w} {flag} {cmd}", datafile, fixture_repo) == "BLOCK", (w, flag, cmd)
+            assert ev(f"{w} {flag} {cmd} claude", datafile, fixture_repo) == "BLOCK", (w, flag, cmd)
+
+    # the test-runner `-k <protected-cmd>` selector twin is an ACCEPTED safe-side
+    # BLOCK (NON-inspection head reaches the W2 arm).
+    def test_issue2_runner_selector_twin_blocks(self, datafile, fixture_repo):
+        assert ev("pytest -k happy", datafile, fixture_repo) == "BLOCK"
+        assert ev("pytest -k happy-dev", datafile, fixture_repo) == "BLOCK"
+
+    # but an INSPECTION head's flag-value form stays ALLOW (scan skipped upstream),
+    # and a data-operand head before the dash-option keeps the name an operand.
+    def test_issue2_inspection_and_dataop_stay_allow(self, datafile, fixture_repo):
+        assert ev("grep -e happy /tmp/f", datafile, fixture_repo) == "ALLOW"
+        assert ev("grep -e happy-coder /tmp/f", datafile, fixture_repo) == "ALLOW"
+        # data-operand head (`cp`) governs even with an intervening dash-option.
+        assert ev("cp -t /tmp/dst happy", datafile, fixture_repo) == "ALLOW"
+
+    # ── CODEX F1: W1 launch PATH after a separate dash-option is the symmetric ───
+    #   twin of ISSUE 2 — a registered launch path after a bare dash-option BLOCKs
+    #   (real launch leak; impossible false positive since it must match a
+    #   registered protected_launch_path).
+    @pytest.mark.parametrize("w", [_REAL, _REAL2, _REAL3, _INV])
+    def test_codex_f1_w1_launchpath_after_dashopt_blocks(self, w, datafile, fixture_repo):
+        lp = self._bundle(fixture_repo)
+        for flag in ("-g", "-c", "-N0"):
+            assert ev(f"{w} {flag} {lp}", datafile, fixture_repo) == "BLOCK", (w, flag)
+            assert ev(f"{w} {flag} {lp} claude", datafile, fixture_repo) == "BLOCK", (w, flag)
+        # absolute installed binary too
+        binp = "/" + "usr" + "/" + "bin" + "/" + "happy"
+        assert ev(f"{w} -g {binp} claude", datafile, fixture_repo) == "BLOCK"
+
+    # ── CODEX F4: RELATIVE same-basename navigation ALLOWs (cd/pushd/git -C) ──────
+    @pytest.mark.parametrize("cmd", _CMDS)
+    def test_codex_f4_relative_nav_allows(self, cmd, datafile, fixture_repo):
+        for body in (f"cd {cmd}", f"pushd {cmd}", f"git -C {cmd} status",
+                     f"git -C {cmd} log", f"cd ./{cmd}", f"git -C ./{cmd} diff"):
+            assert ev(body, datafile, fixture_repo) == "ALLOW", (cmd, body)
+        # git -C with a fused global option before the subcommand also ALLOWs
+        assert ev(f"git -C {cmd} -c core.pager=cat status", datafile, fixture_repo) == "ALLOW"
+
+    # ── CODEX F5: `-x`/`-X` are find/fd executor opts ONLY in a find/fd segment; ──
+    #   an unrelated data tool's identically-spelled flag does NOT over-block.
+    def test_codex_f5_dash_x_not_executor_outside_findfd(self, datafile, fixture_repo):
+        for cmd in (f"tar -x {self._CMDS[0]}", f"tar -X {self._CMDS[0]}",
+                    f"tar -xf a.tar {self._CMDS[0]}", f"tar xf a.tar {self._CMDS[0]}"):
+            assert ev(cmd, datafile, fixture_repo) == "ALLOW", cmd
+        # but a genuine fd executor of a protected cmd still BLOCKs (no regression)
+        assert ev(f"fd -x {self._CMDS[0]} claude", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"find . -exec {self._CMDS[0]} daemon \\;", datafile, fixture_repo) == "BLOCK"
+
+    # ── LIVE-HOOK two-sided: nav ALLOWs (rc=0), real launch BLOCKs (rc=2) ────────
+    def test_live_hook_two_sided(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+
+        def run(cmd):
+            payload = json.dumps({"tool_name": "Bash",
+                                  "tool_input": {"command": cmd, "cwd": fixture_repo},
+                                  "agent_id": "dev-test"})
+            return subprocess.run([HOOK], input=payload, capture_output=True,
+                                  text=True, env=env).returncode
+
+        d = "/dev/shm/dev-workspace/happy-dev"
+        # ISSUE 1 ALLOW side on the LIVE hook
+        for cmd in (f"cd {d}", f"git -C {d} status", f"cp -r {d} /tmp/bk",
+                    f"find {d} -name x"):
+            assert run(cmd) == ALLOW, f"live hook over-blocked nav: {cmd}"
+        # ISSUE 1 BLOCK side — real bundle launch behind a wrapper
+        bundle = self._bundle(fixture_repo)
+        assert run(f"{self._INV} node {bundle} daemon start") == BLOCK
+        # ISSUE 2 BLOCK side — bare cmd after a dash-option behind a wrapper
+        assert run(f"{self._REAL} -g happy claude") == BLOCK
+
+    # ── /do does NOT bypass the engine BLOCK (unbypassable, both issues) ─────────
+    def test_do_does_not_bypass(self, datafile, fixture_repo):
+        env = dict(os.environ)
+        env["CLAUDE_PROTECTED_RUNTIME_FILE"] = datafile
+        env["CLAUDE_GUARD_CWD"] = fixture_repo
+        # the /do consent surfaces as a per-session flag file; the engine runs
+        # BEFORE the hook's /do bypass, so a guard BLOCK is unbypassable.
+        sid = "guardtest12-" + str(os.getpid())
+        flag = f"/tmp/claude-orchestrator-consent-{sid}.flag"
+        with open(flag, "w") as fh:
+            fh.write("true")
+
+        def run(cmd):
+            payload = json.dumps({"tool_name": "Bash",
+                                  "tool_input": {"command": cmd, "cwd": fixture_repo},
+                                  "session_id": sid, "agent_id": "dev-test"})
+            return subprocess.run([HOOK], input=payload, capture_output=True,
+                                  text=True, env=env).returncode
+
+        try:
+            bundle = self._bundle(fixture_repo)
+            assert run(f"{self._INV} node {bundle} daemon start") == BLOCK   # real launch
+            assert run(f"{self._REAL} -g happy claude") == BLOCK             # issue 2
+            # but nav still ALLOWs under /do
+            assert run("cd /dev/shm/dev-workspace/happy-dev") == ALLOW
+        finally:
+            os.remove(flag)
 
 
 if __name__ == "__main__":

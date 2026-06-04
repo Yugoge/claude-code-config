@@ -3305,16 +3305,39 @@ _LAUNCH_SUBCMDS = frozenset({
 })
 
 
+# git GLOBAL options (before the subcommand) that consume the FOLLOWING token as
+# their argument (`git -C <dir> status`, `git -c k=v log`). Their operand must be
+# skipped when locating the subcommand, else the operand (`<dir>`) is mistaken for
+# the subcommand and a read-only `git -C <dir> status` is wrongly treated as a
+# non-inspection command (which then mis-fires the anchor scan on the dir operand
+# when the dir basename equals a protected command). Generic git CLI grammar, NOT
+# project names.
+_GIT_GLOBAL_OPTS_WITH_ARG = frozenset({
+    "-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path",
+    "--super-prefix",
+})
+
+
 def _git_inspection_head(head: str, rest: list) -> bool:
-    """True if this is a `git <readonly-subcmd> …` inspection command."""
+    """True if this is a `git <readonly-subcmd> …` inspection command, honoring
+    git GLOBAL options that take an argument (`git -C <dir> status`)."""
     if head != "git":
         return False
+    skip_next = False
     for t in rest:
         st = _strip_quotes(t)
-        if not st or st.startswith("-"):
+        if skip_next:
+            skip_next = False
             continue
+        if not st:
+            continue
+        if st in _GIT_GLOBAL_OPTS_WITH_ARG:
+            skip_next = True          # its operand is NOT the subcommand
+            continue
+        if st.startswith("-"):
+            continue                  # bare/fused global flag (no separate arg)
         return st in _GIT_READONLY_SUBCMDS
-    # bare `git` with no subcommand: treat as inspection (no exec tail)
+    # bare `git` (or only global options) with no subcommand: treat as inspection
     return True
 
 
@@ -3413,18 +3436,48 @@ def _anchor_in_launch_position(exec_vals: list, pos: int) -> bool:
     return False
 
 
+# Shell directory-navigation builtins whose positional is ALWAYS a directory
+# operand, never a command to exec (`cd <dir>`, `pushd <dir>`). A protected
+# command basename appearing as their operand is a same-named directory, not a
+# launch — so a routine `cd <dir>` / `pushd <dir>` into a directory whose basename
+# equals a protected command name must ALLOW. Generic shell builtins, NO project
+# names.
+_NAV_OPERAND_HEADS = frozenset({"cd", "pushd", "popd", "chdir"})
+
 # Heads that consume their trailing positionals as DATA operands (a path/name
 # argument), NOT as a command to exec. A protected anchor appearing AFTER one of
 # these heads is its operand, never a launch — so the command-word launch test
 # must NOT fire (`cp <name> dst`, `tar cf a.tar <name>`, `chmod +x <name>`,
-# `grep <name>`, `kill <name>`). Union of the read/inspect allowlist, the
-# filesystem-mutation verbs, and the process-kill verbs — all GENERIC tool
-# basenames, NO project names. (Mutation of a protected path is handled by the
-# W6/W7 mutation anchors; a kill by the W4 kill anchor; this set only suppresses
-# the LAUNCH classification so those data ops are not mis-blocked as launches.)
+# `grep <name>`, `kill <name>`, `cd <dir>`). Union of the read/inspect allowlist,
+# the filesystem-mutation verbs, the process-kill verbs, and the directory-nav
+# builtins — all GENERIC tool basenames, NO project names. (Mutation of a
+# protected path is handled by the W6/W7 mutation anchors; a kill by the W4 kill
+# anchor; this set only suppresses the LAUNCH classification so those data ops are
+# not mis-blocked as launches.)
 _DATA_OPERAND_HEADS = (
     READ_INSPECT_EDIT_ALLOWLIST | _STEP0_MUTATION_HEADS | KILL_VERBS
+    | _NAV_OPERAND_HEADS
 )
+
+
+# heads for which `_FIND_EXEC_OPTS` options are genuine command EXECUTORS (run a
+# command per match). The same option spellings (`-x`/`-X`/`--exec`) collide with
+# UNRELATED tools' data flags (`tar -x` extract, `tar -X <exclude-file>`), so the
+# executor-boundary interpretation must be SCOPED to a segment that actually
+# invokes one of these heads — otherwise `tar -x <protected-name>` would be
+# mis-read as `tar` exec-ing the protected name. Generic tool basenames.
+_FIND_EXEC_HEADS = frozenset({"find", "fd", "fdfind"})
+
+
+def _find_exec_boundary_at(prev: str, exec_toks: list) -> bool:
+    """True only when `prev` is a find/fd executor option AND a find/fd head is
+    actually present among the segment's exec tokens — so the executor-boundary
+    interpretation does not collide with an unrelated tool's identically-spelled
+    data flag (`tar -x`/`tar -X`)."""
+    if prev not in _FIND_EXEC_OPTS:
+        return False
+    return any(os.path.basename(_strip_quotes(st)) in _FIND_EXEC_HEADS
+               for _i, st in exec_toks)
 
 
 def _anchor_preceded_by_data_head(exec_toks: list, pos: int, tokens: list) -> bool:
@@ -3440,12 +3493,13 @@ def _anchor_preceded_by_data_head(exec_toks: list, pos: int, tokens: list) -> bo
     `exec_toks`) between the data head and `pos` CANCELS the data head's
     governance: after `find … -exec <cmd> …` the tokens belong to the EXECUTED
     command, not to find's path operands. So a data head is only counted when NO
-    executor boundary (scanned over the RAW tokens) separates it from `pos` (keeps
+    (find/fd-scoped) executor boundary separates it from `pos` (keeps
     `find -exec node <bundle> daemon` reaching the launch-position runner gate)."""
     pos_orig = exec_toks[pos][0]
     # an executor boundary anywhere in the raw tokens before `pos` cancels any
     # earlier find/fd data head — the tokens after it are the executed command.
-    if any(_strip_quotes(tokens[k]) in _FIND_EXEC_OPTS for k in range(pos_orig)):
+    # Scoped to find/fd heads so `tar -x <name>` keeps its data-head governance.
+    if any(_find_exec_boundary_at(_strip_quotes(tokens[k]), exec_toks) for k in range(pos_orig)):
         return False
     return any(os.path.basename(_strip_quotes(exec_toks[j][1])) in _DATA_OPERAND_HEADS
                for j in range(pos))
@@ -3494,7 +3548,9 @@ def _anchor_in_command_word_position(exec_toks: list, pos: int, tokens: list) ->
     prev = _strip_quotes(tokens[orig_idx - 1]) if orig_idx > 0 else ""
     # EXECUTOR BOUNDARY (find/fd -exec …): the token after the executor option is
     # the command run per match — a launch — REGARDLESS of the find/fd data head.
-    if prev in _FIND_EXEC_OPTS:
+    # Scoped to a segment that actually invokes find/fd, so an unrelated tool's
+    # identically-spelled data flag (`tar -x <name>`) is NOT a boundary.
+    if _find_exec_boundary_at(prev, exec_toks):
         return True
     # (1) any earlier exec token in this segment is a data-consuming head → operand.
     for j in range(pos):
@@ -3511,6 +3567,53 @@ def _anchor_in_command_word_position(exec_toks: list, pos: int, tokens: list) ->
     # command word. A FUSED option (`--opt=val`) does not.
     if prev.startswith("-"):
         return "=" in prev
+    return True
+
+
+def _anchor_after_dashopt_danger(exec_toks: list, pos: int, tokens: list) -> bool:
+    """Over-block-as-danger: True when a protected ANCHOR token (a command
+    basename for W2, or a registered launch path for W1) sits immediately after a
+    separate dash-option in an exec-operand-plausible position
+    (`<front-end> -someflag <protected-anchor> …`).
+
+    Under the head-agnostic + no-option-grammar-enumeration constraint this
+    position is genuinely UNDECIDABLE: a front-end's value-consuming flag
+    (`<front-end> -g <anchor>`) is structurally indistinguishable from a tool's
+    value-consuming flag (a test runner's `-k <name>` selector). The
+    `_anchor_in_command_word_position` discriminator (2) resolves the ambiguity
+    as a flag VALUE (ALLOW), which leaks the wrapped command-word / path launch.
+
+    Per the operator's explicit 'prefer to over-block' stance, this predicate
+    resolves the SAME ambiguity as DANGER for BOTH the W1 launch-path arm and the
+    W2 command-basename arm: a protected anchor after a separate dash-option
+    BLOCKS. For W2 this is a deliberate safe-side over-block that ALSO blocks the
+    test-runner-selector twin (`<runner> -k <protected-cmd>`) — an accepted false
+    positive, since a protected CLI basename is an unusual selector/pattern value
+    and the operator prefers that false positive over the launch leak. (A pure
+    inspection head — a search/read tool — is allowlisted upstream and never
+    reaches this arm, so its `-e <protected-cmd>` data form stays ALLOWed.) For
+    W1 the anchor is a REGISTERED launch path, so a false positive is impossible —
+    only a real protected entrypoint after a dash-option can match.
+
+    It keys ONLY on (the caller has already matched the protected anchor;
+    immediately preceded by a separate dash-option — not `--`, no fused `=`; NOT a
+    find/fd executor option; NOT governed by a data-operand head). NO
+    front-end/tool option grammar is enumerated. A data-operand head still
+    suppresses it (`<copy-verb> -t /dst <name>` keeps the name a copy operand)."""
+    orig_idx = exec_toks[pos][0]
+    if orig_idx <= 0:
+        return False
+    prev = _strip_quotes(tokens[orig_idx - 1])
+    # a find/fd EXECUTOR option already makes the next token a command word via
+    # the command-word check; here we only handle the GENERIC dash-option case.
+    if _find_exec_boundary_at(prev, exec_toks):
+        return False
+    if not (prev.startswith("-") and prev not in ("--",) and "=" not in prev):
+        return False
+    # a data-consuming head governing the token keeps it a data operand, not a
+    # launch (`<copy-verb> -t /dst <name>`); do not over-block those.
+    if _anchor_preceded_by_data_head(exec_toks, pos, tokens):
+        return False
     return True
 
 
@@ -3588,6 +3691,7 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         for pos, (_i, st) in enumerate(exec_toks):
             if _path_matches_cwd(st, launch_paths, cwd, cwd_det) and (
                     _anchor_in_command_word_position(exec_toks, pos, tokens)
+                    or _anchor_after_dashopt_danger(exec_toks, pos, tokens)
                     or (not _anchor_preceded_by_data_head(exec_toks, pos, tokens)
                         and _anchor_in_launch_position(exec_vals, pos))):
                 return _block("P0", "protected launch-path anchor in executable position behind a front-end")
@@ -3608,8 +3712,20 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         # unrelated tool (`pytest -k <name>`, `grep <name>`) — so it still ALLOWS.
         # Also scan fused `--opt=<protected-cmd>` RHS when a launch subcommand follows.
         for pos, (_i, st) in enumerate(exec_toks):
-            base = os.path.basename(st)
+            # A token CONTAINING a slash is a PATH, never a command-word BASENAME
+            # launch. Its basename coincidentally matching a protected command
+            # name (a directory/file literally NAMED that basename — e.g. the
+            # worktree dir, a package dir, or any unrelated path) must NOT make a
+            # plain navigate/list/read/`-C`/copy/find/tar of that path a launch.
+            # Slash-bearing tokens are decided ONLY by the W1 launch-PATH matcher
+            # above (which BLOCKS the real protected entrypoints — the installed
+            # binaries and the dist/bin bundle paths — and ALLOWS unrelated paths
+            # that merely share a basename).
+            if "/" in st:
+                continue
+            base = st  # slashless ⇒ basename == token
             if base in cmds and (_anchor_in_command_word_position(exec_toks, pos, tokens)
+                                 or _anchor_after_dashopt_danger(exec_toks, pos, tokens)
                                  or (not _anchor_preceded_by_data_head(exec_toks, pos, tokens)
                                      and _anchor_in_launch_position(exec_vals, pos))):
                 return _block("P0", f"protected command anchor '{base}' in executable position behind a front-end")
