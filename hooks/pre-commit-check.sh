@@ -41,6 +41,10 @@ if [ "$AUTO_STAGE" = "1" ]; then
   STAGE_RC=0
   if [ -f "$RESOLVER" ] && command -v python3 >/dev/null 2>&1; then
     SSR_TMP=$(mktemp)
+    # use-source-venv: activate the framework venv before invoking python3, but
+    # only when it exists on disk — on a bare machine the resolver imports only
+    # the stdlib, so a missing venv must degrade gracefully (no abort).
+    [ -f "$HOME/.claude/venv/bin/activate" ] && . "$HOME/.claude/venv/bin/activate" || true
     if python3 "$RESOLVER" --repo "$PWD" autostage -z >"$SSR_TMP" 2>/dev/null; then
       xargs -0 -r git add -- <"$SSR_TMP"; STAGE_RC=$?
     else
