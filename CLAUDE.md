@@ -67,6 +67,14 @@ Enforced by `~/.claude/hooks/pretool-bash-safety.sh` (PreToolUse). Hook is the a
 
 ---
 
+## 🚳 No branch / PR / worktree creation outside dev-overnight
+
+**NON-NEGOTIABLE (2026-06-04).** Creating any **branch**, **PR**, or **worktree** is forbidden in every context — interactive, `/do`, subagent, automation — **except** while a live `/dev-overnight` session is active. This is the *only* exception: neither `/do` consent nor an `/allow` grant relaxes it.
+
+Enforced by `~/.claude/hooks/pretool-block-branch-pr-worktree.py` (PreToolUse, matcher `Bash|EnterWorktree`). Blocks `git branch <name>` / `checkout -b` / `switch -c` (and `--orphan` / copy forms), `git worktree add`, `gh pr create`, and the `EnterWorktree` tool. List / delete / rename / info forms of `git branch`, and `git worktree list/remove/prune`, remain allowed. Sole bypass: a live `overnight-state-*.json` under `<project>/.claude/`. To create one of these, run it from within `/dev-overnight`, or remove this hook from `settings.json`.
+
+---
+
 ## 🛡️ Subagent Hook Discipline
 
 **NON-NEGOTIABLE.** When a hook (PreToolUse / PostToolUse / Stop) rejects a command, the subagent MUST:
