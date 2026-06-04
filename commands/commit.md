@@ -79,7 +79,7 @@ Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/l
 
 Before dispatching changelog-analyst, write the appropriate authorization token:
 - **BULK=true**: the multi-use bulk-commit capability is now minted by the TRUSTED `userpromptsubmit-bulk-commit-capability.py` hook the moment the human submits `/commit --bulk` (an LLM cannot self-invoke a `disable-model-invocation: true` slash command, so the prompt itself is the trust root). The orchestrator MUST NOT emit a Bash command to write the sentinel — that fragile exact-string path is retired.
-  - PRIMARY: assume the hook already minted `/tmp/claude-bulk-commit-sentinel-<sid>-<nonce>.json` (origin `userpromptsubmit-hook`). Proceed directly to dispatch changelog-analyst (Step 6). An optional read-only check is a single bare `ls /tmp/claude-bulk-commit-sentinel-*.json`.
+  - PRIMARY: assume the hook already minted `/tmp/claude-bulk-commit-sentinel-<sid>-<nonce>.json` (origin `userpromptsubmit-hook`). Proceed to the **Step 5.5 pre-commit QA gate** (then Step 6) — `--bulk` is NOT exempt from the QA gate (only `FORCE=true` bypasses it). An optional read-only check is a single bare `ls /tmp/claude-bulk-commit-sentinel-*.json`.
   - FALLBACK (only if the capability hook is not yet active this session — e.g. it was just installed and the session has not reloaded settings.json): run the canonical writer EXACTLY, with NOTHING prepended or appended (no `cd`, no `echo`, no `2>&1`, no `; echo`), because the bash-safety Layer 1.F gate accepts only this one start-to-end string:
     ```bash
     source venv/bin/activate && python3 /root/.claude/scripts/write-bulk-commit-sentinel.py
