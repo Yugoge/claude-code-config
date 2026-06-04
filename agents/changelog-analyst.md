@@ -632,12 +632,11 @@ the full normal-mode workflow (Phases 1–10). One commit per task-id.
 
 ## Dry-run mode
 
-A dry-run is **NON-MUTATING**: classify the candidate set and report the plan, but do NOT
-stage (skip Phase 5's `git add`/`git rm`), do NOT commit, and do NOT write push-gate tokens.
-The index and working tree are left exactly as found — so the `/commit` Step 5.5 QA gate can
-review the working-tree diffs of the would-commit set, and any subsequent real dispatch starts
-from a clean index. The "staged file list" printed below is the **classified would-stage set**
-(computed), not an actually-staged index.
+A dry-run classifies + stages the candidate set (Phases 1–6 run normally) but stops BEFORE the
+commit: it does NOT execute `git commit` and does NOT write push-gate tokens. The staged index
+is what `/commit` Step 5.5b reviews via `git diff --cached`; Step 5.5c then unstages it
+(`git restore --staged`) on REJECT / dry-run-stop, or the real Step 6 dispatch commits the
+QA-approved set (bounded by `QA_APPROVED_FILES`).
 
 **Normal mode (BULK=false)** — if `DRYRUN=true`, at Phase 8:
 - Print: `DRY RUN — would commit:`
