@@ -384,7 +384,14 @@
           }
         ]
       },
-      { "hooks": [ { "type": "command", "command": "python3 \"$HOME/.claude/hooks/userpromptsubmit-bulk-commit-capability.py\"" } ] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/userpromptsubmit-bulk-commit-capability.py\""
+          }
+        ]
+      }
     ],
     "PreToolUse": [
       {
