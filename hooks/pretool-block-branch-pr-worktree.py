@@ -230,25 +230,79 @@ def _detect(command):
 
 
 # ---------------------------------------------------------------------------
+# Bypass checks (overnight handled inline in main; these are the two
+# human-authorized escape hatches the user chose to preserve).
+# ---------------------------------------------------------------------------
+def _get_session_id(data):
+    try:
+        return str(data.get('session_id', '') or '')
+    except Exception:
+        return ''
+
+
+def _has_do_consent(data):
+    """True iff the main agent holds /do consent for this session."""
+    if data.get('agent_id'):  # subagents never qualify for /do
+        return False
+    sid = _get_session_id(data)
+    if not sid:
+        return False
+    try:
+        flag = Path(f'/tmp/claude-orchestrator-consent-{sid}.flag')
+        return flag.exists() and flag.read_text().strip() == 'true'
+    except Exception:
+        return False
+
+
+def _allow_grant_matches(command, data):
+    """True iff a /allow grant authorizes this command.
+
+    Sentinel grants reach subagents and the main agent (mirrors the M2 decision
+    in pretool-git-privilege-guard.py); the legacy pattern grant is
+    main-agent-only.
+    """
+    sid = _get_session_id(data)
+    task_id = os.environ.get('CLAUDE_TASK_ID') or sid
+    try:
+        if task_id and match_sentinel_grant_for_bash_command(task_id, command) is not None:
+            return True
+    except Exception:
+        pass
+    if data.get('agent_id'):
+        return False
+    if not sid:
+        return False
+    try:
+        return match_grant_for_bash_command(command, sid) is not None
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
 # Blocking.
 # ---------------------------------------------------------------------------
 _POLICY = (
-    'Policy (2026-06-04): branch / PR / worktree creation is forbidden in every '
-    'context EXCEPT a live /dev-overnight session. dev-overnight is the SOLE '
-    'exception — no /do consent and no /allow grant relaxes this rule.\n'
-    'To create one of these, run it from within /dev-overnight, or remove this '
-    'rule from settings.json (hook: pretool-block-branch-pr-worktree.py).\n'
+    'Policy (2026-06-04): branch / PR / worktree creation is forbidden outside a '
+    'live /dev-overnight session.\n'
+    'Escape hatches: run it inside /dev-overnight, or (main agent) use /do, or '
+    '/allow the specific command first.\n'
 )
 
 
-def _block(kind, detail):
-    sys.stderr.write(
-        '\nBLOCKED: %s creation is forbidden outside /dev-overnight.\n'
-        '%s%s'
-        % (kind,
-           ('Command excerpt: %s\n' % detail[:200]) if detail else '',
-           _POLICY)
-    )
+def _block(kind, command, data):
+    lines = [
+        '',
+        f'BLOCKED: {kind} creation is forbidden outside /dev-overnight.',
+    ]
+    if command:
+        lines.append(f'Command excerpt: {command[:200]}')
+    lines.append('')
+    lines.append(_POLICY.rstrip('\n'))
+    if data.get('agent_id'):
+        lines.append(
+            'You are a subagent: PAUSE and report this block to the user per '
+            'Subagent Hook Discipline — do NOT attempt to work around it.')
+    sys.stderr.write('\n'.join(lines) + '\n')
     sys.exit(2)
 
 
@@ -258,21 +312,22 @@ def main():
     except Exception:
         sys.exit(0)
     try:
-        tool = data.get('tool_name', '')
-        if tool not in ('Bash', 'EnterWorktree'):
+        if data.get('tool_name', '') != 'Bash':
             sys.exit(0)
-        # The single exception: a live /dev-overnight session owned by this session.
-        if _is_overnight_active(data):
-            sys.exit(0)
-        if tool == 'EnterWorktree':
-            _block('worktree (EnterWorktree)', '')
-        # tool == 'Bash'
         command = (data.get('tool_input', {}) or {}).get('command', '') or ''
         if not command.strip():
             sys.exit(0)
         kind = _detect(command)
-        if kind:
-            _block(kind, command)
+        if not kind:
+            sys.exit(0)
+        # Bypasses — any one allows the operation.
+        if is_overnight_active(data.get('cwd')):
+            sys.exit(0)
+        if _has_do_consent(data):
+            sys.exit(0)
+        if _allow_grant_matches(command, data):
+            sys.exit(0)
+        _block(kind, command, data)
     except SystemExit:
         raise
     except Exception:
