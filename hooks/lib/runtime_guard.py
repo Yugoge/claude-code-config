@@ -130,11 +130,6 @@ SERVICE_VERBS = frozenset({
 })
 # Generic build verbs / tool basenames for fail-closed + bare-build family.
 BUILD_TOOL_BASENAMES = frozenset({"tsc", "pkgroll", "tsup", "rollup", "esbuild", "vite", "webpack"})
-# Generic script tokens treated as bare-build-family verbs (no project names).
-BARE_BUILD_SCRIPT_TOKENS = frozenset({
-    "build", "test", "start", "dev", "prepublishOnly", "prepublish",
-    "dev:local-server", "compile", "bundle",
-})
 DEP_SHORTHAND_NPM = frozenset({"start", "stop", "restart", "test"})
 
 # ── Read / inspection / edit ALLOWLIST (the ONLY fixed head list) ────────────
