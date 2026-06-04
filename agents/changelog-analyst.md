@@ -858,9 +858,10 @@ If the `git commit --allow-empty` in Recovery step 3 fails (hook blocked, git er
   `committed` (success) or `failed` (failure). The `nothing_to_commit_precommitted` value is
   never emitted by the recovery path itself.
 
-**BULK=true guard**: This entire recovery path executes ONLY when `BULK=false`. When `BULK=true`,
+**BULK=true / DRYRUN guard**: This entire recovery path executes ONLY when `BULK=false` AND `DRYRUN=false`. When `BULK=true`,
 the three conditions above trigger `nothing_to_commit_precommitted` status as before (bulk mode
-has its own loop-continuation semantics and does not use the recovery path).
+has its own loop-continuation semantics and does not use the recovery path). When `DRYRUN=true`, the
+recovery path is disabled per the DRYRUN guard above (no commit, no grant consume, no push-gate write).
 
 ### auto_bulk_commits array
 
