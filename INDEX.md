@@ -1,7 +1,7 @@
 # dot-claude
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-04T21:09:49Z*
+*Last updated: 2026-06-04T21:14:15Z*
 **Total entries**: 14116
 **Convention**: kebab
 
@@ -4049,6 +4049,7 @@ dot-claude/
 │   │   ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.
 │   │   ├── `closeout.py` - Public API:
 │   │   ├── `contract_runtime.py` - This module is the single shared engine consumed by every contract-aware
+│   │   ├── `overnight.py` - Single source of truth for the question "is a /dev-overnight session currently
 │   │   ├── `policy_registry.py` - Reads /root/.claude/policies/tool-policy.v1.json and provides a single
 │   │   ├── `runtime_guard.py` - This module contains ZERO project identifiers. Every project-specific name
 │   │   ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
@@ -12329,7 +12330,6 @@ dot-claude/
 │   ├── `9ebcf56a-4746-482b-9d54-425708096fcf-agent-9ebcf56a-4746-482b-9d54-425708096fcf.json` - json config
 │   ├── `9ed46903-7acc-4e10-844f-10a47f5f60b1-agent-9ed46903-7acc-4e10-844f-10a47f5f60b1.json` - json config
 │   ├── `9ed7cd9d-eea1-477e-9bbc-7323c8894796-agent-9ed7cd9d-eea1-477e-9bbc-7323c8894796.json` - json config
-│   ├── `9eec09ad-cae4-43f3-9a79-3c2729d99da7-agent-9eec09ad-cae4-43f3-9a79-3c2729d99da7.json` - json config
 │   ├── `9f008558-7058-4154-b208-70c67e989234-agent-9f008558-7058-4154-b208-70c67e989234.json` - json config
 │   ├── `9f185188-4149-4089-a1fa-f5b23cf18703-agent-9f185188-4149-4089-a1fa-f5b23cf18703.json` - json config
 │   ├── `9f28dfd5-75f4-4669-b369-6707e94ab963-agent-9f28dfd5-75f4-4669-b369-6707e94ab963.json` - json config
