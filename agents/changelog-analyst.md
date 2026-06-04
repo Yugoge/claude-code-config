@@ -573,6 +573,10 @@ while ITERATION < MAX_ITERATIONS:
     # For each subsystem group:
     #   Acquire lock, pre-staged verify, stage, build message, commit, push-gate write
     For each subsystem_group in groups:
+        # DRYRUN=true: do NOT commit this group. Print its would-commit message + file list
+        # and CONTINUE to the next group (enumerate the whole sweep — see "Dry-run mode").
+        # Phase 8's "stop here" applies to normal mode only; under bulk DRYRUN, never
+        # early-stop and never enter the real-commit path.
         Perform Phase 3–10 for this group only
         # Build COMMIT_MSG AFTER staging this group's files (inside Phase 6).
         # BULK mode REQUIRES the auto-bulk: prefix (dispatched via commit.md Step 6);
