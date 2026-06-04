@@ -76,7 +76,7 @@ Set `SID="${CLAUDE_SESSION_ID:-unknown}"`. In non-bulk mode, check for `/tmp/cla
 
 For each file in the current git status that is NOT in `DISPATCH_FILES` (and `DISPATCH_FILES` is non-empty):
 Print: `WARNING: file <path> appeared after dispatch (possible foreign session); deferring staging decision to Phase 2.`
-Phase 0 is **warn-only / classification**: do NOT make any staging or exclusion decision here. The authoritative staging decision is made in Phase 2 below, where the BULK=false dev-report whitelist filter and the `foreign_session_candidate` exclusion are applied. This warning is informational only and surfaces dispatch-time vs current-time drift; whether a flagged file is ultimately staged is determined by the Phase 2 whitelist (when BULK=false and dev-report exists) or by the BULK=true include-all behavior. Bulk mode (BULK=true): skip this check entirely.
+Phase 0 is **warn-only / classification**: do NOT make any staging or exclusion decision here. The authoritative staging decision is made in Phase 2 below, where the BULK=false dev-report whitelist filter and the `foreign_session_candidate` exclusion are applied. This warning is informational only and surfaces dispatch-time vs current-time drift; whether a flagged file is ultimately staged is determined by the Phase 2 whitelist (when BULK=false and dev-report exists) or by the BULK=true agent-judgment classification (real, attributable work vs. transient byproduct). Bulk mode (BULK=true): skip this check entirely.
 
 ### Phase 2: File classification
 
