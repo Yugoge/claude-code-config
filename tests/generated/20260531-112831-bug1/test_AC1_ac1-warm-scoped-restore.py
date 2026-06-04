@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import re
 
 AC_UID = "ac1-warm-scoped-restore"
 AC_TYPE = "data"
@@ -17,7 +17,7 @@ def test_AC1():
     WHEN:  happy-daemon-dev.service ExecStartPost fires post-start.sh with HAPPY_HOME_DIR=/root/.happy-dev
     THEN:  The nohup command spawned includes `happy-session-recovery.sh restore --home /root/.happy-dev`
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — warm-restart path produces scoped restore invocation with --home")
+    with open("/root/bin/happy-daemon-post-start.sh") as f:
+        content = f.read()
+    assert re.search(r"happy-session-recovery\.sh restore --home", content) is not None, \
+        "Expected warm-restart path to invoke 'happy-session-recovery.sh restore --home' but pattern not found"
