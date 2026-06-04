@@ -43,9 +43,7 @@ Exit codes
 
 import json
 import os
-import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -53,103 +51,16 @@ try:
     from lib.bash_context_strip import strip_non_executable_contexts
 except Exception:  # pragma: no cover - lib always present in repo
     strip_non_executable_contexts = None
+from lib.allowlist import (  # noqa: E402
+    match_grant_for_bash_command,
+    match_sentinel_grant_for_bash_command,
+)
+from lib.overnight import is_overnight_active  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
-# Sole-exception detection: a live /dev-overnight session owned by this session.
-# ---------------------------------------------------------------------------
-def _get_session_id(data):
-    try:
-        return str(data.get('session_id', '') or '')
-    except Exception:
-        return ''
-
-
-def _end_time_passed(end_str):
-    try:
-        end = datetime.fromisoformat(str(end_str).replace('Z', '+00:00'))
-    except (ValueError, TypeError, AttributeError):
-        return True
-    if end.tzinfo is None:
-        return datetime.now() > end
-    return datetime.now(timezone.utc) > end
-
-
-def _candidate_project_dirs(data):
-    """Dirs whose .claude/ may hold the overnight-state file.
-
-    The state file lives in the MAIN repo's .claude/. The overnight orchestrator
-    runs with CLAUDE_PROJECT_DIR pointing at that repo, so it is the primary
-    signal; payload cwd, getcwd, and git-toplevel are best-effort fallbacks.
-    """
-    dirs = []
-    candidates = [
-        os.environ.get('CLAUDE_PROJECT_DIR'),
-        data.get('cwd') if isinstance(data, dict) else None,
-        os.getcwd(),
-    ]
-    for d in candidates:
-        if d and d not in dirs:
-            dirs.append(d)
-    try:
-        top = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
-            capture_output=True, text=True, timeout=3,
-        )
-        if top.returncode == 0:
-            t = (top.stdout or '').strip()
-            if t and t not in dirs:
-                dirs.append(t)
-    except Exception:
-        pass
-    return dirs
-
-
-def _state_grants_bypass(sf, sid):
-    """True iff sf is a live overnight-state file owned by session `sid`.
-
-    Ownership (state['session_id'] == caller sid) is what makes the bypass
-    unforgeable in practice: an agent cannot self-grant by planting a state
-    file, because writes to .claude/overnight-state-*.json are blocked by
-    pretool-overnight-hook-guard.py, and a file owned by a *different* session
-    does not match. An empty caller sid never matches.
-    """
-    if not sid:
-        return False
-    try:
-        if sf.stat().st_size == 0:
-            return False
-        state = json.loads(sf.read_text())
-    except (OSError, ValueError):
-        return False
-    if not isinstance(state, dict):
-        return False
-    if str(state.get('session_id', '')) != sid:
-        return False
-    if state.get('current_phase', '') in ('complete', 'completed'):
-        return False
-    if _end_time_passed(state.get('end_time', '')):
-        return False
-    return True
-
-
-def _is_overnight_active(data):
-    sid = _get_session_id(data)
-    if not sid:
-        return False
-    for d in _candidate_project_dirs(data):
-        try:
-            for sf in Path(d).glob('.claude/overnight-state-*.json'):
-                if _state_grants_bypass(sf, sid):
-                    return True
-        except Exception:
-            continue
-    return False
-
-
-# ---------------------------------------------------------------------------
-# Command classification. Operates on whitespace tokens of each shell segment
-# of the context-stripped command (quotes/comments/heredocs already removed).
+# Command classification. Operates on whitespace tokens of each shell segment of
+# the context-stripped command.
 # ---------------------------------------------------------------------------
 def _norm(command):
     if strip_non_executable_contexts:
@@ -161,6 +72,7 @@ def _norm(command):
 
 
 def _segments(c):
+    """Split on shell separators ; \n | & && || ` ( ) into command segments."""
     out, buf, i, n = [], [], 0, len(c)
     while i < n:
         two = c[i:i + 2]
