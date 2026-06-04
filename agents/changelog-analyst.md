@@ -627,12 +627,24 @@ the full normal-mode workflow (Phases 1–10). One commit per task-id.
 
 ## Dry-run mode
 
-If `DRYRUN=true`, at Phase 8:
+**Normal mode (BULK=false)** — if `DRYRUN=true`, at Phase 8:
 - Print: `DRY RUN — would commit:`
 - Print the commit message
 - Print the staged file list
 - Stop. Do NOT execute `git commit`. Do NOT write push-gate token.
 - Emit the structured output block with `commit_status: dryrun` (see `## Structured Final Status Output`).
+
+**Bulk mode (BULK=true) + DRYRUN=true** — run the FULL bulk classification (whole-repo scan
++ the agent real-work-vs-byproduct judgment + task-id/subsystem grouping), then enumerate the
+ENTIRE would-commit sweep WITHOUT committing:
+- For EACH group that would be committed, print its proposed `auto-bulk:` commit message and
+  its file list. Do NOT stop after the first group — enumerate every group.
+- Do NOT execute any `git commit`, do NOT write any push-gate token, do NOT enter the commit
+  loop's real-commit path.
+- Emit the structured output block ONCE at the end with `commit_status: dryrun` and the
+  complete planned file set across all groups.
+This whole-sweep plan is what the `/commit` Step 5.5 pre-commit QA gate consumes to review a
+bulk commit before any real commit happens.
 
 ---
 
