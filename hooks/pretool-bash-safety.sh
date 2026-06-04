@@ -1044,32 +1044,37 @@ for t in tokens:
 # These reach here because they have no compound separators, no recursive shell,
 # and no write-action tokens. The shlex tokenizer (posix=True) unquotes the
 # string arg, so the protected name appears as a substring of the arg token.
-_SENTINEL_SCRIPT = 'write-bulk-commit-sentinel.py'
+_PROTECTED_SCRIPTS = ('write-bulk-commit-sentinel.py', 'userprompt-bulk-commit-capability.py')
 _SENTINEL_PATH = '/tmp/claude-bulk-commit-sentinel-'
-_sentinel_in_arg_only = False
+_protected_standalone = False   # a real executable/path reference
+_protected_in_arg = False       # only embedded in a longer argument token
 for _t in tokens:
-    # If any token IS the standalone path (or a path ending with it), it is a
-    # real executable reference — no false-positive guard applies.
-    if _t == _SENTINEL_SCRIPT or _t.endswith('/' + _SENTINEL_SCRIPT):
-        _sentinel_in_arg_only = False
-        break
+    for _ps in _PROTECTED_SCRIPTS:
+        if _t == _ps or _t.endswith('/' + _ps):
+            _protected_standalone = True
+        elif _ps in _t:
+            _protected_in_arg = True
     if _t.startswith(_SENTINEL_PATH) and not any(c in _t[len(_SENTINEL_PATH):] for c in ' \t'):
-        _sentinel_in_arg_only = False
-        break
-    # Protected name appears embedded in a longer token (argument text).
-    if _SENTINEL_SCRIPT in _t or _SENTINEL_PATH in _t:
-        _sentinel_in_arg_only = True
-if _sentinel_in_arg_only:
+        _protected_standalone = True
+    elif _SENTINEL_PATH in _t:
+        _protected_in_arg = True
+# Name appears ONLY as argument text (e.g. a codex prompt discussing it), never as
+# a standalone executable/path token -> benign read, allow.
+if _protected_in_arg and not _protected_standalone:
     print('PURE_READ')
     sys.exit(0)
 
-# Allowlist (a): BARE official-writer — first token (or first 2 tokens for
-# `python3 scripts/...`) must match the official writer path EXACTLY. The
-# regex form is preserved on the trimmed text but ONLY reaches here when the
-# command has no compound/write/dangerous shape.
-BARE_WRITER_RE = re.compile(r'^(python3?\s+)?scripts/write-bulk-commit-sentinel\.py(\s|$)')
-if BARE_WRITER_RE.match(trimmed):
-    print('BARE_WRITER')
+# Stage-2 lockdown: the canonical writer is NO LONGER Bash-executable. The bulk
+# sentinel is minted ONLY by the trusted userprompt-bulk-commit-capability hook
+# (in-process, never via the Bash tool), so no BARE_WRITER allow-path remains.
+# Git operations on the protected source files (add/status/diff/commit/mv/rm/
+# restore/log/show/...) are legitimate version-control actions, NOT execution of
+# the writer/hook to mint a sentinel -- allow them. All dangerous compound /
+# redirect / recursive-shell / cmd-sub shapes were already DENYed by the gauntlet
+# above, so a bare `git ...` reaching here is safe; the separate privilege guard
+# (pretool-git-privilege-guard.py) still independently gates the actual commit/push.
+if tokens and tokens[0] == 'git':
+    print('PURE_READ')
     sys.exit(0)
 
 # Allowlist (b): single pure-read invocation. First token must be a pure-read verb.
