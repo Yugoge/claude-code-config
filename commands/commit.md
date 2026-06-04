@@ -31,6 +31,7 @@ Parse `$ARGUMENTS`:
 - Strip `--force` if present → set `FORCE=true`; else `FORCE=false`
 - Strip `--bulk` if present → set `BULK=true`; else `BULK=false`
 - Strip `--dry-run` if present → set `DRYRUN=true`; else `DRYRUN=false`
+- Strip `--codex` if present → set `QA_CODEX=true`; else `QA_CODEX=false`
 - Remaining token (if any) is `TASK_ID`
 
 ### Step 2: Resolve task-id (unless --bulk)
