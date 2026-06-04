@@ -1,8 +1,8 @@
 # dot-claude
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-04T21:14:15Z*
-**Total entries**: 14116
+*Last updated: 2026-06-04T21:23:27Z*
+**Total entries**: 14113
 **Convention**: kebab
 
 ## Tree
@@ -4066,7 +4066,7 @@ dot-claude/
 │   │   ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 │   │   ├── `test_bash_safety_context.py` - Tests strip_non_executable_contexts() in isolation, covering the main
 │   │   ├── `test_bash_safety_context_rules.py` - converted to COMMAND_CONTEXT_STRIPPED in hooks/pretool-bash-safety.sh
-│   │   ├── `test_block_branch_pr_worktree.py` - The hook forbids branch / PR / worktree CREATION in every context EXCEPT a live
+│   │   ├── `test_block_branch_pr_worktree.py` - The hook forbids branch / PR / worktree CREATION on the Bash surface, with three
 │   │   ├── `test_bulk_commit_sentinel.py` - Covers:
 │   │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 │   │   ├── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
@@ -4421,6 +4421,7 @@ dot-claude/
 │   │   ├── 3450e035-43dd-4315-a579-da12fea63d86/
 │   │   ├── 3b096873-4512-4c2a-9fb4-66c48c41d028/
 │   │   ├── 3df3f899-b68f-4732-ae11-f9b08294287c/
+│   │   ├── 44e208af-b8b8-4266-a2ba-fcfc77f92d24/
 │   │   ├── 4879f0f3-690f-4a26-b3fe-3eea5401ffa4/
 │   │   ├── 49cb1f11-c873-4086-bcfa-c2ed345cc548/
 │   │   ├── 4c690b32-0923-4d38-9a78-3b330c5e991f/
@@ -9043,7 +9044,6 @@ dot-claude/
 │   ├── `1689085.json` - json config
 │   ├── `1807831.json` - json config
 │   ├── `1834241.json` - json config
-│   ├── `2116050.json` - json config
 │   ├── `285455.json` - json config
 │   ├── `2935017.json` - json config
 │   ├── `3064144.json` - json config
@@ -9313,7 +9313,6 @@ dot-claude/
 │   ├── `snapshot-bash-1780404107705-lgw507.sh` - Snapshot file
 │   ├── `snapshot-bash-1780404135963-s1ghs4.sh` - Snapshot file
 │   ├── `snapshot-bash-1780416082418-xg6oh9.sh` - Snapshot file
-│   ├── `snapshot-bash-1780433977884-vgapyz.sh` - Snapshot file
 │   ├── `snapshot-bash-1780476789668-qlu2ag.sh` - Snapshot file
 │   ├── `snapshot-bash-1780513781270-5tqbtt.sh` - Snapshot file
 │   ├── `snapshot-bash-1780514485876-l9nb85.sh` - Snapshot file
@@ -9321,7 +9320,8 @@ dot-claude/
 │   ├── `snapshot-bash-1780583215944-42y90u.sh` - Snapshot file
 │   ├── `snapshot-bash-1780583399192-sgmupb.sh` - Snapshot file
 │   ├── `snapshot-bash-1780606738697-7fl0o8.sh` - Snapshot file
-│   └── `snapshot-bash-1780607147590-u3e76l.sh` - Snapshot file
+│   ├── `snapshot-bash-1780607147590-u3e76l.sh` - Snapshot file
+│   └── `snapshot-bash-1780607690496-xwb554.sh` - Snapshot file
 ├── skills/
 │   ├── docx/
 │   │   ├── `docx-js.md` - DOCX Library Tutorial
@@ -13001,7 +13001,6 @@ dot-claude/
 │   ├── `c7591712-a20d-4aa1-9eda-1ee9bedb9600-agent-c7591712-a20d-4aa1-9eda-1ee9bedb9600.json` - json config
 │   ├── `c75b9780-efe3-4d6b-acdf-ca57384ae5f3-agent-c75b9780-efe3-4d6b-acdf-ca57384ae5f3.json` - json config
 │   ├── `c761d90f-7c1f-49ba-ae32-b75f35fe491f-agent-c761d90f-7c1f-49ba-ae32-b75f35fe491f.json` - json config
-│   ├── `c763409f-c7b9-44b6-b892-4d1a6c5ab1a2-agent-c763409f-c7b9-44b6-b892-4d1a6c5ab1a2.json` - json config
 │   ├── `c773b4a3-3eeb-4af1-a5ac-3fe68d41cf4c-agent-c773b4a3-3eeb-4af1-a5ac-3fe68d41cf4c.json` - json config
 │   ├── `c77e9adb-ceb7-45f6-b579-394e5554ded1-agent-c77e9adb-ceb7-45f6-b579-394e5554ded1.json` - json config
 │   ├── `c791ced7-a730-4433-8786-6633526e1222-agent-c791ced7-a730-4433-8786-6633526e1222.json` - json config
@@ -13691,7 +13690,6 @@ dot-claude/
 │   ├── `eed823f5-f3a2-43ef-8504-a66dacc49758-agent-eed823f5-f3a2-43ef-8504-a66dacc49758.json` - json config
 │   ├── `eed94308-2802-43d9-9753-881656347d18-agent-eed94308-2802-43d9-9753-881656347d18.json` - json config
 │   ├── `eedca221-e570-48d1-8a23-59d598dd8dff-agent-eedca221-e570-48d1-8a23-59d598dd8dff.json` - json config
-│   ├── `eeeabad1-554e-4a04-a040-149797afaed7-agent-eeeabad1-554e-4a04-a040-149797afaed7.json` - json config
 │   ├── `eef81071-64fa-48dc-b00d-76acfab4831c-agent-eef81071-64fa-48dc-b00d-76acfab4831c.json` - json config
 │   ├── `ef02a828-dfa9-4239-8f87-e261e6c64d9d-agent-ef02a828-dfa9-4239-8f87-e261e6c64d9d.json` - json config
 │   ├── `ef0797e3-04cf-40dd-8fe9-11c49c05d493-agent-ef0797e3-04cf-40dd-8fe9-11c49c05d493.json` - json config
@@ -14118,7 +14116,6 @@ dot-claude/
 ├── `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 ├── `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
 ├── `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
-├── `workflow-c763409f-c7b9-44b6-b892-4d1a6c5ab1a2.json` - json config
 ├── `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
 ├── `workflow-dd3a870c-9440-4274-896f-462dfe972646.json` - json config
 ├── `workflow-eaa1077b-49ad-4697-8e01-e4a923d2b116.json` - json config
