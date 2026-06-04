@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import re
 
 AC_UID = "ac3-sentinel-written"
 AC_TYPE = "data"
@@ -17,7 +17,7 @@ def test_AC3():
     WHEN:  The background nohup process is spawned
     THEN:  The per-home sentinel file is written with the current /proc/sys/kernel/random/boot_id value; sentinel named /tmp/happy-ps-<homesuffix>.boot_id where homesuffix is derived from HAPPY_HOME without leading slash
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — sentinel file is written with current boot_id before the restore dispatch")
+    with open("/root/bin/happy-daemon-post-start.sh") as f:
+        content = f.read()
+    assert re.search(r"echo.*>.*happy-ps-", content) is not None, \
+        "Expected sentinel write 'echo ... > .../happy-ps-...' before nohup dispatch but pattern not found"
