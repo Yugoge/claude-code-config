@@ -144,6 +144,41 @@ def _basename(tok):
     return tok.rsplit('/', 1)[-1]
 
 
+# Command WRAPPERS that prefix the real command token (basename match). The real
+# command token is the first token after skipping leading env-var assignments
+# (NAME=VALUE) and any of these wrappers. Only that one command token is
+# classified — text that merely mentions git/gh later in the segment (e.g.
+# `echo gh pr new`) is therefore NOT a creation.
+_WRAPPERS = {
+    'sudo', 'doas', 'env', 'xargs', 'time', 'nohup', 'setsid', 'stdbuf',
+    'ionice', 'command', 'builtin', 'nice',
+}
+
+import re as _re  # noqa: E402
+
+_ENV_ASSIGN_RE = _re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
+
+
+def _command_token_index(toks):
+    """Return the index of the segment's COMMAND token, or None.
+
+    Skips leading env-var assignments (NAME=VALUE) and known command wrappers
+    (basename match). Returns the index of the first real command token.
+    """
+    i = 0
+    n = len(toks)
+    while i < n:
+        t = toks[i]
+        if _ENV_ASSIGN_RE.match(t):
+            i += 1
+            continue
+        if _basename(t) in _WRAPPERS:
+            i += 1
+            continue
+        return i
+    return None
+
+
 # git global options that consume a separate following value token.
 _GIT_GLOBAL_VALUE = {
     '-C', '-c', '--git-dir', '--work-tree', '--namespace',
