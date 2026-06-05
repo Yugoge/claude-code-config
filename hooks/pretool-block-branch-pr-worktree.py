@@ -52,6 +52,18 @@ sandbox, mitigated by the /do consent and /allow grant escape hatches):
   - remote-branch creation via `git push <remote> <src>:refs/heads/x` is
     intentionally NOT handled here because pretool-git-privilege-guard.py already
     default-denies all agent `git push`.
+  - a quoted-subcommand / backslash-escape evasion (`git 'checkout' -b x`,
+    `\git checkout -b x`): the quoted/escaped token is removed by _norm's
+    context-strip before tokenizing, so the inner command is never seen — same
+    class as the eval/sh -c interpreter-string limit above.
+  - a wrapper that consumes its OWN value args before the command (e.g.
+    `nice -n 5 git checkout -b x`): _command_token_index skips wrappers but not
+    their value args, so the command token resolves to `5` and the segment is
+    not classified. Exotic and accepted — escape hatches cover the rare case.
+  - `git symbolic-ref HEAD refs/heads/x`: repoints HEAD but creates no branch
+    ref object (the branch materializes only on the first commit) — out of scope.
+  - `git init -b <name>`: creates a new repository, not a branch in the working
+    repo — out of scope.
 
 Bypass order (any one → allow):
   1. live /dev-overnight session   (lib.overnight.is_overnight_active)
