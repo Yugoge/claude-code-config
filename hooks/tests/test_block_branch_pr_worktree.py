@@ -84,6 +84,14 @@ def _bash(cmd, **extra):
     'git branch --format=%(refname) nb',
     'git branch --abbrev=7 nb',
     'git branch --format %(refname) nb',  # space value THEN positional name
+    # ── BUG 3 regressions: --color/--column/--abbrev are OPTIONAL-attached-value
+    #    flags (`--flag[=v]`); a SPACE-separated token is the next POSITIONAL, not
+    #    the flag value, so git CREATES a branch from it. Live-git confirmed
+    #    (2026-06-05): `git branch --color always` makes branch `always`, etc. ──
+    'git branch --color always',
+    'git branch --column always',
+    'git branch --abbrev 7',
+    'git branch --color always extra',    # two positionals after boolean flag
     # ── BUG 2 regressions: -t/--track create a local tracking branch; switch
     #    --guess is explicit guess-create → must BLOCK ─────────────────────────
     'git checkout -t origin/foo',
