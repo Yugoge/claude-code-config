@@ -155,40 +155,84 @@ def _is_co_sw_create(sub, sa):
     return False
 
 
-# `git branch` is overloaded. Any of these op flags => NOT a creation.
-_BRANCH_NON_CREATE_FLAGS = {
-    '-d', '-D', '--delete', '-m', '-M', '--move', '--edit-description',
-    '--show-current', '--list', '-l', '-a', '--all', '-r', '--remotes',
-    '-v', '--verbose', '--merged', '--no-merged', '--contains',
-    '--no-contains', '--points-at', '--unset-upstream', '--set-upstream-to',
-    '-u', '--column', '--no-column', '--sort', '--format', '--color',
-    '--no-color', '--abbrev', '--no-abbrev', '-h', '--help',
+# `git branch` is overloaded — display/formatting flags are ORTHOGONAL to
+# creation (they can accompany either a list OR a create), so they MUST NOT veto
+# creation. The classifier below is a left-to-right token parser, not a set
+# membership test, because value-consuming flags (--sort X, --format X,
+# --points-at X, -u X, ...) take a separate following token that must NOT be
+# mistaken for a positional branch name.
+
+# Long-opt VETO flags → exclusive op or list/query mode → NOT creation.
+_BRANCH_VETO_LONG = {
+    '--delete', '--move', '--edit-description', '--list', '--all', '--remotes',
+    '--show-current', '--merged', '--no-merged', '--contains', '--no-contains',
+    '--points-at', '--set-upstream-to', '--unset-upstream', '--help',
 }
-_BRANCH_COPY_CREATE_FLAGS = {'-c', '-C', '--copy'}
+# Short VETO letters (in a cluster, any of these → veto).
+_BRANCH_VETO_SHORT = set('dDmMlaruh')
+# Long-opt COPY flags → creation.
+_BRANCH_COPY_LONG = {'--copy'}
+# Short COPY letters → creation.
+_BRANCH_COPY_SHORT = set('cC')
+# Long flags that consume the NEXT token as their value (when not attached '=').
+_BRANCH_VALUE_LONG = {
+    '--contains', '--no-contains', '--merged', '--no-merged', '--points-at',
+    '--sort', '--format', '--color', '--column', '--abbrev', '--set-upstream-to',
+}
 
 
 def _branch_creates(sa):
-    flags = set()
-    positionals = []
+    """Left-to-right parse of `git branch` args. Returns True iff it creates.
+
+    VETO flag seen      -> False (exclusive op / list / query mode).
+    else COPY flag seen -> True  (-c/-C/--copy copies => creation).
+    else >=1 positional -> True  (a bare branch name => creation).
+    else                -> False (list / display-only, no name).
+
+    Value-consuming flags swallow their following token so a space-separated
+    value (e.g. `--sort refname`, `--format %(refname)`) is never read as a
+    positional branch name. Display/boolean flags (-v, --verbose, -q, --quiet,
+    --no-color, --no-column, --no-abbrev, and any unrecognized -x) are ignored —
+    they neither veto nor positional. Veto short-circuits immediately, so a veto
+    flag's space-separated value is never mis-read as a positional.
+    """
+    saw_copy = False
+    positionals = 0
     j = 0
-    while j < len(sa):
+    n = len(sa)
+    while j < n:
         x = sa[j]
         if x == '--':
-            positionals.extend(t for t in sa[j + 1:] if t)
+            # everything after is positional
+            for t in sa[j + 1:]:
+                if t:
+                    positionals += 1
             break
         if x.startswith('--'):
-            flags.add(x.split('=', 1)[0])
-        elif x.startswith('-') and len(x) > 1:
-            for ch in x[1:]:           # split short-option clusters: -rl -> -r,-l
-                flags.add('-' + ch)
+            base = x.split('=', 1)[0]
+            attached = '=' in x
+            if base in _BRANCH_VETO_LONG:
+                return False  # short-circuit; do not consume a value as positional
+            if base in _BRANCH_COPY_LONG:
+                saw_copy = True
+            elif base in _BRANCH_VALUE_LONG and not attached:
+                j += 1  # swallow the separate value token
+            # else: display/boolean long flag (--verbose, --no-color, ...) ignored
+        elif base_u := (x.startswith('-') and len(x) > 1):  # noqa: F841
+            cluster = set(x[1:])
+            if cluster & _BRANCH_VETO_SHORT:
+                return False
+            if cluster & _BRANCH_COPY_SHORT:
+                saw_copy = True
+            elif x == '-u':
+                j += 1  # -u == --set-upstream-to: swallow value (also veto-ish)
+            # else: display/boolean short cluster (-v, -q, -vv, ...) ignored
         else:
-            positionals.append(x)
+            positionals += 1
         j += 1
-    if flags & _BRANCH_NON_CREATE_FLAGS:   # list/delete/rename/upstream/info
-        return False
-    if flags & _BRANCH_COPY_CREATE_FLAGS:  # -c/-C/--copy copies => creation
+    if saw_copy:
         return True
-    return len(positionals) > 0            # a bare name => creation
+    return positionals > 0
 
 
 # gh global flags that consume a separate following value token.
