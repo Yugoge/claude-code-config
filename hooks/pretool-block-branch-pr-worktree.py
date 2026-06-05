@@ -441,30 +441,38 @@ def _is_gh_pr_create(args):
 
 
 def _classify_segment(seg):
-    """Return the creation kind ('worktree'|'PR'|'branch') in seg, or None."""
+    """Return the creation kind ('worktree'|'PR'|'branch') in seg, or None.
+
+    Classifies ONLY the segment's COMMAND token (the first token after skipping
+    leading env-var assignments and known wrappers). Tokens that merely MENTION
+    git/gh as an argument (e.g. `echo gh pr new`, `echo git checkout -b x`) are
+    in argument position, never command position, so they are not creations.
+    """
     toks = seg.split()
-    for idx, t in enumerate(toks):
-        base = _basename(t)
-        if base == 'git':
-            sub, sa = _git_subcommand(toks[idx + 1:])
-            if sub == 'worktree':
-                for x in sa:
-                    if not x.startswith('-'):
-                        return 'worktree' if x == 'add' else None
-                return None
-            if sub in ('checkout', 'switch'):
-                return 'branch' if _is_co_sw_create(sub, sa) else None
-            if sub == 'branch':
-                return 'branch' if _branch_creates(sa) else None
-            if sub == 'stash':
-                return 'branch' if _stash_creates(sa) else None
-            if sub in ('fetch', 'pull'):
-                return 'branch' if _refspec_creates(sa) else None
-            if sub == 'update-ref':
-                return 'branch' if _update_ref_creates(sa) else None
+    idx = _command_token_index(toks)
+    if idx is None:
+        return None
+    base = _basename(toks[idx])
+    if base == 'git':
+        sub, sa = _git_subcommand(toks[idx + 1:])
+        if sub == 'worktree':
+            for x in sa:
+                if not x.startswith('-'):
+                    return 'worktree' if x == 'add' else None
             return None
-        if base == 'gh':
-            return 'PR' if _is_gh_pr_create(toks[idx + 1:]) else None
+        if sub in ('checkout', 'switch'):
+            return 'branch' if _is_co_sw_create(sub, sa) else None
+        if sub == 'branch':
+            return 'branch' if _branch_creates(sa) else None
+        if sub == 'stash':
+            return 'branch' if _stash_creates(sa) else None
+        if sub in ('fetch', 'pull'):
+            return 'branch' if _refspec_creates(sa) else None
+        if sub == 'update-ref':
+            return 'branch' if _update_ref_creates(sa) else None
+        return None
+    if base == 'gh':
+        return _classify_gh(toks[idx + 1:])
     return None
 
 
