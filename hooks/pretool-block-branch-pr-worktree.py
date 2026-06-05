@@ -474,6 +474,95 @@ def _is_gh_pr_create(args):
     return i < len(args) and args[i] in ('create', 'new')
 
 
+def _is_gh_pr_checkout(args):
+    """True iff `gh pr checkout <N>` (checks out a PR by CREATING a local branch).
+
+    `gh pr checkout` materializes a local branch for the PR, so it is creation —
+    UNLESS `--detach` is present (detached HEAD, no branch ref created). The PR
+    list/view/status/diff subcommands are read-only and are NOT matched here.
+    """
+    i = _gh_skip_flags(args, 0)
+    if i >= len(args) or args[i] != 'pr':
+        return False
+    i = _gh_skip_flags(args, i + 1)
+    if i >= len(args) or args[i] != 'checkout':
+        return False
+    # `--detach` anywhere in the checkout args downgrades to a detached HEAD.
+    return '--detach' not in args[i + 1:]
+
+
+# Write-method indicators for `gh api`: any of these makes the call a POST/write
+# (gh defaults to POST when fields are present, and -X/--method set it
+# explicitly).
+_GH_API_WRITE_FLAGS = {'-f', '-F', '--field', '--raw-field', '--input'}
+_GH_API_METHOD_FLAGS = {'-X', '--method'}
+
+
+def _is_gh_api_pr_create(args):
+    """True iff `gh api <pulls-endpoint>` is a PR-creation POST.
+
+    Blocks when the endpoint path component ends in `/pulls` (optionally with a
+    trailing slash) — i.e. `repos/<owner>/<repo>/pulls` — AND the call is a write
+    (POST). A write is indicated by any of `-f/-F/--field/--raw-field/--input`,
+    or `-X POST` / `--method POST`. An explicit `-X GET` / `--method GET` (a LIST)
+    overrides the field-implied POST and is ALLOWED.
+    """
+    i = _gh_skip_flags(args, 0)
+    if i >= len(args) or args[i] != 'api':
+        return False
+    rest = args[i + 1:]
+    targets_pulls = False
+    has_write_flag = False
+    explicit_method = None  # last -X/--method value seen (upper-cased)
+    j = 0
+    n = len(rest)
+    while j < n:
+        a = rest[j]
+        if a in _GH_API_METHOD_FLAGS:
+            if j + 1 < n:
+                explicit_method = rest[j + 1].upper()
+            j += 2
+            continue
+        if a.startswith('-X') and len(a) > 2:  # attached form -XPOST
+            explicit_method = a[2:].upper()
+            j += 1
+            continue
+        if a.startswith('--method='):
+            explicit_method = a.split('=', 1)[1].upper()
+            j += 1
+            continue
+        if a in _GH_API_WRITE_FLAGS:
+            has_write_flag = True
+            j += 2  # these flags consume a following key=value token
+            continue
+        if a.startswith('-'):
+            j += 1
+            continue
+        # positional → candidate endpoint path
+        path = a.rstrip('/')
+        last = path.rsplit('/', 1)[-1]
+        if last == 'pulls':
+            targets_pulls = True
+        j += 1
+    if not targets_pulls:
+        return False
+    # explicit method wins over field-implied POST
+    if explicit_method is not None:
+        return explicit_method == 'POST'
+    return has_write_flag
+
+
+def _classify_gh(args):
+    """Return 'PR' if a gh invocation creates a PR / PR-branch, else None."""
+    if _is_gh_pr_create(args):
+        return 'PR'
+    if _is_gh_pr_checkout(args):
+        return 'branch'
+    if _is_gh_api_pr_create(args):
+        return 'PR'
+    return None
+
+
 def _classify_segment(seg):
     """Return the creation kind ('worktree'|'PR'|'branch') in seg, or None.
 
