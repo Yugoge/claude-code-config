@@ -152,6 +152,12 @@ def main(argv: list[str] | None = None) -> int:
     # Resolve SID first — if SID is missing we cannot write a grant OR safely
     # scope revocation; fail before touching any grant files.
     sid = _resolve_sid(args.sid)
+    # Revoke-only mode: delete this task's grant(s) for this sid and exit WITHOUT
+    # writing a fresh grant (gate-blocked stop paths must leave no live authorization).
+    if args.revoke_only:
+        _revoke_grants_for_task(args.output_dir, args.task_id, sid)
+        print("revoke-only: revoked existing commit grant(s) for task")
+        return 0
     # Revoke stale grants for task before writing a fresh one (retry flow).
     # Scoped to current sid to avoid deleting grants for other sessions.
     if args.revoke_existing_for_task:
