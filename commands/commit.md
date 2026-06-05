@@ -113,7 +113,7 @@ Dispatch `changelog-analyst` (Agent, `subagent_type: changelog-analyst`) with th
 - `PLAN_FILES` — the union of all group files, per repo.
 - If the dry-run reports `nothing_to_commit` / empty plan: print `Nothing to commit — QA gate skipped.` and proceed to Step 7 (which also no-ops). Do NOT dispatch QA on an empty plan.
 
-Because dry-run stages-then-stops, the planned set is left **staged in the index** after 5.5a; QA therefore inspects it via `git diff --cached` (the unstaged `git diff` would be empty).
+Because dry-run stages-then-stops, the planned set is left **staged in the index** after Step 6a; QA therefore inspects it via `git diff --cached` (the unstaged `git diff` would be empty).
 
 **Step 6b — QA reviews the staged set.**
 Dispatch ONE QA subagent (Agent, `subagent_type: qa`). The dispatch prompt MUST include `codex_required: <QA_CODEX>` and `PLAN_GROUPS`, and instruct QA as follows:
