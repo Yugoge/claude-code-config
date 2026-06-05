@@ -308,6 +308,46 @@ def _branch_creates(sa):
     return positionals > 0
 
 
+def _stash_creates(sa):
+    """True iff `git stash branch <name>` (creates a branch from a stash).
+
+    Only the `branch` stash subcommand creates a branch. Bare `git stash` and the
+    list/show/pop/push/drop/apply/clear/save/store/create subcommands do not.
+    """
+    for x in sa:
+        if x.startswith('-'):
+            continue
+        return x == 'branch'
+    return False
+
+
+def _refspec_creates(sa):
+    """True iff a fetch/pull arg is a refspec writing into refs/heads/.
+
+    `git fetch <repo> <src>:refs/heads/<name>` and the pull equivalent create a
+    local branch. Plain fetch/pull (including `--all`, `origin`, `origin main`)
+    carry no `:refs/heads/` refspec and stay allowed.
+    """
+    return any(':refs/heads/' in x for x in sa)
+
+
+def _update_ref_creates(sa):
+    """True iff `git update-ref refs/heads/<name> <sha>` creates a local branch.
+
+    Creation requires a non-flag argument starting with `refs/heads/` and NO
+    delete flag. `git update-ref -d refs/heads/x` (delete) and updates to
+    `refs/remotes/...` (not a local branch) stay allowed.
+    """
+    if any(x in ('-d', '--delete') for x in sa):
+        return False
+    for x in sa:
+        if x.startswith('-'):
+            continue
+        if x.startswith('refs/heads/'):
+            return True
+    return False
+
+
 # gh global flags that consume a separate following value token.
 _GH_GLOBAL_VALUE = {'-R', '--repo'}
 
