@@ -411,15 +411,27 @@ def _stash_creates(sa):
     return False
 
 
+_SCP_LIKE_REMOTE_RE = re.compile(r'^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+:')
+
+
 def _refspec_creates(sa):
-    """True iff a fetch/pull arg is a refspec writing into refs/heads/.
+    """True iff a fetch/pull arg is a refspec writing into a LOCAL branch.
 
-    `git fetch <repo> <src>:refs/heads/<name>` and the pull equivalent create a
-    local branch. Plain fetch/pull (including `--all`, `origin`, `origin main`)
-    carry no `:refs/heads/` refspec and stay allowed.
+    `git fetch <repo> <src>:<dst>` (and the pull equivalent) create a local
+    branch when <dst> resolves under refs/heads/. This covers BOTH the explicit
+    `:refs/heads/<name>` form AND the standard BARE-destination shorthand
+    (`main:newbranch`, `HEAD:heads/nb`, `main:foo/bar`) — git puts a bare fetch
+    destination under refs/heads/. Plain fetch/pull (including `--all`, `origin`,
+    `origin main`) carry no creating refspec and stay allowed.
 
-    `--dry-run` writes nothing, so a `:refs/heads/` refspec under `--dry-run`
-    creates no branch → NOT a creation (a later `--no-dry-run` re-arms it).
+    URL/remote tokens are NOT refspecs and must not be parsed as such: any token
+    containing `://` (https://, ssh://, git://, file://) or an scp-like remote
+    (`git@github.com:o/r.git`) is skipped. A destination under refs/remotes/,
+    refs/tags/, or refs/notes/ is not a local branch → NOT creation; an empty
+    destination (`main:`, a fetch to FETCH_HEAD) is NOT creation.
+
+    `--dry-run` writes nothing, so a creating refspec under `--dry-run` creates
+    no branch → NOT a creation (a later `--no-dry-run` re-arms it).
     """
     dry = False
     for x in sa:
@@ -429,7 +441,24 @@ def _refspec_creates(sa):
             dry = False
     if dry:
         return False
-    return any(':refs/heads/' in x for x in sa)
+    for x in sa:
+        if x.startswith('-'):
+            continue  # flag token, not a refspec
+        if '://' in x or _SCP_LIKE_REMOTE_RE.match(x):
+            continue  # URL / scp-like remote, not a refspec
+        if ':' not in x:
+            continue
+        token = x[1:] if x.startswith('+') else x  # strip a single leading force '+'
+        _src, _, dst = token.partition(':')  # split on the FIRST ':'
+        if not dst:
+            continue  # fetch to FETCH_HEAD, no local branch
+        if dst.startswith(('refs/remotes/', 'refs/tags/', 'refs/notes/')):
+            continue  # not a local branch
+        if dst.startswith('refs/heads/'):
+            return True
+        # bare destination with no refs/ prefix → git places it under refs/heads/
+        return True
+    return False
 
 
 # update-ref flags that consume a separate following VALUE token; that value

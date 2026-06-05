@@ -3510,5 +3510,284 @@ class TestCycle13CodexFollowup:
         assert ev_cwd("find -delete", datafile, bd) == "BLOCK"
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# Cycle 14 (re-close-debate-20260531-162901): the DRIVER (shell-glob mutation of a
+# protected directory's contents) + four secondary same-class leaks (F2 find/fd
+# predicate, F4 lsof selector, F6 destructive git pathspec, F5 chgrp) + F3 $HOME
+# expansion. Verified ONLY by feeding strings to evaluate()/the hook (NEVER any
+# real daemon/CLI/process command).
+# ════════════════════════════════════════════════════════════════════════════
+
+
+# An ISOLATED config+repo pair under DIFFERENT tmp roots (/tmp vs /var/tmp) so the
+# config's ancestor-dir self-protection set does NOT share a pytest-tmp ancestor
+# with the repo — mirroring production (/root/.config/<app> vs /dev/shm/<repo>),
+# where a glob mutation of a NON-protected repo dir must ALLOW. NEVER touches the
+# live machine data file.
+@pytest.fixture(scope="module")
+def isolated_pair(tmp_path_factory):
+    import tempfile
+    cfgbase = tempfile.mkdtemp(prefix="c14cfg_", dir="/tmp")
+    cfgdir = os.path.join(cfgbase, ".config", "app")
+    os.makedirs(cfgdir)
+    df = os.path.join(cfgdir, "protected-runtime.json")
+    repo = tempfile.mkdtemp(prefix="c14repo_", dir="/var/tmp")
+    os.makedirs(os.path.join(repo, "packages", "happy-cli", "dist"))
+    os.makedirs(os.path.join(repo, "packages", "happy-app", "dist"))
+    cfg = json.loads(json.dumps(FIXTURE))
+    cfg["protected_root_manifest_paths"] = [repo]
+    with open(df, "w") as fh:
+        json.dump(cfg, fh)
+    return {"df": df, "cfgdir": cfgdir, "repo": repo}
+
+
+def ev_iso(command, df, cwd=None):
+    os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = df
+    import importlib, lib.runtime_guard as rg
+    importlib.reload(rg)
+    return rg.evaluate(command, cwd)[0]
+
+
+class TestCycle14DriverGlobMutation:
+    """DRIVER: `mv|cp|rsync <protecteddir>/*` glob-clobbers/exfiltrates the guard's
+    own data file / the bundle / the statefile — leaked because a shell-glob token is
+    normalized literally and never intersects a protected ancestor/container glob.
+    Now the glob-parent is computed and intersected against the protected set."""
+
+    def test_config_dir_glob_blocks(self, isolated_pair):
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        assert ev_iso(f"mv {cfgdir}/* /tmp/x", df) == "BLOCK"
+        assert ev_iso(f"cp {cfgdir}/* /tmp/x", df) == "BLOCK"
+        assert ev_iso(f"rsync {cfgdir}/* /tmp/x", df) == "BLOCK"
+
+    def test_config_dir_glob_wrapped_and_do_blocks(self, isolated_pair):
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        assert ev_iso(f"sudo mv {cfgdir}/* /tmp/x", df) == "BLOCK"
+        assert ev_iso(f"setsid cp {cfgdir}/* /tmp/x", df) == "BLOCK"
+        assert ev_iso(f"weirdwrapX mv {cfgdir}/* /tmp/x", df) == "BLOCK"
+
+    def test_bundle_dir_glob_blocks(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        distdir = f"{repo}/packages/happy-cli/dist"
+        assert ev_iso(f"mv {distdir}/* /tmp/x", df, repo) == "BLOCK"
+        assert ev_iso(f"cp {distdir}/* /tmp/x", df, repo) == "BLOCK"
+        # clobber the bundle directly via /dev/null
+        assert ev_iso(f"cp /dev/null {distdir}/index.mjs", df, repo) == "BLOCK"
+
+    def test_statefile_dir_glob_blocks(self, isolated_pair):
+        df = isolated_pair["df"]
+        assert ev_iso("mv /root/.happy-dev/* /tmp/x", df) == "BLOCK"
+        assert ev_iso("cp /root/.happy-dev/* /tmp/x", df) == "BLOCK"
+
+    def test_config_absent_glob_blocks(self):
+        # STEP0 (config ancestor self-protection) runs before config load.
+        os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = "/tmp/abs14/.config/app/protected-runtime.json"
+        import importlib, lib.runtime_guard as rg
+        importlib.reload(rg)
+        assert rg.evaluate("mv /tmp/abs14/.config/app/* /tmp/x")[0] == "BLOCK"
+        assert rg.evaluate("cp /tmp/abs14/.config/app/* /tmp/x")[0] == "BLOCK"
+
+    # boundary ALLOW: a glob selecting NOTHING protected stays allowed
+    def test_boundary_glob_allows(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        assert ev_iso("mv /tmp/scratch/* /tmp/y", df) == "ALLOW"
+        assert ev_iso(f"mv {repo}/packages/happy-app/dist/* /tmp/x", df, repo) == "ALLOW"
+        assert ev_iso("cp /tmp/other/* /tmp/z", df) == "ALLOW"
+        # a config READ (no glob mutation) still allows
+        assert ev_iso(f"cat {isolated_pair['cfgdir']}/protected-runtime.json", df) == "ALLOW"
+
+
+class TestCycle14FindPredicate:
+    """F2: a destructive find/fd selecting its victim by a `-path`/`-wholename`/
+    `-name`/fd `-g` PREDICATE value (not a positional root) leaked because the path
+    scan read only positional roots. Now the predicate values are scanned too."""
+
+    def test_find_path_predicate_blocks(self, nested_datafile):
+        df = nested_datafile
+        cfgdir = os.path.dirname(df)
+        assert ev_nested(f"find /root -path {df} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"find /root -wholename {df} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"find /tmp -path {cfgdir} -exec rm -rf {{}} +", nested_datafile) == "BLOCK"
+
+    def test_find_name_predicate_blocks(self, nested_datafile):
+        df = nested_datafile
+        base = os.path.basename(df)
+        assert ev_nested(f"find /root -name {base} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"find / -iname {base} -delete", nested_datafile) == "BLOCK"
+
+    def test_find_predicate_sibling_family_blocks(self, datafile, fixture_repo):
+        bundlebase = "index.mjs"
+        assert ev_cwd(f"find {fixture_repo} -path '*/packages/happy-cli/dist/index.mjs' -delete",
+                      datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd(f"find {fixture_repo} -name {bundlebase} -delete", datafile, fixture_repo) == "BLOCK"
+
+    def test_find_predicate_wrapped_blocks(self, nested_datafile):
+        df = nested_datafile
+        assert ev_nested(f"sudo find /root -path {df} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"weirdwrapX find /root -name {os.path.basename(df)} -delete", nested_datafile) == "BLOCK"
+
+    def test_find_predicate_config_absent_blocks(self):
+        os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = "/tmp/abs14b/.config/app/protected-runtime.json"
+        import importlib, lib.runtime_guard as rg
+        importlib.reload(rg)
+        assert rg.evaluate("find /root -path /tmp/abs14b/.config/app/protected-runtime.json -delete")[0] == "BLOCK"
+
+    # boundary ALLOW: read-only find + unrelated predicate + non-protected basename
+    def test_find_predicate_boundary_allows(self, nested_datafile):
+        df = nested_datafile
+        base = os.path.basename(df)
+        assert ev_nested(f"find /root -path {df} -print", nested_datafile) == "ALLOW"   # read-only
+        assert ev_nested(f"find /root -name {base}", nested_datafile) == "ALLOW"        # read-only
+        assert ev_nested("find /root -path /tmp/unrelated -delete", nested_datafile) == "ALLOW"
+        assert ev_nested("find /root -name unrelated.txt -delete", nested_datafile) == "ALLOW"
+
+
+class TestCycle14LsofSelector:
+    """F4: `lsof -t -c <cmd> | xargs kill` resolved PIDs by command-name but `lsof`
+    was absent from the proc-selector heads, so P6 missed the connectivity. Now lsof
+    is a selector head."""
+
+    def test_lsof_kill_blocks(self, datafile, fixture_repo):
+        assert ev(f"lsof -t -c happy | {_XK}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"lsof -c happy -t | {_XK}", datafile, fixture_repo) == "BLOCK"
+
+    def test_lsof_kill_wrapped_blocks(self, datafile, fixture_repo):
+        assert ev(f"lsof -t -c happy | weirdwrapX {_XK}", datafile, fixture_repo) == "BLOCK"
+
+    def test_lsof_config_absent_blocks(self):
+        assert ev_absent(f"lsof -t -c happy | {_XK}") == "BLOCK"  # STEP1 xargs-kill family
+
+    # boundary ALLOW: lsof read-only + unrelated command selector
+    def test_lsof_boundary_allows(self, datafile, fixture_repo):
+        assert ev(f"lsof -t -c happy", datafile, fixture_repo) == "ALLOW"       # no kill executor
+        assert ev(f"lsof -t -c nginx | {_XK}", datafile, fixture_repo) == "ALLOW"
+
+
+class TestCycle14GitPathspec:
+    """F6: a destructive git pathspec (`clean -fdx`/`restore`/`checkout -- <path>`/
+    `reset --hard -- <path>`) under a protected build dir / bundle wipes or reverts
+    the protected file. Now a destructive-git-pathspec parser blocks it."""
+
+    def test_git_clean_blocks(self, datafile, fixture_repo):
+        assert ev_cwd("git clean -fdx packages/happy-cli/dist", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("git clean -fd packages/happy-cli", datafile, fixture_repo) == "BLOCK"
+
+    def test_git_restore_checkout_reset_blocks(self, datafile, fixture_repo):
+        assert ev_cwd("git restore packages/happy-cli/dist", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("git checkout -- packages/happy-cli/dist", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("git reset --hard -- packages/happy-cli", datafile, fixture_repo) == "BLOCK"
+
+    def test_git_pathspec_wrapped_and_C_blocks(self, datafile, fixture_repo):
+        assert ev_cwd("sudo git clean -fdx packages/happy-cli/dist", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd(f"git -C {fixture_repo} clean -fdx packages/happy-cli/dist", datafile, "/root") == "BLOCK"
+
+    def test_git_pathspec_config_absent_allows(self, fixture_repo):
+        # config-absent STEP1 has no git-pathspec family (git is not a danger-family
+        # head); the engine ALLOWs (the destructive-git block requires loaded globs).
+        # This documents the config-absent behavior — git pathspec is NOT a fail-
+        # closed verb family, so it ALLOWs when the data file is gone.
+        assert ev_absent("git clean -fdx packages/happy-cli/dist", fixture_repo) == "ALLOW"
+
+    # boundary ALLOW: read-only git, branch switch, non-protected pathspec
+    def test_git_pathspec_boundary_allows(self, datafile, fixture_repo):
+        assert ev_cwd("git status", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd("git log --oneline", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd("git checkout main", datafile, fixture_repo) == "ALLOW"          # branch switch
+        assert ev_cwd("git clean -fdx packages/happy-app", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd("git restore packages/happy-app/dist", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd("git diff packages/happy-cli/dist", datafile, fixture_repo) == "ALLOW"  # read-only
+
+
+class TestCycle14ChgrpAndHome:
+    """F5: `chgrp <group> <config>` mutated the data file's group but chgrp was
+    missing from the mutation heads. F3: a `$HOME`/`${HOME}`-prefixed mutation now
+    resolves to the protected path."""
+
+    def test_chgrp_config_blocks(self, nested_datafile):
+        df = nested_datafile
+        cfgdir = os.path.dirname(df)
+        assert ev_nested(f"chgrp root {df}", nested_datafile) == "BLOCK"
+        assert ev_nested(f"chgrp -R root {cfgdir}", nested_datafile) == "BLOCK"
+
+    def test_chgrp_sibling_family_blocks(self, datafile, fixture_repo):
+        assert ev_cwd("chgrp root packages/happy-cli/dist/index.mjs", datafile, fixture_repo) == "BLOCK"
+
+    def test_chgrp_wrapped_blocks(self, nested_datafile):
+        df = nested_datafile
+        assert ev_nested(f"sudo chgrp root {df}", nested_datafile) == "BLOCK"
+
+    def test_home_expansion_blocks(self):
+        # use a hardcoded /root/.config path so HOME=/root resolves it; STEP0
+        # ancestor protection runs config-absent.
+        os.environ["HOME"] = "/root"
+        os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = "/root/.config/appz14/protected-runtime.json"
+        import importlib, lib.runtime_guard as rg
+        importlib.reload(rg)
+        assert rg.evaluate('mv "$HOME/.config/appz14" /tmp/x')[0] == "BLOCK"
+        assert rg.evaluate('mv ${HOME}/.config/appz14/protected-runtime.json /tmp/x')[0] == "BLOCK"
+        assert rg.evaluate('rm -rf "$HOME/.config/appz14"')[0] == "BLOCK"
+
+    # boundary ALLOW: chgrp unrelated + $HOME read + non-$HOME var
+    def test_chgrp_home_boundary_allows(self, nested_datafile):
+        assert ev_nested("chgrp root /tmp/unrelated", nested_datafile) == "ALLOW"
+        os.environ["HOME"] = "/root"
+        os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = "/root/.config/appz14/protected-runtime.json"
+        import importlib, lib.runtime_guard as rg
+        importlib.reload(rg)
+        assert rg.evaluate('cat "$HOME/.config/appz14/protected-runtime.json"')[0] == "ALLOW"
+        assert rg.evaluate('mv "$HOME/.config/unrelated" /tmp/x')[0] == "ALLOW"
+        assert rg.evaluate('mv "$HOMEDIR/.config/appz14" /tmp/x')[0] == "ALLOW"  # $HOMEDIR != $HOME
+
+
+class TestCycle14LiveHook:
+    """The DRIVER + each secondary representative BLOCK on the REAL hook end-to-end
+    against the LIVE data file, plain and under /do (the guard runs before /do, so it
+    is unbypassable). Mirrors TestCycle13LiveHookAndDoBypass's env handling."""
+
+    _ENV = {"CLAUDE_PYTHON_BIN": sys.executable}
+
+    def _clean_env(self, extra=None):
+        e = dict(os.environ, **self._ENV)
+        e.pop("CLAUDE_PROTECTED_RUNTIME_FILE", None)
+        if extra:
+            e.update(extra)
+        return e
+
+    def _run(self, cmd, sid=None):
+        payload = {"tool_name": "Bash", "tool_input": {"command": cmd}}
+        if sid:
+            payload["session_id"] = sid
+        return subprocess.run(["bash", HOOK], input=json.dumps(payload), text=True,
+                              capture_output=True, env=self._clean_env()).returncode
+
+    def test_live_driver_glob_blocks(self):
+        assert self._run("mv /root/.config/claude/* /tmp/x") == BLOCK
+        assert self._run("cp /root/.config/claude/* /tmp/x") == BLOCK
+
+    def test_live_secondary_blocks(self):
+        assert self._run("find /root -path /root/.config/claude/protected-runtime.json -delete") == BLOCK
+        assert self._run("find /root -name protected-runtime.json -delete") == BLOCK
+        assert self._run(f"lsof -t -c happy | {_XK}") == BLOCK
+        assert self._run("chgrp root /root/.config/claude/protected-runtime.json") == BLOCK
+
+    def test_live_driver_glob_unbypassable_under_do(self):
+        sid = "guardtest14-" + str(os.getpid())
+        flag = f"/tmp/claude-orchestrator-consent-{sid}.flag"
+        with open(flag, "w") as fh:
+            fh.write("true")
+        try:
+            assert self._run("mv /root/.config/claude/* /tmp/x", sid) == BLOCK
+            assert self._run("find /root -name protected-runtime.json -delete", sid) == BLOCK
+            assert self._run("cat /root/.config/claude/protected-runtime.json", sid) == ALLOW
+        finally:
+            os.remove(flag)
+
+    def test_live_boundary_allows(self):
+        assert self._run("mv /tmp/scratch-xyz/* /tmp/y") == ALLOW
+        assert self._run("cat /root/.config/claude/protected-runtime.json") == ALLOW
+        assert self._run("find /root -path /tmp/unrelated -delete") == ALLOW
+        assert self._run("chgrp root /tmp/unrelated-xyz") == ALLOW
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
