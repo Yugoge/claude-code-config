@@ -74,6 +74,23 @@ def _bash(cmd, **extra):
     'git worktree add -b br ../wt HEAD',
     'true && git checkout -b chained',
     'sudo git checkout -b withsudo',
+    # ── BUG 1 regressions: display/formatting flags are ORTHOGONAL to creation;
+    #    a positional branch name after them still creates → must BLOCK ────────
+    'git branch -v newbranch HEAD',      # -v is display, not a veto
+    'git branch -vv newbranch',          # -vv display cluster
+    'git branch --verbose newbranch',
+    'git branch --no-color nb HEAD',
+    'git branch --sort=refname nb HEAD',
+    'git branch --format=%(refname) nb',
+    'git branch --abbrev=7 nb',
+    'git branch --format %(refname) nb',  # space value THEN positional name
+    # ── BUG 2 regressions: -t/--track create a local tracking branch; switch
+    #    --guess is explicit guess-create → must BLOCK ─────────────────────────
+    'git checkout -t origin/foo',
+    'git checkout --track origin/foo',
+    'git switch -t origin/foo',
+    'git switch --track origin/foo',
+    'git switch --guess remotebranch',
 ])
 def test_branch_creation_blocked(cmd, tmp_path):
     rc, _ = _run(_bash(cmd), tmp_path)
