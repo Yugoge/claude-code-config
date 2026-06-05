@@ -53,7 +53,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help=(
             "Revoke (delete) any existing grant for --task-id + sid and EXIT "
-            "WITHOUT writing a fresh grant. Used by /commit Step 5.5c stop paths "
+            "WITHOUT writing a fresh grant. Used by /commit Step 6c stop paths "
             "(QA REJECT / dry-run / unparseable) so a blocked gate leaves no live "
             "commit authorization lingering."
         ),
