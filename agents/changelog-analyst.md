@@ -556,10 +556,13 @@ while ITERATION < MAX_ITERATIONS:
         break
     fi
 
-    # Write synthetic close-annotation (M14)
-    CLOSE_ANNOTATION="${CONTROL_ROOT}/docs/dev/close-report-bulk-${TASK_ID:-bulk}-${ITERATION}.md"
-    Write CLOSE_ANNOTATION with content:
-      "CLOSE: YES — FORCED (bulk mode, autonomous batch ${ITERATION} of ${MAX_ITERATIONS})"
+    # Write synthetic close-annotation (M14) — SKIP entirely when DRYRUN=true. A
+    # dry-run must not mutate the working tree (the /commit Step 5.5 QA gate runs bulk
+    # in DRYRUN purely to enumerate the plan); only the real-commit pass writes it.
+    if DRYRUN == false:
+        CLOSE_ANNOTATION="${CONTROL_ROOT}/docs/dev/close-report-bulk-${TASK_ID:-bulk}-${ITERATION}.md"
+        Write CLOSE_ANNOTATION with content:
+          "CLOSE: YES — FORCED (bulk mode, autonomous batch ${ITERATION} of ${MAX_ITERATIONS})"
 
     # Group changed files by subsystem
     Classify files into subsystem groups (one commit per subsystem, max 2 subsystems
