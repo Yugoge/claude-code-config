@@ -108,6 +108,15 @@ def _bash(cmd, **extra):
     # ── VECTOR F: command/process substitution exposes an inner creation → BLOCK
     'echo $(git checkout -b foo)',
     'x=$(git switch -c foo)',
+    # ── FIX 5: EXPLICIT checkout --guess (and unique-prefix --g) creates → BLOCK
+    'git checkout --guess ro_branch',
+    'git checkout --g ro_branch',        # --g -> --guess (unique prefix)
+    # ── FIX 1: command-position — git preceded only by a wrapper / env-assign /
+    #    path qualifier is still in command position → BLOCK ────────────────────
+    'sudo git checkout -b x',
+    'FOO=bar git checkout -b x',
+    '/usr/bin/git checkout -b x',
+    'git -C /repo branch new',           # git global option, git is command tok
 ])
 def test_branch_creation_blocked(cmd, tmp_path):
     rc, _ = _run(_bash(cmd), tmp_path)
