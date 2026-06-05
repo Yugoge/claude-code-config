@@ -128,8 +128,16 @@ def test_worktree_and_pr_creation_blocked(cmd, tmp_path):
     'git branch -d old-feature',       # delete
     'git branch -D old-feature',
     'git branch -m old new',           # rename
-    'git branch -u origin/x',          # set upstream
+    'git branch -u origin/x',          # set upstream (-u veto, value not a name)
     'git branch --merged',
+    # ── BUG 1 regressions: display/formatting flags WITHOUT a positional name
+    #    are list/display-only → must ALLOW ────────────────────────────────────
+    'git branch -vv',                  # verbose list, no positional
+    'git branch --sort=refname',       # no positional
+    "git branch --format='%(refname)'",  # attached value, no positional
+    'git branch --format %(refname)',  # space value, no positional
+    'git branch --points-at HEAD',     # query, value not a positional
+    'git branch --merged main',        # query, value not a positional
     'git worktree list',
     'git worktree remove ../wt',
     'git worktree prune',
