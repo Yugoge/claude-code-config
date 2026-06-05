@@ -413,20 +413,37 @@ def _refspec_creates(sa):
     return any(':refs/heads/' in x for x in sa)
 
 
+# update-ref flags that consume a separate following VALUE token; that value
+# must not be mistaken for a positional ref. `-m <message>` is the common one
+# (so `update-ref -m refs/heads/msg <ref> <sha>` is a reflog message, not a
+# branch ref).
+_UPDATE_REF_VALUE_FLAGS = {'-m', '--message'}
+
+
 def _update_ref_creates(sa):
     """True iff `git update-ref refs/heads/<name> <sha>` creates a local branch.
 
-    Creation requires a non-flag argument starting with `refs/heads/` and NO
+    Creation requires a positional argument starting with `refs/heads/` and NO
     delete flag. `git update-ref -d refs/heads/x` (delete) and updates to
-    `refs/remotes/...` (not a local branch) stay allowed.
+    `refs/remotes/...` (not a local branch) stay allowed. The value consumed by
+    `-m`/`--message` (and any other value-flag) is skipped so a reflog message
+    like `-m refs/heads/msg` is never misread as the target ref.
     """
     if any(x in ('-d', '--delete') for x in sa):
         return False
-    for x in sa:
+    i = 0
+    n = len(sa)
+    while i < n:
+        x = sa[i]
+        if x in _UPDATE_REF_VALUE_FLAGS:
+            i += 2  # skip the flag AND its consumed value
+            continue
         if x.startswith('-'):
+            i += 1
             continue
         if x.startswith('refs/heads/'):
             return True
+        i += 1
     return False
 
 
