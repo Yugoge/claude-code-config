@@ -159,7 +159,7 @@ Return, as the LAST line, EXACTLY one of:
   COMMIT: REJECT - <one sentence naming the offending file(s) and why>
 ```
 
-**Step 5.5c — Gate decision.**
+**Step 6c — Gate decision.**
 
 **Grant hygiene (applies to EVERY stop path below — REJECT, `--dry-run` stop, unparseable):** in addition to unstaging, REVOKE the Step 5 commit grant so a blocked/stopped gate never leaves live commit authorization lingering (30-min TTL):
 ```bash
@@ -185,7 +185,7 @@ TASK_ID=<resolved task-id or empty for bulk>
 BULK=<true|false>
 DRYRUN=<true|false>
 FORCE=<true|false>
-QA_APPROVED_FILES=<the Step 5.5c QA-approved file set, per repo; empty when FORCE=true (gate skipped)>
+QA_APPROVED_FILES=<the Step 6c QA-approved file set, per repo; empty when FORCE=true (gate skipped)>
 
 You are the changelog-analyst subagent. Execute the commit workflow as specified
 in your agent definition (agents/changelog-analyst.md). Use the variables above
