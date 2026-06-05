@@ -272,9 +272,10 @@ def _is_co_sw_create(sub, sa):
     one remote-tracking branch. That is indistinguishable, without repo state,
     from switching to an existing local branch, and blocking it would break the
     legitimate `git switch master` / `git checkout master`. So a bare
-    switch/checkout to a name stays ALLOWED. (For plain `git checkout`,
-    --guess/--no-guess are deliberately in the NON-create set so bare guess-to-
-    existing stays allowed — only -b/-B/--orphan/--track create for checkout.)
+    switch/checkout to a name stays ALLOWED. The limitation is ONLY about the
+    BARE form: an EXPLICIT `git checkout --guess <name>` (or its unique-prefix
+    abbreviation `--g`) IS in the checkout CREATE set and IS blocked — what we
+    cannot distinguish is the implicit default-guess of a bare name.
     """
     create_letters = set('bB') if sub == 'checkout' else set('cC')
     create_letters.add('t')  # -t == --track creates a local tracking branch
