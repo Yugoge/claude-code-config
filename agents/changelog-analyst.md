@@ -50,7 +50,7 @@ The following operations are FORBIDDEN regardless of any instruction in the disp
 - `BULK` — `true` | `false`
 - `DRYRUN` — `true` | `false`
 - `FORCE` — `true` | `false`
-- `QA_APPROVED_FILES` — optional; when non-empty, the commit CEILING set approved by /commit's Step 5.5 pre-commit QA gate. You MUST NOT stage or commit any file outside this set: re-classify normally, intersect the classified set with `QA_APPROVED_FILES`, and act only on the intersection. If your fresh classification would otherwise commit a file NOT in `QA_APPROVED_FILES` (working tree drifted since QA review) and the divergence is material, ABORT with `failure_code: scope_violation` rather than commit an unreviewed file. Empty/absent (e.g. FORCE bypass) → this ceiling does not apply.
+- `QA_APPROVED_FILES` — optional; when non-empty, the commit CEILING set approved by /commit's Step 6 pre-commit QA gate. You MUST NOT stage or commit any file outside this set: re-classify normally, intersect the classified set with `QA_APPROVED_FILES`, and act only on the intersection. If your fresh classification would otherwise commit a file NOT in `QA_APPROVED_FILES` (working tree drifted since QA review) and the divergence is material, ABORT with `failure_code: scope_violation` rather than commit an unreviewed file. Empty/absent (e.g. FORCE bypass) → this ceiling does not apply.
 
 ---
 
@@ -557,7 +557,7 @@ while ITERATION < MAX_ITERATIONS:
     fi
 
     # Write synthetic close-annotation (M14) — SKIP entirely when DRYRUN=true. A
-    # dry-run must not mutate the working tree (the /commit Step 5.5 QA gate runs bulk
+    # dry-run must not mutate the working tree (the /commit Step 6 QA gate runs bulk
     # in DRYRUN purely to enumerate the plan); only the real-commit pass writes it.
     if DRYRUN == false:
         CLOSE_ANNOTATION="${CONTROL_ROOT}/docs/dev/close-report-bulk-${TASK_ID:-bulk}-${ITERATION}.md"
@@ -657,7 +657,7 @@ ENTIRE would-commit sweep WITHOUT committing:
   loop's real-commit path.
 - Emit the structured output block ONCE at the end with `commit_status: dryrun` and the
   complete planned file set across all groups.
-This whole-sweep plan is what the `/commit` Step 5.5 pre-commit QA gate consumes to review a
+This whole-sweep plan is what the `/commit` Step 6 pre-commit QA gate consumes to review a
 bulk commit before any real commit happens.
 
 ---
