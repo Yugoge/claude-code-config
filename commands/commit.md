@@ -115,7 +115,7 @@ Dispatch `changelog-analyst` (Agent, `subagent_type: changelog-analyst`) with th
 
 Because dry-run stages-then-stops, the planned set is left **staged in the index** after 5.5a; QA therefore inspects it via `git diff --cached` (the unstaged `git diff` would be empty).
 
-**Step 5.5b — QA reviews the staged set.**
+**Step 6b — QA reviews the staged set.**
 Dispatch ONE QA subagent (Agent, `subagent_type: qa`). The dispatch prompt MUST include `codex_required: <QA_CODEX>` and `PLAN_GROUPS`, and instruct QA as follows:
 
 ```
