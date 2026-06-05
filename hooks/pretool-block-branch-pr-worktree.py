@@ -208,10 +208,10 @@ def _git_subcommand(args):
 # Listing the NON-create options is required for disambiguation — without them a
 # prefix that is actually ambiguous (e.g. `--c` for switch: --create/--conflict)
 # would be wrongly treated as a create.
-_CO_CREATE_LONG = {'--orphan', '--track'}
+_CO_CREATE_LONG = {'--orphan', '--track', '--guess'}
 _CO_NONCREATE_LONG = {
     '--ours', '--theirs', '--force', '--detach', '--merge', '--conflict',
-    '--patch', '--quiet', '--progress', '--no-track', '--no-guess', '--guess',
+    '--patch', '--quiet', '--progress', '--no-track', '--no-guess',
     '--ignore-other-worktrees', '--recurse-submodules', '--pathspec-from-file',
     '--pathspec-file-nul', '--overwrite-ignore', '--overlay', '--no-overlay',
 }
