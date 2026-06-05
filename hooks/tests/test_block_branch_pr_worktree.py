@@ -132,6 +132,9 @@ def test_backtick_substitution_inner_creation_blocked(tmp_path):
     'gh -R cli/cli pr create --fill',    # global flag before pr
     'gh pr -R cli/cli create --fill',    # global flag between pr and create
     '/usr/bin/gh pr create --fill',      # path-qualified gh
+    # ── VECTOR A: `gh pr new` is the official alias of `gh pr create` → BLOCK ──
+    'gh pr new --fill',
+    'gh -R o/r pr new',                  # global flag before pr, `new` alias
 ])
 def test_worktree_and_pr_creation_blocked(cmd, tmp_path):
     rc, _ = _run(_bash(cmd), tmp_path)
