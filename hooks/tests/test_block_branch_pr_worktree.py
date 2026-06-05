@@ -176,8 +176,9 @@ def test_worktree_and_pr_creation_blocked(cmd, tmp_path):
     'gh pr list',
     'gh pr view 12',
     'gh pr view 3',
-    'gh pr checkout 12',
     'gh pr status',
+    'gh pr diff 7',
+    'gh pr checkout --detach 12',       # detached HEAD: no branch ref → allow
     # ── VECTOR B: NON-create long-opts (and their abbreviations) must ALLOW ────
     'git switch --detach',
     'git switch --force',
