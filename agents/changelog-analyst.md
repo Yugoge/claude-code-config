@@ -637,7 +637,7 @@ the full normal-mode workflow (Phases 1–10). One commit per task-id.
 
 A dry-run classifies + stages the candidate set (Phases 1–6 run normally) but stops BEFORE the
 commit: it does NOT execute `git commit` and does NOT write push-gate tokens. The staged index
-is what `/commit` Step 6b reviews via `git diff --cached`; Step 5.5c then unstages it
+is what `/commit` Step 6b reviews via `git diff --cached`; Step 6c then unstages it
 (`git restore --staged`) on REJECT / dry-run-stop, or the real Step 7 dispatch commits the
 QA-approved set (bounded by `QA_APPROVED_FILES`).
 
