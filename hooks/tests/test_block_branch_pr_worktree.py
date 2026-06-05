@@ -175,8 +175,31 @@ def test_worktree_and_pr_creation_blocked(cmd, tmp_path):
     'git checkout -- -b',              # pathspec literally named -b
     'gh pr list',
     'gh pr view 12',
+    'gh pr view 3',
     'gh pr checkout 12',
     'gh pr status',
+    # ── VECTOR B: NON-create long-opts (and their abbreviations) must ALLOW ────
+    'git switch --detach',
+    'git switch --force',
+    'git switch --no-track',
+    'git checkout --force',
+    'git checkout --ours x',
+    'git checkout --theirs x',
+    # ── VECTOR C: non-branch stash subcommands must ALLOW ─────────────────────
+    'git stash',
+    'git stash list',
+    'git stash pop',
+    # ── VECTOR D: fetch/pull without a :refs/heads/ refspec must ALLOW ────────
+    'git fetch',
+    'git fetch origin',
+    'git fetch --all',
+    'git pull origin main',
+    # ── VECTOR E: update-ref delete must ALLOW ────────────────────────────────
+    'git update-ref -d refs/heads/foo',
+    # ── VECTOR F: harmless command substitution / %(refname) format must ALLOW ─
+    'echo $(git status)',
+    'git log --format %(refname)',
+    'git branch --format %(refname)',
 ])
 def test_non_creation_forms_allowed(cmd, tmp_path):
     rc, _ = _run(_bash(cmd), tmp_path)
