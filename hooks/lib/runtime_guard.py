@@ -712,7 +712,7 @@ def _glob_literal_prefix(glob: str) -> Optional[str]:
             break
         lit.append(seg)
     # drop a trailing literal FILENAME segment (has a dot, no following wildcard) so
-    # the prefix is a directory: `/usr/bin/happy` keeps `/usr/bin`; but an anchored
+    # the prefix is a directory: `/usr/bin/<cmd>` keeps `/usr/bin`; but an anchored
     # dir glob `/root/.config/app` keeps all segments. We cannot tell file vs dir
     # syntactically, so keep the full literal prefix AND its parent as candidates by
     # returning the full literal prefix; `_dir_equal_or_under` tests dir containment.
@@ -1818,7 +1818,7 @@ def _name_value_matches_protected(name_glob: str, globs: list) -> bool:
         # literal stem IS the protected basename.
         if rx.search(base) or nv == base:
             return True
-        # the protected basename is itself a glob (`happy*`) — does the predicate's
+        # the protected basename is itself a glob (`<cmd>*`) — does the predicate's
         # literal value fall under it?
         if _has_shell_glob(base) and _glob_to_segment_regex(base).search(nv):
             return True
