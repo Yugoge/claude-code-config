@@ -135,6 +135,13 @@ def test_backtick_substitution_inner_creation_blocked(tmp_path):
     # ── VECTOR A: `gh pr new` is the official alias of `gh pr create` → BLOCK ──
     'gh pr new --fill',
     'gh -R o/r pr new',                  # global flag before pr, `new` alias
+    # ── FIX 6: `gh pr checkout <N>` creates a local PR branch → BLOCK ──────────
+    'gh pr checkout 12',
+    'gh -R cli/cli pr checkout 12',
+    # ── FIX 7: PR creation via the REST API (POST to .../pulls) → BLOCK ────────
+    'gh api repos/o/r/pulls -f title=x -f head=f -f base=main',
+    'gh api -X POST repos/o/r/pulls -f title=x',
+    'gh api --method POST repos/o/r/pulls',
 ])
 def test_worktree_and_pr_creation_blocked(cmd, tmp_path):
     rc, _ = _run(_bash(cmd), tmp_path)
