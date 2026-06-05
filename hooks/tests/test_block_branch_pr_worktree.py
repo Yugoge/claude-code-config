@@ -217,6 +217,23 @@ def test_worktree_and_pr_creation_blocked(cmd, tmp_path):
     'echo $(git status)',
     'git log --format %(refname)',
     'git branch --format %(refname)',
+    # ── FIX 1: git/gh in ARGUMENT position (merely mentioned) must ALLOW ───────
+    'echo gh pr new',
+    'echo git checkout -b x',
+    # ── FIX 2: `--` makes a following `branch` token a pathspec → ALLOW ────────
+    'git stash -- branch',
+    # ── FIX 3: --dry-run writes nothing, so a refs/heads refspec → ALLOW ───────
+    'git fetch --dry-run . HEAD:refs/heads/d',
+    'git pull --dry-run origin x:refs/heads/d',
+    # ── FIX 4: -m value (a reflog message) is not the target ref → ALLOW ───────
+    'git update-ref -m refs/heads/msg refs/tags/v1 HEAD',
+    # ── FIX 5: BARE checkout/switch (no --guess) stays ALLOW ──────────────────
+    'git checkout somebranch',
+    'git switch somebranch',
+    # ── FIX 7: GET to .../pulls is a LIST → ALLOW ─────────────────────────────
+    'gh api repos/o/r/pulls',
+    'gh api -X GET repos/o/r/pulls',
+    'gh api --method GET repos/o/r/pulls -f x=y',  # explicit GET overrides field
 ])
 def test_non_creation_forms_allowed(cmd, tmp_path):
     rc, _ = _run(_bash(cmd), tmp_path)
