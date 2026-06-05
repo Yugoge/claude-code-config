@@ -3881,5 +3881,76 @@ class TestCycle14CodexFollowup:
         assert ev_cwd("git restore ':(glob)packages/happy-cli/dist/*'", datafile, fixture_repo) == "BLOCK"
 
 
+class TestCycle14Codex2:
+    """Second codex (gpt-5.5 xhigh) adversarial pass surfaced 7 more same-class
+    leaks/over-blocks, all in-scope and fixed:
+      C2A: parent/sibling shell globs (`rm -rf <repo>/packages/*`) under-blocked.
+      C2B: reverse containment missed the filesystem root `/` (`find / -delete`).
+      C2C: coarse filter-suppression let `find . -name '*' -delete`, action-before-
+           filter, and `-o` disjunction under-block (now proof-based).
+      C2D: git `:(icase)` case-insensitive pathspec magic semantics were lost.
+      C2E: git exclude pathspec `:!`/`:(exclude)` was treated as a positive target.
+      C2F: fd default positional pattern not modeled (reverse containment runs —
+           accepted over-block).
+      C2G: `~user` (`~root`) cwd forms not expanded."""
+
+    # C2A: parent/sibling shell globs select the protected package
+    def test_parent_glob_blocks(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        assert ev_iso(f"rm -rf {repo}/packages/*", df, repo) == "BLOCK"
+        assert ev_iso(f"mv {repo}/packages/happy-cli* /tmp/x", df, repo) == "BLOCK"
+        assert ev_iso("rm -rf packages/*", df, repo) == "BLOCK"
+
+    def test_parent_glob_boundary_allows(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        assert ev_iso(f"mv {repo}/packages/happy-app/dist/* /tmp/x", df, repo) == "ALLOW"
+        assert ev_iso("rm -rf /opt/build/*", df) == "ALLOW"
+
+    # C2B: reverse containment on the filesystem root
+    def test_root_filesystem_blocks(self, datafile, fixture_repo):
+        assert ev_cwd("find / -delete", datafile, "/") == "BLOCK"
+
+    # C2C: proof-based filter suppression
+    def test_broad_filter_does_not_exonerate(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        assert ev_iso("find . -name '*' -delete", df, repo) == "BLOCK"
+        assert ev_iso("find . -delete -name unrelated", df, repo) == "BLOCK"  # action before filter
+        assert ev_iso("find . -path ./packages/happy-app -o -delete", df, repo) == "BLOCK"  # disjunction
+
+    def test_proven_disjoint_filter_exonerates(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        assert ev_iso("find /root -path /tmp/unrelated -delete", df) == "ALLOW"
+        assert ev_iso("find . -path ./packages/happy-app -delete", df, repo) == "ALLOW"
+
+    # C2F: fd default pattern -> reverse containment runs (accepted over-block);
+    # an fd -g proven-disjoint name predicate still exonerates.
+    def test_fd_pattern_reverse_containment(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        assert ev_iso("fd unrelated . -X rm", df, repo) == "BLOCK"  # accepted over-block
+        # unrelated absolute root with no protected descendant ALLOWS
+        assert ev_iso("fd unrelated /opt/scratch -X rm", df) == "ALLOW"
+
+    # C2D: git :(icase) magic
+    def test_git_icase_magic_blocks(self, datafile, fixture_repo):
+        assert ev_cwd("git clean -fdx ':(icase,top)PACKAGES/HAPPY-CLI'", datafile, fixture_repo) == "BLOCK"
+
+    # C2E: git exclude pathspec
+    def test_git_exclude_pathspec(self, datafile, fixture_repo):
+        # positive nonprot + exclude prot -> the positive does not contain protected
+        assert ev_cwd("git clean -fdx -- packages/happy-app ':!packages/happy-cli'",
+                      datafile, fixture_repo) == "ALLOW"
+        # positive . + exclude nonprot -> the positive '.' still contains protected
+        assert ev_cwd("git clean -fdx -- . ':!packages/happy-app'", datafile, fixture_repo) == "BLOCK"
+
+    # C2G: ~user expansion
+    def test_tilde_user_expansion_blocks(self):
+        os.environ["HOME"] = "/root"
+        os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = "/root/.config/appz14c2/protected-runtime.json"
+        import importlib, lib.runtime_guard as rg
+        importlib.reload(rg)
+        assert rg.evaluate("cd ~root/.config/appz14c2 && rm protected-runtime.json")[0] == "BLOCK"
+        assert rg.evaluate("env -C ~root/.config/appz14c2 rm protected-runtime.json")[0] == "BLOCK"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
