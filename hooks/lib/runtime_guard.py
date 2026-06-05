@@ -1175,6 +1175,47 @@ def _config_path_variants() -> set:
     return variants
 
 
+# Generic, too-broad ancestor roots whose mutation must NOT be treated as a config
+# self-protection hit — protecting them would over-block routine filesystem ops on
+# the home/system roots (`mv /root /backup`, `rm -rf /tmp`). The data file's OWN
+# parent dir(s) BELOW these roots ARE protected. NO project names — generic POSIX
+# system/home roots derived structurally.
+_ANCESTOR_STOP_ROOTS = frozenset({
+    "/", "/root", "/home", "/etc", "/usr", "/var", "/tmp", "/opt", "/bin",
+    "/lib", "/lib64", "/sbin", "/srv", "/mnt", "/media", "/dev", "/proc",
+    "/sys", "/run", "/boot",
+})
+
+
+def _config_ancestor_dirs() -> set:
+    """Proper ancestor DIRECTORIES of the data file that are protected against
+    mutation/move/delete — moving or removing any of them neuters the guard's
+    config. Yields each ancestor directory up to (but EXCLUDING) the generic
+    too-broad system/home roots in `_ANCESTOR_STOP_ROOTS`, so `/root/.config/claude`
+    and `/root/.config` are protected while `/root` and `/` are not (a routine
+    `mv /root /backup` must still ALLOW). Includes the `~/`-prefixed variant for a
+    `/root/`-rooted path. Generic — no project identity (the path itself is the only
+    hardcoded constant, already generic)."""
+    out = set()
+    norm = os.path.normpath(DATA_FILE_PATH)
+    d = os.path.dirname(norm)
+    while d and d not in _ANCESTOR_STOP_ROOTS:
+        out.add(d)
+        if d.startswith("/root/"):
+            out.add(d.replace("/root/", "~/", 1))
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return out
+
+
+def _config_or_ancestor_variants() -> set:
+    """The data-file path variants UNION its protected ancestor directories — the
+    full self-protection target set for a mutation/move/delete."""
+    return _config_path_variants() | _config_ancestor_dirs()
+
+
 def _targets_config_file(simple_cmd: str, tokens: list) -> bool:
     cfg_variants = {_normalize_path(v) for v in _config_path_variants()}
     cfg_dir = os.path.dirname(DATA_FILE_PATH)
@@ -1213,8 +1254,8 @@ CONFIG_MUTATION_HEADS = frozenset({
 # tools — NOT project names.
 _STEP0_MUTATION_HEADS = frozenset({
     "cp", "mv", "rsync", "install", "touch", "truncate", "dd", "tee",
-    "unzip", "rename", "rm", "unlink", "shred", "sed", "perl", "ln", "tar",
-    "chmod", "chown",
+    "unzip", "rename", "rm", "unlink", "shred", "rmdir", "sed", "perl", "ln",
+    "tar", "chmod", "chown",
 })
 
 
@@ -1333,7 +1374,10 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
         # source — not a mutation target).
         return [t[len("of="):] for t in args if t.startswith("of=")]
     if head in ("touch", "truncate", "tee", "unzip",
-                "rm", "unlink", "shred"):
+                "rm", "unlink", "shred", "rmdir"):
+        # `rmdir DIR…` removes (mutates) each directory operand — the same all-
+        # barewords-are-targets shape as rm/unlink (a removal of an ancestor config
+        # dir neuters the guard exactly like a delete of the file).
         if tdir is not None:
             return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in barewords]
         return barewords
@@ -1444,10 +1488,18 @@ def _step0_mutation_anchor_hits(simple_cmds: list, idx: int, sc: str,
     matches — so a mutation of a NON-config file behind a wrapper still ALLOWS (no
     over-block). The CALLER gates this behind `_is_inspection_command` so a read/
     inspect command carrying a mutation word as DATA (`grep cp <datafile>`) ALLOWS."""
-    variants = list(_config_path_variants())
+    # the data file AND its protected ANCESTOR directories (a mutation/move/delete
+    # of the parent config dir neuters the guard exactly like a delete of the file).
+    variants = list(_config_or_ancestor_variants())
     exec_toks = _anchor_exec_tokens(tokens)
     cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
     cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
+    # find/fd with a destructive action (`-delete` / `-exec <mutation>`) against the
+    # data file or an ancestor dir — `find` is in the read/inspect allowlist, so the
+    # caller's inspection gate would skip it; STEP0 inspects it here HEAD-AGNOSTICALLY
+    # (the find head may itself be behind a wrapper).
+    if _step0_find_destructive_hits(tokens, exec_toks, variants, cwd, cwd_det):
+        return True
     # scan ALL mutation verbs in exec position (not just the first), so a leading
     # benign mutation-named data token cannot mask a later real mutator.
     for (i, st) in exec_toks:
@@ -1459,6 +1511,208 @@ def _step0_mutation_anchor_hits(simple_cmds: list, idx: int, sc: str,
             for cand in _resolve_rel(tgt, cwd, cwd_det):
                 if _path_matches_any(cand, variants):
                     return True
+    return False
+
+
+# find/fd actions that MUTATE the matched entries (destroy a protected file/dir).
+# `-delete` removes; the exec-family runs an arbitrary command per match (a
+# mutation when that command is a filesystem-mutation verb). Generic find grammar,
+# no project names.
+_FIND_DELETE_ACTIONS = frozenset({"-delete", "--delete"})
+# include fd's short exec flags `-x`/`-X` (only reached when the head is actually
+# find/fd via `_FIND_EXEC_HEADS`, so they never collide with `tar -x`/`-X`).
+_FIND_EXEC_ACTIONS = frozenset({"-exec", "-execdir", "-ok", "-okdir", "--exec", "--exec-batch", "-x", "-X"})
+# Mutation verbs that, when run by `find … -exec <verb>`, destroy/alter the match.
+_FIND_EXEC_MUTATION_VERBS = (
+    _STEP0_MUTATION_HEADS | frozenset({"rm", "rmdir", "unlink", "shred"})
+)
+
+
+# find GLOBAL options that PRECEDE the path operands: the no-arg position/symlink
+# options (`-H`/`-L`/`-P`), the `-D <debugopts>` and `-O<level>` forms. These come
+# BEFORE the paths, so the path scan must skip them (not stop at them). Generic
+# find grammar, no project names.
+_FIND_GLOBAL_NOARG_OPTS = frozenset({"-H", "-L", "-P"})
+_FIND_GLOBAL_ARG_OPTS = frozenset({"-D"})
+# pre-path POSITION options that take ONE numeric/string arg and may appear before
+# the path on some `find` builds / fd (`-maxdepth N` / `-mindepth N`). Skipped with
+# their argument so a path AFTER them is still recognized.
+_FIND_PREPATH_ARG_OPTS = frozenset({"-maxdepth", "-mindepth", "--max-depth", "--min-depth"})
+
+
+def _find_path_operands(tokens: list, find_idx: int) -> list:
+    """Return find/fd PATH operands. The path operands come after the head and any
+    GLOBAL options (`-H`/`-L`/`-P`, `-D arg`, `-O*`) and certain pre-path position
+    options (`-maxdepth N`), and BEFORE the first real predicate/expression. Honors
+    `--` (everything after is a path until a predicate). Returns the explicit path
+    operands; an empty list means the find has NO explicit path (the caller treats
+    that as the implicit `.` = cwd via `_find_implicit_cwd_target`).
+
+    Examples: `find -L <p> -delete` -> [<p>]; `find -maxdepth 1 <p> -delete` ->
+    [<p>]; `find -- <p> -delete` -> [<p>]; `find <p1> <p2> -delete` -> [p1,p2];
+    `find -delete` (path-less) -> []."""
+    rest = tokens[find_idx + 1:]
+    out = []
+    i = 0
+    n = len(rest)
+    saw_dashdash = False
+    while i < n:
+        st = _strip_quotes(rest[i])
+        if st == "--":
+            saw_dashdash = True
+            i += 1
+            continue
+        if not saw_dashdash:
+            # skip leading GLOBAL / pre-path options (with their args) so the path
+            # AFTER them is still seen.
+            if st in _FIND_GLOBAL_NOARG_OPTS or st.startswith("-O"):
+                i += 1
+                continue
+            if st in _FIND_GLOBAL_ARG_OPTS:
+                i += 2  # `-D <debugopts>`
+                continue
+            if st in _FIND_PREPATH_ARG_OPTS:
+                i += 2  # `-maxdepth N`
+                continue
+            if st.startswith("-") or st in ("(", ")", "!"):
+                # a real predicate / expression begins -> path operands done.
+                break
+        else:
+            # after `--`: a predicate still terminates the path list.
+            if st.startswith("-") or st in ("(", ")", "!"):
+                break
+        if st:
+            out.append(st)
+        i += 1
+    return out
+
+
+def _find_is_destructive(tokens: list, find_idx: int) -> bool:
+    """True if the find/fd invocation starting at `find_idx` carries a DESTRUCTIVE
+    action: `-delete`, OR an `-exec`/`-execdir`/`-ok`/`-okdir` whose executed
+    command basename is a filesystem-mutation verb. A read-only `find … -exec cat`
+    / `find … -print` is NOT destructive."""
+    rest = tokens[find_idx + 1:]
+    for j, t in enumerate(rest):
+        st = _strip_quotes(t)
+        if st in _FIND_DELETE_ACTIONS:
+            return True
+        if st in _FIND_EXEC_ACTIONS and j + 1 < len(rest):
+            execd = os.path.basename(_strip_quotes(rest[j + 1]))
+            if execd in _FIND_EXEC_MUTATION_VERBS:
+                return True
+    return False
+
+
+def _find_destructive_target_hits(tokens: list, exec_toks: list, globs: list,
+                                  cwd: Optional[str], cwd_det: bool) -> bool:
+    """HEAD-AGNOSTIC: True if a find/fd invocation (anywhere in the exec tokens,
+    possibly behind a wrapper) performs a DESTRUCTIVE action (`-delete` /
+    `-exec <mutation>`) on a PATH operand that matches `globs` — the file itself OR
+    an ancestor directory of it. `find <protected-or-ancestor> -delete` and
+    `find <…> -exec rm {} ;` BLOCK; a read-only `find <…> -print|-name` ALLOWS, and
+    a destructive find on an UNRELATED path ALLOWS (no over-block). Reusable by the
+    config self-protection (STEP0) and the W6/W7/global-bin sweep."""
+    for fi, st in exec_toks:
+        if os.path.basename(_strip_quotes(st)) not in _FIND_EXEC_HEADS:
+            continue
+        if not _find_is_destructive(tokens, fi):
+            continue
+        operands = _find_path_operands(tokens, fi)
+        # a path-LESS destructive find (`find -delete` / `cd <dir> && find -delete`)
+        # targets the effective cwd implicitly — resolve `.` against it.
+        if not operands:
+            operands = ["."]
+        for p in operands:
+            for cand in _resolve_rel(p, cwd, cwd_det):
+                if _path_matches_any(cand, globs):
+                    return True
+    return False
+
+
+def _step0_find_destructive_hits(tokens: list, exec_toks: list, variants: list,
+                                 cwd: Optional[str], cwd_det: bool) -> bool:
+    """STEP0 wrapper around the shared find-destructive scanner for the config
+    data-file + ancestor-dir variant set."""
+    return _find_destructive_target_hits(tokens, exec_toks, variants, cwd, cwd_det)
+
+
+def _container_glob_too_broad(parent: str) -> bool:
+    """True if a derived container-dir glob is too broad to protect — a bare
+    wildcard (`**`/`*`/`**/*`), an empty string, OR an ABSOLUTE path that resolves
+    to one of the generic too-broad system/home roots (`/root`, `/usr`, …). A glob
+    bottoming out at one of these would over-block routine ops on the home/system
+    roots, so it is dropped. A RELATIVE / `**`-prefixed glob (`**/packages/<pkg>`)
+    is a segment-suffix match and is NOT a system root, so it is kept. Generic —
+    the stop-roots are POSIX system/home dirs, no project names."""
+    if not parent or set(parent) <= {"*", "/"}:
+        return True
+    if parent in ("**", "*", "/", "**/*", "*/*"):
+        return True
+    # an ABSOLUTE container glob with NO wildcard is dropped when it is a generic
+    # root OR a SHALLOW (depth < 3) system dir (`/usr/bin`, `/usr/lib`, `/etc/x`) —
+    # a shared system directory whose blanket protection would over-block routine
+    # ops. A wildcard-bearing absolute glob (`/home/.appd*`) is a SPECIFIC per-home
+    # dir and is kept; a deep absolute dir (depth ≥ 3) is specific enough to keep.
+    if parent.startswith("/") and "*" not in parent:
+        norm = os.path.normpath(parent)
+        if norm in _ANCESTOR_STOP_ROOTS:
+            return True
+        depth = len([s for s in norm.split("/") if s])
+        if depth < 3:
+            return True
+    return False
+
+
+def _container_dir_globs(file_globs: list) -> list:
+    """Derive the protected CONTAINER-directory globs from protected FILE globs —
+    the directories whose move/delete destroys the protected file. For
+    `**/packages/<pkg>/dist/<bundle>` the containers are `**/packages/<pkg>/dist`
+    (the immediate dir, e.g. removing the whole `dist`) and `**/packages/<pkg>`, so
+    `mv|rm|rmdir|find -delete` of either BLOCKS. For `/home/.appd*/<statefile>`
+    the container is `/home/.appd*` (the per-home dir) — but NOT `/home` (a generic
+    home root, dropped by `_container_glob_too_broad`). A derived glob that is a bare
+    wildcard or a generic system/home root is dropped (no over-block). A glob with no
+    usable parent yields nothing. Generic — driven entirely by the data-file globs."""
+    out = set()
+    for fg in file_globs:
+        if not fg or ("/" not in fg):
+            continue
+        parent = fg.rsplit("/", 1)[0]
+        # climb up to TWO directory levels (the immediate container + its parent).
+        for _ in range(2):
+            if not parent:
+                break
+            if not _container_glob_too_broad(parent):
+                out.add(parent)
+            nxt = parent.rsplit("/", 1)[0] if "/" in parent else ""
+            if nxt == parent:
+                break
+            parent = nxt
+    return [g for g in out if not _container_glob_too_broad(g)]
+
+
+def _anchor_family_destructive_hits(sc: str, tokens: list, exec_toks: list,
+                                    file_globs: list, cwd: Optional[str],
+                                    cwd_det: bool) -> bool:
+    """Class-sweep companion to `_anchor_mutation_hits` for a protected FILE-glob
+    family (hotfile bundle / statefile / global-bin). Closes the two blind spots the
+    direct-mutation anchor misses:
+      (1) find/fd DESTRUCTIVE action (`-delete` / `-exec <mutation>`) against the
+          protected file OR its derived container directory, and
+      (2) an ANCESTOR/CONTAINER-directory mutation (`mv|rm|rmdir <containerdir>`)
+          that destroys the protected file by removing/moving its directory.
+    Head-agnostic (works behind any wrapper). A read-only find, or a destructive op
+    on an UNRELATED path, does not hit (no over-block)."""
+    container_globs = _container_dir_globs(file_globs)
+    all_globs = list(file_globs) + container_globs
+    # (1) find/fd destructive against the file OR a container dir.
+    if _find_destructive_target_hits(tokens, exec_toks, all_globs, cwd, cwd_det):
+        return True
+    # (2) a mutation verb whose target is a CONTAINER directory (the file itself is
+    # already covered by `_anchor_mutation_hits`; here we add the container dirs).
+    if container_globs and _anchor_mutation_hits(sc, tokens, exec_toks, container_globs, cwd, cwd_det):
+        return True
     return False
 
 
@@ -1489,6 +1743,16 @@ def _step0_self_protection(simple_cmds: list, cwd_base: Optional[str] = None) ->
                 for cand in _resolve_rel(tgt, cwd, cwd_det):
                     if _path_matches_any(cand, list(_config_path_variants())):
                         return _block("STEP0", "config self-protection: in-place edit of data file")
+        # find/fd DESTRUCTIVE action (`-delete` / `-exec <mutation>`) against the
+        # data file OR an ancestor dir — checked BEFORE the inspection gate because
+        # `find` is in the read/inspect allowlist (the gate would skip the bare-head
+        # `find <datafile> -delete` form). Head-agnostic: also catches the find
+        # behind any wrapper. A read-only `find <datafile> -print` is NOT destructive
+        # and a destructive find on an UNRELATED path does not match — both ALLOW.
+        _exec_toks_step0 = _anchor_exec_tokens(tokens)
+        if _step0_find_destructive_hits(tokens, _exec_toks_step0,
+                                        list(_config_or_ancestor_variants()), cwd, cwd_det):
+            return _block("STEP0", "config self-protection: find destructive action on data file or ancestor")
         # GATE: a read/inspect/edit command carrying a mutation word merely as DATA
         # (`grep cp <datafile>`, `echo cp <datafile>`, `cat <datafile>`) is NOT a
         # mutation — skip the mutation-verb anchor so it ALLOWS (no over-block). The
@@ -2180,6 +2444,114 @@ def _p5_endpoint(groups: list, cfg: dict) -> Optional[Verdict]:
 
 # ── P6 PROCKILL_GUARD ────────────────────────────────────────────────────────
 
+# Minimum length for a derived process-selector token. A 1-2 char fragment is too
+# generic (it would overlap unrelated process names), so derived tokens shorter
+# than this are dropped. Full registered idents are kept regardless of length.
+_PROC_TOKEN_MIN_LEN = 3
+
+# Generic PID-selection program basenames: a pipeline carrying one of these next
+# to a kill executor resolves PIDs by name/pattern (the selector mechanism). NO
+# project names — generic POSIX/utility process-listing tools.
+_PROC_SELECTOR_HEADS = frozenset({"pgrep", "grep", "egrep", "fgrep", "rg", "ps",
+                                  "pidof", "pgrep", "ag", "ack"})
+
+
+def _protected_proc_tokens(cfg: dict) -> list:
+    """Generic, project-name-FREE set of process-selector fragments a good-faith
+    kill-pipeline selector (`pgrep -f X`, `grep X`, `pkill -f X`, `ps … | grep X`,
+    `kill $(… X)`) would use to find the protected daemon. ALL values are read from
+    the data file — the engine enumerates none. Derived from:
+      • each registered `protected_proc_idents` entry (full + each distinctive
+        path/whitespace/dash-delimited segment, e.g. `entry.mjs`, `<pkg>-cli`,
+        `<svc>`, `daemon` from `packages/<pkg>-cli/dist/entry.mjs` / `<svc>-daemon`),
+      • each `protected_cmds` basename (the bare command word an operator types),
+      • each `protected_launch_paths` basename + its non-glob path segments (so the
+        bundle basename `entry.mjs` and the package stem are derivable).
+    Short (<3 char) derived fragments are dropped to avoid overlapping unrelated
+    process names; the FULL registered idents are always kept. This is the data the
+    kill guard matches a selector against (substring overlap, EITHER direction)."""
+    toks = set()
+
+    def _add(raw: str, *, allow_short: bool = False):
+        s = _strip_quotes(str(raw)).strip()
+        if not s or s.startswith("-"):
+            return
+        if allow_short or len(s) >= _PROC_TOKEN_MIN_LEN:
+            toks.add(s)
+
+    def _segments(raw: str):
+        # split a path/ident into distinctive segments on /, whitespace, and dash;
+        # drop pure-glob and generic structural segments (`**`, `*`, `dist`, `src`,
+        # `bin`, `packages`, `node_modules`) that are not process-distinctive.
+        generic = {"dist", "src", "bin", "lib", "packages", "node_modules",
+                   "scripts", "build", "out", "", "*", "**"}
+        for part in re.split(r"[\s/]+", _strip_quotes(str(raw))):
+            part = part.strip()
+            if not part or part in generic or set(part) <= {"*"}:
+                continue
+            yield part
+            # further split a dash-joined name (`<svc>-daemon` -> `<svc>`,`daemon`,
+            # `<svc>-daemon`) so the stem fragments are derivable too.
+            if "-" in part:
+                for sub in part.split("-"):
+                    if sub and sub not in generic:
+                        yield sub
+
+    for ident in cfg.get("protected_proc_idents", []):
+        _add(ident, allow_short=True)  # keep the FULL ident regardless of length
+        for seg in _segments(ident):
+            _add(seg)
+    for cmd in cfg.get("protected_cmds", []):
+        _add(os.path.basename(_strip_quotes(str(cmd))))
+    for lp in cfg.get("protected_launch_paths", []):
+        base = os.path.basename(_strip_quotes(str(lp)))
+        if base and "*" not in base:
+            _add(base)
+        for seg in _segments(lp):
+            _add(seg)
+    return [t for t in toks if t]
+
+
+def _selector_overlaps_protected(text: str, ptokens: list, cmds: set) -> bool:
+    """True if `text` (a kill-pipeline selector / group text / command-substitution)
+    OVERLAPS any protected process token — a substring match in EITHER direction
+    (the operator's fragment is a substring OF a token, or a token is a substring of
+    the operator's fragment) — OR contains a protected command basename as a
+    whitespace/boundary-delimited word. The either-direction overlap closes the
+    directional asymmetry that let `pgrep -f <stem> | xargs kill` leak while the
+    full-ident form blocked. A selector naming an UNRELATED process (`pgrep -f
+    nginx`) overlaps nothing, and a bare `kill <pid>` carries no selector text, so
+    both stay ALLOWED."""
+    if not text:
+        return False
+    for tok in ptokens:
+        if not tok:
+            continue
+        # either-direction substring overlap: token in text OR text-fragment in
+        # token. The whitespace/quote-delimited words of the text are tested so a
+        # bare selector word that is itself a substring of a longer registered
+        # ident (`<stem>` ⊂ `<stem>-daemon`) overlaps.
+        if tok in text:
+            return True
+    # word-level: any selector word that overlaps a protected token in EITHER
+    # direction, or equals a protected command basename.
+    for raw in re.split(r"[\s'\"|;&()$<>]+", text):
+        w = _strip_quotes(raw).strip().lstrip("-")
+        if not w or len(w) < _PROC_TOKEN_MIN_LEN:
+            continue
+        if w in cmds:
+            return True
+        for tok in ptokens:
+            if not tok:
+                continue
+            # `w` is a fragment OF a registered token (`<stem>` ⊂ `<stem>-daemon`),
+            # or a registered token is a fragment of `w` (already covered above,
+            # but kept for the word-scoped path).
+            if w in tok or tok in w:
+                return True
+    return False
+
+
 def _is_kill_executor(head: str, rest: list) -> bool:
     """True if this simple command terminates processes."""
     if head in KILL_VERBS:
@@ -2214,11 +2586,17 @@ def _p6_prockill(groups: list, cfg: dict) -> Optional[Verdict]:
     """
     idents = cfg.get("protected_proc_idents", [])
     statefiles = cfg.get("protected_statefiles", [])
-    if not idents and not statefiles:
+    cmds = set(cfg.get("protected_cmds", []))
+    ptokens = _protected_proc_tokens(cfg)
+    if not idents and not statefiles and not ptokens:
         return None
 
     def has_ident(text: str) -> bool:
-        return any(ident in text for ident in idents)
+        # EITHER-direction overlap against the data-file-derived protected-process
+        # tokens (closes the directional asymmetry: a kill whose selector is a bare
+        # protected command-word / a fragment of a registered ident now BLOCKS),
+        # plus the original full-ident substring match as a subset.
+        return _selector_overlaps_protected(text, ptokens, cmds)
 
     def reads_statefile(text: str) -> bool:
         """True if any whitespace token of `text` resolves to a protected
@@ -2237,8 +2615,22 @@ def _p6_prockill(groups: list, cfg: dict) -> Optional[Verdict]:
                 return True
         return False
 
+    def full_ident_in(text: str) -> bool:
+        # the ORIGINAL exact full-ident substring match (the conservative subset),
+        # used for a plain literal-`kill`-only group so a bare `kill <bareword>`
+        # (no PID, no name-selector mechanism) does NOT over-block — `kill` takes a
+        # PID/jobspec, not a process name, so its bareword is a benign operand.
+        return any(ident in text for ident in idents)
+
     for group in groups:
         kill_present = False
+        # a SELECTION MECHANISM is present when the group resolves PIDs by name /
+        # pattern: a name-matching kill verb (`pkill`/`killall`/`fuser -k`), a
+        # `pgrep`/`grep`/`ps` selector segment, OR a command substitution feeding
+        # the kill. Plain literal `kill <bareword>` with NO such mechanism is a
+        # PID/jobspec kill (`kill <name>` is a benign error), so the broadened
+        # either-direction overlap is applied ONLY when a selector mechanism exists.
+        has_selector_mechanism = False
         kill_subst_carries_ident = False
         for sc in group:
             tokens = _safe_shlex(sc)
@@ -2248,8 +2640,28 @@ def _p6_prockill(groups: list, cfg: dict) -> Optional[Verdict]:
             if not cw:
                 continue
             _, head, rest = cw[0]
-            if _is_kill_executor(head, rest):
+            hbase = os.path.basename(_strip_quotes(head))
+            # HEAD-AGNOSTIC: scan ALL exec-position token basenames so a selector /
+            # kill executor BEHIND a novel wrapper (`weirdwrap pgrep -f X`,
+            # `… | weirdwrap xargs kill`) is still seen — UNLESS the segment is a
+            # pure read/inspect command (then its tokens are DATA, not executors).
+            exec_bases = ([os.path.basename(_strip_quotes(t)) for _i, t in _anchor_exec_tokens(tokens)]
+                          if not _is_inspection_command(hbase, rest) else [hbase])
+            if (hbase in _PROC_SELECTOR_HEADS
+                    or any(b in _PROC_SELECTOR_HEADS for b in exec_bases)
+                    or _command_substitutions(sc)):
+                has_selector_mechanism = True
+            # a kill executor as the segment head OR anywhere in exec position
+            # (head-agnostic), so a wrapped `weirdwrap pkill`/`weirdwrap xargs kill`
+            # is detected. `xargs … kill` is recognized by `_is_kill_executor`.
+            seg_kill = _is_kill_executor(head, rest) or any(b in KILL_VERBS for b in exec_bases)
+            if seg_kill:
                 kill_present = True
+                # name/pattern-matching kill verbs select BY NAME — the kill verb
+                # itself is the selector mechanism (head OR exec-position).
+                if (hbase in ("pkill", "killall", "fuser")
+                        or any(b in ("pkill", "killall", "fuser") for b in exec_bases)):
+                    has_selector_mechanism = True
                 # `kill $(<pipeline naming ident>)` / `kill $(jq .pid
                 # <statefile>)` — inspect this command's substitutions for a
                 # protected identifier OR a read of a protected statefile.
@@ -2259,7 +2671,11 @@ def _p6_prockill(groups: list, cfg: dict) -> Optional[Verdict]:
         if not kill_present:
             continue
         group_text = " ".join(group)
-        if has_ident(group_text) or kill_subst_carries_ident or reads_statefile(group_text):
+        # selector mechanism present -> broadened either-direction overlap;
+        # otherwise fall back to the conservative full-ident substring match so a
+        # bare `kill <bareword>` stays ALLOWED.
+        ident_hit = has_ident(group_text) if has_selector_mechanism else full_ident_in(group_text)
+        if ident_hit or kill_subst_carries_ident or reads_statefile(group_text):
             return _block("P6", "process kill carrying a protected identifier")
     return None
 
@@ -3647,6 +4063,9 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
     hotfiles = cfg.get("protected_hotfiles", [])
     endpoint_paths = cfg.get("protected_endpoint_paths", [])
     global_bins = cfg.get("protected_global_bins", [])
+    # data-file-derived process-selector fragments for the W4 kill anchor (same
+    # set P6 uses — either-direction overlap closes the directional asymmetry).
+    kill_tokens = _protected_proc_tokens(cfg)
     groups = groups or []
     for idx, sc in enumerate(simple_cmds):
         tokens = _safe_shlex(sc)
@@ -3656,16 +4075,30 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         if not cw:
             continue
         _tok_idx, head, rest = cw[0]
-        # GATE: inspection/data commands (the allowlist heads) are skipped so a
-        # protected path/command named as DATA (grep pattern, echo arg, cat target,
-        # diff operand, sed/awk script) still ALLOWS — no blanket substring scan.
-        if _is_inspection_command(head, rest):
-            continue
         # effective cwd for relative-path resolution + leading wrapper chdir.
         cwd, cwd_det = _effective_cwd_after(simple_cmds, idx, cwd_base)
         cwd, cwd_det = _fold_wrapper_cwd(cwd, cwd_det, tokens)
         exec_toks = _anchor_exec_tokens(tokens)
         exec_vals = [st for _i, st in exec_toks]
+
+        # ── CLASS-SWEEP find/fd DESTRUCTIVE (runs BEFORE the inspection gate) ────
+        # `find` is in the read/inspect allowlist, so a `find <protected-file-or-
+        # container> -delete` / `-exec rm` would be skipped by the gate below. Run
+        # the find-destructive scan FIRST for every protected FILE-glob family
+        # (bundle / statefile / global-bin) so the destructive find BLOCKS head-
+        # agnostically. A read-only find (`-print`/`-name`) or a destructive find on
+        # an UNRELATED path does NOT hit (the scanner requires a destructive action
+        # AND a matching protected/container path).
+        for fam in (hotfiles, statefiles, global_bins):
+            if fam and _find_destructive_target_hits(
+                    tokens, exec_toks, list(fam) + _container_dir_globs(fam), cwd, cwd_det):
+                return _block("P0", "find destructive action on a protected file or its container dir")
+
+        # GATE: inspection/data commands (the allowlist heads) are skipped so a
+        # protected path/command named as DATA (grep pattern, echo arg, cat target,
+        # diff operand, sed/awk script) still ALLOWS — no blanket substring scan.
+        if _is_inspection_command(head, rest):
+            continue
 
         # ── W1 LAUNCH-PATH ANCHOR ────────────────────────────────────────────
         # A protected launch PATH is inherently executable (a script/bundle). It
@@ -3744,7 +4177,7 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         # P6 already scans pipeline groups by text, but a kill behind an unknown
         # wrapper has head != kill so _is_kill_executor misses it. Detect a kill
         # verb anywhere in the exec tokens + a protected ident/statefile in the sc.
-        if idents or statefiles:
+        if idents or statefiles or kill_tokens:
             kill_in_tail = any(os.path.basename(st) in KILL_VERBS for _i, st in exec_toks)
             # `fuser -k` is a kill executor too (not in KILL_VERBS). Behind a novel
             # wrapper its head is the wrapper, so detect a fuser + -k in the tail.
@@ -3754,7 +4187,22 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
                     kill_in_tail = True
             if kill_in_tail:
                 sc_text = sc
-                if any(ident in sc_text for ident in idents):
+                # A SELECTION MECHANISM (name/pattern-matching kill verb
+                # `pkill`/`killall`/`fuser`, or a command substitution feeding the
+                # kill) gates the broadened either-direction overlap, so a plain
+                # `<wrapper> kill <bareword>` PID/jobspec kill stays ALLOWED while a
+                # `<wrapper> pkill -f <fragment>` BLOCKS. Mirrors P6's gate.
+                exec_bases = [os.path.basename(_strip_quotes(st)) for _i, st in exec_toks]
+                name_kill = any(b in ("pkill", "killall", "fuser") for b in exec_bases)
+                has_selector = name_kill or bool(_command_substitutions(sc))
+                ident_hit = (_selector_overlaps_protected(sc_text, kill_tokens, cmds)
+                             if has_selector
+                             else any(ident in sc_text for ident in idents))
+                # EITHER-direction overlap against the data-file-derived protected-
+                # process tokens (closes the same directional asymmetry P6 had: a
+                # wrapped kill whose selector is a bare protected command-word or a
+                # fragment of a registered ident now BLOCKS).
+                if ident_hit:
                     return _block("P0", "process-kill anchor carrying a protected identifier behind a front-end")
                 for raw in re.split(r"\s+", sc_text):
                     s2 = _strip_quotes(raw.strip("'\""))
@@ -3764,7 +4212,7 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
                 # kill target via command substitution naming the ident OR
                 # reading a protected statefile (`kill $(jq .pid <statefile>)`).
                 for sub in _command_substitutions(sc):
-                    if any(ident in sub for ident in idents):
+                    if _selector_overlaps_protected(sub, kill_tokens, cmds):
                         return _block("P0", "process-kill anchor (subst) carrying a protected identifier behind a front-end")
                     if statefiles:
                         for raw in re.split(r"\s+", sub):
@@ -3797,12 +4245,20 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         # redirect to a protected hotfile, INDEPENDENT of the wrapper head.
         if hotfiles and _anchor_mutation_hits(sc, tokens, exec_toks, hotfiles, cwd, cwd_det):
             return _block("P0", "mutation of a protected bundle behind a front-end")
+        # class-sweep: a mutation/move/delete of the bundle's CONTAINER directory
+        # (`mv|rm|rmdir <…>/dist`) destroys the bundle just as a direct delete does.
+        if hotfiles and _anchor_family_destructive_hits(sc, tokens, exec_toks, hotfiles, cwd, cwd_det):
+            return _block("P0", "destruction of a protected bundle's container dir behind a front-end")
 
         # ── W7 STATEFILE-WRITE ANCHOR: a mutation verb / redirect + a protected ──
         # daemon statefile, behind any wrapper. Mirrors W6; P4 STATEFILE_GUARD is
         # head-keyed the same way P3 is.
         if statefiles and _anchor_mutation_hits(sc, tokens, exec_toks, statefiles, cwd, cwd_det):
             return _block("P0", "mutation of a protected state file behind a front-end")
+        # class-sweep: a mutation/move/delete of the statefile's CONTAINER directory
+        # (`mv|rm|rmdir <home>`) removes the statefile just as a direct delete does.
+        if statefiles and _anchor_family_destructive_hits(sc, tokens, exec_toks, statefiles, cwd, cwd_det):
+            return _block("P0", "destruction of a protected state file's container dir behind a front-end")
 
         # ── W8 CONTROL-ENDPOINT ANCHOR: a loopback net-client + the protected ────
         # shutdown endpoint path in its OWN argv, behind any wrapper. P5

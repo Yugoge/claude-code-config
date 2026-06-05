@@ -3161,5 +3161,354 @@ class TestCycle12SlashPathNavAllowAndDashOptOverblock:
             os.remove(flag)
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# Cycle 13 (close-debate-20260531-162901): two reported close-blocker leaks +
+# the class-level sweep. Verified ONLY by feeding strings to evaluate()/the hook
+# (NEVER any real daemon/CLI/process command). Vocabulary split so this test's
+# OWN source never types a full kill-pipeline / daemon phrase.
+# ════════════════════════════════════════════════════════════════════════════
+
+_K = "k" + "ill"            # bare kill verb (PID/jobspec)
+_PK = "p" + "kill"          # name/pattern-matching kill
+_KA = "k" + "illall"        # name-matching kill
+_PG = "pgrep"
+_XK = "xargs " + _K
+
+
+# Nested-path data file so the STEP0 ancestor-directory protection has real
+# ancestors BELOW the generic system/home stop-roots (a `/tmp/<rand>/.config/app`
+# tree). NEVER touches the live machine data file.
+@pytest.fixture(scope="module")
+def nested_datafile(tmp_path_factory):
+    base = tmp_path_factory.mktemp("nestcfg")
+    cfgdir = base / ".config" / "app"
+    cfgdir.mkdir(parents=True)
+    p = cfgdir / "protected-runtime.json"
+    p.write_text(json.dumps(FIXTURE))
+    return str(p)
+
+
+def ev_nested(command, nested_df, cwd="/root"):
+    os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = nested_df
+    import importlib, lib.runtime_guard as rg
+    importlib.reload(rg)
+    return rg.evaluate(command, cwd)[0]
+
+
+def ev_absent(command, cwd="/root"):
+    """evaluate() with a non-existent data file -> config-absent fail-closed path."""
+    os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = "/tmp/does-not-exist-runtime-xyz.json"
+    import importlib, lib.runtime_guard as rg
+    importlib.reload(rg)
+    return rg.evaluate(command, cwd)[0]
+
+
+class TestCycle13KillFragmentDirectionalOverlap:
+    """Defect 1: `_p6_prockill.has_ident` / W4 anchor were directionally asymmetric
+    — a kill-pipeline whose selector is the bare protected command-word (a SUBSTRING
+    of a registered ident) leaked. Now an EITHER-direction overlap against the data-
+    file-derived protected-process tokens BLOCKS, while a bare PID kill and an
+    unrelated selector still ALLOW."""
+
+    # bare command-word / stem fragment selectors (the idiomatic leak forms)
+    def test_bare_fragment_xargs_kill(self, datafile, fixture_repo):
+        assert ev(f"{_PG} -f happy | {_XK}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"{_PG} -f daemon | {_XK}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"{_PG} -f index.mjs | {_XK}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"{_PG} -f happy-cli | {_XK}", datafile, fixture_repo) == "BLOCK"
+
+    def test_ps_grep_fragment(self, datafile, fixture_repo):
+        assert ev("ps aux | grep happy | awk '{print $2}' | " + _XK, datafile, fixture_repo) == "BLOCK"
+
+    def test_name_matching_kill_fragment(self, datafile, fixture_repo):
+        assert ev(f"{_PK} -f happy", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"{_KA} happy", datafile, fixture_repo) == "BLOCK"
+
+    def test_kill_subst_fragment(self, datafile, fixture_repo):
+        assert ev(f"{_K} $({_PG} -f happy)", datafile, fixture_repo) == "BLOCK"
+
+    def test_wrapped_fragment(self, datafile, fixture_repo):
+        # behind an arbitrary/invented wrapper -> W4 anchor (head-agnostic)
+        assert ev(f"setsid {_PK} -f happy", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"weirdwrapX {_PK} -f happy", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"sudo {_PK} -f happy", datafile, fixture_repo) == "BLOCK"
+
+    # boundary ALLOW: bare PID kill + unrelated selector stay allowed
+    def test_boundary_bare_pid_kill_allows(self, datafile, fixture_repo):
+        assert ev(f"{_K} 12345", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"{_K} -9 4567", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"{_K} happy", datafile, fixture_repo) == "ALLOW"   # benign jobspec error
+
+    def test_boundary_unrelated_selector_allows(self, datafile, fixture_repo):
+        assert ev(f"{_PG} -f nginx | {_XK}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"{_PK} -f nginx", datafile, fixture_repo) == "ALLOW"
+        assert ev("ps aux | grep nginx | awk '{print $2}' | " + _XK, datafile, fixture_repo) == "ALLOW"
+        assert ev(f"{_K} $({_PG} -f postgres)", datafile, fixture_repo) == "ALLOW"
+
+    def test_config_absent_fragment_blocks(self):
+        # config-absent -> STEP1 fail-closed blocks ALL kill verb families
+        assert ev_absent(f"{_PG} -f happy | {_XK}") == "BLOCK"
+        assert ev_absent(f"{_PK} -f happy") == "BLOCK"
+
+
+class TestCycle13Step0AncestorAndFind:
+    """Defect 2: STEP0 protected only the EXACT data-file path. Now a mutation/move/
+    delete of an ANCESTOR directory, and the `find`-family destructive action
+    (`-delete` / `-exec <mutation>`) against the data file OR an ancestor, BLOCK —
+    head-agnostically, config-present AND config-absent. Reads still ALLOW."""
+
+    def _cfgdir(self, nested_df):
+        return os.path.dirname(nested_df)
+
+    def test_mv_ancestor_dir_blocks(self, nested_datafile):
+        cfgdir = self._cfgdir(nested_datafile)
+        gp = os.path.dirname(cfgdir)
+        assert ev_nested(f"mv {cfgdir} /tmp/x", nested_datafile) == "BLOCK"
+        assert ev_nested(f"mv {gp} /tmp/x", nested_datafile) == "BLOCK"
+
+    def test_rm_rmdir_ancestor_dir_blocks(self, nested_datafile):
+        cfgdir = self._cfgdir(nested_datafile)
+        assert ev_nested(f"rm -rf {cfgdir}", nested_datafile) == "BLOCK"
+        assert ev_nested(f"rmdir {cfgdir}", nested_datafile) == "BLOCK"
+        assert ev_nested(f"chmod 000 {cfgdir}", nested_datafile) == "BLOCK"
+
+    def test_find_destructive_datafile_and_ancestor_blocks(self, nested_datafile):
+        df = nested_datafile
+        cfgdir = self._cfgdir(nested_datafile)
+        assert ev_nested(f"find {df} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"find {cfgdir} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"find {df} -exec rm {{}} ;", nested_datafile) == "BLOCK"
+        assert ev_nested(f"find {cfgdir} -exec rm -rf {{}} +", nested_datafile) == "BLOCK"
+
+    def test_wrapped_find_destructive_blocks(self, nested_datafile):
+        df = nested_datafile
+        assert ev_nested(f"sudo find {df} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"weirdwrapX find {df} -delete", nested_datafile) == "BLOCK"
+
+    def test_direct_datafile_mutation_still_blocks(self, nested_datafile):
+        df = nested_datafile
+        assert ev_nested(f"mv {df} /tmp/x", nested_datafile) == "BLOCK"
+        assert ev_nested(f"shred {df}", nested_datafile) == "BLOCK"
+
+    def test_config_absent_step0_blocks(self):
+        # STEP0 runs BEFORE config load -> ancestor + find protection holds absent.
+        # Use the live hardcoded path so the absent-file path still has ancestors.
+        os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = "/tmp/abs/.config/app/protected-runtime.json"
+        import importlib, lib.runtime_guard as rg
+        importlib.reload(rg)
+        assert rg.evaluate("find /tmp/abs/.config/app/protected-runtime.json -delete")[0] == "BLOCK"
+        assert rg.evaluate("find /tmp/abs/.config/app -delete")[0] == "BLOCK"
+        assert rg.evaluate("mv /tmp/abs/.config/app /tmp/x")[0] == "BLOCK"
+
+    # boundary ALLOW: reads of the config + unrelated mutations stay allowed
+    def test_boundary_reads_and_unrelated_allow(self, nested_datafile):
+        df = nested_datafile
+        cfgdir = self._cfgdir(nested_datafile)
+        assert ev_nested(f"cat {df}", nested_datafile) == "ALLOW"
+        assert ev_nested(f"grep foo {df}", nested_datafile) == "ALLOW"
+        assert ev_nested(f"cp {df} /tmp/backup.json", nested_datafile) == "ALLOW"
+        assert ev_nested(f"find {cfgdir} -print", nested_datafile) == "ALLOW"
+        assert ev_nested(f"find {cfgdir} -name '*.json'", nested_datafile) == "ALLOW"
+        assert ev_nested(f"find {cfgdir} -exec cat {{}} ;", nested_datafile) == "ALLOW"
+        assert ev_nested("mv /tmp/unrelated /tmp/x", nested_datafile) == "ALLOW"
+        assert ev_nested("find /tmp/unrelated -delete", nested_datafile) == "ALLOW"
+        # generic home/system roots are NOT ancestor-protected
+        assert ev_nested("mv /root /backup", nested_datafile) == "ALLOW"
+        assert ev_nested("rm -rf /root", nested_datafile) == "ALLOW"
+
+
+class TestCycle13ClassSweepSiblingFamilies:
+    """Class sweep: the find-family destructive + container-directory blind spots
+    also existed for the bundle (hotfile), the daemon statefile, and the global-bin
+    family. All now BLOCK head-agnostically where in-scope; reads + unrelated/sibling
+    mutations still ALLOW."""
+
+    def _bundle(self, repo):
+        return f"{repo}/packages/happy-cli/dist/index.mjs"
+
+    def _bundledir(self, repo):
+        return f"{repo}/packages/happy-cli/dist"
+
+    def _pkgdir(self, repo):
+        return f"{repo}/packages/happy-cli"
+
+    def test_find_destructive_bundle(self, datafile, fixture_repo):
+        b = self._bundle(fixture_repo)
+        bd = self._bundledir(fixture_repo)
+        assert ev_cwd(f"find {b} -delete", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd(f"find {bd} -delete", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd(f"find {b} -exec rm {{}} ;", datafile, fixture_repo) == "BLOCK"
+
+    def test_container_dir_mutation_bundle(self, datafile, fixture_repo):
+        bd = self._bundledir(fixture_repo)
+        pd = self._pkgdir(fixture_repo)
+        assert ev_cwd(f"mv {bd} /tmp/x", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd(f"rm -rf {bd}", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd(f"rmdir {bd}", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd(f"mv {pd} /tmp/x", datafile, fixture_repo) == "BLOCK"
+
+    def test_find_destructive_statefile(self, datafile, fixture_repo):
+        assert ev_cwd("find /root/.happy-dev/daemon.state.json -delete", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("find /root/.happy-dev -exec rm {} ;", datafile, fixture_repo) == "BLOCK"
+
+    def test_container_dir_mutation_statefile(self, datafile, fixture_repo):
+        assert ev_cwd("mv /root/.happy-dev /tmp/x", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("rm -rf /root/.happy-dev", datafile, fixture_repo) == "BLOCK"
+
+    def test_find_destructive_globalbin(self, datafile, fixture_repo):
+        assert ev_cwd("find /usr/bin/happy -delete", datafile, fixture_repo) == "BLOCK"
+
+    def test_wrapped_sweep_blocks(self, datafile, fixture_repo):
+        bd = self._bundledir(fixture_repo)
+        assert ev_cwd(f"sudo find {bd} -delete", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd(f"weirdwrapX rm -rf {bd}", datafile, fixture_repo) == "BLOCK"
+
+    # boundary ALLOW: reads, new-file-into-dir, sibling pkg, generic system roots
+    def test_boundary_sweep_allows(self, datafile, fixture_repo):
+        b = self._bundle(fixture_repo)
+        bd = self._bundledir(fixture_repo)
+        assert ev_cwd(f"find {b} -print", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd(f"find {bd} -name '*.mjs'", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd(f"ls {bd}", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd(f"cat {b}", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd(f"cp /tmp/foo {bd}/other.mjs", datafile, fixture_repo) == "ALLOW"
+        # a NON-protected sibling package dir is not container-protected
+        assert ev_cwd(f"mv {fixture_repo}/packages/happy-app /tmp/x", datafile, fixture_repo) == "ALLOW"
+        # generic system dirs are NOT global-bin container-protected
+        assert ev_cwd("rm -rf /usr/lib", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd("rm -rf /usr/bin", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd("find /tmp/unrelated -delete", datafile, fixture_repo) == "ALLOW"
+
+
+class TestCycle13LiveHookAndDoBypass:
+    """The two fixed leaks + a sweep representative BLOCK on the REAL hook end-to-end
+    against the LIVE data file, both plain and under a /do consent flag (the guard
+    runs before /do, so it is unbypassable).
+
+    The hook resolves its python via `CLAUDE_PYTHON_BIN` (else `${CLAUDE_HOME}/venv/
+    bin/python`, else `python3`). Under the test runner `CLAUDE_HOME` may be unset,
+    so we pin `CLAUDE_PYTHON_BIN` to the interpreter running pytest so the REAL
+    engine executes (otherwise the hook degrades to the verb-family fail-closed grep,
+    which does not cover the mv/find self-protection forms these tests target)."""
+
+    _ENV = {"CLAUDE_PYTHON_BIN": sys.executable}
+
+    def _clean_env(self, extra=None):
+        # a prior engine-level test may have left CLAUDE_PROTECTED_RUNTIME_FILE
+        # pointing at a tmp fixture; the LIVE-hook tests must use the REAL default
+        # data file (/root/.config/claude/...), so drop the override here.
+        e = dict(os.environ, **self._ENV)
+        e.pop("CLAUDE_PROTECTED_RUNTIME_FILE", None)
+        if extra:
+            e.update(extra)
+        return e
+
+    def _run(self, cmd, extra_env=None):
+        # call the hook directly with a COMPLETE env (run_hook re-seeds from
+        # os.environ, which would re-introduce a stale CLAUDE_PROTECTED_RUNTIME_FILE
+        # left by a prior engine test) so the LIVE default data file is used.
+        payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd}})
+        return subprocess.run(["bash", HOOK], input=payload, text=True,
+                              capture_output=True, env=self._clean_env(extra_env)).returncode
+
+    def test_live_hook_kill_fragment_blocks(self):
+        assert self._run(f"{_PG} -f happy | {_XK}") == BLOCK
+        assert self._run(f"{_PK} -f happy") == BLOCK
+
+    def test_live_hook_config_ancestor_blocks(self):
+        # the LIVE data file is /root/.config/claude/protected-runtime.json; its
+        # parent dir mutation + find -delete must BLOCK on the real hook.
+        assert self._run("mv /root/.config/claude /tmp/x") == BLOCK
+        assert self._run("find /root/.config/claude/protected-runtime.json -delete") == BLOCK
+        assert self._run("find /root/.config/claude -delete") == BLOCK
+
+    def test_live_hook_sweep_blocks(self):
+        assert self._run("find /root/.happy-dev/daemon.state.json -delete") == BLOCK
+
+    def test_live_hook_boundary_allows(self):
+        # NOTE: bare `kill <pid>` / `xargs kill` are independently blocked by the
+        # LEGACY bash-safety hook (kill-by-PID / kill-happy rules), orthogonal to
+        # this engine. The engine-level boundary ALLOW for those forms is asserted
+        # in TestCycle13KillFragmentDirectionalOverlap; here we assert only the
+        # config/find self-protection boundary the engine owns end-to-end.
+        assert self._run("cat /root/.config/claude/protected-runtime.json") == ALLOW
+        assert self._run("find /root/.config/claude -print") == ALLOW
+        assert self._run("find /root/.config/claude -name '*.json'") == ALLOW
+        assert self._run("mv /tmp/unrelated-xyz /tmp/x") == ALLOW
+
+    def test_live_hook_unbypassable_under_do(self):
+        sid = "guardtest13-" + str(os.getpid())
+        flag = f"/tmp/claude-orchestrator-consent-{sid}.flag"
+        with open(flag, "w") as fh:
+            fh.write("true")
+        try:
+            def run(cmd):
+                payload = json.dumps({"tool_name": "Bash",
+                                      "tool_input": {"command": cmd},
+                                      "session_id": sid})
+                return subprocess.run(["bash", HOOK], input=payload, text=True,
+                                      capture_output=True, env=self._clean_env()).returncode
+            assert run(f"{_PG} -f happy | {_XK}") == BLOCK
+            assert run("mv /root/.config/claude /tmp/x") == BLOCK
+            assert run("find /root/.config/claude -delete") == BLOCK
+            # boundary self-protection read still ALLOWs under /do (kill-pid is a
+            # legacy-hook block, orthogonal to the engine — not asserted here).
+            assert run("cat /root/.config/claude/protected-runtime.json") == ALLOW
+        finally:
+            os.remove(flag)
+
+
+class TestCycle13CodexFollowup:
+    """Two additional under-block leaks codex (gpt-5.5 xhigh) surfaced during the
+    fix review, both in-scope good-faith forms:
+      F1: P6 pipeline selector/kill was head-keyed per segment, so a kill pipeline
+          with the selector/executor BEHIND a novel wrapper leaked.
+      F2: `_find_path_operands` stopped at the first dash token, so a destructive
+          find with options BEFORE the path (`-L`/`-maxdepth N`/`--`/`-P`) dropped
+          the path operand and under-blocked."""
+
+    # F1: wrapped pipeline kill forms now BLOCK (head-agnostic P6)
+    def test_wrapped_pipeline_kill_blocks(self, datafile, fixture_repo):
+        assert ev(f"weirdwrapX {_PG} -f happy | {_XK}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"{_PG} -f happy | weirdwrapX {_XK}", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"weirdwrapX {_PK} -f happy", datafile, fixture_repo) == "BLOCK"
+        assert ev(f"pidof happy | {_XK}", datafile, fixture_repo) == "BLOCK"
+
+    def test_wrapped_pipeline_statefile_kill_blocks(self, datafile, fixture_repo):
+        assert ev(f"cat /root/.happy-dev/daemon.state.json | weirdwrapX {_XK}",
+                  datafile, fixture_repo) == "BLOCK"
+
+    def test_wrapped_pipeline_boundary_allows(self, datafile, fixture_repo):
+        assert ev(f"weirdwrapX {_PG} -f nginx | {_XK}", datafile, fixture_repo) == "ALLOW"
+        assert ev(f"{_PG} -f nginx | weirdwrapX {_XK}", datafile, fixture_repo) == "ALLOW"
+
+    # F2: destructive find with options BEFORE the path now BLOCKs (config family)
+    def test_find_opts_before_path_blocks(self, nested_datafile):
+        df = nested_datafile
+        cfgdir = os.path.dirname(df)
+        assert ev_nested(f"find -L {df} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"find -maxdepth 1 {df} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"find -- {cfgdir} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"find -P {df} -delete", nested_datafile) == "BLOCK"
+        assert ev_nested(f"find -maxdepth 1 {cfgdir} -exec rm {{}} ;", nested_datafile) == "BLOCK"
+        assert ev_nested(f"sudo find -L {df} -delete", nested_datafile) == "BLOCK"
+
+    def test_find_opts_before_path_sibling_family_blocks(self, datafile, fixture_repo):
+        bd = f"{fixture_repo}/packages/happy-cli/dist"
+        assert ev_cwd(f"find -L {bd} -delete", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("find -maxdepth 1 /root/.happy-dev -delete", datafile, fixture_repo) == "BLOCK"
+
+    def test_find_opts_before_path_boundary_allows(self, nested_datafile):
+        cfgdir = os.path.dirname(nested_datafile)
+        assert ev_nested("find -L /tmp/unrelated -delete", nested_datafile) == "ALLOW"
+        assert ev_nested(f"find -maxdepth 1 {cfgdir} -print", nested_datafile) == "ALLOW"
+        assert ev_nested("find -- /tmp/unrelated -delete", nested_datafile) == "ALLOW"
+
+    def test_find_implicit_cwd_destructive_blocks(self, datafile, fixture_repo):
+        # `cd <protected-dir> && find -delete` — path-less find targets cwd
+        bd = f"{fixture_repo}/packages/happy-cli/dist"
+        assert ev_cwd("find -delete", datafile, bd) == "BLOCK"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
