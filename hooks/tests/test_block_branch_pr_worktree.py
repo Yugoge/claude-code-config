@@ -91,8 +91,33 @@ def _bash(cmd, **extra):
     'git switch -t origin/foo',
     'git switch --track origin/foo',
     'git switch --guess remotebranch',
+    # ── VECTOR B: unambiguous unique-prefix abbreviations of CREATE long-opts
+    #    create branches → must BLOCK ──────────────────────────────────────────
+    'git switch --cr foo',               # --cr -> --create
+    'git checkout --or foo',             # --or -> --orphan
+    'git checkout --tr origin/x',        # --tr -> --track
+    'git switch --g foo',                # --g  -> --guess
+    'git switch --force-c foo',          # --force-c -> --force-create
+    # ── VECTOR C: git stash branch creates a branch from a stash → must BLOCK ──
+    'git stash branch foo',
+    # ── VECTOR D: fetch/pull refspec into refs/heads creates a branch → BLOCK ──
+    'git fetch . HEAD:refs/heads/foo',
+    'git pull origin x:refs/heads/foo',
+    # ── VECTOR E: update-ref plumbing creates a branch → must BLOCK ────────────
+    'git update-ref refs/heads/foo HEAD',
+    # ── VECTOR F: command/process substitution exposes an inner creation → BLOCK
+    'echo $(git checkout -b foo)',
+    'x=$(git switch -c foo)',
 ])
 def test_branch_creation_blocked(cmd, tmp_path):
+    rc, _ = _run(_bash(cmd), tmp_path)
+    assert rc == 2, f'expected block for: {cmd}'
+
+
+def test_backtick_substitution_inner_creation_blocked(tmp_path):
+    # VECTOR F: backtick command substitution is split (already today); the inner
+    # `git checkout -b foo` must classify as branch creation → BLOCK.
+    cmd = 'result=`git checkout -b foo`'
     rc, _ = _run(_bash(cmd), tmp_path)
     assert rc == 2, f'expected block for: {cmd}'
 
