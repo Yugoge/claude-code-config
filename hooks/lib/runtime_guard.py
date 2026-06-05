@@ -3561,6 +3561,60 @@ def _dir_under_any_root(d: Optional[str], cfg: dict) -> bool:
     return False
 
 
+def _resolved_protected_dirs(globs: list, cfg: dict) -> list:
+    """Resolve each protected GLOB to the CONCRETE protected directory/file path(s)
+    its literal prefix denotes — so a destructive ROOT that CONTAINS them can be
+    detected (reverse containment). An ABSOLUTE glob (`/usr/bin/<cmd>*`) contributes
+    its literal directory prefix as-is. A RELATIVE `**`-prefixed glob
+    (`**/packages/<pkg>/dist/index.mjs`) is suffix-matching and could match an
+    UNRELATED repo; it is qualified by JOINING its post-`**` literal segment-prefix
+    onto each protected monorepo ROOT (`<root>/packages/<pkg>/dist`), so only the
+    genuine protected location is produced. Returns absolute concrete dirs."""
+    out = []
+    roots = [os.path.normpath(r) for r in cfg.get("protected_root_manifest_paths", [])]
+    for g in globs:
+        if g.startswith("/"):
+            lit = _glob_literal_prefix(g)
+            if lit:
+                out.append(os.path.normpath(lit))
+            continue
+        # relative glob: drop a leading `**/` then take the literal segment-prefix.
+        body = g[3:] if g.startswith("**/") else g
+        segs = []
+        for seg in body.split("/"):
+            if _has_shell_glob(seg) or seg == "**":
+                break
+            segs.append(seg)
+        rel = "/".join(segs)
+        if not rel:
+            continue
+        for root in roots:
+            out.append(os.path.normpath(os.path.join(root, rel)))
+    return out
+
+
+def _destructive_root_contains_protected(root_path: str, globs: list, cfg: dict,
+                                          cwd: Optional[str], cwd_det: bool) -> bool:
+    """REVERSE CONTAINMENT: True if a destructive operation on the directory/pathspec
+    `root_path` would wipe/revert a protected descendant — i.e. a protected glob
+    resolves to a concrete path AT or UNDER `root_path`. Closes the leak where a
+    destructive op names a CONTAINER of the protected file (the repo root, the
+    `packages` dir, `.`) instead of the protected path itself
+    (`git clean -fdx .`, `find packages -delete`, `git checkout -- .`). The forward
+    direction (target UNDER protected) is handled by `_path_matches_any`/
+    `_path_under_any`; this adds the reverse. A relative `root_path` is resolved
+    against the effective cwd; an unresolvable relative root cannot be proven safe →
+    treated as the cwd-qualified candidate only (no blanket block)."""
+    cands = []
+    for c in _resolve_rel(root_path, cwd, cwd_det):
+        cands.append(_normalize_path(c))
+    for prot_dir in _resolved_protected_dirs(globs, cfg):
+        for rc in cands:
+            if _dir_equal_or_under(prot_dir, rc):
+                return True
+    return False
+
+
 def _dir_is_protected_pkg(d: Optional[str], cfg: dict) -> bool:
     """True if `d` is a protected package dir. A relative `protected_script_paths`
     glob (e.g. `**/packages/<pkg>`) is suffix-matching and would also match an
