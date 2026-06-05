@@ -73,14 +73,36 @@ def _norm(command):
 
 
 def _segments(c):
-    """Split on shell separators ; \n | & && || ` ( ) into command segments."""
+    """Split on shell separators ; \n | & && || ` ( ) into command segments.
+
+    Parens are split ONLY as real subshell boundaries: a `(` counts as a
+    separator only in command position (the current buffer is empty or all
+    whitespace), and a matching `)` only closes a subshell we actually opened.
+    This avoids shredding argument-internal parens such as a git
+    `--format %(refname)` / `--format=%(refname)` spec, whose `(`/`)` are part of
+    a single argument token — splitting those would orphan a trailing positional
+    branch name (e.g. `git branch --format %(refname) nb`) into a segment without
+    `git branch`, defeating creation detection (the dangerous under-block
+    direction).
+    """
     out, buf, i, n = [], [], 0, len(c)
+    subshell_depth = 0
+
+    def _buf_is_cmd_position():
+        return all(ch.isspace() for ch in buf)
+
     while i < n:
         two = c[i:i + 2]
         if two in ('&&', '||'):
             out.append(''.join(buf)); buf = []; i += 2; continue
         ch = c[i]
-        if ch in ';\n|&`()':
+        if ch in ';\n|&`':
+            out.append(''.join(buf)); buf = []; i += 1; continue
+        if ch == '(' and _buf_is_cmd_position():
+            subshell_depth += 1
+            out.append(''.join(buf)); buf = []; i += 1; continue
+        if ch == ')' and subshell_depth > 0:
+            subshell_depth -= 1
             out.append(''.join(buf)); buf = []; i += 1; continue
         buf.append(ch); i += 1
     out.append(''.join(buf))
