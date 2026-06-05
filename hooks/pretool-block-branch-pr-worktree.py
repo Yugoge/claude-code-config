@@ -398,7 +398,18 @@ def _refspec_creates(sa):
     `git fetch <repo> <src>:refs/heads/<name>` and the pull equivalent create a
     local branch. Plain fetch/pull (including `--all`, `origin`, `origin main`)
     carry no `:refs/heads/` refspec and stay allowed.
+
+    `--dry-run` writes nothing, so a `:refs/heads/` refspec under `--dry-run`
+    creates no branch → NOT a creation (a later `--no-dry-run` re-arms it).
     """
+    dry = False
+    for x in sa:
+        if x == '--dry-run':
+            dry = True
+        elif x == '--no-dry-run':
+            dry = False
+    if dry:
+        return False
     return any(':refs/heads/' in x for x in sa)
 
 
