@@ -174,9 +174,7 @@ _WRAPPERS = {
     'ionice', 'command', 'builtin', 'nice',
 }
 
-import re as _re  # noqa: E402
-
-_ENV_ASSIGN_RE = _re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
+_ENV_ASSIGN_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
 
 
 def _command_token_index(toks):
