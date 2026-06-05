@@ -49,6 +49,16 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Task-id from the /commit invocation (e.g. 20260519-160856).",
     )
     parser.add_argument(
+        "--revoke-only",
+        action="store_true",
+        help=(
+            "Revoke (delete) any existing grant for --task-id + sid and EXIT "
+            "WITHOUT writing a fresh grant. Used by /commit Step 5.5c stop paths "
+            "(QA REJECT / dry-run / unparseable) so a blocked gate leaves no live "
+            "commit authorization lingering."
+        ),
+    )
+    parser.add_argument(
         "--sid",
         default=None,
         help="Claude session id. Defaults to the CLAUDE_SESSION_ID env var.",
