@@ -15,16 +15,23 @@ hook pretool-block-enterworktree.sh (same bypass semantics, including the
 overnight exception); keeping the two surfaces in separate hooks avoids
 double-blocking EnterWorktree.
 
-Blocked Bash operations (detected on whitespace tokens of the context-stripped
-command, so the literal word "git" inside a quoted string is never matched;
-path-qualified forms like /usr/bin/git, leading env-var prefixes, and
-attached/clustered short options are all caught):
-  - git checkout -b/-B/--orphan <name>            (branch creation, incl. -bNAME)
-  - git switch  -c/-C/--create/--force-create/--orphan  (branch creation, incl. -cNAME)
+Only the COMMAND token of each shell segment is classified — the first token
+after skipping leading env-var assignments (NAME=VALUE) and known wrappers
+(sudo, doas, env, xargs, time, nohup, setsid, stdbuf, ionice, command, builtin,
+nice). Text that merely MENTIONS the command as an argument (`echo git checkout
+-b x`, `echo gh pr new`) is in argument position, never command position, so it
+is NOT a creation. Path-qualified forms like /usr/bin/git, leading env-var
+prefixes, and attached/clustered short options are all caught.
+
+Blocked Bash operations:
+  - git checkout -b/-B/--orphan/--guess <name>    (branch creation, incl. -bNAME)
+  - git switch  -c/-C/--create/--force-create/--orphan/--guess  (incl. -cNAME)
   - git branch <name>  /  -c/-C/--copy            (branch creation)
       list / delete / rename / upstream / info forms remain allowed.
   - git worktree add ...                          (worktree creation)
   - gh pr create / gh pr new ...                  (PR creation, flags interspersed)
+  - gh pr checkout <N>  (unless --detach)         (creates a local PR branch)
+  - gh api repos/<o>/<r>/pulls  (POST)            (PR creation via the REST API)
   - git stash branch <name>                       (branch from a stash)
   - git fetch/pull <repo> <src>:refs/heads/<name> (refspec into a local branch)
   - git update-ref refs/heads/<name> <sha>        (plumbing branch creation)
