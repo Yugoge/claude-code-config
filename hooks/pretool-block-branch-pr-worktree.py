@@ -135,6 +135,49 @@ def _git_subcommand(args):
     return None, []
 
 
+# Long-option name spaces for checkout/switch, split into CREATE vs NON-create.
+# These drive git's real unambiguous-unique-prefix abbreviation rule (see
+# _long_opt_creates): git accepts any `--X` that is a unique prefix of exactly
+# one long option, so `--cr` resolves to `--create`, `--or` to `--orphan`, etc.
+# Listing the NON-create options is required for disambiguation — without them a
+# prefix that is actually ambiguous (e.g. `--c` for switch: --create/--conflict)
+# would be wrongly treated as a create.
+_CO_CREATE_LONG = {'--orphan', '--track'}
+_CO_NONCREATE_LONG = {
+    '--ours', '--theirs', '--force', '--detach', '--merge', '--conflict',
+    '--patch', '--quiet', '--progress', '--no-track', '--no-guess', '--guess',
+    '--ignore-other-worktrees', '--recurse-submodules', '--pathspec-from-file',
+    '--pathspec-file-nul', '--overwrite-ignore', '--overlay', '--no-overlay',
+}
+_SW_CREATE_LONG = {'--create', '--force-create', '--orphan', '--track', '--guess'}
+_SW_NONCREATE_LONG = {
+    '--detach', '--discard-changes', '--force', '--merge', '--conflict',
+    '--quiet', '--progress', '--no-guess', '--no-track', '--recurse-submodules',
+    '--ignore-other-worktrees', '--no-recurse-submodules',
+}
+
+
+def _long_opt_creates(sub, base):
+    """True iff long-opt token `base` (already stripped of any =value) is a
+    CREATE flag for `sub`, including git's unambiguous unique-prefix
+    abbreviations.
+
+    `base` is a `--X` token. Per git: an abbreviation creates iff it is a unique
+    prefix of EXACTLY ONE long option across the union of that subcommand's
+    create + non-create options, and that one option is a CREATE option. Exact
+    full-flag matches are a special case of this (cand == [base]).
+    """
+    if not base.startswith('--') or base == '--':
+        return False
+    if sub == 'checkout':
+        create, noncreate = _CO_CREATE_LONG, _CO_NONCREATE_LONG
+    else:
+        create, noncreate = _SW_CREATE_LONG, _SW_NONCREATE_LONG
+    allopts = create | noncreate
+    cand = [opt for opt in allopts if opt == base or opt.startswith(base)]
+    return len(cand) == 1 and cand[0] in create
+
+
 def _is_co_sw_create(sub, sa):
     """True iff a `git checkout`/`git switch` invocation CREATES a branch.
 
@@ -144,6 +187,13 @@ def _is_co_sw_create(sub, sa):
     Checkout-only short letters: -b / -B    (create / create-or-reset)
     Switch-only long opts: --create / --force-create / --orphan and --guess
       (--guess is switch's explicit "create from a remote-tracking name" flag).
+
+    Long-opt ABBREVIATIONS: git accepts any unambiguous unique-prefix of a long
+    option (`--cr` -> --create, `--or` -> --orphan, `--tr` -> --track,
+    `--g` -> --guess, `--force-c` -> --force-create). _long_opt_creates resolves
+    each `--X` token against the subcommand's real long-option name space and
+    returns True only when the prefix is unique AND lands on a CREATE option, so
+    `--force`/`--detach`/`--conflict`/`--no-track` (non-create) are NOT blocked.
 
     Handles bare and attached short options (-b, -bNAME, -fb, -tb), long options
     with or without an attached =value (base = token.split('=')[0], tolerant of a
@@ -156,19 +206,19 @@ def _is_co_sw_create(sub, sa):
     one remote-tracking branch. That is indistinguishable, without repo state,
     from switching to an existing local branch, and blocking it would break the
     legitimate `git switch master` / `git checkout master`. So a bare
-    switch/checkout to a name stays ALLOWED.
+    switch/checkout to a name stays ALLOWED. (For plain `git checkout`,
+    --guess/--no-guess are deliberately in the NON-create set so bare guess-to-
+    existing stays allowed — only -b/-B/--orphan/--track create for checkout.)
     """
     create_letters = set('bB') if sub == 'checkout' else set('cC')
     create_letters.add('t')  # -t == --track creates a local tracking branch
     for x in sa:
         if x == '--':
             break  # pathspec separator — options named like -b after it are files
-        base = x.split('=', 1)[0]  # strip attached =value for long options
-        if base in ('--orphan', '--track'):
-            return True
-        if sub == 'switch' and base in ('--create', '--force-create', '--guess'):
-            return True
         if x.startswith('--'):
+            base = x.split('=', 1)[0]  # strip attached =value for long options
+            if _long_opt_creates(sub, base):
+                return True
             continue
         if x.startswith('-') and len(x) > 1:
             # short-option cluster / attached value: -b, -bNAME, -fb, -tNAME ...
