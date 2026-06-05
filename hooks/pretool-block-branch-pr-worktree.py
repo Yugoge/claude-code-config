@@ -53,7 +53,7 @@ sandbox, mitigated by the /do consent and /allow grant escape hatches):
     intentionally NOT handled here because pretool-git-privilege-guard.py already
     default-denies all agent `git push`.
   - a quoted-subcommand / backslash-escape evasion (`git 'checkout' -b x`,
-    `\git checkout -b x`): the quoted/escaped token is removed by _norm's
+    `\\git checkout -b x`): the quoted/escaped token is removed by _norm's
     context-strip before tokenizing, so the inner command is never seen — same
     class as the eval/sh -c interpreter-string limit above.
   - a wrapper that consumes its OWN value args before the command (e.g.
