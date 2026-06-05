@@ -218,14 +218,15 @@ def _branch_creates(sa):
             elif base in _BRANCH_VALUE_LONG and not attached:
                 j += 1  # swallow the separate value token
             # else: display/boolean long flag (--verbose, --no-color, ...) ignored
-        elif base_u := (x.startswith('-') and len(x) > 1):  # noqa: F841
+        elif x.startswith('-') and len(x) > 1:
             cluster = set(x[1:])
+            # -u (==--set-upstream-to) carries 'u' in the veto set, so it (and
+            # any other veto cluster) short-circuits here; its space-separated
+            # value is never reached/mis-read as a positional. Good.
             if cluster & _BRANCH_VETO_SHORT:
                 return False
             if cluster & _BRANCH_COPY_SHORT:
                 saw_copy = True
-            elif x == '-u':
-                j += 1  # -u == --set-upstream-to: swallow value (also veto-ish)
             # else: display/boolean short cluster (-v, -q, -vv, ...) ignored
         else:
             positionals += 1
