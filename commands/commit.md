@@ -79,7 +79,7 @@ Print: `WARNING: --force bypasses close-gate. Audit entry written to ~/.claude/l
 
 Before dispatching changelog-analyst, write the appropriate authorization token:
 - **BULK=true**: the multi-use bulk-commit capability is now minted by the TRUSTED `userprompt-bulk-commit-capability.py` hook the moment the human submits `/commit --bulk` (an LLM cannot self-invoke a `disable-model-invocation: true` slash command, so the prompt itself is the trust root). The orchestrator MUST NOT emit a Bash command to write the sentinel — that fragile exact-string path is retired.
-  - PRIMARY: assume the hook already minted `/tmp/claude-bulk-commit-sentinel-<sid>-<nonce>.json` (origin `userpromptsubmit-hook`). Proceed to the **Step 5.5 pre-commit QA gate** (then Step 6) — `--bulk` is NOT exempt from the QA gate (only `FORCE=true` bypasses it). An optional read-only check is a single bare `ls /tmp/claude-bulk-commit-sentinel-*.json`.
+  - PRIMARY: assume the hook already minted `/tmp/claude-bulk-commit-sentinel-<sid>-<nonce>.json` (origin `userpromptsubmit-hook`). Proceed to the **Step 5.5 pre-commit QA gate** (then Step 7) — `--bulk` is NOT exempt from the QA gate (only `FORCE=true` bypasses it). An optional read-only check is a single bare `ls /tmp/claude-bulk-commit-sentinel-*.json`.
   - NO FALLBACK: the canonical writer is no longer Bash-executable (Layer 1.F deny-only, stage-2). The hook is the SOLE minter. If the capability is absent, the `userprompt-bulk-commit-capability.py` hook is not yet active in this session — instruct the user to restart the session so settings.json reloads the hook, then re-run `/commit --bulk`. Do NOT attempt to write the sentinel via Bash.
 - **BULK=false**: write **two single-use commit grants** (one for root-repo commit or root-repo recovery, one for nested-repo recovery commit). Activate venv and run Python to write the grants. The script resolves the session ID from `CLAUDE_CODE_SESSION_ID` (primary) or `CLAUDE_SESSION_ID` (fallback). If neither is set, abort immediately with: `Cannot write commit grant: CLAUDE_CODE_SESSION_ID (and CLAUDE_SESSION_ID) not set. Invoke /commit from within a Claude Code session.` Do NOT proceed to dispatch changelog-analyst. If `sid` is set, generate `grant_path = /tmp/claude-commit-grant-{sid}-{nonce}.json` containing `task_id`, `sid`, `nonce`, `expires_at`, and `created_at`. The guard IS registered and active — grant absence WILL block the changelog-analyst commit.
 
@@ -103,15 +103,15 @@ Also write the dispatch-snapshot manifest (non-bulk mode only): activate venv an
 
 A QA agent reviews **what is actually about to be committed** (the staged set + its diff) and may BLOCK the commit. This is an independent second reviewer on top of `changelog-analyst`'s own staging judgment — it exists because `--bulk` / `--force` skip `/close` entirely, and even a normal commit's *literal staged diff* deserves a fresh adversarial check for junk / secrets / scope contamination. The gate reviews the diff itself, NOT the dev-report.
 
-**If `FORCE=true`: skip this entire step.** Print `WARNING: --force bypasses the pre-commit QA gate.` and proceed to Step 6 (human override accepts the risk; the bypass is already audited by Step 4).
+**If `FORCE=true`: skip this entire step.** Print `WARNING: --force bypasses the pre-commit QA gate.` and proceed to Step 7 (human override accepts the risk; the bypass is already audited by Step 4).
 
 Otherwise (applies to BOTH `BULK=false` and `BULK=true`):
 
 **Step 5.5a — Produce the staging plan (internal dry-run; plan-only).**
-Dispatch `changelog-analyst` (Agent, `subagent_type: changelog-analyst`) with the **same prompt as Step 6 but `DRYRUN=true`** (force dry-run regardless of the user's `--dry-run`). Under `DRYRUN=true` changelog-analyst classifies, stages the candidate set into the index, and STOPS before commit — it does NOT commit, write push-gate tokens, run any recovery commit, or consume the Step 5 grant (guaranteed by the DRYRUN guard in `agents/changelog-analyst.md` — the `nothing_to_commit_precommitted` recovery path is disabled under DRYRUN). Capture from its output:
+Dispatch `changelog-analyst` (Agent, `subagent_type: changelog-analyst`) with the **same prompt as Step 7 but `DRYRUN=true`** (force dry-run regardless of the user's `--dry-run`). Under `DRYRUN=true` changelog-analyst classifies, stages the candidate set into the index, and STOPS before commit — it does NOT commit, write push-gate tokens, run any recovery commit, or consume the Step 5 grant (guaranteed by the DRYRUN guard in `agents/changelog-analyst.md` — the `nothing_to_commit_precommitted` recovery path is disabled under DRYRUN). Capture from its output:
 - `PLAN_GROUPS` — the per-proposed-commit groups, each `{repo, commit_message, files[]}` (one entry per intended commit; bulk yields several). **Preserve group boundaries — do NOT flatten across groups** (QA needs them to detect cross-task mixing).
 - `PLAN_FILES` — the union of all group files, per repo.
-- If the dry-run reports `nothing_to_commit` / empty plan: print `Nothing to commit — QA gate skipped.` and proceed to Step 6 (which also no-ops). Do NOT dispatch QA on an empty plan.
+- If the dry-run reports `nothing_to_commit` / empty plan: print `Nothing to commit — QA gate skipped.` and proceed to Step 7 (which also no-ops). Do NOT dispatch QA on an empty plan.
 
 Because dry-run stages-then-stops, the planned set is left **staged in the index** after 5.5a; QA therefore inspects it via `git diff --cached` (the unstaged `git diff` would be empty).
 
@@ -165,16 +165,16 @@ Return, as the LAST line, EXACTLY one of:
 ```bash
 source venv/bin/activate && python3 "${CONTROL_ROOT}/.claude/scripts/write-commit-grant.py" --task-id "$TASK_ID" --revoke-only
 ```
-(Only the `COMMIT: APPROVE` + real-commit path keeps the grant — it is consumed by Step 6.)
+(Only the `COMMIT: APPROVE` + real-commit path keeps the grant — it is consumed by Step 7.)
 
-- `COMMIT: REJECT`: print the verdict + offending files; **unstage the dry-run-staged set so the tree is left clean** — `git -C <repo> restore --staged -- <PLAN_FILES>` per repo (unborn repo: `git -C <repo> rm --cached -- <files>`); revoke the grant (Grant hygiene above). Do NOT proceed to Step 6; do NOT commit. Tell the user to remove/fix the flagged files, or re-run with `--force` to override. **Stop.**
+- `COMMIT: REJECT`: print the verdict + offending files; **unstage the dry-run-staged set so the tree is left clean** — `git -C <repo> restore --staged -- <PLAN_FILES>` per repo (unborn repo: `git -C <repo> rm --cached -- <files>`); revoke the grant (Grant hygiene above). Do NOT proceed to Step 7; do NOT commit. Tell the user to remove/fix the flagged files, or re-run with `--force` to override. **Stop.**
 - `COMMIT: APPROVE`:
-  - Record `QA_APPROVED_FILES` = `PLAN_FILES` (the exact reviewed set, per repo). This is passed to Step 6 as the commit **ceiling** (TOCTOU guard — Step 6 must not commit anything outside it).
+  - Record `QA_APPROVED_FILES` = `PLAN_FILES` (the exact reviewed set, per repo). This is passed to Step 7 as the commit **ceiling** (TOCTOU guard — Step 7 must not commit anything outside it).
   - If the user passed `--dry-run` (`DRYRUN=true`): print the plan + `QA: APPROVE`, unstage the dry-run-staged set (clean tree, as in the REJECT branch), and **stop** — no real commit.
-  - Otherwise proceed to Step 6 for the real commit.
+  - Otherwise proceed to Step 7 for the real commit.
 - Unparseable / missing `COMMIT:` final line: treat as REJECT (fail-closed); unstage (as above), print the raw QA output, and stop.
 
-### Step 6: Dispatch changelog-analyst
+### Step 7: Dispatch changelog-analyst
 
 Use the Agent tool with `subagent_type: changelog-analyst`. Pass a structured prompt:
 
@@ -238,7 +238,7 @@ Retry exactly once (max 1 retry):
        --revoke-existing-for-task "$TASK_ID"
    ```
    This revokes any stale grant for `$TASK_ID` and writes a fresh one atomically.
-2. Re-dispatch changelog-analyst (same prompt as Step 6).
+2. Re-dispatch changelog-analyst (same prompt as Step 7).
 3. Parse the retry result using the same status table as the initial result:
    - If `commit_status = committed` or `commit_status = nothing_to_commit_precommitted`: continue to Step 8 (handle as specified above for each status).
    - If `commit_status = nothing_to_commit`: warn user and continue to Step 8.
@@ -276,7 +276,7 @@ This trace is OFF by default (no env var). When ON, the markers are emitted to s
 
 When `BULK=false` AND `DRYRUN=false` AND `TASK_ID` is set AND changelog-analyst reported success:
 
-Set `DEV_DOCS_ROOT` using the same CONTROL_ROOT logic as Step 6: `DEV_DOCS_ROOT=${CONTROL_ROOT}/docs/dev` (where `CONTROL_ROOT=/root`). Use absolute paths throughout Step 8.
+Set `DEV_DOCS_ROOT` using the same CONTROL_ROOT logic as Step 7: `DEV_DOCS_ROOT=${CONTROL_ROOT}/docs/dev` (where `CONTROL_ROOT=/root`). Use absolute paths throughout Step 8.
 
 **Step 8 algorithm (verbatim contract — total-ordered, deterministic, fail-closed):**
 
