@@ -103,6 +103,14 @@ def _bash(cmd, **extra):
     # ── VECTOR D: fetch/pull refspec into refs/heads creates a branch → BLOCK ──
     'git fetch . HEAD:refs/heads/foo',
     'git pull origin x:refs/heads/foo',
+    # ── VECTOR D2: bare-destination refspec also lands under refs/heads/ → BLOCK
+    'git fetch origin main:newbranch',
+    'git fetch . HEAD:newbranch',
+    'git fetch origin main:heads/nb',
+    'git fetch origin main:foo/bar',
+    'git pull origin main:topic',
+    'git pull . HEAD:newbranch',
+    'git fetch origin +main:newbranch',  # leading '+' force marker stripped
     # ── VECTOR E: update-ref plumbing creates a branch → must BLOCK ────────────
     'git update-ref refs/heads/foo HEAD',
     # ── VECTOR F: command/process substitution exposes an inner creation → BLOCK
