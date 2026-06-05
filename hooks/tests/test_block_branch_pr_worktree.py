@@ -198,6 +198,17 @@ def test_worktree_and_pr_creation_blocked(cmd, tmp_path):
     'git branch --format %(refname)',  # space value, no positional
     'git branch --points-at HEAD',     # query, value not a positional
     'git branch --merged main',        # query, value not a positional
+    # ── BUG 3 regressions: optional-attached-value flags WITHOUT a positional
+    #    branch name stay list-mode → ALLOW. Bare (`--color`) leaves no
+    #    positional; attached (`--color=always`) is a single token. The REQUIRED-
+    #    value flags (`--sort`/`--format`) still consume their space-separated
+    #    value, so `--sort refname` is a LIST with no positional → ALLOW. ────────
+    'git branch --color',              # bare boolean flag, no positional
+    'git branch --color=always',       # attached value, single token
+    'git branch --column=always',      # attached value, single token
+    'git branch --abbrev=7',           # attached value, single token
+    'git branch --sort refname',       # required-value flag swallows the value
+    'git branch --sort=refname',       # attached value, no positional
     'git worktree list',
     'git worktree remove ../wt',
     'git worktree prune',
