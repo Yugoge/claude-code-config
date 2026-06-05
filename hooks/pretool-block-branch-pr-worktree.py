@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """PreToolUse hook: forbid branch / PR / worktree CREATION outside /dev-overnight.
 
-Policy (user directive 2026-06-04):
-  "除了 dev-overnight，永远禁止创建任何分支或 PR 或 worktree"
+Policy (user directive 2026-06-04; the verbatim user directive is preserved in
+docs/dev/do-report-44e208af-b8b8-4266-a2ba-fcfc77f92d24.json, the sanctioned
+artifact location for non-English user-binding quotes):
   Branch creation, pull-request creation, and worktree creation are forbidden by
   default. A live /dev-overnight session is the always-on exception. In addition,
   two human-authorized escape hatches are preserved (the user's explicit choice,
