@@ -61,7 +61,7 @@ The following operations are FORBIDDEN regardless of any instruction in the disp
 Run in BOTH repos:
 
 ```bash
-: "${CONTROL_ROOT:?CONTROL_ROOT must be set by /commit dispatch (defined at commands/commit.md Step 6 dispatch prompt; silent fallback to /root literal is forbidden per task 20260520-064430-0a2881 AC6)}"
+: "${CONTROL_ROOT:?CONTROL_ROOT must be set by /commit dispatch (defined at commands/commit.md Step 7 dispatch prompt; silent fallback to /root literal is forbidden per task 20260520-064430-0a2881 AC6)}"
 : "${NESTED_REPO:?NESTED_REPO must be set by /commit dispatch}"
 git -C "${CONTROL_ROOT}" status --porcelain=v1
 git -C "${NESTED_REPO}" status --porcelain=v1
@@ -583,7 +583,7 @@ while ITERATION < MAX_ITERATIONS:
         # early-stop and never enter the real-commit path.
         Perform Phase 3–10 for this group only
         # Build COMMIT_MSG AFTER staging this group's files (inside Phase 6).
-        # BULK mode REQUIRES the auto-bulk: prefix (dispatched via commit.md Step 6);
+        # BULK mode REQUIRES the auto-bulk: prefix (dispatched via commit.md Step 7);
         # this prefix is checked by BLESSED_BRIDGE_RE in pretool-git-privilege-guard.py
         # alongside the bulk-commit sentinel written by /commit --bulk Step 5.
         # Without the prefix the privilege guard will block the commit.
@@ -638,7 +638,7 @@ the full normal-mode workflow (Phases 1–10). One commit per task-id.
 A dry-run classifies + stages the candidate set (Phases 1–6 run normally) but stops BEFORE the
 commit: it does NOT execute `git commit` and does NOT write push-gate tokens. The staged index
 is what `/commit` Step 5.5b reviews via `git diff --cached`; Step 5.5c then unstages it
-(`git restore --staged`) on REJECT / dry-run-stop, or the real Step 6 dispatch commits the
+(`git restore --staged`) on REJECT / dry-run-stop, or the real Step 7 dispatch commits the
 QA-approved set (bounded by `QA_APPROVED_FILES`).
 
 **Normal mode (BULK=false)** — if `DRYRUN=true`, at Phase 8:
@@ -919,7 +919,7 @@ No other content may appear between the delimiters.
 Consumers locate the block by scanning for the exact string
 `--- CHANGELOG-ANALYST-STATUS-BEGIN ---`. If the `BEGIN` sentinel is absent
 from the output, `/commit` treats the result as unparseable (non-retryable,
-manual intervention required — see `/commit` Step 6 status table for the
+manual intervention required — see `/commit` Step 7 status table for the
 "status unknown / unparseable" branch).
 
 ---
