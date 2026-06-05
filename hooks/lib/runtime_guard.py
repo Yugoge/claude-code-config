@@ -563,6 +563,26 @@ def _safe_shlex(simple_cmd: str) -> list:
 
 # ── Path normalization + segment-boundary suffix matching ────────────────────
 
+def _expand_leading_home(raw: str) -> str:
+    """Expand a LEADING deterministic `$HOME`/`${HOME}`/`~` to the absolute home dir,
+    leaving the rest untouched. Used at cwd-resolution sites (cd / wrapper -C /
+    git -C) so a `cd "$HOME/.config/<app>"` / `env -C ~/.config/<app>` chdir resolves
+    to the protected path instead of being treated as dynamic-indeterminate. A value
+    with NO leading home prefix (or a non-HOME var like `$HOMEDIR`) is returned
+    unchanged. Generic — `$HOME`/`~` are well-defined shell constructs, no project
+    names."""
+    p = _strip_quotes(raw)
+    home = os.environ.get("HOME")
+    if home:
+        if p.startswith("${HOME}"):
+            return home + p[len("${HOME}"):]
+        if p.startswith("$HOME") and (len(p) == 5 or not (p[5].isalnum() or p[5] == "_")):
+            return home + p[len("$HOME"):]
+    if p == "~" or p.startswith("~/"):
+        return os.path.expanduser(p)
+    return p
+
+
 def _normalize_path(raw: str) -> str:
     p = _strip_quotes(raw)
     # expand a LEADING deterministic $HOME / ${HOME} (the only shell variable whose
@@ -1002,7 +1022,7 @@ def _wrapper_cwd(tokens: list):
                 i += 1
                 break
             if t in _WRAPPER_CWD_OPTS and i + 1 < n:
-                val = _strip_quotes(tokens[i + 1])
+                val = _expand_leading_home(_strip_quotes(tokens[i + 1]))
                 if any(ch in val for ch in ("$", "`", "*", "?")):
                     determinate = False
                 else:
@@ -1021,7 +1041,7 @@ def _wrapper_cwd(tokens: list):
                         _fused = t[len(opt):]
                         break
             if _fused is not None:
-                val = _strip_quotes(_fused)
+                val = _expand_leading_home(_strip_quotes(_fused))
                 if any(ch in val for ch in ("$", "`", "*", "?")):
                     determinate = False
                 else:
@@ -1256,6 +1276,9 @@ def _effective_cwd_after(simple_cmds: list, upto_index: int, cwd_base: Optional[
             target = _cd_target(toks[1:])
             if target is None:
                 continue
+            # expand a LEADING $HOME/~ first so `cd "$HOME/.config/<app>"` resolves
+            # determinately instead of failing the dynamic-token check below.
+            target = _expand_leading_home(target)
             if any(ch in target for ch in ("$", "`", "*", "?")):
                 determinate = False
                 continue
@@ -1682,6 +1705,52 @@ _FIND_GLOBAL_ARG_OPTS = frozenset({"-D"})
 _FIND_PREPATH_ARG_OPTS = frozenset({"-maxdepth", "-mindepth", "--max-depth", "--min-depth"})
 
 
+# fd options that consume ONE following VALUE (so the value is not mistaken for a
+# search-dir positional). fd's search DIRECTORIES are positionals AFTER the pattern,
+# unlike find where roots come first — so the root-intersection scope must collect
+# fd positionals that follow the glob/option args. Generic fd grammar.
+_FD_OPTS_WITH_ARG = frozenset({
+    "-g", "--glob", "-e", "--extension", "-t", "--type", "-d", "--max-depth",
+    "--min-depth", "-E", "--exclude", "-S", "--size", "--changed-within",
+    "--changed-before", "--owner", "-c", "--color", "-j", "--threads",
+    "-x", "--exec", "-X", "--exec-batch", "--max-results", "-p", "--full-path",
+})
+
+
+def _fd_positional_roots(tokens: list, fd_idx: int) -> list:
+    """Collect fd SEARCH-DIRECTORY positionals — the bareword operands that are NOT a
+    value of a value-consuming fd option and NOT the (first) pattern. fd's search dirs
+    come AFTER the pattern (`fd -g <glob> <dir1> <dir2> -X rm`), so they are missed by
+    `_find_path_operands` (which stops at the first option). Used ONLY to scope the
+    basename-predicate root-intersection for fd. Conservative: a bareword that looks
+    PATH-like (absolute, or contains '/', or '.'/'..') is treated as a search dir; a
+    bare pattern stem without a slash is left out (it's the search pattern, already
+    handled as the predicate value). The `-x`/`-X` exec COMMAND and its args are
+    excluded (everything after `-x`/`-X` is the executed command, not a search dir)."""
+    rest = tokens[fd_idx + 1:]
+    out = []
+    i = 0
+    n = len(rest)
+    while i < n:
+        st = _strip_quotes(rest[i])
+        if st in ("-x", "--exec", "-X", "--exec-batch"):
+            break  # everything after is the executed command, not a search dir
+        if st in _FD_OPTS_WITH_ARG:
+            i += 2
+            continue
+        if st.startswith("-") and "=" in st:
+            i += 1
+            continue
+        if st.startswith("-"):
+            i += 1
+            continue
+        # a path-like bareword positional is a search directory.
+        if "/" in st or st in (".", "..") or st.startswith("./") or st.startswith("../") or os.path.isabs(st):
+            out.append(st)
+        i += 1
+    return out
+
+
 def _find_path_operands(tokens: list, find_idx: int) -> list:
     """Return find/fd PATH operands. The path operands come after the head and any
     GLOBAL options (`-H`/`-L`/`-P`, `-D arg`, `-O*`) and certain pre-path position
@@ -1761,12 +1830,20 @@ _FIND_PATH_PREDICATES = frozenset({
 _FIND_NAME_PREDICATES = frozenset({"-name", "-iname", "-g", "--glob"})
 
 
+# case-INSENSITIVE find predicate spellings (`-iname`/`-ipath`/`-iwholename`). A
+# value matched by one of these must compare case-folded, else `find -iname
+# INDEX.MJS -delete` under-blocks. Generic find grammar.
+_FIND_CASE_INSENSITIVE_PREDS = frozenset({"-iname", "-ipath", "-iwholename"})
+
+
 def _find_predicate_values(tokens: list, find_idx: int):
-    """Yield (kind, value) for every find/fd PATH/NAME predicate value after the
-    head: kind is 'path' (`-path`/`-wholename`/fd `-p`) or 'name' (`-name`/`-iname`/
-    fd `-g`). Honors both the separated (`-path <v>`) and fused (`-path=<v>`) forms.
-    Used so a destructive find that selects its victim by a predicate — not a
-    positional root — is still seen (`find /root -path <protected> -delete`)."""
+    """Yield (kind, value, ignore_case) for every find/fd PATH/NAME predicate value
+    after the head: kind is 'path' (`-path`/`-wholename`/`-ipath`/`-iwholename`/fd
+    `-p`) or 'name' (`-name`/`-iname`/fd `-g`). `ignore_case` is True for the `-i*`
+    spellings (case-folded comparison). Honors both the separated (`-path <v>`) and
+    fused (`-path=<v>`) forms. Used so a destructive find that selects its victim by a
+    predicate — not a positional root — is still seen
+    (`find /root -path <protected> -delete`, `find . -iname INDEX.MJS -delete`)."""
     rest = tokens[find_idx + 1:]
     i = 0
     n = len(rest)
@@ -1776,16 +1853,17 @@ def _find_predicate_values(tokens: list, find_idx: int):
         val = None
         if "=" in st and st.startswith("-"):
             flag, val = st.split("=", 1)
+        ic = flag in _FIND_CASE_INSENSITIVE_PREDS
         if flag in _FIND_PATH_PREDICATES:
             if val is None and i + 1 < n:
                 val = _strip_quotes(rest[i + 1]); i += 1
             if val:
-                yield ("path", val)
+                yield ("path", val, ic)
         elif flag in _FIND_NAME_PREDICATES:
             if val is None and i + 1 < n:
                 val = _strip_quotes(rest[i + 1]); i += 1
             if val:
-                yield ("name", val)
+                yield ("name", val, ic)
         i += 1
 
 
@@ -1802,40 +1880,54 @@ def _glob_basenames(globs: list) -> set:
     return out
 
 
-def _name_value_matches_protected(name_glob: str, globs: list) -> bool:
+def _name_value_matches_protected(name_glob: str, globs: list, ignore_case: bool = False) -> bool:
     """True if a `-name`/`-iname`/fd `-g` BASENAME glob selects a protected file's
     basename. Matches in EITHER direction (the predicate is a glob; the protected
     basename is a glob): the predicate's literal stem equals a protected basename, or
-    the predicate glob would expand to a protected basename. Conservative — a
-    pure-wildcard predicate (`-name '*'`) matches nothing here (it would over-block
-    every destructive find; the positional-root scan already covers the dir case)."""
+    the predicate glob would expand to a protected basename. `ignore_case` folds both
+    sides (for `-iname`). Conservative — a pure-wildcard predicate (`-name '*'`)
+    matches nothing here (it would over-block every destructive find; the positional-
+    root scan already covers the dir case)."""
     nv = _strip_quotes(name_glob)
     if not nv or set(nv) <= set("*?[]{}."):
         return False
-    rx = _glob_to_segment_regex(nv)
+    flags = re.IGNORECASE if ignore_case else 0
+    rx = re.compile(_glob_to_segment_regex(nv).pattern, flags)
+    nv_cmp = nv.casefold() if ignore_case else nv
     for base in _glob_basenames(globs):
+        base_cmp = base.casefold() if ignore_case else base
         # the protected basename matches the predicate glob, OR the predicate glob's
         # literal stem IS the protected basename.
-        if rx.search(base) or nv == base:
+        if rx.search(base) or nv_cmp == base_cmp:
             return True
         # the protected basename is itself a glob (`<cmd>*`) — does the predicate's
         # literal value fall under it?
-        if _has_shell_glob(base) and _glob_to_segment_regex(base).search(nv):
+        if _has_shell_glob(base) and re.compile(_glob_to_segment_regex(base).pattern, flags).search(nv):
             return True
     return False
 
 
 def _find_destructive_target_hits(tokens: list, exec_toks: list, globs: list,
-                                  cwd: Optional[str], cwd_det: bool) -> bool:
+                                  cwd: Optional[str], cwd_det: bool,
+                                  cfg: Optional[dict] = None) -> bool:
     """HEAD-AGNOSTIC: True if a find/fd invocation (anywhere in the exec tokens,
     possibly behind a wrapper) performs a DESTRUCTIVE action (`-delete` /
     `-exec <mutation>`) on a PATH operand OR a PATH/NAME PREDICATE value that matches
-    `globs` — the file itself OR an ancestor directory of it. `find <protected-or-
-    ancestor> -delete`, `find /root -path <protected> -delete`, and
-    `find /root -name <basename> -delete` BLOCK; a read-only `find <…> -print|-name`
-    (no destructive action) ALLOWS, and a destructive find on an UNRELATED path/name
-    ALLOWS (no over-block). Reusable by the config self-protection (STEP0) and the
-    W6/W7/global-bin sweep."""
+    `globs` — the file itself, an ancestor directory of it, OR a CONTAINER root that
+    holds a protected descendant. `find <protected-or-ancestor> -delete`,
+    `find /root -path <protected> -delete`, `find <repo> -name <basename> -delete`,
+    and `find packages -delete` (a root CONTAINING the protected package) BLOCK; a
+    read-only `find <…> -print` (no destructive action) ALLOWS, and a destructive
+    find on a genuinely UNRELATED path/name ALLOWS (no over-block).
+
+    Two containment directions:
+      • FORWARD: a positional root / `-path` predicate value resolves UNDER a
+        protected glob (`_path_matches_any`).
+      • REVERSE (cfg-driven): a positional root CONTAINS a concrete protected dir
+        (`_destructive_root_contains_protected`) — closes `find packages -delete`.
+    The `-name`/`-g` BASENAME predicate is SCOPED to a search root that intersects a
+    protected location (root under/over a protected dir), so a routine
+    `find /tmp -name <basename> -delete` on an unrelated tree ALLOWS (codex F2)."""
     for fi, st in exec_toks:
         if os.path.basename(_strip_quotes(st)) not in _FIND_EXEC_HEADS:
             continue
@@ -1846,20 +1938,56 @@ def _find_destructive_target_hits(tokens: list, exec_toks: list, globs: list,
         # targets the effective cwd implicitly — resolve `.` against it.
         if not operands:
             operands = ["."]
+        # whether a PATH/NAME FILTER predicate restricts which entries the find acts
+        # on. When present, the predicate (not the bare root) determines the victims,
+        # so reverse-containment on the root must NOT fire (`find /root -path
+        # /tmp/unrelated -delete` filters AWAY the protected descendant → ALLOW).
+        preds = list(_find_predicate_values(tokens, fi))
+        has_filter_pred = bool(preds)
+        # forward: a root resolves UNDER a protected glob.
         for p in operands:
             for cand in _resolve_rel(p, cwd, cwd_det):
                 if _path_matches_any(cand, globs):
                     return True
+        # fd's search dirs are positionals AFTER the pattern, missed by
+        # `_find_path_operands`; collect them so a `fd -g <glob> <protecteddir> -X rm`
+        # root-intersection / reverse-containment is recognized.
+        fd_roots = (_fd_positional_roots(tokens, fi)
+                    if os.path.basename(_strip_quotes(st)) in ("fd", "fdfind") else [])
+        all_roots = list(operands) + fd_roots
+        # reverse (cfg-driven): an UNFILTERED destructive find whose root CONTAINS a
+        # concrete protected dir wipes the protected descendant (`find packages
+        # -delete`). Skipped when a path/name filter predicate narrows the victims.
+        if cfg is not None and not has_filter_pred:
+            for p in all_roots:
+                if _destructive_root_contains_protected(p, globs, cfg, cwd, cwd_det):
+                    return True
+        # whether ANY search root intersects a protected location — required to scope
+        # the BASENAME predicate (a bare `-name <basename>` on an unrelated tree must
+        # not over-block). A root intersects when it is under a protected glob OR it
+        # contains a concrete protected dir (reverse). With no cfg (STEP0 config
+        # variants) the basename predicate stays root-unscoped (the config file's
+        # basename is distinctive enough), preserving config self-protection.
+        def _root_intersects_protected() -> bool:
+            for p in all_roots:
+                for cand in _resolve_rel(p, cwd, cwd_det):
+                    if _path_matches_any(cand, globs) or _path_under_any(cand, globs):
+                        return True
+                if cfg is not None and _destructive_root_contains_protected(p, globs, cfg, cwd, cwd_det):
+                    return True
+            return False
+        name_scoped_ok = (cfg is None) or _root_intersects_protected()
         # PREDICATE-selected victims: `-path <protected>` (full-path) matches the
         # protected glob directly; `-name <basename>` matches the protected glob's
-        # basename. Both make the destructive find target a protected path even when
-        # the positional root is a generic ancestor (`find /root -path … -delete`).
-        for kind, val in _find_predicate_values(tokens, fi):
+        # basename — but ONLY when a search root intersects a protected location.
+        for kind, val, ic in preds:
             if kind == "path":
                 for cand in _resolve_rel(val, cwd, cwd_det):
                     if _path_matches_any(cand, globs):
                         return True
-            elif kind == "name" and _name_value_matches_protected(val, globs):
+                    if ic and _path_matches_any(cand.casefold(), [g.casefold() for g in globs]):
+                        return True
+            elif kind == "name" and name_scoped_ok and _name_value_matches_protected(val, globs, ic):
                 return True
     return False
 
@@ -1867,7 +1995,8 @@ def _find_destructive_target_hits(tokens: list, exec_toks: list, globs: list,
 def _step0_find_destructive_hits(tokens: list, exec_toks: list, variants: list,
                                  cwd: Optional[str], cwd_det: bool) -> bool:
     """STEP0 wrapper around the shared find-destructive scanner for the config
-    data-file + ancestor-dir variant set."""
+    data-file + ancestor-dir variant set. No cfg → basename predicate stays root-
+    unscoped (the config basename is distinctive; config self-protection is broad)."""
     return _find_destructive_target_hits(tokens, exec_toks, variants, cwd, cwd_det)
 
 
@@ -1928,7 +2057,7 @@ def _container_dir_globs(file_globs: list) -> list:
 
 def _anchor_family_destructive_hits(sc: str, tokens: list, exec_toks: list,
                                     file_globs: list, cwd: Optional[str],
-                                    cwd_det: bool) -> bool:
+                                    cwd_det: bool, cfg: Optional[dict] = None) -> bool:
     """Class-sweep companion to `_anchor_mutation_hits` for a protected FILE-glob
     family (hotfile bundle / statefile / global-bin). Closes the two blind spots the
     direct-mutation anchor misses:
@@ -1940,8 +2069,9 @@ def _anchor_family_destructive_hits(sc: str, tokens: list, exec_toks: list,
     on an UNRELATED path, does not hit (no over-block)."""
     container_globs = _container_dir_globs(file_globs)
     all_globs = list(file_globs) + container_globs
-    # (1) find/fd destructive against the file OR a container dir.
-    if _find_destructive_target_hits(tokens, exec_toks, all_globs, cwd, cwd_det):
+    # (1) find/fd destructive against the file OR a container dir (cfg-driven reverse
+    # containment also catches a destructive root CONTAINING the protected file).
+    if _find_destructive_target_hits(tokens, exec_toks, all_globs, cwd, cwd_det, cfg):
         return True
     # (2) a mutation verb whose target is a CONTAINER directory (the file itself is
     # already covered by `_anchor_mutation_hits`; here we add the container dirs).
@@ -4379,8 +4509,13 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         # AND a matching protected/container path).
         for fam in (hotfiles, statefiles, global_bins):
             if fam and _find_destructive_target_hits(
-                    tokens, exec_toks, list(fam) + _container_dir_globs(fam), cwd, cwd_det):
+                    tokens, exec_toks, list(fam) + _container_dir_globs(fam), cwd, cwd_det, cfg):
                 return _block("P0", "find destructive action on a protected file or its container dir")
+        # build-path family: a destructive find whose root CONTAINS the protected
+        # package (`find packages -delete` at the repo root) wipes the bundle — caught
+        # by reverse containment against the build paths.
+        if bpaths and _find_destructive_target_hits(tokens, exec_toks, list(bpaths), cwd, cwd_det, cfg):
+            return _block("P0", "find destructive action containing a protected build path")
 
         # ── DESTRUCTIVE GIT PATHSPEC (runs BEFORE the inspection gate) ───────────
         # `git status`/`log`/… are inspection (gated below), but `git clean -fdx`/
@@ -4392,7 +4527,7 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
         # container dirs (a `git clean` of the package dir removes the dist bundle).
         _git_globs = (list(bpaths) + list(hotfiles) + list(statefiles)
                       + _container_dir_globs(list(hotfiles) + list(statefiles)))
-        if _git_globs and _git_destructive_pathspec_hits(tokens, exec_toks, _git_globs, cwd, cwd_det):
+        if _git_globs and _git_destructive_pathspec_hits(tokens, exec_toks, _git_globs, cwd, cwd_det, cfg):
             return _block("P0", "destructive git pathspec under a protected build/bundle/state path")
 
         # GATE: inspection/data commands (the allowlist heads) are skipped so a
@@ -4548,7 +4683,7 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
             return _block("P0", "mutation of a protected bundle behind a front-end")
         # class-sweep: a mutation/move/delete of the bundle's CONTAINER directory
         # (`mv|rm|rmdir <…>/dist`) destroys the bundle just as a direct delete does.
-        if hotfiles and _anchor_family_destructive_hits(sc, tokens, exec_toks, hotfiles, cwd, cwd_det):
+        if hotfiles and _anchor_family_destructive_hits(sc, tokens, exec_toks, hotfiles, cwd, cwd_det, cfg):
             return _block("P0", "destruction of a protected bundle's container dir behind a front-end")
 
         # ── W7 STATEFILE-WRITE ANCHOR: a mutation verb / redirect + a protected ──
@@ -4558,7 +4693,7 @@ def _p0_anchor(simple_cmds: list, cfg: dict, cwd_base: Optional[str] = None,
             return _block("P0", "mutation of a protected state file behind a front-end")
         # class-sweep: a mutation/move/delete of the statefile's CONTAINER directory
         # (`mv|rm|rmdir <home>`) removes the statefile just as a direct delete does.
-        if statefiles and _anchor_family_destructive_hits(sc, tokens, exec_toks, statefiles, cwd, cwd_det):
+        if statefiles and _anchor_family_destructive_hits(sc, tokens, exec_toks, statefiles, cwd, cwd_det, cfg):
             return _block("P0", "destruction of a protected state file's container dir behind a front-end")
 
         # ── W8 CONTROL-ENDPOINT ANCHOR: a loopback net-client + the protected ────
@@ -4732,7 +4867,7 @@ def _git_effective_cwd(tokens: list, git_idx: int, cwd: Optional[str], cwd_det: 
     while i < n:
         st = _strip_quotes(tokens[i])
         if st == "-C" and i + 1 < n:
-            d = _strip_quotes(tokens[i + 1])
+            d = _expand_leading_home(_strip_quotes(tokens[i + 1]))
             if any(ch in d for ch in ("$", "`", "*", "?")):
                 return (cwd, False)
             if os.path.isabs(d):
@@ -4741,7 +4876,7 @@ def _git_effective_cwd(tokens: list, git_idx: int, cwd: Optional[str], cwd_det: 
                 return (os.path.normpath(os.path.join(cwd, d)), cwd_det)
             return (os.path.normpath(d), cwd_det)
         if st.startswith("-C"):  # fused `-C<dir>`
-            d = _strip_quotes(st[2:])
+            d = _expand_leading_home(_strip_quotes(st[2:]))
             if d and not any(ch in d for ch in ("$", "`", "*", "?")):
                 if os.path.isabs(d):
                     return (os.path.normpath(d), True)
@@ -4758,18 +4893,45 @@ def _git_effective_cwd(tokens: list, git_idx: int, cwd: Optional[str], cwd_det: 
     return (cwd, cwd_det)
 
 
+def _strip_git_pathspec_magic(spec: str):
+    """Strip a leading git PATHSPEC-MAGIC prefix from a pathspec, returning
+    (clean_path, repo_root_relative). Forms:
+      • `:(top)<path>` / `:/<path>` — repo-root-relative (return rel=True so the
+        caller resolves against the repo root, not the cwd).
+      • `:(glob)<path>`, `:(icase)<path>`, `:(exclude)<path>`, combined
+        `:(top,glob)<path>` — the magic in parens is stripped, leaving the path.
+      • `:!<path>` (exclude shorthand) / `:^<path>` — strip the leading `:!`/`:^`.
+    A pathspec with NO magic prefix is returned unchanged with rel=False. Generic
+    git pathspec grammar, no project names."""
+    s = _strip_quotes(spec)
+    repo_rel = False
+    if s.startswith(":("):
+        end = s.find(")")
+        if end != -1:
+            magic = s[2:end]
+            if "top" in magic.split(","):
+                repo_rel = True
+            s = s[end + 1:]
+    elif s.startswith(":/"):
+        repo_rel = True
+        s = s[2:] or "."
+    elif s.startswith(":!") or s.startswith(":^"):
+        s = s[2:]
+    return (s, repo_rel)
+
+
 def _git_destructive_pathspecs(tokens: list, sub_idx: int, subcmd: str) -> list:
-    """Return the PATHSPEC operands of a destructive git subcommand (the bare
-    positional path arguments, honoring a `--` pathspec separator). Subcommand
-    options (`-f`/`-d`/`-x` for clean, `--hard`/`--soft` for reset, `--source=…`/
-    `--staged` for restore, `-f`/`--force` for checkout) are skipped. A bare
-    `git clean -fdx` / `git checkout -- .` with no path targets the WHOLE worktree;
-    `['.']` is returned so the cwd is resolved (a worktree-wide wipe at a protected
-    cwd is in scope)."""
+    """Return (pathspec, repo_root_relative) for each PATHSPEC operand of a
+    destructive git subcommand (the bare positional path arguments, honoring a `--`
+    pathspec separator and stripping git pathspec-magic prefixes `:(glob)`/`:(top)`/
+    `:/`/`:!`). Subcommand options (`-f`/`-d`/`-x` for clean, `--hard`/`--soft` for
+    reset, `--source=…`/`--staged` for restore, `-f`/`--force` for checkout) are
+    skipped. A bare `git clean -fdx` / `git checkout -- .` with no path targets the
+    WHOLE worktree; `[('.', False)]` is returned so the cwd is resolved (a worktree-
+    wide wipe at a protected cwd is in scope)."""
     rest = tokens[sub_idx + 1:]
     out = []
     saw_dashdash = False
-    opts_with_arg = frozenset({"--source", "--pathspec-from-file", "--orphan"})
     for i, t in enumerate(rest):
         st = _strip_quotes(t)
         if st == "--":
@@ -4778,21 +4940,24 @@ def _git_destructive_pathspecs(tokens: list, sub_idx: int, subcmd: str) -> list:
         if not saw_dashdash:
             if st.startswith("-"):
                 continue  # an option / option=value (fused) before the pathspec
+            clean, repo_rel = _strip_git_pathspec_magic(st)
             # `checkout <branch>` / `restore` without `--`: a bare token MIGHT be a
             # branch/ref, not a path. For checkout/restore we require a `--`
             # separator OR a token that looks path-like (has '/' or '.') to treat
             # it as a pathspec — a plain branch name (`git checkout main`) is NOT a
             # path op. For clean/reset a bare token is always a pathspec.
-            if subcmd in ("checkout", "restore") and not ("/" in st or st in (".", "..") or st.startswith("./") or st.startswith("../")):
+            if (subcmd in ("checkout", "restore") and not repo_rel
+                    and not ("/" in clean or clean in (".", "..") or clean.startswith("./") or clean.startswith("../"))):
                 continue
-            out.append(st)
+            out.append((clean, repo_rel))
         else:
             if st.startswith("-"):
                 continue
-            out.append(st)
+            clean, repo_rel = _strip_git_pathspec_magic(st)
+            out.append((clean, repo_rel))
     if not out and subcmd in ("clean", "checkout", "restore", "reset"):
         # a path-less destructive form targets the worktree root (the effective cwd)
-        out = ["."]
+        out = [(".", False)]
     return out
 
 
@@ -4822,15 +4987,18 @@ def _git_is_destructive_invocation(tokens: list, sub_idx: int, subcmd: str) -> b
 
 
 def _git_destructive_pathspec_hits(tokens: list, exec_toks: list, globs: list,
-                                   cwd: Optional[str], cwd_det: bool) -> bool:
+                                   cwd: Optional[str], cwd_det: bool,
+                                   cfg: Optional[dict] = None) -> bool:
     """HEAD-AGNOSTIC: True if a destructive git subcommand (`clean -f`/`restore`/
-    `checkout -- <path>`/`reset --hard`) targets a pathspec under a protected glob
-    (a protected build dir / bundle / statefile / its container). `git clean -fdx
-    packages/<pkg>/dist`, `git restore packages/<pkg>/dist`, `git checkout --
-    packages/<pkg>/dist`, `git reset --hard -- <protected>` BLOCK; an unrelated
-    `git clean -fdx packages/<other>`, a read-only `git status`, and a plain branch
-    `git checkout main` ALLOW. Resolves a `git -C <dir>` chdir + relative pathspecs
-    against the effective cwd."""
+    `checkout -- <path>`/`reset --hard`) targets a pathspec under a protected glob, OR
+    a pathspec that CONTAINS a protected descendant (`git clean -fdx .` /
+    `git checkout -- .` at the repo root). `git clean -fdx packages/<pkg>/dist`,
+    `git restore packages/<pkg>/dist`, `git checkout -- .`, `git reset --hard --
+    <protected>` BLOCK; an unrelated `git clean -fdx packages/<other>`, a read-only
+    `git status`, and a plain branch `git checkout main` ALLOW. Resolves a
+    `git -C <dir>` chdir + relative pathspecs against the effective cwd; a repo-root-
+    relative pathspec (`:/` / `:(top)`) is resolved against the protected monorepo
+    root. Reverse containment (a pathspec CONTAINING a protected dir) is cfg-driven."""
     if not globs:
         return False
     for gi, st in exec_toks:
@@ -4842,10 +5010,28 @@ def _git_destructive_pathspec_hits(tokens: list, exec_toks: list, globs: list,
         if not _git_is_destructive_invocation(tokens, sub_idx, subcmd):
             continue
         gcwd, gcwd_det = _git_effective_cwd(tokens, gi, cwd, cwd_det)
-        for p in _git_destructive_pathspecs(tokens, sub_idx, subcmd):
-            for cand in _resolve_rel(p, gcwd, gcwd_det):
+        for p, repo_rel in _git_destructive_pathspecs(tokens, sub_idx, subcmd):
+            # a repo-root-relative pathspec (`:/`/`:(top)`) resolves against the
+            # protected monorepo root(s) when the cwd is under one; else the cwd.
+            bases = []
+            if repo_rel and cfg is not None:
+                for root in cfg.get("protected_root_manifest_paths", []):
+                    rn = os.path.normpath(root)
+                    if gcwd and gcwd_det and (os.path.normpath(gcwd) == rn
+                                              or os.path.normpath(gcwd).startswith(rn + "/")):
+                        bases.append(rn)
+            cands = []
+            for b in bases:
+                cands.append(_normalize_path(os.path.join(b, p)) if not os.path.isabs(p) else _normalize_path(p))
+            cands.extend(_normalize_path(c) for c in _resolve_rel(p, gcwd, gcwd_det))
+            for cand in cands:
                 if _path_matches_any(cand, globs) or _path_under_any(cand, globs):
                     return True
+            # reverse: the pathspec CONTAINS a concrete protected dir (`clean -fdx .`).
+            if cfg is not None:
+                for cand in cands:
+                    if _destructive_root_contains_protected(cand, globs, cfg, None, False):
+                        return True
     return False
 
 

@@ -3789,5 +3789,97 @@ class TestCycle14LiveHook:
         assert self._run("chgrp root /tmp/unrelated-xyz") == ALLOW
 
 
+class TestCycle14CodexFollowup:
+    """Five additional same-class leaks/over-blocks codex (gpt-5.5 xhigh) surfaced
+    during the cycle-14 review, all in-scope:
+      CF1: `$HOME`/`${HOME}`/`~` in cd / wrapper-C / git-C cwd resolution under-blocked.
+      CF2: find/fd basename predicate (`-name`/`-g`) over-blocked unrelated trees
+           (now scoped to a search root intersecting a protected location).
+      CF3: case-insensitive find predicates (`-iname`/`-ipath`) matched case-sensitively.
+      CF4: reverse containment — a destructive ROOT/pathspec CONTAINING a protected
+           descendant (`git clean -fdx .`, `find packages -delete`) under-blocked.
+      CF5: git pathspec magic (`:(glob)`/`:(top)`/`:/`) prefixes were not stripped."""
+
+    # CF1: $HOME / ~ in cwd resolution (use absent-config hardcoded /root path)
+    def test_home_in_cwd_blocks(self):
+        os.environ["HOME"] = "/root"
+        os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = "/root/.config/appz14cf/protected-runtime.json"
+        import importlib, lib.runtime_guard as rg
+        importlib.reload(rg)
+        assert rg.evaluate('cd "$HOME/.config/appz14cf" && rm protected-runtime.json')[0] == "BLOCK"
+        assert rg.evaluate('env -C "$HOME/.config/appz14cf" rm protected-runtime.json')[0] == "BLOCK"
+        assert rg.evaluate('cd ~/.config/appz14cf && rm protected-runtime.json')[0] == "BLOCK"
+        assert rg.evaluate('cd ${HOME}/.config/appz14cf && rm protected-runtime.json')[0] == "BLOCK"
+
+    def test_home_in_cwd_boundary_allows(self):
+        os.environ["HOME"] = "/root"
+        os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = "/root/.config/appz14cf/protected-runtime.json"
+        import importlib, lib.runtime_guard as rg
+        importlib.reload(rg)
+        assert rg.evaluate('cd "$HOME/.config/unrelated" && rm foo.json')[0] == "ALLOW"
+        assert rg.evaluate('cd "$HOMEDIR/.config/appz14cf" && rm protected-runtime.json')[0] == "ALLOW"
+
+    # CF2: basename predicate scoped to root intersection. Use the isolated_pair
+    # fixture (config+repo under DIFFERENT tmp roots) so an unrelated `/var/tmp/...`
+    # root does NOT reverse-contain the protected repo (which lives under a different
+    # root), mirroring production (/root/.config vs /dev/shm). NOTE: the config
+    # FAMILY (STEP0) intentionally keeps its basename predicate root-UNSCOPED — the
+    # config file's distinctive basename is protected regardless of root — so this
+    # test targets the BUILD/BUNDLE family (a generic `index.mjs` basename), which IS
+    # root-scoped (a routine unrelated `find /scratch -name index.mjs -delete` ALLOWS).
+    def test_basename_predicate_unrelated_root_allows(self, isolated_pair):
+        df = isolated_pair["df"]
+        # an unrelated scratch root that contains NO protected descendant ALLOWS even
+        # though `index.mjs` is a protected basename.
+        assert ev_iso("find /opt/scratch -name index.mjs -delete", df) == "ALLOW"
+        assert ev_iso("fd -g 'index.mjs' /opt/scratch -x rm", df) == "ALLOW"
+
+    def test_basename_predicate_protected_root_blocks(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        # when the search root intersects a protected location, the basename BLOCKS
+        assert ev_iso(f"find {repo} -name index.mjs -delete", df, repo) == "BLOCK"
+        bd = f"{repo}/packages/happy-cli/dist"
+        assert ev_iso(f"fd -g 'index.mjs' {bd} -X rm", df, repo) == "BLOCK"
+
+    def test_basename_predicate_config_family_root_unscoped_blocks(self, nested_datafile):
+        # the CONFIG family (STEP0) keeps the basename predicate root-UNSCOPED: a
+        # `find /tmp -name <config-basename> -delete` blocks (config self-protection).
+        base = os.path.basename(nested_datafile)
+        assert ev_nested(f"find /tmp -name {base} -delete", nested_datafile) == "BLOCK"
+
+    # CF3: case-insensitive predicates
+    def test_case_insensitive_predicate_blocks(self, datafile, fixture_repo):
+        assert ev_cwd(f"find {fixture_repo} -iname INDEX.MJS -delete", datafile, fixture_repo) == "BLOCK"
+
+    def test_case_insensitive_predicate_config(self, nested_datafile):
+        base = os.path.basename(nested_datafile).upper()
+        assert ev_nested(f"find {os.path.dirname(nested_datafile)} -iname {base} -delete", nested_datafile) == "BLOCK"
+
+    # CF4: reverse containment (root/pathspec contains a protected descendant)
+    def test_reverse_containment_git_blocks(self, datafile, fixture_repo):
+        assert ev_cwd("git clean -fdx .", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("git checkout -- .", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("git clean -fdx packages", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("git reset --hard -- .", datafile, fixture_repo) == "BLOCK"
+
+    def test_reverse_containment_find_blocks(self, datafile, fixture_repo):
+        assert ev_cwd("find packages -delete", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("find . -delete", datafile, fixture_repo) == "BLOCK"
+
+    def test_reverse_containment_boundary_allows(self, datafile, fixture_repo):
+        # a destructive root that does NOT contain a protected descendant ALLOWS
+        assert ev_cwd("git clean -fdx packages/happy-app", datafile, fixture_repo) == "ALLOW"
+        assert ev_cwd("find /tmp/unrelated -delete", datafile, fixture_repo) == "ALLOW"
+        # a filtered find whose predicate excludes the protected descendant ALLOWS
+        assert ev_cwd("find /root -path /tmp/unrelated -delete", datafile, fixture_repo) == "ALLOW"
+
+    # CF5: git pathspec magic prefixes stripped
+    def test_pathspec_magic_blocks(self, datafile, fixture_repo):
+        assert ev_cwd("git clean -fdx ':(glob)packages/happy-cli/dist/**'", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("git clean -fdx ':(top)packages/happy-cli'", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("git clean -fdx ':/packages/happy-cli'", datafile, fixture_repo) == "BLOCK"
+        assert ev_cwd("git restore ':(glob)packages/happy-cli/dist/*'", datafile, fixture_repo) == "BLOCK"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
