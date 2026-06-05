@@ -276,11 +276,12 @@ def _gh_skip_flags(args, i):
 
 
 def _is_gh_pr_create(args):
+    # `gh pr new` is the official alias of `gh pr create`; block both.
     i = _gh_skip_flags(args, 0)
     if i >= len(args) or args[i] != 'pr':
         return False
     i = _gh_skip_flags(args, i + 1)
-    return i < len(args) and args[i] == 'create'
+    return i < len(args) and args[i] in ('create', 'new')
 
 
 def _classify_segment(seg):
