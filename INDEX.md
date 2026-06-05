@@ -1,13 +1,13 @@
-# .claude
+# dot-claude
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-04T21:26:06Z*
-**Total entries**: 14107
+*Last updated: 2026-06-05T08:45:43Z*
+**Total entries**: 14114
 **Convention**: kebab
 
 ## Tree
 ```
-.claude/
+dot-claude/
 ├── agents/
 │   ├── `architect.md` - Architecture review specialist for overnight exploration. Identifies structural issues, technical debt, optimization opportunities, dependency problems, and pattern inconsistencies. Returns structured JSON report.
 │   ├── `ba.md` - Business analyst subagent for requirements analysis and context building. Receives user requirement text, performs git analysis, identifies affected files, and returns either clarification questions or dual-format output (Markdown spec + JSON context).
@@ -3003,6 +3003,7 @@
 │   │   ├── `dev-report-20260531-112831-bug2b.json` - json config
 │   │   ├── `dev-report-20260531-112831.json` - json config
 │   │   ├── `dev-report-20260601-060455.json` - json config
+│   │   ├── `dev-report-20260604-000000.json` - json config
 │   │   ├── `dev-report-d1e94e.json` - json config
 │   │   ├── `dev-report-dev-20260107-091716.json` - json config
 │   │   ├── `dev-report-dev-20260107-100221.json` - json config
@@ -3052,6 +3053,7 @@
 │   │   ├── `do-report-20260602-210702.json` - json config
 │   │   ├── `do-report-30fbb321-8921-44aa-bd65-de59e4c70730.json` - json config
 │   │   ├── `do-report-441b0d47-3cbf-4fa5-9038-76ef39df048a.json` - json config
+│   │   ├── `do-report-44e208af-b8b8-4266-a2ba-fcfc77f92d24.json` - json config
 │   │   ├── `do-report-c2667fea-a84e-4ba8-9dc7-fae4c1abfc24.json` - json config
 │   │   ├── `do-report-cc7a706f-2662-4274-976d-d2f19e6dd767.json` - json config
 │   │   ├── `do-report-do-20260531-111311.json` - json config
@@ -4049,6 +4051,7 @@
 │   │   ├── `close-verdict.py` - Shared CLOSE verdict classifier for commit/close tooling.
 │   │   ├── `closeout.py` - Public API:
 │   │   ├── `contract_runtime.py` - This module is the single shared engine consumed by every contract-aware
+│   │   ├── `overnight.py` - Single source of truth for "is a /dev-overnight session currently live?". A
 │   │   ├── `policy_registry.py` - Reads /root/.claude/policies/tool-policy.v1.json and provides a single
 │   │   ├── `runtime_guard.py` - This module contains ZERO project identifiers. Every project-specific name
 │   │   ├── `schema_registry.py` - Reads schemas/registry.json once and lazily loads referenced schema files
@@ -4065,7 +4068,7 @@
 │   │   ├── `test_allowlist_consolidation.py` - Covers AC8 IS_SUBAGENT firewall scenarios and matching semantics invariants
 │   │   ├── `test_bash_safety_context.py` - Tests strip_non_executable_contexts() in isolation, covering the main
 │   │   ├── `test_bash_safety_context_rules.py` - converted to COMMAND_CONTEXT_STRIPPED in hooks/pretool-bash-safety.sh
-│   │   ├── `test_block_branch_pr_worktree.py` - The hook forbids branch / PR / worktree CREATION in EVERY context except a live
+│   │   ├── `test_block_branch_pr_worktree.py` - The hook forbids branch / PR / worktree CREATION on the Bash surface, with three
 │   │   ├── `test_bulk_commit_sentinel.py` - Covers:
 │   │   ├── `test_commit_strip_dotfile_paths.py` - Bug surfaced cycle 20260511-100000: dev-report listed 6 `.claude/commands/*`
 │   │   ├── `test_cp_checkin.py` - of ba-spec-20260427-194324.md (P1 view-trigger removal + P2 generation field)
@@ -9048,7 +9051,6 @@
 │   ├── `3064144.json` - json config
 │   ├── `3270369.json` - json config
 │   ├── `3272476.json` - json config
-│   ├── `3776520.json` - json config
 │   ├── `3878401.json` - json config
 │   ├── `3918844.json` - json config
 │   ├── `42129.json` - json config
@@ -9318,7 +9320,6 @@
 │   ├── `snapshot-bash-1780563586674-gyxccx.sh` - Snapshot file
 │   ├── `snapshot-bash-1780583215944-42y90u.sh` - Snapshot file
 │   ├── `snapshot-bash-1780583399192-sgmupb.sh` - Snapshot file
-│   ├── `snapshot-bash-1780606738697-7fl0o8.sh` - Snapshot file
 │   ├── `snapshot-bash-1780607147590-u3e76l.sh` - Snapshot file
 │   └── `snapshot-bash-1780607690496-xwb554.sh` - Snapshot file
 ├── skills/
@@ -9361,6 +9362,10 @@
 │       ├── `LICENSE.txt` - txt file
 │       ├── `recalc.py` - Excel Formula Recalculation Script
 │       └── `SKILL.md` - Comprehensive spreadsheet creation, editing, and analysis with support for formulas, formatting, data analysis, and visualization. When Claude needs to work with spreadsheets (.xlsx, .xlsm, .csv, .tsv, etc) for: (1) Creating new spreadsheets with formulas and formatting, (2) Reading or analyzing data, (3) Modify existing spreadsheets while preserving formulas, (4) Data analysis and visualization in spreadsheets, or (5) Recalculating formulas
+├── specs/
+│   ├── 20260514-174852/
+│   ├── qa-c7-test/
+│   └── qa-c7-test-w/
 ├── state/
 │   └── `specialist-yield-log.jsonl` - jsonl file
 ├── statsig/
@@ -9706,7 +9711,6 @@
 │   ├── `09750ab4-56c0-4a69-b3d8-ecd993da70eb-agent-09750ab4-56c0-4a69-b3d8-ecd993da70eb.json` - json config
 │   ├── `098ba96a-5177-446f-8279-c09b246b2ed8-agent-098ba96a-5177-446f-8279-c09b246b2ed8.json` - json config
 │   ├── `098dc36d-0b71-4b38-8c9f-15098a42f230-agent-098dc36d-0b71-4b38-8c9f-15098a42f230.json` - json config
-│   ├── `099ecb26-06ff-4a8f-873d-43e08cbfbc7a-agent-099ecb26-06ff-4a8f-873d-43e08cbfbc7a.json` - json config
 │   ├── `09a64550-6076-41df-8aa9-cae8f590ebd4-agent-09a64550-6076-41df-8aa9-cae8f590ebd4.json` - json config
 │   ├── `09bbb59c-6d6c-48e0-b3dc-3959e8136aba-agent-09bbb59c-6d6c-48e0-b3dc-3959e8136aba.json` - json config
 │   ├── `09bd675d-150f-4f19-8278-fa8e2ff79289-agent-09bd675d-150f-4f19-8278-fa8e2ff79289.json` - json config
@@ -12325,6 +12329,7 @@
 │   ├── `9ebcf56a-4746-482b-9d54-425708096fcf-agent-9ebcf56a-4746-482b-9d54-425708096fcf.json` - json config
 │   ├── `9ed46903-7acc-4e10-844f-10a47f5f60b1-agent-9ed46903-7acc-4e10-844f-10a47f5f60b1.json` - json config
 │   ├── `9ed7cd9d-eea1-477e-9bbc-7323c8894796-agent-9ed7cd9d-eea1-477e-9bbc-7323c8894796.json` - json config
+│   ├── `9eec09ad-cae4-43f3-9a79-3c2729d99da7-agent-9eec09ad-cae4-43f3-9a79-3c2729d99da7.json` - json config
 │   ├── `9f008558-7058-4154-b208-70c67e989234-agent-9f008558-7058-4154-b208-70c67e989234.json` - json config
 │   ├── `9f185188-4149-4089-a1fa-f5b23cf18703-agent-9f185188-4149-4089-a1fa-f5b23cf18703.json` - json config
 │   ├── `9f28dfd5-75f4-4669-b369-6707e94ab963-agent-9f28dfd5-75f4-4669-b369-6707e94ab963.json` - json config
@@ -12842,7 +12847,6 @@
 │   ├── `bdad50c8-7ef3-4dee-a047-7f05822a814e-agent-bdad50c8-7ef3-4dee-a047-7f05822a814e.json` - json config
 │   ├── `bdb1cb9d-de41-4525-9ccd-f4a1f5ca7083-agent-bdb1cb9d-de41-4525-9ccd-f4a1f5ca7083.json` - json config
 │   ├── `bdb451f8-3843-4c0f-9cc3-f4d6cdcc292f-agent-bdb451f8-3843-4c0f-9cc3-f4d6cdcc292f.json` - json config
-│   ├── `bdc272e3-e44e-4b04-8307-9d7bdd64d942-agent-bdc272e3-e44e-4b04-8307-9d7bdd64d942.json` - json config
 │   ├── `bdd69880-b4ad-4f47-8cf8-3b71669b58a9-agent-a4beb8e.json` - json config
 │   ├── `bdd69880-b4ad-4f47-8cf8-3b71669b58a9-agent-a6ac7f5.json` - json config
 │   ├── `bdd69880-b4ad-4f47-8cf8-3b71669b58a9-agent-bdd69880-b4ad-4f47-8cf8-3b71669b58a9.json` - json config
@@ -12992,10 +12996,12 @@
 │   ├── `c7120198-da54-4468-bf30-2fdef07c3725-agent-c7120198-da54-4468-bf30-2fdef07c3725.json` - json config
 │   ├── `c7226aac-fd22-4861-ba6f-7fb38e377e6c-agent-c7226aac-fd22-4861-ba6f-7fb38e377e6c.json` - json config
 │   ├── `c7283ad0-e3b4-4e80-ad21-a616a7bba249-agent-c7283ad0-e3b4-4e80-ad21-a616a7bba249.json` - json config
+│   ├── `c7452b2d-d6dd-4fa6-b61a-f0642a46c906-agent-c7452b2d-d6dd-4fa6-b61a-f0642a46c906.json` - json config
 │   ├── `c754e08e-ecd8-4e88-b960-0b91eb8f3020-agent-c754e08e-ecd8-4e88-b960-0b91eb8f3020.json` - json config
 │   ├── `c7591712-a20d-4aa1-9eda-1ee9bedb9600-agent-c7591712-a20d-4aa1-9eda-1ee9bedb9600.json` - json config
 │   ├── `c75b9780-efe3-4d6b-acdf-ca57384ae5f3-agent-c75b9780-efe3-4d6b-acdf-ca57384ae5f3.json` - json config
 │   ├── `c761d90f-7c1f-49ba-ae32-b75f35fe491f-agent-c761d90f-7c1f-49ba-ae32-b75f35fe491f.json` - json config
+│   ├── `c763409f-c7b9-44b6-b892-4d1a6c5ab1a2-agent-c763409f-c7b9-44b6-b892-4d1a6c5ab1a2.json` - json config
 │   ├── `c773b4a3-3eeb-4af1-a5ac-3fe68d41cf4c-agent-c773b4a3-3eeb-4af1-a5ac-3fe68d41cf4c.json` - json config
 │   ├── `c77e9adb-ceb7-45f6-b579-394e5554ded1-agent-c77e9adb-ceb7-45f6-b579-394e5554ded1.json` - json config
 │   ├── `c791ced7-a730-4433-8786-6633526e1222-agent-c791ced7-a730-4433-8786-6633526e1222.json` - json config
@@ -14110,6 +14116,7 @@
 ├── `workflow-49d0cdde-0555-4c6a-9354-0076adf7db42.json` - json config
 ├── `workflow-4e6b0a9e-bdd6-47ca-8ec4-95cae992867d.json` - json config
 ├── `workflow-78c6f989-5b0e-4d7b-b692-6cabbe0008bf.json` - json config
+├── `workflow-c763409f-c7b9-44b6-b892-4d1a6c5ab1a2.json` - json config
 ├── `workflow-d5e5ffb8-89bd-409f-a8c0-d00f45ecbce3.json` - json config
 ├── `workflow-dd3a870c-9440-4274-896f-462dfe972646.json` - json config
 ├── `workflow-eaa1077b-49ad-4697-8e01-e4a923d2b116.json` - json config
@@ -14117,6 +14124,9 @@
 └── `workflow-fe05ca9a-7892-40ea-a3ba-660db57180b9.json` - json config
 ```
 <!-- /AUTO:index-stats -->
+
+# .claude
+
 
 # dot-claude
 
