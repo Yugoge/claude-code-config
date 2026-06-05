@@ -160,7 +160,14 @@ Return, as the LAST line, EXACTLY one of:
 ```
 
 **Step 5.5c — Gate decision.**
-- `COMMIT: REJECT`: print the verdict + offending files; **unstage the dry-run-staged set so the tree is left clean** — `git -C <repo> restore --staged -- <PLAN_FILES>` per repo (unborn repo: `git -C <repo> rm --cached -- <files>`). Do NOT proceed to Step 6; do NOT commit. Tell the user to remove/fix the flagged files, or re-run with `--force` to override. **Stop.**
+
+**Grant hygiene (applies to EVERY stop path below — REJECT, `--dry-run` stop, unparseable):** in addition to unstaging, REVOKE the Step 5 commit grant so a blocked/stopped gate never leaves live commit authorization lingering (30-min TTL):
+```bash
+source venv/bin/activate && python3 "${CONTROL_ROOT}/.claude/scripts/write-commit-grant.py" --task-id "$TASK_ID" --revoke-only
+```
+(Only the `COMMIT: APPROVE` + real-commit path keeps the grant — it is consumed by Step 6.)
+
+- `COMMIT: REJECT`: print the verdict + offending files; **unstage the dry-run-staged set so the tree is left clean** — `git -C <repo> restore --staged -- <PLAN_FILES>` per repo (unborn repo: `git -C <repo> rm --cached -- <files>`); revoke the grant (Grant hygiene above). Do NOT proceed to Step 6; do NOT commit. Tell the user to remove/fix the flagged files, or re-run with `--force` to override. **Stop.**
 - `COMMIT: APPROVE`:
   - Record `QA_APPROVED_FILES` = `PLAN_FILES` (the exact reviewed set, per repo). This is passed to Step 6 as the commit **ceiling** (TOCTOU guard — Step 6 must not commit anything outside it).
   - If the user passed `--dry-run` (`DRYRUN=true`): print the plan + `QA: APPROVE`, unstage the dry-run-staged set (clean tree, as in the REJECT branch), and **stop** — no real commit.
