@@ -75,15 +75,21 @@ def _norm(command):
 def _segments(c):
     """Split on shell separators ; \n | & && || ` ( ) into command segments.
 
-    Parens are split ONLY as real subshell boundaries: a `(` counts as a
-    separator only in command position (the current buffer is empty or all
-    whitespace), and a matching `)` only closes a subshell we actually opened.
+    Parens open a new command segment in exactly THREE cases, all of which put
+    an embedded command into command position:
+      1. command-substitution / process-substitution introducers `$(`, `<(`, `>(`
+         — the text after the opener is a command (e.g. `echo $(git checkout -b
+         x)` must classify the inner `git checkout -b x`).
+      2. a real subshell `(` in command position (the current buffer is empty or
+         all whitespace), e.g. `(git checkout -b x)`.
+    A matching `)` only closes a boundary we actually opened (depth-tracked).
     This avoids shredding argument-internal parens such as a git
-    `--format %(refname)` / `--format=%(refname)` spec, whose `(`/`)` are part of
-    a single argument token — splitting those would orphan a trailing positional
+    `--format %(refname)` / `--format=%(refname)` spec, whose `%(`/`)` are part of
+    a single argument token (the `(` is preceded by `%`, not `$`/`<`/`>`, and is
+    not in command position) — splitting those would orphan a trailing positional
     branch name (e.g. `git branch --format %(refname) nb`) into a segment without
     `git branch`, defeating creation detection (the dangerous under-block
-    direction).
+    direction). Backtick substitution is split via the `` ` `` separator below.
     """
     out, buf, i, n = [], [], 0, len(c)
     subshell_depth = 0
@@ -94,6 +100,11 @@ def _segments(c):
     while i < n:
         two = c[i:i + 2]
         if two in ('&&', '||'):
+            out.append(''.join(buf)); buf = []; i += 2; continue
+        # Command/process substitution introducers open a command boundary; the
+        # introducer char (`$`/`<`/`>`) is dropped from the outer segment.
+        if two in ('$(', '<(', '>('):
+            subshell_depth += 1
             out.append(''.join(buf)); buf = []; i += 2; continue
         ch = c[i]
         if ch in ';\n|&`':
