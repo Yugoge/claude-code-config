@@ -214,11 +214,21 @@ def test_worktree_and_pr_creation_blocked(cmd, tmp_path):
     'git stash',
     'git stash list',
     'git stash pop',
-    # ── VECTOR D: fetch/pull without a :refs/heads/ refspec must ALLOW ────────
+    # ── VECTOR D: fetch/pull without a creating refspec must ALLOW ────────────
     'git fetch',
     'git fetch origin',
     'git fetch --all',
     'git pull origin main',
+    'git fetch origin main',             # space-separated src, no refspec colon
+    # ── VECTOR D2: refspecs that do NOT write a local branch must ALLOW ────────
+    'git fetch origin main:refs/remotes/foo',  # remote-tracking, not local
+    'git fetch origin main:refs/tags/v1',      # tag, not a local branch
+    'git fetch origin main:',                  # empty dst → FETCH_HEAD only
+    'git fetch https://host/repo.git',         # URL, not a refspec
+    'git fetch ssh://host/repo',               # URL, not a refspec
+    'git fetch git@github.com:o/r.git',        # scp-like remote, not a refspec
+    'git clone git@github.com:o/r.git',        # clone is not fetch/pull anyway
+    'git fetch --dry-run origin main:newbranch',  # dry-run writes nothing
     # ── VECTOR E: update-ref delete must ALLOW ────────────────────────────────
     'git update-ref -d refs/heads/foo',
     # ── VECTOR F: harmless command substitution / %(refname) format must ALLOW ─
