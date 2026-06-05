@@ -331,10 +331,24 @@ _BRANCH_VETO_SHORT = set('dDmMlaruh')
 _BRANCH_COPY_LONG = {'--copy'}
 # Short COPY letters → creation.
 _BRANCH_COPY_SHORT = set('cC')
-# Long flags that consume the NEXT token as their value (when not attached '=').
+# Long flags that consume the NEXT token as their REQUIRED value (when not
+# attached '='). git accepts both `--flag=value` AND `--flag value` for these, so
+# the separate following token is the flag's value, NOT a positional branch name
+# (e.g. `git branch --sort refname` is a LIST with no positional → allow).
+#
+# DELIBERATELY EXCLUDED: --color, --column, --abbrev. In git's parse-options these
+# are OPTIONAL-attached-value flags (`--color[=<when>]`, `--column[=<options>]`,
+# `--abbrev[=<n>]`): they accept ONLY the attached `--flag=value` form. A
+# SPACE-separated following token is NOT their value — it is the next positional
+# (the branch name). Empirically confirmed with live git (2026-06-05): each of
+# `git branch --color zzc`, `git branch --column zzc`, `git branch --abbrev 7`
+# CREATES the branch named by the following token. So these must NOT swallow the
+# token here, or a real creation slips through as a list (the under-block bug).
+# Their bare (`--color`) and attached (`--color=always`) forms remain list-mode:
+# bare leaves no positional, attached is a single token — neither creates.
 _BRANCH_VALUE_LONG = {
     '--contains', '--no-contains', '--merged', '--no-merged', '--points-at',
-    '--sort', '--format', '--color', '--column', '--abbrev', '--set-upstream-to',
+    '--sort', '--format', '--set-upstream-to',
 }
 
 
