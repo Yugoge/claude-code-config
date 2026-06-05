@@ -213,16 +213,16 @@ Parse changelog-analyst's structured status output (see `agents/changelog-analys
 **Handle each commit_status value:**
 
 #### status = `committed`
-Continue to Step 7 normally.
+Continue to Step 8 normally.
 
 #### status = `nothing_to_commit`
 Print: `WARNING: changelog-analyst found nothing to commit after exclusions. Verify the task cycle produced staged changes.`
-Continue to Step 7 (skip spec-update if no real commit occurred — Step 7 skip conditions apply).
+Continue to Step 8 (skip spec-update if no real commit occurred — Step 8 skip conditions apply).
 
 #### status = `nothing_to_commit_precommitted`
-Record `auto_bulk_commits[]` from the structured output in the Step 7 summary.
+Record `auto_bulk_commits[]` from the structured output in the Step 8 summary.
 Print: `INFO: Changes were already committed in an auto-bulk commit. auto_bulk_commits: <auto_bulk_commits[]>`
-Continue to Step 7.
+Continue to Step 8.
 
 #### status = `failed` — retryable grant codes
 
@@ -240,19 +240,19 @@ Retry exactly once (max 1 retry):
    This revokes any stale grant for `$TASK_ID` and writes a fresh one atomically.
 2. Re-dispatch changelog-analyst (same prompt as Step 6).
 3. Parse the retry result using the same status table as the initial result:
-   - If `commit_status = committed` or `commit_status = nothing_to_commit_precommitted`: continue to Step 7 (handle as specified above for each status).
-   - If `commit_status = nothing_to_commit`: warn user and continue to Step 7.
-   - If retry `commit_status = failed` or unknown: print `ERROR: changelog-analyst retry failed (failure_code: <code>, reason: <reason>). Manual intervention required.` and stop — do NOT proceed to Step 7.
+   - If `commit_status = committed` or `commit_status = nothing_to_commit_precommitted`: continue to Step 8 (handle as specified above for each status).
+   - If `commit_status = nothing_to_commit`: warn user and continue to Step 8.
+   - If retry `commit_status = failed` or unknown: print `ERROR: changelog-analyst retry failed (failure_code: <code>, reason: <reason>). Manual intervention required.` and stop — do NOT proceed to Step 8.
 
 **Non-retryable** (`git_error`, `staging_error`, `hook_blocked`, `scope_violation`, or any other code):
 
 Print: `ERROR: changelog-analyst failed with non-retryable failure_code: <failure_code>. Reason: <failure_reason>. Manual intervention required.`
-Stop — do NOT retry, do NOT proceed to Step 7.
+Stop — do NOT retry, do NOT proceed to Step 8.
 
 #### status unknown / unparseable
 Treat as non-retryable. Print the raw changelog-analyst output and stop.
 
-### Step 7: Spec-update dispatch (post-commit, deterministic fail-closed)
+### Step 8: Spec-update dispatch (post-commit, deterministic fail-closed)
 
 **This step is dispatched by `/commit` from its own orchestrator context — NOT from within changelog-analyst.** changelog-analyst has already returned before this step executes.
 
@@ -262,7 +262,7 @@ Skip this step entirely if ANY of the following are true:
 - `TASK_ID` is empty
 - changelog-analyst did not report a successful real commit (no push-gate token written, or changelog-analyst reported an error)
 
-**Observable Step 7 trace (AC-05 Phase B contract — task 20260524-205206 iter-2)**: when env var `COMMIT_STEP7_TRACE=1` is set, Step 7 MUST emit a deterministic single-line marker to **stderr** at every decision point. The markers are:
+**Observable Step 8 trace (AC-05 Phase B contract — task 20260524-205206 iter-2)**: when env var `COMMIT_STEP7_TRACE=1` is set, Step 8 MUST emit a deterministic single-line marker to **stderr** at every decision point. The markers are:
 
 - `STEP7_SKIPPED: bulk=true` — at the BULK=true skip branch
 - `STEP7_SKIPPED: dryrun=true` — at the DRYRUN=true skip branch
@@ -272,13 +272,13 @@ Skip this step entirely if ANY of the following are true:
 - `STEP7_NO_SPEC: task-id=<TASK_ID>` — at stage (3) empty-set outcome
 - `STEP7_UNLINKED_SPEC: task-id=<TASK_ID> count=<N> paths=<paths>` — at stage (3) one-or-more-element outcome (fail-closed)
 
-This trace is OFF by default (no env var). When ON, the markers are emitted to stderr only; they MUST NOT affect stdout, exit codes, or dispatch behavior. The trace is consumed by the AC-05 Phase B test harness (tests/generated/20260524-205206/test_AC_05_e5f7a9b1c4d6e8fb.py) which exercises the Step 7 SELECTION + TRACE algorithm via `scripts/step7-spec-update.py` — the executable reference embodiment of the SELECTION portion of this Step 7 specification (stages 1-4 + STEP7_* markers). The script does NOT perform the Agent dispatch described in the "Dispatch payload" subsection below — that step is the orchestrator's responsibility, performed as a Claude Code Agent call after the selection marker emits. The orchestrator MAY either follow the prose directly OR invoke the harness to compute the selection; in both cases the orchestrator must perform the real Agent dispatch when a stage 1 or stage 2 path is selected.
+This trace is OFF by default (no env var). When ON, the markers are emitted to stderr only; they MUST NOT affect stdout, exit codes, or dispatch behavior. The trace is consumed by the AC-05 Phase B test harness (tests/generated/20260524-205206/test_AC_05_e5f7a9b1c4d6e8fb.py) which exercises the Step 8 SELECTION + TRACE algorithm via `scripts/step7-spec-update.py` — the executable reference embodiment of the SELECTION portion of this Step 8 specification (stages 1-4 + STEP7_* markers). The script does NOT perform the Agent dispatch described in the "Dispatch payload" subsection below — that step is the orchestrator's responsibility, performed as a Claude Code Agent call after the selection marker emits. The orchestrator MAY either follow the prose directly OR invoke the harness to compute the selection; in both cases the orchestrator must perform the real Agent dispatch when a stage 1 or stage 2 path is selected.
 
 When `BULK=false` AND `DRYRUN=false` AND `TASK_ID` is set AND changelog-analyst reported success:
 
-Set `DEV_DOCS_ROOT` using the same CONTROL_ROOT logic as Step 6: `DEV_DOCS_ROOT=${CONTROL_ROOT}/docs/dev` (where `CONTROL_ROOT=/root`). Use absolute paths throughout Step 7.
+Set `DEV_DOCS_ROOT` using the same CONTROL_ROOT logic as Step 6: `DEV_DOCS_ROOT=${CONTROL_ROOT}/docs/dev` (where `CONTROL_ROOT=/root`). Use absolute paths throughout Step 8.
 
-**Step 7 algorithm (verbatim contract — total-ordered, deterministic, fail-closed):**
+**Step 8 algorithm (verbatim contract — total-ordered, deterministic, fail-closed):**
 
 The algorithm is total-ordered and mandatory. Implementers MUST NOT introduce wording that admits implementer discretion; every nondeterminism alias is forbidden by AC5-V3. Prior-cycle artifacts MUST NOT be matched: the glob and content predicates are anchored to the CURRENT cycle's `${TASK_ID}`; no cross-cycle drag-in. This operationalizes the user binding directive that prohibits loading any non-current-cycle content (verbatim Chinese phrasing preserved at `docs/dev/ticket-20260519-211515.md`, Standard 6 exemption scope).
 
@@ -339,7 +339,7 @@ Follow the ## Continuation-spec mode instructions from /root/.claude/commands/sp
 - Output the spec path when done.
 ```
 
-If the Agent dispatch fails for any reason (error, timeout, or exception), print `WARNING: spec-update dispatch failed for task-id=${TASK_ID} — spec not updated` and continue. The commit is already recorded; Step 7 failure does NOT roll back or affect the commit.
+If the Agent dispatch fails for any reason (error, timeout, or exception), print `WARNING: spec-update dispatch failed for task-id=${TASK_ID} — spec not updated` and continue. The commit is already recorded; Step 8 failure does NOT roll back or affect the commit.
 
 **Reversal-rationale guidance for changelog-analyst (R9 cross-reference)**: the binding rule that any forward-fix commit which intentionally reverses prior behavior MUST include `Reverses <SHA>: <one-line rationale for why prior reasoning no longer holds>` in the commit-message body lives in `agents/changelog-analyst.md` Phase 6 (the SOLE binding landing). `/commit` orchestrator does NOT enforce the rule directly; changelog-analyst owns commit-message construction and is the contract holder.
 
