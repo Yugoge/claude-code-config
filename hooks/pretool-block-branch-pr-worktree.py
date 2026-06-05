@@ -24,7 +24,27 @@ attached/clustered short options are all caught):
   - git branch <name>  /  -c/-C/--copy            (branch creation)
       list / delete / rename / upstream / info forms remain allowed.
   - git worktree add ...                          (worktree creation)
-  - gh pr create ...                              (PR creation, flags interspersed)
+  - gh pr create / gh pr new ...                  (PR creation, flags interspersed)
+  - git stash branch <name>                       (branch from a stash)
+  - git fetch/pull <repo> <src>:refs/heads/<name> (refspec into a local branch)
+  - git update-ref refs/heads/<name> <sha>        (plumbing branch creation)
+Long-opt create flags are matched including git's unambiguous unique-prefix
+abbreviations (e.g. `git switch --cr`, `git checkout --or`). Command- and
+process-substitution boundaries (`$(...)`, `<(...)`, `>(...)`, `` `...` ``) are
+split so an inner creation command is classified on its own.
+
+Inherent limitations (a command-text guardrail CANNOT block these; they are
+intentionally out-of-scope — this is an AGENT SPEED-BUMP, not an adversarial
+sandbox, mitigated by the /do consent and /allow grant escape hatches):
+  - a creation command hidden in a quoted string passed to an interpreter, e.g.
+    `eval "git checkout -b x"`, `sh -c "..."`, `bash -c "..."`: the quoted string
+    is context-stripped before tokenizing, so the inner command is never seen.
+  - user-defined git aliases (`git co` → checkout, etc.): the alias name is
+    opaque to a static token classifier.
+  - a creation command read from a file or from stdin rather than the argv.
+  - remote-branch creation via `git push <remote> <src>:refs/heads/x` is
+    intentionally NOT handled here because pretool-git-privilege-guard.py already
+    default-denies all agent `git push`.
 
 Bypass order (any one → allow):
   1. live /dev-overnight session   (lib.overnight.is_overnight_active)
