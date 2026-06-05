@@ -116,23 +116,40 @@ def _git_subcommand(args):
 def _is_co_sw_create(sub, sa):
     """True iff a `git checkout`/`git switch` invocation CREATES a branch.
 
-    Handles bare and attached short options (-b, -bNAME, -fb), long options with
-    or without an attached =value (--create, --create=x, --orphan, --orphan=x,
-    --force-create), and stops at the `--` pathspec separator.
+    Creation triggers, for BOTH checkout and switch:
+      --orphan                              (orphan branch)
+      -t / --track                          (local tracking branch; creates one)
+    Checkout-only short letters: -b / -B    (create / create-or-reset)
+    Switch-only long opts: --create / --force-create / --orphan and --guess
+      (--guess is switch's explicit "create from a remote-tracking name" flag).
+
+    Handles bare and attached short options (-b, -bNAME, -fb, -tb), long options
+    with or without an attached =value (base = token.split('=')[0], tolerant of a
+    nonexistent --track=value form), short-option clusters containing a create
+    letter or `t`, and stops at the `--` pathspec separator.
+
+    KNOWN LIMITATION (intentionally NOT fixed — fixing would over-block): a BARE
+    `git switch <name>` / `git checkout <name>` with no create flag uses git's
+    default --guess, which CAN create a local branch when <name> matches exactly
+    one remote-tracking branch. That is indistinguishable, without repo state,
+    from switching to an existing local branch, and blocking it would break the
+    legitimate `git switch master` / `git checkout master`. So a bare
+    switch/checkout to a name stays ALLOWED.
     """
     create_letters = set('bB') if sub == 'checkout' else set('cC')
+    create_letters.add('t')  # -t == --track creates a local tracking branch
     for x in sa:
         if x == '--':
             break  # pathspec separator — options named like -b after it are files
         base = x.split('=', 1)[0]  # strip attached =value for long options
-        if base == '--orphan':
+        if base in ('--orphan', '--track'):
             return True
-        if sub == 'switch' and base in ('--create', '--force-create'):
+        if sub == 'switch' and base in ('--create', '--force-create', '--guess'):
             return True
         if x.startswith('--'):
             continue
         if x.startswith('-') and len(x) > 1:
-            # short-option cluster / attached value: -b, -bNAME, -fb, -cNAME ...
+            # short-option cluster / attached value: -b, -bNAME, -fb, -tNAME ...
             if any(ch in create_letters for ch in x[1:]):
                 return True
     return False
