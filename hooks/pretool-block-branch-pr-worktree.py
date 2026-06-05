@@ -377,10 +377,15 @@ def _branch_creates(sa):
 def _stash_creates(sa):
     """True iff `git stash branch <name>` (creates a branch from a stash).
 
-    Only the `branch` stash subcommand creates a branch. Bare `git stash` and the
+    Only the `branch` stash subcommand (appearing BEFORE any `--` pathspec
+    separator) creates a branch. Bare `git stash` and the
     list/show/pop/push/drop/apply/clear/save/store/create subcommands do not.
+    `git stash -- branch` is a pathspec literally named "branch", not the branch
+    subcommand → NOT a creation.
     """
     for x in sa:
+        if x == '--':
+            break  # pathspec separator — a following `branch` token is a path
         if x.startswith('-'):
             continue
         return x == 'branch'
