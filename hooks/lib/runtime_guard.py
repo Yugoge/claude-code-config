@@ -1499,16 +1499,48 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
     candidates are DIR/basename so a write via `-t <dir>` matches the exact protected
     path (and a write to an UNRELATED file in that dir does not). The redirect-target
     form (`> path`) is handled by the callers, not here."""
-    barewords = [t for t in args if not t.startswith("-")]
-    # target-directory option: `-t DIR` (cp/mv/install/ln) — DIR is the dest dir; the
-    # written file is DIR/basename(source). `--target-directory=DIR` fused form too.
+    # target-directory option: `-t DIR` / `--target-directory[=DIR]` — VERB-AWARE.
+    # `-t DIR` means "DIR is the destination directory; the written file is
+    # DIR/basename(source)" ONLY for the GNU coreutils that define it that way:
+    # {cp, mv, install, ln}. For OTHER verbs `-t` is a DIFFERENT, usually no-arg,
+    # short flag that shares the letter `t` (rsync `-t` = `--times`; tar `-t` =
+    # `--list`; etc.). Treating `-t` as target-directory for every verb is a
+    # flag-value COLLISION: it makes the pre-parse swallow the NEXT operand as a
+    # bogus dest-dir and, in rsync's branch, reclassify the REAL protected
+    # destination as a mere source and DROP it → a guard-neutering ALLOW leak
+    # (`rsync -t /tmp/evil.json <protected-config>`). So we ONLY set tdir for the
+    # four coreutils verbs that actually take `-t DIR`; for every other verb tdir
+    # stays None and the verb's own last-operand-is-dest logic runs unchanged
+    # (fail-safe: an unknown flag never re-routes the dest away from a protected
+    # path). The consumed `-t DIR` value index is recorded so DIR is NOT also
+    # counted as a bareword source (which produced the spurious DIR/basename(DIR)
+    # candidate before).
+    _TDIR_VERBS = ("cp", "mv", "install", "ln")
     tdir = None
-    for i, a in enumerate(args):
-        if a in ("-t", "--target-directory") and i + 1 < len(args):
-            tdir = args[i + 1]
-        elif a.startswith("--target-directory="):
-            tdir = a.split("=", 1)[1]
+    tdir_val_idx = None
+    if head in _TDIR_VERBS:
+        for i, a in enumerate(args):
+            if a in ("-t", "--target-directory") and i + 1 < len(args):
+                tdir = args[i + 1]
+                tdir_val_idx = i + 1
+            elif a.startswith("--target-directory="):
+                tdir = a.split("=", 1)[1]
+                tdir_val_idx = None
+    barewords = [t for i, t in enumerate(args)
+                 if not t.startswith("-") and i != tdir_val_idx]
     if head in ("cp", "install"):
+        # `install -d DIR…` / `install --directory DIR…` CREATES every named
+        # directory (there is NO source operand). So EVERY bareword is a target —
+        # creating/`mkdir -p`-ing a protected ancestor/config dir (or touching a
+        # protected dir) is a mutation. The plain cp/install copy logic below
+        # would only flag the last bareword (dest), dropping a protected dir that
+        # appears earlier in a multi-dir `install -d A B <protecteddir>`.
+        if head == "install" and any(
+            a == "-d" or a == "--directory"
+            or (a.startswith("-") and not a.startswith("--") and "d" in a[1:])
+            for a in args
+        ):
+            return list(barewords)
         if tdir is not None:
             # every source maps to tdir/basename(source)
             srcs = [b for b in barewords]
@@ -1628,7 +1660,17 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
                        if not t.startswith("-") and i not in skip
                        and _strip_quotes(t) != _strip_quotes(archive or "\0")]
             if cdir is not None:
-                return [os.path.join(_strip_quotes(cdir), os.path.basename(_strip_quotes(m))) for m in members] + members
+                # The extraction directory ITSELF is a write target: `tar -x -C DIR`
+                # writes the archive members UNDER DIR, so extracting into a
+                # protected container/ancestor/config dir mutates that dir even when
+                # NO explicit members are listed (the common `tar -x -C <dir> -f a.tar`
+                # form). Emit DIR (so DIR being — or being under — a protected path
+                # BLOCKs) alongside the per-member DIR/basename(member) candidates.
+                # The archive (`-f`) stays a READ input → still ALLOWs a protected
+                # archive read.
+                return ([_strip_quotes(cdir)]
+                        + [os.path.join(_strip_quotes(cdir), os.path.basename(_strip_quotes(m))) for m in members]
+                        + members)
             return members
     return []
 
