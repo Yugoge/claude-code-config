@@ -1512,7 +1512,14 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
         if tdir is not None:
             # every source maps to tdir/basename(source)
             srcs = [b for b in barewords]
-            return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in srcs]
+            out = [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in srcs]
+            # a shell-GLOB source selecting a protected dir's contents is the SAME
+            # exfil/clobber op the non `-t` branch blocks (basename(<dir>/*) == '*'
+            # would otherwise drop the protected-ness) — add glob sources as targets so
+            # `cp -t /tmp/x <protecteddir>/*` / `install -t /tmp/x <protecteddir>/*`
+            # BLOCK, while a literal protected source stays a read (ALLOW).
+            out += [s for s in srcs if _has_shell_glob(_strip_quotes(s))]
+            return out
         # `cp SRC… DEST`: only the DEST (last bareword) is written. SRC is read —
         # EXCEPT a shell-GLOB source (`cp <dir>/* DEST`) selecting a protected dir's
         # contents: the shell expands it to every protected entry, an exfiltration /

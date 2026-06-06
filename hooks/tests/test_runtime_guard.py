@@ -3587,6 +3587,21 @@ class TestCycle14DriverGlobMutation:
         assert rg.evaluate("mv /tmp/abs14/.config/app/* /tmp/x")[0] == "BLOCK"
         assert rg.evaluate("cp /tmp/abs14/.config/app/* /tmp/x")[0] == "BLOCK"
 
+    # RE-CLOSE #9: `cp -t DIR <protecteddir>/*` / `--target-directory=` / `install -t`
+    # leaked because the `-t`/`--target-directory=` branch synthesized DIR/basename(src)
+    # candidates (basename('<dir>/*') == '*' drops the protected-ness) but did NOT add
+    # the shell-GLOB sources as targets the way the plain-cp and `mv -t` branches do.
+    def test_cp_target_dir_glob_blocks(self, isolated_pair):
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        assert ev_iso(f"cp -t /tmp/x {cfgdir}/*", df) == "BLOCK"
+        assert ev_iso(f"cp --target-directory=/tmp/x {cfgdir}/*", df) == "BLOCK"
+        assert ev_iso(f"install -t /tmp/x {cfgdir}/*", df) == "BLOCK"
+        assert ev_iso(f"nice cp -t /tmp/x {cfgdir}/*", df) == "BLOCK"
+        # a literal protected SOURCE under `-t` stays a read (cp keeps the source) → ALLOW
+        assert ev_iso(f"cp -t /tmp/x {cfgdir}/protected-runtime.json", df) == "ALLOW"
+        # an unrelated glob selecting NOTHING protected stays allowed
+        assert ev_iso("cp -t /tmp/x /tmp/scratch/*", df) == "ALLOW"
+
     # boundary ALLOW: a glob selecting NOTHING protected stays allowed
     def test_boundary_glob_allows(self, isolated_pair):
         df, repo = isolated_pair["df"], isolated_pair["repo"]
