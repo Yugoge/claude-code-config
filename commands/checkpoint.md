@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # Checkpoint Command
 
-Quick save current progress with automatic commit and push.
+Snapshot current progress to a local `refs/checkpoints/<branch>` safety ref — the branch HEAD is never moved and nothing is pushed.
 
 ## Usage
 
