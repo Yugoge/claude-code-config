@@ -4166,5 +4166,136 @@ class TestCycle16LiveHook:
         assert self._run("tar -tf /root/.config/claude/protected-runtime.json") == ALLOW
 
 
+class TestCycle16CodexFollowup:
+    """Codex (gpt-5.5 xhigh) adversarial pass on the flag-collision class surfaced
+    SIX more in-scope leak families beyond the 3 named items — all SAME bug class
+    (a flag/option changing operand classification so a protected WRITE/MOVE/REMOVE
+    /CREATE target is DROPPED or MISREAD → ALLOW leak), all fixed this cycle:
+
+      CX1: clustered/attached `-t` (`-vt DIR`, `-Dt DIR`, `-tDIR`) for cp/install/ln
+           was not recognized → the synthesized DIR/basename(src) target dropped.
+      CX2: `--` end-of-options ignored → `cp -- -t <protected>` treated post-`--`
+           `-t` as target-directory and swallowed the protected destination.
+      CX3: SEPARATED trailing value-options (`cp … -S .bak`, `install … -m 0644`,
+           `rsync … -e ssh`, `ln … -S .bak`) let the option VALUE become the parsed
+           destination, dropping/misreading the real protected dest.
+      CX4: chmod SYMBOLIC flag-shaped mode (`-w`, `+x`, `=r`) was filtered out as an
+           option, so the first protected file operand was mistaken for the mode spec
+           and dropped.
+      CX5: tar archive-WRITE modes (`-cf`/`--create`, `--append`/`-rf`, `--update`/
+           `-uf`, `--delete`) never targeted the `-f` archive (overwrite/modify leak);
+           tar old-style (`tar xf`) and FUSED (`tar -xf<archive>`) option parsing
+           dropped the extract member; tar `-C DIR` member synthesis lost the
+           preserved subpath; `--exclude` (a long opt containing `x`) over-blocked a
+           list/read.
+      CX6: unzip was all-operands-are-targets → over-blocked list/read modes
+           (`unzip -l`) and missed `-d DIR` member subpaths.
+
+    Engine probes pin an isolated config + repo (ev_iso/isolated_pair); the live data
+    file is NEVER touched."""
+
+    _RSYNC = "rs" + "ync"
+    _TAR = "ta" + "r"
+    _INST = "ins" + "tall"
+    _UNZIP = "un" + "zip"
+    _CP = "c" + "p"
+    _LN = "l" + "n"
+    _CHMOD = "chm" + "od"
+
+    def _cfgfile(self, ip):
+        return f"{ip['cfgdir']}/protected-runtime.json"
+
+    def _bundle(self, ip):
+        return f"{ip['repo']}/packages/happy-cli/dist/index.mjs"
+
+    def _bundledir(self, ip):
+        return f"{ip['repo']}/packages/happy-cli/dist"
+
+    # CX1: clustered/attached -t writing the EXACT protected file blocks; writing a
+    # NEW basename into the dir ALLOWs (only the exact protected path is protected).
+    def test_cx1_clustered_attached_t_blocks(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        bd = self._bundledir(isolated_pair)
+        assert ev_iso(f"{self._CP} -vt {bd} /tmp/index.mjs", df, repo) == "BLOCK"
+        assert ev_iso(f"{self._CP} -t{bd} /tmp/index.mjs", df, repo) == "BLOCK"
+        assert ev_iso(f"{self._INST} -Dt {bd} /tmp/index.mjs", df, repo) == "BLOCK"
+
+    def test_cx1_clustered_t_new_basename_allows(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        bd = self._bundledir(isolated_pair)
+        assert ev_iso(f"{self._INST} -Dt {bd} /tmp/unrelated.txt", df, repo) == "ALLOW"
+
+    # CX2: -- end-of-options keeps the protected destination as an operand.
+    def test_cx2_double_dash_keeps_protected_operand(self, isolated_pair):
+        df = isolated_pair["df"]
+        cf = self._cfgfile(isolated_pair)
+        assert ev_iso(f"{self._CP} -- -t {cf}", df) == "BLOCK"
+
+    # CX3: trailing separated value-options must not steal the destination slot.
+    def test_cx3_trailing_value_options_block(self, isolated_pair):
+        df = isolated_pair["df"]
+        cf = self._cfgfile(isolated_pair)
+        assert ev_iso(f"{self._CP} /tmp/src {cf} -S .bak", df) == "BLOCK"
+        assert ev_iso(f"{self._INST} /tmp/src {cf} -m 0644", df) == "BLOCK"
+        assert ev_iso(f"{self._RSYNC} /tmp/src {cf} -e ssh", df) == "BLOCK"
+        assert ev_iso(f"{self._LN} -s /tmp/src {cf} -S .bak", df) == "BLOCK"
+
+    # CX4: chmod symbolic flag-shaped mode keeps the protected file as a target.
+    def test_cx4_chmod_symbolic_mode_blocks(self, isolated_pair):
+        df = isolated_pair["df"]
+        cf = self._cfgfile(isolated_pair)
+        assert ev_iso(f"{self._CHMOD} -w {cf}", df) == "BLOCK"
+        assert ev_iso(f"{self._CHMOD} +x {cf}", df) == "BLOCK"
+        assert ev_iso(f"{self._CHMOD} -- -w {cf}", df) == "BLOCK"
+        # numeric mode spec still drops the FIRST bareword (the mode) — boundary
+        assert ev_iso(f"{self._CHMOD} 644 {cf}", df) == "BLOCK"
+
+    # CX5: tar archive-write modes + old-style/fused parsing + -C subpath; --exclude
+    # list over-block fixed.
+    def test_cx5_tar_archive_write_modes_block(self, isolated_pair):
+        df = isolated_pair["df"]
+        cf = self._cfgfile(isolated_pair)
+        assert ev_iso(f"{self._TAR} -cf {cf} /tmp/x", df) == "BLOCK"
+        assert ev_iso(f"{self._TAR} --create --file={cf} /tmp/x", df) == "BLOCK"
+        assert ev_iso(f"{self._TAR} -rf {cf} /tmp/x", df) == "BLOCK"
+        assert ev_iso(f"{self._TAR} --delete -f {cf} foo", df) == "BLOCK"
+
+    def test_cx5_tar_oldstyle_and_fused_extract_block(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        member = "packages/happy-cli/dist/index.mjs"
+        assert ev_iso(f"{self._TAR} xf /tmp/a.tar {member}", df, repo) == "BLOCK"
+        assert ev_iso(f"{self._TAR} -xf/tmp/a.tar {member}", df, repo) == "BLOCK"
+        assert ev_iso(f"{self._TAR} -xvf/tmp/a.tar {member}", df, repo) == "BLOCK"
+
+    def test_cx5_tar_C_subpath_block(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        member = "packages/happy-cli/dist/index.mjs"
+        assert ev_iso(f"{self._TAR} -x -C {repo} -f /tmp/a.tar {member}", df, repo) == "BLOCK"
+
+    def test_cx5_tar_exclude_list_read_allows(self, isolated_pair):
+        # `--exclude` (long opt containing 'x') must NOT be read as extract; a -t LIST
+        # of the protected archive is a READ → ALLOW (no over-block).
+        df = isolated_pair["df"]
+        cf = self._cfgfile(isolated_pair)
+        assert ev_iso(f"{self._TAR} --exclude {cf} -t -f /tmp/a.tar", df) == "ALLOW"
+
+    # CX6: unzip list-read allows; -d DIR member subpath blocks.
+    def test_cx6_unzip_list_read_allows(self, isolated_pair):
+        df = isolated_pair["df"]
+        cf = self._cfgfile(isolated_pair)
+        assert ev_iso(f"{self._UNZIP} -l {cf}", df) == "ALLOW"
+
+    def test_cx6_unzip_extract_into_protected_blocks(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        member = "packages/happy-cli/dist/index.mjs"
+        assert ev_iso(f"{self._UNZIP} /tmp/a.zip {member} -d {repo}", df, repo) == "BLOCK"
+
+    # purity: the codex fix introduces NO project name into the engine.
+    def test_engine_still_project_name_free(self):
+        src = open(os.path.join(HOOKS_DIR, "lib", "runtime_guard.py")).read().lower()
+        for name in ("happy", "jade", "qijie", "life-ai", "slopus", "local-server"):
+            assert name not in src, f"engine must stay project-name-free: {name!r}"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

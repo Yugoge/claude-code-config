@@ -1465,6 +1465,110 @@ def _is_inplace_editor_args(head: str, args: list) -> bool:
     return False
 
 
+# Value-taking options PER coreutils/rsync verb whose ARGUMENT is the NEXT token
+# (separated form) — that argument is NOT an operand and must be consumed so it
+# neither pollutes the operand list NOR is mistaken for the destination. Fused
+# `--opt=VAL` / `-oVAL` forms carry their value in the same token (already handled
+# by the bareword `startswith("-")` filter), so only the SEPARATED forms need the
+# next-token skip. This is the GENERAL fix for the flag-value-collision class: a
+# trailing `cp SRC <protected-dest> -S .bak` must not let `.bak` become the dest.
+_VALUE_OPTS = {
+    "cp": {"-S", "--suffix", "-t", "--target-directory", "--preserve",
+           "-Z", "--context", "--sparse", "--reflink"},
+    "mv": {"-S", "--suffix", "-t", "--target-directory"},
+    "rename": {"-S", "--suffix", "-t", "--target-directory"},
+    "install": {"-S", "--suffix", "-t", "--target-directory", "-m", "--mode",
+                "-o", "--owner", "-g", "--group", "-Z", "--context",
+                "--strip-program", "-D"},
+    "ln": {"-S", "--suffix", "-t", "--target-directory"},
+    "rsync": {"-e", "--rsh", "--files-from", "--include", "--exclude",
+              "--include-from", "--exclude-from", "--filter", "--log-file",
+              "--password-file", "--backup-dir", "--temp-dir", "--partial-dir",
+              "--compare-dest", "--copy-dest", "--link-dest", "--rsync-path",
+              "--chmod", "--out-format", "--bwlimit", "--timeout",
+              "--modify-window", "--max-size", "--min-size", "--block-size",
+              "--sockopts", "--protocol", "--checksum-choice", "--info", "--debug"},
+}
+
+
+def _operands_and_tdir(head: str, args: list):
+    """Return (operands, tdir) splitting `args` (the tokens AFTER the verb) into
+    positional OPERANDS vs OPTIONS, fail-safe against the whole flag-value-collision
+    class. Handles:
+      • `--` end-of-options: EVERY token after `--` is an operand even if it begins
+        with `-` (so `cp -- -t <protected>` keeps `<protected>` as an operand, and
+        a post-`--` `-t` is NOT a target-directory).
+      • verb-aware target-directory `-t DIR` / `--target-directory[=DIR]` and the
+        clustered/attached short forms (`-vt DIR`, `-Dt DIR`, `-tDIR`) for the only
+        verbs that define them: {cp, mv, install, ln}. The consumed DIR is removed
+        from operands; `tdir` is returned so the caller synthesizes DIR/basename(src).
+      • separated value-options (`-S SUF`, install `-m MODE`, rsync `-e CMD`, …):
+        the option's ARGUMENT is consumed so it is neither an operand nor mistaken
+        for the destination.
+    Unknown single-dash tokens are treated as no-arg flags (dropped) — the fail-safe
+    direction: a flag we do not model never STEALS an operand slot, so a real
+    protected operand is never dropped because of an unmodeled flag."""
+    tdir_verbs = ("cp", "mv", "install", "rename", "ln")
+    val_opts = _VALUE_OPTS.get(head, set())
+    operands = []
+    tdir = None
+    after_ddash = False
+    i = 0
+    n = len(args)
+    while i < n:
+        a = args[i]
+        if after_ddash:
+            operands.append(a)
+            i += 1
+            continue
+        if a == "--":
+            after_ddash = True
+            i += 1
+            continue
+        if not a.startswith("-") or a == "-":
+            operands.append(a)
+            i += 1
+            continue
+        # a is an option token.
+        # fused long form --opt=VAL (value carried in token) — consume, no operand.
+        if a.startswith("--") and "=" in a:
+            if a.split("=", 1)[0] in ("--target-directory",) and head in tdir_verbs:
+                tdir = a.split("=", 1)[1]
+            i += 1
+            continue
+        # exact long/short option taking a SEPARATED value.
+        if a in val_opts and i + 1 < n:
+            if a in ("-t", "--target-directory") and head in tdir_verbs:
+                tdir = args[i + 1]
+            i += 2
+            continue
+        # clustered/attached SHORT option bundle (single dash, not `--…`).
+        if not a.startswith("--"):
+            letters = a[1:]
+            if head in tdir_verbs and "t" in letters:
+                pos = letters.index("t")
+                rest = letters[pos + 1:]
+                if rest:
+                    # `-tDIR` / `-vtDIR`: DIR is attached in the same token.
+                    tdir = rest
+                    i += 1
+                    continue
+                # `-vt DIR`: trailing `t`, DIR is the next token.
+                if i + 1 < n:
+                    tdir = args[i + 1]
+                    i += 2
+                    continue
+            # an attached short value-option whose value is fused (e.g. `-S.bak`,
+            # install `-m644`): the value rides in this token → consume, no skip.
+            # A bare cluster with no recognized value letter is a no-arg flag bundle.
+            i += 1
+            continue
+        # unknown exact long option: assume no-arg (fail-safe drop).
+        i += 1
+        continue
+    return operands, tdir
+
+
 def _mutation_targets_for_verb(head: str, args: list) -> list:
     """THE SINGLE position-COMPLETE mutation-target extractor for a mutation verb's
     OWN argv (the tokens AFTER the verb). This is the ONE shared helper used by
@@ -1499,42 +1603,20 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
     candidates are DIR/basename so a write via `-t <dir>` matches the exact protected
     path (and a write to an UNRELATED file in that dir does not). The redirect-target
     form (`> path`) is handled by the callers, not here."""
-    # target-directory option: `-t DIR` / `--target-directory[=DIR]` — VERB-AWARE.
-    # `-t DIR` means "DIR is the destination directory; the written file is
-    # DIR/basename(source)" ONLY for the GNU coreutils that define it that way:
-    # {cp, mv, install, ln}. For OTHER verbs `-t` is a DIFFERENT, usually no-arg,
-    # short flag that shares the letter `t` (rsync `-t` = `--times`; tar `-t` =
-    # `--list`; etc.). Treating `-t` as target-directory for every verb is a
-    # flag-value COLLISION: it makes the pre-parse swallow the NEXT operand as a
-    # bogus dest-dir and, in rsync's branch, reclassify the REAL protected
-    # destination as a mere source and DROP it → a guard-neutering ALLOW leak
-    # (`rsync -t /tmp/evil.json <protected-config>`). So we ONLY set tdir for the
-    # four coreutils verbs that actually take `-t DIR`; for every other verb tdir
-    # stays None and the verb's own last-operand-is-dest logic runs unchanged
-    # (fail-safe: an unknown flag never re-routes the dest away from a protected
-    # path). The consumed `-t DIR` value index is recorded so DIR is NOT also
-    # counted as a bareword source (which produced the spurious DIR/basename(DIR)
-    # candidate before).
-    _TDIR_VERBS = ("cp", "mv", "install", "ln")
-    tdir = None
-    tdir_val_idx = None
-    if head in _TDIR_VERBS:
-        for i, a in enumerate(args):
-            if a in ("-t", "--target-directory") and i + 1 < len(args):
-                tdir = args[i + 1]
-                tdir_val_idx = i + 1
-            elif a.startswith("--target-directory="):
-                tdir = a.split("=", 1)[1]
-                tdir_val_idx = None
-    barewords = [t for i, t in enumerate(args)
-                 if not t.startswith("-") and i != tdir_val_idx]
+    # Split args into positional OPERANDS vs OPTIONS, fail-safe against the whole
+    # flag-value-collision class (verb-aware `-t`, clustered/attached short `-t`,
+    # `--` end-of-options, and SEPARATED value-options whose argument must not be
+    # mistaken for the destination). `tdir` is the target-directory ONLY for the
+    # coreutils that define it ({cp, mv, install, ln}); for every other verb it is
+    # None and the verb's own last-operand-is-dest logic runs unchanged.
+    barewords, tdir = _operands_and_tdir(head, args)
     if head in ("cp", "install"):
-        # `install -d DIR…` / `install --directory DIR…` CREATES every named
-        # directory (there is NO source operand). So EVERY bareword is a target —
-        # creating/`mkdir -p`-ing a protected ancestor/config dir (or touching a
-        # protected dir) is a mutation. The plain cp/install copy logic below
-        # would only flag the last bareword (dest), dropping a protected dir that
-        # appears earlier in a multi-dir `install -d A B <protecteddir>`.
+        # `install -d DIR…` / `install --directory DIR…` (incl. clustered `-Dd`)
+        # CREATES every named directory (there is NO source operand). So EVERY
+        # operand is a target — creating/`mkdir -p`-ing a protected ancestor/config
+        # dir (or touching a protected dir) is a mutation. The plain cp/install copy
+        # logic below would only flag the last operand (dest), dropping a protected
+        # dir that appears earlier in a multi-dir `install -d A B <protecteddir>`.
         if head == "install" and any(
             a == "-d" or a == "--directory"
             or (a.startswith("-") and not a.startswith("--") and "d" in a[1:])
@@ -1552,14 +1634,18 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
             # BLOCK, while a literal protected source stays a read (ALLOW).
             out += [s for s in srcs if _has_shell_glob(_strip_quotes(s))]
             return out
-        # `cp SRC… DEST`: only the DEST (last bareword) is written. SRC is read —
-        # EXCEPT a shell-GLOB source (`cp <dir>/* DEST`) selecting a protected dir's
-        # contents: the shell expands it to every protected entry, an exfiltration /
-        # clobber-fodder op the dedicated-host stance over-blocks. A glob source is
-        # added as a target so `cp <protecteddir>/* /tmp/x` BLOCKS while a literal
-        # `cp <protectedfile> /tmp` source stays a read (ALLOW).
+        # `cp SRC… DEST`: the DEST (last operand) is written. SRC is read — EXCEPT a
+        # shell-GLOB source (`cp <dir>/* DEST`) over-blocked like the cp glob source.
+        # If DEST ends with '/' (an explicit destination DIRECTORY) the written file
+        # is DEST/basename(SRC) for each source, so emit those too (a protected exact
+        # file inside that dir must not be dropped).
         out = barewords[-1:] if barewords else []
-        out += [s for s in barewords[:-1] if _has_shell_glob(_strip_quotes(s))]
+        srcs = barewords[:-1]
+        if barewords:
+            dest = _strip_quotes(barewords[-1])
+            if dest.endswith("/"):
+                out += [os.path.join(dest, os.path.basename(_strip_quotes(s))) for s in srcs]
+        out += [s for s in srcs if _has_shell_glob(_strip_quotes(s))]
         return out
     if head in ("mv", "rename"):
         if tdir is not None:
@@ -1570,19 +1656,25 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
         # `mv SRC… DEST`: the DEST is written AND the SRC(s) are removed — both are
         # mutation targets (moving the protected file away deletes it from its
         # watched path → daemon auto-handoff / statefile removal / config neuter).
-        return barewords  # all operands (sources + dest)
+        # If DEST ends with '/' (explicit dir) also emit DEST/basename(SRC) so a
+        # protected exact file inside that dir is not dropped.
+        out = list(barewords)
+        if barewords:
+            dest = _strip_quotes(barewords[-1])
+            if dest.endswith("/"):
+                out += [os.path.join(dest, os.path.basename(_strip_quotes(s))) for s in barewords[:-1]]
+        return out
     if head == "rsync":
         # `rsync SRC… DEST` — DEST may be a file or a dir. If DEST ends with '/'
         # (or is an existing dir) the written file is DEST/basename(SRC); else DEST.
         # The SRC is a mutation target ONLY with `--remove-source-files` (rsync then
         # MOVES = removes the source); a plain rsync COPIES → source is a read.
+        # `tdir` is ALWAYS None for rsync (verb-aware): rsync `-t` == `--times`, a
+        # no-arg flag, so it never re-routes the destination.
         removes_src = any(a == "--remove-source-files" for a in args)
         if len(barewords) >= 2:
             dest = _strip_quotes(barewords[-1])
             srcs = barewords[:-1]
-            if tdir is not None:
-                dest = _strip_quotes(tdir)
-                srcs = list(barewords)  # with -t DIR every bareword is a source
             if dest.endswith("/"):
                 out = [os.path.join(dest, os.path.basename(_strip_quotes(s))) for s in srcs] + [dest]
             else:
@@ -1602,19 +1694,52 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
     if head == "ln":
         if tdir is not None:
             return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in barewords]
-        return barewords[-1:] if barewords else []
+        # `ln [SRC…] DEST` / `ln -s TARGET LINKNAME`: the last operand is the
+        # written link name. If it ends with '/' (a dir) the link is DEST/basename.
+        out = barewords[-1:] if barewords else []
+        if barewords:
+            dest = _strip_quotes(barewords[-1])
+            if dest.endswith("/"):
+                out += [os.path.join(dest, os.path.basename(_strip_quotes(s))) for s in barewords[:-1]]
+        return out
     if head == "dd":
         # dd writes to its `of=<path>` operand (the `if=<path>` is the read
         # source — not a mutation target).
         return [t[len("of="):] for t in args if t.startswith("of=")]
-    if head in ("touch", "truncate", "tee", "unzip",
+    if head in ("touch", "truncate", "tee",
                 "rm", "unlink", "shred", "rmdir"):
         # `rmdir DIR…` removes (mutates) each directory operand — the same all-
-        # barewords-are-targets shape as rm/unlink (a removal of an ancestor config
+        # operands-are-targets shape as rm/unlink (a removal of an ancestor config
         # dir neuters the guard exactly like a delete of the file).
-        if tdir is not None:
-            return [os.path.join(_strip_quotes(tdir), os.path.basename(_strip_quotes(s))) for s in barewords]
         return barewords
+    if head == "unzip":
+        # `unzip [opts] ARCHIVE [members…] [-d DIR]`. ARCHIVE is a READ input. With
+        # `-d DIR` extraction writes members UNDER DIR (DIR/member); without `-d`,
+        # extraction writes into cwd → each member operand. List/test/pipe modes
+        # (`-l`, `-v`, `-t`, `-p`, `-c`, `-z`) WRITE nothing → no target (read-only,
+        # ALLOW). Fail-safe: an unrecognized form falls back to all-operands.
+        ddir = None
+        for i, a in enumerate(args):
+            if a == "-d" and i + 1 < len(args):
+                ddir = args[i + 1]
+        list_mode = any(a.startswith("-") and not a.startswith("--")
+                        and any(c in a[1:] for c in ("l", "v", "p", "c", "z", "t"))
+                        for a in args)
+        # operands: archive is the FIRST operand (read); members are the rest; the
+        # `-d DIR` value was already removed from barewords by the option scanner is
+        # NOT true here (unzip not in _VALUE_OPTS) — so strip ddir explicitly.
+        ops = [b for b in barewords if _strip_quotes(b) != _strip_quotes(ddir or "\0")]
+        if list_mode:
+            return []
+        members = ops[1:] if len(ops) >= 1 else []
+        if ddir is not None:
+            out = [_strip_quotes(ddir)]
+            out += [os.path.join(_strip_quotes(ddir), _strip_quotes(m).lstrip("/")) for m in members]
+            out += [os.path.join(_strip_quotes(ddir), os.path.basename(_strip_quotes(m))) for m in members]
+            return out
+        # no -d: members extracted into cwd; with no explicit members the whole
+        # archive is unpacked into cwd (caller's cwd resolution handles relative).
+        return members
     if head in ("sed", "perl") and _is_inplace_editor_args(head, args):
         return barewords
     if head in ("chmod", "chown", "chgrp"):
@@ -1633,44 +1758,119 @@ def _mutation_targets_for_verb(head: str, args: list) -> list:
                         out.remove(ref)
                     break
             return out
+        # A SYMBOLIC chmod mode (`-w`, `+x`, `=r`, `u-rwx`, `a+rX`) starting with
+        # `-`/`+`/`=` is the MODE SPEC, not a discarded option — it was filtered out
+        # of `barewords` by the `startswith("-")` rule. Detect the FIRST such
+        # `-`/`+`/`=`-prefixed mode token in raw args; if present, EVERY bareword is a
+        # target file (the mode lives in the option-shaped token). Otherwise the
+        # first bareword is the numeric/owner spec and the rest are targets.
+        _MODE_RE = ("r", "w", "x", "X", "s", "t", "u", "g", "o", "a", "0", "1",
+                    "2", "3", "4", "5", "6", "7", "-", "+", "=", ",")
+        sym_mode = any(
+            (a.startswith(("-", "+", "=")) and len(a) >= 2
+             and all(c in _MODE_RE for c in a[1:]))
+            for a in args
+        )
+        if sym_mode:
+            return list(barewords)
         return barewords[1:] if len(barewords) > 1 else []
     if head == "tar":
-        if any(a.startswith("-x") or a == "--extract" or ("x" in a and a.startswith("-")) for a in args):
+        # Determine tar OPERATION MODE from the flags. Extraction/list READ the
+        # archive (`-f`) and WRITE the extracted members; create/append/update/
+        # concatenate/delete WRITE the ARCHIVE itself (overwrite/modify).
+        #
+        # CRITICAL flag-value-collision guard: a tar mode letter must be scanned
+        # ONLY in the OPTION-LETTER portion of a short cluster — NOT in a fused
+        # value suffix. In `-xf/tmp/a.tar` the `f` consumes the rest of the token as
+        # the archive value (`/tmp/a.tar`), so the letters of that path (the `r` in
+        # `.tar`, etc.) are NOT mode letters. Scanning them led to a false
+        # `is_append` (the `r` of `.tar`) which mis-routed an EXTRACT as an
+        # archive-overwrite and dropped the real extracted-member target → leak.
+        # `_tar_mode_letters(tok)` returns only the cluster prefix up to (and not
+        # including) the first VALUE-taking letter (`f`/`b`/`C`/`X`/`T`/`L`/…); the
+        # value rides after it in the same token or the next argv.
+        _TAR_VALUE_LETTERS = set("fbCXTLgGHIKNVowW")
+
+        def _tar_mode_letters(tok):
+            # tok is a short cluster (leading '-' already stripped, or an old-style
+            # bare first token). Return the prefix of option letters before the first
+            # value-taking letter (inclusive of that value-letter itself, which is a
+            # mode-IRRELEVANT option, but exclusive of everything after it).
+            out = []
+            for ch in tok:
+                if ch in _TAR_VALUE_LETTERS:
+                    break  # this letter and the rest are option-value, not mode
+                out.append(ch)
+            return "".join(out)
+
+        def _has_mode_letter(letter, long_names):
+            for idx, a in enumerate(args):
+                if a in long_names:
+                    return True
+                if a.startswith("-") and not a.startswith("--"):
+                    if letter in _tar_mode_letters(a[1:]):
+                        return True
+                elif idx == 0 and not a.startswith("-"):
+                    # old-style first token without a leading dash (`tar xf …`).
+                    if letter in _tar_mode_letters(a):
+                        return True
+            return False
+        is_extract = _has_mode_letter("x", ("--extract", "--get"))
+        is_create = _has_mode_letter("c", ("--create",))
+        is_append = (_has_mode_letter("r", ("--append",))
+                     or _has_mode_letter("u", ("--update",))
+                     or _has_mode_letter("A", ("--concatenate", "--catenate")))
+        is_delete = any(a == "--delete" for a in args)
+        # parse -C/--directory -> cdir, -f/--file/clustered|fused -f -> archive.
+        cdir = None
+        archive = None
+        skip = set()
+        old_style = bool(args) and not args[0].startswith("-")
+        for i, a in enumerate(args):
+            if a in ("-C", "--directory") and i + 1 < len(args):
+                cdir = args[i + 1]; skip.add(i + 1)
+            elif a.startswith("--directory="):
+                cdir = a.split("=", 1)[1]
+            elif a in ("-f", "--file") and i + 1 < len(args):
+                archive = args[i + 1]; skip.add(i + 1)
+            elif a.startswith("--file="):
+                archive = a.split("=", 1)[1]
+            elif a.startswith("-") and not a.startswith("--") and "f" in a[1:]:
+                # clustered short bundle containing `f`. If chars FOLLOW `f` in the
+                # same token (`-xf<archive>` fused), the archive rides in this token;
+                # else (`-xf`, `-xvf`) the NEXT token is the archive.
+                pos = a.index("f", 1)
+                rest = a[pos + 1:]
+                if rest:
+                    archive = rest
+                elif i + 1 < len(args):
+                    archive = args[i + 1]; skip.add(i + 1)
+            elif old_style and i == 0 and "f" in a:
+                # old-style first cluster `xf`/`cf`/`xvf`: the NEXT token is archive.
+                if i + 1 < len(args):
+                    archive = args[i + 1]; skip.add(i + 1)
+        if is_create or is_append or is_delete:
+            # the ARCHIVE is OVERWRITTEN / MODIFIED → it is a mutation target. The
+            # member operands are READ inputs (sources packed into the archive).
+            return [archive] if archive else []
+        if is_extract:
             # extraction WRITES the extracted members under the extraction dir
-            # (`-C DIR`, default cwd). The ARCHIVE (`-f <archive>` / `--file=…` /
-            # the bareword right after a clustered `-xf`) is a READ input, NOT a
-            # write target — including it over-blocks reading a protected archive.
-            cdir = None
-            archive = None
-            skip = set()
-            for i, a in enumerate(args):
-                if a in ("-C", "--directory") and i + 1 < len(args):
-                    cdir = args[i + 1]; skip.add(i + 1)
-                elif a.startswith("--directory="):
-                    cdir = a.split("=", 1)[1]
-                elif a in ("-f", "--file") and i + 1 < len(args):
-                    archive = args[i + 1]; skip.add(i + 1)
-                elif a.startswith("--file="):
-                    archive = a.split("=", 1)[1]
-                elif a.startswith("-") and not a.startswith("--") and "f" in a[1:] and i + 1 < len(args):
-                    # clustered short bundle ending in `f` (`-xf`, `-xvf`) consumes
-                    # the NEXT bareword as the archive (a read input).
-                    archive = args[i + 1]; skip.add(i + 1)
+            # (`-C DIR`, default cwd). The ARCHIVE (`-f`) is a READ input.
             members = [args[i] for i, t in enumerate(args)
                        if not t.startswith("-") and i not in skip
+                       and not (old_style and i == 0)
                        and _strip_quotes(t) != _strip_quotes(archive or "\0")]
             if cdir is not None:
-                # The extraction directory ITSELF is a write target: `tar -x -C DIR`
-                # writes the archive members UNDER DIR, so extracting into a
-                # protected container/ancestor/config dir mutates that dir even when
-                # NO explicit members are listed (the common `tar -x -C <dir> -f a.tar`
-                # form). Emit DIR (so DIR being — or being under — a protected path
-                # BLOCKs) alongside the per-member DIR/basename(member) candidates.
-                # The archive (`-f`) stays a READ input → still ALLOWs a protected
-                # archive read.
-                return ([_strip_quotes(cdir)]
-                        + [os.path.join(_strip_quotes(cdir), os.path.basename(_strip_quotes(m))) for m in members]
-                        + members)
+                cd = _strip_quotes(cdir)
+                # tar PRESERVES member subpaths: extracting `pkg/dist/x` into DIR
+                # writes DIR/pkg/dist/x. Emit the subpath-preserving join (primary),
+                # the basename join (conservative), the raw member, and DIR itself
+                # (so extracting INTO a protected dir with NO explicit members blocks).
+                out = [cd]
+                out += [os.path.join(cd, _strip_quotes(m).lstrip("/")) for m in members]
+                out += [os.path.join(cd, os.path.basename(_strip_quotes(m))) for m in members]
+                out += members
+                return out
             return members
     return []
 
