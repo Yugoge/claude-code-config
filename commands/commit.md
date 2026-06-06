@@ -161,11 +161,11 @@ Return, as the LAST line, EXACTLY one of:
 
 **Step 6c — Gate decision.**
 
-**Grant hygiene (applies to EVERY stop path below — REJECT, `--dry-run` stop, unparseable):** in addition to unstaging, REVOKE the Step 5 commit grant so a blocked/stopped gate never leaves live commit authorization lingering (30-min TTL):
+**Grant hygiene (`BULK=false` stop paths only — REJECT, `--dry-run` stop, unparseable):** in addition to unstaging, when `BULK=false` REVOKE the Step 5 commit grant so a blocked/stopped gate never leaves live commit authorization lingering (30-min TTL):
 ```bash
 source venv/bin/activate && python3 "${CONTROL_ROOT}/.claude/scripts/write-commit-grant.py" --task-id "$TASK_ID" --revoke-only
 ```
-(Only the `COMMIT: APPROVE` + real-commit path keeps the grant — it is consumed by Step 7.)
+**Skip this revoke entirely when `BULK=true`**: bulk wrote NO per-task commit grant (Step 5 minted the multi-use bulk-commit sentinel, which self-expires on its own 30-min TTL) and `TASK_ID` is empty, so calling the writer with an empty `--task-id` would error (exit 2). (Only the `COMMIT: APPROVE` + real-commit path keeps the grant — it is consumed by Step 7.)
 
 - `COMMIT: REJECT`: print the verdict + offending files; **unstage the dry-run-staged set so the tree is left clean** — `git -C <repo> restore --staged -- <PLAN_FILES>` per repo (unborn repo: `git -C <repo> rm --cached -- <files>`); revoke the grant (Grant hygiene above). Do NOT proceed to Step 7; do NOT commit. Tell the user to remove/fix the flagged files, or re-run with `--force` to override. **Stop.**
 - `COMMIT: APPROVE`:
