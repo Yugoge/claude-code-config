@@ -128,14 +128,19 @@ TASK_ID: <TASK_ID or "bulk">   BULK: <true|false>
 
 For EVERY path in EVERY group, review its actual change DIRECTLY (do NOT rely on the
 staging state — in multi-group bulk only the LAST group is left staged, so `git diff
---cached` would silently skip earlier groups). Apply this ONE rule per path:
-  - run `git -C <repo> diff HEAD -- <path>`; if it produces output, THAT is the change to review.
-  - if it produces NOTHING, the path is untracked — a brand-new file, OR a rename/copy's
-    new side that an earlier bulk group left unstaged — so read the file's contents directly.
-  - for a rename/copy, treat the OLD and NEW paths as TWO separate entries under this rule
-    (old → its deletion diff; new → its diff if tracked, else read the file).
-This rule covers tracked-modified, deleted, untracked-new, and unstaged-rename cases regardless
-of staging. Feed the SAME per-path material to the Codex sub-round below (NOT the staged set).
+--cached` would silently skip earlier groups). For each path, gather BOTH sources and
+review every one that is non-empty:
+  - DIFF: `git -C <repo> diff --text HEAD -- <path>` — `--text` forces a content patch even
+    when `.gitattributes` marks the path `-diff`. If git instead reports "Binary files …
+    differ", the path is a real binary blob: do NOT text-review it — judge it under
+    rejection rule 1/4 below (intended asset vs accidental/junk binary).
+  - CONTENTS: if `<path>` currently EXISTS on disk, ALSO read its contents directly.
+  Both sources can be non-empty at once and you MUST review both — e.g. a path deleted at
+  HEAD yet recreated on disk (status `D` + `??`: the diff shows only the old deletion, the
+  file holds the new content), or a rename/copy's new side an earlier bulk group left
+  unstaged (untracked → empty diff, but the file exists).
+  - for a rename/copy, treat the OLD and NEW paths as TWO separate entries under this rule.
+Feed the SAME per-path material to the Codex sub-round below (NOT the staged set).
 Judge by intelligent review — NEVER a hardcoded junk list. REJECT the commit if any of:
   1. Transient / non-authored byproducts (runtime/session state, caches, registries,
      scratch/temp outputs, generated indexes, build products) — by what the file IS,
