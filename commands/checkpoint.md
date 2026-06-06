@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # Checkpoint Command
 
-Snapshot current progress to a local `refs/checkpoints/<branch>` safety ref — the branch HEAD is never moved and nothing is pushed.
+Snapshot current progress to a `refs/checkpoints/<branch>` safety ref — the branch HEAD is never moved and your working branch is never pushed; the checkpoint ref itself is background-pushed (rate-limited to 1/30s per repo, without `-f`).
 
 ## Usage
 
