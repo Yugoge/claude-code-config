@@ -145,7 +145,9 @@ Judge by intelligent review — NEVER a hardcoded junk list. REJECT the commit i
 
 codex_required = <QA_CODEX>:
   - true  → after your own review run ONE adversarial Codex round via Skill(codex) on the
-            staged set + your draft verdict (reply `CODEX: APPROVE` / `CODEX: REJECT` +
+            SAME per-file PLAN_GROUPS material you reviewed above (the HEAD diffs / new-file
+            contents — NOT the staged set, which in multi-group bulk holds only the last group)
+            + your draft verdict (reply `CODEX: APPROVE` / `CODEX: REJECT` +
             rationale). A substantive codex REJECT flips you to REJECT. Codex-status
             handling MIRRORS /close: quota/timeout MAY degrade to your own verdict with a
             recorded note; a PARSE FAILURE is NOT auto-degrade — record the verbatim raw
