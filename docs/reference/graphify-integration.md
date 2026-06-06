@@ -112,7 +112,7 @@ Availability is keyed on **`cacheDir/graph.json`** (NOT a legacy manifest path).
 ### The manual `semantic` command
 
 ```bash
-python3 scripts/graphify-maintain.py semantic [--timeout SECONDS]   # default 3600s
+source ~/.claude/venv/bin/activate && python3 ~/.claude/scripts/graphify-maintain.py semantic [--timeout SECONDS]   # default 3600s
 ```
 
 `semantic` is the explicit, user-triggered path that enables semantic mode. It:
