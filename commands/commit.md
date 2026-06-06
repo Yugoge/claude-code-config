@@ -231,7 +231,7 @@ Check `failure_code`:
 **Retryable** (`grant_missing`, `grant_expired`, `grant_consumed`):
 
 Retry exactly once (max 1 retry):
-1. Revoke stale grants by running (use `${CONTROL_ROOT}/.claude/scripts/write-commit-grant.py` — do NOT hardcode an absolute path):
+1. Revoke stale grants by running (use the literal `/root/.claude/scripts/write-commit-grant.py` — `CONTROL_ROOT` is NOT bound in the orchestrator shell, so match Step 5's working literal path):
    ```bash
    source venv/bin/activate && python3 "/root/.claude/scripts/write-commit-grant.py" \
        --task-id "$TASK_ID" \
