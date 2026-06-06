@@ -130,6 +130,7 @@ For EVERY file in EVERY group, review its actual change DIRECTLY (do NOT rely on
 staging state — in multi-group bulk only the LAST group is left staged, so `git diff
 --cached` would silently skip earlier groups):
   - tracked file:           git -C <repo> diff HEAD -- <file>   (full committed-vs-working change)
+  - renamed / copied (R/C): review BOTH endpoints together: git -C <repo> diff HEAD -- <old-path> <new-path>
   - untracked / new file:   read the file's contents directly (it is entirely new; absent from HEAD).
 Judge by intelligent review — NEVER a hardcoded junk list. REJECT the commit if any of:
   1. Transient / non-authored byproducts (runtime/session state, caches, registries,
