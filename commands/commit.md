@@ -115,20 +115,22 @@ Dispatch `changelog-analyst` (Agent, `subagent_type: changelog-analyst`) with th
 
 QA reviews each planned file's change **directly against HEAD** (staging-independent), NOT via `git diff --cached`. Rationale: in multi-group `--bulk`, changelog-analyst stages per subsystem group and Phase 4 unstages cross-group files each iteration, so after the dry-run only the LAST group remains staged — a `--cached` review would silently skip every earlier group while ALL groups still enter `QA_APPROVED_FILES` and get committed. Reviewing each `PLAN_GROUPS` file vs HEAD (or reading new files) covers ALL groups regardless of staging state.
 
-**Step 6b — QA reviews the staged set.**
+**Step 6b — QA reviews the planned set (vs HEAD, staging-independent).**
 Dispatch ONE QA subagent (Agent, `subagent_type: qa`). The dispatch prompt MUST include `codex_required: <QA_CODEX>` and `PLAN_GROUPS`, and instruct QA as follows:
 
 ```
-You are the pre-commit QA gate. Review ONLY what is about to be committed — the
-STAGED set — by reading the STAGED diff, NOT the dev-report.
+You are the pre-commit QA gate. Review ONLY what is about to be committed — the files
+in PLAN_GROUPS — by reading each file's ACTUAL change, NOT the dev-report.
 
 Proposed commit groups (preserve boundaries): <PLAN_GROUPS>
   (each = {repo, commit_message, files[]} — one intended commit)
 TASK_ID: <TASK_ID or "bulk">   BULK: <true|false>
 
-For each group, read the STAGED diff of its files:
-  git -C <repo> diff --cached -- <file>
-  (the dry-run already STAGED these; the UNstaged `git diff` is empty — do NOT use it).
+For EVERY file in EVERY group, review its actual change DIRECTLY (do NOT rely on the
+staging state — in multi-group bulk only the LAST group is left staged, so `git diff
+--cached` would silently skip earlier groups):
+  - tracked file:           git -C <repo> diff HEAD -- <file>   (full committed-vs-working change)
+  - untracked / new file:   read the file's contents directly (it is entirely new; absent from HEAD).
 Judge by intelligent review — NEVER a hardcoded junk list. REJECT the commit if any of:
   1. Transient / non-authored byproducts (runtime/session state, caches, registries,
      scratch/temp outputs, generated indexes, build products) — by what the file IS,
