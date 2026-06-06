@@ -126,12 +126,16 @@ Proposed commit groups (preserve boundaries): <PLAN_GROUPS>
   (each = {repo, commit_message, files[]} — one intended commit)
 TASK_ID: <TASK_ID or "bulk">   BULK: <true|false>
 
-For EVERY file in EVERY group, review its actual change DIRECTLY (do NOT rely on the
+For EVERY path in EVERY group, review its actual change DIRECTLY (do NOT rely on the
 staging state — in multi-group bulk only the LAST group is left staged, so `git diff
---cached` would silently skip earlier groups):
-  - tracked file:           git -C <repo> diff HEAD -- <file>   (full committed-vs-working change)
-  - renamed / copied (R/C): review BOTH endpoints together: git -C <repo> diff HEAD -- <old-path> <new-path>
-  - untracked / new file:   read the file's contents directly (it is entirely new; absent from HEAD).
+--cached` would silently skip earlier groups). Apply this ONE rule per path:
+  - run `git -C <repo> diff HEAD -- <path>`; if it produces output, THAT is the change to review.
+  - if it produces NOTHING, the path is untracked — a brand-new file, OR a rename/copy's
+    new side that an earlier bulk group left unstaged — so read the file's contents directly.
+  - for a rename/copy, treat the OLD and NEW paths as TWO separate entries under this rule
+    (old → its deletion diff; new → its diff if tracked, else read the file).
+This rule covers tracked-modified, deleted, untracked-new, and unstaged-rename cases regardless
+of staging. Feed the SAME per-path material to the Codex sub-round below (NOT the staged set).
 Judge by intelligent review — NEVER a hardcoded junk list. REJECT the commit if any of:
   1. Transient / non-authored byproducts (runtime/session state, caches, registries,
      scratch/temp outputs, generated indexes, build products) — by what the file IS,
