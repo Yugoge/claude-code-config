@@ -1,7 +1,7 @@
 # scripts
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-05T20:36:04Z*
+*Last updated: 2026-06-06T08:51:12Z*
 **Total entries**: 101
 **Convention**: kebab
 
@@ -101,7 +101,7 @@ scripts/
 ├── `score-update.sh` - Description: Update agent score by appending an entry to the lifecycle JSONL log.
 ├── `spec-check.py` - Subcommands: check-in, mark, waive, status, check-out, unlock
 ├── `stage-owned-hunks.py` - Stages ONLY this cycle's owned hunks within a single already-authorized file,
-├── `step7-spec-update.py` - Step 7 (Spec-update dispatch) reference harness — task 20260524-205206 iter-2
+├── `step7-spec-update.py` - Step 8 (Spec-update dispatch) reference harness — task 20260524-205206 iter-2
 ├── `update-gitignore.sh` - update-gitignore.sh - Auto-update .gitignore with project-specific rules
 ├── `update-overnight-state.sh` - update-overnight-state.sh — Atomically update overnight state file
 ├── `write-bulk-commit-sentinel.py` - Invoked from commands/commit.md Step 5 (BULK=true) to authorize the
