@@ -3967,5 +3967,204 @@ class TestCycle14Codex2:
         assert rg.evaluate("env -C ~root/.config/appz14c2 rm protected-runtime.json")[0] == "BLOCK"
 
 
+class TestCycle16FlagCollisionMutationTargetClass:
+    """RE-CLOSE #10 / Cycle-16 — close the ENTIRE flag-collision / mutation-target
+    drop bug CLASS in `_mutation_targets_for_verb`, not just named instances.
+
+    DRIVER: the `-t`/`--target-directory` pre-parse was VERB-AGNOSTIC. `-t DIR` is
+    target-directory ONLY for GNU coreutils {cp, mv, install, ln}. For `rsync`, `-t`
+    == `--times` (a no-arg flag); for `tar`, `-t` == `--list`. So `rsync -t <SRC>
+    <protected-dest>` made the pre-parse set tdir=<SRC>, the rsync branch then set
+    dest=tdir and reclassified the REAL protected destination as a source and DROPPED
+    it → ALLOW leak (overwrites/neuters the guard config or clobbers the bundle).
+    Fix: the pre-parse is now verb-aware (tdir only for cp/mv/install/ln); for every
+    other verb tdir stays None and the verb's own last-operand-is-dest logic blocks.
+
+    SECONDARY (same class):
+      • `install -d DIR…` CREATES every named dir (no source) — every bareword is a
+        target. The cp/install copy branch flagged only the last bareword, dropping a
+        protected dir appearing earlier in `install -d A B <protecteddir>`.
+      • `tar -x -C <protected-dir>` extracts members UNDER `-C DIR`; with no explicit
+        members the branch returned [] and never counted the extraction dir itself.
+        The `-C` dir is now a write target (archive read via `-f` stays a read).
+
+    Engine probes pin an isolated config (`ev_iso`/isolated_pair) — the live data
+    file is NEVER touched. Live-hook probes feed simulated PreToolUse JSON.
+    """
+
+    _RSYNC = "rs" + "ync"
+    _TAR = "ta" + "r"
+    _INST = "ins" + "tall"
+    _CP = "c" + "p"
+    _MV = "m" + "v"
+    _LN = "l" + "n"
+
+    # ── DRIVER: rsync -t flag collision (was ALLOW leak) ────────────────────────
+    def test_rsync_t_config_dest_blocks(self, isolated_pair):
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        cfgfile = f"{cfgdir}/protected-runtime.json"
+        assert ev_iso(f"{self._RSYNC} -t /tmp/evil.json {cfgfile}", df) == "BLOCK"
+        assert ev_iso(f"{self._RSYNC} --times /tmp/evil.json {cfgfile}", df) == "BLOCK"
+
+    def test_rsync_t_bundle_dest_blocks(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        bundle = f"{repo}/packages/happy-cli/dist/index.mjs"
+        assert ev_iso(f"{self._RSYNC} -t /tmp/evil.mjs {bundle}", df, repo) == "BLOCK"
+
+    def test_rsync_t_wrapped_and_chained_blocks(self, isolated_pair):
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        cfgfile = f"{cfgdir}/protected-runtime.json"
+        assert ev_iso(f"sudo {self._RSYNC} -t /tmp/evil.json {cfgfile}", df) == "BLOCK"
+        assert ev_iso(f"setsid {self._RSYNC} -t /tmp/evil.json {cfgfile}", df) == "BLOCK"
+        assert ev_iso(f"weirdwrapX {self._RSYNC} -t /tmp/evil.json {cfgfile}", df) == "BLOCK"
+        assert ev_iso(f"cd /tmp && {self._RSYNC} -t a.json {cfgfile}", df) == "BLOCK"
+
+    def test_rsync_noT_controls_still_block(self, isolated_pair):
+        # the pre-existing no-`-t` controls must STILL block (no regression).
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        cfgfile = f"{cfgdir}/protected-runtime.json"
+        assert ev_iso(f"{self._RSYNC} -a /tmp/evil.json {cfgfile}", df) == "BLOCK"
+        assert ev_iso(f"{self._RSYNC} /tmp/evil.json {cfgfile}", df) == "BLOCK"
+
+    def test_rsync_t_source_read_allows(self, isolated_pair):
+        # rsync READING the protected file as SOURCE (no --remove-source-files) is a
+        # copy = read → ALLOW (no over-block), with or without the -t no-arg flag.
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        cfgfile = f"{cfgdir}/protected-runtime.json"
+        assert ev_iso(f"{self._RSYNC} {cfgfile} /tmp/elsewhere", df) == "ALLOW"
+        assert ev_iso(f"{self._RSYNC} -t {cfgfile} /tmp/elsewhere", df) == "ALLOW"
+
+    # ── SECONDARY: install -d (every bareword is a created dir) ──────────────────
+    def test_install_d_single_dir_blocks(self, isolated_pair):
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        assert ev_iso(f"{self._INST} -d {cfgdir}", df) == "BLOCK"
+        assert ev_iso(f"{self._INST} --directory {cfgdir}", df) == "BLOCK"
+
+    def test_install_d_multi_dir_no_drop_blocks(self, isolated_pair):
+        # the protected dir appears NOT last — must still be a target (drop fixed).
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        assert ev_iso(f"{self._INST} -d {cfgdir} /tmp/other", df) == "BLOCK"
+        assert ev_iso(f"{self._INST} -d /tmp/a /tmp/b {cfgdir}", df) == "BLOCK"
+        assert ev_iso(f"sudo {self._INST} -d /tmp/a {cfgdir} /tmp/b", df) == "BLOCK"
+
+    def test_install_d_unrelated_allows(self, isolated_pair):
+        df = isolated_pair["df"]
+        assert ev_iso(f"{self._INST} -d /tmp/a /tmp/b", df) == "ALLOW"
+
+    # ── SECONDARY: tar -x -C <protected-dir> (extraction dir is a write target) ──
+    def test_tar_extract_into_protected_dir_blocks(self, isolated_pair):
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        assert ev_iso(f"{self._TAR} -x -C {cfgdir} -f /tmp/a.tar", df) == "BLOCK"
+        assert ev_iso(f"{self._TAR} -x --directory={cfgdir} -f /tmp/a.tar", df) == "BLOCK"
+        assert ev_iso(f"sudo {self._TAR} -x -C {cfgdir} -f /tmp/a.tar", df) == "BLOCK"
+
+    def test_tar_extract_into_bundle_dir_blocks(self, isolated_pair):
+        df, repo = isolated_pair["df"], isolated_pair["repo"]
+        distdir = f"{repo}/packages/happy-cli/dist"
+        assert ev_iso(f"{self._TAR} -x -C {distdir} -f /tmp/a.tar", df, repo) == "BLOCK"
+
+    def test_tar_archive_read_and_unrelated_extract_allow(self, isolated_pair):
+        # listing/reading a protected archive via -f stays a READ; extracting into an
+        # UNRELATED dir ALLOWs (no over-block).
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        cfgfile = f"{cfgdir}/protected-runtime.json"
+        assert ev_iso(f"{self._TAR} -tf {cfgfile}", df) == "ALLOW"
+        assert ev_iso(f"{self._TAR} -xf {cfgfile}", df) == "ALLOW"
+        assert ev_iso(f"{self._TAR} -x -C /tmp/safe -f /tmp/a.tar", df) == "ALLOW"
+
+    # ── AUDIT representatives: every other mutation verb still classifies its
+    #    protected WRITE/MOVE/REMOVE target AND preserves its read-allowance. ─────
+    def test_audit_tdir_verbs_still_correct(self, isolated_pair):
+        # the four legit `-t` verbs keep target-directory semantics; `mv -t /dst
+        # <protected>` removes the protected SOURCE → BLOCK; `cp -t /dst <protected>`
+        # keeps the source (read) → ALLOW.
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        cfgfile = f"{cfgdir}/protected-runtime.json"
+        assert ev_iso(f"{self._MV} -t /tmp/dst {cfgfile}", df) == "BLOCK"
+        assert ev_iso(f"{self._CP} -t /tmp/dst {cfgfile}", df) == "ALLOW"
+        # writing INTO the protected dir via -t a NEW basename is not the exact file → ALLOW
+        assert ev_iso(f"{self._CP} -t {cfgdir} /tmp/unrelated.txt", df) == "ALLOW"
+
+    def test_audit_value_taking_options_no_target_drop(self, isolated_pair):
+        # options that take a VALUE (cp --preserve, install -m, rsync --rsh) must NOT
+        # cause the real protected dest to be dropped (fail-safe). Their values may be
+        # spuriously over-blocked but the protected dest is always retained.
+        df, cfgdir = isolated_pair["df"], isolated_pair["cfgdir"]
+        cfgfile = f"{cfgdir}/protected-runtime.json"
+        assert ev_iso(f"{self._CP} --preserve=mode /tmp/x {cfgfile}", df) == "BLOCK"
+        assert ev_iso(f"{self._INST} -m 644 /tmp/x {cfgfile}", df) == "BLOCK"
+        assert ev_iso(f"{self._RSYNC} --rsh=ssh /tmp/x {cfgfile}", df) == "BLOCK"
+        assert ev_iso(f"{self._RSYNC} -e ssh /tmp/x {cfgfile}", df) == "BLOCK"
+
+    # ── config-ABSENT: STEP0 self-protection runs before config load ────────────
+    def test_config_absent_class_blocks(self):
+        os.environ["CLAUDE_PROTECTED_RUNTIME_FILE"] = "/tmp/abs16/.config/app/protected-runtime.json"
+        import importlib, lib.runtime_guard as rg
+        importlib.reload(rg)
+        cfgdir = "/tmp/abs16/.config/app"
+        cfgfile = f"{cfgdir}/protected-runtime.json"
+        assert rg.evaluate(f"{self._RSYNC} -t /tmp/evil.json {cfgfile}")[0] == "BLOCK"
+        assert rg.evaluate(f"{self._INST} -d {cfgdir} /tmp/o")[0] == "BLOCK"
+        assert rg.evaluate(f"{self._TAR} -x -C {cfgdir} -f /tmp/a.tar")[0] == "BLOCK"
+
+    # ── purity: the verb-aware fix introduces NO project name into the engine ───
+    def test_engine_still_project_name_free(self):
+        src = open(os.path.join(HOOKS_DIR, "lib", "runtime_guard.py")).read()
+        for name in ("happy", "jade", "qijie", "life-ai", "slopus", "local-server"):
+            assert name not in src.lower(), f"engine must stay project-name-free: {name!r}"
+
+
+class TestCycle16LiveHook:
+    """The DRIVER + each secondary representative BLOCK on the REAL hook end-to-end
+    against the LIVE data file, plain + wrapped + under /do (the guard runs before
+    /do, so it is unbypassable). Boundary read-allowances still ALLOW."""
+
+    _ENV = {"CLAUDE_PYTHON_BIN": sys.executable}
+
+    def _clean_env(self):
+        e = dict(os.environ, **self._ENV)
+        e.pop("CLAUDE_PROTECTED_RUNTIME_FILE", None)
+        return e
+
+    def _run(self, cmd, sid=None):
+        payload = {"tool_name": "Bash", "tool_input": {"command": cmd}}
+        if sid:
+            payload["session_id"] = sid
+        return subprocess.run(["bash", HOOK], input=json.dumps(payload), text=True,
+                              capture_output=True, env=self._clean_env()).returncode
+
+    def test_live_rsync_t_blocks(self):
+        assert self._run("rsync -t /tmp/evil.json /root/.config/claude/protected-runtime.json") == BLOCK
+        assert self._run("sudo rsync -t /tmp/evil.json /root/.config/claude/protected-runtime.json") == BLOCK
+
+    def test_live_install_d_blocks(self):
+        assert self._run("install -d /root/.config/claude") == BLOCK
+        assert self._run("install -d /tmp/a /root/.config/claude /tmp/b") == BLOCK
+
+    def test_live_tar_extract_into_protected_blocks(self):
+        assert self._run("tar -x -C /root/.config/claude -f /tmp/a.tar") == BLOCK
+
+    def test_live_class_unbypassable_under_do(self):
+        sid = "guardtest16-" + str(os.getpid())
+        flag = f"/tmp/claude-orchestrator-consent-{sid}.flag"
+        with open(flag, "w") as fh:
+            fh.write("true")
+        try:
+            assert self._run("rsync -t /tmp/evil.json /root/.config/claude/protected-runtime.json", sid) == BLOCK
+            assert self._run("install -d /tmp/a /root/.config/claude", sid) == BLOCK
+            assert self._run("tar -x -C /root/.config/claude -f /tmp/a.tar", sid) == BLOCK
+            # read-allowance still allows under /do
+            assert self._run("rsync /root/.config/claude/protected-runtime.json /tmp/elsewhere", sid) == ALLOW
+        finally:
+            os.remove(flag)
+
+    def test_live_boundary_allows(self):
+        assert self._run("rsync /root/.config/claude/protected-runtime.json /tmp/elsewhere") == ALLOW
+        assert self._run("rsync -t /root/.config/claude/protected-runtime.json /tmp/elsewhere") == ALLOW
+        assert self._run("install -d /tmp/a-xyz /tmp/b-xyz") == ALLOW
+        assert self._run("tar -x -C /tmp/safe-xyz -f /tmp/a.tar") == ALLOW
+        assert self._run("tar -tf /root/.config/claude/protected-runtime.json") == ALLOW
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
