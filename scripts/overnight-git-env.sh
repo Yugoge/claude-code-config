@@ -16,7 +16,12 @@
 # The selector is SEPARATE from the policy shim (codex round-2 #7): two files,
 # so relaxing policy never drops the selector.
 
-set -euo pipefail
+# NOTE: do NOT `set -e` unconditionally — this script is meant to be SOURCED by
+# the overnight actor (fix-1), and `set -e` would leak into the actor's shell.
+# Use BASH_SOURCE[0] (correct whether sourced or executed; $0 is the SOURCING
+# shell when sourced, which broke the relative SRC_DIR resolution).
+_OGE_SELF="${BASH_SOURCE[0]:-$0}"
+_OGE_DIR="$(cd "$(dirname "$_OGE_SELF")" && pwd -P)"
 
 MAIN_ROOT=""
 WORKTREE=""
@@ -27,9 +32,9 @@ while [[ $# -gt 0 ]]; do
     *) shift ;;
   esac
 done
-[[ -n "$MAIN_ROOT" ]] || { echo "Error: --main-root required" >&2; exit 1; }
+[[ -n "$MAIN_ROOT" ]] || { echo "Error: --main-root required" >&2; return 1 2>/dev/null || exit 1; }
 
-SRC_DIR="$(cd "$(dirname "$0")/overnight-git" && pwd)"
+SRC_DIR="$_OGE_DIR/overnight-git"
 BIN_DIR="${CLAUDE_OVERNIGHT_GIT_BINDIR:-$MAIN_ROOT/.claude/overnight-git-bin}"
 mkdir -p "$BIN_DIR"
 # `git` on PATH == the SELECTOR (puts modern git first, else system git).
