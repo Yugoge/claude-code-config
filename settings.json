@@ -444,6 +444,10 @@
           {
             "type": "command",
             "command": "python3 \"$HOME/.claude/hooks/pretool-bash-views-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/pretool-wrapper-userintent.py\""
           }
         ]
       },
