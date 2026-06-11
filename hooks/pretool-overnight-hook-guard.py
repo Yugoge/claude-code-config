@@ -1018,6 +1018,14 @@ def main():
         if not wt:
             _block_invalid_isolation(classification)
 
+    # M13/M14a/M15: for overnight actors, block hook-suppression + branch-switch
+    # + main-root git ops (the exact-incident layered block; AC11).
+    if classification in ('overnight_owner', 'overnight_child') and tool_name == 'Bash':
+        main_root = (gov_state or {}).get('main_root', '') if gov_state else ''
+        worktree_path = (gov_state or {}).get('worktree_path', '') if gov_state else ''
+        _enforce_overnight_git_command(
+            tool_input.get('command', ''), main_root, worktree_path)
+
     if wt_paths:
         apply_global_worktree_enforcement(tool_name, tool_input, wt_paths)
     if classification in ('overnight_owner', 'overnight_child') and gov_state is not None:
