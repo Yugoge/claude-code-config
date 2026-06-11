@@ -30,7 +30,6 @@ def test_AC5():
     WHEN:  grepped for the forbidden in-place-license phrases
     THEN:  every match is gone (zero hits) for: 'continue on (the )?current branch' (optional-'the' form covers BOTH dev-overnight.md L192 'continue on the current branch' AND L1811 'continue on current branch'), 'using current branch', 'otherwise project_path', 'create it manually', 'Call EnterWorktree', 'worktree_path or null' -- replaced with validated-worktree-only / refuse-to-run prose
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — commands/dev-overnight.md after the change is read as text / grepped for the forbidden in-place-license phrases / every match is gone (zero hits) for: 'continue on (the )?current branch' (optional-'the' form covers BOTH dev-overnight.md L192 'continue on the current branch' AND L1811 'continue on current branch'), 'using current branch', 'otherwise project_path', 'create it manually', 'Call EnterWorktree', 'worktree_path or null' -- replaced with validated-worktree-only / refuse-to-run prose")
+    text = open(os.path.join(_REPO, "commands", "dev-overnight.md")).read()
+    hits = {p: len(re.findall(p, text)) for p in _FORBIDDEN}
+    assert all(n == 0 for n in hits.values()), f"forbidden in-place prose remains: {hits}"
