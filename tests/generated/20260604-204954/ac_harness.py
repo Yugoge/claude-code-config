@@ -291,8 +291,23 @@ def _drive_hook_guard(payload, project_dir):
     return p.returncode, p.stderr
 
 
+def _make_repo_nontmp(dirty=False):
+    """Like _make_repo but rooted OUTSIDE /tmp so the overnight guard's
+    /tmp-exemption (_is_path_exempt) does not exempt the boundary test (AC7)."""
+    base = REPO / "tests" / "generated" / "20260604-204954" / "_work"
+    base.mkdir(parents=True, exist_ok=True)
+    d = Path(tempfile.mkdtemp(prefix="ac7-", dir=str(base)))
+    _git(["init", "-q", "-b", "master", "."], d)
+    _git(["config", "user.email", "t@t"], d)
+    _git(["config", "user.name", "t"], d)
+    (d / "a.txt").write_text("base\n")
+    _git(["add", "a.txt"], d)
+    _git(["commit", "-qm", "init"], d)
+    return d
+
+
 def ac7_hook_guard_scoping():
-    repo = _make_repo(dirty=False)
+    repo = _make_repo_nontmp(dirty=False)
     try:
         # Build a registered worktree so worktree_path is valid.
         wt = subprocess.run(
