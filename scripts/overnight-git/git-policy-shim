@@ -90,6 +90,13 @@ done
 # Compute the effective working directory for the op.
 _resolve() { ( cd "${1:-.}" 2>/dev/null && pwd -P ) || printf '%s' "$1"; }
 target_dir="$(_resolve "${eff_dir:-${work_tree:-.}}")"
+# VECTOR-2 (Cycle-3): the --work-tree / GIT_WORK_TREE override is the ACTUAL
+# write target even when -C points inside the isolated worktree (the index/HEAD
+# come from -C's repo but the checkout/restore TARGET is the work-tree). Resolve
+# it independently so a work-tree redirect into main is evaluated for
+# main-targeting regardless of -C. Empty when no override was given.
+worktree_target=""
+[ -n "${work_tree:-}" ] && worktree_target="$(_resolve "${work_tree}")"
 
 # fix-3 (Cycle-2): "under main_root but OUTSIDE every active worktree" is
 # main-targeting. The active worktrees are the overnight worktree(s); we treat
