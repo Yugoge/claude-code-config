@@ -171,6 +171,10 @@ fi
 # checkout/switch/reset is a LEGITIMATE op and is ALLOWED (codex #2/#6: no
 # all-checkout overblocking).
 _op_is_main_targeting="$( _targets_main "$target_dir" && echo 1 || echo 0 )"
+# VECTOR-2: a work-tree override into main also makes the op main-targeting.
+if [ -n "$worktree_target" ] && _targets_main "$worktree_target"; then
+  _op_is_main_targeting=1
+fi
 _in_worktree="$( _is_under_a_worktree "$target_dir" && echo 1 || echo 0 )"
 _mentions_master() {
   for a in "$@"; do
