@@ -1251,8 +1251,9 @@ def main():
     if classification in ('overnight_owner', 'overnight_child') and tool_name == 'Bash':
         main_root = (gov_state or {}).get('main_root', '') if gov_state else ''
         worktree_path = (gov_state or {}).get('worktree_path', '') if gov_state else ''
+        main_git_dir = (gov_state or {}).get('main_git_dir', '') if gov_state else ''
         _enforce_overnight_git_command(
-            tool_input.get('command', ''), main_root, worktree_path)
+            tool_input.get('command', ''), main_root, worktree_path, main_git_dir)
 
     if wt_paths:
         apply_global_worktree_enforcement(tool_name, tool_input, wt_paths)
