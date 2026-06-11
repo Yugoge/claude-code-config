@@ -46,15 +46,25 @@ install -m 0755 "$SRC_DIR/git-policy-shim" "$SHIM_DIR/git"
 # system. The shim's real-git is the selector (via CLAUDE_OVERNIGHT_REAL_GIT).
 export CLAUDE_OVERNIGHT_ACTOR=1
 export CLAUDE_OVERNIGHT_MAIN_ROOT="$MAIN_ROOT"
+# fix-3 (Cycle-2): the shim's main-targeting predicate needs the worktree root to
+# classify "under main_root but outside the worktree" as main-targeting.
+[[ -n "$WORKTREE" ]] && export CLAUDE_OVERNIGHT_WORKTREE="$WORKTREE"
 export CLAUDE_OVERNIGHT_REAL_GIT="$BIN_DIR/git"   # shim delegates to the selector
 unset CLAUDE_GIT_BLESSED_TOKEN 2>/dev/null || true
 export PATH="$SHIM_DIR:$BIN_DIR:$PATH"
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  # Not sourced: emit export lines for eval.
+  # Not sourced: emit export lines for eval (fix-1: the launcher now CONSUMES
+  # this output and persists it; dev-overnight.md Step 1 sources it directly).
   echo "export CLAUDE_OVERNIGHT_ACTOR=1;"
   echo "export CLAUDE_OVERNIGHT_MAIN_ROOT=$MAIN_ROOT;"
+  [[ -n "$WORKTREE" ]] && echo "export CLAUDE_OVERNIGHT_WORKTREE=$WORKTREE;"
   echo "export CLAUDE_OVERNIGHT_REAL_GIT=$BIN_DIR/git;"
   echo "unset CLAUDE_GIT_BLESSED_TOKEN;"
   echo "export PATH=$SHIM_DIR:$BIN_DIR:\$PATH;"
+  # fix-1: a stable, machine-readable marker so the launcher can capture the
+  # resolved policy-shim git path + bindirs into the state file for AC-1.
+  echo "# OVERNIGHT_GIT_ENV_SHIM_GIT=$SHIM_DIR/git"
+  echo "# OVERNIGHT_GIT_ENV_BINDIR=$BIN_DIR"
+  echo "# OVERNIGHT_GIT_ENV_SHIMDIR=$SHIM_DIR"
 fi
