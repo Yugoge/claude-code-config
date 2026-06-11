@@ -320,6 +320,21 @@ if [[ -x "$SELFTEST_SCRIPT" ]]; then
     fi
 fi
 
+# --- Install the git-native keystone (M7) into the main repo (idempotent) -----
+# Wires the reference-transaction hook via core.hooksPath relocation WITHOUT
+# clobbering pre-commit/post-commit (the installer re-homes/chains them, AC6).
+KEYSTONE_INSTALLER="$(dirname "$0")/install-git-keystone.sh"
+if [[ -x "$KEYSTONE_INSTALLER" ]]; then
+    bash "$KEYSTONE_INSTALLER" --project-dir "$MAIN_ROOT" >&2 || \
+        echo "Warning: keystone installation reported a problem (layered defenses still active)." >&2
+fi
+
+# --- Prepare the overnight actor's git PATH wrappers (selector + policy shim) --
+GITENV_HELPER="$(dirname "$0")/overnight-git-env.sh"
+if [[ -x "$GITENV_HELPER" ]]; then
+    bash "$GITENV_HELPER" --main-root "$MAIN_ROOT" --worktree "$WORKTREE_PATH" >/dev/null 2>&1 || true
+fi
+
 # --- dev-registry sentinel dir for child-actor classification (round-3 §2) ---
 DEV_REGISTRY_DIR="$MAIN_ROOT/.claude/dev-registry/$SESSION_ID"
 mkdir -p "$DEV_REGISTRY_DIR" 2>/dev/null || true
