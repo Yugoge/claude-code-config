@@ -748,15 +748,49 @@ def ac9():
         ambiguous_cd = _hook_guard_blocks(
             "cd $HOME && git checkout other", repo, cwd=wt)
 
+        # codex round-3 #1: subshell / brace-group hiding the cd behind a group
+        # opener.
+        subshell_group = _hook_guard_blocks(
+            f"( cd {m} && git checkout other )", repo, cwd=wt)
+        brace_group = _hook_guard_blocks(
+            f"{{ cd {m}; git checkout other; }}", repo, cwd=wt)
+        # codex round-3 #2: launcher expressions (xargs / timeout / flock) that
+        # carry a path-qualified main-targeting git.
+        xargs_launcher = _hook_guard_blocks(
+            f"echo x | xargs -I{{}} /usr/bin/git -C {m} checkout other", repo, cwd=wt)
+        timeout_launcher = _hook_guard_blocks(
+            f"timeout 5 /usr/bin/git -C {m} checkout other", repo, cwd=wt)
+        flock_launcher = _hook_guard_blocks(
+            f"flock /tmp/acl /usr/bin/git -C {m} checkout other", repo, cwd=wt)
+        # codex round-3 #5: wrapper option-arity (nice -n 10 / ionice -c 2 -n 7).
+        nice_arity = _hook_guard_blocks(
+            f"nice -n 10 /usr/bin/git -C {m} checkout other", repo, cwd=wt)
+        ionice_arity = _hook_guard_blocks(
+            f"ionice -c 2 -n 7 /usr/bin/git -C {m} checkout other", repo, cwd=wt)
+        # codex round-3 #4: bash -c payload with a -C operand that realpath's into
+        # main via a symlink string.
+        link_parent = Path(tempfile.mkdtemp(prefix="ac9-lnk-"))
+        try:
+            link = link_parent / "mainlink"
+            os.symlink(m, link)
+            bashc_symlink = _hook_guard_blocks(
+                f'bash -c "/usr/bin/git -C {link} checkout other"', repo, cwd=wt)
+        finally:
+            shutil.rmtree(link_parent, ignore_errors=True)
+
         # main HEAD untouched (every form blocked before execution).
         head = _main_branch(repo)
 
-        # No over-block: a legit in-worktree branch op (cwd=worktree, no -C) and a
-        # cd INTO the worktree then status stay ALLOWED.
+        # No over-block: legit in-worktree forms (incl. a launcher + a subshell
+        # cd-into-worktree) stay ALLOWED.
         legit_worktree_branch = not _hook_guard_blocks(
             "git checkout -b featbranch", repo, cwd=wt)
         legit_cd_worktree_status = not _hook_guard_blocks(
             f"cd {wt} && git status", repo, cwd=wt)
+        legit_launcher_worktree = not _hook_guard_blocks(
+            f"timeout 5 git -C {wt} status", repo, cwd=wt)
+        legit_subshell_worktree = not _hook_guard_blocks(
+            f"( cd {wt} && git status )", repo, cwd=wt)
 
         return {
             "cd_into_main_then_checkout_blocked": cd_and_checkout,
@@ -766,9 +800,19 @@ def ac9():
             "exec_wrapper_main_checkout_blocked": exec_wrapper,
             "multi_leading_env_assign_main_checkout_blocked": multi_env_assign,
             "ambiguous_cd_before_head_move_fails_closed": ambiguous_cd,
+            "subshell_group_cd_into_main_blocked": subshell_group,
+            "brace_group_cd_into_main_blocked": brace_group,
+            "xargs_launcher_main_checkout_blocked": xargs_launcher,
+            "timeout_launcher_main_checkout_blocked": timeout_launcher,
+            "flock_launcher_main_checkout_blocked": flock_launcher,
+            "nice_arity_main_checkout_blocked": nice_arity,
+            "ionice_arity_main_checkout_blocked": ionice_arity,
+            "bash_c_symlink_main_checkout_blocked": bashc_symlink,
             "main_head_stays_master": head == "master",
             "legit_in_worktree_branch_op_allowed": legit_worktree_branch,
             "legit_cd_into_worktree_status_allowed": legit_cd_worktree_status,
+            "legit_launcher_worktree_op_allowed": legit_launcher_worktree,
+            "legit_subshell_worktree_op_allowed": legit_subshell_worktree,
         }
     finally:
         shutil.rmtree(repo, ignore_errors=True)
