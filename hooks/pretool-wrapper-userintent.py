@@ -146,7 +146,9 @@ def main() -> None:
     sid = _get_session_id(data)
     sentinel = _sentinel_path(cmd_name, sid)
     if _consume_sentinel(sentinel):
-        # Valid live user-intent sentinel: allow (and it is now consumed).
+        # Valid live user-intent sentinel: mint a fresh helper-auth token so the
+        # helper can validate it (defense in depth), then allow.
+        _mint_helper_auth(cmd_name, sid)
         sys.exit(0)
     _block(cmd_name, command)
 
