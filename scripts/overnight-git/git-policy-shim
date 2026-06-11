@@ -159,6 +159,13 @@ if _targets_main "$target_dir"; then
   _blocked "-C/cwd -> main (under main_root, outside worktree)"
 fi
 
+# VECTOR-2 (Cycle-3): a --work-tree / GIT_WORK_TREE override pointing at the main
+# working directory (under main_root, outside every active worktree) writes the
+# main tree in place even when -C is the worktree. Block before execution.
+if [ -n "$worktree_target" ] && _targets_main "$worktree_target"; then
+  _blocked "--work-tree/GIT_WORK_TREE -> main (writes the main working directory)"
+fi
+
 # Block dangerous/mutating ops that touch master or move HEAD, BUT only when they
 # are main-targeting or move the protected `master` ref — a worktree-local
 # checkout/switch/reset is a LEGITIMATE op and is ALLOWED (codex #2/#6: no
