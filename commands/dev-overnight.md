@@ -947,7 +947,7 @@ Agent(subagent_type: "ba")
     Previous answers: null
     Codebase hints: {pipeline.location}
     Timestamp: {pipeline.timestamp_suffix}
-    Project root: <worktree_path from state file if set, otherwise project root>
+    Project root: <validated worktree_path from state file>
 
     Overnight spec file: {pipeline.spec_path}
     View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
@@ -1039,7 +1039,7 @@ Agent(subagent_type: "qa")
     Context JSON: docs/dev/context-{pipeline.timestamp_suffix}.json
     Overnight spec file: {pipeline.spec_path}
     View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
-    Project root: <worktree_path from state file if set, otherwise project root>
+    Project root: <validated worktree_path from state file>
 
     Verify these 4 dimensions:
 
@@ -1226,7 +1226,7 @@ Agent(subagent_type: "dev")
     Overnight spec file: {pipeline.spec_path}
     View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
     Write your implementation report to: docs/dev/dev-report-{pipeline.timestamp_suffix}.json
-    Project root: <worktree_path from state file if set, otherwise project root>
+    Project root: <validated worktree_path from state file>
 
     Read the overnight spec file FIRST for cross-cycle context.
     After implementation, update the spec: Section 2 (What Was Attempted) and Section 3 (What Was Changed).
@@ -1320,7 +1320,7 @@ Agent(subagent_type: "qa")
     Overnight spec file: {pipeline.spec_path}
     View file: {view_paths[this-agent] or null — sibling views/<agent>.md if present}
     Write your verification report to: docs/dev/qa-report-{pipeline.timestamp_suffix}.json
-    Project root: <worktree_path from state file if set, otherwise project root>
+    Project root: <validated worktree_path from state file>
 
     Read the overnight spec file FIRST for cross-cycle context and acceptance criteria.
     After verification, update the spec: Section 4 (Current State) with measured values.
