@@ -1000,29 +1000,51 @@ def _iter_git_invocations(command: str):
     where `cwd_override` is the cwd in effect for that git op when a prior `cd`
     changed it (None if unchanged from the payload cwd), and `cwd_ambiguous` is
     True when a preceding `cd` target could not be statically resolved (bare cd /
-    `cd -` / `cd $VAR`) -> the caller fails closed for HEAD-moving ops."""
-    # Split on shell separators while preserving order. We split on ; & | && ||.
-    segs = re.split(r'(?:&&|\|\||[;&|])', command)
+    `cd -` / `cd $VAR`) -> the caller fails closed for HEAD-moving ops.
+
+    codex round-3 #1: group openers/closers `(` `)` `{` `}` are normalized to
+    standalone separator tokens so a `( cd MAIN && git … )` / `{ cd MAIN; git …;
+    }` cannot hide the `cd` behind a glued delimiter. The cwd_override carries
+    ACROSS sub-segments within the command (a `cd` inside a group affects the
+    following git op), which is the conservative/fail-safe choice for the
+    cooperative threat model (a within-group cd that returns is rare and erring
+    toward block is correct here)."""
+    # Normalize group delimiters + the `&` background op into standalone tokens,
+    # then split the token stream on shell separators IN ORDER.
+    spaced = command
+    for d in ('(', ')', '{', '}', ';'):
+        spaced = spaced.replace(d, f' {d} ')
+    # tokenize, then break into segments on separators.
+    raw = spaced.split()
+    segs: list[list[str]] = []
+    cur: list[str] = []
+    SEPS = {';', '&', '|', '&&', '||', '(', ')', '{', '}'}
+    for tok in raw:
+        if tok in SEPS:
+            if cur:
+                segs.append(cur); cur = []
+        else:
+            cur.append(tok)
+    if cur:
+        segs.append(cur)
+
     cwd_override = None      # str path set by a resolvable cd; None = unchanged
     cwd_ambiguous = False    # a cd target we could not resolve statically
-    for seg in segs:
-        toks = seg.split()
+    for toks in segs:
         if not toks:
             continue
         cd_tgt = _segment_cd_target(toks)
         if cd_tgt is not None:
-            if cd_tgt == '' or '$' in cd_tgt or cd_tgt == '-' or cd_tgt.startswith('~'):
+            if cd_tgt == '' or '$' in cd_tgt or cd_tgt == '-' or cd_tgt.startswith('~') or '`' in cd_tgt:
                 cwd_ambiguous = True
                 cwd_override = None
             else:
                 cwd_override = cd_tgt
                 cwd_ambiguous = False
-            # a `cd && git` lives in ONE segment under `&&`; the regex split
-            # already separated them, so fall through to also scan for git here.
         k = _strip_leading_wrappers(toks)
         if k >= len(toks):
             continue
-        first = toks[k]
+        first = toks[k].strip('\'"')
         if os.path.basename(first) == 'git':
             yield (toks[k + 1:], cwd_override, cwd_ambiguous)
 
