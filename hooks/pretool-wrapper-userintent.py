@@ -81,6 +81,28 @@ def _sentinel_path(cmd_name: str, sid: str) -> Path:
     return Path(_SENTINEL_DIR) / f'claude-{cmd_name}-userintent-{sid}.flag'
 
 
+# Short-lived helper-authorization token. When THIS PreTool hook consumes a
+# valid user-intent sentinel it mints this token; break-overnight-lock.py
+# validates + consumes it before mutating isolation_released_at (defense in
+# depth: the helper never trusts being reached, only a fresh PreTool grant).
+_HELPER_AUTH_TTL_SECONDS = 30
+
+
+def _helper_auth_path(cmd_name: str, sid: str) -> Path:
+    return Path(_SENTINEL_DIR) / f'claude-{cmd_name}-helper-auth-{sid}.json'
+
+
+def _mint_helper_auth(cmd_name: str, sid: str) -> None:
+    try:
+        _helper_auth_path(cmd_name, sid).write_text(json.dumps({
+            'cmd': cmd_name,
+            'session_id': sid,
+            'expires_at': int(time.time()) + _HELPER_AUTH_TTL_SECONDS,
+        }))
+    except OSError:
+        pass
+
+
 def _consume_sentinel(path: Path) -> bool:
     """One-shot consume: True iff the sentinel existed with value 'true' and was
     successfully unlinked. A stale/already-consumed sentinel returns False."""
