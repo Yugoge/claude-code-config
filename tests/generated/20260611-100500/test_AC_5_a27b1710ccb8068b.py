@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _ac_runner import run_ac
 
 AC_UID = "a27b1710ccb8068b"
 AC_TYPE = "hook"
@@ -17,7 +17,4 @@ def test_AC_5():
     WHEN:  create-overnight-state.sh runs
     THEN:  the keystone is installed BEFORE the self-test runs, so on the >=2.46-equivalent the self-test observes a firing keystone and the state records structural_claim_allowed=true; AND on the 2.43 host the honest fields are unchanged (structural_claim_allowed=false, guarantee_level=best_effort_head_switch) - no false structural claim
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — keystone install precedes self-test (observable in temp repo): >=2.46-equiv observes firing keystone -> structural_claim_allowed=true; real 2.43 -> false + best_effort_head_switch")
+    run_ac("AC-5")

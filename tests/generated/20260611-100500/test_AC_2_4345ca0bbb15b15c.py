@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _ac_runner import run_ac
 
 AC_UID = "4345ca0bbb15b15c"
 AC_TYPE = "hook"
@@ -17,7 +17,4 @@ def test_AC_2():
     WHEN:  the python-subprocess git branch-switch of the main HEAD is attempted in THREE variants: (v1) subprocess.run(['git','-C',MAIN_ROOT,'checkout','other']) with the actor PATH; (v2) env-scrubbed subprocess.run(['git','-C',MAIN_ROOT,'checkout','other'], env={'PATH':'/usr/bin:/bin'}) - the actor's shim-first PATH stripped; (v3) subprocess.run(['/usr/bin/git','-C',MAIN_ROOT,'checkout','other']) - absolute system git
     THEN:  in EACH of v1/v2/v3 the op is either BLOCKED before execution OR leaves `git -C MAIN_ROOT branch --show-current` == 'master' afterward; the block does NOT rely on the git-2.43 keystone firing for a symref branch-switch (it provably does not), and v2/v3 PROVE the block does not depend solely on the actor's PATH/env (a non-env-dependent runtime blocker is required)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — v1/v2/v3 python-subprocess main-HEAD switch each blocked-or-master-preserved via non-env-dependent runtime blocker (not PATH/env, not 2.43 symref keystone)")
+    run_ac("AC-2")

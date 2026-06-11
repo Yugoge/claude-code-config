@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _ac_runner import run_ac
 
 AC_UID = "0afff6edcfa78a57"
 AC_TYPE = "hook"
@@ -17,7 +17,4 @@ def test_RG_1():
     WHEN:  the launch runs
     THEN:  it still produces a valid isolated worktree (degrades to spec_mode=autonomous, runs the recovery ladder), NEVER hard-aborts-then-works-in-place, and refuses-to-LAUNCH (no state, no in-place work) ONLY when ALL durable isolation is impossible; the new wiring introduces no new hard-abort path. Note: the fail-closed interpreter blocking of fix-2 is a RUNTIME PreTool op-block that fires AFTER a valid worktree/state exists - it MUST NOT abort launch, MUST NOT delete/rewrite state, and a subsequent safe command inside the worktree MUST still be allowed (codex round-1 #4).
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — REGRESSION GUARD (pass pre+post): recoverable failure degrades to autonomous w/ valid worktree, no in-place work, refuse-to-launch only when all isolation impossible; fail-closed is runtime op-block, no state delete, safe worktree cmd still allowed")
+    run_ac("RG-1")

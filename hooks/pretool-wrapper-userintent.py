@@ -33,12 +33,22 @@ import sys
 import time
 from pathlib import Path
 
-# Wrapper scripts whose direct invocation requires a matching user-intent
+# Wrapper scripts whose direct EXECUTION requires a matching user-intent
 # sentinel. The key is the sentinel command-name (/tmp/claude-<name>-userintent-).
+#
+# IMPORTANT (no over-block): match only an actual EXECUTION of the wrapper, NOT a
+# mere mention (so read-only `git cat-file … break-overnight-lock.py`, `grep`,
+# `echo`, etc. are NOT blocked — this MUST NOT break a normal session's git ops).
+# Execution forms covered:
+#   * an interpreter/`.`/`source`/`exec` followed by the script path
+#     (python3 …/break-overnight-lock.py ; bash …/stop.sh ; . …/stop.sh), OR
+#   * the script invoked directly as the command (a path ending in the script
+#     name appearing at a command position: line start, after ; | & or `&&`/`||`).
+_EXEC_PREFIX = r'(?:^|[;&|]\s*|\b(?:python3?|bash|sh|zsh|env|exec|command|source)\s+(?:-\S+\s+)*|\.\s+)'
 _GUARDED_WRAPPERS = {
     'stop': (
-        re.compile(r'break-overnight-lock\.py'),
-        re.compile(r'(^|[\s/"\'])stop\.sh(\s|$|["\'])'),
+        re.compile(_EXEC_PREFIX + r'(?:\S*/)?break-overnight-lock\.py\b'),
+        re.compile(_EXEC_PREFIX + r'(?:\S*/)?stop\.sh\b'),
     ),
 }
 

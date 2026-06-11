@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _ac_runner import run_ac
 
 AC_UID = "562d14b9078d3304"
 AC_TYPE = "hook"
@@ -17,7 +17,4 @@ def test_AC_4():
     WHEN:  it invokes scripts/break-overnight-lock.py directly (or via hooks/stop.sh) without the sanctioned /stop sentinel; AND, separately, a second invocation reuses a stale/already-consumed sentinel
     THEN:  the invocation is BLOCKED by ALL FIVE guard components: (a) settings.json PreTool wiring present; (b) PreTool block of the direct/unsanctioned invocation; (c) helper-side sentinel VALIDATION before any state mutation (the helper itself refuses to set isolation_released_at without a valid live sentinel, defense-in-depth even if the PreTool surface is bypassed); (d) one-shot sentinel CONSUMPTION on terminal result (a second invocation with the same/stale sentinel is rejected); so isolation_released_at is NOT set by the actor; AND (e) the legitimate /stop path (with a valid live user-intent sentinel) still releases the lock
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — break-overnight-lock five-component guard: PreTool wiring+block, helper-side validate-before-mutation, one-shot consume rejects reuse, isolation_released_at unset by actor, legit /stop still releases")
+    run_ac("AC-4")

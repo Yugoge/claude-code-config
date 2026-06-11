@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _ac_runner import run_ac
 
 AC_UID = "4d452a7864081bab"
 AC_TYPE = "hook"
@@ -17,7 +17,4 @@ def test_AC_8():
     WHEN:  BOTH actors attempt to switch main HEAD off master, but the registered overnight actor uses the AC-2 RESIDUAL vector that current Cycle-1 code does NOT catch (an env-scrubbed Python subprocess `env={'PATH':'/usr/bin:/bin'}` running `git -C MAIN checkout other`, AND the absolute `/usr/bin/git -C MAIN checkout other` form) - NOT the typed-Bash form the Cycle-1 PreTool guard already catches; the NON-overnight session runs an ordinary main-repo `git -C MAIN checkout other`, both under the SAME live overnight state
     THEN:  DIFFERENTIAL outcome under the one live state: the REGISTERED overnight actor is BLOCKED on the residual subprocess/absolute-git vector (main HEAD stays master) BECAUSE the new live-state-derived enforcement classifies it as the overnight owner/child and is non-env-dependent; AND the NON-overnight session is ALLOWED (succeeds) - the enforcement is scoped to the overnight owner/registered child ONLY, with NO global 'any live overnight locks master for everyone' behavior
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — DIFFERENTIAL under one live state: registered actor BLOCKED on AC-2 residual vector (env-scrubbed subprocess + absolute /usr/bin/git) while normal non-overnight session ALLOWED; scoped to owner/child, no global lockdown")
+    run_ac("AC-8")

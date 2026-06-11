@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _ac_runner import run_ac
 
 AC_UID = "0a75e27d6b34eaf6"
 AC_TYPE = "hook"
@@ -17,7 +17,4 @@ def test_AC_3():
     WHEN:  the actor attempts, for EVERY in-threat-model main-targeting vector, both via a typed-Bash tool payload (hook-guard surface) AND via the actor's resolved git (policy-shim surface): (subdir) `git -C <main_root>/sub restore ../file`, `git -C <main_root>/sub add -A`, `git -C <main_root>/sub checkout other`; (redirect) `git --git-dir=<main_root>/.git checkout other` and `GIT_DIR=<main_root>/.git git checkout other`; (hooksPath suppression) `git -c core.hooksPath=/dev/null -C <main_root> checkout other`; (master ref-move) `git -C <main_root> branch -f master <oid>` and `git -C <main_root> update-ref refs/heads/master <oid>`; (destructive reset) `git -C <main_root> reset --hard <oid>`; (stash) `git -C <main_root> stash apply` - ALL in throwaway repos (codex round-1 #5)
     THEN:  EVERY one of those main-targeting forms is BLOCKED by BOTH pretool-overnight-hook-guard.py AND git-policy-shim (realpath/effective-target under main_root but outside the worktree, OR --git-dir/GIT_DIR pointing into main, OR hooksPath suppression, OR a master ref-move => main-targeting); per vector the main worktree is byte-unchanged and main HEAD stays master; AND a legit `git -C <worktree_root>/sub status` (under the validated worktree) is ALLOWED in both surfaces (no over-restriction)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — full per-surface BOTH-surfaces matrix: every main-targeting vector (subdir/redirect/hooksPath/ref-move/reset/stash) blocked by hook-guard AND policy-shim; main byte-unchanged + HEAD master; worktree/sub status allowed")
+    run_ac("AC-3")

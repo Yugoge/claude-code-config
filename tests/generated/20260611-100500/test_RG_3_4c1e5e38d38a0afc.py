@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _ac_runner import run_ac
 
 AC_UID = "4c1e5e38d38a0afc"
 AC_TYPE = "hook"
@@ -17,7 +17,4 @@ def test_RG_3():
     WHEN:  that non-overnight session performs normal main-repo git operations (checkout/commit/branch on the main repo)
     THEN:  the normal-session operations are ALLOWED (succeed) both BEFORE and AFTER the fix - the live-state-derived enforcement added by fix-2 must remain scoped to the overnight OWNER / registered child actor ONLY and MUST NOT regress into a global 'any live overnight locks master for everyone' behavior; the keystone normal-session exemption at reference-transaction:18 is preserved
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — REGRESSION GUARD (pass pre+post): normal non-overnight session main checkout/commit/branch ALLOWED, no global master lockdown, keystone normal-session exemption preserved")
+    run_ac("RG-3")
