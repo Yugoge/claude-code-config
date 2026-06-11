@@ -943,12 +943,14 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
             'overnight actors — it would bypass the reference-transaction keystone.\n'
         )
     main_real = os.path.realpath(main_root) if main_root else ''
+    payload_cwd = _payload_cwd(_REQUEST_CTX.get('payload') or {})
     for subtoks in _normalize_git_basename_cmds(command):
         if not subtoks:
             continue
-        # find the subcommand and any -C target
+        # find the subcommand, any -C target, and the positional branch arg
         eff_dir = None
         sub = None
+        positionals = []
         j = 0
         while j < len(subtoks):
             t = subtoks[j]
@@ -956,34 +958,57 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
                 eff_dir = subtoks[j + 1]; j += 2; continue
             if t.startswith('-C') and len(t) > 2:
                 eff_dir = t[2:]; j += 1; continue
-            if t.startswith('-'):
+            if sub is None and t.startswith('-'):
                 j += 1; continue
-            sub = t
-            sub_idx = j
-            break
-        # M15: branch-switch / switch -c (the exact incident) -> block.
-        if sub in ('checkout', 'switch', 'worktree'):
-            # resolve effective dir; default cwd is the overnight worktree, but a
-            # -C/main-target makes it main. Block branch-switch unconditionally
-            # for overnight actors (they must never switch the main HEAD); also
-            # block any op whose -C resolves to main_root.
+            if sub is None:
+                sub = t; j += 1; continue
+            # after the subcommand, collect positionals (skip flags)
+            if not t.startswith('-'):
+                positionals.append(t)
+            j += 1
+
+        # Resolve the EFFECTIVE directory the op runs in: explicit -C, else the
+        # actor's cwd (payload). This is the round-3 effective-target resolver.
+        resolve_base = eff_dir if eff_dir else payload_cwd
+        try:
+            tgt_dir = os.path.realpath(resolve_base) if resolve_base else ''
+        except Exception:
+            tgt_dir = resolve_base or ''
+        targets_main = bool(main_real) and tgt_dir == main_real
+
+        # M13: any git op whose effective dir resolves to main_root -> block.
+        if targets_main:
             _block(
-                f'\nOVERNIGHT BRANCH-SWITCH BLOCK: git {sub} by an overnight actor '
-                'is forbidden (the exact 2026-06-03 incident shape). The main '
-                "worktree's HEAD must stay on master.\n"
+                '\nOVERNIGHT MAIN-ROOT BLOCK: git op targeting the main '
+                'working directory (effective -C/cwd == main_root) is forbidden '
+                'for overnight actors.\n'
             )
-        # M13: any git op whose -C resolves to main_root -> block.
-        if eff_dir and main_real:
-            try:
-                tgt = os.path.realpath(eff_dir)
-            except Exception:
-                tgt = eff_dir
-            if tgt == main_real:
+
+        # M15: branch-switch / switch -c is the exact incident ONLY when it
+        # would move the MAIN worktree's HEAD: i.e. the effective dir is main OR
+        # the target branch is `master`. A checkout/switch whose effective dir is
+        # the overnight worktree and target is NOT master is a LEGITIMATE
+        # worktree branch op and is ALLOWED (no false-block).
+        if sub in ('checkout', 'switch'):
+            switches_master = any(p == 'master' or p == 'refs/heads/master'
+                                  for p in positionals)
+            # If the effective dir cannot be confirmed to be inside an overnight
+            # worktree, fail closed (treat as main-targeting) for the branch-move.
+            in_worktree = any(_path_under_prefix(tgt_dir, w)
+                              for w in _get_active_worktree_paths()) if tgt_dir else False
+            if targets_main or switches_master or not in_worktree:
                 _block(
-                    '\nOVERNIGHT MAIN-ROOT BLOCK: git op targeting the main '
-                    'working directory (-C/main_root) is forbidden for overnight '
-                    'actors.\n'
+                    f'\nOVERNIGHT BRANCH-SWITCH BLOCK: git {sub} that could move '
+                    "the main worktree's HEAD off master is forbidden for "
+                    'overnight actors (the exact 2026-06-03 incident shape). '
+                    'Branch ops INSIDE the isolated worktree (non-master target) '
+                    'are allowed.\n'
                 )
+        if sub == 'worktree':
+            _block(
+                '\nOVERNIGHT WORKTREE BLOCK: an overnight actor may not manage '
+                'git worktrees.\n'
+            )
 
 
 def _block_invalid_isolation(classification: str) -> None:
