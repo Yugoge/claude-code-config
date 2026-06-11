@@ -485,7 +485,7 @@ jq -n \
 jq empty "$CONTRACT_TMP" >/dev/null
 mv "$CONTRACT_TMP" "$CONTRACT_FILE"
 
-echo "Created overnight state v7: $STATE_FILE" >&2
+echo "Created overnight state v8: $STATE_FILE" >&2
 echo "Created minimal cycle contract: $CONTRACT_FILE" >&2
 echo "  Session: $SESSION_ID" >&2
 echo "  End time: $END_TIME" >&2
