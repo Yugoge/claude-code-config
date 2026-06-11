@@ -23,7 +23,11 @@ def test_AC1():
     WHEN:  create-overnight-state.sh is invoked with --project-dir <repo> --session-id S --end-time +1h
     THEN:  exit 0; the repo's main branch is still master; the dirty tracked+untracked files are unchanged on master; the written state has a non-null worktree_path under .claude/worktrees/overnight-*; the worktree is registered on a non-master branch; state records main_dirty_at_start=true
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — a temp git repo on master with dirty tracked + untracked files, no overnight state present / create-overnight-state.sh is invoked with --project-dir <repo> --session-id S --end-time +1h / exit 0; the repo's main branch is still master; the dirty tracked+untracked files are unchanged on master; the written state has a non-null worktree_path under .claude/worktrees/overnight-*; the worktree is registered on a non-master branch; state records main_dirty_at_start=true")
+    r = ac_harness.ac1_worktree_first_dirty_untouched()
+    assert r["exit_code"] == 0, r
+    assert r["main_branch"] == "master", r
+    assert "/.claude/worktrees/overnight-" in r["state.worktree_path"], r
+    assert r["state.main_dirty_at_start"] is True, r
+    assert r["dirty_preserved"] is True, r
+    assert r["wt_branch_not_master"] is True, r
+    assert r["wt_registered"] is True, r
