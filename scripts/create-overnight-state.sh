@@ -482,6 +482,12 @@ jq -n \
         git_effective_path: (if $git_effective_path == "" then null else $git_effective_path end),
         git_exec_path: (if $git_exec_path == "" then null else $git_exec_path end),
         reference_transaction_selftest_result: (if $reference_transaction_selftest_result == "" then null else $reference_transaction_selftest_result end),
+        actor_git_env: {
+            shim_git: (if $actor_git_shim == "" then null else $actor_git_shim end),
+            bindir: (if $actor_git_bindir == "" then null else $actor_git_bindir end),
+            shimdir: (if $actor_git_shimdir == "" then null else $actor_git_shimdir end),
+            env_helper: (if $actor_env_helper == "" then null else $actor_env_helper end)
+        },
         view_paths: $view_paths,
         pm_triage_reports: [],
         pm_retro_reports: [],
