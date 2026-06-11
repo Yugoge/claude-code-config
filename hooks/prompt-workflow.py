@@ -786,6 +786,17 @@ def _extract_arguments(user_input: str, cmd_name: str) -> str:
     return ''
 
 
+def _cleanup_overnight_partials(sid: str) -> None:
+    """M5/AC4: remove any partial todo/bookmark/state written for a failed
+    /dev-overnight launch so a failed launch leaves no actionable artifacts."""
+    for p in (official_todos_path(sid), workflow_bookmark_path(sid)):
+        try:
+            if p.exists():
+                p.unlink()
+        except Exception:
+            pass
+
+
 def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     """Phase A: slash command detected -- setup todos, state, inject spec."""
     if cmd_name in ("commit", "push", "merge", "stop"):
@@ -796,13 +807,25 @@ def handle_phase_a(cmd_name: str, user_input: str, sid: str) -> None:
     if not todos:
         return
     _check_workflow_conflict(cmd_name, sid)
+    # M5/AC4: for /dev-overnight, create + validate the isolated overnight state
+    # BEFORE writing todos/bookmark/checklist. On failure: print stderr, clean
+    # any partials, and FAIL CLOSED (no checklist, no command-spec, no
+    # EnterWorktree prompt, no silent exit(0)).
+    if cmd_name == 'dev-overnight':
+        end_time, focus, spec_path, codex_required = parse_overnight_args(user_input)
+        ok = create_overnight_state(
+            end_time, focus, spec_path=spec_path, session_id=sid,
+            codex_required=codex_required)
+        if not ok:
+            print('OVERNIGHT LAUNCH ABORTED: failed to create + validate an '
+                  'isolated worktree. No checklist or command spec injected. '
+                  'Do NOT work in the main directory.', file=sys.stderr)
+            _cleanup_overnight_partials(sid)
+            raise SystemExit(2)
     tf = official_todos_path(sid)
     tf.parent.mkdir(parents=True, exist_ok=True)
     tf.write_text(json.dumps(todos, ensure_ascii=False))
     _write_bookmark(cmd_name, sid, _extract_arguments(user_input, cmd_name))
-    if cmd_name == 'dev-overnight':
-        end_time, focus, spec_path, codex_required = parse_overnight_args(user_input)
-        create_overnight_state(end_time, focus, spec_path=spec_path, session_id=sid, codex_required=codex_required)
     if cmd_name in ('dev', 'dev-command', 'redev'):
         dev_session_id = _init_dev_registry(cmd_name, user_input, sid, PROJECT_DIR)
         codex_active = '--codex' in user_input.split()
