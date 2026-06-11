@@ -366,14 +366,17 @@ def create_overnight_state(end_time: str, focus: str = '', spec_path: str = '', 
     cmd += ['--session-id', session_id]
     cmd += ['--project-dir', str(PROJECT_DIR)]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        # M5/AC4: raise the timeout from 10s to >=60s — worktree creation +
+        # validation + launch self-test legitimately take longer than 10s.
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
             print(result.stderr, file=sys.stderr)
             return False
         if result.stderr:
             print(result.stderr.rstrip(), file=sys.stderr)
         return True
-    except Exception:
+    except Exception as exc:
+        print(f'overnight state creation failed: {exc}', file=sys.stderr)
         return False
 
 
