@@ -5,7 +5,7 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+from _ac_runner import run_ac
 
 AC_UID = "b39e8a28c0b6bfb1"
 AC_TYPE = "hook"
@@ -17,7 +17,4 @@ def test_AC_1():
     WHEN:  the actor runs TWO INDEPENDENT consecutive command invocations (proving env/PATH persistence ACROSS tool calls, not a single sourced shell), each reading `command -v git`, `git rev-parse --show-toplevel`, `pwd`, and $CLAUDE_OVERNIGHT_ACTOR from inside its own runtime
     THEN:  in BOTH invocations: command -v git resolves to the policy-shim path (harness-owned git), CLAUDE_OVERNIGHT_ACTOR == '1', and pwd / --show-toplevel == the validated worktree root; and the ac_harness AC9-equivalent contains NO hardcoded True for actor_cwd_is_isolated_root / show_toplevel_is_isolated_root (both computed from a real launched-actor probe)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — actor env/PATH persists across two independent tool calls: shim git, CLAUDE_OVERNIGHT_ACTOR==1, pwd/toplevel==worktree root, no hardcoded True in AC9-equiv")
+    run_ac("AC-1")
