@@ -191,6 +191,11 @@ If no state file exists, HARD ABORT. Do not fabricate a state file and do not pr
 - `cd` into the validated `worktree_path`.
 - If `worktree_path` is missing or invalid: HARD ABORT. Do not create state manually. Do not call EnterWorktree. Do not continue on the main project path. The session simply does not run.
 
+**ACTOR GIT-ENV GUARD (fix-1, MANDATORY — do this immediately after `cd` into the worktree, before any git op):** The launch hook installs the policy-shim + selector git wrappers and records their location in the state file's `actor_git_env` object. Source the actor env so every subsequent `git` resolves to the harness-owned policy shim and `CLAUDE_OVERNIGHT_ACTOR=1` is set in your runtime, then VERIFY it took effect:
+- Read `actor_git_env.env_helper` from the state file. If non-null, run `source "<env_helper>" --main-root "<main_root>" --worktree "<worktree_path>"` (the helper prepends the shim dir to PATH and exports `CLAUDE_OVERNIGHT_ACTOR=1`, `CLAUDE_OVERNIGHT_MAIN_ROOT`, `CLAUDE_OVERNIGHT_WORKTREE`).
+- VERIFY: `command -v git` MUST equal `actor_git_env.shim_git`, and `git rev-parse --show-toplevel` MUST equal the validated `worktree_path`. The actor-flag + shim-first PATH MUST persist across subsequent tool calls (export them in your shell session; re-source if a new shell does not inherit them).
+- This wiring is defense-in-depth ONLY. The authoritative protection is the PreTool hook-guard, which derives overnight-actor status from the LIVE overnight state (not from this env) and blocks any main-targeting git op — including a python-subprocess `git -C <main> checkout` — regardless of whether this env was sourced. Never rely on the env alone; never attempt to strip `CLAUDE_OVERNIGHT_ACTOR` or run git against the main working directory.
+
 **Spec announcement**: If `spec_mode` is `"user-provided"` and `user_spec_path` is set, announce:
 ```
 Spec mode: user-provided
