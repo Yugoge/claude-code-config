@@ -437,6 +437,10 @@ jq -n \
     --arg git_effective_path "$GIT_EFFECTIVE_PATH_FIELD" \
     --arg git_exec_path "$GIT_EXEC_PATH_FIELD" \
     --arg reference_transaction_selftest_result "$SELFTEST_RESULT_FIELD" \
+    --arg actor_git_shim "$ACTOR_GIT_SHIM" \
+    --arg actor_git_bindir "$ACTOR_GIT_BINDIR" \
+    --arg actor_git_shimdir "$ACTOR_GIT_SHIMDIR" \
+    --arg actor_env_helper "$ACTOR_ENV_HELPER_PATH" \
     --argjson view_paths "$VIEW_PATHS" \
     --argjson codex_required "$CODEX_REQUIRED" \
     '{
