@@ -1,13 +1,14 @@
 # 20260604-204954
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-11T07:38:13Z*
-**Total entries**: 18
+*Last updated: 2026-06-11T07:39:48Z*
+**Total entries**: 19
 **Convention**: kebab
 
 ## Tree
 ```
 20260604-204954/
+├── _work/
 ├── `_smoke_keystone.sh` - Smoke test for the keystone + selftest (dev self-verification, not an AC test).
 ├── `ac_harness.py` - Tracked (repo) helper so the generated pytest tests have real bodies. Each
 ├── `manifest.json` - json config

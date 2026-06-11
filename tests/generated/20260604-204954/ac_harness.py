@@ -466,40 +466,64 @@ def ac_prereq_no_build():
 
 
 def ac11_branch_switch_blocked():
-    """Exercise the M13 policy shim (basename-git resolver) for the exact
-    incident command forms against main_root. The shim blocks for an overnight
-    actor; we drive it directly with the absolute and bare forms."""
-    repo = _make_repo(dirty=False)
+    """AC11: exact-incident branch-switch command forms are blocked for an
+    overnight actor on git 2.43 (sub-mode A2) by TWO surfaces:
+      (1) the hook-guard PreToolUse Bash path (M15/M14a) — the surface that
+          fires for the cooperative Claude agent, keyed on the basename-'git'
+          resolver so /usr/bin/git AND /usr/lib/git-core/git are covered;
+      (2) the M13 PATH policy shim (catches python subprocess['git', ...]).
+    Both must block; main HEAD stays master."""
+    repo = _make_repo_nontmp(dirty=False)
     try:
+        # Set up an active overnight owner state so the hook-guard classifies the
+        # actor as overnight_owner.
+        wt = subprocess.run(
+            [str(SCRIPTS / "create-worktree.sh"), "--project-dir", str(repo),
+             "overnight-20260604-S"], capture_output=True, text=True, cwd=str(repo))
+        import re as _re
+        m = _re.search(r"WORKTREE_PATH=(\S+)", wt.stdout)
+        wt_path = m.group(1) if m else ""
+        claude = repo / ".claude"
+        claude.mkdir(exist_ok=True)
+        state = {
+            "schema_version": 8, "session_id": "S",
+            "current_phase": "exploring", "end_time": "2099-01-01T00:00:00Z",
+            "isolation_active_until": "2099-01-01T00:00:00Z", "isolation_released_at": None,
+            "main_root": str(repo), "worktree_path": wt_path,
+            "worktree_branch": "worktree-overnight-20260604-S",
+            "isolation_kind": "registered_worktree",
+        }
+        (claude / "overnight-state-S.json").write_text(json.dumps(state))
+
+        def guard_blocks(cmd):
+            rc, _ = _drive_hook_guard({
+                "tool_name": "Bash", "session_id": "S",
+                "tool_input": {"command": cmd}, "cwd": str(repo)}, repo)
+            return rc == 2
+
+        forms = {
+            "bare_git_branch_switch_blocked": f"git -C {repo} checkout other",
+            "usr_bin_git_checkout_blocked": f"/usr/bin/git -C {repo} checkout other",
+            "git_core_libexec_git_checkout_blocked": f"/usr/lib/git-core/git -C {repo} checkout other",
+            "git_switch_blocked": f"git -C {repo} switch other",
+            "git_switch_c_blocked": f"git -C {repo} switch -c newb",
+            "config_suppress_blocked": f"git -c core.hooksPath=/dev/null -C {repo} checkout other",
+        }
+        results = {k: guard_blocks(v) for k, v in forms.items()}
+        # M13 policy shim surface (python subprocess path)
         shim = SCRIPTS / "overnight-git" / "git-policy-shim"
-        env = dict(os.environ,
-                   CLAUDE_OVERNIGHT_ACTOR="1",
-                   CLAUDE_OVERNIGHT_MAIN_ROOT=str(repo))
-        results = {}
-        # bare 'git checkout B' (cwd = main root)
-        r = subprocess.run([str(shim), "checkout", "other"], cwd=str(repo),
-                           env=env, capture_output=True, text=True)
-        results["bare_git_branch_switch_blocked"] = r.returncode == 2
-        # 'git switch B'
-        r = subprocess.run([str(shim), "switch", "other"], cwd=str(repo),
-                           env=env, capture_output=True, text=True)
-        sw_blocked = r.returncode == 2
-        # 'git switch -c B'
-        r = subprocess.run([str(shim), "switch", "-c", "newb"], cwd=str(repo),
-                           env=env, capture_output=True, text=True)
-        swc_blocked = r.returncode == 2
-        # Absolute-path forms resolve by basename 'git' -> the shim IS 'git' for
-        # the actor; the policy applies regardless of how git was named, so the
-        # shim's block covers /usr/bin/git and /usr/lib/git-core/git invocations
-        # routed through the shim. We assert the shim blocks the checkout form.
-        results["usr_bin_git_checkout_blocked"] = results["bare_git_branch_switch_blocked"]
-        results["git_core_libexec_git_checkout_blocked"] = results["bare_git_branch_switch_blocked"]
-        results["switch_blocked"] = sw_blocked
-        results["switch_c_blocked"] = swc_blocked
+        senv = dict(os.environ, CLAUDE_OVERNIGHT_ACTOR="1",
+                    CLAUDE_OVERNIGHT_MAIN_ROOT=str(repo))
+        sr = subprocess.run([str(shim), "checkout", "other"], cwd=str(repo),
+                            env=senv, capture_output=True, text=True)
+        results["policy_shim_blocks"] = sr.returncode == 2
         branch = _git(["branch", "--show-current"], repo).stdout.strip()
         results["main_head_stays_master"] = branch == "master"
         results["all_blocked"] = all([
-            results["bare_git_branch_switch_blocked"], sw_blocked, swc_blocked,
+            results["bare_git_branch_switch_blocked"],
+            results["usr_bin_git_checkout_blocked"],
+            results["git_core_libexec_git_checkout_blocked"],
+            results["git_switch_blocked"], results["git_switch_c_blocked"],
             results["main_head_stays_master"]])
         return results
     finally:
