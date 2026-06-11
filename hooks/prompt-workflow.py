@@ -392,14 +392,24 @@ def load_overnight_state(session_id: str = '') -> dict | None:
 
 
 def _build_worktree_instruction(state: dict) -> str:
-    """Build worktree guard instruction based on state."""
+    """Build worktree guard instruction based on state.
+
+    M5/round-3: a validated worktree is a launch PRECONDITION. The instruction
+    NEVER tells the agent to call EnterWorktree, and a missing/invalid worktree
+    is a HARD ABORT (the launcher refuses to write such a state, so this branch
+    should be unreachable for a properly-launched session).
+    """
     wt = state.get('worktree_path')
     if wt is not None and wt != '':
         return (
-            f'CRITICAL: Worktree already exists at {wt}. '
-            'DO NOT call EnterWorktree under any circumstances.'
+            f'CRITICAL: The validated isolated worktree is {wt}. '
+            'cd into it. DO NOT call EnterWorktree under any circumstances.'
         )
-    return 'Worktree was not created yet. Call EnterWorktree in Step 1.'
+    return (
+        'HARD ABORT. The overnight state has no validated worktree. '
+        'Do not create state manually. Do not call EnterWorktree. '
+        'Do not continue on the current branch or main project path.'
+    )
 
 
 def _load_overnight_todos() -> list[dict]:
