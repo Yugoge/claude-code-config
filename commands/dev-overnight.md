@@ -1784,8 +1784,8 @@ The state file is created by `create-overnight-state.sh` during session initiali
     }
   ],
   "consecutive_clean_sweeps": 0,
-  "worktree_path": "/path/to/worktree or null",
-  "worktree_branch": "overnight-YYYYMMDD-<session_id_short> or null",
+  "worktree_path": "/abs/main/.claude/worktrees/overnight-... (always a validated isolated root; never null)",
+  "worktree_branch": "worktree-overnight-YYYYMMDD-<session_id_short> (never master)",
   "pm_triage_reports": [],
   "pm_retro_reports": [],
   "unresolved_issues": [
