@@ -367,7 +367,7 @@ if [[ "$USER_SPEC_PATH" != "null" && -n "$USER_SPEC_PATH" && -f "$USER_SPEC_PATH
     MONOLITH_SHA="$(sha256sum "$USER_SPEC_PATH" | awk '{print $1}')"
 fi
 
-# --- Build JSON with jq ---
+# --- Build JSON with jq (schema v8 + Option-A immutable guarantee fields) -----
 jq -n \
     --arg session_id "$SESSION_ID" \
     --arg end_time "$END_TIME" \
@@ -378,12 +378,31 @@ jq -n \
     --arg worktree_path "$WORKTREE_PATH" \
     --arg worktree_branch "$WORKTREE_BRANCH" \
     --arg cycle_contract_path "$CONTRACT_FILE" \
+    --arg main_root "$MAIN_ROOT" \
+    --arg main_git_dir "$MAIN_GIT_DIR" \
+    --arg main_branch_at_start "$MAIN_BRANCH_AT_START" \
+    --arg main_head_at_start "$MAIN_HEAD_AT_START" \
+    --argjson main_dirty_at_start "$MAIN_DIRTY_AT_START" \
+    --arg worktree_head_at_start "$WORKTREE_HEAD_AT_START" \
+    --arg isolation_kind "$ISOLATION_KIND" \
+    --arg isolation_active_until "$ISOLATION_ACTIVE_UNTIL" \
+    --arg dev_registry_session_id "$SESSION_ID" \
+    --arg dev_registry_dir "$DEV_REGISTRY_DIR" \
+    --arg guarantee_level "$GUARANTEE_LEVEL" \
+    --argjson structural_claim_allowed "$STRUCTURAL_CLAIM_ALLOWED" \
+    --arg git_version "$GIT_VERSION_FIELD" \
+    --arg git_effective_path "$GIT_EFFECTIVE_PATH_FIELD" \
+    --arg git_exec_path "$GIT_EXEC_PATH_FIELD" \
+    --arg reference_transaction_selftest_result "$SELFTEST_RESULT_FIELD" \
     --argjson view_paths "$VIEW_PATHS" \
     --argjson codex_required "$CODEX_REQUIRED" \
     '{
+        schema_version: 8,
         session_id: $session_id,
         end_time: $end_time,
         start_time: $start_time,
+        isolation_active_until: $isolation_active_until,
+        isolation_released_at: null,
         focus: $focus,
         spec_mode: $spec_mode,
         user_spec_path: (if $user_spec_path == "null" then null else $user_spec_path end),
@@ -393,14 +412,29 @@ jq -n \
         issues_found: 0,
         issues_fixed: 0,
         issues_skipped: 0,
-        current_phase: (if $worktree_path == "" then "initializing" else "exploring" end),
+        current_phase: "exploring",
         current_issues: [],
         failed_attempts: {},
         addressed_issues: [],
         cycle_log: [],
         consecutive_clean_sweeps: 0,
-        worktree_path: (if $worktree_path == "" then null else $worktree_path end),
-        worktree_branch: (if $worktree_branch == "" then null else $worktree_branch end),
+        main_root: $main_root,
+        main_git_dir: $main_git_dir,
+        main_branch_at_start: $main_branch_at_start,
+        main_head_at_start: $main_head_at_start,
+        main_dirty_at_start: $main_dirty_at_start,
+        worktree_path: $worktree_path,
+        worktree_branch: $worktree_branch,
+        worktree_head_at_start: (if $worktree_head_at_start == "" then null else $worktree_head_at_start end),
+        isolation_kind: $isolation_kind,
+        dev_registry_session_id: $dev_registry_session_id,
+        dev_registry_dir: $dev_registry_dir,
+        guarantee_level: $guarantee_level,
+        structural_claim_allowed: $structural_claim_allowed,
+        git_version: (if $git_version == "" then null else $git_version end),
+        git_effective_path: (if $git_effective_path == "" then null else $git_effective_path end),
+        git_exec_path: (if $git_exec_path == "" then null else $git_exec_path end),
+        reference_transaction_selftest_result: (if $reference_transaction_selftest_result == "" then null else $reference_transaction_selftest_result end),
         view_paths: $view_paths,
         pm_triage_reports: [],
         pm_retro_reports: [],
