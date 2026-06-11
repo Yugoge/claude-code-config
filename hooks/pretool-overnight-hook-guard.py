@@ -871,6 +871,27 @@ def _resolve_child_session(payload: dict) -> dict | None:
     return _load_session_state(dev_sid)
 
 
+def _governing_state_for_cwd(cwd: str) -> dict | None:
+    """VECTOR-3 (Cycle-3): resolve the live overnight state whose worktree_path
+    contains `cwd`. Lets the worktree_context path carry a governing state and
+    run the same git enforcement as owner/child."""
+    if not cwd:
+        return None
+    try:
+        cwd_real = os.path.realpath(cwd)
+    except Exception:
+        cwd_real = cwd
+    project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd()))
+    for sf in (project_dir / '.claude').glob('overnight-state-*.json'):
+        state = _load_state(sf)
+        if state is None or not _is_session_live(state):
+            continue
+        wt = state.get('worktree_path', '') or ''
+        if wt and _path_under_prefix(cwd_real, wt):
+            return state
+    return None
+
+
 def _classify_actor(payload: dict, owner_state: dict | None,
                     wt_paths: list[str], cwd: str) -> tuple[str, dict | None]:
     """Classify the actor: overnight_owner | overnight_child | worktree_context
@@ -878,14 +899,19 @@ def _classify_actor(payload: dict, owner_state: dict | None,
 
     A `normal` actor (concurrent user session on main) is NOT enforced, so the
     user's concurrent main session is never false-blocked (round-3 honest
-    limitation: ambiguous unregistered subagents fall back to `normal`)."""
+    limitation: ambiguous unregistered subagents fall back to `normal`).
+
+    VECTOR-3 (Cycle-3): worktree_context now carries the governing overnight
+    state resolved from the cwd's worktree (was None), so the enforce gate runs
+    the same git block for an in-worktree actor whose owner/child resolution
+    fails — closing the classification hole."""
     if owner_state is not None and _is_session_live(owner_state):
         return ('overnight_owner', owner_state)
     child_state = _resolve_child_session(payload)
     if child_state is not None and _is_session_live(child_state):
         return ('overnight_child', child_state)
     if _is_cwd_in_worktree(wt_paths, cwd):
-        return ('worktree_context', None)
+        return ('worktree_context', _governing_state_for_cwd(cwd))
     return ('normal', None)
 
 
