@@ -928,13 +928,169 @@ _GIT_HOOK_SUPPRESS_RE = re.compile(
     r'(-c\s+core\.hooksPath\s*=|--config-env|GIT_CONFIG_(COUNT|KEY|VALUE|GLOBAL|SYSTEM|NOSYSTEM)|'
     r'\bGIT_CONFIG\s*=|-c\s+core\.hooksPath=)', re.IGNORECASE)
 
+# fix-2 (Cycle-2): interpreter / subprocess launchers. The 2026-06-03 incident
+# vector is a python-subprocess `git -C <main> checkout other`. On git 2.43 the
+# keystone does NOT fire for a symref branch-switch (codex empirically confirmed),
+# so the ONLY env-independent BEFORE-block on this host is the PreTool hook-guard
+# reading the OUTER Bash command string. These launchers can carry a hidden git
+# main-targeting op (inline `-c`, a script file, or a heredoc).
+_INTERPRETER_LAUNCHER_RE = re.compile(
+    r'(?<![\w./-])(?:/[\w./-]*/)?(python3?|perl|ruby|node|nodejs|sh|bash|zsh|env)\b')
 
-def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: str) -> None:
-    """M13/M14a/M15: for an overnight actor, block (a) hook-suppression/config
-    overrides (M14a — MUST under all sub-modes), (b) branch-switch / worktree /
-    master ops targeting main_root (M13/M15)."""
+# fix-2: dangerous/mutating git subcommands that can move HEAD off master or
+# write the main worktree (codex #2 main-targeting dangerous-op predicate).
+_DANGEROUS_GIT_SUBCMDS = {
+    'checkout', 'switch', 'reset', 'restore', 'clean', 'stash',
+    'update-ref', 'symbolic-ref', 'branch', 'merge', 'rebase', 'pull',
+    'cherry-pick', 'am', 'worktree',
+}
+# fix-2: any mention of git inside an interpreter payload (covers /usr/bin/git,
+# /usr/lib/git-core/git, `command git`, `env … git`, the literal `'git'`).
+_GIT_TOKEN_RE = re.compile(r'(?<![\w./-])(?:/[\w./-]*/)?git\b')
+_DANGEROUS_GIT_OP_RE = re.compile(
+    r'\b(checkout|switch|reset|restore|clean|stash|update-ref|symbolic-ref|'
+    r'branch|merge|rebase|pull|cherry-pick|am|worktree)\b')
+
+
+def _path_targets_main(tgt_dir: str, main_real: str) -> bool:
+    """fix-3: True iff tgt_dir resolves UNDER main_root but OUTSIDE every active
+    overnight worktree. Replaces the exact-root equality (which let a main-subdir
+    target evade). A worktree physically lives under .claude/worktrees but is an
+    independent checkout, so it is NOT main-targeting."""
+    if not main_real or not tgt_dir:
+        return False
+    if not _path_under_prefix(tgt_dir, main_real):
+        return False
+    for wt in _get_active_worktree_paths():
+        if _path_under_prefix(tgt_dir, wt):
+            return False
+    return True
+
+
+def _gitdir_into_main(command: str, main_real: str, main_git_dir: str) -> bool:
+    """fix-3/codex#6: True iff --git-dir / GIT_DIR / GIT_COMMON_DIR redirect into
+    the main repo's git dir (a way to operate on main without a -C)."""
+    if not main_real:
+        return False
+    main_gd = os.path.realpath(main_git_dir) if main_git_dir else os.path.join(main_real, '.git')
+    candidates = []
+    for m in re.finditer(r'--git-dir(?:=|\s+)(\S+)', command):
+        candidates.append(m.group(1))
+    for m in re.finditer(r'GIT_DIR=(\S+)', command):
+        candidates.append(m.group(1))
+    for m in re.finditer(r'GIT_COMMON_DIR=(\S+)', command):
+        candidates.append(m.group(1))
+    for c in candidates:
+        c = c.strip('\'"')
+        try:
+            cr = os.path.realpath(c)
+        except Exception:
+            cr = c
+        if cr == main_gd or cr == main_real or cr.startswith(main_gd.rstrip('/') + os.sep):
+            return True
+    return False
+
+
+def _scan_script_files_for_main_git(command: str, main_real: str) -> bool:
+    """fix-2/codex#3: cover `python3 script.py` where the OUTER command does not
+    mention git. Scan readable script-file operands (and any main_root mention)
+    for a dangerous main-targeting git op. Cooperative threat model: a readable
+    script is scanned; an unreadable script that runs an interpreter and mentions
+    main_root (or whose content cannot be proven git-free) fails closed."""
+    if not _INTERPRETER_LAUNCHER_RE.search(command):
+        return False
+    # If the command itself names main_root + a dangerous git op, the inline scan
+    # already covers it; here we focus on file operands.
+    for tok in command.split():
+        t = tok.strip('\'"')
+        if not t or t.startswith('-'):
+            continue
+        # heuristically a script operand: a path ending in a known script ext OR
+        # an existing readable file under the project.
+        looks_script = bool(re.search(r'\.(py|sh|bash|rb|pl|js|mjs|cjs)$', t))
+        try:
+            is_file = os.path.isfile(t)
+        except Exception:
+            is_file = False
+        if not (looks_script or is_file):
+            continue
+        if is_file and os.access(t, os.R_OK):
+            try:
+                body = Path(t).read_text(errors='replace')
+            except Exception:
+                body = ''
+            if _GIT_TOKEN_RE.search(body) and _DANGEROUS_GIT_OP_RE.search(body):
+                if (main_real and main_real in body) or 'master' in body \
+                   or re.search(r'-C\s+\S', body) or 'checkout' in body or 'switch' in body:
+                    return True
+        else:
+            # script operand we cannot read; fail closed if it mentions main_root
+            if main_real and main_real in command:
+                return True
+    return False
+
+
+def _interpreter_hides_main_git(command: str, main_real: str, main_git_dir: str) -> bool:
+    """fix-2 PRIMARY: True iff the OUTER Bash command launches an interpreter /
+    subprocess whose payload carries a dangerous MAIN-TARGETING git op. This is
+    the env-independent block for the git-2.43 symref-switch incident shape (the
+    keystone provably cannot catch it on 2.43; the policy shim is bypassed by an
+    env-scrubbed / absolute-git subprocess). Scoped to main-targeting so a
+    worktree-local `subprocess.run(['git','add','.'])` is NOT blocked."""
+    if not _INTERPRETER_LAUNCHER_RE.search(command):
+        return False
+    has_git = bool(_GIT_TOKEN_RE.search(command))
+    if not has_git:
+        # The git op may live in a script file (no `git` token in the outer cmd).
+        return _scan_script_files_for_main_git(command, main_real)
+    if not _DANGEROUS_GIT_OP_RE.search(command):
+        return False
+    # A dangerous git op is present in an interpreter payload. Now require a
+    # main-targeting signal so worktree-local ops are allowed (codex #2):
+    #   * a -C / --git-dir / GIT_DIR / GIT_WORK_TREE / GIT_COMMON_DIR into main
+    #   * an explicit main_root path operand
+    #   * a `master` / refs/heads/master ref operand (protected ref move)
+    #   * checkout/switch/reset with NO -C and NO worktree path == ambiguous HEAD
+    #     move -> fail closed (cannot prove it targets the worktree)
+    if _gitdir_into_main(command, main_real, main_git_dir):
+        return True
+    if main_real and main_real in command:
+        # mentions the main root path AND a dangerous op.
+        return True
+    if re.search(r'\b(master|refs/heads/master)\b', command):
+        return True
+    # No qualifying target proven worktree-local; for HEAD-moving ops that lack a
+    # -C/path the destination is the process cwd which the launcher controls and
+    # we cannot statically prove is the worktree -> fail closed for the exact
+    # incident shape (checkout/switch/reset/restore of HEAD).
+    if re.search(r'\b(checkout|switch|reset|restore)\b', command) \
+       and not re.search(r'-C\s+\S', command) and not _mentions_worktree_path(command):
+        return True
+    return False
+
+
+def _mentions_worktree_path(command: str) -> bool:
+    """True iff the command text mentions an active worktree path (so a
+    worktree-qualified op is not falsely flagged main-targeting)."""
+    for wt in _get_active_worktree_paths():
+        if wt and wt in command:
+            return True
+    return False
+
+
+def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: str,
+                                   main_git_dir: str = '') -> None:
+    """M13/M14a/M15 + fix-2/fix-3 (Cycle-2): for an overnight actor, block
+    (a) hook-suppression/config overrides (M14a),
+    (b) branch-switch / worktree / master ops targeting main_root (M13/M15) with
+        a realpath-under-main-but-outside-worktree predicate (fix-3),
+    (c) --git-dir/GIT_DIR/GIT_COMMON_DIR redirection into main (fix-3),
+    (d) an interpreter/subprocess that hides a main-targeting git op — the
+        env-independent block for the git-2.43 python-subprocess incident vector
+        (fix-2 PRIMARY)."""
     if not command:
         return
+    main_real = os.path.realpath(main_root) if main_root else ''
     # M14a: hook-suppression / config firewall (never relaxes).
     if _GIT_HOOK_SUPPRESS_RE.search(command):
         _block(
@@ -942,7 +1098,24 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
             '(-c core.hooksPath, GIT_CONFIG_*, --config-env) is forbidden for '
             'overnight actors — it would bypass the reference-transaction keystone.\n'
         )
-    main_real = os.path.realpath(main_root) if main_root else ''
+    # fix-3/codex#6: --git-dir / GIT_DIR / GIT_COMMON_DIR into the main repo.
+    if _gitdir_into_main(command, main_real, main_git_dir):
+        _block(
+            '\nOVERNIGHT GIT-DIR REDIRECT BLOCK: a git op redirected into the '
+            'main repo (--git-dir / GIT_DIR / GIT_COMMON_DIR -> main/.git) is '
+            'forbidden for overnight actors.\n'
+        )
+    # fix-2 PRIMARY: interpreter/subprocess hiding a main-targeting git op.
+    if _interpreter_hides_main_git(command, main_real, main_git_dir):
+        _block(
+            '\nOVERNIGHT SUBPROCESS GIT BLOCK: an interpreter/subprocess that '
+            'could run a main-targeting git op (checkout/switch/reset/master '
+            'ref-move against the main working directory) is forbidden for '
+            'overnight actors. This is the exact 2026-06-03 python-subprocess '
+            'incident vector; on git 2.43 the reference-transaction keystone '
+            'cannot catch a symref branch-switch, so it is blocked here before '
+            'execution. Run git ops INSIDE the isolated worktree instead.\n'
+        )
     payload_cwd = _payload_cwd(_REQUEST_CTX.get('payload') or {})
     for subtoks in _normalize_git_basename_cmds(command):
         if not subtoks:
@@ -974,28 +1147,26 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
             tgt_dir = os.path.realpath(resolve_base) if resolve_base else ''
         except Exception:
             tgt_dir = resolve_base or ''
-        targets_main = bool(main_real) and tgt_dir == main_real
+        # fix-3: under-main-but-outside-worktree main-targeting (was exact-root).
+        targets_main = _path_targets_main(tgt_dir, main_real)
+        switches_master = any(p == 'master' or p == 'refs/heads/master'
+                              for p in positionals)
 
-        # M13: any git op whose effective dir resolves to main_root -> block.
+        # M13: any git op whose effective dir is main-targeting -> block.
         if targets_main:
             _block(
                 '\nOVERNIGHT MAIN-ROOT BLOCK: git op targeting the main '
-                'working directory (effective -C/cwd == main_root) is forbidden '
-                'for overnight actors.\n'
+                'working directory (effective -C/cwd under main_root, outside '
+                'the isolated worktree) is forbidden for overnight actors.\n'
             )
 
-        # M15: branch-switch / switch -c is the exact incident ONLY when it
-        # would move the MAIN worktree's HEAD: i.e. the effective dir is main OR
-        # the target branch is `master`. A checkout/switch whose effective dir is
-        # the overnight worktree and target is NOT master is a LEGITIMATE
-        # worktree branch op and is ALLOWED (no false-block).
+        in_worktree = any(_path_under_prefix(tgt_dir, w)
+                          for w in _get_active_worktree_paths()) if tgt_dir else False
+
+        # M15: branch-switch / switch -c is the exact incident when it could move
+        # the MAIN worktree's HEAD. A checkout/switch whose effective dir is the
+        # overnight worktree and target is NOT master is LEGITIMATE and ALLOWED.
         if sub in ('checkout', 'switch'):
-            switches_master = any(p == 'master' or p == 'refs/heads/master'
-                                  for p in positionals)
-            # If the effective dir cannot be confirmed to be inside an overnight
-            # worktree, fail closed (treat as main-targeting) for the branch-move.
-            in_worktree = any(_path_under_prefix(tgt_dir, w)
-                              for w in _get_active_worktree_paths()) if tgt_dir else False
             if targets_main or switches_master or not in_worktree:
                 _block(
                     f'\nOVERNIGHT BRANCH-SWITCH BLOCK: git {sub} that could move '
@@ -1003,6 +1174,38 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
                     'overnight actors (the exact 2026-06-03 incident shape). '
                     'Branch ops INSIDE the isolated worktree (non-master target) '
                     'are allowed.\n'
+                )
+        # fix-3: reset/restore that could write the main worktree.
+        if sub in ('reset', 'restore', 'clean'):
+            if targets_main or switches_master or not in_worktree:
+                _block(
+                    f'\nOVERNIGHT MAIN-WRITE BLOCK: git {sub} that could write '
+                    'the main working directory is forbidden for overnight '
+                    'actors. Run it inside the isolated worktree instead.\n'
+                )
+        # fix-3: stash apply/pop against main.
+        if sub == 'stash':
+            applyish = any(p in ('apply', 'pop') for p in positionals)
+            if applyish and (targets_main or not in_worktree):
+                _block(
+                    '\nOVERNIGHT MAIN-WRITE BLOCK: git stash apply/pop against '
+                    'the main working directory is forbidden for overnight '
+                    'actors.\n'
+                )
+        # fix-3: master ref-move (branch -f master / update-ref refs/heads/master).
+        if sub == 'branch':
+            forcey = any(p in ('-f', '--force', '-D', '--delete', '-M', '--move')
+                         for p in subtoks)
+            if forcey and (switches_master or targets_main):
+                _block(
+                    '\nOVERNIGHT MASTER REF-MOVE BLOCK: git branch force/move/'
+                    'delete of master is forbidden for overnight actors.\n'
+                )
+        if sub in ('update-ref', 'symbolic-ref'):
+            if switches_master or targets_main:
+                _block(
+                    f'\nOVERNIGHT MASTER REF-MOVE BLOCK: git {sub} touching '
+                    'master / HEAD is forbidden for overnight actors.\n'
                 )
         if sub == 'worktree':
             _block(
