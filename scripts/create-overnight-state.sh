@@ -346,9 +346,17 @@ if [[ "$USER_SPEC_PATH" != "null" && -n "$USER_SPEC_PATH" ]]; then
             echo "Loaded view_paths from manifest ($MANIFEST)" >&2
         fi
     else
-        # loud-fail guard: a present-but-invalid / mismatched split must not be silently ignored.
-        echo "Error: spec-artifact resolution FAILED for '$USER_SPEC_PATH' (path mismatch / present-but-invalid split). Re-finalize /spec before scheduling overnight." >&2
-        exit 1
+        # M2/cp-05: a present-but-invalid / mismatched split is a RECOVERABLE
+        # failure. The isolated worktree already exists and is validated, so we
+        # MUST NOT hard-abort (that would orphan a valid worktree and is the
+        # forbidden behavior). Degrade to spec_mode=autonomous and continue;
+        # the launch never works in-place and never refuses on a recoverable
+        # post-worktree failure.
+        echo "Warning: spec-artifact resolution FAILED for '$USER_SPEC_PATH' (present-but-invalid split). Degrading to spec_mode=autonomous (worktree already validated; not aborting)." >&2
+        SPEC_MODE="autonomous"
+        USER_SPEC_PATH="null"
+        VIEW_PATHS="{}"
+        RESOLVED_SPEC_ID=""
     fi
 fi
 
