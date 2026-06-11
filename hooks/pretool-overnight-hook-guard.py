@@ -903,6 +903,89 @@ def _load_session_state(session_id: str) -> dict | None:
     return get_overnight_state_for_session(project_dir, session_id) if session_id else None
 
 
+def _normalize_git_basename_cmds(command: str) -> list[str]:
+    """Return the subcommand tokens for each git invocation in `command`,
+    normalizing by BASENAME 'git' (so /usr/bin/git, /usr/lib/git-core/git, env
+    git, and any absolute git path are all recognized). round-3 effective-target
+    resolver keyed on basename 'git', NOT the literal /usr/bin/git string."""
+    out = []
+    # Split on shell separators; tokenize each segment.
+    for seg in re.split(r'[;&|]|&&|\|\|', command):
+        toks = seg.split()
+        i = 0
+        # skip a leading `env`
+        while i < len(toks) and toks[i] == 'env':
+            i += 1
+        if i >= len(toks):
+            continue
+        first = toks[i]
+        if os.path.basename(first) == 'git':
+            out.append(toks[i + 1:])
+    return out
+
+
+_GIT_HOOK_SUPPRESS_RE = re.compile(
+    r'(-c\s+core\.hooksPath\s*=|--config-env|GIT_CONFIG_(COUNT|KEY|VALUE|GLOBAL|SYSTEM|NOSYSTEM)|'
+    r'\bGIT_CONFIG\s*=|-c\s+core\.hooksPath=)', re.IGNORECASE)
+
+
+def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: str) -> None:
+    """M13/M14a/M15: for an overnight actor, block (a) hook-suppression/config
+    overrides (M14a — MUST under all sub-modes), (b) branch-switch / worktree /
+    master ops targeting main_root (M13/M15)."""
+    if not command:
+        return
+    # M14a: hook-suppression / config firewall (never relaxes).
+    if _GIT_HOOK_SUPPRESS_RE.search(command):
+        _block(
+            '\nOVERNIGHT CONFIG FIREWALL: git hook-suppression / config-override '
+            '(-c core.hooksPath, GIT_CONFIG_*, --config-env) is forbidden for '
+            'overnight actors — it would bypass the reference-transaction keystone.\n'
+        )
+    main_real = os.path.realpath(main_root) if main_root else ''
+    for subtoks in _normalize_git_basename_cmds(command):
+        if not subtoks:
+            continue
+        # find the subcommand and any -C target
+        eff_dir = None
+        sub = None
+        j = 0
+        while j < len(subtoks):
+            t = subtoks[j]
+            if t == '-C' and j + 1 < len(subtoks):
+                eff_dir = subtoks[j + 1]; j += 2; continue
+            if t.startswith('-C') and len(t) > 2:
+                eff_dir = t[2:]; j += 1; continue
+            if t.startswith('-'):
+                j += 1; continue
+            sub = t
+            sub_idx = j
+            break
+        # M15: branch-switch / switch -c (the exact incident) -> block.
+        if sub in ('checkout', 'switch', 'worktree'):
+            # resolve effective dir; default cwd is the overnight worktree, but a
+            # -C/main-target makes it main. Block branch-switch unconditionally
+            # for overnight actors (they must never switch the main HEAD); also
+            # block any op whose -C resolves to main_root.
+            _block(
+                f'\nOVERNIGHT BRANCH-SWITCH BLOCK: git {sub} by an overnight actor '
+                'is forbidden (the exact 2026-06-03 incident shape). The main '
+                "worktree's HEAD must stay on master.\n"
+            )
+        # M13: any git op whose -C resolves to main_root -> block.
+        if eff_dir and main_real:
+            try:
+                tgt = os.path.realpath(eff_dir)
+            except Exception:
+                tgt = eff_dir
+            if tgt == main_real:
+                _block(
+                    '\nOVERNIGHT MAIN-ROOT BLOCK: git op targeting the main '
+                    'working directory (-C/main_root) is forbidden for overnight '
+                    'actors.\n'
+                )
+
+
 def _block_invalid_isolation(classification: str) -> None:
     """M9: a null/missing worktree in an owner/child state is INVALID isolation
     and BLOCKS the actor (it must not silently no-op into no-enforcement)."""
