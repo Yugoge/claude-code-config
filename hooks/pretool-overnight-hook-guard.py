@@ -351,11 +351,19 @@ def _end_time_passed(end_time_str: str) -> bool:
 
 
 def _is_session_live(state: dict) -> bool:
-    """Check if session is still live (not complete and end_time not passed)."""
-    phase = state.get("current_phase", "")
-    if phase in ("complete", "completed"):
+    """Check if the overnight session is still live (M9 liveness fix).
+
+    Liveness is keyed on the isolation window (`isolation_active_until`, falling
+    back to `end_time`) and an explicit `isolation_released_at` — NOT on
+    `current_phase`. Previously `current_phase in (complete, completed)` stood
+    isolation down, which let a state write release isolation prematurely
+    (round-3 §5). `current_phase=complete` may be stored but MUST NOT release
+    isolation; only the user `/stop` path sets `isolation_released_at`.
+    """
+    if state.get("isolation_released_at"):
         return False
-    if _end_time_passed(state.get("end_time", "")):
+    window = state.get("isolation_active_until") or state.get("end_time", "")
+    if _end_time_passed(window):
         return False
     return True
 
