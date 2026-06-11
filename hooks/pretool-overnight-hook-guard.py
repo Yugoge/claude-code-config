@@ -1159,6 +1159,8 @@ def _interpreter_hides_main_git(command: str, main_real: str, main_git_dir: str)
     #     move -> fail closed (cannot prove it targets the worktree)
     if _gitdir_into_main(command, main_real, main_git_dir):
         return True
+    if _worktree_into_main(command, main_real):  # VECTOR-2
+        return True
     if main_real and main_real in command:
         # mentions the main root path AND a dangerous op.
         return True
