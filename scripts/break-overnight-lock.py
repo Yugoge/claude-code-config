@@ -23,8 +23,16 @@ def _backdate(sf: Path, past: str) -> str:
     old = d.get("end_time", "?")
     d["end_time"] = past
     d["current_phase"] = "completed"
+    # M10/AC8: this user `/stop` release path is the ONLY sanctioned setter of
+    # isolation_released_at and the closer of isolation_active_until.
+    # update-overnight-state.sh rejects --set on these fields; the release
+    # happens here so an overnight actor cannot self-release isolation.
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    d["isolation_released_at"] = now_iso
+    if "isolation_active_until" in d:
+        d["isolation_active_until"] = past
     sf.write_text(json.dumps(d, indent=2))
-    print(f"  state {sid[:8]}: end_time {old} -> {past}")
+    print(f"  state {sid[:8]}: end_time {old} -> {past}; isolation_released_at={now_iso}")
     return sid
 
 
