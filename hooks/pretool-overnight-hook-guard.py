@@ -1398,6 +1398,34 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
             )
 
 
+def _command_has_git_or_interpreter(command: str) -> bool:
+    """VECTOR-3 helper: True iff the command contains a git token OR launches an
+    interpreter/subprocess that could run git. Used to fail-closed under a
+    worktree_context with no resolvable governing state."""
+    if not command:
+        return False
+    if _GIT_TOKEN_RE.search(command):
+        return True
+    return bool(_INTERPRETER_LAUNCHER_RE.search(command))
+
+
+def _fail_closed_worktree_context(command: str) -> None:
+    """VECTOR-3 (Cycle-3): an in-worktree actor with NO resolvable governing
+    overnight state cannot have its main_root derived for a targeted block. Any
+    git or interpreter command is therefore refused fail-closed (it could move
+    main HEAD off master or write the main worktree); ordinary non-git commands
+    are left to the worktree-boundary enforcement."""
+    if _command_has_git_or_interpreter(command):
+        _block(
+            '\nOVERNIGHT WORKTREE-CONTEXT FAIL-CLOSED: a git/interpreter command '
+            'is running inside an overnight worktree but no governing overnight '
+            'state could be resolved to scope a targeted main-root block. '
+            'Refusing fail-closed — it could move the main HEAD off master or '
+            'write the main working directory. Run from a session whose '
+            'overnight state is resolvable.\n'
+        )
+
+
 def _block_invalid_isolation(classification: str) -> None:
     """M9: a null/missing worktree in an owner/child state is INVALID isolation
     and BLOCKS the actor (it must not silently no-op into no-enforcement)."""
