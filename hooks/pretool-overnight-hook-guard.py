@@ -1233,11 +1233,14 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
             'execution. Run git ops INSIDE the isolated worktree instead.\n'
         )
     payload_cwd = _payload_cwd(_REQUEST_CTX.get('payload') or {})
-    for subtoks in _normalize_git_basename_cmds(command):
+    # VECTOR-1 (Cycle-3): shell-aware iteration — leading env-assignment /
+    # command-wrapper stripping + cd/pushd effective-cwd tracking.
+    for subtoks, cwd_override, cwd_ambiguous in _iter_git_invocations(command):
         if not subtoks:
             continue
-        # find the subcommand, any -C target, and the positional branch arg
+        # find the subcommand, any -C target, --work-tree, and positionals
         eff_dir = None
+        work_tree = None
         sub = None
         positionals = []
         j = 0
@@ -1247,6 +1250,10 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
                 eff_dir = subtoks[j + 1]; j += 2; continue
             if t.startswith('-C') and len(t) > 2:
                 eff_dir = t[2:]; j += 1; continue
+            if t == '--work-tree' and j + 1 < len(subtoks):
+                work_tree = subtoks[j + 1]; j += 2; continue
+            if t.startswith('--work-tree='):
+                work_tree = t[len('--work-tree='):]; j += 1; continue
             if sub is None and t.startswith('-'):
                 j += 1; continue
             if sub is None:
@@ -1256,15 +1263,33 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
                 positionals.append(t)
             j += 1
 
-        # Resolve the EFFECTIVE directory the op runs in: explicit -C, else the
-        # actor's cwd (payload). This is the round-3 effective-target resolver.
-        resolve_base = eff_dir if eff_dir else payload_cwd
+        # Resolve the EFFECTIVE directory the op runs in:
+        #   explicit -C  >  a resolvable `cd <dir>` override  >  the actor cwd.
+        # VECTOR-1: a `cd <main>` before the git op moves the effective cwd into
+        # main even though the payload cwd is the worktree.
+        if eff_dir:
+            resolve_base = eff_dir
+        elif cwd_override is not None:
+            resolve_base = cwd_override
+        else:
+            resolve_base = payload_cwd
         try:
             tgt_dir = os.path.realpath(resolve_base) if resolve_base else ''
         except Exception:
             tgt_dir = resolve_base or ''
         # fix-3: under-main-but-outside-worktree main-targeting (was exact-root).
         targets_main = _path_targets_main(tgt_dir, main_real)
+        # VECTOR-2: a --work-tree override at main is itself main-targeting even
+        # when -C / cwd is the worktree.
+        wt_targets_main = False
+        if work_tree:
+            try:
+                wt_real = os.path.realpath(work_tree.strip('\'"'))
+            except Exception:
+                wt_real = work_tree
+            wt_targets_main = _path_targets_main(wt_real, main_real)
+        if wt_targets_main:
+            targets_main = True
         switches_master = any(p == 'master' or p == 'refs/heads/master'
                               for p in positionals)
 
