@@ -712,9 +712,186 @@ def rg3():
         shutil.rmtree(repo, ignore_errors=True)
 
 
+# ---------------------------------------------------------------------------
+# AC-9 (Cycle-3 VECTOR-1): shell-aware effective-cwd — cd-into-main + leading
+#   env-assignment / command-wrapper before a path-qualified git move main HEAD
+#   off master. The hook-guard must strip leading VAR=val / command|exec|env
+#   wrappers before the git token AND track the effective cwd across cd/pushd
+#   segments (or fail closed when a cd into a main-targeting path precedes a
+#   dangerous git op). Each form MUST FAIL pre-fix (rc=0 ALLOWED) and BLOCK
+#   post-fix (rc=2). A legit in-worktree branch op stays ALLOWED.
+# ---------------------------------------------------------------------------
+
+def ac9():
+    repo = _make_repo()
+    try:
+        wt = _make_worktree(repo)
+        _write_state(repo, wt)
+        m = str(repo)
+
+        # The actor's payload cwd is the WORKTREE; the cd / -C redirects the op
+        # into main. Each must be BLOCKED (rc=2) before execution.
+        cd_and_checkout = _hook_guard_blocks(
+            f"cd {m} && git checkout other", repo, cwd=wt)
+        cd_semicolon_checkout = _hook_guard_blocks(
+            f"cd {m}; git checkout other", repo, cwd=wt)
+        leading_env_path_qualified = _hook_guard_blocks(
+            f"PATH=/usr/bin:/bin /usr/bin/git -C {m} checkout other", repo, cwd=wt)
+        command_wrapper = _hook_guard_blocks(
+            f"command /usr/bin/git -C {m} checkout other", repo, cwd=wt)
+        exec_wrapper = _hook_guard_blocks(
+            f"exec git -C {m} checkout other", repo, cwd=wt)
+        multi_env_assign = _hook_guard_blocks(
+            f"FOO=1 BAR=2 git -C {m} checkout other", repo, cwd=wt)
+        # bare/variable cd before a HEAD-move cannot be proven worktree-local ->
+        # fail closed.
+        ambiguous_cd = _hook_guard_blocks(
+            "cd $HOME && git checkout other", repo, cwd=wt)
+
+        # main HEAD untouched (every form blocked before execution).
+        head = _main_branch(repo)
+
+        # No over-block: a legit in-worktree branch op (cwd=worktree, no -C) and a
+        # cd INTO the worktree then status stay ALLOWED.
+        legit_worktree_branch = not _hook_guard_blocks(
+            "git checkout -b featbranch", repo, cwd=wt)
+        legit_cd_worktree_status = not _hook_guard_blocks(
+            f"cd {wt} && git status", repo, cwd=wt)
+
+        return {
+            "cd_into_main_then_checkout_blocked": cd_and_checkout,
+            "cd_semicolon_main_then_checkout_blocked": cd_semicolon_checkout,
+            "leading_env_assign_path_qualified_git_main_checkout_blocked": leading_env_path_qualified,
+            "command_wrapper_main_checkout_blocked": command_wrapper,
+            "exec_wrapper_main_checkout_blocked": exec_wrapper,
+            "multi_leading_env_assign_main_checkout_blocked": multi_env_assign,
+            "ambiguous_cd_before_head_move_fails_closed": ambiguous_cd,
+            "main_head_stays_master": head == "master",
+            "legit_in_worktree_branch_op_allowed": legit_worktree_branch,
+            "legit_cd_into_worktree_status_allowed": legit_cd_worktree_status,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------
+# AC-10 (Cycle-3 VECTOR-2): a --work-tree / GIT_WORK_TREE override at the main
+#   working directory writes the main tree even with an in-worktree -C. BOTH the
+#   hook-guard AND the policy-shim must treat a work-tree override under main_root
+#   (outside every active worktree) as main-targeting and BLOCK tree-writing ops.
+#   A legit --work-tree pointing at the worktree itself stays ALLOWED.
+# ---------------------------------------------------------------------------
+
+def ac10():
+    repo = _make_repo()
+    try:
+        wt = _make_worktree(repo)
+        _write_state(repo, wt)
+        m = str(repo)
+        before = (repo / "a.txt").read_text()
+
+        # hook-guard surface (typed-Bash): each --work-tree/GIT_WORK_TREE into main
+        # restore/checkout MUST be blocked.
+        hg_worktree_flag_restore = _hook_guard_blocks(
+            f"git -C {wt} --work-tree {m} restore --source other -- a.txt",
+            repo, cwd=wt)
+        hg_worktree_eq_checkout = _hook_guard_blocks(
+            f"git -C {wt} --work-tree={m} checkout other -- a.txt", repo, cwd=wt)
+        hg_env_worktree_restore = _hook_guard_blocks(
+            f"GIT_WORK_TREE={m} git -C {wt} restore --source other -- a.txt",
+            repo, cwd=wt)
+
+        # policy-shim surface (actor's resolved git): same forms MUST be blocked.
+        shim_worktree_flag_checkout = _shim_blocks(
+            ["-C", wt, "--work-tree", m, "checkout", "other", "--", "a.txt"],
+            repo, wt, cwd=wt)
+        shim_env_worktree_restore = _shim_blocks(
+            ["-C", wt, "restore", "--source", "other", "--", "a.txt"],
+            repo, wt, env_extra={"GIT_WORK_TREE": m}, cwd=wt)
+
+        after = (repo / "a.txt").read_text()
+
+        # No over-block: --work-tree pointing at the worktree itself is ALLOWED in
+        # both surfaces.
+        allow_hg = not _hook_guard_blocks(
+            f"git -C {wt} --work-tree {wt} status", repo, cwd=wt)
+        allow_shim = not _shim_blocks(
+            ["-C", wt, "--work-tree", wt, "status"], repo, wt, cwd=wt)
+
+        return {
+            "hook_guard_blocks_worktree_flag_into_main_restore": hg_worktree_flag_restore,
+            "hook_guard_blocks_worktree_eq_into_main_checkout": hg_worktree_eq_checkout,
+            "hook_guard_blocks_GIT_WORK_TREE_env_into_main": hg_env_worktree_restore,
+            "policy_shim_blocks_worktree_flag_into_main_checkout": shim_worktree_flag_checkout,
+            "policy_shim_blocks_GIT_WORK_TREE_env_into_main": shim_env_worktree_restore,
+            "main_worktree_byte_unchanged": after == before,
+            "worktree_local_work_tree_allowed_hook_guard": allow_hg,
+            "worktree_local_work_tree_allowed_policy_shim": allow_shim,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------
+# AC-11 (Cycle-3 VECTOR-3): an in-worktree actor whose owner/child resolution
+#   fails classifies as worktree_context. The git enforce gate MUST still run
+#   (governing state resolved from the worktree path) OR fail closed — it must
+#   NOT skip enforcement. A main-targeting checkout / subprocess git from such an
+#   actor MUST be BLOCKED; a normal non-overnight session stays ALLOWED.
+# ---------------------------------------------------------------------------
+
+def ac11():
+    repo = _make_repo()
+    try:
+        wt = _make_worktree(repo)
+        # Live governing state under a session id the payload will NOT match, so
+        # owner/child resolution fails but the cwd is inside the worktree ->
+        # worktree_context. The governing state is resolvable from the wt path.
+        _write_state(repo, wt, session="GOVERN")
+        m = str(repo)
+
+        # worktree_context actor (payload session 'UNKNOWN', cwd in worktree) ->
+        # the typed-Bash main-targeting checkout MUST be blocked.
+        wc_typed_main_checkout = _hook_guard_blocks(
+            f"git -C {m} checkout other", repo, session="UNKNOWN", cwd=wt)
+        # ... and the residual subprocess form too.
+        wc_subprocess_main_checkout = _hook_guard_blocks(
+            _subprocess_checkout_payload(repo, "v3"), repo, session="UNKNOWN", cwd=wt)
+        # ... and a cd-into-main checkout too (VECTOR-1 under worktree_context).
+        wc_cd_into_main = _hook_guard_blocks(
+            f"cd {m} && git checkout other", repo, session="UNKNOWN", cwd=wt)
+
+        head = _main_branch(repo)
+
+        # Enforcement runs for worktree_context (it does NOT skip): a legit
+        # in-worktree status from the worktree_context actor is still ALLOWED
+        # (not over-blocked).
+        wc_legit_worktree_status_allowed = not _hook_guard_blocks(
+            f"git -C {wt} status", repo, session="UNKNOWN", cwd=wt)
+
+        # A normal NON-overnight session (cwd OUTSIDE the worktree) is ALLOWED.
+        normal_rc, _ = _drive_hook_guard(
+            f"git -C {m} checkout other", repo, session="U", cwd=m)
+        normal_allowed = normal_rc == 0
+
+        return {
+            "worktree_context_typed_main_checkout_blocked": wc_typed_main_checkout,
+            "worktree_context_subprocess_main_checkout_blocked": wc_subprocess_main_checkout,
+            "worktree_context_cd_into_main_checkout_blocked": wc_cd_into_main,
+            "worktree_context_enforcement_not_skipped": (
+                wc_typed_main_checkout and wc_subprocess_main_checkout),
+            "main_head_stays_master": head == "master",
+            "worktree_context_legit_worktree_status_allowed": wc_legit_worktree_status_allowed,
+            "normal_non_overnight_session_still_allowed": normal_allowed,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
 _DISPATCH = {
     "AC-1": ac1, "AC-2": ac2, "AC-3": ac3, "AC-4": ac4, "AC-5": ac5,
-    "AC-8": ac8, "RG-1": rg1, "RG-2": rg2, "RG-3": rg3,
+    "AC-8": ac8, "AC-9": ac9, "AC-10": ac10, "AC-11": ac11,
+    "RG-1": rg1, "RG-2": rg2, "RG-3": rg3,
 }
 
 
