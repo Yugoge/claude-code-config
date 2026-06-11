@@ -930,49 +930,55 @@ def _load_session_state(session_id: str) -> dict | None:
 
 
 _ENV_ASSIGN_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
-# Command-wrappers that may precede the real git token (VECTOR-1, Cycle-3):
-# `command git …`, `exec git …`, `env git …`, `nice git …`, `stdbuf … git …`,
-# `nohup git …`, `time git …`, `builtin git …`. Each may itself take leading
-# flags / VAR=val operands we must skip to reach the real argv[0].
-_CMD_WRAPPERS = {'command', 'exec', 'env', 'nice', 'nohup', 'time',
-                 'stdbuf', 'builtin', 'setsid', 'ionice'}
+# Command-wrappers / launchers that may precede the real git token (VECTOR-1,
+# Cycle-3; codex round-3 #2/#5): `command git …`, `exec git …`, `env git …`,
+# `nice -n 10 git …`, `nohup git …`, `time git …`, `stdbuf -oL git …`,
+# `builtin git …`, `setsid git …`, `ionice -c 2 -n 7 git …`, `timeout 5 git …`,
+# `flock /tmp/l git …`, `sudo git …`, `doas git …`, `xargs … git …`, …. Codex
+# proved that enumerating wrapper option-arity is unsound (nice -n 10 leaves a
+# bare `10` operand). So rather than model each wrapper's flags precisely, the
+# parser skips ANY leading non-git command word and ALL of its operands until it
+# reaches a basename-`git` token (a launcher chain ALWAYS ends at the real argv).
+# This is generic and fail-safe: the only thing it needs to find is the git
+# token; everything before it that is not itself git is a launcher to skip.
+_GROUP_OPEN = {'(', '{', '((', '!'}
 
 
 def _strip_leading_wrappers(toks: list[str]) -> int:
-    """VECTOR-1 (Cycle-3): return the index of the real argv[0] after skipping
-    any leading `VAR=val` environment assignments and command/exec wrappers
-    (`command`, `exec`, `env`, `nice`, `nohup`, `time`, `stdbuf`, …). A wrapper's
-    own option flags and VAR=val operands are skipped too. Returns len(toks) when
-    nothing executable remains."""
+    """VECTOR-1 (Cycle-3, codex round-3 #2/#5): return the index of the real git
+    argv[0] inside a segment, skipping any leading `VAR=val` assignments, group
+    openers `(` / `{` / `!`, and launcher/wrapper command words together with all
+    of their operands. Generic: skip everything that is not a basename-`git`
+    token until a `git` token is found. Returns len(toks) if no git token."""
     i = 0
     n = len(toks)
+    # skip leading env-assignments and group openers
+    while i < n and (_ENV_ASSIGN_RE.match(toks[i]) or toks[i] in _GROUP_OPEN):
+        i += 1
+    # If the first executable word IS git, we are done.
+    if i < n and os.path.basename(toks[i].strip('\'"')) == 'git':
+        return i
+    # Otherwise everything up to the first basename-git token is a launcher chain
+    # (command/exec/env/nice/timeout/flock/xargs/sudo/…) plus its operands.
     while i < n:
-        t = toks[i]
-        if _ENV_ASSIGN_RE.match(t):
-            i += 1
-            continue
-        base = os.path.basename(t)
-        if base in _CMD_WRAPPERS:
-            i += 1
-            # skip the wrapper's own leading flags / VAR=val operands
-            while i < n and (toks[i].startswith('-') or _ENV_ASSIGN_RE.match(toks[i])):
-                i += 1
-            continue
-        break
-    return i
+        base = os.path.basename(toks[i].strip('\'"'))
+        if base == 'git':
+            return i
+        i += 1
+    return n
 
 
 def _segment_cd_target(toks: list[str]) -> str | None:
     """VECTOR-1: if a shell segment is a `cd <dir>` / `pushd <dir>` (optionally
-    after leading env-assignments), return its target dir; else None. A bare
-    `cd` / `cd -` / `cd ~` is treated as non-deterministic -> returns '' so the
-    caller can fail closed on a subsequent HEAD-move."""
+    after leading env-assignments or group openers `(` / `{`), return its target
+    dir; else None. A bare `cd` / `cd -` / `cd ~` is treated as non-deterministic
+    -> returns '' so the caller can fail closed on a subsequent HEAD-move."""
     i = 0
-    while i < len(toks) and _ENV_ASSIGN_RE.match(toks[i]):
+    while i < len(toks) and (_ENV_ASSIGN_RE.match(toks[i]) or toks[i] in _GROUP_OPEN):
         i += 1
     if i >= len(toks):
         return None
-    if os.path.basename(toks[i]) in ('cd', 'pushd'):
+    if os.path.basename(toks[i].strip('\'"')) in ('cd', 'pushd'):
         j = i + 1
         # skip flags like `-P`
         while j < len(toks) and toks[j].startswith('-'):
