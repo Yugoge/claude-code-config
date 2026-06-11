@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "92dabc1af2799f5e"
 AC_TYPE = "hook"
@@ -17,7 +23,21 @@ def test_AC_A_pos():
     WHEN:  launch runs the M16 self-test (throwaway-repo functional keystone-abort test + non-mutating target-repo attestation)
     THEN:  the self-test PASSES; state records guarantee_level=structural_head_switch, structural_claim_allowed=true, and the recorded git_version/git_effective_path/git_exec_path; AND a plain HEAD branch-switch off master in the main worktree is aborted by the keystone. (Conditional on effective git >=2.46; the isolation + master-branch-ref + exact-incident-layered guarantees do NOT depend on this AC)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — CONDITIONAL / fixture-gated: an operator-provided pinned git >=2.46 FULL distribution (bin/git + matching libexec/git-core) at the configured slot, with git --exec-path resolving inside it. This AC is verified ONLY when such a fixture is present; on a host without it (the current host) the precondition is UNMET and the AC is precondition-skipped (NOT failed) / launch runs the M16 self-test (throwaway-repo functional keystone-abort test + non-mutating target-repo attestation) / the self-test PASSES; state records guarantee_level=structural_head_switch, structural_claim_allowed=true, and the recorded git_version/git_effective_path/git_exec_path; AND a plain HEAD branch-switch off master in the main worktree is aborted by the keystone. (Conditional on effective git >=2.46; the isolation + master-branch-ref + exact-incident-layered guarantees do NOT depend on this AC)")
+    # CONDITIONAL / fixture-gated: structural mode requires an operator-
+    # provided pinned git >=2.46 full distribution at the configured slot.
+    # On THIS host (git 2.43.0, no slot) the precondition is UNMET, so this
+    # AC is precondition-SKIPPED (NOT failed), per the AC runnability gate.
+    import shutil, subprocess
+    slot = os.environ.get('CLAUDE_MODERN_GIT_SLOT', '')
+    has_slot = bool(slot) and os.path.exists(os.path.join(slot, 'bin', 'git'))
+    if not has_slot:
+        pytest.skip('precondition unmet: no pinned git>=2.46 full distribution at the configured slot (current host)')
+    # Fixture present: run the self-test and assert structural claim.
+    out = subprocess.run(['bash', str(ac_harness.SCRIPTS / 'overnight-git-selftest.sh'),
+                          '--project-dir', str(ac_harness.REPO)],
+                         capture_output=True, text=True)
+    line = [x for x in out.stdout.splitlines() if x.startswith('SELFTEST_JSON=')]
+    import json as _json
+    data = _json.loads(line[0][len('SELFTEST_JSON='):]) if line else {}
+    assert data.get('guarantee_level') == 'structural_head_switch', data
+    assert data.get('structural_claim_allowed') is True, data

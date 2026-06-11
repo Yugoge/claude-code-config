@@ -5,10 +5,23 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import re
+
 import pytest
 
 AC_UID = "15c99288509fba95"
 AC_TYPE = "data"
+
+_REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+_FORBIDDEN = [
+    r"continue on (the )?current branch",
+    r"using current branch",
+    r"otherwise project_path",
+    r"create it manually",
+    r"Call EnterWorktree",
+    r"worktree_path or null",
+]
 
 
 def test_AC5():

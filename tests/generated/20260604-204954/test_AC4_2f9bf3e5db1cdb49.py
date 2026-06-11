@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "2f9bf3e5db1cdb49"
 AC_TYPE = "hook"
@@ -17,7 +23,12 @@ def test_AC4():
     WHEN:  prompt-workflow.py runs the /dev-overnight launch path
     THEN:  stderr is printed; partial todo/bookmark/state are cleaned; NO checklist / command-spec / 'Call EnterWorktree' is injected; the launch does not silently sys.exit(0) as success; the state-script timeout is >=60s (not 10s)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — create_overnight_state returns nonzero / times out for cmd_name == dev-overnight / prompt-workflow.py runs the /dev-overnight launch path / stderr is printed; partial todo/bookmark/state are cleaned; NO checklist / command-spec / 'Call EnterWorktree' is injected; the launch does not silently sys.exit(0) as success; the state-script timeout is >=60s (not 10s)")
+    # AC4 is a source-level contract on prompt-workflow.py: timeout >=60,
+    # fail-closed (raise SystemExit), no EnterWorktree, partial cleanup.
+    import pathlib
+    src = (pathlib.Path(ac_harness.HOOKS) / 'prompt-workflow.py').read_text()
+    assert 'timeout=60' in src, 'state-script timeout must be >=60s'
+    assert 'raise SystemExit(2)' in src, 'dev-overnight launch must fail closed'
+    assert '_cleanup_overnight_partials' in src, 'partial todo/bookmark cleaned'
+    assert 'Call EnterWorktree' not in src.split('def _build_worktree_instruction')[1].split('def ')[0], 'no EnterWorktree prompt'
+    assert 'except SystemExit' in src, 'main() must not swallow launch failure into exit(0)'

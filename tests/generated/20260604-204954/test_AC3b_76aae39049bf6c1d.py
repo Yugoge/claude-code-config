@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "76aae39049bf6c1d"
 AC_TYPE = "hook"
@@ -17,7 +23,8 @@ def test_AC3b():
     WHEN:  create-overnight-state.sh launch runs
     THEN:  launch REFUSES to start the overnight actor (no state file, no checklist, no command-spec injection, no EnterWorktree prompt); in NO case is a state file written with worktree_path null or worktree_path == main_root; in NO case does the agent proceed in the main directory (refuse-to-LAUNCH is distinct from the forbidden hard-abort-then-work-in-place)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — every configured durable isolation mechanism is genuinely impossible (broken/read-only/full git common dir AND no writable durable fresh-clone root anywhere) / create-overnight-state.sh launch runs / launch REFUSES to start the overnight actor (no state file, no checklist, no command-spec injection, no EnterWorktree prompt); in NO case is a state file written with worktree_path null or worktree_path == main_root; in NO case does the agent proceed in the main directory (refuse-to-LAUNCH is distinct from the forbidden hard-abort-then-work-in-place)")
+    r = ac_harness.ac3b_refuse_when_no_isolation_possible()
+    assert r['state_file_written'] is False, r
+    assert r['main_branch'] == 'master', r
+    assert r['command_spec_injected'] is False, r
+    assert r['no_null_or_mainroot_worktree'] is True, r

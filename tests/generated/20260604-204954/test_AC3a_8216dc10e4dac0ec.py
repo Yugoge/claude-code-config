@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "8216dc10e4dac0ec"
 AC_TYPE = "hook"
@@ -17,7 +23,7 @@ def test_AC3a():
     WHEN:  create-overnight-state.sh launch runs
     THEN:  launch exhausts the recovery ladder (git worktree repair -> prune stale registrations -> clear provably-stale locks -> revalidate -> durable fresh-clone fallback at captured main_head_at_start) and produces a durable isolated checkout with isolation_kind in {registered_worktree, fresh_clone_checkout}; launch does NOT refuse while any durable isolation mechanism remains untried
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — primary worktree creation cannot succeed at .claude/worktrees (full/read-only) AND an invalid pre-existing worktree dir is present AND at least one durable (non-tmpfs, writable) isolation mechanism IS available / create-overnight-state.sh launch runs / launch exhausts the recovery ladder (git worktree repair -> prune stale registrations -> clear provably-stale locks -> revalidate -> durable fresh-clone fallback at captured main_head_at_start) and produces a durable isolated checkout with isolation_kind in {registered_worktree, fresh_clone_checkout}; launch does NOT refuse while any durable isolation mechanism remains untried")
+    r = ac_harness.ac3a_recovery_ladder_fresh_clone()
+    assert r['exit_code'] == 0, r
+    assert r['state.isolation_kind'] in ('registered_worktree', 'fresh_clone_checkout'), r
+    assert r['launch_refused'] is False, r

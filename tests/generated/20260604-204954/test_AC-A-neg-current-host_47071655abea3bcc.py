@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "47071655abea3bcc"
 AC_TYPE = "hook"
@@ -17,7 +23,9 @@ def test_AC_A_neg_current_host():
     WHEN:  create-overnight-state.sh launch runs
     THEN:  launch STILL creates + validates the isolated worktree (or fresh-clone fallback) and enforces isolation; state records guarantee_level=best_effort_head_switch, structural_claim_allowed=false; the conditional-MUST controls (M13/M14a/M15) are ACTIVE; AND AC11 passes (exact-incident commands blocked, incl. /usr/bin/git AND /usr/lib/git-core/git); launch does NOT refuse on account of git version
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — no configured modern git on this host (Ubuntu 24.04 / git 2.43.0, both /usr/bin/git and /usr/lib/git-core/git == 2.43.0) -- the current live state / create-overnight-state.sh launch runs / launch STILL creates + validates the isolated worktree (or fresh-clone fallback) and enforces isolation; state records guarantee_level=best_effort_head_switch, structural_claim_allowed=false; the conditional-MUST controls (M13/M14a/M15) are ACTIVE; AND AC11 passes (exact-incident commands blocked, incl. /usr/bin/git AND /usr/lib/git-core/git); launch does NOT refuse on account of git version")
+    r = ac_harness.ac_neg_current_host()
+    assert r['isolation_created'] is True, r
+    assert r['state.guarantee_level'] == 'best_effort_head_switch', r
+    assert r['state.structural_claim_allowed'] is False, r
+    assert r['launch_refused_for_git_version'] is False, r
+    assert r['ac11_all_blocked'] is True, r

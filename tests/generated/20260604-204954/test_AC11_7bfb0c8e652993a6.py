@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "7bfb0c8e652993a6"
 AC_TYPE = "hook"
@@ -17,7 +23,8 @@ def test_AC11():
     WHEN:  the actor attempts git checkout <branch> / git switch <branch> / git switch -c <branch> -- including by absolute path: /usr/bin/git checkout <branch> AND /usr/lib/git-core/git checkout <branch> (both 2.43.0 on this host), and any other reachable absolute git path that resolves by basename to 'git' (the exact 2026-06-03 incident shape AND the old-absolute-git/git-core libexec bypass codex flagged)
     THEN:  every one of those command forms is BLOCKED (by the M13 PATH policy shim and/or the M15 bash-safety branch-switch tightening and/or the M14a firewall, keyed on the basename-'git' effective-target resolver, NOT on the literal /usr/bin/git string) and the main worktree's HEAD remains master. This AC MUST pass on the current host. Under attested sub-mode A1 it is ADDITIONALLY blocked structurally by the git-native keystone; AC11 still must pass
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — host git is 2.43 / sub-mode A2 (or any non-structural mode) AND an overnight actor with an effective target resolving to main_root / the actor attempts git checkout <branch> / git switch <branch> / git switch -c <branch> -- including by absolute path: /usr/bin/git checkout <branch> AND /usr/lib/git-core/git checkout <branch> (both 2.43.0 on this host), and any other reachable absolute git path that resolves by basename to 'git' (the exact 2026-06-03 incident shape AND the old-absolute-git/git-core libexec bypass codex flagged) / every one of those command forms is BLOCKED (by the M13 PATH policy shim and/or the M15 bash-safety branch-switch tightening and/or the M14a firewall, keyed on the basename-'git' effective-target resolver, NOT on the literal /usr/bin/git string) and the main worktree's HEAD remains master. This AC MUST pass on the current host. Under attested sub-mode A1 it is ADDITIONALLY blocked structurally by the git-native keystone; AC11 still must pass")
+    r = ac_harness.ac11_branch_switch_blocked()
+    assert r['bare_git_branch_switch_blocked'] is True, r
+    assert r['usr_bin_git_checkout_blocked'] is True, r
+    assert r['git_core_libexec_git_checkout_blocked'] is True, r
+    assert r['main_head_stays_master'] is True, r

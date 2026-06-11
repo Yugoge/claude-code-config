@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "e48503d9ff3f0e8b"
 AC_TYPE = "hook"
@@ -17,7 +23,8 @@ def test_AC8():
     WHEN:  any actor attempts update-overnight-state.sh --set worktree_path <main> OR --set main_head_at_start <other> OR --set isolation_active_until <other> OR --set guarantee_level structural_head_switch OR --set structural_claim_allowed true OR --set git_effective_path <other>
     THEN:  the mutation is REJECTED; setting current_phase=complete does NOT release isolation; only the user /stop path may set isolation_released_at
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — an active overnight state / any actor attempts update-overnight-state.sh --set worktree_path <main> OR --set main_head_at_start <other> OR --set isolation_active_until <other> OR --set guarantee_level structural_head_switch OR --set structural_claim_allowed true OR --set git_effective_path <other> / the mutation is REJECTED; setting current_phase=complete does NOT release isolation; only the user /stop path may set isolation_released_at")
+    r = ac_harness.ac8_state_integrity()
+    assert r['worktree_path_mutation_rejected'] is True, r
+    assert r['guarantee_level_flip_rejected'] is True, r
+    assert r['structural_claim_allowed_flip_rejected'] is True, r
+    assert r['complete_does_not_release_isolation'] is True, r

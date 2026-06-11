@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "c21a8a3c7ad7a644"
 AC_TYPE = "hook"
@@ -17,7 +23,7 @@ def test_AC7():
     WHEN:  an overnight actor attempts a mutating tool on main; AND a concurrent NORMAL user session (different session_id, no agent_id, cwd in main) attempts echo x > <main>/user-file and git -C <main> status; AND an owner/child state has a null/missing worktree
     THEN:  the overnight actor is BLOCKED (isolation NOT stood down by current_phase=complete); the concurrent NORMAL user session is NOT blocked; the null/missing-worktree owner/child state BLOCKS the actor (not no-enforcement)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — an active overnight state with current_phase=complete but isolation_active_until in the future / an overnight actor attempts a mutating tool on main; AND a concurrent NORMAL user session (different session_id, no agent_id, cwd in main) attempts echo x > <main>/user-file and git -C <main> status; AND an owner/child state has a null/missing worktree / the overnight actor is BLOCKED (isolation NOT stood down by current_phase=complete); the concurrent NORMAL user session is NOT blocked; the null/missing-worktree owner/child state BLOCKS the actor (not no-enforcement)")
+    r = ac_harness.ac7_hook_guard_scoping()
+    assert r['overnight_actor_blocked_after_complete'] is True, r
+    assert r['normal_user_blocked'] is False, r
+    assert r['null_worktree_state_blocks_actor'] is True, r

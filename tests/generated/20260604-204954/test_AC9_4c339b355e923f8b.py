@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "4c339b355e923f8b"
 AC_TYPE = "hook"
@@ -17,7 +23,8 @@ def test_AC9():
     WHEN:  the overnight actor's injected command context / environment is inspected
     THEN:  cwd == validated isolated root (worktree_path or fresh-clone checkout, never main_root); git rev-parse --show-toplevel from the actor resolves to the isolated root; the harness-owned modern-git PATH selector appears on PATH before system git for that actor (SEPARATE from the M13 policy shim)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — /dev-overnight has launched with a validated isolated root / the overnight actor's injected command context / environment is inspected / cwd == validated isolated root (worktree_path or fresh-clone checkout, never main_root); git rev-parse --show-toplevel from the actor resolves to the isolated root; the harness-owned modern-git PATH selector appears on PATH before system git for that actor (SEPARATE from the M13 policy shim)")
+    r = ac_harness.ac9_worktree_cwd_selector()
+    assert r['actor_cwd_is_isolated_root'] is True, r
+    assert r['show_toplevel_is_isolated_root'] is True, r
+    assert r['selector_before_system_git_on_path'] is True, r
+    assert r['selector_distinct_from_policy_shim'] is True, r

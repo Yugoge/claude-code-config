@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "b9cd5709e51167a6"
 AC_TYPE = "hook"
@@ -17,7 +23,8 @@ def test_AC2():
     WHEN:  create-overnight-state.sh launch runs with a focus that triggers ensure_detected_spec_matches_focus mismatch
     THEN:  launch SUCCEEDS recording spec_mode=autonomous WITH a valid isolated worktree (worktree_path non-null and != main_root); main branch still master; NO in-place branch-switch occurred in the main directory
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — a temp repo where spec auto-detection does not match the focus, dirty or clean main tree / create-overnight-state.sh launch runs with a focus that triggers ensure_detected_spec_matches_focus mismatch / launch SUCCEEDS recording spec_mode=autonomous WITH a valid isolated worktree (worktree_path non-null and != main_root); main branch still master; NO in-place branch-switch occurred in the main directory")
+    r = ac_harness.ac2_spec_mismatch_degrades()
+    assert r['exit_code'] == 0, r
+    assert r['state.spec_mode'] == 'autonomous', r
+    assert r['main_branch'] == 'master', r
+    assert r['worktree_valid'] is True, r

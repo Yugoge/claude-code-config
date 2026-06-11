@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "546a4b438172386d"
 AC_TYPE = "hook"
@@ -17,7 +23,6 @@ def test_AC_A_prereq():
     WHEN:  inspected
     THEN:  the cycle adds the slot + modern-git PATH selector wiring + the M16 self-test + per-kind validation + the immutable Option-A state fields + rollback-by-removal docs, and performs NO runtime network download or git source build; removing the slot fully reverts the Option-A overlay (minimal + reversible)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — this dev cycle's deliverables / inspected / the cycle adds the slot + modern-git PATH selector wiring + the M16 self-test + per-kind validation + the immutable Option-A state fields + rollback-by-removal docs, and performs NO runtime network download or git source build; removing the slot fully reverts the Option-A overlay (minimal + reversible)")
+    r = ac_harness.ac_prereq_no_build()
+    assert r['no_in_cycle_network_build'] is True, r
+    assert r['slot_removal_reverts_option_a'] is True, r

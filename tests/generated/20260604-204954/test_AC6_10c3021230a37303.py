@@ -5,7 +5,13 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
+import os
+import sys
+
 import pytest
+
+sys.path.insert(0, os.path.dirname(__file__))
+import ac_harness  # noqa: E402
 
 AC_UID = "10c3021230a37303"
 AC_TYPE = "hook"
@@ -17,7 +23,9 @@ def test_AC6():
     WHEN:  the overnight actor attempts to move refs/heads/master's oid or detach the main worktree's HEAD; AND separately a normal /commit is performed
     THEN:  the master-ref/HEAD-detach transaction is rejected (nonzero exit aborts before the ref move); AND a NORMAL user session carrying the blessed token (sanctioned /commit//push//merge on master) is ALLOWED; AND the re-homed pre-commit and post-commit hooks STILL FIRE on a normal /commit after the core.hooksPath relocation (proving the keystone did not silently disable the 2 live hooks); AND the launch self-test (M8) records an honest guarantee statement (structural_head_switch only when M16 attests, else best_effort_head_switch)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — the reference-transaction keystone installed by relocating core.hooksPath, where the pre-existing repo hooks (inventoried at install time: at minimum pre-commit and post-commit, plus any others present in the old hooks dir) have been re-homed or chained under the new keystone hooksPath (NOT overwritten/orphaned), AND an overnight actor (no blessed token) / the overnight actor attempts to move refs/heads/master's oid or detach the main worktree's HEAD; AND separately a normal /commit is performed / the master-ref/HEAD-detach transaction is rejected (nonzero exit aborts before the ref move); AND a NORMAL user session carrying the blessed token (sanctioned /commit//push//merge on master) is ALLOWED; AND the re-homed pre-commit and post-commit hooks STILL FIRE on a normal /commit after the core.hooksPath relocation (proving the keystone did not silently disable the 2 live hooks); AND the launch self-test (M8) records an honest guarantee statement (structural_head_switch only when M16 attests, else best_effort_head_switch)")
+    r = ac_harness.ac6_keystone()
+    assert r['install_rc'] == 0, r
+    assert r['unblessed_master_move_rejected'] is True, r
+    assert r['blessed_master_update_allowed'] is True, r
+    assert r['rehomed_pre_commit_fires'] is True, r
+    assert r['rehomed_post_commit_fires'] is True, r
