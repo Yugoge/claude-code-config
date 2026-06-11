@@ -5,8 +5,8 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 75
-- **Subdirectories**: 5
+- **Total files**: 77
+- **Subdirectories**: 6
 - **Naming convention**: kebab
 
 ## Files
@@ -52,6 +52,7 @@ Organization and usage documentation for `scripts/`.
 - `lifecycle-baseline-import.sh` - Description: One-time idempotent migration — import current agent scores from agent-scores.json
 - `lint-spec-id-centralization.py` - markdown from re-deriving a spec-id / views_dir / split_marker / cp_dir from a
 - `migrate-test-to-tests.sh` - Description: Merge test/ folder into tests/ preserving all content (idempotent)
+- `mint-git-blessed-token.sh` - mint-git-blessed-token.sh — issuer of the keystone blessed token (M12).
 - `normalize-doc-names.sh` - normalize-doc-names.sh - Detect and report non-compliant documentation file names
 - `orchestrator.sh` - Description: Agent orchestration coordinator for development and cleanup workflows
 - `overnight-git-selftest.sh` - overnight-git-selftest.sh — launch git-version + symref self-test (M8, M16).
@@ -83,6 +84,7 @@ Organization and usage documentation for `scripts/`.
 
 ## Subdirectories
 - `install/`
+- `modern-git-slot/`
 - `overnight-git/`
 - `spec-verify/`
 - `todo/`
