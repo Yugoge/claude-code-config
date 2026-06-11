@@ -35,7 +35,7 @@ Every Agent dispatch from this orchestrator shares the following invariant prelu
    `You are the <role> subagent. Follow agents/<role>.md instructions precisely.` (For BA the file is `.claude/agents/ba.md`. For PM with explicit mode the line becomes `You are the PM subagent in <PM_MODE> mode. Follow agents/pm.md <Mode> Protocol.`)
 
 4. **Project root**:
-   `Project path: <worktree_path from state file if set, otherwise project_path>` — every subagent's file reads/writes/git ops MUST stay inside this root.
+   `Project path: <validated worktree_path from state file>` — every subagent's file reads/writes/git ops MUST stay inside this root.
 
 5. **Standard Return-JSON contract**:
    The dispatched subagent returns a JSON object whose required keys are `status`, `<role>_report_path` (or equivalent artifact path[s]), and `summary`. Subagents extend this shape per `agents/<role>.md`; this orchestrator does not redeclare per-role schemas inline.
@@ -461,7 +461,7 @@ Use Agent tool with:
   User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
   (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
-  Project path: <worktree_path from state file if set, otherwise project_path>
+  Project path: <validated worktree_path from state file>
   State file path: <path to overnight-state-*.json>
   Session ID: <session_id>
   Output test plan to: docs/dev/overnight/<session_id>/test-plan.json
@@ -612,7 +612,7 @@ Each subagent receives, at the TOP of its prompt before any other content:
 - FIRST ACTION line: "Read $CLAUDE_PROJECT_DIR/.claude/dev-registry/$DEV_SESSION_ID/<specialist.type>.json to register with the enforcement system. Do this BEFORE any other tool call."
 - CHECKPOINT MARKING line: "see agents/<specialist.type>.md §Checkpoint Marking Contract. Mark every cp-NN done or waived before Stop or SubagentStop hook will block exit." (full SECOND ACTION SPEC_ID/cp-state semantics are defined once in the Step 1 cp-state handoff section above and need not be repeated per dispatch.)
 - User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
-- Project path: <worktree_path from state file if set, otherwise project_path>
+- Project path: <validated worktree_path from state file>
 - Already addressed: <addressed_issues array from state file>
 - Focus: <focus string from state file, or "none">
 - Test plan: docs/dev/overnight/<session_id>/test-plan.json
@@ -719,7 +719,7 @@ Use Agent tool with:
   User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
   (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
-  Project path: <worktree_path from state file if set, otherwise project_path>
+  Project path: <validated worktree_path from state file>
   Session ID: <session_id>
   Cycle number: <cycle_count + 1>
 
@@ -1530,7 +1530,7 @@ Use Agent tool with:
   User requirement document: <PROJECT_ROOT>/docs/dev/user-requirement-<DEV_SESSION_ID>.md
   (Read this file before interpreting Requirement, Context file, BA spec, Dev report, or state-derived focus.)
 
-  Project path: <worktree_path from state file if set, otherwise project_path>
+  Project path: <validated worktree_path from state file>
   Session ID: <session_id>
   Cycle number: <current cycle_count>
 
