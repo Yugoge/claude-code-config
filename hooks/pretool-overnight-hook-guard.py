@@ -827,10 +827,64 @@ def _parse_hook_input() -> tuple[str, dict, str, dict]:
             data.get('session_id', ''), data)
 
 
-def _is_cwd_in_worktree(worktree_paths: list[str]) -> bool:
-    """C8: True if cwd is inside an overnight worktree (os.sep boundary)."""
-    cwd_real = os.path.realpath(os.getcwd())
+def _payload_cwd(payload: dict) -> str:
+    """M9/round-3: effective cwd = payload['cwd'] -> $PWD -> os.getcwd()."""
+    if isinstance(payload, dict):
+        c = payload.get('cwd')
+        if isinstance(c, str) and c:
+            return c
+    env_pwd = os.environ.get('PWD', '')
+    if env_pwd:
+        return env_pwd
+    return os.getcwd()
+
+
+def _is_cwd_in_worktree(worktree_paths: list[str], cwd: str | None = None) -> bool:
+    """C8/M9: True if the effective cwd is inside an overnight worktree."""
+    base = cwd if cwd else os.getcwd()
+    cwd_real = os.path.realpath(base)
     return any(_path_under_prefix(cwd_real, wt) for wt in worktree_paths)
+
+
+def _resolve_child_session(payload: dict) -> dict | None:
+    """M9/round-3 overnight_child: payload.agent_id -> agent-index.json
+    dev_session_id -> overnight state, if that state is live + validated."""
+    if not isinstance(payload, dict):
+        return None
+    agent_id = payload.get('agent_id')
+    if not agent_id:
+        return None
+    project_dir = str(Path(os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())))
+    if _resolve_dev_registry_entry is None:
+        return None
+    try:
+        entry = _resolve_dev_registry_entry(agent_id, project_dir)
+    except Exception:
+        return None
+    if not entry:
+        return None
+    dev_sid = entry.get('dev_session_id')
+    if not dev_sid:
+        return None
+    return _load_session_state(dev_sid)
+
+
+def _classify_actor(payload: dict, owner_state: dict | None,
+                    wt_paths: list[str], cwd: str) -> tuple[str, dict | None]:
+    """Classify the actor: overnight_owner | overnight_child | worktree_context
+    | normal. Returns (classification, governing_state_or_None).
+
+    A `normal` actor (concurrent user session on main) is NOT enforced, so the
+    user's concurrent main session is never false-blocked (round-3 honest
+    limitation: ambiguous unregistered subagents fall back to `normal`)."""
+    if owner_state is not None and _is_session_live(owner_state):
+        return ('overnight_owner', owner_state)
+    child_state = _resolve_child_session(payload)
+    if child_state is not None and _is_session_live(child_state):
+        return ('overnight_child', child_state)
+    if _is_cwd_in_worktree(wt_paths, cwd):
+        return ('worktree_context', None)
+    return ('normal', None)
 
 
 def _apply_session_enforcement(state: dict, tool_name: str, tool_input: dict) -> None:
