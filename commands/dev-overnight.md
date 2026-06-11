@@ -1808,7 +1808,7 @@ The state file is created by `create-overnight-state.sh` during session initiali
 - **Unfixable issue (5 failed iterations per pipeline)** — see Step 17 (per-pipeline iteration cap).
 - **Very short time remaining (< 5 minutes)** — see Step 6 (severity-aware time guard).
 - **State file corruption** — create a fresh state file preserving `end_time`, continue.
-- **Worktree creation failure / missing on continuation** — see Step 1 worktree guard (log warning, continue on current branch).
+- **Worktree creation failure / missing on continuation** — HARD ABORT (see Step 1 worktree guard). The launch hook fails closed when no validated isolated worktree can be produced; the session does not run in the main directory.
 
 ---
 
