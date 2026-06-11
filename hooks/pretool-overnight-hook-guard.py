@@ -1304,6 +1304,23 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
         in_worktree = any(_path_under_prefix(tgt_dir, w)
                           for w in _get_active_worktree_paths()) if tgt_dir else False
 
+        # VECTOR-1 (Cycle-3): a preceding `cd`/`pushd` whose target could not be
+        # statically resolved (bare `cd`, `cd -`, `cd $VAR`, `cd ~`) AND no
+        # explicit -C means we cannot prove the HEAD-moving / tree-writing op
+        # lands inside the isolated worktree -> fail closed for the incident
+        # shape (the cwd could be main).
+        if cwd_ambiguous and not eff_dir and sub in (
+                'checkout', 'switch', 'reset', 'restore', 'clean', 'stash',
+                'update-ref', 'symbolic-ref', 'branch', 'merge', 'rebase',
+                'cherry-pick', 'am', 'pull'):
+            _block(
+                f'\nOVERNIGHT AMBIGUOUS-CWD BLOCK: git {sub} after an '
+                'unresolvable directory change (bare/variable cd) cannot be '
+                'proven to run inside the isolated worktree; refused for '
+                'overnight actors (it could target the main working '
+                'directory).\n'
+            )
+
         # M15: branch-switch / switch -c is the exact incident when it could move
         # the MAIN worktree's HEAD. A checkout/switch whose effective dir is the
         # overnight worktree and target is NOT master is LEGITIMATE and ALLOWED.
