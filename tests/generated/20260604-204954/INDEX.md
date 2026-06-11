@@ -1,14 +1,15 @@
 # 20260604-204954
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-11T07:41:12Z*
-**Total entries**: 19
+*Last updated: 2026-06-11T07:41:56Z*
+**Total entries**: 20
 **Convention**: kebab
 
 ## Tree
 ```
 20260604-204954/
 ├── _work/
+├── `_fill_tests.py` - call ac_harness, preserving AC_UID/AC_TYPE/function-name/docstring verbatim and
 ├── `_smoke_keystone.sh` - Smoke test for the keystone + selftest (dev self-verification, not an AC test).
 ├── `ac_harness.py` - Tracked (repo) helper so the generated pytest tests have real bodies. Each
 ├── `manifest.json` - json config
