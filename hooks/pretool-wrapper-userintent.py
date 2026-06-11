@@ -53,10 +53,9 @@ except Exception:  # pragma: no cover - fail-soft when lib missing
 #     name appearing at a command position: line start, after ; | & or `&&`/`||`).
 # An interpreter token only counts as an EXECUTION prefix when it stands at a
 # command position — i.e. NOT preceded by a path char (so `create-overnight-
-# state.sh <wrapper>` does NOT match via the trailing `sh`). The interpreter must
-# be preceded by start-of-string, a shell separator (; & | ( newline), or
-# whitespace that itself follows a shell separator.
-_CMD_POS = r'(?:^|(?<=[;&|(\n])\s*|(?<=[;&|(\n] )\s*)'
+# state.sh <wrapper>` does NOT match via the trailing `sh`). The `(?<![\w./-])`
+# look-behind on the interpreter rejects a filename-suffix match; the wrapper
+# itself is recognized only at a command position (start / after ; & | ( nl).
 _EXEC_PREFIX = (
     r'(?:'
     r'^|[;&|(\n]\s*'  # the wrapper itself at a command position
