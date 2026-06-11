@@ -51,7 +51,18 @@ except Exception:  # pragma: no cover - fail-soft when lib missing
 #     (python3 …/break-overnight-lock.py ; bash …/stop.sh ; . …/stop.sh), OR
 #   * the script invoked directly as the command (a path ending in the script
 #     name appearing at a command position: line start, after ; | & or `&&`/`||`).
-_EXEC_PREFIX = r'(?:^|[;&|]\s*|\b(?:python3?|bash|sh|zsh|env|exec|command|source)\s+(?:-\S+\s+)*|\.\s+)'
+# An interpreter token only counts as an EXECUTION prefix when it stands at a
+# command position — i.e. NOT preceded by a path char (so `create-overnight-
+# state.sh <wrapper>` does NOT match via the trailing `sh`). The interpreter must
+# be preceded by start-of-string, a shell separator (; & | ( newline), or
+# whitespace that itself follows a shell separator.
+_CMD_POS = r'(?:^|(?<=[;&|(\n])\s*|(?<=[;&|(\n] )\s*)'
+_EXEC_PREFIX = (
+    r'(?:'
+    r'^|[;&|(\n]\s*'  # the wrapper itself at a command position
+    r'|(?<![\w./-])(?:python3?|bash|sh|zsh|dash|env|exec|command|source)\s+(?:-\S+\s+)*'
+    r'|(?<![\w./-])\.\s+'
+    r')')
 _GUARDED_WRAPPERS = {
     'stop': (
         re.compile(_EXEC_PREFIX + r'(?:\S*/)?break-overnight-lock\.py\b'),
