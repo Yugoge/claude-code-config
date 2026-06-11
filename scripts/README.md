@@ -5,7 +5,7 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 77
+- **Total files**: 78
 - **Subdirectories**: 6
 - **Naming convention**: kebab
 
@@ -55,6 +55,7 @@ Organization and usage documentation for `scripts/`.
 - `mint-git-blessed-token.sh` - mint-git-blessed-token.sh — issuer of the keystone blessed token (M12).
 - `normalize-doc-names.sh` - normalize-doc-names.sh - Detect and report non-compliant documentation file names
 - `orchestrator.sh` - Description: Agent orchestration coordinator for development and cleanup workflows
+- `overnight-git-env.sh` - overnight-git-env.sh — prepare the overnight actor's git PATH + env (M11/AC9).
 - `overnight-git-selftest.sh` - overnight-git-selftest.sh — launch git-version + symref self-test (M8, M16).
 - `overnight-status.sh` - overnight-status.sh — Zero-LLM overnight session status query
 - `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
