@@ -207,7 +207,7 @@ If `user_spec_path` was auto-detected (not passed via `--spec`), also announce:
 Overnight development session initialized.
 Start time: <start_time>
 End time: <end_time>
-Worktree: <worktree_path or "none (using current branch)">
+Worktree: <validated worktree_path from state file>
 Loop: todo-completion-driven (automatic reset on cycle complete)
 Time-lock hook is active -- session will not terminate until end-time.
 Beginning autonomous exploration...
