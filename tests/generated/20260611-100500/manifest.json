@@ -514,9 +514,9 @@
     {
       "task_id": "20260611-100500",
       "ac_id": "AC-9",
-      "ac_uid": "1178b21d9e66ecd6",
+      "ac_uid": "9e21e9516e86f6ea",
       "type": "hook",
-      "file": "tests/generated/20260611-100500/test_AC_9_1178b21d9e66ecd6.py",
+      "file": "tests/generated/20260611-100500/test_AC_9_9e21e9516e86f6ea.py",
       "status": "active",
       "hook_check": {
         "script": "python3",
@@ -561,6 +561,46 @@
             "value": true
           },
           {
+            "property": "subshell_group_cd_into_main_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "brace_group_cd_into_main_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "xargs_launcher_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "timeout_launcher_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "flock_launcher_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "nice_arity_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "ionice_arity_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "bash_c_symlink_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
             "property": "main_head_stays_master",
             "match": "equals",
             "value": true
@@ -572,6 +612,16 @@
           },
           {
             "property": "legit_cd_into_worktree_status_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "legit_launcher_worktree_op_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "legit_subshell_worktree_op_allowed",
             "match": "equals",
             "value": true
           }
