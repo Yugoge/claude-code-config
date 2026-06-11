@@ -85,11 +85,17 @@ def _command_text(data: dict) -> str:
 
 
 def _matched_wrapper(command: str) -> str | None:
-    """Return the sentinel command-name if the command invokes a guarded
-    wrapper, else None."""
+    """Return the sentinel command-name if the command EXECUTES a guarded
+    wrapper, else None.
+
+    Heredoc bodies are stripped first so a heredoc that merely mentions the
+    wrapper path as data (test fixtures, documentation, JSON) is not a false
+    positive — this MUST NOT break normal sessions' read-only commands that
+    happen to reference break-overnight-lock.py / stop.sh."""
+    scan = command_without_heredoc_bodies(command)
     for name, patterns in _GUARDED_WRAPPERS.items():
         for pat in patterns:
-            if pat.search(command):
+            if pat.search(scan):
                 return name
     return None
 
