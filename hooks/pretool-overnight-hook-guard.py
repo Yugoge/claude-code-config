@@ -903,25 +903,104 @@ def _load_session_state(session_id: str) -> dict | None:
     return get_overnight_state_for_session(project_dir, session_id) if session_id else None
 
 
-def _normalize_git_basename_cmds(command: str) -> list[str]:
-    """Return the subcommand tokens for each git invocation in `command`,
-    normalizing by BASENAME 'git' (so /usr/bin/git, /usr/lib/git-core/git, env
-    git, and any absolute git path are all recognized). round-3 effective-target
-    resolver keyed on basename 'git', NOT the literal /usr/bin/git string."""
-    out = []
-    # Split on shell separators; tokenize each segment.
-    for seg in re.split(r'[;&|]|&&|\|\|', command):
-        toks = seg.split()
-        i = 0
-        # skip a leading `env`
-        while i < len(toks) and toks[i] == 'env':
+_ENV_ASSIGN_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
+# Command-wrappers that may precede the real git token (VECTOR-1, Cycle-3):
+# `command git …`, `exec git …`, `env git …`, `nice git …`, `stdbuf … git …`,
+# `nohup git …`, `time git …`, `builtin git …`. Each may itself take leading
+# flags / VAR=val operands we must skip to reach the real argv[0].
+_CMD_WRAPPERS = {'command', 'exec', 'env', 'nice', 'nohup', 'time',
+                 'stdbuf', 'builtin', 'setsid', 'ionice'}
+
+
+def _strip_leading_wrappers(toks: list[str]) -> int:
+    """VECTOR-1 (Cycle-3): return the index of the real argv[0] after skipping
+    any leading `VAR=val` environment assignments and command/exec wrappers
+    (`command`, `exec`, `env`, `nice`, `nohup`, `time`, `stdbuf`, …). A wrapper's
+    own option flags and VAR=val operands are skipped too. Returns len(toks) when
+    nothing executable remains."""
+    i = 0
+    n = len(toks)
+    while i < n:
+        t = toks[i]
+        if _ENV_ASSIGN_RE.match(t):
             i += 1
-        if i >= len(toks):
             continue
-        first = toks[i]
+        base = os.path.basename(t)
+        if base in _CMD_WRAPPERS:
+            i += 1
+            # skip the wrapper's own leading flags / VAR=val operands
+            while i < n and (toks[i].startswith('-') or _ENV_ASSIGN_RE.match(toks[i])):
+                i += 1
+            continue
+        break
+    return i
+
+
+def _segment_cd_target(toks: list[str]) -> str | None:
+    """VECTOR-1: if a shell segment is a `cd <dir>` / `pushd <dir>` (optionally
+    after leading env-assignments), return its target dir; else None. A bare
+    `cd` / `cd -` / `cd ~` is treated as non-deterministic -> returns '' so the
+    caller can fail closed on a subsequent HEAD-move."""
+    i = 0
+    while i < len(toks) and _ENV_ASSIGN_RE.match(toks[i]):
+        i += 1
+    if i >= len(toks):
+        return None
+    if os.path.basename(toks[i]) in ('cd', 'pushd'):
+        j = i + 1
+        # skip flags like `-P`
+        while j < len(toks) and toks[j].startswith('-'):
+            j += 1
+        if j < len(toks):
+            return toks[j].strip('\'"')
+        return ''  # bare cd -> ambiguous
+    return None
+
+
+def _iter_git_invocations(command: str):
+    """VECTOR-1 (Cycle-3): shell-aware iterator over git invocations.
+
+    Splits `command` on shell separators IN ORDER, tracks the effective cwd
+    across `cd`/`pushd` segments, strips leading `VAR=val` assignments and
+    command/exec wrappers (`command`, `exec`, `env`, …) before identifying the
+    git token by BASENAME, and yields one tuple per git invocation:
+        (subtoks, cwd_override, cwd_ambiguous)
+    where `cwd_override` is the cwd in effect for that git op when a prior `cd`
+    changed it (None if unchanged from the payload cwd), and `cwd_ambiguous` is
+    True when a preceding `cd` target could not be statically resolved (bare cd /
+    `cd -` / `cd $VAR`) -> the caller fails closed for HEAD-moving ops."""
+    # Split on shell separators while preserving order. We split on ; & | && ||.
+    segs = re.split(r'(?:&&|\|\||[;&|])', command)
+    cwd_override = None      # str path set by a resolvable cd; None = unchanged
+    cwd_ambiguous = False    # a cd target we could not resolve statically
+    for seg in segs:
+        toks = seg.split()
+        if not toks:
+            continue
+        cd_tgt = _segment_cd_target(toks)
+        if cd_tgt is not None:
+            if cd_tgt == '' or '$' in cd_tgt or cd_tgt == '-' or cd_tgt.startswith('~'):
+                cwd_ambiguous = True
+                cwd_override = None
+            else:
+                cwd_override = cd_tgt
+                cwd_ambiguous = False
+            # a `cd && git` lives in ONE segment under `&&`; the regex split
+            # already separated them, so fall through to also scan for git here.
+        k = _strip_leading_wrappers(toks)
+        if k >= len(toks):
+            continue
+        first = toks[k]
         if os.path.basename(first) == 'git':
-            out.append(toks[i + 1:])
-    return out
+            yield (toks[k + 1:], cwd_override, cwd_ambiguous)
+
+
+def _normalize_git_basename_cmds(command: str) -> list[str]:
+    """Back-compat shim: return only the subtoks for each git invocation.
+
+    Retained for any external caller / test; the shell-aware effective-cwd data
+    is consumed via `_iter_git_invocations`."""
+    return [subtoks for subtoks, _cwd, _amb in _iter_git_invocations(command)]
 
 
 _GIT_HOOK_SUPPRESS_RE = re.compile(
