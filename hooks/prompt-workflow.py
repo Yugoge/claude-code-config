@@ -401,10 +401,27 @@ def _build_worktree_instruction(state: dict) -> str:
     """
     wt = state.get('worktree_path')
     if wt is not None and wt != '':
-        return (
+        # fix-1 (Cycle-2): also mandate sourcing + verifying the actor git-env so
+        # the harness-owned policy shim is the actor's `git` and
+        # CLAUDE_OVERNIGHT_ACTOR=1 is set in the actor runtime (defense in depth;
+        # the PreTool hook-guard is the authoritative live-state-derived block).
+        actor_env = state.get('actor_git_env') or {}
+        env_helper = actor_env.get('env_helper') if isinstance(actor_env, dict) else None
+        shim_git = actor_env.get('shim_git') if isinstance(actor_env, dict) else None
+        main_root = state.get('main_root', '')
+        base = (
             f'CRITICAL: The validated isolated worktree is {wt}. '
             'cd into it. DO NOT call EnterWorktree under any circumstances.'
         )
+        if env_helper:
+            base += (
+                f' Then source the actor git-env: `source "{env_helper}" '
+                f'--main-root "{main_root}" --worktree "{wt}"` and VERIFY '
+                f'`command -v git` == "{shim_git}" and `git rev-parse '
+                f'--show-toplevel` == "{wt}". Never run git against the main '
+                'working directory; never strip CLAUDE_OVERNIGHT_ACTOR.'
+            )
+        return base
     return (
         'HARD ABORT. The overnight state has no validated worktree. '
         'Do not create state manually. Do not call EnterWorktree. '
