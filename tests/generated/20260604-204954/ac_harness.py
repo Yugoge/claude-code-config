@@ -142,17 +142,18 @@ def ac3a_recovery_ladder_fresh_clone():
 def ac3b_refuse_when_no_isolation_possible():
     repo = _make_repo(dirty=False)
     git_worktrees_meta = repo / ".git" / "worktrees"
-    bad_fresh = repo / "nonwritable-fresh"
     try:
-        # Deny EVERY durable isolation mechanism:
-        #  (1) registered worktree: make .git read-only so `git worktree add`
-        #      cannot write the worktree metadata (.git/worktrees/*).
-        #  (2) fresh-clone: point OVERNIGHT_FRESH_CLONE_ROOT at a non-writable
-        #      parent so mkdir -p fails.
-        bad_fresh.mkdir()
-        os.chmod(bad_fresh, 0o500)
-        os.chmod(repo / ".git", 0o555)
-        env = dict(os.environ, OVERNIGHT_FRESH_CLONE_ROOT=str(bad_fresh / "sub"))
+        # Deny EVERY durable isolation mechanism in a way that works even as root
+        # (chmod bits are bypassed by root, so we use structural blockers):
+        #  (1) registered worktree: occupy `.git/worktrees` with a regular FILE
+        #      so `git worktree add` cannot create the metadata dir there.
+        #  (2) fresh-clone: point OVERNIGHT_FRESH_CLONE_ROOT under a regular FILE
+        #      (mkdir -p fails with ENOTDIR even for root).
+        git_worktrees_meta.write_text("not-a-dir")  # blocks worktree registration
+        blocker_file = repo / "blocker-file"
+        blocker_file.write_text("x")
+        env = dict(os.environ,
+                   OVERNIGHT_FRESH_CLONE_ROOT=str(blocker_file / "sub" / "fresh"))
         r = subprocess.run(
             [str(SCRIPTS / "create-overnight-state.sh"),
              "--project-dir", str(repo), "--session-id", "S", "--end-time", "+1h"],
@@ -169,11 +170,8 @@ def ac3b_refuse_when_no_isolation_possible():
             "stderr": r.stderr[-600:],
         }
     finally:
-        os.chmod(repo / ".git", 0o755)
-        if bad_fresh.exists():
-            os.chmod(bad_fresh, 0o755)
-        if git_worktrees_meta.exists():
-            os.chmod(git_worktrees_meta, 0o755)
+        if git_worktrees_meta.is_file():
+            git_worktrees_meta.unlink()
         shutil.rmtree(repo, ignore_errors=True)
 
 
