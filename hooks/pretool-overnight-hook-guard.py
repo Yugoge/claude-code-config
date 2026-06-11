@@ -1432,12 +1432,26 @@ def main():
 
     # M13/M14a/M15: for overnight actors, block hook-suppression + branch-switch
     # + main-root git ops (the exact-incident layered block; AC11).
-    if classification in ('overnight_owner', 'overnight_child') and tool_name == 'Bash':
-        main_root = (gov_state or {}).get('main_root', '') if gov_state else ''
-        worktree_path = (gov_state or {}).get('worktree_path', '') if gov_state else ''
-        main_git_dir = (gov_state or {}).get('main_git_dir', '') if gov_state else ''
-        _enforce_overnight_git_command(
-            tool_input.get('command', ''), main_root, worktree_path, main_git_dir)
+    # VECTOR-3 (Cycle-3): the git enforce gate now also runs for worktree_context
+    # (an in-worktree actor whose owner/child resolution failed) so the same
+    # main-targeting block fires — closing the classification hole where
+    # worktree_context skipped enforcement entirely.
+    if classification in ('overnight_owner', 'overnight_child', 'worktree_context') \
+            and tool_name == 'Bash':
+        if gov_state is not None:
+            main_root = gov_state.get('main_root', '')
+            worktree_path = gov_state.get('worktree_path', '')
+            main_git_dir = gov_state.get('main_git_dir', '')
+            _enforce_overnight_git_command(
+                tool_input.get('command', ''), main_root, worktree_path, main_git_dir)
+        elif classification == 'worktree_context':
+            # VECTOR-3 fail-closed: cwd is inside an active worktree but no
+            # governing overnight state could be resolved for it. We cannot derive
+            # the main_root to scope a targeted block, so any git / interpreter
+            # command is refused (it could move main HEAD or write main). A
+            # non-git, non-interpreter command is left to the worktree-boundary
+            # enforcement below.
+            _fail_closed_worktree_context(tool_input.get('command', ''))
 
     if wt_paths:
         apply_global_worktree_enforcement(tool_name, tool_input, wt_paths)
