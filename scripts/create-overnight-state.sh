@@ -169,28 +169,109 @@ if [[ "$target_epoch" -gt 0 ]]; then
     fi
 fi
 
-# --- Spec mode detection ---
+# --- Repo identity + MAIN_HEAD capture (side-effect-free; may precede worktree) ---
+# M1/round-3: only side-effect-free repo-identity discovery and MAIN_HEAD capture
+# may run before worktree creation. Everything fallible (spec/focus/view) runs AFTER.
+MAIN_ROOT="$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null || echo '')"
+if [[ -z "$MAIN_ROOT" ]]; then
+    echo "Error: --project-dir is not inside a git repo: $PROJECT_DIR" >&2
+    exit 1
+fi
+MAIN_GIT_DIR="$(git -C "$MAIN_ROOT" rev-parse --absolute-git-dir 2>/dev/null || echo "$MAIN_ROOT/.git")"
+MAIN_BRANCH_AT_START="$(git -C "$MAIN_ROOT" branch --show-current 2>/dev/null || echo '')"
+# Fatal unless the main checkout is exactly on master (round-3 §2): we will never
+# move it; launching from a non-master main dir is an unsafe precondition.
+if [[ "$MAIN_BRANCH_AT_START" != "master" ]]; then
+    echo "Error: overnight launch requires the main checkout on 'master' (found: '${MAIN_BRANCH_AT_START:-<detached>}'). Refusing to launch (no state written)." >&2
+    exit 1
+fi
+MAIN_HEAD_AT_START="$(git -C "$MAIN_ROOT" rev-parse HEAD 2>/dev/null || echo '')"
+# Dirty main tree is ALLOWED; we record it and NEVER stash/copy/commit it.
+if [[ -n "$(git -C "$MAIN_ROOT" status --porcelain 2>/dev/null)" ]]; then
+    MAIN_DIRTY_AT_START=true
+else
+    MAIN_DIRTY_AT_START=false
+fi
+
+# --- Create + validate the isolated worktree FIRST (M1, M2, M3) ---------------
+# Recoverable failures here NEVER fall back to in-place work: a missing/invalid
+# worktree means launch refuses (no state) — distinct from hard-abort-then-work.
+WORKTREE_PATH=""
+WORKTREE_BRANCH=""
+WORKTREE_HEAD_AT_START=""
+ISOLATION_KIND=""
+WORKTREE_SCRIPT="$(dirname "$0")/create-worktree.sh"
+WORKTREE_NAME="overnight-$(date +%Y%m%d)-${SESSION_ID:0:8}"
+if [[ -x "$WORKTREE_SCRIPT" ]] && \
+   WORKTREE_RESULT=$(bash "$WORKTREE_SCRIPT" --project-dir "$MAIN_ROOT" "$WORKTREE_NAME" 2>/dev/null); then
+    WORKTREE_PATH=$(echo "$WORKTREE_RESULT" | grep -oP 'WORKTREE_PATH=\K\S+' || echo '')
+    WORKTREE_BRANCH=$(echo "$WORKTREE_RESULT" | grep -oP 'WORKTREE_BRANCH=\K\S+' || echo '')
+    if [[ -n "$WORKTREE_PATH" && -d "$WORKTREE_PATH" ]]; then
+        ISOLATION_KIND="registered_worktree"
+        WORKTREE_HEAD_AT_START="$(git -C "$WORKTREE_PATH" rev-parse HEAD 2>/dev/null || echo '')"
+        echo "Created worktree: $WORKTREE_PATH (branch: $WORKTREE_BRANCH)" >&2
+    fi
+fi
+
+# Recovery ladder + fresh-clone fallback (M2/AC3a) when the primary worktree
+# could not be produced. NEVER work in-place; NEVER use tmpfs as a default.
+if [[ -z "$ISOLATION_KIND" ]]; then
+    echo "Primary worktree creation failed; attempting recovery ladder (repair -> prune -> fresh-clone)." >&2
+    git -C "$MAIN_ROOT" worktree repair >/dev/null 2>&1 || true
+    git -C "$MAIN_ROOT" worktree prune >/dev/null 2>&1 || true
+    # one more registered-worktree attempt after repair/prune
+    if WORKTREE_RESULT=$(bash "$WORKTREE_SCRIPT" --project-dir "$MAIN_ROOT" "$WORKTREE_NAME" 2>/dev/null); then
+        WORKTREE_PATH=$(echo "$WORKTREE_RESULT" | grep -oP 'WORKTREE_PATH=\K\S+' || echo '')
+        WORKTREE_BRANCH=$(echo "$WORKTREE_RESULT" | grep -oP 'WORKTREE_BRANCH=\K\S+' || echo '')
+        if [[ -n "$WORKTREE_PATH" && -d "$WORKTREE_PATH" ]]; then
+            ISOLATION_KIND="registered_worktree"
+            WORKTREE_HEAD_AT_START="$(git -C "$WORKTREE_PATH" rev-parse HEAD 2>/dev/null || echo '')"
+            echo "Recovered worktree after repair/prune: $WORKTREE_PATH" >&2
+        fi
+    fi
+fi
+if [[ -z "$ISOLATION_KIND" ]]; then
+    # Durable fresh-clone fallback at captured MAIN_HEAD on its own branch.
+    # Only on a durable (non-tmpfs, writable) root: default under main_root.
+    FRESH_ROOT="${OVERNIGHT_FRESH_CLONE_ROOT:-$MAIN_ROOT/.claude/overnight-fresh-clones}"
+    FRESH_FSTYPE="$(stat -f -c %T "$(dirname "$FRESH_ROOT")" 2>/dev/null || echo unknown)"
+    if [[ "$FRESH_FSTYPE" == "tmpfs" && -z "${OVERNIGHT_ALLOW_TMPFS_FRESH_CLONE:-}" ]]; then
+        echo "Fresh-clone root is tmpfs ($FRESH_ROOT); refusing (data-loss risk). Set OVERNIGHT_FRESH_CLONE_ROOT to a durable path." >&2
+    elif mkdir -p "$FRESH_ROOT" 2>/dev/null && [[ -w "$FRESH_ROOT" ]]; then
+        FRESH_WT="$FRESH_ROOT/${WORKTREE_NAME}"
+        FRESH_BRANCH="worktree-${WORKTREE_NAME}"
+        if git clone -q --local "$MAIN_GIT_DIR" "$FRESH_WT" 2>/dev/null \
+           && git -C "$FRESH_WT" checkout -q -b "$FRESH_BRANCH" "$MAIN_HEAD_AT_START" 2>/dev/null; then
+            WORKTREE_PATH="$FRESH_WT"
+            WORKTREE_BRANCH="$FRESH_BRANCH"
+            ISOLATION_KIND="fresh_clone_checkout"
+            WORKTREE_HEAD_AT_START="$(git -C "$FRESH_WT" rev-parse HEAD 2>/dev/null || echo '')"
+            echo "Durable fresh-clone fallback created at $FRESH_WT" >&2
+        fi
+    fi
+fi
+
+# AC3b: refusal-to-LAUNCH only when ALL durable isolation is impossible. NEVER
+# write a null/main-root worktree; NEVER continue in-place.
+if [[ -z "$ISOLATION_KIND" || -z "$WORKTREE_PATH" \
+      || "$(realpath "$WORKTREE_PATH" 2>/dev/null || echo "$WORKTREE_PATH")" == "$(realpath "$MAIN_ROOT" 2>/dev/null || echo "$MAIN_ROOT")" ]]; then
+    echo "FATAL: no durable isolated worktree could be produced; refusing to launch the overnight actor (no state, no checklist, no in-place work)." >&2
+    exit 1
+fi
+
+# --- Spec mode detection (AFTER worktree exists; mismatch DEGRADES, never aborts) ---
 SPEC_MODE="autonomous"
 USER_SPEC_PATH="null"
 
-ensure_detected_spec_matches_focus() {
+spec_matches_focus() {
     local detected="$1"
-    if [[ -z "$FOCUS" ]]; then
-        echo "Error: Auto-detected spec requires explicit --spec when focus is empty." >&2
-        echo "  detected: $detected" >&2
-        return 1
-    fi
-    if grep -Fq -- "$FOCUS" "$detected"; then
-        return 0
-    fi
-    echo "Error: Auto-detected spec does not match focus; pass explicit --spec to bind it." >&2
-    echo "  focus: $FOCUS" >&2
-    echo "  detected: $detected" >&2
-    return 1
+    [[ -n "$FOCUS" ]] || return 1
+    grep -Fq -- "$FOCUS" "$detected"
 }
 
 if [[ -n "$SPEC_PATH" ]]; then
-    # Explicit --spec provided
+    # Explicit --spec missing/invalid is fatal (round-3 §2) — but the worktree
+    # already exists, so this is a clean refuse-to-launch, not in-place fallback.
     if [[ ! -f "$SPEC_PATH" ]]; then
         echo "Error: Spec file not found: $SPEC_PATH" >&2
         exit 1
@@ -204,25 +285,47 @@ elif [[ -d "$PROJECT_DIR/$SPECS_SUBDIR" ]]; then
         -printf '%T@ %p\n' 2>/dev/null \
         | sort -rn | head -1 | cut -d' ' -f2-)
     if [[ -n "$DETECTED" && -f "$DETECTED" ]]; then
-        ensure_detected_spec_matches_focus "$DETECTED"
-        SPEC_MODE="user-provided"
-        USER_SPEC_PATH="$DETECTED"
-        echo "Auto-detected spec: $USER_SPEC_PATH" >&2
+        if spec_matches_focus "$DETECTED"; then
+            SPEC_MODE="user-provided"
+            USER_SPEC_PATH="$DETECTED"
+            echo "Auto-detected spec: $USER_SPEC_PATH" >&2
+        else
+            # M2/AC2: recoverable spec/focus mismatch DEGRADES to autonomous;
+            # never abort, never work in-place. The worktree is already valid.
+            echo "Auto-detected spec did not match focus; degrading to spec_mode=autonomous (worktree already created)." >&2
+            SPEC_MODE="autonomous"
+            USER_SPEC_PATH="null"
+        fi
     fi
 fi
 
-# --- Create worktree ---
-WORKTREE_PATH=""
-WORKTREE_BRANCH=""
-WORKTREE_SCRIPT="$(dirname "$0")/create-worktree.sh"
-WORKTREE_NAME="overnight-$(date +%Y%m%d)-${SESSION_ID:0:8}"
-if [[ -x "$WORKTREE_SCRIPT" ]] && WORKTREE_RESULT=$(bash "$WORKTREE_SCRIPT" "$WORKTREE_NAME" 2>/dev/null); then
-    WORKTREE_PATH=$(echo "$WORKTREE_RESULT" | grep -oP 'WORKTREE_PATH=\K\S+')
-    WORKTREE_BRANCH=$(echo "$WORKTREE_RESULT" | grep -oP 'WORKTREE_BRANCH=\K\S+')
-    echo "Created worktree: $WORKTREE_PATH (branch: $WORKTREE_BRANCH)" >&2
-else
-    echo "Warning: worktree creation failed, continuing without worktree" >&2
+# --- Launch git self-test: record honest guarantee fields (M8/M16) -----------
+GUARANTEE_LEVEL="best_effort_head_switch"
+STRUCTURAL_CLAIM_ALLOWED=false
+GIT_VERSION_FIELD=""
+GIT_EFFECTIVE_PATH_FIELD=""
+GIT_EXEC_PATH_FIELD=""
+SELFTEST_RESULT_FIELD=""
+SELFTEST_SCRIPT="$(dirname "$0")/overnight-git-selftest.sh"
+if [[ -x "$SELFTEST_SCRIPT" ]]; then
+    SELFTEST_JSON_LINE="$(bash "$SELFTEST_SCRIPT" --project-dir "$MAIN_ROOT" 2>/dev/null | grep '^SELFTEST_JSON=' | head -1 || echo '')"
+    SELFTEST_JSON="${SELFTEST_JSON_LINE#SELFTEST_JSON=}"
+    if [[ -n "$SELFTEST_JSON" ]] && echo "$SELFTEST_JSON" | jq empty >/dev/null 2>&1; then
+        GUARANTEE_LEVEL="$(echo "$SELFTEST_JSON" | jq -r '.guarantee_level // "best_effort_head_switch"')"
+        STRUCTURAL_CLAIM_ALLOWED="$(echo "$SELFTEST_JSON" | jq -r '.structural_claim_allowed // false')"
+        GIT_VERSION_FIELD="$(echo "$SELFTEST_JSON" | jq -r '.git_version // ""')"
+        GIT_EFFECTIVE_PATH_FIELD="$(echo "$SELFTEST_JSON" | jq -r '.git_effective_path // ""')"
+        GIT_EXEC_PATH_FIELD="$(echo "$SELFTEST_JSON" | jq -r '.git_exec_path // ""')"
+        SELFTEST_RESULT_FIELD="$(echo "$SELFTEST_JSON" | jq -r '.reference_transaction_selftest_result // ""')"
+    fi
 fi
+
+# --- dev-registry sentinel dir for child-actor classification (round-3 §2) ---
+DEV_REGISTRY_DIR="$MAIN_ROOT/.claude/dev-registry/$SESSION_ID"
+mkdir -p "$DEV_REGISTRY_DIR" 2>/dev/null || true
+
+# --- isolation_active_until == end_time (liveness key, M9/M10) ---------------
+ISOLATION_ACTIVE_UNTIL="$END_TIME"
 
 # --- Detect view_paths + canonical spec-id via the centralized resolver ---
 # Do NOT derive SPEC_DIR / spec_id from the monolith basename inline: the producer
