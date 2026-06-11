@@ -1,8 +1,8 @@
 # scripts
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-09T21:35:22Z*
-**Total entries**: 100
+*Last updated: 2026-06-11T07:23:48Z*
+**Total entries**: 101
 **Convention**: kebab
 
 ## Tree
@@ -77,6 +77,7 @@ scripts/
 ├── `graphify-query.py` - graphify-query.py — deterministic pre-BA graph hydrator (runs between Step 1 and Step 2)
 ├── `graphify_lib.py` - graphify_lib.py — shared library for Graphify knowledge-graph integration
 ├── `install-checkpoint-refspec.sh` - install-checkpoint-refspec.sh — idempotently add refs/checkpoints/* to
+├── `install-git-keystone.sh` - install-git-keystone.sh — wire the git-native reference-transaction keystone
 ├── `iterate-failed-pipelines.py` - Reads pipelines JSON path; outputs iteration plan JSON to stdout. The orchestrator
 ├── `lifecycle-baseline-import.sh` - Description: One-time idempotent migration — import current agent scores from agent-scores.json
 ├── `lint-spec-id-centralization.py` - markdown from re-deriving a spec-id / views_dir / split_marker / cp_dir from a
