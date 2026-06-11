@@ -5,8 +5,8 @@ Organization and usage documentation for `scripts/`.
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 73
-- **Subdirectories**: 4
+- **Total files**: 75
+- **Subdirectories**: 5
 - **Naming convention**: kebab
 
 ## Files
@@ -54,6 +54,7 @@ Organization and usage documentation for `scripts/`.
 - `migrate-test-to-tests.sh` - Description: Merge test/ folder into tests/ preserving all content (idempotent)
 - `normalize-doc-names.sh` - normalize-doc-names.sh - Detect and report non-compliant documentation file names
 - `orchestrator.sh` - Description: Agent orchestration coordinator for development and cleanup workflows
+- `overnight-git-selftest.sh` - overnight-git-selftest.sh — launch git-version + symref self-test (M8, M16).
 - `overnight-status.sh` - overnight-status.sh — Zero-LLM overnight session status query
 - `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
 - `precommitted-recovery.sh` - Description: Recovery path helpers for nothing_to_commit_precommitted detection.
@@ -82,6 +83,7 @@ Organization and usage documentation for `scripts/`.
 
 ## Subdirectories
 - `install/`
+- `overnight-git/`
 - `spec-verify/`
 - `todo/`
 

@@ -1,8 +1,8 @@
 # scripts
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-11T07:23:48Z*
-**Total entries**: 101
+*Last updated: 2026-06-11T07:25:13Z*
+**Total entries**: 105
 **Convention**: kebab
 
 ## Tree
@@ -10,6 +10,9 @@
 scripts/
 ├── install/
 │   └── `tmp-cleanup-install.sh` - /usr/local/sbin/tmp-cleanup.sh
+├── overnight-git/
+│   ├── `git-policy-shim` - unknown file
+│   └── `git-selector` - unknown file
 ├── spec-verify/
 │   ├── `spec-verify-views.py` - Usage:
 │   ├── `spec-verify.py` - Every non-blank, non-separator line from the monolith must appear
@@ -84,6 +87,7 @@ scripts/
 ├── `migrate-test-to-tests.sh` - Description: Merge test/ folder into tests/ preserving all content (idempotent)
 ├── `normalize-doc-names.sh` - normalize-doc-names.sh - Detect and report non-compliant documentation file names
 ├── `orchestrator.sh` - Description: Agent orchestration coordinator for development and cleanup workflows
+├── `overnight-git-selftest.sh` - overnight-git-selftest.sh — launch git-version + symref self-test (M8, M16).
 ├── `overnight-status.sh` - overnight-status.sh — Zero-LLM overnight session status query
 ├── `plan-style-inspection.sh` - Description: Discover auditable files and split into groups for parallel style inspection
 ├── `precommitted-recovery.sh` - Description: Recovery path helpers for nothing_to_commit_precommitted detection.
