@@ -266,12 +266,16 @@ def ac10_blessed_token_scoping():
         mint = subprocess.run([str(SCRIPTS / "mint-git-blessed-token.sh"), "--ttl", "60"],
                               capture_output=True, text=True)
         token_var_present = "CLAUDE_GIT_BLESSED_TOKEN=" in mint.stdout
+        # Scope is single-operation/short-lived: the issuer writes a grant file
+        # with an epoch expiry (TTL 60s), NOT a session-global flag.
+        issuer_src = (SCRIPTS / "mint-git-blessed-token.sh").read_text()
+        scope_not_global = ("scope=single-operation" in issuer_src
+                            and "session-global" not in mint.stdout)
         return {
             "sanctioned_token_update_allowed": res["blessed_master_update_allowed"],
             "overnight_actor_blocked_no_token": res["unblessed_master_move_rejected"],
             "normal_nonovernight_direct_git_unaffected": normal_allowed,
-            "token_scope_not_session_global": token_var_present and "scope=single-operation" in (
-                Path(__file__).read_text() and "single-operation"),
+            "token_scope_not_session_global": bool(scope_not_global),
             "token_var_named": token_var_present,
         }
     finally:
