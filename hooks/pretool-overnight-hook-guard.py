@@ -35,9 +35,11 @@ from lib.bash_write_targets import (  # noqa: E402
 try:  # T2.4: optional contract runtime + agent resolver for self_repair grant.
     from lib import contract_runtime as _contract_runtime  # noqa: E402
     from lib.agent_resolver import resolve_agent_type as _resolve_agent_type  # noqa: E402
+    from lib.agent_resolver import resolve_dev_registry_entry as _resolve_dev_registry_entry  # noqa: E402
 except Exception:  # pragma: no cover - fail-soft when modules missing
     _contract_runtime = None  # type: ignore[assignment]
     _resolve_agent_type = None  # type: ignore[assignment]
+    _resolve_dev_registry_entry = None  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------
