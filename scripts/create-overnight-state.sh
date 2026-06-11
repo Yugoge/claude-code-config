@@ -299,7 +299,42 @@ elif [[ -d "$PROJECT_DIR/$SPECS_SUBDIR" ]]; then
     fi
 fi
 
+# --- Install the git-native keystone (M7) into the main repo (idempotent) -----
+# fix-5 (Cycle-2): the keystone install MUST run BEFORE the launch self-test so a
+# properly-provisioned git >=2.46 host can legitimately record a structural claim
+# (the self-test attests core.hooksPath == expected + keystone hash). Cycle-1 ran
+# the self-test first, denying a legitimate structural claim on a >=2.46 host.
+# Wires the reference-transaction hook via core.hooksPath relocation WITHOUT
+# clobbering pre-commit/post-commit (the installer re-homes/chains them, AC6).
+KEYSTONE_INSTALLER="$(dirname "$0")/install-git-keystone.sh"
+if [[ -x "$KEYSTONE_INSTALLER" ]]; then
+    bash "$KEYSTONE_INSTALLER" --project-dir "$MAIN_ROOT" >&2 || \
+        echo "Warning: keystone installation reported a problem (layered defenses still active)." >&2
+fi
+
+# --- Prepare + CAPTURE the overnight actor's git PATH wrappers (fix-1) ---------
+# fix-1 (Cycle-2): the env helper installs the policy-shim + selector bin dirs AND
+# emits the export lines. Cycle-1 discarded that output in a child shell, so the
+# actor never inherited CLAUDE_OVERNIGHT_ACTOR=1 / the shim-first PATH. We now
+# CAPTURE the emitted markers and PERSIST the resolved actor git env into the
+# state file so dev-overnight.md Step 1 can source it and verify it took effect,
+# and so AC-1 can inspect the durable resolved shim-git path.
+ACTOR_GIT_SHIM=""
+ACTOR_GIT_BINDIR=""
+ACTOR_GIT_SHIMDIR=""
+ACTOR_ENV_HELPER_PATH=""
+GITENV_HELPER="$(dirname "$0")/overnight-git-env.sh"
+if [[ -x "$GITENV_HELPER" ]]; then
+    ACTOR_ENV_HELPER_PATH="$GITENV_HELPER"
+    GITENV_OUT="$(bash "$GITENV_HELPER" --main-root "$MAIN_ROOT" --worktree "$WORKTREE_PATH" 2>/dev/null || true)"
+    ACTOR_GIT_SHIM="$(printf '%s\n' "$GITENV_OUT" | grep -oP '^# OVERNIGHT_GIT_ENV_SHIM_GIT=\K.*' | head -1 || echo '')"
+    ACTOR_GIT_BINDIR="$(printf '%s\n' "$GITENV_OUT" | grep -oP '^# OVERNIGHT_GIT_ENV_BINDIR=\K.*' | head -1 || echo '')"
+    ACTOR_GIT_SHIMDIR="$(printf '%s\n' "$GITENV_OUT" | grep -oP '^# OVERNIGHT_GIT_ENV_SHIMDIR=\K.*' | head -1 || echo '')"
+fi
+
 # --- Launch git self-test: record honest guarantee fields (M8/M16) -----------
+# Runs AFTER the keystone install (fix-5) so the self-test's target-repo
+# attestation observes the already-installed keystone (core.hooksPath + hash).
 GUARANTEE_LEVEL="best_effort_head_switch"
 STRUCTURAL_CLAIM_ALLOWED=false
 GIT_VERSION_FIELD=""
@@ -318,21 +353,6 @@ if [[ -x "$SELFTEST_SCRIPT" ]]; then
         GIT_EXEC_PATH_FIELD="$(echo "$SELFTEST_JSON" | jq -r '.git_exec_path // ""')"
         SELFTEST_RESULT_FIELD="$(echo "$SELFTEST_JSON" | jq -r '.reference_transaction_selftest_result // ""')"
     fi
-fi
-
-# --- Install the git-native keystone (M7) into the main repo (idempotent) -----
-# Wires the reference-transaction hook via core.hooksPath relocation WITHOUT
-# clobbering pre-commit/post-commit (the installer re-homes/chains them, AC6).
-KEYSTONE_INSTALLER="$(dirname "$0")/install-git-keystone.sh"
-if [[ -x "$KEYSTONE_INSTALLER" ]]; then
-    bash "$KEYSTONE_INSTALLER" --project-dir "$MAIN_ROOT" >&2 || \
-        echo "Warning: keystone installation reported a problem (layered defenses still active)." >&2
-fi
-
-# --- Prepare the overnight actor's git PATH wrappers (selector + policy shim) --
-GITENV_HELPER="$(dirname "$0")/overnight-git-env.sh"
-if [[ -x "$GITENV_HELPER" ]]; then
-    bash "$GITENV_HELPER" --main-root "$MAIN_ROOT" --worktree "$WORKTREE_PATH" >/dev/null 2>&1 || true
 fi
 
 # --- dev-registry sentinel dir for child-actor classification (round-3 §2) ---
