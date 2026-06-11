@@ -1212,6 +1212,15 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
             'main repo (--git-dir / GIT_DIR / GIT_COMMON_DIR -> main/.git) is '
             'forbidden for overnight actors.\n'
         )
+    # VECTOR-2 (Cycle-3): --work-tree / GIT_WORK_TREE override into the main
+    # working directory writes the main tree even with an in-worktree -C.
+    if _worktree_into_main(command, main_real):
+        _block(
+            '\nOVERNIGHT WORK-TREE REDIRECT BLOCK: a git op redirected at the '
+            'main working directory (--work-tree / GIT_WORK_TREE -> main, '
+            'outside the isolated worktree) is forbidden for overnight actors — '
+            'it would write the main worktree in place.\n'
+        )
     # fix-2 PRIMARY: interpreter/subprocess hiding a main-targeting git op.
     if _interpreter_hides_main_git(command, main_real, main_git_dir):
         _block(
