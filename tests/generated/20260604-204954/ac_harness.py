@@ -141,16 +141,17 @@ def ac3a_recovery_ladder_fresh_clone():
 
 def ac3b_refuse_when_no_isolation_possible():
     repo = _make_repo(dirty=False)
+    git_worktrees_meta = repo / ".git" / "worktrees"
+    bad_fresh = repo / "nonwritable-fresh"
     try:
-        # Make the whole .claude unwritable AND deny any fresh-clone root by
-        # pointing it at a non-writable path.
-        claude = repo / ".claude"
-        claude.mkdir(parents=True, exist_ok=True)
-        (claude / "worktrees").mkdir()
-        os.chmod(claude / "worktrees", 0o500)
-        bad_fresh = repo / "nonwritable-fresh"
+        # Deny EVERY durable isolation mechanism:
+        #  (1) registered worktree: make .git read-only so `git worktree add`
+        #      cannot write the worktree metadata (.git/worktrees/*).
+        #  (2) fresh-clone: point OVERNIGHT_FRESH_CLONE_ROOT at a non-writable
+        #      parent so mkdir -p fails.
         bad_fresh.mkdir()
         os.chmod(bad_fresh, 0o500)
+        os.chmod(repo / ".git", 0o555)
         env = dict(os.environ, OVERNIGHT_FRESH_CLONE_ROOT=str(bad_fresh / "sub"))
         r = subprocess.run(
             [str(SCRIPTS / "create-overnight-state.sh"),
@@ -158,8 +159,6 @@ def ac3b_refuse_when_no_isolation_possible():
             capture_output=True, text=True, env=env)
         st = _state(repo)
         branch = _git(["branch", "--show-current"], repo).stdout.strip()
-        os.chmod(claude / "worktrees", 0o700)
-        os.chmod(bad_fresh, 0o700)
         return {
             "state_file_written": st is not None,
             "main_branch": branch,
@@ -167,9 +166,14 @@ def ac3b_refuse_when_no_isolation_possible():
             "exit_nonzero": r.returncode != 0,
             "no_null_or_mainroot_worktree": (st is None) or (
                 st.get("worktree_path") not in (None, "", str(repo))),
-            "stderr": r.stderr[-500:],
+            "stderr": r.stderr[-600:],
         }
     finally:
+        os.chmod(repo / ".git", 0o755)
+        if bad_fresh.exists():
+            os.chmod(bad_fresh, 0o755)
+        if git_worktrees_meta.exists():
+            os.chmod(git_worktrees_meta, 0o755)
         shutil.rmtree(repo, ignore_errors=True)
 
 
