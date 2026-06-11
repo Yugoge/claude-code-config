@@ -903,21 +903,42 @@ def _load_session_state(session_id: str) -> dict | None:
     return get_overnight_state_for_session(project_dir, session_id) if session_id else None
 
 
+def _block_invalid_isolation(classification: str) -> None:
+    """M9: a null/missing worktree in an owner/child state is INVALID isolation
+    and BLOCKS the actor (it must not silently no-op into no-enforcement)."""
+    _block(
+        '\nOVERNIGHT ISOLATION INVALID: the governing overnight state has no '
+        f'valid worktree_path (actor={classification}). Refusing the operation; '
+        'the overnight actor must run inside a validated isolated worktree.\n'
+    )
+
+
 def main():
-    """Entry point: apply global + session-specific overnight enforcement."""
+    """Entry point: apply global + actor-scoped overnight enforcement (M9)."""
     tool_name, tool_input, session_id, payload = _parse_hook_input()
     state = _load_session_state(session_id)
     _set_request_ctx(state, payload)  # T2.4: enable self_repair grant lookup
     if is_overnight_active():
         apply_global_security_checks(tool_name, tool_input)
-    is_overnight_session = state is not None and _is_session_live(state)
+    cwd = _payload_cwd(payload)
     wt_paths = _get_active_worktree_paths()
-    if not is_overnight_session and not _is_cwd_in_worktree(wt_paths):
+    classification, gov_state = _classify_actor(payload, state, wt_paths, cwd)
+
+    # M9: a `normal` concurrent user session on main is NOT enforced — exit 0 so
+    # the user's main session is never false-blocked.
+    if classification == 'normal':
         sys.exit(0)
+
+    # M9: owner/child with a null/missing worktree = invalid isolation = BLOCK.
+    if classification in ('overnight_owner', 'overnight_child'):
+        wt = (gov_state or {}).get('worktree_path') if gov_state else None
+        if not wt:
+            _block_invalid_isolation(classification)
+
     if wt_paths:
         apply_global_worktree_enforcement(tool_name, tool_input, wt_paths)
-    if is_overnight_session:
-        _apply_session_enforcement(state, tool_name, tool_input)
+    if classification in ('overnight_owner', 'overnight_child') and gov_state is not None:
+        _apply_session_enforcement(gov_state, tool_name, tool_input)
     sys.exit(0)
 
 
