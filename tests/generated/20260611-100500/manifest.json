@@ -510,6 +510,182 @@
           }
         ]
       }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-9",
+      "ac_uid": "1178b21d9e66ecd6",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_9_1178b21d9e66ecd6.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-9"
+        ],
+        "assertions": [
+          {
+            "property": "cd_into_main_then_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "cd_semicolon_main_then_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "leading_env_assign_path_qualified_git_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "command_wrapper_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "exec_wrapper_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "multi_leading_env_assign_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "ambiguous_cd_before_head_move_fails_closed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "main_head_stays_master",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "legit_in_worktree_branch_op_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "legit_cd_into_worktree_status_allowed",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-10",
+      "ac_uid": "0f1b1722270a5717",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_10_0f1b1722270a5717.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-10"
+        ],
+        "assertions": [
+          {
+            "property": "hook_guard_blocks_worktree_flag_into_main_restore",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_worktree_eq_into_main_checkout",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_GIT_WORK_TREE_env_into_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_worktree_flag_into_main_checkout",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_GIT_WORK_TREE_env_into_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "main_worktree_byte_unchanged",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "worktree_local_work_tree_allowed_hook_guard",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "worktree_local_work_tree_allowed_policy_shim",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-11",
+      "ac_uid": "5e4a8b7a6dc91cd3",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_11_5e4a8b7a6dc91cd3.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-11"
+        ],
+        "assertions": [
+          {
+            "property": "worktree_context_typed_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "worktree_context_subprocess_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "worktree_context_cd_into_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "worktree_context_enforcement_not_skipped",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "main_head_stays_master",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "worktree_context_legit_worktree_status_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "normal_non_overnight_session_still_allowed",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
     }
   ],
   "archived_tests": []
