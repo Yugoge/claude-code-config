@@ -33,6 +33,13 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from lib.bash_write_targets import command_without_heredoc_bodies
+except Exception:  # pragma: no cover - fail-soft when lib missing
+    def command_without_heredoc_bodies(command: str) -> str:  # type: ignore
+        return command
+
 # Wrapper scripts whose direct EXECUTION requires a matching user-intent
 # sentinel. The key is the sentinel command-name (/tmp/claude-<name>-userintent-).
 #
