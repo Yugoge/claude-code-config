@@ -862,6 +862,10 @@ def main():
             handle_phase_b(session_id)
         else:
             handle_phase_a(cmd_name, user_input, session_id)
+    except SystemExit:
+        # M5/AC4: a /dev-overnight launch failure raises SystemExit(2) to fail
+        # CLOSED. Do NOT swallow it into exit(0); propagate the failure code.
+        raise
     except Exception:
         pass
     sys.exit(0)
