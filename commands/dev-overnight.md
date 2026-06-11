@@ -185,11 +185,11 @@ The state file has already been created by the UserPromptSubmit hook at `.claude
 
 **Read the state file** to get the end_time, session_id, worktree_path, spec_mode, user_spec_path, view_paths, and confirm initialization. If multiple state files exist, use the one matching the current session.
 
-If no state file exists (edge case), create it manually using the v4 schema with a generated session_id.
+If no state file exists, HARD ABORT. Do not fabricate a state file and do not proceed; the launch hook fails closed when it cannot produce a validated isolated worktree, so a missing state means the overnight actor must not run.
 
-**WORKTREE GUARD**: Check the state file's `worktree_path` field.
-- If `worktree_path` is NOT null: `cd` into the worktree path.
-- If `worktree_path` IS null (edge case: worktree creation failed during hook): log a warning and continue on the current branch.
+**WORKTREE GUARD**: Check the state file's `worktree_path` field. The launch hook guarantees a validated isolated worktree before any state is written, so `worktree_path` is always a valid isolated root.
+- `cd` into the validated `worktree_path`.
+- If `worktree_path` is missing or invalid: HARD ABORT. Do not create state manually. Do not call EnterWorktree. Do not continue on the main project path. The session simply does not run.
 
 **Spec announcement**: If `spec_mode` is `"user-provided"` and `user_spec_path` is set, announce:
 ```
