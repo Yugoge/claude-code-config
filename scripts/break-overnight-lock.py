@@ -113,12 +113,24 @@ def main() -> int:
     if not states:
         print("no overnight state files found — nothing to unlock")
         return 0
+    # fix-4 (c)+(d): helper-side validation before mutation. Releasing the
+    # isolation guarantee fields requires a fresh /stop helper-auth token; the
+    # consume is one-shot so a replayed token cannot re-release.
+    release_isolation = _consume_helper_auth()
     past = (datetime.now(timezone.utc) - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     for sf in states:
-        sid = _backdate(sf, past)
+        sid = _backdate(sf, past, release_isolation)
         _complete_todos(sid)
-    print("done — both Stop hooks released; session can now terminate")
-    return 0
+    if release_isolation:
+        print("done — both Stop hooks released; session can now terminate")
+        return 0
+    # No valid /stop user intent: the time-lock backdate still releases the Stop
+    # hooks (so a stuck session is not wedged), but isolation_released_at is
+    # WITHHELD and we exit non-zero so the unsanctioned caller is signalled.
+    print("WARNING: isolation_released_at WITHHELD (no valid /stop user-intent "
+          "token). An overnight actor cannot self-release isolation.",
+          file=sys.stderr)
+    return 3
 
 
 if __name__ == "__main__":
