@@ -1,0 +1,516 @@
+{
+  "schema_version": "1.1",
+  "task_id": "20260611-100500",
+  "generated_at": "2026-06-11T10:05:00Z",
+  "active_tests": [
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-1",
+      "ac_uid": "b39e8a28c0b6bfb1",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_1_b39e8a28c0b6bfb1.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-1"
+        ],
+        "assertions": [
+          {
+            "property": "probe_invocation_1.command_v_git",
+            "match": "equals",
+            "value": "policy_shim_path"
+          },
+          {
+            "property": "probe_invocation_2.command_v_git",
+            "match": "equals",
+            "value": "policy_shim_path"
+          },
+          {
+            "property": "probe_invocation_1.env_CLAUDE_OVERNIGHT_ACTOR",
+            "match": "equals",
+            "value": "1"
+          },
+          {
+            "property": "probe_invocation_2.env_CLAUDE_OVERNIGHT_ACTOR",
+            "match": "equals",
+            "value": "1"
+          },
+          {
+            "property": "probe.pwd",
+            "match": "equals",
+            "value": "validated_worktree_root"
+          },
+          {
+            "property": "probe.rev_parse_show_toplevel",
+            "match": "equals",
+            "value": "validated_worktree_root"
+          },
+          {
+            "property": "env_persists_across_two_independent_tool_calls",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "no_literal_true_in_ac9_for_cwd_and_toplevel",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-2",
+      "ac_uid": "4345ca0bbb15b15c",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_2_4345ca0bbb15b15c.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-2"
+        ],
+        "assertions": [
+          {
+            "property": "v1_path_shim_blocked_or_master_preserved",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "v2_env_scrubbed_blocked_or_master_preserved",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "v3_absolute_usr_bin_git_blocked_or_master_preserved",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "main_head_after_all_variants",
+            "match": "equals",
+            "value": "master"
+          },
+          {
+            "property": "block_does_not_depend_solely_on_actor_path_env",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "block_does_not_depend_on_243_keystone_symref",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "non_env_dependent_runtime_blocker_present",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-3",
+      "ac_uid": "0a75e27d6b34eaf6",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_3_0a75e27d6b34eaf6.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-3"
+        ],
+        "assertions": [
+          {
+            "property": "hook_guard_blocks_main_sub_restore",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_main_sub_restore",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_main_sub_add",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_main_sub_add",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_main_sub_checkout",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_main_sub_checkout",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_git_dir_redirect_to_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_git_dir_redirect_to_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_GIT_DIR_env_redirect_to_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_GIT_DIR_env_redirect_to_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_hookspath_suppression_against_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_hookspath_suppression_against_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_branch_f_master_move",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_branch_f_master_move",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_update_ref_master_move",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_update_ref_master_move",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_reset_against_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_reset_against_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_guard_blocks_stash_apply_against_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "policy_shim_blocks_stash_apply_against_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "main_worktree_byte_unchanged_per_vector",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "main_head_stays_master_per_vector",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "worktree_sub_status_allowed_hook_guard",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "worktree_sub_status_allowed_policy_shim",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-4",
+      "ac_uid": "562d14b9078d3304",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_4_562d14b9078d3304.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-4"
+        ],
+        "assertions": [
+          {
+            "property": "direct_break_overnight_lock_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "isolation_released_at_not_set_by_actor",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "pretool_userintent_guard_present_and_wired",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "helper_side_validates_sentinel_before_mutation",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "sentinel_consumed_one_shot_rejects_reuse",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "legit_stop_path_still_releases",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-5",
+      "ac_uid": "a27b1710ccb8068b",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_5_a27b1710ccb8068b.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-5"
+        ],
+        "assertions": [
+          {
+            "property": "keystone_install_precedes_selftest_observable_in_temp_repo",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "on_246_equivalent_selftest_observes_firing_keystone_then_records_structural_claim_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "on_real_git_243_structural_claim_allowed",
+            "match": "equals",
+            "value": false
+          },
+          {
+            "property": "on_real_git_243_guarantee_level",
+            "match": "equals",
+            "value": "best_effort_head_switch"
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-8",
+      "ac_uid": "4d452a7864081bab",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_8_4d452a7864081bab.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-8"
+        ],
+        "assertions": [
+          {
+            "property": "registered_overnight_actor_env_scrubbed_subprocess_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "registered_overnight_actor_absolute_usr_bin_git_main_checkout_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "normal_session_main_checkout_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "normal_session_main_commit_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "enforcement_scoped_to_overnight_owner_or_registered_child",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "no_global_master_lockdown_for_non_overnight_sessions",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "differential_actor_blocked_on_residual_vector_while_normal_allowed_under_same_live_state",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "RG-1",
+      "ac_uid": "0afff6edcfa78a57",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_RG_1_0afff6edcfa78a57.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "RG-1"
+        ],
+        "assertions": [
+          {
+            "property": "spec_mismatch_degrades_to_autonomous_with_valid_worktree",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "no_in_place_main_dir_work",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "refuse_to_launch_only_when_all_isolation_impossible",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "new_wiring_adds_no_hard_abort_path",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "fail_closed_interpreter_block_is_runtime_op_block_not_launch_abort",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "fail_closed_block_does_not_delete_or_rewrite_state",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "safe_command_inside_worktree_still_allowed_after_fail_closed",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "RG-2",
+      "ac_uid": "c08b47a7f2cdf308",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_RG_2_c08b47a7f2cdf308.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "RG-2"
+        ],
+        "assertions": [
+          {
+            "property": "dirty_main_tree_byte_preserved",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "main_head_stays_master",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "valid_worktree_on_non_master_branch_registered",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "RG-3",
+      "ac_uid": "4c1e5e38d38a0afc",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_RG_3_4c1e5e38d38a0afc.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "RG-3"
+        ],
+        "assertions": [
+          {
+            "property": "normal_session_main_checkout_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "normal_session_main_commit_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "normal_session_main_branch_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "no_global_master_lockdown_for_non_overnight_sessions",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "keystone_normal_session_exemption_preserved",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    }
+  ],
+  "archived_tests": []
+}
