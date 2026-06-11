@@ -1070,6 +1070,32 @@ def _gitdir_into_main(command: str, main_real: str, main_git_dir: str) -> bool:
     return False
 
 
+def _worktree_into_main(command: str, main_real: str) -> bool:
+    """VECTOR-2 (Cycle-3): True iff a --work-tree / GIT_WORK_TREE override whose
+    realpath is under main_root and OUTSIDE every active worktree is present. A
+    work-tree redirect into main writes the main working directory even when -C
+    points inside the isolated worktree (the index/HEAD come from the worktree's
+    .git but the checkout TARGET is the main tree)."""
+    if not main_real:
+        return False
+    candidates = []
+    for m in re.finditer(r'--work-tree(?:=|\s+)(\S+)', command):
+        candidates.append(m.group(1))
+    for m in re.finditer(r'GIT_WORK_TREE=(\S+)', command):
+        candidates.append(m.group(1))
+    for c in candidates:
+        c = c.strip('\'"')
+        if not c:
+            continue
+        try:
+            cr = os.path.realpath(c)
+        except Exception:
+            cr = c
+        if _path_targets_main(cr, main_real):
+            return True
+    return False
+
+
 def _scan_script_files_for_main_git(command: str, main_real: str) -> bool:
     """fix-2/codex#3: cover `python3 script.py` where the OUTER command does not
     mention git. Scan readable script-file operands (and any main_root mention)
