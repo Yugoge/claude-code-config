@@ -386,7 +386,10 @@ def ac_k2():
         per_form_oid_unchanged = True
         any_deny_on_stderr = False
         for label, cmd in forms.items():
-            _git(["checkout", "-q", "master"], repo, _actor_env(repo))
+            # reset to master between forms WITHOUT the actor env (a normal
+            # session is exempt; an actor-env reset would itself be keystone-
+            # blocked when a prior form left HEAD detached).
+            _git(["checkout", "-q", "--force", "master"], repo)
             res = _run_form_and_measure(repo, cmd, moid0)
             any_deny_on_stderr = any_deny_on_stderr or res["deny_on_stderr"]
             per_form_head_master = per_form_head_master and res["head_on_master"]
