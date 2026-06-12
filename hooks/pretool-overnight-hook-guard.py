@@ -1347,12 +1347,19 @@ def _enforce_overnight_git_command(command: str, main_root: str, worktree_path: 
     if not command:
         return
     main_real = os.path.realpath(main_root) if main_root else ''
-    # M14a: hook-suppression / config firewall (never relaxes).
-    if _GIT_HOOK_SUPPRESS_RE.search(command):
+    # M14a: hook-suppression / config firewall (never relaxes). Two layers:
+    #  (1) raw-regex env/-c firewall (GIT_CONFIG_* incl. PARAMETERS, --config-env,
+    #      unquoted `-c core.hooksPath=`); and
+    #  (2) Cycle-4 token-aware include-channel firewall (`-c include.path=`,
+    #      `-c includeIf.<cond>.path=`, plus the quoted `core.hooksPath` form the
+    #      raw regex cannot see), evaluated only in git's global-option region.
+    if _GIT_HOOK_SUPPRESS_RE.search(command) or _command_injects_keystone_config(command):
         _block(
             '\nOVERNIGHT CONFIG FIREWALL: git hook-suppression / config-override '
-            '(-c core.hooksPath, GIT_CONFIG_*, --config-env) is forbidden for '
-            'overnight actors — it would bypass the reference-transaction keystone.\n'
+            '(-c core.hooksPath, -c include.path / includeIf.*.path, GIT_CONFIG_* '
+            '(incl. GIT_CONFIG_PARAMETERS), --config-env) is forbidden for '
+            'overnight actors — it would redirect/disable the reference-transaction '
+            'keystone for the invocation (config-include bypass).\n'
         )
     # fix-3/codex#6: --git-dir / GIT_DIR / GIT_COMMON_DIR into the main repo.
     if _gitdir_into_main(command, main_real, main_git_dir):
