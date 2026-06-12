@@ -21,7 +21,6 @@ def test_RG_3():
     WHEN:  that non-overnight session performs normal main-repo git operations
     THEN:  they are ALLOWED both before and after the escalation; the keystone's normal-session exemption (`reference-transaction:18/35`) is preserved; no "any live overnight locks master for everyone" behavior MUST PASS both pre- and post-escalation
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — they are ALLOWED both before and after the escalation; the keystone's normal-session exemption (`reference-transactio...")
+    # Regression guard behavioral assertions (ac_harness.py RG-3) checked
+    # against the canonical acceptance-criteria JSON via _ac_runner.run_ac.
+    run_ac("RG-3")
