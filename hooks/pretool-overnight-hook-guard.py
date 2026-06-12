@@ -1501,7 +1501,7 @@ def _resolve_bwrap() -> str | None:
         if os.path.exists(cand):
             _BWRAP_BIN = cand
             return cand
-    found = shutil.which('bwrap') if shutil else None
+    found = shutil.which('bwrap')
     _BWRAP_BIN = found or ''
     return found
 
