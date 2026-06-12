@@ -98,9 +98,16 @@ UNCONDITIONAL and do not depend on the slot.
 
 - **A1** (host-wide modern git: PATH `git` AND `/usr/bin/git` AND
   `/usr/lib/git-core/git` all ≥2.46): keystone covers the branch-switch
-  structurally on every path; M13/M15 MAY relax to Should-Have.
-- **A2** (PATH-pinned only — the current host: old absolute `/usr/bin/git`
-  2.43.0 still reachable): M13/M14a/M15 remain MUST and AC11 must pass.
+  structurally on every path; M13/M15 MAY relax to Should-Have. **This is the
+  current host** — git 2.54.0 is installed host-wide (the 2.43 → 2.54 PPA
+  upgrade was applied), so `/usr/bin/git` is also ≥2.46 and the keystone fires
+  for the symref HEAD switch.
+- **A2** (PATH-pinned only, an old absolute `/usr/bin/git` < 2.46 still
+  reachable): M13/M14a/M15 remain MUST and AC11 must pass. This is the
+  post-rollback sub-mode (downgrade git + remove the PPA → `/usr/bin/git`
+  returns to 2.43.0).
 
-This slot mechanism delivers A2; reaching A1 is an out-of-cycle host-toolchain
-choice the operator may make later.
+The host now runs A1 (host-wide 2.54). The compensating M13 policy-shim / M14a
+firewall / M15 bash-safety layers are RETAINED as defense-in-depth regardless of
+sub-mode; rolling git back to 2.43 returns the host to A2 and is fully
+reversible.
