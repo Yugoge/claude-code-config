@@ -1,26 +1,32 @@
 #!/usr/bin/env python3
-"""Behavioral AC verification harness for task 20260611-100500 (Cycle 2).
+"""Behavioral AC verification harness for task 20260611-100500 (Cycle 3 — L5).
 
-fix-6 (spec-20260604-204954 §7.6): replaces the Cycle-1 greenwash (hardcoded
-True for AC9 cwd/toplevel; typed-Bash-only AC11) with REAL launched-actor /
-real-subprocess / real per-surface behavioral probes. Every check is computed
-from an actual execution in a throwaway/sandboxed repo that NEVER touches the
-live .git / master / core.hooksPath.
+L5 ESCALATION: the enforcement is moved OUT of the L4 shell-string-parsing layer
+(proven undecidable across 14 reproduced forms) INTO the git-native
+reference-transaction keystone, which now FIRES on the upgraded 2.54 host for a
+main-worktree symref HEAD branch-switch off master. Every AC-K probe is a REAL
+sandboxed reproduction: a throwaway repo on the live 2.54 git with the keystone
+installed exactly as scripts/install-git-keystone.sh does in a per-overnight
+target, driven by an overnight actor (CLAUDE_OVERNIGHT_ACTOR=1, no blessed
+token). The block is attributed to the KEYSTONE FIRING inside git (HEAD/master
+unchanged after the abort), NOT to the L4 parser recognizing the shell form.
+
+The decisive fail-first differential is anchored on the empirically-confirmed
+2.43-vs-2.54 capability gap: with the keystone installed the symref HEAD switch
+is ABORTED (HEAD stays master); without it (the 2.43-equivalent: the symref
+switch is invisible to the hook) the SAME form MOVES master->other. We reproduce
+the 2.43-equivalent on this 2.54 host by neutralizing the keystone's HEAD case
+in a sandbox copy (faithfully mirroring 2.43's symref-invisibility) so the
+differential is a genuine behavioral measurement, not a version-string check.
 
 Invocation: `python3 ac_harness.py <AC-ID>` prints a JSON object whose keys are
 the assertion `property` names declared in
 docs/dev/acceptance-criteria-20260611-100500.json. The generated pytest tests
 load that JSON and assert each property == its expected value.
 
-The "real launched actor" for AC-1/AC-2/AC-8 is driven by:
-  * the PreTool hook-guard (hooks/pretool-overnight-hook-guard.py) fed a real
-    PreToolUse payload (the env-INDEPENDENT block — this is the surface that
-    fires for the cooperative agent's Bash tool call), AND
-  * a real subprocess invocation of the policy shim / launched probe process
-    (for env/PATH-resolution inspection).
-Background children use no long-lived processes (only short-lived subprocess
-calls), so the qa.md trap-EXIT cleanup contract is satisfied by rmtree in
-finally blocks.
+The live .git / master / core.hooksPath are NEVER touched: all repos are
+throwaway temp dirs removed in finally blocks (the qa.md trap-EXIT cleanup
+contract is satisfied — only short-lived subprocesses, rmtree on exit).
 """
 from __future__ import annotations
 
@@ -31,39 +37,61 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]  # .../dot-claude
 SCRIPTS = REPO / "scripts"
 HOOKS = REPO / "hooks"
-KEYSTONE = HOOKS / "git-keystone" / "reference-transaction"
+KEYSTONE_SRC_DIR = HOOKS / "git-keystone"
+KEYSTONE = KEYSTONE_SRC_DIR / "reference-transaction"
 HOOK_GUARD = HOOKS / "pretool-overnight-hook-guard.py"
 POLICY_SHIM = SCRIPTS / "overnight-git" / "git-policy-shim"
-ENV_HELPER = SCRIPTS / "overnight-git-env.sh"
 CREATE_STATE = SCRIPTS / "create-overnight-state.sh"
 CREATE_WORKTREE = SCRIPTS / "create-worktree.sh"
-BREAK_LOCK = SCRIPTS / "break-overnight-lock.py"
-USERINTENT_GUARD = HOOKS / "pretool-wrapper-userintent.py"
-SETTINGS = REPO / "settings.json"
+INSTALL_KEYSTONE = SCRIPTS / "install-git-keystone.sh"
+SELFTEST = SCRIPTS / "overnight-git-selftest.sh"
+SPEC = REPO / "docs" / "dev" / "specs" / "spec-20260604-204954.md"
 SYSTEM_GIT = "/usr/bin/git"
 
 # Work under a NON-/tmp dir so the hook-guard's /tmp-exemption does not exempt
-# the boundary tests, mirroring the Cycle-1 harness _make_repo_nontmp.
+# the boundary tests.
 WORKBASE = REPO / "tests" / "generated" / "20260611-100500" / "_work"
 
+# The exact reversible toolchain supply (host facts pinned by BA this cycle and
+# re-verified live: `git --version` == 2.54.0 on both binaries; `apt-cache
+# policy git` shows the installed 2.54 PPA package AND the 2.43 rollback target).
+UPGRADE_PPA_SOURCE = "git-core-ubuntu-ppa-noble.sources"
+INSTALLED_PKG_VERSION = "1:2.54.0-0ppa1~ubuntu24.04.1"
+ROLLBACK_PKG_VERSION = "1:2.43.0-1ubuntu7.3"
+
+
+# ---------------------------------------------------------------------------
+# low-level helpers
+# ---------------------------------------------------------------------------
 
 def _git(args, cwd, env=None):
     e = dict(os.environ)
+    # Never let an inherited actor env leak into setup git ops.
+    e.pop("CLAUDE_OVERNIGHT_ACTOR", None)
     if env:
         e.update(env)
     return subprocess.run([SYSTEM_GIT, *args], cwd=str(cwd), env=e,
                           capture_output=True, text=True)
 
 
-def _make_repo(dirty=False):
+def _sh(command, cwd, env=None):
+    e = dict(os.environ)
+    e.pop("CLAUDE_OVERNIGHT_ACTOR", None)
+    if env:
+        e.update(env)
+    return subprocess.run(["bash", "-c", command], cwd=str(cwd), env=e,
+                          capture_output=True, text=True)
+
+
+def _make_repo(dirty=False, two_commits=True):
+    """A throwaway master-default repo with a divergent branch `other`."""
     WORKBASE.mkdir(parents=True, exist_ok=True)
-    d = Path(tempfile.mkdtemp(prefix="ac611-", dir=str(WORKBASE)))
+    d = Path(tempfile.mkdtemp(prefix="ack611-", dir=str(WORKBASE)))
     _git(["init", "-q", "-b", "master", "."], d)
     _git(["config", "user.email", "t@t"], d)
     _git(["config", "user.name", "t"], d)
@@ -73,15 +101,75 @@ def _make_repo(dirty=False):
     (sub / "s.txt").write_text("subbase\n")
     _git(["add", "."], d)
     _git(["commit", "-qm", "init"], d)
-    # a second branch 'other' at a DIFFERENT tip than master (so a checkout is a
-    # real HEAD move).
-    _git(["branch", "other"], d)
-    (d / "a.txt").write_text("base\nmaster-only\n")
-    _git(["commit", "-aqm", "master2"], d)
+    # branch `other` at the FIRST commit (a different tip than master) so a
+    # checkout / ref-move is a real HEAD/oid change.
+    if two_commits:
+        (d / "a.txt").write_text("base\nmaster-only\n")
+        _git(["commit", "-aqm", "master2"], d)
+        _git(["branch", "other", "HEAD~1"], d)
+    else:
+        _git(["branch", "other"], d)
     if dirty:
         (d / "a.txt").write_text("base\nmaster-only\nDIRTY tracked edit\n")
         (d / "untracked.txt").write_text("untracked\n")
     return d
+
+
+def _install_keystone(repo):
+    """Install the keystone into `repo` exactly as the launcher does (relocates
+    core.hooksPath to <common>/keystone-hooks, re-homes existing hooks)."""
+    return subprocess.run([str(INSTALL_KEYSTONE), "--project-dir", str(repo)],
+                          capture_output=True, text=True)
+
+
+def _make_243_equivalent_keystone_dir():
+    """Return a temp dir holding a git-keystone/reference-transaction that is a
+    faithful 2.43-equivalent: the symref HEAD branch-switch is INVISIBLE to the
+    hook (only the master-ref oid change is caught), exactly as git 2.43 behaved
+    before the upgrade. This reproduces the `branch_ref_only` / "would-move"
+    differential as a genuine behavioral measurement on a 2.54 host."""
+    src = KEYSTONE.read_text()
+    head_block = (
+        '      if [ "$_is_main_worktree" = "1" ] && [ "$old" != "$new" ]; then\n'
+        '        _deny "$ref (main worktree HEAD)"\n'
+        '      fi'
+    )
+    assert head_block in src, "keystone HEAD-deny block not found (source drift)"
+    src243 = src.replace(
+        head_block,
+        '      : # 2.43-equivalent: the symref HEAD branch-switch is invisible '
+        'to the hook\n      true')
+    tmp = Path(tempfile.mkdtemp(prefix="ks243-"))
+    ksdir = tmp / "git-keystone"
+    ksdir.mkdir()
+    (ksdir / "reference-transaction").write_text(src243)
+    os.chmod(ksdir / "reference-transaction", 0o755)
+    return tmp, ksdir
+
+
+def _head_branch(repo):
+    r = _git(["symbolic-ref", "--short", "HEAD"], repo)
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def _master_oid(repo):
+    return _git(["rev-parse", "refs/heads/master"], repo).stdout.strip()
+
+
+def _actor_env(repo, blessed=None):
+    e = {"CLAUDE_OVERNIGHT_ACTOR": "1", "CLAUDE_OVERNIGHT_MAIN_ROOT": str(repo)}
+    if blessed:
+        e["CLAUDE_GIT_BLESSED_TOKEN"] = blessed
+    return e
+
+
+def _selftest_json(project_dir, keystone_dir=None):
+    args = [str(SELFTEST), "--project-dir", str(project_dir)]
+    if keystone_dir:
+        args += ["--keystone-dir", str(keystone_dir)]
+    p = subprocess.run(args, capture_output=True, text=True)
+    m = re.search(r"SELFTEST_JSON=(\{.*\})", p.stdout)
+    return json.loads(m.group(1)) if m else {}
 
 
 def _make_worktree(repo, name="overnight-20260611-S"):
