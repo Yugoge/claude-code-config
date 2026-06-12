@@ -21,7 +21,8 @@ def test_AC_W6():
     WHEN:  the full escalation (half (a) keystone + half (b) bwrap boundary) runs end-to-end: an overnight-actor HEAD-move off master is attempted AND a recoverable launch failure path is exercised AND a dirty main tree is present at launch
     THEN:  half (a) still holds: the HEAD-move/master-ref move is keystone-ABORTED (AC-K1/AC-K2 not regressed); AND the boundary introduces NO hard-abort — the launch still ALWAYS creates + enters a valid isolated worktree (worktree creation is unconditional); AND launch availability is SEPARATED from write-guarantee availability (codex #3): if bwrap/userns is UNAVAILABLE the launch still isolates (worktree created) BUT the state records `write_boundary_active=false` / `conjunctive_claim_allowed=false`, and active-actor Bash commands that CANNOT be proven worktree-local are FAIL-CLOSED (denied), NOT silently allowed under the incomplete L4 floor — because L4 is known-incomplete for the write-half, continuing actor Bash under L4 alone would make the conjunctive 'NEVER write main' claim false; AND the dirty main tree is byte-preserved MUST PASS both pre- and post-write-half
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — cross-half regression guard: half-(a) keystone block not regressed; no hard-abort/always-create-worktree/dirty-tree preserved; bwrap-unavailable separates launch from write-guarantee (fail-closed, conjunctive_claim_allowed=false, not silent L4 floor)")
+    # L6 write-half cross-half regression guard (ac_harness.py AC-W6): half-(a)
+    # keystone block not regressed; no hard-abort / always-create-worktree /
+    # dirty-tree byte-preserved; bwrap-unavailable separates launch availability
+    # from the write guarantee (fail-closed, NOT a silent L4 floor).
+    run_ac("AC-W6")
