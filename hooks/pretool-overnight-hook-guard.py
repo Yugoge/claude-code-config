@@ -1688,6 +1688,13 @@ def _raw_git_metadata_write_into_main(command: str, main_root: str,
     # interpreter open('...','w') targets
     for mo in re.finditer(r"open\(\s*['\"]([^'\"]+)['\"]\s*,\s*['\"][wa]", command):
         targets.append(mo.group(1))
+    # raw-text fallback: a redirect (`>`/`>>`) or `tee` whose target path appears
+    # ANYWHERE in the command (incl. inside eval/source quoting the L4 extractor
+    # cannot unwrap). Scan for a write operator immediately preceding a path that
+    # contains a .git-metadata leaf, so an `eval 'echo x > MAIN/.git/logs/HEAD'`
+    # form is caught despite the quoting.
+    for mo in re.finditer(r'(?:>>?|\btee\b\s+(?:-a\s+)?)\s*([^\s\'";|&)]+)', command):
+        targets.append(mo.group(1))
     for t in targets:
         try:
             rp = os.path.realpath(t)
