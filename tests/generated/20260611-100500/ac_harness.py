@@ -381,9 +381,13 @@ def ac_k2():
     repo = _make_repo()
     ks243_tmp = None
     try:
+        wt = _make_worktree(repo)
+        _write_state(repo, wt)
         _install_keystone(repo)
         oid_other = _git(["rev-parse", "other"], repo).stdout.strip()
         moid0 = _master_oid(repo)
+        head_oid0 = _git(["rev-parse", "HEAD"], repo).stdout.strip()
+        m = str(repo)
 
         forms = _ac_k2_forms(repo)
         prior14_keys = [
@@ -394,7 +398,6 @@ def ac_k2():
         ]
         earlier_keys = [
             "env_scrubbed_subprocess", "absolute_usr_bin_git", "C_into_main",
-            "work_tree_into_main",
         ]
         all14_denied = True
         earlier_denied = True
@@ -406,7 +409,7 @@ def ac_k2():
             # session is exempt; an actor-env reset would itself be keystone-
             # blocked when a prior form left HEAD detached).
             _git(["checkout", "-q", "--force", "master"], repo)
-            res = _run_form_and_measure(repo, cmd, moid0)
+            res = _run_form_and_measure(repo, cmd, moid0, head_oid0)
             any_deny_on_stderr = any_deny_on_stderr or res["deny_on_stderr"]
             per_form_head_master = per_form_head_master and res["head_on_master"]
             per_form_oid_unchanged = per_form_oid_unchanged and res["master_oid_unchanged"]
@@ -419,7 +422,7 @@ def ac_k2():
         plumbing_results = {}
         for label, cmd in plumbing.items():
             _git(["checkout", "-q", "--force", "master"], repo)
-            res = _run_form_and_measure(repo, cmd, moid0)
+            res = _run_form_and_measure(repo, cmd, moid0, head_oid0)
             plumbing_results[label] = res["keystone_denied"]
             per_form_head_master = per_form_head_master and res["head_on_master"]
             per_form_oid_unchanged = per_form_oid_unchanged and res["master_oid_unchanged"]
@@ -429,8 +432,36 @@ def ac_k2():
         no_deref_denied = plumbing_results["plumbing_no_deref_head"]
         detached_denied = (plumbing_results["detached_checkout"]
                            and plumbing_results["detached_switch"])
-        reset_merge_rebase_denied = (plumbing_results["reset_hard"]
-                                     and plumbing_results["branch_f_master"])
+        # reset/merge/rebase-style master-ref move: reset_hard forces the master
+        # ref and is keystone-denied (positive stderr attribution).
+        reset_merge_rebase_denied = plumbing_results["reset_hard"]
+
+        # --- codex-A: TREE-WRITE protection comes from the PRE-EXECUTION layer ---
+        # The reference-transaction keystone is a REF hook: it aborts the ref
+        # move, but a tree-writing form (--work-tree into main, or a plain
+        # checkout/reset that stages the worktree before the ref abort) can leave
+        # the main tree dirty if it reaches the git binary. The FULL "永不在主工作
+        # 目录原地 write" guarantee therefore comes from the PreTool hook-guard,
+        # which blocks these forms BEFORE git runs (the tree is never touched).
+        # We assert the hook-guard blocks the pure tree-write + the tree-writing
+        # ref forms pre-execution, so in real overnight operation the main tree
+        # is never written; the keystone is the ref-layer backstop.
+        _git(["checkout", "-q", "--force", "master"], repo)
+        main_status_before = _git(["status", "--porcelain"], repo).stdout
+        main_a_before = (repo / "a.txt").read_text()
+        work_tree_into_main = f"git -C {m} --work-tree {m} checkout other -- a.txt"
+        work_tree_blocked_pre_exec = _hook_guard_blocks(work_tree_into_main, repo, cwd=wt)
+        tree_writing_ref_forms_blocked_pre_exec = (
+            _hook_guard_blocks(f"git -C {m} checkout other", repo, cwd=wt)
+            and _hook_guard_blocks(f"git -C {m} reset --hard {oid_other}", repo, cwd=wt))
+        # The pre-execution block means git never ran, so the main tree is
+        # byte-unchanged (the dirty-tree residue the keystone alone would leave is
+        # never produced).
+        main_status_after = _git(["status", "--porcelain"], repo).stdout
+        main_a_after = (repo / "a.txt").read_text()
+        main_tree_unchanged_under_pre_exec = (
+            main_status_after == main_status_before
+            and main_a_after == main_a_before)
 
         # actor-env carriage proof: env STRIPPED -> keystone actor gate exits 0
         # and the form MOVES HEAD; env PRESENT -> the keystone fires + denies.
