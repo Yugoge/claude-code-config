@@ -21,7 +21,8 @@ def test_AC_W5():
     WHEN:  an overnight actor runs a Bash command that the rewrite WOULD have wrapped
     THEN:  the existing L4 string-guard allow/deny path still executes and DENIES the recognized dangerous forms (fail-closed); the hook does NOT fall through to allow-everything just because the rewrite was not applied; the unrecognized-by-L4 residue is documented as the known gap that the bwrap boundary closes WHEN updatedInput is honored (the boundary is the strict improvement, never a regression)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — fail-safe degradation: when updatedInput.command is not honored the L4 allow/deny floor still runs fail-closed (never falls through to allow-all); boundary is a strict improvement")
+    # L6 write-half fail-safe degradation (ac_harness.py AC-W5): when the bwrap
+    # rewrite is not honored/available, the retained L4 allow/deny floor still
+    # runs fail-closed (denies recognized dangerous forms, never allow-all);
+    # worktree-local commands still allowed (strict improvement, never regression).
+    run_ac("AC-W5")
