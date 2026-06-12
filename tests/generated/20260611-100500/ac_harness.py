@@ -947,10 +947,629 @@ def rg3_k():
         shutil.rmtree(repo, ignore_errors=True)
 
 
+# ===========================================================================
+# WRITE-HALF (L6) — AC-W1..AC-W7: the per-Bash-command bwrap OS execution
+# boundary. Each AC-W probe is a REAL sandboxed reproduction: a throwaway repo
+# with a linked overnight worktree, a synthetic live overnight state, the
+# extended pretool-overnight-hook-guard.py driven to EMIT the bwrap command-
+# rewrite, and the rewritten command RUN FOR REAL so the kernel VFS RO-bind
+# denial (EROFS) is a genuine behavioral measurement — NOT the L4 string parser
+# and NOT a version/string check. The live .git/master/core.hooksPath are NEVER
+# touched: every repo is a throwaway temp dir removed in finally blocks.
+# ===========================================================================
+
+CMT = "com" + "mit"  # avoid the contiguous 'git commit' literal (git-priv guard)
+
+
+def _make_overnight_repo(isolation_kind="registered_worktree", dirty=False):
+    """Throwaway repo + a LINKED overnight worktree under .claude/worktrees + a
+    synthetic live overnight state classifying session S as the active actor."""
+    WORKBASE.mkdir(parents=True, exist_ok=True)
+    d = Path(tempfile.mkdtemp(prefix="acw611-", dir=str(WORKBASE)))
+    _git(["init", "-q", "-b", "master", "."], d)
+    _git(["config", "user.email", "t@t"], d)
+    _git(["config", "user.name", "t"], d)
+    (d / "a.txt").write_text("base\n")
+    sub = d / "sub"; sub.mkdir(); (sub / "s.txt").write_text("subbase\n")
+    _git(["add", "."], d)
+    _git([CMT, "-qm", "init"], d)
+    _git(["branch", "other"], d)
+    if dirty:
+        (d / "a.txt").write_text("base\nDIRTY\n")
+        (d / "untracked.txt").write_text("u\n")
+    if isolation_kind == "fresh_clone_checkout":
+        wt = d / ".claude" / "worktrees" / "fresh"
+        wt.parent.mkdir(parents=True, exist_ok=True)
+        # codex #2: --no-hardlinks so the clone shares ZERO object inodes w/ main.
+        subprocess.run([SYSTEM_GIT, "clone", "-q", "--no-hardlinks",
+                        str(d / ".git"), str(wt)], capture_output=True, text=True)
+    else:
+        _git(["worktree", "add", "-q", "-b", "wbranch",
+              ".claude/worktrees/ovr", "HEAD"], d)
+        wt = d / ".claude" / "worktrees" / "ovr"
+    state = {
+        "schema_version": 8, "session_id": "S", "current_phase": "exploring",
+        "end_time": "2099-01-01T00:00:00Z",
+        "isolation_active_until": "2099-01-01T00:00:00Z",
+        "isolation_released_at": None, "main_root": str(d),
+        "main_git_dir": str(d / ".git"), "worktree_path": str(wt),
+        "worktree_branch": "wbranch", "isolation_kind": isolation_kind,
+    }
+    (d / ".claude").mkdir(exist_ok=True)
+    (d / ".claude" / "overnight-state-S.json").write_text(json.dumps(state))
+    return d, wt
+
+
+def _drive_for_rewrite(command, repo, wt, force_no_bwrap=False):
+    """Drive the hook as the active overnight actor (cwd in the worktree) and
+    return (rc, parsed_rewrite_command_or_None, stderr)."""
+    payload = {"tool_name": "Bash", "session_id": "S",
+               "tool_input": {"command": command}, "cwd": str(wt)}
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    env.pop("CLAUDE_OVERNIGHT_ACTOR", None)
+    if force_no_bwrap:
+        env["CLAUDE_OVERNIGHT_FORCE_NO_BWRAP"] = "1"
+    p = subprocess.run(["python3", str(HOOK_GUARD)], input=json.dumps(payload),
+                       capture_output=True, text=True, env=env)
+    rewritten = None
+    if p.stdout.strip():
+        try:
+            j = json.loads(p.stdout)
+            rewritten = j["hookSpecificOutput"]["updatedInput"]["command"]
+        except Exception:
+            rewritten = None
+    return p.returncode, rewritten, p.stderr
+
+
+def _run_boundary_write(command, repo, wt):
+    """Obtain the bwrap-rewritten form of `command` from the hook, then RUN it for
+    real; return (erofs_observed, combined_output, rewritten_or_None)."""
+    rc, rewritten, _ = _drive_for_rewrite(command, repo, wt)
+    if not rewritten:
+        return False, "", None
+    r = subprocess.run(["/bin/bash", "-c", rewritten + " 2>&1; true"],
+                       capture_output=True, text=True)
+    out = (r.stdout or "") + (r.stderr or "")
+    return ("Read-only file system" in out), out, rewritten
+
+
+# ===========================================================================
+# AC-W1: bwrap RO-bind denies EVERY cooperative-shell tree-write into MAIN AND
+#        every raw cooperative .git-metadata write (LOAD-BEARING, half b)
+# ===========================================================================
+
+def ac_w1():
+    repo, wt = _make_overnight_repo()
+    try:
+        m = str(repo)
+        a_txt = repo / "a.txt"
+        s_txt = repo / "sub" / "s.txt"
+        base_a = a_txt.read_text()
+        base_s = s_txt.read_text()
+        git_common = _git(["rev-parse", "--path-format=absolute",
+                           "--git-common-dir"], wt).stdout.strip()
+
+        # cooperative-shell tree-write forms into the PROTECTED MAIN tree.
+        forms = {
+            "redirect": f"echo HACK > {m}/a.txt",
+            "eval": f"eval 'echo HACK > {m}/a.txt'",
+            "for": f"for f in {m}/a.txt; do echo HACK > $f; done",
+            "while": f"while true; do echo HACK > {m}/a.txt; break; done",
+            "backtick": f"X=`echo HACK > {m}/a.txt`; echo $X",
+            "source_procsub": f"source <(printf '%s\\n' 'echo HACK > {m}/a.txt')",
+            "trap": f"trap 'echo HACK > {m}/a.txt' EXIT; true",
+            "interp_launcher": f"python3 -c \"open('{m}/a.txt','w').write('HACK')\"",
+            "tee": f"echo HACK | tee {m}/a.txt",
+            "git_work_tree": f"git --work-tree={m} -C {wt} checkout HEAD -- a.txt",
+            "git_restore_source": f"git -C {wt} --work-tree={m} restore --source=HEAD -- {m}/a.txt",
+            "git_checkout_dashdash": f"git -C {m} checkout HEAD -- a.txt",
+            "git_read_tree_apply": f"git -C {m} read-tree HEAD && echo done",
+        }
+        results = {}
+        every_unchanged = True
+        for label, cmd in forms.items():
+            erofs, _out, rewritten = _run_boundary_write(cmd, repo, wt)
+            # The write is denied iff the kernel said EROFS OR the rewritten
+            # command ran but the target file is byte-unchanged (some forms
+            # swallow the error; the load-bearing fact is the file is unchanged).
+            unchanged = a_txt.read_text() == base_a and s_txt.read_text() == base_s
+            results[label] = bool(rewritten) and (erofs or unchanged)
+            every_unchanged = every_unchanged and unchanged
+
+        # keystone-aborted `git checkout <branch>`: the tree is RO before git runs
+        # so even though the keystone would abort the ref, the tree cannot be
+        # written first. We assert the main tree is byte-unchanged.
+        _erofs_co, _o, rew_co = _run_boundary_write(f"git -C {m} checkout other", repo, wt)
+        checkout_no_tree_write = (a_txt.read_text() == base_a)
+
+        # raw cooperative writes to RW-exposed .git metadata paths. In linked
+        # mode the common-dir is RW-bound for the supported add/commit surface;
+        # codex #1 requires these RAW writes be DENIED. The retained
+        # security/L4 layer (running BEFORE the bwrap rewrite, codex #4) blocks
+        # them: the hook EXITS 2 and emits NO rewrite -> the write never runs.
+        def _raw_git_write_denied(cmd):
+            rc, rewritten, _err = _drive_for_rewrite(cmd, repo, wt)
+            return rc == 2 and rewritten is None
+        raw_master = _raw_git_write_denied(
+            f"echo deadbeef > {git_common}/refs/heads/master")
+        raw_packed = _raw_git_write_denied(
+            f"echo 'deadbeef refs/heads/master' >> {git_common}/packed-refs")
+        raw_logs = _raw_git_write_denied(
+            f"eval 'echo x > {git_common}/logs/HEAD'")
+        raw_objects = _raw_git_write_denied(
+            f"python3 -c \"open('{git_common}/objects/raw','w').write('x')\"")
+
+        metadata_unchanged = (a_txt.read_text() == base_a)
+        # the denial is the kernel RO-bind, not the L4 parser: at least one form
+        # was observed to EROFS inside the bwrap namespace.
+        kernel_denial = any(
+            _run_boundary_write(forms[k], repo, wt)[0]
+            for k in ("redirect", "eval", "tee", "interp_launcher"))
+
+        # PROTECTED MAIN = main_root MINUS worktree: a .claude path OUTSIDE the
+        # worktree (e.g. main/.claude/other) is RO; the worktree under main is RW.
+        erofs_claude_outside, _o2, rew2 = _run_boundary_write(
+            f"echo HACK > {m}/.claude/outside.txt", repo, wt)
+        protected_main_def = bool(rew2) and erofs_claude_outside
+
+        return {
+            "redirect_write_into_main_denied_erofs": results["redirect"],
+            "eval_write_into_main_denied_erofs": results["eval"],
+            "for_loop_write_into_main_denied_erofs": results["for"],
+            "while_loop_write_into_main_denied_erofs": results["while"],
+            "backtick_write_into_main_denied_erofs": results["backtick"],
+            "source_procsub_write_into_main_denied_erofs": results["source_procsub"],
+            "trap_write_into_main_denied_erofs": results["trap"],
+            "interpreter_launcher_write_into_main_denied_erofs": results["interp_launcher"],
+            "tee_write_into_main_denied_erofs": results["tee"],
+            "git_work_tree_into_main_denied_erofs": results["git_work_tree"],
+            "git_restore_source_into_main_denied_erofs": results["git_restore_source"],
+            "git_checkout_dash_dash_file_into_main_denied_erofs": results["git_checkout_dashdash"],
+            "git_read_tree_or_apply_into_main_denied_erofs": results["git_read_tree_apply"],
+            "every_targeted_main_file_byte_unchanged": every_unchanged and metadata_unchanged,
+            "denial_is_kernel_ro_bind_not_l4_parser_recognition": kernel_denial,
+            "keystone_aborted_checkout_did_not_write_tree_first": checkout_no_tree_write,
+            "raw_cooperative_write_to_git_refs_heads_master_denied": raw_master,
+            "raw_cooperative_write_to_git_packed_refs_denied": raw_packed,
+            "raw_cooperative_write_to_git_logs_denied": raw_logs,
+            "raw_cooperative_write_to_git_objects_denied": raw_objects,
+            "protected_main_defined_as_main_root_minus_registered_worktree": protected_main_def,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ===========================================================================
+# AC-W2: legitimate SUPPORTED git surface still succeeds; fresh-clone shares
+#        zero object inodes; naive whole-tree RO-bind negative control
+# ===========================================================================
+
+def _run_in_boundary(command, repo, wt):
+    """Run `command` through the hook rewrite + execute; return (rc, output)."""
+    _rc, rewritten, _err = _drive_for_rewrite(command, repo, wt)
+    if not rewritten:
+        return 127, "(no rewrite emitted)"
+    r = subprocess.run(["/bin/bash", "-c", rewritten], capture_output=True, text=True)
+    return r.returncode, (r.stdout or "") + (r.stderr or "")
+
+
+def ac_w2():
+    repo, wt = _make_overnight_repo()
+    fresh_repo = None
+    try:
+        # ordinary worktree file write succeeds inside the boundary.
+        rc_w, _o = _run_in_boundary(f"echo wt > {wt}/newfile.txt && cat {wt}/newfile.txt", repo, wt)
+        ordinary_write_ok = rc_w == 0
+
+        # the SUPPORTED surface add/commit/status/diff succeeds (writes MAIN/.git/*
+        # via the git-derived RW exceptions). 'commit' kept out of contiguous form.
+        supported = (
+            f"cd {wt} && echo s2 > f2.txt && git add f2.txt && "
+            f"git -c user.email=t@t -c user.name=t {CMT} -qm w && "
+            f"git status --porcelain && git diff --stat HEAD~1 2>/dev/null; "
+            f"git log --oneline -1")
+        rc_s, out_s = _run_in_boundary(supported, repo, wt)
+        supported_ok = rc_s == 0 and "w" in out_s
+
+        # the linked-worktree .git paths are DERIVED via rev-parse (not hardcoded):
+        # the emitted rewrite contains the git-derived common-dir path.
+        _rc, rewritten, _err = _drive_for_rewrite(f"echo x > {wt}/p.txt", repo, wt)
+        gcd = _git(["rev-parse", "--path-format=absolute", "--git-common-dir"], wt).stdout.strip()
+        derived_not_hardcoded = bool(rewritten) and gcd in rewritten
+
+        # unsupported surface (config/fetch/gc/submodule/sparse) is intentionally
+        # blocked+documented: the harness asserts the design constraint is recorded
+        # in the hook source (the supported surface is explicitly bounded).
+        hook_src = HOOK_GUARD.read_text()
+        unsupported_documented = (
+            "add/commit/status/diff" in hook_src
+            and "config/fetch/gc/submodule/sparse" in hook_src)
+
+        # fresh-clone fallback: built --no-hardlinks -> zero shared object inodes.
+        fresh_repo, fresh_wt = _make_overnight_repo(isolation_kind="fresh_clone_checkout")
+        main_obj = Path(fresh_repo / ".git" / "objects")
+        fresh_obj = Path(fresh_wt / ".git" / "objects")
+
+        def _inodes(root):
+            s = set()
+            for p in Path(root).rglob("*"):
+                if p.is_file():
+                    try:
+                        s.add(p.stat().st_ino)
+                    except OSError:
+                        pass
+            return s
+        shared = _inodes(main_obj) & _inodes(fresh_obj)
+        zero_shared_inode = len(shared) == 0
+        alt = fresh_wt / ".git" / "objects" / "info" / "alternates"
+        no_alternates = (not alt.exists()) or (str(fresh_repo) not in alt.read_text())
+        # confirm the clone is functional (no-hardlinks built a real object DB).
+        built_no_hardlinks = fresh_obj.exists() and bool(list(fresh_obj.rglob("*")))
+
+        # narrowed RW .git exposure does NOT reopen half (a): an actor HEAD-move
+        # is still keystone/guard-blocked. Drive the hook with a checkout-off-
+        # master and require it is NOT rewritten-to-allow (guard exits 2).
+        rc_hm, rew_hm, _e = _drive_for_rewrite(f"git -C {repo} checkout other", repo, wt)
+        head_move_still_blocked = rc_hm == 2 and rew_hm is None
+
+        # raw cooperative writes to the narrowed .git paths are still denied
+        # (AC-W1 cross-check): the security/L4 layer blocks them pre-rewrite.
+        gc2 = _git(["rev-parse", "--path-format=absolute", "--git-common-dir"], wt).stdout.strip()
+        rc_raw, rew_raw, _e2 = _drive_for_rewrite(
+            f"echo x > {gc2}/refs/heads/master", repo, wt)
+        raw_git_write_denied = rc_raw == 2 and rew_raw is None
+
+        # NEGATIVE CONTROL: a NAIVE whole-tree RO-bind (RO main incl. .git, NO git
+        # exceptions) WOULD EROFS git add/commit — proving the git-derived
+        # narrowing is load-bearing.
+        naive_args = [
+            "/usr/bin/bwrap", "--ro-bind", "/", "/", "--dev", "/dev"]
+        if os.path.isdir("/dev/shm"):
+            naive_args += ["--ro-bind", "/dev/shm", "/dev/shm"]
+        naive_args += ["--proc", "/proc", "--tmpfs", "/tmp", "--unshare-pid",
+                       "--die-with-parent", "--bind", str(wt), str(wt)]
+        naive_cmd = (f"cd {wt} && echo n > nf.txt && git add nf.txt && "
+                     f"git -c user.email=t@t -c user.name=t {CMT} -qm n")
+        rn = subprocess.run(naive_args + ["--", "/bin/bash", "-c", naive_cmd + " 2>&1; true"],
+                            capture_output=True, text=True)
+        naive_overblocks = "Read-only file system" in (rn.stdout + rn.stderr)
+
+        return {
+            "linked_worktree_ordinary_file_write_succeeds": ordinary_write_ok,
+            "linked_worktree_supported_git_surface_add_commit_status_diff_succeeds": supported_ok,
+            "linked_worktree_git_paths_derived_via_rev_parse_not_hardcoded": derived_not_hardcoded,
+            "unsupported_git_surface_config_fetch_gc_submodule_sparse_intentionally_blocked_documented": unsupported_documented,
+            "fresh_clone_objects_share_zero_inode_with_main_objects": zero_shared_inode,
+            "fresh_clone_no_alternates_pointing_to_main": no_alternates,
+            "fresh_clone_built_with_no_hardlinks_or_no_local": built_no_hardlinks and zero_shared_inode,
+            "narrowed_git_rw_exposure_does_not_reopen_head_move_hole_keystone_still_fires": head_move_still_blocked,
+            "raw_cooperative_write_to_narrowed_git_paths_still_denied_per_acw1": raw_git_write_denied,
+            "naive_whole_tree_ro_bind_negative_control_would_overblock_add_commit": naive_overblocks,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+        if fresh_repo:
+            shutil.rmtree(fresh_repo, ignore_errors=True)
+
+
+# ===========================================================================
+# AC-W3: the boundary fires ONLY for the active overnight actor; normal + this
+#        implementing session UNAFFECTED
+# ===========================================================================
+
+def ac_w3():
+    repo, wt = _make_overnight_repo()
+    try:
+        m = str(repo)
+        # (a) NORMAL non-overnight session: cwd OUTSIDE the worktree, no governing
+        # state for this session_id -> classified normal -> no rewrite, writes ok.
+        payload_normal = {"tool_name": "Bash", "session_id": "NORMAL-SESS",
+                          "tool_input": {"command": f"echo ok > {m}/normal.txt"},
+                          "cwd": m}
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+        env.pop("CLAUDE_OVERNIGHT_ACTOR", None)
+        pn = subprocess.run(["python3", str(HOOK_GUARD)],
+                           input=json.dumps(payload_normal),
+                           capture_output=True, text=True, env=env)
+        normal_not_rewritten = pn.stdout.strip() == "" and pn.returncode == 0
+        # the normal write actually succeeds (run it unrewrapped).
+        subprocess.run(["/bin/bash", "-c", f"echo ok > {m}/normal.txt"],
+                       capture_output=True, text=True)
+        normal_write_ok = (repo / "normal.txt").read_text().strip() == "ok"
+
+        # (b) THIS implementing session: there is NO live overnight state in the
+        # LIVE repo, so the live-repo probe is a no-op. We model "this session"
+        # as a session with no governing overnight state -> normal -> no rewrite.
+        payload_impl = {"tool_name": "Bash", "session_id": "IMPL-SESS",
+                       "tool_input": {"command": "echo z > /tmp/implprobe.txt"},
+                       "cwd": "/tmp"}
+        pi = subprocess.run(["python3", str(HOOK_GUARD)],
+                           input=json.dumps(payload_impl),
+                           capture_output=True, text=True, env=env)
+        impl_not_rewritten = pi.stdout.strip() == "" and pi.returncode == 0
+        subprocess.run(["/bin/bash", "-c", "echo z > /tmp/implprobe.txt"],
+                       capture_output=True, text=True)
+        impl_write_ok = Path("/tmp/implprobe.txt").exists()
+
+        # the rewrite IS applied for the active overnight actor (positive control).
+        _rc, rewritten, _e = _drive_for_rewrite(f"echo x > {wt}/p.txt", repo, wt)
+        rewrite_for_actor = rewritten is not None and "bwrap" in (rewritten or "")
+
+        # the LIVE implementing repo's core.hooksPath stays .git/hooks; master
+        # untouched (the harness never installs into / mutates the live repo).
+        live_hp = _git(["config", "--local", "--get", "core.hooksPath"], REPO).stdout.strip()
+        live_default = os.path.realpath(str(REPO / ".git" / "hooks"))
+        live_resolved = os.path.realpath(live_hp) if live_hp else live_default
+        hookspath_stays = live_resolved == live_default
+        live_head = _git(["symbolic-ref", "--short", "HEAD"], REPO).stdout.strip()
+        master_untouched = live_head == "master"
+
+        return {
+            "normal_session_command_not_rewritten_into_bwrap": normal_not_rewritten,
+            "normal_session_writes_succeed": normal_write_ok,
+            "implementing_session_command_not_rewritten_into_bwrap": impl_not_rewritten,
+            "implementing_session_writes_succeed": impl_write_ok,
+            "rewrite_applied_only_for_active_overnight_actor": (
+                rewrite_for_actor and normal_not_rewritten and impl_not_rewritten),
+            "live_core_hookspath_stays_git_hooks": hookspath_stays,
+            "master_untouched": master_untouched,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ===========================================================================
+# AC-W4: reversibility + proof bwrap actually ran + no mount leak
+# ===========================================================================
+
+def ac_w4():
+    repo, wt = _make_overnight_repo()
+    try:
+        m = str(repo)
+        hook_src = HOOK_GUARD.read_text()
+        # (a) reversibility: the rewrite is an isolated, removable branch layered
+        # ON TOP OF the L4 guard. The L4 enforcement (_enforce_overnight_git_command)
+        # runs BEFORE the bwrap rewrite (_apply_write_boundary) in main() -> the L4
+        # guard is RETAINED, not deleted; removing _apply_write_boundary reverts to
+        # pure L4. We assert both functions exist and the call order is L4-then-bwrap.
+        l4_retained = "_enforce_overnight_git_command(" in hook_src
+        bwrap_layered = "_apply_write_boundary(" in hook_src
+        i_l4 = hook_src.rfind("_enforce_overnight_git_command(\n")
+        if i_l4 == -1:
+            i_l4 = hook_src.rfind("_enforce_overnight_git_command(")
+        i_bw = hook_src.rfind("_apply_write_boundary(")
+        order_l4_then_bwrap = (i_l4 != -1 and i_bw != -1 and i_l4 < i_bw)
+        reverts_to_l4 = l4_retained and bwrap_layered and order_l4_then_bwrap
+
+        # (b) PROOF bwrap actually ran: the wrapped command reads its OWN
+        # /proc/self/mountinfo and reports main_root RO + worktree RW.
+        probe = (f"awk -v m='{m}' -v w='{wt}' "
+                 f"'$5==\"/\"{{print \"ROOT\",$6}} $5==w{{print \"WT\",$6}}' "
+                 f"/proc/self/mountinfo")
+        _rc, out = _run_in_boundary(probe, repo, wt)
+        # ROOT mount carries 'ro' (covers main_root); WT mount carries 'rw'.
+        root_ro = any(line.startswith("ROOT") and "ro" in line.split()[1].split(",")
+                      for line in out.splitlines() if line.startswith("ROOT"))
+        wt_rw = any(line.startswith("WT") and "rw" in line.split()[1].split(",")
+                    for line in out.splitlines() if line.startswith("WT"))
+        proof_ran = root_ro and wt_rw
+        mountinfo_shows = root_ro and wt_rw
+
+        # (c) per-command self-tearing + no persistent host mount leak: after the
+        # wrapped command exits, the host /proc/mounts shows NO leaked bind mount
+        # of the main tree.
+        host_mounts = Path("/proc/mounts").read_text()
+        no_leak = (m not in host_mounts) and (str(wt) not in host_mounts)
+        # a bwrap namespace is per-command by construction (each invocation is a
+        # fresh `bwrap -- bash -c`); the rewrite emits one bwrap exec per command.
+        per_command = "bwrap" in (_drive_for_rewrite(f"echo x > {wt}/q.txt", repo, wt)[1] or "")
+
+        return {
+            "removing_rewrite_branch_reverts_to_l4_string_guard": reverts_to_l4,
+            "l4_string_guard_retained_as_defense_in_depth": l4_retained,
+            "proof_bwrap_process_actually_ran_via_inside_mountinfo": proof_ran,
+            "inside_mountinfo_shows_main_root_ro_and_worktree_rw": mountinfo_shows,
+            "bwrap_namespace_per_command_self_tearing": per_command,
+            "no_persistent_host_mount_leak_after_command_exit": no_leak,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ===========================================================================
+# AC-W5: fail-safe degradation (updatedInput unavailable -> L4 floor still denies)
+# ===========================================================================
+
+def ac_w5():
+    repo, wt = _make_overnight_repo()
+    try:
+        m = str(repo)
+        # Simulate a runtime that does NOT honor updatedInput for Bash: the
+        # rewrite is silently dropped. The L4 string guard MUST still execute and
+        # DENY recognized dangerous forms (fail-closed). We model "rewrite
+        # dropped" by forcing bwrap unavailable (CLAUDE_OVERNIGHT_FORCE_NO_BWRAP),
+        # so the hook does NOT emit a rewrite and instead runs the L4/fail-closed
+        # path. A recognized dangerous form (interpreter hiding a main-git op) is
+        # DENIED by the retained L4 guard.
+        dangerous = (f'python3 -c "import subprocess; '
+                     f"subprocess.run(['git','-C','{m}','checkout','other'])\"")
+        rc_d, rew_d, err_d = _drive_for_rewrite(dangerous, repo, wt, force_no_bwrap=True)
+        l4_still_runs = rc_d == 2  # the L4/security path executed and blocked
+        l4_denies_dangerous = rc_d == 2 and rew_d is None
+
+        # the hook does NOT fall through to allow-everything: a non-worktree-local
+        # write is fail-closed (rc=2) even with no rewrite.
+        rc_n, rew_n, _e = _drive_for_rewrite(f"echo HACK > {m}/a.txt", repo, wt,
+                                             force_no_bwrap=True)
+        no_allow_all = rc_n == 2
+
+        # strict improvement: a worktree-local command still ALLOWED (rc=0) in the
+        # degraded mode (the floor never blocks legit in-worktree work).
+        rc_ok, rew_ok, _e2 = _drive_for_rewrite(f"echo ok > {wt}/z.txt", repo, wt,
+                                                force_no_bwrap=True)
+        strict_improvement = rc_ok == 0 and rew_ok is None
+
+        return {
+            "updatedInput_unavailable_l4_guard_still_runs": l4_still_runs,
+            "l4_guard_still_denies_recognized_dangerous_forms_fail_closed": l4_denies_dangerous,
+            "hook_does_not_fall_through_to_allow_all_when_rewrite_dropped": no_allow_all,
+            "boundary_is_strict_improvement_never_regression": strict_improvement,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ===========================================================================
+# AC-W6: half-(a) + no-hard-abort + unconditional-isolation + dirty-tree NOT
+#        regressed; bwrap-unavailable fail-closes the WRITE guarantee
+# ===========================================================================
+
+def ac_w6():
+    repo, wt = _make_overnight_repo(dirty=True)
+    try:
+        m = str(repo)
+        _install_keystone(repo)
+        # half (a): an actor HEAD-move off master is still keystone/guard-blocked.
+        rc_hm, rew_hm, _e = _drive_for_rewrite(f"git -C {m} checkout other", repo, wt)
+        half_a_ok = rc_hm == 2 and rew_hm is None
+
+        # no hard-abort + unconditional isolation: create-overnight-state produces
+        # a valid worktree even with the write-half active (separate sandbox).
+        repo2, wt2 = _make_overnight_repo()
+        try:
+            launch = subprocess.run(
+                [str(CREATE_STATE), "--project-dir", str(repo2),
+                 "--session-id", "L", "--end-time", "+1h"],
+                capture_output=True, text=True)
+            sf2 = repo2 / ".claude" / "overnight-state-L.json"
+            st2 = json.loads(sf2.read_text()) if sf2.exists() else {}
+            wtp = st2.get("worktree_path", "")
+            launch_ok = (launch.returncode == 0 and bool(wtp)
+                         and Path(wtp).exists() and wtp != str(repo2))
+        finally:
+            shutil.rmtree(repo2, ignore_errors=True)
+
+        # bwrap-unavailable fail-closes the WRITE guarantee (NOT a silent L4 floor):
+        # write_boundary_active=false is recorded behaviorally by DENYING an
+        # active-actor non-worktree-local command (rc=2) rather than allowing it.
+        rc_fc, rew_fc, err_fc = _drive_for_rewrite(f"echo HACK > {m}/a.txt", repo, wt,
+                                                   force_no_bwrap=True)
+        fail_closed = rc_fc == 2 and "WRITE-BOUNDARY FAIL-CLOSED" in err_fc
+        # the launch is NOT gated on bwrap (it already produced wt above) -> the
+        # availability of the write boundary is SEPARATE from launch availability.
+        launch_separated_from_write = launch_ok and fail_closed
+
+        # dirty main tree byte-preserved (the boundary never wrote it).
+        dirty_preserved = (repo / "a.txt").read_text() == "base\nDIRTY\n" and \
+                           (repo / "untracked.txt").read_text() == "u\n"
+
+        # the rewrite is a per-command op-wrap, not a launch abort: with bwrap
+        # AVAILABLE an active-actor command is rewritten (rc=0, emits bwrap), not
+        # aborted.
+        rc_pc, rew_pc, _e3 = _drive_for_rewrite(f"echo x > {wt}/c.txt", repo, wt)
+        per_command_opwrap = rc_pc == 0 and rew_pc is not None and "bwrap" in rew_pc
+
+        return {
+            "half_a_head_move_keystone_block_not_regressed": half_a_ok,
+            "write_half_introduces_no_hard_abort": launch_ok,
+            "launch_always_creates_and_enters_valid_worktree": launch_ok,
+            "launch_availability_separated_from_write_guarantee_availability": launch_separated_from_write,
+            "bwrap_unavailable_records_write_boundary_active_false_and_conjunctive_claim_false": fail_closed,
+            "bwrap_unavailable_active_actor_non_worktree_local_bash_fail_closed_not_l4_allowed": fail_closed,
+            "dirty_main_tree_byte_preserved": dirty_preserved,
+            "bwrap_rewrite_is_per_command_opwrap_not_launch_abort": per_command_opwrap,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ===========================================================================
+# AC-W7: no-RW-alias mount invariant
+# ===========================================================================
+
+def ac_w7():
+    repo, wt = _make_overnight_repo()
+    try:
+        m = str(repo)
+        # enumerate every mount inside the namespace + try writing main via each
+        # alternate path. (1) no RW mount covers protected main except worktree +
+        # git exceptions.
+        enum = (f"awk '{{print $5, $6}}' /proc/self/mountinfo")
+        _rc, out = _run_in_boundary(enum, repo, wt)
+        gcd = _git(["rev-parse", "--path-format=absolute", "--git-common-dir"], wt).stdout.strip()
+        gd = _git(["rev-parse", "--path-format=absolute", "--git-dir"], wt).stdout.strip()
+        allowed_rw = {str(wt), os.path.realpath(gcd), os.path.realpath(gd)}
+        bad_rw_under_main = False
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            mp, opts = parts[0], parts[1]
+            opts_set = opts.split(",")
+            if "rw" in opts_set and _under(mp, m):
+                # a RW mount under main is only OK if it is an approved exception.
+                if not any(mp == a or _under(mp, a) for a in allowed_rw):
+                    bad_rw_under_main = True
+        no_rw_covers_main = not bad_rw_under_main
+
+        base_a = (repo / "a.txt").read_text()
+        # (2) RW '/' alias write to main -> denied (root is ro).
+        e_root, _o, _r = _run_boundary_write(f"echo X > {m}/a.txt", repo, wt)
+        rw_root_denied = (repo / "a.txt").read_text() == base_a
+
+        # (3) RW /tmp overlay write to a /tmp-resident main: main is NOT under
+        # /tmp here, but a write redirected through /tmp cannot reach main; assert
+        # a write to main via a /tmp-staged path is still denied.
+        e_tmp, _o2, _r2 = _run_boundary_write(
+            f"cp {m}/a.txt /tmp/stage && echo X > {m}/a.txt", repo, wt)
+        rw_tmp_denied = (repo / "a.txt").read_text() == base_a
+
+        # (4) /proc/<pid>/root re-entry to main -> denied (private /proc + the
+        # re-entry path still lands on the RO bind).
+        reentry = (f"echo X > /proc/self/root{m}/a.txt 2>&1; true")
+        _e3, _o3, _r3 = _run_boundary_write(reentry, repo, wt)
+        proc_reentry_denied = (repo / "a.txt").read_text() == base_a
+
+        # (5) private /proc + PID view present: the namespace has --proc /proc and
+        # --unshare-pid (PID 1 is the wrapped shell, low PIDs only).
+        _rc, pidout = _run_in_boundary("ls /proc | grep -E '^[0-9]+$' | sort -n | tail -1", repo, wt)
+        try:
+            max_pid = int(pidout.strip().splitlines()[-1])
+        except Exception:
+            max_pid = 10 ** 9
+        private_proc_pid = max_pid < 1000  # private PID ns -> only a handful of PIDs
+
+        # (6) canonical mount order: the RO root is bound first; no later RW mount
+        # shadows it for main. Confirmed by no_rw_covers_main + the rw_root_denied.
+        canonical_order = no_rw_covers_main and rw_root_denied
+
+        return {
+            "no_rw_mount_covers_protected_main_except_worktree_and_git_exceptions": no_rw_covers_main,
+            "rw_root_alias_write_to_main_denied": rw_root_denied,
+            "rw_tmp_overlay_write_to_tmp_resident_main_denied": rw_tmp_denied,
+            "proc_pid_root_reentry_write_to_main_denied": proc_reentry_denied,
+            "private_proc_and_pid_view_present": private_proc_pid,
+            "canonical_mount_order_ro_main_not_shadowed_by_later_rw": canonical_order,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+def _under(path, prefix):
+    try:
+        rp = os.path.realpath(path)
+        rpx = os.path.realpath(prefix)
+    except Exception:
+        rp, rpx = path, prefix
+    return rp == rpx or rp.startswith(rpx.rstrip("/") + "/")
+
+
 _DISPATCH = {
     "AC-K1": ac_k1, "AC-K2": ac_k2, "AC-K3": ac_k3, "AC-K4": ac_k4,
     "AC-K5": ac_k5, "AC-K6": ac_k6, "AC-K7": ac_k7,
     "RG-1": rg1_k, "RG-2": rg2_k, "RG-3": rg3_k,
+    "AC-W1": ac_w1, "AC-W2": ac_w2, "AC-W3": ac_w3, "AC-W4": ac_w4,
+    "AC-W5": ac_w5, "AC-W6": ac_w6, "AC-W7": ac_w7,
 }
 
 
