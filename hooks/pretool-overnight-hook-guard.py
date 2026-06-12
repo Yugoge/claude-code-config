@@ -1464,6 +1464,229 @@ def _block_invalid_isolation(classification: str) -> None:
     )
 
 
+# ---------------------------------------------------------------------------
+# WRITE-HALF (L6, task 20260611-100500, fix-7): per-Bash-command bwrap OS
+# execution boundary. When the live overnight state classifies the caller as the
+# ACTIVE overnight actor, the actor's Bash command is re-exec'd inside a bwrap
+# (bubblewrap) mount namespace where the PROTECTED MAIN working tree (= main_root
+# MINUS the registered worktree_path, codex #8) is bind-mounted READ-ONLY and the
+# overnight worktree is bind-mounted READ-WRITE. The kernel VFS then DENIES every
+# cooperative-shell tree-write into the main checkout (EROFS) regardless of shell
+# expression — closing the 14-form class the L4 string parser provably could not
+# enumerate AND the "keystone-aborted checkout writes the tree first" residue.
+#
+# Control-flow order (codex #4): security/raw-metadata checks (apply_global_
+# security_checks + _enforce_overnight_git_command) run FIRST in main(); the
+# bwrap rewrite for an active-actor Bash command runs AFTER them and SHORT-
+# CIRCUITS by emitting hookSpecificOutput.updatedInput.command; the L4 string
+# guard is the fallback ONLY when the boundary is unavailable/unhonored. The
+# boundary is layered ON TOP OF (not replacing) the L4 guard.
+#
+# Fail-CLOSED (codex #3): if bwrap/userns is unavailable the WRITE GUARANTEE
+# fails closed — an active-actor Bash command that cannot be proven entirely
+# worktree-local is DENIED, NOT silently allowed under the known-incomplete L4
+# floor. Isolation/worktree creation is never gated on bwrap (the launch already
+# created the worktree); only the per-command write boundary is.
+
+_BWRAP_BIN = None  # resolved lazily
+
+
+def _resolve_bwrap() -> str | None:
+    """Resolve the bwrap binary path; None if bubblewrap is not installed."""
+    global _BWRAP_BIN
+    if _BWRAP_BIN is not None:
+        return _BWRAP_BIN or None
+    for cand in ('/usr/bin/bwrap', '/bin/bwrap'):
+        if os.path.exists(cand):
+            _BWRAP_BIN = cand
+            return cand
+    found = shutil.which('bwrap') if shutil else None
+    _BWRAP_BIN = found or ''
+    return found
+
+
+def _userns_available() -> bool:
+    """True iff unprivileged user namespaces are usable (the kernel facility the
+    bwrap mount namespace depends on). Root with userns=1 -> available."""
+    try:
+        with open('/proc/sys/kernel/unprivileged_userns_clone') as fh:
+            if fh.read().strip() == '0' and os.geteuid() != 0:
+                return False
+    except OSError:
+        pass  # file absent on some kernels; rely on bwrap's own probe
+    return True
+
+
+def _bwrap_boundary_available() -> bool:
+    """The per-command write boundary can be built iff bwrap is installed AND a
+    user namespace is usable. This gates the WRITE guarantee (not isolation)."""
+    return bool(_resolve_bwrap()) and _userns_available()
+
+
+def _git_query(args: list[str], cwd: str) -> str:
+    """Run a read-only git query in cwd; return stripped stdout ('' on error)."""
+    try:
+        import subprocess  # local import: only needed on the boundary path
+        e = dict(os.environ)
+        e.pop('CLAUDE_OVERNIGHT_ACTOR', None)  # never let the actor gate fire here
+        p = subprocess.run(['git', *args], cwd=cwd, env=e,
+                           capture_output=True, text=True, timeout=10)
+        return p.stdout.strip() if p.returncode == 0 else ''
+    except Exception:
+        return ''
+
+
+def _linked_worktree_git_paths(worktree_path: str) -> list[str]:
+    """codex #6: DERIVE (never hardcode) the .git metadata paths a LINKED
+    worktree needs RW so the SUPPORTED surface (add/commit/status/diff) works
+    inside the boundary. Returned paths are RW-bound on top of the RO main tree.
+
+    The per-worktree gitdir (`git rev-parse --git-dir`) and the shared common-dir
+    (`--git-common-dir`) are the two roots git writes during add/commit. They are
+    derived at runtime from git itself; config/fetch/gc/submodule/sparse, which
+    need un-exposed paths, are INTENTIONALLY blocked (documented, not silently
+    broken). Raw cooperative writes to refs/objects through these RW paths are
+    denied by the retained security/L4 layer that runs BEFORE this boundary
+    (codex #1/#4) — the bwrap RW exposure is for git-mediated writes only."""
+    gd = _git_query(['rev-parse', '--path-format=absolute', '--git-dir'], worktree_path)
+    gcd = _git_query(['rev-parse', '--path-format=absolute', '--git-common-dir'], worktree_path)
+    paths: list[str] = []
+    for p in (gd, gcd):
+        if p and os.path.exists(p):
+            rp = os.path.realpath(p)
+            if rp not in paths:
+                paths.append(rp)
+    return paths
+
+
+def _build_bwrap_argv(command: str, main_root: str, worktree_path: str,
+                      isolation_kind: str) -> list[str] | None:
+    """Build the bwrap argv that re-execs `command` with the PROTECTED MAIN tree
+    RO and the overnight worktree RW. Returns None if the layout cannot be built.
+
+    Canonical mount order (codex #7, no-RW-alias invariant):
+      1. --ro-bind / /            entire host RO (so no path reaches main RW via
+                                  a second bind, incl. a /dev/shm-resident main)
+      2. --dev /dev, --proc /proc, --tmpfs /tmp   private device/proc/PID + tmp
+      3. --bind <worktree_path>   the ONLY RW path under main (nested over RO /)
+      4. --bind <git-dir>, <common-dir>   (LINKED worktree only) git-derived RW
+                                  exceptions for the supported add/commit surface
+    Because every RW bind is applied AFTER the RO `/`, and each RW bind targets a
+    path UNDER main that is itself an approved exception, no mount exposes a RW
+    source/root covering the protected main tree except the worktree + git paths.
+    --unshare-pid gives a private PID view; --proc /proc a private /proc so a
+    /proc/<pid>/root re-entry cannot reach a RW alias of main."""
+    bwrap = _resolve_bwrap()
+    if not bwrap or not main_root or not worktree_path:
+        return None
+    main_real = os.path.realpath(main_root)
+    wt_real = os.path.realpath(worktree_path)
+    if not os.path.isdir(main_real) or not os.path.isdir(wt_real):
+        return None
+    argv = [
+        bwrap,
+        '--ro-bind', '/', '/',          # (1) entire host RO — no RW alias of main
+        '--dev', '/dev',                # private /dev
+        '--proc', '/proc',              # (2) private /proc (blocks /proc/<pid>/root re-entry)
+        '--tmpfs', '/tmp',              # private writable /tmp (never aliases main)
+        '--unshare-pid',                # private PID namespace
+        '--die-with-parent',
+        '--bind', wt_real, wt_real,     # (3) the worktree: RW, nested over RO main
+    ]
+    # (4) LINKED worktree: RW-expose exactly the git-derived metadata paths the
+    # supported surface needs. A fresh_clone worktree is self-contained (its .git
+    # lives under the RW worktree already) -> ZERO .git exceptions.
+    if isolation_kind != 'fresh_clone_checkout':
+        for p in _linked_worktree_git_paths(wt_real):
+            # Only expose paths OUTSIDE the worktree subtree (those under the
+            # worktree are already RW via the worktree bind).
+            if not _path_under_prefix(p, wt_real):
+                argv += ['--bind', p, p]
+    argv += ['--', '/bin/bash', '-c', command]
+    return argv
+
+
+def _command_is_worktree_local(command: str, main_root: str, worktree_path: str,
+                               main_git_dir: str) -> bool:
+    """Best-effort: True iff `command` provably does NOT target the main tree
+    (no -C/--work-tree/--git-dir into main, no interpreter hiding a main-git op,
+    no raw main-root write path). Used by the fail-closed degradation (AC-W6):
+    when bwrap is unavailable, an active-actor command that is NOT provably
+    worktree-local is DENIED rather than allowed under the incomplete L4 floor."""
+    main_real = os.path.realpath(main_root) if main_root else ''
+    if not main_real:
+        return False
+    if _worktree_into_main(command, main_real):
+        return False
+    if _gitdir_into_main(command, main_real, main_git_dir):
+        return False
+    if _interpreter_hides_main_git(command, main_real, main_git_dir):
+        return False
+    # any explicit write path resolving under main but outside the worktree -> not local
+    for p in _extract_bash_write_paths(command):
+        try:
+            rp = os.path.realpath(p)
+        except Exception:
+            rp = p
+        if _path_under_prefix(rp, main_real) and not _path_under_prefix(rp, os.path.realpath(worktree_path or '')):
+            return False
+    # a bare interpreter/subprocess that could write anywhere is not provably local
+    if _INTERPRETER_LAUNCHER_RE.search(command):
+        return False
+    return True
+
+
+def _emit_command_rewrite(new_command: str) -> None:
+    """Emit the Claude Code PreToolUse command-rewrite and exit 0. The runtime
+    replaces tool_input.command with `new_command` (the bwrap re-exec)."""
+    out = {
+        'hookSpecificOutput': {
+            'hookEventName': 'PreToolUse',
+            'updatedInput': {'command': new_command},
+        }
+    }
+    sys.stdout.write(json.dumps(out))
+    sys.exit(0)
+
+
+def _apply_write_boundary(command: str, gov_state: dict, main_git_dir: str) -> None:
+    """WRITE-HALF entry (fix-7): for the ACTIVE overnight actor's Bash command,
+    re-exec it inside the bwrap RO-bind boundary (emit updatedInput.command) when
+    the boundary is available; FAIL-CLOSED (deny non-worktree-local commands)
+    when bwrap is unavailable. No-op (returns) only for an empty command. Runs
+    AFTER the security/L4 checks in main() (codex #4 control-flow order)."""
+    if not command:
+        return
+    main_root = gov_state.get('main_root', '') or ''
+    worktree_path = gov_state.get('worktree_path', '') or ''
+    isolation_kind = gov_state.get('isolation_kind', '') or ''
+    if not main_root or not worktree_path:
+        return  # cannot scope a boundary without both roots; L4 already ran
+    if _bwrap_boundary_available():
+        argv = _build_bwrap_argv(command, main_root, worktree_path, isolation_kind)
+        if argv:
+            # shlex-quote the argv into a single re-exec command string.
+            import shlex
+            _emit_command_rewrite(' '.join(shlex.quote(a) for a in argv))
+        # boundary requested but argv could not be built -> fall through to the
+        # fail-closed deny below (do not silently allow).
+    # FAIL-CLOSED (codex #3): bwrap unavailable OR argv unbuildable. The write
+    # guarantee cannot be honored by the kernel, and the L4 floor is known-
+    # incomplete for the write-half, so an active-actor command that is not
+    # provably worktree-local is DENIED. Worktree-local commands are allowed
+    # (no over-block; isolation is never gated on bwrap).
+    if not _command_is_worktree_local(command, main_root, worktree_path, main_git_dir):
+        _block(
+            '\nOVERNIGHT WRITE-BOUNDARY FAIL-CLOSED: the per-command bwrap '
+            'RO-bind boundary that guarantees the main working tree is never '
+            'written in place is UNAVAILABLE (bubblewrap / user namespace '
+            'missing), and this command cannot be proven to write only inside '
+            'the isolated worktree. Refusing it — the write guarantee fails '
+            'closed (write_boundary_active=false). Run a command that writes '
+            'only inside the worktree, or restore bubblewrap.\n'
+        )
+
+
 def main():
     """Entry point: apply global + actor-scoped overnight enforcement (M9)."""
     tool_name, tool_input, session_id, payload = _parse_hook_input()
