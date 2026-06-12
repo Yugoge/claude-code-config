@@ -21,7 +21,6 @@ def test_RG_1():
     WHEN:  the launch runs
     THEN:  it still produces a valid isolated worktree (degrades to autonomous), NEVER hard-aborts-then-works-in-place; the keystone's deny is a runtime ref-abort, not a launch abort; refuses-to-LAUNCH only when ALL isolation is impossible MUST PASS both pre- and post-escalation
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — it still produces a valid isolated worktree (degrades to autonomous), NEVER hard-aborts-then-works-in-place; the keys...")
+    # Regression guard behavioral assertions (ac_harness.py RG-1) checked
+    # against the canonical acceptance-criteria JSON via _ac_runner.run_ac.
+    run_ac("RG-1")
