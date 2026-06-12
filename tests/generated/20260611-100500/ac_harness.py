@@ -225,25 +225,33 @@ def _hook_guard_blocks(command, repo, **kw):
 # transaction was ABORTED (HEAD stays master AND master-ref oid unchanged).
 # ---------------------------------------------------------------------------
 
-def _run_form_and_measure(repo, command, master_oid_before):
-    """Run `command` (a shell form invoking git) as the overnight actor; return
-    a dict: keystone_denied (HEAD on master AND master oid unchanged),
-    head_on_master, master_oid_unchanged, deny_on_stderr."""
+def _run_form_and_measure(repo, command, master_oid_before, head_oid_before=None):
+    """Run `command` (a ref-MOVING git form) as the overnight actor against the
+    keystone-installed repo; return a dict whose `keystone_denied` requires
+    POSITIVE keystone attribution (the deny signal appeared on git's own stderr)
+    AND the ref did not move (HEAD on master + master oid unchanged + HEAD oid
+    unchanged). Per codex-A: an unchanged post-state alone is NOT sufficient — a
+    form could leave HEAD coincidentally on master without the keystone firing,
+    so the deny signal is required to attribute the block to the keystone (not to
+    parser recognition or to git's own unrelated failure)."""
     r = _sh(command, repo, _actor_env(repo))
     head = _head_branch(repo)
     moid = _master_oid(repo)
     deny_on_stderr = "OVERNIGHT KEYSTONE" in r.stderr
     head_on_master = head == "master"
     oid_unchanged = moid == master_oid_before
-    # The block is attributed to the keystone firing: the ref did NOT move
-    # (HEAD still master, master oid unchanged). Some wrappers swallow git's
-    # non-zero exit (backtick/subprocess), so the load-bearing evidence is the
-    # UNCHANGED post-state, not the outer rc.
-    denied = head_on_master and oid_unchanged
+    head_oid = _git(["rev-parse", "HEAD"], repo).stdout.strip()
+    head_oid_unchanged = (head_oid_before is None) or (head_oid == head_oid_before)
+    # Positive attribution: the keystone FIRED (deny on git's stderr) AND the ref
+    # did not move. The deny signal is load-bearing — wrappers may swallow the
+    # outer rc but git still emits the keystone deny to stderr when the hook
+    # aborts the transaction.
+    denied = deny_on_stderr and head_on_master and oid_unchanged and head_oid_unchanged
     return {
         "keystone_denied": denied,
         "head_on_master": head_on_master,
         "master_oid_unchanged": oid_unchanged,
+        "head_oid_unchanged": head_oid_unchanged,
         "deny_on_stderr": deny_on_stderr,
     }
 
