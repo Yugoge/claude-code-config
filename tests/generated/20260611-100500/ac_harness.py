@@ -498,7 +498,12 @@ def ac_k2():
         return {
             "all_14_prior_shell_forms_keystone_denied_master_unchanged": (
                 all14_denied and per_form_head_master and per_form_oid_unchanged),
-            "earlier_vectors_subprocess_absolute_C_worktree_keystone_denied": earlier_denied,
+            # subprocess/absolute/-C are ref-moving forms caught by the keystone;
+            # the --work-tree-into-main PURE TREE-WRITE (no ref move, keystone
+            # blind) is covered by the pre-execution hook-guard (codex-A). Both
+            # halves must hold for the "worktree" vector to be covered.
+            "earlier_vectors_subprocess_absolute_C_worktree_keystone_denied": (
+                earlier_denied and work_tree_blocked_pre_exec),
             "plumbing_symref_retarget_keystone_denied": symref_denied,
             "plumbing_master_ref_update_ref_keystone_denied": master_updref_denied,
             "plumbing_no_deref_head_update_keystone_denied": no_deref_denied,
@@ -510,6 +515,13 @@ def ac_k2():
             "main_head_stays_master_per_form": per_form_head_master,
             "master_ref_oid_unchanged_per_form": per_form_oid_unchanged,
             "differential_forms_move_master_when_keystone_absent": forms_move_when_absent,
+            # codex-A: TREE-WRITE protection (永不在主工作目录原地 write) is the
+            # PRE-EXECUTION hook-guard layer; the keystone is the ref backstop.
+            # These keys are informational evidence (QA-visible); the canonical
+            # AC-K2 assertion set is unchanged (ac_uid preserved).
+            "work_tree_into_main_blocked_pre_execution": work_tree_blocked_pre_exec,
+            "tree_writing_ref_forms_blocked_pre_execution": tree_writing_ref_forms_blocked_pre_exec,
+            "main_tree_byte_unchanged_under_pre_execution_block": main_tree_unchanged_under_pre_exec,
         }
     finally:
         shutil.rmtree(repo, ignore_errors=True)
