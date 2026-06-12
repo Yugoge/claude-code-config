@@ -418,10 +418,10 @@ def ac_k2():
 
         # actor-env carriage proof: env STRIPPED -> keystone actor gate exits 0
         # and the form MOVES HEAD; env PRESENT -> the keystone fires + denies.
-        _git(["checkout", "-q", "master"], repo)
-        _sh(f"git -C {repo} checkout other", repo, None)
+        _git(["checkout", "-q", "--force", "master"], repo)
+        _sh(f"git -C {repo} checkout other", repo, None)  # no actor env -> moves
         env_absent_moves = _head_branch(repo) == "other"
-        _git(["checkout", "-q", "master"], repo, _actor_env(repo))
+        _git(["checkout", "-q", "--force", "master"], repo)  # normal-session reset
         r_env = _sh(f"git -C {repo} checkout other", repo, _actor_env(repo))
         env_present_denies = (_head_branch(repo) == "master"
                               and "OVERNIGHT KEYSTONE" in r_env.stderr)
