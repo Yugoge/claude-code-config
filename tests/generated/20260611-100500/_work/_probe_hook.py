@@ -59,11 +59,11 @@ r = subprocess.run(["/bin/bash", "-c", rewritten + " 2>&1; true"], capture_outpu
 print("erofs in output:", "Read-only file system" in (r.stdout + r.stderr), "| main unchanged:", (d / "a.txt").read_text() == before)
 
 print("=== fail-closed: bwrap unavailable + non-worktree-local cmd must be DENIED (rc=2) ===")
-rc, out, err = drive(f"echo HACKED > {d}/a.txt", d, WT, env_extra={"PATH": "/nonexistent"})
+rc, out, err = drive(f"echo HACKED > {d}/a.txt", d, WT, env_extra={"CLAUDE_OVERNIGHT_FORCE_NO_BWRAP": "1"})
 print("rc", rc, "(expect 2)", "| FAIL-CLOSED msg:", "WRITE-BOUNDARY FAIL-CLOSED" in err)
 
 print("=== fail-closed: bwrap unavailable + worktree-local cmd ALLOWED (rc=0, no rewrite) ===")
-rc, out, err = drive(f"echo hi > {WT}/y.txt", d, WT, env_extra={"PATH": "/nonexistent"})
+rc, out, err = drive(f"echo hi > {WT}/y.txt", d, WT, env_extra={"CLAUDE_OVERNIGHT_FORCE_NO_BWRAP": "1"})
 print("rc", rc, "(expect 0)", "| stdout empty:", out.strip() == "")
 
 import shutil; shutil.rmtree(d, ignore_errors=True)

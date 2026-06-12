@@ -1,13 +1,15 @@
 # _work
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-12T15:03:29Z*
-**Total entries**: 4
+*Last updated: 2026-06-12T15:03:55Z*
+**Total entries**: 6
 **Convention**: kebab
 
 ## Tree
 ```
 _work/
+├── hookp-tir0g2ao/
+│   └── `a.txt` - txt file
 ├── `_probe.py` - Python script
 ├── `_probe2.py` - Python script
 ├── `_probe3.py` - Python script
