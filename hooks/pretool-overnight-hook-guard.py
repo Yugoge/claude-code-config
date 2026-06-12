@@ -1520,7 +1520,13 @@ def _userns_available() -> bool:
 
 def _bwrap_boundary_available() -> bool:
     """The per-command write boundary can be built iff bwrap is installed AND a
-    user namespace is usable. This gates the WRITE guarantee (not isolation)."""
+    user namespace is usable. This gates the WRITE guarantee (not isolation).
+
+    Honors CLAUDE_OVERNIGHT_FORCE_NO_BWRAP=1 — a test/operator seam to simulate a
+    bwrap-unavailable host so the fail-closed degradation (AC-W5/AC-W6) can be
+    exercised deterministically without uninstalling bubblewrap."""
+    if os.environ.get('CLAUDE_OVERNIGHT_FORCE_NO_BWRAP') == '1':
+        return False
     return bool(_resolve_bwrap()) and _userns_available()
 
 
