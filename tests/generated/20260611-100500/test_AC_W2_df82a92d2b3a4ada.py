@@ -21,7 +21,8 @@ def test_AC_W2():
     WHEN:  the overnight actor (cwd in the worktree) does ordinary worktree file writes AND the SUPPORTED git surface (`git add` / git commit / `git status` / `git diff`) inside the worktree; the linked-worktree case writes into the GIT-DERIVED `.git` paths
     THEN:  in BOTH isolation kinds those SUPPORTED ops SUCCEED (linked: the git-derived shared/per-worktree `.git` paths are RW-exposed; fresh-clone: self-contained with NO shared object inodes); the boundary does NOT over-block the supported surface AND the supported git surface is EXPLICITLY DEFINED: config/fetch/gc/submodule/sparse-checkout changes that need un-exposed paths are INTENTIONALLY blocked (documented, not silently broken — codex #6) AND the fresh-clone `.git/objects` shares NO inode with `main_root/.git/objects` and no `alternates` file points back to main (codex #2: `git clone --local` hardlinks would let a RW clone mutate main object inodes) AND exposing the narrowed `.git` paths RW does NOT reopen the half-(a) HEAD-move hole, because the keystone still FIRES inside git on any ref update (`reference-transaction:78-96`) AND raw cooperative writes to those paths are denied per AC-W1
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — no-over-block regression guard: supported in-worktree git surface succeeds via git-derived narrowed RW .git exceptions + fresh-clone inode-independence; naive whole-tree RO would EROFS git add/commit (negative control)")
+    # L6 write-half no-over-block regression guard (ac_harness.py AC-W2): the
+    # supported in-worktree git surface succeeds via the git-derived narrowed RW
+    # .git exceptions; the fresh clone shares zero object inodes with main; a
+    # naive whole-tree RO-bind negative control would EROFS git add/commit.
+    run_ac("AC-W2")
