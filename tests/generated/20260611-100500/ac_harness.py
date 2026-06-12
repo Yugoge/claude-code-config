@@ -123,11 +123,19 @@ def _install_keystone(repo):
 
 
 def _make_243_equivalent_keystone_dir():
-    """Return a temp dir holding a git-keystone/reference-transaction that is a
-    faithful 2.43-equivalent: the symref HEAD branch-switch is INVISIBLE to the
-    hook (only the master-ref oid change is caught), exactly as git 2.43 behaved
-    before the upgrade. This reproduces the `branch_ref_only` / "would-move"
-    differential as a genuine behavioral measurement on a 2.54 host."""
+    """Return a temp dir holding a git-keystone/reference-transaction whose
+    HEAD-deny case is NEUTRALIZED, so a main-worktree symref HEAD branch-switch
+    is invisible to the hook — modelling git 2.43's behavior (where the symref
+    HEAD update did not surface to reference-transaction).
+
+    HONEST LABELING (codex-B): this is a MUTATION DIFFERENTIAL on the live 2.54
+    git, NOT a genuine pinned-2.43 binary reproduction. It proves the keystone's
+    HEAD-deny block is LOAD-BEARING (neutralize it -> the switch moves HEAD;
+    restore it -> the switch is aborted). The independent empirical evidence that
+    the keystone fires on 2.54 but not on 2.43 is the BA-verified live-host
+    selftest (`structural_head_switch` on 2.54 vs `branch_ref_only` on the
+    2.43 host before the upgrade), cited in the spec — this harness does not
+    re-run a 2.43 binary."""
     src = KEYSTONE.read_text()
     head_block = (
         '      if [ "$_is_main_worktree" = "1" ] && [ "$old" != "$new" ]; then\n'
