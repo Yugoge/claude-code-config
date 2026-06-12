@@ -21,7 +21,6 @@ def test_AC_K6():
     WHEN:  the actor attempts a RAW (non-git-binary) write to main repo git metadata: an Edit/Write or a shell redirect into `.git/HEAD`, `.git/refs/heads/master`, packed-refs, or the resolved common-dir ref paths
     THEN:  the retained defense-in-depth layer (PreTool Edit/Write + bash-redirect guard / policy-shim) BLOCKS the raw write (the keystone provably cannot see a write that does not pass through git's ref-transaction); main metadata byte-unchanged AND the spec records that this layer is RETAINED non-load-bearing defense-in-depth and is NOT claimed complete for arbitrary shell-string git invocations (that claim was disproven; the keystone, not the parser, carries the git-binary class)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — the retained defense-in-depth layer (PreTool Edit/Write + bash-redirect guard / policy-shim) BLOCKS the raw write (th...")
+    # L5 keystone-firing behavioral assertions (ac_harness.py AC-K6) checked
+    # against the canonical acceptance-criteria JSON via _ac_runner.run_ac.
+    run_ac("AC-K6")
