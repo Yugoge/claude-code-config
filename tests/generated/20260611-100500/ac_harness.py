@@ -402,7 +402,7 @@ def ac_k2():
         plumbing = _ac_k2_plumbing_forms(repo, oid_other)
         plumbing_results = {}
         for label, cmd in plumbing.items():
-            _git(["checkout", "-q", "master"], repo, _actor_env(repo))
+            _git(["checkout", "-q", "--force", "master"], repo)
             res = _run_form_and_measure(repo, cmd, moid0)
             plumbing_results[label] = res["keystone_denied"]
             per_form_head_master = per_form_head_master and res["head_on_master"]
