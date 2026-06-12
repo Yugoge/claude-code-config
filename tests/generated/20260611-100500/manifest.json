@@ -522,6 +522,435 @@
           }
         ]
       }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-W1",
+      "ac_uid": "2de8ccc0ea3199b0",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_W1_2de8ccc0ea3199b0.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-W1"
+        ],
+        "assertions": [
+          {
+            "property": "redirect_write_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "eval_write_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "for_loop_write_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "while_loop_write_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "backtick_write_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "source_procsub_write_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "trap_write_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "interpreter_launcher_write_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "tee_write_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "git_work_tree_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "git_restore_source_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "git_checkout_dash_dash_file_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "git_read_tree_or_apply_into_main_denied_erofs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "every_targeted_main_file_byte_unchanged",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "denial_is_kernel_ro_bind_not_l4_parser_recognition",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "keystone_aborted_checkout_did_not_write_tree_first",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "raw_cooperative_write_to_git_refs_heads_master_denied",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "raw_cooperative_write_to_git_packed_refs_denied",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "raw_cooperative_write_to_git_logs_denied",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "raw_cooperative_write_to_git_objects_denied",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "protected_main_defined_as_main_root_minus_registered_worktree",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-W2",
+      "ac_uid": "df82a92d2b3a4ada",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_W2_df82a92d2b3a4ada.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-W2"
+        ],
+        "assertions": [
+          {
+            "property": "linked_worktree_ordinary_file_write_succeeds",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "linked_worktree_supported_git_surface_add_commit_status_diff_succeeds",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "linked_worktree_git_paths_derived_via_rev_parse_not_hardcoded",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "unsupported_git_surface_config_fetch_gc_submodule_sparse_intentionally_blocked_documented",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "fresh_clone_objects_share_zero_inode_with_main_objects",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "fresh_clone_no_alternates_pointing_to_main",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "fresh_clone_built_with_no_hardlinks_or_no_local",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "narrowed_git_rw_exposure_does_not_reopen_head_move_hole_keystone_still_fires",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "raw_cooperative_write_to_narrowed_git_paths_still_denied_per_acw1",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "naive_whole_tree_ro_bind_negative_control_would_overblock_add_commit",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-W3",
+      "ac_uid": "f69ee5d9d54c994c",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_W3_f69ee5d9d54c994c.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-W3"
+        ],
+        "assertions": [
+          {
+            "property": "normal_session_command_not_rewritten_into_bwrap",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "normal_session_writes_succeed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "implementing_session_command_not_rewritten_into_bwrap",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "implementing_session_writes_succeed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "rewrite_applied_only_for_active_overnight_actor",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "live_core_hookspath_stays_git_hooks",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "master_untouched",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-W4",
+      "ac_uid": "1640fe475ba800e9",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_W4_1640fe475ba800e9.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-W4"
+        ],
+        "assertions": [
+          {
+            "property": "removing_rewrite_branch_reverts_to_l4_string_guard",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "l4_string_guard_retained_as_defense_in_depth",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "proof_bwrap_process_actually_ran_via_inside_mountinfo",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "inside_mountinfo_shows_main_root_ro_and_worktree_rw",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "bwrap_namespace_per_command_self_tearing",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "no_persistent_host_mount_leak_after_command_exit",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-W5",
+      "ac_uid": "7049bea96cbd1ea9",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_W5_7049bea96cbd1ea9.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-W5"
+        ],
+        "assertions": [
+          {
+            "property": "updatedInput_unavailable_l4_guard_still_runs",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "l4_guard_still_denies_recognized_dangerous_forms_fail_closed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "hook_does_not_fall_through_to_allow_all_when_rewrite_dropped",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "boundary_is_strict_improvement_never_regression",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-W6",
+      "ac_uid": "e91c9e0ab17c46b4",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_W6_e91c9e0ab17c46b4.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-W6"
+        ],
+        "assertions": [
+          {
+            "property": "half_a_head_move_keystone_block_not_regressed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "write_half_introduces_no_hard_abort",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "launch_always_creates_and_enters_valid_worktree",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "launch_availability_separated_from_write_guarantee_availability",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "bwrap_unavailable_records_write_boundary_active_false_and_conjunctive_claim_false",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "bwrap_unavailable_active_actor_non_worktree_local_bash_fail_closed_not_l4_allowed",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "dirty_main_tree_byte_preserved",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "bwrap_rewrite_is_per_command_opwrap_not_launch_abort",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-W7",
+      "ac_uid": "c05c365a4704acc7",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_W7_c05c365a4704acc7.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-W7"
+        ],
+        "assertions": [
+          {
+            "property": "no_rw_mount_covers_protected_main_except_worktree_and_git_exceptions",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "rw_root_alias_write_to_main_denied",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "rw_tmp_overlay_write_to_tmp_resident_main_denied",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "proc_pid_root_reentry_write_to_main_denied",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "private_proc_and_pid_view_present",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "canonical_mount_order_ro_main_not_shadowed_by_later_rw",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
     }
   ],
   "archived_tests": [
