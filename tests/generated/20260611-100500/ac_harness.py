@@ -1715,7 +1715,7 @@ def ac_k8():
 
 _DISPATCH = {
     "AC-K1": ac_k1, "AC-K2": ac_k2, "AC-K3": ac_k3, "AC-K4": ac_k4,
-    "AC-K5": ac_k5, "AC-K6": ac_k6, "AC-K7": ac_k7,
+    "AC-K5": ac_k5, "AC-K6": ac_k6, "AC-K7": ac_k7, "AC-K8": ac_k8,
     "RG-1": rg1_k, "RG-2": rg2_k, "RG-3": rg3_k,
     "AC-W1": ac_w1, "AC-W2": ac_w2, "AC-W3": ac_w3, "AC-W4": ac_w4,
     "AC-W5": ac_w5, "AC-W6": ac_w6, "AC-W7": ac_w7,
