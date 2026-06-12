@@ -1094,6 +1094,17 @@ def _config_key_redirects_keystone(key: str) -> bool:
     return k.startswith('includeif.') and k.endswith('.path')
 
 
+# Git GLOBAL options that consume the FOLLOWING token as a separate operand
+# (e.g. `git -C <dir> -c include.path=… status`). The scanner MUST skip the
+# operand so it does not mistake it for the subcommand boundary and stop before a
+# later config injection (codex F2 — the realistic `git -C <worktree> -c …`
+# shape). `-c` / `--config-env` are handled specially above; these are the other
+# value-taking globals that may legitimately precede the injection.
+_GIT_GLOBAL_OPTS_WITH_OPERAND = frozenset({
+    '-C', '--git-dir', '--work-tree', '--namespace', '--super-prefix',
+})
+
+
 def _git_invocation_injects_keystone_config(subtoks: list[str]) -> bool:
     """Token-aware config-firewall over ONE git invocation's argv (the tokens
     AFTER the `git` word, as produced by `_iter_git_invocations`). Scans only the
@@ -1101,9 +1112,10 @@ def _git_invocation_injects_keystone_config(subtoks: list[str]) -> bool:
     keystone-redirecting config injection:
       * `-c <key>=<val>` / `-c<key>=<val>` (glued) where <key> redirects, OR
       * `--config-env[=]<key>=<ENV>` where <key> redirects.
-    A `-c` that appears AFTER the subcommand (e.g. `git grep -c PATTERN`) is NOT
-    git's config option and is deliberately ignored, so legitimate ops are not
-    over-blocked."""
+    Value-taking git global options (`-C <dir>`, `--git-dir <d>`, …) have their
+    operand skipped so an injection AFTER them is still scanned. A `-c` that
+    appears AFTER the subcommand (e.g. `git grep -c PATTERN`) is NOT git's config
+    option and is deliberately ignored, so legitimate ops are not over-blocked."""
     j = 0
     n = len(subtoks)
     while j < n:
@@ -1138,11 +1150,28 @@ def _git_invocation_injects_keystone_config(subtoks: list[str]) -> bool:
                 return True
             j += 1
             continue
+        # `--` terminates git's option parsing — no global config option can
+        # follow, so stop scanning.
+        if t == '--':
+            break
+        # A value-taking git global option (`-C <dir>`, `--git-dir <d>`, …):
+        # skip BOTH the option and its operand so a later `-c` injection is still
+        # reached (codex F2). The glued `-C<dir>` / `--git-dir=<d>` forms carry
+        # the value in-token and consume no separate operand.
+        if t in _GIT_GLOBAL_OPTS_WITH_OPERAND:
+            j += 2
+            continue
+        if (t.startswith('-C') and len(t) > 2) or any(
+                t.startswith(o + '=') for o in _GIT_GLOBAL_OPTS_WITH_OPERAND):
+            j += 1
+            continue
         # Reaching the first non-option token ends the git global-option region:
         # everything after it is the subcommand and its args (a `-c` there is the
         # subcommand's own flag, not git's config option).
         if not t.startswith('-'):
             break
+        # Any other lone option flag (e.g. `--no-pager`, `--bare`, `--paginate`)
+        # takes no operand → advance one and keep scanning the global region.
         j += 1
     return False
 
