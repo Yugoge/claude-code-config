@@ -368,8 +368,18 @@ def _ac_k2_plumbing_forms(repo, oid_other):
         "detached_checkout": f"git -C {m} checkout --detach other",
         "detached_switch": f"git -C {m} switch --detach other",
         "reset_hard": f"git -C {m} reset --hard {oid_other}",
-        "branch_f_master": f"git -C {m} branch -f master {oid_other}",
+        # reset/merge/rebase-style master-ref movement: a forced ref update of
+        # refs/heads/master to a different oid is the shape git's reset/merge/
+        # rebase produce. `git branch -f master` is git-rejected on a checked-out
+        # branch (git's own guard, NOT the keystone), so we use the update-ref
+        # form which DOES reach the keystone's refs/heads/master deny.
+        "master_ref_forced_move": (
+            f"git -C {m} update-ref refs/heads/master {oid_other} {moid_self(repo)}"),
     }
+
+
+def moid_self(repo):
+    return _master_oid(repo)
 
 
 def ac_k2():
