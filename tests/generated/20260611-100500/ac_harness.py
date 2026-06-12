@@ -1033,6 +1033,27 @@ def _run_boundary_write(command, repo, wt):
     return ("Read-only file system" in out), out, rewritten
 
 
+def _write_into_main_denied(command, repo, wt, target_file, base_content):
+    """A write into the PROTECTED MAIN tree is DENIED iff EITHER:
+      (A) the retained security/L4 guard blocks it pre-execution (hook rc=2, no
+          rewrite) so the write never runs (defense-in-depth, codex #4 order), OR
+      (B) the hook rewrote it into the bwrap boundary and the kernel RO-bind
+          returned EROFS / left the target byte-unchanged.
+    In BOTH cases the target main file must be byte-unchanged. Returns
+    (denied: bool, mechanism: 'l4_pre_block'|'kernel_ro_bind'|'unchanged')."""
+    rc, rewritten, _err = _drive_for_rewrite(command, repo, wt)
+    if rewritten is None:
+        # pre-execution block (rc==2) OR a no-op exit-0 with no write reaching main.
+        denied = (rc == 2) and (target_file.read_text() == base_content)
+        return denied, ("l4_pre_block" if rc == 2 else "no_rewrite")
+    r = subprocess.run(["/bin/bash", "-c", rewritten + " 2>&1; true"],
+                       capture_output=True, text=True)
+    out = (r.stdout or "") + (r.stderr or "")
+    erofs = "Read-only file system" in out
+    unchanged = target_file.read_text() == base_content
+    return (unchanged, ("kernel_ro_bind" if erofs else "unchanged"))
+
+
 # ===========================================================================
 # AC-W1: bwrap RO-bind denies EVERY cooperative-shell tree-write into MAIN AND
 #        every raw cooperative .git-metadata write (LOAD-BEARING, half b)
