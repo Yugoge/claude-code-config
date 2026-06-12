@@ -1,8 +1,8 @@
 # _work
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-12T15:03:55Z*
-**Total entries**: 6
+*Last updated: 2026-06-12T15:12:16Z*
+**Total entries**: 8
 **Convention**: kebab
 
 ## Tree
@@ -10,6 +10,8 @@
 _work/
 ├── hookp-tir0g2ao/
 │   └── `a.txt` - txt file
+├── `_cleanup.py` - Python script
+├── `_dbg_raw.py` - Python script
 ├── `_probe.py` - Python script
 ├── `_probe2.py` - Python script
 ├── `_probe3.py` - Python script
