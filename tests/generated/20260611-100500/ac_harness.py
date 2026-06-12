@@ -1745,6 +1745,11 @@ def ac_k8():
                 inject_forms["git_config_parameters_env_block"],
             "quoted_core_hookspath_previously_evaded_now_blocked":
                 inject_forms["quoted_core_hookspath_block"],
+            "global_option_operand_before_injection_not_masked":
+                inject_forms["c_dir_operand_before_include_block"]
+                and inject_forms["git_dir_operand_before_include_block"]
+                and inject_forms["work_tree_operand_before_includeif_block"]
+                and inject_forms["namespace_operand_before_quoted_hookspath_block"],
             "all_config_injection_forms_blocked": all_inject_blocked,
             "end_to_end_include_bypass_with_head_move_blocked": end_to_end_blocked,
             "main_head_stays_master": head_stays_master,
