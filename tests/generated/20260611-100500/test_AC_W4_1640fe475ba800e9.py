@@ -21,7 +21,8 @@ def test_AC_W4():
     WHEN:  (a) the rewrite branch is removed/disabled, AND (b) a boundary-wrapped active-actor command runs to completion (success or failure)
     THEN:  in (a) the hook cleanly reverts to the pre-existing L4 string-guard behavior (L4 RETAINED as defense-in-depth, not deleted) AND in (b) PROOF that a bwrap process ACTUALLY RAN is captured (the wrapped command observed a `/proc/self/mountinfo` showing `main_root` RO and the worktree RW — codex #4/#5), the bwrap namespace is torn down with the command (per-command, self-tearing), and `/proc/mounts` on the HOST shows NO leaked persistent bind mount of the MAIN tree after the command exits
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — reversible + proof-it-ran: removing rewrite reverts to retained L4; positive proof bwrap ran via inside /proc/self/mountinfo (main RO + worktree RW); per-command self-tearing, zero host mount leak")
+    # L6 write-half reversibility + proof-it-ran (ac_harness.py AC-W4): the L4
+    # guard is retained (control-flow order L4-then-bwrap); positive proof the
+    # bwrap namespace actually ran via inside /proc/self/mountinfo (main_root RO +
+    # worktree RW); per-command self-tearing with zero host mount leak.
+    run_ac("AC-W4")
