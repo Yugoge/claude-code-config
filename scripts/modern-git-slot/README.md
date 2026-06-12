@@ -95,7 +95,16 @@ the system git is ALSO downgraded below 2.46 does the self-test record
 `best_effort_head_switch` / `structural_claim_allowed=false`.) Either way the
 compensating layers (M13 policy shim + M14a firewall + M15 bash-safety) carry
 the exact-incident block (AC11) unchanged, and the isolation, worktree creation,
-and master-branch-ref protection are UNCONDITIONAL and do not depend on the slot.
+and master-branch-ref protection do not depend on the slot.
+
+> **ACCEPTED LIMITATION (2026-06-12) — keystone is disablable via shared `.git`.**
+> The "master-branch-ref protection" above and the A1 "covers the branch-switch
+> structurally on every path" claim below hold ONLY while the keystone remains
+> installed. A linked overnight worktree shares the repo `.git` common-dir; an
+> actor that mutates `core.hooksPath` (e.g. `git config --unset core.hooksPath`)
+> can DISABLE the keystone and then move master. This is a USER-ACCEPTED residual
+> for this cycle and **QA remains FAIL by accepted deviation** — do NOT read the
+> word "UNCONDITIONAL"/"every path" as protection against shared-.git mutation.
 
 ## Sub-modes (codex round-2 finding #1)
 
