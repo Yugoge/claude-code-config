@@ -1665,6 +1665,42 @@ def _emit_command_rewrite(new_command: str) -> None:
     sys.exit(0)
 
 
+_GIT_META_LEAF_RE = re.compile(
+    r'/\.git(?:/|$)|/refs/|/packed-refs|/logs/|/objects/|/HEAD$|/packed-refs$')
+
+
+def _raw_git_metadata_write_into_main(command: str, main_root: str,
+                                      worktree_path: str, main_git_dir: str) -> bool:
+    """codex #1 (raw-.git-write deny): True iff `command` raw-writes (redirect /
+    tee / interpreter open) to a `.git` ref/object/log/packed-refs/HEAD path under
+    main that is NOT inside the isolated worktree. Such a RAW write (no git ref
+    transaction) would corrupt the main working-tree view through the RW-exposed
+    .git binds, bypassing both the keystone and the VFS RO-bind — so it MUST be
+    denied BEFORE the bwrap rewrite (codex #4 control-flow order)."""
+    main_real = os.path.realpath(main_root) if main_root else ''
+    wt_real = os.path.realpath(worktree_path) if worktree_path else ''
+    gitdir_real = os.path.realpath(main_git_dir) if main_git_dir else (
+        os.path.realpath(os.path.join(main_real, '.git')) if main_real else '')
+    if not main_real:
+        return False
+    # explicit redirect/tee/cp/mv write targets
+    targets = list(_extract_bash_write_paths(command))
+    # interpreter open('...','w') targets
+    for mo in re.finditer(r"open\(\s*['\"]([^'\"]+)['\"]\s*,\s*['\"][wa]", command):
+        targets.append(mo.group(1))
+    for t in targets:
+        try:
+            rp = os.path.realpath(t)
+        except Exception:
+            rp = t
+        under_main = _path_under_prefix(rp, main_real) or (
+            gitdir_real and _path_under_prefix(rp, gitdir_real))
+        in_worktree = wt_real and _path_under_prefix(rp, wt_real)
+        if under_main and not in_worktree and _GIT_META_LEAF_RE.search(rp):
+            return True
+    return False
+
+
 def _apply_write_boundary(command: str, gov_state: dict, main_git_dir: str) -> None:
     """WRITE-HALF entry (fix-7): for the ACTIVE overnight actor's Bash command,
     re-exec it inside the bwrap RO-bind boundary (emit updatedInput.command) when
@@ -1678,6 +1714,17 @@ def _apply_write_boundary(command: str, gov_state: dict, main_git_dir: str) -> N
     isolation_kind = gov_state.get('isolation_kind', '') or ''
     if not main_root or not worktree_path:
         return  # cannot scope a boundary without both roots; L4 already ran
+    # codex #1/#4: RAW .git-metadata write into main (outside the worktree) is
+    # denied FIRST — before any bwrap rewrite — because the RW-exposed .git binds
+    # cannot distinguish a git-mediated write from a raw corrupting write.
+    if _raw_git_metadata_write_into_main(command, main_root, worktree_path, main_git_dir):
+        _block(
+            '\nOVERNIGHT RAW .git-METADATA WRITE BLOCK: a raw (non-git) write to '
+            'a main-repo .git ref/object/log/packed-refs/HEAD path outside the '
+            'isolated worktree is forbidden for overnight actors — it would '
+            'corrupt the main working-tree view out-of-band (bypassing the '
+            'keystone and the RO-bind). Use git inside the worktree instead.\n'
+        )
     if _bwrap_boundary_available():
         argv = _build_bwrap_argv(command, main_root, worktree_path, isolation_kind)
         if argv:
