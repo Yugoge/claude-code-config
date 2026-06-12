@@ -21,7 +21,8 @@ def test_AC_W7():
     WHEN:  the wrapped active-actor command enumerates every mount from inside the namespace (`/proc/self/mountinfo`) and attempts a write to `main_root` via each enumerated alternate path (a RW `/` alias, a RW `/tmp` overlay if main is under `/tmp`, a `/proc/<pid>/root` re-entry)
     THEN:  NO mount inside the namespace exposes a RW source/root covering any path under the PROTECTED MAIN working tree EXCEPT the approved `worktree_path` + the narrowed git-metadata exceptions; EVERY alternate-path write to `main_root` is DENIED (EROFS); the canonical mount order guarantees the RO-bind of `main_root` is not shadowed by a later RW mount
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — no-RW-alias mount invariant: no second writable path resolves into PROTECTED MAIN (RW /, RW /tmp overlay, /proc/<pid>/root re-entry all EROFS); private /proc+PID; canonical mount order RO-main not shadowed")
+    # L6 write-half no-RW-alias mount invariant (ac_harness.py AC-W7): no second
+    # writable path resolves into the PROTECTED MAIN tree (RW / alias, RW /tmp
+    # overlay, /proc/<pid>/root re-entry all denied); private /proc + PID; the
+    # canonical mount order keeps the RO main not shadowed by a later RW mount.
+    run_ac("AC-W7")
