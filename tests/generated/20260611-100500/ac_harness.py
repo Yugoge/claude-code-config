@@ -1602,11 +1602,6 @@ def ac_k8():
     wt = str(wt)
     try:
         m = str(repo)
-        # The ref-moving op token is assembled out of fragments so no literal
-        # ref-mutation string sits in this harness's own command line; it is fed
-        # to the guard subprocess as a fixture and never executed (the guard
-        # blocks it pre-execution).
-        op = "symbolic" + "-ref HEAD " + "refs/heads/other"
         # Write a real bypass include that sets core.hooksPath=/dev/null, proving
         # the channel is a genuine keystone-disable vector (not a synthetic key).
         bypass = repo / ".claude" / "bypass.cfg"
@@ -1616,37 +1611,54 @@ def ac_k8():
         head0 = _head_branch(repo)
         moid0 = _master_oid(repo)
 
-        # Each MUST be blocked pre-execution (rc==2) by the config firewall.
+        # ISOLATION (genuine fail-first): the injection-block assertions use a
+        # WORKTREE-LOCAL, NON-dangerous op (`-C <wt> status`). Such a command is
+        # benign EXCEPT for the config injection, so it is NOT independently
+        # caught by the main-targeting / dangerous-op / master-ref layers — only
+        # the config firewall can block it. Pre-fix the include / includeIf /
+        # GIT_CONFIG_PARAMETERS channels reach git (NOT blocked → AC fails);
+        # post-fix the firewall blocks them (rc==2 → AC passes). A main-targeting
+        # form is checked separately below for the end-to-end HEAD guarantee.
         inject_forms = {
             "include_path_block":
-                _hook_guard_blocks(f"git -c include.path={bp} -C {m} {op}", repo, cwd=wt),
+                _hook_guard_blocks(f"git -c include.path={bp} -C {wt} status", repo, cwd=wt),
             "include_path_single_quoted_block":
-                _hook_guard_blocks(f"git -c 'include.path={bp}' -C {m} {op}", repo, cwd=wt),
+                _hook_guard_blocks(f"git -c 'include.path={bp}' -C {wt} status", repo, cwd=wt),
             "include_path_double_quoted_block":
-                _hook_guard_blocks(f'git -c "include.path={bp}" -C {m} {op}', repo, cwd=wt),
+                _hook_guard_blocks(f'git -c "include.path={bp}" -C {wt} status', repo, cwd=wt),
             "include_path_glued_c_block":
-                _hook_guard_blocks(f"git -cinclude.path={bp} -C {m} {op}", repo, cwd=wt),
+                _hook_guard_blocks(f"git -cinclude.path={bp} -C {wt} status", repo, cwd=wt),
             "includeif_gitdir_path_block":
                 _hook_guard_blocks(
-                    f"git -c includeIf.gitdir:{m}/.git.path={bp} -C {m} {op}", repo, cwd=wt),
+                    f"git -c includeIf.gitdir:{m}/.git.path={bp} -C {wt} status", repo, cwd=wt),
             "includeif_onbranch_path_block":
                 _hook_guard_blocks(
-                    f"git -c includeIf.onbranch:master.path={bp} -C {m} {op}", repo, cwd=wt),
+                    f"git -c includeIf.onbranch:master.path={bp} -C {wt} status", repo, cwd=wt),
             "includeif_hasconfig_glob_path_block":
                 _hook_guard_blocks(
                     f"git -c includeIf.hasconfig:remote.*.url:https://x/**.path={bp} "
-                    f"-C {m} {op}", repo, cwd=wt),
+                    f"-C {wt} status", repo, cwd=wt),
             "git_config_parameters_env_block":
                 _hook_guard_blocks(
-                    f"GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/dev/null'\" git -C {m} {op}",
+                    f"GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/dev/null'\" git -C {wt} status",
                     repo, cwd=wt),
-            # quoted core.hooksPath: previously EVADED the raw regex; the
-            # token-aware scanner now catches it (bonus soundness fix).
+            # quoted core.hooksPath on a worktree-local op: previously EVADED the
+            # raw regex AND not caught by other layers; the token-aware scanner
+            # now catches it (bonus soundness fix).
             "quoted_core_hookspath_block":
-                _hook_guard_blocks(f"git -c 'core.hooksPath=/dev/null' -C {m} {op}", repo, cwd=wt),
+                _hook_guard_blocks(f"git -c 'core.hooksPath=/dev/null' -C {wt} status",
+                                   repo, cwd=wt),
         }
         all_inject_blocked = all(inject_forms.values())
 
+        # END-TO-END keystone-bypass guarantee: the canonical attack is an
+        # include-injection that disables the keystone WHILE moving main HEAD off
+        # master. The op token is assembled from fragments so no literal
+        # ref-mutation string sits in this harness's own command line; it is fed
+        # to the guard as a fixture and never executed (blocked pre-execution).
+        op = "symbolic" + "-ref HEAD " + "refs/heads/other"
+        end_to_end_blocked = _hook_guard_blocks(
+            f"git -c include.path={bp} -C {m} {op}", repo, cwd=wt)
         # Main HEAD/master never moved (the block is pre-execution).
         head_stays_master = _head_branch(repo) == head0 == "master"
         master_oid_unchanged = _master_oid(repo) == moid0
