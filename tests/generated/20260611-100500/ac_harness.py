@@ -1683,20 +1683,28 @@ def ac_k8():
             not _hook_guard_blocks(f"git -C {wt} status", repo, cwd=wt)
             and not _hook_guard_blocks(f"git -C {wt} add .", repo, cwd=wt))
 
-        # Fail-first differential: the include/param channels are caught by the
-        # NEW token-aware scanner (and the PARAMETERS regex addition), NOT by the
-        # pre-existing raw firewall alone. Load HOOK_GUARD as a module and assert
-        # the OLD raw regex did NOT match an include.path injection while the full
-        # firewall now does — this makes the new layer's necessity falsifiable.
+        # Fail-first differential: the include channel is caught by the NEW
+        # token-aware scanner, NOT by the pre-existing raw firewall alone, and
+        # GIT_CONFIG_PARAMETERS is now in the raw regex. Load HOOK_GUARD as a
+        # module and assert the OLD raw regex did NOT match an include.path
+        # injection while the new scanner does — making the new layer's necessity
+        # falsifiable. getattr keeps this robust against a pre-fix module that
+        # lacks `_command_injects_keystone_config` (it then evaluates False →
+        # the AC fails on current code, as a fail-first test must).
         import importlib.util
         _spec = importlib.util.spec_from_file_location("ohg_k8", str(HOOK_GUARD))
         _ohg = importlib.util.module_from_spec(_spec)
         _spec.loader.exec_module(_ohg)
-        include_cmd = f"git -c include.path={bp} -C {m} {op}"
-        param_cmd = f"GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/dev/null'\" git -C {m} {op}"
-        raw_regex_misses_include = not bool(_ohg._GIT_HOOK_SUPPRESS_RE.search(include_cmd))
-        token_scanner_catches_include = _ohg._command_injects_keystone_config(include_cmd)
-        param_now_in_raw_regex = bool(_ohg._GIT_HOOK_SUPPRESS_RE.search(param_cmd))
+        include_cmd = f"git -c include.path={bp} -C {wt} status"
+        param_cmd = (f"GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/dev/null'\" "
+                     f"git -C {wt} status")
+        _suppress_re = getattr(_ohg, "_GIT_HOOK_SUPPRESS_RE", None)
+        _scanner = getattr(_ohg, "_command_injects_keystone_config", None)
+        raw_regex_misses_include = (
+            _suppress_re is not None and not bool(_suppress_re.search(include_cmd)))
+        token_scanner_catches_include = bool(_scanner and _scanner(include_cmd))
+        param_now_in_raw_regex = (
+            _suppress_re is not None and bool(_suppress_re.search(param_cmd)))
         new_layer_is_load_bearing = (
             raw_regex_misses_include and token_scanner_catches_include
             and param_now_in_raw_regex)
