@@ -21,7 +21,6 @@ def test_AC_K5():
     WHEN:  the reversibility is recorded
     THEN:  the upgrade (PPA `git-core-ubuntu-ppa-noble.sources` + exact package `1:2.54.0-0ppa1~ubuntu24.04.1`) and its rollback (downgrade to the pinned `1:2.43.0-1ubuntu7.3` still in the apt version table + remove the PPA) are documented; the rollback target's availability is verifiable (`apt-cache policy git` shows both); on rollback the host returns to best_effort (structural CLAIM downgrades) while isolation + the L4/shim defense-in-depth still hold AND on current state this AC is satisfiable because BA verified `apt-cache policy git` shows both the installed 2.54 and the 2.43 rollback target
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — the upgrade (PPA `git-core-ubuntu-ppa-noble.sources` + exact package `1:2.54.0-0ppa1~ubuntu24.04.1`) and its rollback...")
+    # L5 keystone-firing behavioral assertions (ac_harness.py AC-K5) checked
+    # against the canonical acceptance-criteria JSON via _ac_runner.run_ac.
+    run_ac("AC-K5")
