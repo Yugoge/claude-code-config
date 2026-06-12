@@ -553,11 +553,24 @@ def ac_k3():
         attested_result = st_attested.get("reference_transaction_selftest_result")
         attested_guarantee = st_attested.get("guarantee_level")
         attested_version = st_attested.get("git_version", "")
+        # codex-D cross-check: the attested claim must correspond to a REAL
+        # keystone abort with the POSITIVE deny signal under the actor env (not a
+        # coincidental checkout failure). Drive a direct actor checkout against
+        # the attested target and require the keystone deny on stderr + HEAD
+        # unchanged — proving structural_claim_allowed=true means real protection.
+        moid0 = _master_oid(repo)
+        rk = _sh(f"git -C {repo} checkout other", repo, _actor_env(repo))
+        attested_claim_backed_by_real_keystone_abort = (
+            "OVERNIGHT KEYSTONE" in rk.stderr
+            and _head_branch(repo) == "master"
+            and _master_oid(repo) == moid0)
+        _git(["checkout", "-q", "--force", "master"], repo)
         required_facts_present = (
             attested_claim is True
             and attested_result == "structural_head_switch"
             and attested_guarantee == "structural_head_switch"
-            and attested_version.startswith("2.54"))
+            and attested_version.startswith("2.54")
+            and attested_claim_backed_by_real_keystone_abort)
 
         # capability recorded separately: an un-attested target on the SAME 2.54
         # git records the capability structural_head_switch BUT claim=false.
