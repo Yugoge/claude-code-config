@@ -1089,12 +1089,12 @@ def ac_w1():
         results = {}
         every_unchanged = True
         for label, cmd in forms.items():
-            erofs, _out, rewritten = _run_boundary_write(cmd, repo, wt)
-            # The write is denied iff the kernel said EROFS OR the rewritten
-            # command ran but the target file is byte-unchanged (some forms
-            # swallow the error; the load-bearing fact is the file is unchanged).
+            # A write into MAIN is denied by EITHER the kernel RO-bind (bwrap
+            # rewrite + EROFS) OR the retained security/L4 guard pre-execution
+            # block (rc=2, no rewrite). Both leave the main file byte-unchanged.
+            denied, _mech = _write_into_main_denied(cmd, repo, wt, a_txt, base_a)
             unchanged = a_txt.read_text() == base_a and s_txt.read_text() == base_s
-            results[label] = bool(rewritten) and (erofs or unchanged)
+            results[label] = denied and unchanged
             every_unchanged = every_unchanged and unchanged
 
         # keystone-aborted `git checkout <branch>`: the tree is RO before git runs
