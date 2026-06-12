@@ -5,7 +5,11 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ac_runner import run_ac  # noqa: E402
 
 AC_UID = "1274afa33dbfdf6b"
 AC_TYPE = "hook"
