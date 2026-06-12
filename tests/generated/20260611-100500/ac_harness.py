@@ -1599,6 +1599,7 @@ def _under(path, prefix):
 
 def ac_k8():
     repo, wt = _make_overnight_repo()
+    wt = str(wt)
     try:
         m = str(repo)
         # The ref-moving op token is assembled out of fragments so no literal
