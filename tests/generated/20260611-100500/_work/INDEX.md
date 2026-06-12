@@ -1,14 +1,15 @@
 # _work
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-12T15:01:19Z*
-**Total entries**: 1
-**Convention**: lower
+*Last updated: 2026-06-12T15:01:40Z*
+**Total entries**: 2
+**Convention**: kebab
 
 ## Tree
 ```
 _work/
-└── `_probe.py` - Python script
+├── `_probe.py` - Python script
+└── `_probe2.py` - Python script
 ```
 <!-- /AUTO:index-stats -->
 
