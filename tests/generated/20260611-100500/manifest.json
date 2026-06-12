@@ -955,9 +955,9 @@
     {
       "task_id": "20260611-100500",
       "ac_id": "AC-K8",
-      "ac_uid": "7e0bbdc95d2fe82a",
+      "ac_uid": "8fa9ef55708bd519",
       "type": "hook",
-      "file": "tests/generated/20260611-100500/test_AC_K8_7e0bbdc95d2fe82a.py",
+      "file": "tests/generated/20260611-100500/test_AC_K8_8fa9ef55708bd519.py",
       "status": "active",
       "hook_check": {
         "script": "python3",
@@ -983,6 +983,11 @@
           },
           {
             "property": "quoted_core_hookspath_previously_evaded_now_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "global_option_operand_before_injection_not_masked",
             "match": "equals",
             "value": true
           },
