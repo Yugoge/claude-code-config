@@ -21,7 +21,6 @@ def test_AC_K4():
     WHEN:  the normal session performs ordinary main-repo git operations (branch-switch / commit / branch-list on main) AND the keystone is NOT installed in the live implementing repo
     THEN:  the normal-session operations are ALLOWED (keystone exits 0 for non-overnight actors - `reference-transaction:18/35`); the live implementing repo's `core.hooksPath` stays `.git/hooks` (untouched); isolation/worktree creation is unconditional and never gated on the git version MUST PASS both pre- and post-escalation
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — the normal-session operations are ALLOWED (keystone exits 0 for non-overnight actors - `reference-transaction:18/35`)...")
+    # L5 keystone-firing behavioral assertions (ac_harness.py AC-K4) checked
+    # against the canonical acceptance-criteria JSON via _ac_runner.run_ac.
+    run_ac("AC-K4")
