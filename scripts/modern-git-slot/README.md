@@ -87,12 +87,15 @@ Removing the slot directory fully reverts the Option-A overlay:
 rm -rf <main_root>/.claude/modern-git-slot
 ```
 
-After removal the selector falls through to system git, the self-test records
-`best_effort_head_switch` / `structural_claim_allowed=false`, and the
+After removal the selector falls through to **system git**. On the current host
+(system git 2.54, sub-mode A1) the self-test still records
+`structural_head_switch` / `structural_claim_allowed=true`, because the keystone
+guarantee comes from the host git version, not from this slot overlay. (Only if
+the system git is ALSO downgraded below 2.46 does the self-test record
+`best_effort_head_switch` / `structural_claim_allowed=false`.) Either way the
 compensating layers (M13 policy shim + M14a firewall + M15 bash-safety) carry
-the exact-incident block (AC11) unchanged. Nothing else needs to be undone —
-the isolation, worktree creation, and master-branch-ref protection are
-UNCONDITIONAL and do not depend on the slot.
+the exact-incident block (AC11) unchanged, and the isolation, worktree creation,
+and master-branch-ref protection are UNCONDITIONAL and do not depend on the slot.
 
 ## Sub-modes (codex round-2 finding #1)
 
