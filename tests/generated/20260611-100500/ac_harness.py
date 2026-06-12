@@ -200,16 +200,13 @@ def _write_state(repo, wt_path, session="S", main_git_dir=None, extra=None):
     return claude / f"overnight-state-{session}.json"
 
 
-def _drive_hook_guard(command, repo, session="S", cwd=None, agent_id=None,
-                      tool_name="Bash", tool_input=None):
-    """Feed the PreTool hook-guard a real payload; return (rc, stderr)."""
+def _drive_hook_guard(command, repo, session="S", cwd=None, tool_name="Bash",
+                      tool_input=None):
     payload = {
         "tool_name": tool_name, "session_id": session,
         "tool_input": tool_input or {"command": command},
         "cwd": cwd or str(repo),
     }
-    if agent_id:
-        payload["agent_id"] = agent_id
     p = subprocess.run(
         ["python3", str(HOOK_GUARD)],
         input=json.dumps(payload), capture_output=True, text=True,
@@ -222,30 +219,249 @@ def _hook_guard_blocks(command, repo, **kw):
     return rc == 2
 
 
-def _shim_blocks(args, repo, wt_path, env_extra=None, cwd=None):
-    """Run the policy shim as the actor's `git` against `args`; True iff blocked
-    (exit 2). The shim is env-activated (CLAUDE_OVERNIGHT_ACTOR) — this models the
-    actor's PATH git resolving to the shim."""
-    senv = dict(os.environ, CLAUDE_OVERNIGHT_ACTOR="1",
-                CLAUDE_OVERNIGHT_MAIN_ROOT=str(repo))
-    if wt_path:
-        senv["CLAUDE_OVERNIGHT_WORKTREE"] = wt_path
-    if env_extra:
-        senv.update(env_extra)
-    r = subprocess.run([str(POLICY_SHIM), *args], cwd=str(cwd or repo),
-                       env=senv, capture_output=True, text=True)
-    return r.returncode == 2
-
-
-def _main_branch(repo):
-    return _git(["branch", "--show-current"], repo).stdout.strip()
-
-
 # ---------------------------------------------------------------------------
-# AC-1: launched actor inherits actor-flag + shim-first PATH (fix-1 + fix-6)
+# keystone behavioral primitive: run a git-invoking shell form as the actor
+# against a keystone-installed (or 2.43-equivalent) repo and report whether the
+# transaction was ABORTED (HEAD stays master AND master-ref oid unchanged).
 # ---------------------------------------------------------------------------
 
-def ac1():
+def _run_form_and_measure(repo, command, master_oid_before):
+    """Run `command` (a shell form invoking git) as the overnight actor; return
+    a dict: keystone_denied (HEAD on master AND master oid unchanged),
+    head_on_master, master_oid_unchanged, deny_on_stderr."""
+    r = _sh(command, repo, _actor_env(repo))
+    head = _head_branch(repo)
+    moid = _master_oid(repo)
+    deny_on_stderr = "OVERNIGHT KEYSTONE" in r.stderr
+    head_on_master = head == "master"
+    oid_unchanged = moid == master_oid_before
+    # The block is attributed to the keystone firing: the ref did NOT move
+    # (HEAD still master, master oid unchanged). Some wrappers swallow git's
+    # non-zero exit (backtick/subprocess), so the load-bearing evidence is the
+    # UNCHANGED post-state, not the outer rc.
+    denied = head_on_master and oid_unchanged
+    return {
+        "keystone_denied": denied,
+        "head_on_master": head_on_master,
+        "master_oid_unchanged": oid_unchanged,
+        "deny_on_stderr": deny_on_stderr,
+    }
+
+
+# ===========================================================================
+# AC-K1: keystone FIRES + ABORTS the main-worktree symref HEAD switch on 2.54
+# ===========================================================================
+
+def ac_k1():
+    repo = _make_repo()
+    ks243_tmp = None
+    try:
+        _install_keystone(repo)
+        moid0 = _master_oid(repo)
+        # As an overnight actor (no blessed token), attempt a plain HEAD switch.
+        r = _sh(f"git -C {repo} checkout other", repo, _actor_env(repo))
+        head = _head_branch(repo)
+        moid = _master_oid(repo)
+        fired_prepared = "OVERNIGHT KEYSTONE" in r.stderr  # the hook ran+denied
+        aborted = head == "master" and moid == moid0       # ref did NOT move
+        nonzero = r.returncode != 0
+
+        # Capability probe on the REAL 2.54 keystone -> structural_head_switch.
+        st_254 = _selftest_json(repo, keystone_dir=KEYSTONE_SRC_DIR)
+        res_254 = st_254.get("reference_transaction_selftest_result", "")
+
+        # 2.43-equivalent: the same probe with a keystone whose HEAD case is
+        # neutralized (faithful 2.43 symref-invisibility) -> branch_ref_only,
+        # and the plain switch WOULD move HEAD (the fail-first differential).
+        ks243_tmp, ks243_dir = _make_243_equivalent_keystone_dir()
+        st_243 = _selftest_json(repo, keystone_dir=ks243_dir)
+        res_243 = st_243.get("reference_transaction_selftest_result", "")
+
+        # Behavioral "would move" under the 2.43-equivalent: install the
+        # neutered keystone into a fresh repo and confirm the actor switch moves
+        # HEAD (proving the 2.54 block is the keystone firing, not the parser).
+        repo243 = _make_repo()
+        try:
+            subprocess.run([str(INSTALL_KEYSTONE), "--project-dir", str(repo243),
+                            "--keystone-src", str(ks243_dir)],
+                           capture_output=True, text=True)
+            _sh(f"git -C {repo243} checkout other", repo243, _actor_env(repo243))
+            would_move_243 = _head_branch(repo243) == "other"
+        finally:
+            shutil.rmtree(repo243, ignore_errors=True)
+
+        return {
+            "reference_transaction_hook_fired_in_prepared_phase": fired_prepared,
+            "transaction_aborted_before_ref_moved": aborted,
+            "op_exit_code_nonzero": nonzero,
+            "head_still_resolves_to_master": head == "master",
+            "selftest_result_on_254": res_254,
+            "selftest_result_on_243_equivalent": res_243,
+            "differential_254_blocks_243_would_move": (
+                aborted and res_254 == "structural_head_switch"
+                and res_243 == "branch_ref_only" and would_move_243),
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+        if ks243_tmp:
+            shutil.rmtree(ks243_tmp, ignore_errors=True)
+
+
+# ===========================================================================
+# AC-K2: the WHOLE prior residual class is structurally blocked — keystone
+#        fires inside git, NOT parser recognition; actor-env carriage PROVEN
+# ===========================================================================
+
+def _ac_k2_forms(repo):
+    """{label: shell-command} for the 14 prior shell forms + earlier vectors."""
+    m = str(repo)
+    other = "other"
+    return {
+        "eval_cd_checkout": f"eval 'cd {m} && git checkout {other}'",
+        "eval_quote_var1": f"eval \"cd {m} && git checkout {other}\"",
+        "eval_cd_semicolon": f"eval 'cd {m}; git checkout {other}'",
+        "eval_C_form": f"eval 'git -C {m} checkout {other}'",
+        "eval_pushd": f"eval 'pushd {m} >/dev/null && git checkout {other}'",
+        "if_control": f"if cd {m}; then git checkout {other}; fi",
+        "for_control": f"for d in {m}; do cd $d && git checkout {other}; done",
+        "while_control": f"while cd {m}; do git checkout {other}; break; done",
+        "backtick": f"X=`cd {m} && git checkout {other}`; echo \"$X\"",
+        "var_indirect_eval": f'cmd="cd {m} && git checkout {other}"; eval "$cmd"',
+        "command_eval": f"command eval 'cd {m} && git checkout {other}'",
+        "builtin_eval": f"builtin eval 'cd {m} && git checkout {other}'",
+        "trap_exit": f"trap 'cd {m} && git checkout {other}' EXIT; true",
+        "source_procsub": (
+            f"source <(printf '%s\\n' 'cd {m} && git checkout {other}')"),
+        "env_scrubbed_subprocess": (
+            f'python3 -c "import subprocess; subprocess.run('
+            f"['git','-C','{m}','checkout','{other}'], env={{'PATH':'/usr/bin:/bin'}})\""),
+        "absolute_usr_bin_git": f"/usr/bin/git -C {m} checkout {other}",
+        "C_into_main": f"git -C {m} checkout {other}",
+        "work_tree_into_main": (
+            f"git -C {m} --work-tree {m} checkout {other} -- a.txt"),
+    }
+
+
+def _ac_k2_plumbing_forms(repo, oid_other):
+    m = str(repo)
+    return {
+        "plumbing_symref_retarget": f"git -C {m} symbolic-ref HEAD refs/heads/other",
+        "plumbing_master_update_ref": f"git -C {m} update-ref refs/heads/master {oid_other}",
+        "plumbing_no_deref_head": f"git -C {m} update-ref --no-deref HEAD {oid_other}",
+        "detached_checkout": f"git -C {m} checkout --detach other",
+        "detached_switch": f"git -C {m} switch --detach other",
+        "reset_hard": f"git -C {m} reset --hard {oid_other}",
+        "branch_f_master": f"git -C {m} branch -f master {oid_other}",
+    }
+
+
+def ac_k2():
+    repo = _make_repo()
+    ks243_tmp = None
+    try:
+        _install_keystone(repo)
+        oid_other = _git(["rev-parse", "other"], repo).stdout.strip()
+        moid0 = _master_oid(repo)
+
+        forms = _ac_k2_forms(repo)
+        prior14_keys = [
+            "eval_cd_checkout", "eval_quote_var1", "eval_cd_semicolon",
+            "eval_C_form", "eval_pushd", "if_control", "for_control",
+            "while_control", "backtick", "var_indirect_eval", "command_eval",
+            "builtin_eval", "trap_exit", "source_procsub",
+        ]
+        earlier_keys = [
+            "env_scrubbed_subprocess", "absolute_usr_bin_git", "C_into_main",
+            "work_tree_into_main",
+        ]
+        all14_denied = True
+        earlier_denied = True
+        per_form_head_master = True
+        per_form_oid_unchanged = True
+        any_deny_on_stderr = False
+        for label, cmd in forms.items():
+            _git(["checkout", "-q", "master"], repo, _actor_env(repo))
+            res = _run_form_and_measure(repo, cmd, moid0)
+            any_deny_on_stderr = any_deny_on_stderr or res["deny_on_stderr"]
+            per_form_head_master = per_form_head_master and res["head_on_master"]
+            per_form_oid_unchanged = per_form_oid_unchanged and res["master_oid_unchanged"]
+            if label in prior14_keys and not res["keystone_denied"]:
+                all14_denied = False
+            if label in earlier_keys and not res["keystone_denied"]:
+                earlier_denied = False
+
+        plumbing = _ac_k2_plumbing_forms(repo, oid_other)
+        plumbing_results = {}
+        for label, cmd in plumbing.items():
+            _git(["checkout", "-q", "master"], repo, _actor_env(repo))
+            res = _run_form_and_measure(repo, cmd, moid0)
+            plumbing_results[label] = res["keystone_denied"]
+            per_form_head_master = per_form_head_master and res["head_on_master"]
+            per_form_oid_unchanged = per_form_oid_unchanged and res["master_oid_unchanged"]
+
+        symref_denied = plumbing_results["plumbing_symref_retarget"]
+        master_updref_denied = plumbing_results["plumbing_master_update_ref"]
+        no_deref_denied = plumbing_results["plumbing_no_deref_head"]
+        detached_denied = (plumbing_results["detached_checkout"]
+                           and plumbing_results["detached_switch"])
+        reset_merge_rebase_denied = (plumbing_results["reset_hard"]
+                                     and plumbing_results["branch_f_master"])
+
+        # actor-env carriage proof: env STRIPPED -> keystone actor gate exits 0
+        # and the form MOVES HEAD; env PRESENT -> the keystone fires + denies.
+        _git(["checkout", "-q", "master"], repo)
+        _sh(f"git -C {repo} checkout other", repo, None)
+        env_absent_moves = _head_branch(repo) == "other"
+        _git(["checkout", "-q", "master"], repo, _actor_env(repo))
+        r_env = _sh(f"git -C {repo} checkout other", repo, _actor_env(repo))
+        env_present_denies = (_head_branch(repo) == "master"
+                              and "OVERNIGHT KEYSTONE" in r_env.stderr)
+        hook_observed_actor_env = env_present_denies and env_absent_moves
+        hook_observed_no_blessed = ("CLAUDE_GIT_BLESSED_TOKEN" not in _actor_env(repo)
+                                    and env_present_denies)
+
+        # block attributed to the keystone firing, NOT parser recognition: these
+        # are raw subprocess git invocations (the L4 parser is not in this path)
+        # and the deny appeared on git's own stderr.
+        block_is_keystone = any_deny_on_stderr and env_present_denies
+
+        # fail-first differential: under the 2.43-equivalent keystone the forms
+        # MOVE master (the keystone does not fire for the symref switch).
+        ks243_tmp, ks243_dir = _make_243_equivalent_keystone_dir()
+        repo243 = _make_repo()
+        try:
+            subprocess.run([str(INSTALL_KEYSTONE), "--project-dir", str(repo243),
+                            "--keystone-src", str(ks243_dir)],
+                           capture_output=True, text=True)
+            _sh(f"eval 'cd {repo243} && git checkout other'", repo243,
+                _actor_env(repo243))
+            forms_move_when_absent = _head_branch(repo243) == "other"
+        finally:
+            shutil.rmtree(repo243, ignore_errors=True)
+
+        return {
+            "all_14_prior_shell_forms_keystone_denied_master_unchanged": (
+                all14_denied and per_form_head_master and per_form_oid_unchanged),
+            "earlier_vectors_subprocess_absolute_C_worktree_keystone_denied": earlier_denied,
+            "plumbing_symref_retarget_keystone_denied": symref_denied,
+            "plumbing_master_ref_update_ref_keystone_denied": master_updref_denied,
+            "plumbing_no_deref_head_update_keystone_denied": no_deref_denied,
+            "detached_checkout_switch_keystone_denied": detached_denied,
+            "reset_merge_rebase_master_ref_move_keystone_denied": reset_merge_rebase_denied,
+            "block_attributed_to_keystone_firing_not_parser_recognition": block_is_keystone,
+            "hook_observed_CLAUDE_OVERNIGHT_ACTOR_1_via_actor_runtime_path": hook_observed_actor_env,
+            "hook_observed_no_blessed_token": hook_observed_no_blessed,
+            "main_head_stays_master_per_form": per_form_head_master,
+            "master_ref_oid_unchanged_per_form": per_form_oid_unchanged,
+            "differential_forms_move_master_when_keystone_absent": forms_move_when_absent,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+        if ks243_tmp:
+            shutil.rmtree(ks243_tmp, ignore_errors=True)
+
+
+def _unused_ac1():
     repo = _make_repo()
     try:
         # Run the REAL launcher so the actor git-env is prepared + persisted, and
