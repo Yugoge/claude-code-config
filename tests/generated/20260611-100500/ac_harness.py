@@ -1692,6 +1692,10 @@ def ac_k8():
                 _hook_guard_blocks(f"git -c color.ui=always -C {wt} status", repo, cwd=wt),
             "benign_global_c_username_not_blocked":
                 _hook_guard_blocks(f"git -c user.name=ovr -C {wt} status", repo, cwd=wt),
+            # a value-taking global (`-C <wt>`) before a BENIGN global `-c` must
+            # still NOT be blocked (the operand-skip must not over-block).
+            "c_dir_operand_before_benign_c_not_blocked":
+                _hook_guard_blocks(f"git -C {wt} -c color.ui=always status", repo, cwd=wt),
         }
         no_over_block = not any(over_block_forms.values())
 
