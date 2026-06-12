@@ -23,8 +23,14 @@ def mk():
 # CANDIDATE LAYOUT: --ro-bind / / then RW worktree + git paths. NO --dev (it
 # shadows /dev/shm). --proc for private proc. --tmpfs /tmp for writable tmp.
 def build_args(d, WT, gd, gcd):
-    a = [BW, "--ro-bind", "/", "/", "--proc", "/proc", "--tmpfs", "/tmp",
-         "--unshare-pid", "--die-with-parent", "--bind", str(WT), str(WT)]
+    # --dev /dev gives a private devtmpfs with a WRITABLE /dev/null (git needs
+    # it) but that shadows the real /dev/shm. Restore the real /dev/shm RO on top
+    # so a /dev/shm-resident main is RO again, THEN nest the worktree RW bind.
+    a = [BW, "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc",
+         "--tmpfs", "/tmp", "--unshare-pid", "--die-with-parent"]
+    if os.path.isdir("/dev/shm"):
+        a += ["--ro-bind", "/dev/shm", "/dev/shm"]
+    a += ["--bind", str(WT), str(WT)]
     for p in (gd, gcd):
         if p and not str(Path(p)).startswith(str(WT) + os.sep):
             a += ["--bind", p, p]
