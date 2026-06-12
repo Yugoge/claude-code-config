@@ -1724,6 +1724,7 @@ def ac_k8():
             "quoted_core_hookspath_previously_evaded_now_blocked":
                 inject_forms["quoted_core_hookspath_block"],
             "all_config_injection_forms_blocked": all_inject_blocked,
+            "end_to_end_include_bypass_with_head_move_blocked": end_to_end_blocked,
             "main_head_stays_master": head_stays_master,
             "master_ref_oid_unchanged": master_oid_unchanged,
             "no_over_block_of_legitimate_git_use": no_over_block,
