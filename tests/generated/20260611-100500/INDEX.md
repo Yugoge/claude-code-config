@@ -1,8 +1,8 @@
 # 20260611-100500
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-12T15:07:09Z*
-**Total entries**: 27
+*Last updated: 2026-06-12T15:09:23Z*
+**Total entries**: 28
 **Convention**: kebab
 
 ## Tree
@@ -11,6 +11,7 @@
 ├── _work/
 │   ├── hookp-tir0g2ao/
 │   │   └── `a.txt` - txt file
+│   ├── `_dbg_raw.py` - Python script
 │   ├── `_probe.py` - Python script
 │   ├── `_probe2.py` - Python script
 │   ├── `_probe3.py` - Python script
