@@ -1059,8 +1059,102 @@ def _normalize_git_basename_cmds(command: str) -> list[str]:
 
 
 _GIT_HOOK_SUPPRESS_RE = re.compile(
-    r'(-c\s+core\.hooksPath\s*=|--config-env|GIT_CONFIG_(COUNT|KEY|VALUE|GLOBAL|SYSTEM|NOSYSTEM)|'
+    r'(-c\s+core\.hooksPath\s*=|--config-env|'
+    r'GIT_CONFIG_(COUNT|KEY|VALUE|GLOBAL|SYSTEM|NOSYSTEM|PARAMETERS)|'
     r'\bGIT_CONFIG\s*=|-c\s+core\.hooksPath=)', re.IGNORECASE)
+
+# Cycle-4 (task 20260611-100500): config-INCLUDE firewall. The raw regex above
+# misses the per-command config-INCLUDE channels (`-c include.path=<f>`,
+# `-c includeIf.<cond>.path=<f>`) that load an arbitrary config file which can
+# itself set `core.hooksPath=/dev/null` and so DISABLE the keystone for one
+# invocation WITHOUT touching shared .git/config — distinct from the accepted
+# shared-config-write residual. Codex (gpt-5.5) verified on git 2.54 that
+# include.path / includeIf.*.path are the COMPLETE include-form set and that a
+# raw regex is unsound here for two reasons: (1) shell quoting evades it
+# (`-c 'include.path=…'`), and (2) it over-blocks a `-c` that sits AFTER the
+# subcommand (e.g. `git grep -c include.path= …`, where `-c` means --count).
+# So the include channels are matched TOKEN-aware, only in git's GLOBAL-OPTION
+# region (before the subcommand), with quotes stripped and keys lowercased.
+# `core.hooksPath` is included here too as a quote-robust complement to the raw
+# regex (the raw regex is retained as defense-in-depth; this adds the quoted
+# form the raw regex cannot see).
+_HOOKS_REDIRECT_CONFIG_KEYS = ('core.hookspath', 'include.path')
+
+
+def _config_key_redirects_keystone(key: str) -> bool:
+    """True iff a git config KEY (lowercased, quotes already stripped) sets or
+    includes a value that can redirect/disable the keystone's core.hooksPath:
+    `core.hooksPath` directly, or any config-INCLUDE key (`include.path` /
+    `includeIf.<condition>.path`). The includeIf condition may contain dots,
+    colons, slashes and glob wildcards, so the match is suffix-anchored on the
+    trailing `.path` (NOT the first `.path` substring inside the condition)."""
+    k = key.strip().strip('\'"').lower()
+    if k in _HOOKS_REDIRECT_CONFIG_KEYS:
+        return True
+    return k.startswith('includeif.') and k.endswith('.path')
+
+
+def _git_invocation_injects_keystone_config(subtoks: list[str]) -> bool:
+    """Token-aware config-firewall over ONE git invocation's argv (the tokens
+    AFTER the `git` word, as produced by `_iter_git_invocations`). Scans only the
+    GLOBAL-OPTION region — the options BEFORE the first subcommand — for a
+    keystone-redirecting config injection:
+      * `-c <key>=<val>` / `-c<key>=<val>` (glued) where <key> redirects, OR
+      * `--config-env[=]<key>=<ENV>` where <key> redirects.
+    A `-c` that appears AFTER the subcommand (e.g. `git grep -c PATTERN`) is NOT
+    git's config option and is deliberately ignored, so legitimate ops are not
+    over-blocked."""
+    j = 0
+    n = len(subtoks)
+    while j < n:
+        raw = subtoks[j]
+        t = raw.strip('\'"')
+        # `-c <key=val>` (separate token) — only valid as a git GLOBAL option.
+        if t == '-c' and j + 1 < n:
+            kv = subtoks[j + 1].strip('\'"')
+            key = kv.split('=', 1)[0]
+            if _config_key_redirects_keystone(key):
+                return True
+            j += 2
+            continue
+        # `-c<key=val>` glued form.
+        if t.startswith('-c') and len(t) > 2 and not t.startswith('-C'):
+            kv = t[2:]
+            key = kv.split('=', 1)[0]
+            if _config_key_redirects_keystone(key):
+                return True
+            j += 1
+            continue
+        # `--config-env <key=ENV>` / `--config-env=<key=ENV>`.
+        if t == '--config-env' and j + 1 < n:
+            key = subtoks[j + 1].strip('\'"').split('=', 1)[0]
+            if _config_key_redirects_keystone(key):
+                return True
+            j += 2
+            continue
+        if t.startswith('--config-env='):
+            key = t[len('--config-env='):].split('=', 1)[0]
+            if _config_key_redirects_keystone(key):
+                return True
+            j += 1
+            continue
+        # Reaching the first non-option token ends the git global-option region:
+        # everything after it is the subcommand and its args (a `-c` there is the
+        # subcommand's own flag, not git's config option).
+        if not t.startswith('-'):
+            break
+        j += 1
+    return False
+
+
+def _command_injects_keystone_config(command: str) -> bool:
+    """True iff ANY git invocation in `command` injects a keystone-redirecting
+    config via the per-command `-c` / `--config-env` channels (token-aware,
+    quote-robust, global-option-position-only)."""
+    for subtoks, _cwd, _amb in _iter_git_invocations(command):
+        if subtoks and _git_invocation_injects_keystone_config(subtoks):
+            return True
+    return False
 
 # fix-2 (Cycle-2): interpreter / subprocess launchers. The 2026-06-03 incident
 # vector is a python-subprocess `git -C <main> checkout other`. On git 2.43 the
