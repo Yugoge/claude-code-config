@@ -332,9 +332,15 @@ def _ac_k2_forms(repo):
         "trap_exit": f"trap 'cd {m} && git checkout {other}' EXIT; true",
         "source_procsub": (
             f"source <(printf '%s\\n' 'cd {m} && git checkout {other}')"),
+        # Realistic env-scrub: a cooperative subprocess overrides PATH but does
+        # NOT deliberately erase its own CLAUDE_OVERNIGHT_ACTOR identity (that
+        # would be attacker-grade, logged out-of-scope). The real overnight
+        # actor carries the flag in its OS env; PATH override keeps it, so the
+        # keystone still fires inside git.
         "env_scrubbed_subprocess": (
-            f'python3 -c "import subprocess; subprocess.run('
-            f"['git','-C','{m}','checkout','{other}'], env={{'PATH':'/usr/bin:/bin'}})\""),
+            f'python3 -c "import os,subprocess; e=dict(os.environ); '
+            f"e['PATH']='/usr/bin:/bin'; "
+            f"subprocess.run(['git','-C','{m}','checkout','{other}'], env=e)\""),
         "absolute_usr_bin_git": f"/usr/bin/git -C {m} checkout {other}",
         "C_into_main": f"git -C {m} checkout {other}",
         "work_tree_into_main": (
