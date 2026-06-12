@@ -1568,12 +1568,17 @@ def _build_bwrap_argv(command: str, main_root: str, worktree_path: str,
     Canonical mount order (codex #7, no-RW-alias invariant):
       1. --ro-bind / /            entire host RO (so no path reaches main RW via
                                   a second bind, incl. a /dev/shm-resident main)
-      2. --dev /dev, --proc /proc, --tmpfs /tmp   private device/proc/PID + tmp
-      3. --bind <worktree_path>   the ONLY RW path under main (nested over RO /)
-      4. --bind <git-dir>, <common-dir>   (LINKED worktree only) git-derived RW
+      2. --dev /dev               private devtmpfs (writable /dev/null git needs);
+                                  it shadows the real /dev/shm, so:
+      3. --ro-bind /dev/shm /dev/shm   restore the REAL /dev/shm RO (a main_root
+                                  resident under /dev/shm must stay RO, not fall
+                                  into the private --dev tmpfs)
+      4. --proc /proc, --tmpfs /tmp, --unshare-pid   private proc/PID + tmp
+      5. --bind <worktree_path>   the ONLY RW path under main (nested over RO)
+      6. --bind <git-dir>, <common-dir>   (LINKED worktree only) git-derived RW
                                   exceptions for the supported add/commit surface
-    Because every RW bind is applied AFTER the RO `/`, and each RW bind targets a
-    path UNDER main that is itself an approved exception, no mount exposes a RW
+    Because every RW bind is applied AFTER the RO binds, and each RW bind targets
+    a path UNDER main that is itself an approved exception, no mount exposes a RW
     source/root covering the protected main tree except the worktree + git paths.
     --unshare-pid gives a private PID view; --proc /proc a private /proc so a
     /proc/<pid>/root re-entry cannot reach a RW alias of main."""
@@ -1587,12 +1592,16 @@ def _build_bwrap_argv(command: str, main_root: str, worktree_path: str,
     argv = [
         bwrap,
         '--ro-bind', '/', '/',          # (1) entire host RO — no RW alias of main
-        '--dev', '/dev',                # private /dev
-        '--proc', '/proc',              # (2) private /proc (blocks /proc/<pid>/root re-entry)
+        '--dev', '/dev',                # (2) private /dev (writable /dev/null for git)
+    ]
+    if os.path.isdir('/dev/shm'):       # (3) restore real /dev/shm RO (un-shadow)
+        argv += ['--ro-bind', '/dev/shm', '/dev/shm']
+    argv += [
+        '--proc', '/proc',              # (4) private /proc (blocks /proc/<pid>/root re-entry)
         '--tmpfs', '/tmp',              # private writable /tmp (never aliases main)
         '--unshare-pid',                # private PID namespace
         '--die-with-parent',
-        '--bind', wt_real, wt_real,     # (3) the worktree: RW, nested over RO main
+        '--bind', wt_real, wt_real,     # (5) the worktree: RW, nested over RO main
     ]
     # (4) LINKED worktree: RW-expose exactly the git-derived metadata paths the
     # supported surface needs. A fresh_clone worktree is self-contained (its .git
