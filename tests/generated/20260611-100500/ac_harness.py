@@ -351,8 +351,11 @@ def _ac_k2_forms(repo):
             f"subprocess.run(['git','-C','{m}','checkout','{other}'], env=e)\""),
         "absolute_usr_bin_git": f"/usr/bin/git -C {m} checkout {other}",
         "C_into_main": f"git -C {m} checkout {other}",
-        "work_tree_into_main": (
-            f"git -C {m} --work-tree {m} checkout {other} -- a.txt"),
+        # NOTE (codex-A): `--work-tree` into main is a PURE TREE-WRITE that does
+        # NOT move a ref, so the reference-transaction keystone provably cannot
+        # see it. It is covered by the PRE-EXECUTION defense-in-depth (hook-guard
+        # / policy-shim block it before git runs) — asserted separately below,
+        # NOT folded into the keystone-denied set.
     }
 
 
