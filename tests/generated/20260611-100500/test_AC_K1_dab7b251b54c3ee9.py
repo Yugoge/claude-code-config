@@ -21,7 +21,6 @@ def test_AC_K1():
     WHEN:  an overnight actor (`CLAUDE_OVERNIGHT_ACTOR=1`, no blessed token) attempts a plain HEAD branch-switch off master
     THEN:  the `reference-transaction` hook FIRES in the `prepared` phase and ABORTS the transaction BEFORE the ref moves; the op exits non-zero; `HEAD` still resolves to `master`; the project's `overnight-git-selftest.sh` records `reference_transaction_selftest_result == "structural_head_switch"` AND on a 2.43-equivalent (symref switch invisible) the SAME probe records `branch_ref_only` and the switch would move HEAD (the fail-first differential)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — the `reference-transaction` hook FIRES in the `prepared` phase and ABORTS the transaction BEFORE the ref moves; the o...")
+    # L5 keystone-firing behavioral assertions (ac_harness.py AC-K1) checked
+    # against the canonical acceptance-criteria JSON via _ac_runner.run_ac.
+    run_ac("AC-K1")
