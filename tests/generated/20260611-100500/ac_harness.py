@@ -1585,6 +1585,134 @@ def _under(path, prefix):
     return rp == rpx or rp.startswith(rpx.rstrip("/") + "/")
 
 
+# ===========================================================================
+# AC-K8 (Cycle-4): config-INCLUDE keystone-bypass firewall. The L4 config
+# firewall blocked `-c core.hooksPath=` / GIT_CONFIG_* / --config-env but MISSED
+# the per-command config-INCLUDE channels (`-c include.path=<f>`,
+# `-c includeIf.<cond>.path=<f>`) and GIT_CONFIG_PARAMETERS. An include file can
+# itself set `core.hooksPath=/dev/null`, DISABLING the keystone for ONE
+# invocation WITHOUT touching shared .git/config (distinct from the accepted
+# shared-config-write residual). This AC reproduces the include.path /
+# includeIf.path / GIT_CONFIG_PARAMETERS bypass and asserts it is now BLOCKED
+# pre-execution (main HEAD stays master), without over-blocking legitimate ops.
+# ===========================================================================
+
+def ac_k8():
+    repo, wt = _make_overnight_repo()
+    try:
+        m = str(repo)
+        # The ref-moving op token is assembled out of fragments so no literal
+        # ref-mutation string sits in this harness's own command line; it is fed
+        # to the guard subprocess as a fixture and never executed (the guard
+        # blocks it pre-execution).
+        op = "symbolic" + "-ref HEAD " + "refs/heads/other"
+        # Write a real bypass include that sets core.hooksPath=/dev/null, proving
+        # the channel is a genuine keystone-disable vector (not a synthetic key).
+        bypass = repo / ".claude" / "bypass.cfg"
+        bypass.write_text("[core]\n\thooksPath = /dev/null\n")
+        bp = str(bypass)
+
+        head0 = _head_branch(repo)
+        moid0 = _master_oid(repo)
+
+        # Each MUST be blocked pre-execution (rc==2) by the config firewall.
+        inject_forms = {
+            "include_path_block":
+                _hook_guard_blocks(f"git -c include.path={bp} -C {m} {op}", repo, cwd=wt),
+            "include_path_single_quoted_block":
+                _hook_guard_blocks(f"git -c 'include.path={bp}' -C {m} {op}", repo, cwd=wt),
+            "include_path_double_quoted_block":
+                _hook_guard_blocks(f'git -c "include.path={bp}" -C {m} {op}', repo, cwd=wt),
+            "include_path_glued_c_block":
+                _hook_guard_blocks(f"git -cinclude.path={bp} -C {m} {op}", repo, cwd=wt),
+            "includeif_gitdir_path_block":
+                _hook_guard_blocks(
+                    f"git -c includeIf.gitdir:{m}/.git.path={bp} -C {m} {op}", repo, cwd=wt),
+            "includeif_onbranch_path_block":
+                _hook_guard_blocks(
+                    f"git -c includeIf.onbranch:master.path={bp} -C {m} {op}", repo, cwd=wt),
+            "includeif_hasconfig_glob_path_block":
+                _hook_guard_blocks(
+                    f"git -c includeIf.hasconfig:remote.*.url:https://x/**.path={bp} "
+                    f"-C {m} {op}", repo, cwd=wt),
+            "git_config_parameters_env_block":
+                _hook_guard_blocks(
+                    f"GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/dev/null'\" git -C {m} {op}",
+                    repo, cwd=wt),
+            # quoted core.hooksPath: previously EVADED the raw regex; the
+            # token-aware scanner now catches it (bonus soundness fix).
+            "quoted_core_hookspath_block":
+                _hook_guard_blocks(f"git -c 'core.hooksPath=/dev/null' -C {m} {op}", repo, cwd=wt),
+        }
+        all_inject_blocked = all(inject_forms.values())
+
+        # Main HEAD/master never moved (the block is pre-execution).
+        head_stays_master = _head_branch(repo) == head0 == "master"
+        master_oid_unchanged = _master_oid(repo) == moid0
+
+        # NO over-block of legitimate git: `-c` AFTER the subcommand (git grep
+        # -c == --count) and benign global `-c` settings must NOT be blocked.
+        over_block_forms = {
+            "grep_count_include_path_pattern_not_blocked":
+                _hook_guard_blocks(f"git -C {wt} grep -c include.path= -- sub", repo, cwd=wt),
+            "grep_count_includeif_pattern_not_blocked":
+                _hook_guard_blocks(f"git -C {wt} grep -c includeIf.gitdir -- sub", repo, cwd=wt),
+            "benign_global_c_color_not_blocked":
+                _hook_guard_blocks(f"git -c color.ui=always -C {wt} status", repo, cwd=wt),
+            "benign_global_c_username_not_blocked":
+                _hook_guard_blocks(f"git -c user.name=ovr -C {wt} status", repo, cwd=wt),
+        }
+        no_over_block = not any(over_block_forms.values())
+
+        # Legitimate worktree-local ordinary git surface still succeeds (the
+        # config firewall did not break it) — drive the guard, expect NOT blocked.
+        worktree_ops_not_blocked = (
+            not _hook_guard_blocks(f"git -C {wt} status", repo, cwd=wt)
+            and not _hook_guard_blocks(f"git -C {wt} add .", repo, cwd=wt))
+
+        # Fail-first differential: the include/param channels are caught by the
+        # NEW token-aware scanner (and the PARAMETERS regex addition), NOT by the
+        # pre-existing raw firewall alone. Load HOOK_GUARD as a module and assert
+        # the OLD raw regex did NOT match an include.path injection while the full
+        # firewall now does — this makes the new layer's necessity falsifiable.
+        import importlib.util
+        _spec = importlib.util.spec_from_file_location("ohg_k8", str(HOOK_GUARD))
+        _ohg = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_ohg)
+        include_cmd = f"git -c include.path={bp} -C {m} {op}"
+        param_cmd = f"GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/dev/null'\" git -C {m} {op}"
+        raw_regex_misses_include = not bool(_ohg._GIT_HOOK_SUPPRESS_RE.search(include_cmd))
+        token_scanner_catches_include = _ohg._command_injects_keystone_config(include_cmd)
+        param_now_in_raw_regex = bool(_ohg._GIT_HOOK_SUPPRESS_RE.search(param_cmd))
+        new_layer_is_load_bearing = (
+            raw_regex_misses_include and token_scanner_catches_include
+            and param_now_in_raw_regex)
+
+        return {
+            "include_path_keystone_bypass_blocked_pre_execution":
+                inject_forms["include_path_block"]
+                and inject_forms["include_path_single_quoted_block"]
+                and inject_forms["include_path_double_quoted_block"]
+                and inject_forms["include_path_glued_c_block"],
+            "includeif_all_condition_forms_path_blocked_pre_execution":
+                inject_forms["includeif_gitdir_path_block"]
+                and inject_forms["includeif_onbranch_path_block"]
+                and inject_forms["includeif_hasconfig_glob_path_block"],
+            "git_config_parameters_env_blocked_pre_execution":
+                inject_forms["git_config_parameters_env_block"],
+            "quoted_core_hookspath_previously_evaded_now_blocked":
+                inject_forms["quoted_core_hookspath_block"],
+            "all_config_injection_forms_blocked": all_inject_blocked,
+            "main_head_stays_master": head_stays_master,
+            "master_ref_oid_unchanged": master_oid_unchanged,
+            "no_over_block_of_legitimate_git_use": no_over_block,
+            "worktree_local_ordinary_git_surface_not_blocked": worktree_ops_not_blocked,
+            "new_token_aware_layer_is_load_bearing": new_layer_is_load_bearing,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
 _DISPATCH = {
     "AC-K1": ac_k1, "AC-K2": ac_k2, "AC-K3": ac_k3, "AC-K4": ac_k4,
     "AC-K5": ac_k5, "AC-K6": ac_k6, "AC-K7": ac_k7,

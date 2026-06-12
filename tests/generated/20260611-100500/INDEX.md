@@ -1,21 +1,26 @@
 # 20260611-100500
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-12T15:11:21Z*
-**Total entries**: 28
+*Last updated: 2026-06-12T21:15:50Z*
+**Total entries**: 33
 **Convention**: kebab
 
 ## Tree
 ```
 20260611-100500/
 ├── _work/
-│   ├── hookp-tir0g2ao/
+│   ├── acw611-0v6pbuuv/
+│   │   ├── sub/
 │   │   └── `a.txt` - txt file
-│   ├── `_dbg_raw.py` - Python script
-│   ├── `_probe.py` - Python script
-│   ├── `_probe2.py` - Python script
-│   ├── `_probe3.py` - Python script
-│   └── `_probe_hook.py` - Python script
+│   ├── acw611-3hyawzbj/
+│   │   ├── sub/
+│   │   └── `a.txt` - txt file
+│   ├── acw611-fsowcvei/
+│   │   ├── sub/
+│   │   └── `a.txt` - txt file
+│   └── acw611-p1cie9g6/
+│       ├── sub/
+│       └── `a.txt` - txt file
 ├── `_ac_runner.py` - run_ac("AC-N") invokes the behavioral harness (ac_harness.py AC-N), parses its
 ├── `ac_harness.py` - L5 ESCALATION: the enforcement is moved OUT of the L4 shell-string-parsing layer
 ├── `manifest.json` - json config
