@@ -44,6 +44,33 @@ The launch self-test (`scripts/overnight-git-selftest.sh`) verifies
 keystone-abort test before it lets state record
 `guarantee_level=structural_head_switch`.
 
+## REQUIRED git version for the keystone half-a guarantee
+
+The keystone half-a structural HEAD-switch guarantee REQUIRES git **2.54.0**
+(installed package `1:2.54.0-0ppa1~ubuntu24.04.1`, supplied from the git-core
+PPA at `/etc/apt/sources.list.d/git-core-ubuntu-ppa-noble.sources` →
+`https://ppa.launchpadcontent.net/git-core/ppa/ubuntu noble/main`). On git 2.54
+the `reference-transaction` hook fires for a main-worktree symref HEAD
+branch-switch off master, so the keystone can ABORT it; on git 2.43 that hook
+is silent for the symref switch and the keystone gives no structural HEAD-switch
+protection.
+
+**Functional check (authoritative):** `scripts/overnight-git-selftest.sh` MUST
+report `reference_transaction_selftest_result="structural_head_switch"` (and
+`structural_claim_allowed=true`) on the host. That is the single source of truth
+for whether half-a is structural — not the version string alone.
+
+**Reversible rollback + its consequence:** downgrade to the pinned
+`1:2.43.0-1ubuntu7.3` (still in the apt version table — `apt-cache policy git`
+shows both) and remove the `git-core-ubuntu-ppa-noble.sources` PPA. The
+CONSEQUENCE of rollback is that half-a DEGRADES from structural to best-effort:
+the self-test records `reference_transaction_selftest_result` other than
+`structural_head_switch` and `structural_claim_allowed=false`. Isolation,
+worktree creation, the bwrap write-half, and the M13 policy-shim / M14a firewall
+/ M15 bash-safety defense-in-depth ALL still hold — isolation is NEVER gated on
+the git version. "核心加固不得被宿主升级阻断" cuts both ways: the core hardening
+must be broken neither by a host upgrade nor by a downgrade.
+
 ## How it is used
 
 `scripts/overnight-git/git-selector` (the modern-git PATH selector) is prepended
