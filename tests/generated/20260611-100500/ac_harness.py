@@ -1539,18 +1539,19 @@ def ac_k7():
 
 def rg1_k():
     repo = _make_repo()
-    specs = repo / "docs" / "dev" / "specs"
-    specs.mkdir(parents=True)
-    (specs / "spec-zzz.md").write_text("# unrelated spec body\n")
     try:
+        # Recoverable failure: a focus that won't match -> degrade to autonomous
+        # WITH a valid worktree (no hard-abort, no in-place work). This is the
+        # recoverable post-worktree degradation path (M2/cp-05), distinct from a
+        # legitimate refuse-to-launch when isolation is impossible.
         r = subprocess.run(
             [str(CREATE_STATE), "--project-dir", str(repo), "--session-id", "S",
-             "--end-time", "+1h", "--spec", str(specs / "nonexistent-spec.md")],
+             "--end-time", "+1h", "--focus", "THIS_WILL_NOT_MATCH_xyz"],
             capture_output=True, text=True)
         sf = repo / ".claude" / "overnight-state-S.json"
         st = json.loads(sf.read_text()) if sf.exists() else None
         wt = (st or {}).get("worktree_path", "")
-        degrades = bool(st) and bool(wt) and wt != str(repo) and Path(wt).exists()
+        degrades = (bool(st) and bool(wt) and wt != str(repo) and Path(wt).exists())
         head = _head_branch(repo)
         no_in_place = head == "master"
 
