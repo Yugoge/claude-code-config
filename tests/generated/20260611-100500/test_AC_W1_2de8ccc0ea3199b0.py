@@ -21,7 +21,10 @@ def test_AC_W1():
     WHEN:  the overnight actor attempts a tree-write into the PROTECTED MAIN working tree via EACH cooperative-shell bypass form (direct redirect, `eval`, `for`, `while`, backtick, `source <(…)`, `trap … EXIT`, an interpreter launcher `python -c open(path,'w')`, `tee`, `git --work-tree=MAIN checkout -- f`, `git restore --source=HEAD -- MAIN/f`, `git -C MAIN checkout -- f`, `git read-tree`/`git apply` into MAIN) AND ALSO a RAW (non-git-binary) write to a RW-exposed `MAIN/.git` metadata path (`python -c open('MAIN/.git/refs/heads/master','w')`, `tee MAIN/.git/packed-refs`, `eval 'echo x > MAIN/.git/logs/HEAD'`, an `objects/` write) that would corrupt/restore the working tree out-of-band (codex #1)
     THEN:  for EVERY form the kernel returns `Read-only file system` (EROFS) and the write is DENIED; the targeted file is BYTE-UNCHANGED; the denial is the kernel VFS RO-bind, NOT an L4 string parser recognizing the form AND a keystone-aborted `git checkout <branch>` cannot write the working tree first, because the working-tree files are RO before git is even invoked AND a RAW cooperative write to any RW-exposed `MAIN/.git` path that is NOT a git-mediated ref update (codex #1) is ALSO DENIED — in linked-worktree mode the RW `.git` exceptions are NARROWED to exactly the per-worktree gitdir + the object/ref paths git itself needs (discovered via `git rev-parse --git-dir`/`--git-common-dir`, codex #6) and any raw write to `refs/heads/master`/`packed-refs`/`logs`/`objects` via a cooperative shell form is denied (if it cannot be structurally denied in linked mode, linked mode MUST NOT satisfy the conjunctive PASS — codex #1/#3)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — bwrap RO-bind of PROTECTED MAIN tree denies every cooperative-shell tree-write + raw .git-metadata write with EROFS (kernel VFS, not L4 parser)")
+    # L6 write-half bwrap RO-bind behavioral assertions (ac_harness.py AC-W1)
+    # checked against the canonical acceptance-criteria JSON via _ac_runner.run_ac.
+    # Each form is a REAL sandboxed reproduction: the hook emits the bwrap
+    # command-rewrite, the rewritten command runs, and the kernel VFS EROFS /
+    # byte-unchanged main file is measured (raw .git writes are denied by the
+    # retained security/L4 layer that runs BEFORE the rewrite, codex #1/#4).
+    run_ac("AC-W1")
