@@ -951,6 +951,78 @@
           }
         ]
       }
+    },
+    {
+      "task_id": "20260611-100500",
+      "ac_id": "AC-K8",
+      "ac_uid": "7e0bbdc95d2fe82a",
+      "type": "hook",
+      "file": "tests/generated/20260611-100500/test_AC_K8_7e0bbdc95d2fe82a.py",
+      "status": "active",
+      "hook_check": {
+        "script": "python3",
+        "args": [
+          "tests/generated/20260611-100500/ac_harness.py",
+          "AC-K8"
+        ],
+        "assertions": [
+          {
+            "property": "include_path_keystone_bypass_blocked_pre_execution",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "includeif_all_condition_forms_path_blocked_pre_execution",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "git_config_parameters_env_blocked_pre_execution",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "quoted_core_hookspath_previously_evaded_now_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "all_config_injection_forms_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "end_to_end_include_bypass_with_head_move_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "main_head_stays_master",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "master_ref_oid_unchanged",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "no_over_block_of_legitimate_git_use",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "worktree_local_ordinary_git_surface_not_blocked",
+            "match": "equals",
+            "value": true
+          },
+          {
+            "property": "new_token_aware_layer_is_load_bearing",
+            "match": "equals",
+            "value": true
+          }
+        ]
+      }
     }
   ],
   "archived_tests": [
