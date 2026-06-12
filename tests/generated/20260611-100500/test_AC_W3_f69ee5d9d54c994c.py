@@ -21,7 +21,8 @@ def test_AC_W3():
     WHEN:  (a) a NORMAL non-overnight session (no live overnight state classifying it as the actor) runs ordinary Bash commands including writes anywhere, AND (b) THIS implementing session runs its Bash commands
     THEN:  in BOTH (a) and (b) the rewrite is a NO-OP: the command is NOT re-exec'd inside bwrap, runs normally against the live filesystem, and writes succeed; the live repo's core.hooksPath stays `.git/hooks` and master is untouched; the boundary is applied ONLY when the live overnight state classifies the caller as the active overnight actor MUST PASS both pre- and post-write-half
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — boundary fires ONLY for active overnight actor; normal + implementing sessions no-op (no global filesystem lockdown), live core.hooksPath + master untouched")
+    # L6 write-half actor-only regression guard (ac_harness.py AC-W3): the bwrap
+    # rewrite is a NO-OP for a normal non-overnight session and for this
+    # implementing session; it fires ONLY for the active overnight actor; the
+    # live core.hooksPath + master are untouched.
+    run_ac("AC-W3")
