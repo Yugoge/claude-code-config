@@ -1,8 +1,8 @@
 # _work
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-12T15:02:34Z*
-**Total entries**: 3
+*Last updated: 2026-06-12T15:03:29Z*
+**Total entries**: 4
 **Convention**: kebab
 
 ## Tree
@@ -10,7 +10,8 @@
 _work/
 ├── `_probe.py` - Python script
 ├── `_probe2.py` - Python script
-└── `_probe3.py` - Python script
+├── `_probe3.py` - Python script
+└── `_probe_hook.py` - Python script
 ```
 <!-- /AUTO:index-stats -->
 
