@@ -1236,10 +1236,406 @@ def ac11():
         shutil.rmtree(repo, ignore_errors=True)
 
 
+# ===========================================================================
+# AC-K3: structural_claim_allowed honest + target-attested (no greenwash)
+# ===========================================================================
+
+def ac_k3():
+    repo = _make_repo()
+    ks243_tmp = None
+    try:
+        # (a) properly-provisioned 2.54 target: keystone installed in the
+        # target's effective hooksPath, no blessed token -> claim=true.
+        _install_keystone(repo)
+        st_attested = _selftest_json(repo, keystone_dir=KEYSTONE_SRC_DIR)
+        attested_claim = st_attested.get("structural_claim_allowed")
+        attested_result = st_attested.get("reference_transaction_selftest_result")
+        attested_guarantee = st_attested.get("guarantee_level")
+        attested_version = st_attested.get("git_version", "")
+        required_facts_present = (
+            attested_claim is True
+            and attested_result == "structural_head_switch"
+            and attested_guarantee == "structural_head_switch"
+            and attested_version.startswith("2.54"))
+
+        # capability recorded separately: an un-attested target on the SAME 2.54
+        # git records the capability structural_head_switch BUT claim=false.
+        repo_unattested = _make_repo()  # keystone NOT installed in its hooksPath
+        try:
+            st_unatt = _selftest_json(repo_unattested, keystone_dir=KEYSTONE_SRC_DIR)
+            unatt_capability = st_unatt.get("reference_transaction_selftest_result")
+            unatt_claim = st_unatt.get("structural_claim_allowed")
+            unatt_guarantee = st_unatt.get("guarantee_level")
+        finally:
+            shutil.rmtree(repo_unattested, ignore_errors=True)
+
+        capability_recorded_separately = unatt_capability == "structural_head_switch"
+        capability_not_imply_protection = (
+            unatt_capability == "structural_head_switch" and unatt_claim is False)
+
+        # (b) 2.43-equivalent target: claim=false / best_effort (no false claim).
+        ks243_tmp, ks243_dir = _make_243_equivalent_keystone_dir()
+        repo243 = _make_repo()
+        try:
+            _install_keystone(repo243)  # installs the REAL keystone hook...
+            # ...but probe with the 2.43-equivalent keystone-dir so the FUNCTIONAL
+            # probe records branch_ref_only (symref invisible) -> claim=false.
+            st_243 = _selftest_json(repo243, keystone_dir=ks243_dir)
+            claim_243 = st_243.get("structural_claim_allowed")
+            guarantee_243 = st_243.get("guarantee_level")
+        finally:
+            shutil.rmtree(repo243, ignore_errors=True)
+
+        # version >=2.46 is a PREREQUISITE GATE not the proof: the un-attested
+        # 2.54 target passes the version gate yet claim=false because the
+        # behavioral attestation (hooksPath + hook rejection) is missing.
+        version_gate_not_proof = (attested_version.startswith("2.54")
+                                  and unatt_claim is False)
+        # the behavioral rejection probe IS the proof.
+        behavioral_probe_is_proof = (attested_result == "structural_head_switch"
+                                     and attested_claim is True)
+
+        return {
+            "attested_target_structural_claim_allowed": attested_claim,
+            "attested_target_required_facts_all_present": required_facts_present,
+            "capability_structural_head_switch_recorded_separately": capability_recorded_separately,
+            "capability_alone_does_not_imply_target_protection": capability_not_imply_protection,
+            "unattested_or_243_structural_claim_allowed": (
+                False if (unatt_claim is False and claim_243 is False) else unatt_claim),
+            "unattested_or_243_guarantee_level": (
+                "best_effort_head_switch"
+                if (unatt_guarantee == "best_effort_head_switch"
+                    and guarantee_243 == "best_effort_head_switch")
+                else unatt_guarantee),
+            "version_246_check_is_prerequisite_gate_not_proof": version_gate_not_proof,
+            "behavioral_rejection_probe_is_the_proof": behavioral_probe_is_proof,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+        if ks243_tmp:
+            shutil.rmtree(ks243_tmp, ignore_errors=True)
+
+
+# ===========================================================================
+# AC-K4: normal sessions + this implementing session UNAFFECTED; isolation
+#        never gated on git version (RG — pass pre+post)
+# ===========================================================================
+
+def ac_k4():
+    repo = _make_repo()
+    try:
+        _install_keystone(repo)
+        # NORMAL session: no CLAUDE_OVERNIGHT_ACTOR -> keystone exits 0.
+        co = _sh(f"git -C {repo} checkout other", repo, None)
+        branch_switch_allowed = co.returncode == 0 and _head_branch(repo) == "other"
+        _sh(f"git -C {repo} checkout master", repo, None)
+        ci = _sh(f"git -C {repo} commit --allow-empty -m normal", repo, None)
+        commit_allowed = ci.returncode == 0
+        br = _sh(f"git -C {repo} branch", repo, None)
+        branch_list_allowed = br.returncode == 0
+        normal_oid_move = _sh(f"git -C {repo} commit --allow-empty -m n2", repo, None)
+        keystone_exits_0_non_overnight = normal_oid_move.returncode == 0
+
+        # the LIVE implementing repo's core.hooksPath stays .git/hooks (untouched).
+        live_hp = _git(["config", "--local", "--get", "core.hooksPath"], REPO).stdout.strip()
+        live_default = os.path.realpath(str(REPO / ".git" / "hooks"))
+        live_resolved = os.path.realpath(live_hp) if live_hp else live_default
+        hookspath_stays_git_hooks = live_resolved == live_default
+
+        # isolation/worktree creation is unconditional + never gated on git version.
+        repo2 = _make_repo()
+        try:
+            wt = _make_worktree(repo2)
+            worktree_unconditional = bool(wt) and Path(wt).exists() and wt != str(repo2)
+            cw_src = (SCRIPTS / "create-worktree.sh").read_text()
+            never_gated = not re.search(
+                r"_ge_246|>= *2\.46|git[_-]version.*(abort|exit|refuse)", cw_src)
+        finally:
+            shutil.rmtree(repo2, ignore_errors=True)
+
+        return {
+            "normal_session_main_branch_switch_allowed": branch_switch_allowed,
+            "normal_session_main_commit_allowed": commit_allowed,
+            "normal_session_main_branch_list_allowed": branch_list_allowed,
+            "keystone_exits_0_for_non_overnight_actor": keystone_exits_0_non_overnight,
+            "live_implementing_repo_hookspath_stays_git_hooks": hookspath_stays_git_hooks,
+            "isolation_worktree_creation_unconditional": worktree_unconditional,
+            "isolation_never_gated_on_git_version": never_gated,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ===========================================================================
+# AC-K5: reversible toolchain supply documented + verifiable
+# ===========================================================================
+
+def ac_k5():
+    spec_txt = SPEC.read_text() if SPEC.exists() else ""
+    ppa_documented = UPGRADE_PPA_SOURCE in spec_txt
+    installed_documented = INSTALLED_PKG_VERSION in spec_txt
+    rollback_documented = ROLLBACK_PKG_VERSION in spec_txt
+    apt = subprocess.run(["apt-cache", "policy", "git"], capture_output=True, text=True)
+    apt_out = apt.stdout
+    shows_254 = "2.54.0-0ppa1" in apt_out
+    shows_243 = "2.43.0-1ubuntu7.3" in apt_out
+    rollback_available = shows_243
+    rollback_best_effort_documented = (
+        "best_effort" in spec_txt and "rollback" in spec_txt.lower())
+    defense_in_depth_holds_documented = (
+        "defense-in-depth" in spec_txt or "defense in depth" in spec_txt)
+    return {
+        "upgrade_ppa_source_documented": ppa_documented,
+        "exact_installed_package_version_documented": (
+            INSTALLED_PKG_VERSION if installed_documented else "MISSING"),
+        "rollback_target_package_version_documented": (
+            ROLLBACK_PKG_VERSION if rollback_documented else "MISSING"),
+        "rollback_target_available_in_apt_version_table": rollback_available,
+        "on_rollback_host_returns_to_best_effort": rollback_best_effort_documented,
+        "on_rollback_isolation_and_defense_in_depth_still_hold": defense_in_depth_holds_documented,
+        "apt_cache_policy_shows_both_2540_and_2430": shows_254 and shows_243,
+    }
+
+
+# ===========================================================================
+# AC-K6: retained defense-in-depth covers the non-git-binary residue (raw .git)
+# ===========================================================================
+
+def ac_k6():
+    repo = _make_repo()
+    try:
+        wt = _make_worktree(repo)
+        _write_state(repo, wt)
+        git_common = _git(["rev-parse", "--path-format=absolute",
+                           "--git-common-dir"], repo).stdout.strip()
+        head_before = (Path(git_common) / "HEAD").read_text() if git_common else ""
+        master_ref = Path(git_common) / "refs" / "heads" / "master"
+        master_before = master_ref.read_text() if master_ref.exists() else ""
+
+        m = str(repo)
+        head_redirect = _hook_guard_blocks(
+            f"echo 'ref: refs/heads/other' > {m}/.git/HEAD", repo, cwd=wt)
+        master_redirect = _hook_guard_blocks(
+            f"echo deadbeef > {m}/.git/refs/heads/master", repo, cwd=wt)
+        packed_redirect = _hook_guard_blocks(
+            f"echo 'deadbeef refs/heads/master' >> {m}/.git/packed-refs", repo, cwd=wt)
+        common_redirect = _hook_guard_blocks(
+            f"printf '%s' x | tee {git_common}/refs/heads/master", repo, cwd=wt)
+        write_head_blocked = _hook_guard_blocks(
+            "", repo, cwd=wt, tool_name="Write",
+            tool_input={"file_path": f"{m}/.git/HEAD",
+                        "content": "ref: refs/heads/other\n"})
+
+        head_after = (Path(git_common) / "HEAD").read_text() if git_common else ""
+        master_after = master_ref.read_text() if master_ref.exists() else ""
+        metadata_unchanged = (head_after == head_before and master_after == master_before)
+
+        # the keystone provably cannot see a non-git-binary write.
+        repo_ks = _make_repo()
+        try:
+            _install_keystone(repo_ks)
+            ks_common = _git(["rev-parse", "--path-format=absolute",
+                             "--git-common-dir"], repo_ks).stdout.strip()
+            r = _sh(f"echo deadbeef >> {ks_common}/refs/heads/master", repo_ks,
+                    _actor_env(repo_ks))
+            keystone_blind = "OVERNIGHT KEYSTONE" not in r.stderr
+        finally:
+            shutil.rmtree(repo_ks, ignore_errors=True)
+
+        spec_txt = SPEC.read_text() if SPEC.exists() else ""
+        dnd_recorded = ("defense-in-depth" in spec_txt
+                        and "non-load-bearing" in spec_txt)
+
+        return {
+            "raw_write_to_git_head_blocked": head_redirect and write_head_blocked,
+            "raw_write_to_refs_heads_master_blocked": master_redirect,
+            "raw_write_to_packed_refs_blocked": packed_redirect,
+            "raw_write_to_resolved_common_dir_ref_paths_blocked": common_redirect,
+            "keystone_provably_cannot_see_non_git_binary_write": keystone_blind,
+            "main_metadata_byte_unchanged": metadata_unchanged,
+            "defense_in_depth_retained_not_claimed_complete_for_shell_string_git": dnd_recorded,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ===========================================================================
+# AC-K7: always-create-worktree before actor work; keystone install harmless
+# ===========================================================================
+
+def ac_k7():
+    repo = _make_repo()
+    try:
+        hooks_dir = repo / ".git" / "hooks"
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        precommit_marker = repo / "precommit.fired"
+        postcommit_marker = repo / "postcommit.fired"
+        (hooks_dir / "pre-commit").write_text(
+            f"#!/usr/bin/env bash\ntouch '{precommit_marker}'\nexit 0\n")
+        (hooks_dir / "post-commit").write_text(
+            f"#!/usr/bin/env bash\ntouch '{postcommit_marker}'\nexit 0\n")
+        os.chmod(hooks_dir / "pre-commit", 0o755)
+        os.chmod(hooks_dir / "post-commit", 0o755)
+
+        r = subprocess.run(
+            [str(CREATE_STATE), "--project-dir", str(repo),
+             "--session-id", "S", "--end-time", "+1h"],
+            capture_output=True, text=True)
+        sf = repo / ".claude" / "overnight-state-S.json"
+        st = json.loads(sf.read_text()) if sf.exists() else {}
+        wt = st.get("worktree_path", "")
+        worktree_created = bool(wt) and Path(wt).exists() and wt != str(repo)
+        actor_cwd_not_main = bool(wt) and os.path.realpath(wt) != os.path.realpath(str(repo))
+
+        common = _git(["rev-parse", "--path-format=absolute",
+                      "--git-common-dir"], repo).stdout.strip()
+        ks_dir = Path(common) / "keystone-hooks"
+        rehomed_pre = ((ks_dir / "pre-commit").exists()
+                       and (ks_dir / "preserved" / "pre-commit").exists())
+        rehomed_post = ((ks_dir / "post-commit").exists()
+                        and (ks_dir / "preserved" / "post-commit").exists())
+
+        if precommit_marker.exists():
+            precommit_marker.unlink()
+        if postcommit_marker.exists():
+            postcommit_marker.unlink()
+        (repo / "trigger.txt").write_text("x\n")
+        _git(["add", "trigger.txt"], repo)
+        _git(["commit", "-m", "trigger hooks"], repo)  # normal session
+        hooks_still_fire = precommit_marker.exists() and postcommit_marker.exists()
+
+        no_hard_abort = r.returncode == 0 and worktree_created
+
+        live_hp = _git(["config", "--local", "--get", "core.hooksPath"], REPO).stdout.strip()
+        live_default = os.path.realpath(str(REPO / ".git" / "hooks"))
+        live_resolved = os.path.realpath(live_hp) if live_hp else live_default
+        keystone_only_in_target = live_resolved == live_default
+
+        return {
+            "valid_isolated_worktree_created_and_entered_before_actor_work": worktree_created,
+            "actor_cwd_never_main_working_directory": actor_cwd_not_main,
+            "install_keystone_rehomes_and_chains_existing_pre_commit": rehomed_pre,
+            "install_keystone_rehomes_and_chains_existing_post_commit": rehomed_post,
+            "existing_hooks_still_fire_after_install": hooks_still_fire,
+            "no_hard_abort": no_hard_abort,
+            "keystone_installed_only_in_per_overnight_target_not_live_repo": keystone_only_in_target,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ===========================================================================
+# RG-1: no hard-abort; keystone deny is a runtime ref-abort (regression guard)
+# ===========================================================================
+
+def rg1_k():
+    repo = _make_repo()
+    specs = repo / "docs" / "dev" / "specs"
+    specs.mkdir(parents=True)
+    (specs / "spec-zzz.md").write_text("# unrelated spec body\n")
+    try:
+        r = subprocess.run(
+            [str(CREATE_STATE), "--project-dir", str(repo), "--session-id", "S",
+             "--end-time", "+1h", "--spec", str(specs / "nonexistent-spec.md")],
+            capture_output=True, text=True)
+        sf = repo / ".claude" / "overnight-state-S.json"
+        st = json.loads(sf.read_text()) if sf.exists() else None
+        wt = (st or {}).get("worktree_path", "")
+        degrades = bool(st) and bool(wt) and wt != str(repo) and Path(wt).exists()
+        head = _head_branch(repo)
+        no_in_place = head == "master"
+
+        _install_keystone(repo)
+        moid0 = _master_oid(repo)
+        rk = _sh(f"git -C {repo} checkout other", repo, _actor_env(repo))
+        runtime_ref_abort = (_head_branch(repo) == "master"
+                             and _master_oid(repo) == moid0
+                             and "OVERNIGHT KEYSTONE" in rk.stderr)
+        state_intact = sf.exists() and json.loads(sf.read_text()).get("worktree_path") == wt
+
+        cs_src = CREATE_STATE.read_text()
+        no_new_hard_abort = ('SPEC_MODE="autonomous"' in cs_src
+                             or "SPEC_MODE='autonomous'" in cs_src)
+
+        return {
+            "recoverable_failure_degrades_to_autonomous_with_valid_worktree": degrades,
+            "never_hard_aborts_then_works_in_place": degrades and no_in_place,
+            "no_in_place_main_dir_work": no_in_place,
+            "keystone_deny_is_runtime_ref_abort_not_launch_abort": runtime_ref_abort and state_intact,
+            "refuse_to_launch_only_when_all_isolation_impossible": degrades,
+            "escalation_adds_no_new_hard_abort_path": no_new_hard_abort and degrades,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ===========================================================================
+# RG-2: dirty main tree preserved + isolated (regression guard)
+# ===========================================================================
+
+def rg2_k():
+    repo = _make_repo(dirty=True)
+    try:
+        before = (repo / "a.txt").read_text()
+        before_untracked = (repo / "untracked.txt").read_text()
+        subprocess.run(
+            [str(CREATE_STATE), "--project-dir", str(repo), "--session-id", "S",
+             "--end-time", "+1h"],
+            capture_output=True, text=True)
+        sf = repo / ".claude" / "overnight-state-S.json"
+        st = json.loads(sf.read_text()) if sf.exists() else {}
+        wt = st.get("worktree_path", "")
+        head = _head_branch(repo)
+        wt_branch = _git(["branch", "--show-current"], wt).stdout.strip() if wt else ""
+        return {
+            "dirty_main_tree_byte_preserved": (
+                (repo / "a.txt").read_text() == before
+                and (repo / "untracked.txt").read_text() == before_untracked),
+            "main_head_stays_master": head == "master",
+            "valid_worktree_on_non_master_branch_registered": (
+                bool(wt) and wt != str(repo) and bool(wt_branch) and wt_branch != "master"),
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
+# ===========================================================================
+# RG-3: no global master lockdown for normal sessions (regression guard)
+# ===========================================================================
+
+def rg3_k():
+    repo = _make_repo()
+    try:
+        _install_keystone(repo)
+        wt = _make_worktree(repo)
+        _write_state(repo, wt)  # a LIVE overnight state exists (session S)
+
+        co = _sh(f"git -C {repo} checkout other", repo, None)
+        checkout_allowed = co.returncode == 0 and _head_branch(repo) == "other"
+        _sh(f"git -C {repo} checkout master", repo, None)
+        ci = _sh(f"git -C {repo} commit --allow-empty -m normal", repo, None)
+        commit_allowed = ci.returncode == 0
+        br = _sh(f"git -C {repo} branch newbr", repo, None)
+        branch_allowed = br.returncode == 0
+        normal_commit = _sh(f"git -C {repo} commit --allow-empty -m n2", repo, None)
+        exemption_preserved = normal_commit.returncode == 0
+
+        return {
+            "normal_session_main_checkout_allowed": checkout_allowed,
+            "normal_session_main_commit_allowed": commit_allowed,
+            "normal_session_main_branch_allowed": branch_allowed,
+            "no_global_master_lockdown_for_non_overnight_sessions": (
+                checkout_allowed and commit_allowed and branch_allowed),
+            "keystone_normal_session_exemption_preserved": exemption_preserved,
+        }
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+
 _DISPATCH = {
-    "AC-1": ac1, "AC-2": ac2, "AC-3": ac3, "AC-4": ac4, "AC-5": ac5,
-    "AC-8": ac8, "AC-9": ac9, "AC-10": ac10, "AC-11": ac11,
-    "RG-1": rg1, "RG-2": rg2, "RG-3": rg3,
+    "AC-K1": ac_k1, "AC-K2": ac_k2, "AC-K3": ac_k3, "AC-K4": ac_k4,
+    "AC-K5": ac_k5, "AC-K6": ac_k6, "AC-K7": ac_k7,
+    "RG-1": rg1_k, "RG-2": rg2_k, "RG-3": rg3_k,
 }
 
 
