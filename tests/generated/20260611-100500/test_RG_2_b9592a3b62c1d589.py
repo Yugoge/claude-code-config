@@ -21,7 +21,6 @@ def test_RG_2():
     WHEN:  the launch runs with the escalation active
     THEN:  the dirty main tree is byte-preserved, main HEAD stays master, a valid worktree on a non-master branch is registered MUST PASS both pre- and post-escalation
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — the dirty main tree is byte-preserved, main HEAD stays master, a valid worktree on a non-master branch is registered ...")
+    # Regression guard behavioral assertions (ac_harness.py RG-2) checked
+    # against the canonical acceptance-criteria JSON via _ac_runner.run_ac.
+    run_ac("RG-2")
