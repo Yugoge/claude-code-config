@@ -1648,6 +1648,24 @@ def ac_k8():
             "quoted_core_hookspath_block":
                 _hook_guard_blocks(f"git -c 'core.hooksPath=/dev/null' -C {wt} status",
                                    repo, cwd=wt),
+            # codex F2: a value-taking git GLOBAL option (`-C <dir>`,
+            # `--git-dir <d>`, `--work-tree <d>`, `--namespace <n>`) BEFORE the
+            # `-c` injection must NOT mask it — the scanner must skip the operand
+            # and still reach the later config injection. `-C <worktree>` is the
+            # most common overnight shape, so this is the realistic vector.
+            "c_dir_operand_before_include_block":
+                _hook_guard_blocks(f"git -C {wt} -c include.path={bp} status", repo, cwd=wt),
+            "git_dir_operand_before_include_block":
+                _hook_guard_blocks(
+                    f"git --git-dir {wt}/.git -c include.path={bp} status", repo, cwd=wt),
+            "work_tree_operand_before_includeif_block":
+                _hook_guard_blocks(
+                    f"git --work-tree {wt} -c includeIf.gitdir:{m}/.git.path={bp} status",
+                    repo, cwd=wt),
+            "namespace_operand_before_quoted_hookspath_block":
+                _hook_guard_blocks(
+                    f"git --namespace ns -c 'core.hooksPath=/dev/null' -C {wt} status",
+                    repo, cwd=wt),
         }
         all_inject_blocked = all(inject_forms.values())
 
