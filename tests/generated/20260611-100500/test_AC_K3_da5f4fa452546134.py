@@ -21,7 +21,6 @@ def test_AC_K3():
     WHEN:  `overnight-git-selftest.sh` runs
     THEN:  in (a) `structural_claim_allowed=true` only AFTER the target-attested behavioral check passes (effective hooksPath = keystone, git capability >=2.46, actor env present, no blessed token, hook rejection observed, post-state unchanged); the capability `reference_transaction_selftest_result=structural_head_switch` is recorded but does NOT alone imply target protection AND in (b) the self-test honestly records `structural_claim_allowed=false` / `guarantee_level=best_effort_head_switch` (no false structural claim) AND the `git >=2.46` version check is treated as a PREREQUISITE GATE, never as the proof (the behavioral rejection probe is the proof)
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — in (a) `structural_claim_allowed=true` only AFTER the target-attested behavioral check passes (effective hooksPath = ...")
+    # L5 keystone-firing behavioral assertions (ac_harness.py AC-K3) checked
+    # against the canonical acceptance-criteria JSON via _ac_runner.run_ac.
+    run_ac("AC-K3")
