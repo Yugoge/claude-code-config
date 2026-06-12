@@ -1722,8 +1722,19 @@ def main():
             main_root = gov_state.get('main_root', '')
             worktree_path = gov_state.get('worktree_path', '')
             main_git_dir = gov_state.get('main_git_dir', '')
+            # (codex #4 control-flow order) STEP A: security/raw-metadata + L4
+            # string guard FIRST. _enforce_overnight_git_command denies raw
+            # .git-ref writes / --work-tree-into-main / --git-dir-into-main /
+            # interpreter-hidden main-git ops BEFORE any rewrite, so AC-W1's raw-
+            # .git-write denial and AC-K6 are attributed to this retained layer.
             _enforce_overnight_git_command(
                 tool_input.get('command', ''), main_root, worktree_path, main_git_dir)
+            # STEP B: WRITE-HALF (fix-7) bwrap rewrite for the active overnight
+            # actor — re-exec the surviving command inside the RO-bind boundary
+            # (emit updatedInput.command + exit 0) when bwrap is available, else
+            # FAIL-CLOSED. Layered ON TOP OF the L4 guard (STEP A still ran).
+            _apply_write_boundary(
+                tool_input.get('command', ''), gov_state, main_git_dir)
         elif classification == 'worktree_context':
             # VECTOR-3 fail-closed: cwd is inside an active worktree but no
             # governing overnight state could be resolved for it. We cannot derive
