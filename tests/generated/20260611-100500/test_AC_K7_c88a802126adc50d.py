@@ -21,7 +21,6 @@ def test_AC_K7():
     WHEN:  the launch runs
     THEN:  it always creates + enters a valid isolated worktree before actor work begins (actor cwd is never the main working directory); `install-git-keystone.sh` re-homes + chains the existing pre-commit/post-commit so they STILL FIRE (its AC6); no hard-abort; the keystone is installed only in the per-overnight target, never the live implementing repo MUST PASS both pre- and post-escalation
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — it always creates + enters a valid isolated worktree before actor work begins (actor cwd is never the main working di...")
+    # L5 keystone-firing behavioral assertions (ac_harness.py AC-K7) checked
+    # against the canonical acceptance-criteria JSON via _ac_runner.run_ac.
+    run_ac("AC-K7")
