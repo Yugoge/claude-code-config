@@ -1550,10 +1550,18 @@ def _linked_worktree_git_paths(worktree_path: str) -> list[str]:
 
     The per-worktree gitdir (`git rev-parse --git-dir`) and the shared common-dir
     (`--git-common-dir`) are the two roots git writes during add/commit. They are
-    derived at runtime from git itself; config/fetch/gc/submodule/sparse, which
-    need un-exposed paths, are INTENTIONALLY blocked (documented, not silently
-    broken). Raw cooperative writes to refs/objects through these RW paths are
-    denied by the retained security/L4 layer that runs BEFORE this boundary
+    derived at runtime from git itself. KNOWN LIMITATION (codex finalize-review,
+    task 20260611-100500): because the common-dir is RW-bound, git surfaces that
+    write ONLY to common-dir metadata — notably `git config` (writes
+    common-dir/config = main `.git/config`), and `gc`/`fetch`/`repack` writes that
+    land under common-dir/objects — are NOT blocked by this OS boundary; they are
+    NOT part of the supported add/commit surface but the bwrap layer alone does not
+    refuse them. Closing that requires a pre-rewrite git-subcommand denylist
+    (config/fetch/gc/submodule/sparse) in `_apply_write_boundary` — surfaced to the
+    orchestrator (scope_review_requested) rather than silently asserted as blocked.
+    Raw cooperative writes to refs/objects/HEAD/packed-refs through these RW paths
+    that bypass git's ref-transaction ARE denied by the retained security/L4 layer
+    (`_raw_git_metadata_write_into_main`) that runs BEFORE this boundary
     (codex #1/#4) — the bwrap RW exposure is for git-mediated writes only."""
     gd = _git_query(['rev-parse', '--path-format=absolute', '--git-dir'], worktree_path)
     gcd = _git_query(['rev-parse', '--path-format=absolute', '--git-common-dir'], worktree_path)
