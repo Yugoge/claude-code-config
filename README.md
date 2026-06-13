@@ -391,7 +391,67 @@ A few principles run through every file here. They are the taste behind the proj
 - System architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - Git protection kernel (13 scenarios, 7 invariants): `/root/docs/git-protection-architecture.md`
 - Checkpoint mechanism: [`docs/reference/checkpoint-mechanism.md`](docs/reference/checkpoint-mechanism.md)
-- Hard-won lessons: `docs/incidents-2026-04-04.md`
+- Hard-won lessons: [`docs/reference/incidents-2026-04-04.md`](docs/reference/incidents-2026-04-04.md)
+
+---
+
+## Extending it
+
+Everything here is plain Markdown and small scripts — adding your own piece is intentionally low-ceremony. A `PostToolUse` doc-sync hook re-inventories the roster the moment you save, so new commands and agents show up in the INDEX/README blocks without manual bookkeeping.
+
+**Add a slash command** — drop a file in `commands/`:
+
+```bash
+cat > ~/.claude/commands/my-command.md << 'EOF'
+---
+description: My custom command
+---
+
+Your command instructions here…
+EOF
+```
+
+**Add a subagent** — drop a file in `agents/`:
+
+```bash
+cat > ~/.claude/agents/my-agent.md << 'EOF'
+---
+name: my-agent
+description: When the orchestrator should dispatch this agent
+tools: Read, Write, Bash
+---
+
+Your agent system prompt here…
+EOF
+```
+
+**Add a hook** — write the script, make it executable, then wire it into `settings.json` under the lifecycle event you want (`PreToolUse`, `PostToolUse`, `Stop`, …):
+
+```bash
+cat > ~/.claude/hooks/my-hook.sh << 'EOF'
+#!/bin/bash
+# Your hook logic here — exit 2 to block the tool call.
+EOF
+chmod +x ~/.claude/hooks/my-hook.sh
+```
+
+> Mirror the conventions of the existing files: command/agent prompts state what is **required** and what is **forbidden**, and a hook that guards anything dangerous should *fail closed* (block on doubt) and leave its evidence behind.
+
+---
+
+## Acknowledgements
+
+This configuration grew out of, and remains grateful to:
+
+- [Claude Code](https://claude.com/claude-code) and the official [documentation](https://docs.claude.com/en/docs/claude-code).
+- [fcakyon/claude-codex-settings](https://github.com/fcakyon/claude-codex-settings) — an early real-world configuration reference.
+- The broader Claude Code community, whose shared patterns and hard-won lessons are baked into the hooks and agents here.
+
+---
+
+## License
+
+Released under the **MIT License** — free to use, copy, modify, and adapt for your own `~/.claude`. Source: [`Yugoge/claude-code-config`](https://github.com/Yugoge/claude-code-config).
 
 ---
 
