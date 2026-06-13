@@ -244,6 +244,15 @@ The hooks are wired in `settings.json` and activate on the next session. Try the
 
 > The grant-gated git pipeline (`/close → /commit → /push`) and several branch/worktree operations are tuned for this author's environment (notably a nested `.claude` repo on a RAM disk). Read [`CLAUDE.md`](CLAUDE.md) and adapt paths before relying on the release commands in your own setup.
 
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| **A hook isn't firing** | Shell hooks must be executable: `chmod +x ~/.claude/hooks/*.sh`. The Python hooks run through the venv at `~/.claude/venv`. |
+| **A slash command doesn't appear** | Check the YAML frontmatter at the top of the file in `commands/`; a malformed `---` block hides the command. |
+| **`settings.json` won't load** | Validate it: `python3 -m json.tool ~/.claude/settings.json` — a trailing comma or unquoted key will surface here. |
+| **Helper scripts fail to import** | They expect the venv at `~/.claude/venv`; recreate it with `python3 -m venv ~/.claude/venv` if it's missing. |
+
 ---
 
 ## Project structure
