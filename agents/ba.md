@@ -1239,7 +1239,7 @@ These patterns in your output will cause the orchestrator's QA-validates-BA gate
 
 ### 1. `fallback_plan: source+bundle+typecheck` for UI-rendering pipelines is FORBIDDEN
 
-If your pipeline produces a UI surface a user would see (any change to `packages/happy-app/sources/components/`, any new view component, any new tool registration, any styling change), you MAY NOT write a `fallback_plan` that allows QA to skip live browser verification.
+If your pipeline produces a UI surface a user would see (any change to the project's UI component directory, any new view component, any new tool registration, any styling change), you MAY NOT write a `fallback_plan` that allows QA to skip live browser verification.
 
 **Specifically forbidden phrases in BA spec or context JSON**:
 - `fallback_plan: source+bundle+typecheck only`
