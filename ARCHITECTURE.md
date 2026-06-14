@@ -338,7 +338,7 @@ flowchart LR
 
 Runtime/generated directories present in the live tree but **not** part of the curated config (created at runtime, gitignored or transient): `dev-registry/`, `worktrees/`, `sessions/`, `logs/`, `cache/`, `state/`, `specs/`, `todos/`, `projects/`, `venv/`, `shell-snapshots/`, `statsig/`, `paste-cache/`, `file-history/`, `graphify-out/`.
 
-External grounding docs (not in this repo): `/root/docs/git-protection-architecture.md`, `/root/docs/ramdisk-architecture.md`.
+The git-protection kernel and the ramdisk/nested-repo architecture are described in this document (§6 and §11 respectively) and implemented in the `hooks/` entry points referenced there; there is no separate grounding doc bundled in this repo.
 
 ---
 
