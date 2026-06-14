@@ -46,7 +46,23 @@ def test_AC15():
       - drive the hook with a refused /allow (main agent)
       - assert all three are gone afterward; stderr contains usage error; exit 0
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — refused /allow must unlink ALL stale grants (legacy + canonical sentinel + every <task_id>-*.json suffixed sentinel) before exit; usage error; exit 0")
+    sid, task_id = fresh_ids()
+    lpath = legacy_path(sid)
+    spath = sentinel_path(task_id)
+    suffixed = suffixed_sentinel_path(task_id, "nonce1")
+    try:
+        # Seed broad grants across EVERY channel the consumer's loader reads.
+        seed_legacy(lpath, ".*", True)
+        seed_sentinel(spath, task_id, sid, [{"op": "*", "regex": ".*"}])
+        seed_sentinel(suffixed, task_id, sid, [{"op": "*", "regex": ".*"}])
+        assert os.path.exists(lpath) and os.path.exists(spath) and os.path.exists(suffixed)
+
+        # A REFUSED /allow in the same session must wipe every stale grant.
+        r = run_hook("/allow re:.*", sid, task_id)
+        assert r["exit"] == 0, f"expected exit 0, got {r['exit']}"
+        assert stderr_has_usage_error(r["stderr"]), f"usage error expected; stderr={r['stderr']!r}"
+        assert not os.path.exists(lpath), "stale legacy flag must be removed"
+        assert not os.path.exists(spath), "stale canonical sentinel must be removed"
+        assert not os.path.exists(suffixed), "stale suffixed <task_id>-*.json sentinel must be removed"
+    finally:
+        cleanup(sid, task_id)
