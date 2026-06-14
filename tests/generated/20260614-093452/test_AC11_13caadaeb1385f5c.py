@@ -46,7 +46,29 @@ def test_AC11():
     both (AC fails); one that over-refused via the universal/under-specified
     gate would refuse both (AC fails).
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — differential pair: NEGATIVE (a+)+ refused with nested-quantifier reason; POSITIVE [A-Za-z0-9_-]+ granted")
+    negative = r"re:^git\s+stash\s+--message=(a+)+$"
+    positive = r"re:^git\s+stash\s+--message=[A-Za-z0-9_-]+$"
+
+    # NEGATIVE: refused SPECIFICALLY by the nested-quantifier detector.
+    sid, task_id = fresh_ids()
+    try:
+        rn = run_hook(negative, sid, task_id)
+        assert rn["exit"] == 0, f"negative: expected exit 0, got {rn['exit']}"
+        assert rn["legacy_written"] is False, "negative: no legacy flag"
+        assert rn["sentinel_written"] is False, "negative: no sentinel"
+        assert re.search(r"nested quantifier|catastrophic backtracking", rn["stderr"]), (
+            f"negative must be refused by the nested-quantifier detector; stderr={rn['stderr']!r}")
+        assert not re.search(r"name an explicit command|under-specified|universal", rn["stderr"]), (
+            f"negative must NOT be refused via the under-specified/universal gate; stderr={rn['stderr']!r}")
+    finally:
+        cleanup(sid, task_id)
+
+    # POSITIVE: granted (anchored command head, bounded literal, no nested quant).
+    sid, task_id = fresh_ids()
+    try:
+        rp = run_hook(positive, sid, task_id)
+        assert rp["exit"] == 0, f"positive: expected exit 0, got {rp['exit']}"
+        assert rp["legacy_written"] is True, f"positive must be GRANTED (legacy); stderr={rp['stderr']!r}"
+        assert rp["sentinel_written"] is True, f"positive must be GRANTED (sentinel); stderr={rp['stderr']!r}"
+    finally:
+        cleanup(sid, task_id)
