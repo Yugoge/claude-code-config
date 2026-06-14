@@ -354,7 +354,7 @@ External grounding docs (not in this repo): `/root/docs/git-protection-architect
 
 **Why the verbatim-requirement contract?** The thing that ships is too often a confident-sounding cousin of what was asked. Writing the literal requirement to disk and re-reading it in every downstream prompt makes paraphrase-drift detectable and the user's words the binding spec.
 
-**Why rules-not-stories with explicit DO NOT sections?** Incident analysis (`docs/reference/incidents-2026-04-04.md`) showed that positive instructions alone leak: an agent told only "what's allowed" infers permission for adjacent dangerous actions. Every infrastructure-touching prompt now carries an explicit forbidden list.
+**Why rules-not-stories with explicit DO NOT sections?** Incident analysis showed that positive instructions alone leak: an agent told only "what's allowed" infers permission for adjacent dangerous actions. Every infrastructure-touching prompt now carries an explicit forbidden list.
 
 **Why the ramdisk + nested-repo architecture?** `~/.claude` symlinks to `/dev/shm/dev-workspace/dot-claude` to bypass a Ceph IOPS bottleneck and support many concurrent Claude Code processes (`/root/docs/ramdisk-architecture.md`). Because `.claude/` is its own git repo, config commits happen *inside* that path and never via `/root` — a constraint baked into the git wrappers and the `CLAUDE.md` §Nested .claude Repo rule.
 
