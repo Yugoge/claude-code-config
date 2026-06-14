@@ -1,8 +1,8 @@
 # .github
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-14T23:16:10Z*
-**Total entries**: 3
+*Last updated: 2026-06-14T23:16:17Z*
+**Total entries**: 4
 **Convention**: kebab
 
 ## Tree
@@ -10,6 +10,7 @@
 .github/
 ├── `CODE_OF_CONDUCT.md` - Code of Conduct
 ├── `CONTRIBUTING.md` - Contributing
+├── `PULL_REQUEST_TEMPLATE.md` - Pull Request
 └── `SECURITY.md` - Security Policy
 ```
 <!-- /AUTO:index-stats -->
