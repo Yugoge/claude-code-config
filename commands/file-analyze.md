@@ -54,7 +54,7 @@ node "$ANALYZER" "$1" --export output.json  # Export to JSON
 
 #### Option 2: Interactive Web Analyzer (Best for visualization)
 ```
-Use: /artifact-excel-analyzer
+Build a standalone HTML Excel analyzer (e.g. via /quick-prototype).
 
 This creates a standalone HTML file with:
 - Drag-and-drop file upload
