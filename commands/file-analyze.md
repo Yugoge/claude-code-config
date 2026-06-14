@@ -169,7 +169,7 @@ fi
 
 **For Excel:**
 "I found an Excel file with X sheets and Y formulas.
-For comprehensive analysis, use: /artifact-excel-analyzer
+For comprehensive analysis, I can build an interactive HTML analyzer (e.g. via /quick-prototype).
 Or I can provide quick statistics now."
 
 **For PDF:**
