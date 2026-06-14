@@ -5,10 +5,24 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import subprocess
+from pathlib import Path
+
+import yaml
 
 AC_UID = "d9d84ffbcfdf68a1"
 AC_TYPE = "data"
+
+_MUST_CONTAIN_ALL = ["baseline", "bash -n"]
+_MUST_NOT_RUN = ["tests/generated"]
+
+
+def _repo_root() -> Path:
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    return Path(out.stdout.strip())
 
 
 def test_AC9():
@@ -21,7 +35,20 @@ def test_AC9():
     #   glob=".github/workflows/*.yml"  must_parse_yaml=True
     #   must_contain_all=["baseline","bash -n"]
     #   must_not_run=["tests/generated"]  excludes_generated=True
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — .github/workflows/*.yml is valid YAML, labeled baseline, contains 'bash -n', and does not run tests/generated")
+    root = _repo_root()
+    wf_dir = root / ".github" / "workflows"
+    workflows = sorted(wf_dir.glob("*.yml")) if wf_dir.is_dir() else []
+    assert workflows, "no .github/workflows/*.yml workflow exists"
+
+    combined = ""
+    for wf in workflows:
+        text = wf.read_text()
+        combined += text
+        # Each workflow must be valid YAML.
+        yaml.safe_load(text)
+
+    for token in _MUST_CONTAIN_ALL:
+        assert token in combined, f"workflow(s) missing required token: {token}"
+
+    for token in _MUST_NOT_RUN:
+        assert token not in combined, f"workflow must not reference: {token}"
