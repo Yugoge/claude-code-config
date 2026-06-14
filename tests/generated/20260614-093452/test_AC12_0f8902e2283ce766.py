@@ -45,7 +45,31 @@ def test_AC12():
       - preexisting_sentinel_unchanged == True (bytes + mtime)
       - no_create_no_overwrite_no_delete_by_subagent == True
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — subagent /allow with pre-existing grants: firewall fires, zero fs mutation (no write, no unlink), preexisting files byte+mtime identical")
+    sid, task_id = fresh_ids()
+    lpath, spath = legacy_path(sid), sentinel_path(task_id)
+    try:
+        # Seed pre-existing grants that a subagent must neither read, write,
+        # overwrite, NOR unlink (the AC15 cleanup-as-write primitive guard).
+        seed_legacy(lpath, "preexisting", False)
+        seed_sentinel(spath, task_id, sid, [{"op": "preexisting"}])
+        before_legacy = open(lpath, "rb").read()
+        before_sentinel = open(spath, "rb").read()
+        before_lmtime = os.stat(lpath).st_mtime_ns
+        before_smtime = os.stat(spath).st_mtime_ns
+
+        # Drive the hook from a SUBAGENT (agent_id present). Use a refuse-shaped
+        # argument so any non-firewalled path would also try to unlink.
+        r = run_hook("/allow re:.*", sid, task_id, agent_id="subagent-xyz")
+        assert r["exit"] == 0, f"expected exit 0, got {r['exit']}"
+
+        # The firewall returns at the top: pre-existing files must be untouched.
+        assert os.path.exists(lpath), "subagent must NOT unlink the pre-existing legacy flag"
+        assert os.path.exists(spath), "subagent must NOT unlink the pre-existing sentinel"
+        assert open(lpath, "rb").read() == before_legacy, "legacy bytes must be unchanged"
+        assert open(spath, "rb").read() == before_sentinel, "sentinel bytes must be unchanged"
+        assert os.stat(lpath).st_mtime_ns == before_lmtime, "legacy mtime must be unchanged"
+        assert os.stat(spath).st_mtime_ns == before_smtime, "sentinel mtime must be unchanged"
+        # The seeded content is 'preexisting' — proves no overwrite by a new grant.
+        assert r["legacy"]["pattern"] == "preexisting", "no new grant may overwrite the seed"
+    finally:
+        cleanup(sid, task_id)
