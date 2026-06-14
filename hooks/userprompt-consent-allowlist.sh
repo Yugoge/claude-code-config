@@ -218,6 +218,12 @@ tokens = []
 for t in raw_tokens:
     if len(t) >= 2 and t[0] == t[-1] and t[0] in (chr(0x22), chr(0x27)):
         t = t[1:-1]
+    # Protocol-injection guard: a token carrying a newline / carriage-return
+    # would desync the line-oriented STATUS/PATTERN/IS_REGEX/COMMENT protocol
+    # (a crafted token could forge STATUS=GRANT or smuggle a wildcard PATTERN).
+    # Such tokens never name a legitimate command -> REFUSE.
+    if ('\n' in t) or ('\r' in t):
+        emit('REFUSE', reason='control_char_in_token')
     tokens.append(t)
 
 flag_pattern = None
