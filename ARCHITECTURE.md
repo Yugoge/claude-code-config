@@ -48,7 +48,7 @@ Five principles run through every file. They are the architecture's load-bearing
 1. **Orchestrator-only.** The main agent *thinks and routes*; it never writes code or runs privileged git. This is enforced by `hooks/pretool-orchestrator-gate.py`, not by prompt etiquette.
 2. **Enforce in code, not in prose.** "Please don't force-push" is a wish; a `PreToolUse` hook returning exit 2 is a guarantee. Wherever a rule *can* be a hook, it *is* a hook.
 3. **Fail closed, leave forensics.** Ambiguous grant → reject. Unparseable QA verdict → treat as failure. On rejection the evidence (grant file, raw output) is left on disk so a human can see exactly what happened.
-4. **Rules, not stories.** Agent/command prompts state what is *required* and what is *forbidden*, tersely. Every infrastructure-touching subagent prompt carries an explicit **DO NOT** section — positive instructions alone proved insufficient (see `docs/reference/incidents-2026-04-04.md`).
+4. **Rules, not stories.** Agent/command prompts state what is *required* and what is *forbidden*, tersely. Every infrastructure-touching subagent prompt carries an explicit **DO NOT** section — positive instructions alone proved insufficient.
 5. **One subagent, one task.** N issues → N parallel subagents, each with a clean context. Multitasking inside one subagent is banned (`CLAUDE.md` lesson #13).
 
 ---
