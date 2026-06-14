@@ -389,7 +389,6 @@ A few principles run through every file here. They are the taste behind the proj
 - System architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - Git protection kernel (13 scenarios, 7 invariants): `/root/docs/git-protection-architecture.md`
 - Checkpoint mechanism: [`docs/reference/checkpoint-mechanism.md`](docs/reference/checkpoint-mechanism.md)
-- Hard-won lessons: [`docs/reference/incidents-2026-04-04.md`](docs/reference/incidents-2026-04-04.md)
 
 ---
 
