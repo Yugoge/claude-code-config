@@ -280,7 +280,7 @@ A `PostToolUse` doc-sync hook keeps `INDEX.md` files and the inventory block bel
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 64
+- **Total files**: 62
 - **Subdirectories**: 34
 - **Naming convention**: lower
 
@@ -288,11 +288,9 @@ A `PostToolUse` doc-sync hook keeps `INDEX.md` files and the inventory block bel
 - `ARCHITECTURE.md` - Architecture — `.claude` Agent Operating System
 - `CLAUDE.md` - CLAUDE.md
 - `NESTED-REPO.md` - Nested Repo Sentinel
-- `config.yaml` - yaml config
 - `history.jsonl` - jsonl file
 - `mcp-needs-auth-cache.json` - json config
 - `playwright-storage-state.json` - json config
-- `push.sh` - 
 - `session.log` - log file
 - `settings.json` - json config
 - `settings.json.bak-20260523-184533` - bak-20260523-184533 file
