@@ -1,14 +1,15 @@
 # ISSUE_TEMPLATE
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-14T23:16:26Z*
-**Total entries**: 1
-**Convention**: lower
+*Last updated: 2026-06-14T23:16:32Z*
+**Total entries**: 2
+**Convention**: kebab
 
 ## Tree
 ```
 ISSUE_TEMPLATE/
-└── `bug_report.md` - No description
+├── `bug_report.md` - No description
+└── `feature_request.md` - No description
 ```
 <!-- /AUTO:index-stats -->
 
