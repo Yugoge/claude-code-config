@@ -136,7 +136,7 @@ Hooks are configured in `settings.json` under `hooks.<Event>[].{matcher, hooks[]
 ### Representative wiring
 
 - **`SessionStart`** — environment announce + git init + tmpfs banner + gitignore propagation + a canary self-check (`session-info.sh`, `session-git-init.sh`, `check-todo-md-sync.py`, `session-promote-hook.sh`, `scripts/canary-verify.sh`, `session-tmpfs-banner.sh`, `session-gitignore-propagate.sh`).
-- **`UserPromptSubmit`** — `prompt-workflow.py` (workflow detection + dev-registry pre-creation), `userprompt-doc-sync-check.py`, `prehook-overnight-worktree-check.sh` (overnight launch hook that creates the isolated worktree + state file), `userprompt-consent-allowlist.sh` (`/do`/`/allow` consent capture), tmpfs-pressure and bulk-commit-capability advisories.
+- **`UserPromptSubmit`** — `prompt-workflow.py` (workflow detection + dev-registry pre-creation), `userprompt-doc-sync-check.py`, `userprompt-consent-allowlist.sh` (`/do`/`/allow` consent capture), tmpfs-pressure and bulk-commit-capability advisories.
 - **`PreToolUse`** — the safety + git + worktree + subagent-discipline gates (detailed in §6 and §7). Note: although `pretool-layer-match-gate.sh` is named with a `pretool-` prefix, it is actually wired under `SubagentStop`.
 - **`PostToolUse`** — `posttool-allowlist-consume.py` (single-use grant consumption), the todo trackers, `posttool-git-checkpoint.sh` + `posttool-doc-sync.py` + `posttool-command-frontmatter-validate.py` (on `Write|Edit|…`), and the overnight loop/trace hooks (on `Agent`).
 - **`Stop`** — `stop-overnight-timelock.py` (refuses to end an overnight session before its deadline), `stop-spec-coverage-enforce.py`, `auto-commit.sh`, `stop-cleanup-allowlist.sh` (reap expired sentinels).
