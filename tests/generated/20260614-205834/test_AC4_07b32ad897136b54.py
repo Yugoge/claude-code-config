@@ -5,10 +5,35 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import re
+import subprocess
+from pathlib import Path
 
 AC_UID = "07b32ad897136b54"
 AC_TYPE = "data"
+
+_FILES = ["hooks/INDEX.md", "docs/reference/INDEX.md"]
+_FORBIDDEN = [
+    "prehook-overnight-worktree-check.sh",
+    "pretool-block-production-files.sh",
+    "pretool-block-production.sh",
+    "pretool-daily-trade-agent-concurrency.py",
+    "configuration-summary.md",
+    "incidents-2026-03-28.md",
+    "incidents-2026-04-04.md",
+    "server-infra.md",
+]
+_MARKER = "<!-- AUTO:index-stats -->"
+# A tree entry line: a box-drawing connector followed by the first backtick name.
+_TREE_ENTRY = re.compile(r"[├└]── `([^`]+)`")
+
+
+def _repo_root() -> Path:
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    return Path(out.stdout.strip())
 
 
 def test_AC4():
@@ -19,11 +44,21 @@ def test_AC4():
     """
     # check kind: index_entries_exist_on_disk
     #   files=["hooks/INDEX.md","docs/reference/INDEX.md"]
-    #   forbidden_entries=[prehook-overnight-worktree-check.sh, pretool-block-production-files.sh,
-    #     pretool-block-production.sh, pretool-daily-trade-agent-concurrency.py, configuration-summary.md,
-    #     incidents-2026-03-28.md, incidents-2026-04-04.md, server-infra.md]
     #   marker_required="<!-- AUTO:index-stats -->"  prose_preserved=True
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — hooks/INDEX.md & docs/reference/INDEX.md: AUTO marker present, no forbidden entries, every backtick entry exists on disk, prose preserved")
+    root = _repo_root()
+    for rel in _FILES:
+        idx = root / rel
+        text = idx.read_text()
+        assert _MARKER in text, f"{rel} missing AUTO marker"
+
+        for bad in _FORBIDDEN:
+            assert bad not in text, f"{rel} still lists deleted file {bad}"
+
+        d = idx.parent
+        for line in text.splitlines():
+            m = _TREE_ENTRY.search(line)
+            if not m:
+                continue
+            name = m.group(1)
+            matches = list(d.rglob(name))
+            assert matches, f"{rel} lists {name} which does not exist on disk"
