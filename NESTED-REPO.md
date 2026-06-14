@@ -32,5 +32,5 @@ git -C /dev/shm/dev-workspace/dot-claude log --oneline
 ## Cross-references
 
 - Parent project memory: `/root/CLAUDE.md` (see "Nested Git Repo" section)
-- Full architecture: `/root/docs/ramdisk-architecture.md`
+- Full architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md) §11 (ramdisk + nested-repo rationale)
 - Sync script: `/root/sync-backup.sh`
