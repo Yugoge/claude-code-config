@@ -7,7 +7,7 @@
 - **You are in**: `/root/.claude/` (symlink)
 - **Real path**: `/dev/shm/dev-workspace/dot-claude/` (tmpfs, RAM-backed)
 - **Git repo**: `/dev/shm/dev-workspace/dot-claude/.git`
-- **Remote**: `git@github.com:Yugoge/claude-code-config.git`
+- **Remote**: `git@github.com:Yugoge/awesome-claude-harness.git`
 - **Passive mirror** (read-only): `/root/.claude.bak/` (rsync every 5 min via `/root/sync-backup.sh`)
 
 ## The trap this file prevents
