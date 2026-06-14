@@ -46,24 +46,108 @@ case "$PROMPT" in
   *) exit 0 ;;
 esac
 
-# ── Step 2: parse flags + optional comment (flag-style aligned with /close) ──
-# Syntax:
-#   /allow                                  -> wildcard, no comment
+# ── Step 2: parse flags + optional comment; derive an EXPLICIT narrow grant ──
+# REFUSE-BY-DEFAULT: there is NO wildcard fallback anywhere below. When an
+# explicit, narrowly-scoped command pattern cannot be derived, the parser emits
+# STATUS=REFUSE and the shell writes no grant, removes any stale grant, prints a
+# usage error, and exits 0 (non-wedging).
+#
+# Syntax (explicit-command forms only — each must name a concrete command):
 #   /allow --tool rm                        -> literal pattern "rm"
-#   /allow --tool rm 删冗余文件             -> literal "rm" + comment
-#   /allow --regex ^git\s+stash             -> regex pattern
-#   /allow --regex ^git cleanup             -> regex + comment
-# Backward-compat: /allow rm and /allow re:^git still parse as legacy bare pattern.
-# Resolution: --tool/--regex WINS (all bare tokens become comment); else first bare
-# token is the pattern; else wildcard.
+#   /allow --tool rm 删冗余文件             -> literal "rm" + CJK comment
+#   /allow git stash                        -> literal pattern "git stash"
+#   /allow re:^git\s+stash                  -> anchored narrow regex
+#   /allow Write /abs/path                  -> path-scoped Write grant
+#   /allow Write                            -> bare Write carve-out (any target)
+# Refused (no grant written): /allow (no arg); /allow <CJK-only> (no leading
+#   ASCII command token); /allow --tool (missing/empty operand); /allow re:
+#   (empty/quote-only regex body); any effectively-universal regex (e.g. .*, ^,
+#   a?, [\s\S]*, re:git unanchored) that would match commands unrelated to a
+#   concrete named command token.
+#
+# Output protocol (5 lines): STATUS(GRANT|REFUSE) / PATTERN / IS_REGEX / COMMENT
+#   / REFUSE_REASON. The pattern value is passed back via this protocol, never
+#   shell-interpolated into Python source.
 PARSED=$(PROMPT="$PROMPT" python3 -c "
 import os, shlex
+import re as _re
 p = os.environ.get('PROMPT','')
 body = ''
 if p.startswith('/allow '):
     body = p[len('/allow '):]
 elif p == '/allow':
     body = ''
+
+REFUSE_REASON = ''
+
+def emit(status, pattern='', is_regex=False, comment='', reason=''):
+    print(status)
+    print(pattern)
+    print('true' if is_regex else 'false')
+    print((comment or '').strip())
+    print(reason or '')
+    raise SystemExit(0)
+
+def _looks_regex(s):
+    # Heuristic: contains a regex metacharacter (excluding plain alphanumerics,
+    # space, '-', '/', '.').
+    return bool(_re.search(r'[\^\$\\\\.*+?\[\]\(\){}|]', s))
+
+def is_forbidden_regex(pat):
+    # Returns (forbidden: bool, reason: str). reason in {'vacuous','universal',''}.
+    #
+    # AC13 PART-2 — SUFFICIENT static anchor-and-bounded-literal rule. A regex
+    # grant is allowed ONLY if it starts with ^ (or \\A), exposes a finite
+    # literal command-head token immediately after the anchor, and that head is
+    # terminated by a real boundary (\$ | \\s+ | \\s | (?:\\s|\$) | end) BEFORE
+    # any wildcard / character-class / any-char-quantifier / lookaround /
+    # empty-alternative. Otherwise it is refused as effectively universal /
+    # over-broad. This is the consumer's own breadth contract: a grant is
+    # forbidden iff its matcher would accept commands unrelated to a concrete
+    # command token the user named. A literal denylist or corpus-only oracle is
+    # insufficient — this is a structural rule.
+    if pat is None or pat == '' or pat.strip() == '':
+        return True, 'vacuous'
+    if pat in (chr(0x27)*2, chr(0x22)*2):   # '' or \"\" — quote-only vacuous body
+        return True, 'vacuous'
+    if pat.startswith('\\\\A'):
+        rest = pat[2:]
+    elif pat.startswith('^'):
+        rest = pat[1:]
+    else:
+        return True, 'universal'            # unanchored -> over-broad (KIND-B)
+    META = set('.*+?[]()|{}^\$')
+    i = 0
+    head_len = 0
+    n = len(rest)
+    while i < n:
+        c = rest[i]
+        if c == '\\\\':
+            if i + 1 >= n:
+                break
+            nxt = rest[i+1]
+            if nxt in ('s','S','d','D','w','W','b','B','A','Z','n','r','t'):
+                break                       # \\s \\d \\w \\b ... -> boundary/class
+            head_len += 1                   # \\. \\- \\/ -> literal escaped char
+            i += 2
+            continue
+        if c in META or c == ' ':
+            break
+        head_len += 1
+        i += 1
+    if head_len == 0:
+        return True, 'universal'            # no concrete literal command-head
+    tail = rest[i:]
+    if tail == '':
+        return False, ''                    # anchored literal, bounded by end
+    if tail.startswith('\$') or tail.startswith('(?:\\\\s|\$)') or tail.startswith('(?:\\\\s'):
+        return False, ''
+    if tail.startswith('\\\\s'):
+        if tail[2:3] == '*':                # \\s* is not a real boundary
+            return True, 'universal'
+        return False, ''
+    return True, 'universal'                # something non-boundary follows head
+
 try:
     raw_tokens = shlex.split(body, posix=False) if body else []
 except ValueError:
@@ -73,68 +157,94 @@ for t in raw_tokens:
     if len(t) >= 2 and t[0] == t[-1] and t[0] in (chr(0x22), chr(0x27)):
         t = t[1:-1]
     tokens.append(t)
-flag_pattern, flag_is_regex = None, None
+
+flag_pattern = None
 bare = []
 i = 0
 while i < len(tokens):
     t = tokens[i]
-    if t == '--tool' and i+1 < len(tokens):
-        flag_pattern, flag_is_regex = tokens[i+1], False
+    if t == '--tool':
+        # AC10: recognized flag with a missing operand -> REFUSE.
+        if i + 1 >= len(tokens):
+            emit('REFUSE', reason='missing_flag_operand')
+        operand = tokens[i+1]
+        # AC10: recognized flag with an empty/whitespace-only operand -> REFUSE.
+        if operand == '' or operand.strip() == '':
+            emit('REFUSE', reason='empty_flag_operand')
+        flag_pattern = operand
         i += 2
-    # --regex flag intentionally removed: hook auto-detects regex from
-    # presence of regex metacharacters in the pattern.
     else:
         bare.append(t)
         i += 1
-import re as _re
-def _looks_regex(s):
-    # Heuristic: contains regex metacharacter (excluding plain alphanumerics + space + - / .)
-    return bool(_re.search(r'[\^$\\.*+?\[\]\(\){}|]', s))
 
 if flag_pattern is not None:
-    pattern = flag_pattern
     # --tool declares an explicit literal pattern; force is_regex=False
-    # unconditionally regardless of _looks_regex() output. Dotted filenames
-    # (e.g. /tmp/file.json) must not be misclassified as regex. (CRITICAL-2 fix)
-    is_regex = False
-    comment = ' '.join(bare)
+    # unconditionally (dotted filenames must not be misclassified as regex).
+    emit('GRANT', pattern=flag_pattern, is_regex=False, comment=' '.join(bare))
 elif bare:
     first = bare[0]
     if first.startswith('re:'):
-        pattern, is_regex = first[3:], True
-        comment = ' '.join(bare[1:])
+        pat = first[3:]
+        # AC14: empty / vacuous re: body names no concrete command -> REFUSE
+        # BEFORE any wildcard fallback could re-coerce it.
+        forbidden, reason = is_forbidden_regex(pat)
+        if forbidden:
+            emit('REFUSE', reason=reason)
+        emit('GRANT', pattern=pat, is_regex=True, comment=' '.join(bare[1:]))
     elif first == 'Write' and len(bare) >= 2 and bare[1].startswith('/'):
-        # Bare /allow Write /path form: treat second token as path argument,
-        # not as a comment. Emit scoped sentinel with target=path. (CRITICAL-1 fix)
-        pattern = 'Write ' + bare[1]
-        is_regex = False
-        comment = ' '.join(bare[2:])
+        # Bare /allow Write /path form: second token is a path argument, not a
+        # comment. Emit a path-scoped grant (sentinel target=path).
+        emit('GRANT', pattern='Write ' + bare[1], is_regex=False,
+             comment=' '.join(bare[2:]))
     else:
+        # Bare command form: take leading ASCII tokens as the command; the
+        # first non-ASCII token (e.g. a CJK comment) ends the command.
         ascii_bare = []
         for t in bare:
             if any(ord(c) >= 128 for c in t):
                 break
             ascii_bare.append(t)
         comment_bare = bare[len(ascii_bare):]
-        pattern = ' '.join(ascii_bare) if ascii_bare else '.*'
+        # AC2/AC3: no leading-ASCII command token derivable -> REFUSE (no
+        # wildcard fallback).
+        if not ascii_bare:
+            emit('REFUSE', reason='no_command_token')
+        pattern = ' '.join(ascii_bare)
         is_regex = _looks_regex(pattern)
-        comment = ' '.join(comment_bare)
+        if is_regex:
+            # AC5/AC13 KIND-C: a bare auto-detected regex that is effectively
+            # universal -> REFUSE.
+            forbidden, reason = is_forbidden_regex(pattern)
+            if forbidden:
+                emit('REFUSE', reason=reason)
+        emit('GRANT', pattern=pattern, is_regex=is_regex,
+             comment=' '.join(comment_bare))
 else:
-    pattern, is_regex = '.*', True
-    comment = ''
-print(pattern)
-print('true' if is_regex else 'false')
-print(comment.strip())
+    # AC1: bare /allow with no argument -> REFUSE (no wildcard fallback).
+    emit('REFUSE', reason='no_argument')
 " 2>/dev/null)
-PATTERN=$(echo "$PARSED" | sed -n '1p')
-PARSED_IS_REGEX=$(echo "$PARSED" | sed -n '2p')
-COMMENT=$(echo "$PARSED" | sed -n '3p')
-
-# Python parser already resolved PATTERN + IS_REGEX. Just adopt them.
+PARSED_STATUS=$(echo "$PARSED" | sed -n '1p')
+PATTERN=$(echo "$PARSED" | sed -n '2p')
+PARSED_IS_REGEX=$(echo "$PARSED" | sed -n '3p')
+COMMENT=$(echo "$PARSED" | sed -n '4p')
 IS_REGEX="$PARSED_IS_REGEX"
-if [ -z "$PATTERN" ]; then
-  PATTERN=".*"
-  IS_REGEX="true"
+
+# ── Refuse gate (AC1-AC5, AC10, AC13, AC14): no explicit narrow command was
+# derivable, OR the derived regex is effectively universal. Write NO grant on
+# EITHER channel, remove any stale grant for this SID/TASK_ID across the full
+# loader glob (AC15), print a usage error, and exit 0 (non-wedging). This runs
+# BEFORE the nested-quantifier check, the audit log, and both grant writes. If
+# the Python parser failed to emit a recognized status, fail closed (REFUSE).
+if [ "$PARSED_STATUS" != "GRANT" ]; then
+  REFUSE_TASK_ID="${CLAUDE_TASK_ID:-${SID}}"
+  rm -f "/tmp/claude-bash-allowlist-${SID}.json" 2>/dev/null
+  rm -f "/tmp/claude-grants/${REFUSE_TASK_ID}.json" 2>/dev/null
+  rm -f "/tmp/claude-grants/${REFUSE_TASK_ID}"-*.json 2>/dev/null
+  echo "[allow] ERROR: refused — you must name an explicit command to allow." >&2
+  echo "[allow] /allow records a NARROW single-use bypass; it has no wildcard default." >&2
+  echo "[allow] Examples: '/allow --tool rm', '/allow git stash', '/allow re:^git\\s+stash', '/allow Write /abs/path'." >&2
+  echo "[allow] Refused because no explicit, narrowly-scoped command pattern could be derived (empty/under-specified argument or an effectively-universal regex)." >&2
+  exit 0
 fi
 
 # ── V1b: structural rejection of catastrophic-backtracking regex shapes ──
