@@ -289,7 +289,7 @@ flowchart LR
     TL[[Stop-hook time-lock:<br/>refuses to terminate before end_time]] -.guards.-> RT
 ```
 
-- **Launch** (`hooks/prehook-overnight-worktree-check.sh`, `UserPromptSubmit`): fails closed if it cannot produce a *validated isolated worktree*; on success it writes `.claude/overnight-state-<session_id>.json` with `worktree_path`, `worktree_branch`, `view_paths`, `spec_mode`, `actor_git_env`, etc. A missing/invalid state is a **HARD ABORT** for the actor.
+- **Launch** (the `/dev-overnight` command): fails closed if it cannot produce a *validated isolated worktree*; on success it writes `.claude/overnight-state-<session_id>.json` with `worktree_path`, `worktree_branch`, `view_paths`, `spec_mode`, `actor_git_env`, etc. A missing/invalid state is a **HARD ABORT** for the actor.
 - **Loop continuation** (`hooks/posttool-overnight-loop.py`, `PostToolUse` matcher `TodoWrite`): when all todos are completed, the session matches, and `end_time` is still in the future, it increments `cycle_count` and *prints* continuation instructions (it never edits the todos file directly, avoiding races).
 - **Time-lock** (`hooks/stop-overnight-timelock.py`, `Stop`): scans for `overnight-state-*.json`; if `now < end_time` it exits 2 to **block termination**, so the loop cannot be short-circuited. Cancel explicitly with `/stop`.
 - **Per-cycle commits** are real merge-ready HEAD commits via `commit.sh` bridge mode; mid-cycle `refs/checkpoints/*` snapshots are recovery-only and never advance HEAD (the two are explicitly distinct semantic layers).

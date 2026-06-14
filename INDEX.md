@@ -1,8 +1,8 @@
 # dot-claude
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-14T18:38:12Z*
-**Total entries**: 14875
+*Last updated: 2026-06-14T18:39:22Z*
+**Total entries**: 14874
 **Convention**: kebab
 
 ## Tree
@@ -14526,7 +14526,6 @@ dot-claude/
 │   ├── `f2c2c856-daa4-495a-a01f-c6173b24f028-agent-f2c2c856-daa4-495a-a01f-c6173b24f028.json` - json config
 │   ├── `f2c5b925-0c65-4c00-949e-1c4556342794-agent-f2c5b925-0c65-4c00-949e-1c4556342794.json` - json config
 │   ├── `f2deafce-35c2-4153-b11c-bae80e7d88e8-agent-f2deafce-35c2-4153-b11c-bae80e7d88e8.json` - json config
-│   ├── `f30bd67b-e1f7-4414-9d3e-a25b5f17c709-agent-f30bd67b-e1f7-4414-9d3e-a25b5f17c709.json` - json config
 │   ├── `f31aa43e-7406-4f59-82d3-9b2aef5727bb-agent-f31aa43e-7406-4f59-82d3-9b2aef5727bb.json` - json config
 │   ├── `f31dfa98-8590-4085-8472-7449ff85ada7-agent-f31dfa98-8590-4085-8472-7449ff85ada7.json` - json config
 │   ├── `f32fe7a0-8cb9-4752-a028-dc574d85325c-agent-f32fe7a0-8cb9-4752-a028-dc574d85325c.json` - json config
