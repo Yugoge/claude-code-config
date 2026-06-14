@@ -1487,7 +1487,7 @@ Return verification report as JSON:
     },
     "e2e_script_results": [
       {
-        "script_path": "/root/applio-e2e-test.py",
+        "script_path": "/path/to/e2e-test.py",
         "exit_code": 0,
         "stdout": "...",
         "stderr": ""
