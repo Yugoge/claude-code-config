@@ -5,10 +5,24 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import re
+import subprocess
+from pathlib import Path
 
 AC_UID = "c6ec01083dbb409f"
 AC_TYPE = "data"
+
+_TREE_ENTRY = re.compile(r"[├└]── `([^`]+)`")
+_TREE_LINE = re.compile(r"[├└]── ")
+_TOTAL = re.compile(r"\*\*Total entries\*\*:\s*(\d+)")
+
+
+def _repo_root() -> Path:
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    return Path(out.stdout.strip())
 
 
 def test_AC5():
@@ -19,7 +33,23 @@ def test_AC5():
     """
     # check kind: index_entries_exist_on_disk
     #   files=["scripts/INDEX.md"]  total_entries_matches_tree=True
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — scripts/INDEX.md: every backtick entry exists on disk and Total matches regenerated tree")
+    root = _repo_root()
+    idx = root / "scripts" / "INDEX.md"
+    text = idx.read_text()
+    d = idx.parent
+
+    for line in text.splitlines():
+        m = _TREE_ENTRY.search(line)
+        if not m:
+            continue
+        name = m.group(1)
+        assert list(d.rglob(name)), f"scripts/INDEX.md lists {name} which does not exist on disk"
+
+    # Total entries must match the rendered tree-line count (build_tree len()).
+    tm = _TOTAL.search(text)
+    assert tm, "scripts/INDEX.md has no Total entries field"
+    declared = int(tm.group(1))
+    rendered = sum(1 for line in text.splitlines() if _TREE_LINE.search(line))
+    assert declared == rendered, (
+        f"Total entries {declared} != rendered tree lines {rendered}"
+    )
