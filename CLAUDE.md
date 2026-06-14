@@ -104,16 +104,6 @@ A subagent MUST NOT restart a long-running daemon it itself depends on to verify
 
 ---
 
-## 🖥️ Server Infrastructure
-
-***REDACTED-HOST*** (16 vCPU, 32GB RAM, 20GB swap) on Ubuntu. Full topology: `docs/server-infra.md`.
-
-### Key Rules
-- **NEVER** create containers with `docker run` — use `docker compose up -d` from `/root/deploy/`.
-- **NEVER** stop/restart happy containers without explicit user approval (enforced by hook).
-
----
-
 ## 🚦 Orchestrator Prompt Purity
 
 When dispatching a subagent via `Agent`, the prompt describes **WHAT** (problem, constraints, acceptance criteria) — not **HOW** (no tool names, shell commands, or shell syntax). The subagent picks its own toolchain.
