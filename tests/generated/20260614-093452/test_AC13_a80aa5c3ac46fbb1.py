@@ -122,7 +122,50 @@ def test_AC13():
     anchor+bounded-literal rule (KIND-B inputs fail PART-2 even though a naive
     5-probe corpus might miss some).
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — refuse ALL of KIND-A/KIND-B/KIND-C universal/disguised regexes; GRANT only bounded anchored control 're:^git\\s+stash(?:\\s|$)'; denylist+corpus-only must fail")
+    # ---- All KIND-A / KIND-B / KIND-C inputs MUST REFUSE ----
+    for raw in KIND_A + KIND_B + KIND_C:
+        prompt = raw if raw.startswith("re:") else raw
+        sid, task_id = fresh_ids()
+        try:
+            r = run_hook(f"/allow {prompt}", sid, task_id)
+            assert r["exit"] == 0, f"{raw!r}: expected exit 0, got {r['exit']}"
+            assert r["legacy_written"] is False, f"{raw!r}: MUST refuse (no legacy flag)"
+            assert r["sentinel_written"] is False, f"{raw!r}: MUST refuse (no sentinel)"
+            assert stderr_has_usage_error(r["stderr"]), (
+                f"{raw!r}: usage error expected; stderr={r['stderr']!r}")
+        finally:
+            cleanup(sid, task_id)
+
+    # ---- POSITIVE CONTROL: bounded anchored command head MUST GRANT ----
+    sid, task_id = fresh_ids()
+    try:
+        r = run_hook(f"/allow {POSITIVE_CONTROL}", sid, task_id)
+        assert r["exit"] == 0
+        assert r["legacy_written"] is True, "bounded anchored control must be GRANTED (legacy)"
+        assert r["sentinel_written"] is True, "bounded anchored control must be GRANTED (sentinel)"
+    finally:
+        cleanup(sid, task_id)
+
+    # ---- naive_denylist_must_fail: KIND-A/B/C are NOT the literal '.*'/'re:.*'
+    # yet still refuse → a {'.*','re:.*'} denylist would wrongly GRANT them. ----
+    non_literal_universals = [x for x in (KIND_A + KIND_B + KIND_C)
+                              if _derived_pattern(x) != ".*"]
+    assert len(non_literal_universals) >= 10, (
+        "matrix must contain many disguised (non-'.*') universals so a literal "
+        "denylist provably fails")
+
+    # ---- corpus_only_oracle_must_fail: KIND-B unanchored substrings prove a
+    # corpus oracle is NECESSARY-not-SUFFICIENT. 're:git' matches a token-in-args
+    # probe (so PART-1 catches it here only because the corpus includes
+    # 'echo git'/'grep git file'); the SUFFICIENT proof is PART-2's static
+    # anchor+bounded-literal rule, which the hook actually enforces. ----
+    for raw in KIND_B:
+        pat = _derived_pattern(raw)
+        # PART-1 must catch KIND-B with the token-in-args corpus (regression oracle).
+        assert _matches_regression_oracle(pat), (
+            f"{raw!r}: PART-1 corpus (with token-in-args probes) must flag the "
+            f"unanchored substring as over-broad")
+        # PART-2 (sufficient): unanchored => no leading '^'+bounded head => the
+        # hook refuses it (asserted above by the refuse loop). This is the rule a
+        # corpus-only oracle cannot replace.
+        assert not pat.startswith("^"), f"{raw!r}: KIND-B is unanchored by construction"
