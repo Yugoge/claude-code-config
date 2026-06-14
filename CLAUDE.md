@@ -114,4 +114,4 @@ Enforcement: `~/.claude/hooks/pretool-orchestrator-prompt-purity.py` (PreToolUse
 
 ## 🔗 Nested .claude Repo
 
-`/root/.claude` symlinks to `/dev/shm/dev-workspace/dot-claude` (separate git repo). For `.claude/*` commits, work inside that path — never push from `/root`. Full architecture: `docs/ramdisk-architecture.md`.
+`/root/.claude` symlinks to `/dev/shm/dev-workspace/dot-claude` (separate git repo). For `.claude/*` commits, work inside that path — never push from `/root`.
