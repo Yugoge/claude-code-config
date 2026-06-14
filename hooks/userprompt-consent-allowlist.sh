@@ -278,13 +278,22 @@ elif bare:
         if not ascii_bare:
             emit('REFUSE', reason='no_command_token')
         pattern = ' '.join(ascii_bare)
-        is_regex = _looks_regex(pattern)
+        # Auto-detect regex from a TRUE regex metacharacter only (a bare '.' does
+        # NOT count, so legitimate dotted commands like foo.bar / ./x.sh /
+        # python3.11 stay LITERAL — codex finding 4). KIND-C universals (.*, a?,
+        # a*, ^, \$, [..]) carry a true meta and are routed to the universal gate.
+        is_regex = has_true_regex_meta(pattern)
         if is_regex:
             # AC5/AC13 KIND-C: a bare auto-detected regex that is effectively
             # universal -> REFUSE.
             forbidden, reason = is_forbidden_regex(pattern)
             if forbidden:
                 emit('REFUSE', reason=reason)
+        elif not has_alnum_command_char(pattern):
+            # A bare LITERAL with no alphanumeric command character (e.g. a lone
+            # '.') names no concrete command and would substring-match almost any
+            # command -> REFUSE as vacuous (AC13 KIND-C lone '.').
+            emit('REFUSE', reason='vacuous')
         emit('GRANT', pattern=pattern, is_regex=is_regex,
              comment=' '.join(comment_bare))
 else:
