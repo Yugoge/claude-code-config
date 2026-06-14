@@ -5,10 +5,28 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import subprocess
+from pathlib import Path
 
 AC_UID = "9e672c7db8fa966b"
 AC_TYPE = "data"
+
+# Pattern assembled from fragments so this test file does not itself contain the
+# literal residual string it forbids (tests/generated is version-controlled, so a
+# verbatim occurrence here would be a self-referential false positive).
+_PATTERN = "artifact-excel" "-analyzer"
+
+# The per-cycle test-generation directory legitimately names the pattern in its
+# own docstrings/fixtures and is excluded as a self-reference.
+_EXCLUDE = ":(exclude)tests/generated/"
+
+
+def _repo_root() -> Path:
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    return Path(out.stdout.strip())
 
 
 def test_AC1():
@@ -18,7 +36,15 @@ def test_AC1():
     THEN:  git grep for artifact-excel-analyzer returns zero hits and file-analyze.md no longer instructs use of a non-existent /artifact-excel-analyzer command
     """
     # check kind: git_grep_zero  pattern="artifact-excel-analyzer"  scope=["."]  expect_hits=0
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — git grep 'artifact-excel-analyzer' over repo must return 0 hits")
+    root = _repo_root()
+    res = subprocess.run(
+        ["git", "grep", "-nIE", _PATTERN, "--", ".", _EXCLUDE],
+        cwd=root, capture_output=True, text=True,
+    )
+    hits = [ln for ln in res.stdout.splitlines() if ln.strip()]
+    assert hits == [], "expected zero residual references, found:\n" + "\n".join(hits)
+
+    fa = (root / "commands" / "file-analyze.md").read_text()
+    assert "/artifact-excel" "-analyzer" not in fa, (
+        "commands/file-analyze.md still instructs the non-existent command"
+    )
