@@ -33,7 +33,18 @@ def test_AC16():
       - legacy_written == True, is_regex == False, pattern == 'Write'
       - sentinel_written == True, sentinel op == 'Write', sentinel has NO target
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — bare '/allow Write' (no path) must GRANT unchanged: legacy(pattern=Write,is_regex=false) + sentinel(op=Write,no target)")
+    sid, task_id = fresh_ids()
+    try:
+        r = run_hook("/allow Write", sid, task_id)
+        assert r["exit"] == 0, f"expected exit 0, got {r['exit']}; stderr={r['stderr']!r}"
+        assert r["legacy_written"] is True, "bare Write carve-out must be GRANTED (legacy)"
+        assert r["sentinel_written"] is True, "bare Write carve-out must be GRANTED (sentinel)"
+        assert r["legacy"]["pattern"] == "Write"
+        assert r["legacy"]["is_regex"] is False
+        ops = r["sentinel"]["allowed_operations"]
+        write_ops = [o for o in ops if o.get("op") == "Write"]
+        assert write_ops, f"sentinel must carry op=Write; got {ops}"
+        assert all("target" not in o for o in write_ops), (
+            f"bare Write sentinel must have NO target (wildcard carve-out); got {write_ops}")
+    finally:
+        cleanup(sid, task_id)
