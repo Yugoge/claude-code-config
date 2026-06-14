@@ -146,7 +146,7 @@ Hooks are configured in `settings.json` under `hooks.<Event>[].{matcher, hooks[]
 
 ## 6. The git protection kernel
 
-The single most safety-critical subsystem. Authoritative design doc with 13 scenarios and 7 invariants: **`/root/docs/git-protection-architecture.md`**.
+The single most safety-critical subsystem. Implementation entry points (13 scenarios and 7 invariants enforced in code): **`hooks/pretool-git-privilege-guard.py`**, **`hooks/pretool-bulk-commit-detector.py`**, **`hooks/pretool-orchestrator-gate.py`**.
 
 ### 6.1 The layered PreToolUse chain (Bash → git verb)
 
