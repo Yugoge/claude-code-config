@@ -66,7 +66,7 @@ def test_AC11():
     # POSITIVE: granted (anchored command head, bounded literal, no nested quant).
     sid, task_id = fresh_ids()
     try:
-        rp = run_hook(positive, sid, task_id)
+        rp = run_hook(f"/allow {positive}", sid, task_id)
         assert rp["exit"] == 0, f"positive: expected exit 0, got {rp['exit']}"
         assert rp["legacy_written"] is True, f"positive must be GRANTED (legacy); stderr={rp['stderr']!r}"
         assert rp["sentinel_written"] is True, f"positive must be GRANTED (sentinel); stderr={rp['stderr']!r}"
