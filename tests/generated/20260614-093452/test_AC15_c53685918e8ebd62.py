@@ -47,6 +47,7 @@ def test_AC15():
       - drive the hook with a refused /allow (main agent)
       - assert all three are gone afterward; stderr contains usage error; exit 0
     """
+    # ── Path 1: the universal/under-specified refuse gate cleans up. ──
     sid, task_id = fresh_ids()
     lpath = legacy_path(sid)
     spath = sentinel_path(task_id)
@@ -65,5 +66,40 @@ def test_AC15():
         assert not os.path.exists(lpath), "stale legacy flag must be removed"
         assert not os.path.exists(spath), "stale canonical sentinel must be removed"
         assert not os.path.exists(suffixed), "stale suffixed <task_id>-*.json sentinel must be removed"
+    finally:
+        cleanup(sid, task_id)
+
+    # ── Path 2: the NESTED-QUANTIFIER rejection path must clean up too. ──
+    # Defining property: on ANY /allow that does not write a narrow grant, no
+    # stale grant may survive. The nested-quantifier rejection is a refusal too
+    # (it writes no narrow grant), so it MUST remove the same full loader glob.
+    # The input is the AC11 NEGATIVE member: it passes the universal gate
+    # (anchored '^git\s+stash' command head, bounded literal) so the ONLY thing
+    # that refuses it is the nested-quantifier detector — guaranteeing this row
+    # exercises the nested-quant path specifically, not the refuse gate.
+    sid, task_id = fresh_ids()
+    lpath = legacy_path(sid)
+    spath = sentinel_path(task_id)
+    suffixed = suffixed_sentinel_path(task_id, "nonce1")
+    try:
+        seed_legacy(lpath, ".*", True)
+        seed_sentinel(spath, task_id, sid, [{"op": "*", "regex": ".*"}])
+        seed_sentinel(suffixed, task_id, sid, [{"op": "*", "regex": ".*"}])
+        assert os.path.exists(lpath) and os.path.exists(spath) and os.path.exists(suffixed)
+
+        nested = r"re:^git\s+stash\s+--message=(a+)+$"
+        r = run_hook(f"/allow {nested}", sid, task_id)
+        assert r["exit"] == 0, f"nested-quant: expected exit 0, got {r['exit']}"
+        # Confirm this row truly exercised the nested-quantifier detector, NOT
+        # the under-specified/universal refuse gate (AC11 distinguisher).
+        assert re.search(r"nested quantifier|catastrophic backtracking", r["stderr"]), (
+            f"nested-quant path must be refused by the nested-quantifier detector; "
+            f"stderr={r['stderr']!r}")
+        assert not r["legacy_written"], "nested-quant: no NEW narrow grant may be written"
+        assert not r["sentinel_written"], "nested-quant: no NEW narrow sentinel may be written"
+        # The defining property: every stale broad grant is gone after refusal.
+        assert not os.path.exists(lpath), "nested-quant path must remove the stale legacy flag"
+        assert not os.path.exists(spath), "nested-quant path must remove the stale canonical sentinel"
+        assert not os.path.exists(suffixed), "nested-quant path must remove the stale suffixed sentinel"
     finally:
         cleanup(sid, task_id)
