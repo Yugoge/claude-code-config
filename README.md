@@ -387,7 +387,7 @@ A few principles run through every file here. They are the taste behind the proj
 **Where do I go deeper?**
 - The constitution: [`CLAUDE.md`](CLAUDE.md)
 - System architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- Git protection kernel (13 scenarios, 7 invariants): `/root/docs/git-protection-architecture.md`
+- Git protection kernel (13 scenarios, 7 invariants) — implementation entry points: [`hooks/pretool-git-privilege-guard.py`](hooks/pretool-git-privilege-guard.py), [`hooks/pretool-bulk-commit-detector.py`](hooks/pretool-bulk-commit-detector.py)
 - Checkpoint mechanism: [`docs/reference/checkpoint-mechanism.md`](docs/reference/checkpoint-mechanism.md)
 
 ---
