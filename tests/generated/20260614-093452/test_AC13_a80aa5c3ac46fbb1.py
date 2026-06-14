@@ -26,6 +26,15 @@ KIND_B = ["re:git", "re:stash", "re:."]
 # KIND-C: bare auto-regex path (no 're:' prefix; _looks_regex auto-detects).
 KIND_C = [".*", "^", "$", "a?", "a*", r"[\s\S]*", "."]
 POSITIVE_CONTROL = r"re:^git\s+stash(?:\s|$)"
+# B1 (PART-2 "before any ... empty-alternative"): a VALID narrow prefix that ALSO
+# carries a universal/alternation branch — the whole matcher still accepts
+# unrelated commands, so prefix-validity alone is insufficient and these MUST
+# REFUSE. Also covers zero-width whitespace non-boundaries (\s? \s* \s{0,1}).
+KIND_B1_PREFIX_PLUS_UNIVERSAL = [
+    r"re:^git\s+stash$|.*", r"re:^git\s+stash|.*", r"re:^git$|.*",
+    r"re:^git\s*.*", r"re:^git.*", r"re:^git\s?", r"re:^git(?:\s*)",
+    r"re:^git\s{0,1}",
+]
 
 # PART-1 regression-oracle corpus — MUST include token-in-args probes so the
 # unanchored KIND-B rows (re:git matches 'echo git'/'grep git file') are caught.
