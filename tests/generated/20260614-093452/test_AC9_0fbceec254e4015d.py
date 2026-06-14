@@ -40,7 +40,23 @@ def test_AC9():
         is NOT authorized (exact-target scoping, hooks/userprompt-consent-allowlist.sh:226-228)
       - exit 0
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — /allow Write /tmp/foo.json must GRANT exact-target sentinel allowing /tmp/foo.json but denying .bak/.jsonx/foobar/foo siblings")
+    sid, task_id = fresh_ids()
+    try:
+        r = run_hook("/allow Write /tmp/foo.json", sid, task_id)
+        assert r["exit"] == 0, f"expected exit 0, got {r['exit']}; stderr={r['stderr']!r}"
+        assert r["legacy_written"] is True, "legacy flag must be written"
+        assert r["sentinel_written"] is True, "sentinel must be written"
+        assert r["legacy"]["is_regex"] is False
+        assert r["legacy"]["pattern"] == "Write /tmp/foo.json"
+        ops = r["sentinel"]["allowed_operations"]
+        assert any(o.get("op") == "Write" and o.get("target") == "/tmp/foo.json"
+                   for o in ops), f"sentinel must carry op=Write target=/tmp/foo.json; got {ops}"
+
+        # Evaluate the emitted Write sentinel through the CURRENT consumer matcher.
+        allowed = match_sentinel_grant_for_write(task_id, sid, "/tmp/foo.json")
+        assert allowed is not None, "Write sentinel must AUTHORIZE the intended path"
+        for sibling in ["/tmp/foo.json.bak", "/tmp/foo.jsonx", "/tmp/foobar.json", "/tmp/foo"]:
+            denied = match_sentinel_grant_for_write(task_id, sid, sibling)
+            assert denied is None, f"Write sentinel must DENY sibling/prefix path {sibling!r}; got {denied}"
+    finally:
+        cleanup(sid, task_id)
