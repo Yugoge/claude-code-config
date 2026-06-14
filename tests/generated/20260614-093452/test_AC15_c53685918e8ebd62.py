@@ -6,6 +6,7 @@
 # trace each test back to its source AC entry.
 
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
