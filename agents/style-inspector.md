@@ -214,12 +214,12 @@ FOR each .md file in .claude/commands/ and .claude/agents/:
 **Violations**:
 ```bash
 # BAD - hardcoded path, no parameter
-RESUME_FILE="data/plain_text_resume.yaml"
-open("template/resume/harvard.html")
+INPUT_FILE="data/input_data.yaml"
+open("template/default.html")
 
 # GOOD - parameterized with defaults
-RESUME_FILE="${1:-data/plain_text_resume.yaml}"
-template_path = sys.argv[1] if len(sys.argv) > 1 else "template/resume/harvard.html"
+INPUT_FILE="${1:-data/input_data.yaml}"
+template_path = sys.argv[1] if len(sys.argv) > 1 else "template/default.html"
 ```
 
 **Report**:
