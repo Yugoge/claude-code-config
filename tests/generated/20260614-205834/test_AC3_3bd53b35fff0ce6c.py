@@ -5,10 +5,22 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import subprocess
+from pathlib import Path
 
 AC_UID = "3bd53b35fff0ce6c"
 AC_TYPE = "data"
+
+_PATTERN = "/root/docs"
+_SCOPE = ["README.md", "ARCHITECTURE.md", "NESTED-REPO.md"]
+
+
+def _repo_root() -> Path:
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    return Path(out.stdout.strip())
 
 
 def test_AC3():
@@ -18,7 +30,17 @@ def test_AC3():
     THEN:  git grep for /root/docs over README.md ARCHITECTURE.md NESTED-REPO.md returns zero hits
     """
     # check kind: git_grep_zero  pattern="/root/docs"  scope=["README.md","ARCHITECTURE.md","NESTED-REPO.md"]  expect_hits=0
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — git grep '/root/docs' over README.md/ARCHITECTURE.md/NESTED-REPO.md must return 0 hits")
+    root = _repo_root()
+    res = subprocess.run(
+        ["git", "grep", "-nIE", _PATTERN, "--", *_SCOPE],
+        cwd=root, capture_output=True, text=True,
+    )
+    hits = [ln for ln in res.stdout.splitlines() if ln.strip()]
+    assert hits == [], "expected zero broken /root/docs links, found:\n" + "\n".join(hits)
+
+    # No hook file may be called an "authoritative design doc" in these files.
+    for name in _SCOPE:
+        text = (root / name).read_text().lower()
+        assert "authoritative design doc" not in text, (
+            f"{name} still calls something an authoritative design doc"
+        )
