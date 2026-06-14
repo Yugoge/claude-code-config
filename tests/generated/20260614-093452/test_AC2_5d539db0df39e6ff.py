@@ -29,7 +29,13 @@ def test_AC2():
       - stderr contains usage error
       - exit 0
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — single CJK char (no ASCII command) must refuse: no legacy, no sentinel, usage error, exit 0")
+    sid, task_id = fresh_ids()
+    try:
+        # 走 = the single CJK character meaning "go"; no ASCII command token.
+        r = run_hook("/allow 走", sid, task_id)
+        assert r["exit"] == 0, f"expected exit 0, got {r['exit']}; stderr={r['stderr']!r}"
+        assert r["legacy_written"] is False, "no legacy flag must be written"
+        assert r["sentinel_written"] is False, "no sentinel must be written"
+        assert stderr_has_usage_error(r["stderr"]), f"usage error expected; stderr={r['stderr']!r}"
+    finally:
+        cleanup(sid, task_id)
