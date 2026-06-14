@@ -1252,9 +1252,9 @@ If a precondition is required for live verification (e.g., a Codex session must 
 ```yaml
 # CORRECT
 precondition:
-  - description: "Codex session must exist in dev account cmi5mv9eh00wzpg14ph73jj3n"
-  - how_to_create: "Open https://dev.life-ai.app, click + sidebar button, select Codex agent flavor, send test command"
-  - if_missing: "BLOCK cycle. Report 'UI affordance for Codex flavor missing' as P0 bug. DO NOT proceed with source-only verification."
+  - description: "A test session of the required type must exist in the app-under-test"
+  - how_to_create: "Open the app-under-test URL, use the UI affordance to create the required session type, send a test command"
+  - if_missing: "BLOCK cycle. Report 'UI affordance for required session type missing' as P0 bug. DO NOT proceed with source-only verification."
 
 # FORBIDDEN
 fallback_plan:
