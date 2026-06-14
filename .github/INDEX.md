@@ -1,14 +1,15 @@
 # .github
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-14T23:15:42Z*
-**Total entries**: 1
+*Last updated: 2026-06-14T23:15:57Z*
+**Total entries**: 2
 **Convention**: kebab
 
 ## Tree
 ```
 .github/
-└── `CONTRIBUTING.md` - Contributing
+├── `CONTRIBUTING.md` - Contributing
+└── `SECURITY.md` - Security Policy
 ```
 <!-- /AUTO:index-stats -->
 
