@@ -328,10 +328,7 @@ IS_REGEX="$PARSED_IS_REGEX"
 # BEFORE the nested-quantifier check, the audit log, and both grant writes. If
 # the Python parser failed to emit a recognized status, fail closed (REFUSE).
 if [ "$PARSED_STATUS" != "GRANT" ]; then
-  REFUSE_TASK_ID="${CLAUDE_TASK_ID:-${SID}}"
-  rm -f "/tmp/claude-bash-allowlist-${SID}.json" 2>/dev/null
-  rm -f "/tmp/claude-grants/${REFUSE_TASK_ID}.json" 2>/dev/null
-  rm -f "/tmp/claude-grants/${REFUSE_TASK_ID}"-*.json 2>/dev/null
+  _remove_stale_grants
   echo "[allow] ERROR: refused — you must name an explicit command to allow." >&2
   echo "[allow] /allow records a NARROW single-use bypass; it has no wildcard default." >&2
   echo "[allow] Examples: '/allow --tool rm', '/allow git stash', '/allow re:^git\\s+stash', '/allow Write /abs/path'." >&2
