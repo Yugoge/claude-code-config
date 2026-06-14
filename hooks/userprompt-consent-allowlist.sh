@@ -88,24 +88,37 @@ def emit(status, pattern='', is_regex=False, comment='', reason=''):
     print(reason or '')
     raise SystemExit(0)
 
-def _looks_regex(s):
-    # Heuristic: contains a regex metacharacter (excluding plain alphanumerics,
-    # space, '-', '/', '.').
-    return bool(_re.search(r'[\^\$\\\\.*+?\[\]\(\){}|]', s))
+def has_true_regex_meta(s):
+    # Signals regex INTENT for a bare (non-re:) token. Deliberately EXCLUDES a
+    # bare '.' so legitimate dotted commands (foo.bar, ./x.sh, python3.11) are
+    # treated as LITERAL grants, not regexes (otherwise they would be wrongly
+    # refused as unanchored regexes). KIND-C universals (.*, a?, a*, ^, \$,
+    # [..]) all carry a TRUE metacharacter and are still routed to the regex
+    # universal gate.
+    return bool(_re.search(r'[\^\$*+?\[\]\(\){}|\\\\]', s))
+
+def has_alnum_command_char(s):
+    # A concrete command token must contain at least one alphanumeric character.
+    return bool(_re.search(r'[A-Za-z0-9]', s))
 
 def is_forbidden_regex(pat):
     # Returns (forbidden: bool, reason: str). reason in {'vacuous','universal',''}.
     #
-    # AC13 PART-2 — SUFFICIENT static anchor-and-bounded-literal rule. A regex
-    # grant is allowed ONLY if it starts with ^ (or \\A), exposes a finite
-    # literal command-head token immediately after the anchor, and that head is
-    # terminated by a real boundary (\$ | \\s+ | \\s | (?:\\s|\$) | end) BEFORE
-    # any wildcard / character-class / any-char-quantifier / lookaround /
-    # empty-alternative. Otherwise it is refused as effectively universal /
-    # over-broad. This is the consumer's own breadth contract: a grant is
-    # forbidden iff its matcher would accept commands unrelated to a concrete
-    # command token the user named. A literal denylist or corpus-only oracle is
-    # insufficient — this is a structural rule.
+    # AC13 PART-2 — SUFFICIENT static anchor-and-bounded-literal rule that
+    # validates the WHOLE pattern, not only the command head. A regex grant is
+    # allowed ONLY if it (1) starts with ^ (or \\A), (2) exposes a finite literal
+    # command-head terminated by a REAL boundary (\$ | \\s+ | \\s | (?:\\s|\$) |
+    # end — NOT the zero-width \\s* / \\s? / \\s{0,..}), and (3) the ENTIRE
+    # remaining body contains NO over-breadth construct anywhere: no top-level
+    # alternation (|), no unescaped any-char (.), no DOTALL flag, no catch-all
+    # char-class ([\\s\\S]/[\\d\\D]/[\\w\\W] or one containing a newline), and no
+    # \\S/\\D/\\W or zero-width-quantified \\s/\\d/\\w. This blocks a valid prefix
+    # that ALSO carries a universal branch, e.g. ^git\\s+stash\$|.* (B1). A
+    # bounded anchored literal+class pattern such as
+    # ^git\\s+stash\\s+--message=[A-Za-z0-9_-]+\$ stays GRANTED because none of
+    # those breadth constructs appear. Defining property: a grant is forbidden
+    # iff its matcher would accept commands unrelated to a concrete command token
+    # the user named. A literal denylist or corpus-only oracle is insufficient.
     if pat is None or pat == '' or pat.strip() == '':
         return True, 'vacuous'
     if pat in (chr(0x27)*2, chr(0x22)*2):   # '' or \"\" — quote-only vacuous body
@@ -116,37 +129,86 @@ def is_forbidden_regex(pat):
         rest = pat[1:]
     else:
         return True, 'universal'            # unanchored -> over-broad (KIND-B)
-    META = set('.*+?[]()|{}^\$')
+    n = len(rest)
+    # (1) literal command-head must exist immediately after the anchor.
     i = 0
     head_len = 0
-    n = len(rest)
     while i < n:
         c = rest[i]
         if c == '\\\\':
             if i + 1 >= n:
-                break
+                return True, 'universal'    # trailing backslash, malformed
             nxt = rest[i+1]
             if nxt in ('s','S','d','D','w','W','b','B','A','Z','n','r','t'):
-                break                       # \\s \\d \\w \\b ... -> boundary/class
+                break                       # class/boundary ends the head
             head_len += 1                   # \\. \\- \\/ -> literal escaped char
             i += 2
             continue
-        if c in META or c == ' ':
+        if c in set('.*+?[]()|{}^\$') or c == ' ':
             break
         head_len += 1
         i += 1
     if head_len == 0:
         return True, 'universal'            # no concrete literal command-head
+    # (2) the char right after the head must begin a REAL boundary.
     tail = rest[i:]
-    if tail == '':
-        return False, ''                    # anchored literal, bounded by end
-    if tail.startswith('\$') or tail.startswith('(?:\\\\s|\$)') or tail.startswith('(?:\\\\s'):
-        return False, ''
-    if tail.startswith('\\\\s'):
-        if tail[2:3] == '*':                # \\s* is not a real boundary
-            return True, 'universal'
-        return False, ''
-    return True, 'universal'                # something non-boundary follows head
+    if tail != '':
+        if tail[0] == '\$' or tail.startswith('(?:\\\\s|\$)'):
+            pass
+        elif tail.startswith('\\\\s'):
+            q = tail[2:3]
+            if q in ('*', '?'):
+                return True, 'universal'    # \\s* / \\s? are NOT boundaries
+            if q == '{':
+                m = _re.match(r'\{(\d+)', tail[2:])
+                if m and int(m.group(1)) == 0:
+                    return True, 'universal' # \\s{0,..} zero lower bound
+        else:
+            return True, 'universal'        # something non-boundary follows head
+    # (3) whole-body breadth scan; (?:\\s|\$) is an atomic boundary token.
+    j = 0
+    while j < n:
+        if rest[j:j+8] == '(?:\\\\s|\$)':
+            j += 8
+            continue
+        c = rest[j]
+        if c == '\\\\':
+            if j + 1 >= n:
+                return True, 'universal'
+            nxt = rest[j+1]
+            if nxt in ('S', 'D', 'W'):
+                return True, 'universal'    # negated classes are catch-alls
+            if nxt in ('s', 'd', 'w'):
+                q = rest[j+2:j+3]
+                if q in ('*', '?'):
+                    return True, 'universal'
+                if q == '{':
+                    m = _re.match(r'\{(\d+)', rest[j+2:])
+                    if m and int(m.group(1)) == 0:
+                        return True, 'universal'
+            j += 2
+            continue
+        if c == '.':
+            return True, 'universal'        # unescaped any-char
+        if c == '|':
+            return True, 'universal'        # alternation -> over-broad branch
+        if c == '[':
+            k = rest.find(']', j + 1)
+            if k == -1:
+                return True, 'universal'    # unterminated class
+            cls = rest[j+1:k]
+            if ('\\\\s' in cls and '\\\\S' in cls) or ('\\\\d' in cls and '\\\\D' in cls) \
+               or ('\\\\w' in cls and '\\\\W' in cls) or ('\n' in cls):
+                return True, 'universal'    # catch-all char-class
+            j = k + 1
+            continue
+        if c == '(':
+            if rest[j:j+3].startswith('(?s'):
+                return True, 'universal'    # DOTALL flag broadens matching
+            j += 1
+            continue
+        j += 1
+    return False, ''
 
 try:
     raw_tokens = shlex.split(body, posix=False) if body else []
