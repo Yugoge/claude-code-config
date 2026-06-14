@@ -5,10 +5,22 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import re
+import subprocess
+from pathlib import Path
 
 AC_UID = "2e61a30b7b6436a7"
 AC_TYPE = "data"
+
+_FORBIDDEN = re.compile(r"(?i)skills/(docx|pdf|pptx|xlsx).*(MIT|granted|redistribut)")
+
+
+def _repo_root() -> Path:
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    return Path(out.stdout.strip())
 
 
 def test_AC6():
@@ -20,7 +32,12 @@ def test_AC6():
     # check kind: file_exists_and_grep
     #   path="LICENSE"  must_exist=True
     #   must_not_contain_regex="(?i)skills/(docx|pdf|pptx|xlsx).*(MIT|granted|redistribut)"
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — root LICENSE exists and does not grant rights over skills/{{docx,pdf,pptx,xlsx}}/")
+    lic = _repo_root() / "LICENSE"
+    assert lic.is_file(), "root LICENSE file does not exist"
+    text = lic.read_text()
+    assert text.strip(), "root LICENSE is empty"
+    m = _FORBIDDEN.search(text)
+    assert m is None, (
+        "LICENSE purports to grant rights over a restrictive bundled skill: "
+        + (m.group(0) if m else "")
+    )
