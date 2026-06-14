@@ -107,7 +107,7 @@ You (the agent) try a shortcut:
 CLAUDE_COMMIT_COMMAND_ACTIVE=1 git commit -m "fix stuff"
 ```
 
-`hooks/pretool-git-privilege-guard.py` runs *before* the tool executes. It scans for the literal inline `CLAUDE_*_ACTIVE=` substring **before** even reading the env, recognizes the injection attempt, and returns exit 2 — **BLOCKED**. The only sanctioned path is a grant file written by the `/commit` wrapper, validated by nonce + 30-minute TTL + single-use unlink. (`/root/docs/git-protection-architecture.md`, invariant #2)
+`hooks/pretool-git-privilege-guard.py` runs *before* the tool executes. It scans for the literal inline `CLAUDE_*_ACTIVE=` substring **before** even reading the env, recognizes the injection attempt, and returns exit 2 — **BLOCKED**. The only sanctioned path is a grant file written by the `/commit` wrapper, validated by nonce + 30-minute TTL + single-use unlink. (see `hooks/pretool-git-privilege-guard.py`, the inline-env-injection guard)
 
 That is the whole philosophy in miniature: the model is *encouraged* toward the right path and *physically prevented* from the wrong one.
 
