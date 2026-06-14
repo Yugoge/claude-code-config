@@ -5,7 +5,11 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(__file__))
+from _allow_hook_harness import run_hook, cleanup, fresh_ids, stderr_has_usage_error
 
 AC_UID = "54184514d342dd03"
 AC_TYPE = "hook"
