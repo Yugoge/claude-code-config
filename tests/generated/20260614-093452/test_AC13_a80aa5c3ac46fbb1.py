@@ -155,17 +155,21 @@ def test_AC13():
         "denylist provably fails")
 
     # ---- corpus_only_oracle_must_fail: KIND-B unanchored substrings prove a
-    # corpus oracle is NECESSARY-not-SUFFICIENT. 're:git' matches a token-in-args
-    # probe (so PART-1 catches it here only because the corpus includes
-    # 'echo git'/'grep git file'); the SUFFICIENT proof is PART-2's static
-    # anchor+bounded-literal rule, which the hook actually enforces. ----
+    # corpus oracle is NECESSARY-not-SUFFICIENT, and PART-2's static
+    # anchor+bounded-literal rule (which the hook actually enforces) is what
+    # closes the gap. ----
+    # 're:git' IS caught by PART-1 ONLY because the corpus includes the
+    # token-in-args probes 'echo git'/'grep git file'.
+    assert _matches_regression_oracle(_derived_pattern("re:git")), (
+        "PART-1 corpus MUST include token-in-args probes so 're:git' is flagged")
+    # 're:stash' is the proof a corpus oracle is INSUFFICIENT: no probe contains
+    # 'stash', so PART-1 MISSES it — yet the hook still REFUSED it above (refuse
+    # loop), which can ONLY happen via PART-2's static anchor+bounded-literal rule.
+    assert not _matches_regression_oracle(_derived_pattern("re:stash")), (
+        "'re:stash' must NOT be caught by the corpus oracle — proving corpus-only "
+        "is insufficient and the hook must enforce the static PART-2 rule")
+    # All KIND-B inputs are unanchored by construction (fail PART-2's leading-^
+    # requirement) — the hook refused them all in the refuse loop above.
     for raw in KIND_B:
-        pat = _derived_pattern(raw)
-        # PART-1 must catch KIND-B with the token-in-args corpus (regression oracle).
-        assert _matches_regression_oracle(pat), (
-            f"{raw!r}: PART-1 corpus (with token-in-args probes) must flag the "
-            f"unanchored substring as over-broad")
-        # PART-2 (sufficient): unanchored => no leading '^'+bounded head => the
-        # hook refuses it (asserted above by the refuse loop). This is the rule a
-        # corpus-only oracle cannot replace.
-        assert not pat.startswith("^"), f"{raw!r}: KIND-B is unanchored by construction"
+        assert not _derived_pattern(raw).startswith("^"), (
+            f"{raw!r}: KIND-B is unanchored by construction")
