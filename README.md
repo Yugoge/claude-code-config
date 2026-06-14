@@ -360,7 +360,7 @@ A `PostToolUse` doc-sync hook keeps `INDEX.md` files and the inventory block bel
 
 A few principles run through every file here. They are the taste behind the project.
 
-**Rules, not stories.** Agent and command prompts state what is *required* and what is *forbidden* — tersely. Positive instructions alone are insufficient: every infrastructure-touching subagent prompt carries an explicit **DO NOT** section, because catastrophe lessons (documented in `docs/reference/incidents-2026-04-04.md`) proved that "what's allowed" without "what's banned" leaks.
+**Rules, not stories.** Agent and command prompts state what is *required* and what is *forbidden* — tersely. Positive instructions alone are insufficient: every infrastructure-touching subagent prompt carries an explicit **DO NOT** section, because hard-won catastrophe lessons proved that "what's allowed" without "what's banned" leaks.
 
 **Enforce in code, not in prose.** "Please don't force-push" is a wish. A PreToolUse hook returning exit 2 is a guarantee. Wherever a rule *can* be a hook, it *is* a hook — and the human escape hatches (`/do`, `/allow`) are themselves narrow, audited, and single-use.
 
