@@ -30,7 +30,17 @@ def test_AC8():
       - sentinel_written == True (op:'*' carrying the regex)
       - exit 0
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — anchored narrow regex (caret+command head) must GRANT: legacy(is_regex=true) + sentinel(op=*,regex), exit 0")
+    sid, task_id = fresh_ids()
+    try:
+        # Anchored narrow regex: caret + concrete command head 'git stash'.
+        r = run_hook(r"/allow re:^git\s+stash", sid, task_id)
+        assert r["exit"] == 0, f"expected exit 0, got {r['exit']}; stderr={r['stderr']!r}"
+        assert r["legacy_written"] is True, "legacy flag must be written"
+        assert r["sentinel_written"] is True, "sentinel must be written"
+        assert r["legacy"]["is_regex"] is True
+        assert r["legacy"]["pattern"] == r"^git\s+stash"
+        ops = r["sentinel"]["allowed_operations"]
+        assert any(o.get("op") == "*" and isinstance(o.get("regex"), str) for o in ops), (
+            f"regex sentinel must carry op='*' with a regex field; got {ops}")
+    finally:
+        cleanup(sid, task_id)
