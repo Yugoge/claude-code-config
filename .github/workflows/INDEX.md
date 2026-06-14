@@ -1,9 +1,9 @@
 # workflows
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-14T23:16:52Z*
+*Last updated: 2026-06-14T23:17:42Z*
 **Total entries**: 1
-**Convention**: lower
+**Convention**: kebab
 
 ## Tree
 ```

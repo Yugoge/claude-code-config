@@ -66,14 +66,19 @@ jobs:
         run: |
           set -euo pipefail
           echo "Asserting cleanup invariants from this repo's public-hygiene prep..."
+          # Patterns are assembled from fragments so this workflow file does not
+          # itself contain the literal residual strings it forbids (which would
+          # make the zero-hit assertion fail against this file).
           status=0
-          if git grep -nI 'artifact-excel-analyzer' -- . ; then
-            echo "::error::residual reference 'artifact-excel-analyzer' still present"; status=1
+          pat_excel="artifact-excel""-analyzer"
+          pat_oldrepo="claude-code""-config"
+          if git grep -nIE "$pat_excel" -- . ; then
+            echo "::error::residual analyzer reference still present"; status=1
           fi
-          if git grep -nI 'claude-code-config' -- . ; then
-            echo "::error::stale repo name 'claude-code-config' still present"; status=1
+          if git grep -nIE "$pat_oldrepo" -- . ; then
+            echo "::error::stale repo name still present"; status=1
           fi
-          if git grep -nI '/root/docs' -- README.md ARCHITECTURE.md NESTED-REPO.md ; then
-            echo "::error::broken '/root/docs' links still present in README/ARCHITECTURE/NESTED-REPO"; status=1
+          if git grep -nIE '/root/docs' -- README.md ARCHITECTURE.md NESTED-REPO.md ; then
+            echo "::error::broken grounding-doc links still present in README/ARCHITECTURE/NESTED-REPO"; status=1
           fi
           exit "$status"
