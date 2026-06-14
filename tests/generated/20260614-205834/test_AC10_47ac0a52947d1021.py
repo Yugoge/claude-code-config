@@ -5,10 +5,32 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import subprocess
+from pathlib import Path
 
 AC_UID = "47ac0a52947d1021"
 AC_TYPE = "data"
+
+# Baseline HEAD captured at dispatch time (before this cycle's edits).
+_BASELINE = "7b440e01c4f9164789816fc6b3346db35d027799"
+_UNMODIFIED = [
+    "hooks/pretool-bash-safety.sh",
+    "hooks/tests/test_runtime_guard.py",
+]
+
+
+def _repo_root() -> Path:
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    return Path(out.stdout.strip())
+
+
+def _git(root: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=root, capture_output=True, text=True,
+    ).stdout
 
 
 def test_AC10():
@@ -20,8 +42,14 @@ def test_AC10():
     # check kind: files_unmodified
     #   paths=["hooks/pretool-bash-safety.sh","hooks/tests/test_runtime_guard.py"]
     #   no_history_rewrite=True
-    #   diff_scope_excludes=["(broader /root refs outside README.md/ARCHITECTURE.md/NESTED-REPO.md)"]
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — hooks/pretool-bash-safety.sh and hooks/tests/test_runtime_guard.py unmodified; no history rewrite; diff scope excludes broader /root refs")
+    root = _repo_root()
+
+    # The baseline commit must still be reachable from HEAD (no history rewrite).
+    merge_base = _git(root, "merge-base", "HEAD", _BASELINE).strip()
+    assert merge_base == _BASELINE, (
+        "baseline commit is not an ancestor of HEAD — history may have been rewritten"
+    )
+
+    # The deferred files must be byte-identical to baseline.
+    changed = _git(root, "diff", "--name-only", _BASELINE, "--", *_UNMODIFIED).split()
+    assert changed == [], f"deferred files were modified: {changed}"
