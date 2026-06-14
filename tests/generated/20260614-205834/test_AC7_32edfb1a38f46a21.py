@@ -5,10 +5,21 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import subprocess
+from pathlib import Path
 
 AC_UID = "32edfb1a38f46a21"
 AC_TYPE = "data"
+
+_MUST_CONTAIN_ALL = ["docx", "pdf", "pptx", "xlsx", "redistribut"]
+
+
+def _repo_root() -> Path:
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    return Path(out.stdout.strip())
 
 
 def test_AC7():
@@ -20,7 +31,11 @@ def test_AC7():
     # check kind: file_exists_and_grep
     #   path="NOTICE"  must_exist=True
     #   must_contain_all=["docx","pdf","pptx","xlsx","redistribut"]
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — root NOTICE exists and contains all of docx/pdf/pptx/xlsx/redistribut")
+    notice = _repo_root() / "NOTICE"
+    assert notice.is_file(), "root NOTICE file does not exist"
+    text = notice.read_text()
+    for token in _MUST_CONTAIN_ALL:
+        assert token in text, f"NOTICE missing required token: {token}"
+    # Honest framing: a redistribution blocker, not a rights grant.
+    assert "frontend-design" in text, "NOTICE does not note skills/.archive/frontend-design/"
+    assert "LICENSE.txt" in text, "NOTICE does not state bundled skills retain own LICENSE.txt"
