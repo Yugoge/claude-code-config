@@ -5,10 +5,23 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import subprocess
+from pathlib import Path
 
 AC_UID = "b17a5deedfd78877"
 AC_TYPE = "data"
+
+# Fragment-assembled so this version-controlled test file is not a self-reference.
+_PATTERN = "claude-code" "-config"
+_EXCLUDE = ":(exclude)tests/generated/"
+
+
+def _repo_root() -> Path:
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    return Path(out.stdout.strip())
 
 
 def test_AC2():
@@ -18,7 +31,16 @@ def test_AC2():
     THEN:  git grep for claude-code-config returns zero hits and both files reference Yugoge/awesome-claude-harness
     """
     # check kind: git_grep_zero  pattern="claude-code-config"  scope=["."]  expect_hits=0
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — git grep 'claude-code-config' over repo must return 0 hits")
+    root = _repo_root()
+    res = subprocess.run(
+        ["git", "grep", "-nIE", _PATTERN, "--", ".", _EXCLUDE],
+        cwd=root, capture_output=True, text=True,
+    )
+    hits = [ln for ln in res.stdout.splitlines() if ln.strip()]
+    assert hits == [], "expected zero stale-repo-name references, found:\n" + "\n".join(hits)
+
+    current = "Yugoge/awesome-claude-harness"
+    nested = (root / "NESTED-REPO.md").read_text()
+    fswatch = (root / "docs" / "reference" / "git-fswatch.md").read_text()
+    assert current in nested, "NESTED-REPO.md does not reference the current remote"
+    assert current in fswatch, "git-fswatch.md does not reference the current remote"
