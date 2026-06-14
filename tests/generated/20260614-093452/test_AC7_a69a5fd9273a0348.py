@@ -46,7 +46,21 @@ def test_AC7():
         scope, NOT the legacy consumer behavior.
       - exit 0
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — /allow 'git stash' must GRANT scoped sentinel that allows 'git stash' but denies echo git/legit status/xgit/grep git file")
+    sid, task_id = fresh_ids()
+    try:
+        r = run_hook("/allow git stash", sid, task_id)
+        assert r["exit"] == 0, f"expected exit 0, got {r['exit']}; stderr={r['stderr']!r}"
+        assert r["legacy_written"] is True, "legacy flag must be written"
+        assert r["sentinel_written"] is True, "sentinel must be written"
+        assert r["legacy"]["pattern"] == "git stash"
+        assert r["legacy"]["is_regex"] is False
+
+        # Evaluate the EMITTED sentinel through the CURRENT consumer matcher.
+        allowed = match_sentinel_grant_for_bash_command(task_id, "git stash")
+        assert allowed is not None, "sentinel must AUTHORIZE the intended 'git stash'"
+        for unrelated in ["echo git", "legit status", "xgit", "grep git file"]:
+            denied = match_sentinel_grant_for_bash_command(task_id, unrelated)
+            assert denied is None, (
+                f"sentinel must DENY unrelated command {unrelated!r}; got {denied}")
+    finally:
+        cleanup(sid, task_id)
