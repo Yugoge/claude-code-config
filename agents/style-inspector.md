@@ -228,8 +228,8 @@ template_path = sys.argv[1] if len(sys.argv) > 1 else "template/default.html"
   "standard": "no-hardcoded-values",
   "severity": "critical",
   "location": "scripts/example.py:15",
-  "finding": "Hardcoded file path: open('data/plain_text_resume.yaml')",
-  "recommendation": "Accept path as CLI argument with default: parser.add_argument('--resume', default='data/plain_text_resume.yaml')"
+  "finding": "Hardcoded file path: open('data/input_data.yaml')",
+  "recommendation": "Accept path as CLI argument with default: parser.add_argument('--input', default='data/input_data.yaml')"
 }
 ```
 
