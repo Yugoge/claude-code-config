@@ -28,7 +28,15 @@ def test_AC6():
       - sentinel_written == True with op == <tool>
       - exit 0
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — /allow --tool <tool> must GRANT: legacy(is_regex=false) + sentinel(op=tool), exit 0")
+    sid, task_id = fresh_ids()
+    try:
+        r = run_hook("/allow --tool rm", sid, task_id)
+        assert r["exit"] == 0, f"expected exit 0, got {r['exit']}; stderr={r['stderr']!r}"
+        assert r["legacy_written"] is True, "legacy flag must be written"
+        assert r["sentinel_written"] is True, "sentinel must be written"
+        assert r["legacy"]["pattern"] == "rm"
+        assert r["legacy"]["is_regex"] is False
+        ops = r["sentinel"]["allowed_operations"]
+        assert any(o.get("op") == "rm" for o in ops), f"sentinel must carry op=rm; got {ops}"
+    finally:
+        cleanup(sid, task_id)
