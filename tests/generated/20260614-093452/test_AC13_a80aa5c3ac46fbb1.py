@@ -131,8 +131,8 @@ def test_AC13():
     anchor+bounded-literal rule (KIND-B inputs fail PART-2 even though a naive
     5-probe corpus might miss some).
     """
-    # ---- All KIND-A / KIND-B / KIND-C inputs MUST REFUSE ----
-    for raw in KIND_A + KIND_B + KIND_C:
+    # ---- All KIND-A / KIND-B / KIND-C + B1 inputs MUST REFUSE ----
+    for raw in KIND_A + KIND_B + KIND_C + KIND_B1_PREFIX_PLUS_UNIVERSAL:
         prompt = raw if raw.startswith("re:") else raw
         sid, task_id = fresh_ids()
         try:
