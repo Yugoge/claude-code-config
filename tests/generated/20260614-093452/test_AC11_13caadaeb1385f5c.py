@@ -52,7 +52,7 @@ def test_AC11():
     # NEGATIVE: refused SPECIFICALLY by the nested-quantifier detector.
     sid, task_id = fresh_ids()
     try:
-        rn = run_hook(negative, sid, task_id)
+        rn = run_hook(f"/allow {negative}", sid, task_id)
         assert rn["exit"] == 0, f"negative: expected exit 0, got {rn['exit']}"
         assert rn["legacy_written"] is False, "negative: no legacy flag"
         assert rn["sentinel_written"] is False, "negative: no sentinel"
