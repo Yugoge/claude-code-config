@@ -28,7 +28,7 @@ Powerful coding agents fail in three predictable, expensive ways:
 This config attacks all three with **structure, not vibes**:
 
 - **An orchestrator-only main agent** that is *mechanically prevented* from writing code, so the work always goes to a fresh, single-purpose specialist. (`hooks/pretool-orchestrator-gate.py`)
-- **A git-protection kernel** of layered PreToolUse hooks that refuse `commit / push / merge / reset --hard` unless a single-use, cryptographically-bound grant token authorizes that exact action. (`hooks/pretool-git-privilege-guard.py`, `/root/docs/git-protection-architecture.md`)
+- **A git-protection kernel** of layered PreToolUse hooks that refuse `commit / push / merge / reset --hard` unless a single-use, cryptographically-bound grant token authorizes that exact action. (implementation entry points: `hooks/pretool-git-privilege-guard.py`, `hooks/pretool-bulk-commit-detector.py`)
 - **A BA → QA-of-BA → Dev → QA pipeline** where every claim must carry evidence, the requirement's *verbatim* words are the binding contract, and the analysis is challenged *before* a line of code is written. (`commands/dev.md`, `agents/ba.md`, `agents/qa.md`)
 
 The result: an agent you can hand a vague bug report to at midnight and find a verified, committed fix for in the morning — without ever worrying it nuked `main`.
