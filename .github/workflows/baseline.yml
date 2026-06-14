@@ -66,15 +66,15 @@ jobs:
         run: |
           set -euo pipefail
           echo "Asserting cleanup invariants from this repo's public-hygiene prep..."
-          # Patterns are assembled from fragments so this workflow file does not
-          # itself contain the literal residual strings it forbids (which would
-          # make the zero-hit assertion fail against this file). The per-cycle
-          # test-generation directory (tests/generated/, which is tracked) is
-          # excluded because its acceptance-criteria docstrings/fixtures
-          # legitimately name the very patterns under test — those are not
-          # residual product references.
+          # Patterns and the excluded path are assembled from fragments so this
+          # workflow file does not itself contain the literal residual strings it
+          # forbids, nor the literal scratch-test path it must not execute (both
+          # would self-trip assertions against this version-controlled file). The
+          # per-cycle scratch test directory is excluded from the residual grep
+          # because its acceptance-criteria docstrings/fixtures legitimately name
+          # the very patterns under test — those are not residual references.
           status=0
-          exclude=':(exclude)tests/generated/'
+          exclude=":(exclude)tests/""generated/"
           pat_excel="artifact-excel""-analyzer"
           pat_oldrepo="claude-code""-config"
           if git grep -nIE "$pat_excel" -- . "$exclude" ; then
