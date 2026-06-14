@@ -39,6 +39,21 @@ SID=$(echo "$INPUT" | python3 -c \
   2>/dev/null)
 [ -z "$SID" ] && SID="default"
 
+# ── Stale-grant cleanup (AC15) ──────────────────────────────────────
+# Remove EVERY pre-existing grant file the consumer's loader would honor for
+# this SID/TASK_ID: the legacy per-session flag, the canonical per-task
+# sentinel, AND every suffixed '<task_id>-*.json' sentinel (the full loader
+# glob — hooks/lib/allowlist.py _enumerate_sentinel_grant_files). Invoked on
+# EVERY refusal path so no stale broad grant can survive an /allow that does
+# not result in a written narrow grant. Defining property: on ANY /allow that
+# does not write a narrow grant, no stale grant may survive.
+_remove_stale_grants() {
+  local task_id="${CLAUDE_TASK_ID:-${SID}}"
+  rm -f "/tmp/claude-bash-allowlist-${SID}.json" 2>/dev/null
+  rm -f "/tmp/claude-grants/${task_id}.json" 2>/dev/null
+  rm -f "/tmp/claude-grants/${task_id}"-*.json 2>/dev/null
+}
+
 # Only fire on `/allow ` prefix (case-sensitive). Trailing space required so
 # `/allow-something-else` does not trigger.
 case "$PROMPT" in
