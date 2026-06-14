@@ -380,7 +380,7 @@ A few principles run through every file here. They are the taste behind the proj
 
 **Does the orchestrator-only rule make simple edits slow?** For a one-line fix you can `/do` to let the main agent act directly for a turn. The delegation overhead is the price of consistent quality on real tasks — and the autonomous loop pays for itself overnight.
 
-**Can the agent disable its own guardrails?** That's the threat model the kernel is built against. Release commands are `disable-model-invocation: true` (an agent can't self-invoke them), the git privilege guard ignores `/do`, and grants are single-use and time-boxed. One honestly-documented residual (a shared `.git` common-dir during overnight worktrees) is called out, not hidden — see `commands/dev-overnight.md` and the incident docs.
+**Can the agent disable its own guardrails?** That's the threat model the kernel is built against. Release commands are `disable-model-invocation: true` (an agent can't self-invoke them), the git privilege guard ignores `/do`, and grants are single-use and time-boxed. One honestly-documented residual (a shared `.git` common-dir during overnight worktrees) is called out, not hidden — see `commands/dev-overnight.md`.
 
 **Is everything in this README real?** Yes — every capability traces to a file cited inline. A few items mentioned in older internal docs (e.g. a now-removed `orchestrator.md` agent, or a `subagentstop-cp-enforce.py` hook that is intentionally *not* wired) were deliberately left out of the claims above because the current code doesn't back them.
 
