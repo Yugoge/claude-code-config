@@ -1,13 +1,14 @@
 # .github
 
 <!-- AUTO:index-stats -->
-*Last updated: 2026-06-14T23:15:57Z*
-**Total entries**: 2
+*Last updated: 2026-06-14T23:16:10Z*
+**Total entries**: 3
 **Convention**: kebab
 
 ## Tree
 ```
 .github/
+├── `CODE_OF_CONDUCT.md` - Code of Conduct
 ├── `CONTRIBUTING.md` - Contributing
 └── `SECURITY.md` - Security Policy
 ```
