@@ -200,7 +200,7 @@ FOR each .md file in .claude/commands/ and .claude/agents/:
 1. **Hardcoded URLs/domains**: `https://...`, `http://...`, `s3://...`
 2. **Hardcoded file paths**: String literals containing `/`, `data/`, `docs/`, `template/`, etc. that are not derived from parameters or computed from `$PROJECT_ROOT`
 3. **Hardcoded directory names**: `WORK_DIR="data/work"`, `OUTPUT="data/output"` without parameter fallback
-4. **Hardcoded filenames**: `open("plain_text_resume.yaml")`, `TEMPLATE="harvard"` without parameter
+4. **Hardcoded filenames**: `open("input_data.yaml")`, `TEMPLATE="default"` without parameter
 5. **Hardcoded numeric constants**: Timeouts, retries, port numbers that should be configurable
 
 **What is NOT a violation** (use judgment):
