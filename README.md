@@ -137,7 +137,7 @@ flowchart TD
     class OK ok
 ```
 
-Four PreToolUse hooks form a chain; the innermost (`git-privilege-guard`) is **always-on** and unaffected even by `/do` consent. Grants are per-nonce files (`/tmp/claude-{commit,push}-grant-<sid>-<nonce>.json`), single-use, and time-boxed. The design is documented with 13 sanctioned/attack scenarios and 7 critical invariants in **`/root/docs/git-protection-architecture.md`**.
+Four PreToolUse hooks form a chain; the innermost (`git-privilege-guard`) is **always-on** and unaffected even by `/do` consent. Grants are per-nonce files (`/tmp/claude-{commit,push}-grant-<sid>-<nonce>.json`), single-use, and time-boxed. The design — 13 sanctioned/attack scenarios and 7 critical invariants — is implemented across the chain's entry points: `hooks/pretool-git-privilege-guard.py`, `hooks/pretool-bulk-commit-detector.py`, `hooks/pretool-orchestrator-gate.py`.
 
 ### The overnight autonomous pipeline
 
