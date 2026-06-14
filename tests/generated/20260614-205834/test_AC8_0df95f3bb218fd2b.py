@@ -5,10 +5,32 @@
 # above (AC_UID, AC_TYPE, docstring) MUST be preserved verbatim so QA can
 # trace each test back to its source AC entry.
 
-import pytest
+import subprocess
+from pathlib import Path
 
 AC_UID = "0df95f3bb218fd2b"
 AC_TYPE = "data"
+
+_ANY_OF = [["CONTRIBUTING.md", ".github/CONTRIBUTING.md"]]
+_ALL_PATHS = [
+    ".github/SECURITY.md",
+    ".github/CODE_OF_CONDUCT.md",
+    ".github/PULL_REQUEST_TEMPLATE.md",
+]
+_DIR_MIN_FILES = {".github/ISSUE_TEMPLATE": 1}
+_SECURITY_CONTAINS = ["secret", "disclos"]
+
+
+def _repo_root() -> Path:
+    out = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    )
+    return Path(out.stdout.strip())
+
+
+def _nonempty(p: Path) -> bool:
+    return p.is_file() and bool(p.read_text().strip())
 
 
 def test_AC8():
@@ -22,7 +44,22 @@ def test_AC8():
     #   all_paths=[".github/SECURITY.md",".github/CODE_OF_CONDUCT.md",".github/PULL_REQUEST_TEMPLATE.md"]
     #   dir_min_files={".github/ISSUE_TEMPLATE": 1}
     #   security_contains=["secret","disclos"]
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — community files exist non-empty (CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, PR template, >=1 issue template) and SECURITY.md references secret + disclosure")
+    root = _repo_root()
+
+    for group in _ANY_OF:
+        assert any(_nonempty(root / c) for c in group), (
+            f"none of {group} exist non-empty"
+        )
+
+    for rel in _ALL_PATHS:
+        assert _nonempty(root / rel), f"{rel} missing or empty"
+
+    for rel, minimum in _DIR_MIN_FILES.items():
+        d = root / rel
+        assert d.is_dir(), f"{rel} directory missing"
+        files = [p for p in d.iterdir() if p.is_file() and _nonempty(p)]
+        assert len(files) >= minimum, f"{rel} has fewer than {minimum} templates"
+
+    sec = (root / ".github" / "SECURITY.md").read_text().lower()
+    for token in _SECURITY_CONTAINS:
+        assert token in sec, f"SECURITY.md does not reference '{token}'"
