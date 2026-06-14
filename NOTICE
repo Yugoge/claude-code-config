@@ -20,12 +20,19 @@ transfer:
   - skills/pptx/   (retains skills/pptx/LICENSE.txt)
   - skills/xlsx/   (retains skills/xlsx/LICENSE.txt)
 
-In addition, the following archived skill retains the same restrictive terms:
-
-  - skills/.archive/frontend-design/  (retains its own LICENSE.txt)
-
 Nothing in this NOTICE or in the root LICENSE grants any right to redistribute
 these bundled components. Their own LICENSE.txt governs them.
+
+-------------------------------------------------------------------------------
+OTHER BUNDLED THIRD-PARTY MATERIAL (PERMISSIVELY LICENSED — NOT A BLOCKER)
+-------------------------------------------------------------------------------
+
+The following bundled material carries a permissive license that DOES allow
+redistribution under its own terms (it is NOT part of the redistribution
+blocker above; it is listed here only for attribution):
+
+  - skills/.archive/frontend-design/  (Apache License 2.0; retains its own
+    LICENSE.txt)
 
 -------------------------------------------------------------------------------
 RELEASE BLOCKER — NOT YET SAFE FOR PUBLIC REDISTRIBUTION
