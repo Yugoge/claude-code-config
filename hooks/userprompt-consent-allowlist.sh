@@ -5,9 +5,17 @@
 # Step 0: if agent_id is present in the hook JSON input, exit 0 without writing
 #         (subagent write-firewall — defense in depth with consume-path check).
 # Step 1: extract prompt + session_id; detect `/allow ` prefix (case-sensitive).
-# Step 2: write /tmp/claude-bash-allowlist-<sid>.json with {pattern, is_regex}.
+# Step 2: derive an EXPLICIT, NARROWLY-scoped grant pattern from the argument.
+#         REFUSE-BY-DEFAULT: when no explicit command pattern can be derived
+#         (empty arg, no leading-ASCII command token, missing/empty flag operand,
+#         empty/vacuous re: body) OR the derived regex is effectively universal
+#         (matches commands unrelated to a named token), the hook writes NO grant
+#         on EITHER channel, removes any stale grant, prints a usage error, and
+#         exits 0 without wedging the session. There is NO wildcard fallback.
 #         Pattern passed via env var — never shell-interpolated into Python source.
-# Step 3: log to ~/.claude/logs/bash-consent.log; echo status to stdout.
+# Step 3: on an explicit narrow grant only: write the legacy flag
+#         /tmp/claude-bash-allowlist-<sid>.json with {pattern, is_regex} AND the
+#         structured per-task sentinel; log to ~/.claude/logs/bash-consent.log.
 #
 # Exit 0 always. Stop hook (stop-cleanup-allowlist.sh) wipes any unconsumed flag.
 set -u
