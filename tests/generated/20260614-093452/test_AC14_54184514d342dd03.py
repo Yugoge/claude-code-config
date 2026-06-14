@@ -41,7 +41,18 @@ def test_AC14():
 
     must_refuse_inputs: ['re:', "re:''", 're:""']
     """
-    # TODO(dev): replace the line below with the real test body. While the
-    # TEST_INCOMPLETE sentinel is present the test will hard-fail, marking
-    # the AC as unimplemented for QA Phase 5.
-    pytest.fail(f"TEST_INCOMPLETE: {AC_UID} — empty/quote-only re: bodies ('re:', \"re:''\", 're:\"\"') must refuse before Point-C fallback (which must be deleted): no legacy, no sentinel, usage error, exit 0")
+    # (a) empty body, (b) empty single-quoted body, (c) empty double-quoted body.
+    must_refuse = ["re:", "re:''", 're:""']
+    for body in must_refuse:
+        sid, task_id = fresh_ids()
+        try:
+            r = run_hook(f"/allow {body}", sid, task_id)
+            assert r["exit"] == 0, f"{body!r}: expected exit 0, got {r['exit']}"
+            assert r["legacy_written"] is False, (
+                f"{body!r}: MUST refuse — empty/vacuous re: body must not become "
+                f"the wildcard via a Point-C fallback (no legacy flag)")
+            assert r["sentinel_written"] is False, f"{body!r}: MUST refuse (no sentinel)"
+            assert stderr_has_usage_error(r["stderr"]), (
+                f"{body!r}: usage error expected; stderr={r['stderr']!r}")
+        finally:
+            cleanup(sid, task_id)
