@@ -352,6 +352,11 @@ else:
     print('OK')
 " 2>/dev/null)
   if [ "$STRUCT_CHECK" = "REJECT" ]; then
+    # AC15 uniformity: the nested-quantifier rejection is a REFUSAL too — it
+    # writes no narrow grant — so it MUST remove any pre-existing stale grant
+    # across the full loader glob before exiting, exactly like the refuse gate.
+    # The distinct nested-quantifier stderr message (required by AC11) is kept.
+    _remove_stale_grants
     echo "[allow] ERROR: pattern rejected — contains nested quantifier (e.g., (a+)+, (a*)*) which risks catastrophic backtracking." >&2
     echo "[allow] Use a more specific literal pattern or a bounded-quantifier regex instead." >&2
     exit 0
