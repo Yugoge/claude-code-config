@@ -268,7 +268,7 @@ The hooks are wired in `settings.json` and activate on the next session. Try the
 │   ├── doc_sync/      #   self-updating INDEX/README/CLAUDE regeneration
 │   └── git-keystone/  #   git-native ref protection
 ├── scripts/           # 70+ helper scripts (graphify, spec resolver, grant writers, …)
-├── skills/            # 12 skills: docx/pdf/pptx/xlsx + Playwright UI-audit suite
+├── skills/            # 8 skills: Playwright UI-audit suite
 ├── schemas/           # JSON schemas (e.g. cycle-contract.v1.json)
 ├── templates/         # spec + settings templates
 ├── tests/             # test infra; tests/generated/ holds AC-driven pytest skeletons
