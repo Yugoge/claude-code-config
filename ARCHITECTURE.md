@@ -94,7 +94,7 @@ flowchart TD
 - **Command surface (`commands/*.md`).** 35 slash commands. Each is a prompt that scripts a workflow (parse → dispatch → validate → ship). Release/control commands carry `disable-model-invocation: true` so an agent cannot self-invoke them.
 - **Subagent fleet (`agents/*.md`).** 23 specialists, each a system prompt with `name`/`description`/`tools` frontmatter. Subagents bypass the orchestrator gate (they are *supposed* to do work) but are still subject to the safety, git, and worktree hooks.
 - **Hook enforcement (`settings.json` + `hooks/`).** The kernel. Every tool call the agent makes is intercepted; hooks return exit 2 to block. Shared logic lives in `hooks/lib/` (allowlist/sentinel grants, checkpoint core, contract runtime, agent resolver).
-- **Support.** `scripts/` (72 helpers: grant writers, graphify code-graph, spec/dev-report resolvers), `skills/` (12: Office + Playwright UI-audit suite), `schemas/` (JSON contracts like `context.v1.json`, `cycle-contract.v1.json`, `dev-report.v1.json`, `qa-report.v1.json`), `templates/` (`spec-template.md`, `overnight-spec.md`).
+- **Support.** `scripts/` (72 helpers: grant writers, graphify code-graph, spec/dev-report resolvers), `skills/` (8: Playwright UI-audit suite), `schemas/` (JSON contracts like `context.v1.json`, `cycle-contract.v1.json`, `dev-report.v1.json`, `qa-report.v1.json`), `templates/` (`spec-template.md`, `overnight-spec.md`).
 
 ### The 23 subagents (by role)
 
