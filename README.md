@@ -278,6 +278,7 @@ The hooks are wired in `settings.json` and activate on the next session. Try the
 A `PostToolUse` doc-sync hook keeps `INDEX.md` files and the inventory block below current automatically; manual prose outside the `<!-- AUTO:… -->` markers is always preserved.
 
 <!-- AUTO:readme-stats -->
+
 ## Overview
 - **Total files**: 16
 - **Subdirectories**: 10
