@@ -4,49 +4,42 @@ NOTICE
 This repository (awesome-claude-harness) is licensed under the MIT License for
 its own code — see the root LICENSE file. That MIT grant covers ONLY the
 harness's own code and documentation. It does NOT extend to the third-party
-components listed below.
+components listed below, each of which is bundled under its own permissive
+license and is redistributable on its own terms.
 
 -------------------------------------------------------------------------------
-BUNDLED NON-REDISTRIBUTABLE COMPONENTS (UNRESOLVED REDISTRIBUTION BLOCKER)
+BUNDLED THIRD-PARTY MATERIAL (PERMISSIVELY LICENSED)
 -------------------------------------------------------------------------------
 
-The following bundled skill directories carry their own, more restrictive
-licenses (each retains its own LICENSE.txt, © Anthropic, PBC). Their terms
-PROHIBIT reproduction, derivative works, and redistribution/sublicensing/
-transfer:
+The following bundled material carries its own permissive license. It is listed
+here for attribution; each component's own license governs that component and
+permits redistribution under its terms:
 
-  - skills/docx/   (retains skills/docx/LICENSE.txt)
-  - skills/pdf/    (retains skills/pdf/LICENSE.txt)
-  - skills/pptx/   (retains skills/pptx/LICENSE.txt)
-  - skills/xlsx/   (retains skills/xlsx/LICENSE.txt)
+  - skills/.archive/frontend-design/
+      Apache License 2.0. Retains its own LICENSE.txt.
 
-Nothing in this NOTICE or in the root LICENSE grants any right to redistribute
-these bundled components. Their own LICENSE.txt governs them.
+  - skills/ui-axe-injector/vendor/axe.min.js
+      axe-core © 2015–2024 Deque Systems, Inc., distributed under the
+      Mozilla Public License, v. 2.0 (MPL-2.0). The copyright notice is
+      preserved in the file header as that license requires.
 
--------------------------------------------------------------------------------
-OTHER BUNDLED THIRD-PARTY MATERIAL (PERMISSIVELY LICENSED — NOT A BLOCKER)
--------------------------------------------------------------------------------
-
-The following bundled material carries a permissive license that DOES allow
-redistribution under its own terms (it is NOT part of the redistribution
-blocker above; it is listed here only for attribution):
-
-  - skills/.archive/frontend-design/  (Apache License 2.0; retains its own
-    LICENSE.txt)
+All other content under skills/ (the ui-* review suite and
+skills/.archive/product-self-knowledge/) is the harness author's own work and
+is covered by the root MIT LICENSE.
 
 -------------------------------------------------------------------------------
-RELEASE BLOCKER — NOT YET SAFE FOR PUBLIC REDISTRIBUTION
+REMOVED: PREVIOUSLY-BUNDLED NON-REDISTRIBUTABLE SKILLS
 -------------------------------------------------------------------------------
 
-Because the bundled components above are non-redistributable, this repository as
-a whole is NOT yet safe to redistribute publicly. This is an OPEN, UNRESOLVED
-redistribution blocker.
+Earlier revisions of this repository bundled four Anthropic Office Skills
+(skills/docx, skills/pdf, skills/pptx, skills/xlsx), each carrying a
+"© 2025 Anthropic, PBC. All rights reserved." LICENSE.txt that prohibited
+reproduction, derivative works, and redistribution. Those directories have
+been REMOVED from the tracked tree because their terms were incompatible with
+public redistribution. They are not present in this release, and no
+redistribution blocker arising from them remains open.
 
-Resolving it is a deferred product decision (a roadmap item), achieved by
-REMOVING the bundled non-redistributable skills (and replacing them with stub
-pointers to their authorized install sources) or by re-licensing them with the
-rights holder's permission. Until that removal/relicense happens, do not
-redistribute this repository publicly.
+-------------------------------------------------------------------------------
 
-This NOTICE documents the conflict honestly; it does not, and cannot, grant
-redistribution rights over the bundled components.
+This NOTICE documents bundled third-party attribution honestly. Nothing here
+grants rights beyond those granted by each component's own license.
