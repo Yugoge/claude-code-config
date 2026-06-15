@@ -32,8 +32,8 @@ REMOVED: PREVIOUSLY-BUNDLED NON-REDISTRIBUTABLE SKILLS
 -------------------------------------------------------------------------------
 
 Earlier revisions of this repository bundled four Anthropic Office Skills
-(skills/docx, skills/pdf, skills/pptx, skills/xlsx), each carrying a
-"© 2025 Anthropic, PBC. All rights reserved." LICENSE.txt that prohibited
+(skills/docx, skills/pdf, skills/pptx, skills/xlsx), each carrying an Anthropic,
+PBC proprietary LICENSE.txt that reserved all rights and prohibited
 reproduction, derivative works, and redistribution. Those directories have
 been REMOVED from the tracked tree because their terms were incompatible with
 public redistribution. They are not present in this release, and no
