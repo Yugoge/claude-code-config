@@ -77,7 +77,7 @@ flowchart TD
 
     subgraph L4[Support]
       SCR[scripts/ — grant writers, graphify, resolvers]
-      SK[skills/ — Playwright UI audit suite]
+      SK[skills/ — docx/pdf/pptx/xlsx + UI audit]
       SCH[schemas/ + templates/]
     end
 
@@ -328,7 +328,7 @@ flowchart LR
 │   └── git-keystone/        #   git-native ref-transaction protection
 ├── scripts/                 # 72 helper scripts (graphify, grant writers, spec/dev-report resolvers, ...)
 │   └── install/             #   install helpers
-├── skills/                  # Playwright UI-audit suite (ui-*) + archived frontend-design
+├── skills/                  # 12 skills: docx/pdf/pptx/xlsx + Playwright UI-audit suite (ui-*)
 ├── schemas/                 # JSON contracts: context.v1, cycle-contract.v1, dev-report.v1, qa-report.v1, ...
 ├── templates/               # spec-template.md, overnight-spec.md, settings template
 ├── tests/                   # test infra; tests/generated/ holds AC-driven pytest skeletons + manifest.json

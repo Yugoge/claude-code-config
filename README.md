@@ -11,7 +11,7 @@ It is not a prompt pack. It is an operating system for agents, with a scheduler,
 <img alt="commands" src="https://img.shields.io/badge/slash%20commands-35-1565c0"> 
 <img alt="hooks" src="https://img.shields.io/badge/lifecycle%20hooks-42%20wired-c62828"> 
 <img alt="scripts" src="https://img.shields.io/badge/helper%20scripts-70%2B-2e7d32"> 
-<img alt="skills" src="https://img.shields.io/badge/skills-8-e67e22"> 
+<img alt="skills" src="https://img.shields.io/badge/skills-12-e67e22"> 
 <img alt="license" src="https://img.shields.io/badge/runs%20on-Claude%20Code-000000">
 </p>
 
@@ -79,7 +79,7 @@ The main agent's job is to *think and route*. Every byte of code is written by a
 | **Generated acceptance tests** | For risky/complex tasks, a `test-writer` agent emits pytest skeletons with `pytest.fail("TEST_INCOMPLETE:…")` hard-stops that Dev must satisfy. | `agents/test-writer.md`, `tests/generated/manifest.json` |
 | **Adversarial second opinion** | Add `--codex` to `/dev`, `/close`, or `/commit` to run an OpenAI Codex round against the agent's draft before it's accepted. | `commands/dev.md`, `commands/codex.md` |
 | **Deep research harness** | `/deep-search`, `/research-deep`, `/search-tree`, `/reflect-search` run fan-out, fact-checked, multi-source web research. | `commands/deep-search.md` |
-| **UI-audit skills** | A Playwright-driven UI review suite (axe-core, APCA contrast, anti-pattern catalog, beauty score). | `skills/` |
+| **Office + UI-audit skills** | First-class `docx/pdf/pptx/xlsx` document skills, plus a Playwright-driven UI review suite (axe-core, APCA contrast, beauty score). | `skills/` |
 
 ---
 
@@ -268,7 +268,7 @@ The hooks are wired in `settings.json` and activate on the next session. Try the
 │   ├── doc_sync/      #   self-updating INDEX/README/CLAUDE regeneration
 │   └── git-keystone/  #   git-native ref protection
 ├── scripts/           # 70+ helper scripts (graphify, spec resolver, grant writers, …)
-├── skills/            # Playwright UI-audit suite (ui-* skills) + archived frontend-design
+├── skills/            # 12 skills: docx/pdf/pptx/xlsx + Playwright UI-audit suite
 ├── schemas/           # JSON schemas (e.g. cycle-contract.v1.json)
 ├── templates/         # spec + settings templates
 ├── tests/             # test infra; tests/generated/ holds AC-driven pytest skeletons
@@ -280,16 +280,14 @@ A `PostToolUse` doc-sync hook keeps `INDEX.md` files and the inventory block bel
 <!-- AUTO:readme-stats -->
 
 ## Overview
-- **Total files**: 64
+- **Total files**: 62
 - **Subdirectories**: 34
 - **Naming convention**: lower
 
 ## Files
 - `ARCHITECTURE.md` - Architecture — `.claude` Agent Operating System
 - `CLAUDE.md` - CLAUDE.md
-- `LICENSE` - unknown file
 - `NESTED-REPO.md` - Nested Repo Sentinel
-- `NOTICE` - unknown file
 - `history.jsonl` - jsonl file
 - `mcp-needs-auth-cache.json` - json config
 - `playwright-storage-state.json` - json config

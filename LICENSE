@@ -26,12 +26,11 @@ SCOPE OF THIS LICENSE
 This MIT license covers ONLY the code, configuration, hooks, scripts, agents,
 commands, and documentation authored for this repository ("the harness").
 
-It does NOT cover, and grants NO rights over, the third-party components bundled
-in this tree that carry their own licenses — namely
-skills/.archive/frontend-design/ (Apache License 2.0) and the vendored axe-core
-in skills/ui-axe-injector/vendor/ (Mozilla Public License 2.0). Each of those is
-redistributable under its own license. See the root NOTICE file for the
-authoritative attribution list.
+It does NOT cover, and grants NO rights over, third-party components bundled in
+this tree that carry their own, more restrictive licenses. In particular it
+does NOT apply to the bundled skill directories that retain their own
+LICENSE.txt and their own terms. See the root NOTICE file for the authoritative
+list and the redistribution constraints those bundled components impose.
 
-Where this license and a bundled component's own license conflict, the bundled
-component's own license governs that component.
+Where this license and a bundled component's own LICENSE.txt conflict, the
+bundled component's own LICENSE.txt governs that component.
