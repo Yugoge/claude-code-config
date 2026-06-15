@@ -10070,21 +10070,6 @@ dot-claude/
 │   ├── `snapshot-bash-1781460669410-scvmk3.sh` - Snapshot file
 │   └── `snapshot-bash-1781460743787-1a3514.sh` - Snapshot file
 ├── skills/
-│   ├── docx/
-│   │   ├── `docx-js.md` - DOCX Library Tutorial
-│   │   ├── `LICENSE.txt` - txt file
-│   │   └── `SKILL.md` - Comprehensive document creation, editing, and analysis with support for tracked changes, comments, formatting preservation, and text extraction. When Claude needs to work with professional documents (.docx files) for: (1) Creating new documents, (2) Modifying or editing content, (3) Working with tracked changes, (4) Adding comments, or any other document tasks
-│   ├── pdf/
-│   │   ├── `FORMS.md` - Fillable fields
-│   │   ├── `LICENSE.txt` - txt file
-│   │   ├── `REFERENCE.md` - PDF Processing Advanced Reference
-│   │   └── `SKILL.md` - Comprehensive PDF manipulation toolkit for extracting text and tables, creating new PDFs, merging/splitting documents, and handling forms. When Claude needs to fill in a PDF form or programmatically process, generate, or analyze PDF documents at scale.
-│   ├── pptx/
-│   │   ├── `css.md` - Global CSS Framework Reference
-│   │   ├── `html2pptx.md` - HTML to PowerPoint Guide
-│   │   ├── `LICENSE.txt` - txt file
-│   │   ├── `ooxml.md` - Office Open XML Technical Reference for PowerPoint
-│   │   └── `SKILL.md` - Presentation creation, editing, and analysis. When Claude needs to work with presentations (.pptx files) for: (1) Creating new presentations, (2) Modifying or editing content, (3) Working with layouts, (4) Adding comments or speaker notes, or any other presentation tasks
 │   ├── ui-anti-pattern-catalog/
 │   │   └── `SKILL.md` - Apply the 58-rule anti-pattern catalog (10 Color + 5 Motion + 5 Typography + 5 Spacing + 2 Glass + 5 Heuristic + 4 UX-Writing + 5 Form + 4 Interactive + 5 Nielsen + 8 AI-slop) against a Playwright page. Outputs aesthetic_findings[] with category=hard_defect|taste_heuristic, with the SCHEMA-ENFORCED severity hard-cap on taste_heuristic at minor + advisory:true. Use during ui-specialist Phases 4.5/5/6.5.
 │   ├── ui-apca-contrast/
