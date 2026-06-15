@@ -77,7 +77,7 @@ flowchart TD
 
     subgraph L4[Support]
       SCR[scripts/ — grant writers, graphify, resolvers]
-      SK[skills/ — docx/pdf/pptx/xlsx + UI audit]
+      SK[skills/ — Playwright UI-audit suite ui-*]
       SCH[schemas/ + templates/]
     end
 
