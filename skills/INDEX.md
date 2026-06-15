@@ -1,7 +1,7 @@
 # skills
 
 *Last updated: 2026-06-01T06:46:35Z*
-**Total entries**: 40
+**Total entries**: 25
 **Convention**: kebab
 
 ## Tree
