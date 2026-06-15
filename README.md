@@ -79,7 +79,7 @@ The main agent's job is to *think and route*. Every byte of code is written by a
 | **Generated acceptance tests** | For risky/complex tasks, a `test-writer` agent emits pytest skeletons with `pytest.fail("TEST_INCOMPLETE:…")` hard-stops that Dev must satisfy. | `agents/test-writer.md`, `tests/generated/manifest.json` |
 | **Adversarial second opinion** | Add `--codex` to `/dev`, `/close`, or `/commit` to run an OpenAI Codex round against the agent's draft before it's accepted. | `commands/dev.md`, `commands/codex.md` |
 | **Deep research harness** | `/deep-search`, `/research-deep`, `/search-tree`, `/reflect-search` run fan-out, fact-checked, multi-source web research. | `commands/deep-search.md` |
-| **Office + UI-audit skills** | First-class `docx/pdf/pptx/xlsx` document skills, plus a Playwright-driven UI review suite (axe-core, APCA contrast, beauty score). | `skills/` |
+| **UI-audit skill suite** | A Playwright-driven UI review suite — axe-core injection, APCA contrast, anti-pattern catalog, state matrix, token conformance, and a weighted beauty score. | `skills/` |
 
 ---
 
